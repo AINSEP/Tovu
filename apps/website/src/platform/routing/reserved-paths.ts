@@ -9,14 +9,18 @@
  * So a "site path" a caller hands to a public-site feature can silently name the authenticated
  * surface instead. Several features need to refuse that, and each one refusing it slightly
  * differently is how a bypass gets built: `site-inspection`'s `published_page_fetch` (which claims
- * to fetch a PUBLISHED PAGE) and `redirects`'s write chokepoint (which stores a `Location` the
- * server later sends to a visitor's browser) are the two live consumers today.
+ * to fetch a PUBLISHED PAGE) and `redirects` (its write chokepoint, which stores a `Location`
+ * target, and its read gate, which checks the interpolated `Location` a visitor's browser receives)
+ * are the live consumers today.
  *
  * Why the rule is not `path.startsWith("/admin")`:
  * - `/administer-survey` is ordinary site content and must keep working, so the comparison is per
  *   SEGMENT, not per prefix.
- * - `/%61dmin` is `/admin` to every browser and server that decodes it, so the comparison happens
- *   AFTER one percent-decode, not on the raw bytes.
+ * - `/%61dmin` is compared AFTER one percent-decode, not on the raw bytes. Express (which routes on
+ *   the raw path) and browsers (which do not decode `%61` in a path) do NOT treat it as `/admin`; a
+ *   proxy or server that decodes before routing does. Refusing it is deliberate over-refusal — the
+ *   safe direction for a rule whose job is to keep public redirects and fetches off the admin
+ *   surface.
  * - `/ADMIN` reaches the same Express mount (Express matches paths case-insensitively by default),
  *   so the comparison is case-folded.
  * - `/blog/../admin` is `/admin` by the time a browser issues the request, so dot segments are
@@ -110,15 +114,16 @@ function resolveDotSegments(path: string): string {
 
 /**
  * The actual per-segment rule, on a pathname string that is guaranteed to have come from a real
- * `URL` (see {@link checkSitePathname}, this function's only two callers). Kept private: a bare
+ * `URL` (see {@link checkSitePathname}, this function's only caller). Kept private: a bare
  * string carries no proof it was ever parsed — the query/fragment stripping, dot-segment removal
- * relative to a real origin, etc. are exactly what `new URL()` already did before either caller
+ * relative to a real origin, etc. are exactly what `new URL()` already did before that caller
  * reaches this. Do not export this directly.
  *
  * Order is load-bearing: decode ONCE, then resolve dot segments, then compare the first segment
- * case-folded. Decoding first is what catches `/%61dmin`; resolving dot segments after the decode
- * is what catches `/blog/%2e%2e/admin`. A single decode pass matches what a browser and Express
- * actually do — `/%2561dmin` decodes to `/%61dmin`, which is genuinely not `/admin` on the wire.
+ * case-folded. Decoding first is what catches `/%61dmin` (over-refusal for Express and browsers, a
+ * real match for a decoding proxy — see the module doc); resolving dot segments after the decode is
+ * what catches `/blog/%2e%2e/admin`. Exactly one decode pass models one decoding intermediary:
+ * `/%2561dmin` would need two, so it stays allowed.
  *
  * @param pathname - An already-parsed `URL`'s `.pathname` (no query, no fragment).
  * @returns `{ kind: "ok" }` when it is ordinary site content; otherwise the arm naming the refusal.
@@ -147,6 +152,14 @@ function checkDecodedSitePathname(pathname: string): SitePathCheck {
  * form a URL parser would actually produce. A caller that only has a raw string — a stored redirect
  * target, anything from user input — must go through {@link checkSiteRelativeTarget} instead, which
  * parses it (and rejects what doesn't parse) before this check ever runs.
+ *
+ * PRECONDITION: the caller has already established that `url` is on the site's own origin. This
+ * function reads only `pathname`, so `new URL("//admin", base)` (host `admin`, pathname `/`)
+ * returns `ok`. It deliberately does not compare origins itself: `platform/routing` cannot use
+ * `features/origin`'s normalizer, and a string `URL.origin` comparison is wrong for redirect
+ * candidates (`https://site./admin`). Callers: `checkSiteRelativeTarget` (probe-origin check),
+ * `site-inspection`'s `resolveWithinOrigin`, and `features/redirects/reserved-destination.ts` (the
+ * origin oracle's `isSameOrigin`).
  *
  * @param url - An already-parsed `URL`; only `url.pathname` is read.
  * @returns `{ kind: "ok" }` when it is ordinary site content; otherwise the arm naming the refusal.
