@@ -77,6 +77,30 @@
  * it would conflate two unrelated things that merely share a word.
  *
  * ---------------------------------------------------------------------------
+ * Writers never rewrite what they could not read (2026-09-16, t91 F1.1)
+ * ---------------------------------------------------------------------------
+ * Every writer below used to build its next state from {@link readAgentPluginActivations}'s LENIENT
+ * view — the same "unreadable folds to empty" read that is correct for discovery — and then wrote
+ * that view straight back out. Against a corrupt file, that laundered every operator decision inside
+ * it into a fresh, well-formed file recording NOTHING: a disabled plugin's `enabled: false` record
+ * simply vanished, and "absent means active" (this header, above) turned it active again. A second,
+ * narrower arm of the same bug survived even a whole-file fix: the writers built their next state
+ * from the NORMALIZED bag, which silently drops any single malformed entry — so toggling one
+ * unrelated plugin was enough to erase a neighboring entry the gate was correctly treating as
+ * `undetermined` (denied), re-admitting it as `active` the moment the rewrite landed.
+ *
+ * The rule now: every writer reads the RAW `plugins` bag with {@link readPluginsBagStrict} — which
+ * throws {@link AgentPluginActivationsUnreadableError} on an unreadable file instead of returning an
+ * empty one — and edits that raw bag directly, preserving byte-for-byte every entry it is not the
+ * one changing (malformed or not). `absent` (no file yet) still starts empty, so a first boot seeds
+ * exactly as before; only a file that EXISTS and cannot be read, parsed, or shape-checked refuses.
+ *
+ * The boot consequence is `seed-bundled.ts`'s to own (see that file's header): a corrupt file makes
+ * the seeder install nothing and report every bundled plugin `failed`, rather than write around the
+ * fault. Nothing here throws on the read `readAgentPluginActivations` itself still uses for
+ * discovery — that reader, and its "absent/unreadable both fold to empty" contract, are unchanged.
+ *
+ * ---------------------------------------------------------------------------
  * Concurrency
  * ---------------------------------------------------------------------------
  * Writes are write-temp-then-`rename`, so a reader never observes a half-written file. Two
@@ -160,10 +184,12 @@ export function filterActiveAgentPlugins<T>(
  * @returns The parsed record, or an empty one when the file does not exist yet — which is the
  * normal state for a workspace that has never installed or been seeded anything.
  * @throws Nothing for a missing, unreadable, malformed, or wrong-version file: all of those return
- * an empty record. That is fail-OPEN, and it is the correct direction here specifically because the
- * seeder re-writes the bundled plugin's disabled record on every boot — a corrupted file therefore
- * cannot leave a bundled plugin active, while fail-CLOSED would let one bad byte silently disable
- * every plugin an operator actually installed, with no error surface to notice it by.
+ * an empty record. That is fail-OPEN, and it is the correct direction here specifically because this
+ * reader is used for DISCOVERY only — nothing that SPENDS a capability or WRITES the file uses it
+ * any more (t91 F1.1, 2026-09-16): the per-call tool gate and run-start injection both use the
+ * fail-CLOSED {@link resolveAgentPluginActivation}, and every writer below reads the strict raw bag
+ * and refuses outright on an unreadable file (see this file's header, "Writers never rewrite what
+ * they could not read").
  * @complexity O(p) in the recorded plugin count.
  */
 export async function readAgentPluginActivations(workspaceRoot: string): Promise<AgentPluginActivations> {
@@ -226,6 +252,80 @@ function errorCode(error: unknown): string | undefined {
  *  must keep it in a server-side log and out of any model- or user-facing payload). */
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** A WRITER (or the strict provenance read) found the activations file present but unreadable, and
+ *  refused rather than rewrite it — see this file's header, "Writers never rewrite what they could
+ *  not read". `message` names the host path: keep it in a server-side log, never in a model- or
+ *  user-facing payload. */
+export class AgentPluginActivationsUnreadableError extends Error {
+  constructor(
+    readonly filePath: string,
+    readonly reason: string,
+  ) {
+    super(
+      `agent-plugin activation: ${reason} (${filePath}). The file was left untouched and nothing was written, so no ` +
+        "recorded enable/disable decision was lost. Until it is repaired, this workspace's Agent Plugin tool calls " +
+        "and plugin-pinned runs are refused, and no Agent Plugin can be enabled, disabled, seeded or uninstalled. " +
+        "To recover, fix the JSON by hand; or stop Tovu, move the file aside and start Tovu again — bundled plugins " +
+        "are then recorded as disabled again, but every operator-installed plugin you had disabled starts enabled " +
+        "and must be disabled again.",
+    );
+    this.name = "AgentPluginActivationsUnreadableError";
+  }
+}
+
+/** Every `plugins` entry exactly as parsed — malformed ones included — which is what a writer edits
+ *  so a malformed sibling entry survives a toggle of a different plugin byte-for-byte. */
+type RawPluginsBag = Readonly<Record<string, unknown>>;
+
+/**
+ * The strict read every writer uses: `absent` (no file yet) is an empty bag, same as
+ * {@link readAgentPluginActivations}; a file that exists but cannot be read, parsed, or
+ * shape-checked refuses instead of folding to empty.
+ *
+ * @throws {AgentPluginActivationsUnreadableError} The file exists but cannot be read.
+ * @complexity One file read plus one `JSON.parse` in the file's own size.
+ */
+async function readPluginsBagStrict(workspaceRoot: string): Promise<RawPluginsBag> {
+  const document = await readActivationsDocument(workspaceRoot);
+  if (document.kind === "unreadable") {
+    throw new AgentPluginActivationsUnreadableError(path.join(workspaceRoot, ACTIVATIONS_FILENAME), document.reason);
+  }
+  return document.kind === "entries" ? document.entries : {};
+}
+
+/** Whether the RAW entry for `pluginId` records `origin: "bundled"` — read raw so a malformed
+ *  entry's provenance still survives a toggle. `Object.hasOwn`, not a plain lookup, for the same
+ *  `Object.prototype` reason {@link resolveAgentPluginActivation} uses it. @complexity O(1). */
+function isRecordedAsBundled(bag: RawPluginsBag, pluginId: string): boolean {
+  if (!Object.hasOwn(bag, pluginId)) return false;
+  const entry = bag[pluginId];
+  return isPlainObject(entry) && entry.origin === "bundled";
+}
+
+/**
+ * Pre-flight for a caller about to do work whose record it must then write — the boot seeder calls
+ * this BEFORE installing anything, so a bundled package never lands on disk without the activation
+ * record that would keep it inactive.
+ *
+ * @throws {AgentPluginActivationsUnreadableError} The file exists but cannot be read.
+ * @complexity Same as {@link readPluginsBagStrict}.
+ */
+export async function assertAgentPluginActivationsWritable(workspaceRoot: string): Promise<void> {
+  await readPluginsBagStrict(workspaceRoot);
+}
+
+/**
+ * The fail-CLOSED provenance read `uninstall.ts`'s bundled refusal uses in place of the lenient
+ * {@link readAgentPluginActivations} — so a corrupt file refuses an uninstall rather than reading as
+ * "no bundled record, therefore removable".
+ *
+ * @throws {AgentPluginActivationsUnreadableError} The file exists but cannot be read.
+ * @complexity Same as {@link readPluginsBagStrict}.
+ */
+export async function isAgentPluginRecordedAsBundled(workspaceRoot: string, pluginId: string): Promise<boolean> {
+  return isRecordedAsBundled(await readPluginsBagStrict(workspaceRoot), pluginId);
 }
 
 /** One plugin's activation state, or the explicit third answer the other two readers cannot give:
@@ -355,8 +455,13 @@ export interface SetAgentPluginActivationOptional {
 /**
  * Records an operator's explicit activation decision for one plugin.
  *
+ * Reads and writes the RAW `plugins` bag, not the normalized view — see this file's header,
+ * "Writers never rewrite what they could not read" — so a malformed sibling entry (or any field a
+ * future schema version adds) survives this write byte-for-byte.
+ *
  * @throws {Error} If `pluginId` does not match the Agent Plugins name grammar.
- * @returns The record as written, so a caller does not have to re-read to confirm.
+ * @throws {AgentPluginActivationsUnreadableError} The file exists but cannot be read.
+ * @returns The record as written, normalized, so a caller does not have to re-read to confirm.
  * @complexity O(p) in the recorded plugin count — the whole (small) file is rewritten.
  */
 export async function setAgentPluginActivation(
@@ -366,25 +471,23 @@ export async function setAgentPluginActivation(
   const { workspaceRoot, pluginId, enabled, actor } = required;
   assertPluginId(pluginId);
 
-  const current = await readAgentPluginActivations(workspaceRoot);
-  const existing = current.plugins[pluginId];
-  const next: AgentPluginActivations = {
-    schemaVersion: 1,
-    plugins: {
-      ...current.plugins,
-      [pluginId]: {
-        enabled,
-        // Provenance is a fact about how the package arrived, not about this decision, so an
-        // existing value is preserved rather than overwritten by a toggle.
-        origin: optional.origin ?? existing?.origin ?? "operator-installed",
-        updatedAt: (optional.now?.() ?? new Date()).toISOString(),
-        updatedBy: actor,
-      },
+  const current = await readPluginsBagStrict(workspaceRoot);
+  const plugins: RawPluginsBag = {
+    ...current,
+    [pluginId]: {
+      enabled,
+      // Provenance is a fact about how the package arrived, not about this decision (comment kept
+      // from the pre-F1.1 version): an existing value is preserved rather than overwritten by a
+      // toggle. Read raw (`isRecordedAsBundled`), not through normalization, so a malformed sibling
+      // entry does not lose its own provenance either.
+      origin: optional.origin ?? (isRecordedAsBundled(current, pluginId) ? "bundled" : "operator-installed"),
+      updatedAt: (optional.now?.() ?? new Date()).toISOString(),
+      updatedBy: actor,
     },
   };
 
-  await writeActivationsAtomically(workspaceRoot, next);
-  return next;
+  await writeActivationsAtomically(workspaceRoot, plugins);
+  return normalizePluginsBag(plugins);
 }
 
 /**
@@ -395,8 +498,12 @@ export async function setAgentPluginActivation(
  * overwriting would re-disable a plugin the operator had deliberately enabled, every restart.
  *
  * @returns `{ recorded: true }` when it wrote the initial disabled record, `{ recorded: false }`
- * when a decision already existed and was left alone.
+ * when a decision already existed and was left alone. A present-but-MALFORMED entry still counts as
+ * an existing decision — `Object.hasOwn`, not a shape check — because the gate is already answering
+ * `undetermined` (deny) for it; overwriting it with a fresh disabled record would be a write this
+ * function has no business making just because the entry it found looked wrong.
  * @throws {Error} If `pluginId` does not match the Agent Plugins name grammar.
+ * @throws {AgentPluginActivationsUnreadableError} The file exists but cannot be read.
  * @complexity O(p) in the recorded plugin count.
  */
 export async function recordBundledAgentPluginIfAbsent(
@@ -405,8 +512,8 @@ export async function recordBundledAgentPluginIfAbsent(
 ): Promise<{ readonly recorded: boolean }> {
   assertPluginId(required.pluginId);
 
-  const current = await readAgentPluginActivations(required.workspaceRoot);
-  if (current.plugins[required.pluginId] !== undefined) return { recorded: false };
+  const current = await readPluginsBagStrict(required.workspaceRoot);
+  if (Object.hasOwn(current, required.pluginId)) return { recorded: false };
 
   await setAgentPluginActivation(
     { workspaceRoot: required.workspaceRoot, pluginId: required.pluginId, enabled: false, actor: "system:seed" },
@@ -436,6 +543,9 @@ export interface DeleteAgentPluginActivationRequired {
  * to special-case "there was nothing to clear".
  *
  * @throws {Error} If `pluginId` does not match the Agent Plugins name grammar.
+ * @throws {AgentPluginActivationsUnreadableError} The file exists but cannot be read — an unreadable
+ * file might well hold a record for `pluginId`, so treating that as "nothing to delete" could mean
+ * silently leaving a decision in place that this call was supposed to remove.
  * @complexity O(p) in the recorded plugin count — the whole (small) file is rewritten, same as every
  * other write in this file.
  */
@@ -443,14 +553,13 @@ export async function deleteAgentPluginActivation(required: DeleteAgentPluginAct
   const { workspaceRoot, pluginId } = required;
   assertPluginId(pluginId);
 
-  const current = await readAgentPluginActivations(workspaceRoot);
-  if (current.plugins[pluginId] === undefined) return;
+  const current = await readPluginsBagStrict(workspaceRoot);
+  if (!Object.hasOwn(current, pluginId)) return;
 
-  const remaining = { ...current.plugins };
+  const remaining: Record<string, unknown> = { ...current };
   delete remaining[pluginId];
-  const next: AgentPluginActivations = { schemaVersion: 1, plugins: remaining };
 
-  await writeActivationsAtomically(workspaceRoot, next);
+  await writeActivationsAtomically(workspaceRoot, remaining);
 }
 
 function assertPluginId(pluginId: string): void {
@@ -464,14 +573,19 @@ function assertPluginId(pluginId: string): void {
  * new one and never a truncated JSON document. Same discipline `install.ts`'s `publish()` uses for
  * a package tree, applied to a single small file.
  *
+ * Takes the RAW `plugins` bag rather than a full {@link AgentPluginActivations} — every caller now
+ * builds one from a strict raw read (this file's header, "Writers never rewrite what they could not
+ * read"), so this is the one place that wraps it back in the `{ schemaVersion: 1, plugins }`
+ * envelope for serialization.
+ *
  * @complexity One write plus one rename.
  */
-async function writeActivationsAtomically(workspaceRoot: string, activations: AgentPluginActivations): Promise<void> {
+async function writeActivationsAtomically(workspaceRoot: string, plugins: RawPluginsBag): Promise<void> {
   await mkdir(workspaceRoot, { recursive: true, mode: 0o700 });
   const finalPath = path.join(workspaceRoot, ACTIVATIONS_FILENAME);
   const tempPath = `${finalPath}.tmp-${process.pid}-${Date.now()}`;
   try {
-    await writeFile(tempPath, `${JSON.stringify(activations, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+    await writeFile(tempPath, `${JSON.stringify({ schemaVersion: 1, plugins }, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
     await rename(tempPath, finalPath);
   } catch (error) {
     await rm(tempPath, { force: true });

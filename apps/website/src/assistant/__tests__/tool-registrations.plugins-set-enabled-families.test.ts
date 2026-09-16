@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -305,6 +305,35 @@ test("plugins_set_enabled: disabling an Agent Plugin needs no confirmation — i
     assert.equal(out.agentPlugin.enabled, false);
     const activations = await readAgentPluginActivations(workspaceRoot);
     assert.equal(activations.plugins[AGENT_PLUGIN_ID]?.enabled, false, "the disable must reach activations.json, not just the response");
+  });
+});
+
+test("plugins_set_enabled: a corrupt activations file returns changed:false with an activations-unreadable reason — no confirmation, no throw", async () => {
+  await withInstalledAgentPlugin(async (workspaceRoot) => {
+    const activationsPath = path.join(workspaceRoot, "activations.json");
+    await writeFile(activationsPath, "{ not json", "utf8");
+
+    const { deps } = fakeRouteDeps();
+    const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+    const out = (await call(tool, { pluginId: AGENT_PLUGIN_ID, enabled: false, family: "agent-plugin" })) as {
+      changed: boolean;
+      cancelled: boolean;
+      reason?: string;
+      restartRequired: boolean;
+      note?: string;
+    };
+
+    assert.deepEqual(
+      { changed: out.changed, cancelled: out.cancelled, reason: out.reason, restartRequired: out.restartRequired },
+      { changed: false, cancelled: false, reason: "activations-unreadable", restartRequired: false },
+    );
+    assert.equal(
+      out.note,
+      "Nothing changed: this workspace's Agent Plugin activation record could not be read, so " +
+        "'higgsfield-media' was NOT disabled. Tell the user an operator has to repair activations.json first " +
+        "(the server log names the file and the fault); until then every Agent Plugin tool call in this workspace is refused.",
+    );
+    assert.equal(await readFile(activationsPath, "utf8"), "{ not json", "a refused write must leave the corrupt file exactly as it was");
   });
 });
 

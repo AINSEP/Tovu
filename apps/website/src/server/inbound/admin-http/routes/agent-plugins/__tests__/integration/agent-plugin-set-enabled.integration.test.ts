@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -167,6 +167,30 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling writes a real activation record and ret
 
     const persisted = await readAgentPluginActivations(workspaceRoot);
     assert.equal(persisted.plugins["site-compliance"]?.enabled, true, "the decision survives on disk");
+  });
+});
+
+test("AGENT_PLUGIN_SET_ENABLED: a corrupt activations file is 409 AGENT_PLUGIN_ACTIVATIONS_UNREADABLE — nothing is written, no host path leaks", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installReal("site-compliance", "seed-set-enabled-corrupt");
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const activationsPath = path.join(workspaceRoot, "activations.json");
+    await writeFile(activationsPath, "{ not json", "utf8");
+
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
+    const response = await patch(baseUrl, cookie, "site-compliance", { enabled: false });
+
+    assert.equal(response.status, 409);
+    const body = (await response.json()) as { error: string; code: string };
+    assert.equal(body.code, "AGENT_PLUGIN_ACTIVATIONS_UNREADABLE");
+    assert.equal(
+      body.error,
+      "This workspace's Agent Plugin activation record (activations.json) could not be read, so nothing was changed. " +
+        "No Agent Plugin can be enabled or disabled until it is repaired — the server log names the file and the fault.",
+    );
+    assert.equal(JSON.stringify(body).includes(workspaceRoot), false, "the 409 body must carry no host path");
+
+    assert.equal(await readFile(activationsPath, "utf8"), "{ not json", "a refused write must leave the corrupt file exactly as it was");
   });
 });
 

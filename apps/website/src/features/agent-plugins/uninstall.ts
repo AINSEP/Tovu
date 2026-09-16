@@ -107,7 +107,7 @@ import { chmod, readdir, rename, rm, stat } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import path from "node:path";
 
-import { deleteAgentPluginActivation, readAgentPluginActivations } from "./activation.js";
+import { deleteAgentPluginActivation, isAgentPluginRecordedAsBundled } from "./activation.js";
 import type { InstalledAgentPlugin } from "./install.js";
 import type { AgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
@@ -169,6 +169,9 @@ const STAGED_DIRNAME_PREFIX = ".uninstalling-";
  *
  * @throws {AgentPluginNotFoundError} No installed package for `pluginId` exists in this workspace.
  * @throws {AgentPluginNotUninstallableError} The plugin's activation record has `origin: "bundled"`.
+ * @throws {AgentPluginActivationsUnreadableError} The activation record could not be read at all, so
+ * whether it says "bundled" cannot be established — see `activation.ts`'s
+ * `isAgentPluginRecordedAsBundled`.
  * @complexity O(d) in this workspace's installed-digest count (one `listInstalledPlugins` walk).
  */
 export async function previewAgentPluginUninstall(required: UninstallAgentPluginRequired): Promise<AgentPluginUninstallPreview> {
@@ -183,6 +186,8 @@ export async function previewAgentPluginUninstall(required: UninstallAgentPlugin
  *
  * @throws {AgentPluginNotFoundError} No installed package for `pluginId` exists in this workspace.
  * @throws {AgentPluginNotUninstallableError} The plugin's activation record has `origin: "bundled"`.
+ * @throws {AgentPluginActivationsUnreadableError} The activation record could not be read — refused
+ * before anything is staged, so nothing is removed.
  * @throws Whatever the filesystem raised, after every staged tree has been put back — or, if a tree
  * could not be put back, an error naming the staged paths an operator must recover by hand.
  * @complexity O(d) in this workspace's installed-digest count (one `listInstalledPlugins` walk) plus
@@ -272,6 +277,8 @@ async function restoreStagedTrees(staged: readonly StagedTree[], cause: unknown)
  *
  * @throws {AgentPluginNotFoundError} No match on disk.
  * @throws {AgentPluginNotUninstallableError} The activation record says `origin: "bundled"`.
+ * @throws {AgentPluginActivationsUnreadableError} The activation record exists but could not be
+ * read, so whether it says `origin: "bundled"` cannot be established.
  * @complexity O(d) in the installed-digest count.
  */
 async function resolveUninstallTargets(required: UninstallAgentPluginRequired): Promise<UninstallTargets> {
@@ -288,8 +295,7 @@ async function resolveUninstallTargets(required: UninstallAgentPluginRequired): 
     throw new AgentPluginNotFoundError(`Agent Plugin '${pluginId}' is not installed in this workspace — nothing to uninstall`);
   }
 
-  const activations = await readAgentPluginActivations(workspaceLayout.root);
-  if (activations.plugins[pluginId]?.origin === "bundled") {
+  if (await isAgentPluginRecordedAsBundled(workspaceLayout.root, pluginId)) {
     throw new AgentPluginNotUninstallableError(bundledRefusalMessage(pluginId));
   }
 

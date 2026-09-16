@@ -112,6 +112,10 @@ import type { InstalledAgentPlugin } from "../agent-plugins/install.js";
 // adds no `plugin-runtime -> agent-plugins/tool-registrations` edge. See its header, and the
 // "one tool, two families" section below.
 import { AgentPluginNotInstalledError, setAgentPluginEnabled } from "../agent-plugins/set-enabled.js";
+// t91 F1.1 (2026-09-16). `activation.ts` is the domain module that already defines this error;
+// importing it here adds no `plugin-runtime -> agent-plugins/tool-registrations` edge (same
+// reasoning as the `set-enabled.js` import above).
+import { AgentPluginActivationsUnreadableError } from "../agent-plugins/activation.js";
 // The Agent Plugins MCP-provisioning half of `plugins_set_enabled` (2026-09-15). The route's own
 // enable path calls these same two primitives; see `applyAgentPluginDecision` below for why the
 // in-chat enable must not skip them.
@@ -461,8 +465,32 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
     // real id), and a bare `Error` would reach the model as an opaque failure instead. The message
     // carries only the plugin id the caller already sent — nothing internal leaks.
     if (error instanceof AgentPluginNotInstalledError) throw new ToolInputError(error.message);
+    // t91 F1.1 (2026-09-16): nothing changed, so this is a RESULT the model can relay — matching
+    // ADR-055 Decision 6's `changed: false` shape — not a redacted failure. See
+    // `activationsUnreadableResult` below.
+    if (error instanceof AgentPluginActivationsUnreadableError) return activationsUnreadableResult(request, error);
     throw error;
   }
+}
+
+/** ADR-055 Decision 6 shape: nothing changed, so it is a RESULT the model can relay, not a redacted
+ *  failure. The host path and parse detail stay in the server log via the `console.warn` below;
+ *  `note` carries only the fixed, path-free E3 text.
+ *  @complexity O(1). */
+function activationsUnreadableResult(request: SetEnabledRequest, error: AgentPluginActivationsUnreadableError): unknown {
+  console.warn(`[agent-plugins] '${request.pluginId}': plugins_set_enabled refused — ${error.message}`);
+  return {
+    changed: false,
+    cancelled: false,
+    family: request.family,
+    pluginId: request.pluginId,
+    restartRequired: false,
+    reason: "activations-unreadable",
+    note:
+      `Nothing changed: this workspace's Agent Plugin activation record could not be read, so '${request.pluginId}' was NOT ` +
+      `${request.enabled ? "enabled" : "disabled"}. Tell the user an operator has to repair activations.json first (the server ` +
+      "log names the file and the fault); until then every Agent Plugin tool call in this workspace is refused.",
+  };
 }
 
 /**

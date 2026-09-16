@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
   ACTIVATIONS_FILENAME,
+  AgentPluginActivationsUnreadableError,
   deleteAgentPluginActivation,
   filterActiveAgentPlugins,
   isAgentPluginActive,
@@ -67,15 +68,21 @@ test("a workspace with no activations file reads as empty, not as an error", asy
   }
 });
 
-test("a corrupt activations file reads as empty rather than throwing — and re-seeding is what stops that being a loophole", async () => {
+test("a corrupt activations file reads as empty for DISCOVERY — but the boot seeder refuses to rewrite it", async () => {
   const root = await freshWorkspaceRoot();
   try {
     await writeFile(path.join(root, ACTIVATIONS_FILENAME), "{ not json at all", "utf8");
+    // The lenient DISCOVERY read is unchanged — that half of the old test still holds.
     assert.deepEqual(await readAgentPluginActivations(root), { schemaVersion: 1, plugins: {} });
 
-    const { recorded } = await recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: "site-compliance" });
-    assert.equal(recorded, true);
-    assert.equal(isAgentPluginActive(await readAgentPluginActivations(root), "site-compliance"), false);
+    // What changed (t91 F1.1, 2026-09-16): the seeder's writer no longer launders that lenient view
+    // into a fresh, rewritten file. It refuses outright, and the corrupt bytes are left exactly as
+    // they were — see `activation.ts`'s header, "Writers never rewrite what they could not read".
+    await assert.rejects(
+      () => recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: "site-compliance" }),
+      AgentPluginActivationsUnreadableError,
+    );
+    assert.equal(await readFile(path.join(root, ACTIVATIONS_FILENAME), "utf8"), "{ not json at all");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

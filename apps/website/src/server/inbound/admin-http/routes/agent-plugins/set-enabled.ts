@@ -1,5 +1,6 @@
 import type { Response } from "express";
 
+import { AgentPluginActivationsUnreadableError } from "#src/features/agent-plugins/activation";
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
 import { AgentPluginNotInstalledError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
@@ -199,6 +200,20 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (a
       // as an opaque 500 — the same 404 the pre-check produces, for the same reason.
       if (error instanceof AgentPluginNotInstalledError) {
         res.status(404).json({ error: error.message, code: "AGENT_PLUGIN_NOT_FOUND" });
+        return;
+      }
+      // t91 F1.1 (2026-09-16): the activations file exists but could not be read. Nothing was
+      // written — `setAgentPluginEnabled` refuses before any write, per `activation.ts`'s "Writers
+      // never rewrite what they could not read". The host path stays in the server log only; the
+      // response body carries the fixed, path-free E2 text.
+      if (error instanceof AgentPluginActivationsUnreadableError) {
+        console.warn(`[agent-plugins] '${pluginId}': enable/disable refused — ${error.message}`);
+        res.status(409).json({
+          error:
+            "This workspace's Agent Plugin activation record (activations.json) could not be read, so nothing was changed. " +
+            "No Agent Plugin can be enabled or disabled until it is repaired — the server log names the file and the fault.",
+          code: "AGENT_PLUGIN_ACTIVATIONS_UNREADABLE",
+        });
         return;
       }
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

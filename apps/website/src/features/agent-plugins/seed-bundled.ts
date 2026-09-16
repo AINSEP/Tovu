@@ -44,6 +44,13 @@
  *    `isAgentPluginActive`'s "absent means active" default is what keeps operator-installed plugins
  *    working. The boot-time re-seed is what closes that direction.
  *
+ *    A file that is PRESENT but unreadable is a different case from a deleted one, and is not
+ *    treated the same way (t91 F1.1, 2026-09-16): seeding refuses outright rather than install
+ *    around the fault, and every bundled plugin comes back `failed` with the recovery text
+ *    `activation.ts`'s `AgentPluginActivationsUnreadableError` gives — see this file's header,
+ *    "Failure isolation" below, and `activation.ts`'s own header, "Writers never rewrite what they
+ *    could not read".
+ *
  * ---------------------------------------------------------------------------
  * Failure isolation
  * ---------------------------------------------------------------------------
@@ -61,7 +68,7 @@ import type { Dirent } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
-import { recordBundledAgentPluginIfAbsent } from "./activation.js";
+import { assertAgentPluginActivationsWritable, recordBundledAgentPluginIfAbsent } from "./activation.js";
 import { createBundledSourceArchiveReader, packAgentPluginDirectory } from "./bundled-source-archive.js";
 import { installAgentPlugin } from "./install.js";
 import type { AgentPluginLayout } from "./layout.js";
@@ -111,13 +118,36 @@ export async function seedBundledAgentPlugins(
   const { layout, workspaceId, sourceRoot } = required;
 
   const pluginDirNames = await listBundledPluginDirs(sourceRoot);
-  const outcomes: SeededAgentPluginOutcome[] = [];
 
+  // ONE strict pre-flight read BEFORE any install — so a bundled package never lands on disk
+  // without the activation record that would keep it inactive (this file's header). Every bundled
+  // plugin is reported failed with the SAME reason, rather than attempting each one and hitting the
+  // identical fault p times.
+  const refusal = await activationsRefusal(layout, workspaceId);
+  if (refusal !== undefined) {
+    return { sourceRoot, outcomes: pluginDirNames.map((dirName): SeededAgentPluginOutcome => ({ pluginId: dirName, status: "failed", reason: refusal })) };
+  }
+
+  const outcomes: SeededAgentPluginOutcome[] = [];
   for (const dirName of pluginDirNames) {
     outcomes.push(await seedOne({ layout, workspaceId, sourceDir: path.join(sourceRoot, dirName), dirName }));
   }
 
   return { sourceRoot, outcomes };
+}
+
+/** Why nothing may be seeded into this workspace right now, or `undefined`. One strict read BEFORE
+ *  any install, so a bundled package never lands on disk without the record that keeps it inactive.
+ *  Catches everything (including `forWorkspace`'s own throw) to keep this function's own contract
+ *  "@throws Nothing", matching {@link seedBundledAgentPlugins}'s own guarantee.
+ *  @complexity One file read. */
+async function activationsRefusal(layout: AgentPluginLayout, workspaceId: string): Promise<string | undefined> {
+  try {
+    await assertAgentPluginActivationsWritable(layout.forWorkspace(workspaceId).root);
+    return undefined;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
 }
 
 async function seedOne(args: {
