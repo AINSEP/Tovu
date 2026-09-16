@@ -28,6 +28,11 @@ import {
 import type { MailerPort } from "../../platform/mail/index.js";
 import type { OriginRegistryPort } from "../../features/origin/index.js";
 import type { ToolContributor } from "#src/assistant/index";
+import {
+  forbiddenRule,
+  withModelFacingErrors,
+  type ModelFacingErrorRule,
+} from "#src/contracts/core/model-facing-tool-errors";
 import { newsletterAgentToolCatalog } from "./agent-tools.js";
 import {
   cancelCampaign,
@@ -35,7 +40,17 @@ import {
   type CampaignWriteServiceDeps,
 } from "./campaign-write-service.js";
 import { issueConfirmationToken, type ConfirmationDeps } from "./confirmation.js";
-import { NewsletterCampaignNotFoundError, NewsletterSubscriptionNotFoundError } from "./errors.js";
+import {
+  NewsletterCampaignNotEditableError,
+  NewsletterCampaignNotFoundError,
+  NewsletterConflictError,
+  NewsletterDefaultListProtectedError,
+  NewsletterForbiddenError,
+  NewsletterListNotFoundError,
+  NewsletterSubscriberNotFoundError,
+  NewsletterSubscriptionNotFoundError,
+  NewsletterValidationError,
+} from "./errors.js";
 import type { HookRegistry } from "./hooks.js";
 import { archiveList, saveList, type ListsDeps } from "./lists.js";
 import type {
@@ -258,6 +273,47 @@ function toSendLogToolView(row: SendRow) {
   };
 }
 
+/**
+ * The Newsletter errors that reach the model with their real reason instead of a redacted
+ * `INTERNAL_ERROR` — see `contracts/core/model-facing-tool-errors.ts` for the mechanism and for why
+ * this list is an ALLOWLIST rather than a blanket unwrap.
+ *
+ * Every message listed is built from the caller's own ids plus this domain's vocabulary; none
+ * carries a subscriber's email, name, or any other contact detail. That was checked rather than
+ * assumed: `subscriptions.ts`/`campaign-write-service.ts`/`lists.ts` interpolate `listId`,
+ * `subscriberId`, `campaignId` and field/limit names only, and `NewsletterSubscriberNotFoundError`
+ * names a subscriber UUID, not the person behind it. Note that
+ * `newsletter_resend_confirmation`'s own anti-enumeration behaviour is unaffected: it returns a
+ * constant `{ delivered: true }` whether or not a contact resolves, and that decision lives in the
+ * handler, not in any error this list could surface.
+ *
+ * Both TOKEN classes are deliberately ABSENT. `NewsletterConfirmTokenInvalidError` and
+ * `NewsletterUnsubscribeTokenInvalidError` are raised on the public confirm/unsubscribe redemption
+ * paths (`confirmation.ts`, `unsubscribe.ts`), which no tool in this catalog calls, and their
+ * messages ("token was already consumed", "signature is invalid") answer a question about a token
+ * HOLDER rather than about the caller's own request — the same line `features/members/tool-
+ * registrations.ts` draws around `MemberAuthError`. `NewsletterLaunchGateBlockedError` is absent
+ * for the plainer reason that it is raised only on the send/test-send path, and no send tool is
+ * wired (see `agent-tools.ts`'s header); if one ever ships, it needs its own decision here rather
+ * than inheriting a speculative one made today.
+ */
+const NEWSLETTER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
+  forbiddenRule("NEWSLETTER"),
+  { error: NewsletterForbiddenError, code: "NEWSLETTER_FORBIDDEN" },
+  { error: NewsletterCampaignNotFoundError, code: "NEWSLETTER_CAMPAIGN_NOT_FOUND" },
+  { error: NewsletterListNotFoundError, code: "NEWSLETTER_LIST_NOT_FOUND" },
+  { error: NewsletterSubscriptionNotFoundError, code: "NEWSLETTER_SUBSCRIPTION_NOT_FOUND" },
+  { error: NewsletterSubscriberNotFoundError, code: "NEWSLETTER_SUBSCRIBER_NOT_FOUND" },
+  { error: NewsletterValidationError, code: "NEWSLETTER_VALIDATION_FAILED" },
+  { error: NewsletterCampaignNotEditableError, code: "NEWSLETTER_CAMPAIGN_NOT_EDITABLE" },
+  { error: NewsletterDefaultListProtectedError, code: "NEWSLETTER_DEFAULT_LIST_PROTECTED" },
+  {
+    error: NewsletterConflictError,
+    code: "NEWSLETTER_CONFLICT",
+    guidance: "Nothing was written. Re-read the record to get its current version and resend with that as expectedVersion.",
+  },
+];
+
 export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     newsletter_list_campaigns: async (ctx) => {
@@ -462,7 +518,9 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegi
     domain: "newsletter",
     catalogModule: "newsletter/agent-tools.ts",
     catalog: CATALOG_BY_ID,
-    handlers,
+    // The whole map at once, so none of the 14 can be the one that forgot — see
+    // `withModelFacingErrors`' own doc for why a per-call-site reshape is the defect this avoids.
+    handlers: withModelFacingErrors(handlers, NEWSLETTER_MODEL_FACING_ERRORS),
     derivedRisk: newsletterDerivedRisk,
   });
 }

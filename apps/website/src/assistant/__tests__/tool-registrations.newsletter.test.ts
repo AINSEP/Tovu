@@ -13,9 +13,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import { ForbiddenError } from "@jini-ai/cms/core";
 import { newsletterAgentToolCatalog, type AgentToolDefinition } from "../../features/newsletter/agent-tools.js";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
@@ -25,10 +24,6 @@ import {
   InMemoryNewsletterSendRepo,
   InMemoryNewsletterSubscriptionRepo,
 } from "../../features/newsletter/repo.memory.js";
-import {
-  NewsletterCampaignNotFoundError,
-  NewsletterSubscriptionNotFoundError,
-} from "../../features/newsletter/errors.js";
 import type { CampaignRecord, NewsletterListRow, SubscriptionRow } from "../../features/newsletter/types.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import {
@@ -372,7 +367,7 @@ for (const toolId of EXPECTED_TOOL_IDS) {
     assert.equal(authorizeCalls[0].workspaceId, WORKSPACE_ID);
   });
 
-  test(`${toolId}: a denied principal is refused with ForbiddenError and writes nothing`, async () => {
+  test(`${toolId}: a denied principal is refused with the real reason and writes nothing`, async () => {
     const { deps, newsletterCampaignRepo, newsletterListRepo, newsletterSubscriptionRepo } = fakeRouteDeps({ allow: false });
     await newsletterCampaignRepo.saveCampaignRow(seedCampaign());
     await newsletterListRepo.save(seedList());
@@ -386,7 +381,15 @@ for (const toolId of EXPECTED_TOOL_IDS) {
     await assert.rejects(
       () => wired(newsletterWiredId(toolId), deps).handler(executionContext(toolInputs(fixtures)[toolId])),
       (error: unknown) => {
-        assert.ok(error instanceof ForbiddenError, `expected ForbiddenError, got ${String(error)}`);
+        // `withModelFacingErrors` (tool-registrations.ts) reclassifies the kit's `ForbiddenError`
+        // into a `ToolInputError` prefixed `NEWSLETTER_FORBIDDEN:` so the real reason reaches the
+        // model instead of the SEC-005-redacted `INTERNAL_ERROR` a non-`ToolInputError` collapses
+        // into — the 2026-09-16 "always say the real reason" sweep, matching what
+        // `tool-registrations.widgets-authorization.test.ts` already pins for Widgets. The
+        // behavioural guarantee this test exists for is unchanged and still asserted below: the
+        // call is refused and nothing is written.
+        assert.ok(error instanceof ToolInputError, `expected ToolInputError (ForbiddenError wrapped), got ${String(error)}`);
+        assert.match((error as Error).message, /^NEWSLETTER_FORBIDDEN: /);
         assert.match((error as Error).message, new RegExp(PRINCIPAL_ID));
         return true;
       },
@@ -398,9 +401,18 @@ for (const toolId of EXPECTED_TOOL_IDS) {
   });
 }
 
-test("newsletter_get_campaign: an unknown campaign id throws NewsletterCampaignNotFoundError", async () => {
+test("newsletter_get_campaign: an unknown campaign id reaches the model as NEWSLETTER_CAMPAIGN_NOT_FOUND, not a redacted 500", async () => {
   const { deps } = fakeRouteDeps();
-  await assert.rejects(() => wired("content_read.newsletter_campaign", deps).handler(executionContext({ campaignId: "nope" })), NewsletterCampaignNotFoundError);
+  // Was `NewsletterCampaignNotFoundError`; now the `ToolInputError` `withModelFacingErrors` wraps it
+  // in, so the real reason survives the delegated-tool transport. Same failure, said out loud.
+  await assert.rejects(
+    () => wired("content_read.newsletter_campaign", deps).handler(executionContext({ campaignId: "nope" })),
+    (error: unknown) => {
+      assert.ok(error instanceof ToolInputError, `expected ToolInputError, got ${String(error)}`);
+      assert.equal((error as Error).message, "NEWSLETTER_CAMPAIGN_NOT_FOUND: campaign nope was not found");
+      return true;
+    },
+  );
 });
 
 test("newsletter_remove_subscription: a subscriptionId belonging to a different list is refused as not-found, not cross-list removed", async () => {
@@ -411,7 +423,11 @@ test("newsletter_remove_subscription: a subscriptionId belonging to a different 
 
   await assert.rejects(
     () => wired("newsletter_remove_subscription", deps).handler(executionContext({ listId: "list-2", subscriptionId: "sub-1" })),
-    NewsletterSubscriptionNotFoundError,
+    (error: unknown) => {
+      assert.ok(error instanceof ToolInputError, `expected ToolInputError, got ${String(error)}`);
+      assert.equal((error as Error).message, "NEWSLETTER_SUBSCRIPTION_NOT_FOUND: subscription sub-1 was not found");
+      return true;
+    },
   );
 });
 
