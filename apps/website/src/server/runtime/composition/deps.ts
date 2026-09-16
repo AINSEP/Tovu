@@ -1566,8 +1566,8 @@ export function createSqliteRouteDeps(
     deploymentsReadRepo: new SqliteDeploymentsReadRepo(db),
     // 2026-08-15 — the real export engine, bound here rather than imported inside
     // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
-    // `runExportSite` doc for why that indirection is required, not stylistic (a real circular-load
-    // crash, not a style preference).
+    // `runExportSite` doc for why that indirection exists (a real circular-load crash it began as a
+    // fix for, now history; it stays to keep `features/deployments` off the export engine's graph).
     runExportSite: (options) => exportSite(options),
     // Read ONCE here rather than deep in `export-run.ts`/`cli/commands/export.ts` — see
     // `resolveExportOutputRootDir`'s own doc immediately above and `routes/types.ts`'s

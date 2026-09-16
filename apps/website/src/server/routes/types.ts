@@ -1393,11 +1393,13 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   /**
    * The static-site export engine (`src/platform/export/site-exporter.ts`'s `exportSite`), injected here
    * rather than imported directly by `export-site.ts` or `features/deployments/export-run.ts`
-   * (shared by that route AND the `deployment_trigger_export` agent tool). This indirection is
-   * REQUIRED, not stylistic, for THOSE two consumers: an eager import of `exportSite` inside
-   * `features/deployments/export-run.ts` closed a real cycle back into the still-loading
-   * `assistant/tool-registrations.ts` and crashed with `ReferenceError: Cannot access
-   * 'DOMAIN_SLICES' before initialization` (see `export-run.ts`'s file header for the full trace).
+   * (shared by that route AND the `deployment_trigger_export` agent tool). The indirection began as
+   * a REQUIRED fix for THOSE two consumers, not a style choice: an eager import of `exportSite`
+   * inside `features/deployments/export-run.ts` used to close a real cycle back into the
+   * still-loading `assistant/tool-registrations.ts` and crash with `ReferenceError: Cannot access
+   * 'DOMAIN_SLICES' before initialization`. Both halves of that cycle are gone as of 2026-09-16, and
+   * the injection now stays for a different reason — it keeps `features/deployments` off the export
+   * engine's whole graph at all (see `export-run.ts`'s file header, which owns the full trace).
    * Always the real `exportSite` in both `server/app.ts`'s `createRouteDeps()` and
    * `server/deps.ts`'s `createSqliteRouteDeps()` — the two places safe to import
    * `#src/platform/export/index` directly, since neither is reachable from `assistant/tool-registrations.ts`.
@@ -1411,8 +1413,9 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `exportSiteBound` from a plain static `import { exportSite } from "#src/platform/export/index"`
    * (see that file's `runExportSite` const doc for the full verification) rather than the lazy
    * `require()` this doc previously described — "safe to import directly" is no longer just a
-   * standing option, `server/app.ts` now does it. `server/deps.ts`'s SQLite composition root is
-   * untouched by this change and still resolves `exportSite` lazily; see its own doc for why.
+   * standing option, `server/app.ts` now does it. `server/deps.ts`'s SQLite composition root followed
+   * on 2026-09-16 (t91 F4.1-A): its call-time `require()` built the export engine and site app from a
+   * SECOND tsx module graph, so that root binds both from static imports now too.
    */
   runExportSite: ExportEngine<RouteDeps>;
   /**
