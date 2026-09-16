@@ -970,11 +970,14 @@ function subscribeSiteEventHandlersOnce(routeDeps: RouteDeps): void {
   // own file header names as the one piece of Stage 4 wiring no composition root had done yet
   // (found while wiring Stage 5's `send-campaign.ts`, which is the only real caller of `claimBatch`/
   // `processOutbox` for this campaign). Mirrors the demonstration `bus.subscribe("workspace.created",
-  // ...)` above. In practice this handler is never reached in either composition root today: no real
-  // `MailerPort` adapter exists yet, so `authorizeSend`'s Launch Gate check always rejects before
-  // `freezeAudience` ever enqueues a batch (tasks.md's disclosed, by-design "Real Sending Is
-  // Inherently Blocked Today" flag) — wired now anyway so the pipeline is genuinely complete end to
-  // end the moment a real adapter lands, not silently half-wired.
+  // ...)` above. In practice this handler is never reached in either composition root today:
+  // `authorizeSend`'s Launch Gate check always rejects before `freezeAudience` ever enqueues a batch,
+  // because precondition (a) `isSendingEnabled` always resolves `false` (`routes/newsletter/deps.ts`'s
+  // `toSendPipelineDeps`) and (b) both composition roots bind `membersConsentCapability: null`
+  // (tasks.md's disclosed, by-design "Real Sending Is Inherently Blocked Today" flag). Precondition
+  // (d) is no longer the blocker — Resend and SMTP adapters resolve (`boot/resolve-mailer.ts`),
+  // corrected 2026-09-16. Wired now anyway so the pipeline is genuinely complete end to end the
+  // moment (a) and (b) are met, not silently half-wired.
   void routeDeps.bus.subscribe<SendBatchJob>(SEND_BATCH_CLAIMED_EVENT, async (event) => {
     await handleSendBatchClaimed({ deps: toSendPipelineDeps(newsletterAdminDeps), job: event.payload });
   });
