@@ -1337,6 +1337,10 @@ export async function renderGenericPostPage(
  * themed 404, or the bare fallback 404), never falls through. Split out of the route's own catch
  * block so that block's `err instanceof PostNotFoundError` discriminant is the only branch left
  * inline at the call site.
+ *
+ * It can still reject (a default-policy `post_content` handler that throws, a themed-404 render
+ * fault): call it inside a `try`, or through {@link handlePostNotFoundInSlugCatch} where there is
+ * none.
  */
 export async function handlePostNotFoundOnSlugRoute(
   req: Request,
@@ -1358,6 +1362,33 @@ export async function handlePostNotFoundOnSlugRoute(
   }
 
   res.status(404).type("html").send("<h1>404 — page not found</h1><p><a href='/'>Home</a></p>");
+}
+
+/**
+ * {@link handlePostNotFoundOnSlugRoute} for `GET /:slug`'s own catch block — the one call site with
+ * no enclosing `catch`. Express 4 ignores the promise an async handler returns, so a rejection there
+ * (a default-policy `post_content` handler that throws, or a themed-404 render fault) used to leave
+ * the request with no response at all and surface only as a process-wide unhandled rejection
+ * (t91 F4.3-A). Answers it exactly as the route's catch answers every other fault.
+ *
+ * @param input.slug the slug `resolveRequestedSlug` already validated — used only in the fault line.
+ * @complexity O(1) beyond {@link handlePostNotFoundOnSlugRoute}.
+ */
+async function handlePostNotFoundInSlugCatch(input: {
+  req: Request;
+  res: Response;
+  deps: RouteDeps;
+  theme: DiscoveredTheme | null;
+  staticMenus: StaticMenuMap | undefined;
+  slug: string;
+}): Promise<void> {
+  const { req, res, deps, theme, staticMenus, slug } = input;
+  try {
+    await handlePostNotFoundOnSlugRoute(req, res, deps, theme, staticMenus);
+  } catch (err) {
+    reportSiteRenderFault(`GET /:slug failed (slug=${slug})`, err);
+    res.status(500).type("html").send("<h1>Site error</h1>");
+  }
 }
 
 /** Manual `req.headers.cookie` parse — no `cookie-parser` middleware mounted anywhere in this app;
@@ -1795,7 +1826,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // A `PostNotFoundError` is ordinary control flow on this route (no post at this slug), not a
       // fault — reporting it would bury every real fault under one line per 404 a crawler produces.
       if (err instanceof PostNotFoundError) {
-        await handlePostNotFoundOnSlugRoute(req, res, deps, theme, staticMenus);
+        await handlePostNotFoundInSlugCatch({ req, res, deps, theme, staticMenus, slug });
         return;
       }
       reportSiteRenderFault(`GET /:slug failed (slug=${slug})`, err);
