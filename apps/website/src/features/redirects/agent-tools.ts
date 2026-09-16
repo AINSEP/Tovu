@@ -96,7 +96,7 @@ const TO_TARGET_PROPERTY = {
   type: "string",
   minLength: MIN_TARGET_LENGTH,
   maxLength: MAX_TARGET_LENGTH,
-  description: `The destination: a site-relative path, or an absolute URL (absolute targets must resolve against this workspace's redirect-target allowlist, or the write is refused). ${MIN_TARGET_LENGTH}-${MAX_TARGET_LENGTH} characters.`,
+  description: `The destination: a site-relative path, or an absolute URL. An absolute target must resolve against this workspace's redirect-target allowlist; a site-relative target must stay on this site and must not resolve onto '/admin' or '/api' (the authenticated admin application, not public pages) — either way the write is refused. ${MIN_TARGET_LENGTH}-${MAX_TARGET_LENGTH} characters.`,
 } as const;
 
 const PRIORITY_PROPERTY = {

@@ -5,8 +5,10 @@
  * Purpose:
  * `createRedirect`/`updateRedirect`/`tombstoneRedirect`/`importRedirects` —
  * the single manual-write entry point for redirect rules. Validates the
- * pattern (via `RedirectMatcher.validatePattern`), rejects unsafe absolute
- * targets (write-path open-redirect oracle, REQ-08), collapses/rejects
+ * pattern (via `RedirectMatcher.validatePattern`), rejects unsafe targets —
+ * absolute ones against the origin allowlist and site-relative ones against
+ * the admin application's own URL space (write-path open-redirect oracle,
+ * REQ-08; see `assertTargetAllowed`) — collapses/rejects
  * one-hop chains (INV-04), enforces the exact-match dedup rule
  * (behavior.spec.md §5.1), and writes the record + its revision in one
  * transaction via `ports.internal.ts`'s shared `insertRedirectAndRevision`
@@ -19,6 +21,9 @@
  */
 import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort } from "@jini-ai/cms/core";
 import type { OriginRegistryPort, RedirectTargetContext } from "../../features/origin/index.js";
+
+import { checkSiteRelativeTarget } from "../../platform/routing/index.js";
+import type { SiteRelativeTargetCheck } from "../../platform/routing/index.js";
 
 import { insertRedirectAndRevision, type RedirectDbHandle } from "./ports.internal.js";
 import type { RedirectMatcher, RedirectMutatedEvent, RedirectRepoPort } from "./ports.js";
@@ -116,12 +121,65 @@ async function resolveCollapsedTarget(
   return finalTarget;
 }
 
+/**
+ * Why a site-relative target was refused, phrased for the operator or agent that wrote it.
+ *
+ * Split out of {@link assertTargetAllowed} so the refusal wording lives next to the verdict union
+ * it exhausts — a new arm in `SiteRelativeTargetCheck` becomes a type error here rather than a
+ * silently generic message.
+ *
+ * @param check - The verdict from `checkSiteRelativeTarget`.
+ * @returns The reason clause, or `null` when the target is allowed.
+ * @complexity O(1).
+ */
+function siteRelativeRefusalReason(check: SiteRelativeTargetCheck): string | null {
+  switch (check.kind) {
+    case "ok":
+      return null;
+    case "reserved":
+      return `it resolves to '/${check.surface}', which serves the authenticated admin application rather than this site's public pages`;
+    case "off-origin":
+      return "it looks site-relative but resolves to a different host (a URL parser reads '\\' as '/')";
+    case "unparseable":
+      return "it is not a parseable URL path";
+    case "malformed-encoding":
+      return "it contains a malformed percent-encoding";
+    case "disallowed-character":
+      return "it contains, or decodes to, a backslash or a control character";
+  }
+}
+
+/**
+ * The write-path target gate (REQ-08), in two halves that close the SAME hole from opposite sides.
+ *
+ * An ABSOLUTE or protocol-relative target names a host, so the question is "is that host allowed"
+ * and `OriginRegistryPort` answers it. A SITE-RELATIVE target names no host, so the origin
+ * allowlist has nothing to say about it — and that used to mean it was not checked at all, which
+ * left the admin application's own URL space (`/admin`, `/api/...`, served by this same Express
+ * app) usable as a redirect destination from a public-site rule, including through the
+ * agent-callable `redirects_create`. `checkSiteRelativeTarget` is the second half; it is the same
+ * rule `site-inspection`'s `published_page_fetch` applies to a caller-supplied site path, shared
+ * from `platform/routing/reserved-paths.ts` rather than restated here.
+ *
+ * Note for a workspace that predates this gate: a stored rule whose target is now refused can
+ * still be turned off with `tombstoneRedirect` (which only flips `status` and never re-validates
+ * the target) or repointed with `updateRedirect` by supplying a new `toTarget`.
+ *
+ * @throws {RedirectTargetNotAllowedError} Naming which half refused, and why.
+ * @complexity O(n) in the target length, plus one `OriginRegistryPort` read for absolute targets.
+ */
 async function assertTargetAllowed(
   originRegistry: OriginRegistryPort,
   workspaceId: string,
   target: string
 ): Promise<void> {
-  if (!isAbsoluteOrProtocolRelative(target)) return;
+  if (!isAbsoluteOrProtocolRelative(target)) {
+    const reason = siteRelativeRefusalReason(checkSiteRelativeTarget(target));
+    if (reason === null) return;
+    throw new RedirectTargetNotAllowedError(
+      `toTarget '${target}' is not an allowed redirect destination: ${reason}`
+    );
+  }
   const ctx: RedirectTargetContext = { workspaceId };
   const allowed = await originRegistry.isAllowedRedirectTarget(ctx, target);
   if (!allowed) {

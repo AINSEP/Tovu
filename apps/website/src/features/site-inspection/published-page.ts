@@ -2,6 +2,8 @@ import { createServer, type RequestListener, type Server } from "node:http";
 import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 
+import { checkSitePathname, hasControlCharacter } from "#src/platform/routing/index";
+
 /**
  * @file `fetchPublishedPage()` — renders ONE route of this site's own public surface and returns
  * what a visitor would actually receive: status, headers, cookie shapes and (bounded) body.
@@ -64,28 +66,6 @@ export const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 
 /** The origin this module mints for every call. Fixed loopback host; only the port varies. */
 const LOOPBACK_HOST = "http://127.0.0.1";
-
-/**
- * True when `value` contains a C0/C1 control character or DEL.
- *
- * A character-code scan rather than a regex literal, deliberately: a regex holding raw control
- * bytes makes this source file read as binary to ordinary text tooling, and the escaped form is
- * easy to mangle in transit. CR/LF are the load-bearing members — a control character in a
- * request target is HTTP request splitting — and the rest are refused on the same
- * "reject, never silently sanitize" rule.
- *
- * @param value - The candidate string.
- * @returns `true` if any code unit is <= 0x1F, or in 0x7F..0x9F.
- * @complexity O(L) in the string length.
- * @example hasControlCharacter("/ok"); // => false
- */
-function hasControlCharacter(value: string): boolean {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-    if (code <= 0x1f || (code >= 0x7f && code <= 0x9f)) return true;
-  }
-  return false;
-}
 
 /**
  * Raised when `path` is not a fetchable same-origin site path. Its own class so the tool layer can
@@ -247,27 +227,30 @@ function resolveWithinOrigin(raw: string, base: string): URL {
 }
 
 /**
- * Decodes the resolved pathname once and asserts it carries none of the forms
- * {@link resolveSameOriginPath}'s own doc refuses. Split out purely to keep that function's own
- * complexity below the repo's gate — the decode-once rule and every check are unchanged.
+ * Applies `platform/routing`'s shared reserved-path rule to the resolved pathname and maps its
+ * verdict onto this module's own error type. Split out purely to keep {@link resolveSameOriginPath}
+ * below the repo's complexity gate.
+ *
+ * The rule itself is deliberately NOT restated here: `redirects`' write chokepoint has to refuse
+ * exactly the same surfaces for a stored redirect target, and two copies of a denylist is how one
+ * of them ends up a decode or a case-fold behind the other.
  *
  * @throws {PublishedPagePathError} On a malformed encoding, a decoded backslash/control character,
- * or a decoded path under `/api/`.
+ * or a path that resolves onto `/admin` or `/api`.
  */
 function assertNoDisallowedDecodedForm(resolved: URL, raw: string): void {
-  let decodedPathname: string;
-  try {
-    decodedPathname = decodeURIComponent(resolved.pathname);
-  } catch {
-    throw new PublishedPagePathError(`path contains a malformed percent-encoding: '${raw}'.`);
-  }
-  if (decodedPathname.includes("\\") || hasControlCharacter(decodedPathname)) {
-    throw new PublishedPagePathError("path decodes to a backslash or control character, which is refused.");
-  }
-  if (decodedPathname.toLowerCase().startsWith("/api/")) {
-    throw new PublishedPagePathError(
-      "path must not target '/api/' — that is the authenticated admin/API surface, not a published page.",
-    );
+  const check = checkSitePathname(resolved.pathname);
+  switch (check.kind) {
+    case "ok":
+      return;
+    case "malformed-encoding":
+      throw new PublishedPagePathError(`path contains a malformed percent-encoding: '${raw}'.`);
+    case "disallowed-character":
+      throw new PublishedPagePathError("path decodes to a backslash or control character, which is refused.");
+    case "reserved":
+      throw new PublishedPagePathError(
+        `path must not target '/${check.surface}' — that is the authenticated admin/API surface, not a published page.`,
+      );
   }
 }
 
@@ -293,10 +276,14 @@ function assertNoDisallowedDecodedForm(resolved: URL, raw: string): void {
  *   from reaching a static-file handler. `..` cannot escape the origin, but it can escape a
  *   directory, and a single decode pass is enough because the check runs on the decoded form and
  *   rejects a remaining `%` sequence that decodes to a traversal.
- * - **not under `/api/`** — the site app and the admin API share one Express app. The admin API is
- *   session-gated, so an unauthenticated in-process request already fails, but "a published page"
- *   is a claim about the public site and this tool must not become a second, unaudited door to the
- *   API surface. Defense in depth, stated as a rule rather than relied on as a side effect.
+ * - **not on `/admin` or `/api`** — the site app, the admin SPA and the admin API share one
+ *   Express app (`admin-static.ts`'s `app.use("/admin", ...)`, `core.ts`'s
+ *   `app.use("/api/admin", ...)`). Both are session-gated, so an unauthenticated in-process request
+ *   already fails, but "a published page" is a claim about the public site and this tool must not
+ *   become a second, unaudited door to the admin surface. Defense in depth, stated as a rule rather
+ *   than relied on as a side effect. The comparison is per SEGMENT and post-decode
+ *   (`platform/routing/reserved-paths.ts`), so `/%61dmin` is refused while `/administer-survey`
+ *   — ordinary site content that merely starts with the same letters — is not.
  *
  * @param raw - The caller's path, untrusted.
  * @param base - The loopback origin this call minted, e.g. `http://127.0.0.1:53142`.

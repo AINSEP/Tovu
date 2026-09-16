@@ -255,8 +255,33 @@ test("fetchPublishedPage: refuses an off-site path and never issues the request"
 test("fetchPublishedPage: the /api guard holds even though the admin API is mounted on the same app", async () => {
   await assert.rejects(
     () => fetchPublishedPage(DEPS, { path: "/api/admin/v1/secret" }),
-    (err: unknown) => err instanceof PublishedPagePathError && err.message.includes("/api/"),
+    (err: unknown) =>
+      err instanceof PublishedPagePathError &&
+      err.message ===
+        "path must not target '/api' — that is the authenticated admin/API surface, not a published page.",
   );
+});
+
+test("fetchPublishedPage: the same guard covers /admin, the admin SPA mounted on that same app", async () => {
+  // Widened from `/api/` only when `platform/routing/reserved-paths.ts` became the single copy of
+  // this rule (`redirects` needs the identical answer for a stored redirect target). `/admin` is
+  // `app.use("/admin", express.static(...))` in `admin-static.ts` — as much "not a published page"
+  // as the API is.
+  for (const path of ["/admin", "/admin/settings", "/%61dmin", "/ADMIN/settings"]) {
+    await assert.rejects(
+      () => fetchPublishedPage(DEPS, { path }),
+      (err: unknown) =>
+        err instanceof PublishedPagePathError &&
+        err.message ===
+          "path must not target '/admin' — that is the authenticated admin/API surface, not a published page.",
+      `expected '${path}' to be refused`,
+    );
+  }
+});
+
+test("fetchPublishedPage: a published page whose slug merely starts with 'admin' still fetches", async () => {
+  const ok = await fetchPublishedPage(DEPS, { path: "/administer-survey" });
+  assert.equal(typeof ok.status, "number");
 });
 
 test("fetchPublishedPage: tears the ephemeral server down on both the success and the rejection path", async () => {
