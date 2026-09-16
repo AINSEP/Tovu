@@ -59,7 +59,8 @@ export function rewrapPageNavigateError(err: unknown): unknown {
     `"${page}" is not a registered ADMIN SCREEN id (page.navigate moves the operator's admin UI between a ` +
       `fixed set of screens — it does not open site content). Available screens: ${availableScreens}. ` +
       "Looking for a post or page instead? Use content_post_search / content_read.content_post " +
-      "(or content_duplicate to copy one), not page.navigate."
+      "(or content_duplicate to copy one), not page.navigate. Want to SHOW the published page on " +
+      "screen? Use admin.show_site_page."
   );
 }
 

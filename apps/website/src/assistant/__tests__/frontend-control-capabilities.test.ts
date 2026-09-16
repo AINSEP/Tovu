@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createFrontendControl } from "@jini-ai/http-kit";
 
-import { FRONTEND_CONTROL_CAPABILITIES } from "../frontend-control-capabilities.js";
+import { ADMIN_SHOW_SITE_PAGE_CAPABILITY_ID, FRONTEND_CONTROL_CAPABILITIES } from "../frontend-control-capabilities.js";
 
 /**
  * @file Pins the one invariant `agent-daemon-server.ts`'s `createFrontendControl` call depends on:
@@ -69,6 +69,44 @@ test("admin.capture_screenshot is registered, read-only, session-scoped, and sta
 });
 
 /**
+ * `admin.show_site_page` — puts one route of the live published site on the operator's screen (a
+ * same-origin iframe overlay in the admin SPA; see `2026-09-15-view-site-tool-PLAN.md`). Pinned
+ * separately from `admin.capture_screenshot` above because its requirements differ in the ways that
+ * matter most: it is `risk: 'write'` (it changes what the operator is looking at, unlike a
+ * screenshot, which changes nothing), and its description must tell the model about
+ * `fetch_published_page` for visitor-truth questions rather than duplicating that tool's job.
+ */
+test("admin.show_site_page is registered, write-classified, session-scoped, requires no confirmation, and points at fetch_published_page for visitor truth", () => {
+  const capability = FRONTEND_CONTROL_CAPABILITIES.find((entry) => entry.id === ADMIN_SHOW_SITE_PAGE_CAPABILITY_ID);
+  assert.ok(capability, "expected admin.show_site_page to be in the manifest");
+  assert.equal(capability?.risk, "write", "it puts something on the operator's screen — not a no-op read");
+  assert.equal(capability?.surface, "session", "it is meaningless with no live admin tab attached");
+  assert.notEqual(capability?.requiresConfirmation, true, "no confirmation transport exists — see this module's own doc");
+  assert.match(
+    capability?.description ?? "",
+    /fetch_published_page/,
+    "the description must point the model at fetch_published_page for what a VISITOR receives",
+  );
+  assert.match(
+    capability?.description ?? "",
+    /404/,
+    "the description must say a 404 is a reported RESULT, not an error",
+  );
+  assert.deepEqual(
+    capability?.inputSchema,
+    {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "A root-relative path on THIS site, e.g. '/' or '/blog/hello'." },
+      },
+      required: ["path"],
+      additionalProperties: false,
+    },
+    "the input schema must require 'path' and forbid unknown properties",
+  );
+});
+
+/**
  * Calls the REAL `createFrontendControl` — the exact function `agent-daemon-server.ts` calls at
  * module scope, from `@jini-ai/http-kit` — rather than re-deriving the assertion from the raw
  * manifest above. This is what actually confirms the six verbs *register as callable tools*, not
@@ -101,6 +139,7 @@ test("createFrontendControl registers exactly the six safe chat.* verbs as calla
     ids.some((id) => id.startsWith("page.")),
     "expected page.* tools to still be registered",
   );
+  assert.ok(ids.includes(ADMIN_SHOW_SITE_PAGE_CAPABILITY_ID), "expected admin.show_site_page to be a registered tool");
 
   const confirmingRegistrations = frontendControl.toolRegistrations.filter(
     (registration) => registration.descriptor.requiresConfirmation === true,

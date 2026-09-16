@@ -394,6 +394,14 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
     "single multi checklist checkbox radio approve approval permission go-ahead consent which one " +
     "poll survey form dialog interactive get input from user administrator before doing proceed",
 
+  // --- agent-driven live-site preview -----------------------------------------------------------------
+  // 2026-09-15 — new tool, no prior entry. Phrased from what an operator asks for after publishing
+  // ("show me", "here's the page") rather than this domain's own "iframe"/"overlay" nouns.
+  "admin.show_site_page":
+    "show me the page show the site published live view preview see it look at it here it is " +
+    "open the page display render the published version what does it look like live now on screen " +
+    "put it on screen after publishing pull it up",
+
   // --- agent-driven admin screen capture --------------------------------------------------------------
   "admin.capture_screenshot":
     "screenshot screenshots screen capture picture image photo see view look looks looking visual visually appearance " +

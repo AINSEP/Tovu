@@ -1219,7 +1219,44 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    breakpoint, see the responsive block at the bottom of this file) can stack above content
    without disturbing `.admin-layout`'s own row of sidebar/content/chat-dock. `<main>` itself
    keeps its existing flex/overflow behavior unchanged at desktop widths. */
-.admin-main-col { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; }
+/* `position: relative` added for `.site-preview-overlay` below to anchor against — was
+   unpositioned (static) before, which would have sent that overlay's `position: absolute` up to
+   the initial containing block (the viewport) instead of staying confined to this column. */
+.admin-main-col { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; }
+
+/* `admin.show_site_page`'s overlay (SPEC 2026-09-15). Confined to `.admin-main-col`'s own box
+   (`position: absolute; inset: 0` against the `position: relative` rule just above), NOT
+   `position: fixed` over the whole viewport — deliberately, so it is geometrically incapable of
+   covering `.admin-chat-dock`'s separate flex column at desktop widths: no z-index arithmetic
+   against the dock is needed because the two boxes never overlap. `z-index: 25` only has to beat
+   `.admin-content`'s ordinary static/in-flow content (any positive value would; see CSS2.1
+   Appendix E's stacking order) and stay BELOW `.chat-fab`'s `z-index: 30` (`assistant.css`), so the
+   FAB stays clickable/visible when the dock is closed, and below the mobile sheet dock's
+   `z-index: 55` (this file's own sheet-mode block), so the sheet still slides up over this on
+   narrow viewports exactly as it already does over `<main>`. */
+.site-preview-overlay {
+  position: absolute; inset: 0; z-index: 25;
+  display: flex; flex-direction: column;
+  background: var(--surface);
+}
+.site-preview-overlay-header {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.site-preview-overlay-path {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-mono, monospace); font-size: 0.85rem; color: var(--muted);
+}
+.site-preview-overlay-close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border: 0; border-radius: var(--r-sm);
+  background: transparent; color: var(--fg); cursor: pointer;
+}
+.site-preview-overlay-close:hover { background: var(--surface-3, var(--surface-2)); }
+.site-preview-overlay-frame { flex: 1; width: 100%; border: 0; display: block; background: var(--surface); }
 .admin-content { flex: 1; min-height: 0; overflow-y: auto; padding: 2rem 2.5rem; }
 
 /* Mobile top bar — hidden above the tablet breakpoint (desktop keeps the always-visible

@@ -13,6 +13,7 @@ import { t as tApp } from "./app-i18n";
 import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
 import { ChatFab } from "./components/ChatFab/ChatFab";
+import { SitePreviewOverlay } from "./components/SitePreviewOverlay/SitePreviewOverlay";
 import {
   resolveChatFabClearance,
   resolveSiteSectionRouteGate,
@@ -613,6 +614,14 @@ export function App(props: AppProps) {
         <main id="main-content" className="admin-content" ref={setContentEl} tabIndex={-1} data-agent-page={agentPageId(route)}>
           {content}
         </main>
+        {/* `admin.show_site_page`'s overlay — a DOM SIBLING of `<main>`, not a child of it: `<main>`
+            is `useAgentPageBridge`'s `contentEl`, so a child here would be scanned by
+            `page.find_elements` and rasterized by `admin.capture_screenshot` as if it were page
+            content. Also a sibling of `<main>` rather than hoisted to `.admin-layout`'s own top
+            level (next to `<Toast>` below): `.admin-main-col`'s box excludes the assistant dock's
+            separate flex column entirely, so this overlay is geometrically incapable of covering
+            the dock — see `styles.css`'s `.site-preview-overlay` rule for the stacking reasoning. */}
+        <SitePreviewOverlay locale={navLocale} />
       </div>
       {/* See `AssistantChrome`'s own doc comment for why this is unconditional — `enabled` is what
           decides, not a ternary here. */}

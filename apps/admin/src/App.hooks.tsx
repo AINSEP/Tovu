@@ -10,6 +10,9 @@ import {
   type RenderElementToCanvas,
 } from "./lib/agent-screenshot";
 import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/agent-screenshot-bus";
+import { resolveAdminSitePreviewPath } from "./lib/site-preview-path";
+import { publishSitePreview } from "./lib/site-preview-bus";
+import { siteUrl } from "./lib/site-url";
 import { installInternalLinkInterceptor, navigate } from "./lib/router";
 import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
@@ -722,6 +725,79 @@ export interface UseAgentPageBridge {
  * @example
  * const { contentEl, setContentEl, agentBridge } = useAgentPageBridge();
  */
+/** Must equal the `id` of the `CapabilityDef` registered under this name in
+ *  `apps/website/src/assistant/frontend-control-capabilities.ts` — duplicated rather than imported
+ *  for the same cross-boundary-string reason {@link ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID}'s own
+ *  module doc gives (apps/admin and apps/website are separate builds with no shared-types package
+ *  for this). `frontend-control-capabilities.test.ts` pins the two strings equal. */
+export const ADMIN_SHOW_SITE_PAGE_CAPABILITY_ID = "admin.show_site_page";
+
+/** `admin.show_site_page`'s tool result — `{path, shown, status, ok, note?}` per
+ *  `2026-09-15-view-site-tool-PLAN.md` §Q5. `note` is present only when `ok` is `false`: a non-2xx
+ *  status is a reported RESULT (the page is still shown), not a tool failure. */
+export interface ShowSitePageResult {
+  /** The validated path actually shown, as `resolveAdminSitePreviewPath` canonicalized it. */
+  readonly path: string;
+  /** Always `true` once this resolves — a rejected/refused path throws instead of returning. */
+  readonly shown: boolean;
+  /** What the OPERATOR'S OWN browser received for `path` — see this module's own doc for why this
+   *  is fetched from here rather than reused from `fetch_published_page`'s unauthenticated answer. */
+  readonly status: number;
+  readonly ok: boolean;
+  readonly note?: string;
+}
+
+/**
+ * Answers one `admin.show_site_page` invocation: validates `input.path` (throws on refusal — see
+ * {@link resolveAdminSitePreviewPath}, where the `/api/`+`/admin` mitigation actually lives), checks
+ * what the operator's OWN browser gets for it, publishes it to {@link publishSitePreview} so
+ * `SitePreviewOverlay` mounts the iframe, and reports the result.
+ *
+ * The status check and the iframe load are two separate same-origin requests to the same path, both
+ * carrying the operator's session — deliberately not reused from `fetch_published_page`'s in-process,
+ * unauthenticated fetch, which can legitimately disagree with what the operator's browser sees (see
+ * this file's Q5 in the design plan). Publish happens AFTER the fetch resolves and only on success,
+ * so a network failure never opens the overlay on a path nothing could confirm is reachable.
+ *
+ * @param input - The raw tool input; `input.path` is `unknown` until {@link resolveAdminSitePreviewPath}
+ * narrows it.
+ * @param fetchSitePage - Test seam; defaults to the real global `fetch`. Mirrors
+ * {@link buildAdminCapabilityExecutors}'s existing `renderElementToCanvas` seam.
+ * @throws {SitePreviewPathError} When `input.path` fails validation (fix the path and retry).
+ * @throws {Error} When the status-check fetch itself fails (a network fault, not a bad path) — wrapped
+ * with the path in the message so the failure reads as actionable rather than a bare `TypeError`.
+ * @complexity O(1) plus one network round trip.
+ */
+export async function executeShowSitePage(
+  input: Record<string, unknown>,
+  fetchSitePage: typeof fetch = fetch,
+): Promise<ShowSitePageResult> {
+  const path = resolveAdminSitePreviewPath(input.path);
+
+  let response: Response;
+  try {
+    response = await fetchSitePage(siteUrl(path), { redirect: "follow" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`could not check what is at "${path}": ${message}`);
+  }
+
+  publishSitePreview({ path });
+
+  const ok = response.status >= 200 && response.status < 300;
+  return {
+    path,
+    shown: true,
+    status: response.status,
+    ok,
+    ...(ok
+      ? {}
+      : {
+          note: `the operator's browser received HTTP ${response.status} for '${path}'. The preview is still shown — a non-2xx status is a reported result, not a failed call.`,
+        }),
+  };
+}
+
 /**
  * Builds the `executors` map `createFrontendSessionBridge` claims under the `"admin."` prefix — the
  * host-extension seam `frontend-session-bridge.ts`'s own module doc describes ("Product capabilities,
@@ -735,26 +811,35 @@ export interface UseAgentPageBridge {
  * @param contentEl - The element to capture. `null` is handled by
  * {@link captureAdminScreenshotToolResult} itself (reported as a text failure, not thrown).
  * @param renderElementToCanvas - Test seam; defaults to the real `html2canvas`-backed adapter.
+ * @param fetchSitePage - Test seam for `admin.show_site_page`'s status check; defaults to the real
+ * global `fetch`. See {@link executeShowSitePage}.
  * @throws Rejects (never throws synchronously) for a capability id under this prefix this module does
  * not recognize — mirrors `frontend-session-bridge.ts`'s own "nothing on this page serves ..." wording
- * for an unclaimed id, since `serveLocally` there always awaits this.
- * @complexity O(1) to build; the returned handler's cost is `captureAdminScreenshotToolResult`'s own.
+ * for an unclaimed id, since `serveLocally` there always awaits this. Also rejects (by propagating the
+ * underlying error, unchanged) when a recognized id's own executor throws — {@link executeShowSitePage}
+ * for `admin.show_site_page`'s validation/network failures.
+ * @complexity O(1) to build; each returned handler's cost is its own capability's (see
+ * {@link captureAdminScreenshotToolResult} / {@link executeShowSitePage}).
  */
 export function buildAdminCapabilityExecutors(
   contentEl: HTMLElement | null,
   renderElementToCanvas: RenderElementToCanvas = renderAdminScreenshotCanvas,
+  fetchSitePage: typeof fetch = fetch,
 ): Record<string, (capabilityId: string, input: Record<string, unknown>) => Promise<unknown>> {
   return {
-    "admin.": async (capabilityId: string) => {
-      if (capabilityId !== ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID) {
-        throw new Error(`no admin capability serves "${capabilityId}"`);
+    "admin.": async (capabilityId: string, input: Record<string, unknown>) => {
+      if (capabilityId === ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID) {
+        const result = await captureAdminScreenshotToolResult({ element: contentEl, renderElementToCanvas });
+        // Announce on success only: a failure (no content area attached, capture error, over budget)
+        // never actually showed the operator's screen to anyone, so nothing needs announcing — see
+        // `agent-screenshot-bus.ts`'s own module doc for why every REAL capture must be, though.
+        if (result.content.some((block) => block.type === "image")) publishScreenshotCaptured();
+        return result;
       }
-      const result = await captureAdminScreenshotToolResult({ element: contentEl, renderElementToCanvas });
-      // Announce on success only: a failure (no content area attached, capture error, over budget)
-      // never actually showed the operator's screen to anyone, so nothing needs announcing — see
-      // `agent-screenshot-bus.ts`'s own module doc for why every REAL capture must be, though.
-      if (result.content.some((block) => block.type === "image")) publishScreenshotCaptured();
-      return result;
+      if (capabilityId === ADMIN_SHOW_SITE_PAGE_CAPABILITY_ID) {
+        return executeShowSitePage(input, fetchSitePage);
+      }
+      throw new Error(`no admin capability serves "${capabilityId}"`);
     },
   };
 }
