@@ -3,6 +3,9 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
+import { PEM_PATTERN_NAME, SECRET_PATTERNS, type SecretPattern } from "../../contracts/core/secret-patterns.js";
+export { SECRET_PATTERNS, type SecretPattern };
+
 /**
  * @file Repo-scanning static check (same shape as `seal-aad-invariant.ts` in this folder): fails
  * when a credential-shaped string is committed to a TRACKED file anywhere in this repo.
@@ -89,36 +92,11 @@ const SKIP_EXTENSIONS = new Set([
  *  needs a file this large — the largest tracked non-media file today is ~1.6MB. */
 const MAX_SCAN_BYTES = 8 * 1024 * 1024;
 
-export interface SecretPattern {
-  readonly name: string;
-  readonly pattern: RegExp;
-}
-
-// Named once and reused below (SECRET_PATTERNS + two ALLOWLIST entries) rather than repeated as a
-// literal three times.
-const PEM_PATTERN_NAME = "PEM private key block";
-
 // Built at runtime, matching __tests__/secret-scan-guard.test.ts's own PEM fixture technique: the
 // literal PEM header text, written whole, is itself a tracked credential-shaped string that this
 // file's own repo-wide scan would flag, so the two ALLOWLIST entries below reference this instead
 // of writing that text out directly.
 const PEM_HEADER_VALUE = ["-----BEGIN", "PRIVATE", "KEY-----"].join(" ");
-
-// Character classes intentionally match each vendor's real alphabet; see file header for why every
-// exact-length pattern is lookaround-anchored rather than a bare `{n}`.
-export const SECRET_PATTERNS: readonly SecretPattern[] = [
-  { name: "Google API key (AIza)", pattern: /(?<![A-Za-z0-9_-])AIza[0-9A-Za-z_-]{35}(?![A-Za-z0-9_-])/ },
-  { name: "Anthropic API key (sk-ant-)", pattern: /(?<![A-Za-z0-9_-])sk-ant-[A-Za-z0-9_-]{90,}/ },
-  { name: "generic sk- secret key (OpenAI-shaped)", pattern: /(?<![A-Za-z0-9_-])sk-[A-Za-z0-9]{40,}/ },
-  { name: "GitHub personal access token (classic, ghp_)", pattern: /(?<!\w)ghp_\w{36}(?!\w)/ },
-  { name: "GitHub OAuth token (gho_)", pattern: /(?<!\w)gho_\w{36}(?!\w)/ },
-  { name: "GitHub fine-grained PAT", pattern: /(?<!\w)github_pat_\w{80,}/ },
-  { name: "npm access token", pattern: /(?<!\w)npm_\w{36}(?!\w)/ },
-  { name: "Slack token", pattern: /(?<![A-Za-z0-9-])xox[baprs]-[A-Za-z0-9-]{12,}/ },
-  { name: "AWS access key ID", pattern: /(?<![0-9A-Z])AKIA[0-9A-Z]{16}(?![0-9A-Z])/ },
-  { name: "Fastmail app password (fm2_)", pattern: /(?<![A-Za-z0-9+/=])fm2_[A-Za-z0-9+/=]{20,}/ },
-  { name: PEM_PATTERN_NAME, pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/ },
-];
 
 interface AllowlistEntry {
   /** Repo-root-relative path, forward slashes, matching how `git ls-files` reports it. */
