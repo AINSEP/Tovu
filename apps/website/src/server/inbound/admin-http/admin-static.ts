@@ -1,16 +1,11 @@
 import { existsSync } from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
 import express from "express";
 import type { Express, Response } from "express";
 
 import { createAdminDevProxyRequestHandler } from "./admin-dev-proxy.js";
-
-// ESM has no ambient `require`; `node:sea` is loaded conditionally below (it
-// throws outside a single-executable build) and `seaApi()` must stay
-// synchronous, so a local `require` is synthesized rather than switching to
-// dynamic `import()`.
-const require = createRequire(import.meta.url);
+import { seaApi } from "./sea-runtime.js";
+import type { SeaApi } from "./sea-runtime.js";
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -23,31 +18,6 @@ const MIME: Record<string, string> = {
   ".json": "application/json",
   ".woff2": "font/woff2",
 };
-
-interface SeaApi {
-  isSea(): boolean;
-  getAsset(key: string): ArrayBuffer;
-}
-
-/** Loads node:sea when running inside a single-executable build. */
-function seaApi(): SeaApi | null {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const sea = require("node:sea") as SeaApi;
-    return sea.isSea() ? sea : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Whether this process is a packaged single-executable build. Exported so `admin-dev-proxy.ts` can
- * apply the same "SEA always wins" precedence this module's own {@link registerAdminStatic} enforces
- * below, without that module needing its own copy of {@link seaApi}'s try/require dance.
- */
-export function isSeaRuntime(): boolean {
-  return seaApi() !== null;
-}
 
 function sendSeaAsset(sea: SeaApi, key: string, res: Response): boolean {
   try {
