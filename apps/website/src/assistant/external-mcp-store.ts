@@ -377,12 +377,21 @@ function parseJsonArray(raw: string | null): string[] {
 
 /**
  * A connection's "admitted under this" fingerprint — what `external-mcp-revocation.ts`'s per-call
- * gate compares a roster connection's row against to catch a delete-then-recreate or a
- * url/command/args/transport/authMode edit, none of which re-admit an already-running connection
- * (the registry is append-only; `mcp-federation/reload.ts` never re-admits an admitted id).
+ * gate compares a roster connection's row against to catch a delete-then-recreate, a
+ * url/command/args/transport/authMode edit, or a rotated/cleared `sealedEnv` credential, none of
+ * which re-admit an already-running connection (the registry is append-only;
+ * `mcp-federation/reload.ts` never re-admits an admitted id).
  *
- * Deliberately narrow: `label`, `enabled`, both grant lists, OAuth status/expiry/tokens, `env` and
- * `updatedAt` are excluded, because none of them identify WHERE or via WHAT credentials a call
+ * `sealedEnv`'s CIPHERTEXT is included (not `sealedOAuth`): a `static_env`/`stdio` credential is
+ * resealed only when an operator actually submits a new `env` block — an ordinary toggle/rename
+ * leaves `env` undefined and carries the existing seal through byte-for-byte (see
+ * `resolveExternalMcpSealedEnv`'s `rawEnv === undefined` branch), so the ciphertext is stable across
+ * cosmetic saves and only moves when the credential itself is rotated or cleared. `sealedOAuth` is
+ * deliberately excluded: it is re-sealed on every OAuth token refresh, so hashing it would flip the
+ * revision — and refuse the connection — on every refresh, not just a genuine revocation.
+ *
+ * Otherwise deliberately narrow: `label`, `enabled`, both grant lists, OAuth status/expiry/tokens,
+ * and `updatedAt` are excluded, because none of them identify WHERE or via WHAT credentials a call
  * reaches the remote, and including any of them would flip the revision on a toggle or a token
  * refresh that must not refuse an already-admitted tool. `createdAt` is included so a delete +
  * re-create under the same id (same url/command, different row) still changes the revision.
@@ -395,10 +404,20 @@ function parseJsonArray(raw: string | null): string[] {
  * @overallScore 100
  */
 export function externalMcpAdmissionRevision(
-  record: Pick<ExternalMcpServerRecord, "createdAt" | "transport" | "url" | "command" | "args" | "authMode">,
+  record: Pick<ExternalMcpServerRecord, "createdAt" | "transport" | "url" | "command" | "args" | "authMode" | "sealedEnv">,
 ): string {
   return createHash("sha256")
-    .update(JSON.stringify([record.createdAt, record.transport, record.url, record.command, record.args, record.authMode]))
+    .update(
+      JSON.stringify([
+        record.createdAt,
+        record.transport,
+        record.url,
+        record.command,
+        record.args,
+        record.authMode,
+        record.sealedEnv?.ciphertext ?? null,
+      ]),
+    )
     .digest("hex");
 }
 

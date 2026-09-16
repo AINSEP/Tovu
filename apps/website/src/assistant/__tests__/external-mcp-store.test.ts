@@ -303,13 +303,56 @@ test("the admission revision is unchanged across a save that only changes enable
   assert.ok(before);
   const revisionBefore = externalMcpAdmissionRevision(before);
 
+  // `env: undefined` — same convention as "omitting env preserves the stored credentials" above: a
+  // toggle/rename from the summary row never resends credentials (`toWriteBody` omits `env` entirely
+  // when blank), so this is the faithful shape of "did not touch credentials", not a resend of the
+  // same text under a fresh seal.
   await saveExternalMcpServer(
     deps,
-    validInput({ enabled: false, label: "Renamed", allowedToolNames: "search_repositories", writeAllowedToolNames: "" }),
+    validInput({
+      enabled: false,
+      label: "Renamed",
+      allowedToolNames: "search_repositories",
+      writeAllowedToolNames: "",
+      env: undefined,
+    }),
   );
   const after = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
   assert.ok(after);
   assert.equal(externalMcpAdmissionRevision(after), revisionBefore, "toggling enabled/label/grants must not move the revision");
+});
+
+test("the admission revision changes when the sealed credential is rotated to a new value", async () => {
+  const { deps, repo } = makeDeps();
+  await saveExternalMcpServer(deps, validInput());
+  const before = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(before);
+
+  await saveExternalMcpServer(deps, validInput({ env: "GITHUB_TOKEN=ghp_rotated_value" }));
+  const after = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(after);
+  assert.notEqual(
+    externalMcpAdmissionRevision(after),
+    externalMcpAdmissionRevision(before),
+    "an already-admitted tool must not keep calling the remote with a rotated-away credential",
+  );
+});
+
+test("the admission revision changes when a leaked credential is cleared", async () => {
+  const { deps, repo } = makeDeps();
+  await saveExternalMcpServer(deps, validInput());
+  const before = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(before);
+
+  // The exact operator action from the bug report: responding to a leaked token by clearing it.
+  await saveExternalMcpServer(deps, validInput({ env: "" }));
+  const after = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(after);
+  assert.notEqual(
+    externalMcpAdmissionRevision(after),
+    externalMcpAdmissionRevision(before),
+    "clearing a revoked credential must refuse an already-admitted tool, not let it keep using the old value",
+  );
 });
 
 test("the admission revision changes when the launch target (command) changes", async () => {
