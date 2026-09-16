@@ -141,3 +141,27 @@
 .menu-item-advanced-fields input:not([type]) { flex: 1 1 9rem; min-width: 7rem; font-size: 0.85rem; padding: 0.35rem 0.55rem; }
 /* Same shape as `styles.css`'s `.collections-term-checkbox` — inline-flex row, small gap, no box. */
 .menu-item-advanced-checkbox { display: inline-flex; align-items: center; gap: 0.35rem; }
+
+/* Preview fullscreen control. A translucent symbol floating on the preview itself (owner's ask,
+   2026-09-15) rather than a labelled button in the toolbar: the same control in the same place
+   both collapsed and expanded, so the way out is always visible on screen — the failure that
+   killed the previous overlay attempt was an operator who could not see how to get back. */
+.post-preview-surface { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.post-preview-fab {
+  position: absolute; top: 0.6rem; right: 0.6rem; z-index: 3;
+  width: 2.25rem; height: 2.25rem; padding: 0; border: 0; border-radius: 0.5rem;
+  display: grid; place-items: center; cursor: pointer;
+  font-size: 1.15rem; line-height: 1; color: #fff;
+  background: rgba(17, 17, 17, 0.42); backdrop-filter: blur(6px);
+  opacity: 0.32; transition: opacity 0.15s ease, background 0.15s ease;
+}
+.post-preview-fab:hover, .post-preview-fab:focus-visible { opacity: 1; background: rgba(17, 17, 17, 0.72); }
+/* The expanded iframe gets its height from `flex: 1` (rule above), which only works if its parent
+   is a flex column — `.editor-shell` is not one by default, so without this the iframe collapses to
+   its intrinsic ~150px and the expanded panel renders mostly empty. */
+.post-preview-expanded .post-preview-surface { flex: 1; min-height: 0; }
+.post-preview-expanded .editor-shell { display: flex; flex-direction: column; }
+/* Breathing room between the editor's Save/Delete row and the preview frame below it. Removed when
+   expanded, where the panel is flush against its own box and there is no toolbar above it. */
+.post-preview-surface { margin-top: 1rem; }
+.post-preview-expanded .post-preview-surface { margin-top: 0; }

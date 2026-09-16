@@ -1495,20 +1495,6 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
             toolbar anyway — it carries its own collapse control in its own header instead of leaving
             a second, invisible copy of this button mounted underneath it. Same `agentHandle` on
             both, safely: the two are mutually exclusive in the DOM, never mounted at once. */}
-        {view === "preview" && !previewExpanded && (
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={togglePreviewExpanded}
-            title="Expand to full width"
-            {...agentHandle("post-preview-expand", {
-              role: "button",
-              label: "Show the preview big, filling the admin content area",
-            })}
-          >
-            {t("Expand to full width")}
-          </button>
-        )}
         {/* Template picker (Post-template-picker feature, 2026-08-10) — see `PostEditorToolbarEnd`'s
             own doc for the full eligibility/ordering/empty-theme rules this extracts. */}
         <PostEditorToolbarEnd
@@ -1729,7 +1715,25 @@ function PostPreview({
   // function's own file-header note in the plan this implements ("byte-for-byte unchanged" when not
   // expanded). Every one of the branch tests above this point renders with `expanded: false` and
   // must keep seeing exactly this shape.
-  if (!expanded) return pane;
+  const fab = (
+    <button
+      type="button"
+      className="post-preview-fab"
+      onClick={onToggleExpanded}
+      title={expanded ? "Exit full screen (Esc)" : "Show full screen"}
+      aria-label={expanded ? "Exit full screen" : "Show full screen"}
+      {...agentHandle("post-preview-expand", {
+        role: "button",
+        label: expanded
+          ? "Collapse the preview back to its normal size"
+          : "Show the preview big, filling the admin content area",
+      })}
+    >
+      <span aria-hidden="true">{expanded ? "\u2921" : "\u2922"}</span>
+    </button>
+  );
+
+  if (!expanded) return <div className="post-preview-surface">{pane}{fab}</div>;
 
   // Expanded: `.post-preview-expanded` (`styles/editor.css`) is `position: absolute; inset: 0`
   // against `.admin-main-col` — see that rule's own comment for the full containment argument (why
@@ -1739,22 +1743,10 @@ function PostPreview({
   // underneath this panel.
   return (
     <div className="post-preview-expanded">
-      <div className="post-preview-expanded-header">
-        <span>Preview</span>
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={onToggleExpanded}
-          title="Exit full width (Esc)"
-          {...agentHandle("post-preview-expand", {
-            role: "button",
-            label: "Collapse the preview back to its normal size",
-          })}
-        >
-          Exit full width
-        </button>
+      <div className="post-preview-surface">
+        {pane}
+        {fab}
       </div>
-      {pane}
     </div>
   );
 }
