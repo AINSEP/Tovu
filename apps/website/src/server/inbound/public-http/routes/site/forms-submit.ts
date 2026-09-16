@@ -256,7 +256,11 @@ export function registerFormsSubmitRoute(app: Express, deps: RegisterFormsSubmit
       sendFormSubmitOutcome(req, res, outcomeForSuccess(slug, result));
     } catch (err) {
       if (err instanceof FormSubmissionValidationError && wantsHtmlResponse(req)) {
-        await setFormFlashCookieForValidationFailure(req, res, deps, slug, body);
+        try {
+          await setFormFlashCookieForValidationFailure(req, res, deps, slug, body);
+        } catch (flashErr) {
+          console.error(`[site/forms-submit] failed to set validation flash cookie (slug=${slug})`, flashErr);
+        }
       }
       sendFormSubmitOutcome(req, res, outcomeForError(slug, err));
     }

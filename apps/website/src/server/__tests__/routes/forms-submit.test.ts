@@ -695,6 +695,63 @@ test("POST /forms/:slug/submit: `req.get(\"host\") ?? \"localhost\"` and `req.pa
  * `express.urlencoded` then the real one -- so `extractRouteHandler`'s `stack[0]` assumption does
  * not hold here) as the `slug ?? ""` test above.
  */
+test("POST /forms/:slug/submit: a DB failure in the flash-cookie's own second findBySlug lookup (setFormFlashCookieForValidationFailure) still answers the validation failure — not a hung request", async (t) => {
+  // Same call-counting technique as the race test above: call 1 is submitForm's own internal
+  // lookup (must succeed so validation actually fails); call 2 is this route's own second lookup
+  // inside setFormFlashCookieForValidationFailure, made to REJECT (a transient DB error) rather
+  // than resolve null (a race/deletion). That await has no enclosing try in the pre-fix code, so
+  // its rejection propagates out of the async handler; Express 4 ignores that rejection, and the
+  // request gets no response at all -- only the 5s AbortSignal timeout below turns that hang into
+  // a visible failure instead of a stuck run.
+  const real = new InMemoryFormDefinitionRepo();
+  await real.create(makeDefinition());
+  let calls = 0;
+  const flakyRepo: FormDefinitionRepoPort = {
+    findById: (required) => real.findById(required),
+    findBySlug: (required) => {
+      calls += 1;
+      return calls === 1 ? real.findBySlug(required) : Promise.reject(new Error("simulated repo failure in findBySlug"));
+    },
+    list: (required) => real.list(required),
+    create: (record) => real.create(record),
+    update: (record) => real.update(record),
+  };
+  const { server, baseUrl } = await startTestApp({ definitionRepo: flakyRepo });
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown): void => {
+    unhandled.push(reason);
+  };
+  process.on("unhandledRejection", onUnhandled);
+  t.after(() => process.off("unhandledRejection", onUnhandled));
+
+  const logged: unknown[][] = [];
+  const originalConsoleError = console.error;
+  let res: Response;
+  try {
+    console.error = (...args: unknown[]): void => {
+      logged.push(args);
+    };
+    res = await fetch(`${baseUrl}/forms/contact/submit`, {
+      method: "POST",
+      redirect: "manual",
+      headers: { "content-type": "application/x-www-form-urlencoded", accept: "text/html" },
+      body: "", // "name" omitted -> validation failure, which is what triggers the flash-cookie path
+      signal: AbortSignal.timeout(5_000),
+    });
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal(calls, 2, "both lookups must have happened for this to be a real regression test of the second one failing");
+  assert.equal(res.status, 303, "the validation failure must still be answered, not lost behind the flash-cookie step's own DB error");
+  const location = new URL(res.headers.get("location") ?? "", baseUrl);
+  assert.equal(location.searchParams.get("form_status"), "validation");
+  assert.equal(res.headers.get("set-cookie"), null, "the flash cookie itself could not be built, so none should be set");
+  assert.deepEqual(unhandled, [], "the repo rejection must be caught, not leak out as a process-wide unhandled rejection");
+});
+
 test("POST /forms/:slug/submit: `boundBody`'s `(body ?? {})` fallback, forced via a direct handler call with req.body omitted entirely", async (t) => {
   const { server, app, definitionRepo } = await startTestApp();
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
