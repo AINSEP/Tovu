@@ -193,7 +193,8 @@ export interface AdmittedFederatedTool {
   readonly description: string;
   /** The remote's schema, already validated to be a JSON-Schema object by R4. */
   readonly inputSchema: Readonly<Record<string, unknown>>;
-  /** Carried for audit/logging only. Never consulted for a grant — see R3. */
+  /** Carried for audit/logging only at admission time — consulted only to DEMOTE (per-call
+   * narrowing, via {@link refusalForAdmittedToolUnderCurrentGrants}), never to grant. See R3. */
   readonly declaredAnnotations?: RemoteToolDescriptorAnnotations;
   /** Whether the OPERATOR — not the remote — separately named this tool in `writeAllowedToolNames`.
    * `true` means an explicit, second, write-specific decision was made about this exact tool. It
@@ -325,6 +326,28 @@ function refusalForRemoteToolHints(annotations: RemoteToolDescriptorAnnotations,
   if (annotations?.destructiveHint === true) return "remote-declares-destructive";
   if (annotations?.readOnlyHint === false && !writeAuthorized) return "remote-declares-not-read-only";
   return null;
+}
+
+/**
+ * R2 + R3, reapplied to an ALREADY-ADMITTED tool against the operator's CURRENT grant lists — the
+ * narrowing-only, per-call counterpart of {@link classifyRemoteTool} that `external-mcp-revocation.ts`
+ * `rosterRefusalFor` uses to catch a tool an operator removed from the allowlist or the write list
+ * after admission. Sharing this function with admission is what makes the two agree by construction:
+ * there is only one place "does this hint set clear these lists" is decided.
+ *
+ * Only ever narrows: a tool admission already approved can, per call, lose access; it can never gain
+ * any it did not already have — the write list is not consulted at all unless the allowlist already
+ * passes, exactly as at admission.
+ *
+ * @complexity O(1).
+ * @overallScore 100
+ */
+export function refusalForAdmittedToolUnderCurrentGrants(
+  tool: { readonly remoteName: string; readonly declaredAnnotations: RemoteToolDescriptorAnnotations },
+  grants: { readonly allowedToolNames: readonly string[]; readonly writeAllowedToolNames: readonly string[] },
+): ToolRefusalReason | null {
+  if (!grants.allowedToolNames.includes(tool.remoteName)) return "not-in-operator-allowlist";
+  return refusalForRemoteToolHints(tool.declaredAnnotations, grants.writeAllowedToolNames.includes(tool.remoteName));
 }
 
 /** Narrows `tool.name` — the one place the "not a string" case degrades to `""` rather than

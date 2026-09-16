@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/webhooks/index.js";
@@ -267,6 +269,10 @@ export interface ExternalMcpServerConfig {
    *  .writeAllowedToolNames}. Passed through untouched for `trust.ts` to enforce. */
   writeAllowedToolNames: string[];
   target: ExternalMcpServerTarget;
+  /** {@link externalMcpAdmissionRevision} of the row this config was resolved from — carried onto
+   *  {@link ResolvedFederatedConnection.config}'s `origin` by {@link toResolvedFederatedConnections}
+   *  for `external-mcp-revocation.ts`'s per-call gate. */
+  admissionRevision: string;
 }
 
 /** The OAuth half of {@link ExternalMcpServerView}. Non-secret by construction: no access token, no
@@ -367,6 +373,46 @@ function parseJsonArray(raw: string | null): string[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * A connection's "admitted under this" fingerprint — what `external-mcp-revocation.ts`'s per-call
+ * gate compares a roster connection's row against to catch a delete-then-recreate or a
+ * url/command/args/transport/authMode edit, none of which re-admit an already-running connection
+ * (the registry is append-only; `mcp-federation/reload.ts` never re-admits an admitted id).
+ *
+ * Deliberately narrow: `label`, `enabled`, both grant lists, OAuth status/expiry/tokens, `env` and
+ * `updatedAt` are excluded, because none of them identify WHERE or via WHAT credentials a call
+ * reaches the remote, and including any of them would flip the revision on a toggle or a token
+ * refresh that must not refuse an already-admitted tool. `createdAt` is included so a delete +
+ * re-create under the same id (same url/command, different row) still changes the revision.
+ *
+ * Hashed rather than kept as plain text, because a hosted row's `url` can itself carry a bearer
+ * token as a query parameter — this value is compared, logged, and passed to a model-facing gate, so
+ * it must never be a place a credential could leak through.
+ *
+ * @complexity O(1).
+ * @overallScore 100
+ */
+export function externalMcpAdmissionRevision(
+  record: Pick<ExternalMcpServerRecord, "createdAt" | "transport" | "url" | "command" | "args" | "authMode">,
+): string {
+  return createHash("sha256")
+    .update(JSON.stringify([record.createdAt, record.transport, record.url, record.command, record.args, record.authMode]))
+    .digest("hex");
+}
+
+/** Parses a row's two grant lists the same way {@link resolveExternalMcpConfig} does — shared so
+ *  admission and `external-mcp-revocation.ts`'s per-call re-check can never silently disagree about
+ *  what a malformed list means (both fail closed to `[]`).
+ *  @complexity O(n) in the size of the two JSON blobs. */
+export function readExternalMcpToolGrants(
+  record: Pick<ExternalMcpServerRecord, "allowedToolNames" | "writeAllowedToolNames">,
+): { allowedToolNames: string[]; writeAllowedToolNames: string[] } {
+  return {
+    allowedToolNames: parseJsonArray(record.allowedToolNames),
+    writeAllowedToolNames: parseJsonArray(record.writeAllowedToolNames),
+  };
 }
 
 /**
@@ -899,6 +945,7 @@ async function resolveExternalMcpConfig(
       : await resolveHttpTarget(record, authMode, oauth, staticToken.token);
   if (!resolved.ok) return resolved;
 
+  const grants = readExternalMcpToolGrants(record);
   return {
     ok: true,
     config: {
@@ -907,9 +954,10 @@ async function resolveExternalMcpConfig(
       transport,
       authMode,
       enabled: true,
-      allowedToolNames: parseJsonArray(record.allowedToolNames),
-      writeAllowedToolNames: parseJsonArray(record.writeAllowedToolNames),
+      allowedToolNames: grants.allowedToolNames,
+      writeAllowedToolNames: grants.writeAllowedToolNames,
       target: resolved.target,
+      admissionRevision: externalMcpAdmissionRevision(record),
     },
   };
 }
@@ -956,6 +1004,7 @@ export function toResolvedFederatedConnections(
       callTimeoutMs: FEDERATED_CONNECTION_DEFAULTS.callTimeoutMs,
       maxResultBytes: FEDERATED_CONNECTION_DEFAULTS.maxResultBytes,
       maxTools: FEDERATED_CONNECTION_DEFAULTS.maxTools,
+      origin: { kind: "roster", admissionRevision: config.admissionRevision },
     },
     launch: toFederatedLaunchSpec(config.target),
   }));

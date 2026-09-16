@@ -255,6 +255,25 @@ test("onAuthFailed does NOT run for an ordinary transport failure — only an au
   assert.deepEqual(seen, [], "a transient transport fault must not be treated as a durable auth failure");
 });
 
+test("the liveness gate receives the tool's remote name, declared annotations and the connection origin — external-mcp-revocation.ts's per-call input", async () => {
+  const seenCalls: unknown[] = [];
+  const base = fakeDeps();
+  const deps = {
+    ...base.deps,
+    assertConnectionUsable: (_connectionId: string, call: unknown) => {
+      seenCalls.push(call);
+    },
+  };
+  const configWithOrigin = { ...CONFIG, origin: { kind: "roster" as const, admissionRevision: "rev-abc" } };
+  const { registrations } = await federateSession({ session: sessionFor(), config: configWithOrigin, deps, nativeToolIds: new Set() });
+
+  await registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({}));
+
+  assert.deepEqual(seenCalls, [
+    { remoteName: "list_tables", declaredAnnotations: { readOnlyHint: true }, origin: configWithOrigin.origin },
+  ]);
+});
+
 // ---------------------------------------------------------------------------
 // Registration shape
 // ---------------------------------------------------------------------------

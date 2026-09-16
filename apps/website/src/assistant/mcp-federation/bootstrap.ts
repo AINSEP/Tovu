@@ -146,6 +146,15 @@ interface OriginTaggedConnection {
  *  `extraConnections` is documented on {@link AttachFederatedMcpToolsParams} as specifically the
  *  operator-editable roster. So the origin tag is exactly which of the two arrays a connection came
  *  from, unchanged from before this field existed. */
+/** Stamps a preset-sourced connection's config with `origin: {kind:"preset"}`, so
+ *  `external-mcp-revocation.ts`'s per-call gate can tell it apart from a roster connection (which
+ *  carries its OWN origin already, stamped by `external-mcp-store.ts`'s
+ *  `toResolvedFederatedConnections`) and skip the row re-check a preset has no row to support. Split
+ *  out purely to keep {@link resolveFederationAttachInputs} under the shop complexity ceiling. */
+function withPresetOrigin(connection: ResolvedFederatedConnection): ResolvedFederatedConnection {
+  return { ...connection, config: { ...connection.config, origin: { kind: "preset" } } };
+}
+
 function resolveFederationAttachInputs(params: AttachFederatedMcpToolsParams): {
   logger: FederationLogger;
   connect: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
@@ -155,7 +164,7 @@ function resolveFederationAttachInputs(params: AttachFederatedMcpToolsParams): {
   const connect = params.connect ?? defaultConnect;
   const presetConnections = params.connections ?? resolveRegisteredPresets(params.env ?? process.env, logger);
   const connections = [
-    ...presetConnections.map((connection): OriginTaggedConnection => ({ connection, isPreset: true })),
+    ...presetConnections.map((connection): OriginTaggedConnection => ({ connection: withPresetOrigin(connection), isPreset: true })),
     ...(params.extraConnections ?? []).map((connection): OriginTaggedConnection => ({ connection, isPreset: false })),
   ];
   return { logger, connect, connections };

@@ -4,7 +4,7 @@ import test from "node:test";
 import type { ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/core";
 
 import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "../mcp-federation/config.js";
-import type { FederatedMcpConnectionConfig, McpHttpLaunchSpec, McpSessionPort } from "../mcp-federation/ports.js";
+import type { FederatedCallTarget, FederatedMcpConnectionConfig, McpHttpLaunchSpec, McpSessionPort } from "../mcp-federation/ports.js";
 
 /**
  * @file `bootstrap.ts`'s `defaultConnect` — the production session factory `attachFederatedMcpTools`
@@ -106,4 +106,39 @@ test("defaultConnect hands the hosted transport callTimeoutMs as its per-request
     "the hosted transport's per-request bound must be callTimeoutMs (30s) — connectTimeoutMs (15s) silently caps every hosted tool call and makes callTimeoutMs dead configuration on this transport",
   );
   assert.equal(result.registeredToolIds.length, 0, "no tools were allowlisted on this fixture — this test is only about the timeout wiring");
+});
+
+test("attachFederatedMcpTools stamps preset connections with a preset origin, for external-mcp-revocation.ts's roster/preset split", async () => {
+  const { attachFederatedMcpTools } = await import("../mcp-federation/bootstrap.js");
+  const seenOrigins: (FederatedCallTarget["origin"] | undefined)[] = [];
+  const config: FederatedMcpConnectionConfig = { ...CONFIG, allowedToolNames: ["ping"] };
+  const registry = fakeRegistry();
+
+  await attachFederatedMcpTools({
+    registry,
+    deps: {
+      authorize: async () => ({ allowed: true, reason: "matched" }),
+      workspaceId: WORKSPACE_ID,
+      assertConnectionUsable: (_connectionId: string, call: FederatedCallTarget) => {
+        seenOrigins.push(call.origin);
+      },
+    },
+    connections: [{ config, launch: HTTP_LAUNCH }],
+    connect: async () => ({
+      listTools: async () => [{ name: "ping", inputSchema: { type: "object" } }],
+      callTool: async () => ({ content: [] }),
+      close: async () => undefined,
+    }),
+  });
+
+  assert.equal(registry.registered.length, 1, "the fixture's one allowlisted tool should have registered");
+  await registry.registered[0]?.handler({
+    executionId: "exec-1",
+    principal: { id: "p1" },
+    run: { id: "run-1" },
+    input: {},
+    signal: new AbortController().signal,
+  });
+
+  assert.deepEqual(seenOrigins, [{ kind: "preset" }]);
 });

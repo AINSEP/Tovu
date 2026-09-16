@@ -5,7 +5,7 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 import { McpAuthFailedError } from "./mcp-protocol.js";
-import type { FederatedMcpConnectionConfig, McpSessionPort, RemoteToolResult } from "./ports.js";
+import type { FederatedCallTarget, FederatedMcpConnectionConfig, McpSessionPort, RemoteToolResult } from "./ports.js";
 import {
   admitRemoteTools,
   assertNoNativeCollision,
@@ -74,11 +74,25 @@ export interface FederationDeps {
    * is true regardless of who is asking, and reporting a permission failure to a principal who does
    * have the permission would send them looking in the wrong place.
    *
+   * This is ALSO where operator REVOCATION is enforced, not just liveness: a connection deleted,
+   * disabled, narrowed (allowlist or write list), or otherwise changed since admission has no way to
+   * be un-registered (see this doc's own paragraph above), so every one of those must be caught here
+   * instead, on every call, by re-reading the connection's current row.
+   * `assistant/external-mcp-oauth.ts`'s `createExternalMcpConnectionGate` is the composition root
+   * that does both jobs — the original liveness check plus this revocation re-check
+   * (`assistant/external-mcp-revocation.ts`'s `rosterRefusalFor`) — and it is NOT a `ToolPolicy` deny:
+   * see that gate's own doc for why a handler-side refusal, not a policy one, is what lets the model
+   * see WHY rather than a fixed "denied by policy" string.
+   *
+   * @param call - The tool's identity as admitted (remote name, declared annotations) plus the
+   *   connection's origin, so the gate can tell a preset (no row to compare against) from a roster
+   *   connection (re-checked against its current row every call).
    * @throws Whatever the composition root's terminal error is — for OAuth connections,
    * `assistant/external-mcp-oauth.ts`'s `ExternalMcpReauthRequiredError`, whose message tells the
-   * model in words not to retry.
+   * model in words not to retry. For a revoked roster connection,
+   * `assistant/external-mcp-revocation.ts`'s `ExternalMcpConnectionRevokedError`.
    */
-  readonly assertConnectionUsable?: (connectionId: string) => void | Promise<void>;
+  readonly assertConnectionUsable?: (connectionId: string, call: FederatedCallTarget) => void | Promise<void>;
   /**
    * Called when a live call throws {@link McpAuthFailedError} — the remote itself rejected our
    * authorization (HTTP 401/403), discovered mid-session rather than at boot. Optional; when absent,
@@ -132,9 +146,13 @@ export function buildFederatedMcpRegistrations(params: {
 
   const registrations = report.admitted.map((tool): ToolRegistration => {
     const handler: ToolHandler = async (ctx) => {
-      // Liveness first — see `FederationDeps.assertConnectionUsable` for why this precedes the
-      // permission check rather than following it.
-      await deps.assertConnectionUsable?.(config.connectionId);
+      // Liveness AND revocation first — see `FederationDeps.assertConnectionUsable` for why this
+      // precedes the permission check rather than following it.
+      await deps.assertConnectionUsable?.(config.connectionId, {
+        remoteName: tool.remoteName,
+        declaredAnnotations: tool.declaredAnnotations,
+        origin: config.origin,
+      });
 
       // ONE evaluator, run before anything crosses the network — not after, so a denied principal's
       // arguments are never even sent to a third party. `entityId` is the connection, so a

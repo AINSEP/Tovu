@@ -125,6 +125,17 @@ export interface McpStdioChannel {
  * from that server's real, inspected tool surface, which is what makes it an independent
  * classification rather than a restatement of the remote's own claims.
  */
+/**
+ * Where one connection's config came from — stamped once, at admission, and carried unchanged into
+ * every later `tools/call`. `external-mcp-revocation.ts`'s per-call gate is the one consumer: a
+ * preset gets only the legacy OAuth `needs_reauth` check (it has no roster row to compare against);
+ * a roster connection is re-checked against its CURRENT row every call, keyed by
+ * `admissionRevision` — see that file's `rosterRefusalFor`.
+ */
+export type FederatedConnectionOrigin =
+  | { readonly kind: "preset" }
+  | { readonly kind: "roster"; readonly admissionRevision: string };
+
 export interface FederatedMcpConnectionConfig {
   /** Operator-chosen, stable, `[a-z0-9-]`. Becomes part of every federated tool id, so renaming it
    * renames every tool the model sees — pick once. */
@@ -161,6 +172,26 @@ export interface FederatedMcpConnectionConfig {
   readonly maxResultBytes: number;
   /** Hard cap on how many tools this connection may contribute, whatever the remote advertises. */
   readonly maxTools: number;
+  /** Stamped by `bootstrap.ts` (presets, via `withPresetOrigin`) or `external-mcp-store.ts`'s
+   *  `toResolvedFederatedConnections` (roster rows) — never by anything else. Optional only so a
+   *  fixture predating this field still type-checks; `external-mcp-revocation.ts`'s gate treats a
+   *  non-preset call with no origin as `unverifiable` rather than assuming either source. */
+  readonly origin?: FederatedConnectionOrigin;
+}
+
+/** One federated tool call's identity, as `mcp-federation/registrations.ts`'s handler hands it to
+ *  `FederationDeps.assertConnectionUsable` — everything `external-mcp-revocation.ts`'s per-call gate
+ *  needs to re-check an admitted tool against the connection's CURRENT row, without re-deriving any
+ *  of it from the registry. Keys are required (may be `undefined`) rather than optional, so the
+ *  shape is safe to build under `exactOptionalPropertyTypes`. */
+export interface FederatedCallTarget {
+  /** The remote's own tool name (pre-namespacing) — what the operator's allowlist and write list
+   *  name. */
+  readonly remoteName: string;
+  /** Exactly what was recorded at admission (`AdmittedFederatedTool.declaredAnnotations`) — never
+   *  re-read from the remote on this path. */
+  readonly declaredAnnotations: RemoteToolDescriptor["annotations"] | undefined;
+  readonly origin: FederatedConnectionOrigin | undefined;
 }
 
 /** How a locally-launched federated connection is started.

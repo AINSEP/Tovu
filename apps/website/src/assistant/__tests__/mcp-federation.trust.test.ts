@@ -10,6 +10,7 @@ import {
   describeRemoteToolSurface,
   FEDERATED_TOOL_ID_PREFIX,
   federatedToolId,
+  refusalForAdmittedToolUnderCurrentGrants,
   wrapUntrustedResult,
 } from "../mcp-federation/trust.js";
 
@@ -505,6 +506,61 @@ test("R7: a top-level undefined result (JSON.stringify returns undefined, not a 
   assert.ok(wrapped.includes("<untrusted-data-"), "the boundary must still wrap a real payload, not an empty/missing one");
   const payloadLine = wrapped.split("\n").find((line) => !line.startsWith("<") && !line.startsWith("Result of") && !line.startsWith("This is") && line !== "");
   assert.equal(payloadLine, "undefined");
+});
+
+// ---------------------------------------------------------------------------
+// refusalForAdmittedToolUnderCurrentGrants — the per-call, NARROWING-ONLY counterpart of
+// classifyRemoteTool used by external-mcp-revocation.ts's rosterRefusalFor. Admission (above) and
+// revocation share this one hint rule so the two can never silently disagree about what a current
+// grant set allows.
+// ---------------------------------------------------------------------------
+
+test("refusalForAdmittedToolUnderCurrentGrants: an allowlisted read-only tool is not refused", () => {
+  const refusal = refusalForAdmittedToolUnderCurrentGrants(
+    { remoteName: "list_tables", declaredAnnotations: { readOnlyHint: true } },
+    { allowedToolNames: ["list_tables"], writeAllowedToolNames: [] },
+  );
+  assert.equal(refusal, null);
+});
+
+test("refusalForAdmittedToolUnderCurrentGrants: a tool no longer in the allowlist is refused", () => {
+  const refusal = refusalForAdmittedToolUnderCurrentGrants(
+    { remoteName: "list_tables", declaredAnnotations: undefined },
+    { allowedToolNames: [], writeAllowedToolNames: [] },
+  );
+  assert.equal(refusal, "not-in-operator-allowlist");
+});
+
+test("refusalForAdmittedToolUnderCurrentGrants: a write tool named in both lists is not refused", () => {
+  const refusal = refusalForAdmittedToolUnderCurrentGrants(
+    { remoteName: "write_thing", declaredAnnotations: { readOnlyHint: false } },
+    { allowedToolNames: ["write_thing"], writeAllowedToolNames: ["write_thing"] },
+  );
+  assert.equal(refusal, null);
+});
+
+test("refusalForAdmittedToolUnderCurrentGrants: a write tool removed from the write list is refused as remote-declares-not-read-only", () => {
+  const refusal = refusalForAdmittedToolUnderCurrentGrants(
+    { remoteName: "write_thing", declaredAnnotations: { readOnlyHint: false } },
+    { allowedToolNames: ["write_thing"], writeAllowedToolNames: [] },
+  );
+  assert.equal(refusal, "remote-declares-not-read-only");
+});
+
+test("refusalForAdmittedToolUnderCurrentGrants: a tool with no declared hints removed from the write list is NOT refused — matches admission (R3 only catches an honest readOnlyHint:false)", () => {
+  const refusal = refusalForAdmittedToolUnderCurrentGrants(
+    { remoteName: "silent_thing", declaredAnnotations: undefined },
+    { allowedToolNames: ["silent_thing"], writeAllowedToolNames: [] },
+  );
+  assert.equal(refusal, null);
+});
+
+test("refusalForAdmittedToolUnderCurrentGrants: a tool present only on the write list (never allowlisted) is refused for the allowlist, not the write list — INV-002", () => {
+  const refusal = refusalForAdmittedToolUnderCurrentGrants(
+    { remoteName: "write_thing", declaredAnnotations: { readOnlyHint: false } },
+    { allowedToolNames: [], writeAllowedToolNames: ["write_thing"] },
+  );
+  assert.equal(refusal, "not-in-operator-allowlist");
 });
 
 // The concrete Supabase cases these rules were designed against — that its `execute_sql` is stopped

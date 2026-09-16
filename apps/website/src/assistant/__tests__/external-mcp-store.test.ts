@@ -9,6 +9,7 @@ import {
   ExternalMcpSecretStoreUnconfiguredError,
   ExternalMcpValidationError,
   deleteExternalMcpServer,
+  externalMcpAdmissionRevision,
   listExternalMcpServerViews,
   openExternalMcpOAuthPayload,
   parseAllowedToolNames,
@@ -274,6 +275,78 @@ test("federation connections carry the operator allowlist and Tovu's own shared 
   // Timeouts/caps are Tovu policy, not operator input, so they are not read off the row.
   assert.equal(typeof connection?.config.callTimeoutMs, "number");
   assert.ok((connection?.config.maxTools ?? 0) > 0);
+});
+
+// ---------------------------------------------------------------------------
+// admissionRevision / origin stamping — the fingerprint external-mcp-revocation.ts's per-call gate
+// compares against what a federated tool was admitted under, so a delete-then-recreate or a
+// url/command/args/transport/authMode edit refuses until restart instead of silently reusing the old
+// target. Must NOT move for cosmetic changes (enabled, label, either grant list) — otherwise a plain
+// toggle would spuriously refuse every admitted tool.
+// ---------------------------------------------------------------------------
+
+test("toResolvedFederatedConnections stamps a roster origin whose admissionRevision matches externalMcpAdmissionRevision(row)", async () => {
+  const { deps, sealer, repo } = makeDeps();
+  await saveExternalMcpServer(deps, validInput());
+  const row = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(row);
+
+  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const [connection] = toResolvedFederatedConnections(configs);
+  assert.deepEqual(connection?.config.origin, { kind: "roster", admissionRevision: externalMcpAdmissionRevision(row) });
+});
+
+test("the admission revision is unchanged across a save that only changes enabled, label, or either grant list", async () => {
+  const { deps, sealer, repo } = makeDeps();
+  await saveExternalMcpServer(deps, validInput());
+  const before = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(before);
+  const revisionBefore = externalMcpAdmissionRevision(before);
+
+  await saveExternalMcpServer(
+    deps,
+    validInput({ enabled: false, label: "Renamed", allowedToolNames: "search_repositories", writeAllowedToolNames: "" }),
+  );
+  const after = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(after);
+  assert.equal(externalMcpAdmissionRevision(after), revisionBefore, "toggling enabled/label/grants must not move the revision");
+});
+
+test("the admission revision changes when the launch target (command) changes", async () => {
+  const { deps, repo } = makeDeps();
+  await saveExternalMcpServer(deps, validInput());
+  const before = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(before);
+
+  await saveExternalMcpServer(deps, validInput({ command: "yarn dlx" }));
+  const after = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(after);
+  assert.notEqual(externalMcpAdmissionRevision(after), externalMcpAdmissionRevision(before));
+  // createdAt is preserved across an update, so the revision change is attributable to the target
+  // identity fields alone, not to a side effect on createdAt.
+  assert.equal(after.createdAt, before.createdAt);
+});
+
+test("the admission revision changes when a connection is deleted and re-created under the same id after the clock advances", async () => {
+  const repo = new InMemoryExternalMcpServerRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  let nowMs = Date.parse("2026-08-09T00:00:00.000Z");
+  const movingClock = { nowIso: () => new Date(nowMs).toISOString() };
+  const deps = { repo, keyring, sealer, clock: movingClock };
+
+  await saveExternalMcpServer(deps, validInput());
+  const original = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(original);
+
+  assert.equal(await deleteExternalMcpServer({ repo }, { workspaceId: WORKSPACE, serverId: "github" }), true);
+  nowMs += 60_000;
+  await saveExternalMcpServer(deps, validInput());
+  const recreated = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(recreated);
+
+  assert.notEqual(recreated.createdAt, original.createdAt);
+  assert.notEqual(externalMcpAdmissionRevision(recreated), externalMcpAdmissionRevision(original));
 });
 
 test("the stored allowlist really gates admission when handed to the real trust tier", async () => {
