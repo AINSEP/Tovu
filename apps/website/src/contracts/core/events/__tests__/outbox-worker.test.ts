@@ -4,6 +4,26 @@ import test from "node:test";
 import { computeOutboxBackoffMs, InMemoryEventBus, InMemoryOutbox, MAX_OUTBOX_ATTEMPTS, processOutbox } from "../index.js";
 import { DEFAULT_OUTBOX_CLAIM_LEASE_MS, DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS } from "../outbox-worker.js";
 
+/** Copied from `outbox-drainer.test.ts:20-37` — never import test-only helpers across test files. */
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function waitFor(predicate: () => boolean, timeoutMs = 1_000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return true;
+    await sleep(5);
+  }
+  return predicate();
+}
+
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve = () => {};
+  const promise = new Promise<void>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
 /** Fails every publish with a distinct, countable message — used by the backoff/cap tests below. */
 function alwaysFailingBus(onPublish?: () => void): InMemoryEventBus {
   const bus = new InMemoryEventBus();
@@ -309,7 +329,7 @@ test("processOutbox seals a row claimed past MAX_OUTBOX_ATTEMPTS with no recorde
 // out is recorded as a retryable failure and is never marked delivered.
 // ---------------------------------------------------------------------------
 
-test("processOutbox gives up on a delivery whose handler never settles, records it retryable, and delivers the row behind it", async (t) => {
+test("processOutbox gives up on a delivery whose handler never settles, records the timeout and defers its retry to the claim-lease horizon, and delivers the row behind it", async (t) => {
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
   let releaseStuckHandler = () => {};
@@ -352,10 +372,167 @@ test("processOutbox gives up on a delivery whose handler never settles, records 
 
   assert.equal(outcome, 2, "processOutbox stalled behind a handler that never settles");
   assert.deepEqual({ handled, delivered }, { handled: ["evt-ok"], delivered: ["evt-ok"] });
-  const retryAt = new Date(Date.parse(nowIso) + computeOutboxBackoffMs(1, { random: () => 0 })).toISOString();
+  const retryAt = new Date(Date.parse(nowIso) + DEFAULT_OUTBOX_CLAIM_LEASE_MS).toISOString();
   assert.deepEqual(failures, [
     ["evt-stuck", 'delivery of outbox event "stuck.event" (evt-stuck) timed out after 20ms', retryAt, "pending"],
   ]);
+});
+
+// ---------------------------------------------------------------------------
+// 2026-09-16 — an overrunning delivery must not be published again while its own handler is still
+// running: the claim lease exists precisely to stop that (see this file's `DEFAULT_OUTBOX_CLAIM_LEASE_MS`
+// doc), but the timeout path previously undid it by scheduling the retry at the ordinary backoff.
+// ---------------------------------------------------------------------------
+
+test("an overrunning delivery is not published again while its handler still runs, and its late success marks the row delivered", async (t) => {
+  const outbox = new InMemoryOutbox();
+  const bus = new InMemoryEventBus();
+  const gate = deferred();
+  t.after(() => gate.resolve());
+  let runs = 0;
+  await bus.subscribe("slow.event", async () => {
+    runs += 1;
+    await gate.promise;
+  });
+  const startIso = "2026-02-21T12:00:00.000Z";
+  await outbox.enqueue({ id: "evt-slow", name: "slow.event", occurredAt: startIso, workspaceId: "workspace-1", payload: {} });
+  const delivered: string[] = [];
+  const wrapped = {
+    enqueue: outbox.enqueue.bind(outbox),
+    claimPending: outbox.claimPending.bind(outbox),
+    markDelivered: async (id: string) => {
+      delivered.push(id);
+      return outbox.markDelivered(id);
+    },
+    markFailed: outbox.markFailed.bind(outbox),
+  };
+
+  const first = await processOutbox({ outbox: wrapped, bus, clock: { nowIso: () => startIso } }, { deliveryTimeoutMs: 20, random: () => 0 });
+  assert.equal(first, 1);
+
+  // 31s later: comfortably past the old ~15-30s backoff retry window, comfortably inside the new
+  // 30-minute claim-lease horizon.
+  const laterIso = new Date(Date.parse(startIso) + computeOutboxBackoffMs(1, { random: () => 1 }) + 1_000).toISOString();
+  const again = await processOutbox({ outbox: wrapped, bus, clock: { nowIso: () => laterIso } }, { deliveryTimeoutMs: 20 });
+  assert.equal(again, 0, "the row must not be due again while its first handler is still running");
+  assert.equal(runs, 1, "the handler was started again while its first run was still going");
+
+  gate.resolve();
+  assert.ok(await waitFor(() => delivered.length === 1), "the late success was never recorded");
+  assert.deepEqual(delivered, ["evt-slow"]);
+  assert.equal((await outbox.claimPending(10, "2099-01-01T00:00:00.000Z")).length, 0);
+});
+
+test("an overrunning delivery whose handler later rejects is recorded as a normal backed-off failure after the timeout record", async (t) => {
+  const outbox = new InMemoryOutbox();
+  const bus = new InMemoryEventBus();
+  const gate = deferred();
+  t.after(() => gate.resolve());
+  await bus.subscribe("late.event", async () => {
+    await gate.promise;
+    throw new Error("late handler failure");
+  });
+  const nowIso = "2026-02-21T12:00:00.000Z";
+  await outbox.enqueue({ id: "evt-late", name: "late.event", occurredAt: nowIso, workspaceId: "workspace-1", payload: {} });
+  const failures: Array<[string, string, string, string]> = [];
+  const wrapped = {
+    enqueue: outbox.enqueue.bind(outbox),
+    claimPending: outbox.claimPending.bind(outbox),
+    markDelivered: outbox.markDelivered.bind(outbox),
+    markFailed: async (id: string, error: string, nextAttemptAt: string, nextStatus: "pending" | "failed") => {
+      failures.push([id, error, nextAttemptAt, nextStatus]);
+      return outbox.markFailed(id, error, nextAttemptAt, nextStatus);
+    },
+  };
+
+  await processOutbox({ outbox: wrapped, bus, clock: { nowIso: () => nowIso } }, { deliveryTimeoutMs: 20, random: () => 0 });
+  gate.resolve();
+  assert.ok(await waitFor(() => failures.length === 2), "the late failure was never recorded");
+
+  assert.deepEqual(failures, [
+    ["evt-late", 'delivery of outbox event "late.event" (evt-late) timed out after 20ms', new Date(Date.parse(nowIso) + DEFAULT_OUTBOX_CLAIM_LEASE_MS).toISOString(), "pending"],
+    ["evt-late", "late handler failure", new Date(Date.parse(nowIso) + computeOutboxBackoffMs(1, { random: () => 0 })).toISOString(), "pending"],
+  ]);
+});
+
+test("a publish that settles while the timeout is being recorded is still written last, so the row ends delivered", async (t) => {
+  const outbox = new InMemoryOutbox();
+  const bus = new InMemoryEventBus();
+  const gate = deferred();
+  t.after(() => gate.resolve());
+  await bus.subscribe("slow.event", async () => {
+    await gate.promise;
+  });
+  const nowIso = "2026-02-21T12:00:00.000Z";
+  await outbox.enqueue({ id: "evt-slow", name: "slow.event", occurredAt: nowIso, workspaceId: "workspace-1", payload: {} });
+  const writes: string[] = [];
+  const wrapped = {
+    enqueue: outbox.enqueue.bind(outbox),
+    claimPending: outbox.claimPending.bind(outbox),
+    markDelivered: async (id: string) => {
+      writes.push("delivered");
+      return outbox.markDelivered(id);
+    },
+    markFailed: async (id: string, error: string, nextAttemptAt: string, nextStatus: "pending" | "failed") => {
+      // Lets the handler finish (and the publish settle) while the timeout record is still in
+      // flight, so a correct implementation must not attach the late recorder until AFTER this
+      // write settles.
+      gate.resolve();
+      await sleep(30);
+      writes.push("failed");
+      return outbox.markFailed(id, error, nextAttemptAt, nextStatus);
+    },
+  };
+
+  await processOutbox({ outbox: wrapped, bus, clock: { nowIso: () => nowIso } }, { deliveryTimeoutMs: 20 });
+  assert.ok(await waitFor(() => writes.length === 2), "the late delivered write was never recorded");
+
+  assert.deepEqual(writes, ["failed", "delivered"]);
+  assert.equal((await outbox.claimPending(10, "2099-01-01T00:00:00.000Z")).length, 0);
+});
+
+test("a late outcome that cannot be recorded is reported, not thrown as an unhandled rejection", async (t) => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => {
+    unhandled.push(reason);
+  };
+  process.on("unhandledRejection", onUnhandled);
+  t.after(() => {
+    process.off("unhandledRejection", onUnhandled);
+  });
+  const errors = t.mock.method(console, "error", () => {});
+
+  const outbox = new InMemoryOutbox();
+  const bus = new InMemoryEventBus();
+  const gate = deferred();
+  t.after(() => gate.resolve());
+  await bus.subscribe("late.event", async () => {
+    await gate.promise;
+  });
+  const nowIso = "2026-02-21T12:00:00.000Z";
+  await outbox.enqueue({ id: "evt-late", name: "late.event", occurredAt: nowIso, workspaceId: "workspace-1", payload: {} });
+  let markFailedCalls = 0;
+  const wrapped = {
+    enqueue: outbox.enqueue.bind(outbox),
+    claimPending: outbox.claimPending.bind(outbox),
+    markDelivered: async () => {
+      throw new Error("db locked");
+    },
+    markFailed: async (id: string, error: string, nextAttemptAt: string, nextStatus: "pending" | "failed") => {
+      markFailedCalls += 1;
+      // The first call is the timeout record itself, which must succeed so the drain is never
+      // stalled. Only the LATE write (after the handler settles) is made to fail here.
+      if (markFailedCalls === 1) return outbox.markFailed(id, error, nextAttemptAt, nextStatus);
+      throw new Error("db locked");
+    },
+  };
+
+  await processOutbox({ outbox: wrapped, bus, clock: { nowIso: () => nowIso } }, { deliveryTimeoutMs: 20 });
+  gate.resolve();
+  assert.ok(await waitFor(() => errors.mock.callCount() === 1), "the unrecordable late outcome was never reported");
+
+  assert.deepEqual(unhandled, []);
+  assert.equal(errors.mock.calls[0].arguments[0], '[outbox-worker] could not record the late outcome of outbox event "late.event" (evt-late)');
 });
 
 test("a handler that rejects after its delivery timed out surfaces no unhandled rejection", async (t) => {

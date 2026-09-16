@@ -42,6 +42,9 @@ import type { ClockPort, EventBusPort, ISODateTime, OutboxPort, OutboxRecord } f
  * so a `"failed"` row is permanently excluded from retry regardless of `nextAttemptAt`.
  * `MAX_OUTBOX_ATTEMPTS` is exported from this module (and re-exported via `./index.js`) so this is
  * the one place the cap is defined.
+ *
+ * 2026-09-16: an overrunning delivery no longer becomes due again while its handler runs; see
+ * `recordOverrun`.
  */
 
 /** Capped delivery attempts before an outbox row is permanently excluded from retry (`"failed"`). */
@@ -60,11 +63,14 @@ export const DEFAULT_OUTBOX_CLAIM_LEASE_MS = 30 * 60 * 1000; // 30 minutes
 
 /**
  * How long one row's delivery (its `bus.publish`) may run before `processOutbox` gives up on it
- * (2026-09-14). A handler that never settled used to stall `processOutbox` forever, and with it the
- * background drainer and every inline route drain. A timed-out delivery is recorded as a retryable
- * failure, never as delivered. The handler cannot be cancelled and may still finish later, so its
- * effects must tolerate the retry (at-least-once). A full default batch of 20 deliveries that each
- * time out takes 20 minutes, inside `DEFAULT_OUTBOX_CLAIM_LEASE_MS`.
+ * (2026-09-14, revised 2026-09-16). A handler that never settled used to stall `processOutbox`
+ * forever, and with it the background drainer and every inline route drain. A timed-out delivery is
+ * recorded at once as a retryable failure (`lastError` is visible immediately), but the row is not
+ * due again until `DEFAULT_OUTBOX_CLAIM_LEASE_MS` later, not at the ordinary backoff — the handler
+ * cannot be cancelled and keeps running, and redelivering it in 15-30s would start a second copy
+ * while the first is still live, exactly what the claim lease exists to prevent. The handler's real
+ * outcome, once it settles, replaces that record (see `recordOverrun`). A full default batch of 20
+ * deliveries that each time out takes 20 minutes, inside `DEFAULT_OUTBOX_CLAIM_LEASE_MS`.
  */
 export const DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS = 60 * 1000; // 1 minute
 
@@ -107,7 +113,7 @@ function addMsToIso(iso: ISODateTime, ms: number): ISODateTime {
  * success or scheduling a backed-off retry (or permanent exclusion past `MAX_OUTBOX_ATTEMPTS`,
  * see this file's header doc) on failure. See {@link deliverClaimedRow} for a row claimed more
  * than `MAX_OUTBOX_ATTEMPTS` times. Each delivery may run at most `deliveryTimeoutMs` (default
- * {@link DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS}) before it is recorded as a retryable failure.
+ * {@link DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS}) before the drain moves on; see `recordOverrun`.
  *
  * @complexity O(batchSize) publish attempts, each O(subscribed handlers for the event's name).
  */
@@ -147,54 +153,138 @@ async function deliverClaimedRow(
     return;
   }
 
-  try {
-    await publishWithin({ bus, row, timeoutMs: deliveryTimeoutMs });
-    await outbox.markDelivered(row.id);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "unknown outbox error";
-    const nextStatus: Extract<OutboxRecord["status"], "pending" | "failed"> =
-      row.attempts >= MAX_OUTBOX_ATTEMPTS ? "failed" : "pending";
-    // Anchored to the clock read HERE, not to the batch's claim instant in `processOutbox` (2026-09-07
-    // audit, claim #6). The claim instant is when `claimPending` was called; every row after the first
-    // is marked some time later, so a batch that takes longer to reach this row than the backoff it
-    // computes would schedule a retry already in the past — the row is then re-claimed on the
-    // very next tick with no backoff at all, precisely when a slow, failing handler is the reason
-    // backoff exists. The floor is 15s (`computeOutboxBackoffMs` at `attempts = 1`, `random = 0`)
-    // and the bus is in-process, so this needs a pathologically slow handler to bite; it is fixed
-    // because the correct anchor costs one clock read, not because it was observed in the wild.
-    const nextAttemptAt = addMsToIso(clock.nowIso(), computeOutboxBackoffMs(row.attempts, { random }));
-    await outbox.markFailed(row.id, message, nextAttemptAt, nextStatus);
+  const publishing = settlePublish(bus, row.event);
+  const outcome = await settleWithin(publishing, deliveryTimeoutMs);
+  if (outcome === DELIVERY_TIMED_OUT) {
+    await recordOverrun({ outbox, clock, row, publishing, timeoutMs: deliveryTimeoutMs }, { random });
+    return;
   }
+  await recordDeliveryOutcome({ outbox, clock, row, outcome }, { random });
+}
+
+/** A publish's outcome, captured instead of thrown so it can be raced against a timeout without rejecting. */
+type PublishOutcome = { ok: true } | { ok: false; error: unknown };
+
+/** Distinguishes "the publish itself failed" from "the publish did not settle in time" in {@link deliverClaimedRow}. */
+const DELIVERY_TIMED_OUT = Symbol("delivery timed out");
+
+/**
+ * Starts `bus.publish(row.event)` and resolves with its outcome. It never rejects — a synchronous
+ * throw from the bus counts as a failed outcome, same as an async rejection — so it is safe to leave
+ * running unawaited (see `recordOverrun`) without producing an unhandled rejection.
+ *
+ * @complexity O(1) beyond the publish itself.
+ */
+function settlePublish(bus: EventBusPort, event: OutboxRecord["event"]): Promise<PublishOutcome> {
+  return new Promise<void>((resolve) => resolve(bus.publish(event))).then(
+    () => ({ ok: true }) as const,
+    (error: unknown) => ({ ok: false, error }) as const
+  );
 }
 
 /**
- * Publishes `row.event`, rejecting once `timeoutMs` passes if the publish has not settled by then.
+ * Resolves with `settling`'s value, or {@link DELIVERY_TIMED_OUT} once `timeoutMs` passes, whichever
+ * comes first.
  *
  * A handler cannot be cancelled: a publish that loses the race keeps running and may still finish
- * later, which is why the caller retries a timed-out row instead of marking it delivered.
- * `Promise.race` subscribes to the losing publish too, so its eventual rejection is handled and never
- * surfaces as an unhandled rejection. The timer is cleared as soon as the race settles and is
- * `unref`'d, so it never keeps a process alive.
+ * later (see `recordOverrun`, which observes it after the timeout is recorded). The timer is cleared
+ * as soon as the race settles and is `unref`'d, so it never keeps a process alive.
  *
- * @param required.bus the bus to publish on.
- * @param required.row the claimed row whose event is published.
- * @param required.timeoutMs how long the publish may run.
- * @throws Error `delivery of outbox event "<name>" (<id>) timed out after <ms>ms` on timeout; otherwise
- *   whatever the publish rejects with.
- * @complexity O(1) beyond the publish itself.
+ * @complexity O(1) beyond the awaited promise itself.
  */
-async function publishWithin(required: { bus: EventBusPort; row: OutboxRecord; timeoutMs: number }): Promise<void> {
-  const { bus, row, timeoutMs } = required;
+async function settleWithin<T>(settling: Promise<T>, timeoutMs: number): Promise<T | typeof DELIVERY_TIMED_OUT> {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const timedOut = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => {
-      reject(new Error(`delivery of outbox event "${row.event.name}" (${row.id}) timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
+  const timedOut = new Promise<typeof DELIVERY_TIMED_OUT>((resolve) => {
+    timer = setTimeout(() => resolve(DELIVERY_TIMED_OUT), timeoutMs);
     timer.unref();
   });
   try {
-    await Promise.race([bus.publish(row.event), timedOut]);
+    return await Promise.race([settling, timedOut]);
   } finally {
     clearTimeout(timer);
+  }
+}
+
+/** `"failed"` once a row has used its last attempt, `"pending"` (retryable) otherwise. Shared by the on-time and late-outcome paths. */
+function nextStatusAfterFailure(row: OutboxRecord): Extract<OutboxRecord["status"], "pending" | "failed"> {
+  return row.attempts >= MAX_OUTBOX_ATTEMPTS ? "failed" : "pending";
+}
+
+/**
+ * Records a publish's outcome: `markDelivered` on success, or a normal backed-off `markFailed` on
+ * failure — including when `markDelivered` itself throws, which falls through to the failure branch
+ * exactly as before this file's 2026-09-16 revision.
+ *
+ * @complexity O(1) beyond the two port calls it may make.
+ */
+async function recordDeliveryOutcome(
+  required: { outbox: OutboxPort; clock: ClockPort; row: OutboxRecord; outcome: PublishOutcome },
+  optional: { random?: () => number }
+): Promise<void> {
+  const { outbox, clock, row, outcome } = required;
+  let err: unknown;
+  if (outcome.ok) {
+    try {
+      await outbox.markDelivered(row.id);
+      return;
+    } catch (markError) {
+      err = markError;
+    }
+  } else {
+    err = outcome.error;
+  }
+  const message = err instanceof Error ? err.message : "unknown outbox error";
+  // Anchored to the clock read HERE, not to the batch's claim instant in `processOutbox` (2026-09-07
+  // audit, claim #6). The claim instant is when `claimPending` was called; every row after the first
+  // is marked some time later, so a batch that takes longer to reach this row than the backoff it
+  // computes would schedule a retry already in the past — the row is then re-claimed on the
+  // very next tick with no backoff at all, precisely when a slow, failing handler is the reason
+  // backoff exists. The floor is 15s (`computeOutboxBackoffMs` at `attempts = 1`, `random = 0`)
+  // and the bus is in-process, so this needs a pathologically slow handler to bite; it is fixed
+  // because the correct anchor costs one clock read, not because it was observed in the wild.
+  const nextAttemptAt = addMsToIso(clock.nowIso(), computeOutboxBackoffMs(row.attempts, { random: optional.random }));
+  await outbox.markFailed(row.id, message, nextAttemptAt, nextStatusAfterFailure(row));
+}
+
+/**
+ * Records a delivery timeout: `lastError` is written at once so the drain is never stalled behind an
+ * overrunning handler, but unlike an ordinary failure the row is not due again until
+ * `DEFAULT_OUTBOX_CLAIM_LEASE_MS` later, not the normal backoff (2026-09-16). The handler is still
+ * running and cannot be cancelled — retrying it in 15-30s would run a second copy of it while the
+ * first is still live, which is the exact duplicate the claim lease exists to prevent (see this
+ * file's header doc). Its own outcome, once it settles, replaces this record via
+ * {@link recordDeliveryOutcome} — attached only after the timeout record's write has settled, so a
+ * publish that finishes while that write is still in flight is still written last. A handler that
+ * never settles at all is retried at the lease horizon, exactly like a claimer that died mid-delivery.
+ *
+ * Residual risk, not fixed here: a handler still running past that horizon can have its row reclaimed
+ * by a second drain, and this recorder's eventual late write is not fenced against that second drain's
+ * own outcome, because `OutboxPort` (external `@jini-ai/cms`) has no claim token to check against.
+ *
+ * @complexity O(1) beyond the port calls it makes; the late write happens off the caller's stack.
+ */
+async function recordOverrun(
+  required: { outbox: OutboxPort; clock: ClockPort; row: OutboxRecord; publishing: Promise<PublishOutcome>; timeoutMs: number },
+  optional: { random?: () => number }
+): Promise<void> {
+  const { outbox, clock, row, publishing, timeoutMs } = required;
+  try {
+    await outbox.markFailed(
+      row.id,
+      `delivery of outbox event "${row.event.name}" (${row.id}) timed out after ${timeoutMs}ms`,
+      addMsToIso(clock.nowIso(), DEFAULT_OUTBOX_CLAIM_LEASE_MS),
+      nextStatusAfterFailure(row)
+    );
+  } finally {
+    // Attached only after the timeout record settles, so a publish that settles meanwhile is still
+    // written LAST. `settlePublish` never rejects, so this chain never produces an unhandled
+    // rejection on its own; a `recordDeliveryOutcome` failure is caught and reported instead of
+    // thrown, because nothing here is awaited by the caller.
+    void publishing
+      .then((late) => recordDeliveryOutcome({ outbox, clock, row, outcome: late }, optional))
+      .catch((error: unknown) => {
+        // eslint-disable-next-line no-console
+        console.error(`[outbox-worker] could not record the late outcome of outbox event "${row.event.name}" (${row.id})`, error);
+      });
   }
 }
