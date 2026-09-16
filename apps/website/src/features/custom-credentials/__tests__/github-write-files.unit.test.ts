@@ -102,7 +102,12 @@ test("plan: branch does not exist", async () => {
 test("plan: a network failure on the branch lookup is reported, never thrown", async () => {
   const client = new SequentialFakeHttpClient([{ match: /\/git\/ref\/heads\/main$/, method: "GET", status: 0, networkError: "DNS lookup failed" }]);
   const result = await planGitHubFileWrite({ httpClient: client }, planInput([{ path: "fly.toml", content: "x" }]));
-  assert.deepEqual(result, { ok: false, code: "network-unreachable", message: "DNS lookup failed" });
+  assert.deepEqual(result, {
+    ok: false,
+    code: "network-unreachable",
+    message: "GitHub could not be reached: the request failed before any response arrived (a network error or timeout).",
+    logDetail: "Error",
+  });
 });
 
 test("plan: a provider error on the parent-commit lookup aborts before any file existence check", async () => {
@@ -195,7 +200,12 @@ test("commit: a diverged branch (422 on ref update) is refused, not overwritten"
 test("commit: a network failure creating the blob aborts before the tree/commit/ref calls", async () => {
   const client = new SequentialFakeHttpClient([{ match: /\/git\/blobs$/, method: "POST", status: 0, networkError: "connection reset" }]);
   const result = await commitGitHubFiles({ httpClient: client }, commitInput([{ path: "fly.toml", content: "x" }]), PLAN);
-  assert.deepEqual(result, { ok: false, code: "network-unreachable", message: "connection reset" });
+  assert.deepEqual(result, {
+    ok: false,
+    code: "network-unreachable",
+    message: "GitHub could not be reached: the request failed before any response arrived (a network error or timeout).",
+    logDetail: "Error",
+  });
   assert.equal(client.remainingCount(), 0);
 });
 

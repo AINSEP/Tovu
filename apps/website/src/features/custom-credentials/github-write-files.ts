@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
-import type { HttpClientPort, HttpResponse } from "../../platform/http/index.js";
+import { describeErrorForLog } from "../../contracts/core/model-facing-tool-errors.js";
+import { EgressRefusedError, type HttpClientPort, type HttpResponse } from "../../platform/http/index.js";
 import { buildAuthorizationHeader } from "./credentialed-request.js";
 import type { CustomProviderConnectionInput } from "./types.js";
 import type { NormalizedWriteFile } from "./write-files-validation.js";
@@ -84,13 +85,45 @@ function sha256Hex(data: string): string {
   return createHash("sha256").update(Buffer.from(data, "utf8")).digest("hex");
 }
 
-type GitHubSendResult = { kind: "response"; response: HttpResponse } | { kind: "network-unreachable"; message: string };
+type GitHubSendResult = { kind: "response"; response: HttpResponse } | ({ kind: "network-unreachable" } & SendFailureDescription);
+
+/** A thrown send failure split in two: `message` may reach the model and the human, `logDetail` may
+ *  reach only a server log. */
+interface SendFailureDescription {
+  readonly message: string;
+  readonly logDetail: string;
+}
+
+/** What every transport failure other than an egress refusal publishes. */
+const GITHUB_UNREACHABLE_MESSAGE = "GitHub could not be reached: the request failed before any response arrived (a network error or timeout).";
+
+/**
+ * Splits a thrown send failure into its caller-safe message and its log detail (2026-09-16).
+ *
+ * Its raw text used to be the published `message`, and after a human confirmed it reached the model
+ * verbatim: transport internals (`connect ECONNREFUSED 10.0.4.7:443`) or an egress refusal naming the
+ * address a host resolved to. An allowlist, not a scrub:
+ * - `EgressRefusedError`: its `callerSafeMessage` (host and address class, never the address). The
+ *   full message, address included, is designed for logs and goes there.
+ * - Anything else: {@link GITHUB_UNREACHABLE_MESSAGE}, and `describeErrorForLog`'s class and code in
+ *   the log. Not the raw message even there: this call carries the Authorization header, and an
+ *   adapter that echoes its request would quote the token.
+ *
+ * @complexity O(1).
+ */
+function describeSendFailure(err: unknown): SendFailureDescription {
+  if (err instanceof EgressRefusedError) {
+    return { message: `the request to GitHub was refused: ${err.callerSafeMessage}`, logDetail: err.message };
+  }
+  return { message: GITHUB_UNREACHABLE_MESSAGE, logDetail: describeErrorForLog(err) };
+}
 
 /** The one place every outbound call in this file goes through — builds the GitHub-specific headers
  *  (`Authorization` via the SAME per-credential scheme precedence `credentialed-request.ts` uses,
  *  `Accept`, `X-GitHub-Api-Version`) and separates a thrown transport failure from a normally-received
  *  response, mirroring `github-git-provider.ts`'s own `githubFetch` split — adapted to `HttpClientPort`
- *  (which already applies its own timeout/SSRF/redirect guard) rather than raw `fetch`.
+ *  (which already applies its own timeout/SSRF/redirect guard) rather than raw `fetch`. A thrown
+ *  failure is described by {@link describeSendFailure}, never by its own text.
  *
  * @complexity O(1) — one `httpClient.send()` call.
  */
@@ -114,7 +147,7 @@ async function githubSend(
     });
     return { kind: "response", response };
   } catch (err) {
-    return { kind: "network-unreachable", message: err instanceof Error ? err.message : String(err) };
+    return { kind: "network-unreachable", ...describeSendFailure(err) };
   }
 }
 
@@ -132,11 +165,16 @@ async function providerErrorMessage(response: HttpResponse, fallback: string): P
   return providerMessage ? `${fallback}: ${providerMessage}` : `${fallback} (status ${response.status})`;
 }
 
-/** A GitHub-shaped failure common to both phases below. */
-export type GitHubWriteFilesFailure = { ok: false; code: "network-unreachable" | "provider-error"; message: string };
+/** A GitHub-shaped failure common to both phases below. `message` is safe to publish. Only a
+ *  `network-unreachable` failure carries `logDetail`, which must never be published — see
+ *  {@link describeSendFailure}. A `provider-error` message is GitHub's own reason or this file's
+ *  fixed text, so it needs no log-only half. */
+export type GitHubWriteFilesFailure =
+  | { ok: false; code: "provider-error"; message: string }
+  | { ok: false; code: "network-unreachable"; message: string; logDetail: string };
 
 function nonResponseFailure(result: Extract<GitHubSendResult, { kind: "network-unreachable" }>): GitHubWriteFilesFailure {
-  return { ok: false, code: "network-unreachable", message: result.message };
+  return { ok: false, code: "network-unreachable", message: result.message, logDetail: result.logDetail };
 }
 
 function isOk(response: HttpResponse): boolean {
@@ -357,7 +395,13 @@ async function buildTreeEntries(
  *
  * @complexity O(1) — one `httpClient.send()` call.
  */
-async function updateRef(deps: GitHubWriteFilesDeps, connection: CustomProviderConnectionInput, repoPath: string, branch: string, sha: string): Promise<{ ok: true } | { ok: false; code: "diverged" | "provider-error" | "network-unreachable"; message: string }> {
+async function updateRef(
+  deps: GitHubWriteFilesDeps,
+  connection: CustomProviderConnectionInput,
+  repoPath: string,
+  branch: string,
+  sha: string
+): Promise<{ ok: true } | { ok: false; code: "diverged"; message: string } | GitHubWriteFilesFailure> {
   const result = await githubSend(deps, connection, { method: "PATCH", url: `${repoPath}/git/refs/heads/${encPath(branch)}`, body: JSON.stringify({ sha }) });
   if (result.kind !== "response") return nonResponseFailure(result);
   if (result.response.status === 422) {

@@ -258,8 +258,8 @@ export interface CustomCredentialsToolDeps {
   /** Test-only override; defaults to `credentialed-request.ts`'s `ConsoleCredentialedRequestAuditLog`. */
   readonly customCredentialsAudit?: CredentialedRequestAuditPort;
   /** Test-only override for the server-side failure log; defaults to `console.warn`. Receives only
-   *  lines built by {@link reportFormSaveFailure}, never a raw error message that could quote a
-   *  secret. */
+   *  lines built by {@link reportFormSaveFailure} and {@link reportGitHubWriteFailure}, never a raw
+   *  error message that could quote a secret. */
   readonly customCredentialsFailureLog?: (line: string) => void;
 }
 
@@ -396,7 +396,8 @@ function isWriteFilesShapeRejection(error: unknown): boolean {
  * - `EgressRefusedError` at map level: its `message` names a resolved address. It surfaces only
  *   through {@link makeModelFacingCredentialedRequest}, in its address-free form.
  * - `CustomCredentialDuplicateLabelError`: never escapes as a throw (`mapCreateCredentialError`).
- * - `write_files`' plan-failure `Error`, which carries upstream GitHub or transport text, and
+ * - `write_files`' plan-failure `Error`, which carries GitHub's own rejection text (a network failure
+ *   is already reduced to fixed text by `github-write-files.ts`'s `describeSendFailure`), and
  *   {@link buildWriteFilesConfirmationFileSpecs}' internal-invariant `Error`.
  *
  * The structured `{ saved: false }` / `{ created: false }` / `{ executed: false }` results are return
@@ -479,7 +480,8 @@ async function resolveMakeRequestDeleteDecision(exchange: SurfaceExchange, ui: U
  *  caller can always branch on `executed` alone regardless of which branch produced the result.
  *  `reason: "error"` is this tool's own addition — unlike a form submission, the write itself can fail
  *  at the GitHub API level AFTER confirmation (a diverged branch, a provider error), which needs a
- *  human-readable `message` the other reasons never carry. */
+ *  human-readable `message` the other reasons never carry. That `message` is always caller-safe: a
+ *  network failure's detail goes to the server log only, via {@link reportGitHubWriteFailure}. */
 type WriteFilesResult =
   | { executed: true; commitSha: string; commitUrl: string; filesWritten: number }
   | { executed: false; cancelled: true }
@@ -524,6 +526,7 @@ async function performGitHubFilesWrite(
     plan
   );
   if (!commitResult.ok) {
+    reportGitHubWriteFailure(routeDeps, { phase: "commit", failure: commitResult });
     return { executed: false, cancelled: false, reason: "error", message: commitResult.message };
   }
   return { executed: true, commitSha: commitResult.commitSha, commitUrl: commitResult.commitUrl, filesWritten: validated.files.length };
@@ -730,10 +733,29 @@ const FORM_SAVE_FAILURE_MESSAGE = "Saving failed because of an internal server e
  * @complexity O(r) in the allowlist's rule count.
  */
 function reportFormSaveFailure(routeDeps: CustomCredentialsToolDeps, input: { toolId: string; exchangeId: string; credentialId?: string; err: unknown }): string {
-  const log = routeDeps.customCredentialsFailureLog ?? ((line: string) => console.warn(line));
   const credential = input.credentialId !== undefined ? ` credentialId=${input.credentialId}` : "";
-  log(`[custom-credentials] ${input.toolId}: save failed exchange=${input.exchangeId}${credential} error=${describeErrorForLog(input.err)}`);
+  failureLog(routeDeps)(`[custom-credentials] ${input.toolId}: save failed exchange=${input.exchangeId}${credential} error=${describeErrorForLog(input.err)}`);
   return callerSafeErrorMessage(input.err, { rules: FORM_SAVE_CALLER_SAFE_ERRORS, fallback: FORM_SAVE_FAILURE_MESSAGE });
+}
+
+/** The server-side failure log: the test override when one is supplied, otherwise `console.warn`. */
+function failureLog(routeDeps: CustomCredentialsToolDeps): (line: string) => void {
+  return routeDeps.customCredentialsFailureLog ?? ((line: string) => console.warn(line));
+}
+
+/**
+ * Logs a `custom_credential_write_files` GitHub failure server-side when it carries a log-only
+ * `logDetail` — a network failure's class and code, or an egress refusal's full message. Everything
+ * else says nothing here: its `message` is already the whole story, and it is already published.
+ *
+ * The line names the phase, the failure code, and the detail. Never the label, the file contents, or
+ * the token.
+ *
+ * @complexity O(1).
+ */
+function reportGitHubWriteFailure(routeDeps: CustomCredentialsToolDeps, input: { phase: "plan" | "commit"; failure: { readonly code: string; readonly logDetail?: string } }): void {
+  if (input.failure.logDetail === undefined) return;
+  failureLog(routeDeps)(`[custom-credentials] ${WRITE_FILES_TOOL_ID}: ${input.phase} failed code=${input.failure.code} detail=${input.failure.logDetail}`);
 }
 
 /** `custom_credential_set_token`'s ENTIRE agent-facing result shape — deliberately boolean-plus-reason
@@ -1330,6 +1352,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
         { baseUrl: resolved.baseUrl, connection: resolved.connection, owner: validated.owner, repo: validated.repo, branch: validated.branch, files: validated.files }
       );
       if (!planResult.ok) {
+        reportGitHubWriteFailure(routeDeps, { phase: "plan", failure: planResult });
         throw new Error(`custom_credential_write_files: ${planResult.message}`);
       }
 
