@@ -430,19 +430,29 @@ test("REGRESSION: an html Page with no templateChoice renders through the static
   assert.ok(html.includes(POST_BODY_TEXT), "the page's own authored body must still reach the response");
 });
 
-test("a doc-format Page with no templateChoice does NOT get the static page-shell auto-fallback (asymmetry preserved)", () => {
-  // The static-tier auto-fallback is scoped to bodyFormat:"html" only — a doc-format Page with
-  // templateChoice null stays gated out of the template branch entirely (isEligibleForTemplateBranch's
-  // existing, unchanged contract), the same as before this fix. Applying the fallback here too would
-  // re-open the terms-of-service-shaped regression this file's own header describes, just through a
-  // page-shell.html door instead of blog-post.html. Verified at the unit level (not HTTP) since this
-  // is asserting an ABSENCE of new routing, which `template-eligibility.test.ts` already covers for
-  // the underlying gate — this test only pins that the new fallback function itself respects it.
+test("a doc-format Page with no templateChoice DOES get the static page-shell auto-fallback — and that is not the terms-of-service regression", () => {
+  // INVERTED 2026-09-16. The previous version asserted `undefined` and justified it like this:
+  // "Applying the fallback here too would re-open the terms-of-service-shaped regression this file's
+  // own header describes, just through a page-shell.html door instead of blog-post.html."
+  //
+  // That is the one claim worth rechecking rather than inheriting, and it does not hold — the door is
+  // precisely what distinguishes the two. The regression was Pages rendering under
+  // `theme.manifest.templates[0]`: a POST document, selected by array POSITION, which carries no
+  // "this is a page shell" meaning and lands wherever a theme author happened to list first (observed
+  // live as `<title>Blog post — Basic</title>` on Terms of Service). The page-shell fallback selects a
+  // PAGE document from a Tovu-owned CLOSED VOCABULARY (`STATIC_TIER_PAGE_SHELL_IDS`) and never reads
+  // manifest ordering at all; when the theme ships neither canonical name it returns `undefined` and
+  // the record stays on the generic path exactly as before. A page document on a Page is the intended
+  // shape, not the bug.
+  //
+  // `admin-post-template-preview.test.ts` pins that distinction end-to-end over HTTP: a Page on a
+  // theme whose `templates[0]` is post-shaped and which ships NO page shell must still never land on
+  // `blog-post`.
   const theme = staticThemeWithPostTemplate({ extraPages: { "page-shell": pageShellHtml() } });
   assert.equal(
     resolveStaticTierPageShellFallback({ theme, post: { kind: "page", bodyFormat: "doc" } }),
-    undefined,
-    "doc-format Pages must never receive the static page-shell auto-fallback"
+    "page-shell.html",
+    "a Page is born doc-format; it must reach its theme's own document without a save first"
   );
 });
 

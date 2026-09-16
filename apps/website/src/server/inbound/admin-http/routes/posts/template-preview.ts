@@ -258,6 +258,25 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
       // caller sent a `bodyHtml` field for one.
       const pendingBodyHtmlOverride = post.bodyFormat === "html" ? pendingBodyHtml : undefined;
 
+      // 2026-09-16, owner: "it should render even in unpublished state." The template's own
+      // `{"type":"content"}` slot resolves through a VISIBILITY-FILTERED resolver
+      // (`resolver-service.ts`'s `findPublishedPostById`), which finds nothing for an unpublished
+      // row — so a draft previewed with styled chrome and NO BODY AT ALL, the REQ-28 placeholder
+      // where its content should be. Measured, not inferred, before this change.
+      //
+      // The row's own body is the right answer here and is already in hand: this request fetched it
+      // by id and `deps.authorize` already cleared this principal for `content.read` above, so the
+      // operator can read this exact body from the admin API anyway. Rendering it into a `no-store`,
+      // admin-only preview response exposes nothing new — the guard exists to keep unpublished
+      // content off the PUBLIC site, and this route is not that.
+      //
+      // Scoped to unpublished rows deliberately: a published row's preview keeps resolving through
+      // the resolver exactly as before, byte for byte, so this cannot change what the owner already
+      // sees for the overwhelmingly common case. A genuine pending override always wins over it.
+      const unpublished = post.status !== "published";
+      const previewBodyJson = pendingBodyJson ?? (unpublished && post.bodyFormat === "doc" ? post.bodyJson : undefined);
+      const previewBodyHtml = pendingBodyHtmlOverride ?? (unpublished && post.bodyFormat === "html" ? (post.bodyHtml ?? undefined) : undefined);
+
       const previewPost = buildPreviewPost(post, overrideTemplateChoice, pendingBodyJson, pendingBodyHtml);
 
       // 2026-09-16 fix. This route used to hand `previewPost` straight to `renderViaTemplate`, while
@@ -283,7 +302,7 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
       const renderedPost = branch.kind === "page-shell" ? { ...previewPost, templateChoice: branch.templateChoice } : previewPost;
 
       const staticMenus = await resolveStaticMenusForRender(deps, theme, postPublicPath(post.slug));
-      const html = await renderViaTemplate(deps, theme, renderedPost, staticMenus, pendingBodyJson, pendingBodyHtmlOverride);
+      const html = await renderViaTemplate(deps, theme, renderedPost, staticMenus, previewBodyJson, previewBodyHtml);
 
       // Never cached: re-requested on every template selection, and a cached response would show
       // the operator a stale template and read as "the picker did nothing" — the exact bug this

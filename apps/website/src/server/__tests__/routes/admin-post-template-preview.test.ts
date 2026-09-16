@@ -26,10 +26,13 @@ import { bootAuthenticated, startTestServer } from "../helpers/http-test-server.
  * read `templateChoice` at all, so re-picking a different template while already dirty rendered
  * byte-identical output. This route lets the preview show the row through a PENDING template choice
  * by reusing the real render pipeline (`renderViaTemplate`) with an in-memory-only override, looked up
- * by id rather than by public slug (any status, at THIS layer) — but see the draft test below for a
- * real limitation found while writing this suite: a draft's own body does not survive the shared
- * "content" marker resolver's visibility guard, so the admin UI deliberately only routes a published
- * row through this endpoint.
+ * by id rather than by public slug (any status, at THIS layer).
+ *
+ * That draft limitation is GONE as of 2026-09-16 (owner: "it should render even in unpublished
+ * state"). It used to read: a draft's own body does not survive the shared "content" marker
+ * resolver's visibility guard, so the admin UI only routes a published row through this endpoint.
+ * The route now supplies an unpublished row's OWN already-authorized body as the render override —
+ * see the draft test below, rewritten from documenting the limitation to pinning its removal.
  *
  * NOTE: `post-template-site-serving.test.ts` (this directory) builds its theme fixture with a
  * `manifest.postTemplate` field — that field was retired by the 2026-08-11 unified-content-marker
@@ -256,17 +259,22 @@ test("POST with a malformed bodyJson (not an object) falls back to the saved bod
   assert.ok(html.includes(POST_BODY_TEXT), "an invalid override shape must fall back to the saved body, never crash");
 });
 
-// Found while writing this suite, not assumed: the lookup here is by id (any status), unlike the
-// public route's `getPublishedPostBySlug`, so the OUTER fetch succeeds for a draft. But the template's
-// own `{"type":"content"}` slot resolves through `resolveHtmlPageEmbeds`'s visibility-filtered
-// "content" resolver (`resolver-service.ts`'s guard 2, `findPublishedPostById`), which returns nothing
-// for an unpublished row — so the CHROME renders styled, but the body degrades to the REQ-28
-// placeholder rather than showing the draft's real text. That gap is why `PagePreview`/`PostPreview`
-// (`apps/admin`) deliberately only route a `status === "published"` row through this endpoint — a
-// draft still gets the pre-existing raw-body fallback instead. This test documents the route's real,
-// current behavior at the id-based-lookup layer (graceful degradation, never a crash or a raw
-// unresolved marker), not a claim that drafts get full-fidelity previews.
-test("a DRAFT post's own body degrades to the placeholder (visibility guard), but the template chrome still renders and nothing crashes", async (t) => {
+// REWRITTEN 2026-09-16. This test used to assert the OPPOSITE — that a draft's body degrades to the
+// REQ-28 placeholder — and it was an honest characterization of a real limitation: the lookup here is
+// by id (any status), unlike the public route's `getPublishedPostBySlug`, so the OUTER fetch succeeds
+// for a draft, but the template's own `{"type":"content"}` slot resolves through
+// `resolveHtmlPageEmbeds`'s visibility-filtered "content" resolver (`resolver-service.ts`'s guard 2,
+// `findPublishedPostById`), which returns nothing for an unpublished row. The operator got styled
+// chrome wrapped around nothing.
+//
+// The owner has since asked for that limitation removed ("it should render even in unpublished
+// state"), so the route now falls back to the unpublished row's OWN body, which it has already
+// fetched and already authorized for `content.read`. Rewriting the assertion is the POINT of this
+// change, not a weakened test: what it guards is inverted on purpose, and the two properties that
+// were always load-bearing are kept and strengthened below — no raw unresolved marker, and the
+// PUBLIC route still refusing the same draft outright, which is where the visibility guard actually
+// protects something.
+test("a DRAFT post previews its own real body — the visibility guard no longer empties an admin preview", async (t) => {
   const { app, deps } = buildTestApp(staticThemeWithTemplates());
   const post = await savePost(deps, { slug: "draft-post", status: "draft", templateChoice: "blog-post.html" });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -276,11 +284,15 @@ test("a DRAFT post's own body degrades to the placeholder (visibility guard), bu
 
   assert.equal(res.status, 200);
   assert.ok(html.includes('data-tpl="blog-post"'), "the template's own chrome still renders");
-  assert.ok(!html.includes(POST_BODY_TEXT), "the draft's real body does not reach the page (visibility guard)");
-  assert.ok(!html.includes("data-embed-config"), "degrades to the resolved placeholder, never a raw unresolved marker");
+  assert.ok(POST_BODY_TEXT.length > 0 && html.includes(POST_BODY_TEXT), "the draft's real body must reach the admin preview");
+  assert.ok(!html.includes("data-embed-config"), "the content slot must be resolved, never left as a raw unresolved marker");
 
   const publicRes = await fetch(`${baseUrl}/draft-post`);
-  assert.equal(publicRes.status, 404, "sanity check: the public route genuinely cannot show this draft either");
+  assert.equal(
+    publicRes.status,
+    404,
+    "the guard that matters is unchanged: the PUBLIC route still refuses this draft outright, so nothing about the admin preview leaked it"
+  );
 });
 
 // Confirms a capability the route already has at THIS layer, not a new code path: unlike the
@@ -575,4 +587,130 @@ test("REGRESSION: an html Page with the picker's explicit 'No template chosen' p
   assert.ok(!html.includes(DIAGNOSTIC_MARKER), "the preview must not show the diagnostic page for a state the live site renders fine");
   assert.ok(html.includes('data-tpl="page-shell"'), "the preview must render through the page shell, exactly as the live site just did");
   assert.ok(html.includes(UNTEMPLATED_PAGE_BODY_TEXT), "the Page's own body must still reach the preview");
+});
+
+
+const DOC_PAGE_BODY_TEXT = "Body of a doc-format Page that was never saved into html";
+
+/** {@link saveHtmlPage}'s `"doc"`-format counterpart — the shape EVERY Page is born in. `createPost`
+ *  forces `(bodyFormat: "doc", bodyHtml: null)` by construction (`features/post/post.ts`'s
+ *  `resolveBodyFields`, the CIC-3 write chokepoint), for the agent tool and the admin's own
+ *  "New Page" button alike; the html row is born on the first save. `templateChoice` defaults to
+ *  `null` here, not to a filename, because that is the state such a Page actually starts in. */
+async function saveDocPage(
+  deps: RouteDeps,
+  fields: { slug: string; status?: "draft" | "published"; templateChoice?: string | null; text: string }
+): Promise<PostRecord> {
+  const page = {
+    id: randomUUID(),
+    workspaceId: WORKSPACE_ID,
+    title: `Page ${fields.slug}`,
+    slug: fields.slug,
+    bodyJson: docBody(fields.text),
+    status: fields.status ?? "published",
+    kind: "page",
+    bodyFormat: "doc",
+    bodyHtml: null,
+    updatedAt: new Date().toISOString(),
+    version: 1,
+    templateChoice: "templateChoice" in fields ? fields.templateChoice : null,
+  } as unknown as PostRecord;
+  await deps.postRepo.save(page);
+  return page;
+}
+
+/*
+ * 2026-09-16, owner's follow-up: "it shouldnt need to be saved to render correctly. it should render
+ * even in unpublished state."
+ *
+ * This closes the divergence the previous commit (`fc075e51`) deliberately left open and documented:
+ * the `"ineligible"` arm of `resolveTemplateBranchChoice`, reached by a `kind: "page"`,
+ * `bodyFormat: "doc"` row with no `templateChoice` — the state EVERY Page is born in.
+ *
+ * Measured before changing anything, rather than inferred from the comments:
+ *   live site, published doc Page, no template -> NO theme template at all (no `data-tpl`), a 1231-byte
+ *                                                 Tovu-generic `pageShell()` with no `data-theme` and
+ *                                                 no `/theme-assets/` — body present
+ *   preview,   published doc Page              -> `blog-post` (the theme's FIRST template, post-shaped)
+ *   preview,   DRAFT doc Page                  -> `blog-post` chrome AND NO BODY AT ALL
+ *
+ * So there were two defects stacked on one record, and "parity with the live site" alone would have
+ * fixed neither: the live site's own answer for this shape IS the unthemed generic chrome that
+ * `resolveStaticTierPageShellFallback`'s doc records as a live bug (agent-authored Pages losing the
+ * theme entirely) — closed in 2026-09-02 for `"html"`-format Pages only, because at the time every
+ * Page became html on its first save. The owner has now said a save must not be a precondition, which
+ * makes that `bodyFormat` restriction the actual defect. Widening it fixes the live site and the
+ * preview together, through the one shared decision function, instead of teaching a second render
+ * entry point to reproduce the generic path.
+ *
+ * The `terms-of-service` regression that `isEligibleForTemplateBranch`'s doc exists to prevent does
+ * NOT reopen: that was doc Pages landing on `theme.manifest.templates[0]` — array POSITION, which
+ * carries no "this is a page shell" meaning. The page-shell fallback resolves a Tovu-owned closed
+ * vocabulary (`pages-default` / `page-shell`) and never reads manifest ordering. The third test below
+ * pins exactly that distinction.
+ */
+test("REGRESSION: a doc-format Page with no template renders through the theme's page shell on the LIVE site", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  await saveDocPage(deps, { slug: "doc-page-live", status: "published", templateChoice: null, text: DOC_PAGE_BODY_TEXT });
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/doc-page-live`);
+  const html = await res.text();
+
+  assert.equal(res.status, 200);
+  assert.ok(
+    html.includes('data-tpl="page-shell"'),
+    "a doc-format Page must get the theme's own document, not Tovu's generic chrome — the 2026-09-02 fix, no longer restricted to html format"
+  );
+  assert.ok(html.includes(DOC_PAGE_BODY_TEXT), "the Page's own body must still reach the rendered document");
+});
+
+test("REGRESSION: an unsaved, unpublished doc-format Page previews exactly as the live site renders it — no save, no publish required", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  // Two records with identical shape, differing ONLY in status, so the comparison isolates "does
+  // being unpublished change the render" from "does this shape render correctly at all".
+  await saveDocPage(deps, { slug: "doc-page-control", status: "published", templateChoice: null, text: DOC_PAGE_BODY_TEXT });
+  const draft = await saveDocPage(deps, { slug: "doc-page-draft", status: "draft", templateChoice: null, text: DOC_PAGE_BODY_TEXT });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const liveRes = await fetch(`${baseUrl}/doc-page-control`);
+  const liveHtml = await liveRes.text();
+  assert.equal(liveRes.status, 200);
+  assert.ok(liveHtml.includes('data-tpl="page-shell"'), "control: this is what the live site serves for this shape");
+
+  // No `templateChoice` query param and no POSTed body — exactly what the Pages editor sends for a
+  // Page nobody has picked a template for and nobody has saved into html format.
+  const res = await fetch(previewUrl(baseUrl, draft.id, null), { headers: { cookie } });
+  const html = await res.text();
+
+  assert.equal(res.status, 200);
+  assert.ok(html.includes('data-tpl="page-shell"'), "the preview must use the SAME document the live site does");
+  assert.ok(!html.includes('data-tpl="blog-post"'), "the preview must not fall back to the theme's first, post-shaped template");
+  assert.ok(
+    html.includes(DOC_PAGE_BODY_TEXT),
+    "an UNPUBLISHED Page must preview its own real body — the owner's 'it should render even in unpublished state'"
+  );
+  assert.ok(!html.includes("data-embed-config"), "the content slot must be resolved, never left as a raw marker");
+});
+
+test("the page-shell fallback reads a closed vocabulary, NOT manifest position — the terms-of-service regression cannot reopen through it", async (t) => {
+  // `templates[0]` is a post-shaped template AND the theme ships no page shell under either
+  // canonical name. A fallback that reached for position 0 would render `blog-post` here; the real
+  // one must decline and leave the record to the generic path instead.
+  const { app, deps } = buildTestApp(
+    staticThemeWithTemplates({ templates: ["blog-post.html"], extraPages: { "page-shell": undefined as unknown as string } })
+  );
+  delete (deps.themes[0] as unknown as { pages: Record<string, string> }).pages["page-shell"];
+  await saveDocPage(deps, { slug: "terms-of-service", status: "published", templateChoice: null, text: DOC_PAGE_BODY_TEXT });
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/terms-of-service`);
+  const html = await res.text();
+
+  assert.equal(res.status, 200);
+  assert.ok(
+    !html.includes('data-tpl="blog-post"'),
+    "a Page must NEVER land on the theme's first template by position — this is the live bug the kind gate exists to prevent"
+  );
+  assert.ok(html.includes(DOC_PAGE_BODY_TEXT), "with no page shell to fall back to, the generic render still serves the body");
 });

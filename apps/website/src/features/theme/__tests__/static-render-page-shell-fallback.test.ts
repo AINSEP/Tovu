@@ -133,13 +133,20 @@ test("a page-shell.html carrying no content slot resolves nothing", () => {
   );
 });
 
-test("a doc-format Page resolves nothing — that arm keeps its own never-chosen handling", () => {
-  // `isPageTemplateChoiceEligible` already owns the doc-format Page rule (an explicit
-  // `templateChoice`, `""` included, is required); handing doc Pages a shell here would be a second
-  // spelling of that decision.
+test("a doc-format Page resolves the shell too — a Page is BORN doc-format and must not need a save first", () => {
+  // INVERTED 2026-09-16 (owner: "it shouldnt need to be saved to render correctly"). This test used
+  // to assert `undefined` here, on the reasoning that `isPageTemplateChoiceEligible` already owns the
+  // doc-format Page rule and a shell here would be a second spelling of it.
+  //
+  // That reasoning missed which rows are actually in this state. `createPost` forces
+  // `(bodyFormat: "doc", bodyHtml: null)` by construction (`features/post/post.ts`'s
+  // `resolveBodyFields`) for the agent tool and the admin's "New Page" button alike — so doc-format
+  // with no choice is not an exotic legacy shape, it is how EVERY Page begins, and the old scoping
+  // silently required a save before a Page could render in its own theme. Measured before the change:
+  // such a Page served a 1231-byte Tovu-generic shell with no `data-theme` and no `/theme-assets/`.
   assert.equal(
     resolveStaticTierPageShellFallback({ theme: makeTheme(), post: { kind: "page", bodyFormat: "doc" } }),
-    undefined
+    "page-shell.html"
   );
 });
 

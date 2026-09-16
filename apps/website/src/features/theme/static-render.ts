@@ -920,6 +920,23 @@ function isPageTemplateChoiceEligible(post: { bodyFormat: "doc" | "html"; templa
 const STATIC_TIER_PAGE_SHELL_IDS: readonly string[] = ["pages-default", "page-shell"];
 
 /**
+ * WIDENED 2026-09-16 to every `kind: "page"` row, not just `"html"`-format ones. The owner's words:
+ * "it shouldnt need to be saved to render correctly." A Page is BORN `"doc"`-format — `createPost`
+ * forces `(bodyFormat: "doc", bodyHtml: null)` by construction (`features/post/post.ts`'s
+ * `resolveBodyFields`, the CIC-3 write chokepoint) for the agent tool and the admin's own "New Page"
+ * button alike, and only the first save births the html row. The original `"html"` restriction was
+ * therefore not a rule about document shape at all; it was an unstated assumption that every Page
+ * reaching here had already been saved once. Measured on a doc-format Page before widening: the live
+ * site served a 1231-byte Tovu-generic `pageShell()` with no `data-theme` and no `/theme-assets/` —
+ * the EXACT symptom described below, still live for the one shape the fix did not cover.
+ *
+ * This cannot reopen the `terms-of-service` regression that `isEligibleForTemplateBranch`'s own gate
+ * exists to prevent, and the distinction is the whole reason this function is safe to widen: that
+ * regression was doc Pages landing on `theme.manifest.templates[0]` — array POSITION, which carries
+ * no "this is a page shell" meaning. This function never reads manifest ordering; it looks up a
+ * Tovu-owned closed vocabulary ({@link STATIC_TIER_PAGE_SHELL_IDS}) and returns `undefined` when the
+ * theme ships neither name, leaving the record on the generic path exactly as before.
+ *
  * The 2026-09-02 fix for a live bug: an `html`-format `kind: "page"` row with no explicit
  * `templateChoice` — the state EVERY Page starts in (neither the agent create tool nor the admin
  * Pages editor sets this column on creation; see this repo's `content_post_create` tool and
@@ -1046,7 +1063,10 @@ export function resolveStaticTierPageShellFallback(
 ): string | undefined {
   const { theme, post } = required;
   if (theme.manifest.tier !== "static") return undefined;
-  if (post.kind !== "page" || post.bodyFormat !== "html") return undefined;
+  // `kind` only — the `bodyFormat === "html"` half of this gate was removed 2026-09-16, see the
+  // WIDENED note on this function's own doc. `bodyFormat` is not read at all now, and the parameter
+  // keeps it only because callers pass whole records.
+  if (post.kind !== "page") return undefined;
 
   const candidate = findPageShellCandidate(theme);
   if (candidate.kind === "usable") return `${candidate.id}.html`;
