@@ -558,7 +558,7 @@ test("disabling an Agent Plugin says exactly what stopped — and that its provi
         `the start of every run AND again before every agent_plugin_${AGENT_PLUGIN_ID} call, so the plugin's own ` +
         `tool stops answering at once rather than lingering until Tovu restarts. This does NOT change any external ` +
         `MCP server connection the plugin set up: if an operator turned one on, its mcp__<server>__* tools keep ` +
-        `working until that connection is disabled under Integrations → External MCP.`,
+        `working until that connection is disabled under Integrations → External MCP and Tovu is restarted.`,
     );
   });
 });
