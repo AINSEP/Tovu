@@ -130,7 +130,7 @@ function isReservedSameOriginDestination(candidate: string, canonicalOriginUrl: 
     return true;
   }
   if (parsed.origin !== canonicalOriginUrl) return false;
-  return checkSitePathname(parsed.pathname).kind !== "ok";
+  return checkSitePathname(parsed).kind !== "ok";
 }
 
 export interface RedirectPhaseHandlerDeps {

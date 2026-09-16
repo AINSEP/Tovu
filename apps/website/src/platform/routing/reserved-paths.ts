@@ -109,20 +109,22 @@ function resolveDotSegments(path: string): string {
 }
 
 /**
- * Classify an already-parsed pathname against the admin application's URL space.
+ * The actual per-segment rule, on a pathname string that is guaranteed to have come from a real
+ * `URL` (see {@link checkSitePathname}, this function's only two callers). Kept private: a bare
+ * string carries no proof it was ever parsed — the query/fragment stripping, dot-segment removal
+ * relative to a real origin, etc. are exactly what `new URL()` already did before either caller
+ * reaches this. Do not export this directly.
  *
  * Order is load-bearing: decode ONCE, then resolve dot segments, then compare the first segment
  * case-folded. Decoding first is what catches `/%61dmin`; resolving dot segments after the decode
  * is what catches `/blog/%2e%2e/admin`. A single decode pass matches what a browser and Express
  * actually do — `/%2561dmin` decodes to `/%61dmin`, which is genuinely not `/admin` on the wire.
  *
- * @param pathname - A URL pathname (no query, no fragment), e.g. `new URL(...).pathname`.
+ * @param pathname - An already-parsed `URL`'s `.pathname` (no query, no fragment).
  * @returns `{ kind: "ok" }` when it is ordinary site content; otherwise the arm naming the refusal.
  * @complexity O(n) in the pathname length.
- * @example checkSitePathname("/administer-survey"); // => { kind: "ok" }
- * @example checkSitePathname("/%61dmin/settings"); // => { kind: "reserved", surface: "admin" }
  */
-export function checkSitePathname(pathname: string): SitePathCheck {
+function checkDecodedSitePathname(pathname: string): SitePathCheck {
   let decoded: string;
   try {
     decoded = decodeURIComponent(pathname);
@@ -134,6 +136,26 @@ export function checkSitePathname(pathname: string): SitePathCheck {
   const first = (resolveDotSegments(decoded).split("/")[1] ?? "").toLowerCase();
   if (RESERVED_SEGMENTS.has(first)) return { kind: "reserved", surface: first as ReservedSurface };
   return { kind: "ok" };
+}
+
+/**
+ * Classify an already-parsed URL's pathname against the admin application's URL space.
+ *
+ * Takes the {@link URL} itself, not a bare pathname string, so this cannot be handed a raw,
+ * unparsed reference by accident: a string has no way to prove it went through `new URL()` first,
+ * and this rule's whole design (see the module doc) depends on comparing the DECODED, dot-resolved
+ * form a URL parser would actually produce. A caller that only has a raw string — a stored redirect
+ * target, anything from user input — must go through {@link checkSiteRelativeTarget} instead, which
+ * parses it (and rejects what doesn't parse) before this check ever runs.
+ *
+ * @param url - An already-parsed `URL`; only `url.pathname` is read.
+ * @returns `{ kind: "ok" }` when it is ordinary site content; otherwise the arm naming the refusal.
+ * @complexity O(n) in the pathname length.
+ * @example checkSitePathname(new URL("/administer-survey", "http://x.invalid")); // => { kind: "ok" }
+ * @example checkSitePathname(new URL("/%61dmin/settings", "http://x.invalid")); // => { kind: "reserved", surface: "admin" }
+ */
+export function checkSitePathname(url: URL): SitePathCheck {
+  return checkDecodedSitePathname(url.pathname);
 }
 
 /**
@@ -163,5 +185,5 @@ export function checkSiteRelativeTarget(raw: string): SiteRelativeTargetCheck {
     return { kind: "unparseable" };
   }
   if (parsed.origin !== PROBE_ORIGIN) return { kind: "off-origin" };
-  return checkSitePathname(parsed.pathname);
+  return checkSitePathname(parsed);
 }

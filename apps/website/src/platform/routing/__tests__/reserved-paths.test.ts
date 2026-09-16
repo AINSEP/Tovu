@@ -20,6 +20,24 @@ import { resolveSameOriginPath } from "#src/features/site-inspection/published-p
 // checkSitePathname — the rule itself
 // ---------------------------------------------------------------------------
 
+/** `checkSitePathname` now takes a `URL`, not a bare string — see its own doc for why. This base
+ *  is only for parsing test fixture pathnames into one; it is never a real destination. */
+const TEST_BASE = "http://reserved-paths-test.invalid";
+
+/**
+ * Turns a fixture `pathname` into the `URL` `checkSitePathname` now requires.
+ *
+ * Builds the absolute string by CONCATENATION (`base + pathname`), not `new URL(pathname, base)`.
+ * The two-argument form treats a leading `//` as protocol-relative and resolves it onto a
+ * different origin — exactly the `RESERVED` fixture `"//admin"` — while concatenation keeps it as
+ * a literal double slash inside the path, which is what a real `URL.pathname` can also contain
+ * (e.g. `new URL("http://x//admin").pathname === "//admin"`) and what `resolveDotSegments` exists
+ * to collapse.
+ */
+function checkSitePathnameFixture(pathname: string): ReturnType<typeof checkSitePathname> {
+  return checkSitePathname(new URL(TEST_BASE + pathname));
+}
+
 const RESERVED: readonly (readonly [string, "admin" | "api"])[] = [
   ["/admin", "admin"],
   ["/admin/", "admin"],
@@ -39,7 +57,7 @@ const RESERVED: readonly (readonly [string, "admin" | "api"])[] = [
 
 for (const [pathname, surface] of RESERVED) {
   test(`checkSitePathname refuses '${pathname}' as the '${surface}' surface`, () => {
-    assert.deepEqual(checkSitePathname(pathname), { kind: "reserved", surface });
+    assert.deepEqual(checkSitePathnameFixture(pathname), { kind: "reserved", surface });
   });
 }
 
@@ -55,24 +73,24 @@ const ORDINARY: readonly string[] = [
 
 for (const pathname of ORDINARY) {
   test(`checkSitePathname allows the ordinary site path '${pathname}'`, () => {
-    assert.deepEqual(checkSitePathname(pathname), { kind: "ok" });
+    assert.deepEqual(checkSitePathnameFixture(pathname), { kind: "ok" });
   });
 }
 
 test("checkSitePathname reports a malformed percent-encoding rather than throwing", () => {
-  assert.deepEqual(checkSitePathname("/%"), { kind: "malformed-encoding" });
-  assert.deepEqual(checkSitePathname("/%zz"), { kind: "malformed-encoding" });
+  assert.deepEqual(checkSitePathnameFixture("/%"), { kind: "malformed-encoding" });
+  assert.deepEqual(checkSitePathnameFixture("/%zz"), { kind: "malformed-encoding" });
 });
 
 test("checkSitePathname refuses a path that DECODES to a backslash or a control character", () => {
-  assert.deepEqual(checkSitePathname("/%5Cevil.example"), { kind: "disallowed-character" });
-  assert.deepEqual(checkSitePathname("/ok%0d%0aX-Injected:%201"), { kind: "disallowed-character" });
+  assert.deepEqual(checkSitePathnameFixture("/%5Cevil.example"), { kind: "disallowed-character" });
+  assert.deepEqual(checkSitePathnameFixture("/ok%0d%0aX-Injected:%201"), { kind: "disallowed-character" });
 });
 
 test("checkSitePathname decodes exactly ONCE, matching what a browser puts on the wire", () => {
   // `/%2561dmin` is what the server receives; it decodes to the literal `/%61dmin`, which is a
   // real (if silly) page path and not `/admin`. Decoding twice here would refuse a legal path.
-  assert.deepEqual(checkSitePathname("/%2561dmin"), { kind: "ok" });
+  assert.deepEqual(checkSitePathnameFixture("/%2561dmin"), { kind: "ok" });
 });
 
 // ---------------------------------------------------------------------------
