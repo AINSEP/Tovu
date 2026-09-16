@@ -14,7 +14,14 @@ import {
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "../../contracts/core/model-facing-tool-errors.js";
+import {
+  callerSafeErrorMessage,
+  describeErrorForLog,
+  forbiddenRule,
+  withModelFacingErrors,
+  type CallerSafeErrorRule,
+  type ModelFacingErrorRule,
+} from "../../contracts/core/model-facing-tool-errors.js";
 import { askThenReport, resolveConfirmationDecision, SURFACE_DISMISSED_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../contracts/core/tool-surface-exchanges.js";
 // `SurfaceEmission` itself is `@jini-ai/core`'s own type (`tool-surface-exchanges.ts` re-exports the
 // functions that use it, but not the type) — imported directly here so `handleSetTokenAnswer` below
@@ -52,6 +59,7 @@ import {
   createCustomCredential,
   CustomCredentialDuplicateLabelError,
   CustomCredentialNotFoundError,
+  CustomCredentialSecretStoreUnconfiguredError,
   CustomCredentialValidationError,
   describeCredential,
   describeCredentialByLabel,
@@ -249,6 +257,10 @@ export interface CustomCredentialsToolDeps {
   readonly customCredentialsHttpClient: HttpClientPort;
   /** Test-only override; defaults to `credentialed-request.ts`'s `ConsoleCredentialedRequestAuditLog`. */
   readonly customCredentialsAudit?: CredentialedRequestAuditPort;
+  /** Test-only override for the server-side failure log; defaults to `console.warn`. Receives only
+   *  lines built by {@link reportFormSaveFailure}, never a raw error message that could quote a
+   *  secret. */
+  readonly customCredentialsFailureLog?: (line: string) => void;
 }
 
 const CATALOG_BY_ID = indexCatalogById(customCredentialsAgentToolCatalog);
@@ -388,7 +400,8 @@ function isWriteFilesShapeRejection(error: unknown): boolean {
  *   {@link buildWriteFilesConfirmationFileSpecs}' internal-invariant `Error`.
  *
  * The structured `{ saved: false }` / `{ created: false }` / `{ executed: false }` results are return
- * values, not throws, and this wrap never sees them.
+ * values, not throws, and this wrap never sees them. The two form-save failures go through their own
+ * allowlist, {@link FORM_SAVE_CALLER_SAFE_ERRORS}.
  */
 const CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   forbiddenRule("CUSTOM_CREDENTIALS"),
@@ -672,6 +685,57 @@ function rejectUnexpectedSetTokenFields(input: Record<string, unknown>): void {
   }
 }
 
+/**
+ * The errors whose kind a failed form SAVE (`custom_credential_set_token`, `custom_credential_create`)
+ * may name — to the model in the structured result, and to the human in the outcome resource.
+ * Anything unlisted gets {@link FORM_SAVE_FAILURE_MESSAGE}. See `callerSafeErrorMessage` in
+ * `contracts/core/model-facing-tool-errors.ts` for the mechanism.
+ *
+ * Both handlers used to publish `err.message` for ANY error, under a comment claiming none of these
+ * messages ever embeds a field value. That was false: `store.ts`'s `sealConnection` wraps the sealer's
+ * own failure text, the sealer is handed the submitted token as plaintext, and `decryptRecord`'s
+ * `JSON.parse` arm shows the shape (it quotes its input). With the shipped `EnvOrFileKeyring`, a
+ * missing root key put the env var name and the absolute key-file path on screen. A raw repo error
+ * went out verbatim.
+ *
+ * - `CustomCredentialValidationError`, `CustomCredentialNotFoundError`: verbatim. Fixed text, field
+ *   names, and a row id — the same disclosure proof `CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS` records.
+ * - `CustomCredentialSecretStoreUnconfiguredError`: a FIXED message. Its kind is the actionable reason
+ *   an operator needs; its text wraps the sealer's, keyring's, or `JSON.parse`'s, so it never goes out.
+ *
+ * `CustomCredentialDuplicateLabelError` never reaches this list: `mapCreateCredentialError` answers it
+ * first with its own message.
+ */
+const FORM_SAVE_CALLER_SAFE_ERRORS: readonly CallerSafeErrorRule[] = [
+  { error: CustomCredentialValidationError },
+  { error: CustomCredentialNotFoundError },
+  {
+    error: CustomCredentialSecretStoreUnconfiguredError,
+    message:
+      "The site's secret store could not seal or open this credential: its root key is missing or unusable, or the stored credential is unreadable. Nothing was saved.",
+  },
+];
+
+/** What a form SAVE failure outside {@link FORM_SAVE_CALLER_SAFE_ERRORS} publishes. True for every
+ *  throw inside either handler's `try`: the repo write is the last step that can fail. */
+const FORM_SAVE_FAILURE_MESSAGE = "Saving failed because of an internal server error. Nothing was saved. The server log has the details.";
+
+/**
+ * Logs a failed form SAVE server-side and returns the message the model and the human may see.
+ *
+ * The log line carries the tool id, the exchange id, the credential id when there is one, and
+ * `describeErrorForLog`'s class-and-code summary — never `err.message` and never the human-typed
+ * label, either of which could hold the submitted token.
+ *
+ * @complexity O(r) in the allowlist's rule count.
+ */
+function reportFormSaveFailure(routeDeps: CustomCredentialsToolDeps, input: { toolId: string; exchangeId: string; credentialId?: string; err: unknown }): string {
+  const log = routeDeps.customCredentialsFailureLog ?? ((line: string) => console.warn(line));
+  const credential = input.credentialId !== undefined ? ` credentialId=${input.credentialId}` : "";
+  log(`[custom-credentials] ${input.toolId}: save failed exchange=${input.exchangeId}${credential} error=${describeErrorForLog(input.err)}`);
+  return callerSafeErrorMessage(input.err, { rules: FORM_SAVE_CALLER_SAFE_ERRORS, fallback: FORM_SAVE_FAILURE_MESSAGE });
+}
+
 /** `custom_credential_set_token`'s ENTIRE agent-facing result shape — deliberately boolean-plus-reason
  *  and nothing richer, so there is no field this type could ever be widened to carry the submitted
  *  token in (contrast `CustomCredentialSummary`, which `custom_credential_set_username` safely returns
@@ -762,11 +826,8 @@ async function handleSetTokenAnswer(answer: SurfaceMessage, ctx: SetTokenAnswerC
       }
     );
   } catch (err) {
-    // `err.message` only, never echoed alongside anything else — matches `store.ts`'s own error
-    // classes, none of which ever embed a field VALUE (see e.g. `CustomCredentialValidationError`'s
-    // and `CustomCredentialSecretStoreUnconfiguredError`'s own construction sites: names and reasons,
-    // never a token).
-    const message = err instanceof Error ? err.message : String(err);
+    // Never `err.message`: it can quote the token just submitted. See FORM_SAVE_CALLER_SAFE_ERRORS.
+    const message = reportFormSaveFailure(routeDeps, { toolId: SET_TOKEN_TOOL_ID, exchangeId: exchange.id, credentialId: existing.id, err });
     return {
       result: { saved: false, reason: "error", message },
       outcome: { channel: "mcp-ui", payload: { resource: buildSetTokenOutcomeResource({ exchangeId: exchange.id, label, state: "failure", message }) } },
@@ -925,21 +986,23 @@ function buildCreateFailureOutcome(
  * `.../plugins/uninstall.ts`), adapted here to return a value instead of writing an HTTP response.
  *
  * A collision is refused, never silently overwritten — and the refusal names the correct tool for a
- * rotation, so the model does not retry this CREATE-only tool against an existing row. `err.message`
- * alone is used for every other failure, never echoed alongside anything else — matches
- * `handleSetTokenAnswer`'s own catch branch and `store.ts`'s own error classes, none of which ever
- * embed a field VALUE.
+ * rotation, so the model does not retry this CREATE-only tool against an existing row. Every other
+ * failure's message goes through {@link reportFormSaveFailure}, the same allowlist
+ * `handleSetTokenAnswer`'s catch uses — never `err.message`, which can quote the submitted token.
  *
- * @complexity O(1) — one `instanceof` branch plus one ternary.
+ * @complexity O(r) in {@link FORM_SAVE_CALLER_SAFE_ERRORS}' rule count.
  */
-function mapCreateCredentialError(err: unknown, ctx: { exchangeId: string; label: string; displayLabel: string }): { result: CreateCredentialResult; outcome: SurfaceEmission } {
+function mapCreateCredentialError(
+  err: unknown,
+  ctx: { routeDeps: CustomCredentialsToolDeps; exchangeId: string; label: string; displayLabel: string }
+): { result: CreateCredentialResult; outcome: SurfaceEmission } {
   if (err instanceof CustomCredentialDuplicateLabelError) {
     const message =
       `A custom credential labeled '${ctx.label}' already exists in this workspace. To rotate its token, use custom_credential_set_token — ` +
       "this tool only creates NEW credentials and never overwrites an existing one.";
     return buildCreateFailureOutcome(ctx.exchangeId, ctx.displayLabel, "duplicate-label", message);
   }
-  const message = err instanceof Error ? err.message : String(err);
+  const message = reportFormSaveFailure(ctx.routeDeps, { toolId: CREATE_TOOL_ID, exchangeId: ctx.exchangeId, err });
   const reason = err instanceof CustomCredentialValidationError ? "invalid" : "error";
   return buildCreateFailureOutcome(ctx.exchangeId, ctx.displayLabel, reason, message);
 }
@@ -982,8 +1045,10 @@ async function handleCreateAnswer(answer: SurfaceMessage, ctx: CreateAnswerConte
     return buildCreateFailureOutcome(exchange.id, submission.displayLabel, "invalid", "Token cannot be blank. Nothing was saved.");
   }
 
+  // Only the save itself sits in the `try`, so "Nothing was saved" in a failure message stays true.
+  let credential: CustomCredentialSummary;
   try {
-    const credential = await createCustomCredential(
+    credential = await createCustomCredential(
       {
         repo: routeDeps.customCredentialSetRepo,
         sealer: routeDeps.siteAssistantSecretSealer,
@@ -999,14 +1064,15 @@ async function handleCreateAnswer(answer: SurfaceMessage, ctx: CreateAnswerConte
         connection: { token: submission.token, ...(submission.username !== undefined ? { username: submission.username } : {}) },
       }
     );
-    const message = `Credential '${credential.label}' created.`;
-    return {
-      result: { created: true, credential },
-      outcome: { channel: "mcp-ui", payload: { resource: buildCreateOutcomeResource({ exchangeId: exchange.id, label: credential.label, state: "success", message }) } },
-    };
   } catch (err) {
-    return mapCreateCredentialError(err, { exchangeId: exchange.id, label: submission.label, displayLabel: submission.displayLabel });
+    return mapCreateCredentialError(err, { routeDeps, exchangeId: exchange.id, label: submission.label, displayLabel: submission.displayLabel });
   }
+
+  const message = `Credential '${credential.label}' created.`;
+  return {
+    result: { created: true, credential },
+    outcome: { channel: "mcp-ui", payload: { resource: buildCreateOutcomeResource({ exchangeId: exchange.id, label: credential.label, state: "success", message }) } },
+  };
 }
 
 export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentialsToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {

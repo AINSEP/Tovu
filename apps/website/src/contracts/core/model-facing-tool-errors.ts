@@ -41,6 +41,16 @@
  * listed, no matter how useful it would be to debug with. Where the two goals conflict, the safe
  * option wins and the error stays redacted.
  *
+ * ## Structured failure results get the same allowlist (2026-09-16)
+ *
+ * Not every failure is a throw. A handler that catches an error and RETURNS it — a
+ * `{ saved: false, reason: "error", message }` result, an outcome resource rendered to the human —
+ * bypasses the transport's redaction entirely, so a raw `err.message` there reaches the model and the
+ * human verbatim. {@link callerSafeErrorMessage} applies the same allowlist rule to that path: a
+ * listed class publishes its message (or a fixed one), anything else publishes the caller's fallback.
+ * {@link describeErrorForLog} is its server-side half: what a log line may say about an error whose
+ * message is not known to be safe.
+ *
  * ## Architectural role
  *
  * `contracts/core`, domain-agnostic — it names no member, form, webhook, campaign, post, or
@@ -162,4 +172,71 @@ export function withModelFacingErrors(
       },
     ])
   );
+}
+
+/**
+ * One entry in a structured-result allowlist — see {@link callerSafeErrorMessage}.
+ *
+ * No `code`: a structured result already carries its own `reason` discriminant, and its message is
+ * often rendered to a human as-is, so no prefix is added.
+ */
+export interface CallerSafeErrorRule {
+  /** The class to match with `instanceof`. Same constructor shape as {@link ModelFacingErrorRule.error}. */
+  readonly error: abstract new (...args: never[]) => Error;
+  /** Published INSTEAD of the error's own message. Set it for a class whose KIND is safe and worth
+   *  naming but whose message is not — one that embeds another error's text. Omit it to publish the
+   *  class's own message verbatim, which is only correct when every construction site builds that
+   *  message from fixed text and the caller's own input. */
+  readonly message?: string;
+}
+
+/**
+ * The message a RETURNED failure result may carry for `err`: a listed class's message (or its fixed
+ * replacement), otherwise `fallback`.
+ *
+ * Unknown means redacted. An error class added tomorrow, a raw driver error, or a non-`Error` throw
+ * all get `fallback`, never their own text. Rules are evaluated in order; the first `instanceof`
+ * match wins.
+ *
+ * @param err - The caught value, of unknown type.
+ * @param input.rules - The allowlist.
+ * @param input.fallback - Fixed text for everything unlisted. Must not be built from `err`.
+ * @returns The message to publish.
+ * @complexity O(r) in the rule count.
+ */
+export function callerSafeErrorMessage(err: unknown, input: { rules: readonly CallerSafeErrorRule[]; fallback: string }): string {
+  for (const rule of input.rules) {
+    if (err instanceof rule.error) return rule.message ?? err.message;
+  }
+  return input.fallback;
+}
+
+/** A driver/system error code worth logging (`SQLITE_READONLY`, `ECONNREFUSED`, `ERR_INVALID_CHAR`) —
+ *  a short constant token, never free text that could carry a value. */
+const LOGGABLE_ERROR_CODE = /^[A-Z][A-Z0-9_]{0,63}$/;
+
+/** `ClassName` or `ClassName(CODE)` for one thrown value; `typeof` for a non-`Error` throw. */
+function describeOneErrorForLog(value: unknown): string {
+  if (!(value instanceof Error)) return typeof value;
+  const className = value.constructor.name || "Error";
+  const code = (value as { code?: unknown }).code;
+  return typeof code === "string" && LOGGABLE_ERROR_CODE.test(code) ? `${className}(${code})` : className;
+}
+
+/**
+ * What a server-side log line may say about an error whose message is NOT known to be safe: its class
+ * name, a constant-token `code`, and the same for its direct `cause`. Never the message, which can
+ * quote a secret — `JSON.parse` quotes its input, and a sealer is handed plaintext.
+ *
+ * Use it wherever the raw message could carry a credential. Where a class's message is designed for
+ * logs (`EgressRefusedError.message`), log that instead.
+ *
+ * @param err - The caught value.
+ * @returns e.g. `SqliteError(SQLITE_BUSY)`, or `TypeError cause=Error(ECONNREFUSED)`.
+ * @complexity O(1).
+ */
+export function describeErrorForLog(err: unknown): string {
+  const described = describeOneErrorForLog(err);
+  const cause = err instanceof Error ? (err as { cause?: unknown }).cause : undefined;
+  return cause === undefined ? described : `${described} cause=${describeOneErrorForLog(cause)}`;
 }
