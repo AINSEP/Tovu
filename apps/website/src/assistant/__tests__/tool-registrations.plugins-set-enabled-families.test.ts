@@ -196,7 +196,8 @@ function exchangeIdFromSurface(surface: unknown): string {
 }
 
 /** Raises the dialog, answers it the way the browser callback endpoint does, and returns the
- *  parked call's real result. */
+ *  parked call's real result. Waits for the dialog itself rather than one tick: an Agent Plugin enable
+ *  reads activations.json before raising it (t91 §7.2). */
 async function answerDialog(
   tool: ToolRegistration,
   surfaceExchanges: SurfaceExchangeStore,
@@ -204,8 +205,16 @@ async function answerDialog(
   decision: "confirm" | "cancel",
 ): Promise<{ result: unknown; emitted: unknown[] }> {
   const emitted: unknown[] = [];
-  const pending = call(tool, input, async (surface) => void emitted.push(surface));
-  await new Promise((resolve) => setImmediate(resolve));
+  let dialogRaised: () => void = () => undefined;
+  const dialog = new Promise<"dialog">((resolve) => {
+    dialogRaised = () => resolve("dialog");
+  });
+  const pending = call(tool, input, async (surface) => {
+    emitted.push(surface);
+    dialogRaised();
+  });
+  const first = await Promise.race([dialog, pending.then((result) => JSON.stringify(result), (error: unknown) => String(error))]);
+  assert.equal(first, "dialog", "the dialog must be emitted before the call parks");
   assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
   const delivery = surfaceExchanges.deliver({
     exchangeId: exchangeIdFromSurface(emitted[0]),
@@ -334,6 +343,54 @@ test("plugins_set_enabled: a corrupt activations file returns changed:false with
         "(the server log names the file and the fault); until then every Agent Plugin tool call in this workspace is refused.",
     );
     assert.equal(await readFile(activationsPath, "utf8"), "{ not json", "a refused write must leave the corrupt file exactly as it was");
+  });
+});
+
+test("t91 §7.2: ENABLING on a corrupt activations file returns activations-unreadable WITHOUT raising the confirmation dialog", async (t) => {
+  await withInstalledAgentPlugin(async (workspaceRoot) => {
+    const activationsPath = path.join(workspaceRoot, "activations.json");
+    await writeFile(activationsPath, "{ not json", "utf8");
+    const warnings: string[] = [];
+    t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args.map(String).join(" ")));
+
+    const { deps } = fakeRouteDeps();
+    const surfaceExchanges = createSurfaceExchangeStore();
+    const tool = setEnabledTool(deps, surfaceExchanges);
+    const emitted: unknown[] = [];
+    let dialogRaised: (surface: unknown) => void = () => undefined;
+    const dialog = new Promise<unknown>((resolve) => {
+      dialogRaised = resolve;
+    });
+    const pending = call(tool, { pluginId: AGENT_PLUGIN_ID, enabled: true, family: "agent-plugin" }, async (surface) => {
+      emitted.push(surface);
+      dialogRaised(surface);
+    });
+
+    const first = await Promise.race([
+      pending.then((result) => ({ kind: "result" as const, result })),
+      dialog.then((surface) => ({ kind: "dialog" as const, surface })),
+    ]);
+    if (first.kind === "dialog") {
+      surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(first.surface), params: { decision: "confirm" }, principalId: PRINCIPAL_ID, toolId: SET_ENABLED });
+      assert.fail(`a confirmation dialog was raised for a write that must refuse; after the human confirmed, the tool returned ${JSON.stringify(await pending)}`);
+    }
+
+    assert.deepEqual(first.result, {
+      changed: false,
+      cancelled: false,
+      family: "agent-plugin",
+      pluginId: AGENT_PLUGIN_ID,
+      restartRequired: false,
+      reason: "activations-unreadable",
+      note:
+        "Nothing changed: this workspace's Agent Plugin activation record could not be read, so " +
+        "'higgsfield-media' was NOT enabled. Tell the user an operator has to repair activations.json first " +
+        "(the server log names the file and the fault); until then every Agent Plugin tool call in this workspace is refused.",
+    });
+    assert.equal(emitted.length, 0);
+    assert.equal(warnings.length, 1);
+    assert.ok((warnings[0] ?? "").includes(activationsPath), "the server log must name the file");
+    assert.equal(await readFile(activationsPath, "utf8"), "{ not json");
   });
 });
 

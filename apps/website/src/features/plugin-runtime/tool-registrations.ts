@@ -124,7 +124,7 @@ import { AgentPluginNotInstalledError, setAgentPluginEnabled } from "../agent-pl
 // t91 F1.1 (2026-09-16). `activation.ts` is the domain module that already defines this error;
 // importing it here adds no `plugin-runtime -> agent-plugins/tool-registrations` edge (same
 // reasoning as the `set-enabled.js` import above).
-import { AgentPluginActivationsUnreadableError } from "../agent-plugins/activation.js";
+import { AgentPluginActivationsUnreadableError, assertAgentPluginActivationsWritable } from "../agent-plugins/activation.js";
 // The Agent Plugins MCP-provisioning half of `plugins_set_enabled` (2026-09-15). The route's own
 // enable path calls these same two primitives; see `applyAgentPluginDecision` below for why the
 // in-chat enable must not skip them.
@@ -522,6 +522,28 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
   }
 }
 
+/**
+ * Pre-flight for an Agent Plugin ENABLE, run before the confirmation dialog: the not-changed result when this
+ * workspace's activations.json cannot be read, otherwise `undefined`.
+ *
+ * `applyAgentPluginDecision` would refuse the same write anyway, but only after a human had confirmed it — asking
+ * them to approve something that cannot happen, then reporting "nothing changed" (t91 §7.2). This reads the file
+ * with the same strict reader every writer uses, so it refuses exactly the files the write would. The file can
+ * still break while the dialog is open; `applyAgentPluginDecision`'s own catch covers that. Disabling raises no
+ * dialog, so it needs no pre-flight.
+ *
+ * @complexity One small file read.
+ */
+async function unwritableAgentPluginActivationsResult(routeDeps: PluginsToolDeps, request: SetEnabledRequest): Promise<unknown> {
+  try {
+    await assertAgentPluginActivationsWritable(resolveAgentPluginLayout().forWorkspace(routeDeps.workspaceId).root);
+    return undefined;
+  } catch (error) {
+    if (error instanceof AgentPluginActivationsUnreadableError) return activationsUnreadableResult(request, error);
+    throw error;
+  }
+}
+
 /** ADR-055 Decision 6 shape: nothing changed, so it is a RESULT the model can relay, not a redacted
  *  failure. The host path and parse detail stay in the server log via the `console.warn` below;
  *  `note` carries only the fixed, path-free E3 text.
@@ -637,7 +659,7 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
      * consolidated here while install/uninstall deliberately are not, and
      * `set-enabled-confirmation-ui.ts`'s for why enabling asks a human and disabling does not.
      *
-     * Order is load-bearing: parse -> authorize -> confirm -> write. The explicit
+     * Order is load-bearing: parse -> authorize -> (Agent Plugin enable: activations.json readable?) -> confirm -> write. The explicit
      * `requireToolPermission` ahead of the dialog is NOT a second policy (the site-runtime branch's
      * `executeCommand` still performs its own check on the same permission with the same evaluator,
      * per ADR-021 §2) — it gates SHOWING THE DIALOG, which is its own disclosure: a principal with no
@@ -654,6 +676,8 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
       });
 
       if (request.enabled) {
+        const refused = request.family === "agent-plugin" ? await unwritableAgentPluginActivationsResult(routeDeps, request) : undefined;
+        if (refused !== undefined) return refused;
         const outcome = await confirmEnable(surfaces, ctx, request);
         if (!outcome.confirmed) return notConfirmedResult(outcome, request);
       }
