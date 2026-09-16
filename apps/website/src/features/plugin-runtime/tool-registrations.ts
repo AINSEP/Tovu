@@ -529,7 +529,7 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
 
 /**
  * Pre-flight for an Agent Plugin ENABLE, run before the confirmation dialog: the not-changed result when this
- * workspace's activations.json cannot be read, otherwise `undefined`.
+ * workspace's activations.json cannot be read or cannot be locked, otherwise `undefined`.
  *
  * `applyAgentPluginDecision` would refuse the same write anyway, but only after a human had confirmed it — asking
  * them to approve something that cannot happen, then reporting "nothing changed" (t91 §7.2). This reads the file
@@ -537,7 +537,8 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
  * still break while the dialog is open; `applyAgentPluginDecision`'s own catch covers that. Disabling raises no
  * dialog, so it needs no pre-flight.
  *
- * @complexity One small file read.
+ * @complexity One small file read, plus `assertAgentPluginActivationsWritable`'s own cross-process lock
+ * acquisition and release — not a pure read: it also creates the workspace root if it is absent.
  */
 async function unwritableAgentPluginActivationsResult(routeDeps: PluginsToolDeps, request: SetEnabledRequest): Promise<unknown> {
   try {

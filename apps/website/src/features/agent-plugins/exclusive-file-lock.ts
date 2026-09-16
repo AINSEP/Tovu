@@ -270,6 +270,16 @@ interface AcquireOptions extends StaleJudgingOptions {
   readonly onStaleLockRemoved: ((holder: FileLockHolder | undefined) => void) | undefined;
 }
 
+/** Enforces `timeoutMs` on EVERY path {@link acquireFileLock} retries from, not just the one that
+ *  sleeps: a peer that keeps re-taking the lock (a crash-looping process, say) sends the loop round
+ *  through the stale-break and vanished-lock branches indefinitely, and unless those are on the same
+ *  clock `timeoutMs` is not a bound at all — the waiter never surfaces the busy error this module
+ *  promises. @complexity O(1). */
+function assertWithinTimeout(lockPath: string, holder: FileLockHolder | undefined, start: number, timeoutMs: number): void {
+  const elapsed = performance.now() - start;
+  if (elapsed >= timeoutMs) throw new FileLockTimeoutError(lockPath, holder, elapsed);
+}
+
 /** The acquisition loop: try to create; if contended, inspect what is there; break it if stale;
  *  otherwise wait out the backoff and retry, until `timeoutMs` is spent.
  *  @complexity O(a) in the attempt count until acquired or timed out. */
@@ -280,15 +290,20 @@ async function acquireFileLock(lockPath: string, token: string, opts: AcquireOpt
     if (await tryCreateLockFile(lockPath, token, opts.hostname())) return;
 
     const snapshot = await inspectLockFile(lockPath);
-    if (snapshot === undefined) continue; // vanished between our failed create and this read — try again at once
-
-    if (isStaleLock(snapshot, opts)) {
-      await removeLockIfUnchanged(lockPath, snapshot, opts.onStaleLockRemoved);
+    if (snapshot === undefined) {
+      // Vanished between our failed create and this read — retry at once, but still on the clock:
+      // a peer that keeps re-taking the lock must not be able to hold a waiter here forever.
+      assertWithinTimeout(lockPath, undefined, start, opts.timeoutMs);
       continue;
     }
 
-    const elapsed = performance.now() - start;
-    if (elapsed >= opts.timeoutMs) throw new FileLockTimeoutError(lockPath, snapshot.holder, elapsed);
+    if (isStaleLock(snapshot, opts)) {
+      await removeLockIfUnchanged(lockPath, snapshot, opts.onStaleLockRemoved);
+      assertWithinTimeout(lockPath, snapshot.holder, start, opts.timeoutMs);
+      continue;
+    }
+
+    assertWithinTimeout(lockPath, snapshot.holder, start, opts.timeoutMs);
     await sleep(backoffDelay(attempt++));
   }
 }

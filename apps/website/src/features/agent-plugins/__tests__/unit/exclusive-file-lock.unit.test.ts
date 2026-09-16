@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { writeFileSync } from "node:fs";
 import { mkdtemp, readFile, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -16,7 +18,7 @@ import {
 } from "../../exclusive-file-lock.js";
 
 /**
- * @file U1-U13 — `exclusive-file-lock.ts`'s own contract, exercised against a REAL filesystem
+ * @file U1-U14 — `exclusive-file-lock.ts`'s own contract, exercised against a REAL filesystem
  * (`mkdtemp`), never mocked: every guarantee here (atomic create, the two stale rules, the
  * hostname guard, ownership-checked release) is exactly the kind of thing a mock of `fs` could
  * assert away by accident. See `activation-cross-process-writes.integration.test.ts` for the
@@ -285,6 +287,43 @@ test("U13: two concurrent withExclusiveFileLock calls on one path never overlap"
     };
     await Promise.all([run(), run()]);
     assert.equal(overlapped, false);
+  } finally {
+    await forceRemove(root);
+  }
+});
+
+test("U14: a lock that is re-taken the instant each stale break removes it still times out, instead of spinning past timeoutMs", async () => {
+  const root = await freshRoot();
+  try {
+    const lockPath = lockPathIn(root);
+    // A crash-looping peer: every time our waiter breaks its stale lock, it has already taken a new
+    // one whose holder is dead too. `removeLockIfUnchanged` therefore keeps finding a NEW lock, so
+    // the acquisition loop keeps taking its stale-break path — the one branch that never consulted
+    // `timeoutMs`. Recreation stops after 3s so a regression fails on the assertion rather than
+    // hanging the runner.
+    const start = Date.now();
+    let breaks = 0;
+    const retakeLock = (): void => {
+      breaks += 1;
+      if (Date.now() - start > 3000) return;
+      writeFileSync(lockPath, JSON.stringify({ pid: deadPid(), hostname: os.hostname(), token: randomUUID(), acquiredAt: new Date().toISOString() }), "utf8");
+    };
+
+    await plantLock(lockPath, { pid: deadPid(), hostname: os.hostname(), token: "seed", acquiredAt: new Date().toISOString() });
+
+    let ran = false;
+    await assert.rejects(
+      withExclusiveFileLock(
+        lockPath,
+        async () => {
+          ran = true;
+        },
+        { timeoutMs: 300, isProcessAlive: () => false, onStaleLockRemoved: retakeLock },
+      ),
+      FileLockTimeoutError,
+    );
+    assert.equal(ran, false, "the lock was never actually free, so run() must not have been entered");
+    assert.ok(Date.now() - start < 2500, `timeoutMs must bound the stale-break path too (waited ${Date.now() - start}ms for a 300ms timeout, ${breaks} breaks)`);
   } finally {
     await forceRemove(root);
   }
