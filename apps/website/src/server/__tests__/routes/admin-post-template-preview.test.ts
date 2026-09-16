@@ -120,6 +120,10 @@ async function saveHtmlPage(
   deps: RouteDeps,
   fields: { slug: string; status?: "draft" | "published"; templateChoice?: string | null; bodyHtml: string }
 ): Promise<PostRecord> {
+  // `"templateChoice" in fields`, NOT `?? "page-shell.html"` — the whole point of the untemplated-Page
+  // regression tests at the bottom of this file is an EXPLICIT `null`, and a `??` default would
+  // silently hand them a real filename instead, turning a RED test green against a record shape the
+  // product never produces.
   const page = {
     id: randomUUID(),
     workspaceId: WORKSPACE_ID,
@@ -132,7 +136,7 @@ async function saveHtmlPage(
     bodyHtml: fields.bodyHtml,
     updatedAt: new Date().toISOString(),
     version: 1,
-    templateChoice: fields.templateChoice ?? "page-shell.html",
+    templateChoice: "templateChoice" in fields ? fields.templateChoice : "page-shell.html",
   } as unknown as PostRecord;
   await deps.postRepo.save(page);
   return page;
@@ -478,4 +482,97 @@ test("with the theme turned off, the template preview returns a real error — n
   const body = await res.text();
   assert.match(body, /theme/i, "the message must name the cause");
   assert.notEqual(body.trim(), "", "an empty body is what this test exists to prevent");
+});
+
+const UNTEMPLATED_PAGE_BODY_TEXT = "Body of a Page nobody ever picked a template for";
+
+/*
+ * 2026-09-16 regression, owner-observed while the assistant built `/admin/pages/say-hello` live:
+ * "the css for the preview wasnt rendering correctly at first".
+ *
+ * Root cause: this route renders through `renderViaTemplate` DIRECTLY
+ * (`routes/posts/template-preview.ts`), while the public site reaches the same function through
+ * `renderTemplateBranchIfEligible` (`routes/site/pages.ts`), which first consults
+ * `isEligibleForTemplateBranch` and then `resolveStaticTierPageShellFallback`. For a `kind: "page"`,
+ * `bodyFormat: "html"` row with `templateChoice: null` — the state EVERY agent-created Page is in,
+ * since neither `content_post_create` nor the Pages editor writes that column on create — those two
+ * paths disagree:
+ *
+ *   - public site: ineligible -> page-shell fallback -> `pages-default.html` / `page-shell.html`
+ *   - this route:  `resolveTemplate(null)` -> "never chosen" -> `theme.manifest.templates[0]`
+ *
+ * On the live `basic` theme `templates[0]` is `posts-default.html`, so the operator's preview pane
+ * showed the Page wearing a BLOG POST's chrome and stylesheet while the live URL served it correctly.
+ * The two tests below pin the preview to whatever the public route actually serves, by asserting
+ * against a live-site fetch of the same record in the same process rather than against a hardcoded
+ * expectation — a hardcoded one would go stale the moment either path's rules change again.
+ *
+ * Posts are untouched by this: `isEligibleForTemplateBranch` returns `true` for every `kind: "post"`
+ * on a templated static theme, so the "omitted templateChoice falls back to the theme's first
+ * template" test above keeps passing unchanged and doubles as this fix's own regression guard.
+ */
+test("REGRESSION: an untemplated html Page previews through the SAME template the live site serves it under", async (t) => {
+  // `templates[0]` is deliberately the post-shaped `blog-post.html` (the fixture's default order,
+  // matching live `basic`'s `posts-default.html` being first) so the wrong answer is distinguishable
+  // from the right one.
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  const page = await saveHtmlPage(deps, {
+    slug: "say-hello",
+    status: "published",
+    templateChoice: null,
+    bodyHtml: `<p>${UNTEMPLATED_PAGE_BODY_TEXT}</p>`,
+  });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // Control first: this is what the owner's browser showed at the public URL, and it is correct.
+  const liveRes = await fetch(`${baseUrl}/say-hello`);
+  const liveHtml = await liveRes.text();
+  assert.equal(liveRes.status, 200);
+  assert.ok(liveHtml.includes('data-tpl="page-shell"'), "control: the live site serves an untemplated html Page through the page shell");
+  assert.ok(!liveHtml.includes('data-tpl="blog-post"'), "control: the live site does NOT use the theme's first, post-shaped template");
+
+  const res = await fetch(previewUrl(baseUrl, page.id, null), { headers: { cookie } });
+  const html = await res.text();
+
+  assert.equal(res.status, 200);
+  assert.ok(html.includes('data-tpl="page-shell"'), "the preview must render through the page shell, exactly as the live site just did");
+  assert.ok(
+    !html.includes('data-tpl="blog-post"'),
+    "the preview must not fall back to the theme's first (post-shaped) template — the owner-visible 'css wasn't rendering correctly' symptom"
+  );
+  assert.ok(html.includes(UNTEMPLATED_PAGE_BODY_TEXT), "the Page's own body must still reach the preview");
+});
+
+/*
+ * The same divergence reached through the picker instead of through creation. `""` is the Pages
+ * picker's explicit "No template chosen", and for an `"html"`-format Page that is its normal,
+ * fully-working state — `isPageTemplateChoiceEligible` treats `""` exactly like `null` for this shape
+ * (a deliberate divergence from the Post rule, documented on `isEligibleForTemplateBranch`), so the
+ * live site serves the page shell. This route instead hit `resolveTemplate`'s `templateChoice === ""`
+ * arm and served the DIAGNOSTIC page, so selecting "No template chosen" made the preview pane read as
+ * a broken page while the public URL was fine.
+ */
+test("REGRESSION: an html Page with the picker's explicit 'No template chosen' previews as the live site serves it, not as the diagnostic page", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  const page = await saveHtmlPage(deps, {
+    slug: "say-hello",
+    status: "published",
+    templateChoice: "",
+    bodyHtml: `<p>${UNTEMPLATED_PAGE_BODY_TEXT}</p>`,
+  });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const liveRes = await fetch(`${baseUrl}/say-hello`);
+  const liveHtml = await liveRes.text();
+  assert.equal(liveRes.status, 200);
+  assert.ok(liveHtml.includes('data-tpl="page-shell"'), "control: an explicit opt-out is still a page-shell render on the live site");
+  assert.ok(!liveHtml.includes(DIAGNOSTIC_MARKER), "control: the live site never shows an html Page the diagnostic page for this");
+
+  const res = await fetch(previewUrl(baseUrl, page.id, ""), { headers: { cookie } });
+  const html = await res.text();
+
+  assert.equal(res.status, 200);
+  assert.ok(!html.includes(DIAGNOSTIC_MARKER), "the preview must not show the diagnostic page for a state the live site renders fine");
+  assert.ok(html.includes('data-tpl="page-shell"'), "the preview must render through the page shell, exactly as the live site just did");
+  assert.ok(html.includes(UNTEMPLATED_PAGE_BODY_TEXT), "the Page's own body must still reach the preview");
 });

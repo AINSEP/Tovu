@@ -24,8 +24,7 @@ import {
   injectCurrentEntityContentId,
   injectPageTitle,
   resolveTemplate,
-  isEligibleForTemplateBranch,
-  resolveStaticTierPageShellFallback,
+  resolveTemplateBranchChoice,
   scanMenuEmbedIds,
   scanPostPreviewsLimit,
   NO_THEME_ID,
@@ -751,7 +750,7 @@ export async function resolveAssignedTermsForRender(
  * Template-picker feature (2026-08-10, unified 2026-08-11) — renders `post` (a Post OR a Page, either
  * `"doc"`- or `"html"`-format) through its chosen static-theme template (`theme.json`'s `templates`
  * array), or the explicit diagnostic page above when unresolvable. Only called when the active theme
- * is `static` tier AND declares a non-empty `templates` array AND {@link isEligibleForTemplateBranch}
+ * is `static` tier AND declares a non-empty `templates` array AND `isEligibleForTemplateBranch` (`features/theme/static-render.ts`)
  * returned `true` for this row (checked by the caller) — a theme that doesn't declare `templates`
  * simply doesn't support the feature yet, which is a theme-capability gap, not a per-row
  * misconfiguration, so those themes fall through to the pre-existing generic rendering unchanged.
@@ -1208,7 +1207,7 @@ export async function resolvePostAfterMarketingCheck(
  * case: no admin surface sets `templateChoice` on create), an `html`-format `kind: "page"` row on a
  * `static`-tier theme gets ONE more chance before falling through to the caller's generic path: the
  * theme's own canonical page-shell document shell (`pages-default.html`, or legacy `page-shell.html`
- * — see {@link resolveStaticTierPageShellFallback}'s own doc), via that same function.
+ * — see `resolveStaticTierPageShellFallback`'s own doc), via that same function.
  * This is NOT a second "which content template" guess — `isEligibleForTemplateBranch`'s own
  * `kind: "page"` gate is completely untouched, so a `doc`-format Page or a Post with no opinion never
  * reaches this arm, and the `terms-of-service`-shaped regression that gate exists to prevent cannot
@@ -1237,9 +1236,11 @@ export async function renderTemplateBranchIfEligible(
   // approximately so: the stored choice takes effect again the moment a theme is reactivated.
   if (theme === null) return undefined;
 
-  const explicitlyEligible = isEligibleForTemplateBranch({ theme, post });
-  const pageShellFallback = explicitlyEligible ? undefined : resolveStaticTierPageShellFallback({ theme, post });
-  if (!explicitlyEligible && pageShellFallback === undefined) return undefined;
+  // One shared decision, never the two underlying functions in sequence — see
+  // `resolveTemplateBranchChoice`'s own doc (`features/theme/static-render.ts`) for the 2026-09-16
+  // preview divergence that extraction closed. Behavior here is unchanged by it.
+  const branch = resolveTemplateBranchChoice({ theme, post });
+  if (branch.kind === "ineligible") return undefined;
 
   // SPEC-008 T045 gap fix, part 3 (2026-08-19) — `renderViaTemplate` has the same
   // pageShell-bypassing `renderStaticPage` shape as the marketing-page branch above; unlike
@@ -1247,7 +1248,7 @@ export async function renderTemplateBranchIfEligible(
   // entry-bearing `"post"` shape the generic (non-template) render below already uses. Same ADR-054
   // gap `resolveMarketingPageOrOverride` above threads through, for the same reason.
   const extraHead = await buildExtraHead(deps, "post", await resolveSiteTitleForRender(deps), post);
-  const renderedPost = pageShellFallback !== undefined ? { ...post, templateChoice: pageShellFallback } : post;
+  const renderedPost = branch.kind === "page-shell" ? { ...post, templateChoice: branch.templateChoice } : post;
   return renderViaTemplate(deps, theme, renderedPost, staticMenus, undefined, undefined, extraHead, siteAssistantEnabled, postPreviewsAccess);
 }
 

@@ -93,6 +93,8 @@ export {
   resolveTemplate,
   isEligibleForTemplateBranch,
   resolveStaticTierPageShellFallback,
+  resolveTemplateBranchChoice,
+  type TemplateBranchChoice,
   scanMenuEmbedIds,
   scanPostPreviewsLimit,
   DEFAULT_POST_PREVIEWS_LIMIT,

@@ -4,7 +4,7 @@ import type { JsonObject } from "@jini-ai/cms/core";
 import { getAdminPostByIdOrSlug, PostNotFoundError, type PostRecord } from "#src/features/post/index";
 import { getPresentationSettings } from "#src/features/presentation/index";
 import { postPublicPath } from "#src/platform/routing/index";
-import { NO_THEME_ID } from "#src/features/theme/index";
+import { NO_THEME_ID, resolveTemplateBranchChoice } from "#src/features/theme/index";
 import { renderViaTemplate, resolveActiveTheme, resolveStaticMenusForRender } from "#src/server/inbound/public-http/routes/site/pages";
 import { getAuthedPrincipal } from "../../dev-auth.js";
 import type { ContentRouteRegistrar } from "../content/deps.js";
@@ -260,8 +260,30 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
 
       const previewPost = buildPreviewPost(post, overrideTemplateChoice, pendingBodyJson, pendingBodyHtml);
 
+      // 2026-09-16 fix. This route used to hand `previewPost` straight to `renderViaTemplate`, while
+      // the PUBLIC route reaches that same function only through `renderTemplateBranchIfEligible`,
+      // which first asks `resolveTemplateBranchChoice` which template actually applies. For a
+      // `kind: "page"`, `bodyFormat: "html"` row with no `templateChoice` — the state every
+      // agent-created Page starts in, and the state the picker's "No template chosen" puts one back
+      // into — the two answers differed: the public site resolved the theme's page shell, this route
+      // fell through `resolveTemplate`'s "never chosen" arm onto `theme.manifest.templates[0]`
+      // (`posts-default.html` on live `basic`) or, for the explicit `""`, onto the diagnostic page.
+      // Either way the preview pane showed something the public URL never would. Asking the same
+      // question the public route asks is the whole fix.
+      //
+      // `"ineligible"` keeps this route's PRE-EXISTING behavior (render `previewPost` as-is) rather
+      // than matching the public site, which falls to a generic non-template render this route has no
+      // access to. That remains a divergence for a `doc`-format Page with no template — narrower than
+      // the one being closed, unreachable from the Pages picker (which only renders for `"html"`
+      // format), and closing it means wiring a second render pipeline into an admin route, which is a
+      // different change from this bug fix.
+      const branch = resolveTemplateBranchChoice({ theme, post: previewPost });
+      // A shallow clone for THIS render only — nothing is written back, exactly as the public route's
+      // own page-shell arm does it, so the row stays untemplated and a later explicit pick still wins.
+      const renderedPost = branch.kind === "page-shell" ? { ...previewPost, templateChoice: branch.templateChoice } : previewPost;
+
       const staticMenus = await resolveStaticMenusForRender(deps, theme, postPublicPath(post.slug));
-      const html = await renderViaTemplate(deps, theme, previewPost, staticMenus, pendingBodyJson, pendingBodyHtmlOverride);
+      const html = await renderViaTemplate(deps, theme, renderedPost, staticMenus, pendingBodyJson, pendingBodyHtmlOverride);
 
       // Never cached: re-requested on every template selection, and a cached response would show
       // the operator a stale template and read as "the picker did nothing" — the exact bug this
