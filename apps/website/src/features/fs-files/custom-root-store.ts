@@ -49,9 +49,10 @@ import { resolveSiteRoot } from "../../platform/site-dir/index.js";
  * accessor `layout.ts`'s `resolveFsRoots` calls to actually resolve a usable directory — treats a
  * vanished path the same as an unset one (`undefined`), since either way there is no directory left
  * to read from; only the richer status accessor keeps the distinction, for the admin route to surface
- * to a human. Reading a corrupt or unreadable persistence file degrades to "nothing persisted" rather
+ * to a human. Reading a corrupt or unparseable persistence file degrades to "nothing persisted" rather
  * than throwing, so a hand-edited or truncated `.fs-custom-root.json` can never crash a caller that
- * merely wanted to know the current root.
+ * merely wanted to know the current root — though any other read failure (e.g. `EACCES` on the site
+ * directory) still propagates.
  *
  * ## No permission model here, by design
  *
@@ -230,9 +231,10 @@ export function setCustomFsRoot(workspaceId: string, path: string | null, option
 }
 
 /**
- * Test-only reset: best-effort deletes `optional.siteDir`'s persistence file, if any. `siteDir` is
- * REQUIRED (unlike every other function here) so this can never be called bare and reach for the
- * real site directory by accident — every caller must name the temp directory it wants cleared.
+ * Test-only reset: overwrites `optional.siteDir`'s persistence file with an empty object, creating it
+ * if absent — it is not deleted. `siteDir` is REQUIRED (unlike every other function here) so this can
+ * never be called bare and reach for the real site directory by accident — every caller must name the
+ * temp directory it wants cleared.
  */
 export function resetCustomFsRootForTests(optional: Required<CustomFsRootStoreOptional>): void {
   try {

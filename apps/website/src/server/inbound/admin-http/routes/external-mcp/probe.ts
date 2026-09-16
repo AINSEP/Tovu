@@ -72,10 +72,10 @@ export type ExternalMcpProbeRouteDeps = ExternalMcpRouteDeps & {
 /** The real session factory: one handshake against the resolved hosted endpoint, bounded by the
  *  connection's own `connectTimeoutMs`. Deliberately NOT the same bound `bootstrap.ts`'s
  *  `defaultConnect` uses for the identical transport: that session is long-lived and its bound
- *  governs every later `tools/call` too, so it uses `callTimeoutMs`. This one issues exactly one
- *  request (`tools/list`, via {@link connectMcpHttpSession}'s `initialize` plus this route's own
- *  `listTools` call) and is closed immediately after — for THIS session, the handshake really is
- *  the only request, so `connectTimeoutMs` is the correct bound rather than a reused wrong one.
+ *  governs every later `tools/call` too, so it uses `callTimeoutMs`. This one issues an `initialize`
+ *  handshake via {@link connectMcpHttpSession} followed by this route's own single `listTools`
+ *  call, then is closed immediately after — for THIS session, `connectTimeoutMs` bounds the
+ *  handshake and is the correct bound rather than a reused wrong one.
  *  @complexity O(1) beyond the remote's round-trip. */
 async function defaultProbeConnect(spec: McpHttpLaunchSpec, requestTimeoutMs: number): Promise<McpSessionPort> {
   return connectMcpHttpSession({ exchange: createFetchMcpHttpExchange(), spec, requestTimeoutMs });
