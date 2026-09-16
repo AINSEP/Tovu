@@ -150,11 +150,16 @@
   margin-top: calc(-1 * var(--space-6));
 }
 /* The preview surface is deliberately NOT in the negative-pull rule above (owner, 2026-09-16):
-   they asked for breathing room between the Save/Delete row and the preview frame. -15px is tuned to a MEASURED 9px gap,
-   the owner's chosen value. The surface sits 24px below the action row on its own, so the margin is
-   negative to reach 18px; re-measure rather than reasoning from the number if this moves. Expanded stays flush —
-   `.page-preview-expanded .page-preview-surface` below sets `margin-top: 0`, and the surface is not
-   a direct child of `.page` in that state anyway. */
+   they asked for breathing room between the Save/Delete row and the preview frame, then tuned it by
+   eye. `-15px` yields a MEASURED 9px gap, which is the value they settled on.
+
+   The number is not derivable — the surface sits 24px below the action row with no margin at all,
+   so this margin is negative to pull 24px down to 9px. Re-MEASURE against `[data-agent-element=
+   "page-actions"]` if anything above it moves; do not reason from the arithmetic here, it only held
+   for the layout as of this date.
+
+   Expanded stays flush: `.page-preview-expanded .page-preview-surface` below sets `margin-top: 0`,
+   and the surface is not a direct child of `.page` in that state anyway. */
 .page > .page-preview-surface { margin-top: -15px; }
 
 /*
