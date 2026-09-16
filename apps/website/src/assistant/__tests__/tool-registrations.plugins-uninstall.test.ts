@@ -3,8 +3,11 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
+import { InMemoryExternalMcpServerRepo } from "#src/assistant/index";
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import { createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
 import { pluginAgentToolCatalog, type AgentToolDefinition as PluginsAgentToolDefinition } from "../../features/plugin-runtime/agent-tools.js";
 import { InMemoryPluginActivationRepo } from "../../features/plugin-runtime/repo.memory.js";
@@ -54,6 +57,11 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
   const authorizeCalls: Array<Record<string, unknown>> = [];
   const uninstallCalls: string[] = [];
   const pluginActivationRepo = new InMemoryPluginActivationRepo();
+  // `PluginsToolDeps` grew an external-MCP slice when `plugins_set_enabled` started provisioning an
+  // Agent Plugin's declared remote servers. `plugins_uninstall` never touches it, but this literal is
+  // typed as the whole interface on purpose — a real one, not a cast, so this suite keeps failing to
+  // compile the day the tool under test needs a dependency nobody wired here.
+  const keyring = new InMemoryKeyring();
 
   const deps: PluginsToolDeps = {
     authorize: async (params: Record<string, unknown>) => {
@@ -64,7 +72,10 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
     clock: { nowIso: () => NOW },
     idGen: { newId: () => "id-1" },
     changeSets: new InMemoryChangeSetRepo(),
-    outbox: { enqueue: async () => undefined },
+    // The delivery half is never exercised here (`plugins_uninstall` enqueues nothing) but is
+    // supplied for real, same shape `contracts/core/commands/__tests__/repo.memory.unit.test.ts`
+    // uses — the literal is typed as the whole port, so it has to satisfy the whole port.
+    outbox: { enqueue: async () => undefined, claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {} },
     pluginActivationRepo,
     discoverPlugins: async () => discovery,
     onPluginEnabled: async () => undefined,
@@ -72,6 +83,9 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
     onPluginUninstalled: async (pluginId: string) => {
       uninstallCalls.push(pluginId);
     },
+    externalMcpServerRepo: new InMemoryExternalMcpServerRepo(),
+    siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
+    siteAssistantSecretKeyring: keyring,
   };
 
   return { deps, authorizeCalls, uninstallCalls, pluginActivationRepo };
