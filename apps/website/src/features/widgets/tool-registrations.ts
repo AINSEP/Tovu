@@ -157,12 +157,11 @@ function isWidgetsShapeRejection(error: unknown): boolean {
  * so the model (and `widgets-error-code-parity.test.ts`) can match the same code the HTTP arm's
  * `mapWidgetErrorToResponse` returns, without this layer importing that HTTP-only module.
  *
- * `WIDGETS_FORBIDDEN` has no such HTTP-side parity today: `widgets.ts`'s `widgetForbiddenToResponse`
- * returns HTTP `code: "FORBIDDEN"`, not `"WIDGETS_FORBIDDEN"`, despite `errors.ts`'s own class doc
- * already naming `WIDGETS_FORBIDDEN` as this error's code — a pre-existing drift between that doc
- * comment and the HTTP mapper, left alone here since only the model-facing path is this fix's
- * scope. The prefix below matches the class's own documented code (and every sibling prefix in
- * this function, which all match their class doc verbatim) rather than the HTTP mapper's `code`.
+ * `WIDGETS_FORBIDDEN` now has full HTTP-side parity too: `widgets.ts`'s `widgetForbiddenToResponse`
+ * returns HTTP `code: "WIDGETS_FORBIDDEN"`, matching `errors.ts`'s own class doc and every sibling
+ * prefix in this function (which all match their class doc verbatim). It used to return the generic
+ * `FORBIDDEN` instead — a drift fixed once `widgets-error-code-parity.test.ts` was extended to cover
+ * this class too.
  *
  * @complexity O(1).
  */

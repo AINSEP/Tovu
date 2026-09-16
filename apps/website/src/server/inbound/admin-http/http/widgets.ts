@@ -94,12 +94,18 @@ export interface WidgetErrorResponse {
  * (`routes/admin/menus/create.ts`) rather than diverging just because the check happened one layer
  * down. Falls back to an empty string if the message shape ever changes upstream — still a valid
  * 403, just without the extracted detail.
+ *
+ * `code` is `WIDGETS_FORBIDDEN`, matching this class's own documented code in `errors.ts` and every
+ * sibling widgets error's HTTP/model-facing parity (`tool-registrations.ts`'s
+ * `toModelFacingWidgetsError` prefixes with the same string) — previously this returned the generic
+ * `FORBIDDEN` every OTHER admin route's inline 403 uses, which was a drift from every sibling in
+ * this table, not a deliberate distinct code. See `widgets-error-code-parity.test.ts`.
  */
 function widgetForbiddenToResponse(err: WidgetForbiddenError): WidgetErrorResponse {
   const match = /lacks permission '([^']+)' \(([^)]+)\)/.exec(err.message);
   return {
     status: 403,
-    body: { error: err.message, code: "FORBIDDEN", details: { permission: match?.[1] ?? "", reason: match?.[2] ?? "" } },
+    body: { error: err.message, code: "WIDGETS_FORBIDDEN", details: { permission: match?.[1] ?? "", reason: match?.[2] ?? "" } },
   };
 }
 

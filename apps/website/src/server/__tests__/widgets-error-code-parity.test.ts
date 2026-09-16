@@ -14,6 +14,7 @@ import {
   WidgetAreaNotFoundError,
   WidgetEmbedHostNotFoundError,
   WidgetEmbedHostUnsupportedError,
+  WidgetForbiddenError,
   WidgetInstanceNotFoundError,
   WidgetVersionConflictError,
 } from "../../features/widgets/errors.js";
@@ -97,6 +98,12 @@ const CASES: ReadonlyArray<{ name: string; make: () => Error }> = [
   },
   { name: "WidgetVersionConflictError", make: () => new WidgetVersionConflictError("post 'x' was modified by another save (expected version 1, current version 2)", 2) },
   { name: "WidgetAreaConflictError", make: () => new WidgetAreaConflictError("widget_area 'x' was modified by another save (expected version 1, current version 2)", 2) },
+  {
+    name: "WidgetForbiddenError",
+    // Real message shape from `authorize-helper.ts`'s `requireWidgetPermission`, which is what
+    // `widgetForbiddenToResponse` (`widgets.ts`) parses for its `details.permission`/`details.reason`.
+    make: () => new WidgetForbiddenError("principal 'x' lacks permission 'widgets.read' (not granted)"),
+  },
 ];
 
 for (const { name, make } of CASES) {
