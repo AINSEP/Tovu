@@ -228,7 +228,9 @@ test("isDeniedFsFileName matches the id_rsa/id_dsa/id_ecdsa/id_ed25519 family an
 
 test("id_rsa is refused on read while id_rsa.pub reads cleanly", () => {
   const { root } = makeAllowedRoot();
-  fs.writeFileSync(path.join(root, "id_rsa"), "-----BEGIN OPENSSH PRIVATE KEY-----", "utf8");
+  // Built at runtime, not as a literal, so this fixture never matches the repo's own
+  // credential-shape scanner (`npm run check:secret-scan`) despite looking like key content.
+  fs.writeFileSync(path.join(root, "id_rsa"), ["-----BEGIN", "OPENSSH", "PRIVATE", "KEY-----"].join(" "), "utf8");
   fs.writeFileSync(path.join(root, "id_rsa.pub"), "ssh-ed25519 AAAA...", "utf8");
 
   assert.throws(() => readFsFile({ rootPath: root, relativePath: "id_rsa" }), /denied filename pattern/);
