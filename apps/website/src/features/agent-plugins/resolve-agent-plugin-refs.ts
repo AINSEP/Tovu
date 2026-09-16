@@ -49,7 +49,7 @@
  * `agent-daemon-server.ts`'s `onStarted` gets one place to branch on success/failure without a
  * second try/catch layer duplicating this module's own error classification.
  */
-import { readdir } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { isAgentPluginActive, readAgentPluginActivations } from "./activation.js";
@@ -178,6 +178,37 @@ export async function listInstalledPlugins(packagesDir: string): Promise<readonl
     }
   }
   return installed;
+}
+
+/**
+ * Whether one installed archive digest still has its package directory under `packagesDir` — the
+ * cheap, per-call "is this still installed" signal `tool-registrations.ts`'s tool gate needs.
+ *
+ * Lives here, beside {@link listInstalledPlugins}, because it must agree with that walk about two
+ * things a second implementation would eventually get wrong: that an installed package root IS
+ * `<packagesDir>/<digest>` and nothing else, and that a directory name is only a digest when it
+ * matches the 64-hex shape. It deliberately does NOT re-index the package (`indexInstalledRoot`
+ * reads and validates a manifest, which is far too much per tool call): directory presence is
+ * exactly what `uninstall.ts` removes, and it removes it by `rename` BEFORE it touches the
+ * activation record, so the gate observes a removal at least as early as it observes the record's
+ * deletion, never later.
+ *
+ * Follows symlinks (plain `stat`, not `lstat`) on purpose — `listInstalledPlugins` does too, so a
+ * deployment whose digest directory is a symlink registers a tool that this would otherwise refuse
+ * to authorize.
+ *
+ * @returns `false` for a digest that does not match the installed-directory grammar, for a missing
+ * directory, for a non-directory at that path, and for ANY filesystem fault — every answer this
+ * cannot establish positively is `false`, because its one caller uses it to authorize.
+ * @complexity One `stat`.
+ */
+export async function isInstalledDigestPresent(packagesDir: string, archiveDigest: string): Promise<boolean> {
+  if (!SHA256_DIGEST_DIRNAME_PATTERN.test(archiveDigest)) return false;
+  try {
+    return (await stat(path.join(packagesDir, archiveDigest))).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 function isEnoent(error: unknown): boolean {

@@ -12,7 +12,7 @@ import { resolveAgentPluginLayout } from "../../layout.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
 import {
   buildAgentPluginToolRegistrations,
-  createAgentPluginActivationGate,
+  createAgentPluginToolGate,
   loadInstalledAgentPluginToolSources,
   registerInstalledAgentPluginTools,
 } from "../../tool-registrations.js";
@@ -44,11 +44,11 @@ import {
 const WORKSPACE_A = "55555555-5555-4555-8555-555555555555";
 
 /** The real per-call revocation gate, resolved INSIDE a test body so it picks up that body's own
- *  `TOVU_AGENT_PLUGINS_DIR`. Every assertion in this file is about an ENABLED plugin, so the gate
- *  admits throughout; revocation itself is proved in
- *  `__tests__/integration/agent-plugin-tool-revocation.integration.test.ts`. */
+ *  `TOVU_AGENT_PLUGINS_DIR`. Every assertion in this file is about an ENABLED, still-installed
+ *  plugin, so the gate admits throughout; revocation itself — by disable AND by uninstall — is
+ *  proved in `__tests__/integration/agent-plugin-tool-revocation.integration.test.ts`. */
 function gate() {
-  return createAgentPluginActivationGate({ workspaceId: WORKSPACE_A });
+  return createAgentPluginToolGate({ workspaceId: WORKSPACE_A });
 }
 
 function reader(entries: readonly AgentPluginArchiveEntry[]): AgentPluginArchiveReaderPort {

@@ -25,10 +25,15 @@ import {
   type ConfirmationOutcome,
 } from "../../contracts/core/tool-surface-exchanges.js";
 
-import { filterActiveAgentPlugins, isAgentPluginActive, readAgentPluginActivations } from "./activation.js";
+import {
+  filterActiveAgentPlugins,
+  isAgentPluginActive,
+  readAgentPluginActivations,
+  resolveAgentPluginActivation,
+} from "./activation.js";
 import { readInstalledMcpServerIds, readInstalledSkillMarkdown } from "./capability-projection.js";
 import { resolveAgentPluginLayout } from "./layout.js";
-import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
+import { isInstalledDigestPresent, listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
 import { rankInstalledAgentPlugins, type AgentPluginSearchCandidate } from "./search.js";
 import {
   AgentPluginNotFoundError,
@@ -301,6 +306,13 @@ export interface AgentPluginSkillDetail {
 export interface AgentPluginToolSource {
   readonly id: string;
   readonly pluginId: string;
+  /** The archive digest whose extracted bytes this source's skills were read from — carried so the
+   *  per-call gate below can re-establish that THIS package is still installed, and so a
+   *  registration is pinned to the exact install it was built from rather than to whatever happens
+   *  to answer to the same plugin id later. A content hash, not a host path: it names no directory
+   *  a caller does not already have to know, and `AgentPluginUninstallPreview.archiveDigests`
+   *  already shows it to a human, so it does not weaken this file's SECURITY property above. */
+  readonly archiveDigest: string;
   readonly description: string;
   readonly skills: readonly AgentPluginSkillDetail[];
   /** The skill name a no-argument (or unrecognized-argument) call returns — the plugin's own
@@ -383,11 +395,13 @@ function resolveDefaultSkill(
 /** Assembles one installed plugin's fully-resolved {@link AgentPluginToolSource} from its already
  *  fetched skills — pure construction, no I/O, so it's the composition {@link
  *  loadInstalledAgentPluginToolSources}'s loop reduces to a call. */
-function buildToolSource(pluginId: string, skills: readonly AgentPluginSkillDetail[]): AgentPluginToolSource {
+function buildToolSource(plugin: AgentPluginToolIdentity, skills: readonly AgentPluginSkillDetail[]): AgentPluginToolSource {
+  const { pluginId, archiveDigest } = plugin;
   const { defaultSkillName, defaultSkillReason } = resolveDefaultSkill(skills, pluginId);
   return {
     id: toAgentPluginToolId(pluginId),
     pluginId,
+    archiveDigest,
     description: buildPluginToolDescription(pluginId, skills, defaultSkillName, defaultSkillReason),
     skills,
     defaultSkillName,
@@ -436,7 +450,7 @@ export async function loadInstalledAgentPluginToolSources(ctx: {
       if (plugin.skills.length === 0) continue; // nothing this plugin's tool could ever return
 
       const skills = await resolveSkillsForPlugin(plugin);
-      sourceByPluginId.set(plugin.pluginId, buildToolSource(plugin.pluginId, skills));
+      sourceByPluginId.set(plugin.pluginId, buildToolSource(plugin, skills));
     } catch (error) {
       // Isolated per plugin so one bad install (digest ambiguity, an unreadable SKILL.md, ...)
       // cannot take every OTHER installed plugin's tool down with it — see this file's header,
@@ -569,6 +583,47 @@ function buildPluginToolResult(source: AgentPluginToolSource, requestedSkill: st
  * one of these tools, not one of several. A revoked plugin's call ends as `denied` without the
  * handler ever being entered, and the daemon's own audit record says so.
  *
+ * ---------------------------------------------------------------------------
+ * ...and ACTIVE is only half the question — UNINSTALL was the other half (2026-09-16)
+ * ---------------------------------------------------------------------------
+ * Gating on the activation record ALONE re-opened the very capability it had just revoked.
+ * `uninstall.ts` DELETES the record (a settled decision, argued in its own header), and
+ * `activation.ts`'s `isAgentPluginActive` reads an ABSENT record as ACTIVE — so *disable then
+ * uninstall* flipped this gate from `deny` straight back to `allow`, and uninstalling a plugin that
+ * had never been disabled never revoked anything at all. Absence of a record means "nobody recorded
+ * a decision", which is only consent while the operator's own install is still standing behind it.
+ * Once the package is gone, there is no install left to imply anything.
+ *
+ * So the gate asks BOTH halves, and authorizes only when both answer positively:
+ *
+ * 1. **Still activated** — via `activation.ts`'s `resolveAgentPluginActivation`, the fail-CLOSED
+ *    reader added for this call site. `absent record` still means active (that rule is untouched),
+ *    but an activations file that cannot be read, parsed, or shape-checked — or that holds a
+ *    malformed record for THIS plugin — is `undetermined` and denies, rather than being laundered
+ *    into "nothing recorded, therefore permitted". This is the one place that diverges from the
+ *    other two gate surfaces' fail-OPEN read, and only on FAULTS, never on what "active" means: a
+ *    corrupt byte must not hide an operator's plugins from discovery, and equally must not hand out
+ *    a capability nobody can confirm was granted. Here the divergence also buys the error surface
+ *    `activation.ts`'s header says fail-closed lacks — a denied call is recorded as `denied` in the
+ *    daemon's audit trail, and the gate logs the reason.
+ * 2. **Still installed** — via `resolve-agent-plugin-refs.ts`'s `isInstalledDigestPresent`, one
+ *    `stat` of the exact `archiveDigest` this registration's guidance was read from. Not
+ *    `listInstalledPlugins` (which walks and re-indexes every digest directory, far too much per
+ *    call) and not a stored `packageRoot` (a host path this file's SECURITY section keeps off
+ *    `AgentPluginToolSource` entirely) — the digest is a content identifier, and the module that
+ *    owns the `<packages>/<digest>` layout derives the path from it.
+ *
+ * Checked in that ORDER, deliberately, because it is what makes the pair safe against a concurrent
+ * uninstall: `uninstall.ts` renames the package aside FIRST and deletes the record SECOND, so the
+ * gate reads them in the opposite order. An interleaving that sees the record already deleted
+ * ("active") therefore cannot also see the package still present — the rename strictly preceded the
+ * delete it just observed. Reading installation first would leave exactly that window open.
+ *
+ * Pinning to the DIGEST rather than the plugin id has a second, deliberate effect: uninstalling a
+ * plugin and reinstalling the same id from a different archive does not silently re-admit the boot
+ * registration, whose handler still holds the OLD package's guidance in memory. It stays denied
+ * until the restart `UNINSTALL_RESTART_NOTE` already tells the operator about.
+ *
  * Consequences worth stating rather than discovering later:
  * - Revocation is immediate and reversible in BOTH directions for a tool that was registered at
  *   boot. It is NOT symmetric for one that was not: enabling a plugin that was disabled when the
@@ -578,58 +633,80 @@ function buildPluginToolResult(source: AgentPluginToolSource, requestedSkill: st
  *   (`agent-daemon-server.ts`) are both append-only too, so a revoked plugin's tool can still be
  *   found and attempted; it just cannot run. Hiding it needs a registry mutation API that does not
  *   exist, and a visible-but-refusing tool is the safe direction of that pair.
- * - It inherits `readAgentPluginActivations`'s fail-OPEN reading of a missing/corrupt record
- *   (absent means active — see `activation.ts`'s header for why), exactly like the other two gate
- *   surfaces. Diverging here would make one surface disagree with the other two about what "active"
- *   means, which is a worse failure than the one it would fix.
+ * - Every failure mode of both halves denies: a missing package directory, a non-directory at that
+ *   path, a digest that does not match the installed-directory grammar, an EACCES/EIO on either
+ *   read, a torn or hand-edited activations file. There is no input to either check for which "I
+ *   could not tell" comes back as `allow`.
  */
-export interface AgentPluginActivationGate {
-  /** Re-reads this workspace's activation record and answers whether `pluginId` may still run. */
-  isActive(pluginId: string): Promise<boolean>;
+
+/** The identity of the exact installed package ONE registration was built from. Both fields are
+ *  content identifiers — a manifest-declared plugin name and an archive digest — never host paths,
+ *  so this stays inside this file's SECURITY property above. */
+export interface AgentPluginToolIdentity {
+  readonly pluginId: string;
+  readonly archiveDigest: string;
+}
+
+export interface AgentPluginToolGate {
+  /** Whether this exact installed package may still run: re-reads the activation record AND
+   *  re-confirms the package is still on disk, answering `false` unless both say yes. */
+  isCallable(plugin: AgentPluginToolIdentity): Promise<boolean>;
 }
 
 /**
- * The production gate: one small `activations.json` read per tool call, against the same
- * `forWorkspace()` root every other path in this feature goes through.
+ * The production gate: one small `activations.json` read plus one `stat` per tool call, both against
+ * the same `forWorkspace()` layout every other path in this feature goes through.
  *
- * Deliberately NOT cached. The record changes when a human toggles a plugin, and the whole point of
- * this gate is that such a toggle is observed by the very next call; a cache would reintroduce the
- * staleness window the gate exists to close, to save a sub-millisecond read on a human-paced call.
+ * Deliberately NOT cached. Both facts change when a human toggles or uninstalls a plugin, and the
+ * whole point of this gate is that such an act is observed by the very next call; a cache would
+ * reintroduce the staleness window the gate exists to close, to save two sub-millisecond reads on a
+ * human-paced call.
  *
- * @param ctx.workspaceId - The tenant whose record is consulted. Never an instance-level path.
- * @returns A gate whose `isActive` is fresh per call.
- * @complexity O(p) per call in the recorded plugin count, plus one small file read.
+ * @param ctx.workspaceId - The tenant whose record and packages are consulted. Never an
+ * instance-level path.
+ * @returns A gate whose answer is established fresh per call, and which denies on any fault.
+ * @complexity O(p) per call in the recorded plugin count, plus one small file read and one `stat`.
  */
-export function createAgentPluginActivationGate(ctx: { readonly workspaceId: string }): AgentPluginActivationGate {
-  const workspaceRoot = resolveAgentPluginLayout().forWorkspace(ctx.workspaceId).root;
+export function createAgentPluginToolGate(ctx: { readonly workspaceId: string }): AgentPluginToolGate {
+  const workspaceLayout = resolveAgentPluginLayout().forWorkspace(ctx.workspaceId);
   return {
-    async isActive(pluginId: string): Promise<boolean> {
-      return isAgentPluginActive(await readAgentPluginActivations(workspaceRoot), pluginId);
+    async isCallable(plugin: AgentPluginToolIdentity): Promise<boolean> {
+      // Activation FIRST, installation SECOND — the reverse of uninstall's own order. See the
+      // REVOCATION note above for why that ordering is what closes the concurrent-uninstall window.
+      const activation = await resolveAgentPluginActivation(workspaceLayout.root, plugin.pluginId);
+      if (activation.verdict === "undetermined") {
+        // The error surface fail-CLOSED is supposed to lack: an operator whose activations file is
+        // damaged gets a denial they can see the cause of, next to the daemon's own `denied` record.
+        console.warn(
+          `[agent-plugins] '${plugin.pluginId}': tool call denied — activation could not be established (${activation.reason})`,
+        );
+        return false;
+      }
+      if (activation.verdict !== "active") return false;
+
+      return isInstalledDigestPresent(workspaceLayout.packages, plugin.archiveDigest);
     },
   };
 }
 
 /**
- * Wraps one registration's policy so the plugin's CURRENT activation is checked before its handler
- * can be reached, then defers to the policy `buildDomainRegistrations` already attached.
+ * Wraps one registration's policy so the plugin's CURRENT activation AND installation are both
+ * re-established before its handler can be reached, then defers to the policy
+ * `buildDomainRegistrations` already attached.
  *
  * Deferring rather than replacing matters: the kit's policy is a deliberate pass-through today
  * (each tool's permission is evaluated at its own chokepoint), and a future kit that puts something
  * real there must not be silently dropped by this wrapper.
  *
- * @complexity O(1) plus the gate's own read.
+ * @complexity O(1) plus the gate's own two reads.
  */
-function withActivationGate(
-  registration: ToolRegistration,
-  gate: AgentPluginActivationGate,
-  pluginId: string,
-): ToolRegistration {
+function withToolGate(registration: ToolRegistration, gate: AgentPluginToolGate, plugin: AgentPluginToolIdentity): ToolRegistration {
   const inner = registration.policy;
   return {
     ...registration,
     policy: {
       async authorize(authCtx) {
-        if (!(await gate.isActive(pluginId))) return "deny";
+        if (!(await gate.isCallable(plugin))) return "deny";
         return inner.authorize(authCtx);
       },
     },
@@ -643,19 +720,19 @@ function withActivationGate(
  * `tool-registrations.ts` uses (catalog/risk cross-check, `inputSchema` presence, drift tripwire) —
  * not a parallel mechanism.
  *
- * `activation` is required, not optional, and is applied HERE rather than by the caller for the
+ * `gate` is required, not optional, and is applied HERE rather than by the caller for the
  * reason this file's REVOCATION note above gives: a gate a call site has to remember to attach is a
  * gate some future call site will register tools without. Every registration this function can
  * produce carries it. The build itself stays synchronous and touches no disk — the gate reads only
  * when a call is actually authorized.
  *
  * @param sources - Already-resolved, already-activation-filtered plugin sources.
- * @param activation - The per-call revocation gate (see {@link createAgentPluginActivationGate}).
- * @complexity O(n) in source count; each source's gate read is deferred to invocation.
+ * @param gate - The per-call revocation gate (see {@link createAgentPluginToolGate}).
+ * @complexity O(n) in source count; each source's gate reads are deferred to invocation.
  */
 export function buildAgentPluginToolRegistrations(
   sources: readonly AgentPluginToolSource[],
-  activation: AgentPluginActivationGate,
+  gate: AgentPluginToolGate,
 ): ToolRegistration[] {
   const catalog: WirableToolDefinition[] = sources.map((source) => ({
     name: source.id,
@@ -666,10 +743,10 @@ export function buildAgentPluginToolRegistrations(
   }));
 
   const handlers: Record<string, ToolHandler> = {};
-  const pluginIdByToolId = new Map<string, string>();
+  const identityByToolId = new Map<string, AgentPluginToolIdentity>();
   for (const source of sources) {
     handlers[source.id] = async (ctx) => buildPluginToolResult(source, readSkillArgument(ctx.input));
-    pluginIdByToolId.set(source.id, source.pluginId);
+    identityByToolId.set(source.id, { pluginId: source.pluginId, archiveDigest: source.archiveDigest });
   }
 
   const registrations = buildDomainRegistrations({
@@ -681,16 +758,16 @@ export function buildAgentPluginToolRegistrations(
   });
 
   return registrations.map((registration) => {
-    const pluginId = pluginIdByToolId.get(registration.descriptor.id);
+    const identity = identityByToolId.get(registration.descriptor.id);
     // Unreachable via this function — every registration comes from `handlers`, whose keys are the
     // same `source.id`s the map was built from. Guarded rather than asserted with `!` so a future
     // kit that synthesized an extra registration would be REFUSED rather than silently ungated.
-    if (pluginId === undefined) {
+    if (identity === undefined) {
       throw new Error(
         `tool-registrations: '${registration.descriptor.id}' has no owning Agent Plugin, so its activation could not be gated`,
       );
     }
-    return withActivationGate(registration, activation, pluginId);
+    return withToolGate(registration, gate, identity);
   });
 }
 
@@ -701,16 +778,16 @@ export function buildAgentPluginToolRegistrations(
  * just awaited first. See this file's header for why this is a standalone async function rather than
  * a `ToolContributor`, and why it is not (yet) called from that live boot sequence.
  *
- * Registers with the REAL activation gate, so every tool this puts into the daemon's registry stops
- * answering the moment its plugin is switched off — see the REVOCATION note above
- * {@link createAgentPluginActivationGate}.
+ * Registers with the REAL gate, so every tool this puts into the daemon's registry stops answering
+ * the moment its plugin is switched off OR uninstalled — see the REVOCATION note above
+ * {@link createAgentPluginToolGate}.
  */
 export async function registerInstalledAgentPluginTools(
   registry: { register: (registration: ToolRegistration) => void },
   ctx: { readonly workspaceId: string },
 ): Promise<void> {
   const sources = await loadInstalledAgentPluginToolSources(ctx);
-  for (const registration of buildAgentPluginToolRegistrations(sources, createAgentPluginActivationGate(ctx))) {
+  for (const registration of buildAgentPluginToolRegistrations(sources, createAgentPluginToolGate(ctx))) {
     registry.register(registration);
   }
 }
@@ -1038,17 +1115,20 @@ const AGENT_PLUGINS_UNINSTALL_DESCRIPTION =
   "is BUNDLED with Tovu (bundled plugins are re-seeded on every boot, so uninstalling one would silently " +
   "reappear on the next restart) — to stop a bundled plugin being used, call plugins_set_enabled with " +
   "family 'agent-plugin' and enabled false instead. After a confirmed uninstall the plugin's own " +
-  "agent_plugin_<id> tool stays listed until Tovu restarts.";
+  "agent_plugin_<id> tool is refused immediately, but stays listed until Tovu restarts.";
 
-/** What a confirmed uninstall must still tell the user. The package is gone and new runs no longer
- *  pin it, but a plugin's `agent_plugin_<id>` tool is registered once at agent-daemon boot with its
- *  guidance held in memory (`buildAgentPluginToolRegistrations` above), so it keeps answering until a
- *  restart — "uninstalled" alone would mislead, the same confusion `plugins_set_enabled`'s
- *  `restartRequired` exists to prevent. */
+/** What a confirmed uninstall must still tell the user. The capability is gone immediately — the
+ *  per-call gate above re-checks that the package is still installed, so an uninstalled plugin's
+ *  `agent_plugin_<id>` tool is denied from the very next call, with no restart. What a restart still
+ *  changes is VISIBILITY: `@jini-ai/core`'s `ToolRegistry` and `search_tools`' boot-time FTS
+ *  snapshot are both append-only, so the tool stays listed (and refusing) until the daemon restarts.
+ *  Saying only "uninstalled" would leave the model to explain a listed-but-refusing tool it was not
+ *  told about — the same confusion `plugins_set_enabled`'s `restartRequired` exists to prevent. */
 const UNINSTALL_RESTART_NOTE =
-  "Uninstalled. Its files and activation record are gone and new runs no longer load it, but if it was enabled when " +
-  "the agent daemon started, its own agent_plugin_<id> tool keeps answering from memory until Tovu restarts — tell " +
-  "the user a restart finishes the removal.";
+  "Uninstalled. Its files and activation record are gone, new runs no longer load it, and its own agent_plugin_<id> " +
+  "tool stops running immediately — every call is refused from now on, with no restart needed. That tool does stay " +
+  "LISTED in this already-running daemon until Tovu restarts, so tell the user it may still appear in tool listings " +
+  "until then, and that calling it will simply be denied.";
 
 const AGENT_PLUGINS_UNINSTALL_SCHEMA = {
   type: "object",

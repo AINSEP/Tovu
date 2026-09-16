@@ -12,6 +12,7 @@ import {
   normalizeActivations,
   readAgentPluginActivations,
   recordBundledAgentPluginIfAbsent,
+  resolveAgentPluginActivation,
   setAgentPluginActivation,
   type AgentPluginActivations,
 } from "../../activation.js";
@@ -214,6 +215,121 @@ test("the written file is human-readable JSON an operator can inspect", async ()
     assert.match(raw, /"origin": "bundled"/);
     assert.match(raw, /"updatedBy": "system:seed"/);
     assert.ok(raw.endsWith("\n"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ * `resolveAgentPluginActivation` — the fail-CLOSED reader the per-call tool gate uses
+ * ---------------------------------------------------------------------------
+ * `readAgentPluginActivations` folds "there is nothing recorded" and "I could not read what was
+ * recorded" into the same empty record. That is right for discovery and wrong for authorization, so
+ * this reader keeps them apart. The tests below pin BOTH directions: the "absent means active" rule
+ * must survive intact (or every operator-installed plugin that was never toggled would stop
+ * working), and every genuine fault must come back `undetermined` (or a corrupt byte would read as
+ * consent).
+ */
+
+test("resolveAgentPluginActivation: no file at all is ACTIVE — the 'absent means active' rule is untouched", async () => {
+  const root = await freshWorkspaceRoot();
+  try {
+    assert.deepEqual(await resolveAgentPluginActivation(root, "never-recorded"), { verdict: "active" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("resolveAgentPluginActivation: a workspace root that does not exist at all is ACTIVE, not a fault", async () => {
+  const root = path.join(os.tmpdir(), `tovu-activation-missing-${process.pid}-${Date.now()}`);
+  assert.deepEqual(await resolveAgentPluginActivation(root, "never-installed-here"), { verdict: "active" });
+});
+
+test("resolveAgentPluginActivation: a well-formed file with no entry for THIS plugin is ACTIVE", async () => {
+  const root = await freshWorkspaceRoot();
+  try {
+    await setAgentPluginActivation({ workspaceRoot: root, pluginId: "other-plugin", enabled: false, actor: "op-1" });
+    assert.deepEqual(await resolveAgentPluginActivation(root, "my-plugin"), { verdict: "active" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("resolveAgentPluginActivation: an explicit record answers exactly what it says", async () => {
+  const root = await freshWorkspaceRoot();
+  try {
+    await setAgentPluginActivation({ workspaceRoot: root, pluginId: "my-plugin", enabled: false, actor: "op-1" });
+    assert.deepEqual(await resolveAgentPluginActivation(root, "my-plugin"), { verdict: "inactive" });
+
+    await setAgentPluginActivation({ workspaceRoot: root, pluginId: "my-plugin", enabled: true, actor: "op-1" });
+    assert.deepEqual(await resolveAgentPluginActivation(root, "my-plugin"), { verdict: "active" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("resolveAgentPluginActivation: a file that is not valid JSON is UNDETERMINED — readAgentPluginActivations reads the same bytes as empty", async () => {
+  const root = await freshWorkspaceRoot();
+  try {
+    await writeFile(path.join(root, ACTIVATIONS_FILENAME), "{ this is not json", "utf8");
+
+    const verdict = await resolveAgentPluginActivation(root, "my-plugin");
+    assert.equal(verdict.verdict, "undetermined", "a corrupt file must never be laundered into 'nothing recorded, therefore permitted'");
+    assert.match(verdict.verdict === "undetermined" ? verdict.reason : "", /not valid JSON/);
+
+    // The lenient reader's own behavior is unchanged — that divergence is the point, not a bug.
+    assert.deepEqual(await readAgentPluginActivations(root), { schemaVersion: 1, plugins: {} });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("resolveAgentPluginActivation: a wrong-shape or wrong-version envelope is UNDETERMINED", async () => {
+  const root = await freshWorkspaceRoot();
+  try {
+    await writeFile(path.join(root, ACTIVATIONS_FILENAME), JSON.stringify({ schemaVersion: 2, plugins: {} }), "utf8");
+    assert.equal((await resolveAgentPluginActivation(root, "my-plugin")).verdict, "undetermined");
+
+    await writeFile(path.join(root, ACTIVATIONS_FILENAME), JSON.stringify(["not", "an", "envelope"]), "utf8");
+    assert.equal((await resolveAgentPluginActivation(root, "my-plugin")).verdict, "undetermined");
+
+    await writeFile(path.join(root, ACTIVATIONS_FILENAME), JSON.stringify({ schemaVersion: 1, plugins: "nope" }), "utf8");
+    assert.equal((await resolveAgentPluginActivation(root, "my-plugin")).verdict, "undetermined");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("resolveAgentPluginActivation: a malformed record for THIS plugin is UNDETERMINED, not 'dropped, therefore absent, therefore active'", async () => {
+  const root = await freshWorkspaceRoot();
+  try {
+    await writeFile(
+      path.join(root, ACTIVATIONS_FILENAME),
+      JSON.stringify({ schemaVersion: 1, plugins: { "my-plugin": { enabled: "false" }, "good-plugin": { enabled: true } } }),
+      "utf8",
+    );
+
+    // This is exactly where the lenient reader would say "active": normalization drops the entry,
+    // and an entry that is gone is an entry that was never there.
+    assert.equal(isAgentPluginActive(await readAgentPluginActivations(root), "my-plugin"), true);
+
+    const verdict = await resolveAgentPluginActivation(root, "my-plugin");
+    assert.equal(verdict.verdict, "undetermined", "a garbled decision about this plugin must not be read as consent");
+    assert.deepEqual(await resolveAgentPluginActivation(root, "good-plugin"), { verdict: "active" }, "a sibling's readable record still answers normally");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("resolveAgentPluginActivation: an id that names an Object.prototype member is ACTIVE by absence, never an inherited value", async () => {
+  const root = await freshWorkspaceRoot();
+  try {
+    await writeFile(path.join(root, ACTIVATIONS_FILENAME), JSON.stringify({ schemaVersion: 1, plugins: {} }), "utf8");
+    // `constructor` and `tostring` both pass the plugin-name grammar, so a plain bag lookup would
+    // hand back an inherited function instead of `undefined`.
+    assert.deepEqual(await resolveAgentPluginActivation(root, "constructor"), { verdict: "active" });
+    assert.deepEqual(await resolveAgentPluginActivation(root, "valueof"), { verdict: "active" });
   } finally {
     await rm(root, { recursive: true, force: true });
   }

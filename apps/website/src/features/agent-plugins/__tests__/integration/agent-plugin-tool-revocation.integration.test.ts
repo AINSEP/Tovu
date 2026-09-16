@@ -10,10 +10,16 @@ import { createToolExecutor } from "@jini-ai/daemon";
 
 import { setAgentPluginActivation } from "../../activation.js";
 import { forceRemove } from "../fixtures/force-remove.js";
-import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
+import {
+  installAgentPlugin,
+  type AgentPluginArchiveEntry,
+  type AgentPluginArchiveReaderPort,
+  type InstalledAgentPlugin,
+} from "../../install.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { setAgentPluginEnabled } from "../../set-enabled.js";
 import { registerInstalledAgentPluginTools } from "../../tool-registrations.js";
+import { uninstallAgentPlugin } from "../../uninstall.js";
 
 /**
  * @file REVOCATION: disabling an installed Agent Plugin must make its already-registered
@@ -80,7 +86,7 @@ async function withAgentPluginsDir<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-async function installReal(archiveSeed: string): Promise<void> {
+async function installReal(archiveSeed: string): Promise<InstalledAgentPlugin> {
   const manifest = JSON.stringify({
     $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
     name: PLUGIN_ID,
@@ -88,7 +94,7 @@ async function installReal(archiveSeed: string): Promise<void> {
   });
   const archive = new Uint8Array(Buffer.from(archiveSeed));
   const digest = createHash("sha256").update(archive).digest("hex");
-  await installAgentPlugin({
+  return installAgentPlugin({
     archive,
     expectedSha256: digest,
     archiveReader: reader(entries(manifest)),
@@ -155,5 +161,75 @@ test("revocation follows the activation RECORD, not the caller: a bare setAgentP
     // restart an enable still needs for a plugin that was NOT registered at boot.
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "operator-1" });
     assert.equal((await callPluginTool(registry)).status, "completed", "re-enabling must restore the already-registered tool");
+  });
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ * UNINSTALL — the stronger operation must not weaken what the weaker one granted
+ * ---------------------------------------------------------------------------
+ * `uninstall.ts` DELETES the activation record (a settled decision, recorded in its own header), and
+ * `activation.ts`'s `isAgentPluginActive` reads an ABSENT record as ACTIVE. Gating a live tool on
+ * that pair alone meant *disable -> uninstall* flipped the gate from deny straight back to allow:
+ * the operator removed the plugin entirely and got its revoked capability back. Absence is not
+ * consent, and these three cases are what say so.
+ */
+
+test("uninstalling a DISABLED plugin must not re-admit its revoked tool — deleting the activation record is not consent", async () => {
+  await withAgentPluginsDir(async () => {
+    await installReal("archive-uninstall-after-disable");
+    const registry = await bootDaemonToolSurface();
+    assert.equal((await callPluginTool(registry)).status, "completed", "precondition: while enabled and installed, the tool answers");
+
+    await setAgentPluginEnabled({ workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID, enabled: false, actor: "operator-1" });
+    assert.equal((await callPluginTool(registry)).status, "denied", "precondition: the disable itself revokes the tool");
+
+    await uninstallAgentPlugin({ layout: resolveAgentPluginLayout(), workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID });
+
+    const after = await callPluginTool(registry);
+    assert.equal(
+      after.status,
+      "denied",
+      "an operator who disabled a plugin and THEN uninstalled it must not have its tool handed back — the record's absence records that the bytes are gone, never that the capability was re-granted",
+    );
+    assert.doesNotMatch(
+      JSON.stringify(after.output ?? null),
+      /Roast at 210C/,
+      "no part of an uninstalled plugin's guidance may still reach the model",
+    );
+  });
+});
+
+test("uninstalling an ENABLED plugin revokes its live tool too — uninstall alone is a revocation, not just a disk operation", async () => {
+  await withAgentPluginsDir(async () => {
+    await installReal("archive-uninstall-while-enabled");
+    const registry = await bootDaemonToolSurface();
+    assert.equal((await callPluginTool(registry)).status, "completed", "precondition: while enabled and installed, the tool answers");
+
+    await uninstallAgentPlugin({ layout: resolveAgentPluginLayout(), workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID });
+
+    const after = await callPluginTool(registry);
+    assert.equal(after.status, "denied", "a plugin whose package is gone must not keep serving from the registration built at boot");
+    assert.doesNotMatch(JSON.stringify(after.output ?? null), /Roast at 210C/, "no part of an uninstalled plugin's guidance may still reach the model");
+  });
+});
+
+test("the gate's INSTALLED half stands on its own: the package bytes disappearing revokes the tool even while the record still says enabled", async () => {
+  await withAgentPluginsDir(async () => {
+    const installed = await installReal("archive-uninstall-bytes-only");
+    const registry = await bootDaemonToolSurface();
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID).root;
+
+    // An explicit enabled:true record, so the activation half of the gate cannot be what denies.
+    await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "operator-1" });
+    assert.equal((await callPluginTool(registry)).status, "completed", "precondition: an explicitly enabled, installed plugin answers");
+
+    await forceRemove(installed.packageRoot);
+
+    assert.equal(
+      (await callPluginTool(registry)).status,
+      "denied",
+      "the installed-package signal must be checked independently of the activation record — a registration whose bytes are gone cannot be authorized by a record that outlived them",
+    );
   });
 });

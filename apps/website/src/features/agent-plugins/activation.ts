@@ -35,6 +35,32 @@
  * record exists to say "Tovu put this here, and nobody has said yes yet."
  *
  * ---------------------------------------------------------------------------
+ * ...but "absent" only means active when the file itself was READ successfully
+ * ---------------------------------------------------------------------------
+ * {@link readAgentPluginActivations} collapses a missing file, an unreadable one, a malformed one,
+ * and one with the wrong envelope into the same empty record — fail-OPEN, for the reason its own
+ * doc gives. That is right for the two surfaces that only DISCOVER plugins (a corrupt byte must not
+ * silently hide every plugin an operator installed), and wrong for the one surface that decides
+ * whether a capability may be SPENT: there, "I could not read the operator's decisions" is not a
+ * statement that everything is permitted.
+ *
+ * {@link resolveAgentPluginActivation} is that stricter reader, added 2026-09-16 for
+ * `tool-registrations.ts`'s per-call tool gate. It separates the two things
+ * {@link readAgentPluginActivations} folds together:
+ *
+ * - **no file, or a well-formed file with no entry for this plugin** — nothing was recorded, so the
+ *   "absent means active" rule above applies unchanged, and it answers `active`;
+ * - **a file that exists but could not be read, parsed, or shape-checked, or an entry for THIS
+ *   plugin that fails normalization** — a decision may well have been recorded and cannot be read,
+ *   so it answers `undetermined`, and the gate denies.
+ *
+ * The header's own objection to fail-CLOSED ("no error surface to notice it by") is answered at that
+ * call site and only there: a denied invocation is recorded as `denied` in the daemon's audit trail
+ * and the gate logs the reason, so a corrupt file is loud rather than silent. Nothing about what
+ * "active" MEANS differs between the two readers — only whether a fault is allowed to masquerade as
+ * an answer.
+ *
+ * ---------------------------------------------------------------------------
  * Why a file and not a table
  * ---------------------------------------------------------------------------
  * All three places that must consult it — `capability-source.ts` (discovery),
@@ -141,21 +167,107 @@ export function filterActiveAgentPlugins<T>(
  * @complexity O(p) in the recorded plugin count.
  */
 export async function readAgentPluginActivations(workspaceRoot: string): Promise<AgentPluginActivations> {
+  const document = await readActivationsDocument(workspaceRoot);
+  return document.kind === "entries" ? normalizePluginsBag(document.entries) : EMPTY_ACTIVATIONS;
+}
+
+/**
+ * What one workspace's activations file was found to be — the one place the difference between
+ * "there is nothing recorded here" and "something is recorded and I cannot read it" survives.
+ * {@link readAgentPluginActivations} deliberately discards that difference; the tool gate's
+ * {@link resolveAgentPluginActivation} is the reader that needs it.
+ */
+type ActivationsDocument =
+  | { readonly kind: "absent" }
+  | { readonly kind: "entries"; readonly entries: Readonly<Record<string, unknown>> }
+  | { readonly kind: "unreadable"; readonly reason: string };
+
+/**
+ * Reads and shape-checks the activations file once, for BOTH readers above and below — so the
+ * lenient and the strict view can never drift apart on what parses, only on what they do about a
+ * fault.
+ *
+ * @complexity One file read plus one `JSON.parse` in the file's own size.
+ */
+async function readActivationsDocument(workspaceRoot: string): Promise<ActivationsDocument> {
   let raw: string;
   try {
     raw = await readFile(path.join(workspaceRoot, ACTIVATIONS_FILENAME), "utf8");
-  } catch {
-    return EMPTY_ACTIVATIONS;
+  } catch (error) {
+    // ENOENT — including a workspace root that does not exist yet — is the ordinary never-recorded
+    // state, not a fault. Anything else (EACCES, ENOTDIR, EIO, EMFILE, ...) is a real failure to
+    // read a file that may well hold a decision.
+    if (errorCode(error) === "ENOENT") return { kind: "absent" };
+    return { kind: "unreadable", reason: `${ACTIVATIONS_FILENAME} could not be read (${describeError(error)})` };
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
-  } catch {
-    return EMPTY_ACTIVATIONS;
+  } catch (error) {
+    return { kind: "unreadable", reason: `${ACTIVATIONS_FILENAME} is not valid JSON (${describeError(error)})` };
   }
 
-  return normalizeActivations(parsed);
+  const entries = extractPluginsBag(parsed);
+  if (entries === undefined) {
+    return { kind: "unreadable", reason: `${ACTIVATIONS_FILENAME} is not a schemaVersion 1 activations document` };
+  }
+  return { kind: "entries", entries };
+}
+
+function errorCode(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" ? code : undefined;
+}
+
+/** A short, log-safe rendering of a thrown value. Carries the error's own message (which for a
+ *  filesystem fault names this workspace's own path — a host path, so a caller that surfaces this
+ *  must keep it in a server-side log and out of any model- or user-facing payload). */
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** One plugin's activation state, or the explicit third answer the other two readers cannot give:
+ *  the operator's decisions could not be established at all. */
+export type AgentPluginActivationVerdict =
+  | { readonly verdict: "active" }
+  | { readonly verdict: "inactive" }
+  | { readonly verdict: "undetermined"; readonly reason: string };
+
+/**
+ * The fail-CLOSED read of ONE plugin's activation state — see this file's header for why the
+ * per-call tool gate needs a third answer that {@link isAgentPluginActive} cannot express.
+ *
+ * `active` still covers the "absent means active" rule unchanged: no file at all, or a well-formed
+ * file that simply has no entry for this plugin. `undetermined` covers only genuine faults — a file
+ * that exists but cannot be read, parsed, or shape-checked, or an entry for THIS plugin that fails
+ * normalization (a non-object entry, a non-boolean `enabled`). A malformed entry is deliberately NOT
+ * treated the way {@link normalizeActivations} treats it for discovery, where dropping it and
+ * falling back to "absent, therefore active" is harmless: here that fallback would read a garbled
+ * decision as consent.
+ *
+ * @param workspaceRoot - `AgentPluginWorkspaceLayout.root`, never an instance-level path.
+ * @param pluginId - The plugin's manifest `name`.
+ * @returns The verdict, with a log-safe reason on `undetermined`.
+ * @throws Nothing — every failure is folded into `undetermined`.
+ * @complexity One file read plus O(1) lookup.
+ */
+export async function resolveAgentPluginActivation(workspaceRoot: string, pluginId: string): Promise<AgentPluginActivationVerdict> {
+  const document = await readActivationsDocument(workspaceRoot);
+  if (document.kind === "unreadable") return { verdict: "undetermined", reason: document.reason };
+  if (document.kind === "absent") return { verdict: "active" };
+
+  // `Object.hasOwn`, not a plain lookup: the bag comes straight from `JSON.parse`, so it still
+  // carries `Object.prototype`, and several ids that pass the name grammar (`constructor`,
+  // `toString`, ...) would otherwise resolve to an inherited function rather than a missing entry.
+  if (!Object.hasOwn(document.entries, pluginId)) return { verdict: "active" };
+
+  const record = normalizeActivationEntry(pluginId, document.entries[pluginId]);
+  if (record === undefined) {
+    return { verdict: "undetermined", reason: `${ACTIVATIONS_FILENAME} holds an unreadable record for '${pluginId}'` };
+  }
+  return record.enabled ? { verdict: "active" } : { verdict: "inactive" };
 }
 
 /** Whether `value` is a plain (non-null, non-array) object — the shape every one of this file's
@@ -209,7 +321,15 @@ function normalizeActivationEntry(pluginId: string, entry: unknown): AgentPlugin
 export function normalizeActivations(value: unknown): AgentPluginActivations {
   const plugins = extractPluginsBag(value);
   if (plugins === undefined) return EMPTY_ACTIVATIONS;
+  return normalizePluginsBag(plugins);
+}
 
+/** The per-entry accumulate-or-skip loop itself, split out of {@link normalizeActivations} so
+ *  {@link readAgentPluginActivations} can run it over an ALREADY shape-checked bag rather than
+ *  re-deriving one — one implementation of "which entries survive", not two.
+ *
+ *  @complexity O(p) in the entry count. */
+function normalizePluginsBag(plugins: Readonly<Record<string, unknown>>): AgentPluginActivations {
   const normalized: Record<string, AgentPluginActivationRecord> = {};
   for (const [pluginId, entry] of Object.entries(plugins)) {
     const record = normalizeActivationEntry(pluginId, entry);
