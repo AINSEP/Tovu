@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, stat } from "node:fs/promises";
+import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { createToolRegistry, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
+import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
 
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 
@@ -249,6 +251,88 @@ test("a bundled plugin is refused as ToolInputError before any dialog, naming pl
 
     assert.equal(recorder.emitted.length, 0);
     assert.equal((await stat(installed.packageRoot)).isDirectory(), true);
+  });
+});
+
+/** The path-free result `agent_plugins_uninstall` returns when this workspace's activations.json cannot be read. */
+function activationsUnreadableOutput(pluginId: string): UninstallToolOutput {
+  return {
+    uninstalled: false,
+    cancelled: false,
+    pluginId,
+    restartRequired: false,
+    reason: "activations-unreadable",
+    note:
+      `Nothing was removed: this workspace's Agent Plugin activation record could not be read, so whether '${pluginId}' is ` +
+      "bundled with Tovu cannot be established and it was NOT uninstalled. Tell the user an operator has to repair " +
+      "activations.json first (the server log names the file and the fault); until then every Agent Plugin tool call in " +
+      "this workspace is refused.",
+  };
+}
+
+test("t91 §7.1: a corrupt activations.json reaches the model through the real executor as a path-free result, not an opaque INTERNAL_ERROR; the detail goes to console.warn", async (t) => {
+  await withAgentPluginsDir(async (dir) => {
+    const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-corrupt-preview");
+    const activationsPath = path.join(resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root, "activations.json");
+    await writeFile(activationsPath, "{ not json");
+    const warnings: string[] = [];
+    t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args.map(String).join(" ")));
+
+    const registry = createToolRegistry();
+    for (const registration of buildAgentPluginUninstallRegistrations(fakeDeps().deps, { surfaceExchanges: createSurfaceExchangeStore() })) {
+      registry.register(registration);
+    }
+    const toolExecutor = createToolExecutor({ registry });
+    const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+    const { run } = await lifecycle.start({ contextRef: "ctx-1" });
+    const internalErrors: unknown[] = [];
+
+    const wire = await delegatedToolExecuteRoute.handle(
+      { runId: run.id, toolUseId: "tu-1", toolId: TOOL_ID, input: { pluginId: "operator-plugin" } },
+      { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }), onInternalError: (context) => internalErrors.push(context) },
+    );
+
+    assert.ok(wire.ok, `the model must get a result it can relay, got ${JSON.stringify(wire)}`);
+    assert.equal(wire.value.result.status, "completed");
+    assert.deepEqual(wire.value.result.output, activationsUnreadableOutput("operator-plugin"));
+    assert.equal(JSON.stringify(wire).includes(dir), false, "no host path may reach the model");
+    assert.deepEqual(internalErrors, []);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0] ?? "", /\[agent-plugins\] 'operator-plugin': agent_plugins_uninstall refused — agent-plugin activation: activations\.json is not valid JSON/);
+    assert.ok((warnings[0] ?? "").includes(activationsPath), "the server log must name the file");
+    assert.equal((await stat(installed.packageRoot)).isDirectory(), true);
+    assert.equal(await readFile(activationsPath, "utf8"), "{ not json");
+  });
+});
+
+test("t91 §7.1: activations.json corrupted while the dialog is open: confirm removes nothing and returns the same path-free result", async (t) => {
+  await withAgentPluginsDir(async (dir) => {
+    const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-corrupt-confirm");
+    const activationsPath = path.join(resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root, "activations.json");
+    const { deps } = fakeDeps();
+    const surfaceExchanges = createSurfaceExchangeStore();
+    const recorder = surfaceRecorder();
+    const warnings: string[] = [];
+    t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args.map(String).join(" ")));
+
+    const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }));
+    const surface = await waitForDialog(recorder.first, pending);
+    await writeFile(activationsPath, "[]");
+    const delivery = surfaceExchanges.deliver({
+      exchangeId: exchangeIdFromSurface(surface),
+      params: { decision: "confirm" },
+      principalId: PRINCIPAL_ID,
+      toolId: TOOL_ID,
+    });
+    assert.equal(delivery.ok, true);
+
+    const out = await pending;
+    assert.deepEqual(out, activationsUnreadableOutput("operator-plugin"));
+    assert.equal(JSON.stringify(out).includes(dir), false);
+    assert.equal(warnings.length, 1);
+    assert.ok((warnings[0] ?? "").includes(activationsPath));
+    assert.equal((await stat(installed.packageRoot)).isDirectory(), true);
+    assert.equal(await readFile(activationsPath, "utf8"), "[]");
   });
 });
 

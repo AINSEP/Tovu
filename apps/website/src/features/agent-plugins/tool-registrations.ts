@@ -26,6 +26,7 @@ import {
 } from "../../contracts/core/tool-surface-exchanges.js";
 
 import {
+  AgentPluginActivationsUnreadableError,
   filterActiveAgentPlugins,
   isAgentPluginActive,
   readAgentPluginActivations,
@@ -1084,7 +1085,8 @@ export function contributeAgentPluginSearchTools(): ToolContributor {
  * package is irreversible and removes guidance the assistant itself runs on, so it is not the model's
  * to decide; the first cut only asked the MODEL to confirm in prose. Order inside the handler:
  * permission, then `previewAgentPluginUninstall` (so an unknown or bundled id is refused before a
- * human is asked anything), then the dialog, then `uninstallAgentPlugin` with the confirmed preview, which
+ * human is asked anything, and an unreadable activations.json returns a not-removed result instead of a
+ * dialog, t91 §7.1), then the dialog, then `uninstallAgentPlugin` with the confirmed preview, which
  * re-runs both refusals against the disk as it is after the answer and removes nothing if the installed
  * archives are no longer the previewed ones (a `changed-since-confirmation` result, t91 F2.2). Fails closed with no `emitSurface`, like its siblings.
  *
@@ -1182,13 +1184,44 @@ function toModelFacingUninstallError(error: unknown): unknown {
   return error;
 }
 
-/** Runs one `uninstall.ts` call with its refusals re-classified for the model.
- *  @complexity O(1) beyond `fn`. */
-async function withModelFacingUninstallErrors<T>(fn: () => Promise<T>): Promise<T> {
+/**
+ * The model-facing outcome of an `uninstall.ts` rejection: a RESULT when this workspace's activation record could
+ * not be read, otherwise `toModelFacingUninstallError`'s classification, thrown.
+ *
+ * An unreadable activations.json is not the caller's input and not an internal bug the model should see redacted
+ * (t91 §7.1): nothing was removed, and the operator has a concrete repair to make, so it is the ADR-055 Decision 6
+ * not-removed result `plugins_set_enabled`'s `activationsUnreadableResult` already returns. The error's message
+ * names the host path, so it goes to the server log only; `note` is fixed, path-free text.
+ *
+ * @throws The re-classified error for every other rejection.
+ * @complexity O(1).
+ */
+function uninstallRefusedResult(pluginId: string, error: unknown): unknown {
+  if (!(error instanceof AgentPluginActivationsUnreadableError)) throw toModelFacingUninstallError(error);
+  console.warn(`[agent-plugins] '${pluginId}': agent_plugins_uninstall refused — ${error.message}`);
+  return {
+    uninstalled: false,
+    cancelled: false,
+    pluginId,
+    restartRequired: false,
+    reason: "activations-unreadable",
+    note:
+      `Nothing was removed: this workspace's Agent Plugin activation record could not be read, so whether '${pluginId}' is ` +
+      "bundled with Tovu cannot be established and it was NOT uninstalled. Tell the user an operator has to repair " +
+      "activations.json first (the server log names the file and the fault); until then every Agent Plugin tool call in " +
+      "this workspace is refused.",
+  };
+}
+
+/** The preview a dialog may show, or the not-removed result to return instead of raising one.
+ *  @complexity O(1) beyond `previewAgentPluginUninstall`. */
+async function previewOrRefusal(
+  request: UninstallAgentPluginRequired,
+): Promise<{ readonly preview: AgentPluginUninstallPreview } | { readonly refusal: unknown }> {
   try {
-    return await fn();
+    return { preview: await previewAgentPluginUninstall(request) };
   } catch (error) {
-    throw toModelFacingUninstallError(error);
+    return { refusal: uninstallRefusedResult(request.pluginId, error) };
   }
 }
 
@@ -1249,8 +1282,8 @@ function notConfirmedUninstallResult(outcome: Exclude<ConfirmationOutcome, { con
 /**
  * The post-confirmation half: uninstalls exactly what the human was shown. If the installed archives changed while
  * the dialog was open, that is a not-removed RESULT — the same union member `expired`/`abandoned` use — not a
- * `ToolInputError`: the caller's input was fine, what is installed moved. Every other refusal keeps
- * `toModelFacingUninstallError`'s classification.
+ * `ToolInputError`: the caller's input was fine, what is installed moved. Every other refusal goes through
+ * `uninstallRefusedResult`, like the preview's.
  * @complexity O(1) beyond `uninstallAgentPlugin`.
  */
 async function uninstallConfirmedAgentPlugin(request: UninstallAgentPluginRequired, preview: AgentPluginUninstallPreview): Promise<unknown> {
@@ -1277,7 +1310,7 @@ async function uninstallConfirmedAgentPlugin(request: UninstallAgentPluginRequir
           "Nothing was removed. Call agent_plugins_uninstall again so the user can review and confirm what is installed now.",
       };
     }
-    throw toModelFacingUninstallError(error);
+    return uninstallRefusedResult(request.pluginId, error);
   }
 }
 
@@ -1304,12 +1337,13 @@ export function buildAgentPluginUninstallRegistrations(routeDeps: AgentPluginUni
       });
 
       const request = { layout: resolveAgentPluginLayout(), workspaceId: routeDeps.workspaceId, pluginId };
-      const preview = await withModelFacingUninstallErrors(() => previewAgentPluginUninstall(request));
+      const previewed = await previewOrRefusal(request);
+      if ("refusal" in previewed) return previewed.refusal;
 
-      const outcome = await confirmUninstall(surfaces, ctx, preview);
+      const outcome = await confirmUninstall(surfaces, ctx, previewed.preview);
       if (!outcome.confirmed) return notConfirmedUninstallResult(outcome, pluginId);
 
-      return uninstallConfirmedAgentPlugin(request, preview);
+      return uninstallConfirmedAgentPlugin(request, previewed.preview);
     },
   };
 
