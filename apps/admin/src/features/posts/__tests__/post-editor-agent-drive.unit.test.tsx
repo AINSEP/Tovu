@@ -112,8 +112,15 @@ interface FoundElement {
   label: string;
 }
 
-async function findElements(driver: ReturnType<typeof createDomPageDriver>): Promise<FoundElement[]> {
-  const result = (await executePageCapability(driver, "page.find_elements", {})) as { elements: FoundElement[] };
+async function findElements(
+  driver: ReturnType<typeof createDomPageDriver>,
+  query?: string,
+): Promise<FoundElement[]> {
+  // Omit `query` entirely rather than passing `undefined` — `page.find_elements`'s input schema is
+  // `additionalProperties: false` and the executor only forwards a `string`, so an explicit
+  // `undefined` would be silently dropped and quietly turn a filtered probe into an unfiltered one.
+  const input = query === undefined ? {} : { query };
+  const result = (await executePageCapability(driver, "page.find_elements", input)) as { elements: FoundElement[] };
   return result.elements;
 }
 
@@ -180,5 +187,107 @@ describe("driving the post editor's Editor/Preview tabs and expand toggle throug
     await driver.settle?.();
 
     expect(ctrl.setView).toHaveBeenCalledWith("edit");
+  });
+});
+
+/**
+ * Retrieval, not just reachability (2026-09-15). Being tagged is necessary and not sufficient: a
+ * model asked "make it fullscreen" narrows with `page.find_elements`'s `query` before it reads 16
+ * labels, and `query` is a plain case-insensitive SUBSTRING match over handle and label — no
+ * stemming, no scoring, no ranking (`@jini-ai/agentic`'s `dom-page-driver.ts`, `findElements`). A
+ * word that is not literally in the handle or the label retrieves NOTHING.
+ *
+ * Measured against the real 16-element catalog this screen publishes, `post-preview-expand`'s label
+ * used to read "Show the preview big, filling the admin content area" while the button itself said
+ * "Show full screen". Every word an operator or model would actually reach for missed:
+ *
+ *   query        before          after
+ *   "fullscreen"  0 hits (MISS)  1 hit, rank 0  (both collapsed and expanded)
+ *   "full screen" 0 hits (MISS)  1 hit, rank 0  (both)
+ *   "full"        0 hits (MISS)  1 hit, rank 0  (both)
+ *   "screen"      0 hits (MISS)  1 hit, rank 0  (both)
+ *   "big"         1 hit, rank 0  unchanged      (collapsed only, by design)
+ *   "preview"     rank 1 of 2    unchanged      (behind post-view-preview, which is correct)
+ *
+ * Still missing on purpose: "large", "wide", "maximize" — none of them is a word this control shows
+ * anyone, and the rule kept here is the honest one rather than open-ended keyword stuffing: the
+ * published label carries the words the control's own `aria-label` uses. Whole-phrase queries ("show
+ * it big") can never match under substring semantics no matter what the label says; a model that
+ * gets zero hits falls back to an unfiltered `page.find_elements`, which is the first test below.
+ */
+describe("the fullscreen control is retrievable by the words it shows an operator", () => {
+  async function labelOf(container: HTMLElement, handle: string, query?: string) {
+    const driver = createDomPageDriver({ root: container, pages: {} });
+    const elements = await findElements(driver, query);
+    return { elements, index: elements.findIndex((element) => element.handle === handle) };
+  }
+
+  it("is in the unfiltered catalog — the fallback when a model's query returns nothing", async () => {
+    const { container } = renderPostEditor({ view: "preview", previewExpanded: false });
+    const { index } = await labelOf(container, "post-preview-expand");
+    expect(index).toBeGreaterThanOrEqual(0);
+  });
+
+  // Asserts the RANK, not merely presence. Sole hit = rank 0: the model has nothing to choose
+  // between. If one of these ever returns 0 hits again, the control is dead to a model that narrows.
+  it.each(["fullscreen", "full screen", "full", "screen"])(
+    "query %o returns the control as the only hit while collapsed",
+    async (query) => {
+      const { container } = renderPostEditor({ view: "preview", previewExpanded: false });
+      const { elements, index } = await labelOf(container, "post-preview-expand", query);
+      expect(elements.map((element) => element.handle)).toEqual(["post-preview-expand"]);
+      expect(index).toBe(0);
+    },
+  );
+
+  it.each(["fullscreen", "full screen", "full", "screen"])(
+    "query %o returns the control as the only hit while expanded — the way out is findable too",
+    async (query) => {
+      const { container } = renderPostEditor({ view: "preview", previewExpanded: true });
+      const { elements, index } = await labelOf(container, "post-preview-expand", query);
+      expect(elements.map((element) => element.handle)).toEqual(["post-preview-expand"]);
+      expect(index).toBe(0);
+    },
+  );
+
+  it("query 'big' reaches it while collapsed — the owner's own phrasing, \"show it big\"", async () => {
+    const { container } = renderPostEditor({ view: "preview", previewExpanded: false });
+    const { index } = await labelOf(container, "post-preview-expand", "big");
+    expect(index).toBe(0);
+  });
+
+  // Direction matters: "show it big" must NOT retrieve the control that would close an already-open
+  // panel. The two labels are deliberately not interchangeable.
+  it("query 'big' does NOT reach it while expanded — that direction is 'exit', not 'show'", async () => {
+    const { container } = renderPostEditor({ view: "preview", previewExpanded: true });
+    const { index } = await labelOf(container, "post-preview-expand", "big");
+    expect(index).toBe(-1);
+  });
+
+  it("query 'preview' reaches the Preview TAB first and the fullscreen control second", async () => {
+    const { container } = renderPostEditor({ view: "preview", previewExpanded: false });
+    const { elements } = await labelOf(container, "post-preview-expand", "preview");
+    expect(elements.map((element) => element.handle)).toEqual(["post-view-preview", "post-preview-expand"]);
+  });
+
+  /**
+   * The durable invariant behind every case above, and the one that survives a copy change: whatever
+   * the button says to a human, the agent label says too. Rename the control to "Maximize" and this
+   * fails until the published label learns the word — which is exactly the drift that made
+   * `query: "fullscreen"` return nothing in the first place.
+   */
+  it.each<[string, boolean]>([
+    ["collapsed", false],
+    ["expanded", true],
+  ])("publishes every word of the button's own aria-label to agents (%s)", async (_state, previewExpanded) => {
+    const { container } = renderPostEditor({ view: "preview", previewExpanded });
+    const ariaLabel = container.querySelector(".post-preview-fab")?.getAttribute("aria-label") ?? "";
+    expect(ariaLabel).not.toBe("");
+
+    const { elements, index } = await labelOf(container, "post-preview-expand");
+    const published = elements[index]!.label.toLowerCase();
+    for (const word of ariaLabel.toLowerCase().split(/\s+/)) {
+      expect(published).toContain(word);
+    }
   });
 });

@@ -1723,9 +1723,16 @@ function PostPreview({
       aria-label={expanded ? "Exit full screen" : "Show full screen"}
       {...agentHandle("post-preview-expand", {
         role: "button",
+        // The agent label must contain the words the control itself shows a human.
+        // `page.find_elements`'s `query` is a plain case-insensitive SUBSTRING match over handle and
+        // label — no stemming, no ranking (`@jini-ai/agentic`'s `dom-page-driver.ts`) — so a word
+        // missing from this string is a word that retrieves nothing. This said "big, filling the
+        // admin content area" while the button itself said "Show full screen", which meant
+        // `query: "fullscreen"` and `query: "full screen"` both returned ZERO elements. Keep this in
+        // step with `aria-label`/`title` above; `post-editor-agent-drive.unit.test.tsx` pins it.
         label: expanded
-          ? "Collapse the preview back to its normal size"
-          : "Show the preview big, filling the admin content area",
+          ? "Exit full screen (fullscreen) — collapse the preview back to its normal, smaller size"
+          : "Show the preview full screen (fullscreen) — makes it big, filling the whole admin content area",
       })}
     >
       <span aria-hidden="true">{expanded ? "\u2921" : "\u2922"}</span>
