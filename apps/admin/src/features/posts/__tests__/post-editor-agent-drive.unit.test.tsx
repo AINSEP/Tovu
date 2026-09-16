@@ -1,0 +1,183 @@
+import { render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { executePageCapability } from "@jini-ai/agentic/core";
+import { createDomPageDriver } from "@jini-ai/agentic/dom";
+
+import { PostEditor } from "../PostEditor";
+import type { PostEditorController } from "../hooks/use-post-editor.hooks";
+import { api, type AdminPost } from "@/lib/api";
+
+/**
+ * @file Proves §3 of `ADS-memory/.local-artifacts/handoffs/2026-09-15-preview-fullscreen-PLAN.md`
+ * — the assistant needs no new tool to drive the Preview tab or the expand toggle; an `agentHandle`
+ * on each closes the entire gap — by actually driving them through the real `page.*` capability
+ * pipeline, not by asserting the markup and reasoning about it from there.
+ *
+ * Sibling of `posts-agent-drive.unit.test.tsx` (that file is `Posts.tsx`-scoped — the row-list
+ * screen; this one is `PostEditor.tsx`-scoped — the screen that row's own agentHandle'd link opens).
+ * Same convention: drive the REAL `executePageCapability` and the REAL `createDomPageDriver`, not
+ * `userEvent` alone, and scope the driver to `root: container` (standing in for `contentEl`, the
+ * real bridge's own scope — `App.hooks.tsx`) rather than `document.body` — see that sibling file's
+ * own "KNOWN GAP" doc header for why a broader root can hide exactly this kind of unreachable-handle
+ * defect.
+ *
+ * Fixture duplicated from `PostEditor.unit.test.tsx`'s own `postController` rather than imported —
+ * matching that sibling file's precedent of each agent-drive test owning its fixture independently,
+ * so this file's assertions never depend on an unrelated test file's own upkeep.
+ */
+
+const POST: AdminPost = {
+  id: "p1",
+  workspaceId: "w1",
+  kind: "post",
+  title: "Hello World",
+  slug: "hello-world",
+  bodyJson: { type: "doc", content: [{ type: "paragraph" }] },
+  status: "draft",
+  updatedAt: "2026-08-01T00:00:00.000Z",
+  version: 1,
+};
+
+function controller(overrides: Partial<PostEditorController> = {}): PostEditorController {
+  const post = overrides.post ?? POST;
+  const save = vi.fn();
+  const setConfirmingDelete = vi.fn();
+  const setShowTemplateModal = vi.fn();
+  return {
+    onPublish: () => save("published"),
+    onSave: () => save(),
+    onDeleteClick: () => setConfirmingDelete(true),
+    onDeleteCancel: () => setConfirmingDelete(false),
+    onViewTemplateClick: () => setShowTemplateModal(true),
+    onCloseTemplateModal: () => setShowTemplateModal(false),
+    post,
+    editor: null,
+    title: "Hello world",
+    setTitle: vi.fn(),
+    slug: "hello-world",
+    setSlug: vi.fn(),
+    status: "draft",
+    setStatus: vi.fn(),
+    templateChoice: null,
+    setTemplateChoice: vi.fn(),
+    availableTemplates: [],
+    mentionablePosts: [],
+    activeThemeId: null,
+    activeThemeTier: null,
+    activeThemeApiVersion: undefined,
+    overridesThemePage: false,
+    setOverridesThemePage: vi.fn(),
+    hasSlugCollision: false,
+    view: "edit",
+    setView: vi.fn(),
+    previewExpanded: false,
+    togglePreviewExpanded: vi.fn(),
+    message: null,
+    error: null,
+    confirmingDelete: false,
+    setConfirmingDelete,
+    deleting: false,
+    confirmLeave: () => true,
+    dirty: false,
+    contentDirty: false,
+    templatePreviewUrl: api.templatePreviewUrl(post.id, null),
+    bodyJson: null,
+    showTemplateModal: false,
+    setShowTemplateModal,
+    previewFormRef: { current: null },
+    previewFormTarget: `post-preview-pending-${post.id}`,
+    save,
+    recoverableDraft: null,
+    restoreRecoveredDraft: vi.fn(),
+    discardRecoveredDraft: vi.fn(),
+    autosaveStaleBasis: null,
+    saveConflict: null,
+    saveOverwritingConflict: vi.fn(),
+    dismissSaveConflict: vi.fn(),
+    remove: vi.fn(),
+    t: (key: string) => key,
+    ...overrides,
+  };
+}
+
+function renderPostEditor(overrides: Partial<PostEditorController> = {}) {
+  const ctrl = controller(overrides);
+  const { container } = render(<PostEditor postId="p1" usePostEditorHook={() => ctrl} />);
+  return { ctrl, container };
+}
+
+interface FoundElement {
+  handle: string;
+  role?: string;
+  label: string;
+}
+
+async function findElements(driver: ReturnType<typeof createDomPageDriver>): Promise<FoundElement[]> {
+  const result = (await executePageCapability(driver, "page.find_elements", {})) as { elements: FoundElement[] };
+  return result.elements;
+}
+
+async function handlesOf(driver: ReturnType<typeof createDomPageDriver>) {
+  return (await findElements(driver)).map((element) => element.handle);
+}
+
+describe("driving the post editor's Editor/Preview tabs and expand toggle through page.* verbs", () => {
+  it("reports post-view-edit and post-view-preview — the exact gap the plan names, closed", async () => {
+    const { container } = renderPostEditor({ view: "edit" });
+    const driver = createDomPageDriver({ root: container, pages: {} });
+
+    const handles = await handlesOf(driver);
+    expect(handles).toContain("post-view-edit");
+    expect(handles).toContain("post-view-preview");
+  });
+
+  it("page.click on post-view-preview's handle actually switches the view — reachable AND clickable, not merely tagged", async () => {
+    const { container, ctrl } = renderPostEditor({ view: "edit" });
+    const driver = createDomPageDriver({ root: container, pages: {} });
+
+    await executePageCapability(driver, "page.click", { handle: "post-view-preview" });
+    await driver.settle?.();
+
+    expect(ctrl.setView).toHaveBeenCalledWith("preview");
+  });
+
+  it("post-preview-expand is reachable and clickable once the Preview tab is open", async () => {
+    const { container, ctrl } = renderPostEditor({ view: "preview", previewExpanded: false });
+    const driver = createDomPageDriver({ root: container, pages: {} });
+
+    const handles = await handlesOf(driver);
+    expect(handles).toContain("post-preview-expand");
+
+    await executePageCapability(driver, "page.click", { handle: "post-preview-expand" });
+    await driver.settle?.();
+
+    expect(ctrl.togglePreviewExpanded).toHaveBeenCalledTimes(1);
+  });
+
+  // The toolbar's toggle and the expanded surface's own header toggle are mutually exclusive in the
+  // DOM (never both mounted — see `PostEditor.tsx`'s own comment on why they share one handle), so
+  // this proves the SAME handle stays reachable on the other side of the toggle too, not a duplicate.
+  it("post-preview-expand stays reachable once already expanded — the header's own collapse control, same handle", async () => {
+    const { container, ctrl } = renderPostEditor({ view: "preview", previewExpanded: true });
+    const driver = createDomPageDriver({ root: container, pages: {} });
+
+    const handles = await handlesOf(driver);
+    expect(handles).toContain("post-preview-expand");
+    expect(handles.filter((handle) => handle === "post-preview-expand")).toHaveLength(1);
+
+    await executePageCapability(driver, "page.click", { handle: "post-preview-expand" });
+    await driver.settle?.();
+
+    expect(ctrl.togglePreviewExpanded).toHaveBeenCalledTimes(1);
+  });
+
+  it("post-view-edit switches back to the editor view", async () => {
+    const { container, ctrl } = renderPostEditor({ view: "preview" });
+    const driver = createDomPageDriver({ root: container, pages: {} });
+
+    await executePageCapability(driver, "page.click", { handle: "post-view-edit" });
+    await driver.settle?.();
+
+    expect(ctrl.setView).toHaveBeenCalledWith("edit");
+  });
+});

@@ -47,12 +47,19 @@ import {
 
 /** Product-facing labels, not library ones — "Tiptap" never appears in the UI; an author reads
  *  these as "the editor" and "how it looks on the site". */
-const VIEWS: ReadonlyArray<{ key: PostEditorView; label: string }> = [
+const VIEWS: ReadonlyArray<{ key: PostEditorView; label: string; handle: string; agentLabel: string }> = [
   // "Editor", not "Edit" (owner, 2026-08-11): the pair names two VIEWS of the same post, so both
   // labels should be nouns. "Edit" alongside "Preview" reads as a verb next to a noun, and collides
   // with the post-list row menu's own "Edit" ACTION (`rules.ts`), which does something different.
-  { key: "edit", label: "Editor" },
-  { key: "preview", label: "Preview" },
+  //
+  // `handle`/`agentLabel` (2026-09-15, preview-fullscreen dispatch) — these two tabs previously
+  // carried no `agentHandle` at all, so `page.find_elements` never reported them and the assistant
+  // could open a post's editor but never switch it to Preview. `agentLabel` names what each view
+  // SHOWS (an agent reads it, never sees the tab), not the library ("Tiptap" never appears here
+  // either) — same "product-facing, not implementation-facing" rule this file's own doc comment
+  // states for `label`.
+  { key: "edit", label: "Editor", handle: "post-view-edit", agentLabel: "Switch to the rich-text editor for this post" },
+  { key: "preview", label: "Preview", handle: "post-view-preview", agentLabel: "Switch to a rendered preview of how this post looks on the site" },
 ];
 
 /**
@@ -1352,6 +1359,8 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     hasSlugCollision,
     view,
     setView,
+    previewExpanded,
+    togglePreviewExpanded,
     message,
     error,
     confirmingDelete,
@@ -1473,11 +1482,33 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
               aria-selected={view === entry.key}
               className={view === entry.key ? "is-active" : undefined}
               onClick={() => setView(entry.key)}
+              {...agentHandle(entry.handle, { role: "button", label: entry.agentLabel })}
             >
               {t(entry.label)}
             </button>
           ))}
         </div>
+        {/* Preview fullscreen, Level 1 (2026-09-15) — expanding only makes sense for the rendered
+            preview, so this toggle exists only on the Preview tab. Hidden again once actually
+            expanded: the expanded surface (`.post-preview-expanded`, `PostPreview` below) is a
+            `position: absolute; inset: 0` panel over `.admin-content` and would visually cover this
+            toolbar anyway — it carries its own collapse control in its own header instead of leaving
+            a second, invisible copy of this button mounted underneath it. Same `agentHandle` on
+            both, safely: the two are mutually exclusive in the DOM, never mounted at once. */}
+        {view === "preview" && !previewExpanded && (
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={togglePreviewExpanded}
+            title="Expand to full width"
+            {...agentHandle("post-preview-expand", {
+              role: "button",
+              label: "Show the preview big, filling the admin content area",
+            })}
+          >
+            {t("Expand to full width")}
+          </button>
+        )}
         {/* Template picker (Post-template-picker feature, 2026-08-10) — see `PostEditorToolbarEnd`'s
             own doc for the full eligibility/ordering/empty-theme rules this extracts. */}
         <PostEditorToolbarEnd
@@ -1526,6 +1557,8 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
           templatePreviewUrl={templatePreviewUrl}
           previewFormRef={previewFormRef}
           previewFormTarget={previewFormTarget}
+          expanded={previewExpanded}
+          onToggleExpanded={togglePreviewExpanded}
         />
       ) : (
         <PostEditorBody editor={editor} mentionablePosts={mentionablePosts} currentPostId={post.id} />
@@ -1638,6 +1671,8 @@ function PostPreview({
   templatePreviewUrl,
   previewFormRef,
   previewFormTarget,
+  expanded,
+  onToggleExpanded,
 }: {
   /** Loosely typed like `PostFormState.bodyJson` (`use-post-editor.hooks.ts`) for the same stated
    *  reason: this only ever gets `JSON.stringify`'d into a hidden form field below, never read for
@@ -1658,13 +1693,20 @@ function PostPreview({
   previewFormRef: RefObject<HTMLFormElement | null>;
   /** The hidden form's `target` and the iframe's `name` it submits into — must match at submit time. */
   previewFormTarget: string;
+  /** Preview fullscreen, Level 1 (2026-09-15) — `usePostEditor`'s `previewExpanded`. See
+   *  `PostEditorController.previewExpanded`'s own doc for the full lifetime/containment reasoning;
+   *  this component only decides what to render given the value. */
+  expanded: boolean;
+  /** `usePostEditor`'s `togglePreviewExpanded`, bound to the expanded surface's own header control
+   *  below — the toolbar's copy of this same toggle lives in `PostEditor`'s own render, above. */
+  onToggleExpanded: () => void;
 }) {
   // The same decision `usePostEditor` gates its auto-submit on — one shared copy in `rules.ts`, see
   // `resolvePostPreviewBranches`. `PostPreviewFrame` needs only the first two flags: the
   // pending-content surface is its unconditional final case.
   const { canShowLiveSite, canShowTemplatePreview } = resolvePostPreviewBranches({ status, dirty, contentDirty });
 
-  return (
+  const pane = (
     <>
       {canShowLiveSite ? null : (
         <p className="editor-preview-notice">{postPreviewNotice({ canShowTemplatePreview })}</p>
@@ -1681,6 +1723,39 @@ function PostPreview({
         />
       </div>
     </>
+  );
+
+  // Collapsed: exactly what this component has always rendered, no extra wrapper — see this
+  // function's own file-header note in the plan this implements ("byte-for-byte unchanged" when not
+  // expanded). Every one of the branch tests above this point renders with `expanded: false` and
+  // must keep seeing exactly this shape.
+  if (!expanded) return pane;
+
+  // Expanded: `.post-preview-expanded` (`styles/editor.css`) is `position: absolute; inset: 0`
+  // against `.admin-main-col` — see that rule's own comment for the full containment argument (why
+  // this covers only the admin content column, never `.admin-chat-dock`). Its own header carries the
+  // collapse control that always works, on screen at all times while expanded — the toolbar's own
+  // copy of this toggle is hidden by `PostEditor` while `expanded` is true, since it would render
+  // underneath this panel.
+  return (
+    <div className="post-preview-expanded">
+      <div className="post-preview-expanded-header">
+        <span>Preview</span>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={onToggleExpanded}
+          title="Exit full width (Esc)"
+          {...agentHandle("post-preview-expand", {
+            role: "button",
+            label: "Collapse the preview back to its normal size",
+          })}
+        >
+          Exit full width
+        </button>
+      </div>
+      {pane}
+    </div>
   );
 }
 

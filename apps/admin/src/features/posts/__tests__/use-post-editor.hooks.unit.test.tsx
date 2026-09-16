@@ -194,6 +194,101 @@ describe("usePostEditor — templatePreviewUrl / previewFormTarget (2026-08-14, 
   });
 });
 
+describe("usePostEditor — previewExpanded (2026-09-15, Level 1 of preview fullscreen)", () => {
+  it("starts collapsed and flips on togglePreviewExpanded", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.post).toEqual(POST));
+
+    expect(result.current.previewExpanded).toBe(false);
+    act(() => result.current.togglePreviewExpanded());
+    expect(result.current.previewExpanded).toBe(true);
+    act(() => result.current.togglePreviewExpanded());
+    expect(result.current.previewExpanded).toBe(false);
+  });
+
+  it("collapses when the operator switches back to the Editor tab — must never outlive the Preview tab it expands", async () => {
+    // Same lifetime rule `apps/desktop/src/renderer/App.hooks.ts`'s `useExpandedMode` states for
+    // itself: expanding hides/covers other chrome, so it must never survive the thing it was
+    // expanding going away. Here that thing is the Preview tab, not the whole editor.
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.post).toEqual(POST));
+
+    act(() => result.current.setView("preview"));
+    act(() => result.current.togglePreviewExpanded());
+    expect(result.current.previewExpanded).toBe(true);
+
+    act(() => result.current.setView("edit"));
+    expect(result.current.previewExpanded).toBe(false);
+  });
+
+  it("Escape collapses the expanded preview", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.post).toEqual(POST));
+
+    act(() => result.current.setView("preview"));
+    act(() => result.current.togglePreviewExpanded());
+    expect(result.current.previewExpanded).toBe(true);
+
+    // A real `KeyboardEvent` on `document` — the handler is a raw `document.addEventListener`, not
+    // React's synthetic delegation, so `fireEvent.keyDown` (which dispatches through React's own
+    // root) would prove nothing about this listener either way. Deliberately NOT asserting
+    // `defaultPrevented`: this handler never calls `preventDefault()` (nothing here traps focus), so
+    // that assertion would itself be a false RED — see this repo's own documented jsdom trap.
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(result.current.previewExpanded).toBe(false);
+  });
+
+  it("removes the keydown listener on collapse, and again on unmount", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const addSpy = vi.spyOn(document, "addEventListener");
+    const removeSpy = vi.spyOn(document, "removeEventListener");
+    const { result, unmount } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.post).toEqual(POST));
+
+    act(() => result.current.setView("preview"));
+    act(() => result.current.togglePreviewExpanded());
+    const firstHandler = addSpy.mock.calls.find(([eventName]) => eventName === "keydown")?.[1];
+    expect(firstHandler, "expanding must register a keydown listener").toBeDefined();
+
+    act(() => result.current.togglePreviewExpanded()); // collapse
+    expect(removeSpy).toHaveBeenCalledWith("keydown", firstHandler);
+
+    addSpy.mockClear();
+    removeSpy.mockClear();
+    act(() => result.current.togglePreviewExpanded()); // expand again, so unmount has something to clean up
+    // A fresh closure, not `firstHandler` — the effect re-runs and registers a new function
+    // reference each time `previewExpanded` flips true, same as any other `useEffect` with a
+    // dependency-gated listener. Unmount must clean up THIS one, not the one from the first expand.
+    const secondHandler = addSpy.mock.calls.find(([eventName]) => eventName === "keydown")?.[1];
+    expect(secondHandler, "re-expanding must register another keydown listener").toBeDefined();
+
+    unmount();
+    expect(removeSpy).toHaveBeenCalledWith("keydown", secondHandler);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+
+  it("writes nothing to localStorage or sessionStorage — must not survive navigation the way the reverted admin.show_site_page overlay did", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.post).toEqual(POST));
+
+    act(() => result.current.setView("preview"));
+    act(() => result.current.togglePreviewExpanded());
+    act(() => result.current.togglePreviewExpanded());
+    act(() => result.current.togglePreviewExpanded());
+
+    expect(localStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(0);
+  });
+});
+
 describe("usePostEditor — pending-content-preview debounce (2026-08-14, moved out of PostPreview)", () => {
   // Fake timers are installed only AFTER the editor has mounted (real timers/`waitFor` for that
   // part, same as every other test in this file) and torn down in `afterEach` regardless of how the

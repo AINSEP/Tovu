@@ -89,6 +89,45 @@
  * chose one shared number: visual parity between the two editors' panes. */
 .editor-preview-iframe { width: 100%; height: 32rem; border: 0; display: block; background: var(--surface); }
 
+/* Preview fullscreen, Level 1 (2026-09-15 — `ADS-memory/.local-artifacts/handoffs/
+   2026-09-15-preview-fullscreen-PLAN.md`). `.admin-main-col`'s own `position: relative` is declared
+   HERE rather than in `styles.css` (its home rule, `styles.css:~1222`) — deliberately: this repo's
+   now-reverted `admin.show_site_page` overlay used to declare it there for the identical reason
+   (containing an `inset: 0` panel to that column instead of the viewport), and that revert is what
+   removed it. Redeclaring the SAME property for the SAME selector here, in a stylesheet loaded
+   globally on every route (`main.tsx` imports this file unconditionally, same as `styles.css`), has
+   an identical cascade result with zero risk of colliding with a concurrent edit to `styles.css`
+   itself. If `styles.css` ever declares `position` on `.admin-main-col` again, the two are not in
+   conflict (same value), but this comment should be revisited so the property has one owner again.
+   `.post-preview-expanded` below is `position: absolute; inset: 0` against exactly this containing
+   block. */
+.admin-main-col { position: relative; }
+
+/* Preview fullscreen, Level 1 continued. `position: absolute; inset: 0` against `.admin-main-col`
+   (just above), NOT `position: fixed` over the whole viewport — deliberately, so it is geometrically
+   incapable of covering `.admin-chat-dock`'s separate flex column at desktop widths: no z-index
+   arithmetic against the dock is needed because the two boxes never overlap (same reasoning
+   `styles.css`'s own — now removed — `admin.show_site_page` overlay comment gave for the identical
+   choice; see this file's comment just above for why that precedent could not simply be reused
+   as-is). `z-index: 25` only has to beat `.admin-content`'s ordinary static/in-flow content (any
+   positive value would; CSS2.1 Appendix E's stacking order) and stay BELOW `.chat-fab`'s `z-index:
+   30` (`styles/assistant.css`), so the FAB stays clickable/visible when the dock is closed, and below
+   the mobile sheet dock's `z-index: 55` (`styles.css`'s own sheet-mode block), so the sheet still
+   slides up over this on narrow viewports exactly as it already does over `<main>`. */
+.post-preview-expanded { position: absolute; inset: 0; z-index: 25; display: flex; flex-direction: column; background: var(--surface); }
+.post-preview-expanded-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0 0 0.75rem; flex: 0 0 auto;
+}
+/* Overrides `.editor-preview-iframe`'s own fixed `32rem` (just above) — expanded, the iframe fills
+   whatever height `.post-preview-expanded`'s flex column actually has instead of a fixed pane
+   height. */
+.post-preview-expanded .editor-preview-iframe { height: auto; flex: 1; }
+.post-preview-expanded .editor-shell { flex: 1; min-height: 0; border: 0; border-radius: 0; box-shadow: none; }
+/* The `-space-6` gap fix `.post-editor-pane` applies below the toolbar (see that rule's own comment)
+   is meaningless here — there is no toolbar directly above this pane once expanded. */
+.post-preview-expanded .post-editor-pane { margin-top: 0; }
+
 /* Shown under the frame only when `PostPreview` cannot iframe the real published URL (draft, or
    unsaved changes) — mirrors `styles/pages.css`'s `.page-preview-notice` verbatim; not reused
    directly since it lives in the Pages-only stylesheet (see that file's own header on why Pages and

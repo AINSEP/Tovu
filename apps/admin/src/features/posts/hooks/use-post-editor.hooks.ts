@@ -161,6 +161,21 @@ export interface PostEditorController extends PostEditorUiController {
   hasSlugCollision: boolean;
   view: PostEditorView;
   setView: (value: PostEditorView) => void;
+  /**
+   * Level 1 of "preview fullscreen" (2026-09-15) — whether the Preview tab's own pane is expanded
+   * to fill `.admin-main-col` (see `PostEditor.tsx`'s `.post-preview-expanded` wrapper). Lives here,
+   * not lifted to `App.tsx` or a module-level bus, deliberately: the reverted `admin.show_site_page`
+   * overlay's actual defect was outliving the route change (its lifetime was owned by a bus, not by
+   * anything that unmounted with the screen it covered) — see `ADS-memory/.local-artifacts/handoffs/
+   * 2026-09-15-preview-fullscreen-PLAN.md` §0(a)/§1.5. Co-located with `view` so a route change
+   * (which unmounts `PostEditor`, which unmounts this hook) discards it for free, the same way
+   * `apps/desktop/src/renderer/App.hooks.ts`'s `useExpandedMode` ties its own lifetime to
+   * `showSiteTab`. Never persisted (no `localStorage`/`sessionStorage`) — see this field's own test.
+   */
+  previewExpanded: boolean;
+  /** Flips {@link previewExpanded}. A separate action rather than two setters, matching `view`'s own
+   *  `setView` shape one field up — the caller never needs to set it to a specific value directly. */
+  togglePreviewExpanded: () => void;
   message: string | null;
   error: string | null;
   confirmingDelete: boolean;
@@ -517,6 +532,10 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // into the new tab. Not reset by the load effect below: unlike `original`/`title`/`slug`, which
   // post is loaded doesn't need to force a specific pane back open.
   const [view, setView] = useState<PostEditorView>("edit");
+  // Level 1 of "preview fullscreen" (2026-09-15) — see `PostEditorController.previewExpanded`'s own
+  // doc for why this lives here instead of `App.tsx` or a bus. `false` by default: opening a post
+  // must never itself land on the expanded surface.
+  const [previewExpanded, setPreviewExpanded] = useState(false);
   // View Template (2026-08-10) — moved from `PostEditor.tsx` (leftover `useState` after the
   // `useWiredX` conversion, `apps/admin/INFO.md`'s Hooks section). Whether the "View Template" modal
   // is open.
@@ -769,6 +788,36 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       () => {}
     );
   }, []);
+
+  // Preview-expand's "must never outlive the thing it was expanding" rule (2026-09-15) — the same
+  // rule `apps/desktop/src/renderer/App.hooks.ts`'s `useExpandedMode` states for itself. Here the
+  // "thing" is the Preview tab, not the whole editor: switching to Editor (or any future view that
+  // is not `"preview"`) collapses it, so returning to Preview later always starts collapsed rather
+  // than resuming a state the operator did not ask for this time.
+  useEffect(() => {
+    if (view !== "preview") setPreviewExpanded(false);
+  }, [view]);
+
+  // Escape collapses (2026-09-15) — a raw `document.addEventListener`, not a synthetic React
+  // handler: nothing here needs to intercept a keystroke the editor itself is using, and a real
+  // listener is what a test can dispatch a genuine `KeyboardEvent` against. Deliberately no
+  // `preventDefault()`/`stopPropagation()` — nothing on this surface traps focus, and swallowing the
+  // event only risks this repo's own documented jsdom/React-delegation false-RED trap. The collapse
+  // button rendered inside the expanded surface's own header (`PostEditor.tsx`) is the exit that
+  // always works; this is a convenience on top of it, gated on `previewExpanded` so no listener is
+  // registered at all while collapsed.
+  useEffect(() => {
+    if (!previewExpanded) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPreviewExpanded(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [previewExpanded]);
+
+  function togglePreviewExpanded(): void {
+    setPreviewExpanded((on) => !on);
+  }
 
   const hasSlugCollision = staticPageIds.includes(slug);
 
@@ -1025,6 +1074,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     hasSlugCollision,
     view,
     setView,
+    previewExpanded,
+    togglePreviewExpanded,
     setStatus,
     message,
     error,

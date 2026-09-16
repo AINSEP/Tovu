@@ -822,6 +822,11 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     hasSlugCollision: false,
     view: "edit",
     setView: vi.fn(),
+    // Preview fullscreen, Level 1 (2026-09-15) — `false`/no-op by default so every pre-existing test
+    // in this file (written before this field existed) keeps seeing the collapsed, byte-for-byte
+    // unchanged pane. The "Preview fullscreen" describe block below overrides both.
+    previewExpanded: false,
+    togglePreviewExpanded: vi.fn(),
     message: null,
     error: null,
     confirmingDelete: false,
@@ -1020,6 +1025,71 @@ describe("Edit/Preview toolbar", () => {
   it("keeps the template picker visible in preview view, not just edit view", () => {
     renderPostEditor({ view: "preview", availableTemplates: ["blog-post.html"], templateChoice: "blog-post.html" });
     expect(document.querySelector('[data-agent-element="post-template-choice"]')).toBeInTheDocument();
+  });
+
+  // Agent reach (2026-09-15) — `page.find_elements`/`page.click` match on `data-agent-element`
+  // only, never CSS selectors or visible text (`@jini-ai/agentic`'s own element-handles module), so
+  // these tabs were unreachable by the assistant before this tag existed even though a human could
+  // already click them — see `post-editor-agent-drive.unit.test.tsx` for the real-driver proof this
+  // characterizes only the markup for.
+  it("tags the Editor and Preview tabs with agentHandles", () => {
+    renderPostEditor({ view: "edit" });
+    expect(document.querySelector('[data-agent-element="post-view-edit"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="post-view-preview"]')).toBeInTheDocument();
+  });
+});
+
+/**
+ * Preview fullscreen, Level 1 (2026-09-15) — `ADS-memory/.local-artifacts/handoffs/
+ * 2026-09-15-preview-fullscreen-PLAN.md` §1.4. `previewExpanded`/`togglePreviewExpanded` themselves
+ * are `usePostEditor`'s own state (covered in `use-post-editor.hooks.unit.test.tsx`); these tests are
+ * about `PostEditor`'s rendering decision given that state, through the same DI seam the
+ * "Edit/Preview toolbar" suite above already uses.
+ */
+describe("Preview fullscreen — Level 1 expand toggle", () => {
+  it("renders no expand toggle in Editor view — expanding only makes sense for the rendered preview", () => {
+    renderPostEditor({ view: "edit" });
+    expect(screen.queryByRole("button", { name: /expand to full width/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /exit full width/i })).not.toBeInTheDocument();
+  });
+
+  it("renders the toolbar's expand toggle in Preview view while collapsed", () => {
+    renderPostEditor({ view: "preview", previewExpanded: false });
+    expect(screen.getByRole("button", { name: /expand to full width/i })).toBeInTheDocument();
+  });
+
+  it("clicking the toolbar's expand toggle calls togglePreviewExpanded", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ view: "preview", previewExpanded: false });
+    await user.click(screen.getByRole("button", { name: /expand to full width/i }));
+    expect(ctrl.togglePreviewExpanded).toHaveBeenCalledTimes(1);
+  });
+
+  it("collapsed view renders the preview pane exactly as before — no .post-preview-expanded wrapper", () => {
+    renderPostEditor({ view: "preview", previewExpanded: false });
+    expect(document.querySelector(".post-preview-expanded")).not.toBeInTheDocument();
+    expect(screen.getByTitle("Post preview")).toBeInTheDocument();
+  });
+
+  it("expanded view wraps the pane in .post-preview-expanded with its own header collapse control, and hides the toolbar's own toggle (it would be covered)", () => {
+    renderPostEditor({ view: "preview", previewExpanded: true });
+    const wrapper = document.querySelector(".post-preview-expanded");
+    expect(wrapper).toBeInTheDocument();
+    expect(wrapper?.querySelector('[title="Post preview"]')).not.toBeNull();
+    expect(screen.queryByRole("button", { name: /expand to full width/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /exit full width/i })).toBeInTheDocument();
+  });
+
+  it("clicking the expanded surface's own collapse control calls togglePreviewExpanded", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ view: "preview", previewExpanded: true });
+    await user.click(screen.getByRole("button", { name: /exit full width/i }));
+    expect(ctrl.togglePreviewExpanded).toHaveBeenCalledTimes(1);
+  });
+
+  it("tags the expand control with an agentHandle so the assistant can find and click it", () => {
+    renderPostEditor({ view: "preview", previewExpanded: false });
+    expect(document.querySelector('[data-agent-element="post-preview-expand"]')).toBeInTheDocument();
   });
 });
 
