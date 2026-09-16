@@ -1131,15 +1131,16 @@ const AGENT_PLUGINS_UNINSTALL_DESCRIPTION =
  *  Saying only "uninstalled" would leave the model to explain a listed-but-refusing tool it was not
  *  told about — the same confusion `plugins_set_enabled`'s `restartRequired` exists to prevent.
  *  It also says the plugin's provisioned external MCP connections survive the uninstall, for the
- *  reason `federate-mcp.ts`'s header gives (t91 F1.3), and that they stop only after the connection is turned off AND
- *  Tovu restarts — see `plugin-runtime/tool-registrations.ts`'s `restartNoteFor`. */
+ *  reason `federate-mcp.ts`'s header gives (t91 F1.3), and that they stop as soon as the connection is disabled or
+ *  deleted under Integrations → External MCP — the per-call connection gate refuses immediately, with no restart
+ *  needed — see `plugin-runtime/tool-registrations.ts`'s `restartNoteFor`. */
 const UNINSTALL_RESTART_NOTE =
   "Uninstalled. Its files and activation record are gone, new runs no longer load it, and its own agent_plugin_<id> " +
   "tool stops running immediately — every call is refused from now on, with no restart needed. That tool does stay " +
   "LISTED in this already-running daemon until Tovu restarts, so tell the user it may still appear in tool listings " +
   "until then, and that calling it will simply be denied. Uninstalling does NOT remove any external MCP server " +
   "connection the plugin set up: if an operator turned one on, its mcp__<server>__* tools keep working until that " +
-  "connection is disabled or deleted under Integrations → External MCP and Tovu is restarted.";
+  "connection is disabled or deleted under Integrations → External MCP.";
 
 const AGENT_PLUGINS_UNINSTALL_SCHEMA = {
   type: "object",

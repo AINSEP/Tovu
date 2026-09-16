@@ -411,7 +411,7 @@ test("confirm: the result note says the plugin's provisioned external MCP connec
         "LISTED in this already-running daemon until Tovu restarts, so tell the user it may still appear in tool listings " +
         "until then, and that calling it will simply be denied. Uninstalling does NOT remove any external MCP server " +
         "connection the plugin set up: if an operator turned one on, its mcp__<server>__* tools keep working until that " +
-        "connection is disabled or deleted under Integrations → External MCP and Tovu is restarted.",
+        "connection is disabled or deleted under Integrations → External MCP.",
     );
   });
 });

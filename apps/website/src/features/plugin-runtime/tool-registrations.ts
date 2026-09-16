@@ -421,9 +421,11 @@ async function uninstallConfirmedPlugin(routeDeps: PluginsToolDeps, preview: Plu
  *
  * Neither Agent Plugin note may imply that the plugin's provisioned external MCP connections were
  * turned off — they never are (`agent-plugins/federate-mcp.ts`'s header, "THE ROW SURVIVES"), so the
- * disable note says so (t91 F1.3). Turning that connection off does not stop them at once either: an already-admitted
- * federated connection is frozen until restart (`mcp-federation/reload.ts`), and the per-call connection gate checks only
- * OAuth re-auth, not `enabled` (`external-mcp-oauth.ts`), which is why the External MCP routes answer `restartRequired: true`.
+ * disable note says so (t91 F1.3). Turning that connection off DOES stop them at once: the per-call connection gate
+ * re-reads the row on every call and refuses once the connection is disabled, deleted, OAuth-disconnected, or
+ * narrowed (`external-mcp-revocation.ts`), even though the tool stays admitted and listed — and its live session, if
+ * any, stays open — until restart (`mcp-federation/reload.ts`), which is why the External MCP routes still answer
+ * `restartRequired: true`.
  * @complexity O(1).
  */
 function restartNoteFor(request: SetEnabledRequest): string {
@@ -436,7 +438,7 @@ function restartNoteFor(request: SetEnabledRequest): string {
           `the start of every run AND again before every agent_plugin_${request.pluginId} call, so the plugin's own ` +
           `tool stops answering at once rather than lingering until Tovu restarts. This does NOT change any external ` +
           `MCP server connection the plugin set up: if an operator turned one on, its mcp__<server>__* tools keep ` +
-          `working until that connection is disabled under Integrations → External MCP and Tovu is restarted.`;
+          `working until that connection is disabled under Integrations → External MCP.`;
   }
   return request.enabled
     ? "Enabled and saved. The plugin's hooks are live now, but any tool it contributes is registered only when the agent " +
