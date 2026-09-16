@@ -412,11 +412,12 @@ async function uninstallConfirmedPlugin(routeDeps: PluginsToolDeps, preview: Plu
  * is running now. Reporting plain success and letting the operator discover that themselves is the
  * confusion this field exists to prevent.
  *
- * The two directions are deliberately NOT symmetric for Agent Plugins, and the notes say so.
- * DISABLE now lands immediately on the tool as well, because `features/agent-plugins/
- * tool-registrations.ts` re-checks the activation record in each `agent_plugin_<id>` registration's
- * own `ToolPolicy` — see its REVOCATION note. ENABLE still needs a restart, because there is no
- * registration to re-admit: an append-only `ToolRegistry` has nothing to un-skip.
+ * The two directions are deliberately NOT symmetric, for BOTH families, and the notes say so. DISABLE
+ * lands immediately on the tool as well, because each tool's own `ToolPolicy` re-reads the activation
+ * record per call: `agent_plugin_<id>` via `features/agent-plugins/tool-registrations.ts`'s REVOCATION
+ * note, `plugin_capability_<id>` via `capability-tool-registrations.ts`'s "Revocation" section
+ * (t91 F1.2). ENABLE still needs a restart, because there is no registration to re-admit: an
+ * append-only `ToolRegistry` has nothing to un-skip.
  * @complexity O(1).
  */
 function restartNoteFor(request: SetEnabledRequest): string {
@@ -432,7 +433,8 @@ function restartNoteFor(request: SetEnabledRequest): string {
   return request.enabled
     ? "Enabled and saved. The plugin's hooks are live now, but any tool it contributes is registered only when the agent " +
         "daemon starts — tell the user Tovu has to be restarted before that tool can be called."
-    : "Disabled and saved. Any tool this plugin already contributed stays listed in the running daemon until it restarts.";
+    : "Disabled and saved. This takes effect immediately, with no restart: any tool this plugin contributed stays listed " +
+        "in the running daemon until Tovu restarts, but every call to it is refused from now on.";
 }
 
 /**

@@ -116,6 +116,7 @@ async function buildCatalogDescriptors(withFix: boolean) {
     authorize: async () => ({ allowed: true }) as never,
     workspaceId: WORKSPACE,
     postRepo: new InMemoryPostRepo(),
+    pluginActivationRepo: new InMemoryPluginActivationRepo([enabledActivation()]),
   });
 
   return [...base, ...registrations.map((r) => ({ id: r.descriptor.id, description: r.descriptor.description ?? "" }))];

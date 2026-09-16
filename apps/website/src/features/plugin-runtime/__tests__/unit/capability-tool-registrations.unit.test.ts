@@ -112,6 +112,7 @@ function deps(overrides: Partial<PluginCapabilityToolDeps> = {}): PluginCapabili
     authorize: async () => ({ allowed: true }) as never,
     workspaceId: WORKSPACE,
     postRepo: new InMemoryPostRepo(),
+    pluginActivationRepo: activationRepoWith([enabledActivation("word-count")]),
     ...overrides,
   };
 }

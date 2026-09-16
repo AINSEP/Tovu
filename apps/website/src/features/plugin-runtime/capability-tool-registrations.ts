@@ -83,6 +83,18 @@ import { PostNotFoundError, type PostRecord, type PostRepoPort } from "../post/i
  * plugins are ever projected into a tool source — verified by both an enabled-plugin test and a
  * disabled-plugin (absent-activation) test in this file's own unit suite.
  *
+ * ---------------------------------------------------------------------------
+ * Revocation — the activation gate runs AGAIN on every call (t91 F1.2, 2026-09-16)
+ * ---------------------------------------------------------------------------
+ * The loader above runs once, at daemon boot, and `@jini-ai/core`'s `ToolRegistry` is append-only, so
+ * a plugin disabled, quarantined or uninstalled afterwards used to keep a callable tool until restart.
+ * Every registration built here therefore carries a `ToolPolicy` that re-reads the activation row
+ * before the handler can be reached (`withActivationGate`), mirroring `agent-plugins/
+ * tool-registrations.ts`'s REVOCATION note: a refused call ends as `denied` in the daemon audit, and a
+ * read that throws also denies (and is logged). Boot filter and per-call gate share one predicate,
+ * `isPluginEnabledInWorkspace`, so they cannot drift. The tool stays LISTED until restart; enabling a
+ * plugin that was disabled at boot still needs a restart, because there is no registration to re-admit.
+ *
  * Architectural role:
  * `features/plugin-runtime` domain declaration, alongside (not replacing) `agent-tools.ts`/
  * `tool-registrations.ts`'s static `plugins_list`/`plugins_set_enabled` pair — this file's tool ids
@@ -96,6 +108,15 @@ import { PostNotFoundError, type PostRecord, type PostRepoPort } from "../post/i
 /** `plugin_capability_<pluginId>` — see this file's header, "Tool id scheme". */
 function toCapabilityToolId(pluginId: string): string {
   return `plugin_capability_${pluginId.replace(/-/g, "_")}`;
+}
+
+/** The ONE definition of "this plugin's capability tool may exist / may run": this workspace's activation
+ *  row says `enabled: true`. Absent, disabled, quarantined (saved `enabled: false`) and uninstalled (every
+ *  row deleted) all answer false. Shared by the boot filter and the per-call gate — see this file's header,
+ *  "Revocation". @complexity one activation-row read. */
+async function isPluginEnabledInWorkspace(repo: PluginActivationRepoPort, workspaceId: string, pluginId: string): Promise<boolean> {
+  const activation = await repo.getActivation({ workspaceId, pluginId });
+  return activation?.enabled === true;
 }
 
 /** One resolved, already-namespace-parsed `ext.{pluginId}.*` field this tool can read back. */
@@ -189,8 +210,7 @@ export async function loadEnabledPluginCapabilityToolSources(deps: {
     if (record.status !== "valid" || !record.manifest) continue;
     if (record.manifest.fields.length === 0) continue; // nothing this plugin's tool could ever return
 
-    const activation = await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId: record.id });
-    if (!activation?.enabled) continue; // disabled (or never activated) — see this file's header
+    if (!(await isPluginEnabledInWorkspace(deps.pluginActivationRepo, deps.workspaceId, record.id))) continue; // disabled (or never activated) — see this file's header
 
     const fields = buildFieldSources(record.manifest);
     if (fields.length === 0) continue;
@@ -264,6 +284,71 @@ export interface PluginCapabilityToolDeps {
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
   readonly postRepo: PostRepoPort;
+  /** Re-read on EVERY call by each registration's policy — see this file's header, "Revocation". */
+  readonly pluginActivationRepo: PluginActivationRepoPort;
+}
+
+/** One source's catalog entry. `content.read`, like `content_post_get` — see `buildPluginCapabilityToolRegistrations`. */
+function capabilityCatalogEntry(source: PluginCapabilityToolSource): WirableToolDefinition {
+  return {
+    name: source.id,
+    description: source.description,
+    sideEffects: "none",
+    authorization: { permission: "content.read" },
+    inputSchema: buildCapabilityInputSchema(),
+  };
+}
+
+/** One source's handler — today's handler body, moved verbatim. @complexity one permission check plus one post read. */
+function capabilityToolHandler(source: PluginCapabilityToolSource, deps: PluginCapabilityToolDeps): ToolHandler {
+  return async (ctx) => {
+    const input = requireInputRecord(ctx.input);
+    const postId = requireString(input, "postId");
+    await requireToolPermission(deps, {
+      principalId: ctx.principal.id,
+      permission: "content.read",
+      entityType: "post",
+      entityId: postId,
+    });
+
+    const post = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
+    if (!post) {
+      throw new PostNotFoundError(`post '${postId}' was not found`);
+    }
+    return buildCapabilityToolResult(source, post);
+  };
+}
+
+/** Whether `pluginId` may run right now. A read that throws DENIES and is logged, rather than surfacing as a
+ *  failed execution whose cause the daemon redacts. @complexity one activation-row read. */
+async function isCapabilityCallableNow(deps: PluginCapabilityToolDeps, pluginId: string): Promise<boolean> {
+  try {
+    return await isPluginEnabledInWorkspace(deps.pluginActivationRepo, deps.workspaceId, pluginId);
+  } catch (error) {
+    console.warn(
+      `[plugin-runtime] '${pluginId}': capability tool call denied — its activation record could not be read (${error instanceof Error ? error.message : String(error)})`,
+    );
+    return false;
+  }
+}
+
+/**
+ * Wraps one registration's policy so the plugin's CURRENT activation is re-read before its handler can be
+ * reached, then defers to the policy `buildDomainRegistrations` attached — the same shape and reason as
+ * `agent-plugins/tool-registrations.ts`'s `withToolGate` (a future kit policy must not be silently dropped).
+ * @complexity O(1) plus one activation-row read per call.
+ */
+function withActivationGate(registration: ToolRegistration, deps: PluginCapabilityToolDeps, pluginId: string): ToolRegistration {
+  const inner = registration.policy;
+  return {
+    ...registration,
+    policy: {
+      async authorize(authCtx) {
+        if (!(await isCapabilityCallableNow(deps, pluginId))) return "deny";
+        return inner.authorize(authCtx);
+      },
+    },
+  };
 }
 
 /**
@@ -277,46 +362,26 @@ export interface PluginCapabilityToolDeps {
  * reads a post's already-persisted data, nothing a plugin-specific permission would meaningfully
  * narrow further (mirrors `content_post_get`'s own inline `requireToolPermission` call exactly,
  * including the `entityType`/`entityId` pair so a per-post authorization rule can still apply).
+ *
+ * Every registration carries the per-call activation gate (`withActivationGate`) — see this file's
+ * header, "Revocation". Built one source at a time so the owning plugin id is in scope for every
+ * registration the kit returns: there is no id-to-plugin lookup that could miss and leave a tool
+ * ungated. The build stays synchronous and touches no I/O; the gate reads only when a call is
+ * authorized.
  */
 export function buildPluginCapabilityToolRegistrations(
   sources: readonly PluginCapabilityToolSource[],
   deps: PluginCapabilityToolDeps,
 ): ToolRegistration[] {
-  const catalog: WirableToolDefinition[] = sources.map((source) => ({
-    name: source.id,
-    description: source.description,
-    sideEffects: "none",
-    authorization: { permission: "content.read" },
-    inputSchema: buildCapabilityInputSchema(),
-  }));
-
-  const handlers: Record<string, ToolHandler> = {};
-  for (const source of sources) {
-    handlers[source.id] = async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const postId = requireString(input, "postId");
-      await requireToolPermission(deps, {
-        principalId: ctx.principal.id,
-        permission: "content.read",
-        entityType: "post",
-        entityId: postId,
-      });
-
-      const post = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
-      if (!post) {
-        throw new PostNotFoundError(`post '${postId}' was not found`);
-      }
-      return buildCapabilityToolResult(source, post);
-    };
-  }
-
-  return buildDomainRegistrations({
-    domain: "plugin-capability",
-    catalogModule: "features/plugin-runtime/capability-tool-registrations.ts",
-    catalog: indexCatalogById(catalog),
-    handlers,
-    derivedRisk: pluginCapabilityToolDerivedRisk(sources),
-  });
+  return sources.flatMap((source) =>
+    buildDomainRegistrations({
+      domain: "plugin-capability",
+      catalogModule: "features/plugin-runtime/capability-tool-registrations.ts",
+      catalog: indexCatalogById([capabilityCatalogEntry(source)]),
+      handlers: { [source.id]: capabilityToolHandler(source, deps) },
+      derivedRisk: pluginCapabilityToolDerivedRisk([source]),
+    }).map((registration) => withActivationGate(registration, deps, source.pluginId)),
+  );
 }
 
 /**
@@ -330,12 +395,14 @@ export function buildPluginCapabilityToolRegistrations(
  * here; the caller's own fail-open `try/catch` (matching `registerInstalledAgentPluginTools`'s and
  * `registerInstalledSkillTools`'s call sites in `agent-daemon-server.ts`) is where that is handled,
  * so all three optional registrars degrade identically on failure.
+ *
+ * Registers with the per-call activation gate, so a tool this puts into the daemon's registry is
+ * refused the moment its plugin is disabled, quarantined or uninstalled.
  */
 export async function registerEnabledPluginCapabilityTools(
   registry: { register: (registration: ToolRegistration) => void },
   deps: PluginCapabilityToolDeps & {
     readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
-    readonly pluginActivationRepo: PluginActivationRepoPort;
   },
 ): Promise<void> {
   const sources = await loadEnabledPluginCapabilityToolSources(deps);

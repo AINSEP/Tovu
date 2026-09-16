@@ -475,6 +475,20 @@ test("plugins_set_enabled: family 'site-runtime' still enables a .tovu-plugin th
   assert.equal(saved?.enabled, true, "the site-runtime path must still reach its own activation repo");
 });
 
+test("plugins_set_enabled: disabling a site-runtime plugin says its tool is refused from now on, not merely that it stays listed", async () => {
+  const { deps, pluginActivationRepo } = fakeRouteDeps();
+  await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: SITE_PLUGIN.version, enabled: true, updatedAt: NOW });
+  const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+
+  const out = (await call(tool, { pluginId: SITE_PLUGIN.id, enabled: false, family: "site-runtime" })) as { restartRequired: boolean; note: string };
+
+  assert.equal(out.restartRequired, false);
+  assert.equal(
+    out.note,
+    "Disabled and saved. This takes effect immediately, with no restart: any tool this plugin contributed stays listed in the running daemon until Tovu restarts, but every call to it is refused from now on.",
+  );
+});
+
 test("plugins_set_enabled: authorize() runs before any confirmation dialog is raised", async () => {
   const { deps, authorizeCalls } = fakeRouteDeps({ allow: false });
   const tool = setEnabledTool(deps, createSurfaceExchangeStore());
