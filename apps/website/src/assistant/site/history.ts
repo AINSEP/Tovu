@@ -1,8 +1,14 @@
-import type { GoogleContent } from "@jini-ai/agent-runtime";
-
 /**
  * @file SPEC-046 REQ-3 — turns the site assistant's client-supplied conversation history into
- * bounded Gemini `GoogleContent[]` turns.
+ * bounded, PROVIDER-NEUTRAL conversation turns.
+ *
+ * This used to emit Gemini `GoogleContent[]` directly, back when the visitor route called
+ * `runGoogleToolTurn` unconditionally. It now emits {@link SiteAssistantHistoryTurn} — the same
+ * `{role, content}` shape `assistant/byok-provider-turn.ts`'s `ByokChatMessage` declares — because
+ * that route dispatches to whichever provider the operator configured, and each provider adapter
+ * owns the translation into its own wire shape (Gemini's `{role: "model", parts: [{text}]}` among
+ * them). Bounding a visitor's untrusted history is this file's job; knowing what Gemini's
+ * `Content` looks like is not, and doing both is how the two would have drifted.
  *
  * The route accepted no history at all before this (every visitor message was standalone, so
  * multi-step "what about that one?" follow-ups could not work). `history` in the request body is
@@ -43,20 +49,28 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** `ChatMessage.role` is `"user" | "assistant"` (`@jini-ai/chat/core`); Gemini's `Content.role` is
- *  `"user" | "model"`. Any other value (a forged `"system"`, a typo, a non-string) is not a role this
- *  function recognizes, and the caller treats that as "skip this one turn" — see the module doc for
- *  why a bad entry costs only itself, not the whole history. */
-function toGoogleRole(role: unknown): GoogleContent["role"] | null {
+/** One bounded conversation turn. `role` is `ChatMessage.role`'s own vocabulary
+ *  (`"user" | "assistant"`, `@jini-ai/chat/core`) carried through unchanged — deliberately NOT a
+ *  provider's: every `run*ToolTurn` adapter already maps this pair into its own wire roles. */
+export interface SiteAssistantHistoryTurn {
+  readonly role: "user" | "assistant";
+  readonly content: string;
+}
+
+/** Any role value other than the two this type recognizes (a forged `"system"`, a typo, a
+ *  non-string) makes the caller skip that one turn — see the module doc for why a bad entry costs
+ *  only itself, not the whole history. */
+function toHistoryRole(role: unknown): SiteAssistantHistoryTurn["role"] | null {
   if (role === "user") return "user";
-  if (role === "assistant") return "model";
+  if (role === "assistant") return "assistant";
   return null;
 }
 
 /**
- * Bounds and converts client-supplied, untrusted `history` into `GoogleContent[]` turns ready to
- * prepend to the live message in `runGoogleToolTurn`'s `contents`. Never throws: any input shape that
- * is not a usable history (not an array, wrong-shaped entries throughout) simply produces `[]`.
+ * Bounds and converts client-supplied, untrusted `history` into {@link SiteAssistantHistoryTurn}s
+ * ready to prepend to the live message in `runByokProviderTurn`'s `messages`. Never throws: any
+ * input shape that is not a usable history (not an array, wrong-shaped entries throughout) simply
+ * produces `[]`.
  *
  * @complexity O(`maxMessages`) — bounded to the most recent RAW entries BEFORE validating any of
  *   them (see the `recent` slice below), so this function's cost never scales with an attacker-
@@ -65,22 +79,22 @@ function toGoogleRole(role: unknown): GoogleContent["role"] | null {
  *   narrower bound specific to this function's own surface.
  * @overallScore 100
  */
-/** Converts one raw history entry into a `GoogleContent` turn, or `null` for any shape this
- *  function does not recognize — see this file's module doc for why a bad entry costs only itself.
+/** Converts one raw history entry into a {@link SiteAssistantHistoryTurn}, or `null` for any shape
+ *  this function does not recognize — see this file's module doc for why a bad entry costs only itself.
  *  Split out of {@link resolveBoundedHistory} purely to keep that function's complexity under the
  *  shop ceiling; behavior is unchanged. */
-function toBoundedHistoryTurn(entry: unknown, maxMessageChars: number): GoogleContent | null {
+function toBoundedHistoryTurn(entry: unknown, maxMessageChars: number): SiteAssistantHistoryTurn | null {
   if (!isPlainRecord(entry)) return null;
-  const role = toGoogleRole(entry.role);
+  const role = toHistoryRole(entry.role);
   if (role === null) return null;
   if (typeof entry.content !== "string") return null;
   const trimmed = entry.content.trim();
   if (trimmed.length === 0) return null;
   const bounded = trimmed.length > maxMessageChars ? `${trimmed.slice(0, maxMessageChars)}…` : trimmed;
-  return { role, parts: [{ text: bounded }] };
+  return { role, content: bounded };
 }
 
-export function resolveBoundedHistory(rawHistory: unknown, options: ResolveBoundedHistoryOptions = {}): GoogleContent[] {
+export function resolveBoundedHistory(rawHistory: unknown, options: ResolveBoundedHistoryOptions = {}): SiteAssistantHistoryTurn[] {
   const maxMessages = options.maxMessages ?? DEFAULT_MAX_HISTORY_MESSAGES;
   const maxMessageChars = options.maxMessageChars ?? DEFAULT_MAX_HISTORY_MESSAGE_CHARS;
 
@@ -88,7 +102,7 @@ export function resolveBoundedHistory(rawHistory: unknown, options: ResolveBound
 
   const recent = rawHistory.length > maxMessages ? rawHistory.slice(rawHistory.length - maxMessages) : rawHistory;
 
-  const turns: GoogleContent[] = [];
+  const turns: SiteAssistantHistoryTurn[] = [];
   for (const entry of recent) {
     const turn = toBoundedHistoryTurn(entry, maxMessageChars);
     if (turn) turns.push(turn);

@@ -10,6 +10,18 @@ export interface StubProviderReply {
   readonly body: string;
 }
 
+/** The raw request line {@link startStubProviderServer} hands its `respond` callback alongside the
+ *  parsed body. `url` is the request-target as written on the wire (path + query), which is the ONE
+ *  observable that distinguishes the four providers from each other: Anthropic posts to
+ *  `/v1/messages`, OpenAI/Azure to `/v1/chat/completions` (or `/openai/deployments/...`), Google to
+ *  `/v1beta/models/<model>:streamGenerateContent`. A test that only inspects the request BODY cannot
+ *  tell which provider was called and will pass against a route that ignores the configured one. */
+export interface StubProviderRequest {
+  readonly method: string;
+  readonly url: string;
+  readonly headers: Readonly<Record<string, string | string[] | undefined>>;
+}
+
 /**
  * Boots a REAL loopback HTTP server standing in for a BYOK/site-assistant provider endpoint
  * (Anthropic/OpenAI/Azure/Google). `@jini-ai/agent-runtime`'s provider adapters
@@ -29,13 +41,15 @@ export interface StubProviderReply {
  * code under test.
  *
  * `respond` receives a 1-based call counter (so a caller can script a different reply per request —
- * e.g. a tool-call turn followed by a plain-text continuation) and the parsed JSON request body.
+ * e.g. a tool-call turn followed by a plain-text continuation), the parsed JSON request body, and
+ * the raw {@link StubProviderRequest} line. The third argument is additive: every caller written
+ * before it existed simply declares two parameters and is unaffected.
  *
  * @complexity O(1) per request — one buffered read of the request body, one scripted reply.
  */
 export async function startStubProviderServer(
   t: import("node:test").TestContext,
-  respond: (callCount: number, requestBody: Record<string, unknown>) => StubProviderReply,
+  respond: (callCount: number, requestBody: Record<string, unknown>, request: StubProviderRequest) => StubProviderReply,
 ): Promise<string> {
   let callCount = 0;
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
@@ -45,7 +59,11 @@ export async function startStubProviderServer(
       callCount += 1;
       const raw = Buffer.concat(chunks).toString("utf8");
       const requestBody = raw.length > 0 ? (JSON.parse(raw) as Record<string, unknown>) : {};
-      const reply = respond(callCount, requestBody);
+      const reply = respond(callCount, requestBody, {
+        method: req.method ?? "",
+        url: req.url ?? "",
+        headers: req.headers,
+      });
       res.writeHead(reply.status, { "content-type": "text/event-stream" });
       res.end(reply.body);
     });

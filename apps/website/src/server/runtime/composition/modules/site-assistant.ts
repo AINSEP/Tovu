@@ -1,14 +1,21 @@
+import type { ToolDescriptor } from "@jini-ai/core";
 import type { Express, Request, Response } from "express";
-
-import { runGoogleToolTurn, type GoogleContent, type GoogleToolCall, type GoogleToolResult } from "@jini-ai/agent-runtime";
 
 import {
   createSiteCapabilityRegistry,
   detectsExplicitNavigationIntent,
+  getSiteAssistantCredential,
   resolveBoundedHistory,
   resolveSiteAssistantMode,
   isPublicAssistantEnabled,
   resolveSiteAssistantApiKey,
+  runByokProviderTurn,
+  type ByokProtocol,
+  type ByokToolCall,
+  type ByokToolResult,
+  type ResolvedSiteAssistantCredential,
+  type SiteAssistantCredentialView,
+  type SiteAssistantHistoryTurn,
   type SiteAssistantModeResolution,
 } from "#src/assistant/index";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
@@ -38,7 +45,7 @@ import type { ServerModuleHandle } from "./types.js";
  *    admin's own, and a key-leak if pointed at the public. ADR-054's decision 1 originally said to
  *    mount it; that was written before checking how it sources credentials, and decision 3 ("the
  *    key is server-side, always") is the one that governs.
- * 2. **No process spawn by default.** `runGoogleToolTurn` is an in-process HTTP relay. The
+ * 2. **No process spawn by default.** `runByokProviderTurn` is an in-process HTTP relay. The
  *    agent-CLI path spawns an OS process per run, so N visitors is N processes — available only
  *    under the demo gate in `assistant/site/mode.ts`, never by default.
  * 3. **No tool the allowlist did not name.** The executor below dispatches through
@@ -62,6 +69,23 @@ import type { ServerModuleHandle } from "./types.js";
  *    `resolvePublicTarget` against published content, never taken from the model's raw tool-call
  *    arguments. REQ-5's Tier A rule ("worst case, given a fully hijacked model, is acceptable with no
  *    human confirmation") holds because of that resolution, not because of anything this route does.
+ *
+ * 7. **The provider is the one the OPERATOR configured, and a mismatch is said out loud.** This
+ *    route called `runGoogleToolTurn` unconditionally until 2026-09-16: its key resolution read
+ *    `apiKey` off the resolved site credential and dropped that credential's
+ *    `provider`/`baseUrl`/`model`, so a workspace that had saved an Anthropic or OpenAI key still
+ *    posted to `generativelanguage.googleapis.com` with a Gemini model id. It now dispatches
+ *    through `assistant/byok-provider-turn.ts`'s `runByokProviderTurn` — the SAME provider-neutral
+ *    adapter the admin's own BYOK execution path uses, deliberately reused rather than
+ *    reimplemented, so exactly one place in this codebase knows how to turn
+ *    `(protocol, key, baseUrl, model)` into a provider call.
+ *
+ *    The companion rule is that nothing here may silently substitute a provider. `GEMINI_API_KEY`
+ *    is a Google key by name and by issuer, so it is offered ONLY when the resolved provider is
+ *    `google`; a workspace configured for Anthropic with no Anthropic key gets a 503 naming the
+ *    provider and the missing key, never a working-looking answer paid for by the wrong credential.
+ *    Same for an unsupported `provider` string, and for a non-Google provider with no model
+ *    configured: refuse before the stream opens, and say which one it is.
  */
 
 const CHAT_PATH = "/api/site-assistant/chat";
@@ -87,27 +111,55 @@ const DEFAULT_MODEL = "gemini-flash-latest";
  * because 2.x is broken — do not re-derive that conclusion from the paragraph above. Overridable via
  * `TOVU_SITE_ASSISTANT_MODEL` so an operator is never stuck waiting on a code change.
  *
- * NOTE, because it surprises people: this is the ONLY thing that decides the visitor assistant's
- * model. The admin "Execution mode" screen's BYOK `model` field is a different setting for a
- * different assistant and has no effect here.
+ * NOTE, because it surprises people: the admin "Execution mode" screen's BYOK `model` field is a
+ * different setting for a different assistant and has no effect here. The field that DOES decide
+ * this route's model is the "Visitor's AI Assistant" tab's own model (stored on the site credential
+ * row), which wins over this env var — see {@link resolveModel}. Until 2026-09-16 this function was
+ * the only input and the stored value was ignored entirely.
  */
-function resolveModel(env: NodeJS.ProcessEnv): string {
-  return env.TOVU_SITE_ASSISTANT_MODEL?.trim() || DEFAULT_MODEL;
+/**
+ * The model this turn runs, in priority order: the operator's stored model, then
+ * `TOVU_SITE_ASSISTANT_MODEL`, then a per-provider default — and `""` when there is none, which the
+ * caller turns into an explicit refusal.
+ *
+ * The stored value wins over the env var deliberately, reversing nothing that ever worked: before
+ * 2026-09-16 no stored model reached this route at all, so no deployment can be relying on the env
+ * var beating one. It has to win now, because a model id is provider-specific: a
+ * `TOVU_SITE_ASSISTANT_MODEL=gemini-flash-latest` left over from a Google deployment would
+ * otherwise be sent to Anthropic the moment the operator switched providers in the admin tab — a
+ * value the admin screen shows as something else, silently overriding the one the operator can see.
+ *
+ * Only `google` gets a default. `DEFAULT_MODEL`'s own doc above explains why an alias is safe for
+ * Gemini; there is no equivalent for the others, and an invented Anthropic/OpenAI/Azure model id
+ * buys an opaque provider 404 in place of the one clear sentence the operator actually needs.
+ *
+ * @complexity O(1).
+ */
+function resolveModel(env: NodeJS.ProcessEnv, protocol: ByokProtocol, storedModel: string | null): string {
+  return storedModel?.trim() || env.TOVU_SITE_ASSISTANT_MODEL?.trim() || (protocol === "google" ? DEFAULT_MODEL : "");
 }
 
 /**
- * Overrides `runGoogleToolTurn`'s upstream endpoint, mirroring `resolveModel`'s identical
- * "overridable via env, never a code change" posture above. `undefined` (the default) leaves
- * `@jini-ai/agent-runtime`'s own `DEFAULT_GOOGLE_BASE_URL` (Google's public
- * `generativelanguage.googleapis.com`) in effect — this only matters for an operator routing through
- * Vertex AI, a regional endpoint, or an enterprise proxy, and for `site-assistant-routes.test.ts`'s
- * own scoped tests, which point it at a loopback stub server instead of a real Google endpoint (see
- * `stub-provider-server.ts`'s doc for why: `runGoogleToolTurn` dials its upstream via
- * `pinnedFetch` — `node:https`/`node:http` directly — not `globalThis.fetch`, so a test has no way to
- * intercept the real default endpoint short of actually redirecting where the turn dials).
+ * The endpoint this turn dials, in the same priority order {@link resolveModel} uses and for the
+ * same reason: the operator's stored `baseUrl` (the admin tab's own field), then
+ * `TOVU_SITE_ASSISTANT_BASE_URL`, then `undefined` — which leaves each provider adapter's own public
+ * default in effect (`@jini-ai/agent-runtime`'s `DEFAULT_GOOGLE_BASE_URL` and friends).
+ *
+ * The env var still matters for two audiences, both of which have no stored credential: an operator
+ * routing an env-key deployment through Vertex AI, a regional endpoint, or an enterprise proxy, and
+ * this route's own scoped tests, which point it at a loopback stub server instead of a real provider
+ * (see `stub-provider-server.ts`'s doc for why that redirect is the only interception point left:
+ * every `run*ToolTurn` dials via `pinnedFetch` — `node:https`/`node:http` directly — not
+ * `globalThis.fetch`).
+ *
+ * `azure` has no public default at all and `runAzureTurn` reports that itself as a turn error; this
+ * function does not special-case it, so an Azure workspace with no stored endpoint gets that
+ * adapter's own message rather than a second, divergent copy of it here.
+ *
+ * @complexity O(1).
  */
-function resolveBaseUrl(env: NodeJS.ProcessEnv): string | undefined {
-  return env.TOVU_SITE_ASSISTANT_BASE_URL?.trim() || undefined;
+function resolveBaseUrl(env: NodeJS.ProcessEnv, storedBaseUrl: string | null): string | undefined {
+  return storedBaseUrl?.trim() || env.TOVU_SITE_ASSISTANT_BASE_URL?.trim() || undefined;
 }
 
 const SYSTEM_PREAMBLE = [
@@ -153,13 +205,23 @@ function beginStream(req: Request, res: Response): void {
   res.flushHeaders?.();
 }
 
+/** Everything the turn below needs to reach the RIGHT provider: which protocol adapter runs, the
+ *  key that pays for it, where it dials, and what model it asks for. Resolved as one unit so no
+ *  caller can pick a provider from one source and a model or endpoint from another. */
+interface SiteAssistantProviderConfig {
+  readonly protocol: ByokProtocol;
+  readonly apiKey: string;
+  readonly baseUrl: string | undefined;
+  readonly model: string;
+}
+
 type SiteAssistantPreflight =
   | { ok: false }
-  | { ok: true; message: string; priorTurns: GoogleContent[]; apiKey: string };
+  | { ok: true; message: string; priorTurns: SiteAssistantHistoryTurn[]; provider: SiteAssistantProviderConfig };
 
 type MessageGuardResult =
   | { ok: false }
-  | { ok: true; message: string; priorTurns: GoogleContent[] };
+  | { ok: true; message: string; priorTurns: SiteAssistantHistoryTurn[] };
 
 /**
  * The visibility, shape, and budget gates: is the workspace's public assistant on at all, is
@@ -219,17 +281,77 @@ async function guardMessageAndRateLimit(req: Request, res: Response, deps: Route
   return { ok: true, message, priorTurns };
 }
 
+/** The four protocols `byok-provider-turn.ts` can dispatch. `site_assistant_credentials.provider`
+ *  is a plain text column and `put-site-credential.ts` accepts any string, so anything outside this
+ *  set is a real operator mistake that has to be named rather than rounded to Google. */
+const SUPPORTED_PROVIDERS: ReadonlySet<string> = new Set<ByokProtocol>(["anthropic", "openai", "azure", "google"]);
+
+/** The stored `provider` string, narrowed to a protocol this route can actually dispatch, or `null`
+ *  when it names something else. Case- and whitespace-insensitive because the column is free-form.
+ *  @complexity O(1). */
+function toByokProtocol(provider: string): ByokProtocol | null {
+  const normalized = provider.trim().toLowerCase();
+  return SUPPORTED_PROVIDERS.has(normalized) ? (normalized as ByokProtocol) : null;
+}
+
 /**
- * The mode/config gates: refuses demo `cli` mode (no daemon bridge yet), then resolves the key
- * that will actually pay for the call. Returns the resolved key, or `null` after already writing
- * the response.
+ * The exact sentence an operator needs when no usable key was found, which differs by WHY.
+ *
+ * The `google` wording is the pre-2026-09-16 message, kept verbatim: that path is unchanged and an
+ * operator who has seen it before should not have to re-read a reworded version of the same thing.
+ * The non-Google wording exists because the old message was actively misleading there — it offered
+ * `GEMINI_API_KEY` as a remedy for a workspace that had asked for Anthropic, where setting it would
+ * have done nothing (and, before this fix, would have quietly answered as Google instead).
+ *
+ * `storedKeyPresent` separates "no key was ever saved" from "a key is saved but this server could
+ * not open it" — a missing `TOVU_INTEGRATIONS_ROOT_KEY` or a ciphertext written under a different
+ * root key. Both reach here as "no key", and telling an operator to save one they can plainly see
+ * in the admin tab is the kind of answer that costs an afternoon.
+ *
+ * @complexity O(1).
  */
-async function resolveApiKeyOrRespond(
+function describeMissingKey(protocol: ByokProtocol, storedKeyPresent: boolean): string {
+  const unopenable = storedKeyPresent
+    ? " A key IS stored for this workspace but could not be decrypted — check that the server's TOVU_INTEGRATIONS_ROOT_KEY is the same one it was saved under, then re-save the key."
+    : "";
+  if (protocol === "google") {
+    return `site assistant is not configured — save a key on the Visitor's AI Assistant admin tab, or set GEMINI_API_KEY in the server environment.${unopenable}`;
+  }
+  return (
+    `site assistant is configured for the "${protocol}" provider but has no usable ${protocol} key — ` +
+    `save one on the Visitor's AI Assistant admin tab. GEMINI_API_KEY is a Google key and is deliberately ` +
+    `not used for ${protocol}.${unopenable}`
+  );
+}
+
+/** `res.status(503).json(...)`, in the one shape the site-chat widget's transport already reads off
+ *  a failed `fetch()` (`site-assistant-transport.ts` reads `body.error`). Always returns `null` so
+ *  each caller below is a single `return respondUnavailable(...)`. */
+function respondUnavailable(res: Response, code: string, error: string): null {
+  console.warn(`[site-assistant] ${code}: ${error}`);
+  res.status(503).json({ error, code });
+  return null;
+}
+
+/**
+ * The mode/config gates: refuses demo `cli` mode (no daemon bridge yet), then resolves WHICH
+ * provider this turn runs against and the key, endpoint, and model it runs with. Returns the
+ * resolved config, or `null` after already writing the response.
+ *
+ * Every refusal here happens BEFORE `beginStream`, so it reaches the visitor as a normal JSON error
+ * body with a status code rather than an SSE `error` frame — which is what lets the widget's
+ * transport surface the reason through its `!response.ok` branch, and what keeps a misconfigured
+ * workspace from looking like a model that answered with nothing.
+ *
+ * @complexity O(1) — one credential read on the configured path, plus one extra (non-decrypting)
+ *   read only on the fallback path, where the row is the sole record of which provider was chosen.
+ */
+async function resolveProviderConfigOrRespond(
   res: Response,
   deps: RouteDeps,
   env: NodeJS.ProcessEnv,
   resolution: SiteAssistantModeResolution,
-): Promise<string | null> {
+): Promise<SiteAssistantProviderConfig | null> {
   if (resolution.mode === "cli") {
     // Demo only. Reaching the daemon means matching its run-start contract, which this route
     // does not yet do — declared unavailable rather than half-wired, so a demo operator gets a
@@ -246,37 +368,107 @@ async function resolveApiKeyOrRespond(
   // replacement (existing deployments and the E2E suite that only set the env var are
   // unaffected). `resolveSiteAssistantApiKey` never throws: a missing row, a missing master
   // secret, or a corrupt/tampered ciphertext all resolve to `null` here, logged once as a
-  // warning, and this route falls straight through to the env var exactly as it did before
-  // ADR-058 existed. A misconfigured secret store degrades this route to its old behavior: it
-  // must never turn into a 500 for a visitor who did nothing wrong.
+  // warning.
   //
   // This is a DIFFERENT key from the admin's own Execution-mode BYOK key
-  // (`apps/admin/src/lib/execution-settings.ts`, browser-local, powers the admin's own
-  // assistant dock only) — see ADR-058's "Distinction from BYOK". Only `apiKey` is consumed
-  // from the resolved credential; `resolveModel` below is unchanged by ADR-058 and remains, as
-  // its own doc says, the ONLY thing that decides this route's model.
+  // (`apps/admin/src/lib/execution-settings.ts`, browser-local, powers the admin's own assistant
+  // dock only) — see ADR-058's "Distinction from BYOK".
   const stored = await resolveSiteAssistantApiKey(
     { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer },
     { workspaceId: deps.workspaceId },
-    (error) =>
-      console.warn(
-        "[site-assistant] stored credential could not be opened, falling back to GEMINI_API_KEY",
-        error
-      )
+    (error) => console.warn("[site-assistant] stored credential could not be opened", error)
   );
-  const apiKey = stored?.apiKey ?? env.GEMINI_API_KEY?.trim();
-  if (!apiKey) {
-    // 503, not 500: the service is correctly built and unconfigured, which is an operator
-    // action, and the message says exactly which one.
-    res.status(503).json({
-      error:
-        "site assistant is not configured — save a key on the Visitor's AI Assistant admin tab, or set GEMINI_API_KEY in the server environment",
-      code: "NOT_CONFIGURED",
-    });
-    return null;
+  // Read only when the key did NOT resolve. The row is then the sole surviving record of which
+  // provider the operator chose, and that choice decides whether `GEMINI_API_KEY` is even an
+  // eligible fallback — without it this route cannot tell "no credential at all" (Google's env key
+  // is the documented answer) from "an Anthropic workspace whose key is missing or unreadable"
+  // (where spending a Google key is the bug). Never decrypts, never throws (ADR-058 §4).
+  const configuredRow = stored ? null : await readConfiguredCredential(deps);
+  return resolveProviderFromCredential(res, env, toCredentialChoice(stored, configuredRow));
+}
+
+/** The non-decrypting read behind `resolveProviderConfigOrRespond`'s fallback branch. Split out
+ *  purely to keep that function's complexity under the shop ceiling. */
+async function readConfiguredCredential(deps: RouteDeps): Promise<SiteAssistantCredentialView> {
+  return getSiteAssistantCredential({ repo: deps.siteAssistantCredentialRepo }, { workspaceId: deps.workspaceId });
+}
+
+/** The workspace's credential as the decision below needs to see it, folded from whichever of the
+ *  two reads produced it. `apiKey` is `null` whenever the key did not open, and `keyStored` says
+ *  whether one nonetheless EXISTS — the pair {@link describeMissingKey} needs to tell "never saved"
+ *  from "saved but unreadable". */
+interface SiteAssistantCredentialChoice {
+  readonly provider: string;
+  readonly baseUrl: string | null;
+  readonly model: string | null;
+  readonly apiKey: string | null;
+  readonly keyStored: boolean;
+}
+
+/** Folds the two credential reads into one {@link SiteAssistantCredentialChoice}. Exactly one is
+ *  non-null: `stored` when the key opened, `configured` when it did not.
+ *  `getSiteAssistantCredential` already answers `"google"` for a workspace with no row at all,
+ *  which is the correct default for the env-key path this route has always had.
+ *  @complexity O(1). */
+function toCredentialChoice(
+  stored: ResolvedSiteAssistantCredential | null,
+  configured: SiteAssistantCredentialView | null,
+): SiteAssistantCredentialChoice {
+  if (stored) {
+    return { provider: stored.provider, baseUrl: stored.baseUrl, model: stored.model, apiKey: stored.apiKey, keyStored: true };
+  }
+  return {
+    provider: configured?.provider ?? "google",
+    baseUrl: configured?.baseUrl ?? null,
+    model: configured?.model ?? null,
+    apiKey: null,
+    keyStored: configured?.isSet === true,
+  };
+}
+
+/** The narrow rule this route's whole fallback branch exists for: `GEMINI_API_KEY` is a Google key
+ *  by name and by issuer, so it is offered ONLY to a Google workspace. Any other provider with no
+ *  stored key has nothing to fall back to, and saying so is the only honest answer available.
+ *  @complexity O(1). */
+function googleEnvKey(env: NodeJS.ProcessEnv, protocol: ByokProtocol): string | undefined {
+  return protocol === "google" ? env.GEMINI_API_KEY?.trim() : undefined;
+}
+
+/**
+ * The decision half of {@link resolveProviderConfigOrRespond}, separated from its I/O so every
+ * branch below is directly assertable without a repo or a sealer.
+ *
+ * @complexity O(1).
+ */
+function resolveProviderFromCredential(
+  res: Response,
+  env: NodeJS.ProcessEnv,
+  choice: SiteAssistantCredentialChoice,
+): SiteAssistantProviderConfig | null {
+  const protocol = toByokProtocol(choice.provider);
+  if (!protocol) {
+    return respondUnavailable(
+      res,
+      "PROVIDER_UNSUPPORTED",
+      `site assistant is configured for an unsupported provider "${choice.provider}" — supported providers are anthropic, openai, azure, google.`,
+    );
   }
 
-  return apiKey;
+  const apiKey = choice.apiKey ?? googleEnvKey(env, protocol);
+  if (!apiKey) {
+    return respondUnavailable(res, "NOT_CONFIGURED", describeMissingKey(protocol, choice.keyStored));
+  }
+
+  const model = resolveModel(env, protocol, choice.model);
+  if (!model) {
+    return respondUnavailable(
+      res,
+      "MODEL_NOT_CONFIGURED",
+      `site assistant is configured for the "${protocol}" provider but no model is set — choose one on the Visitor's AI Assistant admin tab (only Google has a safe default).`,
+    );
+  }
+
+  return { protocol, apiKey, baseUrl: resolveBaseUrl(env, choice.baseUrl), model };
 }
 
 /**
@@ -296,10 +488,10 @@ async function runSiteAssistantPreflight(
   const guard = await guardMessageAndRateLimit(req, res, deps);
   if (!guard.ok) return { ok: false };
 
-  const apiKey = await resolveApiKeyOrRespond(res, deps, env, resolution);
-  if (!apiKey) return { ok: false };
+  const provider = await resolveProviderConfigOrRespond(res, deps, env, resolution);
+  if (!provider) return { ok: false };
 
-  return { ok: true, message: guard.message, priorTurns: guard.priorTurns, apiKey };
+  return { ok: true, message: guard.message, priorTurns: guard.priorTurns, provider };
 }
 
 export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEnv = process.env): ServerModuleHandle {
@@ -340,7 +532,7 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
       async function handleChat(req: Request, res: Response): Promise<void> {
         const preflight = await runSiteAssistantPreflight(req, res, deps, env, resolution);
         if (!preflight.ok) return;
-        const { message, priorTurns, apiKey } = preflight;
+        const { message, priorTurns, provider } = preflight;
 
         // SPEC-046 D-1: computed ONCE here, from the visitor's own live `message` — before any tool
         // call runs — so `navigate_to_entry`'s auto/propose split (`tools.ts`'s
@@ -357,7 +549,9 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
 
         /**
          * Translates a model tool call into one `capabilities.invoke()` call and back into the
-         * `GoogleToolResult` shape `runGoogleToolTurn` expects. This route is now ONE adapter over
+         * `ByokToolResult` shape `runByokProviderTurn` expects (each provider adapter maps that onto
+         * its own wire shape — Gemini's `functionResponse`, Anthropic's `tool_result`, OpenAI's
+         * `[tool error]` content fold). This route is now ONE adapter over
          * the registry (SPEC-046 REQ-0) — it makes no authorization decision itself, only maps
          * outcome kinds onto the wire shape the model-facing tool loop understands.
          *
@@ -367,7 +561,7 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
          * property intact: the client never sees `call.name`, `call.input`, or the raw tool result,
          * only the resolved directive a page-action capability chose to emit.
          */
-        const executeTool = async (call: GoogleToolCall): Promise<GoogleToolResult> => {
+        const executeTool = async (call: ByokToolCall): Promise<ByokToolResult> => {
           const input = (call.input ?? {}) as Record<string, unknown>;
           const outcome = await capabilities.invoke({ name: call.name, input, caller: "anonymous-visitor" });
           switch (outcome.kind) {
@@ -404,24 +598,33 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
           if (!res.writableEnded) abort.abort();
         });
 
-        await runGoogleToolTurn({
-          apiKey,
-          ...(resolveBaseUrl(env) ? { baseUrl: resolveBaseUrl(env) } : {}),
-          model: resolveModel(env),
+        await runByokProviderTurn({
+          protocol: provider.protocol,
+          apiKey: provider.apiKey,
+          ...(provider.baseUrl ? { baseUrl: provider.baseUrl } : {}),
+          model: provider.model,
           system: SYSTEM_PREAMBLE,
           // SPEC-046 REQ-3: bounded prior turns (if any) precede the live message as real multi-turn
-          // `Content` entries — Gemini's classic `generateContent` API accepts an ordered
-          // `contents: [{role, parts}]` array natively (`@jini-ai/agent-runtime`'s
-          // `GoogleTurnOptions.contents`), so this is not a flattened transcript string the way a
-          // coding-agent host's `buildTranscript` would build one; each turn keeps its own `role`.
-          contents: [...priorTurns, { role: "user", parts: [{ text: message }] }],
-          tools: [{ functionDeclarations: capabilities.schemas as never }],
+          // entries, each keeping its own `role` — not a flattened transcript string the way a
+          // coding-agent host's `buildTranscript` would build one. Every provider adapter takes an
+          // ordered role-tagged message array natively, so this shape needs no per-provider branch
+          // here; `byok-provider-turn.ts` maps it into each wire format (Gemini's
+          // `contents: [{role, parts}]` among them).
+          messages: [...priorTurns, { role: "user", content: message }],
+          // The registry's own schemas, mapped into the `ToolDescriptor` shape every provider
+          // adapter takes. `byok-provider-turn.ts` owns the per-provider translation from there,
+          // including Gemini's restricted OpenAPI subset (`googleParametersOf`) — which is exactly
+          // why this route must not hand a raw `functionDeclarations` array to one provider and
+          // something else to the rest.
+          tools: capabilities.schemas.map(
+            (schema): ToolDescriptor => ({ id: schema.name, description: schema.description, inputSchema: schema.parameters }),
+          ),
           executeTool,
           signal: abort.signal,
           onEvent: (event) => {
             // Only what a visitor's UI needs. Notably NOT `tool_use`/`tool_result` — echoing those
             // would disclose the site's internal tool names and raw lookup results to the public.
-            // `client_directive` (SPEC-046 REQ-4) is not one of `runGoogleToolTurn`'s event kinds —
+            // `client_directive` (SPEC-046 REQ-4) is not one of `runByokProviderTurn`'s event kinds —
             // it is written directly from `executeTool` above, the moment a page-action capability
             // resolves one, which is what keeps it a resolved-action-only channel rather than a
             // fourth kind of tool echo.

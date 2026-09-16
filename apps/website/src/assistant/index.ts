@@ -68,6 +68,7 @@ export { detectsExplicitNavigationIntent } from "./site/client-directives.js";
 export type { ClientDirective, PageAction, ResolvedPublicTarget } from "./site/client-directives.js";
 
 export { resolveBoundedHistory } from "./site/history.js";
+export type { SiteAssistantHistoryTurn } from "./site/history.js";
 
 export { resolveSiteAssistantMode } from "./site/mode.js";
 export type { SiteAssistantMode, SiteAssistantModeResolution } from "./site/mode.js";
@@ -145,7 +146,14 @@ export { createStoredExecutionCredentialPort } from "./byok-credential.js";
 export type { ExecutionCredentialPort, ResolvedByokCredential, RequestSuppliedByokConfig } from "./byok-credential.js";
 
 export { runByokProviderTurn } from "./byok-provider-turn.js";
-export type { ByokChatMessage, ByokProviderTurnResult, ByokTurnEvent } from "./byok-provider-turn.js";
+export type {
+  ByokChatMessage,
+  ByokProtocol,
+  ByokProviderTurnResult,
+  ByokToolCall,
+  ByokToolResult,
+  ByokTurnEvent,
+} from "./byok-provider-turn.js";
 
 export { createByokToolSurface } from "./byok-tool-surface.js";
 export type { ByokToolSurface, ByokToolSurfaceDeps } from "./byok-tool-surface.js";
