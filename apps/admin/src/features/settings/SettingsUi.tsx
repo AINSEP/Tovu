@@ -315,8 +315,9 @@ export function SettingsUi(props: SettingsUiProps) {
   /** The 8 "no backend yet" capability-status notes below — see `settings-capabilities-i18n.ts`'s
    *  header for why these live in Tovu's own dictionary rather than `SETTINGS_DIALOG_DICTIONARIES`. */
   const tCap = (key: string): string => tCapability(settingsLocale, key);
-  /** The Execution tab's two stored-key asks (`lib/stored-credential-endpoint.ts`'s copy constants), which
-   *  neither settings-dialog dictionary behind `t` carries — see `settings-execution-i18n.ts`'s header. */
+  /** The Execution tab's own copy — the two stored-key asks (`lib/stored-credential-endpoint.ts`'s copy
+   *  constants), the `AdminByokKeyFooter` status lines, and the Local CLI scope label — none of which
+   *  either settings-dialog dictionary behind `t` carries. See `settings-execution-i18n.ts`'s header. */
   const tExecution = (key: string): string => tSettingsExecution(settingsLocale, key);
 
   // Called unconditionally, ahead of the loading gate below (rules of hooks) — `resolveByokConfig`
@@ -364,7 +365,7 @@ export function SettingsUi(props: SettingsUiProps) {
             // machine. For a deployed CMS those are different computers, so the
             // component's own default ("on this machine") would be a false claim
             // about whose CLIs these are.
-            localCliScopeLabel="Detected on the Tovu server, not on your own computer."
+            localCliScopeLabel={tExecution("Detected on the Tovu server, not on your own computer.")}
             // The admin's own BYOK credential is encrypted server-side and write-only
             // (2026-08-05) — these four keep the shared `ByokProviderForm` honest about
             // that: an empty key field is not a missing value when one is already stored,
