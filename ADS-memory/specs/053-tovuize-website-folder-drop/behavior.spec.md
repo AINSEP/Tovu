@@ -12,7 +12,7 @@
 | spec_id | SPEC-053 |
 | feature_name | FEAT-053-tovuize-website-folder-drop |
 | version | 1.0.0 |
-| content_hash | sha256:0000000000000000000000000000000000000000000000000000000000000 |
+| content_hash | sha256:745111bd21889aa7f24670b488aa6cc75f2ebf3d29331aa766d8f74c01e13f56 |
 | last_edited | 2026-09-13T00:00:00Z |
 
 **Purpose:** This feature has a genuine "most recent wins" replacement rule for the `custom` root (a single mutable value with exactly one writer at a time), and a routing/precedence decision between two conversion targets (theme vs. Page). Both trigger conditions from the template's "When to create this file" list apply; this file is required.

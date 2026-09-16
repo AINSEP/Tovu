@@ -12,7 +12,7 @@
 | spec_id | SPEC-053 |
 | feature_name | FEAT-053-tovuize-website-folder-drop |
 | version | 1.0.0 |
-| content_hash | sha256:0000000000000000000000000000000000000000000000000000000000000 |
+| content_hash | sha256:6c3a0434cbe3e877fb66d72ee699a484d62bdade31c894ebc9c03c70118dbbc7 |
 | last_edited | 2026-09-14T00:00:00Z |
 | traceability_status | IMPLEMENTED — PARTIALLY VERIFIED (see §6) |
 
