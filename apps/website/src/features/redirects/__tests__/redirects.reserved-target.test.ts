@@ -231,6 +231,118 @@ test("updateRedirect can still REPOINT a legacy rule away from a refused target"
 });
 
 /**
+ * t91 review F2 (coordinator ruling, 2026-09-16): the admin Redirects screen's on/off toggle is a
+ * PATCH of `status` alone, and `updateRedirect` used to re-validate the stored target on every
+ * update — so a legacy rule whose target the gate now refuses could not even be switched OFF from
+ * that screen. Turning off a rule that cannot fire only reduces risk, so an update that changes
+ * nothing but `status -> disabled` skips the checks. Anything else (turning a rule ON, or changing
+ * any other field in the same update) still runs every check.
+ */
+const LEGACY_REFUSED_TARGETS: readonly { readonly target: string; readonly why: string }[] = [
+  { target: "/admin/settings", why: "a reserved site-relative target" },
+  { target: "/a b", why: "raw whitespace the redirect origin check refuses" },
+  { target: "/\\evil.example", why: "a backslash-disguised protocol-relative target" },
+  { target: "https://trusted.example/admin", why: "an absolute same-origin reserved target" },
+  { target: "back", why: "Express's Referer alias" },
+];
+
+function plantLegacyRule(deps: RedirectsWriteDeps, id: string, overrides: Partial<RedirectRecord>): RedirectRecord {
+  const planted: RedirectRecord = {
+    id,
+    workspaceId: WORKSPACE_ID,
+    matchType: "exact",
+    fromPattern: `/${id}`,
+    toTarget: "/admin/settings",
+    statusCode: 301,
+    status: "active",
+    override: false,
+    priority: 0,
+    source: "manual",
+    createdByPrincipal: ACTOR_ID,
+    createdAt: "2026-07-12T00:00:00.000Z",
+    updatedAt: "2026-07-12T00:00:00.000Z",
+    version: 1,
+    ...overrides,
+  };
+  (deps.repo as InMemoryRedirectRepo).insertRedirect(planted);
+  return planted;
+}
+
+for (const { target, why } of LEGACY_REFUSED_TARGETS) {
+  test(`updateRedirect can switch OFF a legacy rule whose target is now refused: ${JSON.stringify(target)} (${why})`, async () => {
+    const deps = makeDeps();
+    const planted = plantLegacyRule(deps, "legacy-off", { toTarget: target });
+
+    const { record } = await updateRedirect({
+      deps,
+      input: { workspaceId: WORKSPACE_ID, id: planted.id, status: "disabled", actorId: ACTOR_ID },
+    });
+
+    assert.deepEqual(record, { ...planted, status: "disabled", updatedAt: record.updatedAt, version: 2 });
+    assert.equal((await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: planted.id }))?.status, "disabled");
+  });
+}
+
+test("updateRedirect switch-OFF also passes when the PATCH repeats every other field unchanged", async () => {
+  const deps = makeDeps();
+  const planted = plantLegacyRule(deps, "legacy-full-patch", { toTarget: "/admin/settings" });
+  const { matchType, fromPattern, toTarget, statusCode, override, priority } = planted;
+
+  const { record } = await updateRedirect({
+    deps,
+    input: {
+      workspaceId: WORKSPACE_ID,
+      id: planted.id,
+      matchType,
+      fromPattern,
+      toTarget,
+      statusCode,
+      override,
+      priority,
+      status: "disabled",
+      actorId: ACTOR_ID,
+    },
+  });
+
+  assert.equal(record.status, "disabled");
+  assert.equal(record.toTarget, "/admin/settings");
+});
+
+/** Each update below either turns the legacy rule ON or changes a field besides `status`, so the
+ *  refused target must still be refused. */
+const STILL_CHECKED_UPDATES: readonly { readonly name: string; readonly plantedStatus: "active" | "disabled"; readonly patch: object }[] = [
+  { name: "turning a disabled rule back ON", plantedStatus: "disabled", patch: { status: "active" } },
+  { name: "setting status active on an active rule", plantedStatus: "active", patch: { status: "active" } },
+  { name: "a priority-only change", plantedStatus: "active", patch: { priority: 5 } },
+  { name: "disabling while changing priority", plantedStatus: "active", patch: { status: "disabled", priority: 5 } },
+  { name: "disabling while changing statusCode", plantedStatus: "active", patch: { status: "disabled", statusCode: 302 } },
+  { name: "disabling while changing override", plantedStatus: "active", patch: { status: "disabled", override: true } },
+  { name: "disabling while changing fromPattern", plantedStatus: "active", patch: { status: "disabled", fromPattern: "/moved" } },
+  { name: "disabling while changing matchType", plantedStatus: "active", patch: { status: "disabled", matchType: "prefix" } },
+  {
+    name: "disabling while changing the target to another refused one",
+    plantedStatus: "active",
+    patch: { status: "disabled", toTarget: "/api/admin/v1/auth/me" },
+  },
+];
+
+for (const { name, plantedStatus, patch } of STILL_CHECKED_UPDATES) {
+  test(`updateRedirect still refuses a legacy rule's refused target on ${name}`, async () => {
+    const deps = makeDeps();
+    const planted = plantLegacyRule(deps, "legacy-checked", { status: plantedStatus });
+
+    await assert.rejects(
+      updateRedirect({
+        deps,
+        input: { workspaceId: WORKSPACE_ID, id: planted.id, actorId: ACTOR_ID, ...patch },
+      }),
+      RedirectTargetNotAllowedError
+    );
+    assert.deepEqual(await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: planted.id }), planted);
+  });
+}
+
+/**
  * t91 B1 (2026-09-16): an ABSOLUTE same-origin target used to skip the reserved-path rule
  * entirely on write — `assertTargetAllowed` sent it only to the origin allowlist, which answers
  * "is that HOST allowed" and the workspace's own host trivially is. These four all resolve to the

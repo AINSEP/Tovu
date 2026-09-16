@@ -204,7 +204,8 @@ export function siteRelativeTargetReason(target: string): string | null {
  *
  * Note for a workspace that predates this gate: a stored rule whose target is now refused can
  * still be turned off with `tombstoneRedirect` (which only flips `status` and never re-validates
- * the target) or repointed with `updateRedirect` by supplying a new `toTarget`.
+ * the target) or with an `updateRedirect` that changes nothing but `status -> disabled` (see
+ * `isDisableOnlyUpdate`), or repointed with `updateRedirect` by supplying a new `toTarget`.
  *
  * An absolute target that names the workspace's OWN origin passes the host oracle trivially (its
  * own host is always allowed there), so it also gets the reserved-path rule — via the same
@@ -379,7 +380,68 @@ function resolveUpdateFields(input: UpdateRedirectInput, existing: RedirectRecor
   };
 }
 
-/** C-002: symmetric chokepoint entry for updates (REQ-04). */
+/** Every PATCH-able field except `status`, for {@link isDisableOnlyUpdate}'s "nothing else changed" test. */
+const NON_STATUS_UPDATABLE_FIELDS = [
+  "matchType",
+  "fromPattern",
+  "toTarget",
+  "statusCode",
+  "priority",
+  "override",
+] as const satisfies readonly (keyof UpdatableRedirectFields)[];
+
+/**
+ * Whether this update does nothing but switch the rule OFF (t91 review F2, coordinator ruling
+ * 2026-09-16). The admin Redirects screen's on/off toggle PATCHes `status` alone, and a legacy rule
+ * whose stored target the gate now refuses used to fail that toggle on the target check. A disabled
+ * rule is never served, so turning one off only reduces risk; re-enabling it, or changing any other
+ * field, is a full update and runs every check. A field sent with the value it already has counts as
+ * unchanged, so a client that PATCHes the whole record gets the same answer as one that sends only
+ * `status`.
+ *
+ * @param fields - {@link resolveUpdateFields}'s merge of the input over `existing`.
+ * @param existing - The stored record being updated.
+ * @returns `true` only when `fields.status` is `disabled` and every other field equals `existing`'s.
+ * @complexity O(1) — a fixed set of scalar comparisons.
+ */
+function isDisableOnlyUpdate(fields: UpdatableRedirectFields, existing: RedirectRecord): boolean {
+  return fields.status === "disabled" && NON_STATUS_UPDATABLE_FIELDS.every((key) => fields[key] === existing[key]);
+}
+
+/**
+ * Runs every field check a create runs against the merged update, and returns the target to store
+ * (one-hop collapsed, AC-16). Split out of {@link updateRedirect} so a disable-only update can skip
+ * it as one decision.
+ *
+ * @throws {RedirectValidationError | RedirectTargetNotAllowedError | RedirectLoopError | RedirectConflictError}
+ * @complexity O(n) in the target length, plus the repo and origin reads each check makes.
+ */
+async function validateUpdateFields(
+  deps: RedirectsWriteDeps,
+  workspaceId: string,
+  fields: UpdatableRedirectFields,
+  existingId: string
+): Promise<string> {
+  const patternCheck = deps.matcher.validatePattern({ matchType: fields.matchType, fromPattern: fields.fromPattern });
+  if (!patternCheck.ok) throw new RedirectValidationError(patternCheck.reason);
+  validateToTargetLength(fields.toTarget);
+  validateStatusCode(fields.statusCode);
+  validatePriority(fields.priority);
+
+  await assertTargetAllowed(deps.originRegistry, workspaceId, fields.toTarget);
+  const finalTarget = await resolveCollapsedTarget(deps.repo, workspaceId, fields.fromPattern, fields.toTarget);
+  if (finalTarget !== fields.toTarget) {
+    await assertTargetAllowed(deps.originRegistry, workspaceId, finalTarget);
+  }
+  await assertNoDuplicate(deps.repo, workspaceId, fields.matchType, fields.fromPattern, existingId);
+  return finalTarget;
+}
+
+/**
+ * C-002: symmetric chokepoint entry for updates (REQ-04). A disable-only update
+ * ({@link isDisableOnlyUpdate}) writes the status change without re-validating the unchanged fields
+ * — it stores the existing target as-is, with no one-hop collapse.
+ */
 export async function updateRedirect(required: UpdateRedirectRequired): Promise<{ record: RedirectRecord }> {
   const { deps, input } = required;
 
@@ -387,19 +449,9 @@ export async function updateRedirect(required: UpdateRedirectRequired): Promise<
   if (!existing) throw new RedirectNotFoundError(`redirect '${input.id}' was not found`);
 
   const fields = resolveUpdateFields(input, existing);
-
-  const patternCheck = deps.matcher.validatePattern({ matchType: fields.matchType, fromPattern: fields.fromPattern });
-  if (!patternCheck.ok) throw new RedirectValidationError(patternCheck.reason);
-  validateToTargetLength(fields.toTarget);
-  validateStatusCode(fields.statusCode);
-  validatePriority(fields.priority);
-
-  await assertTargetAllowed(deps.originRegistry, input.workspaceId, fields.toTarget);
-  const finalTarget = await resolveCollapsedTarget(deps.repo, input.workspaceId, fields.fromPattern, fields.toTarget);
-  if (finalTarget !== fields.toTarget) {
-    await assertTargetAllowed(deps.originRegistry, input.workspaceId, finalTarget);
-  }
-  await assertNoDuplicate(deps.repo, input.workspaceId, fields.matchType, fields.fromPattern, existing.id);
+  const finalTarget = isDisableOnlyUpdate(fields, existing)
+    ? existing.toTarget
+    : await validateUpdateFields(deps, input.workspaceId, fields, existing.id);
 
   const now = deps.clock.nowIso();
   const version = existing.version + 1;
