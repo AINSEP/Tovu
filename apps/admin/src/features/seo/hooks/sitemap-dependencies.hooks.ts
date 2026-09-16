@@ -7,9 +7,11 @@ import type { SitemapPort } from "./sitemap-port.hooks";
  *
  * Uses `siteUrl()` (`lib/site-url.ts`), the same helper the admin already has for "link to a page
  * on the public Tovu site, not the admin SPA": in production the admin SPA and the public site are
- * one server/one origin, so a relative path is correct; in dev, Vite serves the admin SPA on its
- * own origin (:5173 by default) and knows nothing about `/sitemap.xml`, so `siteUrl` resolves an
- * absolute `http://localhost:3000/sitemap.xml` instead. That cross-origin dev request is already
+ * one server/one origin, so a relative path is correct; when Vite serves the admin SPA on its own
+ * origin (:5173 by default) it knows nothing about `/sitemap.xml`, so `siteUrl` resolves an
+ * absolute `http://localhost:3000/sitemap.xml` instead. (Not every dev bundle: under `apps/desktop`'s
+ * same-origin `/admin/*` proxy `siteUrl` stays relative, and this fetch is then answered by the site
+ * server itself — see `lib/admin-dev-origin.ts`.) That cross-origin dev request is already
  * permitted — `server/inbound/shared/dev-cors.ts`'s `applyDevCors` reflects any `localhost`/
  * `127.0.0.1` origin for `GET`, mounted unconditionally in `createApp()` — so this needed no new
  * Vite proxy entry and no new server-side change.

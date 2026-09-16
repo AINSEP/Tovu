@@ -59,6 +59,17 @@ describe("siteUrl", () => {
     expect(siteUrl("/hello-world")).toBe("/hello-world");
   });
 
+  it("asks the predicate about the page's PORT — the mock ignores arguments, so nothing else pins this", () => {
+    // `isAdminDevServerOrigin` compares ports. Handing it `window.location.hostname` (or `.href`)
+    // instead compiles, keeps every other assertion in this file green, and makes the predicate
+    // answer false on the real admin dev server — every "View site" link then 404s at Vite.
+    vi.stubEnv("DEV", true);
+
+    siteUrl("/hello-world");
+
+    expect(isAdminDevServerOrigin).toHaveBeenCalledWith(window.location.port);
+  });
+
   it("does not consult the origin at all outside dev — a production bundle has no dev server to be on", () => {
     vi.stubEnv("DEV", false);
     vi.mocked(isAdminDevServerOrigin).mockReturnValue(true);

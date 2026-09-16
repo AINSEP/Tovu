@@ -179,10 +179,15 @@ test("waitForAdminVite: an aborted wait resolves false at once — a Vite that f
 });
 
 test("waitForAdminVite: an already-aborted signal resolves false without probing at all", async () => {
+  const startedAt = Date.now();
   assert.equal(
     await waitForAdminVite(1, { host: "127.0.0.1", timeoutMs: 30_000, signal: AbortSignal.abort() }),
     false,
   );
+  // The value alone does not pin this: a signal that is ALREADY aborted never fires an `abort`
+  // event, so without the pre-check the wait polls out the full 30s deadline and still resolves
+  // false. Only the elapsed time separates the two.
+  assert.ok(Date.now() - startedAt < 1_000, "an already-aborted signal must short-circuit, not poll the deadline out");
 });
 
 test("probeAdminVite: a junk TOVU_ADMIN_DEV_PORT is a miss, not an unhandled rejection in the launcher", async () => {

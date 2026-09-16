@@ -24,6 +24,15 @@ test("empty output yields no listeners — the normal 'port is free' case", () =
   assert.deepEqual(parseLsofListeners(""), []);
 });
 
+test("a command line with no pid before it is dropped — the guard the dangling-`p` case never reaches", () => {
+  // A `c` with no `p` ahead of it (a read that started mid-record) must not emit `{pid: null, …}`.
+  // The fixture below cannot catch this: its second `p` overwrites the first, so the pid is never
+  // null by the time a `c` arrives.
+  assert.deepEqual(parseLsofListeners(["cvite", "p41310", "cnode", ""].join("\n")), [
+    { pid: "41310", command: "node" },
+  ]);
+});
+
 test("a pid line with no command line after it is dropped, not emitted with an undefined command", () => {
   // `lsof` emits one `c` per `p`, but a truncated read (or a process that exits mid-listing) can
   // leave a dangling `p`. Emitting `{pid, command: undefined}` would print "PID 41207 (undefined)"

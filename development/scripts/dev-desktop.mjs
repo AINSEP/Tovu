@@ -443,13 +443,13 @@ async function main() {
     "tovu desktop: watching the renderer for changes — edit, then reload the window (Cmd+R) to see it.\n" +
       "tovu desktop: Ctrl-C stops everything.\n"
   );
-  // Captured BEFORE the watcher spawns, so any pre-existing `index.html` from a previous run —
-  // already on disk, already stable — reads as older than this run and cannot short-circuit the
-  // wait below. See waitForFileStable's doc comment.
   // Cheap (0-3s worst case) and BEFORE the renderer watch, so a decision to start our own Vite
   // overlaps the renderer's ~2.7s first build instead of adding to it.
   const adminVitePlan = await planAdminVite(ADMIN_VITE_PORT);
 
+  // Captured BEFORE the watcher spawns, so any pre-existing `index.html` from a previous run —
+  // already on disk, already stable — reads as older than this run and cannot short-circuit the
+  // wait below. See waitForFileStable's doc comment.
   const rendererBuildStartedAt = Date.now();
   start("vite watch", ["run", "watch:renderer"]);
 
