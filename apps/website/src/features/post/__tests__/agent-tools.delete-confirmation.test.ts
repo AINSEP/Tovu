@@ -173,7 +173,7 @@ test("the call stays open after the dialog is shown, and nothing is deleted whil
   assert.equal(row?.deletedAt ?? null, null, "the row must still be live while the dialog is open");
   assert.equal(row?.version, 1);
   assert.equal((await changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID })).length, 0);
-  assert.equal((await outbox.claimPending({ limit: 10, now: NOW })).length, 0);
+  assert.equal((await outbox.claimPending(10, NOW)).length, 0);
 
   // Let the call resolve so the test does not leak a pending exchange.
   surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
