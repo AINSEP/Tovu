@@ -57,10 +57,10 @@ import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@/fe
  * and the composer discovery selection resolver), pulled out for the same
  * directly-assertable-without-mounting reason. Each function's own doc comment explains why it, in
  * particular, is shaped this way; see `AssistantDock.tsx` for how each one is actually wired in.
- * `resolveComposerDiscoveryOutcome` has an external consumer outside this folder
- * (`features/plugins/__tests__/agent-plugin-capability-adapter.unit.test.ts`), so per `INFO.md`'s
- * Components rule 2 it is re-exported by name from `AssistantDock.tsx` rather than living here
- * `.hooks.tsx`-only.
+ * `resolveComposerDiscoveryOutcome` is reached through `AssistantDock.tsx` rather than here
+ * `.hooks.tsx`-only: per `INFO.md`'s Components rule 2 it is re-exported by name from the component
+ * file, and that is the path its own suite
+ * (`../__tests__/resolve-composer-discovery-outcome.unit.test.ts`) imports.
  *
  * Per `INFO.md`'s Components rule 3 (any hook touching the DOM, browser APIs, or IO is an
  * injectable prop, defaulted to the real hook), seven hooks below are exposed as injectable seams
@@ -976,9 +976,8 @@ export interface ResolveComposerDiscoveryOutcomeDeps {
   /**
    * Pins a selected capability's `pluginRefId` (`composer-capabilities.ts`'s own doc on that
    * field) as a removable chip — {@link UseSelectedAgentPlugins.addPluginRef}. Optional so every
-   * existing caller of this function (including `agent-plugin-capability-adapter.unit.test.ts`'s
-   * fixtures, none of which project a `pluginRefId` capability) keeps compiling and passing
-   * unchanged; a selection that resolves to a `pluginRefId` capability with this omitted is simply
+   * existing caller of this function keeps compiling and passing unchanged even when it projects no
+   * `pluginRefId` capability; a selection that resolves to a `pluginRefId` capability with this omitted is simply
    * a no-op rather than a crash, matching `resolveTovuComposerDiscoveryRoute`'s own "no route, no
    * effect" posture for an id nothing recognizes.
    */
@@ -998,9 +997,8 @@ export interface ResolveComposerDiscoveryOutcomeDeps {
  * so the resolution logic (including the `'allowlisted-tool-call'` branch, unreachable through any
  * bundled capability today) is provable without rendering `AssistantDock` at all.
  *
- * Has an external consumer outside this folder
- * (`features/plugins/__tests__/agent-plugin-capability-adapter.unit.test.ts`), so per `INFO.md`'s
- * Components rule 2 it is re-exported by name from `AssistantDock.tsx` — see that file.
+ * Per `INFO.md`'s Components rule 2 it is re-exported by name from `AssistantDock.tsx` — see that
+ * file — which is the path its own suite imports it through.
  *
  * @complexity O(1) plus the cost of `callAllowlistedTool` when a tool-call binding is resolved.
  * @overallScore 100

@@ -1,24 +1,23 @@
 /**
- * @file The adapter between an installed Agent Plugin (`install.ts`'s `InstalledAgentPlugin`) and
- * whatever the composer's capability projection ultimately consumes.
+ * @file The one surviving half of the Agent Plugins capability work: the `stdio` vs remote MCP trust
+ * classifier and the disk readers that turn an installed package (`install.ts`'s
+ * `InstalledAgentPlugin`) into readable Skill markdown and classified MCP transport config.
  *
  * ---------------------------------------------------------------------------
- * Interface boundary — read this before changing the shape below
+ * The candidate descriptor projection was removed 2026-09-15
  * ---------------------------------------------------------------------------
- * The FINAL debate decision (`2026-08-12-tovu-six-debates-FINAL.md`, "3 — Agent Plugins → commands")
- * is explicit: "Agent Plugins are one adapter feeding the composer's capability projection — not a
- * parallel command system." Building that projection (the layer that turns a heterogeneous set of
- * capability sources — Agent Plugins among them — into what the composer actually renders and
- * dispatches) is a SEPARATE agent's deliverable, dispatched from the same debate's decision on
- * composer slash commands. This module is the OTHER side of that boundary: it does not touch the
- * composer, `apps/admin/src/components/AssistantDock/**`, or Jini's `slots.ts`/`composer-discovery.ts`
- * (verified real shape: `ComposerDiscoveryItem` is `{ id, label, description?, kind?, keywords?,
- * insertText? }` — data-only, no execute/preview fields at all today; `TOVU_COMPOSER_DISCOVERY_GROUPS`
- * in `apps/admin/src/features/plugins/agent-plugin-catalog.ts` is the CURRENT hardcoded catalog the
- * projection agent's own work explicitly plans to replace — this module does not edit that file).
- *
- * `AgentPluginCapabilityDescriptor` below is therefore a CANDIDATE contract, owned and tested by this
- * module, not a promise about what the real projection's input type will be named or shaped like.
+ * This module used to also export `projectInstalledAgentPluginCapabilities`, a CANDIDATE
+ * `AgentPluginCapabilityDescriptor` projection of one installed plugin's Skills and MCP servers.
+ * It had no production producer, endpoint, or consumer: it ran server-side (reading skill markdown
+ * off disk) and nothing proxied its output to the admin session, so its descriptor graph — and the
+ * `execute` union it carried — could only ever be exercised by its own tests. The 2026-08-26 owner
+ * call that removed `capability_search`/`capability_get` (see
+ * `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`) settled the direction — every
+ * installed plugin now reaches the agent through its own real tool
+ * (`features/agent-plugins/tool-registrations.ts`), so the speculative descriptor graph was
+ * deleted rather than left to rot. What remains is the real, used half: the trust classifier below
+ * and the readers this feature's production callers (`federate-mcp.ts`,
+ * `resolve-agent-plugin-refs.ts`, `tool-registrations.ts`) actually call.
  *
  * ---------------------------------------------------------------------------
  * 2026-09-10: MCP servers are no longer unconditionally execute:unavailable (OWNER-OVERRULED)
@@ -38,18 +37,14 @@
  * external facts (Higgsfield MCP: OAuth-only, no API key, a PUBLIC client per its own discovery
  * document — no secret is ever stored) that made this tractable.
  *
- * A Skill's `execute` is still always `{ kind: "context-injection" }` — unaffected by any of this,
- * since Skills never carried the MCP question in the first place.
- *
  * Architectural role:
- * Pure projection (`projectInstalledAgentPluginCapabilities`) plus one disk-reading helper
- * (`readInstalledSkillMarkdown`) that composes `package-paths.ts`'s containment guarantee with a real
- * file read — the same split `install.ts` and `package-paths.ts` already keep between "pure logic"
- * and "the one place bytes are actually read".
+ * The trust classifier (`classifyAgentPluginMcpServerTrust`) plus the disk readers
+ * (`readInstalledSkillMarkdown`, `readInstalledMcpServerIds`, `readInstalledMcpServers`) that compose
+ * `package-paths.ts`'s containment guarantee with a real file read — the same split `install.ts` and
+ * `package-paths.ts` already keep between "pure logic" and "the one place bytes are actually read".
  */
 import { readFile } from "node:fs/promises";
 
-import type { InstalledAgentPlugin } from "./install.js";
 import type { AgentPluginMcpConfig, McpServerConfig } from "./manifest.js";
 import { parseAgentPluginMcpConfig } from "./manifest.js";
 import { assertContainedOnDisk } from "./package-paths.js";
@@ -75,144 +70,6 @@ import { assertContainedOnDisk } from "./package-paths.js";
  */
 export function classifyAgentPluginMcpServerTrust(server: Pick<McpServerConfig, "type">): "auto-admit" | "requires-confirmation" {
   return server.type === "stdio" ? "requires-confirmation" : "auto-admit";
-}
-
-export type AgentPluginCapabilityKind = "agent-plugin-skill" | "agent-plugin-mcp-server";
-
-export type AgentPluginCapabilityPreview =
-  | { readonly kind: "markdown"; readonly path: string; readonly content: string }
-  | { readonly kind: "none" };
-
-export type AgentPluginCapabilityExecute =
-  | { readonly kind: "context-injection"; readonly markdown: string }
-  /** An auto-admitted (`classifyAgentPluginMcpServerTrust` === "auto-admit") remote MCP server. Not
-   * `context-injection` — there is no markdown to compose for a network connection — but distinct
-   * from `unavailable`: this server IS wired into the assistant's own tool federation automatically
-   * (Phase 4), so calling it inert here would misdescribe a server that may be actively answering
-   * tool calls. `reason` is operator-facing explanatory text, not a refusal. */
-  | { readonly kind: "federated"; readonly reason: string }
-  /** A `stdio` server, or one whose declared shape this module could not classify. Genuinely inert
-   * until an operator explicitly confirms it — see `classifyAgentPluginMcpServerTrust`. */
-  | { readonly kind: "unavailable"; readonly reason: string };
-
-/** One capability an installed Agent Plugin contributes. See this module's header for what is and
- * is not a stable contract about this shape. */
-export interface AgentPluginCapabilityDescriptor {
-  readonly id: string;
-  readonly kind: AgentPluginCapabilityKind;
-  readonly label: string;
-  readonly description: string;
-  readonly keywords: readonly string[];
-  readonly pluginId: string;
-  /** The installed package's content digest — a projection consumer's natural cache/invalidation
-   * key, mirroring `AdmittedFederatedTool`'s own audit-carrying fields in `mcp-federation/trust.ts`. */
-  readonly revision: string;
-  readonly preview: AgentPluginCapabilityPreview;
-  readonly execute: AgentPluginCapabilityExecute;
-}
-
-export interface ProjectInstalledAgentPluginCapabilitiesRequired {
-  readonly installed: InstalledAgentPlugin;
-  /** Reads one skill's markdown by its package-relative `skillPath`. Injected rather than reading
-   * disk directly, so this projection function stays pure and unit-testable without a real
-   * filesystem — `readInstalledSkillMarkdown` below is the real implementation a caller supplies. */
-  readonly readSkillMarkdown: (skillPath: string) => Promise<string>;
-  /** Server ids declared in the package's `mcp.json` (`manifest.ts`'s `parseAgentPluginMcpConfig`
-   * result) — empty when the package declares no `mcp.json` at all, which the spec makes optional.
-   * A descriptor is produced for every id here, even one absent from {@link mcpServers} below (a
-   * declared-but-unparseable entry), matching this projector's pre-existing "one descriptor per
-   * declared id" contract regardless of whether the shape validated. */
-  readonly mcpServerIds: readonly string[];
-  /** The subset of {@link mcpServerIds} whose transport shape validated (`manifest.ts`'s
-   * `AgentPluginMcpConfig.servers`) — what `classifyAgentPluginMcpServerTrust` classifies. A
-   * `mcpServerIds` entry absent here gets `execute: { kind: "unavailable" }` with a reason naming
-   * the parse failure rather than a trust classification, since there is no config to classify. */
-  readonly mcpServers: Readonly<Record<string, McpServerConfig>>;
-}
-
-export type ProjectInstalledAgentPluginCapabilitiesOptional = {};
-
-/**
- * The `execute` half of one MCP-server descriptor — split out of {@link projectInstalledAgentPluginCapabilities}
- * purely to keep that function's complexity under the shop ceiling.
- *
- * @param config - The server's validated transport config, or `undefined` when `serverId` was
- * declared in `mcp.json` but its shape did not validate (see {@link ProjectInstalledAgentPluginCapabilitiesRequired.mcpServers}).
- * @complexity O(1).
- */
-function resolveAgentPluginMcpExecute(serverId: string, config: McpServerConfig | undefined): AgentPluginCapabilityExecute {
-  if (!config) {
-    return {
-      kind: "unavailable",
-      reason: `this plugin's mcp.json declares '${serverId}' with a shape this version of Tovu does not recognize, so it cannot be launched`,
-    };
-  }
-
-  if (classifyAgentPluginMcpServerTrust(config) === "auto-admit") {
-    return {
-      kind: "federated",
-      reason:
-        "this remote MCP server is wired into the assistant's tool set automatically — it carries no local " +
-        "execution and no secret this plugin could have embedded, so no separate confirmation is required. " +
-        "Individual tools it advertises are still gated by the operator's own allowlist at connect time.",
-    };
-  }
-
-  return {
-    kind: "unavailable",
-    reason:
-      "this server launches a local process ('stdio') from a downloaded plugin package — that requires explicit " +
-      "operator confirmation before Tovu will ever run it, which has not been given yet.",
-  };
-}
-
-/**
- * Projects one installed Agent Plugin's Skills and MCP servers into capability descriptors.
- *
- * @throws Propagates whatever `readSkillMarkdown` throws for a skill it cannot read; does not itself
- * perform I/O.
- * @complexity O(s + m) in the plugin's own skill and MCP-server counts.
- */
-export async function projectInstalledAgentPluginCapabilities(
-  required: ProjectInstalledAgentPluginCapabilitiesRequired,
-  _optional: ProjectInstalledAgentPluginCapabilitiesOptional = {}
-): Promise<readonly AgentPluginCapabilityDescriptor[]> {
-  const { installed, readSkillMarkdown, mcpServerIds, mcpServers } = required;
-  const descriptors: AgentPluginCapabilityDescriptor[] = [];
-
-  for (const skill of installed.skills) {
-    const markdown = await readSkillMarkdown(skill.skillPath);
-    descriptors.push({
-      id: `agent-plugin:${installed.pluginId}:skill:${skill.name}`,
-      kind: "agent-plugin-skill",
-      label: humanize(skill.name),
-      description: `Context-only skill from the '${installed.pluginId}' Agent Plugin`,
-      keywords: ["skill", installed.pluginId, skill.name],
-      pluginId: installed.pluginId,
-      revision: installed.archiveDigest,
-      preview: { kind: "markdown", path: skill.skillPath, content: markdown },
-      // A Skill's whole contract (Agent Plugins spec) is markdown with no arguments, return value,
-      // or side effects — "context injection" is the entire execution model, not a stand-in for one
-      // this module has not built yet (FINAL decision: "No trust model needed").
-      execute: { kind: "context-injection", markdown },
-    });
-  }
-
-  for (const serverId of mcpServerIds) {
-    descriptors.push({
-      id: `agent-plugin:${installed.pluginId}:mcp:${serverId}`,
-      kind: "agent-plugin-mcp-server",
-      label: serverId,
-      description: `MCP server declared by the '${installed.pluginId}' Agent Plugin`,
-      keywords: ["mcp", installed.pluginId, serverId],
-      pluginId: installed.pluginId,
-      revision: installed.archiveDigest,
-      preview: { kind: "none" },
-      execute: resolveAgentPluginMcpExecute(serverId, mcpServers[serverId]),
-    });
-  }
-
-  return descriptors;
 }
 
 /**
@@ -274,8 +131,8 @@ async function readInstalledMcpConfig(packageRoot: string): Promise<AgentPluginM
  * The server ids declared in one installed package's `mcp.json`, regardless of whether each one's
  * own transport shape validated — see {@link readInstalledMcpConfig} for the shared fail-open
  * contract. Kept as its own function for the callers that only need ids and should not pay for (or
- * receive) transport configuration, mirroring the ids-only/full-config split
- * {@link ProjectInstalledAgentPluginCapabilitiesRequired} draws between `mcpServerIds` and `mcpServers`.
+ * receive) transport configuration, mirroring the ids-only/full-config split this feature's callers
+ * draw between listing a server and launching one.
  *
  * @complexity See {@link readInstalledMcpConfig}.
  */
@@ -287,8 +144,8 @@ export async function readInstalledMcpServerIds(packageRoot: string): Promise<re
 /**
  * The full, validated transport configuration of every server in one installed package's `mcp.json`
  * whose shape validated — the sibling {@link readInstalledMcpServerIds} does not provide, needed by
- * any caller that must actually LAUNCH a server rather than merely list it (capability projection's
- * trust classification, and Phase 4's federation wiring). A server present in
+ * any caller that must actually LAUNCH a server rather than merely list it (`federate-mcp.ts`'s trust
+ * classification, and Phase 4's federation wiring). A server present in
  * {@link readInstalledMcpServerIds}'s result but absent from this one declared an unrecognized
  * `type` or was missing a required field for it — fail-open per `manifest.ts`'s own contract, not an
  * error a caller here needs to handle specially.
@@ -301,12 +158,4 @@ export async function readInstalledMcpServerIds(packageRoot: string): Promise<re
 export async function readInstalledMcpServers(packageRoot: string): Promise<Readonly<Record<string, McpServerConfig>>> {
   const config = await readInstalledMcpConfig(packageRoot);
   return config?.servers ?? {};
-}
-
-function humanize(value: string): string {
-  return value
-    .split("-")
-    .filter((part) => part.length > 0)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 }

@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
-import { projectInstalledAgentPluginCapabilities, readInstalledSkillMarkdown } from "../../capability-projection.js";
+import { readInstalledSkillMarkdown } from "../../capability-projection.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { parseAgentPluginMcpConfig } from "../../manifest.js";
@@ -14,9 +14,10 @@ import { parseAgentPluginMcpConfig } from "../../manifest.js";
 /**
  * @file End-to-end proof that layout + install + manifest + capability-projection compose into one
  * coherent slice, not four units that only pass in isolation. Mirrors a real caller's own sequence:
- * resolve where bytes go, extract+verify an archive, parse its optional `mcp.json`, and project the
- * result into capability descriptors — no step here reaches around another (no direct disk reads
- * bypassing `package-paths.ts`'s containment check, no hand-built `InstalledAgentPlugin` fixture).
+ * resolve where bytes go, extract+verify an archive, parse its optional `mcp.json`, and read the
+ * installed files back through the same containment guarantee — no step here reaches around another
+ * (no direct disk reads bypassing `package-paths.ts`'s containment check, no hand-built
+ * `InstalledAgentPlugin` fixture).
  */
 
 function fileEntry(entryPath: string, content: string): AgentPluginArchiveEntry {
@@ -40,7 +41,7 @@ function reader(entries: readonly AgentPluginArchiveEntry[]): AgentPluginArchive
   };
 }
 
-test("install -> parse mcp.json -> project capabilities, end to end, for a plugin with both a skill and an MCP server", async () => {
+test("install -> parse mcp.json -> read installed files through the containment guarantee, end to end, for a plugin with both a skill and an MCP server", async () => {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-pipeline-test-"));
   try {
     const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
@@ -82,29 +83,12 @@ test("install -> parse mcp.json -> project capabilities, end to end, for a plugi
     const parsedMcp = parseAgentPluginMcpConfig(JSON.parse(mcpConfigRaw));
     assert.equal(parsedMcp.ok, true);
     const mcpServerIds = parsedMcp.ok ? parsedMcp.config.serverIds : [];
-    const mcpServers = parsedMcp.ok ? parsedMcp.config.servers : {};
     assert.deepEqual(mcpServerIds, ["main"]);
 
-    const descriptors = await projectInstalledAgentPluginCapabilities({
-      installed,
-      readSkillMarkdown: (skillPath) => readInstalledSkillMarkdown(installed.packageRoot, skillPath),
-      mcpServerIds,
-      mcpServers,
-    });
-
-    const skillDescriptor = descriptors.find((d) => d.kind === "agent-plugin-skill");
-    const mcpDescriptor = descriptors.find((d) => d.kind === "agent-plugin-mcp-server");
-
-    assert.equal(skillDescriptor?.execute.kind, "context-injection");
-    if (skillDescriptor?.execute.kind === "context-injection") {
-      assert.equal(skillDescriptor.execute.markdown, skillMarkdown);
-    }
-
-    // End-to-end proof that a real mcp.json round-trips through parsing into the same trust
-    // classification a unit test would predict: this fixture declares a `stdio` server, which
-    // `classifyAgentPluginMcpServerTrust` always classifies as "requires-confirmation" — never
-    // auto-run from a downloaded plugin package — so the projected descriptor stays inert.
-    assert.equal(mcpDescriptor?.execute.kind, "unavailable");
+    // The same primitive reads a skill's authored markdown back byte-for-byte, at its real
+    // package-relative path.
+    const readBackSkill = await readInstalledSkillMarkdown(installed.packageRoot, "skills/ui-ux-design/SKILL.md");
+    assert.equal(readBackSkill, skillMarkdown);
 
     // Re-installing the SAME archive bytes (as a second workspace "installing" the same plugin@version
     // would) must not re-extract — the content-addressed dedup property holds across the pipeline,

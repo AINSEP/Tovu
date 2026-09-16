@@ -57,11 +57,12 @@ import {
 import type { DragEvent } from "react";
 
 // `resolveComposerDiscoveryOutcome` lives in `AssistantDock.hooks.tsx` now (2026-08-18, alongside
-// `shouldPublishOnMessagesChange`/`resolveRunContext` as a third pure decision helper), but has an
-// external consumer outside this folder
-// (`features/plugins/__tests__/agent-plugin-capability-adapter.unit.test.ts`) — per `INFO.md`'s
-// Components rule 2 ("a hook with an external consumer gets re-exported by name from the component
-// file"), it stays reachable at this same import path.
+// `shouldPublishOnMessagesChange`/`resolveRunContext` as a third pure decision helper). Per
+// `INFO.md`'s Components rule 2 ("a hook with an external consumer gets re-exported by name from the
+// component file") it stays reachable at this same import path, which is how
+// `__tests__/resolve-composer-discovery-outcome.unit.test.ts` reaches it. (Its one consumer outside
+// this folder, `features/plugins/__tests__/agent-plugin-capability-adapter.unit.test.ts`, was deleted
+// 2026-09-15 with the candidate Agent Plugin capability projection it tested.)
 export { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDeps } from "./hooks/AssistantDock.hooks";
 
 /**

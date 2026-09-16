@@ -73,11 +73,10 @@ export interface TovuComposerCapabilityPreview {
  * One capability the composer can discover, paired with how to resolve a selection of it into an
  * effect. `resolve` is omitted for an item with no execution beyond its own `insertText`/`label`
  * macro, an existing client-local route (e.g. `/mcp`), or a source-level decision that the item is
- * structurally inert (see `agent-plugin-capability-adapter.ts`'s handling of an MCP-server
- * descriptor's `execute: { kind: "federated" | "unavailable" }` — neither kind ever composes text,
- * whether or not the underlying server is auto-admitted into the assistant's own tool federation)
- * — selecting such an item resolves to `undefined` through `resolveComposerDiscoveryOutcome`, a
- * documented no-op, not a silent bug.
+ * structurally inert (see `tool-catalog-composer-source.ts`, whose every row is deliberately
+ * `resolve`-less: there is no text to compose for a tool the agent calls itself) — selecting such an
+ * item resolves to `undefined` through `resolveComposerDiscoveryOutcome`, a documented no-op, not a
+ * silent bug.
  *
  * `resolve` receives the invocation's `argument` exactly as `ComposerDiscoverySelection` carries
  * it (`undefined` for a plain item, `null` | `""` | the typed text for a `command`-bearing one) so
@@ -91,10 +90,9 @@ export interface TovuComposerCapability {
   /** See {@link TovuComposerCapabilityPreview}. Absent for a capability with nothing to preview. */
   readonly preview?: TovuComposerCapabilityPreview;
   /**
-   * A source-specific cache/invalidation key — e.g. an Agent Plugin's content digest
-   * (`AgentPluginCapabilityDescriptor.revision`, "a projection consumer's natural cache/
-   * invalidation key" per that module's own doc). Unused by `projectComposerCapabilities` today;
-   * carried through so a future source doesn't need a second contract change to add one.
+   * A source-specific cache/invalidation key — e.g. an installed package's content digest. Unused
+   * by `projectComposerCapabilities` and set by no source today; carried through so a future source
+   * doesn't need a second contract change to add one.
    */
   readonly revision?: string;
   /**
