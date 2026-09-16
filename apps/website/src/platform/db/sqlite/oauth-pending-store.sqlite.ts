@@ -242,8 +242,10 @@ export interface SqliteDeviceAuthorizationStoreDeps {
 
 /** The AAD every sealed `device_code` is bound to — identical shape to
  *  `assistant/external-mcp-oauth.ts`'s `ownerKeyOf`, restated here rather than imported so this
- *  storage-only file does not have to reach into that module for a two-field template string. */
-function deviceAad(workspaceId: UUID, serverId: string): string {
+ *  storage-only file does not have to reach into that module for a two-field template string.
+ *  Exported so `sealed-credential-descriptors.sqlite.ts` opens these rows through this store's own
+ *  AAD rather than a restated copy. */
+export function deviceAad(workspaceId: UUID, serverId: string): string {
   return `${workspaceId}:${serverId}`;
 }
 
