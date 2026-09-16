@@ -1041,55 +1041,122 @@ describe("Edit/Preview toolbar", () => {
 
 /**
  * Preview fullscreen, Level 1 (2026-09-15) — `ADS-memory/.local-artifacts/handoffs/
- * 2026-09-15-preview-fullscreen-PLAN.md` §1.4. `previewExpanded`/`togglePreviewExpanded` themselves
- * are `usePostEditor`'s own state (covered in `use-post-editor.hooks.unit.test.tsx`); these tests are
- * about `PostEditor`'s rendering decision given that state, through the same DI seam the
- * "Edit/Preview toolbar" suite above already uses.
+ * 2026-09-15-preview-fullscreen-PLAN.md` §1.4, as revised by `a380c716`. `previewExpanded`/
+ * `togglePreviewExpanded` themselves are `usePostEditor`'s own state (covered in
+ * `use-post-editor.hooks.unit.test.tsx`); these tests are about `PostEditor`'s rendering decision
+ * given that state, through the same DI seam the "Edit/Preview toolbar" suite above already uses.
+ *
+ * `a380c716` replaced TWO controls (a toolbar button labelled "Expand to full width" + the expanded
+ * panel's own "Exit full width" header button) with ONE translucent control floating on the preview
+ * itself, `.post-preview-fab`, rendered in the same place in BOTH states. That is the whole point of
+ * the change and the property this suite exists to defend: the way out is always visible. An earlier
+ * overlay attempt was killed by an operator who could not see how to get back.
+ *
+ * Queried by accessible name rather than class wherever the name IS the contract — it is what both
+ * an operator's screen reader and `page.find_elements` read to tell which way the toggle goes. The
+ * class is asserted only where the class itself is load-bearing (`.post-preview-surface` is the
+ * `position: relative` ancestor the fab's `position: absolute` resolves against, see `editor.css`).
  */
 describe("Preview fullscreen — Level 1 expand toggle", () => {
-  it("renders no expand toggle in Editor view — expanding only makes sense for the rendered preview", () => {
+  it("renders no fullscreen control in Editor view — expanding only makes sense for the rendered preview", () => {
     renderPostEditor({ view: "edit" });
-    expect(screen.queryByRole("button", { name: /expand to full width/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /exit full width/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Show full screen" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Exit full screen" })).not.toBeInTheDocument();
+    expect(document.querySelector(".post-preview-fab")).not.toBeInTheDocument();
   });
 
-  it("renders the toolbar's expand toggle in Preview view while collapsed", () => {
+  it("renders the fullscreen control on the preview while collapsed", () => {
     renderPostEditor({ view: "preview", previewExpanded: false });
-    expect(screen.getByRole("button", { name: /expand to full width/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show full screen" })).toHaveClass("post-preview-fab");
   });
 
-  it("clicking the toolbar's expand toggle calls togglePreviewExpanded", async () => {
+  it("clicking the collapsed control calls togglePreviewExpanded", async () => {
     const user = userEvent.setup();
     const { ctrl } = renderPostEditor({ view: "preview", previewExpanded: false });
-    await user.click(screen.getByRole("button", { name: /expand to full width/i }));
+    await user.click(screen.getByRole("button", { name: "Show full screen" }));
     expect(ctrl.togglePreviewExpanded).toHaveBeenCalledTimes(1);
   });
 
-  it("collapsed view renders the preview pane exactly as before — no .post-preview-expanded wrapper", () => {
+  // The regression `a380c716` exists to prevent: the previous shape hid the toggle once expanded and
+  // relied on a separate header button to get back. If this test ever fails because the control is
+  // absent while expanded, the operator is trapped in a full-screen panel with no visible exit.
+  it("renders the SAME control while expanded — the way out is always on screen", () => {
+    renderPostEditor({ view: "preview", previewExpanded: true });
+    expect(screen.getByRole("button", { name: "Exit full screen" })).toHaveClass("post-preview-fab");
+  });
+
+  it("clicking the expanded control calls togglePreviewExpanded", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ view: "preview", previewExpanded: true });
+    await user.click(screen.getByRole("button", { name: "Exit full screen" }));
+    expect(ctrl.togglePreviewExpanded).toHaveBeenCalledTimes(1);
+  });
+
+  // One control, two directions: the ONLY thing distinguishing them is the accessible name (the glyph
+  // is `aria-hidden`). Both an operator on a screen reader and an agent reading `page.find_elements`
+  // depend on this to know which way the toggle goes, so assert the names are mutually exclusive
+  // rather than merely present.
+  it("names the control for the direction it goes, and never both ways at once", () => {
+    const collapsed = renderPostEditor({ view: "preview", previewExpanded: false });
+    expect(screen.getByRole("button", { name: "Show full screen" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Exit full screen" })).not.toBeInTheDocument();
+    collapsed.unmount();
+
+    renderPostEditor({ view: "preview", previewExpanded: true });
+    expect(screen.getByRole("button", { name: "Exit full screen" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Show full screen" })).not.toBeInTheDocument();
+  });
+
+  // Esc is the second way out (`usePostEditor`'s own key handler). The tooltip is where an operator
+  // who found the icon learns that, so it is part of the shipped contract, not decoration.
+  it("advertises Esc in the expanded control's tooltip", () => {
+    renderPostEditor({ view: "preview", previewExpanded: true });
+    expect(screen.getByRole("button", { name: "Exit full screen" })).toHaveAttribute(
+      "title",
+      "Exit full screen (Esc)",
+    );
+  });
+
+  it("collapsed view renders the preview pane with no .post-preview-expanded wrapper", () => {
     renderPostEditor({ view: "preview", previewExpanded: false });
     expect(document.querySelector(".post-preview-expanded")).not.toBeInTheDocument();
     expect(screen.getByTitle("Post preview")).toBeInTheDocument();
   });
 
-  it("expanded view wraps the pane in .post-preview-expanded with its own header collapse control, and hides the toolbar's own toggle (it would be covered)", () => {
+  it("expanded view wraps the pane AND the control in .post-preview-expanded", () => {
     renderPostEditor({ view: "preview", previewExpanded: true });
     const wrapper = document.querySelector(".post-preview-expanded");
     expect(wrapper).toBeInTheDocument();
     expect(wrapper?.querySelector('[title="Post preview"]')).not.toBeNull();
-    expect(screen.queryByRole("button", { name: /expand to full width/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /exit full width/i })).toBeInTheDocument();
+    expect(wrapper?.contains(screen.getByRole("button", { name: "Exit full screen" }))).toBe(true);
   });
 
-  it("clicking the expanded surface's own collapse control calls togglePreviewExpanded", async () => {
-    const user = userEvent.setup();
-    const { ctrl } = renderPostEditor({ view: "preview", previewExpanded: true });
-    await user.click(screen.getByRole("button", { name: /exit full width/i }));
-    expect(ctrl.togglePreviewExpanded).toHaveBeenCalledTimes(1);
+  // `.post-preview-surface` is the fab's positioning ancestor (`position: relative` in `editor.css`).
+  // Hoist the fab out of it and `position: absolute; top/right` resolves against some far outer box
+  // instead — the icon lands somewhere unrelated on screen, which jsdom cannot see. Pinning the
+  // nesting is the part of that contract a unit test CAN hold.
+  it("nests the control inside .post-preview-surface — its positioning ancestor — in both states", () => {
+    const collapsed = renderPostEditor({ view: "preview", previewExpanded: false });
+    expect(screen.getByRole("button", { name: "Show full screen" }).parentElement).toHaveClass(
+      "post-preview-surface",
+    );
+    collapsed.unmount();
+
+    renderPostEditor({ view: "preview", previewExpanded: true });
+    expect(screen.getByRole("button", { name: "Exit full screen" }).parentElement).toHaveClass(
+      "post-preview-surface",
+    );
   });
 
-  it("tags the expand control with an agentHandle so the assistant can find and click it", () => {
-    renderPostEditor({ view: "preview", previewExpanded: false });
-    expect(document.querySelector('[data-agent-element="post-preview-expand"]')).toBeInTheDocument();
+  // Exactly ONE, never two. The old shape mounted two separate buttons sharing this handle and was
+  // safe only because they were mutually exclusive; the current shape renders one element in both
+  // states. A second copy would make `page.click` ambiguous for the assistant.
+  it.each<[string, boolean]>([
+    ["collapsed", false],
+    ["expanded", true],
+  ])("tags exactly one post-preview-expand agentHandle while %s", (_label, previewExpanded) => {
+    renderPostEditor({ view: "preview", previewExpanded });
+    expect(document.querySelectorAll('[data-agent-element="post-preview-expand"]')).toHaveLength(1);
   });
 });
 

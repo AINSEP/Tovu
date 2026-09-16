@@ -154,10 +154,11 @@ describe("driving the post editor's Editor/Preview tabs and expand toggle throug
     expect(ctrl.togglePreviewExpanded).toHaveBeenCalledTimes(1);
   });
 
-  // The toolbar's toggle and the expanded surface's own header toggle are mutually exclusive in the
-  // DOM (never both mounted — see `PostEditor.tsx`'s own comment on why they share one handle), so
-  // this proves the SAME handle stays reachable on the other side of the toggle too, not a duplicate.
-  it("post-preview-expand stays reachable once already expanded — the header's own collapse control, same handle", async () => {
+  // Since `a380c716` there is ONE control carrying this handle (`.post-preview-fab`), rendered in the
+  // same place collapsed and expanded rather than two mutually-exclusive buttons. This proves the
+  // handle stays reachable on the other side of the toggle AND that the single element did not become
+  // two — a duplicate handle would make `page.click` ambiguous for the assistant.
+  it("post-preview-expand stays reachable once already expanded — same single handle, now on the preview itself", async () => {
     const { container, ctrl } = renderPostEditor({ view: "preview", previewExpanded: true });
     const driver = createDomPageDriver({ root: container, pages: {} });
 

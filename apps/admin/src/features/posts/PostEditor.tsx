@@ -1488,13 +1488,11 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
             </button>
           ))}
         </div>
-        {/* Preview fullscreen, Level 1 (2026-09-15) — expanding only makes sense for the rendered
-            preview, so this toggle exists only on the Preview tab. Hidden again once actually
-            expanded: the expanded surface (`.post-preview-expanded`, `PostPreview` below) is a
-            `position: absolute; inset: 0` panel over `.admin-content` and would visually cover this
-            toolbar anyway — it carries its own collapse control in its own header instead of leaving
-            a second, invisible copy of this button mounted underneath it. Same `agentHandle` on
-            both, safely: the two are mutually exclusive in the DOM, never mounted at once. */}
+        {/* Preview fullscreen, Level 1 (2026-09-15) — no expand toggle lives in this toolbar. It was
+            here until `a380c716` and is now ONE control floating on the preview itself
+            (`.post-preview-fab`, `PostPreview` below), rendered in the same place both collapsed and
+            expanded so the way out is always visible: the expanded surface is a `position: absolute;
+            inset: 0` panel that would cover anything in this toolbar anyway. */}
         {/* Template picker (Post-template-picker feature, 2026-08-10) — see `PostEditorToolbarEnd`'s
             own doc for the full eligibility/ordering/empty-theme rules this extracts. */}
         <PostEditorToolbarEnd
@@ -1683,8 +1681,9 @@ function PostPreview({
    *  `PostEditorController.previewExpanded`'s own doc for the full lifetime/containment reasoning;
    *  this component only decides what to render given the value. */
   expanded: boolean;
-  /** `usePostEditor`'s `togglePreviewExpanded`, bound to the expanded surface's own header control
-   *  below — the toolbar's copy of this same toggle lives in `PostEditor`'s own render, above. */
+  /** `usePostEditor`'s `togglePreviewExpanded`, bound to the single `.post-preview-fab` control
+   *  below, which this component renders in BOTH states. Nothing in `PostEditor`'s own toolbar
+   *  toggles this any more (since `a380c716`) — this is the only control that does. */
   onToggleExpanded: () => void;
 }) {
   // The same decision `usePostEditor` gates its auto-submit on — one shared copy in `rules.ts`, see
@@ -1711,10 +1710,10 @@ function PostPreview({
     </>
   );
 
-  // Collapsed: exactly what this component has always rendered, no extra wrapper — see this
-  // function's own file-header note in the plan this implements ("byte-for-byte unchanged" when not
-  // expanded). Every one of the branch tests above this point renders with `expanded: false` and
-  // must keep seeing exactly this shape.
+  // ONE control for both directions, in the same place either way — the way out of the expanded
+  // panel must always be visible on screen (the earlier overlay attempt died on an operator who
+  // could not find it). The glyph is `aria-hidden`, so `aria-label` is the ONLY thing telling a
+  // screen reader or `page.find_elements` which way this goes; keep the two names distinct.
   const fab = (
     <button
       type="button"
@@ -1733,14 +1732,15 @@ function PostPreview({
     </button>
   );
 
+  // Collapsed: the pane plus the control, wrapped in `.post-preview-surface` — that wrapper is the
+  // `position: relative` ancestor the fab's `position: absolute` resolves against (`editor.css`), so
+  // the fab must stay inside it. Same wrapper in the expanded branch below, for the same reason.
   if (!expanded) return <div className="post-preview-surface">{pane}{fab}</div>;
 
   // Expanded: `.post-preview-expanded` (`styles/editor.css`) is `position: absolute; inset: 0`
   // against `.admin-main-col` — see that rule's own comment for the full containment argument (why
-  // this covers only the admin content column, never `.admin-chat-dock`). Its own header carries the
-  // collapse control that always works, on screen at all times while expanded — the toolbar's own
-  // copy of this toggle is hidden by `PostEditor` while `expanded` is true, since it would render
-  // underneath this panel.
+  // this covers only the admin content column, never `.admin-chat-dock`). The same `fab` rides along
+  // inside the panel, in the same corner of the same surface, as the always-visible way back out.
   return (
     <div className="post-preview-expanded">
       <div className="post-preview-surface">

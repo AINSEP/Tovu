@@ -147,7 +147,10 @@ it("keeps the assistant dock mounted, outside the expanded post-preview's contai
   await waitFor(() => expect(screen.getByRole("tab", { name: "Preview" })).toBeInTheDocument());
 
   fireEvent.click(screen.getByRole("tab", { name: "Preview" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Expand to full width" }));
+  // `a380c716` replaced the toolbar's "Expand to full width" button with one translucent control on
+  // the preview itself (`.post-preview-fab`), named for the direction it goes — see
+  // `features/posts/__tests__/PostEditor.unit.test.tsx`'s "Preview fullscreen" suite.
+  fireEvent.click(await screen.findByRole("button", { name: "Show full screen" }));
 
   const expanded = container.querySelector(".post-preview-expanded");
   const dock = container.querySelector('[aria-label="Assistant"]');
