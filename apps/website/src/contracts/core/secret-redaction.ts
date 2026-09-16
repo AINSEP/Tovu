@@ -121,8 +121,12 @@ const REDACTION_RULES: readonly RedactionRule[] = [
   },
   {
     kind: "url_credentials",
-    // Host, port, IP and path all stay — only the `user:pass@` half is replaced.
-    pattern: /\b([a-z][a-z0-9+.-]*:\/\/)[^\s/@:]+:[^\s/@]+@/gi,
+    // Host, port, IP and path all stay — only the `user:pass@` half is replaced. The password class
+    // ADMITS `@` and backtracks to the LAST one before the authority ends (2026-09-16 security
+    // review): a password that was never percent-encoded — `postgres://u:p@ss4@host/db` — otherwise
+    // matched only up to its FIRST `@`, leaving the tail (`ss4`) of the password in the output.
+    // `?` is excluded so a query string's own `@` cannot drag the match past the authority.
+    pattern: /\b([a-z][a-z0-9+.-]*:\/\/)(?!\[REDACTED)[^\s/@:]+:[^\s/?]+@/gi,
     replacement: (m) => `${m[1]}[REDACTED:url_credentials]@`,
   },
   ...REUSED_CREDENTIAL_RULES,
@@ -146,6 +150,15 @@ const REDACTION_RULES: readonly RedactionRule[] = [
     kind: "openai_key",
     pattern: /(?<![A-Za-z0-9_-])sk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{20,}/g,
     replacement: () => "[REDACTED:openai_key]",
+  },
+  {
+    kind: "anthropic_key",
+    // SECRET_PATTERNS' own `sk-ant-` entry needs 90+ trailing characters, which is right for the
+    // repo-wide static check (a committed key is whole) but wrong here (2026-09-16 security review):
+    // an upstream 401 often echoes a TRUNCATED key, and `sk-[A-Za-z0-9]{40,}` cannot cover it either
+    // because `sk-ant-api03-` carries hyphens. The prefix alone is specific enough at this length.
+    pattern: /(?<![A-Za-z0-9_-])sk-ant-[A-Za-z0-9_-]{20,}/g,
+    replacement: () => "[REDACTED:anthropic_key]",
   },
   {
     kind: "google_api_key",
@@ -188,6 +201,24 @@ const REDACTION_RULES: readonly RedactionRule[] = [
     // JSON form: `"label":"value"`.
     pattern: new RegExp(`"(${LABELED_SECRET_LABELS})"(\\s*:\\s*)"(?!\\[REDACTED)[^"]+"`, "gi"),
     replacement: (m) => `"${m[1]}"${m[2]}"[REDACTED:labeled_secret]"`,
+  },
+  {
+    kind: "labeled_secret",
+    // Colon form: `api_key: <value>`, `{ api_key: 'value' }`, `\"api_key\":\"value\"` (2026-09-16
+    // security review). The `=` and double-quoted-JSON rules above miss every one of these, and they
+    // are the shapes a real failure arrives in most often — `util.inspect` of a request config, a
+    // YAML/pretty-printed body, or a JSON error body embedded inside ANOTHER JSON string, where the
+    // escaped `\"` defeats the plain JSON rule.
+    //
+    // Prose is kept out by the VALUE's own shape rather than by banning the colon: a quoted value is
+    // always taken, an unquoted one only when it is a single ≥12-character token. That is what keeps
+    // this file's Must NOT change list intact — `password: must be at least 8 characters` stops at
+    // the 4-character `must`, and `token expired at ...` has no colon at all.
+    pattern: new RegExp(
+      `(?<![A-Za-z0-9])(${LABELED_SECRET_LABELS})(\\\\?["']?\\s*:\\s*)(?:(\\\\?["'])(?!\\[REDACTED)[^"'\\\\\\r\\n]+\\3|(?!\\[REDACTED)[^\\s"',;}]{12,})`,
+      "gi",
+    ),
+    replacement: (m) => `${m[1]}${m[2]}${m[3] ?? ""}[REDACTED:labeled_secret]${m[3] ?? ""}`,
   },
   {
     kind: "labeled_secret",

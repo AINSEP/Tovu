@@ -108,3 +108,71 @@ test("redactions counts every value blanked, not just whether any were found", (
 test("an empty string is returned unchanged, with redactions === 0", () => {
   assert.deepEqual(redactSecretShapes(""), { text: "", redactions: 0 });
 });
+
+// 2026-09-16 security review: the shapes below all LEAKED their secret verbatim before this
+// commit. Each one is a form a real tool-failure message reaches us in — `util.inspect` of a
+// request config, a YAML/pretty-printed body, a JSON error body embedded inside another JSON
+// string, a DSN whose password was never percent-encoded.
+
+test("a `label: value` colon form is blanked for every secret label, quoted or bare", () => {
+  const value = "abcd1234efgh5678ijkl";
+  const cases: [string, string][] = [
+    [`api_key: ${value}`, `api_key: [REDACTED:labeled_secret]`],
+    [`access_token: ${value}`, `access_token: [REDACTED:labeled_secret]`],
+    [`password: ${value}`, `password: [REDACTED:labeled_secret]`],
+    // `util.inspect` / a single-quoted JS or Python literal.
+    [`{ api_key: '${value}' }`, `{ api_key: '[REDACTED:labeled_secret]' }`],
+    [`{'client_secret': '${value}'}`, `{'client_secret': '[REDACTED:labeled_secret]'}`],
+    // A header-ish label the auth_header rule's hyphenated list does not spell.
+    [`x_api_key: ${value}`, `x_api_key: [REDACTED:labeled_secret]`],
+  ];
+
+  for (const [input, expected] of cases) {
+    const { text, redactions } = redactSecretShapes(input);
+    assert.equal(text.includes(value), false, `secret survived: ${text}`);
+    assert.equal(text, expected);
+    assert.equal(redactions, 1, `expected exactly one redaction for: ${input}`);
+  }
+});
+
+test("a JSON error body embedded inside another JSON string still has its escaped-quote value blanked", () => {
+  const value = "abcd1234efgh5678ijkl";
+  const nested = JSON.stringify(JSON.stringify({ api_key: value }));
+
+  const { text } = redactSecretShapes(`upstream said ${nested}`);
+
+  assert.equal(text.includes(value), false, `secret survived: ${text}`);
+});
+
+test("a DSN password containing an un-encoded @ is blanked WHOLE, not up to its first @", () => {
+  const { text, redactions } = redactSecretShapes("connect failed: postgres://u:p@ss4@10.0.4.7:5432/db");
+
+  assert.equal(text, "connect failed: postgres://[REDACTED:url_credentials]@10.0.4.7:5432/db");
+  assert.equal(redactions, 1);
+});
+
+test("a truncated Anthropic key — too short for SECRET_PATTERNS' 90-char rule — is still blanked", () => {
+  const truncated = ["sk", "ant", "api03", ""].join("-") + "x".repeat(50);
+
+  const { text } = redactSecretShapes(`upstream 401 for ${truncated}`);
+
+  assert.equal(text.includes(truncated), false, `secret survived: ${text}`);
+});
+
+test("every newly covered shape is still idempotent, including the DSN one", () => {
+  const value = "abcd1234efgh5678ijkl";
+  const inputs = [
+    `api_key: ${value}`,
+    `{ api_key: '${value}' }`,
+    `postgres://u:p@ss4@10.0.4.7:5432/db`,
+    JSON.stringify(JSON.stringify({ api_key: value })),
+    ["sk", "ant", "api03", ""].join("-") + "x".repeat(50),
+  ];
+
+  for (const input of inputs) {
+    const first = redactSecretShapes(input);
+    const second = redactSecretShapes(first.text);
+    assert.equal(second.text, first.text, `not stable: ${input}`);
+    assert.equal(second.redactions, 0, `re-redacted on a second pass: ${first.text}`);
+  }
+});
