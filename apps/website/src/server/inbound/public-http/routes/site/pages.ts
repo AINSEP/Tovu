@@ -1059,6 +1059,44 @@ function sendNoThemesInstalled(res: Response): void {
 }
 
 /**
+ * The one place either site route's outer catch records an unexpected fault before sending the
+ * branded `<h1>Site error</h1>` 500. `GET /`'s catch used to be a literal bare `catch {}` and
+ * `GET /:slug`'s discarded everything that was not a `PostNotFoundError`, so a site could 500 on
+ * `/` and `/pricing` at once with no record anywhere of what had actually failed. `products.ts`'s
+ * own file header records what that cost in practice: a missing `presentation_settings` row 500ed
+ * one public route for as long as it did precisely because the catch that absorbed it said nothing,
+ * while the sibling route silently degraded past the same missing row.
+ *
+ * REPORTING, not rethrowing, is the fix here, and the difference is not cosmetic:
+ *  - Express 4 (this app's version) does not forward a rejected `async` handler to its error
+ *    middleware — that is Express 5 behaviour. A `throw` from these catches escapes as an unhandled
+ *    rejection, which Node terminates the process for by default, so rethrowing would trade one
+ *    broken URL for every URL on the site, including the ones rendering perfectly.
+ *  - The 500 really is per-request-recoverable: nothing in this render path is cached between
+ *    requests (theme, settings, menus, widgets and content are all re-resolved per request), so a
+ *    fault on one render implies nothing about the next one. Failing the process closed would be
+ *    strictly worse than failing this response closed.
+ * Only the diagnosis was ever missing, so the diagnosis is all this adds — the visitor-facing body
+ * stays the same opaque `<h1>Site error</h1>`, deliberately: an internal message or stack must not
+ * reach an anonymous visitor.
+ *
+ * `console.error` matches what this same route tree's other handlers already use
+ * (`comments-submit.ts`, `payments-webhook.ts`). `RouteDeps` carries no logger port to inject, and
+ * `platform/observability` deliberately exposes one method (`trackRequest`) with no error channel —
+ * see its `ports.ts` header.
+ *
+ * @param detail the route PATTERN plus, at most, values already validated to a bounded shape —
+ *   never a raw request URL. The only request-derived value any caller passes is `GET /:slug`'s
+ *   `slug`, which `resolveRequestedSlug` has already matched against `/^[a-z0-9-]+$/`, so it can
+ *   carry neither unbounded log volume nor a newline.
+ * @param err whatever the catch received, passed through unchanged so the stack survives.
+ * @complexity O(1).
+ */
+function reportSiteRenderFault(detail: string, err: unknown): void {
+  console.error(`[site/pages] ${detail}`, err);
+}
+
+/**
  * `GET /:slug`'s own slug-shaped-request gate: strips an accepted trailing `.html`, then rejects
  * anything that isn't a clean single-segment site slug — calling `next()` and returning
  * `undefined` so the caller falls through to API/static/404 handling exactly as Express's own
@@ -1651,7 +1689,8 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // `visiblePosts` above made this body cookie-dependent. See `resolvePerVisitorResponse`'s doc.
       const perVisitor = resolvePerVisitorResponse(req, res);
       res.set("Cache-Control", perVisitor.cacheControl).type("html").send(injectFormSubmissionResultIntoHtml(html, perVisitor.result));
-    } catch {
+    } catch (err) {
+      reportSiteRenderFault("GET / failed", err);
       res.status(500).type("html").send("<h1>Site error</h1>");
     }
   });
@@ -1751,10 +1790,13 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         .type("html")
         .send(injectFormSubmissionResultIntoHtml(genericPostHtml, perVisitor.result));
     } catch (err) {
+      // A `PostNotFoundError` is ordinary control flow on this route (no post at this slug), not a
+      // fault — reporting it would bury every real fault under one line per 404 a crawler produces.
       if (err instanceof PostNotFoundError) {
         await handlePostNotFoundOnSlugRoute(req, res, deps, theme, staticMenus);
         return;
       }
+      reportSiteRenderFault(`GET /:slug failed (slug=${slug})`, err);
       res.status(500).type("html").send("<h1>Site error</h1>");
     }
   });

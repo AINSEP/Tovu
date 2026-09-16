@@ -688,3 +688,90 @@ test("GET /: a Page claiming '/' with no explicit template still renders its own
   assert.ok(html.includes("UNIQUE_HOMEPAGE_MARKER_9f3a1c2b"), "the claiming page's own authored content must render even with no explicit templateChoice");
   assert.ok(!html.includes("shipped in minutes"), "the theme's own index.html hero copy must NOT render");
 });
+
+// ---------------------------------------------------------------------------
+// The outer catch's FAULT arm — an unexpected error inside a site render must still produce the
+// branded 500 for the visitor, but must never leave the process with no record of what failed.
+//
+// This is the same defect class this file's own header already describes ("a blind catch-all ...
+// turned it into a bare 500, indistinguishable from a genuine server fault"): that earlier fix
+// routed ONE known error (a missing presentation-settings row) around the catch, but left the
+// catch itself blind, so the NEXT cause of a `<h1>Site error</h1>` was just as undiagnosable.
+// `products.ts`'s own file header records what that costs in practice — a public route 500ing on a
+// missing row for weeks while the sibling route absorbed it, with nothing in any log to say so.
+//
+// Asserting on the report rather than on the response body is deliberate: the visitor-facing body
+// must stay exactly the opaque `<h1>Site error</h1>` it is today (leaking an internal error message
+// or a stack to an anonymous visitor would be a real regression), so the only observable that can
+// distinguish "handled" from "swallowed" is the operator-facing one.
+// ---------------------------------------------------------------------------
+
+/** A `PostRepoPort` whose `list` fails — a content-database read failure reaching a site route's
+ *  outer catch from inside the request, which is the fault arm's real-world shape. */
+function postRepoFailingList(error: Error): InMemoryPostRepo {
+  const repo = new InMemoryPostRepo([]);
+  repo.list = () => Promise.reject(error);
+  return repo;
+}
+
+/** Every `console.error` call a `t.mock.method` handle recorded, as its raw argument lists.
+ *  Typed structurally rather than against `node:test`'s own mock types so this stays readable. */
+function reportedErrors(mocked: { mock: { calls: { arguments: unknown[] }[] } }): unknown[][] {
+  return mocked.mock.calls.map((call) => call.arguments);
+}
+
+test("GET /: an unexpected fault is reported with the route and the error, not swallowed into an anonymous 500", async (t) => {
+  const consoleError = t.mock.method(console, "error", () => undefined);
+  const fault = new Error("SENTINEL_HOME_FAULT content.db is unreadable");
+  const { server, baseUrl } = await startServer({ postRepo: postRepoFailingList(fault) });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(baseUrl);
+  assert.equal(res.status, 500, "the visitor still gets the branded error page — the fix must not change what is sent");
+  assert.match(await res.text(), /Site error/, "and its body stays opaque: no internal error text reaches an anonymous visitor");
+
+  const reported = reportedErrors(consoleError);
+  const entry = reported.find((args) => args[1] === fault);
+  assert.ok(
+    entry,
+    `the swallowed fault must be reported with the error object itself; console.error saw: ${JSON.stringify(reported.map((args) => String(args[0])))}`
+  );
+  assert.equal(entry[0], "[site/pages] GET / failed", "the report must name the route that failed, so an operator can find it without a debugger");
+});
+
+test("GET /:slug: an unexpected fault is reported with the route, the slug, and the error", async (t) => {
+  const consoleError = t.mock.method(console, "error", () => undefined);
+  const fault = new Error("SENTINEL_SLUG_FAULT content.db is unreadable");
+  const { server, baseUrl } = await startServer({ postRepo: postRepoFailingList(fault) });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/pricing`);
+  assert.equal(res.status, 500);
+  assert.match(await res.text(), /Site error/);
+
+  const reported = reportedErrors(consoleError);
+  const entry = reported.find((args) => args[1] === fault);
+  assert.ok(
+    entry,
+    `the swallowed fault must be reported with the error object itself; console.error saw: ${JSON.stringify(reported.map((args) => String(args[0])))}`
+  );
+  assert.equal(
+    entry[0],
+    "[site/pages] GET /:slug failed (slug=pricing)",
+    "the slug is already validated against /^[a-z0-9-]+$/ before this point, so it is safe and bounded to include — and it is the one thing that tells an operator WHICH page broke"
+  );
+});
+
+test("GET /:slug: a PostNotFoundError is ordinary 404 control flow and must NOT be reported as a fault", async (t) => {
+  // The negative half of the pair above. Without it, "report everything the catch sees" would pass
+  // both fault tests while burying every real fault under one log line per 404 a crawler produces.
+  const consoleError = t.mock.method(console, "error", () => undefined);
+  const { server, baseUrl } = await startServer({ postRepo: new InMemoryPostRepo([]) });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/no-such-page-here`);
+  assert.equal(res.status, 404, "an unseeded slug is a 404, produced by the catch's PostNotFoundError arm");
+
+  const fromThisFile = reportedErrors(consoleError).filter((args) => String(args[0]).startsWith("[site/pages]"));
+  assert.deepEqual(fromThisFile, [], "a 404 must leave no fault report behind");
+});

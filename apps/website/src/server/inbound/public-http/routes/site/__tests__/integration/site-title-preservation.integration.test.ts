@@ -136,10 +136,28 @@ function assertSingleTitle(html: string, expected: string, surface: string): voi
   assert.deepEqual(realTitles(html), [expected], `${surface}: expected exactly one <title>${expected}</title>`);
 }
 
+/**
+ * A surface that did not render at all — deliberately NOT an `assert.AssertionError`.
+ *
+ * AC-13 below proves the AC-10 check FAILS once preservation is disabled, and it does that with
+ * `assert.rejects(assertSiteTitleSurfaces(...), <predicate>)`. `getHtml`'s status check used to be
+ * an `assert.equal`, so "the site 500s on `/` and `/pricing`" produced exactly the same
+ * `AssertionError` that "the title flipped to the display name" does — and a green AC-13 therefore
+ * tolerated a completely broken site, which is strictly worse than having no AC-13 at all. Giving
+ * "the route did not render" its own type separates the two outcomes structurally, for every
+ * `getHtml` caller in this file rather than only for the one `assert.rejects`.
+ */
+class RouteDidNotRenderError extends Error {
+  constructor(pathname: string, status: number, bodyPreview: string) {
+    super(`GET ${pathname} must render, got ${status}: ${bodyPreview}`);
+    this.name = "RouteDidNotRenderError";
+  }
+}
+
 async function getHtml(baseUrl: string, pathname: string): Promise<string> {
   const res = await fetch(`${baseUrl}${pathname}`);
   const html = await res.text();
-  assert.equal(res.status, 200, `GET ${pathname} must render, got ${res.status}: ${html.slice(0, 500)}`);
+  if (res.status !== 200) throw new RouteDidNotRenderError(pathname, res.status, html.slice(0, 500));
   return html;
 }
 
@@ -246,7 +264,28 @@ test("AC-13 (T-W4): with preservation disabled in the harness, the AC-10 check f
   await site.deps.siteTitleReady;
   await unpublishHomePage(site.deps);
 
-  await assert.rejects(assertSiteTitleSurfaces(site, LEGACY_TITLE), assert.AssertionError);
+  // Pinned to the EXACT assertion expected to fail, not merely to "something threw an
+  // AssertionError": the point of T-W4 is that AC-10 passes for the right reason, and a predicate
+  // that accepts any assertion failure cannot tell "the title flipped" from "S1 asserted on a
+  // different surface" — nor, before `RouteDidNotRenderError` above, from "the site 500ed".
+  await assert.rejects(assertSiteTitleSurfaces(site, LEGACY_TITLE), (err: unknown) => {
+    if (!(err instanceof assert.AssertionError)) {
+      assert.fail(
+        `AC-10 must fail because the title flipped, not because a surface stopped rendering: ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}`
+      );
+    }
+    // `startsWith`, not `equal`: `assertSingleTitle` uses `assert.deepEqual`, which appends its own
+    // value diff to a caller-supplied message. That appended diff is what the second check reads.
+    assert.ok(
+      err.message.startsWith(`S1 GET / (no Page claims /): expected exactly one <title>${LEGACY_TITLE}</title>`),
+      `AC-10 must fail on its FIRST surface, checking the site title: ${err.message}`
+    );
+    assert.ok(
+      err.message.includes(`'${SITE_NAME}'`),
+      `and it must fail because that title flipped to the unpreserved display name: ${err.message}`
+    );
+    return true;
+  });
   assertSingleTitle(await getHtml(site.baseUrl, "/products"), SITE_NAME, "the unpreserved pre-existing site flips to its display name");
 });
 
