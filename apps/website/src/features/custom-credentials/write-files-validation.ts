@@ -96,6 +96,13 @@ function validateBranch(value: unknown): string {
   if (typeof value !== "string" || !BRANCH_PATTERN.test(value)) {
     throw new CustomCredentialValidationError(`invalid branch name '${typeof value === "string" ? value.slice(0, 60) : String(value)}'`);
   }
+  // BRANCH_PATTERN alone would admit these — `.`, `-`, and `/` are all in its character class — but a
+  // `..` or empty `/`-separated segment is a dot-segment the URL constructor normalizes away, so a
+  // branch like '../tags/release' would silently retarget the ref read/update into another namespace.
+  const segments = value.split("/");
+  if (segments.some((segment) => segment === "" || segment === "..")) {
+    throw new CustomCredentialValidationError(`invalid branch name '${value.slice(0, 60)}' — must not contain an empty or '..' path segment`);
+  }
   return value;
 }
 
@@ -165,6 +172,25 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function requireStringFileEntry(raw: unknown): { readonly path: string; readonly content: string } {
+  if (!isPlainObject(raw) || typeof raw.path !== "string" || typeof raw.content !== "string") {
+    throw new CustomCredentialValidationError("each entry in 'files' must be an object with a string 'path' and a string 'content'");
+  }
+  return { path: raw.path, content: raw.content };
+}
+
+function addFileBytesWithinLimits(normalized: string, content: string, totalBytes: number): number {
+  const bytes = Buffer.byteLength(content, "utf8");
+  if (bytes > WRITE_FILES_LIMITS.maxFileBytes) {
+    throw new CustomCredentialValidationError(`file '${normalized}' is ${bytes} bytes, over the ${WRITE_FILES_LIMITS.maxFileBytes}-byte per-file cap`);
+  }
+  const nextTotalBytes = totalBytes + bytes;
+  if (nextTotalBytes > WRITE_FILES_LIMITS.maxTotalBytes) {
+    throw new CustomCredentialValidationError(`'files' totals over the ${WRITE_FILES_LIMITS.maxTotalBytes}-byte aggregate cap`);
+  }
+  return nextTotalBytes;
+}
+
 /**
  * Validates and normalizes the `files` array: shape, per-file path safety, per-file and aggregate
  * size caps, the file-count cap, and duplicate-path detection within the same call — mirroring
@@ -187,26 +213,17 @@ function validateFiles(rawFiles: unknown): readonly NormalizedWriteFile[] {
   let totalBytes = 0;
 
   for (const raw of rawFiles) {
-    if (!isPlainObject(raw) || typeof raw.path !== "string" || typeof raw.content !== "string") {
-      throw new CustomCredentialValidationError("each entry in 'files' must be an object with a string 'path' and a string 'content'");
-    }
+    const { path, content } = requireStringFileEntry(raw);
 
-    const normalized = normalizeWriteFilePath(raw.path);
+    const normalized = normalizeWriteFilePath(path);
     if (seen.has(normalized)) {
       throw new CustomCredentialValidationError(`duplicate file path '${normalized}' — refusing a second write over an already-vetted first one`);
     }
     seen.add(normalized);
 
-    const bytes = Buffer.byteLength(raw.content, "utf8");
-    if (bytes > WRITE_FILES_LIMITS.maxFileBytes) {
-      throw new CustomCredentialValidationError(`file '${normalized}' is ${bytes} bytes, over the ${WRITE_FILES_LIMITS.maxFileBytes}-byte per-file cap`);
-    }
-    totalBytes += bytes;
-    if (totalBytes > WRITE_FILES_LIMITS.maxTotalBytes) {
-      throw new CustomCredentialValidationError(`'files' totals over the ${WRITE_FILES_LIMITS.maxTotalBytes}-byte aggregate cap`);
-    }
+    totalBytes = addFileBytesWithinLimits(normalized, content, totalBytes);
 
-    files.push({ path: normalized, content: raw.content });
+    files.push({ path: normalized, content });
   }
 
   return files;

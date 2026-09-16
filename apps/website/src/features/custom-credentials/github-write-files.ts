@@ -250,6 +250,13 @@ async function checkFileExistence(
       fileStates.push({ path: file.path, exists: false });
       continue;
     }
+    // The Contents API answers an ARRAY for a directory (and an object whose `type` is not "file"
+    // for a submodule/symlink) — treating that as an existing file would plan a blob over the whole
+    // subtree, and a tree entry at that path REPLACES the subtree, dropping its contents from the
+    // new commit. Refuse rather than describe it as a file.
+    if (Array.isArray(existsResult.json) || existsResult.json.type !== "file") {
+      return { ok: false, code: "provider-error", message: `'${file.path}' already exists on the branch but is not a regular file — refusing to overwrite it with a blob` };
+    }
     fileStates.push({ path: file.path, exists: true });
   }
   return { ok: true, fileStates };

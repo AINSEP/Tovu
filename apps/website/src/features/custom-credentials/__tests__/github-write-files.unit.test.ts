@@ -3,6 +3,7 @@ import test from "node:test";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { commitGitHubFiles, planGitHubFileWrite, type GitHubWriteFilesPlan } from "../github-write-files.js";
+import { validateWriteFilesInput } from "../write-files-validation.js";
 
 /**
  * @file `github-write-files.ts`'s proof — every call goes through a stubbed `HttpClientPort`, never
@@ -58,7 +59,7 @@ test("plan: reports one existing and one new file, and returns the branch's tip/
   const client = new SequentialFakeHttpClient([
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/fly\.toml\?ref=main$/, method: "GET", status: 200, json: { sha: "existing-blob-sha" } },
+    { match: /\/contents\/fly\.toml\?ref=main$/, method: "GET", status: 200, json: { sha: "existing-blob-sha", type: "file" } },
     { match: /\/contents\/\.github\/workflows\/fly-deploy\.yml\?ref=main$/, method: "GET", status: 404, json: {} },
   ]);
   const result = await planGitHubFileWrite({ httpClient: client }, planInput([
@@ -77,6 +78,18 @@ test("plan: reports one existing and one new file, and returns the branch's tip/
     },
   });
   assert.equal(client.remainingCount(), 0);
+});
+
+test("plan: a path that is a directory (array Contents API response) is refused, not planned as a file", async () => {
+  const client = new SequentialFakeHttpClient([
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/fly\.toml\?ref=main$/, method: "GET", status: 200, json: [{ name: "fly.toml", type: "dir" }] },
+  ]);
+  const result = await planGitHubFileWrite({ httpClient: client }, planInput([{ path: "fly.toml", content: "x" }]));
+  assert.equal(result.ok, false);
+  assert.equal((result as { code: string }).code, "provider-error");
+  assert.match((result as { message: string }).message, /fly\.toml/, "the refusal must name the offending path");
 });
 
 test("plan: branch does not exist", async () => {
@@ -195,4 +208,22 @@ test("commit: a provider error creating the tree is reported with the provider's
   assert.equal(result.ok, false);
   assert.equal((result as { code: string }).code, "provider-error");
   assert.match((result as { message: string }).message, /invalid tree entry/);
+});
+
+// ---------------------------------------------------------------------------
+// branch validation (write-files-validation)
+// ---------------------------------------------------------------------------
+
+function branchValidationInput(branch: string) {
+  return { owner: OWNER, repo: REPO, branch, commitMessage: "deploy", files: [{ path: "fly.toml", content: "x" }] };
+}
+
+test("validation: a branch containing a '..' segment is refused before any URL is built", () => {
+  assert.throws(() => validateWriteFilesInput(branchValidationInput("../tags/release")), /invalid branch name/);
+});
+
+test("validation: a branch with a leading, trailing, or doubled slash is refused", () => {
+  for (const branch of ["/main", "main/", "feature//x"]) {
+    assert.throws(() => validateWriteFilesInput(branchValidationInput(branch)), /invalid branch name/, `branch '${branch}' must be refused`);
+  }
 });

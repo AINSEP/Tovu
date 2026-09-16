@@ -89,6 +89,11 @@ test("external_mcp_save is on the allowlist — it holds up the same held-open-e
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("external_mcp_save"));
 });
 
+test("custom_credential_write_files is on the allowlist — every call holds up the same held-open-exchange shape content_post_delete does (2026-09-15)", () => {
+  assert.equal(isMcpUiToolCallAllowed("custom_credential_write_files"), true);
+  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("custom_credential_write_files"));
+});
+
 // ---------------------------------------------------------------------------
 // The closed-set property
 // ---------------------------------------------------------------------------
@@ -123,6 +128,7 @@ const EXPECTED_ALLOWLIST = [
   "custom_credential_create",
   "custom_credential_make_request",
   "custom_credential_set_token",
+  "custom_credential_write_files",
   "deployment_execute_static_publish",
   "deployment_propose_custom_provider_credential",
   "external_mcp_reauth_prompt",

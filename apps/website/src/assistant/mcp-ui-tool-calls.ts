@@ -206,6 +206,16 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // did for one commit. See `mcp-ui-tool-calls-route.external-mcp-save.integration.test.ts` for the
   // real round trip this entry makes possible.
   "external_mcp_save",
+  // 2026-09-15 — `custom_credential_write_files` (`features/custom-credentials/tool-registrations.ts`)
+  // holds up the SAME held-open-exchange shape every entry above does: its handler opens a
+  // `SurfaceExchangeStore` exchange and parks on the human's confirm/cancel click
+  // (`features/custom-credentials/write-files-confirmation-ui.ts`) before landing a real commit in a
+  // third-party repository. Unlike `custom_credential_make_request`'s DELETE-only gate, EVERY call to
+  // this tool is gated — there is no un-confirmed path, because every call durably writes to a real
+  // repository — so omitting it here would repeat the exact gap `assistant_ask_choice`'s own comment
+  // above describes: the dialog would render correctly naming every path it would write, and every
+  // submission would 403 with TOOL_NOT_ALLOWLISTED, unusable in production from the day it shipped.
+  "custom_credential_write_files",
 ]);
 
 /**
