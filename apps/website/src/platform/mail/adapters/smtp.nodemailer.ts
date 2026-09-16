@@ -209,9 +209,10 @@ export function createNodemailerSmtpTransport(config: CreateNodemailerSmtpTransp
   // Deferred `require` (not a static top-level `import`) so a composition root that never
   // configures an SMTP credential never pays nodemailer's module-load cost — the same lazy-load
   // reasoning `platform/observability/index.ts`'s own `createObservabilityPort` documents for its
-  // OTel adapter. `createRequire` (not a bare `require`, which does not exist in this ESM-only
-  // codebase — `package.json`'s `"type": "module"`) — same substitution `server/runtime/
-  // composition/deps.ts`'s own `runExportSiteLazily` doc explains.
+  // OTel adapter. `createRequire`, because `package.json` is `"type": "module"` and a bare
+  // `require` does not exist. This loads an npm package, not a first-party `.ts` module, so the tsx
+  // duplicate-module-graph hazard that retired `deps.ts`'s first-party `require()`s (2026-09-16)
+  // does not apply here.
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
   const nodemailer = createRequire(import.meta.url)("nodemailer") as typeof import("nodemailer");
   const transporter = nodemailer.createTransport({
