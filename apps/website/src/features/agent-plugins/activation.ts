@@ -115,22 +115,55 @@
  * already turned it back ON. Two writes in the same millisecond also shared one temp path, and one
  * of them failed with `ENOENT`.
  *
- * ACROSS processes the race remains: the agent daemon (`agent-daemon-server.ts`) builds its own copy
- * of the assistant tools, `plugins_set_enabled` and `agent_plugins_uninstall` included, so a chat
- * toggle that lands within the same few milliseconds as an admin toggle can still erase one of them.
- * Closing that needs a cross-process lock file, whose stale-lock recovery after a crash is a failure
- * mode of its own; it is left as a stated residual rather than papered over.
+ * ACROSS processes (t91, 2026-09-16, plan `agent-reports/2026-09-16-t91-plan-activations-lock.md`):
+ * every writer below also takes an exclusive, cross-process lock (`exclusive-file-lock.ts`) on
+ * `<root>/activations.json.lock` before its strict read, and holds it until the rename lands. The
+ * in-process chain above stays in FRONT of that lock — it still gives same-process writers FIFO
+ * order with no polling — and the lock is not reentrant, so the invariant is: **no exported function
+ * in this file may be called from inside a chain turn or a lock callback.** Such a call would wait on
+ * a lock (or a chain slot) it is already holding, and hang exactly like re-entering the chain would.
+ * `recordBundledAgentPluginIfAbsent` keeps using the private `writeActivationDecision` rather than
+ * calling `setAgentPluginActivation`, for this reason.
+ *
+ * A lock is judged stale — and broken, unblocking every waiter — if its holder is a dead process on
+ * this same host, or if it is simply older than 10s; see `exclusive-file-lock.ts`'s own header for
+ * the full protocol and every failure mode it closes. A writer that cannot take the lock within 15s,
+ * or that loses it (a stalled holder judged stale by someone else) right before its own rename,
+ * throws {@link AgentPluginActivationsBusyError} and writes NOTHING — never a partial or stale write.
+ *
+ * Residuals this does NOT close, stated rather than hidden:
+ * - R6: the boot seeder still installs a package before recording it inactive; a crash between the
+ *   two leaves an unrecorded (and therefore active) bundled package. Pre-flighting the lock clears
+ *   any stale lock before anything is installed, which narrows but does not remove this window.
+ * - The tiny gap between a holder's own `assertHeld()` and its `rename` — closed to "never a stale
+ *   write survives it", not to "zero probability another process ever judged this lock stale in that
+ *   instant".
+ * - A network filesystem, or a lock left by a crash that is later swept into site source control by
+ *   `duplicate-site.ts`'s `cpSync` (this repo does not touch `sites/**` here to fix that).
+ * - A killed writer can leave a stray `activations.json.tmp-*` file; nothing currently sweeps those.
  *
  * Architectural role:
  * Filesystem state for one workspace, reached only through `layout.ts`'s `forWorkspace()` root — the
  * same tenant-isolation guarantee every other path in this feature goes through.
  */
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
+
+import {
+  FileLockLostError,
+  FileLockTimeoutError,
+  withExclusiveFileLock,
+  type FileLockHolder,
+  type HeldFileLock,
+} from "./exclusive-file-lock.js";
 
 /** Where a workspace's activation record lives, relative to its own agent-plugin root. */
 export const ACTIVATIONS_FILENAME = "activations.json";
+
+/** The cross-process lock every writer below takes before touching {@link ACTIVATIONS_FILENAME} —
+ *  see this file's header, "Concurrency", ACROSS processes. */
+export const ACTIVATIONS_LOCK_FILENAME = `${ACTIVATIONS_FILENAME}.lock`;
 
 /** How a package came to be on disk. The whole reason the record is not just a boolean: it is what
  *  lets an operator (and a future admin screen) tell "Tovu shipped this, you have not enabled it"
@@ -292,6 +325,50 @@ export class AgentPluginActivationsUnreadableError extends Error {
   }
 }
 
+/** A WRITER could not take (or lost) the cross-process write lock in time — see this file's header,
+ *  "Concurrency", ACROSS processes, and `exclusive-file-lock.ts`. `lost: true` means the lock WAS
+ *  acquired but was judged stale by another process before this writer's own rename; `lost: false`
+ *  means the initial acquisition itself timed out. Either way NOTHING was written. `message` names
+ *  the host lock path: keep it in a server-side log, never in a model- or user-facing payload. */
+export class AgentPluginActivationsBusyError extends Error {
+  constructor(
+    readonly lockPath: string,
+    readonly holder: FileLockHolder | undefined,
+    readonly lost: boolean,
+  ) {
+    super(
+      (lost
+        ? `agent-plugin activation: lost the write lock (${lockPath}) before committing — another process judged it stale`
+        : `agent-plugin activation: could not take the write lock (${lockPath}) within 15s` +
+          (holder !== undefined ? ` — held by pid ${holder.pid} on ${holder.hostname} since ${holder.acquiredAt}` : " — holder unknown")) +
+        ". Nothing was written, so no recorded enable/disable decision was changed. This clears by itself when the other " +
+        "Tovu process (server, agent daemon, or the agent-plugin:activation CLI) finishes; a lock left by a crashed " +
+        "process is removed automatically once that process is gone or the lock is older than 10s. If it persists, stop " +
+        `every Tovu process for this site and delete ${lockPath}.`,
+    );
+    this.name = "AgentPluginActivationsBusyError";
+  }
+}
+
+/** Turns a lock failure from {@link withExclusiveFileLock} into {@link AgentPluginActivationsBusyError};
+ *  any other error (including a thrown {@link AgentPluginActivationsUnreadableError} from the read
+ *  inside the callback) passes through unchanged. @complexity O(1). */
+function toActivationsBusyError(lockPath: string, error: unknown): unknown {
+  if (error instanceof FileLockTimeoutError) return new AgentPluginActivationsBusyError(lockPath, error.holder, false);
+  if (error instanceof FileLockLostError) return new AgentPluginActivationsBusyError(lockPath, undefined, true);
+  return error;
+}
+
+/** Logs a stale lock's removal — server-side only, since the path and pid are host detail.
+ *  @complexity O(1). */
+function warnStaleActivationsLockRemoved(lockPath: string, holder: FileLockHolder | undefined): void {
+  console.warn(
+    holder !== undefined
+      ? `[agent-plugins] removed a stale activations.json lock left by pid ${holder.pid} on ${holder.hostname} (acquired ${holder.acquiredAt}): ${lockPath}`
+      : `[agent-plugins] removed a stale activations.json lock with an unreadable holder: ${lockPath}`,
+  );
+}
+
 /** Every `plugins` entry exactly as parsed — malformed ones included — which is what a writer edits
  *  so a malformed sibling entry survives a toggle of a different plugin byte-for-byte. */
 type RawPluginsBag = Readonly<Record<string, unknown>>;
@@ -326,11 +403,16 @@ function isRecordedAsBundled(bag: RawPluginsBag, pluginId: string): boolean {
  * this BEFORE installing anything, so a bundled package never lands on disk without the activation
  * record that would keep it inactive.
  *
+ * Also proves the cross-process write lock can actually be taken right now, and clears a stale one
+ * left by a crashed process — the same lock every real writer below takes (this file's header,
+ * "Concurrency", ACROSS processes).
+ *
  * @throws {AgentPluginActivationsUnreadableError} The file exists but cannot be read.
- * @complexity Same as {@link readPluginsBagStrict}.
+ * @throws {AgentPluginActivationsBusyError} The lock could not be taken within 15s.
+ * @complexity Same as {@link readPluginsBagStrict}, plus one lock acquisition/release.
  */
 export async function assertAgentPluginActivationsWritable(workspaceRoot: string): Promise<void> {
-  await readPluginsBagStrict(workspaceRoot);
+  await lockedActivationsWrite(workspaceRoot, () => readPluginsBagStrict(workspaceRoot));
 }
 
 /**
@@ -478,6 +560,8 @@ export interface SetAgentPluginActivationOptional {
  *
  * @throws {Error} If `pluginId` does not match the Agent Plugins name grammar.
  * @throws {AgentPluginActivationsUnreadableError} The file exists but cannot be read.
+ * @throws {AgentPluginActivationsBusyError} The cross-process write lock could not be taken or was
+ * lost; nothing was written.
  * @returns The record as written, normalized, so a caller does not have to re-read to confirm.
  * @complexity O(p) in the recorded plugin count — the whole (small) file is rewritten.
  */
@@ -486,15 +570,16 @@ export async function setAgentPluginActivation(
   optional: SetAgentPluginActivationOptional = {},
 ): Promise<AgentPluginActivations> {
   assertPluginId(required.pluginId);
-  return serializeActivationsWrite(required.workspaceRoot, async () =>
-    writeActivationDecision(await readPluginsBagStrict(required.workspaceRoot), required, optional),
+  return lockedActivationsWrite(required.workspaceRoot, async (lock) =>
+    writeActivationDecision(await readPluginsBagStrict(required.workspaceRoot), required, optional, lock),
   );
 }
 
 /**
  * The write half of {@link setAgentPluginActivation}, over a bag the caller has ALREADY read strictly
- * inside its own {@link serializeActivationsWrite} turn — so {@link recordBundledAgentPluginIfAbsent}
- * can decide and write within one turn instead of re-entering the chain, which would wait on itself.
+ * inside its own {@link lockedActivationsWrite} turn — so {@link recordBundledAgentPluginIfAbsent} can
+ * decide and write within one turn instead of re-entering the chain or the lock, either of which
+ * would wait on itself (this file's header, "Concurrency").
  *
  * @complexity O(p) in the recorded plugin count — the whole (small) file is rewritten.
  */
@@ -502,8 +587,10 @@ async function writeActivationDecision(
   current: RawPluginsBag,
   required: SetAgentPluginActivationRequired,
   optional: SetAgentPluginActivationOptional,
+  lock: HeldFileLock,
 ): Promise<AgentPluginActivations> {
   const { workspaceRoot, pluginId, enabled, actor } = required;
+  assertTargetEntryReadable(workspaceRoot, current, pluginId);
   const plugins: RawPluginsBag = {
     ...current,
     [pluginId]: {
@@ -518,8 +605,38 @@ async function writeActivationDecision(
     },
   };
 
-  await writeActivationsAtomically(workspaceRoot, plugins);
+  await writeActivationsAtomically(workspaceRoot, plugins, lock);
   return normalizePluginsBag(plugins);
+}
+
+/**
+ * N1 (reviewer finding, 2026-09-16, `agent-reports/2026-09-16-t91-review-plugin-part2.md`): refuses
+ * a write that would derive `origin` from a MALFORMED entry for the plugin actually being toggled,
+ * rather than silently "fixing" it as `operator-installed`.
+ *
+ * Without this, toggling a plugin whose OWN entry is present but malformed (e.g. its raw value is
+ * the bare string `"bundled"`, not `{ origin: "bundled", ... }`) rewrote that entry as a well-formed
+ * `operator-installed` record via {@link isRecordedAsBundled}'s `false` fallback — which both defeats
+ * `uninstall.ts`'s bundled-refusal for malformed entries (`583d2f5e`) and re-seeds the plugin as
+ * bundled-and-inactive on the next boot, since {@link recordBundledAgentPluginIfAbsent}'s own
+ * `Object.hasOwn` no-overwrite check can no longer tell "an operator's real decision" apart from "a
+ * garbled record this write invented". Consistent with this file's "undetermined means refuse" rule
+ * (see the header and {@link resolveAgentPluginActivation}): an existing entry that cannot be read is
+ * left exactly as it is, never repaired by a guess. `recordBundledAgentPluginIfAbsent` never reaches
+ * this — it only calls {@link writeActivationDecision} when `Object.hasOwn(current, pluginId)` is
+ * already `false`.
+ *
+ * @throws {AgentPluginActivationsUnreadableError} `pluginId`'s own entry exists but does not
+ * normalize.
+ * @complexity O(1).
+ */
+function assertTargetEntryReadable(workspaceRoot: string, current: RawPluginsBag, pluginId: string): void {
+  if (!Object.hasOwn(current, pluginId)) return;
+  if (normalizeActivationEntry(pluginId, current[pluginId]) !== undefined) return;
+  throw new AgentPluginActivationsUnreadableError(
+    path.join(workspaceRoot, ACTIVATIONS_FILENAME),
+    `${ACTIVATIONS_FILENAME} holds an unreadable record for '${pluginId}', so it cannot be safely toggled`,
+  );
 }
 
 /**
@@ -536,6 +653,8 @@ async function writeActivationDecision(
  * function has no business making just because the entry it found looked wrong.
  * @throws {Error} If `pluginId` does not match the Agent Plugins name grammar.
  * @throws {AgentPluginActivationsUnreadableError} The file exists but cannot be read.
+ * @throws {AgentPluginActivationsBusyError} The cross-process write lock could not be taken or was
+ * lost; nothing was written.
  * @complexity O(p) in the recorded plugin count.
  */
 export async function recordBundledAgentPluginIfAbsent(
@@ -544,7 +663,7 @@ export async function recordBundledAgentPluginIfAbsent(
 ): Promise<{ readonly recorded: boolean }> {
   assertPluginId(required.pluginId);
 
-  return serializeActivationsWrite(required.workspaceRoot, async () => {
+  return lockedActivationsWrite(required.workspaceRoot, async (lock) => {
     const current = await readPluginsBagStrict(required.workspaceRoot);
     if (Object.hasOwn(current, required.pluginId)) return { recorded: false };
 
@@ -552,6 +671,7 @@ export async function recordBundledAgentPluginIfAbsent(
       current,
       { workspaceRoot: required.workspaceRoot, pluginId: required.pluginId, enabled: false, actor: "system:seed" },
       { origin: "bundled", ...(optional.now !== undefined ? { now: optional.now } : {}) },
+      lock,
     );
     return { recorded: true };
   });
@@ -581,6 +701,8 @@ export interface DeleteAgentPluginActivationRequired {
  * @throws {AgentPluginActivationsUnreadableError} The file exists but cannot be read — an unreadable
  * file might well hold a record for `pluginId`, so treating that as "nothing to delete" could mean
  * silently leaving a decision in place that this call was supposed to remove.
+ * @throws {AgentPluginActivationsBusyError} The cross-process write lock could not be taken or was
+ * lost; nothing was written.
  * @complexity O(p) in the recorded plugin count — the whole (small) file is rewritten, same as every
  * other write in this file.
  */
@@ -588,14 +710,14 @@ export async function deleteAgentPluginActivation(required: DeleteAgentPluginAct
   const { workspaceRoot, pluginId } = required;
   assertPluginId(pluginId);
 
-  await serializeActivationsWrite(workspaceRoot, async () => {
+  await lockedActivationsWrite(workspaceRoot, async (lock) => {
     const current = await readPluginsBagStrict(workspaceRoot);
     if (!Object.hasOwn(current, pluginId)) return;
 
     const remaining: Record<string, unknown> = { ...current };
     delete remaining[pluginId];
 
-    await writeActivationsAtomically(workspaceRoot, remaining);
+    await writeActivationsAtomically(workspaceRoot, remaining, lock);
   });
 }
 
@@ -635,6 +757,29 @@ async function serializeActivationsWrite<T>(workspaceRoot: string, write: () => 
 }
 
 /**
+ * Composes the in-process chain with the cross-process lock, in that order — see this file's
+ * header, "Concurrency", ACROSS processes, for why the chain stays in front and why no exported
+ * function here may call another one from inside `write`.
+ *
+ * @throws {AgentPluginActivationsBusyError} The lock could not be taken within 15s, or was lost
+ * before `write` finished — either way nothing `write` did was written.
+ * @complexity `serializeActivationsWrite`'s queueing cost, plus one lock acquisition/release.
+ */
+async function lockedActivationsWrite<T>(workspaceRoot: string, write: (lock: HeldFileLock) => Promise<T>): Promise<T> {
+  return serializeActivationsWrite(workspaceRoot, async () => {
+    await mkdir(workspaceRoot, { recursive: true, mode: 0o700 });
+    const lockPath = path.join(workspaceRoot, ACTIVATIONS_LOCK_FILENAME);
+    try {
+      return await withExclusiveFileLock(lockPath, write, {
+        onStaleLockRemoved: (holder) => warnStaleActivationsLockRemoved(lockPath, holder),
+      });
+    } catch (error) {
+      throw toActivationsBusyError(lockPath, error);
+    }
+  });
+}
+
+/**
  * Write-temp-then-`rename`, so a concurrent reader sees either the whole previous file or the whole
  * new one and never a truncated JSON document. Same discipline `install.ts`'s `publish()` uses for
  * a package tree, applied to a single small file.
@@ -644,17 +789,56 @@ async function serializeActivationsWrite<T>(workspaceRoot: string, write: () => 
  * read"), so this is the one place that wraps it back in the `{ schemaVersion: 1, plugins }`
  * envelope for serialization.
  *
- * @complexity One write plus one rename.
+ * Durability (R5, t91 2026-09-16): the temp file is fsync'd before the rename, and the workspace
+ * directory is best-effort fsync'd after — see this file's header and `syncDirectoryBestEffort`'s
+ * own doc for why a power loss must never leave a 0-byte `activations.json` behind.
+ *
+ * `lock.assertHeld()` runs immediately before the rename — the fail-closed check that stops a
+ * holder who stalled past the stale threshold from committing after another process already judged
+ * it stale (this file's header, "failure modes").
+ *
+ * @throws {FileLockLostError} `lock` no longer owns the cross-process lock; `lockedActivationsWrite`
+ * maps this to {@link AgentPluginActivationsBusyError}.
+ * @complexity One open, one write, one fsync, one rename, one best-effort directory fsync.
  */
-async function writeActivationsAtomically(workspaceRoot: string, plugins: RawPluginsBag): Promise<void> {
-  await mkdir(workspaceRoot, { recursive: true, mode: 0o700 });
+async function writeActivationsAtomically(workspaceRoot: string, plugins: RawPluginsBag, lock: HeldFileLock): Promise<void> {
   const finalPath = path.join(workspaceRoot, ACTIVATIONS_FILENAME);
   const tempPath = `${finalPath}.tmp-${process.pid}-${randomUUID()}`;
   try {
-    await writeFile(tempPath, `${JSON.stringify({ schemaVersion: 1, plugins }, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+    const handle = await open(tempPath, "wx", 0o600);
+    try {
+      await handle.writeFile(`${JSON.stringify({ schemaVersion: 1, plugins }, null, 2)}\n`, "utf8");
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+    await lock.assertHeld();
     await rename(tempPath, finalPath);
   } catch (error) {
     await rm(tempPath, { force: true });
     throw error;
+  }
+  await syncDirectoryBestEffort(workspaceRoot);
+}
+
+/**
+ * Best-effort fsync of a directory, so a rename that just landed in it survives a power loss rather
+ * than leaving a 0-byte or missing `activations.json` on the next boot (R5). Skipped entirely on
+ * win32, where a directory cannot be opened for this. Every failure is swallowed: the rename has
+ * already landed by the time this runs, so surfacing a failure here would tell the caller its write
+ * did not succeed when it did.
+ * @complexity One open, one fsync, one close.
+ */
+async function syncDirectoryBestEffort(dir: string): Promise<void> {
+  if (process.platform === "win32") return;
+  try {
+    const handle = await open(dir, "r");
+    try {
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+  } catch {
+    // Best-effort only — see this function's own doc.
   }
 }

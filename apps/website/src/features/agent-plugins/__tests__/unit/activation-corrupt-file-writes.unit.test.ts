@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, mkdtemp, readFile, unlink, utimes, writeFile } from "node:fs/promises";
+import { hostname, tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
 import {
   AgentPluginActivationsUnreadableError,
+  assertAgentPluginActivationsWritable,
   deleteAgentPluginActivation,
   recordBundledAgentPluginIfAbsent,
   resolveAgentPluginActivation,
@@ -396,6 +398,145 @@ test("a burst of concurrent operator toggles and seeder records in one process k
       assert.equal((await resolveAgentPluginActivation(root, `operator-${index}`)).verdict, "inactive", `operator-${index}'s disable was erased`);
       assert.equal((await resolveAgentPluginActivation(root, `bundled-${index}`)).verdict, "inactive", `bundled-${index}'s seed record was erased`);
     }
+  } finally {
+    await forceRemove(root);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// T17-T21 (t91, 2026-09-16) — the cross-process lock: a dead or foreign holder never blocks a real
+// writer forever, a live one is genuinely waited on, and a lock is always released even when the
+// write itself refuses.
+// ---------------------------------------------------------------------------
+
+function lockPathFor(root: string): string {
+  return path.join(root, "activations.json.lock");
+}
+
+/** A lock body a REAL holder would write, for a pid that either never answers `kill(pid, 0)` (dead)
+ *  or, per the caller, is deliberately old. */
+async function plantLock(root: string, pid: number, ageMs?: number): Promise<void> {
+  const lockPath = lockPathFor(root);
+  await writeFile(lockPath, JSON.stringify({ pid, hostname: hostname(), token: "planted", acquiredAt: new Date().toISOString() }), "utf8");
+  if (ageMs !== undefined) {
+    const old = new Date(Date.now() - ageMs);
+    await utimes(lockPath, old, old);
+  }
+}
+
+function deadPid(): number {
+  return spawnSync(process.execPath, ["-e", ""]).pid ?? -1;
+}
+
+test("T17: a lock left by a dead pid does not block setAgentPluginActivation", async () => {
+  const root = await freshRoot();
+  try {
+    await writeFile(path.join(root, "activations.json"), '{"schemaVersion":1,"plugins":{}}\n', "utf8");
+    await plantLock(root, deadPid());
+
+    const start = Date.now();
+    await setAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-a", enabled: false, actor: "op" });
+    assert.ok(Date.now() - start < 5000, "a dead-holder lock must be broken at once, not waited out");
+
+    assert.equal((await resolveAgentPluginActivation(root, "plugin-a")).verdict, "inactive");
+    await assert.rejects(readFile(lockPathFor(root)), { code: "ENOENT" });
+  } finally {
+    await forceRemove(root);
+  }
+});
+
+test("T18: a 0-byte lock aged 60s does not block recordBundledAgentPluginIfAbsent", async () => {
+  const root = await freshRoot();
+  try {
+    const lockPath = lockPathFor(root);
+    await writeFile(lockPath, "", "utf8");
+    const old = new Date(Date.now() - 60_000);
+    await utimes(lockPath, old, old);
+
+    const { recorded } = await recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: "mini-bundled" });
+    assert.equal(recorded, true);
+    assert.equal((await resolveAgentPluginActivation(root, "mini-bundled")).verdict, "inactive");
+    await assert.rejects(readFile(lockPath), { code: "ENOENT" });
+  } finally {
+    await forceRemove(root);
+  }
+});
+
+test("T19: assertAgentPluginActivationsWritable removes a dead-holder lock, not merely tolerates it", async () => {
+  const root = await freshRoot();
+  try {
+    await plantLock(root, deadPid());
+
+    await assertAgentPluginActivationsWritable(root);
+
+    await assert.rejects(readFile(lockPathFor(root)), { code: "ENOENT" });
+  } finally {
+    await forceRemove(root);
+  }
+});
+
+test("T20: a writer WAITS for a live foreign lock, and proceeds the moment it is released", async () => {
+  const root = await freshRoot();
+  try {
+    await writeFile(path.join(root, "activations.json"), '{"schemaVersion":1,"plugins":{}}\n', "utf8");
+    // Our OWN pid, so the default liveness probe reports it alive — a genuinely live holder, not a
+    // dead one that would be broken immediately.
+    await plantLock(root, process.pid);
+
+    const writePromise = setAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-a", enabled: false, actor: "op" });
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const raceResult = await Promise.race([writePromise.then(() => "resolved"), Promise.resolve("pending")]);
+    assert.equal(raceResult, "pending", "the write must still be pending while a live foreign lock is held");
+    assert.equal((await resolveAgentPluginActivation(root, "plugin-a")).verdict, "active", "no record may exist yet");
+
+    await unlink(lockPathFor(root));
+
+    await writePromise;
+    assert.equal((await resolveAgentPluginActivation(root, "plugin-a")).verdict, "inactive");
+  } finally {
+    await forceRemove(root);
+  }
+});
+
+test("T21: a corrupt file combined with a stale lock still rejects AgentPluginActivationsUnreadableError, and the lock is still released", async () => {
+  const root = await freshRoot();
+  try {
+    await writeFile(path.join(root, "activations.json"), CORRUPT, "utf8");
+    await plantLock(root, deadPid());
+
+    await assert.rejects(
+      () => setAgentPluginActivation({ workspaceRoot: root, pluginId: "other", enabled: false, actor: "op" }),
+      AgentPluginActivationsUnreadableError,
+    );
+    assert.equal(await readFile(path.join(root, "activations.json"), "utf8"), CORRUPT);
+    await assert.rejects(readFile(lockPathFor(root)), { code: "ENOENT" }, "the lock must still be released even when the write itself refuses");
+  } finally {
+    await forceRemove(root);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// N1 (reviewer finding, 2026-09-16) — a malformed entry for the plugin ACTUALLY being toggled must
+// refuse, not be silently repaired as operator-installed.
+// ---------------------------------------------------------------------------
+
+test("N1: setAgentPluginActivation refuses when the TARGET plugin's own entry is malformed, rather than rewriting it as operator-installed", async () => {
+  const root = await freshRoot();
+  try {
+    const malformedTarget = JSON.stringify({ schemaVersion: 1, plugins: { "evil-plugin": "bundled" } });
+    await writeFile(path.join(root, "activations.json"), malformedTarget, "utf8");
+
+    await assert.rejects(
+      () => setAgentPluginActivation({ workspaceRoot: root, pluginId: "evil-plugin", enabled: true, actor: "op" }),
+      AgentPluginActivationsUnreadableError,
+    );
+    assert.equal(
+      await readFile(path.join(root, "activations.json"), "utf8"),
+      malformedTarget,
+      "a malformed TARGET entry must be left byte-for-byte untouched, not repaired as operator-installed",
+    );
+    assert.equal((await resolveAgentPluginActivation(root, "evil-plugin")).verdict, "undetermined");
   } finally {
     await forceRemove(root);
   }
