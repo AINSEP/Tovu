@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
@@ -477,6 +477,28 @@ test("an invalid input (bad owner) is refused before any decrypt or network call
   assert.equal(sealer.openCalls, 0);
   assert.equal(httpClient.calls.length, 0);
   assert.equal(surfaceExchanges.size(), 0);
+});
+
+test("a caller-fixable validation refusal arrives as a ToolInputError carrying this tool's schema, not as a bare Error the daemon redacts to INTERNAL_ERROR", async () => {
+  const { deps, writeDeps } = fakeRouteDeps();
+  await seedGithub(writeDeps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
+
+  await assert.rejects(
+    () => call(writeTool, { input: { ...VALID_INPUT, files: [{ path: "../escape.txt", content: "x" }] } }),
+    (error: unknown) => {
+      // `CustomCredentialValidationError` extends plain Error, so an undecorated throw reaches
+      // `@jini-ai/daemon`'s ToolExecutor as errorKind 'internal' and `@jini-ai/http-kit`'s
+      // delegatedToolExecuteRoute SEC-005-redacts it to a bare INTERNAL_ERROR — stripping the one
+      // thing the caller could act on. Same classification the two `makeCredentialedRequest` call
+      // sites in this file already apply.
+      assert.ok(error instanceof ToolInputError, `expected ToolInputError, got ${error instanceof Error ? error.constructor.name : String(error)}`);
+      assert.match(error.message, /file path escapes the repository root/, "the caller must still learn WHICH rule refused the call");
+      assert.match(error.message, /"commitMessage"/, "and the published schema, so one turn fixes the call instead of a guessing game");
+      return true;
+    }
+  );
 });
 
 test("a branch that does not exist is refused before any dialog", async () => {

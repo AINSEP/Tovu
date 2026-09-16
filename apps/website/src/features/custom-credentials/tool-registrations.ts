@@ -298,6 +298,27 @@ function isCredentialedRequestShapeRejection(error: unknown): boolean {
 }
 
 /**
+ * The same classification for `custom_credential_write_files`, which validates its whole input
+ * (`validateWriteFilesInput`) BEFORE the credential is even resolved. Every rejection from there is
+ * `CustomCredentialValidationError`, and every one of them names a rule a different call would
+ * satisfy: a bad owner/repo/branch/commitMessage, a path that is absolute, escapes the repository
+ * root, nests under `.git`, or duplicates another entry, a file over the per-file cap, or a batch
+ * over the file-count or aggregate-byte cap.
+ *
+ * That class extends plain `Error`, so an undecorated throw reaches `@jini-ai/daemon`'s
+ * `ToolExecutor` as `errorKind: 'internal'` and `@jini-ai/http-kit`'s `delegatedToolExecuteRoute`
+ * SEC-005-redacts it into a bare `INTERNAL_ERROR` — a model told only "something broke" about a
+ * refusal it could have fixed by moving one file out of `.git/`. Deliberately narrow: this predicate
+ * runs only around the validation call, so it never reclassifies the resolve/plan/commit failures
+ * that follow it.
+ *
+ * @complexity O(1) — one `instanceof` check.
+ */
+function isWriteFilesShapeRejection(error: unknown): boolean {
+  return error instanceof CustomCredentialValidationError;
+}
+
+/**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
  * calls. See `DerivedRiskByToolId` in the kit for why it is independent of the catalog's own
  * `sideEffects` declaration.
@@ -1133,7 +1154,10 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
     custom_credential_write_files: async (ctx): Promise<WriteFilesResult> => {
       const input = requireInputRecord(ctx.input);
       const label = requireString(input, "label");
-      const validated = validateWriteFilesInput({ owner: input.owner, repo: input.repo, branch: input.branch, commitMessage: input.commitMessage, files: input.files });
+      const validated = await withSchemaOnRejection(
+        { toolId: WRITE_FILES_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: isWriteFilesShapeRejection },
+        async () => validateWriteFilesInput({ owner: input.owner, repo: input.repo, branch: input.branch, commitMessage: input.commitMessage, files: input.files })
+      );
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: WRITE_PERMISSION, entityType: DOMAIN });
 
       // Fail closed rather than degrade — same posture `custom_credential_set_token`/
