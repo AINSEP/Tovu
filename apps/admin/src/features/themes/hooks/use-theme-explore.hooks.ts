@@ -1182,9 +1182,10 @@ export function useThemeExplore(
    * cannot land on two different post-rename behaviors.
    *
    * Refetches the whole theme detail rather than patching `files` in place: the server is
-   * authoritative for the renamed entry's `group`/`editable`/`resettable` (a `.html` renamed to
-   * `.txt` would reclassify, for instance), and a targeted patch would have to reproduce that logic
-   * a second time to stay correct.
+   * authoritative for the renamed entry's `resettable`/`modified`/`published` (a file moved off its
+   * catalog original's path has no original to reset to there, and a renamed page has a new page
+   * id), and a targeted patch would have to reproduce that logic a second time to stay correct. The
+   * extension never changes: the rename route refuses that (`EXTENSION_CHANGE_NOT_ALLOWED`).
    *
    * The open file keeps its text through a rename: see `loadedFileAfterRename`.
    */
