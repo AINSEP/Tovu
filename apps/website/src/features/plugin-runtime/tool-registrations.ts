@@ -307,6 +307,12 @@ function notConfirmedResult(outcome: ConfirmationOutcome, request: SetEnabledReq
  * (`agent-daemon-server.ts`). So a freshly enabled plugin's TOOL is not callable in the daemon that
  * is running now. Reporting plain success and letting the operator discover that themselves is the
  * confusion this field exists to prevent.
+ *
+ * The two directions are deliberately NOT symmetric for Agent Plugins, and the notes say so.
+ * DISABLE now lands immediately on the tool as well, because `features/agent-plugins/
+ * tool-registrations.ts` re-checks the activation record in each `agent_plugin_<id>` registration's
+ * own `ToolPolicy` — see its REVOCATION note. ENABLE still needs a restart, because there is no
+ * registration to re-admit: an append-only `ToolRegistry` has nothing to un-skip.
  * @complexity O(1).
  */
 function restartNoteFor(request: SetEnabledRequest): string {
@@ -315,7 +321,9 @@ function restartNoteFor(request: SetEnabledRequest): string {
       ? `Enabled and saved. Its guidance is available to runs that pin it immediately, but the plugin's own ` +
           `agent_plugin_${request.pluginId} tool is registered only when the agent daemon starts — tell the user Tovu has to be ` +
           `restarted before that tool can be called, rather than implying it is usable right now.`
-      : "Disabled and saved. This takes effect immediately: the activation record is re-read on every run.";
+      : `Disabled and saved. This takes effect immediately, with no restart: the activation record is re-read at ` +
+          `the start of every run AND again before every agent_plugin_${request.pluginId} call, so the plugin's own ` +
+          `tool stops answering at once rather than lingering until Tovu restarts.`;
   }
   return request.enabled
     ? "Enabled and saved. The plugin's hooks are live now, but any tool it contributes is registered only when the agent " +

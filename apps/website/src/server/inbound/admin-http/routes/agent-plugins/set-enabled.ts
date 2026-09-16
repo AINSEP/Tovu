@@ -17,8 +17,16 @@ import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "./deps.j
  * This is a real gate, not a cosmetic flag. `resolveAgentPluginRefs`
  * (`features/agent-plugins/resolve-agent-plugin-refs.ts`) re-reads `activations.json` on EVERY run
  * and refuses a run that pins a disabled plugin, and `tool-registrations.ts` filters the dynamic
- * per-plugin tools through the same record. Both reads are fresh per call, so a toggle here takes
- * effect on the next assistant run with no daemon restart.
+ * per-plugin tools through the same record.
+ *
+ * DISABLING is therefore complete without a restart, including for a plugin whose tool is already
+ * registered in the running agent daemon: that tool's own `ToolPolicy` re-reads this record before
+ * every call (`features/agent-plugins/tool-registrations.ts`, REVOCATION — added 2026-09-16 for sol
+ * finding 5-1, which found the tool still answering after an operator switched the plugin off).
+ * ENABLING is not symmetric and this header should not be read as claiming it is: a plugin that was
+ * disabled when the daemon booted has no registration at all, and `@jini-ai/core`'s `ToolRegistry`
+ * is append-only, so its tool appears only after a restart. `plugins_set_enabled`'s `restartNoteFor`
+ * (`features/plugin-runtime/tool-registrations.ts`) reports exactly that asymmetry to the model.
  *
  * ---------------------------------------------------------------------------
  * Why this does NOT go through `executeCommand`, unlike `routes/plugins/set-enabled.ts`

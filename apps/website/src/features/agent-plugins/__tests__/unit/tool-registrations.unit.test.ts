@@ -12,6 +12,7 @@ import { resolveAgentPluginLayout } from "../../layout.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
 import {
   buildAgentPluginToolRegistrations,
+  createAgentPluginActivationGate,
   loadInstalledAgentPluginToolSources,
   registerInstalledAgentPluginTools,
 } from "../../tool-registrations.js";
@@ -41,6 +42,14 @@ import {
  */
 
 const WORKSPACE_A = "55555555-5555-4555-8555-555555555555";
+
+/** The real per-call revocation gate, resolved INSIDE a test body so it picks up that body's own
+ *  `TOVU_AGENT_PLUGINS_DIR`. Every assertion in this file is about an ENABLED plugin, so the gate
+ *  admits throughout; revocation itself is proved in
+ *  `__tests__/integration/agent-plugin-tool-revocation.integration.test.ts`. */
+function gate() {
+  return createAgentPluginActivationGate({ workspaceId: WORKSPACE_A });
+}
 
 function reader(entries: readonly AgentPluginArchiveEntry[]): AgentPluginArchiveReaderPort {
   return {
@@ -158,7 +167,7 @@ test("each installed plugin produces exactly one stable, collision-free tool id 
     assert.equal(source.skills.length, 3);
 
     const registry = createToolRegistry();
-    for (const registration of buildAgentPluginToolRegistrations(sources)) registry.register(registration);
+    for (const registration of buildAgentPluginToolRegistrations(sources, gate())) registry.register(registration);
 
     const ids = registry.list().map((d) => d.id);
     assert.deepEqual(ids, ["agent_plugin_ui_ux_design"]);
@@ -197,7 +206,7 @@ test("the input schema documents an optional 'skill' property whose enum names e
     );
 
     const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
-    const [registration] = buildAgentPluginToolRegistrations(sources);
+    const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
 
     const schema = registration.descriptor.inputSchema as {
@@ -219,7 +228,7 @@ test("calling with no 'skill' argument returns the plugin's own eponymous skill 
     );
 
     const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
-    const [registration] = buildAgentPluginToolRegistrations(sources);
+    const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
 
     const result = (await registration.handler(fakeCtx(undefined))) as {
@@ -249,7 +258,7 @@ test("when a plugin has no eponymous skill folder, the default falls back to its
     assert.equal(source.defaultSkillName, "frontend-accessibility", "alphabetically first of the two installed skills");
     assert.match(source.description, /no eponymous skill folder/);
 
-    const [registration] = buildAgentPluginToolRegistrations([source]);
+    const [registration] = buildAgentPluginToolRegistrations([source], gate());
     assert.ok(registration);
     const result = (await registration.handler(fakeCtx(undefined))) as { skillName: string };
     assert.equal(result.skillName, "frontend-accessibility");
@@ -266,7 +275,7 @@ test("an explicit, recognized 'skill' argument returns that skill's own guidance
     );
 
     const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
-    const [registration] = buildAgentPluginToolRegistrations(sources);
+    const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
 
     const result = (await registration.handler(fakeCtx({ skill: "frontend-accessibility" }))) as {
@@ -291,7 +300,7 @@ test("an unrecognized 'skill' argument falls back to the default skill gracefull
     );
 
     const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
-    const [registration] = buildAgentPluginToolRegistrations(sources);
+    const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
 
     const result = (await registration.handler(fakeCtx({ skill: "does-not-exist" }))) as {
@@ -310,7 +319,7 @@ test("a malformed 'skill' argument (wrong type) or an unexpected extra field sti
     await installRealPackage(WORKSPACE_A, "coffee-roastery", { "coffee-roastery": "# Coffee Roastery\n" }, "archive-shape");
 
     const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
-    const [registration] = buildAgentPluginToolRegistrations(sources);
+    const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
 
     await assert.rejects(() => registration.handler(fakeCtx({ skill: 123 })));
@@ -326,7 +335,7 @@ test("the handler returns the exact same guidance markdown readInstalledSkillMar
     const [source] = sources;
     assert.ok(source);
 
-    const [registration] = buildAgentPluginToolRegistrations(sources);
+    const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
     const result = (await registration.handler(fakeCtx(undefined))) as { pluginId: string; skillName: string; guidance: string };
 
@@ -352,7 +361,7 @@ test("SECURITY: no absolute host path appears in any registered tool's id, descr
     assert.ok(installed.packageRoot.startsWith(agentPluginsDir));
 
     const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
-    const registrations = buildAgentPluginToolRegistrations(sources);
+    const registrations = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registrations.length > 0);
 
     for (const registration of registrations) {
@@ -418,7 +427,7 @@ test("an empty (never-installed) workspace produces zero sources and an empty re
   await withAgentPluginsDir(async () => {
     const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
     assert.deepEqual(sources, []);
-    assert.deepEqual(buildAgentPluginToolRegistrations(sources), []);
+    assert.deepEqual(buildAgentPluginToolRegistrations(sources, gate()), []);
   });
 });
 

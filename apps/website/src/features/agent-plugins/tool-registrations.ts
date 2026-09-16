@@ -545,13 +545,118 @@ function buildPluginToolResult(source: AgentPluginToolSource, requestedSkill: st
 }
 
 /**
+ * ===========================================================================================
+ * REVOCATION — the activation gate has to run AGAIN, per call, or a disable never lands
+ * ===========================================================================================
+ *
+ * {@link loadInstalledAgentPluginToolSources}'s own ACTIVATION GATE runs exactly once, because
+ * `registerInstalledAgentPluginTools` runs exactly once: inside `agent-daemon-server.ts`'s
+ * `start()`. `@jini-ai/core`'s `ToolRegistry` is append-only BY DESIGN — its own header calls that
+ * out ("unregister is not exposed; ... tools are registered once at composition time") — so nothing
+ * anywhere can take a registration back out of a daemon that is already running.
+ *
+ * That left a privilege-retention hole (sol finding 5-1, 2026-09-16): an operator who switched a
+ * plugin OFF, from either inbound adapter, kept a live `agent_plugin_<id>` tool serving that
+ * plugin's guidance until Tovu was restarted — while both the admin screen and the tool's own
+ * success message told them the revocation had taken effect. The activations record really IS
+ * re-read per run by the OTHER two gate surfaces (run-start ref injection, discovery); the tool
+ * surface was the one that had snapshotted it.
+ *
+ * The gate therefore moves to where the capability is actually spent — the invocation itself. This
+ * is not "a filter bolted onto the read path": `@jini-ai/core`'s `authorizeToolInvocation` consults
+ * a registration's `ToolPolicy` BEFORE it will hand the handler back to `ToolExecutor`, and the
+ * handler is unreachable by any other route, so a policy check here is the single sink for running
+ * one of these tools, not one of several. A revoked plugin's call ends as `denied` without the
+ * handler ever being entered, and the daemon's own audit record says so.
+ *
+ * Consequences worth stating rather than discovering later:
+ * - Revocation is immediate and reversible in BOTH directions for a tool that was registered at
+ *   boot. It is NOT symmetric for one that was not: enabling a plugin that was disabled when the
+ *   daemon started still needs a restart, because there is no registration to re-admit. That is the
+ *   asymmetry `plugin-runtime/tool-registrations.ts`'s `restartNoteFor` reports to the model.
+ * - The tool stays VISIBLE. `registry.list()` and `search_tools`' one-shot FTS snapshot
+ *   (`agent-daemon-server.ts`) are both append-only too, so a revoked plugin's tool can still be
+ *   found and attempted; it just cannot run. Hiding it needs a registry mutation API that does not
+ *   exist, and a visible-but-refusing tool is the safe direction of that pair.
+ * - It inherits `readAgentPluginActivations`'s fail-OPEN reading of a missing/corrupt record
+ *   (absent means active — see `activation.ts`'s header for why), exactly like the other two gate
+ *   surfaces. Diverging here would make one surface disagree with the other two about what "active"
+ *   means, which is a worse failure than the one it would fix.
+ */
+export interface AgentPluginActivationGate {
+  /** Re-reads this workspace's activation record and answers whether `pluginId` may still run. */
+  isActive(pluginId: string): Promise<boolean>;
+}
+
+/**
+ * The production gate: one small `activations.json` read per tool call, against the same
+ * `forWorkspace()` root every other path in this feature goes through.
+ *
+ * Deliberately NOT cached. The record changes when a human toggles a plugin, and the whole point of
+ * this gate is that such a toggle is observed by the very next call; a cache would reintroduce the
+ * staleness window the gate exists to close, to save a sub-millisecond read on a human-paced call.
+ *
+ * @param ctx.workspaceId - The tenant whose record is consulted. Never an instance-level path.
+ * @returns A gate whose `isActive` is fresh per call.
+ * @complexity O(p) per call in the recorded plugin count, plus one small file read.
+ */
+export function createAgentPluginActivationGate(ctx: { readonly workspaceId: string }): AgentPluginActivationGate {
+  const workspaceRoot = resolveAgentPluginLayout().forWorkspace(ctx.workspaceId).root;
+  return {
+    async isActive(pluginId: string): Promise<boolean> {
+      return isAgentPluginActive(await readAgentPluginActivations(workspaceRoot), pluginId);
+    },
+  };
+}
+
+/**
+ * Wraps one registration's policy so the plugin's CURRENT activation is checked before its handler
+ * can be reached, then defers to the policy `buildDomainRegistrations` already attached.
+ *
+ * Deferring rather than replacing matters: the kit's policy is a deliberate pass-through today
+ * (each tool's permission is evaluated at its own chokepoint), and a future kit that puts something
+ * real there must not be silently dropped by this wrapper.
+ *
+ * @complexity O(1) plus the gate's own read.
+ */
+function withActivationGate(
+  registration: ToolRegistration,
+  gate: AgentPluginActivationGate,
+  pluginId: string,
+): ToolRegistration {
+  const inner = registration.policy;
+  return {
+    ...registration,
+    policy: {
+      async authorize(authCtx) {
+        if (!(await gate.isActive(pluginId))) return "deny";
+        return inner.authorize(authCtx);
+      },
+    },
+  };
+}
+
+/**
  * Turns already-resolved plugin sources into real `ToolRegistration`s — pure and synchronous, unlike
  * {@link loadInstalledAgentPluginToolSources}, so this is the half a unit test exercises without
  * touching disk. Uses the SAME `buildDomainRegistrations` gate every other domain's
  * `tool-registrations.ts` uses (catalog/risk cross-check, `inputSchema` presence, drift tripwire) —
  * not a parallel mechanism.
+ *
+ * `activation` is required, not optional, and is applied HERE rather than by the caller for the
+ * reason this file's REVOCATION note above gives: a gate a call site has to remember to attach is a
+ * gate some future call site will register tools without. Every registration this function can
+ * produce carries it. The build itself stays synchronous and touches no disk — the gate reads only
+ * when a call is actually authorized.
+ *
+ * @param sources - Already-resolved, already-activation-filtered plugin sources.
+ * @param activation - The per-call revocation gate (see {@link createAgentPluginActivationGate}).
+ * @complexity O(n) in source count; each source's gate read is deferred to invocation.
  */
-export function buildAgentPluginToolRegistrations(sources: readonly AgentPluginToolSource[]): ToolRegistration[] {
+export function buildAgentPluginToolRegistrations(
+  sources: readonly AgentPluginToolSource[],
+  activation: AgentPluginActivationGate,
+): ToolRegistration[] {
   const catalog: WirableToolDefinition[] = sources.map((source) => ({
     name: source.id,
     description: source.description,
@@ -561,16 +666,31 @@ export function buildAgentPluginToolRegistrations(sources: readonly AgentPluginT
   }));
 
   const handlers: Record<string, ToolHandler> = {};
+  const pluginIdByToolId = new Map<string, string>();
   for (const source of sources) {
     handlers[source.id] = async (ctx) => buildPluginToolResult(source, readSkillArgument(ctx.input));
+    pluginIdByToolId.set(source.id, source.pluginId);
   }
 
-  return buildDomainRegistrations({
+  const registrations = buildDomainRegistrations({
     domain: "agent-plugin-skill",
     catalogModule: "features/agent-plugins/tool-registrations.ts",
     catalog: indexCatalogById(catalog),
     handlers,
     derivedRisk: agentPluginToolDerivedRisk(sources),
+  });
+
+  return registrations.map((registration) => {
+    const pluginId = pluginIdByToolId.get(registration.descriptor.id);
+    // Unreachable via this function — every registration comes from `handlers`, whose keys are the
+    // same `source.id`s the map was built from. Guarded rather than asserted with `!` so a future
+    // kit that synthesized an extra registration would be REFUSED rather than silently ungated.
+    if (pluginId === undefined) {
+      throw new Error(
+        `tool-registrations: '${registration.descriptor.id}' has no owning Agent Plugin, so its activation could not be gated`,
+      );
+    }
+    return withActivationGate(registration, activation, pluginId);
   });
 }
 
@@ -580,13 +700,17 @@ export function buildAgentPluginToolRegistrations(sources: readonly AgentPluginT
  * `agent-daemon-server.ts`'s own top-level loops make for `buildAssistantToolRegistrations`'s output,
  * just awaited first. See this file's header for why this is a standalone async function rather than
  * a `ToolContributor`, and why it is not (yet) called from that live boot sequence.
+ *
+ * Registers with the REAL activation gate, so every tool this puts into the daemon's registry stops
+ * answering the moment its plugin is switched off — see the REVOCATION note above
+ * {@link createAgentPluginActivationGate}.
  */
 export async function registerInstalledAgentPluginTools(
   registry: { register: (registration: ToolRegistration) => void },
   ctx: { readonly workspaceId: string },
 ): Promise<void> {
   const sources = await loadInstalledAgentPluginToolSources(ctx);
-  for (const registration of buildAgentPluginToolRegistrations(sources)) {
+  for (const registration of buildAgentPluginToolRegistrations(sources, createAgentPluginActivationGate(ctx))) {
     registry.register(registration);
   }
 }
