@@ -152,18 +152,24 @@ export class EnvOrFileKeyring implements KeyringPort {
 
   /**
    * Resolve (and cache) the root key: env var first, else a generated file. Throws — never
-   * returns a placeholder — if neither source is available.
+   * returns a placeholder — if neither source is available, or if the source that IS present does
+   * not pass {@link parseRootKeyHex}.
+   *
+   * Both branches validate through that ONE parser, the same one {@link inspectRootKeyMaterial}
+   * uses, so the Secrets screen and this sealer cannot disagree about whether a key is usable.
+   * Before 2026-09-16 only the env branch validated: the file branch was a bare
+   * `Buffer.from(hex, "hex")`, which turns non-hex content into a zero-length buffer that
+   * `hkdfSync` accepts — every credential was then sealed under a key computable from this
+   * module's public constants, while the status screen said the key was unusable.
+   *
+   * @throws {UnusableRootKeyError} The env var or key file is present but malformed or too short.
    */
   private resolveRootKey(): Buffer {
     if (this.cachedRootKey) return this.cachedRootKey;
 
     const fromEnv = process.env[this.envVarName];
     if (fromEnv) {
-      const trimmed = fromEnv.trim();
-      if (!/^[0-9a-f]+$/i.test(trimmed) || trimmed.length % 2 !== 0) {
-        throw new Error(`${this.envVarName} must be a hex-encoded string`);
-      }
-      this.cachedRootKey = Buffer.from(trimmed, "hex");
+      this.cachedRootKey = this.parseEnvRootKey(fromEnv);
       return this.cachedRootKey;
     }
 
@@ -174,8 +180,7 @@ export class EnvOrFileKeyring implements KeyringPort {
     }
 
     if (existsSync(this.keyFilePath)) {
-      const hex = readFileSync(this.keyFilePath, "utf8").trim();
-      this.cachedRootKey = Buffer.from(hex, "hex");
+      this.cachedRootKey = this.parseFileRootKey(readFileSync(this.keyFilePath, "utf8"));
       return this.cachedRootKey;
     }
 
@@ -191,12 +196,120 @@ export class EnvOrFileKeyring implements KeyringPort {
     this.cachedRootKey = generated;
     return this.cachedRootKey;
   }
+
+  /** The env branch of {@link resolveRootKey}. Only a too-short value can have been accepted
+   *  before 2026-09-16 (malformed hex always threw here), so only that case carries the
+   *  already-sealed warning. */
+  private parseEnvRootKey(raw: string): Buffer {
+    const parsed = parseRootKeyHex(raw);
+    if (parsed.ok) return Buffer.from(parsed.hex, "hex");
+    throw new UnusableRootKeyError({
+      source: "env",
+      reason: parsed.reason,
+      message: unusableRootKeyMessage({
+        subject: this.envVarName,
+        detail: describeRootKeyRejection(parsed),
+        sealedWarningSubject: parsed.reason === "too-short" ? "this value" : undefined,
+      }),
+    });
+  }
+
+  /** The file branch of {@link resolveRootKey}. Every rejection here carries the already-sealed
+   *  warning: before 2026-09-16 this branch accepted ANY file content, so an install may have been
+   *  sealing under it. Never rewrites, deletes or "repairs" the file — recovery is a separate,
+   *  owner-level decision this module does not make. */
+  private parseFileRootKey(raw: string): Buffer {
+    const parsed = parseRootKeyHex(raw);
+    if (parsed.ok) return Buffer.from(parsed.hex, "hex");
+    throw new UnusableRootKeyError({
+      source: "file",
+      reason: parsed.reason,
+      message: unusableRootKeyMessage({
+        subject: `the root key file at ${this.keyFilePath}`,
+        detail: describeRootKeyRejection(parsed),
+        sealedWarningSubject: "this file",
+      }),
+    });
+  }
 }
 
 const HEX_KEY_PATTERN = /^[0-9a-f]+$/i;
 
-function isValidHexKey(value: string): boolean {
-  return value.length > 0 && HEX_KEY_PATTERN.test(value) && value.length % 2 === 0;
+/** Why present root-key material was refused. `"too-short"` means valid hex of fewer than
+ *  {@link ROOT_KEY_LENGTH_BYTES} bytes — the exact length this module itself generates, and the
+ *  length of every secret HKDF derives from it, so anything shorter caps the derived key's entropy
+ *  below its own size (a truncated copy or partial write lands here). */
+export type RootKeyRejection = "empty" | "not-hex" | "odd-length" | "too-short";
+
+type ParsedRootKeyHex =
+  | { readonly ok: true; readonly hex: string }
+  | { readonly ok: false; readonly reason: RootKeyRejection; readonly hexDigits: number };
+
+/**
+ * THE root-key validator — the one both {@link EnvOrFileKeyring}'s resolution (env and file
+ * branches alike) and {@link inspectRootKeyMaterial}/{@link revealRootKeyMaterial} call, so no two
+ * paths in this module can reach different verdicts on the same material. Trims surrounding
+ * whitespace (a trailing newline from `echo >` is not a malformed key), nothing else.
+ *
+ * @complexity O(n) in the value's length.
+ */
+function parseRootKeyHex(raw: string): ParsedRootKeyHex {
+  const hex = raw.trim();
+  if (hex.length === 0) return { ok: false, reason: "empty", hexDigits: 0 };
+  if (!HEX_KEY_PATTERN.test(hex)) return { ok: false, reason: "not-hex", hexDigits: hex.length };
+  if (hex.length % 2 !== 0) return { ok: false, reason: "odd-length", hexDigits: hex.length };
+  if (hex.length < ROOT_KEY_LENGTH_BYTES * 2) return { ok: false, reason: "too-short", hexDigits: hex.length };
+  return { ok: true, hex };
+}
+
+/** Plain-language "what is wrong with it", per rejection. A `Record` over the union, so adding a
+ *  rejection without a description is a compile error. Never echoes the value itself. */
+const ROOT_KEY_REJECTION_DETAIL: Record<RootKeyRejection, (hexDigits: number) => string> = {
+  empty: () => "it is empty",
+  "not-hex": () =>
+    'it contains characters that are not hex digits (only 0-9 and a-f are allowed; a "0x" prefix, whitespace inside the value, or a base64 or PEM body all fail this)',
+  "odd-length": (hexDigits) =>
+    `it has an odd number of hex digits (${hexDigits}), so it does not describe whole bytes — usually a partial write or a truncated copy`,
+  "too-short": (hexDigits) =>
+    `it is ${hexDigits / 2} bytes (${hexDigits} hex digits); a root key must be at least ${ROOT_KEY_LENGTH_BYTES} bytes (${ROOT_KEY_LENGTH_BYTES * 2} hex digits) — usually a truncated copy`,
+};
+
+function describeRootKeyRejection(parsed: { reason: RootKeyRejection; hexDigits: number }): string {
+  return ROOT_KEY_REJECTION_DETAIL[parsed.reason](parsed.hexDigits);
+}
+
+/**
+ * Builds the refusal message. `sealedWarningSubject` is set only where an install may already
+ * have been sealing under this exact material (see the two call sites), and the warning it adds
+ * deliberately does NOT suggest that replacing the key fixes anything: rows sealed under the old
+ * bytes open only under those bytes, so a replacement makes them unreadable rather than safe.
+ */
+function unusableRootKeyMessage(input: { subject: string; detail: string; sealedWarningSubject: string | undefined }): string {
+  const refusal = `${input.subject} is not usable as a root key: ${input.detail}. Tovu refuses to derive any key material from it rather than sealing under a shortened or empty key.`;
+  if (input.sealedWarningSubject === undefined) return refusal;
+  return (
+    `${refusal} IMPORTANT: anything this site sealed while ${input.sealedWarningSubject} was in place was sealed under key material derived from these same bytes, ` +
+    `not from a real ${ROOT_KEY_LENGTH_BYTES}-byte key, so those stored credentials are not protected as intended — with empty or very short material the derived key is computable from published constants. ` +
+    `Replacing or regenerating the key will NOT restore them; it will make them unreadable. ` +
+    `Do not overwrite, delete or regenerate this key until you have decided what to do with the credentials already stored.`
+  );
+}
+
+/**
+ * Thrown by {@link EnvOrFileKeyring} when a root-key source IS present but fails
+ * {@link parseRootKeyHex}. Distinct from the plain "no root key" errors (nothing configured):
+ * this one means something is configured and broken. Never carries the key material.
+ */
+export class UnusableRootKeyError extends Error {
+  readonly source: "env" | "file";
+  readonly reason: RootKeyRejection;
+
+  constructor(input: { source: "env" | "file"; reason: RootKeyRejection; message: string }) {
+    super(input.message);
+    this.name = "UnusableRootKeyError";
+    this.source = input.source;
+    this.reason = input.reason;
+  }
 }
 
 /**
@@ -217,10 +330,13 @@ export interface RootKeyStatus {
   readonly source: "env" | "file" | "none";
   /** Present iff `active` — see {@link fingerprintRootKeyHex}. */
   readonly fingerprint?: string;
-  /** `true` when a source was found (env var set, or file present) but its content is not valid
-   *  hex — `active` is `false` in this case too; surfaced separately so a caller can tell "nothing
-   *  is configured" apart from "something is configured but broken". */
+  /** `true` when a source was found (env var set, or file present) but its content fails
+   *  {@link parseRootKeyHex} — `active` is `false` in this case too; surfaced separately so a caller
+   *  can tell "nothing is configured" apart from "something is configured but broken". */
   readonly invalid?: boolean;
+  /** Present iff `invalid` — the same {@link RootKeyRejection} {@link EnvOrFileKeyring} would throw
+   *  with for this material. */
+  readonly reason?: RootKeyRejection;
   /** The path a generated file lives (or would live) at — not secret, just a filesystem
    *  convention, always present so a `"none"` status can still tell an operator where Generate
    *  would write. */
@@ -232,21 +348,23 @@ export interface InspectRootKeyMaterialOptions {
   keyFilePath?: string;
 }
 
+type ActiveRootKeyMaterial = { source: "env" | "file" | "none"; hex?: string; invalid?: boolean; reason?: RootKeyRejection };
+
 /** One raw read of whichever source is active — the shared core both {@link inspectRootKeyMaterial}
- *  and {@link revealRootKeyMaterial} build on, so the env-first/file-second precedence and the hex
- *  validity check exist in exactly one place. Holds no state, performs no caching (this file's own
+ *  and {@link revealRootKeyMaterial} build on, so the env-first/file-second precedence exists in
+ *  exactly one place here, and the validity verdict is {@link parseRootKeyHex}'s — the same one
+ *  `EnvOrFileKeyring.resolveRootKey` throws on. Holds no state, performs no caching (this file's own
  *  header on why that's deliberate). @complexity O(1) plus one file read when the file path applies. */
-function readActiveRootKeyMaterial(envVarName: string, keyFilePath: string): { source: "env" | "file" | "none"; hex?: string; invalid?: boolean } {
+function readActiveRootKeyMaterial(envVarName: string, keyFilePath: string): ActiveRootKeyMaterial {
   const fromEnv = process.env[envVarName];
-  if (fromEnv) {
-    const trimmed = fromEnv.trim();
-    return isValidHexKey(trimmed) ? { source: "env", hex: trimmed } : { source: "env", invalid: true };
-  }
-  if (existsSync(keyFilePath)) {
-    const trimmed = readFileSync(keyFilePath, "utf8").trim();
-    return isValidHexKey(trimmed) ? { source: "file", hex: trimmed } : { source: "file", invalid: true };
-  }
+  if (fromEnv) return toActiveRootKeyMaterial("env", fromEnv);
+  if (existsSync(keyFilePath)) return toActiveRootKeyMaterial("file", readFileSync(keyFilePath, "utf8"));
   return { source: "none" };
+}
+
+function toActiveRootKeyMaterial(source: "env" | "file", raw: string): ActiveRootKeyMaterial {
+  const parsed = parseRootKeyHex(raw);
+  return parsed.ok ? { source, hex: parsed.hex } : { source, invalid: true, reason: parsed.reason };
 }
 
 /**
@@ -266,7 +384,13 @@ export function inspectRootKeyMaterial(options: InspectRootKeyMaterialOptions = 
   const raw = readActiveRootKeyMaterial(envVarName, keyFilePath);
 
   if (raw.hex) return { active: true, source: raw.source, fingerprint: fingerprintRootKeyHex(raw.hex), keyFilePath };
-  return { active: false, source: raw.source, ...(raw.invalid ? { invalid: true } : {}), keyFilePath };
+  return { active: false, source: raw.source, ...invalidFields(raw), keyFilePath };
+}
+
+/** The `invalid`/`reason` pair both status functions spread onto an inactive result — present
+ *  together or not at all. */
+function invalidFields(raw: ActiveRootKeyMaterial): { invalid?: true; reason?: RootKeyRejection } {
+  return raw.invalid ? { invalid: true, reason: raw.reason } : {};
 }
 
 /** {@link revealRootKeyMaterial}'s result. `hex` is present iff `active` — the ONLY other place in
@@ -295,7 +419,7 @@ export function revealRootKeyMaterial(options: InspectRootKeyMaterialOptions = {
   const raw = readActiveRootKeyMaterial(envVarName, keyFilePath);
 
   if (raw.hex) return { active: true, source: raw.source, hex: raw.hex, fingerprint: fingerprintRootKeyHex(raw.hex), keyFilePath };
-  return { active: false, source: raw.source, ...(raw.invalid ? { invalid: true } : {}), keyFilePath };
+  return { active: false, source: raw.source, ...invalidFields(raw), keyFilePath };
 }
 
 /** Thrown by {@link generateFileRootKey} when a key file already exists at the target path. */

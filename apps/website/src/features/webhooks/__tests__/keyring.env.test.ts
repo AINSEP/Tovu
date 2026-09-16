@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -11,6 +11,7 @@ import {
   inspectRootKeyMaterial,
   revealRootKeyMaterial,
   RootKeyFileAlreadyExistsError,
+  UnusableRootKeyError,
 } from "../keyring.env.js";
 
 const ENV_VAR = "TOVU_TEST_INTEGRATIONS_ROOT_KEY";
@@ -142,7 +143,11 @@ test("invalid hex-encoded env var throws error", async () => {
     const keyring1 = new EnvOrFileKeyring({ envVarName: ENV_VAR, allowFileFallback: false });
     await assert.rejects(
       () => keyring1.deriveSigningSecret({ workspaceId: "ws-1", subscriptionId: "sub-1", version: 1 }),
-      /must be a hex-encoded string/
+      {
+        name: "UnusableRootKeyError",
+        message:
+          'TOVU_TEST_INTEGRATIONS_ROOT_KEY is not usable as a root key: it contains characters that are not hex digits (only 0-9 and a-f are allowed; a "0x" prefix, whitespace inside the value, or a base64 or PEM body all fail this). Tovu refuses to derive any key material from it rather than sealing under a shortened or empty key.',
+      }
     );
 
     // Odd length hex
@@ -150,7 +155,11 @@ test("invalid hex-encoded env var throws error", async () => {
     const keyring2 = new EnvOrFileKeyring({ envVarName: ENV_VAR, allowFileFallback: false });
     await assert.rejects(
       () => keyring2.deriveSigningSecret({ workspaceId: "ws-1", subscriptionId: "sub-1", version: 1 }),
-      /must be a hex-encoded string/
+      {
+        name: "UnusableRootKeyError",
+        message:
+          "TOVU_TEST_INTEGRATIONS_ROOT_KEY is not usable as a root key: it has an odd number of hex digits (3), so it does not describe whole bytes — usually a partial write or a truncated copy. Tovu refuses to derive any key material from it rather than sealing under a shortened or empty key.",
+      }
     );
   } finally {
     if (original === undefined) delete process.env[ENV_VAR];
@@ -352,4 +361,214 @@ test("revealRootKeyMaterial: no hex field when nothing is active", async () => {
     assert.equal(reveal.active, false);
     assert.equal(reveal.hex, undefined);
   });
+});
+
+// ---------------------------------------------------------------------------
+// 2026-09-16 fix: the FILE branch of resolveRootKey validates what the ENV
+// branch validates (and a minimum length), and shares ONE verdict with
+// inspectRootKeyMaterial.
+//
+// Before this fix the file branch was a bare `Buffer.from(hex, "hex")`:
+// non-hex content silently became a ZERO-length buffer, `hkdfSync` accepted it,
+// and every credential on that install was sealed under an AES key that is a
+// fixed function of public constants — computable by anyone with the source.
+// Meanwhile `inspectRootKeyMaterial` (its own validator) reported the same file
+// as unusable, so the Secrets screen and the sealer disagreed and the sealer won.
+// ---------------------------------------------------------------------------
+
+/** Every way a real operator produces a broken key file, plus what is wrong with each. */
+const MALFORMED_KEY_FILE_CONTENTS: ReadonlyArray<{ label: string; contents: string; reason: RegExp }> = [
+  { label: "a pasted 0x prefix", contents: `0x${"ab".repeat(32)}`, reason: /not hex digits/ },
+  { label: "wholly non-hex content", contents: "not-hex-at-all", reason: /not hex digits/ },
+  { label: "a base64 body someone pasted instead of hex", contents: "c2VjcmV0LXJvb3Qta2V5", reason: /not hex digits/ },
+  { label: "an odd number of hex digits (a partial write)", contents: "ab".repeat(31) + "c", reason: /odd number of hex digits/ },
+  { label: "a truncated copy", contents: "ab".repeat(8), reason: /at least 32 bytes/ },
+  { label: "an empty file", contents: "", reason: /empty/ },
+];
+
+for (const { label, contents, reason } of MALFORMED_KEY_FILE_CONTENTS) {
+  test(`resolveRootKey REFUSES a key file containing ${label} — it never seals under truncated bytes`, async () => {
+    await withTempDir(async (dir) => {
+      const keyFilePath = join(dir, "root-key.hex");
+      writeFileSync(keyFilePath, contents, { mode: 0o600 });
+
+      const keyring = new EnvOrFileKeyring({
+        envVarName: "TOVU_TEST_UNSET_VAR_MALFORMED_FILE",
+        keyFilePath,
+        allowFileFallback: true,
+        allowFileAutoGenerate: false,
+      });
+
+      await assert.rejects(
+        () => keyring.derive({ workspaceId: "ws-1", purpose: "secret-sealer", info: "v1" }),
+        reason,
+        `a key file containing ${label} must not produce usable key material`
+      );
+      // The refused resolve must not have "repaired" the file behind the operator's back.
+      assert.equal(readFileSync(keyFilePath, "utf8"), contents, "a refused resolve must never rewrite the key file");
+    });
+  });
+}
+
+/**
+ * RED evidence, 2026-09-16, pre-fix: for a key file containing `not-hex-at-all`, `derive({ workspaceId:
+ * "ws-1", purpose: "secret-sealer", info: "v1" })` RETURNED `e1d4c02ee8ce76d8…` — byte-identical to
+ * `hkdfSync("sha256", Buffer.alloc(0), "tovu-integrations-root-key-hkdf-v1", "secret-sealer:ws-1:v1", 32)`,
+ * i.e. a key anyone with the source can compute. The assertion is on the typed refusal, which is the
+ * only outcome that rules that value out.
+ */
+test("a non-hex key file is refused with a typed UnusableRootKeyError, not collapsed to the publicly computable zero-length-IKM key", async () => {
+  await withTempDir(async (dir) => {
+    const keyFilePath = join(dir, "root-key.hex");
+    writeFileSync(keyFilePath, "not-hex-at-all", { mode: 0o600 });
+
+    const keyring = new EnvOrFileKeyring({
+      envVarName: "TOVU_TEST_UNSET_VAR_ZERO_IKM",
+      keyFilePath,
+      allowFileFallback: true,
+      allowFileAutoGenerate: false,
+    });
+
+    await assert.rejects(
+      () => keyring.derive({ workspaceId: "ws-1", purpose: "secret-sealer", info: "v1" }),
+      (err: unknown) => {
+        assert.ok(err instanceof UnusableRootKeyError);
+        assert.equal(err.source, "file");
+        assert.equal(err.reason, "not-hex");
+        return true;
+      }
+    );
+  });
+});
+
+test("the status screen and the sealer cannot disagree: whatever inspectRootKeyMaterial calls unusable, resolveRootKey refuses", async () => {
+  await withTempDir(async (dir) => {
+    const envVarName = "TOVU_TEST_UNSET_VAR_AGREEMENT";
+    const keyFilePath = join(dir, "root-key.hex");
+
+    for (const { contents } of MALFORMED_KEY_FILE_CONTENTS) {
+      writeFileSync(keyFilePath, contents, { mode: 0o600 });
+
+      const status = inspectRootKeyMaterial({ envVarName, keyFilePath });
+      assert.equal(status.active, false, `inspect must report ${JSON.stringify(contents)} unusable`);
+
+      const keyring = new EnvOrFileKeyring({ envVarName, keyFilePath, allowFileFallback: true, allowFileAutoGenerate: false });
+      await assert.rejects(
+        () => keyring.derive({ workspaceId: "ws-1", purpose: "secret-sealer", info: "v1" }),
+        `resolveRootKey must refuse the same material inspect reports unusable: ${JSON.stringify(contents)}`
+      );
+    }
+  });
+});
+
+test("a hex key shorter than 32 bytes is unusable through BOTH paths — a short env var is not a root key either", async () => {
+  const envVarName = "TOVU_TEST_SHORT_ENV_KEY";
+  process.env[envVarName] = "ab".repeat(16); // 16 bytes: valid hex, even length, still too short.
+  try {
+    const status = inspectRootKeyMaterial({ envVarName, keyFilePath: "/should/never/be/touched" });
+    assert.equal(status.active, false);
+    assert.equal(status.invalid, true);
+
+    const keyring = new EnvOrFileKeyring({ envVarName, allowFileFallback: false });
+    await assert.rejects(
+      () => keyring.derive({ workspaceId: "ws-1", purpose: "secret-sealer", info: "v1" }),
+      /at least 32 bytes/
+    );
+  } finally {
+    delete process.env[envVarName];
+  }
+});
+
+test("the malformed-key-file error names the file, says what is wrong, and does NOT imply replacing it restores anything", async () => {
+  await withTempDir(async (dir) => {
+    const keyFilePath = join(dir, "root-key.hex");
+    writeFileSync(keyFilePath, `0x${"ab".repeat(32)}`, { mode: 0o600 });
+
+    const keyring = new EnvOrFileKeyring({
+      envVarName: "TOVU_TEST_UNSET_VAR_MESSAGE",
+      keyFilePath,
+      allowFileFallback: true,
+      allowFileAutoGenerate: false,
+    });
+
+    await assert.rejects(() => keyring.derive({ workspaceId: "ws-1", purpose: "secret-sealer", info: "v1" }), {
+      name: "UnusableRootKeyError",
+      source: "file",
+      reason: "not-hex",
+      message:
+        `the root key file at ${keyFilePath} is not usable as a root key: it contains characters that are not hex digits (only 0-9 and a-f are allowed; a "0x" prefix, whitespace inside the value, or a base64 or PEM body all fail this). Tovu refuses to derive any key material from it rather than sealing under a shortened or empty key. ` +
+        "IMPORTANT: anything this site sealed while this file was in place was sealed under key material derived from these same bytes, not from a real 32-byte key, so those stored credentials are not protected as intended — with empty or very short material the derived key is computable from published constants. " +
+        "Replacing or regenerating the key will NOT restore them; it will make them unreadable. " +
+        "Do not overwrite, delete or regenerate this key until you have decided what to do with the credentials already stored.",
+    });
+  });
+});
+
+test("a malformed env var that could never have sealed anything gets no already-sealed warning; a too-short one that could have, does", async () => {
+  const envVarName = "TOVU_TEST_ENV_WARNING_SCOPE";
+  try {
+    process.env[envVarName] = "zz".repeat(32);
+    const neverAccepted = new EnvOrFileKeyring({ envVarName, allowFileFallback: false });
+    const notHexError = await neverAccepted.derive({ workspaceId: "ws-1", purpose: "p", info: "i" }).then(() => undefined, (err: Error) => err);
+    assert.ok(notHexError instanceof UnusableRootKeyError);
+    assert.doesNotMatch(notHexError.message, /IMPORTANT/);
+
+    process.env[envVarName] = "ab".repeat(16);
+    const previouslyAccepted = new EnvOrFileKeyring({ envVarName, allowFileFallback: false });
+    const tooShortError = await previouslyAccepted.derive({ workspaceId: "ws-1", purpose: "p", info: "i" }).then(() => undefined, (err: Error) => err);
+    assert.ok(tooShortError instanceof UnusableRootKeyError);
+    assert.equal(tooShortError.reason, "too-short");
+    assert.match(tooShortError.message, /^TOVU_TEST_ENV_WARNING_SCOPE is not usable as a root key: it is 16 bytes \(32 hex digits\); a root key must be at least 32 bytes \(64 hex digits\)/);
+    assert.match(tooShortError.message, /anything this site sealed while this value was in place/);
+  } finally {
+    delete process.env[envVarName];
+  }
+});
+
+test("inspectRootKeyMaterial reports the SAME rejection reason resolveRootKey throws with", async () => {
+  await withTempDir(async (dir) => {
+    const envVarName = "TOVU_TEST_UNSET_VAR_REASON_AGREEMENT";
+    const keyFilePath = join(dir, "root-key.hex");
+    writeFileSync(keyFilePath, "ab".repeat(8), { mode: 0o600 });
+
+    assert.deepEqual(inspectRootKeyMaterial({ envVarName, keyFilePath }), {
+      active: false,
+      source: "file",
+      invalid: true,
+      reason: "too-short",
+      keyFilePath,
+    });
+    const reveal = revealRootKeyMaterial({ envVarName, keyFilePath });
+    assert.equal(reveal.hex, undefined, "reveal must not disclose rejected material either");
+    assert.equal(reveal.reason, "too-short");
+
+    const keyring = new EnvOrFileKeyring({ envVarName, keyFilePath, allowFileFallback: true, allowFileAutoGenerate: false });
+    await assert.rejects(() => keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" }), { reason: "too-short" });
+  });
+});
+
+test("a valid key file with a trailing newline is still usable — trimming whitespace around the value is not malformed", async () => {
+  await withTempDir(async (dir) => {
+    const keyFilePath = join(dir, "root-key.hex");
+    writeFileSync(keyFilePath, `${"cd".repeat(32)}\n`, { mode: 0o600 });
+
+    const status = inspectRootKeyMaterial({ envVarName: "TOVU_TEST_UNSET_VAR_TRAILING_NL", keyFilePath });
+    assert.equal(status.active, true);
+    const keyring = new EnvOrFileKeyring({ envVarName: "TOVU_TEST_UNSET_VAR_TRAILING_NL", keyFilePath, allowFileFallback: true, allowFileAutoGenerate: false });
+    const secret = await keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" });
+    assert.equal(secret.length, 32);
+  });
+});
+
+test("a key longer than 32 bytes is still accepted — the floor is a minimum, not an exact length", async () => {
+  const envVarName = "TOVU_TEST_LONG_ENV_KEY";
+  process.env[envVarName] = "ef".repeat(64);
+  try {
+    assert.equal(inspectRootKeyMaterial({ envVarName, keyFilePath: "/should/never/be/touched" }).active, true);
+    const keyring = new EnvOrFileKeyring({ envVarName, allowFileFallback: false });
+    const secret = await keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" });
+    assert.equal(secret.length, 32);
+  } finally {
+    delete process.env[envVarName];
+  }
 });
