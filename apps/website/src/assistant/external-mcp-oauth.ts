@@ -1,6 +1,8 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
 import type { KeyringPort, SecretSealerPort } from "../features/webhooks/index.js";
+import { ExternalMcpConnectionRevokedError, rosterRefusalFor } from "./external-mcp-revocation.js";
+import type { FederatedCallTarget } from "./mcp-federation/ports.js";
 import {
   beginAuthorizationCode,
   beginDeviceAuthorization,
@@ -184,21 +186,38 @@ export function createDeviceAuthorizationStore(): DeviceAuthorizationStore {
   };
 }
 
+/** What {@link createExternalMcpConnectionGate} closes over — split out so
+ *  {@link readConnectionRowOrRefuse} can share the exact same shape rather than restating it. */
+interface ExternalMcpConnectionGateDeps {
+  readonly workspaceId: UUID;
+  readonly repo: Pick<ExternalMcpServerRepoPort, "findByServerId">;
+}
+
 /**
- * Builds the liveness gate `mcp-federation/registrations.ts` checks before every federated call.
+ * Builds the liveness-AND-revocation gate `mcp-federation/registrations.ts` checks before every
+ * federated call.
  *
  * ## Why this reads the database on every call, and why that is the right cost
  *
- * The connection's `oauthStatus` is PLAINTEXT on the row, so answering "is this server still
- * authorized" is one indexed primary-key read and no keyring round trip. That matters because the
- * process that DISCOVERS a dead grant is not necessarily the process serving the tool call: the
- * agent daemon and the admin web server hold separate database handles, and an in-memory flag in
- * either one would be invisible to the other. The row is the only thing both can see.
+ * The connection's row is the only thing both processes that might serve a call — the agent daemon
+ * and the admin web server, which hold separate database handles — can see, so an in-memory flag in
+ * either one would be invisible to the other. Answering "is this connection still usable" is one
+ * indexed primary-key read and, for the legacy reauth check below, no keyring round trip either.
  *
- * A connection id with no row is passed through untouched. Federation's connection set is the union
- * of this operator roster and `mcp-federation/presets.ts`'s environment-resolved presets, and a
- * preset has no row here — refusing it would take out a working server to guard a state it cannot
- * be in.
+ * ## Two checks, in order, and why a PRESET short-circuits the first
+ *
+ * A preset connection (`origin.kind === "preset"`) has no row in this table at all — its
+ * `allowedToolNames`, its enabled state, everything about it, comes from
+ * `mcp-federation/presets.ts`'s environment resolution, not from an operator-editable roster row.
+ * So {@link rosterRefusalFor} — `external-mcp-revocation.ts`'s per-call re-check against a roster
+ * row's CURRENT `enabled`/grant-lists/admission-revision — is skipped entirely for a preset; refusing
+ * it would take out a working server to guard a state it structurally cannot be in. A roster
+ * connection (`origin.kind === "roster"`, or a call built with no origin at all — the `unverifiable`
+ * bug-guard) gets the full re-check.
+ *
+ * The legacy OAuth `needs_reauth` check ({@link assertNotAwaitingReauth}) then runs regardless of
+ * origin, UNCHANGED from before this gate also did revocation — a preset can be OAuth-authenticated
+ * too, and this is the one state that always applied to both origins.
  *
  * @returns The gate. Never throws at construction.
  * @complexity O(1) per call — one primary-key read, no unseal.
@@ -206,16 +225,43 @@ export function createDeviceAuthorizationStore(): DeviceAuthorizationStore {
  *   reintroduce the cross-process invisibility this exists to close, and the read is far cheaper
  *   than the network round trip it guards.
  */
-export function createExternalMcpConnectionGate(deps: {
-  readonly workspaceId: UUID;
-  readonly repo: Pick<ExternalMcpServerRepoPort, "findByServerId">;
-}): (connectionId: string) => Promise<void> {
-  return async (connectionId) => {
-    const record = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });
-    if (!record || resolveExternalMcpAuthMode(record) !== "oauth") return;
-    if (resolveExternalMcpOAuthStatus(record) !== "needs_reauth") return;
-    throw new ExternalMcpReauthRequiredError({ serverId: connectionId, label: record.label });
+export function createExternalMcpConnectionGate(deps: ExternalMcpConnectionGateDeps): (connectionId: string, call: FederatedCallTarget) => Promise<void> {
+  return async (connectionId, call) => {
+    const record = await readConnectionRowOrRefuse(deps, connectionId);
+    const refusal = call.origin?.kind === "preset" ? null : rosterRefusalFor(record, call);
+    if (refusal !== null) {
+      throw new ExternalMcpConnectionRevokedError({ serverId: connectionId, label: record?.label ?? null, remoteName: call.remoteName, reason: refusal });
+    }
+    assertNotAwaitingReauth(record, connectionId);
   };
+}
+
+/** The gate's row read, guarded: a read that THROWS (a locked database, a corrupt row) must not leak
+ *  its detail to the model — that detail can carry a file path or a driver's internal message — so it
+ *  goes to `console.warn` for an operator to find, and the model gets only `unverifiable`'s generic
+ *  text. Split out of {@link createExternalMcpConnectionGate} purely to keep that function's
+ *  complexity under the shop ceiling.
+ *  @complexity O(1). */
+async function readConnectionRowOrRefuse(deps: ExternalMcpConnectionGateDeps, connectionId: string): Promise<ExternalMcpServerRecord | null> {
+  try {
+    return await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });
+  } catch (error) {
+    console.warn(
+      `[external-mcp] '${connectionId}': federated tool call refused — its connection row could not be read (${error instanceof Error ? error.message : String(error)})`,
+    );
+    throw new ExternalMcpConnectionRevokedError({ serverId: connectionId, label: null, remoteName: "", reason: "unverifiable" });
+  }
+}
+
+/** The gate's ORIGINAL body, byte-identical in behaviour: a missing row, or one not OAuth-authenticated,
+ *  passes; `needs_reauth` throws the same terminal error it always has. Split out of
+ *  {@link createExternalMcpConnectionGate} purely to keep that function's complexity under the shop
+ *  ceiling.
+ *  @complexity O(1). */
+function assertNotAwaitingReauth(record: ExternalMcpServerRecord | null, connectionId: string): void {
+  if (!record || resolveExternalMcpAuthMode(record) !== "oauth") return;
+  if (resolveExternalMcpOAuthStatus(record) !== "needs_reauth") return;
+  throw new ExternalMcpReauthRequiredError({ serverId: connectionId, label: record.label });
 }
 
 export interface ExternalMcpOAuthDeps {

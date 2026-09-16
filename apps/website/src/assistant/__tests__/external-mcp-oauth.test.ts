@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { ToolInputError } from "@jini-ai/core";
+
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import type { KeyringPort, SecretSealerPort } from "../../features/webhooks/ports.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
@@ -12,15 +14,18 @@ import {
   ExternalMcpReauthRequiredError,
   externalMcpSettingsDeepLink,
 } from "../external-mcp-oauth.js";
+import { ExternalMcpConnectionRevokedError } from "../external-mcp-revocation.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import {
   ExternalMcpSecretStoreUnconfiguredError,
+  externalMcpAdmissionRevision,
   type ExternalMcpServerRepoPort,
   listExternalMcpServerViews,
   openExternalMcpOAuthPayload,
   readEnabledExternalMcpConfigs,
   saveExternalMcpServer,
 } from "../external-mcp-store.js";
+import type { FederatedCallTarget } from "../mcp-federation/ports.js";
 
 /**
  * @file `external-mcp-oauth.ts` — the join between the generic OAuth client and one connection row.
@@ -705,12 +710,24 @@ test("the settings deep link escapes its server id", () => {
 });
 
 // ---------------------------------------------------------------------------
-// The federation liveness gate
+// The federation liveness-and-revocation gate
 //
 // Federated tools are registered once and never unregistered — `buildToolCatalogQuery` snapshots the
 // registry into a one-shot FTS index, so removal would leave a tool discoverable but unexecutable.
-// This gate is what makes a dead connection refuse at the call instead of the model looping on it.
+// This gate is what makes a dead OR REVOKED connection refuse at the call instead of the model
+// looping on it. `external-mcp-connection-revocation.test.ts` exercises the same gate end to end,
+// through the real daemon wiring; this section exercises `createExternalMcpConnectionGate` directly.
 // ---------------------------------------------------------------------------
+
+/** A roster call target for `SERVER`'s admitted `remoteName`, computed from the row's CURRENT
+ *  admission revision — the shape `toResolvedFederatedConnections` would have stamped onto it at
+ *  admission time, reconstructed here since these tests build the gate directly rather than through
+ *  `attachFederatedMcpTools`. */
+async function rosterCallTarget(repo: InMemoryExternalMcpServerRepo, serverId: string, remoteName: string): Promise<FederatedCallTarget> {
+  const row = await repo.findByServerId({ workspaceId: WORKSPACE, serverId });
+  assert.ok(row, `expected a row for '${serverId}'`);
+  return { remoteName, declaredAnnotations: undefined, origin: { kind: "roster", admissionRevision: externalMcpAdmissionRevision(row) } };
+}
 
 test("the connection gate lets a healthy OAuth connection through", async () => {
   const { repo, service } = await makeHarness({
@@ -719,7 +736,7 @@ test("the connection gate lets a healthy OAuth connection through", async () => 
   await connect(service);
   const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
 
-  await gate(SERVER);
+  await gate(SERVER, await rosterCallTarget(repo, SERVER, "generate_image"));
 });
 
 test("the connection gate refuses a needs_reauth connection with the terminal, model-legible error", async () => {
@@ -733,10 +750,11 @@ test("the connection gate refuses a needs_reauth connection with the terminal, m
   clock.advance(60 * 60 * 1000);
   await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
   const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const call = await rosterCallTarget(repo, SERVER, "generate_image");
 
   let caught: unknown;
   try {
-    await gate(SERVER);
+    await gate(SERVER, call);
   } catch (error) {
     caught = error;
   }
@@ -744,6 +762,34 @@ test("the connection gate refuses a needs_reauth connection with the terminal, m
   assert.ok(caught instanceof ExternalMcpReauthRequiredError);
   assert.equal(caught.retryable, false);
   assert.match(caught.message, /Do not retry this tool\.$/);
+});
+
+test("the gate still refuses a needs_reauth ROSTER connection with the unchanged reauth error", async () => {
+  // The same fixture as the test above, restated under this file's own name for the case
+  // `external-mcp-revocation.ts`'s NEW grant/revision checks must not shadow: `rosterRefusalFor`
+  // returns null for this row (its revision, enabled state and grants are all unchanged since
+  // admission), so the gate must still fall through to the ORIGINAL `needs_reauth` check below it.
+  const { repo, clock, service } = await makeHarness({
+    script: [
+      { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+      { status: 400, json: { error: "invalid_grant" } },
+    ],
+  });
+  await connect(service);
+  clock.advance(60 * 60 * 1000);
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const call = await rosterCallTarget(repo, SERVER, "generate_image");
+
+  await assert.rejects(
+    () => gate(SERVER, call),
+    (error: unknown) => {
+      assert.ok(error instanceof ExternalMcpReauthRequiredError);
+      assert.equal(error.retryable, false);
+      assert.match(error.message, /Do not retry this tool\.$/);
+      return true;
+    },
+  );
 });
 
 test("the connection gate reads the ROW, so the daemon sees a state the web server discovered", async () => {
@@ -757,21 +803,72 @@ test("the connection gate reads the ROW, so the daemon sees a state the web serv
   });
   await connect(service);
   const daemonGate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
-  await daemonGate(SERVER);
+  const call = await rosterCallTarget(repo, SERVER, "generate_image");
+  await daemonGate(SERVER, call);
 
   // The "web server" discovers the dead grant.
   clock.advance(60 * 60 * 1000);
   await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
 
   // The "daemon"'s gate, built before that happened, now refuses.
-  await assert.rejects(() => daemonGate(SERVER), (error: unknown) => error instanceof ExternalMcpReauthRequiredError);
+  await assert.rejects(() => daemonGate(SERVER, call), (error: unknown) => error instanceof ExternalMcpReauthRequiredError);
 });
 
 test("the connection gate passes through a connection id it has no row for — presets have none", async () => {
   const { repo } = await makeHarness();
   const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
 
-  await gate("supabase");
+  await gate("supabase", { remoteName: "some_tool", declaredAnnotations: undefined, origin: { kind: "preset" } });
+});
+
+test("a preset call is not refused for a missing row, even for a connection id that looks like a roster one", async () => {
+  const { repo } = await makeHarness();
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+
+  // `higgs` DOES have a row (created by `makeHarness`) — this proves the preset short-circuit is
+  // driven by `call.origin.kind`, not by whether a row happens to exist.
+  await gate(SERVER, { remoteName: "generate_image", declaredAnnotations: undefined, origin: { kind: "preset" } });
+});
+
+test("the gate refuses an OAuth connection the operator disconnected", async () => {
+  const { repo, service } = await makeHarness({
+    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+  });
+  await connect(service);
+  await service.disconnect({ serverId: SERVER });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const call = await rosterCallTarget(repo, SERVER, "generate_image");
+
+  await assert.rejects(
+    () => gate(SERVER, call),
+    (error: unknown) => {
+      assert.ok(error instanceof ExternalMcpConnectionRevokedError, `expected ExternalMcpConnectionRevokedError, got ${String(error)}`);
+      assert.ok(error instanceof ToolInputError);
+      assert.equal(error.reason, "disconnected");
+      assert.equal(
+        error.message,
+        '"Higgs" is disconnected in Integrations → External MCP. Ask the operator to reconnect it. Do not retry this tool.',
+      );
+      return true;
+    },
+  );
+});
+
+test("the gate refuses a non-preset call with no admission origin", async () => {
+  const { repo, service } = await makeHarness({
+    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+  });
+  await connect(service);
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+
+  await assert.rejects(
+    () => gate(SERVER, { remoteName: "generate_image", declaredAnnotations: undefined, origin: undefined }),
+    (error: unknown) => {
+      assert.ok(error instanceof ExternalMcpConnectionRevokedError);
+      assert.equal(error.reason, "unverifiable");
+      return true;
+    },
+  );
 });
 
 test("the connection gate ignores a static_env server, which has no authorization to lose", async () => {
@@ -786,12 +883,12 @@ test("the connection gate ignores a static_env server, which has no authorizatio
       enabled: true,
       command: "npx",
       args: "-y plain-mcp",
-      allowedToolNames: "",
+      allowedToolNames: "some_tool",
     },
   );
   const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
 
-  await gate("plain");
+  await gate("plain", await rosterCallTarget(repo, "plain", "some_tool"));
 });
 
 // ---------------------------------------------------------------------------
