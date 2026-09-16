@@ -14,14 +14,17 @@ import {
 /**
  * @file Regression coverage for the live duplicate-JSON-LD bug on `/how-themes-work`
  * (2026-08-31): `page-head.ts`'s `contributors` registry is a process-wide singleton, but
- * `createApp()` is not guaranteed to run only once per process — `app.ts`'s own module body ends
- * with an eager `export const app = createApp();`, which fires (using `createRouteDeps()`'s
- * hermetic, seeded, in-memory deps) the moment anything merely IMPORTS `app.ts`, including
- * `index.ts`'s real boot path immediately before its own explicit `createApp(deps)` call. Before
- * the fix, neither call cleared the registry, so both calls' `createSeoPageHeadHook` instances
- * stayed registered side by side for the rest of the process: on a live request, the eager call's
- * hook (closed over stale seed-fixture data) folded a second, stale `application/ld+json` block
- * and a stale `description` into the SAME `<head>` as the real hook's correct output.
+ * `createApp()` is not guaranteed to run only once per process — `app.ts`'s module body used to end
+ * with an eager `export const app = createApp();`, which fired (using `createRouteDeps()`'s
+ * hermetic, seeded, in-memory deps) the moment anything merely IMPORTED `app.ts`, including
+ * `index.ts`'s real boot path immediately before its own explicit `createApp(deps)` call. That eager
+ * export was removed on 2026-09-16 (t91 F4.1), so this exact double-import trigger no longer exists
+ * — but `createApp()` still runs more than once per process today: every test that calls it, and
+ * every `routeDeps.createSiteApp()` the exporter and site-inspection make. Before the fix, neither
+ * call cleared the registry, so both calls' `createSeoPageHeadHook` instances stayed registered side
+ * by side for the rest of the process: on a live request, the stale call's hook (closed over stale
+ * seed-fixture data) folded a second, stale `application/ld+json` block and a stale `description`
+ * into the SAME `<head>` as the real hook's correct output.
  *
  * This test exercises the real `createApp()` (not a reimplementation) and asserts the exact
  * invariant that broke: a later `createApp()` call must fully replace an earlier one's page-head

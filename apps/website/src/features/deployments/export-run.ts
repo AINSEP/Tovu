@@ -14,19 +14,24 @@
  *
  * THIS FILE ALSO NEVER IMPORTS `#src/platform/export/index` (the real `exportSite`/`ExportReport`), and that
  * is not the same "narrow-slice style" choice — it is a REQUIRED fix for a real bug the first
- * version of this file shipped with. `src/platform/export/site-exporter.ts` imports `createApp` from
- * `server/app.ts`, and `server/app.ts`'s very last line is an EAGER `export const app =
- * createApp();` that runs the whole app-boot call graph (including, via the BYOK execution mode,
- * `buildAssistantToolRegistrations`) as a side effect of merely LOADING `server/app.ts`. An eager
- * top-level `import { exportSite } from "#src/platform/export/index"` here would have closed a real cycle —
- * `assistant/tool-registrations.ts` (loading) -> this domain's `tool-registrations.ts` -> this file
- * -> `export/index.ts` -> `site-exporter.ts` -> `server/app.ts` -> (via
- * `modules/assistant-byok.ts`/`byok-tool-surface.ts`) back into the STILL-LOADING
- * `assistant/tool-registrations.ts`, calling `buildAssistantToolRegistrations` before that module
- * had reached its own `const DOMAIN_SLICES = [...]` line. Observed directly: `node --test`ing
- * `tool-registrations.contracts.test.ts` threw `ReferenceError: Cannot access 'DOMAIN_SLICES'
- * before initialization` — a real crash, not a theoretical one, the first time this file imported
- * `exportSite` directly.
+ * version of this file shipped with, now history. That first version imported `exportSite` directly,
+ * and back then `src/platform/export/site-exporter.ts` imported `createApp` from `server/app.ts`,
+ * whose module body ended with an EAGER `export const app = createApp();` that ran the whole
+ * app-boot call graph (including, via the BYOK execution mode, `buildAssistantToolRegistrations`) as
+ * a side effect of merely LOADING `server/app.ts` — closing a real cycle: `assistant/
+ * tool-registrations.ts` (loading) -> this domain's `tool-registrations.ts` -> this file ->
+ * `export/index.ts` -> `site-exporter.ts` -> `server/app.ts` -> (via `modules/assistant-byok.ts`/
+ * `byok-tool-surface.ts`) back into the STILL-LOADING `assistant/tool-registrations.ts`, calling
+ * `buildAssistantToolRegistrations` before that module had reached its own `const DOMAIN_SLICES =
+ * [...]` line. Observed directly at the time: `node --test`ing `tool-registrations.contracts.test.ts`
+ * threw `ReferenceError: Cannot access 'DOMAIN_SLICES' before initialization`.
+ *
+ * Both halves of that cycle are gone now: `site-exporter.ts` has taken `routeDeps.createSiteApp()`
+ * instead of importing `createApp` from `app.ts` since 2026-08-16, and the eager `export const app =
+ * createApp();` itself was removed on 2026-09-16 (t91 F4.1). This file still never imports
+ * `#src/platform/export/index` directly — the injection below stays, not because the crash could
+ * still happen, but because it keeps `features/deployments` from depending on the export engine's
+ * whole graph at all.
  *
  * The fix is dependency injection instead of an import: {@link startExportRun} takes the actual
  * export engine as a parameter (typed structurally via {@link ExportEngine}, never by naming

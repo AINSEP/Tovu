@@ -240,20 +240,22 @@ function buildCliSpawnPlan(input: CliSpawnPlanInput): CliSpawnPlan {
  * `serve`-only concerns (daemon token, admin dist) on top, and `tovu init` uses this bare form.
  * Split out so a one-shot `init` does not mint a daemon token it has no daemon for.
  *
- * `TOVU_SITE_DIR` is set here, not only in `buildServeEnv`, because the crash it works around is
- * NOT `serve`-specific: `cli/main.ts`'s `createProgram()` statically imports every subcommand
+ * `TOVU_SITE_DIR` is set here, not only in `buildServeEnv`, because the crash it works around used
+ * to be NOT `serve`-specific: `cli/main.ts`'s `createProgram()` statically imports every subcommand
  * module up front (`program.ts` imports both `init.js` and `serve.js` unconditionally), and
- * `serve.js`'s own top-level `import { createApp } from ".../app.js"` means `app.ts`'s
- * MODULE-LOAD-TIME `export const app = createApp();` fires for ANY `tovu` invocation — `init`
- * included — not just when `serve`'s action handler actually runs. Confirmed live, 2026-09-05: `tovu
+ * `serve.js`'s own top-level `import { createApp } from ".../app.js"` used to mean `app.ts`'s
+ * MODULE-LOAD-TIME `export const app = createApp();` fired for ANY `tovu` invocation — `init`
+ * included — not just when `serve`'s action handler actually ran. Confirmed live, 2026-09-05: `tovu
  * init` run with this shell's own `buildCliEnv` (no `TOVU_SITE_DIR`) from a cwd with no
  * `sites/tovu-com` crashed the same way `serve` did — same stack (`assistant-byok.ts`'s
  * `resolveToolAttemptAuditSink` → `defaultContentDbPath` → `siteDir()` → `resolveSiteRoot()`'s
- * cwd-relative fallback), before `runInitCommand` ever got a chance to run. Setting it here instead
- * of only in `buildServeEnv` is what keeps "Open Site…"/"Open Recent" onto an EMPTY folder — which
- * calls `initSiteDir`, `buildCliEnv`'s own caller, never `buildServeEnv` — from hitting the same
- * uncaught crash `buildServeEnv`'s own doc already named for `serve`. See that doc for the full
- * trace and why the fix has to live in the child's own env rather than in `serve.ts`'s body.
+ * cwd-relative fallback), before `runInitCommand` ever got a chance to run. That eager export was
+ * removed on 2026-09-16 (t91 F4.1), so the crash no longer reproduces from `apps/website` — but the
+ * variable stays because every `tovu` subcommand must resolve its site from the directory this shell
+ * chose, never from the child's cwd, independent of what triggered this doc originally. Setting it
+ * here instead of only in `buildServeEnv` is what keeps "Open Site…"/"Open Recent" onto an EMPTY
+ * folder — which calls `initSiteDir`, `buildCliEnv`'s own caller, never `buildServeEnv` — consistent
+ * with `buildServeEnv`'s own doc for `serve`. See that doc for the full trace.
  *
  * @param siteDir the site dir the child will operate on (`init`'s target dir, or `serve`'s), set
  *   into `TOVU_SITE_DIR` unless the operator already pinned one. Optional so a caller with no
@@ -324,23 +326,27 @@ interface BuildServeEnvInput {
  *   why site-chat 503'd in every compiled-mode desktop run.
  *
  * - **`TOVU_SITE_DIR` is set unless the operator already pinned one.** Confirmed live, 2026-09-05:
- *   `apps/website/src/server/runtime/composition/app.ts` has a MODULE-LOAD-TIME side effect —
- *   `export const app = createApp();`, evaluated the instant `cli/main.ts`'s static import chain
- *   reaches that file, before `cli/commands/serve.ts`'s own `runServeCommand()` body ever runs — and
- *   that default `createApp()` call composes `assistant-byok.ts`'s audit sink unconditionally
+ *   `apps/website/src/server/runtime/composition/app.ts` used to have a MODULE-LOAD-TIME side
+ *   effect — `export const app = createApp();`, evaluated the instant `cli/main.ts`'s static import
+ *   chain reached that file, before `cli/commands/serve.ts`'s own `runServeCommand()` body ever ran
+ *   — and that default `createApp()` call composed `assistant-byok.ts`'s audit sink unconditionally
  *   (`resolveToolAttemptAuditSink` → `defaultContentDbPath` → `siteDir()` → `resolveSiteRoot()`),
- *   which falls back to `<cwd>/sites/tovu-com` whenever `TOVU_SITE_DIR` is unset. Own-server mode's
- *   cwd is whatever launched Electron, not the repo root, so that fallback directory does not exist
+ *   which fell back to `<cwd>/sites/tovu-com` whenever `TOVU_SITE_DIR` was unset. Own-server mode's
+ *   cwd is whatever launched Electron, not the repo root, so that fallback directory did not exist
  *   and the child crashed at import time with "Cannot open database because the directory does not
- *   exist" — before printing a boot line, before `runServeCommand` gets a chance to do anything.
- *   The actual fix lives in {@link buildCliEnv} (this function's own base), not here, because the
- *   same crash is reachable through `init` too — see that function's own doc. This is a real,
- *   pre-existing "systemic gap" in `apps/website` itself (two of its own certified integration tests
- *   — the foreign-cwd `CR-R04/CR-R01` test and the `BR-07`/`BR-04` test — already fail at HEAD for
- *   exactly this reason, confirmed independent of any change made here), reported rather than fixed
- *   structurally: setting it in the child's own env only helps `apps/desktop`'s OWN spawned
- *   children, since it lives in the env this shell controls, not in the CLI's own spawn path those
- *   two tests exercise directly.
+ *   exist" — before printing a boot line, before `runServeCommand` got a chance to do anything. That
+ *   eager export was removed on 2026-09-16 (t91 F4.1), so this exact crash no longer reproduces from
+ *   `apps/website` — the variable stays regardless: every `tovu` subcommand must resolve its site
+ *   from the directory this shell chose, never from the child's cwd, which is a standing requirement
+ *   independent of what triggered this doc originally. The actual fix lived in {@link buildCliEnv}
+ *   (this function's own base), not here, because the same crash was reachable through `init` too —
+ *   see that function's own doc. This is a real, pre-existing "systemic gap" in `apps/website`
+ *   itself, unrelated to the eager-export crash above (two of its own certified integration tests —
+ *   the foreign-cwd `CR-R04/CR-R01` test and the `BR-07`/`BR-04` test — already failed at HEAD for
+ *   exactly this reason as of 2026-09-05, confirmed independent of any change made here), reported
+ *   rather than fixed structurally: setting it in the child's own env only ever helped
+ *   `apps/desktop`'s OWN spawned children, since it lives in the env this shell controls, not in the
+ *   CLI's own spawn path those two tests exercise directly.
  *
  * `PORT`, `TOVU_CONTENT_DB` and `TOVU_DB` are dropped so a variable exported in the developer's
  * shell cannot silently repoint the desktop app's database or port — this shell's `--port` and

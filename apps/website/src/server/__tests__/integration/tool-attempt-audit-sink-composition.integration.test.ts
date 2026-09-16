@@ -22,8 +22,8 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
  * injected, so `modules/assistant-byok.ts` neither reads `process.env.TOVU_DB` nor calls
  * `openContentDb` for itself. That matters beyond tidiness because `openContentDb` runs `migrate()`
  * unconditionally, so a module that opens its own handle turns "this module was constructed" into
- * "a database was migrated" — and every `createApp()` constructs this module, including the eager
- * `export const app = createApp()` that ~190 test files trigger merely by importing `app.ts`.
+ * "a database was migrated" — and every `createApp()` constructs this module: the serving app, every
+ * export and published-page fetch (`routeDeps.createSiteApp()`), and every test that builds an app.
  *
  * Both arms are covered on purpose (the repo's documented "fix lands in one arm, siblings left
  * broken" failure mode): the real SQLite root AND `app.ts`'s hermetic in-memory root.
