@@ -14,11 +14,20 @@
  * 1. `withReadOnlyToolConstraint` — wraps the BARE executor, so every dispatch by every layer above
  *    it, including a tool id no caller ever named, has to pass the read-only gate to reach a handler.
  *    Anything further out would be bypassed by whatever sits beneath it.
- * 2. `withToolAttemptAudit` — appends `requested` BEFORE delegating, which is the only ordering that
+ * 2. `withRedactedToolFailures` (2026-09-16) — blanks secret-shaped values out of every `failed`
+ *    result and mints its `ERR-…` id, per the owner's "hide secrets only" ruling (see that file's own
+ *    header). Sits ABOVE the read-only gate so a read-only refusal (`status: 'denied'`, set by layer
+ *    1, never `'failed'`) is never touched by it, and BELOW `withToolAttemptAudit` so the audit sees
+ *    the finished `errorId` and can store it (`tool-executor-audit.ts`). It sits INSIDE
+ *    `withToolFailureRecovery` (layer 4) rather than outside it: recovery's own read-only-remedy
+ *    refusal message is set on the OUTER result, after this layer has already run, so that message is
+ *    never redacted either — only the original/remedy/retry calls recovery makes THROUGH `inner` pass
+ *    through this layer, each redacted on its own.
+ * 3. `withToolAttemptAudit` — appends `requested` BEFORE delegating, which is the only ordering that
  *    records an unknown tool id or a throwing authorization (see that file's own doc). Sitting above
  *    the constraint gate means a read-only refusal is itself audited as a denial. Skipped entirely
  *    when the caller supplies no `toolAttemptAudit` — see {@link AssistantToolExecutorDeps}'s own doc.
- * 3. `withToolFailureRecovery` — outermost, so the remedy call and the retry it can make each land as
+ * 4. `withToolFailureRecovery` — outermost, so the remedy call and the retry it can make each land as
  *    their own audited attempt row. The opposite order would collapse all three into the one outer
  *    "completed" row the audit records for the call the transport actually made, losing the remedy
  *    tool's own attempt from the trail entirely.
@@ -40,6 +49,7 @@ import type { SurfaceExchangeStore } from "../contracts/core/tool-surface-exchan
 import { withReadOnlyToolConstraint } from "./read-only-tool-constraint.js";
 import { withToolAttemptAudit } from "./tool-executor-audit.js";
 import { withToolFailureRecovery } from "./tool-failure-recovery.js";
+import { withRedactedToolFailures, type RedactedToolFailuresDeps } from "./tool-failure-redaction.js";
 
 export interface AssistantToolExecutorDeps {
   /** The registry every tool is registered on — the executor runs against it, and both the read-only
@@ -60,6 +70,9 @@ export interface AssistantToolExecutorDeps {
    * through with no reshaping.
    */
   readonly toolAttemptAudit?: { readonly sink: ToolAttemptAuditSink; readonly workspaceId: string };
+  /** Test seam for `withRedactedToolFailures` (a fixed error ID, a captured `onFailure`). Production
+   *  callers pass nothing and get the real minter and the real `[tool-failure]` log line. */
+  readonly toolFailures?: RedactedToolFailuresDeps;
 }
 
 /**
@@ -72,14 +85,16 @@ export interface AssistantToolExecutorDeps {
  * `withReadOnlyToolConstraint` at all.
  *
  * @returns A `ToolExecutor` behaving exactly like `createToolExecutor({registry})` for any
- *   unconstrained principal, plus (when `toolAttemptAudit` is supplied) a durable attempt trail, and
- *   the failure-recovery loop.
+ *   unconstrained principal, plus a redacted, ID-tagged failure text for every internal failure
+ *   (`withRedactedToolFailures`), plus (when `toolAttemptAudit` is supplied) a durable attempt trail,
+ *   and the failure-recovery loop.
  * @complexity Composition only — O(1); each decorator's own cost is documented on it.
  */
 export function createAssistantToolExecutor(deps: AssistantToolExecutorDeps): ToolExecutor {
   const readOnlyGuarded = withReadOnlyToolConstraint(createToolExecutor({ registry: deps.registry }), { registry: deps.registry });
+  const redacted = withRedactedToolFailures(readOnlyGuarded, deps.toolFailures);
   const audited = deps.toolAttemptAudit
-    ? withToolAttemptAudit(readOnlyGuarded, deps.toolAttemptAudit.sink, { workspaceId: deps.toolAttemptAudit.workspaceId })
-    : readOnlyGuarded;
+    ? withToolAttemptAudit(redacted, deps.toolAttemptAudit.sink, { workspaceId: deps.toolAttemptAudit.workspaceId })
+    : redacted;
   return withToolFailureRecovery(audited, { surfaceExchanges: deps.surfaceExchanges, registry: deps.registry });
 }

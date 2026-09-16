@@ -25,6 +25,7 @@ import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/re
 import { META_TOOL_DESCRIPTORS, createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
 import { TOOL_FAILURE_RECOVERY_TOOL_ID } from "../tool-failure-recovery.js";
 import { constrainPrincipalToReadOnlyTools } from "../read-only-tool-constraint.js";
+import { TOOL_ERROR_ID_PATTERN } from "../tool-failure-redaction.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 
@@ -642,7 +643,15 @@ test("WIRING: the failed retry still returns a coherent, exact error to the mode
 
   const result = await pending;
   assert.equal(result.isError, true);
-  assert.equal(result.content, "still broken after the fix", "the retry's own failure message must reach the model verbatim, not be swallowed");
+  // 2026-09-16: an internal failure now carries a redacted-message ID prefix (`tool-failure-redaction.ts`,
+  // owner decision "hide secrets only") — the retry's own message still reaches the model verbatim
+  // AFTER that prefix, it is just no longer the exact first characters of `content`.
+  assert.ok(result.content.startsWith("Error ERR-"), `expected an ID prefix, got: ${result.content}`);
+  assert.ok(
+    result.content.endsWith(": still broken after the fix"),
+    "the retry's own failure message must reach the model verbatim (after the ID prefix), not be swallowed",
+  );
+  assert.match(result.content, TOOL_ERROR_ID_PATTERN, "an internal failure must carry a copyable error ID");
   // The single most important assertion in this file: a retry that ITSELF fails must never trigger a
   // second ask -> apply -> retry cycle. Proven structurally by call/surface counts, not just by the
   // final content — a recursive re-entry here would show up as a 3rd `originalCallCount` or a 2nd
