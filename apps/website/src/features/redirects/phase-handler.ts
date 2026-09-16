@@ -50,6 +50,7 @@ import type {
   RedirectRepoPort,
   RedirectResolver,
 } from "./ports.js";
+import { isReferrerAliasLocation } from "./referrer-alias.js";
 import { checkSameOriginDestination } from "./reserved-destination.js";
 import type { RedirectRecord, RedirectRequest, RedirectResolution } from "./types.js";
 
@@ -78,13 +79,16 @@ function composeOriginUrl(origin: VerifiedOrigin): string {
  * pass an already-absolute/protocol-relative location through unchanged;
  * resolve a relative location against the workspace's verified canonical
  * origin. Returns `null` if no verified origin exists and `location` is
- * relative (cannot even form a candidate to check — fails closed).
+ * relative (cannot even form a candidate to check — fails closed), and for
+ * Express's `back` alias, which is served as the request's `Referer` rather than
+ * as a path, so no candidate describes where it goes (see `./referrer-alias.ts`).
  */
 async function toOracleCandidate(
   ctx: RedirectTargetContext,
   location: string,
   originRegistry: OriginRegistryPort
 ): Promise<string | null> {
+  if (isReferrerAliasLocation(location)) return null;
   if (isPotentiallyCrossOrigin(location)) return location;
   try {
     const canonical = await originRegistry.canonicalOrigin(ctx);

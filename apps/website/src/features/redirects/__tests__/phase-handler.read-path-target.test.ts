@@ -247,3 +247,35 @@ test("a same-origin absolute target to ordinary content still resolves, trailing
     if (result.matched) assert.equal(result.location, target);
   }
 });
+
+/**
+ * `pages.ts` serves a match with Express's `res.redirect(statusCode, location)`, and Express 4's
+ * `res.location()` replaces the exact string `back` with the request's `Referer` header. The oracle
+ * would be asked about `https://trusted.example/back` while the visitor is sent to whatever page
+ * linked to this site — so `back` must never resolve, whether stored or interpolated (t91 review
+ * F1, 2026-09-16).
+ */
+test("a legacy STORED target 'back' (Express's Referer alias) never resolves to matched:true", async () => {
+  const resolver = resolverWith([rule({ id: "legacy-back", matchType: "exact", fromPattern: "/old", toTarget: "back" })]);
+
+  const result = await resolver.resolve({ workspaceId: WORKSPACE_ID, path: "/old", phase: "post_content" });
+
+  assert.deepEqual(result, { matched: false });
+});
+
+test("a wildcard capture that interpolates the Referer alias 'back' never resolves to matched:true", async () => {
+  const resolver = resolverWith([rule({ id: "wildcard-bare", matchType: "wildcard", fromPattern: "/go/*", toTarget: "$1" })]);
+
+  const result = await resolver.resolve({ workspaceId: WORKSPACE_ID, path: "/go/back", phase: "post_content" });
+
+  assert.deepEqual(result, { matched: false });
+});
+
+test("a wildcard capture that only resembles the Referer alias still resolves", async () => {
+  const resolver = resolverWith([rule({ id: "wildcard-bare", matchType: "wildcard", fromPattern: "/go/*", toTarget: "$1" })]);
+
+  const result = await resolver.resolve({ workspaceId: WORKSPACE_ID, path: "/go/backup", phase: "post_content" });
+
+  assert.equal(result.matched, true);
+  if (result.matched) assert.equal(result.location, "backup");
+});

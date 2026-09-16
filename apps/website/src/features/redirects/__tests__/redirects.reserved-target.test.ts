@@ -341,3 +341,42 @@ test("createRedirect still allows a percent-encoded space", async () => {
   const { record } = await create(deps, "/old", "/a%20b");
   assert.equal(record.toTarget, "/a%20b");
 });
+
+/**
+ * Express 4's `res.location()` (called by the `res.redirect()` that serves every matched rule)
+ * replaces the exact string `back` with the request's `Referer` header. So a stored `back` is not a
+ * site-relative path at all: it is "wherever the page that linked here was", an open redirect the
+ * origin oracle never sees (t91 review F1, 2026-09-16).
+ */
+const REFERRER_ALIAS_MESSAGE =
+  "toTarget 'back' is not an allowed redirect destination: it is 'back', which the server replaces with the visitor's Referer header (a redirect to whatever page linked here)";
+
+test("createRedirect refuses the target 'back' (Express's Referer alias)", async () => {
+  const deps = makeDeps();
+  await assert.rejects(() => create(deps, "/old", "back"), (err: unknown) => {
+    assert.ok(err instanceof RedirectTargetNotAllowedError, `expected RedirectTargetNotAllowedError, got ${String(err)}`);
+    assert.equal(err.message, REFERRER_ALIAS_MESSAGE);
+    return true;
+  });
+});
+
+test("createRedirect refuses a PREFIX rule whose target is 'back' (a request for the bare prefix serves it as-is)", async () => {
+  const deps = makeDeps();
+  await assert.rejects(
+    () =>
+      createRedirect({
+        deps,
+        input: { workspaceId: WORKSPACE_ID, matchType: "prefix", fromPattern: "/go", toTarget: "back", statusCode: 301, actorId: ACTOR_ID },
+      }),
+    (err: unknown) => err instanceof RedirectTargetNotAllowedError && err.message === REFERRER_ALIAS_MESSAGE
+  );
+});
+
+test("createRedirect still allows targets that only resemble the Referer alias", async () => {
+  // Express compares with `===`: `/back`, `backup` and `BACK` are sent exactly as written.
+  for (const target of ["/back", "backup", "BACK"]) {
+    const deps = makeDeps();
+    const { record } = await create(deps, "/old", target);
+    assert.equal(record.toTarget, target);
+  }
+});

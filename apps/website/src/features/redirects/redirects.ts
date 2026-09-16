@@ -28,6 +28,7 @@ import type { SiteRelativeTargetCheck } from "../../platform/routing/index.js";
 
 import { insertRedirectAndRevision, type RedirectDbHandle } from "./ports.internal.js";
 import type { RedirectMatcher, RedirectMutatedEvent, RedirectRepoPort } from "./ports.js";
+import { isReferrerAliasLocation } from "./referrer-alias.js";
 import { checkSameOriginDestination } from "./reserved-destination.js";
 import {
   RedirectConflictError,
@@ -160,7 +161,9 @@ function siteRelativeRefusalReason(check: SiteRelativeTargetCheck): string | nul
  * never fire; refusing it here keeps write and read agreeing. Checked SECOND so the more specific
  * routing reasons (off-origin, control character, reserved) keep their own wording — a bare
  * backslash target is `ok` to `checkSiteRelativeTarget` (on this site, `\` really does resolve to
- * `/`), so only this second check ever refuses it (t91 B2, 2026-09-16).
+ * `/`), so only this second check ever refuses it (t91 B2, 2026-09-16). Last, the exact target
+ * `back`, which Express serves as the visitor's `Referer` instead of a path (see
+ * `./referrer-alias.ts`; t91 review F1, 2026-09-16).
  *
  * @returns The reason clause, or `null` when the target is allowed.
  * @complexity O(n) in the target length.
@@ -168,8 +171,13 @@ function siteRelativeRefusalReason(check: SiteRelativeTargetCheck): string | nul
 function siteRelativeTargetReason(target: string): string | null {
   const reason = siteRelativeRefusalReason(checkSiteRelativeTarget(target));
   if (reason !== null) return reason;
-  if (!hasForbiddenRawUrlCharacter(target)) return null;
-  return "it contains a backslash or whitespace, which the redirect origin check refuses (write a space as '%20')";
+  if (hasForbiddenRawUrlCharacter(target)) {
+    return "it contains a backslash or whitespace, which the redirect origin check refuses (write a space as '%20')";
+  }
+  if (isReferrerAliasLocation(target)) {
+    return "it is 'back', which the server replaces with the visitor's Referer header (a redirect to whatever page linked here)";
+  }
+  return null;
 }
 
 /**

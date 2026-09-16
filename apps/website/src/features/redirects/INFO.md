@@ -31,6 +31,8 @@ the rename commits (never-break-links).
   (routing-chain registration).
 - `reserved-destination.ts` — the one "same-origin destination lands on /admin or /api" verdict,
   shared by the read gate (`phase-handler.ts`) and the write gate (`redirects.ts`).
+- `referrer-alias.ts` — the exact `Location` value `back`, which Express's `res.redirect` sends as
+  the visitor's `Referer`; refused by both gates.
 - `matcher.ts` — pure, bounded exact/prefix/wildcard matching + write-time
   pattern validation. No I/O.
 - `hit-sink.ts` — off-hot-path hit aggregation + its outbox subscriber.
