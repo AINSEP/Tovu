@@ -3,6 +3,7 @@ import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 
 import { checkSitePathname, hasControlCharacter } from "#src/platform/routing/index";
+import type { SitePathCheck } from "#src/platform/routing/index";
 
 /**
  * @file `fetchPublishedPage()` — renders ONE route of this site's own public surface and returns
@@ -227,31 +228,47 @@ function resolveWithinOrigin(raw: string, base: string): URL {
 }
 
 /**
- * Applies `platform/routing`'s shared reserved-path rule to the resolved pathname and maps its
- * verdict onto this module's own error type. Split out purely to keep {@link resolveSameOriginPath}
- * below the repo's complexity gate.
+ * Why a resolved pathname was refused, phrased for this module's caller.
+ *
+ * Split out of {@link assertNoDisallowedDecodedForm} so the wording lives next to the verdict
+ * union it exhausts: with an explicit `string | null` return type and no `default` arm, a future
+ * case added to `SitePathCheck` is a compile error here rather than a silent fall-through to
+ * "allowed". Mirrors `redirects.ts`'s `siteRelativeRefusalReason`, the sibling that already gets
+ * this right for `SiteRelativeTargetCheck`.
  *
  * The rule itself is deliberately NOT restated here: `redirects`' write chokepoint has to refuse
  * exactly the same surfaces for a stored redirect target, and two copies of a denylist is how one
  * of them ends up a decode or a case-fold behind the other.
  *
+ * @param check - The verdict from `checkSitePathname`.
+ * @param raw - The original caller-supplied path, for the error message only.
+ * @returns The refusal message, or `null` when the path is allowed.
+ * @complexity O(1).
+ */
+function disallowedFormReason(check: SitePathCheck, raw: string): string | null {
+  switch (check.kind) {
+    case "ok":
+      return null;
+    case "malformed-encoding":
+      return `path contains a malformed percent-encoding: '${raw}'.`;
+    case "disallowed-character":
+      return "path decodes to a backslash or control character, which is refused.";
+    case "reserved":
+      return `path must not target '/${check.surface}' — that is the authenticated admin/API surface, not a published page.`;
+  }
+}
+
+/**
+ * Applies `platform/routing`'s shared reserved-path rule to the resolved pathname and maps its
+ * verdict onto this module's own error type. Split out purely to keep {@link resolveSameOriginPath}
+ * below the repo's complexity gate.
+ *
  * @throws {PublishedPagePathError} On a malformed encoding, a decoded backslash/control character,
  * or a path that resolves onto `/admin` or `/api`.
  */
 function assertNoDisallowedDecodedForm(resolved: URL, raw: string): void {
-  const check = checkSitePathname(resolved.pathname);
-  switch (check.kind) {
-    case "ok":
-      return;
-    case "malformed-encoding":
-      throw new PublishedPagePathError(`path contains a malformed percent-encoding: '${raw}'.`);
-    case "disallowed-character":
-      throw new PublishedPagePathError("path decodes to a backslash or control character, which is refused.");
-    case "reserved":
-      throw new PublishedPagePathError(
-        `path must not target '/${check.surface}' — that is the authenticated admin/API surface, not a published page.`,
-      );
-  }
+  const reason = disallowedFormReason(checkSitePathname(resolved), raw);
+  if (reason !== null) throw new PublishedPagePathError(reason);
 }
 
 /**
