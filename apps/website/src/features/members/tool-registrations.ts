@@ -20,7 +20,14 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+import { ToolInputError } from "@jini-ai/core";
+
 import type { ToolContributor } from "#src/assistant/index";
+import {
+  forbiddenRule,
+  withModelFacingErrors,
+  type ModelFacingErrorRule,
+} from "#src/contracts/core/model-facing-tool-errors";
 import { membersAgentToolCatalog } from "./agent-tools.js";
 import type {
   MagicLinkTokenRepoPort,
@@ -30,7 +37,7 @@ import type {
   MemberTierRepoPort,
   MembersWriteServiceDeps,
 } from "./ports.js";
-import { MemberNotFoundError, type MemberRecord } from "./types.js";
+import { MemberConflictError, MemberNotFoundError, MemberValidationError, type MemberRecord } from "./types.js";
 import { disableMember, requestSignInLink } from "./write-service.js";
 
 const CATALOG_BY_ID = indexCatalogById(membersAgentToolCatalog);
@@ -143,6 +150,28 @@ function toMemberToolView(member: MemberRecord) {
   return view;
 }
 
+/**
+ * The Members errors that reach the model with their real reason instead of a redacted
+ * `INTERNAL_ERROR` — see `contracts/core/model-facing-tool-errors.ts` for the mechanism and for why
+ * this list is an ALLOWLIST rather than a blanket unwrap.
+ *
+ * Every message here is built from the caller's OWN input (`member '<id>' was not found`,
+ * `'<email>' is not a valid email address`) plus this domain's vocabulary. None carries a member's
+ * stored record, another workspace's data, a token, or an internal path: `types.ts`'s four classes
+ * are all constructed at `write-service.ts` call sites that interpolate ids and the submitted email
+ * only. `MemberAuthError` is deliberately ABSENT — it is thrown on the magic-link REDEMPTION path
+ * (`consumeSignInLink`), which no tool here calls, and its messages ("sign-in link was already
+ * used", "this account has been disabled") answer a question about a token holder rather than about
+ * the caller's own request. If a redemption tool is ever wired, that class needs its own decision,
+ * not this list's by default.
+ */
+const MEMBERS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
+  forbiddenRule("MEMBERS"),
+  { error: MemberNotFoundError, code: "MEMBERS_NOT_FOUND" },
+  { error: MemberValidationError, code: "MEMBERS_VALIDATION_FAILED" },
+  { error: MemberConflictError, code: "MEMBERS_CONFLICT" },
+];
+
 export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     members_list: async (ctx) => {
@@ -186,7 +215,17 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       // rate-limit budget for a target email as a side channel.
       const rateLimitResult = deps.magicLinkPerEmailLimiter.check(email.trim().toLowerCase());
       if (!rateLimitResult.allowed) {
-        throw new Error(`too many sign-in requests for '${email}' — retry after ${rateLimitResult.retryAfterSeconds}s`);
+        // A `ToolInputError`, not a bare `Error`: that marker is the ONLY thing `@jini-ai/daemon`'s
+        // `ToolExecutor` reads to keep a rejection out of the `errorKind: 'internal'` bucket the
+        // delegated-tool transport SEC-005-redacts, and "you are rate limited, retry after Ns" is
+        // precisely the reason a model needs in order to back off instead of hammering the same
+        // call. Thrown directly rather than routed through `MEMBERS_MODEL_FACING_ERRORS` because
+        // this is THIS wiring layer's own check against an injected limiter, not a domain error
+        // class `write-service.ts` raises — the same shape `features/forms/tool-registrations.ts`'s
+        // `requireSubmissionsLimit` uses for its own ad-hoc check.
+        throw new ToolInputError(
+          `MEMBERS_RATE_LIMITED: too many sign-in requests for '${email}' — retry after ${rateLimitResult.retryAfterSeconds}s`
+        );
       }
 
       return requestSignInLink({
@@ -205,7 +244,9 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
     domain: "members",
     catalogModule: "members/agent-tools.ts",
     catalog: CATALOG_BY_ID,
-    handlers,
+    // The whole map at once, so no handler can be the one that forgot — see
+    // `withModelFacingErrors`' own doc for why a per-call-site reshape is the defect this avoids.
+    handlers: withModelFacingErrors(handlers, MEMBERS_MODEL_FACING_ERRORS),
     derivedRisk: membersDerivedRisk,
   });
 }
