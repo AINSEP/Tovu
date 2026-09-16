@@ -162,6 +162,17 @@ function resolveModel(protocol: ByokProtocol, storedModel: string | null, envMod
  * than a second, divergent copy of it here. The adapter still validates whatever URL is chosen
  * (SSRF: `validateBaseUrlResolved`), unchanged by this function's gating.
  *
+ * **Pairing rule (t91 F3.1-A, 2026-09-16):** this function must be called ONLY when the key paying
+ * for the turn is the workspace's own STORED key. `resolveProviderFromCredential` — the only
+ * caller — skips it entirely and uses `envFallbacks.baseUrl` alone whenever the key is env-sourced
+ * (`choice.apiKey == null`). A stored `baseUrl` is written by whoever holds
+ * `ADMIN_ASSISTANT_PERMISSION` for THIS workspace, a different principal than whoever controls the
+ * server's process environment; pairing an env-sourced key with a row that principal wrote — even a
+ * keyless row, or a row a deleted key left behind (`deleteSiteAssistantCredential` clears only the
+ * key) — would let that admin silently redirect the operator's own key to a host of the admin's
+ * choosing. So: stored key -> stored-or-env baseUrl (this function); env key -> env-or-default
+ * baseUrl only, never a stored one.
+ *
  * @complexity O(1).
  */
 function resolveBaseUrl(storedBaseUrl: string | null, envBaseUrl: string | undefined): string | undefined {
@@ -501,7 +512,15 @@ function resolveProviderFromCredential(
     );
   }
 
-  return { protocol, apiKey, baseUrl: resolveBaseUrl(choice.baseUrl, envFallbacks.baseUrl), model };
+  // t91 F3.1-A: a STORED baseUrl applies only together with that SAME row's stored key. `choice.apiKey`
+  // is null exactly when `apiKey` above came from `envFallbacks.apiKey` (the `!apiKey` check already
+  // returned when neither was set) — an env-sourced key must never be dialed against a row an admin
+  // wrote, only against the matching env endpoint or the provider's own default. See
+  // {@link resolveBaseUrl}'s doc for the full pairing rule.
+  const usingEnvSourcedKey = choice.apiKey == null;
+  const baseUrl = usingEnvSourcedKey ? envFallbacks.baseUrl : resolveBaseUrl(choice.baseUrl, envFallbacks.baseUrl);
+
+  return { protocol, apiKey, baseUrl, model };
 }
 
 /**

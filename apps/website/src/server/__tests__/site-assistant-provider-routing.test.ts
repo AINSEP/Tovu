@@ -384,3 +384,110 @@ test("site assistant: a stored ANTHROPIC key with no stored model or endpoint do
   const body = JSON.parse(raw.text) as { error?: string; code?: string };
   assert.equal(body.code, "MODEL_NOT_CONFIGURED");
 });
+
+/**
+ * t91 F3.1-A: `resolveProviderFromCredential` paired an ENV-sourced key (no key was ever saved on
+ * the workspace's row, or the row is a `deleteSiteAssistantCredential` leftover — that function
+ * clears only the key, never `baseUrl`) with a STORED `baseUrl`. The row is written by whoever
+ * holds `ADMIN_ASSISTANT_PERMISSION` for THIS workspace — a different, potentially lower-trust
+ * principal than whoever controls the server's process environment. That pairing let a site admin
+ * who merely saves a bare `baseUrl` (no key) quietly spend the operator's own `GEMINI_API_KEY`
+ * against a host of the site admin's own choosing, invisibly to the operator.
+ *
+ * The fix's pairing rule: an env-sourced key may only be dialed against an env-sourced
+ * (`TOVU_SITE_ASSISTANT_BASE_URL`) or provider-default endpoint — never a row's stored `baseUrl`,
+ * which applies only together with that same row's stored key. The two tests below each stand up
+ * TWO independent loopback stubs — one at the STORED `baseUrl` (standing in for a host an untrusted
+ * site admin chose) and one at the ENV `baseUrl` (standing in for the operator's own deployment) —
+ * so "never reached" is proven by an empty request log, not inferred from a single stub's content.
+ */
+async function recordingStub(t: import("node:test").TestContext, reply: StubProviderReply): Promise<{ baseUrl: string; requests: StubProviderRequest[] }> {
+  const requests: StubProviderRequest[] = [];
+  const baseUrl = await startStubProviderServer(t, (_callCount, _body, request) => {
+    requests.push(request);
+    return reply;
+  });
+  return { baseUrl, requests };
+}
+
+test("site assistant: a keyless stored GOOGLE row's stored baseUrl never receives the server's env GEMINI_API_KEY", async (t) => {
+  const deps = createRouteDeps();
+  await enablePublicAssistant(deps);
+  const adminStoredEndpoint = await recordingStub(t, googleReply("this must never be produced"));
+  const envEndpoint = await recordingStub(t, googleReply("Hello from the env endpoint."));
+  await storeSiteCredential(deps, { provider: "google", baseUrl: adminStoredEndpoint.baseUrl });
+
+  const testEnv: NodeJS.ProcessEnv = { ...process.env, GEMINI_API_KEY: FAKE_KEY, TOVU_SITE_ASSISTANT_BASE_URL: envEndpoint.baseUrl };
+  const app = express();
+  app.use(express.json());
+  createSiteAssistantModule(deps, testEnv).registerRoutes(app);
+  const siteUrl = await startTestServer(app, t);
+
+  const raw = await drainedBody(await postChat(siteUrl));
+
+  assert.equal(adminStoredEndpoint.requests.length, 0, "the admin-stored endpoint must never receive the env key");
+  assert.equal(envEndpoint.requests.length, 1, "the env key must be dialed against the env endpoint instead");
+  assert.equal(raw.status, 200, `expected a 200 stream, got ${raw.status} with body ${raw.text}`);
+  assert.equal(sseTextOf(raw.text), "Hello from the env endpoint.");
+});
+
+test("site assistant: a stored GOOGLE key saved then DELETED leaves the stored baseUrl behind, which must not receive the env GEMINI_API_KEY either", async (t) => {
+  const deps = createRouteDeps();
+  await enablePublicAssistant(deps);
+  const adminStoredEndpoint = await recordingStub(t, googleReply("this must never be produced"));
+  const envEndpoint = await recordingStub(t, googleReply("Hello from the env endpoint."));
+  await storeSiteCredential(deps, { apiKey: FAKE_KEY, provider: "google", baseUrl: adminStoredEndpoint.baseUrl });
+  await deleteSiteAssistantCredential({ repo: deps.siteAssistantCredentialRepo, clock: deps.clock }, { workspaceId: deps.workspaceId });
+
+  const testEnv: NodeJS.ProcessEnv = { ...process.env, GEMINI_API_KEY: FAKE_KEY, TOVU_SITE_ASSISTANT_BASE_URL: envEndpoint.baseUrl };
+  const app = express();
+  app.use(express.json());
+  createSiteAssistantModule(deps, testEnv).registerRoutes(app);
+  const siteUrl = await startTestServer(app, t);
+
+  const raw = await drainedBody(await postChat(siteUrl));
+
+  assert.equal(adminStoredEndpoint.requests.length, 0, "the leftover stored baseUrl must never receive the env key");
+  assert.equal(envEndpoint.requests.length, 1, "the env key must be dialed against the env endpoint instead");
+  assert.equal(raw.status, 200, `expected a 200 stream, got ${raw.status} with body ${raw.text}`);
+  assert.equal(sseTextOf(raw.text), "Hello from the env endpoint.");
+});
+
+test("site assistant CONTROL: a stored key WITH a stored baseUrl still dials the stored endpoint, even with an env key and a different env baseUrl also present", async (t) => {
+  const deps = createRouteDeps();
+  await enablePublicAssistant(deps);
+  const storedEndpoint = await recordingStub(t, googleReply("Hello from the stored endpoint."));
+  const envEndpoint = await recordingStub(t, googleReply("this must never be produced"));
+  await storeSiteCredential(deps, { apiKey: FAKE_KEY, provider: "google", baseUrl: storedEndpoint.baseUrl });
+
+  const testEnv: NodeJS.ProcessEnv = { ...process.env, GEMINI_API_KEY: FAKE_KEY, TOVU_SITE_ASSISTANT_BASE_URL: envEndpoint.baseUrl };
+  const app = express();
+  app.use(express.json());
+  createSiteAssistantModule(deps, testEnv).registerRoutes(app);
+  const siteUrl = await startTestServer(app, t);
+
+  const raw = await drainedBody(await postChat(siteUrl));
+
+  assert.equal(storedEndpoint.requests.length, 1, "a stored key must still dial its own stored endpoint");
+  assert.equal(envEndpoint.requests.length, 0, "the env endpoint must not be reached when a stored key is in play");
+  assert.equal(raw.status, 200, `expected a 200 stream, got ${raw.status} with body ${raw.text}`);
+  assert.equal(sseTextOf(raw.text), "Hello from the stored endpoint.");
+});
+
+test("site assistant CONTROL: an env key with an env baseUrl and no stored row at all dials the env endpoint", async (t) => {
+  const deps = createRouteDeps();
+  await enablePublicAssistant(deps);
+  const envEndpoint = await recordingStub(t, googleReply("Hello from the env endpoint, no stored row."));
+
+  const testEnv: NodeJS.ProcessEnv = { ...process.env, GEMINI_API_KEY: FAKE_KEY, TOVU_SITE_ASSISTANT_BASE_URL: envEndpoint.baseUrl };
+  const app = express();
+  app.use(express.json());
+  createSiteAssistantModule(deps, testEnv).registerRoutes(app);
+  const siteUrl = await startTestServer(app, t);
+
+  const raw = await drainedBody(await postChat(siteUrl));
+
+  assert.equal(envEndpoint.requests.length, 1, "with no stored row, the env key must dial the env endpoint");
+  assert.equal(raw.status, 200, `expected a 200 stream, got ${raw.status} with body ${raw.text}`);
+  assert.equal(sseTextOf(raw.text), "Hello from the env endpoint, no stored row.");
+});
