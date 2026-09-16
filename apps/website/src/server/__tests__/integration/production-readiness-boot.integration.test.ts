@@ -132,7 +132,29 @@ test("§2.1 step 1: the real composition boots successfully in local mode despit
 test("2026-09-09 fix (regression): newsletterKeyring's allowFileFallback is gated on runtimeMode, not hardcoded true — a hardcoded true would silently re-mint ~/.tovu/integrations-root-key.hex on every container redeploy", () => {
   assert.match(
     DEPS_SOURCE,
-    /const newsletterKeyring = new EnvOrFileKeyring\(\{\s*allowFileFallback:\s*runtimeMode !== "production"\s*\}\);/,
+    /const newsletterKeyring = new EnvOrFileKeyring\(\{\s*allowFileFallback:\s*runtimeMode !== "production"\s*(?:,[^}]*)?\}\);/,
     'newsletterKeyring must not be constructed with a bare `new EnvOrFileKeyring()` (implicit allowFileFallback: true in every mode) — it must read `allowFileFallback: runtimeMode !== "production"` so the generated-file fallback is disabled specifically in production, where the file lives on the container\'s ephemeral rootfs rather than the persistent volume.'
+  );
+});
+
+/**
+ * 2026-09-16 fix (regression): `newsletterKeyring` must never MINT a root key file unattended.
+ *
+ * It was the only `EnvOrFileKeyring` left on the implicit `allowFileAutoGenerate` default, which in
+ * local mode (every desktop launch) resolves to `true`. Its one live runtime consumer is the PUBLIC,
+ * cookie-less `GET|POST /newsletter/unsubscribe?token=...` route: `processUnsubscribe` derives the
+ * expected signature before it can reject a token, so an anonymous request carrying any
+ * base64url-JSON token (`e30.x` is enough) minted `~/.tovu/integrations-root-key.hex` — verified by a
+ * direct probe against a temp key path on 2026-09-16. `siteAssistantSecretKeyring` then reads that
+ * same default path, so a key no operator created, saw or backed up silently became the key every
+ * stored credential is sealed under — exactly what that keyring's own `allowFileAutoGenerate: false`
+ * (2026-09-09) exists to prevent. Source-level for the same reason as the test above: building the
+ * real composition here could write to the REAL home directory.
+ */
+test("2026-09-16 fix (regression): newsletterKeyring passes allowFileAutoGenerate: false — an anonymous unsubscribe request must never mint the root key the credential sealer then adopts", () => {
+  assert.match(
+    DEPS_SOURCE,
+    /const newsletterKeyring = new EnvOrFileKeyring\(\{[^}]*\ballowFileAutoGenerate:\s*false\b[^}]*\}\);/,
+    "newsletterKeyring must opt out of unattended key minting explicitly; leaving allowFileAutoGenerate unset defaults it to allowFileFallback, which is true in local mode"
   );
 });

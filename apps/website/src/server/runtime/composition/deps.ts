@@ -1165,8 +1165,21 @@ export function createSqliteRouteDeps(
   // this instance. Left as a disclosed, intentional asymmetry rather than silently "fixed": in
   // production, webhook signing / newsletter tokens still require the env var; only the
   // credential-sealing keyring below can now also use a generated file.
+  //
+  // `allowFileAutoGenerate: false` (2026-09-16) — closes an OVERSIGHT, not the disclosed asymmetry
+  // above. The local-mode "must keep booting via the generated-file fallback" rationale was written
+  // (`ddfa5e07`) while reading and minting were still one unit; the `allowFileAutoGenerate` split
+  // arrived two hours later (`bb84fc1b`) and was applied to `siteAssistantSecretKeyring` only. Left
+  // on the default, this instance minted `~/.tovu/integrations-root-key.hex` unattended in local
+  // mode — and its only live consumer is the PUBLIC `/newsletter/unsubscribe` route, whose
+  // `processUnsubscribe` derives before it can reject a token, so ANY anonymous request with a
+  // base64url-JSON token minted it. `siteAssistantSecretKeyring` reads that same path, so the key
+  // sealing every stored credential could be one no operator created, saw or backed up. Nothing
+  // derives at boot (resolution is lazy) and no legitimate unsubscribe token can exist before a key
+  // does, so no startup or first-run path depended on the mint. This instance still READS an
+  // existing file; with no env var and no file, a local unsubscribe request now fails closed.
   const memberRepo = new SqliteMemberRepo(db);
-  const newsletterKeyring = new EnvOrFileKeyring({ allowFileFallback: runtimeMode !== "production" });
+  const newsletterKeyring = new EnvOrFileKeyring({ allowFileFallback: runtimeMode !== "production", allowFileAutoGenerate: false });
   const newsletterSubscriberDirectory = new MembersSubscriberDirectory({ members: memberRepo });
   const newsletterHooks = createHookRegistry();
 
