@@ -8,6 +8,13 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const THEMES_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "Renombrar {file} a {name} cambia su URL pública. Cualquier enlace directo existente tendrá que actualizarse.",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "¿Seguro que quieres eliminar {file}? Esto elimina el archivo de forma permanente. No hay forma de recuperarlo.",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "Esto reemplaza {file} con la versión del tema original. Se perderán los cambios que hayas hecho en este archivo y esto no se puede deshacer.",
+    "You already have a theme called {id}.": "Ya tienes un tema llamado {id}.",
     "← All themes": "← Todos los temas",
     Download: "Descargar",
     "Downloading…": "Descargando…",
@@ -45,11 +52,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "Un registro de contenido comparte la URL de esta página: {title}. Cuál de los dos gana depende del estado de publicación de esta página y de la opción de anulación de ese registro, no solo de este interruptor.",
     "Open {title}": "Abrir {title}",
-    "? This permanently removes the file. There is no way to get it back.":
-      "? Esto elimina el archivo de forma permanente. No hay forma de recuperarlo.",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "Se conserva un original intacto por separado, así que puedes cambiar lo que quieras aquí sin perder el punto de partida.",
-    "Are you sure you want to delete": "¿Seguro que quieres eliminar",
     Assets: "Recursos",
     "Close fullscreen preview": "Cerrar vista previa a pantalla completa",
     Config: "Configuración",
@@ -84,7 +88,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "Renombrar",
     "Rename page": "Renombrar página",
     "Rename this page?": "¿Renombrar esta página?",
-    Renaming: "Renombrando",
     Reset: "Restablecer",
     "Reset file": "Restablecer archivo",
     "Reset this file to the original?": "¿Restablecer este archivo al original?",
@@ -110,18 +113,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Este es un archivo binario, así que no tiene código fuente editable. Usa la pestaña Vista previa para verlo.",
     "This one will be installed under a new name.": "Este se instalará con un nombre nuevo.",
-    "This replaces": "Esto reemplaza",
     "This theme is not loading:": "Este tema no está cargando:",
     "Turn the theme off": "Desactivar el tema",
     "Turning off…": "Desactivando…",
     "View preview fullscreen": "Ver vista previa a pantalla completa",
-    "You already have a theme called": "Ya tienes un tema llamado",
     "You're editing your own copy.": "Estás editando tu propia copia.",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "cambia su URL pública. Cualquier enlace directo existente tendrá que actualizarse.",
-    to: "a",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "con la versión del tema original. Se perderán los cambios que hayas hecho en este archivo y esto no se puede deshacer.",
     "Saved {file}": "Se guardó {file}",
     "Reset {file} to the original": "Se restableció {file} al original",
     "Renamed to {file}": "Renombrado a {file}",
@@ -162,6 +158,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "Este tema no tiene un original guardado, así que no se puede restablecer nada.",
   },
   id: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "Mengganti nama {file} menjadi {name} akan mengubah URL publiknya. Tautan langsung yang sudah ada perlu diperbarui.",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "Anda yakin ingin menghapus {file}? Ini menghapus file secara permanen. Tidak ada cara untuk mendapatkannya kembali.",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "Ini akan menggantikan {file} dengan versi dari tema asli. Semua perubahan yang telah Anda buat pada file ini akan hilang, dan ini tidak dapat dibatalkan.",
+    "You already have a theme called {id}.": "Anda sudah memiliki tema bernama {id}.",
     "← All themes": "← Semua tema",
     Download: "Unduh",
     "Downloading…": "Mengunduh…",
@@ -199,11 +202,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "Sebuah catatan konten berbagi URL halaman ini: {title}. Mana yang menang bergantung pada status penerbitan halaman ini dan pilihan penggantian (override) milik catatan itu sendiri, bukan hanya oleh sakelar ini.",
     "Open {title}": "Buka {title}",
-    "? This permanently removes the file. There is no way to get it back.":
-      "? Ini menghapus file secara permanen. Tidak ada cara untuk mendapatkannya kembali.",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "Salinan asli yang belum diubah disimpan secara terpisah, sehingga Anda dapat mengubah apa pun di sini tanpa kehilangan versi awal.",
-    "Are you sure you want to delete": "Anda yakin ingin menghapus",
     Assets: "Aset",
     "Close fullscreen preview": "Tutup pratinjau layar penuh",
     Config: "Konfigurasi",
@@ -238,7 +238,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "Ganti nama",
     "Rename page": "Ganti nama halaman",
     "Rename this page?": "Ganti nama halaman ini?",
-    Renaming: "Mengganti nama",
     Reset: "Atur ulang",
     "Reset file": "Atur ulang file",
     "Reset this file to the original?": "Atur ulang file ini ke versi asli?",
@@ -264,18 +263,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Ini adalah file biner, jadi tidak memiliki kode sumber yang dapat diedit. Gunakan tab Pratinjau untuk melihatnya.",
     "This one will be installed under a new name.": "Tema ini akan dipasang dengan nama baru.",
-    "This replaces": "Ini akan menggantikan",
     "This theme is not loading:": "Tema ini tidak dapat dimuat:",
     "Turn the theme off": "Matikan tema",
     "Turning off…": "Mematikan…",
     "View preview fullscreen": "Lihat pratinjau layar penuh",
-    "You already have a theme called": "Anda sudah memiliki tema bernama",
     "You're editing your own copy.": "Anda sedang mengedit salinan Anda sendiri.",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "mengubah URL publiknya. Tautan langsung yang sudah ada perlu diperbarui.",
-    to: "menjadi",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "dengan versi dari tema asli. Semua perubahan yang telah Anda buat pada file ini akan hilang, dan ini tidak dapat dibatalkan.",
     "Saved {file}": "{file} tersimpan",
     "Reset {file} to the original": "{file} diatur ulang ke versi asli",
     "Renamed to {file}": "Nama diganti menjadi {file}",
@@ -316,6 +308,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "Tema ini tidak memiliki salinan asli yang tersimpan, jadi tidak ada yang dapat diatur ulang.",
   },
   de: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "Das Umbenennen von {file} in {name} ändert dessen öffentliche URL. Bereits bestehende direkte Links darauf müssen aktualisiert werden.",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "Möchtest du {file} wirklich löschen? Dadurch wird die Datei dauerhaft entfernt. Es gibt keine Möglichkeit, sie wiederherzustellen.",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "Dies ersetzt {file} mit der Version aus dem Original-Design. Alle Änderungen, die du an dieser Datei vorgenommen hast, gehen verloren, und das kann nicht rückgängig gemacht werden.",
+    "You already have a theme called {id}.": "Du hast bereits ein Design namens {id}.",
     "← All themes": "← Alle Designs",
     Download: "Herunterladen",
     "Downloading…": "Wird heruntergeladen…",
@@ -353,11 +352,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "Ein Content-Eintrag teilt sich die URL dieser Seite: {title}. Welcher davon gewinnt, hängt vom Veröffentlichungsstatus dieser Seite und der eigenen Override-Entscheidung dieses Eintrags ab, nicht allein von diesem Schalter.",
     "Open {title}": "{title} öffnen",
-    "? This permanently removes the file. There is no way to get it back.":
-      "? Dadurch wird die Datei dauerhaft entfernt. Es gibt keine Möglichkeit, sie wiederherzustellen.",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "Ein unverändertes Original wird separat aufbewahrt, sodass du hier alles ändern kannst, ohne deinen Ausgangspunkt zu verlieren.",
-    "Are you sure you want to delete": "Möchtest du wirklich löschen:",
     Assets: "Assets",
     "Close fullscreen preview": "Vollbildvorschau schließen",
     Config: "Konfiguration",
@@ -392,7 +388,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "Umbenennen",
     "Rename page": "Seite umbenennen",
     "Rename this page?": "Diese Seite umbenennen?",
-    Renaming: "Wird umbenannt",
     Reset: "Zurücksetzen",
     "Reset file": "Datei zurücksetzen",
     "Reset this file to the original?": "Diese Datei auf das Original zurücksetzen?",
@@ -418,18 +413,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Dies ist eine Binärdatei und hat daher keinen bearbeitbaren Quellcode. Verwende den Tab „Vorschau“, um sie anzusehen.",
     "This one will be installed under a new name.": "Es wird unter einem neuen Namen installiert.",
-    "This replaces": "Dies ersetzt",
     "This theme is not loading:": "Dieses Design wird nicht geladen:",
     "Turn the theme off": "Design deaktivieren",
     "Turning off…": "Wird deaktiviert…",
     "View preview fullscreen": "Vorschau im Vollbild ansehen",
-    "You already have a theme called": "Du hast bereits ein Design namens",
     "You're editing your own copy.": "Du bearbeitest deine eigene Kopie.",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "ändert dessen öffentliche URL. Bereits bestehende direkte Links darauf müssen aktualisiert werden.",
-    to: "in",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "mit der Version aus dem Original-Design. Alle Änderungen, die du an dieser Datei vorgenommen hast, gehen verloren, und das kann nicht rückgängig gemacht werden.",
     "Saved {file}": "{file} gespeichert",
     "Reset {file} to the original": "{file} auf das Original zurückgesetzt",
     "Renamed to {file}": "Umbenannt in {file}",
@@ -470,6 +458,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "Dieses Design hat kein gespeichertes Original, daher kann nichts zurückgesetzt werden.",
   },
   "zh-CN": {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "将 {file} 重命名为 {name} 会更改其公开网址。任何已直接链接到它的地方都需要更新。",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "确定要删除 {file} 吗？这将永久删除该文件，无法恢复。",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "这将把 {file} 替换为原始主题的版本。你对此文件所做的任何改动都将丢失，且此操作无法撤销。",
+    "You already have a theme called {id}.": "你已经有一个名为 {id} 的主题。",
     "← All themes": "← 所有主题",
     Download: "下载",
     "Downloading…": "正在下载…",
@@ -506,11 +501,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "有一条内容记录与此页面共用同一个网址：{title}。最终由哪一个胜出，取决于此页面的发布状态和该记录自身的覆盖选择，而不仅仅是这个开关。",
     "Open {title}": "打开 {title}",
-    "? This permanently removes the file. There is no way to get it back.":
-      "？这将永久删除该文件，无法恢复。",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "系统会单独保留一份未改动的原始文件，因此你可以在这里自由修改，而不会丢失最初的版本。",
-    "Are you sure you want to delete": "确定要删除",
     Assets: "资源",
     "Close fullscreen preview": "关闭全屏预览",
     Config: "配置",
@@ -545,7 +537,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "重命名",
     "Rename page": "重命名页面",
     "Rename this page?": "重命名此页面？",
-    Renaming: "正在重命名",
     Reset: "重置",
     "Reset file": "重置文件",
     "Reset this file to the original?": "将此文件重置为原始版本？",
@@ -571,18 +562,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "这是一个二进制文件，没有可编辑的源代码。请使用“预览”标签页查看。",
     "This one will be installed under a new name.": "它将以新名称安装。",
-    "This replaces": "这将替换",
     "This theme is not loading:": "此主题无法加载：",
     "Turn the theme off": "关闭该主题",
     "Turning off…": "正在关闭…",
     "View preview fullscreen": "全屏查看预览",
-    "You already have a theme called": "你已经有一个名为",
     "You're editing your own copy.": "你正在编辑自己的副本。",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "会更改其公开网址。任何已直接链接到它的地方都需要更新。",
-    to: "为",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "为原始主题的版本。你对此文件所做的任何改动都将丢失，且此操作无法撤销。",
     "Saved {file}": "已保存 {file}",
     "Reset {file} to the original": "已将 {file} 重置为原始版本",
     "Renamed to {file}": "已重命名为 {file}",
@@ -617,6 +601,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.": "此主题没有保存的原始版本，因此无法重置任何内容。",
   },
   "zh-TW": {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "將 {file} 重新命名為 {name} 會變更其公開網址。任何已直接連結到它的地方都需要更新。",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "確定要刪除 {file} 嗎？這將永久刪除該檔案，無法復原。",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "這將把 {file} 取代為原始佈景主題的版本。你對此檔案所做的任何改動都將遺失，且此操作無法復原。",
+    "You already have a theme called {id}.": "你已經有一個名為 {id} 的佈景主題。",
     "← All themes": "← 所有佈景主題",
     Download: "下載",
     "Downloading…": "正在下載…",
@@ -653,11 +644,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "有一筆內容記錄與此頁面共用同一個網址：{title}。最終由哪一個勝出，取決於此頁面的發布狀態和該記錄自身的覆寫選擇，而不只是這個開關。",
     "Open {title}": "開啟 {title}",
-    "? This permanently removes the file. There is no way to get it back.":
-      "？這將永久刪除該檔案，無法復原。",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "系統會另外保留一份未經修改的原始檔案，因此你可以在這裡自由修改，而不會遺失最初的版本。",
-    "Are you sure you want to delete": "確定要刪除",
     Assets: "資源",
     "Close fullscreen preview": "關閉全螢幕預覽",
     Config: "設定",
@@ -692,7 +680,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "重新命名",
     "Rename page": "重新命名頁面",
     "Rename this page?": "重新命名此頁面？",
-    Renaming: "正在重新命名",
     Reset: "重設",
     "Reset file": "重設檔案",
     "Reset this file to the original?": "將此檔案重設為原始版本？",
@@ -718,18 +705,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "這是一個二進位檔案，沒有可編輯的原始碼。請使用“預覽”分頁查看。",
     "This one will be installed under a new name.": "它將以新名稱安裝。",
-    "This replaces": "這將取代",
     "This theme is not loading:": "此佈景主題無法載入：",
     "Turn the theme off": "關閉該佈景主題",
     "Turning off…": "正在關閉…",
     "View preview fullscreen": "全螢幕查看預覽",
-    "You already have a theme called": "你已經有一個名為",
     "You're editing your own copy.": "你正在編輯自己的副本。",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "會變更其公開網址。任何已直接連結到它的地方都需要更新。",
-    to: "為",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "為原始佈景主題的版本。你對此檔案所做的任何改動都將遺失，且此操作無法復原。",
     "Saved {file}": "已儲存 {file}",
     "Reset {file} to the original": "已將 {file} 重設為原始版本",
     "Renamed to {file}": "已重新命名為 {file}",
@@ -768,6 +748,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.": "此佈景主題沒有儲存的原始版本，因此無法重設任何內容。",
   },
   "pt-BR": {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "Renomear {file} para {name} muda sua URL pública. Qualquer link direto já existente precisará ser atualizado.",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "Tem certeza de que deseja excluir {file}? Isso remove o arquivo permanentemente. Não há como recuperá-lo.",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "Isso substitui {file} pela versão do tema original. Todas as alterações feitas neste arquivo serão perdidas, e isso não pode ser desfeito.",
+    "You already have a theme called {id}.": "Você já tem um tema chamado {id}.",
     "← All themes": "← Todos os temas",
     Download: "Baixar",
     "Downloading…": "Baixando…",
@@ -805,11 +792,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "Um registro de conteúdo compartilha a URL desta página: {title}. Qual dos dois vence depende do estado de publicação desta página e da própria escolha de substituição desse registro, não apenas deste botão.",
     "Open {title}": "Abrir {title}",
-    "? This permanently removes the file. There is no way to get it back.":
-      "? Isso remove o arquivo permanentemente. Não há como recuperá-lo.",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "Um original intocado é mantido separadamente, para que você possa alterar qualquer coisa aqui sem perder o ponto de partida.",
-    "Are you sure you want to delete": "Tem certeza de que deseja excluir",
     Assets: "Recursos",
     "Close fullscreen preview": "Fechar visualização em tela cheia",
     Config: "Configuração",
@@ -844,7 +828,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "Renomear",
     "Rename page": "Renomear página",
     "Rename this page?": "Renomear esta página?",
-    Renaming: "Renomeando",
     Reset: "Redefinir",
     "Reset file": "Redefinir arquivo",
     "Reset this file to the original?": "Redefinir este arquivo para o original?",
@@ -870,18 +853,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Este é um arquivo binário, então não tem código-fonte editável. Use a aba Visualização para vê-lo.",
     "This one will be installed under a new name.": "Ele será instalado com um novo nome.",
-    "This replaces": "Isso substitui",
     "This theme is not loading:": "Este tema não está carregando:",
     "Turn the theme off": "Desativar o tema",
     "Turning off…": "Desativando…",
     "View preview fullscreen": "Ver visualização em tela cheia",
-    "You already have a theme called": "Você já tem um tema chamado",
     "You're editing your own copy.": "Você está editando sua própria cópia.",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "muda sua URL pública. Qualquer link direto já existente precisará ser atualizado.",
-    to: "para",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "com a versão do tema original. Todas as alterações feitas neste arquivo serão perdidas, e isso não pode ser desfeito.",
     "Saved {file}": "{file} salvo",
     "Reset {file} to the original": "{file} redefinido para o original",
     "Renamed to {file}": "Renomeado para {file}",
@@ -922,6 +898,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "Este tema não tem um original salvo, então nada pode ser redefinido.",
   },
   ru: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "Переименование {file} в {name} изменяет её публичный URL. Все уже существующие прямые ссылки на неё нужно будет обновить.",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "Вы уверены, что хотите удалить {file}? Это безвозвратно удалит файл. Восстановить его будет невозможно.",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "Это заменит {file} версией из исходной темы. Все изменения, внесённые в этот файл, будут потеряны, и это нельзя отменить.",
+    "You already have a theme called {id}.": "У вас уже есть тема с именем {id}.",
     "← All themes": "← Все темы",
     Download: "Скачать",
     "Downloading…": "Скачивание…",
@@ -959,11 +942,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "Запись контента использует тот же URL, что и эта страница: {title}. Какая из них победит, зависит от статуса публикации этой страницы и собственного выбора переопределения этой записи, а не только от этого переключателя.",
     "Open {title}": "Открыть {title}",
-    "? This permanently removes the file. There is no way to get it back.":
-      "? Это безвозвратно удалит файл. Восстановить его будет невозможно.",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "Нетронутый оригинал хранится отдельно, поэтому вы можете менять здесь что угодно, не теряя исходную версию.",
-    "Are you sure you want to delete": "Вы уверены, что хотите удалить",
     Assets: "Ресурсы",
     "Close fullscreen preview": "Закрыть полноэкранный просмотр",
     Config: "Конфигурация",
@@ -998,7 +978,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "Переименовать",
     "Rename page": "Переименовать страницу",
     "Rename this page?": "Переименовать эту страницу?",
-    Renaming: "Переименование",
     Reset: "Сбросить",
     "Reset file": "Сбросить файл",
     "Reset this file to the original?": "Сбросить этот файл до оригинала?",
@@ -1024,18 +1003,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Это бинарный файл, поэтому у него нет редактируемого исходного кода. Используйте вкладку «Просмотр», чтобы увидеть его.",
     "This one will be installed under a new name.": "Она будет установлена под новым именем.",
-    "This replaces": "Это заменит",
     "This theme is not loading:": "Эта тема не загружается:",
     "Turn the theme off": "Отключить тему",
     "Turning off…": "Отключение…",
     "View preview fullscreen": "Открыть просмотр на весь экран",
-    "You already have a theme called": "У вас уже есть тема с именем",
     "You're editing your own copy.": "Вы редактируете свою собственную копию.",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "изменяет её публичный URL. Все уже существующие прямые ссылки на неё нужно будет обновить.",
-    to: "в",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "версией из исходной темы. Все изменения, внесённые в этот файл, будут потеряны, и это нельзя отменить.",
     "Saved {file}": "Файл {file} сохранён",
     "Reset {file} to the original": "Файл {file} сброшен до оригинала",
     "Renamed to {file}": "Переименовано в {file}",
@@ -1076,6 +1048,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "У этой темы нет сохранённого оригинала, поэтому сбросить ничего нельзя.",
   },
   fa: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "تغییر نام {file} به {name} نشانی اینترنتی عمومی آن را تغییر می‌دهد. هر پیوند مستقیمی که از قبل به آن اشاره می‌کند باید به‌روزرسانی شود.",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "آیا مطمئن هستید که می‌خواهید {file} را حذف کنید؟ این کار فایل را برای همیشه حذف می‌کند. هیچ راهی برای بازیابی آن وجود ندارد.",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "این {file} را با نسخه پوسته اصلی جایگزین می‌کند. هر تغییری که در این فایل داده‌اید از بین خواهد رفت و این کار قابل بازگشت نیست.",
+    "You already have a theme called {id}.": "شما از قبل پوسته‌ای با نام {id} دارید.",
     "← All themes": "← همه پوسته‌ها",
     Download: "دانلود",
     "Downloading…": "در حال دانلود…",
@@ -1113,11 +1092,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "یک رکورد محتوا همین نشانی این صفحه را دارد: {title}. اینکه کدام‌یک برنده می‌شود به وضعیت انتشار این صفحه و انتخاب لغو (override) خودِ آن رکورد بستگی دارد، نه فقط این کلید.",
     "Open {title}": "باز کردن {title}",
-    "? This permanently removes the file. There is no way to get it back.":
-      "؟ این کار فایل را برای همیشه حذف می‌کند. هیچ راهی برای بازیابی آن وجود ندارد.",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "یک نسخه اصلی دست‌نخورده جداگانه نگه‌داری می‌شود، بنابراین می‌توانید هر چیزی را اینجا تغییر دهید بدون آنکه نقطه شروع خود را از دست بدهید.",
-    "Are you sure you want to delete": "آیا مطمئن هستید که می‌خواهید حذف کنید",
     Assets: "دارایی‌ها",
     "Close fullscreen preview": "بستن پیش‌نمایش تمام‌صفحه",
     Config: "پیکربندی",
@@ -1152,7 +1128,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "تغییر نام",
     "Rename page": "تغییر نام صفحه",
     "Rename this page?": "نام این صفحه تغییر کند؟",
-    Renaming: "در حال تغییر نام",
     Reset: "بازنشانی",
     "Reset file": "بازنشانی فایل",
     "Reset this file to the original?": "این فایل به نسخه اصلی بازنشانی شود؟",
@@ -1178,18 +1153,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "این یک فایل باینری است، بنابراین کد منبع قابل‌ویرایشی ندارد. برای مشاهده آن از تب پیش‌نمایش استفاده کنید.",
     "This one will be installed under a new name.": "این با نام جدیدی نصب خواهد شد.",
-    "This replaces": "این جایگزین می‌کند",
     "This theme is not loading:": "این پوسته بارگذاری نمی‌شود:",
     "Turn the theme off": "غیرفعال‌کردن پوسته",
     "Turning off…": "در حال غیرفعال‌کردن…",
     "View preview fullscreen": "مشاهده پیش‌نمایش در تمام‌صفحه",
-    "You already have a theme called": "شما از قبل پوسته‌ای با نام",
     "You're editing your own copy.": "شما در حال ویرایش نسخه شخصی خودتان هستید.",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "نشانی اینترنتی عمومی آن را تغییر می‌دهد. هر پیوند مستقیمی که از قبل به آن اشاره می‌کند باید به‌روزرسانی شود.",
-    to: "به",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "با نسخه پوسته اصلی جایگزین می‌شود. هر تغییری که در این فایل داده‌اید از بین خواهد رفت و این کار قابل بازگشت نیست.",
     "Saved {file}": "{file} ذخیره شد",
     "Reset {file} to the original": "{file} به نسخه اصلی بازنشانی شد",
     "Renamed to {file}": "نام به {file} تغییر کرد",
@@ -1230,6 +1198,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "این پوسته نسخه اصلی ذخیره‌شده‌ای ندارد، بنابراین چیزی قابل بازنشانی نیست.",
   },
   ar: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "إعادة تسمية {file} إلى {name} تغيّر عنوان URL العام الخاص به. أي روابط مباشرة موجودة بالفعل تحتاج إلى تحديث.",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "هل أنت متأكد أنك تريد حذف {file}؟ سيؤدي هذا إلى حذف الملف نهائيًا. لا توجد طريقة لاستعادته.",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "سيستبدل هذا {file} بالنسخة من القالب الأصلي. ستُفقد أي تعديلات أجريتها على هذا الملف، ولا يمكن التراجع عن ذلك.",
+    "You already have a theme called {id}.": "لديك بالفعل قالب باسم {id}.",
     "← All themes": "← جميع القوالب",
     Download: "تنزيل",
     "Downloading…": "جارٍ التنزيل…",
@@ -1267,11 +1242,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "يشارك سجل محتوى نفس عنوان URL الخاص بهذه الصفحة: {title}. من يفوز يعتمد على حالة نشر هذه الصفحة وخيار التجاوز الخاص بذلك السجل، وليس على هذا المفتاح وحده.",
     "Open {title}": "فتح {title}",
-    "? This permanently removes the file. There is no way to get it back.":
-      "؟ سيؤدي هذا إلى حذف الملف نهائيًا. لا توجد طريقة لاستعادته.",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "يُحتفظ بنسخة أصلية لم تُمس بشكل منفصل، لذا يمكنك تغيير أي شيء هنا دون أن تفقد نقطة البداية.",
-    "Are you sure you want to delete": "هل أنت متأكد أنك تريد حذف",
     Assets: "الأصول",
     "Close fullscreen preview": "إغلاق المعاينة بملء الشاشة",
     Config: "الإعدادات",
@@ -1306,7 +1278,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "إعادة تسمية",
     "Rename page": "إعادة تسمية الصفحة",
     "Rename this page?": "هل تريد إعادة تسمية هذه الصفحة؟",
-    Renaming: "جارٍ إعادة التسمية",
     Reset: "إعادة تعيين",
     "Reset file": "إعادة تعيين الملف",
     "Reset this file to the original?": "هل تريد إعادة تعيين هذا الملف إلى الأصل؟",
@@ -1332,18 +1303,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "هذا ملف ثنائي، لذا لا يحتوي على مصدر قابل للتعديل. استخدم تبويب المعاينة لعرضه.",
     "This one will be installed under a new name.": "سيتم تثبيته باسم جديد.",
-    "This replaces": "سيستبدل هذا",
     "This theme is not loading:": "هذا القالب لا يتم تحميله:",
     "Turn the theme off": "إيقاف القالب",
     "Turning off…": "جارٍ الإيقاف…",
     "View preview fullscreen": "عرض المعاينة بملء الشاشة",
-    "You already have a theme called": "لديك بالفعل قالب باسم",
     "You're editing your own copy.": "أنت تحرّر نسختك الخاصة.",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "يغيّر عنوان URL العام الخاص به. أي روابط مباشرة موجودة بالفعل تحتاج إلى تحديث.",
-    to: "إلى",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "بالنسخة من القالب الأصلي. ستُفقد أي تعديلات أجريتها على هذا الملف، ولا يمكن التراجع عن ذلك.",
     "Saved {file}": "تم حفظ {file}",
     "Reset {file} to the original": "تمت إعادة تعيين {file} إلى الأصل",
     "Renamed to {file}": "تمت إعادة التسمية إلى {file}",
@@ -1384,6 +1348,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "لا توجد نسخة أصلية محفوظة لهذا القالب، لذا لا يمكن إعادة تعيين أي شيء.",
   },
   ja: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "{file} を {name} に変更すると、公開URLが変わります。すでにそこへ直接リンクしているものは更新が必要です。",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "{file} を本当に削除しますか？ この操作でファイルは完全に削除されます。元に戻す方法はありません。",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "{file} は元のテーマのバージョンに置き換えられます。このファイルに加えた変更は失われ、元に戻すことはできません。",
+    "You already have a theme called {id}.": "{id} という名前のテーマは既にあります。",
     "← All themes": "← すべてのテーマ",
     Download: "ダウンロード",
     "Downloading…": "ダウンロード中…",
@@ -1421,11 +1392,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} を開く",
     "Rescan themes": "テーマを再スキャン",
     "Rescanning…": "再スキャン中…",
-    "? This permanently removes the file. There is no way to get it back.":
-      "？ この操作でファイルは完全に削除されます。元に戻す方法はありません。",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "手つかずのオリジナルは別に保存されるため、ここでは何を変更しても元の状態を失うことはありません。",
-    "Are you sure you want to delete": "本当に削除しますか",
     Assets: "アセット",
     "Close fullscreen preview": "フルスクリーンプレビューを閉じる",
     Config: "設定",
@@ -1460,7 +1428,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "名前を変更",
     "Rename page": "ページ名を変更",
     "Rename this page?": "このページの名前を変更しますか？",
-    Renaming: "名前を変更中",
     Reset: "リセット",
     "Reset file": "ファイルをリセット",
     "Reset this file to the original?": "このファイルをオリジナルにリセットしますか？",
@@ -1486,18 +1453,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "これはバイナリファイルのため、編集可能なソースがありません。表示するには「プレビュー」タブを使用してください。",
     "This one will be installed under a new name.": "これは新しい名前でインストールされます。",
-    "This replaces": "置き換え対象は",
     "This theme is not loading:": "このテーマを読み込めません：",
     "Turn the theme off": "テーマをオフにする",
     "Turning off…": "オフにしています…",
     "View preview fullscreen": "プレビューをフルスクリーンで表示",
-    "You already have a theme called": "すでに次の名前のテーマがあります",
     "You're editing your own copy.": "自分のコピーを編集しています。",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "の公開URLが変わります。すでにそこへ直接リンクしているものは更新が必要です。",
-    to: "に",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "です。元のテーマのバージョンに置き換えられます。このファイルに加えた変更は失われ、元に戻すことはできません。",
     "Saved {file}": "{file} を保存しました",
     "Reset {file} to the original": "{file} をオリジナルにリセットしました",
     "Renamed to {file}": "{file} に名前を変更しました",
@@ -1537,6 +1497,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.": "このテーマには保存されたオリジナルがないため、リセットできるものはありません。",
   },
   ko: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "{file}을 {name}으로 이름을 바꾸면 공개 URL이 변경됩니다. 이미 직접 연결된 링크는 업데이트해야 합니다.",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "{file}을 정말 삭제하시겠습니까? 이 작업은 파일을 영구적으로 삭제합니다. 다시 되돌릴 방법이 없습니다.",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "이 작업은 {file}을 원본 테마의 버전으로 대체합니다. 이 파일에 적용한 변경 사항은 모두 사라지며 되돌릴 수 없습니다.",
+    "You already have a theme called {id}.": "이미 {id}라는 이름의 테마가 있습니다.",
     "← All themes": "← 모든 테마",
     Download: "다운로드",
     "Downloading…": "다운로드 중…",
@@ -1574,11 +1541,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} 열기",
     "Rescan themes": "테마 다시 스캔",
     "Rescanning…": "다시 스캔 중…",
-    "? This permanently removes the file. There is no way to get it back.":
-      "? 이 작업은 파일을 영구적으로 삭제합니다. 다시 되돌릴 방법이 없습니다.",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "손대지 않은 원본은 별도로 보관되므로, 시작 지점을 잃지 않고 여기서 무엇이든 변경할 수 있습니다.",
-    "Are you sure you want to delete": "정말 삭제하시겠습니까",
     Assets: "에셋",
     "Close fullscreen preview": "전체 화면 미리보기 닫기",
     Config: "설정",
@@ -1613,7 +1577,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "이름 변경",
     "Rename page": "페이지 이름 변경",
     "Rename this page?": "이 페이지의 이름을 변경하시겠습니까?",
-    Renaming: "이름 변경 중",
     Reset: "초기화",
     "Reset file": "파일 초기화",
     "Reset this file to the original?": "이 파일을 원본으로 초기화하시겠습니까?",
@@ -1639,18 +1602,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "이것은 바이너리 파일이므로 편집 가능한 소스가 없습니다. 보려면 미리보기 탭을 사용하세요.",
     "This one will be installed under a new name.": "이 항목은 새 이름으로 설치됩니다.",
-    "This replaces": "대체 대상은",
     "This theme is not loading:": "이 테마를 불러올 수 없습니다:",
     "Turn the theme off": "테마 끄기",
     "Turning off…": "끄는 중…",
     "View preview fullscreen": "미리보기를 전체 화면으로 보기",
-    "You already have a theme called": "이미 다음 이름의 테마가 있습니다",
     "You're editing your own copy.": "자신의 사본을 편집하고 있습니다.",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "의 공개 URL이 변경됩니다. 이미 직접 연결된 링크는 업데이트해야 합니다.",
-    to: "(으)로",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "이며, 원본 테마의 버전으로 대체됩니다. 이 파일에 적용한 변경 사항은 모두 사라지며 되돌릴 수 없습니다.",
     "Saved {file}": "{file} 저장됨",
     "Reset {file} to the original": "{file}을(를) 원본으로 초기화했습니다",
     "Renamed to {file}": "{file}(으)로 이름을 변경했습니다",
@@ -1690,6 +1646,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.": "이 테마에는 저장된 원본이 없어 초기화할 수 있는 항목이 없습니다.",
   },
   pl: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "Zmiana nazwy {file} na {name} zmienia jego publiczny adres URL. Wszelkie istniejące bezpośrednie linki do niego trzeba będzie zaktualizować.",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "Czy na pewno chcesz usunąć {file}? Spowoduje to trwałe usunięcie pliku. Nie ma możliwości jego odzyskania.",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "To zastąpi {file} wersją z oryginalnego motywu. Wszystkie zmiany wprowadzone w tym pliku zostaną utracone, a tej operacji nie można cofnąć.",
+    "You already have a theme called {id}.": "Masz już motyw o nazwie {id}.",
     "← All themes": "← Wszystkie motywy",
     Download: "Pobierz",
     "Downloading…": "Pobieranie…",
@@ -1727,11 +1690,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Otwórz {title}",
     "Rescan themes": "Skanuj motywy ponownie",
     "Rescanning…": "Ponowne skanowanie…",
-    "? This permanently removes the file. There is no way to get it back.":
-      "? Spowoduje to trwałe usunięcie pliku. Nie ma możliwości jego odzyskania.",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "Nienaruszony oryginał jest przechowywany osobno, dzięki czemu możesz tu zmieniać cokolwiek, nie tracąc punktu wyjścia.",
-    "Are you sure you want to delete": "Czy na pewno chcesz usunąć",
     Assets: "Zasoby",
     "Close fullscreen preview": "Zamknij podgląd pełnoekranowy",
     Config: "Konfiguracja",
@@ -1766,7 +1726,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "Zmień nazwę",
     "Rename page": "Zmień nazwę strony",
     "Rename this page?": "Zmienić nazwę tej strony?",
-    Renaming: "Zmienianie nazwy",
     Reset: "Resetuj",
     "Reset file": "Resetuj plik",
     "Reset this file to the original?": "Zresetować ten plik do oryginału?",
@@ -1792,18 +1751,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "To plik binarny, więc nie ma edytowalnego źródła. Użyj karty Podgląd, aby go zobaczyć.",
     "This one will be installed under a new name.": "Zostanie zainstalowany pod nową nazwą.",
-    "This replaces": "To zastąpi",
     "This theme is not loading:": "Ten motyw się nie wczytuje:",
     "Turn the theme off": "Wyłącz motyw",
     "Turning off…": "Wyłączanie…",
     "View preview fullscreen": "Wyświetl podgląd na pełnym ekranie",
-    "You already have a theme called": "Masz już motyw o nazwie",
     "You're editing your own copy.": "Edytujesz własną kopię.",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "zmienia jego publiczny adres URL. Wszelkie istniejące bezpośrednie linki do niego trzeba będzie zaktualizować.",
-    to: "na",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "wersją z oryginalnego motywu. Wszystkie zmiany wprowadzone w tym pliku zostaną utracone, a tej operacji nie można cofnąć.",
     "Saved {file}": "Zapisano {file}",
     "Reset {file} to the original": "Zresetowano {file} do oryginału",
     "Renamed to {file}": "Zmieniono nazwę na {file}",
@@ -1844,6 +1796,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "Ten motyw nie ma zapisanego oryginału, więc nie można niczego zresetować.",
   },
   hu: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "A {file} átnevezése {name} névre megváltoztatja a nyilvános URL-jét. Minden meglévő közvetlen hivatkozást frissíteni kell rá.",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "Biztosan törölni szeretnéd a {file} fájlt? Ez véglegesen eltávolítja a fájlt. Nincs mód a visszaszerzésére.",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "Ez lecseréli a {file} fájlt az eredeti sablon verziójára. Az ezen a fájlon végzett módosítások elvesznek, és ez nem vonható vissza.",
+    "You already have a theme called {id}.": "Már van egy sablonod, amelynek neve {id}.",
     "← All themes": "← Összes téma",
     Download: "Letöltés",
     "Downloading…": "Letöltés…",
@@ -1881,11 +1840,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} megnyitása",
     "Rescan themes": "Sablonok újraszkennelése",
     "Rescanning…": "Újraszkennelés…",
-    "? This permanently removes the file. There is no way to get it back.":
-      "? Ez véglegesen eltávolítja a fájlt. Nincs mód a visszaszerzésére.",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "Az érintetlen eredetit külön tároljuk, így bármit megváltoztathatsz itt anélkül, hogy elveszítenéd a kiindulási állapotot.",
-    "Are you sure you want to delete": "Biztosan törölni szeretnéd",
     Assets: "Erőforrások",
     "Close fullscreen preview": "Teljes képernyős előnézet bezárása",
     Config: "Konfiguráció",
@@ -1920,7 +1876,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "Átnevezés",
     "Rename page": "Oldal átnevezése",
     "Rename this page?": "Átnevezed ezt az oldalt?",
-    Renaming: "Átnevezés folyamatban",
     Reset: "Visszaállítás",
     "Reset file": "Fájl visszaállítása",
     "Reset this file to the original?": "Visszaállítod ezt a fájlt az eredetire?",
@@ -1946,18 +1901,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Ez egy bináris fájl, így nincs szerkeszthető forrása. Az Előnézet fülön tekintheted meg.",
     "This one will be installed under a new name.": "Ez új néven kerül telepítésre.",
-    "This replaces": "Ez lecseréli",
     "This theme is not loading:": "Ez a sablon nem töltődik be:",
     "Turn the theme off": "Sablon kikapcsolása",
     "Turning off…": "Kikapcsolás…",
     "View preview fullscreen": "Előnézet megtekintése teljes képernyőn",
-    "You already have a theme called": "Már van egy sablonod, amelynek neve",
     "You're editing your own copy.": "A saját másolatodat szerkeszted.",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "megváltoztatja a nyilvános URL-jét. Minden meglévő közvetlen hivatkozást frissíteni kell rá.",
-    to: "erre:",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "az eredeti sablon verziójára. Az ezen a fájlon végzett módosítások elvesznek, és ez nem vonható vissza.",
     "Saved {file}": "{file} mentve",
     "Reset {file} to the original": "{file} visszaállítva az eredetire",
     "Renamed to {file}": "Átnevezve erre: {file}",
@@ -1998,6 +1946,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "Ennek a sablonnak nincs mentett eredetije, ezért semmi sem állítható vissza.",
   },
   fr: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "Renommer {file} en {name} change son URL publique. Tout lien direct existant devra être mis à jour.",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "Voulez-vous vraiment supprimer {file} ? Ceci supprime définitivement le fichier. Il n'y a aucun moyen de le récupérer.",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "Ceci remplace {file} par la version du thème d'origine. Toutes les modifications que vous avez apportées à ce fichier seront perdues, et cette action est irréversible.",
+    "You already have a theme called {id}.": "Vous avez déjà un thème appelé {id}.",
     "← All themes": "← Tous les thèmes",
     Download: "Télécharger",
     "Downloading…": "Téléchargement…",
@@ -2035,11 +1990,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Ouvrir {title}",
     "Rescan themes": "Réanalyser les thèmes",
     "Rescanning…": "Réanalyse…",
-    "? This permanently removes the file. There is no way to get it back.":
-      "? Ceci supprime définitivement le fichier. Il n'y a aucun moyen de le récupérer.",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "Un original intact est conservé séparément, afin que vous puissiez tout modifier ici sans perdre votre point de départ.",
-    "Are you sure you want to delete": "Voulez-vous vraiment supprimer",
     Assets: "Ressources",
     "Close fullscreen preview": "Fermer l'aperçu plein écran",
     Config: "Configuration",
@@ -2074,7 +2026,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "Renommer",
     "Rename page": "Renommer la page",
     "Rename this page?": "Renommer cette page ?",
-    Renaming: "Renommage en cours",
     Reset: "Réinitialiser",
     "Reset file": "Réinitialiser le fichier",
     "Reset this file to the original?": "Réinitialiser ce fichier à l'original ?",
@@ -2100,18 +2051,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Il s'agit d'un fichier binaire, il n'a donc pas de source modifiable. Utilisez l'onglet Aperçu pour le consulter.",
     "This one will be installed under a new name.": "Celui-ci sera installé sous un nouveau nom.",
-    "This replaces": "Ceci remplace",
     "This theme is not loading:": "Ce thème ne se charge pas :",
     "Turn the theme off": "Désactiver le thème",
     "Turning off…": "Désactivation…",
     "View preview fullscreen": "Afficher l'aperçu en plein écran",
-    "You already have a theme called": "Vous avez déjà un thème appelé",
     "You're editing your own copy.": "Vous modifiez votre propre copie.",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "change son URL publique. Tout lien direct existant devra être mis à jour.",
-    to: "par",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "par la version du thème d'origine. Toutes les modifications que vous avez apportées à ce fichier seront perdues, et cette action est irréversible.",
     "Saved {file}": "{file} enregistré",
     "Reset {file} to the original": "{file} réinitialisé à l'original",
     "Renamed to {file}": "Renommé en {file}",
@@ -2152,6 +2096,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "Ce thème n'a pas d'original enregistré, rien ne peut donc être réinitialisé.",
   },
   uk: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "Перейменування {file} на {name} змінює її публічну URL-адресу. Усі наявні прямі посилання на неї доведеться оновити.",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "Ви впевнені, що хочете видалити {file}? Це остаточно видалить файл. Відновити його буде неможливо.",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "Це замінить {file} версією з початкової теми. Усі зміни, внесені до цього файлу, буде втрачено, і це неможливо скасувати.",
+    "You already have a theme called {id}.": "У вас уже є тема з назвою {id}.",
     "← All themes": "← Усі теми",
     Download: "Завантажити",
     "Downloading…": "Завантаження…",
@@ -2189,11 +2140,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Відкрити {title}",
     "Rescan themes": "Пересканувати теми",
     "Rescanning…": "Сканування…",
-    "? This permanently removes the file. There is no way to get it back.":
-      "? Це остаточно видалить файл. Відновити його буде неможливо.",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "Незайманий оригінал зберігається окремо, тож ви можете змінювати тут що завгодно, не втрачаючи початкову версію.",
-    "Are you sure you want to delete": "Ви впевнені, що хочете видалити",
     Assets: "Ресурси",
     "Close fullscreen preview": "Закрити повноекранний перегляд",
     Config: "Конфігурація",
@@ -2228,7 +2176,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "Перейменувати",
     "Rename page": "Перейменувати сторінку",
     "Rename this page?": "Перейменувати цю сторінку?",
-    Renaming: "Перейменування",
     Reset: "Скинути",
     "Reset file": "Скинути файл",
     "Reset this file to the original?": "Скинути цей файл до оригіналу?",
@@ -2254,18 +2201,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Це бінарний файл, тому в нього немає редагованого вихідного коду. Скористайтеся вкладкою «Перегляд», щоб побачити його.",
     "This one will be installed under a new name.": "Її буде встановлено під новою назвою.",
-    "This replaces": "Це замінить",
     "This theme is not loading:": "Ця тема не завантажується:",
     "Turn the theme off": "Вимкнути тему",
     "Turning off…": "Вимкнення…",
     "View preview fullscreen": "Переглянути на весь екран",
-    "You already have a theme called": "У вас уже є тема з назвою",
     "You're editing your own copy.": "Ви редагуєте свою власну копію.",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "змінює її публічну URL-адресу. Усі наявні прямі посилання на неї доведеться оновити.",
-    to: "на",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "версією з початкової теми. Усі зміни, внесені до цього файлу, буде втрачено, і це неможливо скасувати.",
     "Saved {file}": "Файл {file} збережено",
     "Reset {file} to the original": "Файл {file} скинуто до оригіналу",
     "Renamed to {file}": "Перейменовано на {file}",
@@ -2306,6 +2246,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "Ця тема не має збереженого оригіналу, тому нічого не можна скинути.",
   },
   tr: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "{file} adını {name} olarak değiştirmek, genel URL'sini değiştirir. Ona doğrudan bağlantı veren her şeyin güncellenmesi gerekir.",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "{file} dosyasını silmek istediğinizden emin misiniz? Bu, dosyayı kalıcı olarak kaldırır. Geri alma yöntemi yoktur.",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "Bu, {file} dosyasının yerini orijinal temanın sürümüyle değiştirir. Bu dosyada yaptığınız tüm değişiklikler kaybolacak ve bu geri alınamaz.",
+    "You already have a theme called {id}.": "Zaten {id} adında bir temanız var.",
     "← All themes": "← Tüm temalar",
     Download: "İndir",
     "Downloading…": "İndiriliyor…",
@@ -2343,11 +2290,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} öğesini aç",
     "Rescan themes": "Temaları yeniden tara",
     "Rescanning…": "Yeniden taranıyor…",
-    "? This permanently removes the file. There is no way to get it back.":
-      "? Bu, dosyayı kalıcı olarak kaldırır. Geri alma yöntemi yoktur.",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "Dokunulmamış bir orijinal ayrıca saklanır, böylece başlangıç noktanızı kaybetmeden burada istediğiniz her şeyi değiştirebilirsiniz.",
-    "Are you sure you want to delete": "Silmek istediğinizden emin misiniz",
     Assets: "Varlıklar",
     "Close fullscreen preview": "Tam ekran önizlemeyi kapat",
     Config: "Yapılandırma",
@@ -2382,7 +2326,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "Yeniden adlandır",
     "Rename page": "Sayfayı yeniden adlandır",
     "Rename this page?": "Bu sayfa yeniden adlandırılsın mı?",
-    Renaming: "Yeniden adlandırılıyor",
     Reset: "Sıfırla",
     "Reset file": "Dosyayı sıfırla",
     "Reset this file to the original?": "Bu dosya orijinaline sıfırlansın mı?",
@@ -2408,18 +2351,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Bu bir ikili dosyadır, bu yüzden düzenlenebilir bir kaynağı yoktur. Görüntülemek için Önizleme sekmesini kullanın.",
     "This one will be installed under a new name.": "Bu, yeni bir adla yüklenecek.",
-    "This replaces": "Bu, şunun yerini alır:",
     "This theme is not loading:": "Bu tema yüklenmiyor:",
     "Turn the theme off": "Temayı kapat",
     "Turning off…": "Kapatılıyor…",
     "View preview fullscreen": "Önizlemeyi tam ekranda görüntüle",
-    "You already have a theme called": "Zaten şu adda bir temanız var",
     "You're editing your own copy.": "Kendi kopyanızı düzenliyorsunuz.",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "genel URL'sini değiştirir. Ona doğrudan bağlantı veren her şeyin güncellenmesi gerekir.",
-    to: "şununla:",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "orijinal temanın sürümüyle değiştirilecek. Bu dosyada yaptığınız tüm değişiklikler kaybolacak ve bu geri alınamaz.",
     "Saved {file}": "{file} kaydedildi",
     "Reset {file} to the original": "{file} orijinaline sıfırlandı",
     "Renamed to {file}": "Adı {file} olarak değiştirildi",
@@ -2460,6 +2396,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "Bu temanın kaydedilmiş bir orijinali yok, bu yüzden hiçbir şey sıfırlanamaz.",
   },
   th: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "การเปลี่ยนชื่อ {file} เป็น {name} จะเปลี่ยน URL สาธารณะของมัน ลิงก์โดยตรงที่มีอยู่แล้วจะต้องอัปเดต",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "แน่ใจหรือไม่ว่าต้องการลบ {file}? การดำเนินการนี้จะลบไฟล์อย่างถาวร ไม่มีทางกู้คืนได้",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "การดำเนินการนี้จะแทนที่ {file} ด้วยเวอร์ชันจากธีมต้นฉบับ การเปลี่ยนแปลงใด ๆ ที่คุณทำกับไฟล์นี้จะสูญหาย และไม่สามารถยกเลิกได้",
+    "You already have a theme called {id}.": "คุณมีธีมที่ชื่อว่า {id} อยู่แล้ว",
     "← All themes": "← ธีมทั้งหมด",
     Download: "ดาวน์โหลด",
     "Downloading…": "กำลังดาวน์โหลด…",
@@ -2497,11 +2440,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "เปิด {title}",
     "Rescan themes": "สแกนธีมใหม่",
     "Rescanning…": "กำลังสแกนใหม่…",
-    "? This permanently removes the file. There is no way to get it back.":
-      "? การดำเนินการนี้จะลบไฟล์อย่างถาวร ไม่มีทางกู้คืนได้",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "ระบบจะเก็บต้นฉบับที่ยังไม่ถูกแก้ไขไว้แยกต่างหาก คุณจึงสามารถเปลี่ยนแปลงอะไรก็ได้ที่นี่โดยไม่สูญเสียจุดเริ่มต้น",
-    "Are you sure you want to delete": "แน่ใจหรือไม่ว่าต้องการลบ",
     Assets: "แอสเซท",
     "Close fullscreen preview": "ปิดการแสดงตัวอย่างแบบเต็มหน้าจอ",
     Config: "การกำหนดค่า",
@@ -2536,7 +2476,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "เปลี่ยนชื่อ",
     "Rename page": "เปลี่ยนชื่อหน้า",
     "Rename this page?": "เปลี่ยนชื่อหน้านี้ใช่ไหม",
-    Renaming: "กำลังเปลี่ยนชื่อ",
     Reset: "รีเซ็ต",
     "Reset file": "รีเซ็ตไฟล์",
     "Reset this file to the original?": "รีเซ็ตไฟล์นี้เป็นต้นฉบับใช่ไหม",
@@ -2562,18 +2501,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "นี่คือไฟล์ไบนารี จึงไม่มีซอร์สที่แก้ไขได้ ใช้แท็บตัวอย่างเพื่อดูไฟล์นี้",
     "This one will be installed under a new name.": "ไฟล์นี้จะถูกติดตั้งภายใต้ชื่อใหม่",
-    "This replaces": "การดำเนินการนี้จะแทนที่",
     "This theme is not loading:": "ธีมนี้ไม่โหลด:",
     "Turn the theme off": "ปิดใช้งานธีม",
     "Turning off…": "กำลังปิดใช้งาน…",
     "View preview fullscreen": "ดูตัวอย่างแบบเต็มหน้าจอ",
-    "You already have a theme called": "คุณมีธีมที่ชื่อว่า",
     "You're editing your own copy.": "คุณกำลังแก้ไขสำเนาของคุณเอง",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "จะเปลี่ยน URL สาธารณะของมัน ลิงก์โดยตรงที่มีอยู่แล้วจะต้องอัปเดต",
-    to: "เป็น",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "ด้วยเวอร์ชันจากธีมต้นฉบับ การเปลี่ยนแปลงใด ๆ ที่คุณทำกับไฟล์นี้จะสูญหาย และไม่สามารถยกเลิกได้",
     "Saved {file}": "บันทึก {file} แล้ว",
     "Reset {file} to the original": "รีเซ็ต {file} เป็นต้นฉบับแล้ว",
     "Renamed to {file}": "เปลี่ยนชื่อเป็น {file} แล้ว",
@@ -2613,6 +2545,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.": "ธีมนี้ไม่มีต้นฉบับที่บันทึกไว้ จึงรีเซ็ตอะไรไม่ได้",
   },
   it: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "Rinominare {file} in {name} cambia il suo URL pubblico. Qualsiasi link diretto già esistente dovrà essere aggiornato.",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "Sei sicuro di voler eliminare {file}? Questa operazione rimuove definitivamente il file. Non c'è modo di recuperarlo.",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "Questo sostituisce {file} con la versione del tema originale. Tutte le modifiche apportate a questo file andranno perse e non sarà possibile annullarle.",
+    "You already have a theme called {id}.": "Hai già un tema chiamato {id}.",
     "← All themes": "← Tutti i temi",
     Download: "Scarica",
     "Downloading…": "Download in corso…",
@@ -2650,11 +2589,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Apri {title}",
     "Rescan themes": "Nuova scansione dei temi",
     "Rescanning…": "Nuova scansione in corso…",
-    "? This permanently removes the file. There is no way to get it back.":
-      "? Questa operazione rimuove definitivamente il file. Non c'è modo di recuperarlo.",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "Un originale intatto viene conservato separatamente, così puoi modificare qualsiasi cosa qui senza perdere il punto di partenza.",
-    "Are you sure you want to delete": "Sei sicuro di voler eliminare",
     Assets: "Risorse",
     "Close fullscreen preview": "Chiudi anteprima a schermo intero",
     Config: "Configurazione",
@@ -2689,7 +2625,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "Rinomina",
     "Rename page": "Rinomina pagina",
     "Rename this page?": "Rinominare questa pagina?",
-    Renaming: "Rinomina in corso",
     Reset: "Ripristina",
     "Reset file": "Ripristina file",
     "Reset this file to the original?": "Ripristinare questo file all'originale?",
@@ -2715,18 +2650,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Questo è un file binario, quindi non ha un sorgente modificabile. Usa la scheda Anteprima per visualizzarlo.",
     "This one will be installed under a new name.": "Verrà installato con un nuovo nome.",
-    "This replaces": "Questo sostituisce",
     "This theme is not loading:": "Questo tema non si carica:",
     "Turn the theme off": "Disattiva il tema",
     "Turning off…": "Disattivazione…",
     "View preview fullscreen": "Visualizza anteprima a schermo intero",
-    "You already have a theme called": "Hai già un tema chiamato",
     "You're editing your own copy.": "Stai modificando la tua copia.",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "cambia il suo URL pubblico. Qualsiasi link diretto già esistente dovrà essere aggiornato.",
-    to: "con",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "con la versione del tema originale. Tutte le modifiche apportate a questo file andranno perse e non sarà possibile annullarle.",
     "Saved {file}": "{file} salvato",
     "Reset {file} to the original": "{file} ripristinato all'originale",
     "Renamed to {file}": "Rinominato in {file}",
@@ -2767,6 +2695,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "Questo tema non ha un originale salvato, quindi non è possibile ripristinare nulla.",
   },
   hi: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "{file} का नाम {name} रखने से इसका सार्वजनिक URL बदल जाता है। इससे पहले से सीधे जुड़े किसी भी लिंक को अपडेट करना होगा।",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "क्या आप वाकई {file} को हटाना चाहते हैं? यह फ़ाइल को स्थायी रूप से हटा देगा। इसे वापस पाने का कोई तरीका नहीं है।",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "यह {file} को मूल थीम के संस्करण से बदल देगा। इस फ़ाइल में आपके द्वारा किए गए किसी भी बदलाव को खो दिया जाएगा, और इसे पूर्ववत नहीं किया जा सकता।",
+    "You already have a theme called {id}.": "आपके पास पहले से ही {id} नाम की एक थीम है।",
     "← All themes": "← सभी थीम",
     Download: "डाउनलोड करें",
     "Downloading…": "डाउनलोड हो रहा है…",
@@ -2804,11 +2739,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} खोलें",
     "Rescan themes": "थीम फिर से स्कैन करें",
     "Rescanning…": "फिर से स्कैन हो रहा है…",
-    "? This permanently removes the file. There is no way to get it back.":
-      "? यह फ़ाइल को स्थायी रूप से हटा देगा। इसे वापस पाने का कोई तरीका नहीं है।",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "एक अछूता मूल संस्करण अलग से सुरक्षित रखा जाता है, इसलिए आप शुरुआती बिंदु खोए बिना यहाँ कुछ भी बदल सकते हैं।",
-    "Are you sure you want to delete": "क्या आप वाकई हटाना चाहते हैं",
     Assets: "एसेट्स",
     "Close fullscreen preview": "फ़ुलस्क्रीन पूर्वावलोकन बंद करें",
     Config: "कॉन्फ़िगरेशन",
@@ -2843,7 +2775,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "नाम बदलें",
     "Rename page": "पेज का नाम बदलें",
     "Rename this page?": "क्या इस पेज का नाम बदलना है?",
-    Renaming: "नाम बदला जा रहा है",
     Reset: "रीसेट करें",
     "Reset file": "फ़ाइल रीसेट करें",
     "Reset this file to the original?": "क्या इस फ़ाइल को मूल पर रीसेट करना है?",
@@ -2869,18 +2800,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "यह एक बाइनरी फ़ाइल है, इसलिए इसका कोई संपादन योग्य स्रोत नहीं है। इसे देखने के लिए पूर्वावलोकन टैब का उपयोग करें।",
     "This one will be installed under a new name.": "इसे एक नए नाम से इंस्टॉल किया जाएगा।",
-    "This replaces": "यह बदल देगा",
     "This theme is not loading:": "यह थीम लोड नहीं हो रही है:",
     "Turn the theme off": "थीम बंद करें",
     "Turning off…": "बंद हो रहा है…",
     "View preview fullscreen": "पूर्वावलोकन को फ़ुलस्क्रीन में देखें",
-    "You already have a theme called": "आपके पास पहले से ही एक थीम है जिसका नाम है",
     "You're editing your own copy.": "आप अपनी खुद की कॉपी संपादित कर रहे हैं।",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "इसका सार्वजनिक URL बदल देता है। इससे पहले से सीधे जुड़े किसी भी लिंक को अपडेट करना होगा।",
-    to: "को",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "मूल थीम के संस्करण से। इस फ़ाइल में आपके द्वारा किए गए किसी भी बदलाव को खो दिया जाएगा, और इसे पूर्ववत नहीं किया जा सकता।",
     "Saved {file}": "{file} सहेजा गया",
     "Reset {file} to the original": "{file} को मूल पर रीसेट किया गया",
     "Renamed to {file}": "नाम बदलकर {file} किया गया",
@@ -2921,6 +2845,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "इस थीम का कोई सहेजा हुआ मूल संस्करण नहीं है, इसलिए कुछ भी रीसेट नहीं किया जा सकता।",
   },
   ur: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "{file} کا نام {name} رکھنے سے اس کا عوامی URL تبدیل ہو جاتا ہے۔ اس سے پہلے سے جڑے ہوئے کسی بھی براہ راست لنک کو اپ ڈیٹ کرنا ہوگا۔",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "کیا آپ واقعی {file} کو حذف کرنا چاہتے ہیں؟ یہ فائل کو مستقل طور پر حذف کر دے گا۔ اسے واپس حاصل کرنے کا کوئی طریقہ نہیں ہے۔",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "یہ {file} کو اصل تھیم کے ورژن سے بدل دے گا۔ اس فائل میں آپ کی کی گئی کوئی بھی تبدیلی ضائع ہو جائے گی، اور اسے واپس نہیں لیا جا سکتا۔",
+    "You already have a theme called {id}.": "آپ کے پاس پہلے سے ہی {id} نام کی ایک تھیم ہے۔",
     "← All themes": "← تمام تھیمز",
     Download: "ڈاؤن لوڈ کریں",
     "Downloading…": "ڈاؤن لوڈ ہو رہا ہے…",
@@ -2958,11 +2889,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} کھولیں",
     "Rescan themes": "تھیمز دوبارہ اسکین کریں",
     "Rescanning…": "دوبارہ اسکین ہو رہا ہے…",
-    "? This permanently removes the file. There is no way to get it back.":
-      "؟ یہ فائل کو مستقل طور پر حذف کر دے گا۔ اسے واپس حاصل کرنے کا کوئی طریقہ نہیں ہے۔",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "ایک اچھوتا اصل نسخہ الگ سے محفوظ رکھا جاتا ہے، اس لیے آپ یہاں کچھ بھی تبدیل کر سکتے ہیں بغیر اپنے نقطہ آغاز کو کھوئے۔",
-    "Are you sure you want to delete": "کیا آپ واقعی حذف کرنا چاہتے ہیں",
     Assets: "اثاثے",
     "Close fullscreen preview": "فل اسکرین پیش منظر بند کریں",
     Config: "ترتیب",
@@ -2997,7 +2925,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "نام تبدیل کریں",
     "Rename page": "صفحے کا نام تبدیل کریں",
     "Rename this page?": "کیا اس صفحے کا نام تبدیل کیا جائے؟",
-    Renaming: "نام تبدیل ہو رہا ہے",
     Reset: "ری سیٹ کریں",
     "Reset file": "فائل ری سیٹ کریں",
     "Reset this file to the original?": "کیا اس فائل کو اصل پر ری سیٹ کیا جائے؟",
@@ -3023,18 +2950,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "یہ ایک بائنری فائل ہے، اس لیے اس کا کوئی قابلِ ترمیم سورس نہیں ہے۔ اسے دیکھنے کے لیے پیش منظر ٹیب استعمال کریں۔",
     "This one will be installed under a new name.": "یہ ایک نئے نام کے تحت انسٹال کیا جائے گا۔",
-    "This replaces": "یہ اس کی جگہ لے گا",
     "This theme is not loading:": "یہ تھیم لوڈ نہیں ہو رہی:",
     "Turn the theme off": "تھیم بند کریں",
     "Turning off…": "بند ہو رہا ہے…",
     "View preview fullscreen": "پیش منظر کو فل اسکرین میں دیکھیں",
-    "You already have a theme called": "آپ کے پاس پہلے سے ہی ایک تھیم ہے جس کا نام ہے",
     "You're editing your own copy.": "آپ اپنی اپنی کاپی میں ترمیم کر رہے ہیں۔",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "اس کا عوامی URL تبدیل کر دیتا ہے۔ اس سے پہلے سے جڑے ہوئے کسی بھی براہ راست لنک کو اپ ڈیٹ کرنا ہوگا۔",
-    to: "میں",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "اصل تھیم کے ورژن سے۔ اس فائل میں آپ کی کی گئی کوئی بھی تبدیلی ضائع ہو جائے گی، اور اسے واپس نہیں لیا جا سکتا۔",
     "Saved {file}": "{file} محفوظ ہو گیا",
     "Reset {file} to the original": "{file} کو اصل پر ری سیٹ کر دیا گیا",
     "Renamed to {file}": "نام بدل کر {file} کر دیا گیا",
@@ -3075,6 +2995,13 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "اس تھیم کا کوئی محفوظ شدہ اصل نسخہ نہیں ہے، اس لیے کچھ بھی ری سیٹ نہیں کیا جا سکتا۔",
   },
   bn: {
+    "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
+      "{file}-এর নাম {name} করলে এর পাবলিক URL পরিবর্তিত হবে। এর সাথে ইতিমধ্যে সরাসরি লিঙ্ক করা যেকোনো কিছু আপডেট করতে হবে।",
+    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
+      "আপনি কি নিশ্চিতভাবে {file} মুছে ফেলতে চান? এটি স্থায়ীভাবে ফাইলটি মুছে ফেলবে। এটি ফিরে পাওয়ার কোনো উপায় নেই।",
+    "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
+      "এটি {file}-কে মূল থিমের সংস্করণ দিয়ে প্রতিস্থাপন করবে। এই ফাইলে আপনার করা যেকোনো পরিবর্তন হারিয়ে যাবে, এবং এটি পূর্বাবস্থায় ফেরানো যাবে না।",
+    "You already have a theme called {id}.": "আপনার কাছে ইতিমধ্যেই {id} নামে একটি থিম আছে।",
     "← All themes": "← সব থিম",
     Download: "ডাউনলোড করুন",
     "Downloading…": "ডাউনলোড হচ্ছে…",
@@ -3112,11 +3039,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} খুলুন",
     "Rescan themes": "থিম পুনরায় স্ক্যান করুন",
     "Rescanning…": "পুনরায় স্ক্যান হচ্ছে…",
-    "? This permanently removes the file. There is no way to get it back.":
-      "? এটি স্থায়ীভাবে ফাইলটি মুছে ফেলবে। এটি ফিরে পাওয়ার কোনো উপায় নেই।",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "একটি অক্ষত মূল সংস্করণ আলাদাভাবে সংরক্ষিত থাকে, তাই আপনি শুরুর বিন্দু না হারিয়ে এখানে যেকোনো কিছু পরিবর্তন করতে পারেন।",
-    "Are you sure you want to delete": "আপনি কি নিশ্চিতভাবে মুছে ফেলতে চান",
     Assets: "অ্যাসেট",
     "Close fullscreen preview": "ফুলস্ক্রিন প্রিভিউ বন্ধ করুন",
     Config: "কনফিগারেশন",
@@ -3151,7 +3075,6 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     Rename: "নাম পরিবর্তন করুন",
     "Rename page": "পৃষ্ঠার নাম পরিবর্তন করুন",
     "Rename this page?": "এই পৃষ্ঠার নাম পরিবর্তন করবেন?",
-    Renaming: "নাম পরিবর্তন হচ্ছে",
     Reset: "রিসেট করুন",
     "Reset file": "ফাইল রিসেট করুন",
     "Reset this file to the original?": "এই ফাইলটি মূল অবস্থায় রিসেট করবেন?",
@@ -3177,18 +3100,11 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "এটি একটি বাইনারি ফাইল, তাই এর কোনো সম্পাদনাযোগ্য সোর্স নেই। এটি দেখতে প্রিভিউ ট্যাব ব্যবহার করুন।",
     "This one will be installed under a new name.": "এটি একটি নতুন নামে ইনস্টল করা হবে।",
-    "This replaces": "এটি প্রতিস্থাপন করবে",
     "This theme is not loading:": "এই থিমটি লোড হচ্ছে না:",
     "Turn the theme off": "থিম বন্ধ করুন",
     "Turning off…": "বন্ধ হচ্ছে…",
     "View preview fullscreen": "প্রিভিউ ফুলস্ক্রিনে দেখুন",
-    "You already have a theme called": "আপনার কাছে ইতিমধ্যেই একটি থিম আছে যার নাম",
     "You're editing your own copy.": "আপনি নিজের কপি সম্পাদনা করছেন।",
-    "changes its public URL. Anything already linking to it directly will need updating.":
-      "এর পাবলিক URL পরিবর্তন করে। এর সাথে ইতিমধ্যে সরাসরি লিঙ্ক করা যেকোনো কিছু আপডেট করতে হবে।",
-    to: "এ",
-    "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
-      "মূল থিমের সংস্করণ দিয়ে। এই ফাইলে আপনার করা যেকোনো পরিবর্তন হারিয়ে যাবে, এবং এটি পূর্বাবস্থায় ফেরানো যাবে না।",
     "Saved {file}": "{file} সংরক্ষিত হয়েছে",
     "Reset {file} to the original": "{file} মূল অবস্থায় রিসেট করা হয়েছে",
     "Renamed to {file}": "নাম পরিবর্তন করে {file} করা হয়েছে",

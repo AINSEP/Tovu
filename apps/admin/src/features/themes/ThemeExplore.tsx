@@ -7,6 +7,7 @@ import { InfoTip } from "../../components/InfoTip";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
 import type { Translate } from "../../lib/dictionary-translator";
+import { splitOnPlaceholders } from "../../lib/template-i18n";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { themePageCollisionAdminPath } from "../pages/hooks/use-theme-pages.hooks";
 import { PAGE_PREVIEW_WIDTHS, type PagePreviewDevice } from "../pages/hooks/use-page-editor.hooks";
@@ -663,11 +664,26 @@ function PageRenameWarningBody({
   pageRenameWarning: { path: string; name: string } | null;
   t: Translate;
 }) {
+  // One sentence, not three concatenated fragments (`t("Renaming")` + a `<code>` + `t("to")`
+  // + …): each fragment word DID have a per-locale translation, but the fixed English word order
+  // around the two `<code>` boundaries can't be reordered for a verb-final language — Japanese's
+  // own "に" (to) is a postposition that belongs AFTER the target name, not between "Renaming" and
+  // it, so the old fragment order was ungrammatical there regardless of the words being correct.
+  // `splitOnPlaceholders` keeps the `<code>` elements as real React nodes while the key itself
+  // carries a full, reorderable sentence per locale.
+  const [before, between, after] = splitOnPlaceholders(
+    t(
+      "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.",
+    ),
+    ["{file}", "{name}"],
+  );
   return (
     <p>
-      {t("Renaming")} <code>{pageRenameWarning?.path}</code> {t("to")}{" "}
-      <code>{pageRenameWarning?.name}</code>{" "}
-      {t("changes its public URL. Anything already linking to it directly will need updating.")}
+      {before}
+      <code>{pageRenameWarning?.path}</code>
+      {between}
+      <code>{pageRenameWarning?.name}</code>
+      {after}
     </p>
   );
 }
@@ -681,15 +697,46 @@ function PageRenameWarningBody({
  * @complexity O(1).
  */
 function DeleteFileWarningBody({ deleteTarget, t }: { deleteTarget: string | null; t: Translate }) {
+  // One whole sentence with a `{file}` placeholder — see `PageRenameWarningBody`'s comment for why
+  // this replaced two fragments split around the `<code>` element.
+  const [before, after] = splitOnPlaceholders(
+    t("Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back."),
+    ["{file}"],
+  );
   return (
     <p>
-      {t("Are you sure you want to delete")} <code>{deleteTarget}</code>
+      {before}
+      <code>{deleteTarget}</code>
       {/* Deliberately NOT the literal phrase "cannot be undone" — the Reset dialog above already
           owns that exact wording, and both dialogs' body markup renders unconditionally regardless
           of `open` (`ConfirmDialog`'s own behavior), so identical phrasing across two simultaneously-
           mounted dialogs would make `getByText` ambiguous for either one. Same meaning, distinct
           wording — see `ThemeExplore.unit.test.tsx`'s "delete confirmation" describe block. */}
-      {t("? This permanently removes the file. There is no way to get it back.")}
+      {after}
+    </p>
+  );
+}
+
+/**
+ * The Reset-file `ConfirmDialog`'s body — same "name the exact target" shape as
+ * {@link PageRenameWarningBody} and {@link DeleteFileWarningBody}, pulled out to a top-level
+ * function to match them (this one used to stay inline, since it only had one `<code>` node, but
+ * the `splitOnPlaceholders` call reads better named than nested in JSX).
+ *
+ * @complexity O(1).
+ */
+function ResetFileWarningBody({ selected, t }: { selected: string | null; t: Translate }) {
+  const [before, after] = splitOnPlaceholders(
+    t(
+      "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.",
+    ),
+    ["{file}"],
+  );
+  return (
+    <p>
+      {before}
+      <code>{selected}</code>
+      {after}
     </p>
   );
 }
@@ -1381,14 +1428,7 @@ export function ThemeExplore({
         open={resetConfirmOpen}
         agentHandle="theme-explore-reset-file"
         title={t("Reset this file to the original?")}
-        body={
-          <p>
-            {t("This replaces")} <code>{selected}</code>{" "}
-            {t(
-              "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone."
-            )}
-          </p>
-        }
+        body={<ResetFileWarningBody selected={selected} t={t} />}
         confirmLabel={t("Reset file")}
         destructive
         pending={resetting}

@@ -16,6 +16,39 @@ export function interpolate(template: string, vars: Record<string, string | numb
 }
 
 /**
+ * Splits `template` on each of `tokens`, in order, and returns the `tokens.length + 1` text
+ * segments around them — for a placeholder whose value must render as a React node (an inline
+ * `<code>` element naming the exact file/theme a destructive action targets) rather than plain
+ * text, so {@link interpolate}'s string substitution can't produce it. A call site zips the
+ * segments back together with the node values, e.g. for one token:
+ * `{segments[0]}<code>{file}</code>{segments[1]}`.
+ *
+ * A token `indexOf` misses (a locale's copy dropped or mistyped a placeholder) is not thrown on:
+ * the rest of the template collapses into that segment and every token after it gets an empty
+ * segment, so the sentence still renders — just without that inline node's exact position —
+ * instead of crashing the dialog it's in.
+ *
+ * @complexity O(template.length): each token search scans only the remainder left after the
+ *   previous one, so the total work across all tokens is one pass over `template`.
+ */
+export function splitOnPlaceholders(template: string, tokens: readonly string[]): string[] {
+  const segments: string[] = [];
+  let rest = template;
+  for (const token of tokens) {
+    const index = rest.indexOf(token);
+    if (index === -1) {
+      segments.push(rest);
+      rest = "";
+    } else {
+      segments.push(rest.slice(0, index));
+      rest = rest.slice(index + token.length);
+    }
+  }
+  segments.push(rest);
+  return segments;
+}
+
+/**
  * English/Spanish/French/German/Portuguese/Italian-style two-form pluralization (singular vs.
  * everything else, keyed on `count === 1`). Does NOT implement full CLDR plural categories —
  * languages with more than two plural forms (Arabic's six, Russian/Polish's three-plus) will need a

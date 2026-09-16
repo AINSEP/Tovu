@@ -10,6 +10,7 @@ import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { ImagePreviewModal } from "../../components/ImagePreviewModal";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import type { Translate } from "../../lib/dictionary-translator";
+import { splitOnPlaceholders } from "../../lib/template-i18n";
 import { useWiredThemes, type ThemesController, type MarketplaceItem } from "./hooks/use-themes.hooks";
 import {
   isActiveTheme,
@@ -295,6 +296,27 @@ function ThemesBanners({
   );
 }
 
+/**
+ * A marketplace card's "you already have this id" note — one whole sentence with an `{id}`
+ * placeholder rather than two fragments concatenated around a `<code>` element (that shape can't
+ * be reordered for a locale whose grammar doesn't put the clause in English order around the id).
+ * `splitOnPlaceholders` keeps `<code>` as a real React node while the key stays a full,
+ * per-locale-reorderable sentence. The trailing "installed under a new name" note is its own
+ * separate sentence already — nothing to defragment there.
+ *
+ * @complexity O(1).
+ */
+function MarketplaceIdTakenNote({ id, t }: { id: string; t: Translate }) {
+  const [before, after] = splitOnPlaceholders(t("You already have a theme called {id}."), ["{id}"]);
+  return (
+    <>
+      {before}
+      <code>{id}</code>
+      {after}
+    </>
+  );
+}
+
 /** The Marketplace tab's own content — loading / empty / grid, plus each card's per-item
  *  "already have this id" note. Extracted to a top-level component (complexity-ceiling pass) so this
  *  branching scores independently of `Themes`'s own complexity. */
@@ -341,8 +363,7 @@ function MarketplaceGrid({
               just reported after. */}
           {item.idTaken ? (
             <p className="theme-card-note">
-              {t("You already have a theme called")} <code>{item.id}</code>.{" "}
-              {t("This one will be installed under a new name.")}
+              <MarketplaceIdTakenNote id={item.id} t={t} /> {t("This one will be installed under a new name.")}
             </p>
           ) : null}
           <div className="theme-card-actions">
