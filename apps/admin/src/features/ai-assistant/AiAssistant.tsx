@@ -263,8 +263,8 @@ interface AdminExecutionModeProps {
  * groups use (2026-08-14, DI migration sweep's complexity follow-up): ESLint's
  * cyclomatic-complexity rule counts a default parameter value inside a function's OWN body as one
  * of that function's own branches — a call out to a separately-scoped resolver does not. Shared by
- * `AdminExecutionMode` and `VisitorCredentialKeyFooter` below, this file's two debt-listed
- * functions, since both use the identical `(key: string) => key` fallback.
+ * `AdminExecutionMode` and `VisitorCredentialKeyFooter` below, since both use the identical
+ * `(key: string) => key` fallback.
  */
 function resolveT(override: ((key: string) => string) | undefined): (key: string) => string {
   return override ?? ((key: string) => key);

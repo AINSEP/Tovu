@@ -21,8 +21,7 @@ const LINE_ICON = {
 
 /** The Access Tokens tab's own icon — a key, i.e. the shape a credential is. Added for the Security
  *  page's tab row (owner request, the same pass that added Deployment's five and Source Control's
- *  Providers tab their own icons); this page has one real tab today, so this is that tab's only
- *  glyph rather than one of a set. */
+ *  Providers tab their own icons); this page's two real tabs are this one and {@link SiteTokenIcon}. */
 export function AccessTokensIcon({ size = 16 }: { size?: number }) {
   return (
     <svg {...LINE_ICON} width={size} height={size}>

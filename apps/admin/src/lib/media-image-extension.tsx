@@ -9,7 +9,7 @@ import { MediaPickerDialog } from "../components/MediaPickerDialog/MediaPickerDi
  * `{assetId, transformName}` attrs, PLUS a custom node view that resolves the in-editor preview
  * live from `assetId` rather than persisting a preview URL into `bodyJson`.
  *
- * Stays named `"image"` (`Image.extend`, not a new node type): `server/http/site/render.ts`'s
+ * Stays named `"image"` (`Image.extend`, not a new node type): `server/inbound/public-http/http/site/render.ts`'s
  * `renderDocNode` switches on `node.type === "image"` specifically — introducing a differently
  * named node here would silently fall through to that switch's `default` case (render children,
  * i.e. nothing, for a leaf node — the exact D7 bug this task's own render-path fix just closed)
@@ -22,7 +22,7 @@ import { MediaPickerDialog } from "../components/MediaPickerDialog/MediaPickerDi
  * satisfy TipTap's schema but violate that "never URLs" property the moment the doc round-trips
  * through `getJSON()`/`setContent()` — the stored `src` would sit in `bodyJson` right next to the
  * ref, persisted forever, exactly the shape the ADR calls out by name. Instead, `assetId`/
- * `transformName` are the ONLY attrs `insertMediaRef` ever writes; `MediaImageNodeView` computes
+ * `transformName` are the ONLY ref attrs this node stores; `MediaImageNodeView` computes
  * `api.mediaOriginalUrl(assetId)` (the authenticated admin preview route — safe here because the
  * editor is itself an authenticated admin surface, unlike the public render path this ref
  * ultimately resolves against via a *different* URL, `/m/{assetId}/{transformName}.v{version}/…`,
@@ -37,16 +37,6 @@ import { MediaPickerDialog } from "../components/MediaPickerDialog/MediaPickerDi
  * renders that `src` as a real `<img>` when `safeImageSrc` accepts it (an `http(s):` allowlist) and
  * degrades anything else to the placeholder.
  */
-
-declare module "@tiptap/core" {
-  interface Commands<ReturnType> {
-    mediaImage: {
-      /** Inserts a ref-based image node — ONLY `assetId`/`transformName`/`alt` are written to
-       *  `bodyJson`; no `src` is ever stored (see this file's header). */
-      insertMediaRef: (attrs: { assetId: string; transformName: string; alt?: string }) => ReturnType;
-    };
-  }
-}
 
 /**
  * The in-canvas rendered representation of an `image` node. Two branches, matching the two shapes
@@ -106,15 +96,5 @@ export const MediaImage = TiptapImage.extend({
 
   addNodeView() {
     return ReactNodeViewRenderer(MediaImageNodeView);
-  },
-
-  addCommands() {
-    return {
-      ...this.parent?.(),
-      insertMediaRef:
-        (attrs) =>
-        ({ commands }) =>
-          commands.insertContent({ type: this.name, attrs: { assetId: attrs.assetId, transformName: attrs.transformName, alt: attrs.alt ?? null } }),
-    };
   },
 });

@@ -15,8 +15,9 @@ import type { SiteTokenController } from "../hooks/use-site-token.hooks";
  * default (real `useWiredOtherCredentials`, unmocked `lib/api`) degrades harmlessly the same way
  * `use-admin-execution-credential`'s own doc describes: a failed fetch in a test environment
  * settles to an empty/unset state rather than throwing. `useSiteTokenHook` is given an explicit
- * fixture instead of relying on that same degrade-harmlessly behavior — `SiteTokenTab` has no
- * `*.unit.test.tsx` of its own yet to have already proven it tolerates an unmocked `lib/api` call.
+ * fixture instead of relying on that same degrade-harmlessly behavior — `SiteTokenTab`'s own body
+ * is covered by `SiteTokenTab.unit.test.tsx`, so this file passes an explicit fixture rather than
+ * depending on that suite's real `lib/api` degrade behavior.
  *
  * `useSecurityPermissionsHook` is ALWAYS supplied explicitly below (never left at its real
  * `useWiredSecurityPermissions` default) — the whole point of these tests is the Site Token tab's
@@ -119,6 +120,14 @@ describe("Security — page shell", () => {
       expect(within(tablist).getAllByRole("tab")).toHaveLength(2);
       const tab = within(tablist).getByRole("tab", { name: /Site Token/ });
       expect(tab).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("publishes the Site Token tab's agent label describing the corrected site-token wording", () => {
+      renderPage({ tabId: "site-token", canManageSiteToken: true });
+      expect(screen.getByRole("tab", { name: /Site Token/ })).toHaveAttribute(
+        "data-agent-label",
+        "Switch to the Site Token tab — view and generate the site token that decrypts every credential this install has saved (BYOK/AI keys, publish, source-control, media-provider, and MCP credentials), plus webhook signing and newsletter tokens on a local install"
+      );
     });
 
     it("hides the Site Token tab entirely for a principal WITHOUT the permission", () => {

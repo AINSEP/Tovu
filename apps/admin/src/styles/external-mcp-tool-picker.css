@@ -1,7 +1,8 @@
 /**
- * @file External-MCP write-tool picker + the Connection/Tools tab wrapper around each configured
- * server — Phase 4 of `ADS-memory/reports/pipeline/external-mcp-write-tools/implementation-
- * outline.md`. Classes match `ExternalMcpSettingsPanel.tsx` (`.external-mcp-source`) and
+ * @file External-MCP write-tool picker + the per-server tools modal (`ExternalMcpToolsModal.tsx`)
+ * that replaced the old Connection/Tools tab layout — Phase 4 of `ADS-memory/reports/pipeline/
+ * external-mcp-write-tools/implementation-outline.md`. Classes match `ExternalMcpSettingsPanel.tsx`
+ * (`.external-mcp-source`), `ExternalMcpToolsModal.tsx` (`.external-mcp-tools-modal*`), and
  * `ExternalMcpToolPicker.tsx` (`.external-mcp-tool-*`) verbatim.
  *
  * ## Every control here declares `color` explicitly
