@@ -716,6 +716,82 @@ export function resetThemeFileToOriginal(
   return { wasModified: true, bytes: original.size };
 }
 
+/**
+ * Design C (ADS-memory w4-theme-lifecycle-designs.md §5 / w6 dispatch, 2026-09-16): which folder
+ * `resetThemeFileToOriginal`/`themeFileDiffersFromOriginal`/`themeOriginalResetRefusal` should treat
+ * as one theme's catalog original, and where that folder came from. `"site"` is today's ONLY source
+ * (`<siteThemesRoot>/__original-themes__/<tier>/<id>`) and always wins when it exists at all —
+ * `"package"` (`<packageThemesRoot>/__original-themes__/<tier>/<id>`) is a READ-ONLY fallback,
+ * reached only when the site has no catalog folder for this theme whatsoever. See
+ * {@link resolveThemeOriginalSource}.
+ */
+export type ThemeOriginalSource = {
+  readonly source: "site" | "package";
+  readonly originalDir: string;
+  readonly originalsRoot: string;
+};
+
+/**
+ * Resolve which catalog original a theme should reset against/compare against: the site's own copy
+ * when it exists at all, or — only when the site has none — the package's own read-only copy.
+ *
+ * This is Design C's entire mechanism. Before this, every caller (`explore.ts`'s detail/copy/rename/
+ * reset routes, `tool-registrations.ts`'s `theme_reset_file`) derived
+ * `join(siteThemesRoot, THEME_CATALOG_DIR, tier, id)` directly and asked only whether THAT folder
+ * exists. Seven of the eight shipped themes never had one on an already-seeded site (Design D fixed
+ * this for NEW sites by generating `content/themes/__original-themes__/<tier>/<id>` for all eight at
+ * build time; an already-seeded site's own copy, made once at `seedSiteThemes()` time, never gets
+ * the backfill). This function adds exactly one more place to look — the package's own generated
+ * catalog — without writing anything anywhere: both branches are `existsSync` on a directory, never a
+ * copy, a rename, or a stamp. A site's own original is therefore never displaced, only supplemented
+ * by a fallback that answers `null` today's `catalogDir`-then-`existsSync` shape already answered
+ * `null` for.
+ *
+ * `packageThemesRoot` is deliberately `string | undefined`, not required: only the SQLite composition
+ * root (`server/deps.ts`'s `createSqliteRouteDeps`) and the CLI install-dir boot know the package's
+ * own themes root at all (`builtInThemesDir()`) — the hermetic in-memory composition root
+ * (`server/app.ts`'s `createRouteDeps`) and every hand-built `RouteDeps`/`ContentRouteDeps`/
+ * `ThemeToolDeps` test fixture predate this field and have no reason to set it. `undefined` is
+ * therefore "no package fallback configured," answered the same as "the package has no original for
+ * this theme id" (`null`), never thrown.
+ *
+ * @param required.manifest - Supplies the theme's own `tier`/`id` — where each catalog stores its
+ * per-theme folder, on either side.
+ * @param required.siteThemesRoot - The site's own themes root (`RouteDeps.themesDir`), checked first.
+ * @param required.packageThemesRoot - The package's own stock themes root
+ * (`RouteDeps.packageThemesDir`, ultimately `builtInThemesDir()`), or `undefined`.
+ * @returns `null` when neither side has a catalog folder for this theme id — identical to today's
+ * "no original" state. Otherwise the folder to read from and which side answered: `"package"` is
+ * returned only when `"site"` would have been `null`.
+ * @throws Never. Two `existsSync` calls, no reads, no writes.
+ * @complexity O(1).
+ */
+export function resolveThemeOriginalSource(
+  required: {
+    manifest: Pick<ThemeManifest, "tier" | "id">;
+    siteThemesRoot: string;
+    packageThemesRoot: string | undefined;
+  },
+  _optional: Record<string, never> = {}
+): ThemeOriginalSource | null {
+  const { manifest, siteThemesRoot, packageThemesRoot } = required;
+
+  const siteOriginalsRoot = join(siteThemesRoot, THEME_CATALOG_DIR);
+  const siteOriginalDir = join(siteOriginalsRoot, manifest.tier, manifest.id);
+  if (existsSync(siteOriginalDir)) {
+    return { source: "site", originalDir: siteOriginalDir, originalsRoot: siteOriginalsRoot };
+  }
+
+  if (packageThemesRoot === undefined) return null;
+  const packageOriginalsRoot = join(packageThemesRoot, THEME_CATALOG_DIR);
+  const packageOriginalDir = join(packageOriginalsRoot, manifest.tier, manifest.id);
+  if (existsSync(packageOriginalDir)) {
+    return { source: "package", originalDir: packageOriginalDir, originalsRoot: packageOriginalsRoot };
+  }
+
+  return null;
+}
+
 /** {@link themeOriginalResetRefusal}'s refusal: a stable `code` for a client to translate, and a fixed
  *  English `message` with nothing interpolated into it. */
 export type ThemeOriginalResetRefusal = { readonly code: "ORIGINAL_LAYOUT_MISMATCH"; readonly message: string };

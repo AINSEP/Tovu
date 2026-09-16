@@ -40,6 +40,10 @@ import type { RouteDeps } from "#src/server/routes/types";
  *   deps rather than re-derived so a composition root that overrides `TOVU_THEMES_DIR` rescans the
  *   same folder it originally discovered from, instead of silently repopulating the theme list from
  *   the default path.
+ * - `packageThemesDir`: `routes/themes/explore.ts`'s detail/copy/rename/reset routes, via
+ *   `resolveThemeOriginalSource` (Design C, 2026-09-16) — the package's read-only catalog fallback
+ *   for a theme an already-seeded site has no catalog original of its own for. Optional; `undefined`
+ *   for any composition root that predates this field, treated as "no fallback," not an error.
  * - `entryRepo`/`mediaRepo`/`transformDefinitionRepo`/`menuRepo`/`mediaContentTypeStore`
  *   (2026-08-11 template-preview fix; `mediaContentTypeStore` added 2026-08-24 for the video/embed
  *   capability): `posts/template-preview.ts` only — it renders a row through `routes/site/pages.ts`'s
@@ -76,6 +80,7 @@ export type ContentRouteDeps = Pick<
   | "presentationRepo"
   | "themes"
   | "themesDir"
+  | "packageThemesDir"
   | "entryRepo"
   | "mediaRepo"
   | "transformDefinitionRepo"

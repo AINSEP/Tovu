@@ -1,12 +1,8 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-
 import type { Response } from "express";
 
 import {
   findTheme,
   loadTheme,
-  THEME_CATALOG_DIR,
   type DiscoveredTheme,
   copyThemeFile,
   deleteThemeFile,
@@ -21,6 +17,7 @@ import {
   renameThemeFile,
   resetThemeFileToOriginal,
   resolveThemeFileWriteScope,
+  resolveThemeOriginalSource,
   restoreBuiltThemeGeneratedTree,
   themeFileDiffersFromOriginal,
   themeOriginalResetRefusal,
@@ -28,6 +25,7 @@ import {
   ThemePathError,
   readThemeLineageFile,
   type ThemeFileWriteScope,
+  type ThemeOriginalSource,
   // The shared "can this file's identity/content change" gate pieces — extracted (2026-08-30) into
   // `file-identity-lock.ts` so `features/theme/tool-registrations.ts`'s `theme_rename_file`/
   // `theme_delete_file` can call the exact same decision this file's own rename/delete routes call.
@@ -328,15 +326,35 @@ function contentRecordsBySlug(posts: readonly PostRecord[]): Map<string, ThemeFi
 const NO_CONTENT_COLLISIONS: ReadonlyMap<string, ThemeFileContentCollision> = new Map();
 
 /**
- * Whether files in `theme` can be compared against, and reset from, its catalog original at all: the
- * catalog folder exists and {@link themeOriginalResetRefusal} accepts it. Computed once per response,
- * never per file, and fed to {@link describeThemeFile} so `resettable`/`modified` agree with what the
- * reset route will actually do.
- *
- * @complexity O(s) in the two `theme.json` sizes.
+ * {@link resolveThemeOriginalSource} bound to this route file's own `deps` shape (Design C,
+ * 2026-09-16) — every one of the four call sites below (detail/copy/rename/reset) needs the
+ * identical two fields off `deps`, so this is the one place that pairs them rather than four
+ * repeated argument objects. `deps.packageThemesDir` is `undefined` for any composition root that
+ * predates this field (see that field's own doc) — `resolveThemeOriginalSource` already treats that
+ * as "no package fallback," not an error, so this needs no extra branching of its own.
  */
-function originalComparableForReset(theme: DiscoveredTheme, catalogDir: string): boolean {
-  return existsSync(catalogDir) && themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: catalogDir }) === null;
+function originalSourceFor(deps: ContentRouteDeps, theme: DiscoveredTheme): ThemeOriginalSource | null {
+  return resolveThemeOriginalSource({
+    manifest: theme.manifest,
+    siteThemesRoot: deps.themesDir,
+    packageThemesRoot: deps.packageThemesDir,
+  });
+}
+
+/**
+ * Whether files in `theme` can be compared against, and reset from, its catalog original at all:
+ * {@link originalSourceFor} found ONE (site or, since Design C, package) and
+ * {@link themeOriginalResetRefusal} accepts it. Computed once per response, never per file, and fed
+ * to {@link describeThemeFile} so `resettable`/`modified` agree with what the reset route will
+ * actually do.
+ *
+ * @complexity O(s) in the two `theme.json` sizes, or O(1) when there is no source at all.
+ */
+function originalComparableForReset(theme: DiscoveredTheme, originalSource: ThemeOriginalSource | null): boolean {
+  return (
+    originalSource !== null &&
+    themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: originalSource.originalDir }) === null
+  );
 }
 
 /**
@@ -357,15 +375,15 @@ function originalComparableForReset(theme: DiscoveredTheme, catalogDir: string):
  */
 function fileModifiedFromOriginal(
   relativePath: string,
-  options: { catalogDir: string; comparableOriginal: boolean; themesDir: string; theme: DiscoveredTheme }
+  options: { originalSource: ThemeOriginalSource | null; comparableOriginal: boolean; themesDir: string; theme: DiscoveredTheme }
 ): boolean | null {
-  if (!options.comparableOriginal) return null;
+  if (!options.comparableOriginal || !options.originalSource) return null;
   try {
     return themeFileDiffersFromOriginal({
       themeDir: options.theme.dir,
       themesRoot: options.themesDir,
-      originalDir: options.catalogDir,
-      originalsRoot: join(options.themesDir, THEME_CATALOG_DIR),
+      originalDir: options.originalSource.originalDir,
+      originalsRoot: options.originalSource.originalsRoot,
       relativePath,
     });
   } catch {
@@ -411,7 +429,7 @@ function fileModifiedFromOriginal(
 function describeThemeFile(
   relativePath: string,
   options: {
-    catalogDir: string;
+    originalSource: ThemeOriginalSource | null;
     comparableOriginal: boolean;
     themesDir: string;
     apiVersion: 2 | undefined;
@@ -481,20 +499,18 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
       // a strict v2 manifest schema's `additionalProperties: false` check (2026-08-18 schema decision).
       const lineage = readThemeLineageFile({ themeDir: theme.dir });
 
-      // An untouched original to reset back to. Checked on disk rather than inferred from `lineage`,
-      // because a manifest can claim an origin whose folder was since deleted — and the banner's
-      // promise ("you can always get back to what you started from") must reflect what is actually
-      // recoverable, not what a copy remembers being told.
-      const hasOriginal = existsSync(
-        join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id)
-      );
+      // An untouched original to reset back to — the site's own catalog copy, or (Design C,
+      // 2026-09-16) the package's own read-only catalog when the site has none at all. The banner's
+      // promise ("you can always get back to what you started from") now also covers the seven
+      // shipped themes that never had a hand-maintained original on an already-seeded site.
+      const originalSource = originalSourceFor(deps, theme);
+      const hasOriginal = originalSource !== null;
 
       // Every file in the theme folder, not just the pages/partials the RENDERER knows about — CSS,
       // JS, tokens, images. Those are the files an author most often actually needs to change to
       // make a downloaded theme theirs, and until now the screen hid all of them.
-      const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
       // Once for the whole listing: whether any file here can be reset from that original.
-      const comparableOriginal = originalComparableForReset(theme, catalogDir);
+      const comparableOriginal = originalComparableForReset(theme, originalSource);
       // ONE batched lookup for the WHOLE listing below, not one `findBySlug` per file — see
       // `contentRecordsBySlug`'s own doc for why that per-file shape must never come back.
       const contentBySlug = contentRecordsBySlug(await deps.postRepo.list({ workspaceId: deps.workspaceId }));
@@ -507,7 +523,7 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
         .filter((path) => !isGeneratedThemePath(path) && !isTrashedThemePath(path))
         .map((path) =>
           describeThemeFile(path, {
-            catalogDir,
+            originalSource,
             comparableOriginal,
             themesDir: deps.themesDir,
             apiVersion: theme.manifest.apiVersion,
@@ -702,11 +718,11 @@ function handleGeneratedTreeReset(deps: ContentRouteDeps, theme: DiscoveredTheme
 function resetFileFromOriginal(
   deps: ContentRouteDeps,
   theme: DiscoveredTheme,
-  catalogDir: string,
+  originalSource: ThemeOriginalSource,
   path: string,
   res: Response
 ): { ok: true; wasModified: boolean; bytes: number } | { ok: false } {
-  const refusal = themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: catalogDir });
+  const refusal = themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: originalSource.originalDir });
   if (refusal) {
     res.status(409).json({ error: refusal.message, code: refusal.code });
     return { ok: false };
@@ -714,8 +730,8 @@ function resetFileFromOriginal(
   const reset = resetThemeFileToOriginal({
     themeDir: theme.dir,
     themesRoot: deps.themesDir,
-    originalDir: catalogDir,
-    originalsRoot: join(deps.themesDir, THEME_CATALOG_DIR),
+    originalDir: originalSource.originalDir,
+    originalsRoot: originalSource.originalsRoot,
     relativePath: path,
   });
   if (!reset) {
@@ -818,8 +834,10 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, dep
         return;
       }
 
-      const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
-      if (!existsSync(catalogDir)) {
+      // Design C (2026-09-16): the site's own catalog copy, or — only when the site has none at all
+      // — the package's own read-only catalog. See `originalSourceFor`'s own doc.
+      const originalSource = originalSourceFor(deps, theme);
+      if (!originalSource) {
         res.status(409).json({
           error: `theme '${theme.manifest.id}' has no stored original, so nothing can be reset`,
           code: "NO_ORIGINAL",
@@ -827,7 +845,7 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, dep
         return;
       }
 
-      const resetResult = resetFileFromOriginal(deps, theme, catalogDir, path, res);
+      const resetResult = resetFileFromOriginal(deps, theme, originalSource, path, res);
       if (!resetResult.ok) return;
       // Reloaded even when nothing was written, matching `theme_reset_file`: this process's snapshot
       // is stale whenever a different process wrote the theme.
@@ -902,11 +920,11 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps
       // the next GET of `pages`/`partials` still act as if it does not.
       reloadTheme(deps, theme.manifest.id);
 
-      const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
+      const originalSource = originalSourceFor(deps, theme);
       res.json({
         ...describeThemeFile(destPath, {
-          catalogDir,
-          comparableOriginal: originalComparableForReset(theme, catalogDir),
+          originalSource,
+          comparableOriginal: originalComparableForReset(theme, originalSource),
           themesDir: deps.themesDir,
           apiVersion: theme.manifest.apiVersion,
           theme,
@@ -1071,11 +1089,11 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
 
       if (!renameThemeFileIfChanged(deps, theme, { sourcePath, destPath, name }, existingPaths, res)) return;
 
-      const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
+      const originalSource = originalSourceFor(deps, theme);
       res.json({
         ...describeThemeFile(destPath, {
-          catalogDir,
-          comparableOriginal: originalComparableForReset(theme, catalogDir),
+          originalSource,
+          comparableOriginal: originalComparableForReset(theme, originalSource),
           themesDir: deps.themesDir,
           apiVersion: theme.manifest.apiVersion,
           theme,

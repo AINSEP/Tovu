@@ -28,8 +28,6 @@
  * learn that in the same turn, because the live site has already started serving the fallback body
  * for that theme.
  */
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import {
   type AuthorizeFn,
   buildDomainRegistrations,
@@ -68,11 +66,13 @@ import {
   renameThemeFile,
   resetThemeFileToOriginal,
   resolveThemeFileWriteScope,
+  resolveThemeOriginalSource,
   themeOriginalResetRefusal,
   ThemePathError,
   writeThemeFile,
+  type ThemeOriginalSource,
 } from "./theme-files.js";
-import { loadTheme, THEME_CATALOG_DIR, type DiscoveredTheme } from "./theme.js";
+import { loadTheme, type DiscoveredTheme } from "./theme.js";
 // The shared "can this file's identity (name/existence) change" gate — same-module sibling import
 // (this file lives inside `features/theme`, so a direct import is the module's own internal wiring,
 // not a deep-import-from-outside the `no-deep-imports:features/theme` rule polices). `explore.ts`'s
@@ -105,6 +105,11 @@ export interface ThemeToolDeps {
    */
   themes: DiscoveredTheme[];
   themesDir: string;
+  /** Design C (2026-09-16) — the package's own read-only catalog fallback; see
+   *  `RouteDeps.packageThemesDir`'s own doc (`server/routes/types.ts`) for the full rationale.
+   *  Optional: `undefined` for any caller that predates this field, structurally satisfied by every
+   *  existing `RouteDeps`-shaped test fixture without a source change. */
+  packageThemesDir?: string;
 }
 
 /** Raised when `themeId` names no discovered theme. Its own class so the handler layer can decorate
@@ -272,10 +277,19 @@ function assertThemeFileWritable(theme: DiscoveredTheme, relativePath: string): 
   }
 }
 
-/** `theme`'s folder inside the originals catalog — the one place `theme_reset_file` reads from and
- *  compares against. */
-function catalogDirFor(routeDeps: ThemeToolDeps, theme: DiscoveredTheme): string {
-  return join(routeDeps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
+/**
+ * Where `theme_reset_file` reads its original from and compares against: the site's own catalog
+ * copy, or — since Design C (2026-09-16), only when the site has none at all — the package's own
+ * read-only catalog. See `resolveThemeOriginalSource`'s own doc (`theme-files.ts`) for the full
+ * rationale; `routeDeps.packageThemesDir` is `undefined` for any caller that predates that field,
+ * which resolves the identical "no fallback" answer this tool always got before.
+ */
+function originalSourceForTool(routeDeps: ThemeToolDeps, theme: DiscoveredTheme): ThemeOriginalSource | null {
+  return resolveThemeOriginalSource({
+    manifest: theme.manifest,
+    siteThemesRoot: routeDeps.themesDir,
+    packageThemesRoot: routeDeps.packageThemesDir,
+  });
 }
 
 /**
@@ -287,8 +301,9 @@ function catalogDirFor(routeDeps: ThemeToolDeps, theme: DiscoveredTheme): string
  * through the containment check against the CATALOG root before it touches the live side.
  *
  * @returns The original's size in `bytes`, and whether the live file differed and was rewritten.
- * @throws {ThemeFileNoOriginalError} If this theme has no catalog directory at all, or the catalog
- * has no regular file at this path (including a path that escapes the catalog folder).
+ * @throws {ThemeFileNoOriginalError} If this theme has no catalog directory at all (site or
+ * package), or the catalog has no regular file at this path (including a path that escapes the
+ * catalog folder).
  * @throws {ThemeOriginalLayoutMismatchError} If {@link themeOriginalResetRefusal} refuses the theme's
  * original, checked before any file is looked at: the same guard, and the same message, as the HTTP
  * route's `ORIGINAL_LAYOUT_MISMATCH`.
@@ -298,17 +313,17 @@ function resetFromOriginalForTool(
   theme: DiscoveredTheme,
   relativePath: string
 ): { wasModified: boolean; bytes: number } {
-  const catalogDir = catalogDirFor(routeDeps, theme);
-  if (!existsSync(catalogDir)) {
+  const originalSource = originalSourceForTool(routeDeps, theme);
+  if (!originalSource) {
     throw new ThemeFileNoOriginalError(`theme '${theme.manifest.id}' has no stored original, so nothing can be reset`);
   }
-  const refusal = themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: catalogDir });
+  const refusal = themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: originalSource.originalDir });
   if (refusal) throw new ThemeOriginalLayoutMismatchError(refusal.message);
   const reset = resetThemeFileToOriginal({
     themeDir: theme.dir,
     themesRoot: routeDeps.themesDir,
-    originalDir: catalogDir,
-    originalsRoot: join(routeDeps.themesDir, THEME_CATALOG_DIR),
+    originalDir: originalSource.originalDir,
+    originalsRoot: originalSource.originalsRoot,
     relativePath,
   });
   if (!reset) {

@@ -1374,6 +1374,12 @@ export function createSqliteRouteDeps(
     revertRegistry: createPostRevertRegistry({ postRepo, clock, outbox }),
     themes: discoverAllBuiltInThemes({ dir: resolvedThemesDir, source: "built-in" }),
     themesDir: resolvedThemesDir,
+    // Design C (2026-09-16) — the package's own read-only catalog, threaded through separately from
+    // `themesDir` above (which is this SITE's own themes root) so `resolveThemeOriginalSource` can
+    // fall back to it for a theme this site has no catalog original of its own for. Already resolved
+    // once above (`seedSiteThemes({ stockDir: builtInThemesDir(), ... })`); calling it again here is
+    // the same cheap, side-effect-free env/path lookup, not a second filesystem walk.
+    packageThemesDir: builtInThemesDir(),
     siteBinding: resolvedSiteBinding,
     outbox,
     bus,

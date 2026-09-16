@@ -150,6 +150,7 @@ export {
   renameThemeFile,
   resetThemeFileToOriginal,
   resolveThemeFileWriteScope,
+  resolveThemeOriginalSource,
   restoreBuiltThemeGeneratedTree,
   themeFileDiffersFromOriginal,
   themeOriginalResetRefusal,
@@ -157,6 +158,7 @@ export {
   ThemePathError,
   type ThemeFileWriteScope,
   type ThemeOriginalResetRefusal,
+  type ThemeOriginalSource,
 } from "./theme-files.js";
 
 // 2026-08-19 architecture audit findings 1 & 2 — the one apiVersion-aware theme-layout resolver,
