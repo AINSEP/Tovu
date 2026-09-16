@@ -115,13 +115,14 @@ export function registerPageHeadContributor(hook: PageHeadHook): void {
  * Clears the module-level registry. Originally named `resetPageHeadRegistryForTests` (mirroring
  * `routing.ts`'s test-only helpers), but it is not test-only: `app.ts`'s `createApp()` also calls
  * it, at the top of every invocation, precisely because this registry is a process-wide singleton
- * and `createApp()` is not guaranteed to run only once per process: `app.ts`'s own module body
- * ends with an eager, boot-graph-running `export const app = createApp();` (documented there as a
- * known hazard for an unrelated import-cycle reason), and anything that merely IMPORTS `app.ts` —
- * `index.ts`'s real boot path included — triggers that eager call before its own explicit
- * `createApp(deps)` runs. Without a reset at each `createApp()` entry, both calls'
+ * and `createApp()` is not guaranteed to run only once per process: every test that calls it
+ * directly, and every `routeDeps.createSiteApp()` the exporter and site-inspection make, run it
+ * again. Until 2026-09-16, `app.ts`'s own module body ALSO ended with an eager, boot-graph-running
+ * `export const app = createApp();` (removed then, t91 F4.1), so anything that merely IMPORTED
+ * `app.ts` — `index.ts`'s real boot path included — triggered that eager call before its own
+ * explicit `createApp(deps)` ran too. Without a reset at each `createApp()` entry, both calls'
  * `createSeoPageHeadHook` instances stayed registered side by side for the rest of the process:
- * the eager call's hook closes over `createRouteDeps()`'s hermetic, seeded, in-memory `postRepo`
+ * the eager call's hook closed over `createRouteDeps()`'s hermetic, seeded, in-memory `postRepo`
  * (see that function's own doc — "Default for tests/dev"), so its stale seed-fixture SEO data (a
  * different `@type`, a different `description`) kept folding into every real request's `<head>`
  * alongside the live hook's correct output — two competing `application/ld+json` blocks and a
@@ -129,8 +130,7 @@ export function registerPageHeadContributor(hook: PageHeadHook): void {
  * here means whichever `createApp()` call happens most recently in a process owns the registry,
  * restoring this module's own "registered once" contract even though the process may run the
  * function's body more than once. Tests call it too, for the same reason: isolating each test's
- * registration from whatever a previous `createApp()` call (including the eager one above) left
- * behind.
+ * registration from whatever a previous `createApp()` call left behind.
  */
 export function resetPageHeadRegistry(): void {
   contributors = [];

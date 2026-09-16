@@ -250,10 +250,11 @@ export interface RegisterRedirectsPhaseHandlersDeps {
  *
  * That is the policy half of the lifecycle fix `registerResolvePhase`'s own doc
  * describes. `registerRedirectsPhaseHandlers` runs once per composition root, and a
- * process runs more than one of those: `server/runtime/composition/app.ts`'s
- * module-load `export const app = createApp();` composes an in-memory root on EVERY
- * boot, before `createSqliteRouteDeps()` composes the real SQLite one, and an
- * integration test composes one per site it boots. Each registration closes over
+ * process can run more than one of those — an integration test composes one per
+ * site it boots. Loading `composition/app.ts` itself registers nothing (removed
+ * 2026-09-16, t91 F4.1; `app-module-load-registers-no-phase-handler.test.ts` pins
+ * it), so the only way a process gets a second composition is an explicit
+ * `createRouteDeps()`/`createSqliteRouteDeps()` call. Each registration closes over
  * that composition's own `RedirectRepoPort`, so under the old append-only registry
  * the superseded ones stayed on the live request path: harmless while the orphan was
  * an `InMemoryRedirectRepo` (empty, so it returned `null` and yielded to the real

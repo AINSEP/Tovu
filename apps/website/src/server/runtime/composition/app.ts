@@ -1006,15 +1006,17 @@ function subscribeSiteEventHandlersOnce(routeDeps: RouteDeps): void {
 }
 
 export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
-  // `page-head.ts`'s `contributors` registry is a process-wide singleton, but `createApp()` is
-  // not guaranteed to run only once per process — this file's own eager `export const app =
-  // createApp();` below (a documented hazard for an unrelated import-cycle reason) means anything
-  // that merely IMPORTS this module, including `index.ts`'s real boot path, already ran this
-  // function once with `createRouteDeps()`'s hermetic, seeded, in-memory deps before the
-  // "real" call happens. Resetting here — before this invocation registers its own SEO
-  // `page.head` hook below — keeps the registry scoped to whichever `createApp()` call runs
-  // most recently, so a stale seeded hook can never keep folding into a live request's `<head>`
-  // alongside the real one. See `resetPageHeadRegistry`'s own doc for the full trace.
+  // `page-head.ts`'s `contributors` registry is a process-wide singleton, but `createApp()` still
+  // runs more than once per process: every test that calls it directly, and every
+  // `routeDeps.createSiteApp()` the exporter and site-inspection make. Resetting here — before this
+  // invocation registers its own SEO `page.head` hook below — keeps the registry scoped to
+  // whichever `createApp()` call runs most recently, so a stale seeded hook can never keep folding
+  // into a live request's `<head>` alongside the real one. See `resetPageHeadRegistry`'s own doc for
+  // the full trace.
+  //
+  // This file used to end with an eager `export const app = createApp();`, removed 2026-09-16 (t91
+  // F4.1): loading this module then replaced whatever redirects composition was already live (see
+  // `routing.ts`'s `registerResolvePhase` doc and `redirects/phase-handler.ts`'s file header).
   resetPageHeadRegistry();
   const app = express();
   applyDevCors(app);
@@ -1481,5 +1483,3 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
 
   return app;
 }
-
-export const app = createApp();

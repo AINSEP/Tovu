@@ -356,11 +356,10 @@ export interface RegisterResolvePhaseOptions {
  * Lifecycle (2026-09-16). This registry is module-level and therefore
  * process-wide, but its registrants are not: a composition root registers a
  * handler that has CLOSED OVER that composition's resources, and more than one
- * composition runs per process (`server/runtime/composition/app.ts`'s
- * module-load `export const app = createApp();` composes an in-memory root
- * before `createSqliteRouteDeps()` composes the real one, on every boot; an
- * integration test boots one site per case). Append-only, that left every
- * previous composition's closure live on the request path forever — benign
+ * composition runs per process (an integration test boots one site per case,
+ * and `createRouteDeps()` plus `createSqliteRouteDeps()` can both run in one
+ * test process). Append-only, that left every previous composition's closure
+ * live on the request path forever — benign
  * while the superseded resources were in-memory, a `TypeError: The database
  * connection is not open` 500 on every phase-running route once one of them
  * was a site database that had since closed. Pass {@link
