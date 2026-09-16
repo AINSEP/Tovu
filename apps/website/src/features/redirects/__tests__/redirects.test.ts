@@ -20,6 +20,7 @@ import {
   RedirectTargetNotAllowedError,
   RedirectValidationError,
 } from "../types.js";
+import type { RedirectStatus } from "../types.js";
 
 /**
  * @file T008 — the write chokepoint (`redirects.ts`): validate-before-write
@@ -508,6 +509,84 @@ test("updateRedirect on a nonexistent id throws RedirectNotFoundError", async ()
     () => updateRedirect({ deps, input: { workspaceId: WORKSPACE_ID, id: "nope", actorId: ACTOR_ID } }),
     RedirectNotFoundError
   );
+});
+
+// ---------------------------------------------------------------------------
+// updateRedirect — status validation. `RedirectStatus` is a two-value union but
+// TypeScript doesn't enforce that at the HTTP boundary: the admin PATCH route casts
+// an arbitrary `body.status` string straight into `UpdateRedirectInput`, so runtime
+// validation here is what actually protects this field.
+// ---------------------------------------------------------------------------
+
+const INVALID_STATUSES = ["Disabled", "ACTIVE", "deleted", ""];
+
+for (const status of INVALID_STATUSES) {
+  test(`updateRedirect rejects a non-canonical status value ${JSON.stringify(status)} instead of storing it`, async () => {
+    const deps = makeDeps();
+    const { record } = await createRedirect({
+      deps,
+      input: {
+        workspaceId: WORKSPACE_ID,
+        matchType: "exact",
+        fromPattern: "/a",
+        toTarget: "/b",
+        statusCode: 301,
+        actorId: ACTOR_ID,
+      },
+    });
+
+    await assert.rejects(
+      () =>
+        updateRedirect({
+          deps,
+          input: {
+            workspaceId: WORKSPACE_ID,
+            id: record.id,
+            status: status as unknown as RedirectStatus,
+            actorId: ACTOR_ID,
+          },
+        }),
+      RedirectValidationError
+    );
+
+    const stored = await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: record.id });
+    assert.equal(stored?.status, "active");
+  });
+}
+
+test("updateRedirect rejects a non-canonical status on an otherwise disable-only PATCH, rather than missing isDisableOnlyUpdate's exact-string fast path and falling through to store it (4c2f6fc5 interaction)", async () => {
+  const deps = makeDeps();
+  const { record: planted } = await createRedirect({
+    deps,
+    input: {
+      workspaceId: WORKSPACE_ID,
+      matchType: "exact",
+      fromPattern: "/legacy-garbage-status",
+      toTarget: "/safe-target",
+      statusCode: 301,
+      actorId: ACTOR_ID,
+    },
+  });
+
+  // "Disabled" (wrong case) does not match isDisableOnlyUpdate's exact "disabled" comparison, so
+  // this PATCH misses the disable-only fast path and falls through to full field validation —
+  // which must now reject the garbage status instead of silently storing it as unservable garbage.
+  await assert.rejects(
+    () =>
+      updateRedirect({
+        deps,
+        input: {
+          workspaceId: WORKSPACE_ID,
+          id: planted.id,
+          status: "Disabled" as unknown as RedirectStatus,
+          actorId: ACTOR_ID,
+        },
+      }),
+    RedirectValidationError
+  );
+
+  const stored = await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: planted.id });
+  assert.equal(stored?.status, "active");
 });
 
 // ---------------------------------------------------------------------------

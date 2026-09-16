@@ -41,6 +41,7 @@ import type {
   CreateRedirectInput,
   RedirectRecord,
   RedirectRevision,
+  RedirectStatus,
   RedirectStatusCode,
   UpdateRedirectInput,
 } from "./types.js";
@@ -54,6 +55,7 @@ export const MIN_PRIORITY = 0;
 export const MAX_PRIORITY = 1000;
 const DEFAULT_PRIORITY = 0;
 export const VALID_STATUS_CODES: readonly RedirectStatusCode[] = [301, 302, 307, 308];
+const VALID_STATUSES: readonly RedirectStatus[] = ["active", "disabled"];
 export const MAX_IMPORT_BATCH_SIZE = 500;
 
 function isAbsoluteOrProtocolRelative(target: string): boolean {
@@ -76,6 +78,20 @@ export interface RedirectsWriteDeps {
 function validateStatusCode(statusCode: RedirectStatusCode): void {
   if (!VALID_STATUS_CODES.includes(statusCode)) {
     throw new RedirectValidationError(`statusCode must be one of ${VALID_STATUS_CODES.join(", ")}`);
+  }
+}
+
+/**
+ * `RedirectStatus`'s union isn't enforced at the HTTP boundary — the admin PATCH route
+ * (`routes/redirects/update.ts`) passes `body.status` straight through as a cast, so a
+ * non-canonical spelling (`"Disabled"`, `"ACTIVE"`, `""`) would otherwise be stored as-is. Both
+ * repo backends read only `status === "active"` rows, so a garbage value fails closed for
+ * matching — but it also misses {@link isDisableOnlyUpdate}'s exact-string fast path, silently
+ * routing that PATCH through the full field re-validation instead of the disable-only skip.
+ */
+function validateStatus(status: RedirectStatus): void {
+  if (!VALID_STATUSES.includes(status)) {
+    throw new RedirectValidationError(`status must be one of ${VALID_STATUSES.join(", ")}`);
   }
 }
 
@@ -426,6 +442,7 @@ async function validateUpdateFields(
   if (!patternCheck.ok) throw new RedirectValidationError(patternCheck.reason);
   validateToTargetLength(fields.toTarget);
   validateStatusCode(fields.statusCode);
+  validateStatus(fields.status);
   validatePriority(fields.priority);
 
   await assertTargetAllowed(deps.originRegistry, workspaceId, fields.toTarget);
