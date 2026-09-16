@@ -28,9 +28,15 @@ import { previewAgentPluginUninstall, uninstallAgentPlugin } from "../../uninsta
  * file, and every disabled plugin's decision inside it, into a well-formed one with nothing
  * disabled. Two arms of the same root cause: a whole-file fault (T1-T3b, T8-T10) and a single
  * malformed ENTRY inside an otherwise well-formed file (T4-T6), which the old `normalizePluginsBag`
- * silently dropped on every rewrite. Every case below failed at HEAD `c52b8d54` (2026-09-16) — the
- * fix makes every writer refuse on an unreadable file, and preserve any entry it is not the one
- * being changed.
+ * silently dropped on every rewrite. Every case below except the GUARD failed before `39e664ab`
+ * (2026-09-16) — the fix makes every writer refuse on an unreadable file, and preserve any entry it
+ * is not the one being changed.
+ *
+ * T15-T16 (t91 review, 2026-09-16) are the third arm: two writers in ONE process racing
+ * read-modify-write. Both read the same file, the second rename wins, and the first writer's decision
+ * is erased — while its caller was already told it succeeded (the admin row renders the PATCH
+ * response). Two writes in the same millisecond also shared one temp path, so one of them threw
+ * `ENOENT` on rename. Both failed at `72dc4766`.
  */
 
 const WORKSPACE_ID = "33333333-3333-4333-8333-333333333333";
@@ -338,5 +344,59 @@ test("uninstallAgentPlugin refuses a corrupt file even when its (unreadable) con
     assert.ok(installed.some((plugin) => plugin.pluginId === "op-plugin"), "a refused uninstall must not remove the package");
   } finally {
     await forceRemove(cwd);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// T15-T16 — concurrent writers in one process: no decision is erased, no write throws
+// ---------------------------------------------------------------------------
+
+test("two concurrent disables of DIFFERENT plugins both land — neither write erases the other", async () => {
+  // Repeated because the race is timing-shaped; at `72dc4766` the very first round already lost a
+  // record or threw `ENOENT` on the shared temp path.
+  for (let round = 0; round < 20; round++) {
+    const root = await freshRoot();
+    try {
+      await writeFile(path.join(root, "activations.json"), '{"schemaVersion":1,"plugins":{}}\n', "utf8");
+
+      const settled = await Promise.allSettled([
+        setAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-a", enabled: false, actor: "op" }),
+        setAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-b", enabled: false, actor: "op" }),
+      ]);
+
+      assert.deepEqual(
+        settled.map((outcome) => outcome.status),
+        ["fulfilled", "fulfilled"],
+        `round ${round}: a concurrent toggle must not fail`,
+      );
+      assert.equal((await resolveAgentPluginActivation(root, "plugin-a")).verdict, "inactive", `round ${round}: plugin-a's disable was erased`);
+      assert.equal((await resolveAgentPluginActivation(root, "plugin-b")).verdict, "inactive", `round ${round}: plugin-b's disable was erased`);
+    } finally {
+      await forceRemove(root);
+    }
+  }
+});
+
+test("a burst of concurrent operator toggles and seeder records in one process keeps every decision", async () => {
+  const root = await freshRoot();
+  try {
+    const toggles = Array.from({ length: 6 }, (_, index) =>
+      setAgentPluginActivation({ workspaceRoot: root, pluginId: `operator-${index}`, enabled: false, actor: "op" }),
+    );
+    const seeds = Array.from({ length: 6 }, (_, index) => recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: `bundled-${index}` }));
+
+    const settled = await Promise.allSettled([...toggles, ...seeds]);
+
+    assert.deepEqual(
+      settled.filter((outcome) => outcome.status === "rejected").map((outcome) => String((outcome as PromiseRejectedResult).reason)),
+      [],
+      "no concurrent write may throw",
+    );
+    for (let index = 0; index < 6; index++) {
+      assert.equal((await resolveAgentPluginActivation(root, `operator-${index}`)).verdict, "inactive", `operator-${index}'s disable was erased`);
+      assert.equal((await resolveAgentPluginActivation(root, `bundled-${index}`)).verdict, "inactive", `bundled-${index}'s seed record was erased`);
+    }
+  } finally {
+    await forceRemove(root);
   }
 });

@@ -103,16 +103,29 @@
  * ---------------------------------------------------------------------------
  * Concurrency
  * ---------------------------------------------------------------------------
- * Writes are write-temp-then-`rename`, so a reader never observes a half-written file. Two
- * concurrent writers still race read-modify-write and the last one wins — acceptable and stated
- * rather than papered over: this record changes when a human toggles a plugin, which is neither
- * frequent nor concurrent, and the failure mode of losing one toggle is a visibly wrong checkbox,
- * not corruption. A lock would be real work for a race nobody has.
+ * Writes are write-temp-then-`rename`, with a uniquely named temp file per write, so a reader never
+ * observes a half-written file.
+ *
+ * Within ONE process every read-modify-write of a workspace's file is serialized
+ * ({@link serializeActivationsWrite}). This used to be waved off as "a race nobody has, whose worst
+ * case is a visibly wrong checkbox". Both halves were false (t91 review, 2026-09-16): the admin
+ * Agent Plugins screen deliberately lets two rows toggle at once, and each row renders its own
+ * PATCH response — so when two writes both read the same file and the second `rename` erased the
+ * first one's `enabled: false`, the operator saw the plugin OFF while "absent means active" had
+ * already turned it back ON. Two writes in the same millisecond also shared one temp path, and one
+ * of them failed with `ENOENT`.
+ *
+ * ACROSS processes the race remains: the agent daemon (`agent-daemon-server.ts`) builds its own copy
+ * of the assistant tools, `plugins_set_enabled` and `agent_plugins_uninstall` included, so a chat
+ * toggle that lands within the same few milliseconds as an admin toggle can still erase one of them.
+ * Closing that needs a cross-process lock file, whose stale-lock recovery after a crash is a failure
+ * mode of its own; it is left as a stated residual rather than papered over.
  *
  * Architectural role:
  * Filesystem state for one workspace, reached only through `layout.ts`'s `forWorkspace()` root — the
  * same tenant-isolation guarantee every other path in this feature goes through.
  */
+import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -468,10 +481,25 @@ export async function setAgentPluginActivation(
   required: SetAgentPluginActivationRequired,
   optional: SetAgentPluginActivationOptional = {},
 ): Promise<AgentPluginActivations> {
-  const { workspaceRoot, pluginId, enabled, actor } = required;
-  assertPluginId(pluginId);
+  assertPluginId(required.pluginId);
+  return serializeActivationsWrite(required.workspaceRoot, async () =>
+    writeActivationDecision(await readPluginsBagStrict(required.workspaceRoot), required, optional),
+  );
+}
 
-  const current = await readPluginsBagStrict(workspaceRoot);
+/**
+ * The write half of {@link setAgentPluginActivation}, over a bag the caller has ALREADY read strictly
+ * inside its own {@link serializeActivationsWrite} turn — so {@link recordBundledAgentPluginIfAbsent}
+ * can decide and write within one turn instead of re-entering the chain, which would wait on itself.
+ *
+ * @complexity O(p) in the recorded plugin count — the whole (small) file is rewritten.
+ */
+async function writeActivationDecision(
+  current: RawPluginsBag,
+  required: SetAgentPluginActivationRequired,
+  optional: SetAgentPluginActivationOptional,
+): Promise<AgentPluginActivations> {
+  const { workspaceRoot, pluginId, enabled, actor } = required;
   const plugins: RawPluginsBag = {
     ...current,
     [pluginId]: {
@@ -512,14 +540,17 @@ export async function recordBundledAgentPluginIfAbsent(
 ): Promise<{ readonly recorded: boolean }> {
   assertPluginId(required.pluginId);
 
-  const current = await readPluginsBagStrict(required.workspaceRoot);
-  if (Object.hasOwn(current, required.pluginId)) return { recorded: false };
+  return serializeActivationsWrite(required.workspaceRoot, async () => {
+    const current = await readPluginsBagStrict(required.workspaceRoot);
+    if (Object.hasOwn(current, required.pluginId)) return { recorded: false };
 
-  await setAgentPluginActivation(
-    { workspaceRoot: required.workspaceRoot, pluginId: required.pluginId, enabled: false, actor: "system:seed" },
-    { origin: "bundled", ...(optional.now !== undefined ? { now: optional.now } : {}) },
-  );
-  return { recorded: true };
+    await writeActivationDecision(
+      current,
+      { workspaceRoot: required.workspaceRoot, pluginId: required.pluginId, enabled: false, actor: "system:seed" },
+      { origin: "bundled", ...(optional.now !== undefined ? { now: optional.now } : {}) },
+    );
+    return { recorded: true };
+  });
 }
 
 export interface DeleteAgentPluginActivationRequired {
@@ -553,18 +584,49 @@ export async function deleteAgentPluginActivation(required: DeleteAgentPluginAct
   const { workspaceRoot, pluginId } = required;
   assertPluginId(pluginId);
 
-  const current = await readPluginsBagStrict(workspaceRoot);
-  if (!Object.hasOwn(current, pluginId)) return;
+  await serializeActivationsWrite(workspaceRoot, async () => {
+    const current = await readPluginsBagStrict(workspaceRoot);
+    if (!Object.hasOwn(current, pluginId)) return;
 
-  const remaining: Record<string, unknown> = { ...current };
-  delete remaining[pluginId];
+    const remaining: Record<string, unknown> = { ...current };
+    delete remaining[pluginId];
 
-  await writeActivationsAtomically(workspaceRoot, remaining);
+    await writeActivationsAtomically(workspaceRoot, remaining);
+  });
 }
 
 function assertPluginId(pluginId: string): void {
   if (!SAFE_PLUGIN_ID_PATTERN.test(pluginId) || pluginId.length > 64) {
     throw new Error(`agent-plugin activation: '${pluginId}' is not a valid Agent Plugin id`);
+  }
+}
+
+/** The tail of each workspace's in-flight write chain, keyed by resolved root so two spellings of one
+ *  directory share a chain. An entry is dropped once its chain drains. */
+const pendingActivationWrites = new Map<string, Promise<void>>();
+
+/**
+ * Runs one read-modify-write of a workspace's activations file only after every earlier one in this
+ * process has settled — see this file's header, "Concurrency", for the erased-decision race this
+ * closes and the cross-process race it does not.
+ *
+ * A write that throws does not jam the chain: the tail swallows the outcome, and the caller still
+ * receives its own rejection.
+ *
+ * @complexity O(1) bookkeeping, plus waiting for the writes queued ahead of it.
+ */
+async function serializeActivationsWrite<T>(workspaceRoot: string, write: () => Promise<T>): Promise<T> {
+  const key = path.resolve(workspaceRoot);
+  const result = (pendingActivationWrites.get(key) ?? Promise.resolve()).then(write);
+  const tail = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  pendingActivationWrites.set(key, tail);
+  try {
+    return await result;
+  } finally {
+    if (pendingActivationWrites.get(key) === tail) pendingActivationWrites.delete(key);
   }
 }
 
@@ -583,7 +645,7 @@ function assertPluginId(pluginId: string): void {
 async function writeActivationsAtomically(workspaceRoot: string, plugins: RawPluginsBag): Promise<void> {
   await mkdir(workspaceRoot, { recursive: true, mode: 0o700 });
   const finalPath = path.join(workspaceRoot, ACTIVATIONS_FILENAME);
-  const tempPath = `${finalPath}.tmp-${process.pid}-${Date.now()}`;
+  const tempPath = `${finalPath}.tmp-${process.pid}-${randomUUID()}`;
   try {
     await writeFile(tempPath, `${JSON.stringify({ schemaVersion: 1, plugins }, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
     await rename(tempPath, finalPath);
