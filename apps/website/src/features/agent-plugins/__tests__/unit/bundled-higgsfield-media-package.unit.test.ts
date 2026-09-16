@@ -211,10 +211,20 @@ test("SKILL.md says the auth is OAuth — never an API key — and that Tovu min
 test("SKILL.md is honest that the cold start leaves chat — the enable step, and TOVU_PUBLIC_URL", async () => {
   const skill = await readSkill();
 
-  // No assistant tool wraps AGENT_PLUGIN_SET_ENABLED, so a disabled bundled plugin can only be
-  // turned on from the admin screen — and its own `agent_plugin_*` tool does not exist until the
-  // next daemon boot. Both halves have to survive an edit.
-  assert.match(skill, /AGENT_PLUGIN_SET_ENABLED/);
+  // `plugins_set_enabled` HAS covered the Agent Plugin family since 2026-09-09, behind a human
+  // confirmation dialog, so the guidance must OFFER that tool rather than send the operator to the
+  // admin screen as the only way — the correction commit `32316495` made to this paragraph, which
+  // this test's own assertion was left behind by. The repo-wide negative guard against the old
+  // "no assistant tool wraps…" phrasing lives in
+  // `features/plugin-runtime/__tests__/unit/agent-plugin-enable-guidance.test.ts`, which scans every
+  // bundled markdown file; what is asserted here is the positive replacement for THIS package, and
+  // the family argument specifically, because `plugins_set_enabled` without it targets the OTHER
+  // plugin system and silently does nothing for a bundled Agent Plugin.
+  assert.match(skill, /plugins_set_enabled/);
+  assert.match(skill, /family: "agent-plugin"/);
+  assert.match(skill, /confirmation dialog/i);
+  // The admin screen stays a legitimate second route, and the plugin's own `agent_plugin_*` tool
+  // still does not exist until the next daemon boot. Both halves have to survive an edit.
   assert.match(skill, /Agent Plugins/);
   assert.match(skill, /restart/i);
 
