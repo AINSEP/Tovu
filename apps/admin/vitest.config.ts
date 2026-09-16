@@ -24,9 +24,19 @@ const adminPackageVersion = (
   JSON.parse(readFileSync(path.resolve(__dirname, "package.json"), "utf8")) as { version: string }
 ).version;
 
+/**
+ * The admin dev server's own port, for `lib/admin-dev-origin.ts`'s `__TOVU_ADMIN_DEV_PORT__` global.
+ * Mirrors `vite.config.ts`'s `adminDevPort` derivation exactly, for the same reason
+ * `adminPackageVersion` above does: without a define here, every suite that (transitively) imports
+ * `admin-dev-origin.ts` — `site-url.ts`, and therefore `api.ts` and every feature that links to the
+ * public site — throws `ReferenceError: __TOVU_ADMIN_DEV_PORT__ is not defined` at import time.
+ */
+const adminDevPort = Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173);
+
 export default defineConfig({
   define: {
     __TOVU_ADMIN_VERSION__: JSON.stringify(adminPackageVersion),
+    __TOVU_ADMIN_DEV_PORT__: JSON.stringify(String(adminDevPort)),
   },
   plugins: [react()],
   resolve: {

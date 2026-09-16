@@ -1,6 +1,14 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { isAdminDevServerOrigin } from "../admin-dev-origin";
 import { ApiError, api } from "../api";
+
+// `templatePreviewUrl` routes through `lib/site-url.ts`, which now asks whether the page is actually
+// on the admin dev server's own origin before absolutizing. Mocked rather than driven through
+// `window.location`, which jsdom does not reliably let a test reconfigure — same reasoning (and the
+// same zero-coverage caveat) as `site-url.unit.test.ts`; `admin-dev-origin.unit.test.ts` covers the
+// real predicate.
+vi.mock("../admin-dev-origin", () => ({ isAdminDevServerOrigin: vi.fn() }));
 
 /**
  * @file Coverage-gap-fill pass (2026-09-05) for the `connectors`/`policies`/`forms`/`seo`/
@@ -28,6 +36,12 @@ import { ApiError, api } from "../api";
  * behavior specifically, since that's the one case in this shard where non-2xx-shaped data still
  * resolves.
  */
+
+beforeEach(() => {
+  // Default to the historical premise (the browser really is on Vite's origin); the one test that
+  // cares about the desktop's proxied origin overrides it.
+  vi.mocked(isAdminDevServerOrigin).mockReturnValue(true);
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -144,6 +158,15 @@ describe("posts", () => {
       expect(api.templatePreviewUrl("p1", null)).toBe(
         `https://staging.example.com${BASE_WORKSPACE}/posts/p1/template-preview`
       );
+    });
+
+    test("in dev but NOT on the admin dev server's origin, stays relative — protects the desktop's preview iframe", async () => {
+      // `apps/desktop` serves this dev bundle through its own site server at `/admin/*`, on a port
+      // assigned at runtime. Absolutizing there points the iframe at `https://localhost:3000`, which
+      // a bare `npm run desktop` has nothing listening on.
+      vi.stubEnv("DEV", true);
+      vi.mocked(isAdminDevServerOrigin).mockReturnValue(false);
+      expect(api.templatePreviewUrl("p1", null)).toBe(`${BASE_WORKSPACE}/posts/p1/template-preview`);
     });
 
     test("templateChoice: null omits the query param entirely", async () => {

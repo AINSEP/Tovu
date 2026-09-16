@@ -76,10 +76,20 @@ const httpsOptions =
 // proxy targets below whenever `TOVU_API_URL` is not explicitly set.
 const apiScheme = httpsOptions ? "https" : "http";
 
+/**
+ * The port this dev server binds. Hoisted out of `server.port` so the `define` below and the bind
+ * itself cannot disagree: `src/lib/admin-dev-origin.ts` compares `window.location.port` against this
+ * value to decide whether Vite is serving the document directly or a Tovu server is proxying
+ * `/admin/*` to it (`apps/desktop`'s dev-proxy path). Same expression `development/scripts/dev.mjs`
+ * and `development/scripts/dev-desktop.mjs` use for their own port preflights.
+ */
+const adminDevPort = Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173);
+
 export default defineConfig({
   base: "/admin/",
   define: {
     __TOVU_ADMIN_VERSION__: JSON.stringify(adminPackageVersion),
+    __TOVU_ADMIN_DEV_PORT__: JSON.stringify(String(adminDevPort)),
   },
   plugins: [redirectBareAdmin, react()],
   resolve: {
@@ -115,7 +125,15 @@ export default defineConfig({
     // admin vite child silently ignored whatever port dev.mjs actually preflight-checked). The
     // `package.json` `dev` script deliberately does NOT hardcode `--port` any more — a CLI flag would
     // outrank this config value, defeating it.
-    port: Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173),
+    port: adminDevPort,
+    // Without this, a collision on `adminDevPort` makes Vite silently bind the next free port — which
+    // `apps/desktop/src/admin-dev-proxy.ts` never probes, so the desktop falls back to whatever
+    // `apps/admin/dist` last held with no error anywhere. Failing loudly on `EADDRINUSE` is also what
+    // lets `development/scripts/dev-desktop.mjs`'s reuse-or-start race resolve: the loser exits
+    // immediately and re-probes instead of drifting onto a port nobody looks at. Every
+    // `development/playwright.*.config.ts` already passes `--strictPort` on the CLI (which outranks
+    // this file), so none of them change behavior.
+    strictPort: true,
     // The `@jini-ai/*` deps are `file:` links straight into a sibling checkout (ADR-049 Decision
     // 7's temporary state, not the intended published-package boundary — see F1 in the fulldiff
     // audit). Vite resolves symlinks to their real path before checking `fs.allow`, so serving any
