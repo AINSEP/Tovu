@@ -90,21 +90,9 @@
 .editor-preview-iframe { width: 100%; height: 32rem; border: 0; display: block; background: var(--surface); }
 
 /* Preview fullscreen, Level 1 (2026-09-15 — `ADS-memory/.local-artifacts/handoffs/
-   2026-09-15-preview-fullscreen-PLAN.md`). `.admin-main-col`'s own `position: relative` is declared
-   HERE rather than in `styles.css` (its home rule, `styles.css:~1222`) — deliberately: this repo's
-   now-reverted `admin.show_site_page` overlay used to declare it there for the identical reason
-   (containing an `inset: 0` panel to that column instead of the viewport), and that revert is what
-   removed it. Redeclaring the SAME property for the SAME selector here, in a stylesheet loaded
-   globally on every route (`main.tsx` imports this file unconditionally, same as `styles.css`), has
-   an identical cascade result with zero risk of colliding with a concurrent edit to `styles.css`
-   itself. If `styles.css` ever declares `position` on `.admin-main-col` again, the two are not in
-   conflict (same value), but this comment should be revisited so the property has one owner again.
-   `.post-preview-expanded` below is `position: absolute; inset: 0` against exactly this containing
-   block. */
-.admin-main-col { position: relative; }
-
-/* Preview fullscreen, Level 1 continued. `position: absolute; inset: 0` against `.admin-main-col`
-   (just above), NOT `position: fixed` over the whole viewport — deliberately, so it is geometrically
+   2026-09-15-preview-fullscreen-PLAN.md`). `position: absolute; inset: 0` against `.admin-main-col`
+   (`styles.css` — see that rule's own comment for why its `position: relative` lives there, not
+   here), NOT `position: fixed` over the whole viewport — deliberately, so it is geometrically
    incapable of covering `.admin-chat-dock`'s separate flex column at desktop widths: no z-index
    arithmetic against the dock is needed because the two boxes never overlap (same reasoning
    `styles.css`'s own — now removed — `admin.show_site_page` overlay comment gave for the identical

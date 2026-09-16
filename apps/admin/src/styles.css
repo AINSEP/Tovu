@@ -1219,7 +1219,15 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    breakpoint, see the responsive block at the bottom of this file) can stack above content
    without disturbing `.admin-layout`'s own row of sidebar/content/chat-dock. `<main>` itself
    keeps its existing flex/overflow behavior unchanged at desktop widths. */
-.admin-main-col { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; }
+/* `position: relative` (2026-09-15) is load-bearing for `styles/editor.css`'s
+   `.post-preview-expanded` (Preview fullscreen, Level 1 —
+   `ADS-memory/.local-artifacts/handoffs/2026-09-15-preview-fullscreen-PLAN.md`): that rule is
+   `position: absolute; inset: 0`, and without a positioned ancestor here it would resolve against
+   the viewport instead of this column, escaping `.admin-content`'s scroll clip and covering
+   `.admin-chat-dock`. Do not remove this without checking `.post-preview-expanded` first — it was
+   removed once already (commit `09923d75`, reverting a DIFFERENT feature that also depended on it)
+   and had to be restored for this one. */
+.admin-main-col { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; }
 .admin-content { flex: 1; min-height: 0; overflow-y: auto; padding: 2rem 2.5rem; }
 
 /* Mobile top bar — hidden above the tablet breakpoint (desktop keeps the always-visible
