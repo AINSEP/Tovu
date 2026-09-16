@@ -197,3 +197,29 @@ test("probeAdminVite: a junk TOVU_ADMIN_DEV_PORT is a miss, not an unhandled rej
   assert.equal(await probeAdminVite(Number("not-a-port"), { host: "127.0.0.1" }), false);
   assert.equal(await probeAdminVite(70000, { host: "127.0.0.1" }), false);
 });
+
+// --- forwarding extra CLI args to Electron ----------------------------------------
+//
+// `npm run desktop -- --remote-debugging-port=9222` used to drop the extra args entirely: the
+// "electron" child was always spawned as `["run", "dev"]`, ignoring `process.argv`. The owner's CDP
+// video tooling needs a debugging port, so those args must reach Electron unmangled.
+
+const { deriveElectronRunArgs } = devDesktop;
+
+test("deriveElectronRunArgs: no extra args produces exactly today's args (byte-identical when nothing is passed)", () => {
+  assert.deepEqual(deriveElectronRunArgs([]), ["run", "dev"]);
+});
+
+test("deriveElectronRunArgs: a single flag is forwarded after a literal `--` so npm hands it to electron, not itself", () => {
+  assert.deepEqual(
+    deriveElectronRunArgs(["--remote-debugging-port=9222"]),
+    ["run", "dev", "--", "--remote-debugging-port=9222"],
+  );
+});
+
+test("deriveElectronRunArgs: multiple args are forwarded in order, each as its own argv entry (no shell re-quoting)", () => {
+  assert.deepEqual(
+    deriveElectronRunArgs(["--remote-debugging-port=9222", "--inspect=5858"]),
+    ["run", "dev", "--", "--remote-debugging-port=9222", "--inspect=5858"],
+  );
+});

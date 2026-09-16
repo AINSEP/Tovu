@@ -66,6 +66,10 @@
  * SIGKILL escalation waits {@link HARD_KILL_GRACE_MS}. Not a process
  * manager: no restart-on-crash. If a child dies unexpectedly, the other is torn down too and this
  * script exits non-zero so the failure is visible.
+ *
+ * Extra CLI args (e.g. `npm run desktop -- --remote-debugging-port=9222`, for CDP-driven tooling)
+ * are forwarded to the "electron" child via {@link deriveElectronRunArgs} — see its doc comment for
+ * why `--` and an untouched argv array are what make `=` and multiple flags survive intact.
  */
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -176,6 +180,25 @@ function waitForFileStable(filePath, { timeoutMs = 30_000, pollMs = 150, stableC
 function isFlagEnabled(raw) {
   const normalized = String(raw ?? "").trim().toLowerCase();
   return normalized === "1" || normalized === "true";
+}
+
+/**
+ * Turns extra CLI args given to `npm run desktop` into the npm argv used to launch Electron.
+ *
+ * Pure so the argv → spawn-args mapping is directly testable without spawning anything. `--` is
+ * npm's own pass-through separator: everything after it reaches the underlying `electron .` script
+ * verbatim, and because {@link start} spawns `npm` without a shell, each element of `extraArgs`
+ * arrives as its own argv entry — never re-quoted or re-split — so a flag containing `=`
+ * (`--remote-debugging-port=9222`) and several flags together both survive intact. With no extra
+ * args this returns exactly the two-element argv used before this function existed, so the common
+ * case (`npm run desktop` alone) is byte-for-byte unchanged.
+ *
+ * @param {string[]} extraArgs - `process.argv.slice(2)` from this script's own invocation.
+ * @returns {string[]} the npm argv for {@link start}'s `"electron"` child.
+ * @complexity O(n) in `extraArgs.length`.
+ */
+function deriveElectronRunArgs(extraArgs) {
+  return extraArgs.length > 0 ? ["run", "dev", "--", ...extraArgs] : ["run", "dev"];
 }
 
 /**
@@ -506,7 +529,7 @@ async function main() {
         );
       }
     }
-    if (!shuttingDown) start("electron", ["run", "dev"]);
+    if (!shuttingDown) start("electron", deriveElectronRunArgs(process.argv.slice(2)));
   }
 }
 
@@ -516,4 +539,11 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   await main();
 }
 
-export { waitForFileStable, HARD_KILL_GRACE_MS, isFlagEnabled, probeAdminVite, waitForAdminVite };
+export {
+  waitForFileStable,
+  HARD_KILL_GRACE_MS,
+  isFlagEnabled,
+  probeAdminVite,
+  waitForAdminVite,
+  deriveElectronRunArgs,
+};
