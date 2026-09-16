@@ -136,7 +136,8 @@ export class SmtpMailerAdapter implements MailerPort {
     return {
       driver: "smtp",
       // Raw SMTP has no dedup-key concept at the protocol level — the mail lib's own send-dedup
-      // ledger (`MailSendDedupRepoPort`, `../ports.ts`) exists specifically to cover this gap.
+      // ledger (`MailSendDedupRepoPort`, `../ports.ts`) is meant to cover this gap but is not
+      // implemented or wired yet (see its doc).
       supportsIdempotencyKey: false,
       // No bounce/complaint feedback channel without a separate, unconfigured-here return-path
       // mailbox parser — a real gap, not a rounding error (see `http-api.resend.ts`'s header for

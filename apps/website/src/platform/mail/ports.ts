@@ -97,6 +97,9 @@ export interface MailSuppressionRepoPort {
  * Send-dedup ledger (internal-verification F7). When `capabilities().supportsIdempotencyKey`
  * is `false` (e.g. SMTP), the mail lib enforces at-most-once via this ledger before dispatch, so
  * an ADR-009 outbox redelivery cannot double-send through a non-idempotent provider.
+ *
+ * Declared only (2026-09-16): no adapter implements it and no send path consults it, so an outbox
+ * redelivery through SMTP can send twice today.
  */
 export interface MailSendDedupRepoPort {
   wasSent(required: { workspaceId: UUID; idempotencyKey: string }): Promise<boolean>;

@@ -132,9 +132,11 @@ export function toUnsubscribeDeps(deps: NewsletterRouteDeps): UnsubscribeDeps {
  * Assemble `send-pipeline.ts`'s deps bundle. `launchGateDeps.isSendingEnabled` always resolves
  * `false`: no admin route in api.spec.md's 19+2 manages a `newsletter.launch_gate.sending_enabled`
  * settings toggle (out of scope this pass, same as the deferred admin UI), and `false` is
- * behavior.spec.md §3's own documented default — never a corner cut, since precondition (d)
- * (mailer adapter driver) is separately, permanently unmet in both composition roots anyway (no
- * real `MailerPort` adapter exists yet, ADR-PIPE-011's disclosed, by-design gap).
+ * behavior.spec.md §3's own documented default — never a corner cut. Real sending stays off because
+ * of (a), this constant, and (b): both composition roots bind `membersConsentCapability: null`.
+ * Precondition (d) is met whenever a Resend or SMTP credential resolves
+ * (`server/runtime/boot/resolve-mailer.ts`), corrected 2026-09-16 — a real `MailerPort` adapter now
+ * exists for both drivers.
  */
 export function toSendPipelineDeps(deps: NewsletterRouteDeps): SendPipelineDeps {
   return {
