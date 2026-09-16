@@ -293,8 +293,11 @@ export function registerRedirectsPhaseHandlers(deps: RegisterRedirectsPhaseHandl
     return toOutcome(resolution);
   };
 
-  registerResolvePhase("pre_content", preContentHandler, { owner: REDIRECTS_PHASE_OWNER });
-  registerResolvePhase("post_content", postContentHandler, { owner: REDIRECTS_PHASE_OWNER });
+  // onError: "skip" (t91 F4.3 — routing.ts's default changed to "fail"): a redirect lookup
+  // failure can only DECLINE to redirect (INV-03, toOutcome above never fabricates one), so one
+  // broken rule store must not 500 every page on the site the way a guard-type handler should.
+  registerResolvePhase("pre_content", preContentHandler, { owner: REDIRECTS_PHASE_OWNER, onError: "skip" });
+  registerResolvePhase("post_content", postContentHandler, { owner: REDIRECTS_PHASE_OWNER, onError: "skip" });
   return () => unregisterResolvePhaseOwner(REDIRECTS_PHASE_OWNER);
 }
 

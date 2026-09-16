@@ -16,21 +16,24 @@ import type { RouteResolveContext } from "#src/platform/routing/types";
  * handler resolves to, never what happens to a handler whose registrant is gone.
  *
  * `phaseRegistry` is module-level and so process-wide, but its registrants are not: a composition
- * root registers a handler that has closed over THAT composition's resources, and a process runs
- * more than one composition (`composition/app.ts`'s module-load `export const app = createApp();`
- * composes an in-memory root before `createSqliteRouteDeps()` composes the real one on every boot;
- * an integration test composes one per site it boots). Append-only, every superseded composition's
- * closure stayed on the live request path forever. The concrete production-shaped failure that
- * produced these tests: a site's `SqliteRedirectRepo` handler outliving that site's database, so a
- * later request threw `TypeError: The database connection is not open` out of the phase and 500ed
- * `/` and `/pricing` — while `/products`, which runs no phase at all, kept serving and made it look
- * like a render bug.
+ * root registers a handler that has closed over THAT composition's resources, and a process can run
+ * more than one composition (an integration test composes one per site it boots; loading
+ * `composition/app.ts` itself registers nothing — see t91 F4.1). Append-only, every superseded
+ * composition's closure stayed on the live request path forever. The concrete production-shaped
+ * failure that produced these tests: a site's `SqliteRedirectRepo` handler outliving that site's
+ * database, so a later request threw `TypeError: The database connection is not open` out of the
+ * phase and 500ed `/` and `/pricing` — while `/products`, which runs no phase at all, kept serving
+ * and made it look like a render bug.
  *
  * Two independent guarantees are pinned here, deliberately not one:
  *   1. OWNERSHIP — an owned registration supersedes that owner's previous one, and can be revoked
  *      outright, so the stale handler is not merely harmless but absent.
- *   2. ISOLATION — a handler that throws is skipped, not propagated, so ONE registrant's fault can
- *      never take down an unrelated route. This holds even if (1) is someday regressed.
+ *   2. ISOLATION is opt-in (`onError: "skip"`); the default propagates. A `"skip"` handler that
+ *      throws is skipped, not propagated, so ONE registrant's fault can never take down an unrelated
+ *      route — but only for a registrant that opted in, because it knows its own failure can only
+ *      DECLINE an outcome. A handler with no `onError` (or an explicit `"fail"`) rethrows instead, so
+ *      the caller's own error handling runs — see t91 F4.3, and
+ *      `site-phase-handler-fail-policy.test.ts` for the route-level 500 that default produces.
  */
 
 const ctx: RouteResolveContext = { workspaceId: "ws-lifecycle" };
@@ -155,25 +158,37 @@ test("registerResolvePhase returns a disposer that removes exactly its own regis
   assert.deepEqual(seen, ["second"], "only the disposed registration may be removed");
 });
 
-test("a handler that THROWS is skipped, and the phase's remaining handlers still run", async () => {
+test("a skip handler that THROWS is skipped, and the phase's remaining handlers still run", async () => {
   let laterRan = false;
-  registerResolvePhase("pre_content", async () => {
-    throw new TypeError("The database connection is not open");
-  });
-  registerResolvePhase("pre_content", async () => {
-    laterRan = true;
-    return { kind: "redirect", location: "/still-resolved", statusCode: 301 };
-  });
+  registerResolvePhase(
+    "pre_content",
+    async () => {
+      throw new TypeError("The database connection is not open");
+    },
+    { onError: "skip" }
+  );
+  registerResolvePhase(
+    "pre_content",
+    async () => {
+      laterRan = true;
+      return { kind: "redirect", location: "/still-resolved", statusCode: 301 };
+    },
+    { onError: "skip" }
+  );
 
   const outcome = await runPreContentPhase("/anything", ctx);
   assert.equal(laterRan, true, "a failing handler must not abort the chain");
   assert.deepEqual(outcome, { kind: "redirect", location: "/still-resolved", statusCode: 301 });
 });
 
-test("a phase whose ONLY handler throws resolves to null — the request falls through to content, it does not 500", async () => {
-  registerResolvePhase("post_content", async () => {
-    throw new TypeError("The database connection is not open");
-  });
+test("a phase whose ONLY skip handler throws resolves to null — the request falls through to content, it does not 500", async () => {
+  registerResolvePhase(
+    "post_content",
+    async () => {
+      throw new TypeError("The database connection is not open");
+    },
+    { onError: "skip" }
+  );
 
   // The exact shape `routes/site/pages.ts` depends on: no throw escapes the phase, so its own
   // outer catch never turns one registrant's fault into `<h1>Site error</h1>` for the whole route.
@@ -181,17 +196,51 @@ test("a phase whose ONLY handler throws resolves to null — the request falls t
   assert.equal(outcome, null);
 });
 
-test("a synchronously-throwing handler is isolated too, not just a rejected promise", async () => {
+test("a synchronously-throwing skip handler is isolated too, not just a rejected promise", async () => {
   let laterRan = false;
-  registerResolvePhase("pre_content", (() => {
-    throw new Error("thrown before any promise exists");
-  }) as never);
-  registerResolvePhase("pre_content", async () => {
-    laterRan = true;
-    return null;
-  });
+  registerResolvePhase(
+    "pre_content",
+    (() => {
+      throw new Error("thrown before any promise exists");
+    }) as never,
+    { onError: "skip" }
+  );
+  registerResolvePhase(
+    "pre_content",
+    async () => {
+      laterRan = true;
+      return null;
+    },
+    { onError: "skip" }
+  );
 
   const outcome = await runPreContentPhase("/anything", ctx);
   assert.equal(laterRan, true, "a handler that throws before returning a promise must be isolated the same way");
   assert.equal(outcome, null);
+});
+
+test("a handler registered with no onError (default fail) that THROWS rejects the phase", async () => {
+  let laterRan = false;
+  registerResolvePhase("pre_content", async () => {
+    throw new Error("guard store down");
+  });
+  registerResolvePhase("pre_content", async () => {
+    laterRan = true;
+    return { kind: "redirect", location: "/from-the-later-handler", statusCode: 301 };
+  });
+
+  await assert.rejects(runPreContentPhase("/x", ctx), /guard store down/);
+  assert.equal(laterRan, false, "a fail-policy throw must abort the phase before a later handler runs");
+});
+
+test("explicit onError: 'fail' on post_content rejects too (sync throw included)", async () => {
+  registerResolvePhase(
+    "post_content",
+    (() => {
+      throw new Error("guard store down, synchronously");
+    }) as never,
+    { onError: "fail" }
+  );
+
+  await assert.rejects(runPostContentPhase("/x", ctx));
 });

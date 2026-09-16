@@ -308,11 +308,13 @@ export async function isActive(
 /**
  * One handler plus the registrant that owns it. `owner` is an opaque identity
  * token supplied by the registrant (see {@link RegisterResolvePhaseOptions.owner});
- * `undefined` means "unowned", the historical append-only behavior.
+ * `undefined` means "unowned", the historical append-only behavior. `onError`
+ * is this registration's own fault policy — see {@link RegisterResolvePhaseOptions.onError}.
  */
 interface PhaseRegistration {
   readonly owner: unknown;
   readonly handler: RouteResolvePhaseHandler;
+  readonly onError: "skip" | "fail";
 }
 
 type PhaseRegistry = Record<RouteResolvePhaseName, PhaseRegistration[]>;
@@ -336,6 +338,19 @@ export interface RegisterResolvePhaseOptions {
    * behavior this library's own tests still use.
    */
   readonly owner?: unknown;
+  /**
+   * This registration's fault policy when its handler throws. `"fail"` (the default) rethrows
+   * out of the phase, so the caller's own error handling runs (the public site routes answer
+   * `500 <h1>Site error</h1>`). `"skip"` logs `[routing] a <phase> resolver failed for <path> —
+   * skipping it` and continues to the phase's remaining handlers.
+   *
+   * Choose `"skip"` only for a handler whose failure can only DECLINE an outcome — it can never
+   * fabricate one, so a swallowed failure cannot weaken any guard. Redirects opts into it for
+   * exactly that reason (INV-03: a lookup failure means "no redirect", never "gone"). A future
+   * guard-type handler (a takedown or reserved-path check, which must BLOCK on failure, not wave
+   * a request through) fails CLOSED by default unless it deliberately opts into `"skip"` too.
+   */
+  readonly onError?: "skip" | "fail";
 }
 
 /**
@@ -380,7 +395,7 @@ export function registerResolvePhase(
   if (owner !== undefined) {
     phaseRegistry[phase] = phaseRegistry[phase].filter((entry) => entry.owner !== owner);
   }
-  const registration: PhaseRegistration = { owner, handler: resolver };
+  const registration: PhaseRegistration = { owner, handler: resolver, onError: options.onError ?? "fail" };
   phaseRegistry[phase].push(registration);
   return () => {
     phaseRegistry[phase] = phaseRegistry[phase].filter((entry) => entry !== registration);
@@ -407,21 +422,23 @@ export function unregisterResolvePhaseOwner(owner: unknown): void {
 /**
  * Run one phase's handlers in registration order, first non-`null` outcome wins.
  *
- * A handler that THROWS is isolated: the failure is logged and the chain
- * continues with the next handler, rather than propagating out of the phase.
- * Deliberate, and the direction matters — this pipeline only ever ADDS an
- * outcome (a redirect, a gone), so a handler that produced no outcome because
- * it failed is operationally identical to one that returned `null`: the request
- * falls through to ordinary content resolution. Letting it propagate instead
- * means one registrant's fault 500s every route that runs the phase, including
- * every route with no rules of its own — which is exactly how a stale
- * closed-database handler took down `/` and `/pricing` while `/products` (which
- * runs no phase) kept serving. A swallowed failure can never fabricate a
- * redirect target, so it cannot weaken the open-redirect gate
- * (`redirects/phase-handler.ts`'s INV-03) — it can only decline to redirect.
+ * A handler's fault policy is its own registration's {@link RegisterResolvePhaseOptions.onError}
+ * (2026-09-16, t91 F4.3 — previously every throw was unconditionally isolated). `"skip"` logs the
+ * failure and continues with the next handler, rather than propagating out of the phase — correct
+ * for a handler whose failure can only DECLINE an outcome (a redirect, a gone), never fabricate
+ * one, which is why Redirects opts into it (`redirects/phase-handler.ts`'s INV-03). `"fail"` (the
+ * default) rethrows instead: a handler that guards content (a takedown, a reserved path) must not
+ * silently wave a request through just because its own check broke. No log on the `"fail"` path —
+ * the caller's own catch reports it (`routes/site/pages.ts`'s `reportSiteRenderFault`), so a fault
+ * produces exactly one log line either way.
+ *
+ * The old universal-skip default is why a stale closed-database handler could take down `/` and
+ * `/pricing` while `/products` (which runs no phase) kept serving — that direction (never let one
+ * registrant 500 every route) is still correct for `"skip"`; it is just no longer assumed for
+ * every registrant.
  *
  * @complexity O(h) in the phase's registered handlers, plus each handler's own
- * opaque cost; short-circuits on the first outcome.
+ * opaque cost; short-circuits on the first outcome or the first `"fail"`-policy throw.
  */
 async function runPhase(
   phase: RouteResolvePhaseName,
@@ -430,11 +447,12 @@ async function runPhase(
 ): Promise<RouteResolvePhaseOutcome | null> {
   // Snapshot: a handler is free to register or revoke during its own run, and
   // mutating the live array mid-iteration would silently skip a sibling.
-  for (const { handler } of [...phaseRegistry[phase]]) {
+  for (const { handler, onError } of [...phaseRegistry[phase]]) {
     let outcome: RouteResolvePhaseOutcome | null;
     try {
       outcome = await handler(path, ctx);
     } catch (err) {
+      if (onError !== "skip") throw err;
       // eslint-disable-next-line no-console -- same operator-facing channel `routes/site/pages.ts` logs its own route faults on.
       console.error(`[routing] a ${phase} resolver failed for ${path} — skipping it`, err);
       continue;
