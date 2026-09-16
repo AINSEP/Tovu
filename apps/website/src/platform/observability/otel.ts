@@ -5,7 +5,7 @@
  * different instrumentation system can satisfy it without this file changing at all.
  *
  * Loaded lazily, not statically: `index.ts`'s `createObservabilityPort` only reaches this module
- * via `createRequire(import.meta.url).require("./otel.js")`, gated behind
+ * via `createRequire(import.meta.url)("./otel.js")`, gated behind
  * `resolveObservabilityConfig().enabled`. This is the ONE first-party `require()`
  * `src/__tests__/no-first-party-require.boundary.test.ts` allows (t91 F4.1-A), because this file has
  * no first-party runtime import and nothing loads it through `import` — so tsx's CommonJS copy is
