@@ -171,6 +171,20 @@ export interface NewsletterSendRepoPort {
    * missing, no longer `pending`, or leased by another live dispatch. Timestamps are `toISOString()` strings and compare lexically.
    */
   claimForDispatch(required: { workspaceId: UUID; id: UUID; nowIso: string; leaseUntilIso: string }): Promise<SendRow | null>;
+  /**
+   * Atomically records a dispatch outcome on one send row (2026-09-16): succeeds only while the row is `pending`, setting
+   * `status`, `attempts + 1`, `lastError`, `providerMessageId` (kept as stored when the input is null), `nextAttemptAt`
+   * null (releases the `claimForDispatch` lease) and `updatedAt`. Returns the updated row, or `null` when the row is missing
+   * or no longer `pending` (another run already recorded it).
+   */
+  recordOutcome(required: {
+    workspaceId: UUID;
+    id: UUID;
+    status: "delivered" | "failed";
+    providerMessageId: string | null;
+    lastError: string | null;
+    updatedAt: string;
+  }): Promise<SendRow | null>;
 }
 
 /** C-006 — `p_newsletter__confirmation_tokens`. */

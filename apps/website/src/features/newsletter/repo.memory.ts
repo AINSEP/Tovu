@@ -287,6 +287,37 @@ export class InMemoryNewsletterSendRepo implements NewsletterSendRepoPort {
     this.rows[idx] = leased;
     return leased;
   }
+
+  /**
+   * Atomically records a dispatch outcome (2026-09-16, see `ports.ts` doc). No `await` happens before
+   * the write, so a concurrent caller's own turn cannot interleave between the pending check and the
+   * write — the first call to run wins the row; a later concurrent call sees it already non-pending.
+   *
+   * @complexity O(rows.length) to locate the row.
+   */
+  async recordOutcome(required: {
+    workspaceId: string;
+    id: string;
+    status: "delivered" | "failed";
+    providerMessageId: string | null;
+    lastError: string | null;
+    updatedAt: string;
+  }): Promise<SendRow | null> {
+    const idx = this.rows.findIndex((r) => r.workspaceId === required.workspaceId && r.id === required.id);
+    const row = idx >= 0 ? this.rows[idx] : undefined;
+    if (!row || row.status !== "pending") return null;
+    const recorded: SendRow = {
+      ...row,
+      status: required.status,
+      attempts: row.attempts + 1,
+      providerMessageId: required.providerMessageId ?? row.providerMessageId,
+      lastError: required.lastError,
+      nextAttemptAt: null,
+      updatedAt: required.updatedAt,
+    };
+    this.rows[idx] = recorded;
+    return recorded;
+  }
 }
 
 export class InMemoryNewsletterConfirmationTokenRepo implements NewsletterConfirmationTokenRepoPort {

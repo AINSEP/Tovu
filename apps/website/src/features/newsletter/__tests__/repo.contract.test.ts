@@ -289,6 +289,26 @@ const sendAdapters: Array<[string, () => Promise<NewsletterSendRepoPort>]> = [
   ["sqlite", async () => new SqliteNewsletterSendRepo(await makeSqliteDb())],
 ];
 
+function makePendingSendRow(overrides: Partial<SendRow> = {}): SendRow {
+  return {
+    id: "send-1",
+    workspaceId: WS,
+    campaignId: "camp-1",
+    audienceSnapshotId: "snap-1",
+    subscriberId: "subscriber-1",
+    recipientEmail: "a@a.test",
+    status: "pending",
+    attempts: 0,
+    idempotencyKey: "newsletter:camp-1:subscriber-1:snap-1",
+    providerMessageId: null,
+    lastError: null,
+    nextAttemptAt: null,
+    createdAt: NOW,
+    updatedAt: NOW,
+    ...overrides,
+  };
+}
+
 for (const [name, makeRepo] of sendAdapters) {
   test(`[${name}] NewsletterSendRepoPort: save + findById + findByIdempotencyKey + listPendingByAudienceSnapshot + countPendingByCampaign + saveBatch`, async () => {
     const repo = await makeRepo();
@@ -369,6 +389,44 @@ for (const [name, makeRepo] of sendAdapters) {
     // (f) a missing row is never claimable.
     const missingClaim = await repo.claimForDispatch({ workspaceId: WS, id: "nope", nowIso: NOW, leaseUntilIso: lease1 });
     assert.equal(missingClaim, null);
+  });
+
+  test(`[${name}] NewsletterSendRepoPort: recordOutcome records a pending row once; a concurrent second record returns null and changes nothing`, async () => {
+    const repo = await makeRepo();
+    const seed = makePendingSendRow({ nextAttemptAt: "2026-07-13T00:02:00.000Z", attempts: 0 });
+    await repo.save(seed);
+
+    const [first, second] = await Promise.all([
+      repo.recordOutcome({ workspaceId: WS, id: "send-1", status: "delivered", providerMessageId: "pm-1", lastError: null, updatedAt: LATER }),
+      repo.recordOutcome({ workspaceId: WS, id: "send-1", status: "failed", providerMessageId: null, lastError: "boom", updatedAt: "2026-07-15T00:00:00.000Z" }),
+    ]);
+    assert.equal(second, null);
+
+    const expected: SendRow = { ...seed, status: "delivered", attempts: 1, providerMessageId: "pm-1", lastError: null, nextAttemptAt: null, updatedAt: LATER };
+    assert.deepEqual(first, expected);
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id: "send-1" }), expected);
+  });
+
+  test(`[${name}] NewsletterSendRepoPort: recordOutcome keeps the stored providerMessageId when the outcome has none`, async () => {
+    const repo = await makeRepo();
+    await repo.save(makePendingSendRow({ providerMessageId: "kept-pm" }));
+    const recorded = await repo.recordOutcome({ workspaceId: WS, id: "send-1", status: "failed", providerMessageId: null, lastError: "boom", updatedAt: LATER });
+    assert.equal(recorded?.providerMessageId, "kept-pm");
+    assert.equal(recorded?.lastError, "boom");
+  });
+
+  test(`[${name}] NewsletterSendRepoPort: recordOutcome on a missing or already-terminal row returns null`, async () => {
+    const repo = await makeRepo();
+    assert.equal(
+      await repo.recordOutcome({ workspaceId: WS, id: "nope", status: "delivered", providerMessageId: "pm-1", lastError: null, updatedAt: LATER }),
+      null
+    );
+
+    const seed = makePendingSendRow({ status: "delivered" });
+    await repo.save(seed);
+    const result = await repo.recordOutcome({ workspaceId: WS, id: "send-1", status: "failed", providerMessageId: null, lastError: "boom", updatedAt: LATER });
+    assert.equal(result, null);
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id: "send-1" }), seed);
   });
 }
 

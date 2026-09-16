@@ -253,37 +253,36 @@ export async function dispatchRow(required: {
 }
 
 /**
- * REQ-24/INV-02 — records one send row's outcome, then counts it with the atomic `incrementCounter` (2026-09-16; it was
- * a read-modify-write of the campaign row, which lost concurrent counts and could write back a stale status over a
- * pause). Still two writes, not one transaction: a crash between them leaves the row terminal and uncounted; counters
- * stay rebuildable from the sends ledger.
+ * REQ-24/INV-02 — records one send row's outcome with the atomic `recordOutcome` (2026-09-16; it was a read-then-write
+ * that let two concurrent results for the SAME row both pass the pending check and both count, H4), then counts it with
+ * the atomic `incrementCounter` (it was a read-modify-write of the campaign row, which lost concurrent counts and could
+ * write back a stale status over a pause). Still two writes, not one transaction: a crash between them leaves the row
+ * terminal and uncounted; counters stay rebuildable from the sends ledger.
  */
 export async function recordResult(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; sendId: string; campaignId: string; outcome: "sent" | "suppressed" | "failed"; providerMessageId: string | null; error: string | null };
 }): Promise<{ sendRow: SendRow }> {
   const { deps, input } = required;
-  const row = await deps.sendRepo.findById({ workspaceId: input.workspaceId, id: input.sendId });
-  if (!row) throw new Error(`send row ${input.sendId} was not found`);
-
-  // 2026-09-16: a row another run already recorded is never re-written or counted twice.
-  if (row.status !== "pending") return { sendRow: row };
-
   const now = deps.clock.nowIso();
   const status = input.outcome === "sent" ? "delivered" : "failed";
-  const updated: SendRow = {
-    ...row,
+  const recorded = await deps.sendRepo.recordOutcome({
+    workspaceId: input.workspaceId,
+    id: input.sendId,
     status,
-    attempts: row.attempts + 1,
-    providerMessageId: input.providerMessageId ?? row.providerMessageId,
+    providerMessageId: input.providerMessageId,
     lastError: input.error,
-    nextAttemptAt: null, // releases the dispatch lease `claimForDispatch` took (see `claimSendRow`).
     updatedAt: now,
-  };
-  await deps.sendRepo.save(updated);
-  await deps.campaignRepo.incrementCounter({ workspaceId: input.workspaceId, id: input.campaignId, counter: status, updatedAt: now });
+  });
+  if (!recorded) {
+    // Missing, or another run already recorded it: never re-written or counted twice.
+    const row = await deps.sendRepo.findById({ workspaceId: input.workspaceId, id: input.sendId });
+    if (!row) throw new Error(`send row ${input.sendId} was not found`);
+    return { sendRow: row };
+  }
 
-  return { sendRow: updated };
+  await deps.campaignRepo.incrementCounter({ workspaceId: input.workspaceId, id: input.campaignId, counter: status, updatedAt: now });
+  return { sendRow: recorded };
 }
 
 /** REQ-18 — flips to `sent` when 0 pending remain. Naturally idempotent — safe to call redundantly. */

@@ -579,6 +579,22 @@ for (const [name, makeRepos] of raceFlavors) {
     assert.equal(campaign?.status, "paused");
     assert.equal(campaign?.counters.delivered, 1);
   });
+
+  test(`[${name}] recordResult: two concurrent results for the SAME row count it once and keep the first outcome (H4)`, async () => {
+    const rig = await makeRaceRig(makeRepos);
+    await rig.sendRepo.save(makeSendRow());
+    const [a, b] = await Promise.all([
+      recordResult({ deps: rig.deps, input: { workspaceId: WS, sendId: "send-1", campaignId: "camp-1", outcome: "sent", providerMessageId: "pm-A", error: null } }),
+      recordResult({ deps: rig.deps, input: { workspaceId: WS, sendId: "send-1", campaignId: "camp-1", outcome: "sent", providerMessageId: "pm-B", error: null } }),
+    ]);
+    const row = await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" });
+    assert.equal(row?.attempts, 1);
+    assert.equal(row?.providerMessageId, "pm-A");
+    const campaign = await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" });
+    assert.equal(campaign?.counters.delivered, 1);
+    assert.deepEqual(a.sendRow, row);
+    assert.deepEqual(b.sendRow, row);
+  });
 }
 
 /* ------------------------------------------------------------------------------------------------
@@ -868,13 +884,14 @@ test("handleSendBatchClaimed: two overlapping runs of the same batch send each r
   await rig.sendRepo.save(makeSendRow({ id: "send-2", subscriberId: "sub-2", recipientEmail: "b@test.com", status: "pending" }));
   await rig.sendRepo.save(makeSendRow({ id: "send-3", subscriberId: "sub-3", recipientEmail: "c@test.com", status: "pending" }));
   const job = makeJob({ sendIds: ["send-1", "send-2", "send-3"] });
-  // `recordResult` is the only writer of a send row once it is leased, and it saves the row before it
-  // bumps the campaign counters, so one terminal save per row is exactly one counter increment per row.
+  // `recordOutcome` is the only way a leased row leaves `pending`, and each successful record is
+  // followed by exactly one counter increment.
   const recorded: string[] = [];
-  const saveRow = rig.sendRepo.save.bind(rig.sendRepo);
-  t.mock.method(rig.sendRepo, "save", async (row: SendRow) => {
-    recorded.push(`${row.id}:${row.status}`);
-    return saveRow(row);
+  const recordOutcome = rig.sendRepo.recordOutcome.bind(rig.sendRepo);
+  t.mock.method(rig.sendRepo, "recordOutcome", async (required: Parameters<typeof recordOutcome>[0]) => {
+    const result = await recordOutcome(required);
+    if (result) recorded.push(`${result.id}:${result.status}`);
+    return result;
   });
 
   const runA = handleSendBatchClaimed({ deps: rig.deps, job });

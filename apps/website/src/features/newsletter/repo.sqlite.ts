@@ -607,6 +607,32 @@ export class SqliteNewsletterSendRepo implements NewsletterSendRepoPort {
     if (result.changes !== 1) return null;
     return this.findById({ workspaceId: required.workspaceId, id: required.id });
   }
+
+  /**
+   * Atomically records a dispatch outcome (2026-09-16, see `ports.ts` doc). One conditional `UPDATE`
+   * (`WHERE ... status = 'pending'`) makes the check-and-write atomic across processes too: a
+   * concurrent second call's `UPDATE` matches zero rows and returns `null` without touching the row.
+   *
+   * @complexity O(1) (indexed lookup by primary key).
+   */
+  async recordOutcome(required: {
+    workspaceId: string;
+    id: string;
+    status: "delivered" | "failed";
+    providerMessageId: string | null;
+    lastError: string | null;
+    updatedAt: string;
+  }): Promise<SendRow | null> {
+    const result = this.client
+      .prepare(
+        `UPDATE "${this.table}" SET status = ?, attempts = attempts + 1, provider_message_id = COALESCE(?, provider_message_id),
+           last_error = ?, next_attempt_at = NULL, updated_at = ?
+         WHERE workspace_id = ? AND id = ? AND status = 'pending'`
+      )
+      .run(required.status, required.providerMessageId, required.lastError, required.updatedAt, required.workspaceId, required.id);
+    if (result.changes !== 1) return null;
+    return this.findById({ workspaceId: required.workspaceId, id: required.id });
+  }
 }
 
 interface ConfirmationTokenDbRow {
