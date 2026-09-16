@@ -1738,9 +1738,14 @@ function PostPreview({
         // the feature does not exist. Direction is communicated by what the label SAYS, never by
         // being absent from the index. Keep in step with `aria-label`/`title` above —
         // `post-editor-agent-drive.unit.test.tsx` pins both the vocabulary and that agreement.
+        // Prose, not a keyword dump — every synonym below is worked into a real sentence a person
+        // can read. Note this string is NOT the accessible description: `agentHandle` emits it as
+        // the plain data attribute `data-agent-label` (`handle.ts`), never `aria-label` or
+        // `aria-describedby`, so no screen reader reads it. The accessible name is the `aria-label`
+        // above, and the two are kept in agreement by test, not by sharing a string.
         label: expanded
-          ? "Exit full screen — exit fullscreen, collapse or close the expanded preview back to its normal, smaller size. It is already maximized: if the ask was to show it big, it already is."
-          : "Show the preview full screen — fullscreen, maximize or expand it, show it big, filling the whole admin content area.",
+          ? "Exit full screen: exit fullscreen to collapse or close the expanded preview, putting it back to its normal, smaller size. Already maximized, so if the ask was to show it big, it already is."
+          : "Show the preview full screen: fullscreen the panel to maximize or expand it, and show it big across the whole admin content area.",
       })}
     >
       <span aria-hidden="true">{expanded ? "\u2921" : "\u2922"}</span>
