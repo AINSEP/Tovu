@@ -96,6 +96,22 @@ const MAX_LISTED_FILES = 2_000;
 const MAX_WALK_DEPTH = 12;
 
 /**
+ * Ceiling on directory ENTRIES scanned by one `listFsFiles` walk — every `readdirSync` entry, before
+ * the per-entry decision that may or may not record it. Deliberately separate from
+ * {@link MAX_LISTED_FILES}: that cap stops the walk once enough RESULTS are collected, so it bounds
+ * nothing about the traversal itself — a wide tree whose entries are denied, excluded, or simply not
+ * regular files is still walked entry-by-entry (one `lstatSync` each, one `readdirSync` per
+ * directory) with no result ever recorded, and the whole walk is synchronous.
+ *
+ * DERIVED from {@link MAX_LISTED_FILES} rather than written as its own number, and that is the point:
+ * every recorded file costs exactly one entry, so a literal below the result cap would make the
+ * result cap unreachable and silently halve the largest listing a caller can get. Expressed as a
+ * multiple, the two can never invert — this bound can only ever fire on a tree whose entries are
+ * mostly NOT results, which is the case it exists for.
+ */
+const MAX_WALK_ENTRIES = MAX_LISTED_FILES * 10;
+
+/**
  * THE off-limits list. Everything else in this module governs WHERE a read may occur (root selection
  * in `layout.ts`, symlink containment below); this constant governs WHAT may never be read, no matter
  * where it lives — the owner's own boundary: default to allowing most things, deny secrets and
@@ -110,9 +126,15 @@ export const FS_FILES_DENYLIST = {
    * credentials folder (`sites/**\/secrets/`, `apps/admin/**\/secrets/`, or anywhere else), it never
    * becomes reachable through this domain. A denied segment is refused by {@link resolveFsFilePath}
    * AND skipped entirely by the `fs_list_files` walk (see {@link visitFsDirEntry}) — its contents are
-   * never even enumerated, not merely refused once named.
+   * never even enumerated, not merely refused once named. Besides `secrets`, the set names the
+   * well-known credential-store directories a home-directory `custom` root can expose: `.aws`
+   * (`credentials`), `.docker` (`config.json` with registry auth), `.kube` (`config`), and
+   * `gcloud`/`gh` for `.config/gcloud/application_default_credentials.json` and
+   * `.config/gh/hosts.yml`. Denied by SEGMENT rather than by leaf filename on purpose: `config`,
+   * `config.json`, and `hosts.yml` are generic names that appear harmlessly elsewhere, so denying the
+   * directory is the narrower of the two mistakes.
    */
-  segments: new Set(["secrets"]),
+  segments: new Set(["secrets", ".aws", ".docker", ".kube", "gcloud", "gh"]),
   /**
    * Basename patterns refused wherever they appear, matched against the path's final segment only (a
    * directory legitimately named e.g. `keys/` is not itself a secret — only a leaf file matching one
@@ -144,8 +166,11 @@ export const FS_FILES_DENYLIST = {
    *   which are not secret and are routinely shared. The trailing `(?<!\.pub)` is load-bearing: an
    *   earlier, simpler version of this pattern would have denied `id_rsa.pub` too, which is the wrong
    *   direction of mistake (over-denying is the easy trap here, not under-denying).
-   * - `credentials.json` (exact basename) and `client_secret*.json` — Google Cloud/OAuth
-   *   service-account and client-secret export conventions.
+   * - `credentials.json` and `credentials` (exact basenames) and `client_secret*.json` — Google
+   *   Cloud/OAuth service-account and client-secret export conventions, plus the extension-less AWS
+   *   shared-credentials file, which has no suffix family to match on.
+   * - `.git-credentials` (exact basename) — git's own credential-store file, another extension-less
+   *   name that none of the patterns above covers.
    */
   filenamePatterns: [
     /^\.env(?:\..*)?$/i,
@@ -160,7 +185,9 @@ export const FS_FILES_DENYLIST = {
     /^\.(?:npmrc|netrc)$/i,
     /^id_(?:rsa|dsa|ecdsa|ed25519).*(?<!\.pub)$/i,
     /^credentials\.json$/i,
+    /^credentials$/i,
     /^client_secret.*\.json$/i,
+    /^\.git-credentials$/i,
   ] as readonly RegExp[],
 } as const;
 
@@ -254,8 +281,10 @@ function assertNoSymlinkEscape(base: string, path: string, relativePathForError:
  *
  * Rejects, in order: an empty path, a NUL byte, an absolute path, a path with any segment matching
  * {@link isDeniedFsPathSegment} (e.g. `secrets/`), a path whose basename matches
- * {@link isDeniedFsFileName}, a path that resolves outside the root (traversal), and a path whose
- * deepest existing ancestor `realpath`s outside the root (symlink escape). The root itself is also
+ * {@link isDeniedFsFileName}, a path that resolves outside the root (traversal), a path whose
+ * deepest existing ancestor `realpath`s outside the root (symlink escape), and a path whose resolved
+ * real target itself matches either denylist half (a symlink alias such as `public.txt` -> `.env`).
+ * The root itself is also
  * re-`realpath`ed first, so a root reached through a symlink (this repo's own
  * `node_modules/@jini-ai/*` shape) still compares correctly rather than failing every read.
  *
@@ -268,27 +297,8 @@ function assertNoSymlinkEscape(base: string, path: string, relativePathForError:
 export function resolveFsFilePath(required: { rootPath: string; relativePath: string }): string {
   const { rootPath, relativePath } = required;
 
-  if (relativePath.length === 0) {
-    throw new FsFilePathError("path is required");
-  }
-  if (relativePath.includes("\0")) {
-    throw new FsFilePathError("path must not contain a NUL byte");
-  }
-  if (isAbsolute(relativePath)) {
-    throw new FsFilePathError(`path '${relativePath}' must be relative to the root, not absolute`);
-  }
-
-  const normalized = normalizeFsRelativePath(relativePath);
-  const segments = normalized.length === 0 ? [] : normalized.split("/");
-  for (const segment of segments) {
-    if (isDeniedFsPathSegment(segment)) {
-      throw new FsFilePathError(`path '${relativePath}' contains a denied path segment ('${segment}') and cannot be accessed`);
-    }
-  }
-  const leafName = segments.length === 0 ? "" : segments[segments.length - 1];
-  if (leafName.length > 0 && isDeniedFsFileName(leafName)) {
-    throw new FsFilePathError(`path '${relativePath}' matches a denied filename pattern and cannot be accessed`);
-  }
+  assertWellFormedRelativePath(relativePath);
+  assertRequestedPathNotDenied(relativePath);
 
   // `realpath` the root so one reached through a symlink (e.g. a `node_modules/@jini-ai/*` package
   // symlinked to a sibling checkout) compares against the same canonical form the ancestor probe
@@ -301,8 +311,87 @@ export function resolveFsFilePath(required: { rootPath: string; relativePath: st
   }
 
   assertNoSymlinkEscape(base, target, relativePath);
+  assertEffectiveTargetNotDenied(base, target, relativePath);
 
   return target;
+}
+
+/**
+ * The three shape refusals every resolve starts with, before any path arithmetic: empty, NUL byte,
+ * absolute. Split out of {@link resolveFsFilePath} purely so its own body reads as the sequence of
+ * checks its doc describes rather than as one long guard block.
+ *
+ * @throws {FsFilePathError} On any of the three.
+ * @complexity O(n) in the path's length (the NUL scan).
+ */
+function assertWellFormedRelativePath(relativePath: string): void {
+  if (relativePath.length === 0) {
+    throw new FsFilePathError("path is required");
+  }
+  if (relativePath.includes("\0")) {
+    throw new FsFilePathError("path must not contain a NUL byte");
+  }
+  if (isAbsolute(relativePath)) {
+    throw new FsFilePathError(`path '${relativePath}' must be relative to the root, not absolute`);
+  }
+}
+
+/**
+ * Apply both denylist halves to the path AS THE CALLER SPELLED IT — every segment against
+ * {@link isDeniedFsPathSegment}, the basename against {@link isDeniedFsFileName}. Runs before any
+ * filesystem access, so a denied path is refused whether or not it exists.
+ * {@link assertEffectiveTargetNotDenied} is the same pair applied to what the path RESOLVES to.
+ *
+ * @throws {FsFilePathError} When a segment or the basename is denied.
+ * @complexity O(d) in the path's segment count.
+ */
+function assertRequestedPathNotDenied(relativePath: string): void {
+  const normalized = normalizeFsRelativePath(relativePath);
+  const segments = normalized.length === 0 ? [] : normalized.split("/");
+  for (const segment of segments) {
+    if (isDeniedFsPathSegment(segment)) {
+      throw new FsFilePathError(`path '${relativePath}' contains a denied path segment ('${segment}') and cannot be accessed`);
+    }
+  }
+
+  const leafName = segments.length === 0 ? "" : segments[segments.length - 1];
+  if (leafName.length > 0 && isDeniedFsFileName(leafName)) {
+    throw new FsFilePathError(`path '${relativePath}' matches a denied filename pattern and cannot be accessed`);
+  }
+}
+
+/**
+ * Apply the denylist to the EFFECTIVE target as well as the caller's spelling: a same-directory
+ * symlink alias (`public.txt` -> `.env`) passes every other check (its own name is harmless and its
+ * realpath is still inside the root), yet `readFsFile` would stat/read the lexical path and Node
+ * would follow the link to the real, denied file.
+ *
+ * A path that does not exist is left alone — there is nothing to alias, and `readFsFile` fails on the
+ * subsequent stat. `existsSync` follows links, so a broken or circular link is `false` here and this
+ * never reaches `realpathSync` with a loop, preserving the module's "throws only `FsFilePathError`"
+ * property.
+ *
+ * @param relativePath - The caller's own spelling, quoted in the refusal so the message names what
+ *   was asked for rather than the host path it resolved to.
+ * @throws {FsFilePathError} When the resolved real path matches either denylist half.
+ * @complexity O(d) in the resolved path's depth.
+ */
+function assertEffectiveTargetNotDenied(base: string, target: string, relativePath: string): void {
+  if (!existsSync(target)) return;
+
+  const effectiveSegments = relative(base, realpathSync(target)).split(sep);
+  for (const segment of effectiveSegments) {
+    if (isDeniedFsPathSegment(segment)) {
+      throw new FsFilePathError(`path '${relativePath}' resolves to a denied path segment ('${segment}') and cannot be accessed`);
+    }
+  }
+
+  // `relative()` returns `""` when the target IS the base (`.`, `a/..`), and `"".split(sep)` yields
+  // `[""]` — so the guard is on the leaf's length, not on the array's.
+  const effectiveLeaf = effectiveSegments.length === 0 ? "" : effectiveSegments[effectiveSegments.length - 1];
+  if (effectiveLeaf.length > 0 && isDeniedFsFileName(effectiveLeaf)) {
+    throw new FsFilePathError(`path '${relativePath}' resolves to a denied filename pattern and cannot be accessed`);
+  }
 }
 
 /**
@@ -311,11 +400,13 @@ export function resolveFsFilePath(required: { rootPath: string; relativePath: st
  * beyond it); never descend into a denied path segment (e.g. `secrets/`) or an
  * {@link EXCLUDED_LISTING_DIR_NAMES} entry (e.g. `node_modules/`) — the former for security, the
  * latter for noise, see each constant's own doc; recurse into every other real subdirectory; and
- * record real files that do not match a denied filename pattern. Verbatim shape of
+ * record real files that do not match a denied filename pattern. `state` is the walk-wide
+ * {@link MAX_WALK_ENTRIES} budget plus its truncation flag, shared with the parent loop so every
+ * entry counts against it. Verbatim shape of
  * `theme-files.ts`'s `visitThemeDirEntry`, plus the two directory-level skips this domain's broader
  * roots now need.
  */
-function visitFsDirEntry(dir: string, name: string, depth: number, base: string, found: string[]): void {
+function visitFsDirEntry(dir: string, name: string, depth: number, base: string, found: string[], state: FsWalkState): void {
   const full = resolve(dir, name);
   // lstatSync, NEVER statSync — statSync follows the link, so a circular symlink would throw ELOOP
   // straight out of this "throws only FsFilePathError" module. lstatSync reports the link itself,
@@ -325,7 +416,7 @@ function visitFsDirEntry(dir: string, name: string, depth: number, base: string,
   if (stat.isSymbolicLink()) return;
   if (stat.isDirectory()) {
     if (isDeniedFsPathSegment(name) || EXCLUDED_LISTING_DIR_NAMES.has(name)) return;
-    walkFsDir(full, depth + 1, base, found);
+    walkFsDir(full, depth + 1, base, found, state);
     return;
   }
   if (!stat.isFile()) return;
@@ -333,14 +424,47 @@ function visitFsDirEntry(dir: string, name: string, depth: number, base: string,
   found.push(relative(base, full).split(sep).join("/"));
 }
 
+/** One walk's mutable state, threaded through the recursion: the remaining
+ *  {@link MAX_WALK_ENTRIES} budget, and whether any bound has cut the walk short. */
+interface FsWalkState {
+  remaining: number;
+  truncated: boolean;
+}
+
+/** Whether any of the three bounds has been reached — the single place they are read, so a caller
+ *  cannot learn about one of them and miss another. */
+function walkBoundReached(found: string[], state: FsWalkState, depth: number): boolean {
+  return depth > MAX_WALK_DEPTH || found.length >= MAX_LISTED_FILES || state.remaining <= 0;
+}
+
 /** Descends real directories under `base` only, collecting relative file paths into `found`
- *  (mutated in place), bounded by {@link MAX_WALK_DEPTH} and {@link MAX_LISTED_FILES}. */
-function walkFsDir(dir: string, depth: number, base: string, found: string[]): void {
-  if (depth > MAX_WALK_DEPTH || found.length >= MAX_LISTED_FILES) return;
-  for (const name of readdirSync(dir)) {
-    if (found.length >= MAX_LISTED_FILES) return;
-    visitFsDirEntry(dir, name, depth, base, found);
+ *  (mutated in place), bounded by {@link MAX_WALK_DEPTH}, {@link MAX_LISTED_FILES} (results), and
+ *  {@link MAX_WALK_ENTRIES} (the traversal itself, via `state`). Every early return is a truncated
+ *  listing and says so on `state`, so `listFsFiles` can report it instead of returning a short list
+ *  that looks complete. */
+function walkFsDir(dir: string, depth: number, base: string, found: string[], state: FsWalkState): void {
+  if (walkBoundReached(found, state, depth)) {
+    state.truncated = true;
+    return;
   }
+  for (const name of readdirSync(dir)) {
+    // Checked per entry, not only on entry: the loop below both spends budget and records results,
+    // and reaching a bound here means this directory still had entries left to offer.
+    if (walkBoundReached(found, state, depth)) {
+      state.truncated = true;
+      return;
+    }
+    state.remaining -= 1;
+    visitFsDirEntry(dir, name, depth, base, found, state);
+  }
+}
+
+/** What one `listFsFiles` walk found, and whether it saw the whole directory. */
+export interface ListFsFilesResult {
+  readonly files: string[];
+  /** `true` when {@link MAX_LISTED_FILES}, {@link MAX_WALK_ENTRIES}, or {@link MAX_WALK_DEPTH} cut
+   *  the walk short. A caller that ignores this reports a partial listing as a complete one. */
+  readonly truncated: boolean;
 }
 
 /**
@@ -352,35 +476,37 @@ function walkFsDir(dir: string, depth: number, base: string, found: string[]): v
  * @param required.rootPath - One of `layout.ts`'s resolved root directories (`repo`, `site`, or the operator-set `custom`).
  * @param required.relativePath - Optional subdirectory within the root to list; omit (or `""`) to
  *   list from the root itself.
- * @returns Relative paths, sorted, using `/` separators. Empty when the root (or subdirectory)
- *   does not exist on disk yet — a freshly-created site has no `agent-plugins/` at all, and that is
- *   not an error.
+ * @returns `files` — relative paths, sorted, using `/` separators; empty when the root (or
+ *   subdirectory) does not exist on disk yet, which is not an error (a freshly-created site has no
+ *   `agent-plugins/` at all). `truncated` — `true` when a bound cut the walk short, so the caller
+ *   can say the listing is partial instead of presenting a short list as the whole directory.
  * @throws {FsFilePathError} If `relativePath` escapes the root, matches a denied pattern, or exists
  *   but is not a directory.
  * @complexity O(n) in the file count under the directory.
  */
-export function listFsFiles(required: { rootPath: string; relativePath?: string }): string[] {
+export function listFsFiles(required: { rootPath: string; relativePath?: string }): ListFsFilesResult {
   const { rootPath } = required;
   const relativePath = required.relativePath ?? "";
 
   const startDir = relativePath.length === 0 ? resolve(rootPath) : resolveFsFilePath({ rootPath, relativePath });
-  if (!existsSync(startDir)) return [];
+  if (!existsSync(startDir)) return { files: [], truncated: false };
 
   const startStat = statOrFsPathError(startDir, relativePath || ".");
-  if (!startStat) return [];
+  if (!startStat) return { files: [], truncated: false };
   if (!startStat.isDirectory()) {
     throw new FsFilePathError(`path '${relativePath || "."}' is not a directory`);
   }
 
   const base = realpathSync(startDir);
   const found: string[] = [];
-  walkFsDir(base, 0, base, found);
+  const state: FsWalkState = { remaining: MAX_WALK_ENTRIES, truncated: false };
+  walkFsDir(base, 0, base, found, state);
 
   // Listed relative to the WALK's own base (the requested subdirectory), matching
   // `theme_list_files`'s "paths relative to what you asked to list" contract — a caller that listed
   // `agent-plugins/site-compliance` gets `references/checklist.md`, not the full
   // `site-compliance/references/checklist.md`.
-  return found.sort();
+  return { files: found.sort(), truncated: state.truncated };
 }
 
 /**

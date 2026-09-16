@@ -123,8 +123,11 @@ export function buildFsFilesRegistrations(routeDeps: FsFilesToolDeps): ToolRegis
 
       return withSchemaOnRejection({ toolId: FS_LIST_FILES_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
         const rootPath = resolveRootPathOrThrow(routeDeps, root);
-        const files = listFsFiles({ rootPath, relativePath });
-        return { root, path: relativePath ?? "", files };
+        // `truncated` is forwarded rather than dropped: `listFsFiles` stops at its own bounds, and a
+        // caller handed only a short array cannot tell a small directory from a cut-off listing —
+        // which is exactly the wrong thing for a model about to conclude "that file does not exist".
+        const { files, truncated } = listFsFiles({ rootPath, relativePath });
+        return { root, path: relativePath ?? "", files, truncated };
       });
     },
 

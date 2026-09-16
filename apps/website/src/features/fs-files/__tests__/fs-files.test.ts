@@ -105,13 +105,28 @@ test("a symlinked FILE inside the root cannot be read through", () => {
   assert.throws(() => readFsFile({ rootPath: root, relativePath: "innocent.txt" }), /through a symbolic link/);
 });
 
+test("a same-directory symlink alias cannot smuggle a denied filename or segment past the denylist", () => {
+  const { root } = makeAllowedRoot();
+  fs.writeFileSync(path.join(root, ".env"), "SECRET=1", "utf8");
+  fs.mkdirSync(path.join(root, "secrets"), { recursive: true });
+  fs.writeFileSync(path.join(root, "secrets", "token.txt"), "shh", "utf8");
+  fs.symlinkSync(path.join(root, ".env"), path.join(root, "public.txt"));
+  fs.symlinkSync(path.join(root, "secrets"), path.join(root, "reference"));
+
+  // `public.txt` is a harmless name and its realpath is still inside the root, so only a denylist
+  // re-applied to the EFFECTIVE name catches it.
+  assert.throws(() => resolveFsFilePath({ rootPath: root, relativePath: "public.txt" }), /denied filename pattern/);
+  assert.throws(() => readFsFile({ rootPath: root, relativePath: "public.txt" }), /denied filename pattern/);
+  assert.throws(() => resolveFsFilePath({ rootPath: root, relativePath: "reference/token.txt" }), /denied path segment/);
+});
+
 test("listFsFiles does not follow or report symlinks out of the root", () => {
   const { root } = makeAllowedRoot();
   const outside = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-fsfiles-outside-"));
   fs.writeFileSync(path.join(outside, "secret.txt"), "TOP SECRET", "utf8");
   fs.symlinkSync(outside, path.join(root, "escape"));
 
-  const files = listFsFiles({ rootPath: root });
+  const files = listFsFiles({ rootPath: root }).files;
   assert.equal(files.some((f) => f.startsWith("escape")), false, "a symlinked directory must be neither descended nor reported");
 });
 
@@ -122,7 +137,7 @@ test("listFsFiles returns cleanly (never throws ELOOP) when the root contains a 
   fs.symlinkSync(b, a);
   fs.symlinkSync(a, b);
 
-  const files = listFsFiles({ rootPath: root });
+  const files = listFsFiles({ rootPath: root }).files;
   assert.equal(files.some((f) => f === "a" || f === "b"), false, "a circular symlink must be neither descended nor reported as a file");
 });
 
@@ -164,7 +179,7 @@ test("a .mcp.jini-*.json file is refused on read and excluded from listFsFiles",
 
   assert.throws(() => readFsFile({ rootPath: root, relativePath: mcpFile }), /denied filename pattern/);
 
-  const files = listFsFiles({ rootPath: root });
+  const files = listFsFiles({ rootPath: root }).files;
   assert.equal(files.includes(mcpFile), false, "a .mcp.jini-*.json file must not appear in the listing");
 });
 
@@ -184,7 +199,7 @@ test("a certificate-family file is refused on read and excluded from listFsFiles
   const { root } = makeAllowedRoot();
   fs.writeFileSync(path.join(root, "release.keystore"), "binary-ish", "utf8");
   assert.throws(() => readFsFile({ rootPath: root, relativePath: "release.keystore" }), /denied filename pattern/);
-  assert.equal(listFsFiles({ rootPath: root }).includes("release.keystore"), false);
+  assert.equal(listFsFiles({ rootPath: root }).files.includes("release.keystore"), false);
 });
 
 test("isDeniedFsFileName matches .npmrc/.netrc but not an unrelated file merely containing the name", () => {
@@ -198,7 +213,7 @@ test(".npmrc is refused on read and excluded from listFsFiles", () => {
   const { root } = makeAllowedRoot();
   fs.writeFileSync(path.join(root, ".npmrc"), "//registry.npmjs.org/:_authToken=secret", "utf8");
   assert.throws(() => readFsFile({ rootPath: root, relativePath: ".npmrc" }), /denied filename pattern/);
-  assert.equal(listFsFiles({ rootPath: root }).includes(".npmrc"), false);
+  assert.equal(listFsFiles({ rootPath: root }).files.includes(".npmrc"), false);
 });
 
 test("isDeniedFsFileName matches the id_rsa/id_dsa/id_ecdsa/id_ed25519 family and its variants, but NEVER the .pub public half", () => {
@@ -220,7 +235,7 @@ test("id_rsa is refused on read while id_rsa.pub reads cleanly", () => {
   const result = readFsFile({ rootPath: root, relativePath: "id_rsa.pub" });
   assert.equal(result.content, "ssh-ed25519 AAAA...");
 
-  const files = listFsFiles({ rootPath: root });
+  const files = listFsFiles({ rootPath: root }).files;
   assert.equal(files.includes("id_rsa"), false, "the private half must not appear in the listing");
   assert.equal(files.includes("id_rsa.pub"), true, "the public half must still appear in the listing");
 });
@@ -236,7 +251,37 @@ test("credentials.json is refused on read and excluded from listFsFiles", () => 
   const { root } = makeAllowedRoot();
   fs.writeFileSync(path.join(root, "credentials.json"), '{"type":"service_account"}', "utf8");
   assert.throws(() => readFsFile({ rootPath: root, relativePath: "credentials.json" }), /denied filename pattern/);
-  assert.equal(listFsFiles({ rootPath: root }).includes("credentials.json"), false);
+  assert.equal(listFsFiles({ rootPath: root }).files.includes("credentials.json"), false);
+});
+
+test("common home-directory credential stores are refused on read and excluded from listFsFiles", () => {
+  const { root } = makeAllowedRoot();
+  const deniedPaths = [
+    ".aws/credentials",
+    ".docker/config.json",
+    ".kube/config",
+    ".git-credentials",
+    ".config/gcloud/application_default_credentials.json",
+    ".config/gh/hosts.yml",
+  ];
+  for (const relativePath of deniedPaths) {
+    const full = path.join(root, relativePath);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, "SECRET", "utf8");
+  }
+
+  for (const relativePath of deniedPaths) {
+    assert.throws(
+      () => readFsFile({ rootPath: root, relativePath }),
+      FsFilePathError,
+      `expected '${relativePath}' to be refused`,
+    );
+  }
+
+  const files = listFsFiles({ rootPath: root }).files;
+  for (const relativePath of deniedPaths) {
+    assert.equal(files.includes(relativePath), false, `expected '${relativePath}' to be absent from the listing`);
+  }
 });
 
 test("reading a denied-pattern filename is refused even though it lives inside an allowed root", () => {
@@ -248,7 +293,7 @@ test("reading a denied-pattern filename is refused even though it lives inside a
 test("a denied-pattern file is silently excluded from listFsFiles, not merely refused on read", () => {
   const { root } = makeAllowedRoot();
   fs.writeFileSync(path.join(root, "content.db"), "binary-ish", "utf8");
-  const files = listFsFiles({ rootPath: root });
+  const files = listFsFiles({ rootPath: root }).files;
   assert.equal(files.includes("content.db"), false);
 });
 
@@ -276,7 +321,7 @@ test("a 'secrets' directory is never descended into or reported by listFsFiles",
   const { root } = makeAllowedRoot();
   fs.mkdirSync(path.join(root, "secrets"), { recursive: true });
   fs.writeFileSync(path.join(root, "secrets", "token.txt"), "shh", "utf8");
-  const files = listFsFiles({ rootPath: root });
+  const files = listFsFiles({ rootPath: root }).files;
   assert.equal(
     files.some((f) => f.startsWith("secrets")),
     false,
@@ -321,24 +366,52 @@ test("an ordinary text file with no NUL byte reads cleanly", () => {
 
 test("listFsFiles lists recursively, relative to the root, sorted", () => {
   const { root } = makeAllowedRoot();
-  const files = listFsFiles({ rootPath: root });
+  const files = listFsFiles({ rootPath: root }).files;
   assert.deepEqual(files, ["manifest.json", "references/checklist.template.md"]);
 });
 
 test("listFsFiles scoped to a subdirectory returns paths relative to THAT subdirectory", () => {
   const { root } = makeAllowedRoot();
-  const files = listFsFiles({ rootPath: root, relativePath: "references" });
+  const files = listFsFiles({ rootPath: root, relativePath: "references" }).files;
   assert.deepEqual(files, ["checklist.template.md"]);
 });
 
 test("listFsFiles on a root that does not exist yet returns an empty list, not an error", () => {
   const missingRoot = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-fsfiles-missing-")), "not-created-yet");
-  assert.deepEqual(listFsFiles({ rootPath: missingRoot }), []);
+  assert.deepEqual(listFsFiles({ rootPath: missingRoot }).files, []);
 });
 
 test("listFsFiles refuses a relativePath that resolves to a file, not a directory", () => {
   const { root } = makeAllowedRoot();
-  assert.throws(() => listFsFiles({ rootPath: root, relativePath: "manifest.json" }), /is not a directory/);
+  assert.throws(() => listFsFiles({ rootPath: root, relativePath: "manifest.json" }).files, /is not a directory/);
+});
+
+test("the traversal bound never fires before the result cap — a wide directory still yields MAX_LISTED_FILES results, and says it was truncated", () => {
+  // The case that tells the two caps apart. In a directory of nothing but files, each file costs
+  // exactly one scanned entry and yields exactly one result, so whichever cap is LOWER is the one a
+  // caller actually gets. MAX_WALK_ENTRIES exists to bound a wide DENIED/excluded tree that produces
+  // no results; set below MAX_LISTED_FILES it would silently halve every listing instead and make the
+  // documented result cap unreachable. 2_001 files is one over the result cap and far under the
+  // traversal budget, so this asserts the ordering rather than either number in isolation.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-fsfiles-wide-"));
+  for (let i = 0; i < 2_001; i += 1) {
+    fs.writeFileSync(path.join(root, `f${String(i).padStart(4, "0")}.txt`), "x", "utf8");
+  }
+
+  const result = listFsFiles({ rootPath: root });
+  assert.equal(result.files.length, 2_000, "the result cap is what stops a directory of plain files; the traversal bound must sit above it");
+  assert.equal(
+    result.truncated,
+    true,
+    "a caller handed 2_000 paths and nothing else cannot tell a directory of exactly 2_000 files from one that was cut off",
+  );
+});
+
+test("an ordinary listing is not reported as truncated", () => {
+  const { root } = makeAllowedRoot();
+
+  // The other half of the flag: without this, `truncated: true` hardcoded would pass the test above.
+  assert.equal(listFsFiles({ rootPath: root }).truncated, false);
 });
 
 // ---------------------------------------------------------------------------
@@ -362,7 +435,7 @@ test("node_modules, .git, and dist are excluded from listFsFiles but not from fs
     fs.writeFileSync(path.join(root, dir, "noise.txt"), "noise", "utf8");
   }
 
-  const files = listFsFiles({ rootPath: root });
+  const files = listFsFiles({ rootPath: root }).files;
   for (const dir of ["node_modules", ".git", "dist"]) {
     assert.equal(
       files.some((f) => f.startsWith(`${dir}/`)),
