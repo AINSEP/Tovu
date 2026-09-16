@@ -58,38 +58,9 @@
  * `risk: 'read'` and `surface: 'session'`: it changes nothing and is meaningless with no live admin
  * tab bound to the run, exactly like `page.find_elements`. It carries no `requiresConfirmation` — it
  * would be filtered out below if it did, same as every other capability in this file.
- *
- * ## `admin.show_site_page` — puts the live published site on the operator's screen
- *
- * Added 2026-09-15 (`ADS-memory/.local-artifacts/handoffs/2026-09-15-view-site-tool-PLAN.md`) so the
- * assistant can say "and here's the published page" as a real, on-screen step — e.g. right after
- * publishing a post — instead of only reporting that it did something. Mounts a same-origin
- * `<iframe>` overlay INSIDE the admin SPA (`apps/admin/src/components/SitePreviewOverlay/`), the same
- * mechanism `PostEditor.tsx`'s own live preview already uses. Deliberately NOT a drive of the desktop
- * shell's "View site" toggle: that toggle navigates the `<webview>` guest the assistant's own dock
- * lives inside, which would unmount the dock, close this very frontend session, and end the run
- * mid-sentence with no reattach (see the plan's §Q6 for the full trace). The overlay never navigates
- * the admin document, so the dock and the run both survive it being open.
- *
- * `risk: 'write'`, not `'read'`, unlike `admin.capture_screenshot` above: this capability puts
- * something new on the operator's screen, which is an observable effect outside the answer — the
- * same stricter reading `apps/desktop/src/sites-mcp-tools.ts` applies to `revealSiteFolder`.
- *
- * The security-critical work — refusing a path under `/api/` or `/admin` so this authenticated,
- * cookie-carrying iframe cannot be pointed at the admin's own API or UI — lives entirely on the
- * browser side, in `apps/admin/src/lib/site-preview-path.ts`, which `App.hooks.tsx`'s executor
- * branch calls before ever building the iframe `src`. This capability only accepts a `path` string;
- * it has no way to express an origin, a host, or a protocol, so there is no allowlist for this layer
- * to get wrong (mirrors `fetch_published_page`'s own "it accepts a path, not a URL" framing).
  */
 import { PAGE_CAPABILITIES, type CapabilityDef } from "@jini-ai/agentic";
 import { CHAT_CAPABILITIES } from "@jini-ai/chat/core";
-
-/** Must equal the `id` `apps/admin/src/App.hooks.tsx`'s `buildAdminCapabilityExecutors` dispatches
- *  on for this capability — duplicated there rather than imported for the same cross-boundary-string
- *  reason `ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID` documents (apps/admin and apps/website are
- *  separate builds with no shared-types package for this). */
-export const ADMIN_SHOW_SITE_PAGE_CAPABILITY_ID = "admin.show_site_page";
 
 /**
  * Tovu-native capabilities that reach the admin's own browser tab through the same frontend-session
@@ -118,35 +89,6 @@ const TOVU_FRONTEND_CAPABILITIES: readonly CapabilityDef[] = [
       "a text explanation rather than a partial or corrupted image.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     risk: "read",
-    surface: "session",
-  },
-  {
-    id: ADMIN_SHOW_SITE_PAGE_CAPABILITY_ID,
-    description:
-      "Puts one route of THIS site's own published surface on the operator's screen right now, in a preview " +
-      "panel over the admin, and reports what their browser got for it. " +
-      "Use this after publishing or changing something, when the operator should SEE the result — e.g. right " +
-      "after publishing a post, follow up by showing the published page. " +
-      "It does not navigate the admin (page.navigate moves between admin SCREENS only, and is unaffected by " +
-      "this call) and it does not return the page's content — call fetch_published_page for headers, cookies " +
-      "and body. " +
-      "FIDELITY LIMIT: this loads in the operator's own browser, with their admin session — a page only an " +
-      "authenticated operator can see will display fine here while a real visitor gets a 404. When the " +
-      "question is what a VISITOR receives, call fetch_published_page instead; it fetches unauthenticated. " +
-      "Takes a root-relative path on this site (e.g. '/' or '/blog/hello'), never a URL — a remote host, a " +
-      "protocol-relative path, a '..' segment, anything under '/api/', or the admin app itself ('/admin' or " +
-      "'/admin/...') is refused by name, not silently rewritten. " +
-      "Returns { path, shown, status, ok, note? }. A 404 is a RESULT the call reports, not an error — the " +
-      "page was shown and the status says what came back.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: { type: "string", description: "A root-relative path on THIS site, e.g. '/' or '/blog/hello'." },
-      },
-      required: ["path"],
-      additionalProperties: false,
-    },
-    risk: "write",
     surface: "session",
   },
 ];

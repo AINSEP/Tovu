@@ -63,11 +63,6 @@ test("rewraps the exact 'not a published page' refusal into a disambiguated mess
     /content_post_get|content_post_list/,
     "must not steer the caller at an id the `content_read` collapse retired",
   );
-  assert.match(
-    (rewrapped as Error).message,
-    /admin\.show_site_page/,
-    "must also point at admin.show_site_page for putting a published page on screen (2026-09-15)",
-  );
 });
 
 test("an error with unrelated text is passed through completely unchanged", () => {
