@@ -165,10 +165,20 @@ function siteRelativeRefusalReason(check: SiteRelativeTargetCheck): string | nul
  * `back`, which Express serves as the visitor's `Referer` instead of a path (see
  * `./referrer-alias.ts`; t91 review F1, 2026-09-16).
  *
+ * Exported as THE check for any caller-chosen, site-relative `Location` (t91 open-redirect fix,
+ * 2026-09-16): `routes/site/store.ts`'s `returnTo` had its own `startsWith("/") && !startsWith("//")`
+ * copy, which `/\evil.example` walks straight through. A caller that needs a path-absolute value
+ * still checks `startsWith("/")` itself — this function also accepts relative references (`new`,
+ * `?x`), which stay on-site but resolve against the current URL.
+ *
+ * @param target - The untrusted reference exactly as received, before any `new URL()` parse. Anything
+ * that is not site-relative (an absolute or protocol-relative URL, `javascript:`) is refused too.
  * @returns The reason clause, or `null` when the target is allowed.
  * @complexity O(n) in the target length.
+ * @example siteRelativeTargetReason("/products"); // => null
+ * @example siteRelativeTargetReason("/\\evil.example") !== null; // => true
  */
-function siteRelativeTargetReason(target: string): string | null {
+export function siteRelativeTargetReason(target: string): string | null {
   const reason = siteRelativeRefusalReason(checkSiteRelativeTarget(target));
   if (reason !== null) return reason;
   if (hasForbiddenRawUrlCharacter(target)) {

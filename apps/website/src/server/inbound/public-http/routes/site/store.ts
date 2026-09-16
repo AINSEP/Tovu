@@ -9,7 +9,27 @@
  */
 import type { Express } from "express";
 
+import { siteRelativeTargetReason } from "#src/features/redirects/index";
 import type { RouteDeps } from "#src/server/routes/types";
+
+const STORE_PATH = "/store";
+
+/**
+ * The optional caller-chosen return path (e.g. the `/products` theme route), or `/store`.
+ *
+ * `/store/buy` is an unauthenticated GET, so this value comes from whatever link a visitor followed.
+ * It must be path-absolute AND pass the redirects write gate's own site-relative check — a bare
+ * `startsWith("/") && !startsWith("//")` test (this route's original check) lets `/\evil.example`
+ * through, which Express sends unencoded and a browser follows to `evil.example`.
+ *
+ * @param raw - `req.query.returnTo` as parsed; a repeated or bracketed parameter is not a string.
+ * @returns `raw` when it is a safe on-site path, otherwise `/store`.
+ * @complexity O(n) in the value length.
+ */
+function resolveReturnTo(raw: unknown): string {
+  if (typeof raw !== "string" || !raw.startsWith("/")) return STORE_PATH;
+  return siteRelativeTargetReason(raw) === null ? raw : STORE_PATH;
+}
 
 const money = (cents: number): string => `$${(cents / 100).toFixed(2)}`;
 
@@ -53,11 +73,7 @@ export function registerStoreRoutes(app: Express, deps: RouteDeps): void {
 
   app.get("/store/buy", (req, res) => {
     const store = deps.store;
-    // Optional caller-chosen return path (e.g. the `/products` theme route), same allowlist
-    // `safeHref` in render.ts uses for content links: only in-page-relative paths, never an
-    // absolute/protocol-relative URL an attacker could smuggle into an open redirect.
-    const returnToRaw = String(req.query.returnTo ?? "/store");
-    const returnTo = returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "/store";
+    const returnTo = resolveReturnTo(req.query.returnTo);
     if (!store) {
       res.redirect(returnTo);
       return;

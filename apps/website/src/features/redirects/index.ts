@@ -60,6 +60,7 @@ export type { RegisterRedirectHitOutboxHandlerDeps } from "./hit-sink.js";
 export {
   createRedirect,
   importRedirects,
+  siteRelativeTargetReason,
   tombstoneRedirect,
   updateRedirect,
 } from "./redirects.js";
