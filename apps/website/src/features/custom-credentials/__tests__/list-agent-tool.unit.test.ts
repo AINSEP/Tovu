@@ -311,3 +311,63 @@ test("rejects a non-empty input — this tool takes no arguments", async () => {
   const { deps } = fakeRouteDeps();
   await assert.rejects(() => call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), { unexpected: "field" }));
 });
+
+// ---------------------------------------------------------------------------
+// 5. What the model is TOLD matches what this tool returns (2026-09-16). Two catalog sentences had
+// drifted from the output: this tool's description said it never returns `username`, and
+// custom_credential_make_request's `url` field said a credential's saved hosts are never sent to the
+// model. Both were false. Every check below reads the fields from a REAL list call, so changing either
+// the output or the text alone fails here.
+// ---------------------------------------------------------------------------
+
+/** One real listed row carrying every optional field: a username and an additional host. */
+async function listOneFullRow(): Promise<Record<string, unknown>> {
+  const { deps, writeDeps } = fakeRouteDeps();
+  await createCustomCredential(writeDeps, {
+    workspaceId: WORKSPACE_ID,
+    label: "fly.io",
+    category: "ops",
+    baseUrl: "https://api.fly.io",
+    additionalHosts: ["https://api.machines.dev"],
+    connection: { token: "flyio-secret-token", username: "leona" },
+  });
+  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID))) as { credentials: Record<string, unknown>[] };
+  assert.equal(result.credentials.length, 1);
+  return result.credentials[0]!;
+}
+
+function catalogEntry(name: string) {
+  const entry = customCredentialsAgentToolCatalog.find((t) => t.name === name);
+  assert.ok(entry, `expected '${name}' in customCredentialsAgentToolCatalog`);
+  return entry;
+}
+
+test("the description names every field a listed row actually carries", async () => {
+  const row = await listOneFullRow();
+  const { description } = catalogEntry(TOOL_ID);
+  for (const field of Object.keys(row)) {
+    assert.match(description, new RegExp(`\\b${field}\\b`), `a listed row carries '${field}', but the description never names it`);
+  }
+});
+
+test("the description never denies returning a field a listed row actually carries", async () => {
+  const row = await listOneFullRow();
+  const { description } = catalogEntry(TOOL_ID);
+  for (const field of Object.keys(row)) {
+    const denial = new RegExp(`\\b(?:does not|doesn't|never)\\s+returns?\\s+(?:(?:a|an|the|any|its|saved)\\s+)*'?${field}\\b`, "i");
+    assert.doesNotMatch(description, denial, `the description denies returning '${field}', which a listed row carries`);
+  }
+});
+
+test("make_request's url description points the model at this tool for a credential's hosts, and this tool really returns them", async () => {
+  const row = await listOneFullRow();
+  assert.equal(row.baseUrl, "https://api.fly.io");
+  assert.deepEqual(row.additionalHosts, ["https://api.machines.dev"]);
+
+  const schema = catalogEntry("custom_credential_make_request").inputSchema as { properties: { url: { description: string } } };
+  const urlDescription = schema.properties.url.description;
+  assert.doesNotMatch(urlDescription, /never (?:sent|shown|returned|given) to you/i, "saved hosts are listed by content_read.custom_credential; the text must not say they are withheld");
+  assert.match(urlDescription, /content_read\.custom_credential/);
+  assert.match(urlDescription, /\bbaseUrl\b/);
+  assert.match(urlDescription, /\badditionalHosts\b/);
+});
