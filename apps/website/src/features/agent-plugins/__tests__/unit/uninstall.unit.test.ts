@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { chmod, mkdtemp, readdir, stat } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -104,6 +104,60 @@ test("refuses a bundled plugin with AgentPluginNotUninstallableError, naming the
 
     const activations = await readAgentPluginActivations(workspaceLayout.root);
     assert.equal(activations.plugins["site-compliance"]?.origin, "bundled", "the bundled activation record must survive a refusal");
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+// t91 R4: a present-but-malformed entry for THIS plugin means its provenance is undetermined — the same "undetermined
+// means refuse" rule the per-call gate applies (F1.1). Uninstalling anyway would remove a bundled plugin that the
+// next boot silently re-seeds.
+for (const [label, entry] of [
+  ["a non-object entry", '"bundled"'],
+  ["an entry with a non-boolean 'enabled'", '{"enabled":"yes","origin":"operator-installed"}'],
+] as const) {
+  test(`t91 R4: ${label} for the plugin refuses preview AND uninstall — nothing removed, file bytes unchanged`, async () => {
+    const { cwd, instanceLayout, workspaceLayout } = await freshLayout();
+    try {
+      const installed = await installTestPackage(instanceLayout, "op-plugin", `archive-malformed-${label}`);
+      const activationsPath = path.join(workspaceLayout.root, ACTIVATIONS_FILENAME);
+      const bytes = `{"schemaVersion":1,"plugins":{"op-plugin":${entry}}}`;
+      await writeFile(activationsPath, bytes);
+      const req = { layout: instanceLayout, workspaceId: WORKSPACE_ID, pluginId: "op-plugin" };
+      const refusal = (error: unknown) =>
+        error instanceof AgentPluginNotUninstallableError &&
+        error.message ===
+          "Agent Plugin 'op-plugin' cannot be uninstalled: its entry in this workspace's activation record is malformed, so " +
+            "whether it is bundled with Tovu (and would be re-seeded on the next boot) cannot be established. Nothing was " +
+            "removed. Tell the user an operator has to repair that entry in activations.json first; until then this " +
+            "plugin's tool calls and plugin-pinned runs are refused.";
+
+      await assert.rejects(() => previewAgentPluginUninstall(req), refusal);
+      await assert.rejects(() => uninstallAgentPlugin(req), refusal);
+
+      assert.equal((await stat(installed.packageRoot)).isDirectory(), true);
+      assert.equal(await readFile(activationsPath, "utf8"), bytes);
+    } finally {
+      await forceRemove(cwd);
+    }
+  });
+}
+
+test("t91 R4: a malformed entry for a DIFFERENT plugin does not block uninstalling this one, and survives the delete", async () => {
+  const { cwd, instanceLayout, workspaceLayout } = await freshLayout();
+  try {
+    const installed = await installTestPackage(instanceLayout, "op-plugin", "archive-malformed-sibling");
+    const activationsPath = path.join(workspaceLayout.root, ACTIVATIONS_FILENAME);
+    await writeFile(
+      activationsPath,
+      '{"schemaVersion":1,"plugins":{"other-plugin":"garbage","op-plugin":{"enabled":true,"origin":"operator-installed"}}}',
+    );
+
+    const result = await uninstallAgentPlugin({ layout: instanceLayout, workspaceId: WORKSPACE_ID, pluginId: "op-plugin" });
+
+    assert.deepEqual(result.removedDigests, [installed.archiveDigest]);
+    await assert.rejects(() => stat(installed.packageRoot), { code: "ENOENT" });
+    assert.deepEqual(JSON.parse(await readFile(activationsPath, "utf8")).plugins, { "other-plugin": "garbage" });
   } finally {
     await forceRemove(cwd);
   }

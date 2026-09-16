@@ -110,7 +110,7 @@ import { chmod, readdir, rename, rm, stat } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import path from "node:path";
 
-import { deleteAgentPluginActivation, isAgentPluginRecordedAsBundled } from "./activation.js";
+import { deleteAgentPluginActivation, isAgentPluginRecordedAsBundled, resolveAgentPluginActivation } from "./activation.js";
 import type { InstalledAgentPlugin } from "./install.js";
 import type { AgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
@@ -180,7 +180,8 @@ const STAGED_DIRNAME_PREFIX = ".uninstalling-";
  * Reports what uninstalling `pluginId` would remove, without removing anything.
  *
  * @throws {AgentPluginNotFoundError} No installed package for `pluginId` exists in this workspace.
- * @throws {AgentPluginNotUninstallableError} The plugin's activation record has `origin: "bundled"`.
+ * @throws {AgentPluginNotUninstallableError} The plugin's activation record has `origin: "bundled"`, or a malformed
+ * entry for it (t91 R4).
  * @throws {AgentPluginActivationsUnreadableError} The activation record could not be read at all, so
  * whether it says "bundled" cannot be established — see `activation.ts`'s
  * `isAgentPluginRecordedAsBundled`.
@@ -197,7 +198,8 @@ export async function previewAgentPluginUninstall(required: UninstallAgentPlugin
  * `pluginId` under this workspace's own `packages/sha256/`, then deletes its activation record.
  *
  * @throws {AgentPluginNotFoundError} No installed package for `pluginId` exists in this workspace.
- * @throws {AgentPluginNotUninstallableError} The plugin's activation record has `origin: "bundled"`.
+ * @throws {AgentPluginNotUninstallableError} The plugin's activation record has `origin: "bundled"`, or a malformed
+ * entry for it (t91 R4).
  * @throws {AgentPluginActivationsUnreadableError} The activation record could not be read — refused
  * before anything is staged, so nothing is removed.
  * @throws {AgentPluginChangedSincePreviewError} `optional.confirmedPreview` was given and the installed digests differ from it.
@@ -313,7 +315,8 @@ async function restoreStagedTrees(staged: readonly StagedTree[], cause: unknown)
  * Finds `pluginId`'s installed digests in this workspace and applies both refusals.
  *
  * @throws {AgentPluginNotFoundError} No match on disk.
- * @throws {AgentPluginNotUninstallableError} The activation record says `origin: "bundled"`.
+ * @throws {AgentPluginNotUninstallableError} The activation record says `origin: "bundled"`, or holds a malformed
+ * entry for this plugin.
  * @throws {AgentPluginActivationsUnreadableError} The activation record exists but could not be
  * read, so whether it says `origin: "bundled"` cannot be established.
  * @complexity O(d) in the installed-digest count.
@@ -335,6 +338,13 @@ async function resolveUninstallTargets(required: UninstallAgentPluginRequired): 
   if (await isAgentPluginRecordedAsBundled(workspaceLayout.root, pluginId)) {
     throw new AgentPluginNotUninstallableError(bundledRefusalMessage(pluginId));
   }
+  // The bundled read above answers `false` for a present-but-malformed entry (a non-object, a non-boolean
+  // `enabled`), which says nothing about provenance. The gate reads that entry as `undetermined` and denies; an
+  // uninstall does the same rather than remove what may be a bundled plugin the next boot re-seeds (t91 R4). A
+  // file that became unreadable between the two reads also lands here, and is refused the same way.
+  if ((await resolveAgentPluginActivation(workspaceLayout.root, pluginId)).verdict === "undetermined") {
+    throw new AgentPluginNotUninstallableError(malformedEntryRefusalMessage(pluginId));
+  }
 
   return { workspaceRoot: workspaceLayout.root, packagesDir: workspaceLayout.packages, matches };
 }
@@ -346,6 +356,17 @@ function bundledRefusalMessage(pluginId: string): string {
     "(seed-bundled.ts), so removing its files now would silently reappear on the next restart. To stop it being " +
     `used, disable it instead: call plugins_set_enabled with family 'agent-plugin', pluginId '${pluginId}', ` +
     "enabled false (disabling needs no confirmation), or turn it off from the Agent Plugins admin screen."
+  );
+}
+
+/** Path-free: says why provenance is unknown and what repairs it. Does not suggest toggling the plugin, which would
+ *  rewrite a garbled bundled entry as `operator-installed`. */
+function malformedEntryRefusalMessage(pluginId: string): string {
+  return (
+    `Agent Plugin '${pluginId}' cannot be uninstalled: its entry in this workspace's activation record is malformed, so ` +
+    "whether it is bundled with Tovu (and would be re-seeded on the next boot) cannot be established. Nothing was " +
+    "removed. Tell the user an operator has to repair that entry in activations.json first; until then this " +
+    "plugin's tool calls and plugin-pinned runs are refused."
   );
 }
 
