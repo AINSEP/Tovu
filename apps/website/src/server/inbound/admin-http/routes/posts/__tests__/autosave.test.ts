@@ -136,6 +136,97 @@ test("PUT autosave rejects a body with no bodyJson for bodyFormat 'doc' as 400 V
   assert.deepEqual(await res.json(), { error: "invalid autosave body", code: "VALIDATION_ERROR" });
 });
 
+// ---------------------------------------------------------------------------
+// Characterization coverage for `parseAutosaveBody`'s individual branches, added 2026-09-16 ahead
+// of splitting it into `parseAutosaveCommonFields` + `parseAutosaveContent` (source-complexity-drift
+// ceiling). Each pins one branch's exact current status/body across the refactor. The bodyFormat
+// "html" path in particular had NO test at all before this — every existing test above only
+// exercises "doc".
+// ---------------------------------------------------------------------------
+
+test("PUT autosave with bodyFormat 'html' and a bodyHtml payload applies; GET returns the html back", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+  const post = await createSeedPost(baseUrl, cookie);
+
+  const put = await fetch(autosaveUrl(baseUrl, post.id), {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      bodyFormat: "html",
+      title: "Autosave fixture",
+      bodyHtml: "<p>hello</p>",
+      slug: "autosave-fixture",
+      baseVersion: post.version,
+    }),
+  });
+  assert.equal(put.status, 200);
+  assert.deepEqual(await put.json(), { applied: true });
+
+  const get = await fetch(autosaveUrl(baseUrl, post.id), { headers: { cookie } });
+  const { autosave } = (await get.json()) as { autosave: { bodyHtml: unknown; bodyFormat: string } | null };
+  assert.ok(autosave);
+  assert.equal(autosave.bodyFormat, "html");
+  assert.equal(autosave.bodyHtml, "<p>hello</p>");
+});
+
+test("PUT autosave rejects a body with no bodyHtml for bodyFormat 'html' as 400 VALIDATION_ERROR", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+  const post = await createSeedPost(baseUrl, cookie);
+
+  const res = await fetch(autosaveUrl(baseUrl, post.id), {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ bodyFormat: "html", title: "Autosave fixture", slug: "autosave-fixture", baseVersion: post.version }),
+  });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "invalid autosave body", code: "VALIDATION_ERROR" });
+});
+
+test("PUT autosave rejects an unrecognized bodyFormat value as 400 VALIDATION_ERROR", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+  const post = await createSeedPost(baseUrl, cookie);
+
+  const res = await fetch(autosaveUrl(baseUrl, post.id), {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      bodyFormat: "markdown",
+      title: "Autosave fixture",
+      bodyJson: {},
+      slug: "autosave-fixture",
+      baseVersion: post.version,
+    }),
+  });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "invalid autosave body", code: "VALIDATION_ERROR" });
+});
+
+test("PUT autosave rejects a missing slug as 400 VALIDATION_ERROR", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+  const post = await createSeedPost(baseUrl, cookie);
+
+  const res = await fetch(autosaveUrl(baseUrl, post.id), {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ bodyFormat: "doc", title: "Autosave fixture", bodyJson: {}, baseVersion: post.version }),
+  });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "invalid autosave body", code: "VALIDATION_ERROR" });
+});
+
+test("PUT autosave rejects a non-finite baseVersion as 400 VALIDATION_ERROR", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+  const post = await createSeedPost(baseUrl, cookie);
+
+  const res = await fetch(autosaveUrl(baseUrl, post.id), {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ bodyFormat: "doc", title: "Autosave fixture", bodyJson: {}, slug: "autosave-fixture", baseVersion: "not-a-number" }),
+  });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "invalid autosave body", code: "VALIDATION_ERROR" });
+});
+
 test("PUT autosave 403s a principal without content.write, matching pages/update-html.ts's own FORBIDDEN shape", async (t) => {
   const deps = createRouteDeps();
   const server = createServer(createApp(deps));

@@ -49,24 +49,51 @@ async function allowedToWrite(deps: ContentRouteDeps, res: Response): Promise<bo
   });
 }
 
-/** This route's four writable PUT fields, read off an untyped body in one place — mirrors
- *  `posts/update.ts`'s `parsePostUpdateBody`. Returns `null` (never throws) on any shape the
- *  `posts_body_format_shape` CHECK constraint would also reject, so the route can 400 before ever
- *  reaching the repo. @complexity O(1). */
-function parseAutosaveBody(rawBody: unknown): Pick<PostAutosaveSnapshot, "bodyFormat" | "bodyJson" | "bodyHtml" | "title" | "slug" | "baseVersion"> | null {
-  const body = (rawBody ?? {}) as Record<string, unknown>;
+/** The fields common to both `bodyFormat` variants, validated but not yet paired with a payload. */
+type AutosaveCommonFields = Pick<PostAutosaveSnapshot, "bodyFormat" | "title" | "slug" | "baseVersion">;
+
+/**
+ * Validates the four fields every autosave body carries regardless of `bodyFormat`. Split out of
+ * `parseAutosaveBody` (2026-09-16, source-complexity-drift ceiling) so the bodyFormat-specific
+ * payload check below has its own name instead of sharing one function's cyclomatic budget.
+ * @complexity O(1).
+ */
+function parseAutosaveCommonFields(body: Record<string, unknown>): AutosaveCommonFields | null {
   const bodyFormat = body.bodyFormat as PostBodyFormat;
   if (bodyFormat !== "doc" && bodyFormat !== "html") return null;
   if (typeof body.title !== "string") return null;
   if (typeof body.slug !== "string") return null;
   if (typeof body.baseVersion !== "number" || !Number.isFinite(body.baseVersion)) return null;
+  return { bodyFormat, title: body.title, slug: body.slug, baseVersion: body.baseVersion };
+}
 
+/**
+ * Validates and extracts the one payload field `bodyFormat` requires: `bodyJson` for `"doc"`,
+ * `bodyHtml` for `"html"`. Returns `null` (never throws) on any shape the `posts_body_format_shape`
+ * CHECK constraint would also reject, so the route can 400 before ever reaching the repo.
+ * @complexity O(1).
+ */
+function parseAutosaveContent(body: Record<string, unknown>, bodyFormat: PostBodyFormat): Pick<PostAutosaveSnapshot, "bodyJson" | "bodyHtml"> | null {
   if (bodyFormat === "doc") {
     if (typeof body.bodyJson !== "object" || body.bodyJson === null) return null;
-    return { bodyFormat, bodyJson: body.bodyJson as JsonObject, title: body.title, slug: body.slug, baseVersion: body.baseVersion };
+    return { bodyJson: body.bodyJson as JsonObject };
   }
   if (typeof body.bodyHtml !== "string") return null;
-  return { bodyFormat, bodyHtml: body.bodyHtml, title: body.title, slug: body.slug, baseVersion: body.baseVersion };
+  return { bodyHtml: body.bodyHtml };
+}
+
+/** This route's four writable PUT fields, read off an untyped body in one place — mirrors
+ *  `posts/update.ts`'s `parsePostUpdateBody`. Returns `null` (never throws) on any shape the
+ *  `posts_body_format_shape` CHECK constraint would also reject, so the route can 400 before ever
+ *  reaching the repo. @complexity O(1) — delegates to {@link parseAutosaveCommonFields} and
+ *  {@link parseAutosaveContent}. */
+function parseAutosaveBody(rawBody: unknown): Pick<PostAutosaveSnapshot, "bodyFormat" | "bodyJson" | "bodyHtml" | "title" | "slug" | "baseVersion"> | null {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  const common = parseAutosaveCommonFields(body);
+  if (!common) return null;
+  const content = parseAutosaveContent(body, common.bodyFormat);
+  if (!content) return null;
+  return { ...common, ...content };
 }
 
 /**
