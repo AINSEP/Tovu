@@ -87,6 +87,33 @@ test("this is a REAL 400-mappable outcome, not a thrown exception — the proper
 });
 
 // ---------------------------------------------------------------------------
+// Secret redaction (2026-09-16) — this layer is composed OUTERMOST in
+// `agent-daemon-server.ts`, outside `withRedactedToolFailures`, so a `failed` result it mints
+// itself never passes back through that decorator. `remoteName` is the one upstream-influenced
+// piece of the diagnosis text: it is the external server's OWN advertised tool name, sanitized by
+// `safeRemoteName` only against injection characters, never against secret shapes.
+// ---------------------------------------------------------------------------
+
+test("a refused tool whose remote-advertised name is secret-shaped is redacted, not leaked verbatim", async () => {
+  // Passes SAFE_REMOTE_NAME (`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`) — a real external MCP server can
+  // advertise a tool under exactly this name — and also matches the anthropic_key redaction rule.
+  const secretShapedName = "sk-ant-api03-ABCDEFGHIJ1234567890";
+  const toolId = "mcp__higgsfield__" + secretShapedName;
+  const inner = stubExecutor(new Set([toolId]));
+  const snap = snapshot("higgsfield", { refused: [{ remoteName: secretShapedName, reason: "not-in-operator-allowlist" }] });
+
+  const result = await withFederatedRefusalDiagnosis(inner, () => snap).execute(PRINCIPAL, RUN, toolId, {});
+
+  assert.equal(result.status, "failed");
+  assert.doesNotMatch(result.error ?? "", /sk-ant-api03-ABCDEFGHIJ1234567890/, "the secret-shaped remote name must never reach the model verbatim");
+  assert.match(result.error ?? "", /\[REDACTED:anthropic_key\]/);
+  // The rest of the message (server id and fix text) must still be intact — this is redaction, not
+  // an opaque replacement of the whole diagnosis.
+  assert.match(result.error ?? "", /on external server "higgsfield" was refused/);
+  assert.match(result.error ?? "", /Allowed tools", then restart/);
+});
+
+// ---------------------------------------------------------------------------
 // Every other reason still gets a real, distinct explanation
 // ---------------------------------------------------------------------------
 

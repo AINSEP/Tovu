@@ -57,15 +57,31 @@
  * caller-facing shape: a call the requester can fix by asking for something else, not a fault on this
  * side.
  *
+ * ---------------------------------------------------------------------------
+ * Why its own minted result is redacted here, not left to `withRedactedToolFailures`
+ * ---------------------------------------------------------------------------
+ * This decorator is composed OUTERMOST (see above), so a `failed` result it mints itself in its own
+ * `catch` block never passes back through `withRedactedToolFailures`, which sits INSIDE
+ * `createAssistantToolExecutor` (`tool-executor-stack.ts`) — every other `failed`-result path in the
+ * stack is redacted; this was the one that structurally could not be. Today `remoteName` is the only
+ * upstream-influenced piece of the composed string (the external server's own advertised tool name,
+ * sanitized by `safeRemoteName` against injection characters but not against secret shapes) and
+ * `connectionId`/`explanation` are operator-authored or fixed prose, but calling
+ * {@link redactSecretShapes} directly on the composed message — mirroring `tool-failure-redaction.ts`'s
+ * own `errorKind: 'validation'` branch exactly — closes the hole structurally rather than relying on
+ * that staying true.
+ *
  * Architectural role:
- * `src/assistant` composition-layer adapter, matching its three siblings above. Depends only on
- * `mcp-federation`'s pure reduction functions — no I/O, no registry, no protocol of its own.
+ * `src/assistant` composition-layer adapter, matching its three siblings above. Depends on
+ * `mcp-federation`'s pure reduction functions and on `contracts/core/secret-redaction.ts`'s pure
+ * engine — no I/O, no registry, no protocol of its own.
  */
 import { randomUUID } from "node:crypto";
 
 import type { Principal, RunRef, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
+import { redactSecretShapes } from "../contracts/core/secret-redaction.js";
 import { FEDERATED_TOOL_ID_PREFIX } from "./mcp-federation/trust.js";
 import { findFederatedToolRefusal, type FederationAdmissionSnapshotEntry } from "./mcp-federation/refusal-notice.js";
 
@@ -130,7 +146,18 @@ export function withFederatedRefusalDiagnosis(
           executionId: randomUUID(),
           status: "failed",
           errorKind: "validation",
-          error: `tool "${refusal.remoteName}" on external server "${refusal.connectionId}" was refused: ${refusal.explanation}`,
+          // Redacted like every other `errorKind: 'validation'` failure (`tool-failure-redaction.ts`'s
+          // own validation branch) even though THIS layer sits outside `withRedactedToolFailures` in
+          // `agent-daemon-server.ts`'s composition and so would otherwise never pass back through it —
+          // see this file's header for why it is composed outermost. `remoteName` is the one
+          // upstream-influenced piece of this string: it is the external server's OWN advertised tool
+          // name, sanitized by `safeRemoteName` only against injection characters, never against
+          // secret shapes, so a remote naming a tool e.g. `sk-ant-api03-...` would otherwise leak it
+          // verbatim. `connectionId` and `explanation` are operator-authored / fixed prose and never
+          // match a redaction rule, so this is a no-op for them.
+          error: redactSecretShapes(
+            `tool "${refusal.remoteName}" on external server "${refusal.connectionId}" was refused: ${refusal.explanation}`,
+          ).text,
         };
       }
     },
