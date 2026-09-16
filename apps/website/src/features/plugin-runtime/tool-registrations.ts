@@ -121,10 +121,10 @@ import type { InstalledAgentPlugin } from "../agent-plugins/install.js";
 // adds no `plugin-runtime -> agent-plugins/tool-registrations` edge. See its header, and the
 // "one tool, two families" section below.
 import { AgentPluginNotInstalledError, setAgentPluginEnabled } from "../agent-plugins/set-enabled.js";
-// t91 F1.1 (2026-09-16). `activation.ts` is the domain module that already defines this error;
+// t91 F1.1/R2 (2026-09-16). `activation.ts` is the domain module that already defines these errors;
 // importing it here adds no `plugin-runtime -> agent-plugins/tool-registrations` edge (same
 // reasoning as the `set-enabled.js` import above).
-import { AgentPluginActivationsUnreadableError, assertAgentPluginActivationsWritable } from "../agent-plugins/activation.js";
+import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, assertAgentPluginActivationsWritable } from "../agent-plugins/activation.js";
 // The Agent Plugins MCP-provisioning half of `plugins_set_enabled` (2026-09-15). The route's own
 // enable path calls these same two primitives; see `applyAgentPluginDecision` below for why the
 // in-chat enable must not skip them.
@@ -516,10 +516,11 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
     // real id), and a bare `Error` would reach the model as an opaque failure instead. The message
     // carries only the plugin id the caller already sent — nothing internal leaks.
     if (error instanceof AgentPluginNotInstalledError) throw new ToolInputError(error.message);
-    // t91 F1.1 (2026-09-16): nothing changed, so this is a RESULT the model can relay — matching
+    // t91 F1.1/R2 (2026-09-16): nothing changed, so this is a RESULT the model can relay — matching
     // ADR-055 Decision 6's `changed: false` shape — not a redacted failure. See
-    // `activationsUnreadableResult` below.
-    if (error instanceof AgentPluginActivationsUnreadableError) return activationsUnreadableResult(request, error);
+    // `activationsRefusalResult` below.
+    const refusal = activationsRefusalResult(request, error);
+    if (refusal !== undefined) return refusal;
     throw error;
   }
 }
@@ -541,7 +542,8 @@ async function unwritableAgentPluginActivationsResult(routeDeps: PluginsToolDeps
     await assertAgentPluginActivationsWritable(resolveAgentPluginLayout().forWorkspace(routeDeps.workspaceId).root);
     return undefined;
   } catch (error) {
-    if (error instanceof AgentPluginActivationsUnreadableError) return activationsUnreadableResult(request, error);
+    const refusal = activationsRefusalResult(request, error);
+    if (refusal !== undefined) return refusal;
     throw error;
   }
 }
@@ -564,6 +566,40 @@ function activationsUnreadableResult(request: SetEnabledRequest, error: AgentPlu
       `${request.enabled ? "enabled" : "disabled"}. Tell the user an operator has to repair activations.json first (the server ` +
       "log names the file and the fault); until then every Agent Plugin tool call in this workspace is refused.",
   };
+}
+
+/** t91 R2 (2026-09-16): another Tovu process held the cross-process activations.json write lock and
+ *  the wait timed out, or this process lost the lock before it could commit. Same ADR-055 Decision 6
+ *  shape as {@link activationsUnreadableResult}: nothing changed, so it is a RESULT the model can
+ *  relay. The host lock path stays in the server log via `console.warn`; `note` is fixed and
+ *  path-free.
+ *  @complexity O(1). */
+function activationsBusyResult(request: SetEnabledRequest, error: AgentPluginActivationsBusyError): unknown {
+  console.warn(`[agent-plugins] '${request.pluginId}': plugins_set_enabled refused — ${error.message}`);
+  return {
+    changed: false,
+    cancelled: false,
+    family: request.family,
+    pluginId: request.pluginId,
+    restartRequired: false,
+    reason: "activations-busy",
+    note:
+      `Nothing changed: another Tovu process was writing this workspace's Agent Plugin activation record at the same ` +
+      `moment, so '${request.pluginId}' was NOT ${request.enabled ? "enabled" : "disabled"}. Tell the user nothing was ` +
+      "changed and to try again in a moment; if it keeps happening, the server log names the lock file.",
+  };
+}
+
+/** Dispatches a thrown activation error to the matching not-changed RESULT — Unreadable to
+ *  {@link activationsUnreadableResult}, Busy to {@link activationsBusyResult} — or `undefined` for
+ *  any other error, so the caller can rethrow it unchanged. Shared by both
+ *  {@link applyAgentPluginDecision} and {@link unwritableAgentPluginActivationsResult} so the two
+ *  call sites classify activation failures identically.
+ *  @complexity O(1). */
+function activationsRefusalResult(request: SetEnabledRequest, error: unknown): unknown | undefined {
+  if (error instanceof AgentPluginActivationsUnreadableError) return activationsUnreadableResult(request, error);
+  if (error instanceof AgentPluginActivationsBusyError) return activationsBusyResult(request, error);
+  return undefined;
 }
 
 /**

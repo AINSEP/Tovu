@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 
-import { AgentPluginActivationsUnreadableError } from "#src/features/agent-plugins/activation";
+import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError } from "#src/features/agent-plugins/activation";
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
 import { AgentPluginNotInstalledError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
@@ -166,6 +166,11 @@ async function provisionAgentPluginMcpServersBestEffort(
  *   but could not be read. Nothing was written — `setAgentPluginEnabled` refuses before any write,
  *   per `activation.ts`'s "Writers never rewrite what they could not read". The host path stays in
  *   the server log only; the response body carries the fixed, path-free E2 text.
+ * - `AgentPluginActivationsBusyError`: t91 R2 (2026-09-16) — another Tovu process (API, agent
+ *   daemon, or the `agent-plugin:activation` CLI) held the cross-process write lock and the wait
+ *   timed out, or this process lost the lock before it could commit. Nothing was written either
+ *   way — see `activation.ts`'s `lockedActivationsWrite`. The host lock path stays in the server
+ *   log only; the response body is fixed and path-free, like the UNREADABLE case above.
  * - Anything else: opaque 500, matching every other route in this admin surface.
  */
 function sendSetEnabledError(res: Response, pluginId: string, error: unknown): void {
@@ -180,6 +185,16 @@ function sendSetEnabledError(res: Response, pluginId: string, error: unknown): v
         "This workspace's Agent Plugin activation record (activations.json) could not be read, so nothing was changed. " +
         "No Agent Plugin can be enabled or disabled until it is repaired — the server log names the file and the fault.",
       code: "AGENT_PLUGIN_ACTIVATIONS_UNREADABLE",
+    });
+    return;
+  }
+  if (error instanceof AgentPluginActivationsBusyError) {
+    console.warn(`[agent-plugins] '${pluginId}': enable/disable refused — ${error.message}`);
+    res.status(409).json({
+      error:
+        "Another Tovu process was changing this workspace's Agent Plugin activation record at the same moment, so " +
+        "nothing was changed. Try again; if this keeps happening, the server log names the lock file.",
+      code: "AGENT_PLUGIN_ACTIVATIONS_BUSY",
     });
     return;
   }

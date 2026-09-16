@@ -26,6 +26,7 @@ import {
 } from "../../contracts/core/tool-surface-exchanges.js";
 
 import {
+  AgentPluginActivationsBusyError,
   AgentPluginActivationsUnreadableError,
   filterActiveAgentPlugins,
   isAgentPluginActive,
@@ -1187,17 +1188,32 @@ function toModelFacingUninstallError(error: unknown): unknown {
 
 /**
  * The model-facing outcome of an `uninstall.ts` rejection: a RESULT when this workspace's activation record could
- * not be read, otherwise `toModelFacingUninstallError`'s classification, thrown.
+ * not be read, or could not be locked, otherwise `toModelFacingUninstallError`'s classification, thrown.
  *
- * An unreadable activations.json is not the caller's input and not an internal bug the model should see redacted
- * (t91 §7.1): nothing was removed, and the operator has a concrete repair to make, so it is the ADR-055 Decision 6
- * not-removed result `plugins_set_enabled`'s `activationsUnreadableResult` already returns. The error's message
- * names the host path, so it goes to the server log only; `note` is fixed, path-free text.
+ * An unreadable or busy activations.json is not the caller's input and not an internal bug the model should see
+ * redacted (t91 §7.1/R2): nothing was removed, and there is a concrete next step, so this is the ADR-055 Decision 6
+ * not-removed result `plugins_set_enabled`'s `activationsUnreadableResult`/`activationsBusyResult` already return
+ * for the sibling family. The error's message names the host path (and, for Busy, the lock file), so it goes to the
+ * server log only; `note` is fixed, path-free text.
  *
  * @throws The re-classified error for every other rejection.
  * @complexity O(1).
  */
 function uninstallRefusedResult(pluginId: string, error: unknown): unknown {
+  if (error instanceof AgentPluginActivationsBusyError) {
+    console.warn(`[agent-plugins] '${pluginId}': agent_plugins_uninstall refused — ${error.message}`);
+    return {
+      uninstalled: false,
+      cancelled: false,
+      pluginId,
+      restartRequired: false,
+      reason: "activations-busy",
+      note:
+        `Nothing was removed: another Tovu process was writing this workspace's Agent Plugin activation record at the ` +
+        `same moment, so '${pluginId}' was NOT uninstalled. Tell the user nothing was changed and to try again in a ` +
+        "moment; if it keeps happening, the server log names the lock file.",
+    };
+  }
   if (!(error instanceof AgentPluginActivationsUnreadableError)) throw toModelFacingUninstallError(error);
   console.warn(`[agent-plugins] '${pluginId}': agent_plugins_uninstall refused — ${error.message}`);
   return {
