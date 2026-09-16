@@ -43,7 +43,10 @@
  * `previewAgentPluginUninstall()` first. The preview carries only what a dialog may show (id,
  * versions, digests) — never `packageRoot`, which is a host path. After the answer the tool calls
  * `uninstallAgentPlugin()`, which runs both refusals again against the disk as it is then: the
- * dialog can stay open for minutes.
+ * dialog can stay open for minutes. The tool also passes the confirmed preview back in: if the
+ * installed digests for the id are no longer exactly the previewed ones (an archive added or removed
+ * meanwhile), `uninstallAgentPlugin()` removes nothing and throws `AgentPluginChangedSincePreviewError`,
+ * which the tool reports as a result.
  *
  * ---------------------------------------------------------------------------
  * Tombstone vs. delete on the activation record — DELETE, settled
@@ -119,13 +122,22 @@ export class AgentPluginNotFoundError extends Error {}
  *  "nothing to remove". */
 export class AgentPluginNotUninstallableError extends Error {}
 
+/** The installed archives for this plugin id are no longer exactly the ones a confirmed preview listed —
+ *  see `UninstallAgentPluginOptional.confirmedPreview`. Nothing was removed. */
+export class AgentPluginChangedSincePreviewError extends Error {}
+
 export interface UninstallAgentPluginRequired {
   readonly layout: AgentPluginLayout;
   readonly workspaceId: string;
   readonly pluginId: string;
 }
 
-export type UninstallAgentPluginOptional = {};
+export interface UninstallAgentPluginOptional {
+  /** The preview a human confirmed. When given, the uninstall refuses, removing nothing, unless the digests it
+   *  resolves now are exactly this preview's `archiveDigests`: a confirmation is consent to remove what was
+   *  resolved for the dialog, not whatever the id names by the time the answer arrives (t91 F2.2). */
+  readonly confirmedPreview?: AgentPluginUninstallPreview;
+}
 
 export interface UninstallAgentPluginResult {
   readonly pluginId: string;
@@ -188,6 +200,7 @@ export async function previewAgentPluginUninstall(required: UninstallAgentPlugin
  * @throws {AgentPluginNotUninstallableError} The plugin's activation record has `origin: "bundled"`.
  * @throws {AgentPluginActivationsUnreadableError} The activation record could not be read — refused
  * before anything is staged, so nothing is removed.
+ * @throws {AgentPluginChangedSincePreviewError} `optional.confirmedPreview` was given and the installed digests differ from it.
  * @throws Whatever the filesystem raised, after every staged tree has been put back — or, if a tree
  * could not be put back, an error naming the staged paths an operator must recover by hand.
  * @complexity O(d) in this workspace's installed-digest count (one `listInstalledPlugins` walk) plus
@@ -195,9 +208,10 @@ export async function previewAgentPluginUninstall(required: UninstallAgentPlugin
  */
 export async function uninstallAgentPlugin(
   required: UninstallAgentPluginRequired,
-  _optional: UninstallAgentPluginOptional = {},
+  optional: UninstallAgentPluginOptional = {},
 ): Promise<UninstallAgentPluginResult> {
   const { workspaceRoot, packagesDir, matches } = await resolveUninstallTargets(required);
+  assertUnchangedSincePreview(required.pluginId, optional.confirmedPreview, matches);
 
   // Reversible work first — see this file's header, "Why removal stages first". Nothing on this
   // side of the try is destructive: every step up to and including the activation-record delete can
@@ -220,6 +234,29 @@ export async function uninstallAgentPlugin(
   }
 
   return { pluginId: required.pluginId, removedDigests: matches.map((plugin) => plugin.archiveDigest) };
+}
+
+/**
+ * Refuses when the digests resolved now are not exactly the set a confirmed preview listed — an archive added
+ * OR removed for this id while the dialog was open. Runs in the same call that stages the removal, so it opens
+ * no new check-then-act gap of its own.
+ *
+ * @throws {AgentPluginChangedSincePreviewError} The two digest sets differ.
+ * @complexity O(d log d) in the digest count.
+ */
+function assertUnchangedSincePreview(
+  pluginId: string,
+  confirmedPreview: AgentPluginUninstallPreview | undefined,
+  matches: readonly InstalledAgentPlugin[],
+): void {
+  if (confirmedPreview === undefined) return;
+  const previewed = [...confirmedPreview.archiveDigests].sort();
+  const installedNow = matches.map((plugin) => plugin.archiveDigest).sort();
+  if (previewed.join(",") === installedNow.join(",")) return;
+  throw new AgentPluginChangedSincePreviewError(
+    `Agent Plugin '${pluginId}' changed after its uninstall was previewed (previewed archive digests: ${previewed.join(", ")}; ` +
+      `installed now: ${installedNow.join(", ")}) — nothing was removed`,
+  );
 }
 
 /**

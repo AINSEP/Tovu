@@ -330,6 +330,40 @@ test("cancel: nothing is removed and the result reports the cancellation, not an
   });
 });
 
+test("an archive installed for the same id while the dialog is open: confirm removes NOTHING and the result says it changed", async () => {
+  await withAgentPluginsDir(async () => {
+    const first = await installReal(WORKSPACE_A, "operator-plugin", "archive-changed-a");
+    const { deps } = fakeDeps();
+    const surfaceExchanges = createSurfaceExchangeStore();
+    const recorder = surfaceRecorder();
+
+    const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }));
+    const surface = await waitForDialog(recorder.first, pending);
+    const second = await installReal(WORKSPACE_A, "operator-plugin", "archive-changed-b");
+    const delivery = surfaceExchanges.deliver({
+      exchangeId: exchangeIdFromSurface(surface),
+      params: { decision: "confirm" },
+      principalId: PRINCIPAL_ID,
+      toolId: TOOL_ID,
+    });
+    assert.equal(delivery.ok, true);
+    const out = (await pending) as UninstallToolOutput;
+
+    assert.deepEqual(out, {
+      uninstalled: false,
+      cancelled: false,
+      pluginId: "operator-plugin",
+      restartRequired: false,
+      reason: "changed-since-confirmation",
+      note:
+        "'operator-plugin' changed after the user was asked: the installed archives are no longer the ones the confirmation showed. " +
+        "Nothing was removed. Call agent_plugins_uninstall again so the user can review and confirm what is installed now.",
+    });
+    assert.equal((await stat(first.packageRoot)).isDirectory(), true);
+    assert.equal((await stat(second.packageRoot)).isDirectory(), true);
+  });
+});
+
 test("a run that ends while the dialog is open closes it, reports 'abandoned', and removes nothing", async () => {
   await withAgentPluginsDir(async () => {
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-abandoned");

@@ -293,3 +293,42 @@ test("plugins_uninstall: a plugin never activated anywhere uninstalls cleanly wi
   assert.deepEqual(uninstallCalls, [SITE_PLUGIN.id]);
   assert.deepEqual(out.clearedWorkspaceIds, []);
 });
+
+// ---------------------------------------------------------------------------
+// 5. t91 F2.2 — the post-confirmation write re-discovers and refuses on a change
+// ---------------------------------------------------------------------------
+
+test("plugins_uninstall: a plugin whose version changed while the dialog was open is NOT removed, and the result says so", async () => {
+  const { deps, uninstallCalls, pluginActivationRepo } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
+  await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: false, updatedAt: NOW });
+  let discoveryCalls = 0;
+  const changing: PluginsToolDeps = { ...deps, discoverPlugins: async () => (discoveryCalls++ === 0 ? [SITE_PLUGIN] : [{ ...SITE_PLUGIN, version: "2.0.0" }]) };
+
+  const out = await uninstallWithDecision(changing, { pluginId: SITE_PLUGIN.id }, "confirm");
+
+  assert.deepEqual(out, {
+    pluginId: "my-plugin",
+    uninstalled: false,
+    cancelled: false,
+    reason: "changed-since-confirmation",
+    note:
+      "'my-plugin' changed after the user was asked: the confirmation showed My Plugin version 1.0.0, and that is no longer what is " +
+      "installed. Nothing was removed. Call plugins_uninstall again so the user can review and confirm what is installed now.",
+  });
+  assert.deepEqual(uninstallCalls, []);
+  const remaining = await pluginActivationRepo.listAll();
+  assert.equal(remaining.filter((a) => a.pluginId === "my-plugin").length, 1);
+});
+
+test("plugins_uninstall: a plugin that disappeared from discovery while the dialog was open is refused on the fresh read, and nothing is removed", async () => {
+  const { deps, uninstallCalls, pluginActivationRepo } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
+  await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: false, updatedAt: NOW });
+  let discoveryCalls = 0;
+  const changing: PluginsToolDeps = { ...deps, discoverPlugins: async () => (discoveryCalls++ === 0 ? [SITE_PLUGIN] : []) };
+
+  await assert.rejects(
+    () => uninstallWithDecision(changing, { pluginId: SITE_PLUGIN.id }, "confirm"),
+    /plugin 'my-plugin' was not found in the current discovery snapshot/,
+  );
+  assert.deepEqual(uninstallCalls, []);
+});

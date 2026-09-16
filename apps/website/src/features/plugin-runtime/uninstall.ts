@@ -28,6 +28,10 @@
  * exactly as it was (no orphaned "disabled but not really gone" row, no accidental data loss to
  * roll back).
  *
+ * A caller that asked a human first (the `plugins_uninstall` tool) also passes the confirmed preview; the record it
+ * resolves must then still carry the previewed name and version, or nothing is removed
+ * (`PluginChangedSincePreviewError`, t91 F2.2).
+ *
  * Settled policy (verified, not assumed, before writing this file):
  * - `ext.*` fields are never touched — this module has no dependency on `posts`/`post.ts` at all,
  *   by construction (same INV-03 shape `activation.ts` already documents for enable/disable).
@@ -70,6 +74,10 @@ export class PluginNotUninstallableError extends Error {}
  * workspace still has it enabled would silently break that workspace's runtime. */
 export class PluginEnabledError extends Error {}
 
+/** The plugin a human confirmed uninstalling is no longer the name and version discovery reports — see
+ *  `UninstallPluginOptional.confirmedPreview`. Nothing was removed. */
+export class PluginChangedSincePreviewError extends Error {}
+
 export interface UninstallPluginDeps {
   readonly repo: PluginActivationRepoPort;
   /** Caller-supplied fresh discovery snapshot — same convention as `SetPluginEnabledDeps.discovery`
@@ -92,7 +100,12 @@ export interface UninstallPluginRequired {
   input: UninstallPluginInput;
 }
 
-export type UninstallPluginOptional = {};
+export interface UninstallPluginOptional {
+  /** The preview a human confirmed. When given, the uninstall refuses before `onUninstall` (so nothing is removed)
+   *  unless the record it resolves still has the previewed name and version (t91 F2.2). The admin HTTP route has no
+   *  gap between showing and removing, and omits it. */
+  readonly confirmedPreview?: PluginUninstallPreview;
+}
 
 export interface UninstallPluginResult {
   /** Every workspace whose activation row for this plugin was removed (for the route's own
@@ -172,16 +185,18 @@ export async function previewUninstallPlugin(required: UninstallPluginRequired):
  * @throws {PluginNotFoundError} `input.pluginId` is absent from `deps.discovery`.
  * @throws {PluginNotUninstallableError} the discovered record's `source` is `"built-in"`.
  * @throws {PluginEnabledError} the plugin is enabled in one or more workspaces.
+ * @throws {PluginChangedSincePreviewError} `optional.confirmedPreview` was given and the record's name or version differs from it.
  * @complexity O(activation rows for this plugin) — one `listAll()` scan (bounded by total
  * activation rows in this instance) plus one `deleteActivation()` per matching row.
  */
 export async function uninstallPlugin(
   required: UninstallPluginRequired,
-  _optional: UninstallPluginOptional = {}
+  optional: UninstallPluginOptional = {}
 ): Promise<UninstallPluginResult> {
   const { deps, input } = required;
 
-  const { matching } = await resolveUninstallTarget(deps, input.pluginId);
+  const { record, matching } = await resolveUninstallTarget(deps, input.pluginId);
+  assertUnchangedSincePreview(record, optional.confirmedPreview);
 
   // Files first: if this throws, no activation row has been touched yet, so a failed attempt
   // leaves state exactly as it was (see this file's header for the full ordering rationale).
@@ -194,4 +209,18 @@ export async function uninstallPlugin(
   }
 
   return { clearedWorkspaceIds };
+}
+
+/**
+ * Refuses when the record resolved now does not carry the name and version the confirmed preview showed.
+ * @throws {PluginChangedSincePreviewError} Name or version differs.
+ * @complexity O(1).
+ */
+function assertUnchangedSincePreview(record: PluginDiscoveryRecord, confirmedPreview: PluginUninstallPreview | undefined): void {
+  if (confirmedPreview === undefined) return;
+  if (record.name === confirmedPreview.name && record.version === confirmedPreview.version) return;
+  throw new PluginChangedSincePreviewError(
+    `plugin '${record.id}' changed after its uninstall was previewed (previewed ${confirmedPreview.name} ${confirmedPreview.version}; ` +
+      `now ${record.name} ${record.version}) — nothing was removed`,
+  );
 }

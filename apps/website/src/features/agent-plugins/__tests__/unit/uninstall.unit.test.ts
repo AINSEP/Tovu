@@ -10,6 +10,7 @@ import { ACTIVATIONS_FILENAME, readAgentPluginActivations, recordBundledAgentPlu
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import {
+  AgentPluginChangedSincePreviewError,
   AgentPluginNotFoundError,
   AgentPluginNotUninstallableError,
   previewAgentPluginUninstall,
@@ -278,6 +279,71 @@ test("previewAgentPluginUninstall refuses exactly what uninstallAgentPlugin refu
       () => previewAgentPluginUninstall({ layout: instanceLayout, workspaceId: WORKSPACE_ID, pluginId: "site-compliance" }),
       AgentPluginNotUninstallableError,
     );
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// t91 F2.2 — a confirmed preview binds the uninstall to what was resolved for the dialog
+// ---------------------------------------------------------------------------
+
+test("a confirmed preview refuses — removing nothing — when an archive for the same id was installed after it was taken", async () => {
+  const { cwd, instanceLayout, workspaceLayout } = await freshLayout();
+  try {
+    const first = await installTestPackage(instanceLayout, "changed-plugin", "archive-changed-a");
+    await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "changed-plugin", enabled: false, actor: "op-1" });
+    const req = { layout: instanceLayout, workspaceId: WORKSPACE_ID, pluginId: "changed-plugin" };
+    const preview = await previewAgentPluginUninstall(req);
+    const second = await installTestPackage(instanceLayout, "changed-plugin", "archive-changed-b");
+
+    await assert.rejects(
+      () => uninstallAgentPlugin(req, { confirmedPreview: preview }),
+      (error: unknown) =>
+        error instanceof AgentPluginChangedSincePreviewError &&
+        error.message ===
+          `Agent Plugin 'changed-plugin' changed after its uninstall was previewed (previewed archive digests: ${first.archiveDigest}; ` +
+            `installed now: ${[first.archiveDigest, second.archiveDigest].sort().join(", ")}) — nothing was removed`,
+    );
+
+    assert.equal((await stat(first.packageRoot)).isDirectory(), true);
+    assert.equal((await stat(second.packageRoot)).isDirectory(), true);
+    assert.deepEqual((await readdir(workspaceLayout.packages)).sort(), [first.archiveDigest, second.archiveDigest].sort());
+    const activations = await readAgentPluginActivations(workspaceLayout.root);
+    assert.equal(activations.plugins["changed-plugin"]?.enabled, false);
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("a confirmed preview refuses when one of its previewed archives was removed before the answer", async () => {
+  const { cwd, instanceLayout, workspaceLayout } = await freshLayout();
+  try {
+    const first = await installTestPackage(instanceLayout, "shrunk-plugin", "archive-shrunk-a");
+    const second = await installTestPackage(instanceLayout, "shrunk-plugin", "archive-shrunk-b");
+    const req = { layout: instanceLayout, workspaceId: WORKSPACE_ID, pluginId: "shrunk-plugin" };
+    const preview = await previewAgentPluginUninstall(req);
+    await forceRemove(second.packageRoot);
+
+    await assert.rejects(() => uninstallAgentPlugin(req, { confirmedPreview: preview }), AgentPluginChangedSincePreviewError);
+
+    assert.equal((await stat(first.packageRoot)).isDirectory(), true);
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("an unchanged confirmed preview uninstalls normally", async () => {
+  const { cwd, instanceLayout, workspaceLayout } = await freshLayout();
+  try {
+    const installed = await installTestPackage(instanceLayout, "unchanged-plugin", "archive-unchanged");
+    const req = { layout: instanceLayout, workspaceId: WORKSPACE_ID, pluginId: "unchanged-plugin" };
+    const preview = await previewAgentPluginUninstall(req);
+
+    const result = await uninstallAgentPlugin(req, { confirmedPreview: preview });
+
+    assert.deepEqual(result, { pluginId: "unchanged-plugin", removedDigests: [installed.archiveDigest] });
+    await assert.rejects(() => stat(installed.packageRoot));
   } finally {
     await forceRemove(cwd);
   }

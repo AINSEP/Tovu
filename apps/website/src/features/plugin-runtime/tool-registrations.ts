@@ -99,8 +99,17 @@ import type { PluginDiscoveryRecord } from "./discovery.js";
 // errors (`PluginNotFoundError`/`PluginNotUninstallableError`/`PluginEnabledError`) are propagated
 // undecorated, same as every other error this domain's `plugins_set_enabled` handler already lets
 // through unreclassified — this file has never used the `ToolInputError`/`withSchemaOnRejection`
-// convention other domains use, and this addition does not introduce it unilaterally.
-import { previewUninstallPlugin, uninstallPlugin, type PluginUninstallPreview } from "./uninstall.js";
+// convention other domains use, and this addition does not introduce it unilaterally. The one
+// exception is `PluginChangedSincePreviewError`, which `uninstallConfirmedPlugin` turns into a
+// not-removed result: it is not a refusal of the caller's input but a change while the confirmation
+// dialog was open (t91 F2.2).
+import {
+  PluginChangedSincePreviewError,
+  previewUninstallPlugin,
+  uninstallPlugin,
+  type PluginUninstallPreview,
+  type UninstallPluginRequired,
+} from "./uninstall.js";
 // The Agent Plugins half of `plugins_list` (see this file's header) — a deliberate, disclosed
 // cross-domain read. `resolve-agent-plugin-refs.ts`/`layout.ts` only, never
 // `features/agent-plugins/tool-registrations.ts` (a separate workstream's file; not touched here).
@@ -358,6 +367,38 @@ function notConfirmedUninstallResult(outcome: ConfirmationOutcome, pluginId: str
         ? `The user did not answer the confirmation before it expired. '${pluginId}' was NOT uninstalled.`
         : `The confirmation was closed because the run ended. '${pluginId}' was NOT uninstalled.`,
   };
+}
+
+/** A fresh `uninstallPlugin` request. Discovery is re-read on every call, so the post-confirmation write never resolves
+ *  its target from the snapshot taken before a human was asked. @complexity one discovery scan. */
+async function uninstallRequestFor(routeDeps: PluginsToolDeps, pluginId: string): Promise<UninstallPluginRequired> {
+  const discovery = await routeDeps.discoverPlugins();
+  return { deps: { repo: routeDeps.pluginActivationRepo, discovery, onUninstall: routeDeps.onPluginUninstalled }, input: { pluginId } };
+}
+
+/**
+ * The post-confirmation half of `plugins_uninstall` (t91 F2.2): re-discovers, then uninstalls only if the plugin is
+ * still the name and version the dialog showed. A change is a not-removed RESULT (ADR-055 Decision 6), the same union
+ * member `expired`/`abandoned` use; every other refusal still propagates undecorated, per this file's convention.
+ * @complexity one discovery scan plus `uninstallPlugin`.
+ */
+async function uninstallConfirmedPlugin(routeDeps: PluginsToolDeps, preview: PluginUninstallPreview): Promise<unknown> {
+  const { pluginId } = preview;
+  try {
+    const result = await uninstallPlugin(await uninstallRequestFor(routeDeps, pluginId), { confirmedPreview: preview });
+    return { pluginId, clearedWorkspaceIds: result.clearedWorkspaceIds };
+  } catch (error) {
+    if (!(error instanceof PluginChangedSincePreviewError)) throw error;
+    return {
+      pluginId,
+      uninstalled: false,
+      cancelled: false,
+      reason: "changed-since-confirmation",
+      note:
+        `'${pluginId}' changed after the user was asked: the confirmation showed ${preview.name} version ${preview.version}, and that ` +
+        "is no longer what is installed. Nothing was removed. Call plugins_uninstall again so the user can review and confirm what is installed now.",
+    };
+  }
 }
 
 /**
@@ -625,28 +666,23 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
      * actually enforced here, only asked of the model in prose).
      *
      * Order is load-bearing, same as `plugins_set_enabled` above: parse -> authorize -> preview ->
-     * confirm -> write. `previewUninstallPlugin` runs BEFORE the dialog so an unknown, built-in, or
-     * still-enabled plugin is refused without ever asking a human to approve an uninstall that was
-     * never going to happen — reuses the SAME held-open exchange `plugins_set_enabled`'s enable path
-     * already does (`uninstall-confirmation-ui.ts`).
+     * confirm -> re-discover and write only if the plugin is still what the dialog showed.
+     * `previewUninstallPlugin` runs BEFORE the dialog so an unknown, built-in, or still-enabled plugin
+     * is refused without ever asking a human to approve an uninstall that was never going to happen —
+     * reuses the SAME held-open exchange `plugins_set_enabled`'s enable path already does
+     * (`uninstall-confirmation-ui.ts`).
      */
     plugins_uninstall: async (ctx) => {
       const input = requireInputRecord(ctx.input);
       const pluginId = requireString(input, "pluginId");
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.plugins.enable", entityType: "plugin", entityId: pluginId });
 
-      const discovery = await routeDeps.discoverPlugins();
-      const request = {
-        deps: { repo: routeDeps.pluginActivationRepo, discovery, onUninstall: routeDeps.onPluginUninstalled },
-        input: { pluginId },
-      };
-      const preview = await previewUninstallPlugin(request); // throws PluginNotFoundError/NotUninstallableError/EnabledError BEFORE any dialog
+      const preview = await previewUninstallPlugin(await uninstallRequestFor(routeDeps, pluginId)); // throws PluginNotFoundError/NotUninstallableError/EnabledError BEFORE any dialog
 
       const outcome = await confirmUninstall(surfaces, ctx, preview);
       if (!outcome.confirmed) return notConfirmedUninstallResult(outcome, pluginId);
 
-      const result = await uninstallPlugin(request);
-      return { pluginId, clearedWorkspaceIds: result.clearedWorkspaceIds };
+      return uninstallConfirmedPlugin(routeDeps, preview);
     },
   };
 

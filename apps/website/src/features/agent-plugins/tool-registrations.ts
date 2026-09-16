@@ -36,11 +36,13 @@ import { resolveAgentPluginLayout } from "./layout.js";
 import { isInstalledDigestPresent, listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
 import { rankInstalledAgentPlugins, type AgentPluginSearchCandidate } from "./search.js";
 import {
+  AgentPluginChangedSincePreviewError,
   AgentPluginNotFoundError,
   AgentPluginNotUninstallableError,
   previewAgentPluginUninstall,
   uninstallAgentPlugin,
   type AgentPluginUninstallPreview,
+  type UninstallAgentPluginRequired,
 } from "./uninstall.js";
 import { AGENT_PLUGINS_UNINSTALL_TOOL_ID, buildUninstallConfirmationResource } from "./uninstall-confirmation-ui.js";
 import type { ToolContributor } from "#src/assistant/index";
@@ -1082,8 +1084,9 @@ export function contributeAgentPluginSearchTools(): ToolContributor {
  * package is irreversible and removes guidance the assistant itself runs on, so it is not the model's
  * to decide; the first cut only asked the MODEL to confirm in prose. Order inside the handler:
  * permission, then `previewAgentPluginUninstall` (so an unknown or bundled id is refused before a
- * human is asked anything), then the dialog, then `uninstallAgentPlugin`, which re-runs both refusals
- * against the disk as it is after the answer. Fails closed with no `emitSurface`, like its siblings.
+ * human is asked anything), then the dialog, then `uninstallAgentPlugin` with the confirmed preview, which
+ * re-runs both refusals against the disk as it is after the answer and removes nothing if the installed
+ * archives are no longer the previewed ones (a `changed-since-confirmation` result, t91 F2.2). Fails closed with no `emitSurface`, like its siblings.
  *
  * Risk classification: `deletes-durable-state`, not `mutates-durable-state`. This domain imports
  * `AgentToolSideEffect` from the current kit (`@jini-ai/cms/core`) rather than declaring its own
@@ -1239,6 +1242,41 @@ function notConfirmedUninstallResult(outcome: Exclude<ConfirmationOutcome, { con
   };
 }
 
+/**
+ * The post-confirmation half: uninstalls exactly what the human was shown. If the installed archives changed while
+ * the dialog was open, that is a not-removed RESULT — the same union member `expired`/`abandoned` use — not a
+ * `ToolInputError`: the caller's input was fine, what is installed moved. Every other refusal keeps
+ * `toModelFacingUninstallError`'s classification.
+ * @complexity O(1) beyond `uninstallAgentPlugin`.
+ */
+async function uninstallConfirmedAgentPlugin(request: UninstallAgentPluginRequired, preview: AgentPluginUninstallPreview): Promise<unknown> {
+  try {
+    const result = await uninstallAgentPlugin(request, { confirmedPreview: preview });
+    return {
+      uninstalled: true,
+      cancelled: false,
+      pluginId: result.pluginId,
+      removedDigests: result.removedDigests,
+      restartRequired: true,
+      note: UNINSTALL_RESTART_NOTE,
+    };
+  } catch (error) {
+    if (error instanceof AgentPluginChangedSincePreviewError) {
+      return {
+        uninstalled: false,
+        cancelled: false,
+        pluginId: request.pluginId,
+        restartRequired: false,
+        reason: "changed-since-confirmation",
+        note:
+          `'${request.pluginId}' changed after the user was asked: the installed archives are no longer the ones the confirmation showed. ` +
+          "Nothing was removed. Call agent_plugins_uninstall again so the user can review and confirm what is installed now.",
+      };
+    }
+    throw toModelFacingUninstallError(error);
+  }
+}
+
 /** This tool's own risk classification. */
 export const agentPluginUninstallDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   [AGENT_PLUGINS_UNINSTALL_TOOL_ID, "deletes-durable-state"],
@@ -1267,15 +1305,7 @@ export function buildAgentPluginUninstallRegistrations(routeDeps: AgentPluginUni
       const outcome = await confirmUninstall(surfaces, ctx, preview);
       if (!outcome.confirmed) return notConfirmedUninstallResult(outcome, pluginId);
 
-      const result = await withModelFacingUninstallErrors(() => uninstallAgentPlugin(request));
-      return {
-        uninstalled: true,
-        cancelled: false,
-        pluginId: result.pluginId,
-        removedDigests: result.removedDigests,
-        restartRequired: true,
-        note: UNINSTALL_RESTART_NOTE,
-      };
+      return uninstallConfirmedAgentPlugin(request, preview);
     },
   };
 
