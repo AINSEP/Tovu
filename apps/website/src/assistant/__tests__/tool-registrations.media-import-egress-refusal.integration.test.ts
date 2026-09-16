@@ -41,6 +41,8 @@ const WORKSPACE_ID = "ws-media-import-egress";
 /** The verbatim message `client.ts`'s `assertNoPrivateAddress` produces for the cloud metadata
  *  endpoint — the single most consequential target this guard blocks. */
 const METADATA_REFUSAL = "egress to '169.254.169.254' (169.254.169.254) rejected: resolved address is link-local";
+/** The `callerSafeMessage` that same throw site supplies: the resolved address is dropped. */
+const METADATA_REFUSAL_CALLER_SAFE = "egress to '169.254.169.254' rejected: resolved address is link-local";
 
 /** An `HttpClientPort` that refuses exactly as the guarded client does. */
 class RefusingHttpClient implements HttpClientPort {
@@ -54,7 +56,7 @@ class RefusingHttpClient implements HttpClientPort {
   }
 }
 
-function buildDelegatedToolDeps(clientError: Error) {
+function buildDelegatedToolDeps(clientError: Error, log: (line: string) => void = () => {}) {
   const routeDeps: MediaImportToolDeps = {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
@@ -67,6 +69,7 @@ function buildDelegatedToolDeps(clientError: Error) {
     mediaContentTypeStore: new InMemoryMediaContentTypeStore(),
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo(),
     mediaImportHttpClient: new RefusingHttpClient(clientError),
+    mediaImportEgressRefusalLog: log,
   };
 
   const registry = createToolRegistry();
@@ -77,8 +80,8 @@ function buildDelegatedToolDeps(clientError: Error) {
   return { routeDeps, registry, toolExecutor, lifecycle };
 }
 
-async function executeImport(clientError: Error, url: string) {
-  const { toolExecutor, lifecycle } = buildDelegatedToolDeps(clientError);
+async function executeImport(clientError: Error, url: string, log?: (line: string) => void) {
+  const { toolExecutor, lifecycle } = buildDelegatedToolDeps(clientError, log);
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
 
   return delegatedToolExecuteRoute.handle(
@@ -89,7 +92,7 @@ async function executeImport(clientError: Error, url: string) {
 
 test("an SSRF refusal reaches the caller as a BAD_REQUEST naming the blocked address, not a redacted INTERNAL_ERROR", async () => {
   const result = await executeImport(
-    new EgressRefusedError(METADATA_REFUSAL),
+    new EgressRefusedError(METADATA_REFUSAL, { callerSafeMessage: METADATA_REFUSAL_CALLER_SAFE }),
     "https://metadata.internal.example/latest/meta-data/"
   );
 
@@ -102,8 +105,8 @@ test("an SSRF refusal reaches the caller as a BAD_REQUEST naming the blocked add
   );
   assert.match(
     result.error.message,
-    /egress to '169\.254\.169\.254' \(169\.254\.169\.254\) rejected: resolved address is link-local/,
-    "the refusal REASON must reach the wire verbatim — a 400 with the message stripped is the same defect wearing a different status code"
+    /egress to '169\.254\.169\.254' rejected: resolved address is link-local/,
+    "the refusal REASON must reach the wire in its caller-safe form — a 400 with the message stripped is the same defect wearing a different status code"
   );
 });
 
@@ -121,8 +124,10 @@ test("the refusal is a refusal, not an invitation to retry the identical call", 
 });
 
 test("a scheme refusal from the policy layer surfaces the same way — the classification is by TYPE, not by one message", async () => {
+  // Built exactly as `client.ts`'s `assertAllowedTarget` builds it: this refusal carries no address,
+  // so its caller-safe form is the full message.
   const result = await executeImport(
-    new EgressRefusedError("scheme 'http:' is not in the allowed egress schemes"),
+    new EgressRefusedError("scheme 'http:' is not in the allowed egress schemes", { callerSafeMessage: "scheme 'http:' is not in the allowed egress schemes" }),
     "https://cdn.example.com/redirects-to-http.png"
   );
 
@@ -141,4 +146,24 @@ test("a genuine transport failure is STILL a redacted INTERNAL_ERROR — the fix
   assert.ok(!result.ok);
   assert.equal(result.error.code, "INTERNAL_ERROR", "a transport failure is not a caller-input problem");
   assert.doesNotMatch(result.error.message, /EAI_AGAIN/, "internal transport detail must never reach the wire");
+});
+
+test("the address a named host resolved to never reaches the caller; the full refusal is kept in the server log", async () => {
+  // The case the caller-safe form exists for: a host name the caller chose, and the internal address
+  // it resolved to. Returning that address lets a caller map internal DNS one import at a time.
+  const logLines: string[] = [];
+  const result = await executeImport(
+    new EgressRefusedError("egress to 'internal-db.corp' (10.0.4.7) rejected: resolved address is private", {
+      callerSafeMessage: "egress to 'internal-db.corp' rejected: resolved address is private",
+    }),
+    "https://internal-db.corp/avatar.png",
+    (line) => logLines.push(line)
+  );
+
+  assert.ok(!result.ok);
+  assert.equal(result.error.code, "BAD_REQUEST");
+  assert.match(result.error.message, /egress to 'internal-db\.corp' rejected: resolved address is private/);
+  assert.ok(!JSON.stringify(result).includes("10.0.4.7"), `the resolved address reached the wire: ${JSON.stringify(result)}`);
+  assert.equal(logLines.length, 1, logLines.join("\n"));
+  assert.match(logLines[0]!, /egress to 'internal-db\.corp' \(10\.0\.4\.7\) rejected: resolved address is private/);
 });

@@ -74,6 +74,9 @@ export interface MediaImportToolDeps {
    * discipline `CredentialedRequestDeps.httpClient` documents for the identical shape of dependency.
    */
   mediaImportHttpClient: HttpClientPort;
+  /** Test-only override for where the FULL egress refusal (resolved address included) is logged;
+   *  defaults to `console.warn`. See {@link withCallerSafeEgressRefusal}. */
+  mediaImportEgressRefusalLog?: (line: string) => void;
 }
 
 const CATALOG_BY_ID = indexCatalogById(mediaImportAgentToolCatalog);
@@ -99,9 +102,9 @@ const DOMAIN = "media-import";
  *
  * The marker is the honest classification for both, not a trick to defeat the redaction: it means
  * "the caller's input was the problem and a different input would fix it", and a different
- * (publicly reachable) URL does fix an egress refusal. Its message names only the host the caller
- * already supplied, the address it resolved to, and the classification — see `EgressRefusedError`'s
- * own doc for why that is safe to surface. Same precedent as `features/post`'s
+ * (publicly reachable) URL does fix an egress refusal. The refusal reaches the caller only in its
+ * `callerSafeMessage` form — the host the caller supplied and the classification, never the address
+ * it resolved to ({@link withCallerSafeEgressRefusal}). Same precedent as `features/post`'s
  * `PostVersionConflictError` and `features/media`'s `AttachmentRejectedError` re-classifications.
  *
  * Deliberately NOT widened to "anything the HTTP client threw": a DNS failure, a connect timeout,
@@ -114,6 +117,28 @@ const DOMAIN = "media-import";
  */
 function isImportShapeRejection(error: unknown): boolean {
   return error instanceof MediaImportValidationError || error instanceof EgressRefusedError;
+}
+
+/**
+ * Runs `work`, narrowing any `EgressRefusedError` it throws to its `callerSafeMessage` BEFORE
+ * `withSchemaOnRejection` reads `.message` — the same narrowing
+ * `features/custom-credentials/tool-registrations.ts`'s `makeModelFacingCredentialedRequest` applies.
+ *
+ * `.message` names the address the hostname resolved to. A model that can name any host and read
+ * back its resolved address can map internal DNS one import at a time (`internal-db.corp` ->
+ * `10.0.4.7`). That full message is logged server-side instead; it carries a hostname, an address,
+ * and a class, never request content (`platform/http/errors.ts` documents it as the log-facing half).
+ *
+ * @complexity O(1) beyond `work` itself.
+ */
+async function withCallerSafeEgressRefusal<T>(log: (line: string) => void, work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (err) {
+    if (!(err instanceof EgressRefusedError)) throw err;
+    log(`[media-import] media_import_from_url egress refused: ${err.message}`);
+    throw new EgressRefusedError(err.callerSafeMessage, { callerSafeMessage: err.callerSafeMessage });
+  }
 }
 
 /**
@@ -155,9 +180,9 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
       const url = requireString(input, "url");
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "media.upload", entityType: "media" });
 
-      return withSchemaOnRejection(
-        { toolId: "media_import_from_url", catalog: CATALOG_BY_ID, isShapeRejection: isImportShapeRejection },
-        async () => {
+      const logEgressRefusal = routeDeps.mediaImportEgressRefusalLog ?? ((line: string) => console.warn(line));
+      return withSchemaOnRejection({ toolId: "media_import_from_url", catalog: CATALOG_BY_ID, isShapeRejection: isImportShapeRejection }, () =>
+        withCallerSafeEgressRefusal(logEgressRefusal, async () => {
           const fetched = await fetchImage({ httpClient: routeDeps.mediaImportHttpClient }, { url });
 
           const { media } = await uploadMedia({
@@ -207,7 +232,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
               sourceUrl: fetched.url.href,
             },
           };
-        }
+        })
       );
     },
   };
