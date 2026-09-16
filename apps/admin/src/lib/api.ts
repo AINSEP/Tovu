@@ -739,14 +739,13 @@ export interface AdminSiteTokenStatus {
   runtimeMode: AdminSiteTokenRuntimeMode;
 }
 
-/** Mirrors `POST .../system/site-token/generate`'s `201` response shape. `hex` is the raw root
- *  key, in the clear. Not the only call that can return one anymore — `api.revealSiteToken()`
- *  also can, on demand (2026-09-09: the owner's own words, "i want that token to be visible to
- *  admins or else when it breaks they have no idea whats going on" — superseding an earlier,
- *  narrower "shown once at creation" brief). The caller must still never persist or log the value
- *  itself; `AdminSiteTokenStatus` (the plain `GET`) never carries it. */
+/** Mirrors `POST .../system/site-token/generate`'s `201` response shape. Deliberately has NO
+ *  `hex` field (sol finding 3-2, 2026-09-16 fix): `useSiteToken`'s `generate()` only ever reads
+ *  `fingerprint`/`keyFilePath`/`runtimeMode` from this response, so the server stopped sending the
+ *  raw key value here — it had no consumer and was pure exposure. `api.revealSiteToken()` (below)
+ *  stays the one, explicit, on-purpose call that returns the value; `AdminSiteTokenStatus` (the
+ *  plain `GET`) never carries it either. */
 export interface AdminGeneratedSiteToken {
-  hex: string;
   fingerprint: string;
   keyFilePath: string;
   runtimeMode: AdminSiteTokenRuntimeMode;

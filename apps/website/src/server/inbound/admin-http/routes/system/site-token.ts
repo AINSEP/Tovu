@@ -149,10 +149,14 @@ export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenD
 
     try {
       const generated = generateFileRootKey();
-      // Same reasoning as reveal: this body carries the raw key value too.
+      // `generated.hex` is deliberately NOT forwarded here (sol finding 3-2, 2026-09-16): the
+      // admin controller (`use-site-token.hooks.ts`'s `generate()`) only ever reads
+      // fingerprint/keyFilePath/runtimeMode from this response, so echoing the raw key gave it no
+      // product behavior — only extra exposure across the HTTP response, browser memory, and any
+      // network-log tooling. Reveal (above) stays the one, explicit, on-purpose place this route
+      // family discloses the value.
       res.set("Cache-Control", "no-store");
       res.status(201).json({
-        hex: generated.hex,
         fingerprint: generated.fingerprint,
         keyFilePath: generated.keyFilePath,
         runtimeMode: resolveRuntimeMode(),

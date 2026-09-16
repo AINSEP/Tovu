@@ -130,15 +130,34 @@ test("session callers keep working: GET, reveal, and generate all still succeed 
 
   const generated = await fetch(`${baseUrl}${BASE}/generate`, { method: "POST", headers: { cookie } });
   assert.equal(generated.status, 201);
-  const generatedBody = (await generated.json()) as { hex: string; fingerprint: string; keyFilePath: string };
-  assert.equal(generatedBody.hex.length, 64, "32 raw bytes, hex-encoded");
+  const generatedBody = (await generated.json()) as { fingerprint: string; keyFilePath: string };
+  assert.equal("hex" in generatedBody, false, "generate never echoes the raw key back over the wire (sol 3-2) — Reveal is the only disclosure path");
   assert.ok(existsSync(generatedBody.keyFilePath), "generate actually wrote the key file");
 
   const revealed = await fetch(`${baseUrl}${BASE}/reveal`, { method: "POST", headers: { cookie } });
   assert.equal(revealed.status, 200);
-  const revealedBody = (await revealed.json()) as { hex?: string; active: boolean };
+  const revealedBody = (await revealed.json()) as { hex?: string; active: boolean; fingerprint?: string };
   assert.equal(revealedBody.active, true);
-  assert.equal(revealedBody.hex, generatedBody.hex, "reveal returns the same key generate just wrote");
+  assert.equal(revealedBody.hex?.length, 64, "32 raw bytes, hex-encoded — the ONE place this route family discloses the value");
+  assert.equal(revealedBody.fingerprint, generatedBody.fingerprint, "reveal's fingerprint matches the key generate just wrote");
+});
+
+test("generate's response never carries the raw key — only status/reveal-relevant metadata (sol finding 3-2)", async (t) => {
+  isolateHomeDir(t);
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const generated = await fetch(`${baseUrl}${BASE}/generate`, { method: "POST", headers: { cookie } });
+  assert.equal(generated.status, 201);
+  const generatedBody = (await generated.json()) as Record<string, unknown>;
+  assert.equal(
+    "hex" in generatedBody,
+    false,
+    "the admin controller (use-site-token.hooks.ts's generate()) only ever reads fingerprint/keyFilePath/runtimeMode from this response — the raw key has no consumer here"
+  );
+  assert.equal(typeof generatedBody.fingerprint, "string");
+  assert.equal(typeof generatedBody.keyFilePath, "string");
 });
 
 test("reveal and generate responses carry Cache-Control: no-store; GET status does not carry key material", async (t) => {

@@ -306,9 +306,12 @@ export class RootKeyFileAlreadyExistsError extends Error {
   }
 }
 
-/** {@link generateFileRootKey}'s result. `hex` is the ONLY place in this module's admin-facing
- *  surface that ever returns root-key material in the clear — callers must show it to the
- *  operator once and never persist or log it themselves. */
+/** {@link generateFileRootKey}'s result. `hex` is the raw key this call just wrote to disk, in
+ *  the clear — but `server/inbound/admin-http/routes/system/site-token.ts`'s `POST .../generate`
+ *  deliberately does NOT forward it in the HTTP response (sol finding 3-2, 2026-09-16): the admin
+ *  controller never read it, so echoing it over the wire was pure exposure with no product
+ *  behavior. `POST .../reveal` is the one route that discloses the value on purpose. Callers of
+ *  this function itself must still never persist or log `hex` beyond what they need it for. */
 export interface GeneratedFileRootKey {
   readonly hex: string;
   readonly fingerprint: string;
