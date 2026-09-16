@@ -163,7 +163,7 @@ function siteTokenStatusNote(status: { active: boolean; source: "env" | "file" |
       <>{translate("A key is set up for this install, but it's not in a usable format, so Tovu can't use it. Fix the value stored in the TOVU_INTEGRATIONS_ROOT_KEY environment variable to resolve this.")}</>
     ) : (
       <>
-        {translate("The key file at")} <code>{status.keyFilePath}</code> {translate("isn't in a usable format, so Tovu can't use it. It will need to be replaced.")}
+        {translate("The key file at")} <code>{status.keyFilePath}</code> {translate("isn't in a usable format, so Tovu can't use it. It will need to be replaced by hand on the server — this tab can't do that yet.")}
       </>
     );
   }
@@ -233,14 +233,18 @@ function SiteTokenRevealedValue({ hex, onHide, t: translate }: { hex: string; on
   );
 }
 
-/** The Generate button + its own error banner. Hidden (not just disabled) once a key is active —
- *  this tab has no control that could be mistaken for a rotate/replace affordance (this file's own
- *  header). Works in every runtime mode now (2026-09-09 durability fix) — no longer disabled in
- *  production. @complexity O(1). */
+/** The Generate button + its own error banner. Shown only for the genuinely decidable case — no
+ *  key at all (`status.source === "none"`) — never once a key is active, and never for an
+ *  existing-but-invalid file or env var either (sol packet-3 finding 3-1, 2026-09-16): the server
+ *  route only ever CREATES a key file, so offering Generate against a file that already exists
+ *  (valid or not) is a guaranteed 409 with no path to success. A confirmed replace/rotate flow for
+ *  that state is a separate, deliberately NOT-built feature (this file's own header). Works in
+ *  every runtime mode now (2026-09-09 durability fix) — no longer disabled in production.
+ *  @complexity O(1). */
 function SiteTokenGenerateAction({ controller }: { controller: SiteTokenController }) {
   const translate = controller.t;
   const status = controller.status;
-  if (!status || status.active) return null;
+  if (!status || status.source !== "none") return null;
   return (
     <div className="site-token-generate-action">
       <button

@@ -45,8 +45,9 @@ export interface SiteTokenController {
    *  string, so the two known cases never get the generic "Couldn't generate a key: …" wrapper —
    *  that copy is about a genuine failure, and neither known case is one. */
   generateError: SiteTokenGenerateFailure | null;
-  /** No-op (and leaves `generateError` alone) when a key is already active — the tab's own Generate
-   *  control is disabled in that state, this is a second, defensive guard against a stale click. */
+  /** No-op (and leaves `generateError` alone) unless `status.source === "none"` — the tab's own
+   *  Generate control is hidden outside that state (sol packet-3 finding 3-1), this is a second,
+   *  defensive guard against a stale click. */
   generate: () => Promise<void>;
   t: Translate;
 }
@@ -105,7 +106,7 @@ export function useSiteToken(port: SiteTokenPort, t: Translate, locale: string):
   }
 
   async function generate(): Promise<void> {
-    if (status?.active || generating) return;
+    if (status?.source !== "none" || generating) return;
     setGenerating(true);
     setGenerateError(null);
     try {
