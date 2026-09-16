@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { PRE_AUTHORIZED } from "../authorize-helper.js";
-import { WidgetForbiddenError } from "../errors.js";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
@@ -247,7 +246,10 @@ test("widgets.read is checked before any dialog is raised, and a denied principa
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
   await assert.rejects(() => call(trashTool, { input: { widgetInstanceId: instance.id } }), (error: unknown) => {
-    assert.ok(error instanceof WidgetForbiddenError);
+    // WidgetForbiddenError is reclassified into a ToolInputError (prefix `WIDGETS_FORBIDDEN:`) on
+    // its way to the model — see `toModelFacingWidgetsError`'s doc comment (tool-registrations.ts).
+    assert.ok(error instanceof ToolInputError);
+    assert.match((error as Error).message, /^WIDGETS_FORBIDDEN: /);
     return true;
   });
   assert.equal(surfaceExchanges.size(), 0, "a denied principal must never get a dialog opened for them");

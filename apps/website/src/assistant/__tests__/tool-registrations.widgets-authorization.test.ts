@@ -18,13 +18,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryEntryRefsRepo } from "../../contracts/core/entry-refs/repo.memory.js";
 import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
 import { widgetsAgentToolCatalog, type AgentToolDefinition } from "../../features/widgets/agent-tools.js";
-import { WidgetForbiddenError } from "../../features/widgets/errors.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../features/widgets/repo.memory.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
@@ -262,7 +261,13 @@ for (const toolId of Object.keys(EXPECTED_PERMISSIONS)) {
     await assert.rejects(
       () => wired(widgetsWiredId(toolId), deps).handler(executionContext(toolInputs(fixture)[toolId])),
       (error: unknown) => {
-        assert.ok(error instanceof WidgetForbiddenError, `expected WidgetForbiddenError, got ${String(error)}`);
+        // `toModelFacingWidgetsError` (tool-registrations.ts) reclassifies `WidgetForbiddenError` into
+        // a `ToolInputError` prefixed `WIDGETS_FORBIDDEN:` so the real reason reaches the model instead
+        // of a redacted `INTERNAL_ERROR` (owner ruling 2026-09-15) — see
+        // `tool-registrations.delegated-error-status.test.ts`'s forbidden case for the exact
+        // end-to-end message assertion.
+        assert.ok(error instanceof ToolInputError, `expected ToolInputError (WidgetForbiddenError wrapped), got ${String(error)}`);
+        assert.match((error as Error).message, /^WIDGETS_FORBIDDEN: /);
         return true;
       },
     );

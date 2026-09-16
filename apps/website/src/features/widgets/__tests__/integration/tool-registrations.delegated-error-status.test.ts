@@ -201,6 +201,29 @@ test("widgets_insert_embed with an unknown widgetEntryId against a valid post ho
   });
 });
 
+test("widgets_insert_embed denied on the internal content.write chokepoint (widgets.place itself allowed) is BAD_REQUEST with the real permission and reason, not a redacted 500", async () => {
+  // Owner ruling 2026-09-15: model-facing errors must say the real reason, not
+  // "an internal error occurred", so the model (or a person reading its trace) can tell "you lack
+  // permission" from "the server broke". Same denial shape as
+  // `embed-service.post-host.integration.test.ts`'s "authorize() denying ONLY content.write" case,
+  // driven here through the real delegated-tool-call transport instead of calling the domain
+  // function directly.
+  const routeDeps = makeRouteDeps();
+  routeDeps.authorize = async ({ permission }) => (permission === "content.write" ? { allowed: false, reason: "test: denied" } : { allowed: true, reason: "matched" });
+  const post = await seedPost(routeDeps);
+  const harness = await buildHarness(routeDeps);
+  const widgetId = await createWidget(harness);
+
+  const result = await call(harness, "widgets_insert_embed", { hostEntryId: post.id, baseVersion: post.version, widgetEntryId: widgetId });
+
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.deepEqual(result.error, {
+    code: "BAD_REQUEST",
+    message: `WIDGETS_FORBIDDEN: principal 'principal-1' lacks permission 'content.write' (test: denied)`,
+  });
+});
+
 test("sibling handlers with no host-lookup bug still had the SAME redacted-500 surfacing bug — all now BAD_REQUEST with the message intact", async () => {
   const routeDeps = makeRouteDeps();
   const harness = await buildHarness(routeDeps);

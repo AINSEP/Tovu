@@ -62,6 +62,7 @@ import {
   WidgetEmbedGuardrailError,
   WidgetEmbedHostNotFoundError,
   WidgetEmbedHostUnsupportedError,
+  WidgetForbiddenError,
   WidgetInstanceNotFoundError,
   WidgetTypeUnregisteredError,
   WidgetVersionConflictError,
@@ -133,9 +134,16 @@ function isWidgetsShapeRejection(error: unknown): boolean {
 }
 
 /**
- * Re-classifies every typed not-found/conflict domain error this handler map can throw as a
- * `ToolInputError` on its way to the model, and passes everything else (including a
- * `WidgetForbiddenError`, which is not caller-input) through untouched.
+ * Re-classifies every typed not-found/conflict/forbidden domain error this handler map can throw
+ * as a `ToolInputError` on its way to the model, and passes anything else through untouched.
+ *
+ * `WidgetForbiddenError` used to be the one class explicitly passed through untouched here, on the
+ * theory that a `403` isn't caller-input. That left the model unable to tell "you lack permission"
+ * from "the server broke" — both surfaced as the same redacted `INTERNAL_ERROR` — and the owner's
+ * 2026-09-15 ruling ("always say the real reason ... so I can improve it or people can see the
+ * errors") overrides that theory: the message already names the missing permission and the reason
+ * (`requireWidgetPermission` in `authorize-helper.ts` builds it), so there is real, actionable
+ * signal here worth letting through, same as every other case below.
  *
  * Same reasoning as `post/tool-registrations.ts`'s `toModelFacingUpdateError` (lines 222-244
  * there): `@jini-ai/daemon`'s `ToolExecutor` tags any rejection that is not `instanceof
@@ -149,10 +157,20 @@ function isWidgetsShapeRejection(error: unknown): boolean {
  * so the model (and `widgets-error-code-parity.test.ts`) can match the same code the HTTP arm's
  * `mapWidgetErrorToResponse` returns, without this layer importing that HTTP-only module.
  *
+ * `WIDGETS_FORBIDDEN` has no such HTTP-side parity today: `widgets.ts`'s `widgetForbiddenToResponse`
+ * returns HTTP `code: "FORBIDDEN"`, not `"WIDGETS_FORBIDDEN"`, despite `errors.ts`'s own class doc
+ * already naming `WIDGETS_FORBIDDEN` as this error's code — a pre-existing drift between that doc
+ * comment and the HTTP mapper, left alone here since only the model-facing path is this fix's
+ * scope. The prefix below matches the class's own documented code (and every sibling prefix in
+ * this function, which all match their class doc verbatim) rather than the HTTP mapper's `code`.
+ *
  * @complexity O(1).
  */
 function toModelFacingWidgetsError(err: unknown): unknown {
   if (err instanceof ToolInputError) return err;
+  if (err instanceof WidgetForbiddenError) {
+    return new ToolInputError(`WIDGETS_FORBIDDEN: ${err.message}`);
+  }
   if (err instanceof WidgetInstanceNotFoundError) {
     return new ToolInputError(`WIDGETS_INSTANCE_NOT_FOUND: ${err.message}`);
   }
