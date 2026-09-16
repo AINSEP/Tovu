@@ -3000,17 +3000,21 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
     it("U5: a navigation back to the open file cancels the held switch without re-reading over typed edits", async () => {
       const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
       holdReads(port, "pages/about.html");
-      const { result, rerender } = mountForNav(port);
+      const { result, rerender, modes } = mountForNav(port);
       await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
       act(() => result.current.setView("html"));
       act(() => result.current.setSource("<h1>Home</h1><p>typed</p>"));
       const readSpy = vi.spyOn(port, "getThemeFile");
+      modes.length = 0;
 
       rerender({ fileId: "pages/about.html" });
       await waitFor(() => expect(result.current.highlightedPath).toBe("pages/about.html"));
+      // Held, not opened: the typed file is still the open one while about's text is out.
+      expect(result.current.selected).toBe("pages/index.html");
       rerender({ fileId: "pages/index.html" });
       await act(async () => {});
 
+      expect(modes).not.toContain("unloaded");
       expect(result.current.highlightedPath).toBe("pages/index.html");
       expect(result.current.selected).toBe("pages/index.html");
       expect(readSpy.mock.calls.filter(([, path]) => path === "pages/index.html")).toHaveLength(0);
