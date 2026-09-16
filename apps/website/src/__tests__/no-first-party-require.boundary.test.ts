@@ -63,16 +63,44 @@ function listSourceFiles(dir: string): string[] {
   return out.sort();
 }
 
-/** True for a bare `createRequire(...)` call — the factory a first-party `require` may be bound through instead of the global. */
-function isCreateRequireCall(node: ts.Node): boolean {
-  return ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "createRequire";
+/** The local names `node:module`'s `createRequire` can be called through in one file: the imported binding under whatever name it was given (`createRequire as mk`), and any namespace it was imported under (`import * as mod` -> `mod.createRequire`). The bare name is always included, so a snippet with no import statement still resolves. */
+interface CreateRequireBindings {
+  direct: ReadonlySet<string>;
+  namespaces: ReadonlySet<string>;
+}
+
+function collectCreateRequireBindings(sourceFile: ts.SourceFile): CreateRequireBindings {
+  const direct = new Set<string>(["createRequire"]);
+  const namespaces = new Set<string>();
+  for (const stmt of sourceFile.statements) {
+    if (!ts.isImportDeclaration(stmt) || !ts.isStringLiteralLike(stmt.moduleSpecifier)) continue;
+    if (stmt.moduleSpecifier.text !== "node:module" && stmt.moduleSpecifier.text !== "module") continue;
+    const bindings = stmt.importClause?.namedBindings;
+    if (!bindings) continue;
+    if (ts.isNamespaceImport(bindings)) {
+      namespaces.add(bindings.name.text);
+      continue;
+    }
+    for (const element of bindings.elements) {
+      if ((element.propertyName ?? element.name).text === "createRequire") direct.add(element.name.text);
+    }
+  }
+  return { direct, namespaces };
+}
+
+/** True for a `createRequire(...)` call under any of the names {@link collectCreateRequireBindings} resolved — the factory a first-party `require` may be bound through instead of the global. */
+function isCreateRequireCall(node: ts.Node, bindings: CreateRequireBindings): boolean {
+  if (!ts.isCallExpression(node)) return false;
+  const callee = node.expression;
+  if (ts.isIdentifier(callee)) return bindings.direct.has(callee.text);
+  return ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && bindings.namespaces.has(callee.expression.text) && callee.name.text === "createRequire";
 }
 
 /** Every local name this file binds to `require` — the global identifier plus any `const x = createRequire(...)`. */
-function collectRequireNames(sourceFile: ts.SourceFile): Set<string> {
+function collectRequireNames(sourceFile: ts.SourceFile, bindings: CreateRequireBindings): Set<string> {
   const names = new Set<string>(["require"]);
   const visit = (node: ts.Node): void => {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && isCreateRequireCall(node.initializer)) {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && isCreateRequireCall(node.initializer, bindings)) {
       names.add(node.name.text);
     }
     ts.forEachChild(node, visit);
@@ -82,9 +110,9 @@ function collectRequireNames(sourceFile: ts.SourceFile): Set<string> {
 }
 
 /** True when `expr` (a call's callee) resolves to a require function — a known local name, or an inline `createRequire(...)(...)`. */
-function isRequireCallee(expr: ts.Expression, names: ReadonlySet<string>): boolean {
+function isRequireCallee(expr: ts.Expression, names: ReadonlySet<string>, bindings: CreateRequireBindings): boolean {
   if (ts.isIdentifier(expr) && names.has(expr.text)) return true;
-  return isCreateRequireCall(expr);
+  return isCreateRequireCall(expr, bindings);
 }
 
 /** The first argument's literal text, or `"<non-literal>"` when it cannot be read statically (it still might name a first-party module, so it is reported rather than silently skipped). */
@@ -102,12 +130,13 @@ function isFirstParty(spec: string): boolean {
 /** Every first-party specifier `fileName`'s source `require()`s — the guard's core detector, proven by G1 before G2/G3 trust it. */
 function findFirstPartyRequires(fileName: string, text: string): string[] {
   const sourceFile = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, fileName.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
-  const names = collectRequireNames(sourceFile);
+  const bindings = collectCreateRequireBindings(sourceFile);
+  const names = collectRequireNames(sourceFile, bindings);
   const hits: string[] = [];
   const visit = (node: ts.Node): void => {
-    // `require.resolve(...)`'s callee is a PropertyAccessExpression, not an Identifier/CallExpression
-    // matching `names`/`isCreateRequireCall` — it is correctly never treated as a require call here.
-    if (ts.isCallExpression(node) && isRequireCallee(node.expression, names)) {
+    // `require.resolve(...)`'s callee is a PropertyAccessExpression whose name is `resolve`, never
+    // `createRequire`, so it is correctly never treated as a require call here.
+    if (ts.isCallExpression(node) && isRequireCallee(node.expression, names, bindings)) {
       hits.push(classifySpecifier(node));
     }
     ts.forEachChild(node, visit);
@@ -137,6 +166,12 @@ test("detector: findFirstPartyRequires recognizes every require-call shape and i
   assert.deepEqual(findFirstPartyRequires("x.ts", `const r = createRequire(import.meta.url); r("#src/a")`), ["#src/a"]);
   assert.deepEqual(findFirstPartyRequires("x.ts", `createRequire(import.meta.url)("../b.js")`), ["../b.js"]);
   assert.deepEqual(findFirstPartyRequires("x.ts", `require(somePath)`), ["<non-literal>"]);
+  // An IMPORT ALIAS is the bypass this guard was demonstrated to miss (2026-09-16 review of 92663cc0):
+  // re-adding deps.ts's `require("./app.js")` through `createRequire as __cr` left the guard green
+  // while the behavioral module-identity test went red on all 3 cases.
+  assert.deepEqual(findFirstPartyRequires("x.ts", `import { createRequire as mk } from "node:module";\nmk(import.meta.url)("./app.js")`), ["./app.js"]);
+  assert.deepEqual(findFirstPartyRequires("x.ts", `import { createRequire as mk } from "node:module";\nconst r = mk(import.meta.url);\nr("./app.js")`), ["./app.js"]);
+  assert.deepEqual(findFirstPartyRequires("x.ts", `import * as mod from "node:module";\nmod.createRequire(import.meta.url)("./app.js")`), ["./app.js"]);
   assert.deepEqual(findFirstPartyRequires("x.ts", `require.resolve("tsx")`), []);
   assert.deepEqual(findFirstPartyRequires("x.ts", `require("node:sea")`), []);
   assert.deepEqual(findFirstPartyRequires("x.ts", `createRequire(import.meta.url)("nodemailer")`), []);
