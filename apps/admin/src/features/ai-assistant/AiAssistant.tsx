@@ -331,7 +331,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
         canDiscoverModels={adminCredential.canDiscoverModels}
         describeProbeError={createProbeErrorDescriber(t)}
         apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-key" t={t} />}
-        formFooter={<AdminByokSettingsFooter controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-settings" />}
+        formFooter={<AdminByokSettingsFooter controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-settings" t={t} />}
       />
       {/*
         Save feedback for the ledger's OWN debounced auto-save — `SettingsUi.tsx` gets the equivalent

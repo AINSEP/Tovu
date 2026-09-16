@@ -9,6 +9,7 @@ import {
   resolveByokSettingsStatusLine,
 } from "../AdminByokKeyPanel";
 import type { AdminExecutionCredentialController } from "../../hooks/use-admin-execution-credential.hooks";
+import { t as tSettingsExecution } from "../../features/settings/settings-execution-i18n";
 
 /**
  * @file Presentational-only coverage for `AdminByokKeyPanel.tsx` — the migration banner and the
@@ -182,6 +183,25 @@ describe("AdminByokSettingsFooter", () => {
     expect(screen.getByText("boom")).toBeInTheDocument();
   });
 
+  it("translates its status line through the host screen's t", () => {
+    render(
+      <AdminByokSettingsFooter controller={controller({ settingsSaveState: { status: "saved" } })} t={(key) => `[es] ${key}`} />,
+    );
+    expect(screen.getByText("[es] Settings saved.")).toBeInTheDocument();
+  });
+
+  it("translates its status line with the real settings-execution dictionary, not just a key passthrough", () => {
+    render(
+      <AdminByokSettingsFooter
+        controller={controller({ settingsSaveState: { status: "saved" } })}
+        t={(key) => tSettingsExecution("es", key)}
+      />,
+    );
+    // Proves actual translated output, not merely that the "Settings saved." key exists in the dict.
+    expect(screen.getByText("Configuración guardada.")).toBeInTheDocument();
+    expect(screen.queryByText("Settings saved.")).not.toBeInTheDocument();
+  });
+
   it("wears the SAME button class as Save key — the two read as one class of control", () => {
     // Owner ruling, 2026-09-02: same burnt-orange, from the same token. Asserted as class parity
     // rather than a colour, so it cannot pass with a hand-picked hex that merely looks similar —
@@ -203,5 +223,13 @@ describe("resolveByokSettingsStatusLine", () => {
     expect(resolveByokSettingsStatusLine("saved")).toBe("Settings saved.");
     expect(resolveByokSettingsStatusLine("idle")).toBeNull();
     expect(resolveByokSettingsStatusLine("error")).toBeNull();
+  });
+
+  it("routes both reportable lines through a supplied t, and defaults to English passthrough", () => {
+    const t = (key: string) => `[es] ${key}`;
+    expect(resolveByokSettingsStatusLine("saving", t)).toBe("[es] Saving…");
+    expect(resolveByokSettingsStatusLine("saved", t)).toBe("[es] Settings saved.");
+    // No t supplied: same untranslated English as before this param existed.
+    expect(resolveByokSettingsStatusLine("saved")).toBe("Settings saved.");
   });
 });

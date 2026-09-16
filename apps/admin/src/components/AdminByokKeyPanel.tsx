@@ -145,6 +145,8 @@ export interface AdminByokSettingsFooterProps {
   /** Publishes the "Save settings" button as agent-addressable via `agentHandle()`
    *  (`@jini-ai/agentic`). Omit to leave it untagged. */
   agentHandle?: string;
+  /** The host screen's `t`, for the status line. Omit for English passthrough. */
+  t?: (key: string) => string;
 }
 
 /**
@@ -160,12 +162,16 @@ export interface AdminByokSettingsFooterProps {
  * as the key footer.
  *
  * @param status - The `settingsSaveState` status this footer reports on.
+ * @param t - The host screen's translator. Defaults to English passthrough.
  * @returns The line to render, or `null` when there is nothing to say.
  * @complexity O(1).
  */
-export function resolveByokSettingsStatusLine(status: AdminByokSaveState["status"]): string | null {
-  if (status === "saving") return "Saving…";
-  if (status === "saved") return "Settings saved.";
+export function resolveByokSettingsStatusLine(
+  status: AdminByokSaveState["status"],
+  t: (key: string) => string = (key) => key,
+): string | null {
+  if (status === "saving") return t("Saving…");
+  if (status === "saved") return t("Settings saved.");
   return null;
 }
 
@@ -181,10 +187,10 @@ export function resolveByokSettingsStatusLine(status: AdminByokSaveState["status
  *
  * @complexity Time/space: O(1).
  */
-export function AdminByokSettingsFooter({ controller, agentHandle: handle }: AdminByokSettingsFooterProps) {
+export function AdminByokSettingsFooter({ controller, agentHandle: handle, t }: AdminByokSettingsFooterProps) {
   const { settingsSaveState } = controller;
   const saving = settingsSaveState.status === "saving";
-  const statusLine = resolveByokSettingsStatusLine(settingsSaveState.status);
+  const statusLine = resolveByokSettingsStatusLine(settingsSaveState.status, t);
 
   return (
     <div className="assistant-settings-footer">

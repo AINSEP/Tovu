@@ -382,7 +382,7 @@ export function SettingsUi(props: SettingsUiProps) {
             canDiscoverModels={adminCredential.canDiscoverModels}
             describeProbeError={createProbeErrorDescriber(tExecution)}
             apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} t={tExecution} />}
-            formFooter={<AdminByokSettingsFooter controller={adminCredential} />}
+            formFooter={<AdminByokSettingsFooter controller={adminCredential} t={tExecution} />}
             agentHandle="settings-execution"
           />
         </>
