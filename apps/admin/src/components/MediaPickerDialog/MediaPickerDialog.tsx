@@ -60,7 +60,7 @@ export interface MediaPickerDialogProps {
 }
 
 export function MediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentHandle: base, ...props }: MediaPickerDialogProps) {
-  const { items, error, select, mediaOriginalUrl } = useDialog(props.onSelect, props.onCancel);
+  const { items, error, select, mediaOriginalUrl, cancelRef } = useDialog(props.onSelect, props.onCancel);
   const titleId = useId();
   const itemHandles = base && items ? buildAgentListHandles(`${base}-item`, items.map((item) => item.id)) : undefined;
 
@@ -105,6 +105,7 @@ export function MediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agent
         <div className="widget-picker-footer">
           <span className="editor-actions">
             <button
+              ref={cancelRef}
               type="button"
               className="btn-secondary"
               onClick={props.onCancel}

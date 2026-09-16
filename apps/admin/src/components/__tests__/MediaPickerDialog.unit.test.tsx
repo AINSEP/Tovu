@@ -170,6 +170,7 @@ describe("MediaPickerDialog — useDialog injection", () => {
       // A `fake://` scheme the real `api.mediaOriginalUrl` could never produce — see the assertion
       // below.
       mediaOriginalUrl: (id) => `fake://media-picker-original/${id}`,
+      cancelRef: { current: null },
     });
 
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} useDialog={fakeUseDialog} />);
@@ -180,5 +181,51 @@ describe("MediaPickerDialog — useDialog injection", () => {
     expect(img).toHaveAttribute("src", "fake://media-picker-original/fake-1");
     expect(listMedia).not.toHaveBeenCalled();
     expect(mediaOriginalUrlSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("MediaPickerDialog — focus management", () => {
+  // No dialog/modal wrapper existed at all before this fix (no useEffect, no ref, nothing) — on
+  // close, focus fell through to `<body>` instead of returning to whatever control opened the
+  // picker (e.g. the Posts/Pages editor's "Insert from Media Library" toolbar button). Real
+  // keyboard/screen-reader defect: a keyboard user closing the dialog was dropped back to the top
+  // of the page instead of staying where they were. Mirrors the `triggerRef`/`document.activeElement`
+  // technique `ConfirmDialog.hooks.tsx` (`@jini-ai/admin`) and this app's own `useMediaLightbox`
+  // (`features/media/hooks/use-media-lightbox.hooks.ts`) already use, adapted to a
+  // conditionally-mounted div dialog rather than an always-mounted native `<dialog>`: this
+  // component only ever exists in the DOM while open, so mount/unmount IS the open/close
+  // transition.
+  it("moves focus onto Cancel when it opens, not left on whatever had focus before", () => {
+    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [] });
+    const trigger = document.createElement("button");
+    trigger.textContent = "Insert from Media Library";
+    document.body.appendChild(trigger);
+    trigger.focus();
+    expect(document.activeElement).toBe(trigger);
+
+    try {
+      render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} />);
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Cancel" }));
+    } finally {
+      trigger.remove();
+    }
+  });
+
+  it("returns focus to the element that opened it once the dialog closes (unmounts)", () => {
+    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [] });
+    const trigger = document.createElement("button");
+    trigger.textContent = "Insert from Media Library";
+    document.body.appendChild(trigger);
+    trigger.focus();
+
+    try {
+      const { unmount } = render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} />);
+      expect(document.activeElement).not.toBe(trigger);
+
+      unmount();
+      expect(document.activeElement).toBe(trigger);
+    } finally {
+      trigger.remove();
+    }
   });
 });

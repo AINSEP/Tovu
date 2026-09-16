@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { describeApiError, type AdminMedia } from "../../lib/api";
 import { defaultMediaPickerPort } from "./media-picker-dependencies.hooks";
 import type { MediaPickerPort } from "./media-picker-port.hooks";
@@ -66,12 +66,22 @@ export interface MediaPickerDialogController {
    *  template still crosses this seam rather than staying a direct `lib/api` import in the
    *  component. */
   mediaOriginalUrl: (id: string) => string;
+  /** Attach to the Cancel button — see {@link useMediaPickerDialog}'s own focus-management doc
+   *  comment. Always present regardless of loading/error/empty/populated state, same reasoning
+   *  `useMediaLightbox`'s `closeRef` gives for its own always-available focus target. */
+  cancelRef: RefObject<HTMLButtonElement | null>;
 }
 
 /**
  * Owns the dialog's own state on top of {@link useMediaPickerItems}: the Escape-to-cancel
- * listener and the single submit handler. Split out for the same reason `useWidgetPickerDialog`
- * is — a render-free unit to test the interaction logic against.
+ * listener, focus management, and the single submit handler. Split out for the same reason
+ * `useWidgetPickerDialog` is — a render-free unit to test the interaction logic against.
+ *
+ * Focus management (2026-09-16 fix — no dialog wrapper or focus/blur handling existed at all
+ * before this): on mount, captures whatever had focus and moves focus onto Cancel (a stable
+ * target present regardless of loading/error/empty/populated state); on unmount, restores focus
+ * to what was captured. Without this, closing left focus on `<body>` — a keyboard/screen-reader
+ * user was dropped to the top of the page instead of back at the control that opened the dialog.
  *
  * @param onSelect - Called with the chosen item when a thumbnail is clicked.
  * @param onCancel - Called on Escape, backdrop click, or the Cancel button.
@@ -85,6 +95,23 @@ export function useMediaPickerDialog(
   deps: { port: MediaPickerPort }
 ): MediaPickerDialogController {
   const { items, error } = useMediaPickerItems(deps.port);
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
+  // Captured at mount, before focus moves onto Cancel below — the element that had focus then is,
+  // by construction, whatever opened this dialog (e.g. the Posts/Pages editor's "Insert from Media
+  // Library" toolbar button). Restored on unmount. This component is only ever rendered while the
+  // dialog is open (the caller conditionally mounts it, per `MediaPickerDialog.tsx`'s own doc
+  // comment), so mount/unmount IS the open/close transition — same technique `ConfirmDialog`
+  // (`@jini-ai/admin`) and this app's own `useMediaLightbox` use for an always-mounted native
+  // `<dialog>`'s `showModal()`/`close()` pair, adapted here to a conditionally-mounted div dialog.
+  const triggerRef = useRef<Element | null>(null);
+
+  useEffect(() => {
+    triggerRef.current = document.activeElement;
+    cancelRef.current?.focus();
+    return () => {
+      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
+    };
+  }, []);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -95,7 +122,7 @@ export function useMediaPickerDialog(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onCancel]);
 
-  return { items, error, select: onSelect, mediaOriginalUrl: deps.port.mediaOriginalUrl };
+  return { items, error, select: onSelect, mediaOriginalUrl: deps.port.mediaOriginalUrl, cancelRef };
 }
 
 /**
