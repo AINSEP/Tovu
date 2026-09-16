@@ -564,6 +564,25 @@ export class SqliteNewsletterSendRepo implements NewsletterSendRepoPort {
   async saveBatch(rows: readonly SendRow[]): Promise<void> {
     for (const row of rows) await this.save(row);
   }
+
+  /**
+   * Atomically takes the dispatch lease on one send row (2026-09-16, see `ports.ts` doc). One
+   * conditional `UPDATE` makes the claim atomic across processes too; the row is then read back in
+   * the same synchronous turn (better-sqlite3 is synchronous under the hood), so no other writer can
+   * observe or change it between the two calls.
+   *
+   * @complexity O(1) (indexed lookup by primary key).
+   */
+  async claimForDispatch(required: { workspaceId: string; id: string; nowIso: string; leaseUntilIso: string }): Promise<SendRow | null> {
+    const result = this.client
+      .prepare(
+        `UPDATE "${this.table}" SET next_attempt_at = ?, updated_at = ?
+         WHERE workspace_id = ? AND id = ? AND status = 'pending' AND (next_attempt_at IS NULL OR next_attempt_at <= ?)`
+      )
+      .run(required.leaseUntilIso, required.nowIso, required.workspaceId, required.id, required.nowIso);
+    if (result.changes !== 1) return null;
+    return this.findById({ workspaceId: required.workspaceId, id: required.id });
+  }
 }
 
 interface ConfirmationTokenDbRow {

@@ -37,6 +37,14 @@ const TEST_SEND_MIN = 1;
 const TEST_SEND_MAX = 10;
 export const SEND_BATCH_CLAIMED_EVENT = "newsletter.send.batch.claimed";
 
+/**
+ * How long one run holds a send row while it dispatches it (2026-09-16). Must outlast one row's hooks + `mailer.send`
+ * + `recordResult` (the Resend adapter caps a call at 10s). Must stay BELOW the outbox's minimum retry window after a
+ * batch first finds a row leased — Σ computeOutboxBackoffMs(2..5, random 0) = 450s — so a row leased by a run that died
+ * becomes claimable before the batch event's last attempt. `send-pipeline.test.ts` pins both bounds.
+ */
+export const NEWSLETTER_SEND_ROW_LEASE_MS = 5 * 60 * 1000;
+
 export interface SendPipelineDeps {
   campaignRepo: NewsletterCampaignRepoPort;
   subscriptionRepo: NewsletterSubscriptionRepoPort;
@@ -197,7 +205,9 @@ export async function dispatchRow(required: {
   const { deps, row } = required;
 
   // REQ-10: crash-recovery / redelivery idempotency (INV-10, EC-04) — a row already terminal is
-  // never re-dispatched (the outbox's own redelivery must not double-send).
+  // never re-dispatched (the outbox's own redelivery must not double-send). Defense in depth
+  // (2026-09-16): `handleSendBatchClaimed` leases the row (`claimForDispatch`) before calling this,
+  // which is what actually stops overlapping runs.
   if (row.status !== "pending") {
     return { outcome: row.status === "delivered" || row.status === "sent" ? "sent" : "failed", providerMessageId: row.providerMessageId, error: row.lastError };
   }
@@ -248,6 +258,9 @@ export async function recordResult(required: {
   const row = await deps.sendRepo.findById({ workspaceId: input.workspaceId, id: input.sendId });
   if (!row) throw new Error(`send row ${input.sendId} was not found`);
 
+  // 2026-09-16: a row another run already recorded is never re-written or counted twice.
+  if (row.status !== "pending") return { sendRow: row };
+
   const now = deps.clock.nowIso();
   const status = input.outcome === "sent" ? "delivered" : "failed";
   const updated: SendRow = {
@@ -256,6 +269,7 @@ export async function recordResult(required: {
     attempts: row.attempts + 1,
     providerMessageId: input.providerMessageId ?? row.providerMessageId,
     lastError: input.error,
+    nextAttemptAt: null, // releases the dispatch lease `claimForDispatch` took (see `claimSendRow`).
     updatedAt: now,
   };
   await deps.sendRepo.save(updated);
@@ -360,53 +374,98 @@ export async function sendTestCampaign(required: {
 }
 
 /**
+ * Leases one send row for this run through `NewsletterSendRepoPort.claimForDispatch` (2026-09-16):
+ * the leased row, `"leased-elsewhere"` when another live run already holds its lease, or `null` when
+ * it is missing or already terminal (nothing left to dispatch).
+ *
+ * @complexity O(1) beyond the two repo calls it may make.
+ */
+async function claimSendRow(required: { deps: SendPipelineDeps; workspaceId: string; sendId: string }): Promise<SendRow | "leased-elsewhere" | null> {
+  const { deps, workspaceId, sendId } = required;
+  const nowIso = deps.clock.nowIso();
+  const leaseUntilIso = new Date(Date.parse(nowIso) + NEWSLETTER_SEND_ROW_LEASE_MS).toISOString();
+  const leased = await deps.sendRepo.claimForDispatch({ workspaceId, id: sendId, nowIso, leaseUntilIso });
+  if (leased) return leased;
+  const current = await deps.sendRepo.findById({ workspaceId, id: sendId });
+  return current?.status === "pending" ? "leased-elsewhere" : null;
+}
+
+/**
+ * Dispatches one already-leased row through the fixed `recipient.filter` -> `beforeSend` -> `send()`
+ * -> `recordResult` chain. Extracted from `handleSendBatchClaimed` (2026-09-16) to keep that
+ * function's branching under the repo's complexity ceiling.
+ *
+ * @complexity O(1) beyond the hook chain, the mailer call, and `recordResult`.
+ */
+async function dispatchAndRecord(required: { deps: SendPipelineDeps; job: SendBatchJob; campaign: CampaignRecord; row: SendRow }): Promise<void> {
+  const { deps, job, campaign, row } = required;
+  const subscription = await deps.subscriptionRepo.findBySubscriberAndList({
+    workspaceId: job.workspaceId,
+    listId: campaign.listId,
+    subscriberId: row.subscriberId,
+  });
+  const status = subscription?.status ?? "unsubscribed";
+  const dispatchResult = await dispatchRow({
+    deps,
+    row,
+    campaignId: job.campaignId,
+    listId: campaign.listId,
+    status,
+    message: { subject: campaign.subject, text: campaign.preheader ?? undefined, fromName: campaign.fromName, fromEmail: campaign.fromEmail, replyTo: campaign.replyTo },
+  });
+  // BUG FIX: `recordResult` is the ONLY place a send row's status ever leaves "pending" --
+  // `dispatchRow` above never writes. Previously this call was skipped for a "suppressed"
+  // outcome, which left the row at "pending" forever: `countPendingByCampaign` could never reach
+  // 0 for that campaign, so `completeIfDrained` (below) could never fire once any recipient was
+  // suppressed. `recordResult` already maps any non-"sent" outcome (including "suppressed") to a
+  // terminal "failed" status, so calling it unconditionally is sufficient -- no new status value
+  // is needed.
+  await recordResult({
+    deps,
+    input: {
+      workspaceId: job.workspaceId,
+      sendId: row.id,
+      campaignId: job.campaignId,
+      outcome: dispatchResult.outcome,
+      providerMessageId: dispatchResult.providerMessageId,
+      error: dispatchResult.error,
+    },
+  });
+}
+
+/**
  * The bus-subscriber handler `server/app.ts` wires onto `newsletter.send.batch.claimed` (T040).
  * Per-row fixed order: `recipient.filter` -> `beforeSend` -> `send()` -> `recordResult`; one row's
  * failure never aborts sibling rows in the same batch.
+ *
+ * Each row is leased (`claimSendRow`) before any hook or send (2026-09-16), so overlapping runs of
+ * the same batch never send one row twice. A terminal or missing row is skipped without
+ * re-recording. A row leased by another live run is skipped here, and once every row in the job has
+ * been attempted, the whole batch fails so the outbox retries it after backoff — that is what lets a
+ * run that died mid-batch (holding a lease) release its rows once the lease expires, instead of
+ * stranding them.
  */
 export async function handleSendBatchClaimed(required: { deps: SendPipelineDeps; job: SendBatchJob }): Promise<void> {
   const { deps, job } = required;
   const campaign = await deps.campaignRepo.findById({ workspaceId: job.workspaceId, id: job.campaignId });
   if (!campaign) return;
 
+  let leasedElsewhere = 0;
   for (const sendId of job.sendIds) {
-    const row = await deps.sendRepo.findById({ workspaceId: job.workspaceId, id: sendId });
+    const row = await claimSendRow({ deps, workspaceId: job.workspaceId, sendId });
+    if (row === "leased-elsewhere") {
+      leasedElsewhere += 1;
+      continue;
+    }
     if (!row) continue;
-    const subscription = await deps.subscriptionRepo.findBySubscriberAndList({
-      workspaceId: job.workspaceId,
-      listId: campaign.listId,
-      subscriberId: row.subscriberId,
-    });
-    const status = subscription?.status ?? "unsubscribed";
-    const dispatchResult = await dispatchRow({
-      deps,
-      row,
-      campaignId: job.campaignId,
-      listId: campaign.listId,
-      status,
-      message: { subject: campaign.subject, text: campaign.preheader ?? undefined, fromName: campaign.fromName, fromEmail: campaign.fromEmail, replyTo: campaign.replyTo },
-    });
-    // BUG FIX: `recordResult` is the ONLY place a send row's status ever leaves "pending" --
-    // `dispatchRow` above never writes. Previously this call was skipped for a "suppressed"
-    // outcome, which left the row at "pending" forever: `countPendingByCampaign` could never reach
-    // 0 for that campaign, so `completeIfDrained` (below) could never fire once any recipient was
-    // suppressed. `recordResult` already maps any non-"sent" outcome (including "suppressed") to a
-    // terminal "failed" status, so calling it unconditionally is sufficient -- no new status value
-    // is needed.
-    await recordResult({
-      deps,
-      input: {
-        workspaceId: job.workspaceId,
-        sendId,
-        campaignId: job.campaignId,
-        outcome: dispatchResult.outcome,
-        providerMessageId: dispatchResult.providerMessageId,
-        error: dispatchResult.error,
-      },
-    });
+    await dispatchAndRecord({ deps, job, campaign, row });
   }
 
   await completeIfDrained({ deps, input: { workspaceId: job.workspaceId, campaignId: job.campaignId } });
+
+  if (leasedElsewhere > 0) {
+    throw new Error(`${leasedElsewhere} send row(s) of campaign ${job.campaignId} are leased by another run; the batch will be retried`);
+  }
 }
 
 export { createHookRegistry };

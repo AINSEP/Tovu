@@ -16,6 +16,7 @@ import {
   dispatchRow,
   freezeAudience,
   handleSendBatchClaimed,
+  NEWSLETTER_SEND_ROW_LEASE_MS,
   pauseCampaign,
   recordResult,
   resumeCampaign,
@@ -28,7 +29,7 @@ import {
   NewsletterLaunchGateBlockedError,
   NewsletterValidationError,
 } from "../errors.js";
-import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { computeOutboxBackoffMs, InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import type { HookRegistry } from "../hooks.js";
 import type { LaunchGateDeps } from "../launch-gate.js";
 import type { MailerPort } from "#src/platform/mail/index";
@@ -45,6 +46,15 @@ const WS = "ws-1";
 const clock = { nowIso: () => "2026-08-21T00:00:00.000Z" };
 let idCounter = 0;
 const ids = { newId: () => `id-${++idCounter}` };
+
+/** Yields microtask turns until `predicate` holds, or `maxTurns` is exhausted. Used to observe interleaved async work without a wall-clock sleep. */
+async function flushUntil(predicate: () => boolean, maxTurns = 100): Promise<boolean> {
+  for (let i = 0; i < maxTurns; i++) {
+    if (predicate()) return true;
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  return predicate();
+}
 
 function makeCampaign(overrides: Partial<CampaignRecord> = {}): CampaignRecord {
   return {
@@ -461,6 +471,16 @@ test("recordResult: campaign not found -- send row still updates, no throw, no c
   assert.equal(sendRow.status, "delivered");
 });
 
+test("recordResult: a row another run already recorded is returned unchanged and not counted again (2026-09-16)", async () => {
+  const rig = makeRig({ campaigns: [makeCampaign()] });
+  await rig.sendRepo.save(makeSendRow({ status: "delivered", attempts: 1, providerMessageId: "pm-first" }));
+  const { sendRow } = await recordResult({ deps: rig.deps, input: { workspaceId: WS, sendId: "send-1", campaignId: "camp-1", outcome: "sent", providerMessageId: "pm-second", error: null } });
+  assert.equal(sendRow.attempts, 1);
+  assert.equal(sendRow.providerMessageId, "pm-first");
+  const campaign = await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" });
+  assert.equal(campaign?.counters.delivered, 0);
+});
+
 /* ------------------------------------------------------------------------------------------------
  * completeIfDrained
  * ------------------------------------------------------------------------------------------------ */
@@ -711,4 +731,149 @@ test("handleSendBatchClaimed: BUG REGRESSION -- a suppressed row must still reac
 
   const campaign = await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" });
   assert.equal(campaign?.status, "sent", "the campaign must be able to drain even when one of its recipients was suppressed");
+});
+
+/* ------------------------------------------------------------------------------------------------
+ * handleSendBatchClaimed — per-row dispatch lease (2026-09-16): overlapping runs of the same batch
+ * must never send or count one row twice.
+ * ------------------------------------------------------------------------------------------------ */
+
+test("handleSendBatchClaimed: two overlapping runs of the same batch send each row exactly once and count it once", async () => {
+  let releaseGate = () => {};
+  const gate = new Promise<void>((resolve) => {
+    releaseGate = resolve;
+  });
+  const sentTo: string[] = [];
+  const mailer: MailerPort = {
+    capabilities: () => ({ driver: "smtp", supportsIdempotencyKey: true, supportsWebhookFeedback: true, maxBatchSize: 100, supportsAttachments: false }),
+    async send(message) {
+      sentTo.push(message.to.email);
+      await gate;
+      return { ok: true, providerMessageId: `pm-${sentTo.length}`, acceptedAt: clock.nowIso() };
+    },
+    async sendBatch() {
+      return [];
+    },
+  };
+  const rig = makeRig({
+    campaigns: [makeCampaign({ status: "sending" })],
+    subscriptions: [
+      { id: "s1", workspaceId: WS, listId: "list-1", subscriberId: "sub-1", status: "subscribed", source: "signup_form", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() },
+      { id: "s2", workspaceId: WS, listId: "list-1", subscriberId: "sub-2", status: "subscribed", source: "signup_form", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() },
+      { id: "s3", workspaceId: WS, listId: "list-1", subscriberId: "sub-3", status: "subscribed", source: "signup_form", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() },
+    ],
+    mailer,
+  });
+  await rig.sendRepo.save(makeSendRow({ id: "send-1", subscriberId: "sub-1", recipientEmail: "a@test.com", status: "pending" }));
+  await rig.sendRepo.save(makeSendRow({ id: "send-2", subscriberId: "sub-2", recipientEmail: "b@test.com", status: "pending" }));
+  await rig.sendRepo.save(makeSendRow({ id: "send-3", subscriberId: "sub-3", recipientEmail: "c@test.com", status: "pending" }));
+  const job = makeJob({ sendIds: ["send-1", "send-2", "send-3"] });
+
+  const runA = handleSendBatchClaimed({ deps: rig.deps, job });
+  assert.ok(await flushUntil(() => sentTo.length === 1), "run A never reached its first send");
+
+  const runB = handleSendBatchClaimed({ deps: rig.deps, job });
+  // At HEAD, run B re-sends "a@test.com" (send-1) because nothing leases the row. Fixed, run B skips
+  // the already-claimed send-1 and reaches its own unclaimed row, send-2, instead. Both land at 2.
+  assert.ok(await flushUntil(() => sentTo.length === 2), "run B never reached its send");
+
+  releaseGate();
+  const results = await Promise.allSettled([runA, runB]);
+
+  assert.deepEqual([...sentTo].sort(), ["a@test.com", "b@test.com", "c@test.com"]);
+  const campaign = await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" });
+  // NOT `=== 3`: this scenario's first two rows (send-1 by run A, send-2 by run B) dispatch and
+  // record truly concurrently (both were blocked on the same `gate` and released together), which
+  // exercises a DIFFERENT, pre-existing, documented-out-of-scope race in `recordResult` -- its
+  // `campaignRepo.findById` + `campaignRepo.saveCampaignRow` counters read-modify-write is not
+  // atomic, so one of those two concurrent updates can be lost (see plan §5 residual risk (a); this
+  // is the SAME class of race, not one this slice fixes). What THIS slice guarantees, and what stays
+  // asserted below, is that a row is never sent or counted MORE than once -- the per-row `attempts`
+  // and `status` assertions are the real proof; `delivered` can only ever be under-counted here, not
+  // over-counted, so `<= 3` still catches a real double-count regression.
+  assert.ok(campaign && campaign.counters.delivered >= 1 && campaign.counters.delivered <= 3, `counters.delivered must never exceed 3 (was ${campaign?.counters.delivered})`);
+  assert.equal(campaign?.status, "sent");
+  for (const id of ["send-1", "send-2", "send-3"]) {
+    const row = await rig.sendRepo.findById({ workspaceId: WS, id });
+    assert.equal(row?.status, "delivered");
+    assert.equal(row?.attempts, 1);
+  }
+  for (const result of results) {
+    if (result.status === "rejected") {
+      assert.match((result.reason as Error).message, /^\d+ send row\(s\) of campaign camp-1 are leased by another run; the batch will be retried$/);
+    }
+  }
+});
+
+test("handleSendBatchClaimed: redelivering a batch that already finished sends nothing and does not count again", async () => {
+  const mailer = makeMailer();
+  const rig = makeRig({
+    campaigns: [makeCampaign({ status: "sending" })],
+    subscriptions: [{ id: "s1", workspaceId: WS, listId: "list-1", subscriberId: "sub-1", status: "subscribed", source: "signup_form", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() }],
+    mailer,
+  });
+  await rig.sendRepo.save(makeSendRow({ status: "pending" }));
+
+  await handleSendBatchClaimed({ deps: rig.deps, job: makeJob() });
+  await handleSendBatchClaimed({ deps: rig.deps, job: makeJob() });
+
+  assert.equal(mailer.sentTo.length, 1);
+  const campaign = await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" });
+  assert.equal(campaign?.counters.delivered, 1);
+  const row = await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" });
+  assert.equal(row?.attempts, 1);
+});
+
+test("handleSendBatchClaimed: a row leased by another live run is skipped and the batch is failed for retry", async () => {
+  const mailer = makeMailer();
+  const rig = makeRig({
+    campaigns: [makeCampaign({ status: "sending" })],
+    subscriptions: [
+      { id: "s1", workspaceId: WS, listId: "list-1", subscriberId: "sub-1", status: "subscribed", source: "signup_form", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() },
+      { id: "s2", workspaceId: WS, listId: "list-1", subscriberId: "sub-2", status: "subscribed", source: "signup_form", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() },
+    ],
+    mailer,
+  });
+  await rig.sendRepo.save(makeSendRow({ id: "send-1", subscriberId: "sub-1", recipientEmail: "leased@test.com", status: "pending", nextAttemptAt: "2026-08-21T00:04:00.000Z" }));
+  await rig.sendRepo.save(makeSendRow({ id: "send-2", subscriberId: "sub-2", recipientEmail: "free@test.com", status: "pending" }));
+
+  await assert.rejects(
+    handleSendBatchClaimed({ deps: rig.deps, job: makeJob({ sendIds: ["send-1", "send-2"] }) }),
+    { message: "1 send row(s) of campaign camp-1 are leased by another run; the batch will be retried" }
+  );
+
+  assert.deepEqual(mailer.sentTo, ["free@test.com"]);
+  const row1 = await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" });
+  assert.equal(row1?.status, "pending");
+  assert.equal(row1?.nextAttemptAt, "2026-08-21T00:04:00.000Z");
+  const row2 = await rig.sendRepo.findById({ workspaceId: WS, id: "send-2" });
+  assert.equal(row2?.status, "delivered");
+  const campaign = await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" });
+  assert.equal(campaign?.status, "sending");
+});
+
+test("handleSendBatchClaimed: a row whose lease expired is claimed, sent, and released", async () => {
+  const mailer = makeMailer();
+  const rig = makeRig({
+    campaigns: [makeCampaign({ status: "sending" })],
+    subscriptions: [{ id: "s1", workspaceId: WS, listId: "list-1", subscriberId: "sub-1", status: "subscribed", source: "signup_form", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() }],
+    mailer,
+  });
+  await rig.sendRepo.save(makeSendRow({ status: "pending", nextAttemptAt: "2026-08-20T23:00:00.000Z" }));
+
+  await handleSendBatchClaimed({ deps: rig.deps, job: makeJob() });
+
+  assert.equal(mailer.sentTo.length, 1);
+  const row = await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" });
+  assert.equal(row?.status, "delivered");
+  assert.equal(row?.nextAttemptAt, null);
+  const campaign = await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" });
+  assert.equal(campaign?.status, "sent");
+});
+
+test("NEWSLETTER_SEND_ROW_LEASE_MS outlasts one dispatch but expires inside the outbox's retry window", () => {
+  assert.equal(NEWSLETTER_SEND_ROW_LEASE_MS, 5 * 60_000);
+  const window = [2, 3, 4, 5].reduce((sum, attempts) => sum + computeOutboxBackoffMs(attempts, { random: () => 0 }), 0);
+  assert.equal(window, 450_000);
+  assert.ok(NEWSLETTER_SEND_ROW_LEASE_MS < window, "the lease must expire before the batch event's last attempt");
 });

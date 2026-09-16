@@ -251,6 +251,56 @@ for (const [name, makeRepo] of sendAdapters) {
     await repo.save({ ...base, status: "delivered" });
     assert.equal(await repo.countPendingByCampaign({ workspaceId: WS, campaignId: "camp-1" }), 1);
   });
+
+  test(`[${name}] NewsletterSendRepoPort: claimForDispatch leases a pending row once; a live lease, a terminal row and a missing row are not claimable; an expired lease is (2026-09-16)`, async () => {
+    const repo = await makeRepo();
+    const base: SendRow = {
+      id: "send-1",
+      workspaceId: WS,
+      campaignId: "camp-1",
+      audienceSnapshotId: "snap-1",
+      subscriberId: "subscriber-1",
+      recipientEmail: "a@a.test",
+      status: "pending",
+      attempts: 0,
+      idempotencyKey: "newsletter:camp-1:subscriber-1:snap-1",
+      providerMessageId: null,
+      lastError: null,
+      nextAttemptAt: null,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await repo.save(base);
+    const lease1 = "2026-07-13T00:05:00.000Z";
+
+    // (a) a pending, unleased row is claimable.
+    const claimed = await repo.claimForDispatch({ workspaceId: WS, id: "send-1", nowIso: NOW, leaseUntilIso: lease1 });
+    assert.equal(claimed?.nextAttemptAt, lease1);
+    assert.equal(claimed?.status, "pending");
+
+    // (b) a live lease (nowIso before it expires) is not claimable, and the existing lease is untouched.
+    const tooEarly = await repo.claimForDispatch({ workspaceId: WS, id: "send-1", nowIso: "2026-07-13T00:04:59.999Z", leaseUntilIso: "2026-07-13T00:20:00.000Z" });
+    assert.equal(tooEarly, null);
+    const stillLeased = await repo.findById({ workspaceId: WS, id: "send-1" });
+    assert.equal(stillLeased?.nextAttemptAt, lease1);
+
+    // (c) a leased row stays "pending", so it still counts as pending.
+    assert.equal(await repo.countPendingByCampaign({ workspaceId: WS, campaignId: "camp-1" }), 1);
+
+    // (d) the boundary nowIso === the lease's expiry (<=) is claimable again.
+    const lease2 = "2026-07-13T00:10:00.000Z";
+    const reclaimed = await repo.claimForDispatch({ workspaceId: WS, id: "send-1", nowIso: lease1, leaseUntilIso: lease2 });
+    assert.equal(reclaimed?.nextAttemptAt, lease2);
+
+    // (e) a terminal row is never claimable, however far in the future.
+    await repo.save({ ...base, status: "delivered" });
+    const terminalClaim = await repo.claimForDispatch({ workspaceId: WS, id: "send-1", nowIso: "2099-01-01T00:00:00.000Z", leaseUntilIso: "2099-01-01T00:05:00.000Z" });
+    assert.equal(terminalClaim, null);
+
+    // (f) a missing row is never claimable.
+    const missingClaim = await repo.claimForDispatch({ workspaceId: WS, id: "nope", nowIso: NOW, leaseUntilIso: lease1 });
+    assert.equal(missingClaim, null);
+  });
 }
 
 const tokenAdapters: Array<[string, () => Promise<NewsletterConfirmationTokenRepoPort>]> = [

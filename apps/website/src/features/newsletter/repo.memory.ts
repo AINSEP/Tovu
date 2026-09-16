@@ -254,6 +254,22 @@ export class InMemoryNewsletterSendRepo implements NewsletterSendRepoPort {
   async saveBatch(rows: readonly SendRow[]): Promise<void> {
     for (const row of rows) await this.save(row);
   }
+
+  /**
+   * Atomically takes the dispatch lease on one send row (2026-09-16, see `ports.ts` doc). No `await`
+   * happens before the write, which is what makes this atomic in-process: a concurrent caller's own
+   * turn cannot interleave between the read and the write.
+   *
+   * @complexity O(rows.length) to locate the row.
+   */
+  async claimForDispatch(required: { workspaceId: string; id: string; nowIso: string; leaseUntilIso: string }): Promise<SendRow | null> {
+    const idx = this.rows.findIndex((r) => r.workspaceId === required.workspaceId && r.id === required.id);
+    const row = idx >= 0 ? this.rows[idx] : undefined;
+    if (!row || row.status !== "pending" || (row.nextAttemptAt !== null && row.nextAttemptAt > required.nowIso)) return null;
+    const leased: SendRow = { ...row, nextAttemptAt: required.leaseUntilIso, updatedAt: required.nowIso };
+    this.rows[idx] = leased;
+    return leased;
+  }
 }
 
 export class InMemoryNewsletterConfirmationTokenRepo implements NewsletterConfirmationTokenRepoPort {

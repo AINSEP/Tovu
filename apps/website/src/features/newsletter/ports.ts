@@ -149,6 +149,13 @@ export interface NewsletterSendRepoPort {
   countPendingByCampaign(required: { workspaceId: UUID; campaignId: UUID }): Promise<number>;
   save(row: SendRow): Promise<void>;
   saveBatch(rows: readonly SendRow[]): Promise<void>;
+  /**
+   * Atomically takes the dispatch lease on one send row (2026-09-16): succeeds only when the row is `pending` and not
+   * under a live lease (`nextAttemptAt` is null or `<= nowIso`), storing `leaseUntilIso` as its `nextAttemptAt`. A leased
+   * row stays `pending` (so `countPendingByCampaign` still counts it). Returns the leased row, or `null` when the row is
+   * missing, no longer `pending`, or leased by another live dispatch. Timestamps are `toISOString()` strings and compare lexically.
+   */
+  claimForDispatch(required: { workspaceId: UUID; id: UUID; nowIso: string; leaseUntilIso: string }): Promise<SendRow | null>;
 }
 
 /** C-006 — `p_newsletter__confirmation_tokens`. */
