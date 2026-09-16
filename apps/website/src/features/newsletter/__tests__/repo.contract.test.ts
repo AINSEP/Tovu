@@ -46,6 +46,30 @@ import type {
 
 const WS = "ws-newsletter-contract";
 const NOW = "2026-07-13T00:00:00.000Z";
+const LATER = "2026-07-14T00:00:00.000Z";
+
+function makeContractCampaign(overrides: Partial<CampaignRecord> = {}): CampaignRecord {
+  return {
+    id: "camp-1",
+    workspaceId: WS,
+    status: "draft",
+    subject: "Hello",
+    preheader: null,
+    fromName: "Acme",
+    fromEmail: "hello@acme.test",
+    replyTo: "hello@acme.test",
+    listId: "list-1",
+    scheduledAt: null,
+    sendStartedAt: null,
+    audienceSnapshotId: null,
+    counters: { recipients: 0, delivered: 0, failed: 0, bounced: 0, complained: 0, unsubscribed: 0 },
+    version: 1,
+    createdByPrincipal: "actor-1",
+    createdAt: NOW,
+    updatedAt: NOW,
+    ...overrides,
+  };
+}
 
 async function makeSqliteDb(): Promise<ContentDb> {
   const db = openContentDb(":memory:");
@@ -126,6 +150,51 @@ for (const [name, makeRepo] of campaignAdapters) {
         throw new Error("forced mid-tx failure");
       })
     );
+  });
+
+  test(`[${name}] NewsletterCampaignRepoPort: concurrent incrementCounter calls all land (2026-09-16)`, async () => {
+    const repo = await makeRepo();
+    await repo.saveCampaignRow(makeContractCampaign());
+    await Promise.all([
+      repo.incrementCounter({ workspaceId: WS, id: "camp-1", counter: "delivered", updatedAt: LATER }),
+      repo.incrementCounter({ workspaceId: WS, id: "camp-1", counter: "delivered", updatedAt: LATER }),
+      repo.incrementCounter({ workspaceId: WS, id: "camp-1", counter: "failed", updatedAt: LATER }),
+    ]);
+    const found = await repo.findById({ workspaceId: WS, id: "camp-1" });
+    assert.deepEqual(found?.counters, { recipients: 0, delivered: 2, failed: 1, bounced: 0, complained: 0, unsubscribed: 0 });
+    assert.equal(found?.updatedAt, LATER);
+  });
+
+  test(`[${name}] NewsletterCampaignRepoPort: incrementCounter changes only counters and updatedAt`, async () => {
+    const repo = await makeRepo();
+    const seed = makeContractCampaign({ status: "paused", version: 3, audienceSnapshotId: "snap-1", sendStartedAt: NOW });
+    await repo.saveCampaignRow(seed);
+    await repo.incrementCounter({ workspaceId: WS, id: "camp-1", counter: "delivered", updatedAt: LATER });
+    const found = await repo.findById({ workspaceId: WS, id: "camp-1" });
+    assert.deepEqual(found, { ...seed, counters: { ...seed.counters, delivered: 1 }, updatedAt: LATER });
+  });
+
+  test(`[${name}] NewsletterCampaignRepoPort: saveCampaignRow on an existing campaign keeps its stored counters`, async () => {
+    const repo = await makeRepo();
+    const seed = makeContractCampaign({
+      status: "sending",
+      counters: { recipients: 7, delivered: 0, failed: 0, bounced: 0, complained: 0, unsubscribed: 0 },
+    });
+    await repo.saveCampaignRow(seed);
+    await repo.incrementCounter({ workspaceId: WS, id: "camp-1", counter: "delivered", updatedAt: LATER });
+    // A status write built from a stale (pre-increment) read must not roll the increment back.
+    await repo.saveCampaignRow({ ...seed, status: "paused", updatedAt: LATER });
+    const found = await repo.findById({ workspaceId: WS, id: "camp-1" });
+    assert.equal(found?.status, "paused");
+    assert.equal(found?.counters.delivered, 1);
+    assert.equal(found?.counters.recipients, 7);
+  });
+
+  test(`[${name}] NewsletterCampaignRepoPort: incrementCounter on a missing campaign is a no-op`, async () => {
+    const repo = await makeRepo();
+    await repo.incrementCounter({ workspaceId: WS, id: "camp-1", counter: "delivered", updatedAt: LATER });
+    assert.equal(await repo.findById({ workspaceId: WS, id: "camp-1" }), null);
+    assert.deepEqual(await repo.list({ workspaceId: WS }), []);
   });
 }
 

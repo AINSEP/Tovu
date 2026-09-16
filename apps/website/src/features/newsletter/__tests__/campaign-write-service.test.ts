@@ -200,6 +200,9 @@ class ThrowingAppendRevisionRepo implements NewsletterCampaignRepoPort {
   transaction<T>(fn: () => Promise<T>): Promise<T> {
     return this.real.transaction(fn);
   }
+  incrementCounter(required: Parameters<NewsletterCampaignRepoPort["incrementCounter"]>[0]) {
+    return this.real.incrementCounter(required);
+  }
 }
 
 test("saveCampaign: AC-08 — a forced mid-tx failure at the REAL SQLite adapter leaves zero campaign rows and zero revision rows (INV-01)", async () => {

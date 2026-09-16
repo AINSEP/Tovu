@@ -88,16 +88,24 @@ export interface SendBatchJob {
  * one per table family, matching the `members` multi-port convention (no merged mega-port).
  * ------------------------------------------------------------------------------------------------ */
 
+/** The two delivery outcomes `incrementCounter` may bump (explicit union — `CampaignCounters extends JsonObject`, so `keyof` would widen to `string`). */
+export type CampaignOutcomeCounter = "delivered" | "failed";
+
 /** C-001 — `newsletter_campaigns`/`newsletter_campaign_revisions` (the bespoke Drizzle pair). */
 export interface NewsletterCampaignRepoPort {
   findById(required: { workspaceId: UUID; id: UUID }): Promise<CampaignRecord | null>;
   list(required: { workspaceId: UUID; afterId?: UUID; limit?: number }): Promise<CampaignRecord[]>;
   /**
-   * Package-private by convention (Code Review file-boundary check) — call only from
-   * `campaign-write-service.ts`, and ONLY inside a `transaction()` callback together with
-   * `appendRevision` (INV-01: never one without the other in the same tx). Split into two methods
-   * (rather than one combined `save`) so a test can force a failure between the two writes at the
-   * real SQLite adapter (AC-08) — mirrors `SettingsRepoPort`'s `saveXValue`/`appendRevision` split.
+   * Package-private by convention (Code Review file-boundary check) — called from
+   * `campaign-write-service.ts` (inside a `transaction()` callback together with `appendRevision`,
+   * INV-01: never one without the other in the same tx) and from `send-pipeline.ts`'s status writers
+   * (`authorizeSend`, `freezeAudience`, `completeIfDrained`, `transitionAndSave`). Split into two
+   * methods (rather than one combined `save`) so a test can force a failure between the two writes at
+   * the real SQLite adapter (AC-08) — mirrors `SettingsRepoPort`'s `saveXValue`/`appendRevision` split.
+   *
+   * Counters are written on INSERT only (2026-09-16): updating an existing campaign keeps its stored
+   * `counters`, whatever the passed record holds, so a status write built from a stale read cannot
+   * erase a concurrent `incrementCounter`.
    */
   saveCampaignRow(campaign: CampaignRecord): Promise<void>;
   /** Package-private by convention — call only from `campaign-write-service.ts`. */
@@ -105,6 +113,13 @@ export interface NewsletterCampaignRepoPort {
   listRevisions(required: { workspaceId: UUID; campaignId: UUID }): Promise<CampaignRevision[]>;
   /** Repo-port-level atomic boundary — mirrors `SettingsRepoPort.transaction`. */
   transaction<T>(fn: () => Promise<T>): Promise<T>;
+  /**
+   * Atomically adds 1 to one delivery counter of one campaign and sets its `updatedAt` (2026-09-16). The only writer of
+   * `counters` once the row exists; touches no other field (status, version and editorial fields stay as stored). A missing
+   * campaign is a no-op. Writes no revision: counters are operational telemetry, narrowing INV-01 the way `redirect_hits`
+   * and ADR-027's `asset_renditions` narrow ADR-022 INV-3.
+   */
+  incrementCounter(required: { workspaceId: UUID; id: UUID; counter: CampaignOutcomeCounter; updatedAt: string }): Promise<void>;
 }
 
 /** C-002 — `p_newsletter__lists`. */

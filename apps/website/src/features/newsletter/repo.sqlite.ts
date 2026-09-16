@@ -17,13 +17,14 @@
  * `src/features/plugins/store/store-plugin.ts`'s raw-SQL precedent.
  */
 import type Database from "better-sqlite3";
-import { asc, eq, gt, and } from "drizzle-orm";
+import { asc, eq, gt, and, sql } from "drizzle-orm";
 
 import { newsletterCampaignRevisions, newsletterCampaigns } from "../../platform/db/schema.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import { NEWSLETTER_TABLE_NAMES } from "./data-module-manifest.js";
 import type {
+  CampaignOutcomeCounter,
   NewsletterAudienceSnapshotRepoPort,
   NewsletterCampaignRepoPort,
   NewsletterConfirmationTokenRepoPort,
@@ -43,6 +44,9 @@ import type {
 } from "./types.js";
 
 const DEFAULT_LIST_LIMIT = 100;
+
+/** JSON path of each counter `incrementCounter` may bump — a fixed map, never built from input. */
+const COUNTER_JSON_PATH: Record<CampaignOutcomeCounter, string> = { delivered: "$.delivered", failed: "$.failed" };
 
 /** Narrow accessor for the raw better-sqlite3 handle underneath a Drizzle `ContentDb` (mirrors `SqliteSettingsRepo`). */
 function rawClient(db: ContentDb): Database.Database {
@@ -140,10 +144,12 @@ export class SqliteNewsletterCampaignRepo implements NewsletterCampaignRepoPort 
 
   async saveCampaignRow(campaign: CampaignRecord): Promise<void> {
     const values = fromCampaignRecord(campaign);
+    // Counters are insert-only here; `incrementCounter` owns them afterwards (see `ports.ts`).
+    const { countersJson: _insertOnlyCounters, ...updatable } = values;
     this.db
       .insert(newsletterCampaigns)
       .values(values)
-      .onConflictDoUpdate({ target: newsletterCampaigns.id, set: values })
+      .onConflictDoUpdate({ target: newsletterCampaigns.id, set: updatable })
       .run();
   }
 
@@ -187,6 +193,24 @@ export class SqliteNewsletterCampaignRepo implements NewsletterCampaignRepoPort 
       client.exec("ROLLBACK");
       throw error;
     }
+  }
+
+  /**
+   * One UPDATE statement, so reading the old count and writing the new one cannot be split by any other statement on any
+   * connection (see `ports.ts`).
+   *
+   * @complexity O(1) (primary-key update).
+   */
+  async incrementCounter(required: { workspaceId: string; id: string; counter: CampaignOutcomeCounter; updatedAt: string }): Promise<void> {
+    const path = COUNTER_JSON_PATH[required.counter];
+    this.db
+      .update(newsletterCampaigns)
+      .set({
+        countersJson: sql`json_set(${newsletterCampaigns.countersJson}, ${path}, coalesce(json_extract(${newsletterCampaigns.countersJson}, ${path}), 0) + 1)`,
+        updatedAt: required.updatedAt,
+      })
+      .where(and(eq(newsletterCampaigns.workspaceId, required.workspaceId), eq(newsletterCampaigns.id, required.id)))
+      .run();
   }
 }
 

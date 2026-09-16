@@ -30,16 +30,19 @@ import {
   NewsletterValidationError,
 } from "../errors.js";
 import { computeOutboxBackoffMs, InMemoryEventBus, InMemoryOutbox, MAX_OUTBOX_ATTEMPTS } from "#src/contracts/core/events/index";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { installNewsletterDataModule } from "../data-module-manifest.js";
 import type { HookRegistry } from "../hooks.js";
 import type { LaunchGateDeps } from "../launch-gate.js";
 import type { MailerPort } from "#src/platform/mail/index";
-import type { SendBatchJob, SubscriberContact, SubscriberDirectoryPort } from "../ports.js";
+import type { NewsletterCampaignRepoPort, NewsletterSendRepoPort, SendBatchJob, SubscriberContact, SubscriberDirectoryPort } from "../ports.js";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
   InMemoryNewsletterCampaignRepo,
   InMemoryNewsletterSendRepo,
   InMemoryNewsletterSubscriptionRepo,
 } from "../repo.memory.js";
+import { SqliteNewsletterCampaignRepo, SqliteNewsletterSendRepo } from "../repo.sqlite.js";
 import type { CampaignRecord, SendRow, SubscriptionRow } from "../types.js";
 
 const WS = "ws-1";
@@ -482,6 +485,103 @@ test("recordResult: a row another run already recorded is returned unchanged and
 });
 
 /* ------------------------------------------------------------------------------------------------
+ * recordResult / pauseCampaign -- cross-adapter race tests (B-2, 2026-09-16)
+ * ------------------------------------------------------------------------------------------------ */
+
+interface RaceRepos {
+  campaignRepo: NewsletterCampaignRepoPort;
+  sendRepo: NewsletterSendRepoPort;
+}
+
+async function makeSqliteRaceRepos(): Promise<RaceRepos> {
+  const db = openContentDb(":memory:");
+  await installNewsletterDataModule({
+    db: (db as unknown as { $client: import("better-sqlite3").Database }).$client,
+    dbPath: ":memory:",
+  });
+  return { campaignRepo: new SqliteNewsletterCampaignRepo(db), sendRepo: new SqliteNewsletterSendRepo(db) };
+}
+
+const raceFlavors: Array<[string, () => RaceRepos | Promise<RaceRepos>]> = [
+  ["memory", () => ({ campaignRepo: new InMemoryNewsletterCampaignRepo(), sendRepo: new InMemoryNewsletterSendRepo() })],
+  ["sqlite", makeSqliteRaceRepos],
+];
+
+/** Builds a send-pipeline rig against one campaign-repo/send-repo flavor, with a `"sending"` campaign already seeded. */
+async function makeRaceRig(
+  makeRepos: () => RaceRepos | Promise<RaceRepos>
+): Promise<{ deps: SendPipelineDeps; campaignRepo: NewsletterCampaignRepoPort; sendRepo: NewsletterSendRepoPort }> {
+  const repos = await makeRepos();
+  const deps: SendPipelineDeps = { ...makeRig().deps, ...repos };
+  await repos.campaignRepo.saveCampaignRow(makeCampaign({ status: "sending" }));
+  return { deps, campaignRepo: repos.campaignRepo, sendRepo: repos.sendRepo };
+}
+
+for (const [name, makeRepos] of raceFlavors) {
+  test(`[${name}] recordResult: concurrent results for different rows of one campaign are all counted (B-2)`, async () => {
+    const rig = await makeRaceRig(makeRepos);
+    await rig.sendRepo.save(makeSendRow({ id: "send-1", subscriberId: "sub-1", idempotencyKey: "key-1", status: "pending" }));
+    await rig.sendRepo.save(makeSendRow({ id: "send-2", subscriberId: "sub-2", idempotencyKey: "key-2", status: "pending" }));
+    await rig.sendRepo.save(makeSendRow({ id: "send-3", subscriberId: "sub-3", idempotencyKey: "key-3", status: "pending" }));
+    await Promise.all([
+      recordResult({ deps: rig.deps, input: { workspaceId: WS, sendId: "send-1", campaignId: "camp-1", outcome: "sent", providerMessageId: "pm-1", error: null } }),
+      recordResult({ deps: rig.deps, input: { workspaceId: WS, sendId: "send-2", campaignId: "camp-1", outcome: "sent", providerMessageId: "pm-2", error: null } }),
+      recordResult({ deps: rig.deps, input: { workspaceId: WS, sendId: "send-3", campaignId: "camp-1", outcome: "failed", providerMessageId: null, error: "boom" } }),
+    ]);
+    const campaign = await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" });
+    assert.deepEqual(campaign?.counters, { recipients: 0, delivered: 2, failed: 1, bounced: 0, complained: 0, unsubscribed: 0 });
+  });
+
+  test(`[${name}] recordResult: a pause that commits while a result is being recorded is kept, and the result is counted (B-2)`, async (t) => {
+    const rig = await makeRaceRig(makeRepos);
+    await rig.sendRepo.save(makeSendRow());
+    let pauseStarted = false;
+    const pauseOnce = async () => {
+      if (pauseStarted) return;
+      pauseStarted = true;
+      await pauseCampaign({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1" } });
+    };
+    const readCampaign = rig.campaignRepo.findById.bind(rig.campaignRepo);
+    // Worst case for a read-modify-write: any campaign read made while the result is recorded returns the
+    // pre-pause state, and the pause commits before that caller continues.
+    t.mock.method(rig.campaignRepo, "findById", async (q: { workspaceId: string; id: string }) => {
+      const before = await readCampaign(q);
+      await pauseOnce();
+      return before;
+    });
+    await recordResult({ deps: rig.deps, input: { workspaceId: WS, sendId: "send-1", campaignId: "camp-1", outcome: "sent", providerMessageId: "pm-1", error: null } });
+    await pauseOnce(); // no-op if the read above already paused
+    t.mock.restoreAll();
+    const campaign = await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" });
+    assert.equal(campaign?.status, "paused");
+    assert.equal(campaign?.counters.delivered, 1);
+  });
+
+  test(`[${name}] pauseCampaign: a result recorded while the pause is being written is still counted (B-2)`, async (t) => {
+    const rig = await makeRaceRig(makeRepos);
+    await rig.sendRepo.save(makeSendRow());
+    let recordStarted = false;
+    const recordOnce = async () => {
+      if (recordStarted) return;
+      recordStarted = true;
+      await recordResult({ deps: rig.deps, input: { workspaceId: WS, sendId: "send-1", campaignId: "camp-1", outcome: "sent", providerMessageId: "pm-1", error: null } });
+    };
+    const readCampaign = rig.campaignRepo.findById.bind(rig.campaignRepo);
+    t.mock.method(rig.campaignRepo, "findById", async (q: { workspaceId: string; id: string }) => {
+      const before = await readCampaign(q);
+      await recordOnce();
+      return before;
+    });
+    await pauseCampaign({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1" } });
+    t.mock.restoreAll();
+    const campaign = await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" });
+    assert.equal(recordStarted, true);
+    assert.equal(campaign?.status, "paused");
+    assert.equal(campaign?.counters.delivered, 1);
+  });
+}
+
+/* ------------------------------------------------------------------------------------------------
  * completeIfDrained
  * ------------------------------------------------------------------------------------------------ */
 
@@ -790,12 +890,10 @@ test("handleSendBatchClaimed: two overlapping runs of the same batch send each r
 
   assert.deepEqual([...sentTo].sort(), ["a@test.com", "b@test.com", "c@test.com"]);
   const campaign = await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" });
-  // Exact, not a bound on `counters.delivered`: that persisted value can read LOW here because
-  // `recordResult`'s campaign read-modify-write is not atomic and this scenario records send-1 (run A)
-  // and send-2 (run B) concurrently. That lost update predates the lease (c4bd5103e) and is tracked
-  // separately. A bound cannot prove "no double count" (one double count plus one lost update still
-  // reads 3); one terminal save per row can.
+  // Exact: one terminal save per row (no double count) and `counters.delivered === 3` (no lost update;
+  // fixed 2026-09-16 by `incrementCounter`).
   assert.deepEqual([...recorded].sort(), ["send-1:delivered", "send-2:delivered", "send-3:delivered"]);
+  assert.equal(campaign?.counters.delivered, 3);
   assert.equal(campaign?.status, "sent");
   for (const id of ["send-1", "send-2", "send-3"]) {
     const row = await rig.sendRepo.findById({ workspaceId: WS, id });

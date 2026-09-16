@@ -15,6 +15,7 @@ import type {
   SubscriptionRow,
 } from "./types.js";
 import type {
+  CampaignOutcomeCounter,
   NewsletterAudienceSnapshotRepoPort,
   NewsletterCampaignRepoPort,
   NewsletterConfirmationTokenRepoPort,
@@ -53,7 +54,8 @@ export class InMemoryNewsletterCampaignRepo implements NewsletterCampaignRepoPor
 
   async saveCampaignRow(campaign: CampaignRecord): Promise<void> {
     const idx = this.campaigns.findIndex((c) => c.workspaceId === campaign.workspaceId && c.id === campaign.id);
-    if (idx >= 0) this.campaigns[idx] = campaign;
+    // Counters are insert-only here; `incrementCounter` owns them afterwards (see `ports.ts`).
+    if (idx >= 0) this.campaigns[idx] = { ...campaign, counters: this.campaigns[idx].counters };
     else this.campaigns.push(campaign);
   }
 
@@ -72,6 +74,21 @@ export class InMemoryNewsletterCampaignRepo implements NewsletterCampaignRepoPor
     // `InMemorySettingsRepo.transaction`. A forced mid-transaction failure test (AC-08) therefore
     // proves the SQLite adapter's real transaction, not this one — see `repo.contract.test.ts`.
     return fn();
+  }
+
+  /**
+   * Atomically adds 1 to one counter (see `ports.ts`). No `await` happens before the write, so a
+   * concurrent caller cannot interleave between read and write. Replaces the stored object instead of
+   * mutating it, because `findById` hands out the stored reference.
+   *
+   * @complexity O(campaigns.length) to locate the row.
+   */
+  async incrementCounter(required: { workspaceId: string; id: string; counter: CampaignOutcomeCounter; updatedAt: string }): Promise<void> {
+    const idx = this.campaigns.findIndex((c) => c.workspaceId === required.workspaceId && c.id === required.id);
+    const campaign = idx >= 0 ? this.campaigns[idx] : undefined;
+    if (!campaign) return;
+    const counters = { ...campaign.counters, [required.counter]: campaign.counters[required.counter] + 1 };
+    this.campaigns[idx] = { ...campaign, counters, updatedAt: required.updatedAt };
   }
 }
 

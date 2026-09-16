@@ -252,7 +252,12 @@ export async function dispatchRow(required: {
   return { outcome: "failed", providerMessageId: null, error: result.message };
 }
 
-/** REQ-24/INV-02 — atomic send-row + counters write (rides the unbuilt ADR-026 envelope; here as one sequential write, flagged not silently assumed atomic beyond a single row). */
+/**
+ * REQ-24/INV-02 — records one send row's outcome, then counts it with the atomic `incrementCounter` (2026-09-16; it was
+ * a read-modify-write of the campaign row, which lost concurrent counts and could write back a stale status over a
+ * pause). Still two writes, not one transaction: a crash between them leaves the row terminal and uncounted; counters
+ * stay rebuildable from the sends ledger.
+ */
 export async function recordResult(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; sendId: string; campaignId: string; outcome: "sent" | "suppressed" | "failed"; providerMessageId: string | null; error: string | null };
@@ -276,14 +281,7 @@ export async function recordResult(required: {
     updatedAt: now,
   };
   await deps.sendRepo.save(updated);
-
-  const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
-  if (campaign) {
-    const counters = { ...campaign.counters };
-    if (input.outcome === "sent") counters.delivered += 1;
-    else counters.failed += 1;
-    await deps.campaignRepo.saveCampaignRow({ ...campaign, counters, updatedAt: now });
-  }
+  await deps.campaignRepo.incrementCounter({ workspaceId: input.workspaceId, id: input.campaignId, counter: status, updatedAt: now });
 
   return { sendRow: updated };
 }
