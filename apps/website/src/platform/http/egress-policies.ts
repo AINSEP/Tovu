@@ -61,10 +61,11 @@ export const SINGLE_HOP_HTTPS_EGRESS_POLICY: EgressPolicy = {
 
 /**
  * {@link MEDIA_IMPORT_EGRESS_POLICY}'s response cap — the transport-level BACKSTOP, deliberately set
- * above `features/media-import`'s own accept limit (`@jini-ai/cms/media`'s `DEFAULT_MAX_UPLOAD_BYTES`,
- * 10 MiB, the same cap `uploadMedia` itself enforces) so the feature's own error message is the one a
- * caller normally sees, and this cap only fires for a response so far over the line that reading it
- * to the feature's own check would be wasted bandwidth.
+ * above `features/media-import`'s own accept limit (`features/media/upload-limits.ts`'s
+ * `TOVU_MAX_UPLOAD_BYTES`, 35 MiB — this host's override of `@jini-ai/cms/media`'s 10 MiB
+ * `DEFAULT_MAX_UPLOAD_BYTES`, the same cap `uploadMedia` itself is now called with) so the feature's
+ * own error message is the one a caller normally sees, and this cap only fires for a response so far
+ * over the line that reading it to the feature's own check would be wasted bandwidth.
  *
  * The two are NOT required to stay in lockstep and this file deliberately does not import the
  * feature's value to keep them so — `platform/**` is a Tier-2 library and may not depend on
@@ -77,7 +78,7 @@ export const SINGLE_HOP_HTTPS_EGRESS_POLICY: EgressPolicy = {
  * both body shapes, and this cap is crossed by the LOSSY text decode of any large image long before
  * the bytes reach it (2026-09-06, MI-01).
  */
-const MEDIA_IMPORT_MAX_RESPONSE_BYTES = 12 * 1024 * 1024;
+const MEDIA_IMPORT_MAX_RESPONSE_BYTES = 42 * 1024 * 1024;
 
 /**
  * A single HTTPS GET fetching an IMAGE FILE from a URL the ASSISTANT supplied — today only

@@ -10,6 +10,7 @@ import { ToolInputError } from "@jini-ai/core";
 
 import type { DuplicateResourceHandlerContributor } from "#src/assistant/index";
 import type { MediaPublicUrlDeps } from "./tool-registrations.js";
+import { TOVU_MAX_UPLOAD_BYTES } from "./upload-limits.js";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 
 /**
@@ -239,7 +240,7 @@ export async function duplicateMediaAsset(
       credit: source.credit,
       createdByPrincipal: input.principalId,
     },
-  });
+  }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
 
   // Keyed by sha256, not by asset id, so for a source whose type was already recorded this is a
   // no-op rewrite of the same value. It is called anyway, and deliberately: an asset predating the

@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 
-import { MediaValidationError, sniffContentType, uploadMedia } from "#src/features/media/index";
+import { MediaValidationError, sniffContentType, TOVU_MAX_UPLOAD_BYTES, uploadMedia } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
 import type { MediaRouteRegistrar } from "./deps.js";
@@ -151,7 +151,7 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
           credit,
           createdByPrincipal: principal.id,
         },
-      });
+      }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
 
       // Record what the bytes ACTUALLY are, not the `contentType` the client declared. Both
       // `uploadMedia`'s allowlist check above and `original.ts`'s serving path already treat that

@@ -20,6 +20,7 @@ import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/inde
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import {
   sniffContentType,
+  TOVU_MAX_UPLOAD_BYTES,
   uploadMedia,
   type AssetBlobRepoPort,
   type AssetRenditionRepoPort,
@@ -208,7 +209,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
               credit: optionalString(input, "credit"),
               createdByPrincipal: ctx.principal.id,
             },
-          });
+          }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
 
           // The same "record what the bytes actually are" write the admin upload route and
           // `media_generate_asset` both perform. Re-sniffed rather than reusing `fetched.contentType`

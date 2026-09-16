@@ -1,5 +1,5 @@
 import type { HttpClientPort } from "#src/platform/http/index";
-import { sniffContentType, DEFAULT_MAX_UPLOAD_BYTES, type SniffedContentType } from "../media/index.js";
+import { sniffContentType, TOVU_MAX_UPLOAD_BYTES, type SniffedContentType } from "../media/index.js";
 
 /**
  * @file The guarded "fetch a media file from a URL" half of `media_import_from_url` — everything
@@ -96,12 +96,13 @@ export const IMPORTABLE_CONTENT_TYPES: ReadonlySet<string> = new Set<SniffedCont
 ]);
 
 /**
- * Largest payload this tool will import. Not an independent number: it IS
- * `@jini-ai/cms/media`'s `DEFAULT_MAX_UPLOAD_BYTES`, the exact cap `uploadMedia` enforces on the
- * very next call — imported rather than restated so the two can never drift into a state where this
- * module downloads several megabytes that `uploadMedia` then throws away.
+ * Largest payload this tool will import. Not an independent number: it IS `../media/upload-limits.js`'s
+ * `TOVU_MAX_UPLOAD_BYTES` (this host's override of `@jini-ai/cms/media`'s 10 MiB
+ * `DEFAULT_MAX_UPLOAD_BYTES`), the exact cap `tool-registrations.ts` now passes `uploadMedia` as
+ * `maxUploadBytes` on the very next call — imported rather than restated so the two can never drift
+ * into a state where this module downloads several megabytes that `uploadMedia` then throws away.
  */
-export const MEDIA_IMPORT_MAX_BYTES = DEFAULT_MAX_UPLOAD_BYTES;
+export const MEDIA_IMPORT_MAX_BYTES = TOVU_MAX_UPLOAD_BYTES;
 
 /** Per-request timeout. `MEDIA_IMPORT_EGRESS_POLICY.connectTimeoutMs` is a CEILING on this value,
  *  never a replacement for it (`client.ts`'s `sendWithPolicy` takes the `Math.min` of the two) —

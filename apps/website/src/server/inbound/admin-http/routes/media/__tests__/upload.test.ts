@@ -6,6 +6,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { registerAdminMediaUploadRoute } from "../upload.js";
 import type { MediaRouteDeps } from "../deps.js";
 
@@ -44,7 +45,9 @@ function buildApp(depsOverrides: Partial<MediaRouteDeps> = {}): express.Express 
     ...depsOverrides,
   };
   const app = express();
-  app.use(express.json({ limit: "10mb" }));
+  // Above TOVU_MAX_UPLOAD_BYTES's own base64 inflation (~1.33x of 35 MiB, ~47 MiB) so an
+  // over-cap regression test is rejected by uploadMedia's own check, not this test app's parser.
+  app.use(express.json({ limit: "60mb" }));
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.locals.principal = { id: "test-principal" };
     next();
@@ -109,4 +112,19 @@ test("upload: a normal alt string value is stored trimmed", async (t) => {
   });
   assert.equal(status, 201);
   assert.equal(json.media.alt, "A single pixel");
+});
+
+// Owner-directed 2026-09-16: raised from 10 MiB to 35 MiB so a 10-20s generated video clip fits.
+// `contentType: "image/png"` is enough to pass uploadMedia's allowlist check without real PNG
+// bytes — that check reads the declared `contentType` field, never sniffs the body.
+test("upload: a file one byte over TOVU_MAX_UPLOAD_BYTES (35 MiB) is rejected with the new cap in the message", async (t) => {
+  const app = buildApp();
+  const oversized = Buffer.alloc(TOVU_MAX_UPLOAD_BYTES + 1);
+  const { status, json } = await upload(t, app, {
+    filename: "clip.mp4",
+    contentType: "video/mp4",
+    dataBase64: oversized.toString("base64"),
+  });
+  assert.equal(status, 400);
+  assert.equal(json.error, `uploaded file exceeds the ${TOVU_MAX_UPLOAD_BYTES}-byte size cap`);
 });
