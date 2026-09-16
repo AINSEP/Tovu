@@ -19,6 +19,7 @@ import {
   useRunnerNavigation,
   useSectionNav,
 } from './App.hooks.js';
+import { chromeVisibility, workspaceOnScreen } from './expanded-mode.js';
 import { useWorkspaceChatPane, WORKSPACE_RUN_CONTEXT } from './use-workspace-chat-pane.hooks.js';
 import { useAddSite } from './use-add-site.hooks.js';
 import { useSiteWorkspace } from './use-site-workspace.hooks.js';
@@ -86,6 +87,9 @@ export function App({
   const { openSites, inSites, showSiteTab, showSitesHome, visibleWorkspaceId, showCreateForm } =
     deriveSitesHomeView({ activeId, appearanceOpen, activeTab, openTabs, projects, isCreating });
   const { expanded, toggleExpanded } = useExpanded(showSiteTab);
+  // Expanded mode's whole visible effect. See `expanded-mode.ts` for why this is a plain function
+  // rather than three conditions inlined into the JSX below.
+  const { showTopNav, showTabStrip } = chromeVisibility({ expanded, inSites, appearanceOpen });
   useRunnerNavigation(setActiveId, setActiveTab);
   const { lastCreated, openCreateWebsite, handleCreate, handleDelete, cancelCreate, createFormKey } =
     useProjectMutations({
@@ -100,7 +104,7 @@ export function App({
 
   return (
     <div className="app">
-      {!expanded && (
+      {showTopNav && (
       <TopNav
         activeId={activeId}
         onSitesHome={showSitesHome && !appearanceOpen}
@@ -112,7 +116,7 @@ export function App({
       />
       )}
 
-      {inSites && !appearanceOpen && !expanded && (
+      {showTabStrip && (
         <TabStrip
           projects={openSites}
           activeTab={showSiteTab ? activeTab : null}
@@ -437,7 +441,7 @@ function SiteWorkspaces({
         <SiteWorkspace
           key={project.id}
           project={project}
-          hidden={project.id !== visibleWorkspaceId}
+          hidden={!workspaceOnScreen({ inSites, projectId: project.id, visibleWorkspaceId })}
           expanded={expanded}
           onToggleExpanded={onToggleExpanded}
         />

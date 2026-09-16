@@ -46,6 +46,11 @@ import { runnerInventoryBridge } from './runner-api.js';
 import { createWorkspaceChatTransport, type WorkspaceChatTransport } from './workspace-chat-transport.js';
 import { createLocalAttachmentUploader } from './chat-attachments.js';
 import { persistableMessages } from './persistable-messages.js';
+import {
+  expandedAfterKeyDown,
+  expandedAfterWorkspaceChange,
+  nextExpanded,
+} from './expanded-mode.js';
 import type { RunnerSectionId } from '../contracts/sections.js';
 import type { ThemePreference } from './theme.js';
 import type { CreateSiteInput, DatabaseProviderKind, SiteRecord } from '../contracts/project.js';
@@ -481,22 +486,24 @@ export function useExpandedMode(showSiteTab: boolean): {
   // expanding. Closing the tab, deleting the project, or a `desktop.navigate` call moving the nav
   // would otherwise leave the chrome hidden with nothing to be immersed in and no way back.
   useEffect(() => {
-    if (!showSiteTab) setExpanded(false);
+    setExpanded((on) => expandedAfterWorkspaceChange(on, showSiteTab));
   }, [showSiteTab]);
 
   // Escape collapses. This listener only sees keys pressed in Tovu's own chrome — a <webview>
   // is a separate browsing context and does not bubble its keydowns out to this document — so it
   // is a convenience, never the only exit. The bar's collapse button is the one that always works.
+  // `expandedAfterKeyDown` returns the SAME value for every key that is not Escape, so the updater
+  // form costs nothing for the other keys: React bails out of the re-render when state is unchanged.
   useEffect(() => {
     if (!expanded) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setExpanded(false);
+      setExpanded((on) => expandedAfterKeyDown(on, event.key));
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [expanded]);
 
-  const toggleExpanded = () => setExpanded((on) => !on);
+  const toggleExpanded = () => setExpanded(nextExpanded);
 
   return { expanded, toggleExpanded };
 }
