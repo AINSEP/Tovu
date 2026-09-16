@@ -64,6 +64,13 @@ import type { ContentDb } from "./content-db.js";
  *   timer.
  */
 
+/** The transaction handle Drizzle hands its synchronous callback. Structurally the same query
+ *  builder as `ContentDb`, which is why the private helpers below accept either. */
+type ContentDbTx = Parameters<Parameters<ContentDb["transaction"]>[0]>[0];
+
+/** Either the connection itself or an open transaction on it. */
+type Writer = Pick<ContentDb, "select" | "delete"> | Pick<ContentDbTx, "select" | "delete">;
+
 /** One `SealedSecret`'s four columns, factored out because both tables carry an identical sealed
  *  group and both directions (row -> `SealedSecret`, `SealedSecret` -> row values) need it. */
 interface SealedColumns {
@@ -98,9 +105,10 @@ export interface SqlitePendingAuthorizationStoreDeps {
  *
  * @returns The store. Never throws at construction — sealing failures surface from `put`/`take`
  *   themselves, the same as every other ADR-058 consumer in this codebase.
- * @complexity `put` is one prune DELETE, a bounded eviction loop (at most `maxEntries` iterations,
- *   each O(1) and indexed), one seal, and one INSERT. `take` is one indexed conditional DELETE plus
- *   one unseal on a hit. Both are effectively constant since `maxEntries` bounds the live row count.
+ * @complexity `put` is one seal, then one `immediate` transaction holding a prune DELETE, a bounded
+ *   eviction loop (at most `maxEntries` iterations, each O(1) and indexed), and one INSERT. `take`
+ *   is one indexed conditional DELETE plus one unseal on a hit. Both are effectively constant since
+ *   `maxEntries` bounds the live row count.
  * @overallScore 100
  */
 export function createSqlitePendingAuthorizationStore(deps: SqlitePendingAuthorizationStoreDeps): PendingAuthorizationStore {
@@ -109,58 +117,69 @@ export function createSqlitePendingAuthorizationStore(deps: SqlitePendingAuthori
   const randomBytesFn = deps.randomBytesFn ?? ((n: number) => randomBytes(n));
 
   /** Deletes every row past its TTL. Run on every `put`, matching the in-memory adapter's own
-   *  prune-on-access (not on a timer) tradeoff — see this file's header. */
-  function pruneExpired(nowIso: string): void {
-    deps.db.delete(oauthPendingAuthorizations).where(lte(oauthPendingAuthorizations.expiresAt, nowIso)).run();
+   *  prune-on-access (not on a timer) tradeoff — see this file's header. Takes `writer` so a caller
+   *  can run it inside its own transaction (`put`) or against the bare connection (`size`). */
+  function pruneExpired(writer: Writer, nowIso: string): void {
+    writer.delete(oauthPendingAuthorizations).where(lte(oauthPendingAuthorizations.expiresAt, nowIso)).run();
   }
 
   /** Evicts the single oldest row when at or over `maxEntries`, looping defensively in case more
    *  than one row needs to go (a lowered `maxEntries` between calls, say) — mirrors the in-memory
-   *  adapter's own `while` loop over its `Map`'s insertion order. */
-  function evictOverCap(): void {
+   *  adapter's own `while` loop over its `Map`'s insertion order. `writer` is the caller's open
+   *  transaction, so the count/evict sequence cannot interleave with another connection's insert. */
+  function evictOverCap(writer: Writer): void {
     for (;;) {
-      const count = deps.db.select({ n: sql<number>`count(*)` }).from(oauthPendingAuthorizations).get()?.n ?? 0;
+      const count = writer.select({ n: sql<number>`count(*)` }).from(oauthPendingAuthorizations).get()?.n ?? 0;
       if (count < maxEntries) return;
-      const oldest = deps.db
+      const oldest = writer
         .select({ state: oauthPendingAuthorizations.state })
         .from(oauthPendingAuthorizations)
         .orderBy(asc(oauthPendingAuthorizations.createdAt))
         .limit(1)
         .get();
       if (!oldest) return;
-      deps.db.delete(oauthPendingAuthorizations).where(eq(oauthPendingAuthorizations.state, oldest.state)).run();
+      writer.delete(oauthPendingAuthorizations).where(eq(oauthPendingAuthorizations.state, oldest.state)).run();
     }
   }
 
   return {
     async put(input) {
       const nowIso = deps.clock.nowIso();
-      pruneExpired(nowIso);
-      evictOverCap();
-
       const state = Buffer.from(randomBytesFn(PENDING_AUTHORIZATION_STATE_BYTES)).toString("base64url");
       const expiresAt = new Date(Date.parse(nowIso) + ttlMs).toISOString();
       // Sealed even when `codeVerifier` is `""` (a non-PKCE provider) — see this table's schema doc
       // on why the sealed columns are always fully populated rather than conditionally null.
+      // Sealed BEFORE the write transaction opens: `seal` is async, and holding a SQLite write lock
+      // across an `await` would let a concurrent put observe spare capacity before this one inserts.
       const sealed = await deps.sealer.seal({
         plaintext: input.codeVerifier,
         key: await deps.keyring.activeKey(),
         aad: input.ownerKey,
       });
 
-      deps.db
-        .insert(oauthPendingAuthorizations)
-        .values({
-          state,
-          ownerKey: input.ownerKey,
-          providerId: input.providerId,
-          ...sealedColumnValues(sealed),
-          redirectUri: input.redirectUri,
-          scopesJson: JSON.stringify(input.scopes),
-          createdAt: nowIso,
-          expiresAt,
-        })
-        .run();
+      deps.db.transaction(
+        (tx) => {
+          pruneExpired(tx, nowIso);
+          evictOverCap(tx);
+
+          tx.insert(oauthPendingAuthorizations)
+            .values({
+              state,
+              ownerKey: input.ownerKey,
+              providerId: input.providerId,
+              ...sealedColumnValues(sealed),
+              redirectUri: input.redirectUri,
+              scopesJson: JSON.stringify(input.scopes),
+              createdAt: nowIso,
+              expiresAt,
+            })
+            .run();
+        },
+        // `immediate` takes the write lock up front, so two processes can never both read the count
+        // under the cap and then both insert — the exact race the cap test at
+        // `platform/db/__tests__/oauth-pending-store.sqlite.test.ts` guards against.
+        { behavior: "immediate" }
+      );
 
       const entry: PendingAuthorization = {
         state,
@@ -207,7 +226,7 @@ export function createSqlitePendingAuthorizationStore(deps: SqlitePendingAuthori
 
     async size() {
       const nowIso = deps.clock.nowIso();
-      pruneExpired(nowIso);
+      pruneExpired(deps.db, nowIso);
       return deps.db.select({ n: sql<number>`count(*)` }).from(oauthPendingAuthorizations).get()?.n ?? 0;
     },
   };

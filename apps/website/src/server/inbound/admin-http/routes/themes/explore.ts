@@ -729,6 +729,33 @@ function resetFileFromOriginal(
 }
 
 /**
+ * Builds the per-file reset route's success body from {@link resetFileFromOriginal}'s result.
+ *
+ * Extracted (2026-09-15) so the route handler itself stays under the 9/9 `complexity` /
+ * `sonarjs/cognitive-complexity` ceiling this repo enforces on `src/server` — its two conditional
+ * `bytes`/`content` expressions were the last decisions keeping that handler at a complexity of 10.
+ * Behaviour is unchanged: `bytes` reports 0 when nothing was written, and `content` is `null` past
+ * the {@link MAX_THEME_FILE_BYTES} text-read limit, exactly as inline before.
+ */
+function buildFileResetResponse(
+  deps: ContentRouteDeps,
+  theme: DiscoveredTheme,
+  path: string,
+  reset: { wasModified: boolean; bytes: number }
+): { scope: "file"; path: string; wasModified: boolean; bytes: number; content: string | null } {
+  return {
+    scope: "file",
+    path,
+    wasModified: reset.wasModified,
+    bytes: reset.wasModified ? reset.bytes : 0,
+    content:
+      reset.bytes > MAX_THEME_FILE_BYTES
+        ? null
+        : readThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path }),
+  };
+}
+
+/**
  * POST — restore file(s) to the pristine copy in the originals catalog.
  *
  * This is the payoff for the whole copy-not-inherit model, and the reason the catalog has to be
@@ -802,19 +829,11 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, dep
 
       const resetResult = resetFileFromOriginal(deps, theme, catalogDir, path, res);
       if (!resetResult.ok) return;
-      const { wasModified, bytes } = resetResult;
       // Reloaded even when nothing was written, matching `theme_reset_file`: this process's snapshot
       // is stale whenever a different process wrote the theme.
       reloadTheme(deps, theme.manifest.id);
 
-      res.json({
-        scope: "file",
-        path,
-        wasModified,
-        bytes: wasModified ? bytes : 0,
-        content:
-          bytes > MAX_THEME_FILE_BYTES ? null : readThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path }),
-      });
+      res.json(buildFileResetResponse(deps, theme, path, resetResult));
     } catch (err) {
       sendThemeFileError(res, err);
     }

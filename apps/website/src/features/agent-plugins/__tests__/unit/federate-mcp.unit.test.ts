@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryExternalMcpServerRepo, listExternalMcpServerViews, saveExternalMcpServer, type ExternalMcpStoreDeps } from "#src/assistant/index";
+import { InMemoryExternalMcpServerRepo, listExternalMcpServerViews, saveExternalMcpServer, type ExternalMcpServerRepoPort, type ExternalMcpStoreDeps } from "#src/assistant/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
@@ -23,6 +23,7 @@ const STDIO_SERVER: McpServerConfig = { type: "stdio", command: "./server/index.
 const REMOTE_SERVER: McpServerConfig = { type: "streamable-http", url: "https://mcp.example.com/mcp" };
 const OAUTH_SERVER: McpServerConfig = { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth" };
 const SSE_SERVER: McpServerConfig = { type: "sse", url: "https://mcp.example.com/sse" };
+const HEADERED_SERVER: McpServerConfig = { type: "streamable-http", url: "https://mcp.example.com/mcp", headers: { "X-Tenant": "acme" } };
 
 const clock = { nowIso: () => "2026-09-10T00:00:00.000Z" };
 
@@ -31,6 +32,20 @@ function makeDeps(): ExternalMcpStoreDeps {
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
   return { repo, keyring, sealer, clock };
+}
+
+/** A repo whose existence read rejects for one specific server id, delegating every other read and
+ *  write to the real repo — the transient `findByServerId` failure finding 5-5 requires isolation
+ *  for, without breaking the real store behavior the surrounding tests depend on. */
+function repoWhoseLookupRejects(inner: ExternalMcpServerRepoPort, serverId: string, error: Error): ExternalMcpServerRepoPort {
+  return {
+    listByWorkspaceId: (workspaceId) => inner.listByWorkspaceId(workspaceId),
+    findByServerId: (input) => (input.serverId === serverId ? Promise.reject(error) : inner.findByServerId(input)),
+    upsert: (record) => inner.upsert(record),
+    deleteByServerId: (input) => inner.deleteByServerId(input),
+    tryClaimOAuthRefreshLease: (input) => inner.tryClaimOAuthRefreshLease(input),
+    releaseOAuthRefreshLease: (input) => inner.releaseOAuthRefreshLease(input),
+  };
 }
 
 test("deriveAgentPluginConnectionId sanitizes the server key verbatim, without hashing or namespacing by plugin", () => {
@@ -79,6 +94,31 @@ test("planAgentPluginMcpFederation: an sse server is skipped as an unsupported t
   assert.deepEqual(plan.toUpsert, []);
   assert.equal(plan.skipped.length, 1);
   assert.match(plan.skipped[0]?.reason ?? "", /sse/);
+});
+
+test("planAgentPluginMcpFederation: a remote server declaring headers is skipped as unsupported, never planned with its headers dropped", () => {
+  const plan = planAgentPluginMcpFederation({ servers: { tenant: HEADERED_SERVER } });
+  assert.deepEqual(plan.toUpsert, []);
+  assert.equal(plan.skipped.length, 1);
+  assert.equal(plan.skipped[0]?.serverKey, "tenant");
+  assert.match(plan.skipped[0]?.reason ?? "", /headers/);
+});
+
+test("provisionAgentPluginMcpServers: a remote server declaring headers produces no row rather than one silently missing them", async () => {
+  const deps = makeDeps();
+  const result = await provisionAgentPluginMcpServers(deps, {
+    workspaceId: "ws-1",
+    pluginId: "some-plugin",
+    servers: { tenant: HEADERED_SERVER },
+    principalId: "principal-1",
+  });
+
+  assert.deepEqual(result.provisioned, []);
+  assert.equal(result.skipped.length, 1);
+  assert.equal(result.skipped[0]?.serverKey, "tenant");
+
+  const views = await listExternalMcpServerViews({ repo: deps.repo }, "ws-1");
+  assert.deepEqual(views, []);
 });
 
 test("planAgentPluginMcpFederation: a mixed set resolves each server independently", () => {
@@ -245,4 +285,60 @@ test("provisionAgentPluginMcpServers: two different plugins declaring the same s
   const views = await listExternalMcpServerViews({ repo: deps.repo }, "ws-1");
   assert.equal(views.length, 1, "one shared row, not two");
   assert.equal(views[0]?.provisionedByPluginId, "plugin-b", "the most recently enabling plugin owns the association");
+});
+
+test("provisionAgentPluginMcpServers: a different plugin declaring the same server key at a DIFFERENT endpoint is refused, never adopted or rebound", async () => {
+  const deps = makeDeps();
+  const first = await provisionAgentPluginMcpServers(deps, {
+    workspaceId: "ws-1",
+    pluginId: "plugin-a",
+    servers: { main: REMOTE_SERVER },
+    principalId: "principal-1",
+  });
+  assert.deepEqual(first.provisioned, ["main"]);
+
+  // Same declared key ("main") derives the same unnamespaced connection id, but the endpoint is a
+  // different server entirely. Adopting plugin A's row would label its provenance "plugin-b" while
+  // calls for plugin B's `mcp__main__*` tools still reached plugin A's endpoint (finding 5-2).
+  const result = await provisionAgentPluginMcpServers(deps, {
+    workspaceId: "ws-1",
+    pluginId: "plugin-b",
+    servers: { main: { type: "streamable-http", url: "https://other.example.com/mcp" } },
+    principalId: "principal-1",
+  });
+
+  assert.deepEqual(result.provisioned, []);
+  assert.deepEqual(result.alreadyProvisioned, []);
+  assert.deepEqual(result.adopted, []);
+  assert.equal(result.failed.length, 1);
+  assert.equal(result.failed[0]?.serverKey, "main");
+  assert.match(result.failed[0]?.reason ?? "", /different endpoint/);
+
+  const after = await deps.repo.findByServerId({ workspaceId: "ws-1", serverId: "main" });
+  assert.ok(after);
+  assert.equal(after.provisionedByPluginId, "plugin-a", "provenance is never rewritten for a colliding endpoint");
+  assert.equal(after.url, "https://mcp.example.com/mcp", "the existing endpoint is not rebound to plugin B's declaration");
+});
+
+test("provisionAgentPluginMcpServers: a per-server existence-read rejection is reported and does not abort the remaining servers", async () => {
+  const deps = makeDeps();
+  const result = await provisionAgentPluginMcpServers(
+    { ...deps, repo: repoWhoseLookupRejects(deps.repo, "alpha", new Error("transient lookup failure")) },
+    {
+      workspaceId: "ws-1",
+      pluginId: "some-plugin",
+      // Two servers in one plugin: the first lookup rejects, the second must still be provisioned.
+      servers: { alpha: REMOTE_SERVER, beta: REMOTE_SERVER },
+      principalId: "principal-1",
+    },
+  );
+
+  assert.deepEqual(result.provisioned, ["beta"], "a rejected lookup for alpha must not stop beta from being created");
+  assert.equal(result.failed.length, 1);
+  assert.equal(result.failed[0]?.serverKey, "alpha");
+  assert.match(result.failed[0]?.reason ?? "", /transient lookup failure/);
+
+  const views = await listExternalMcpServerViews({ repo: deps.repo }, "ws-1");
+  assert.equal(views.length, 1);
+  assert.equal(views[0]?.serverId, "beta");
 });

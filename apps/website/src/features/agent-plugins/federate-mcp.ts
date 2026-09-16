@@ -46,9 +46,17 @@ import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
  *        untouched while changing just this one (even its "tri-state" fields resolve a default the
  *        caller must supply). Reported {@link ProvisionAgentPluginMcpServersResult.adopted}. The
  *        operator's own configuration and any live tokens always outrank a package's declaration —
- *        that is this rule, applied to the id-collision case specifically. Two different plugins
- *        declaring the identical server key therefore share one row (whichever enabled most recently
- *        owns `provisionedByPluginId`) rather than colliding or silently losing the association.
+ *        that is this rule, applied to the id-collision case specifically.
+ *      - EXCEPT a row owned by a DIFFERENT plugin whose url, transport, or auth mode DIFFERS from the
+ *        declaration — a different server whose key merely normalized to the same id. Rewriting that
+ *        plugin's provenance would leave calls for this plugin pointing at the other plugin's
+ *        endpoint, so the collision is refused, never adopted, and reported
+ *        {@link ProvisionAgentPluginMcpServersResult.failed}. Two plugins declaring the identical key
+ *        AND endpoint therefore share one row (whichever enabled most recently owns
+ *        `provisionedByPluginId`); two declaring the same key but different endpoints do not. An
+ *        operator's row (`provisionedByPluginId === null`) is still adopted unconditionally — the
+ *        operator typed the endpoint they wanted, so recording the association is not a rewrite of
+ *        another plugin's provenance.
  *    KNOWN RACE: the existence check and the create/adopt are not one atomic operation (no
  *    compare-and-set primitive exists on `ExternalMcpServerRepoPort` today, unlike
  *    `tryClaimOAuthRefreshLease`'s purpose-built one). Two concurrent provisioning attempts for the
@@ -197,6 +205,16 @@ function classifyAgentPluginMcpServerForFederation(
       reason: "declares the legacy 'sse' transport, which this Tovu version's external-MCP store does not support (only stdio/streamable_http)",
     };
   }
+  // `headers` is validated and preserved by `manifest.ts` but has no column in the external-MCP
+  // store, so a non-empty set would otherwise vanish without a skip, warning, or failure. Refuse it
+  // explicitly rather than silently provisioning a row that omits configuration the plugin declared —
+  // and never copy a header that may carry authorization material into a row this store cannot seal.
+  if (config.headers !== undefined && Object.keys(config.headers).length > 0) {
+    return {
+      kind: "skip",
+      reason: "declares HTTP headers, which this Tovu version's external-MCP store does not persist — refusing to provision a row that silently drops them",
+    };
+  }
 
   const connectionId = deriveAgentPluginConnectionId(serverKey);
   if (connectionId === null) {
@@ -268,10 +286,12 @@ export interface ProvisionAgentPluginMcpServersResult {
   /** Connection ids that already had a row THIS SAME plugin provisioned on an earlier enable, left
    *  completely untouched — rule 1's first case. */
   readonly alreadyProvisioned: readonly string[];
-  /** Connection ids that already had a row belonging to an operator or a DIFFERENT plugin, left
-   *  byte-identical except for `provisionedByPluginId`, which now names this plugin — rule 1's
-   *  adoption case. Every other field (url, transport, auth mode, allowlist, write grants, any
-   *  oauth/sealed column) is exactly what it was before this call. */
+  /** Connection ids that already had a row belonging to an operator, or to a DIFFERENT plugin whose
+   *  url, transport, and auth mode match this declaration, left byte-identical except for
+   *  `provisionedByPluginId`, which now names this plugin — rule 1's adoption case. Every other field
+   *  (url, transport, auth mode, allowlist, write grants, any oauth/sealed column) is exactly what it
+   *  was before this call. A different plugin's row at a non-matching endpoint is refused instead —
+   *  see {@link failed}. */
   readonly adopted: readonly string[];
   readonly skipped: readonly SkippedAgentPluginMcpServer[];
   readonly failed: readonly SkippedAgentPluginMcpServer[];
@@ -308,10 +328,12 @@ function buildProvisioningSaveInput(
 }
 
 /** One outcome of handling a planned server for which rule 1's existence check found a row already
- *  present — either case leaves every field but `provisionedByPluginId` untouched (see this file's
- *  header). Split out of {@link provisionAgentPluginMcpServers} purely to keep that function's
- *  complexity under the shop ceiling: the loop gets exactly one branch point per planned server
- *  instead of a nested try/catch inline.
+ *  present. `alreadyProvisioned` and `adopted` leave every field but `provisionedByPluginId`
+ *  untouched (see this file's header); `failed` reports either a refused collision (a DIFFERENT
+ *  plugin's row whose endpoint/transport/auth differ from this declaration) or an upsert error. Split
+ *  out of {@link provisionAgentPluginMcpServers} purely to keep that function's complexity under the
+ *  shop ceiling: the loop gets exactly one branch point per planned server instead of a nested
+ *  try/catch inline.
  *  @complexity O(1) plus at most one `repo.upsert` for the adoption case. */
 async function adoptOrRecognizeExistingAgentPluginMcpServer(
   deps: Pick<ExternalMcpStoreDeps, "repo">,
@@ -325,6 +347,25 @@ async function adoptOrRecognizeExistingAgentPluginMcpServer(
 > {
   if (existing.provisionedByPluginId === pluginId) {
     return { kind: "alreadyProvisioned" };
+  }
+  // The connection id is unnamespaced and normalized, so a row already owned by a DIFFERENT plugin
+  // may belong to a different server whose key merely sanitized to the same id. Adopting it would
+  // rewrite that plugin's provenance while the endpoint stayed put — calls this plugin expects at
+  // `mcp__<serverKey>__*` would still reach the other plugin's server (finding 5-2). Such a collision
+  // is adopted only when the declared endpoint, transport, and auth mode match exactly; otherwise it
+  // is refused and reported, never silently rebound. An operator's own row (`provisionedByPluginId
+  // === null`) is still adopted unconditionally: recording an association where none existed is the
+  // documented rule-1 behavior, not a rewrite of another plugin's provenance.
+  if (
+    existing.provisionedByPluginId !== null &&
+    (existing.url !== planned.url ||
+      existing.transport !== "streamable_http" ||
+      existing.authMode !== planned.authMode)
+  ) {
+    return {
+      kind: "failed",
+      reason: `connection id '${planned.connectionId}' is owned by plugin '${existing.provisionedByPluginId}' at a different endpoint (url='${existing.url ?? ""}', transport='${existing.transport}', authMode='${existing.authMode}') — refusing to rebind it to plugin '${pluginId}' (declared url='${planned.url}', transport='streamable_http', authMode='${planned.authMode}')`,
+    };
   }
   try {
     // Direct repo write, never `saveExternalMcpServer` — that function has no way to leave every
@@ -346,14 +387,15 @@ async function adoptOrRecognizeExistingAgentPluginMcpServer(
  *
  * Rule 1 is enforced per server, right here: `deps.repo.findByServerId` runs BEFORE any write. A row
  * already at the derived id is NEVER passed through `saveExternalMcpServer` — it is either
- * recognized as this same plugin's earlier work (`alreadyProvisioned`) or adopted, byte-identical
- * except for `provisionedByPluginId`, via a direct `repo.upsert` (`adopted`). See
- * {@link adoptOrRecognizeExistingAgentPluginMcpServer}.
+ * recognized as this same plugin's earlier work (`alreadyProvisioned`), adopted byte-identical
+ * except for `provisionedByPluginId` via a direct `repo.upsert` (`adopted`), or, when it belongs to a
+ * DIFFERENT plugin at a non-matching endpoint/transport/auth mode, refused as a genuine collision
+ * (`failed`). See {@link adoptOrRecognizeExistingAgentPluginMcpServer}.
  *
- * Per-server failures (a store validation error, an unconfigured secret store, an adoption's upsert
- * failing) are caught and reported rather than thrown, matching `readEnabledExternalMcpConfigs`'s
- * own fail-open posture: one unwritable row must not stop every other server in the same plugin, or
- * the plugin's own activation, from succeeding.
+ * Per-server failures (a store validation error, an unconfigured secret store, a refused collision,
+ * or an adoption's upsert failing) are caught and reported rather than thrown, matching
+ * `readEnabledExternalMcpConfigs`'s own fail-open posture: one unwritable row must not stop every
+ * other server in the same plugin, or the plugin's own activation, from succeeding.
  *
  * @complexity O(s) in the plugin's declared server count, each one an existence check plus at most
  * one create or adopt.
@@ -369,16 +411,16 @@ export async function provisionAgentPluginMcpServers(
   const failed: SkippedAgentPluginMcpServer[] = [];
 
   for (const planned of plan.toUpsert) {
-    const existing = await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: planned.connectionId });
-    if (existing) {
-      const outcome = await adoptOrRecognizeExistingAgentPluginMcpServer(deps, existing, planned, input.pluginId);
-      if (outcome.kind === "alreadyProvisioned") alreadyProvisioned.push(planned.connectionId);
-      else if (outcome.kind === "adopted") adopted.push(planned.connectionId);
-      else failed.push({ serverKey: planned.serverKey, reason: outcome.reason });
-      continue;
-    }
-
     try {
+      const existing = await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: planned.connectionId });
+      if (existing) {
+        const outcome = await adoptOrRecognizeExistingAgentPluginMcpServer(deps, existing, planned, input.pluginId);
+        if (outcome.kind === "alreadyProvisioned") alreadyProvisioned.push(planned.connectionId);
+        else if (outcome.kind === "adopted") adopted.push(planned.connectionId);
+        else failed.push({ serverKey: planned.serverKey, reason: outcome.reason });
+        continue;
+      }
+
       await saveExternalMcpServer(deps, buildProvisioningSaveInput(planned, input));
       provisioned.push(planned.connectionId);
     } catch (err) {

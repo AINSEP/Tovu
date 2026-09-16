@@ -190,6 +190,33 @@ test("the store is bounded — at the cap the oldest row is evicted, never the n
   assert.equal((await store.take({ state: newest.state, ownerKey: "ws-1:server-3" })).ownerKey, "ws-1:server-3");
 });
 
+test("the cap holds when two store instances sharing one content.db put concurrently, so eviction is atomic with the insert rather than a read-then-insert race", async () => {
+  const dbPath = tmpDbPath();
+  const dbProcessA = openContentDb(dbPath);
+  const dbProcessB = openContentDb(dbPath);
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  const clock = createTestClock();
+
+  const storeInProcessA = createSqlitePendingAuthorizationStore({ db: dbProcessA, clock, sealer, keyring, maxEntries: 3 });
+  const storeInProcessB = createSqlitePendingAuthorizationStore({ db: dbProcessB, clock, sealer, keyring, maxEntries: 3 });
+
+  // One row below the cap: BOTH concurrent puts would observe spare capacity if the cap test ran
+  // before an await, so each would skip eviction and insert — leaving four rows for a cap of three.
+  await storeInProcessA.put(samplePendingInput({ ownerKey: "ws-1:seed-0" }));
+  await storeInProcessA.put(samplePendingInput({ ownerKey: "ws-1:seed-1" }));
+
+  // Fire both without awaiting in between. Each `put` suspends at `sealer.seal`, which is the only
+  // interleaving point in a single-threaded process; an unchained read-then-insert loses the race
+  // across the two handles that stand in for two OS processes.
+  await Promise.all([
+    storeInProcessA.put(samplePendingInput({ ownerKey: "ws-1:concurrent-a" })),
+    storeInProcessB.put(samplePendingInput({ ownerKey: "ws-1:concurrent-b" })),
+  ]);
+
+  assert.equal(await storeInProcessA.size(), 3);
+});
+
 test("codeVerifier is sealed at rest — the raw row never carries the plaintext verifier", async () => {
   const dbPath = tmpDbPath();
   const db = openContentDb(dbPath);

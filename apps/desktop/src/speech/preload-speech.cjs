@@ -76,7 +76,7 @@ contextBridge.exposeInMainWorld("tovuVoice", {
  * trip, because `webUtils` only exists in the preload's Node-capable context, not the isolated page it
  * bridges into (same rationale as `preload.mts`'s own copy of this call, which this mirrors byte-for-
  * byte for `apps/desktop/src/renderer/folder-drop.ts`'s admin-side counterpart,
- * `apps/admin/src/features/fs-files/folder-drop.ts`, to call).
+ * `apps/admin/src/features/fs-files/folder-drop-port.ts`, to call).
  */
 /**
  * The admin surface only: `/admin` and everything under `/admin/`. This preload also runs on the

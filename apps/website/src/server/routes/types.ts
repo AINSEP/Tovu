@@ -345,8 +345,14 @@ export interface CredentialsDeps {
    * adapters, so a handshake begun in the agent daemon (`external_mcp_oauth_connect` is an assistant
    * tool — it runs there) can be completed by the public callback route running in the main web
    * server. `composition/app.ts`'s hermetic root, which owns no `content.db` at all, backs them with
-   * the in-memory adapters instead — correct for that root, which never splits a handshake across
-   * two processes in the first place.
+   * the in-memory adapters instead — correct whenever that root's `RouteDeps` live in ONE process
+   * (which is all a narrow test double needs), but NOT a cross-process guarantee: under
+   * `TOVU_DB=memory` both `src/index.ts` and `agent-daemon-server.ts` call that root in their OWN
+   * process, so a chat-initiated authorization_code `external_mcp_oauth_connect` begun in the daemon
+   * and redeemed by the main server's public callback fails `OAUTH_INVALID_STATE`. That is the same
+   * per-process isolation `agent-daemon-server.ts`'s header already discloses for memory mode.
+   * Admin-initiated connects (begin and callback both in the main server) and the `device_code`
+   * grant (begin and poll both in the daemon) are unaffected.
    *
    * OPTIONAL for the same structural reason `externalMcpOAuth` is: a narrower test double that never
    * sets these gets no fallback rather than a broken build. A caller reading them without a

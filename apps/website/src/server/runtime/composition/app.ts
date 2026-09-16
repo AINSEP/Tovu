@@ -503,9 +503,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // and read it back from the other.
   const externalMcpServerRepo = new InMemoryExternalMcpServerRepo();
   // Same "one shared instance" reasoning as `externalMcpServerRepo` above, and also exposed as their
-  // own `RouteDeps.externalMcpOAuthPending`/`externalMcpOAuthDevices` fields below — see that doc for
-  // why a second consumer of this root's `RouteDeps` (`agent-daemon-server.ts`'s own composition)
-  // must reuse these rather than building a second pair.
+  // own `RouteDeps.externalMcpOAuthPending`/`externalMcpOAuthDevices` fields below. Within one
+  // process this pair is what makes a connect/callback/poll handshake share state — but this root is
+  // process-local, so it cannot do that across processes: `agent-daemon-server.ts` builds its OWN
+  // such pair in its own process (see `routes/types.ts`'s doc for the full `TOVU_DB=memory` caveat),
+  // which is why the sqlite root's `content.db`-backed pair, not this one, is what carries a chat
+  // handshake to completion.
   const externalMcpOAuthPending = createPendingAuthorizationStore({ clock });
   const externalMcpOAuthDevices = createDeviceAuthorizationStore();
 
@@ -1189,8 +1192,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   registerAdminVendorCredentialsRoutes(app, routeDeps);
   // Security panel → Site Token tab: view/generate the TOVU_INTEGRATIONS_ROOT_KEY root key's
   // generated-file fallback. `admin.security.tokens.manage`-gated on both verbs — see that route
-  // file's own header for exactly what this does and does not cover (it does NOT seal any stored
-  // credential, and does NOT help a production boot with the env var unset).
+  // file's own header for exactly what this does and does not cover (since 2026-09-09 it seals
+  // every stored credential and can satisfy a production boot, but webhook signing / newsletter
+  // tokens still need the env var).
   registerAdminSiteTokenRoutes(app, routeDeps);
   // Chat composer's folder control: GET/PUT/DELETE the fs-files `custom` root — the operator-set
   // folder `fs_list_files`/`fs_read_file` may reach outside `repo`/`site`. `content.read`-gated, the
