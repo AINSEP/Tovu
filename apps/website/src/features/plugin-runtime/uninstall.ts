@@ -56,7 +56,7 @@
  */
 import type { UUID } from "@jini-ai/cms/core";
 import { PluginNotFoundError } from "./activation.js";
-import type { PluginActivationRepoPort } from "./activation.js";
+import type { PluginActivationRecord, PluginActivationRepoPort } from "./activation.js";
 import type { PluginDiscoveryRecord } from "./discovery.js";
 
 /** A built-in plugin has no on-disk artifact — there is nothing for `DELETE .../plugins/:id` to
@@ -100,6 +100,70 @@ export interface UninstallPluginResult {
   readonly clearedWorkspaceIds: readonly UUID[];
 }
 
+/** What `resolveUninstallTarget` found: a confirmed-uninstallable discovery record, plus every
+ *  activation row for it across every workspace (so `uninstallPlugin` does not have to scan again to
+ *  drive its own `deleteActivation` loop). */
+interface UninstallTarget {
+  readonly record: PluginDiscoveryRecord;
+  readonly matching: readonly PluginActivationRecord[];
+}
+
+/**
+ * Evaluates `uninstallPlugin()`'s two preconditions with no mutation. Factored out so
+ * `previewUninstallPlugin` (below) and `uninstallPlugin` share exactly one place these rules are
+ * expressed, and so a refusal reaches a caller BEFORE it asks a human to confirm anything — asking
+ * "uninstall this?" about a built-in or still-enabled plugin would be a dialog with no honest
+ * "yes" behind it.
+ *
+ * @throws {PluginNotFoundError} `pluginId` is absent from `deps.discovery`.
+ * @throws {PluginNotUninstallableError} the discovered record's `source` is `"built-in"`.
+ * @throws {PluginEnabledError} the plugin is enabled in one or more workspaces.
+ * @complexity O(activation rows for this plugin) — one `listAll()` scan (bounded by total
+ * activation rows in this instance).
+ */
+async function resolveUninstallTarget(deps: UninstallPluginDeps, pluginId: string): Promise<UninstallTarget> {
+  const record = deps.discovery.find((candidate) => candidate.id === pluginId);
+  if (!record) {
+    throw new PluginNotFoundError(`plugin '${pluginId}' was not found in the current discovery snapshot`);
+  }
+  if (record.source === "built-in") {
+    throw new PluginNotUninstallableError(`plugin '${pluginId}' is a built-in plugin and cannot be uninstalled`);
+  }
+
+  const allActivations = await deps.repo.listAll();
+  const matching = allActivations.filter((activation) => activation.pluginId === pluginId);
+  if (matching.some((activation) => activation.enabled)) {
+    throw new PluginEnabledError(
+      `plugin '${pluginId}' is enabled in at least one workspace and must be disabled everywhere before it can be uninstalled`
+    );
+  }
+  return { record, matching };
+}
+
+/** What a human confirmation dialog needs to describe truthfully what is about to be removed.
+ *  Mirrors `agent-plugins/uninstall.ts`'s own `AgentPluginUninstallPreview` for the sibling family,
+ *  for the identical reason: the preview carries no host path, only the fields a dialog may say out
+ *  loud. */
+export interface PluginUninstallPreview {
+  readonly pluginId: string;
+  readonly name: string;
+  readonly version: string;
+}
+
+/**
+ * Evaluates `uninstallPlugin()`'s preconditions and returns what a confirmation dialog needs to name
+ * — performing no mutation, so a caller can raise that dialog only once the target is known-good.
+ *
+ * @throws {PluginNotFoundError} `required.input.pluginId` is absent from `deps.discovery`.
+ * @throws {PluginNotUninstallableError} the discovered record's `source` is `"built-in"`.
+ * @throws {PluginEnabledError} the plugin is enabled in one or more workspaces.
+ * @complexity O(activation rows for this plugin) — delegates to `resolveUninstallTarget`.
+ */
+export async function previewUninstallPlugin(required: UninstallPluginRequired): Promise<PluginUninstallPreview> {
+  const { record } = await resolveUninstallTarget(required.deps, required.input.pluginId);
+  return { pluginId: record.id, name: record.name, version: record.version };
+}
+
 /**
  * Uninstalls a site-installed plugin: removes its on-disk artifact, then every workspace's
  * activation row for it. Never touches `ext.*` content data or plugin-owned DB tables (see this
@@ -117,21 +181,7 @@ export async function uninstallPlugin(
 ): Promise<UninstallPluginResult> {
   const { deps, input } = required;
 
-  const record = deps.discovery.find((candidate) => candidate.id === input.pluginId);
-  if (!record) {
-    throw new PluginNotFoundError(`plugin '${input.pluginId}' was not found in the current discovery snapshot`);
-  }
-  if (record.source === "built-in") {
-    throw new PluginNotUninstallableError(`plugin '${input.pluginId}' is a built-in plugin and cannot be uninstalled`);
-  }
-
-  const allActivations = await deps.repo.listAll();
-  const matching = allActivations.filter((activation) => activation.pluginId === input.pluginId);
-  if (matching.some((activation) => activation.enabled)) {
-    throw new PluginEnabledError(
-      `plugin '${input.pluginId}' is enabled in at least one workspace and must be disabled everywhere before it can be uninstalled`
-    );
-  }
+  const { matching } = await resolveUninstallTarget(deps, input.pluginId);
 
   // Files first: if this throws, no activation row has been touched yet, so a failed attempt
   // leaves state exactly as it was (see this file's header for the full ordering rationale).

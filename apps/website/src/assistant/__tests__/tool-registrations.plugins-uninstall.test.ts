@@ -1,11 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
+import type { UIResource } from "#src/assistant/index";
 import { InMemoryExternalMcpServerRepo } from "#src/assistant/index";
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
-import { createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import {
+  createSurfaceExchangeStore,
+  SURFACE_EXCHANGE_ID_PARAM,
+  type SurfaceExchangeStore,
+} from "../../contracts/core/tool-surface-exchanges.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
@@ -114,6 +119,44 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
 
+/**
+ * Drives `plugins_uninstall` end to end, answering its confirmation dialog the way
+ * `mcp-ui-tool-calls-route.ts` does for a real human click. Mirrors
+ * `tool-registrations.plugins.test.ts`'s own `enableWithDecision` exactly, one tool over.
+ *
+ * Built through `buildPluginsRegistrations` directly (not the assistant-level builder) so this test
+ * can `deliver()` into its own exchange store.
+ */
+async function uninstallWithDecision(
+  deps: PluginsToolDeps,
+  input: Record<string, unknown>,
+  decision: "confirm" | "cancel",
+): Promise<unknown> {
+  const surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore();
+  const registration = buildPluginsRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "plugins_uninstall");
+  assert.ok(registration, "expected 'plugins_uninstall' to be wired");
+
+  const emitted: unknown[] = [];
+  const emitSurface: SurfaceEmitter = async (surface) => void emitted.push(surface);
+  const pending = registration.handler({
+    executionId: "exec-1",
+    principal: { id: PRINCIPAL_ID },
+    run: { id: "run-1" },
+    input,
+    signal: new AbortController().signal,
+    emitSurface,
+  } as ToolExecutionContext);
+
+  await new Promise((resolve) => setImmediate(resolve));
+  if (emitted.length === 0) return pending; // refused before the dialog — let the caller assert on it
+
+  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text ?? "";
+  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+  assert.ok(match, "the dialog must carry its exchange id");
+  surfaceExchanges.deliver({ exchangeId: match[1] ?? "", params: { decision }, principalId: PRINCIPAL_ID, toolId: "plugins_uninstall" });
+  return pending;
+}
+
 // ---------------------------------------------------------------------------
 // 1. The catalog now has 3 entries, and all 3 are wired
 // ---------------------------------------------------------------------------
@@ -151,12 +194,46 @@ test("plugins_uninstall: calls authorize() with admin.plugins.enable and the run
   const { deps, authorizeCalls, pluginActivationRepo } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
   await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: false, updatedAt: NOW });
 
-  await wired(deps, "plugins_uninstall").handler(executionContext({ pluginId: SITE_PLUGIN.id }));
+  await uninstallWithDecision(deps, { pluginId: SITE_PLUGIN.id }, "confirm");
 
   assert.ok(authorizeCalls.length >= 1);
   assert.equal(authorizeCalls[0]!.principalId, PRINCIPAL_ID);
   assert.equal(authorizeCalls[0]!.permission, "admin.plugins.enable");
   assert.equal(authorizeCalls[0]!.workspaceId, WORKSPACE_ID);
+});
+
+// ---------------------------------------------------------------------------
+// 2a. Confirmation (2026-09-16) — the human must approve before anything is removed
+// ---------------------------------------------------------------------------
+
+test("plugins_uninstall: with no interactive confirmation channel, the call fails closed and nothing is removed", async () => {
+  const { deps, uninstallCalls, pluginActivationRepo } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
+  await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: false, updatedAt: NOW });
+
+  await assert.rejects(
+    () => wired(deps, "plugins_uninstall").handler(executionContext({ pluginId: SITE_PLUGIN.id })),
+    /confirmation|cannot be gated/i,
+  );
+  assert.deepEqual(uninstallCalls, [], "the filesystem mechanism must never be reached without a way to ask a human first");
+});
+
+test("plugins_uninstall: a cancelled confirmation removes nothing and reports cancelled:true, not an error", async () => {
+  const { deps, uninstallCalls, pluginActivationRepo } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
+  await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: false, updatedAt: NOW });
+
+  const out = (await uninstallWithDecision(deps, { pluginId: SITE_PLUGIN.id }, "cancel")) as {
+    pluginId: string;
+    uninstalled: boolean;
+    cancelled: boolean;
+  };
+
+  assert.equal(out.pluginId, SITE_PLUGIN.id);
+  assert.equal(out.uninstalled, false);
+  assert.equal(out.cancelled, true);
+  assert.deepEqual(uninstallCalls, [], "the filesystem mechanism must never be reached when the human declines");
+
+  const remaining = await pluginActivationRepo.listAll();
+  assert.equal(remaining.filter((a) => a.pluginId === SITE_PLUGIN.id).length, 1, "the activation row must still exist — nothing changed");
 });
 
 test("plugins_uninstall: a denied principal is rejected and nothing is removed", async () => {
@@ -197,7 +274,7 @@ test("plugins_uninstall: removes the on-disk artifact and clears activation rows
   await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: false, updatedAt: NOW });
   await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: "other-ws", version: "1.0.0", enabled: false, updatedAt: NOW });
 
-  const out = (await wired(deps, "plugins_uninstall").handler(executionContext({ pluginId: SITE_PLUGIN.id }))) as {
+  const out = (await uninstallWithDecision(deps, { pluginId: SITE_PLUGIN.id }, "confirm")) as {
     pluginId: string;
     clearedWorkspaceIds: string[];
   };
@@ -212,7 +289,7 @@ test("plugins_uninstall: removes the on-disk artifact and clears activation rows
 
 test("plugins_uninstall: a plugin never activated anywhere uninstalls cleanly with an empty clearedWorkspaceIds", async () => {
   const { deps, uninstallCalls } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
-  const out = (await wired(deps, "plugins_uninstall").handler(executionContext({ pluginId: SITE_PLUGIN.id }))) as { clearedWorkspaceIds: string[] };
+  const out = (await uninstallWithDecision(deps, { pluginId: SITE_PLUGIN.id }, "confirm")) as { clearedWorkspaceIds: string[] };
   assert.deepEqual(uninstallCalls, [SITE_PLUGIN.id]);
   assert.deepEqual(out.clearedWorkspaceIds, []);
 });

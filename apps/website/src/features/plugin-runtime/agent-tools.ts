@@ -39,6 +39,16 @@
  *   its own enable path (`set-enabled-confirmation-ui.ts`). Whether `plugins_uninstall` should too is
  *   a live question this file no longer answers with a false premise; it was simply not part of the
  *   pass that gated enabling.
+ *   RESOLVED 2026-09-16: `plugins_uninstall` now DOES raise a confirmation dialog and parks on the
+ *   human's answer, reusing the exact SAME held-open exchange `plugins_set_enabled`'s enable path
+ *   already reuses (`uninstall-confirmation-ui.ts`, ADR-055 Decision 2) — closing the "whether
+ *   plugins_uninstall should too" question the paragraph above left open. Two sentences above are now
+ *   stale as a result: "NOT wrapped in a confirmation dialog ... are" and "The description below
+ *   states the irreversibility in plain language instead" — the description below states BOTH the
+ *   irreversibility and the confirmation requirement now. Only the change-set/revert-gateway claim in
+ *   that same passage is still accurate: deleting bytes still has no meaningful inverse to capture,
+ *   so `executeCommand` is still not used here. Confirmation and revertability are orthogonal
+ *   concerns; only the first one changed.
  * - `plugins_set_enabled` is ONE tool covering BOTH plugin families (2026-09-09) — the `.tovu-plugin`
  *   site/runtime family this module belongs to, AND `features/agent-plugins/`'s separate Agent Plugin
  *   family, selected by a REQUIRED `family` argument. Two tools would have been the smaller diff and
@@ -188,7 +198,7 @@ export const pluginAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "plugins_uninstall",
     description:
-      "PERMANENTLY removes a site-installed plugin: deletes its on-disk artifact, then its activation row in every workspace. This is NOT reversible — there is no revision history or trash to restore it from, unlike theme_trash_file's soft-delete; reinstalling means the operator re-uploading the plugin's files themselves. Refused if the plugin is a built-in (nothing to remove), or if it is currently enabled in ANY workspace (the on-disk artifact is shared across every workspace this instance serves, so uninstalling while another workspace still has it enabled would silently break that workspace) — call plugins_set_enabled with enabled:false everywhere it is on first. Confirm with the human before calling this; it does not raise its own confirmation dialog.",
+      "PERMANENTLY removes a site-installed plugin: deletes its on-disk artifact, then its activation row in every workspace. This is NOT reversible — there is no revision history or trash to restore it from, unlike theme_trash_file's soft-delete; reinstalling means the operator re-uploading the plugin's files themselves. Refused if the plugin is a built-in (nothing to remove), or if it is currently enabled in ANY workspace (the on-disk artifact is shared across every workspace this instance serves, so uninstalling while another workspace still has it enabled would silently break that workspace) — call plugins_set_enabled with enabled:false everywhere it is on first. ALWAYS ASKS THE HUMAN FIRST: this tool opens a confirmation dialog and waits for their answer; nothing is removed unless they confirm, and a cancel or no answer comes back as a result, not an error.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.plugins.enable" },
     inputSchema: UNINSTALL_SCHEMA,

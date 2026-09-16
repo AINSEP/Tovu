@@ -208,16 +208,19 @@ const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
   // on the dialog. The enable direction has its own tests below, driven through a real exchange
   // store. `family` is required and never inferred — see that section's own header.
   plugins_set_enabled: { pluginId: VALID_PLUGIN.id, enabled: false, family: "site-runtime" },
-  // INVALID_PLUGIN, not VALID_PLUGIN: it is `source: "site"` and never activated anywhere in this
-  // fixture, so an ALLOWED call actually succeeds (VALID_PLUGIN can't be used here — it is
-  // `source: "built-in"`, which uninstallPlugin() always refuses, and this shared loop's
-  // "authorize() is called" test expects the call to complete normally, not throw).
-  plugins_uninstall: { pluginId: INVALID_PLUGIN.id },
+  // `plugins_uninstall` is deliberately ABSENT here (2026-09-16): since it now always parks on a
+  // human confirmation (`uninstall-confirmation-ui.ts`), a bare `.handler()` call with no
+  // `emitSurface` fails closed rather than completing — unlike `plugins_set_enabled`, which dodges
+  // its own confirmation via `enabled: false` above, uninstall has no non-destructive direction to
+  // dodge into. Its own authorize-ordering and denied-principal coverage lives in the dedicated
+  // `tool-registrations.plugins-uninstall.test.ts`, driven through a real exchange store the way
+  // `enableWithDecision` below drives `plugins_set_enabled`'s enable direction.
 };
 
-test("every wired plugins tool has a known input fixture", () => {
+test("every wired plugins tool except plugins_uninstall has a known input fixture — uninstall cannot be dodged into a non-confirming input the way set-enabled can", () => {
   const { deps } = fakeRouteDeps();
-  assert.deepEqual([...pluginsRegistrations(deps).keys()].sort(), Object.keys(TOOL_INPUTS).sort());
+  const wiredExceptUninstall = [...pluginsRegistrations(deps).keys()].filter((id) => id !== "plugins_uninstall");
+  assert.deepEqual(wiredExceptUninstall.sort(), Object.keys(TOOL_INPUTS).sort());
 });
 
 for (const toolId of Object.keys(TOOL_INPUTS)) {

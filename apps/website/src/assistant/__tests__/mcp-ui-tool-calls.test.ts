@@ -61,6 +61,11 @@ test("agent_plugins_uninstall is on the allowlist — it parks on the human's co
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("agent_plugins_uninstall"));
 });
 
+test("plugins_uninstall is on the allowlist — it parks on the human's confirm/cancel click the same way agent_plugins_uninstall does, one plugin family over (2026-09-16)", () => {
+  assert.equal(isMcpUiToolCallAllowed("plugins_uninstall"), true);
+  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("plugins_uninstall"));
+});
+
 test("custom_credential_make_request is on the allowlist — its DELETE method holds up the same held-open-exchange shape content_post_delete does (2026-08-31)", () => {
   assert.equal(isMcpUiToolCallAllowed("custom_credential_make_request"), true);
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("custom_credential_make_request"));
@@ -135,6 +140,7 @@ const EXPECTED_ALLOWLIST = [
   "external_mcp_save",
   "media_trash_asset",
   "plugins_set_enabled",
+  "plugins_uninstall",
   "redirects_tombstone",
   "source_control_execute_commit",
   "supabase_set_access_token",

@@ -100,7 +100,7 @@ import type { PluginDiscoveryRecord } from "./discovery.js";
 // undecorated, same as every other error this domain's `plugins_set_enabled` handler already lets
 // through unreclassified — this file has never used the `ToolInputError`/`withSchemaOnRejection`
 // convention other domains use, and this addition does not introduce it unilaterally.
-import { uninstallPlugin } from "./uninstall.js";
+import { previewUninstallPlugin, uninstallPlugin, type PluginUninstallPreview } from "./uninstall.js";
 // The Agent Plugins half of `plugins_list` (see this file's header) — a deliberate, disclosed
 // cross-domain read. `resolve-agent-plugin-refs.ts`/`layout.ts` only, never
 // `features/agent-plugins/tool-registrations.ts` (a separate workstream's file; not touched here).
@@ -117,6 +117,7 @@ import { AgentPluginNotInstalledError, setAgentPluginEnabled } from "../agent-pl
 // in-chat enable must not skip them.
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "../agent-plugins/federate-mcp.js";
 import { buildEnableConfirmationResource, PLUGINS_SET_ENABLED_TOOL_ID, type PluginFamily } from "./set-enabled-confirmation-ui.js";
+import { buildUninstallConfirmationResource, PLUGINS_UNINSTALL_TOOL_ID } from "./uninstall-confirmation-ui.js";
 
 const CATALOG_BY_ID = indexCatalogById(pluginAgentToolCatalog);
 
@@ -294,6 +295,64 @@ function notConfirmedResult(outcome: ConfirmationOutcome, request: SetEnabledReq
       outcome.reason === "expired"
         ? `The user did not answer the confirmation before it expired. '${request.pluginId}' was NOT enabled.`
         : `The confirmation was closed because the run ended. '${request.pluginId}' was NOT enabled.`,
+  };
+}
+
+/**
+ * Raises the uninstall-confirmation dialog and parks on the human's answer.
+ *
+ * Fails CLOSED when the execution context cannot hold a call open, exactly like
+ * `content_post_delete`/`plugins_set_enabled`/`agent_plugins_uninstall`: degrading to "remove it and
+ * mention we could not ask" would make the confirmation decorative in precisely the contexts that
+ * most need it — deleting bytes has no meaningful undo, so this is the one point where the human's
+ * answer actually matters.
+ *
+ * @throws {Error} When there is no `emitSurface` to raise a dialog through.
+ * @complexity O(1) plus the human's own latency, bounded by the exchange store's TTLs.
+ */
+async function confirmUninstall(
+  surfaces: AssistantSurfaceDeps,
+  ctx: Pick<ToolExecutionContext, "principal" | "signal"> & Partial<Pick<ToolExecutionContext, "emitSurface">>,
+  preview: PluginUninstallPreview,
+): Promise<ConfirmationOutcome> {
+  const emitSurface = ctx.emitSurface;
+  if (!emitSurface) {
+    throw new Error(
+      "plugins_uninstall: this execution context has no interactive confirmation channel (no emitSurface), so a " +
+        "permanent uninstall cannot be gated here. Nothing was removed.",
+    );
+  }
+
+  const exchange = surfaces.surfaceExchanges.open({ toolId: PLUGINS_UNINSTALL_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
+  const ui = buildUninstallConfirmationResource({ preview, exchangeId: exchange.id });
+
+  // A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold this
+  // handler open until the idle deadline — mirrors `confirmEnable`'s identical guard above.
+  const closeOnAbort = () => exchange.close();
+  ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
+  try {
+    return await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+  } finally {
+    ctx.signal.removeEventListener("abort", closeOnAbort);
+  }
+}
+
+/** ADR-055 Decision 6: a no-answer is a RESULT, not an exception. Nothing was removed either way,
+ *  and the model is still alive to read this and say something sensible. @complexity O(1). */
+function notConfirmedUninstallResult(outcome: ConfirmationOutcome, pluginId: string): unknown {
+  const base = { pluginId, uninstalled: false };
+  if (outcome.confirmed) return base; // unreachable; keeps the return type honest for callers
+  if (outcome.reason === "declined") {
+    return { ...base, cancelled: true, note: `The user declined. '${pluginId}' was NOT uninstalled and nothing changed.` };
+  }
+  return {
+    ...base,
+    cancelled: false,
+    reason: outcome.reason,
+    note:
+      outcome.reason === "expired"
+        ? `The user did not answer the confirmation before it expired. '${pluginId}' was NOT uninstalled.`
+        : `The confirmation was closed because the run ended. '${pluginId}' was NOT uninstalled.`,
   };
 }
 
@@ -528,11 +587,20 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
     },
 
     /**
-     * Mirrors `routes/admin/plugins/uninstall.ts` exactly: same permission, same `uninstallPlugin()`
-     * business-rule module, same `deps.onPluginUninstalled` mechanism binding. NOT wrapped in
+     * Mirrors `routes/admin/plugins/uninstall.ts`'s own business rules exactly: same permission, same
+     * `uninstallPlugin()` module, same `deps.onPluginUninstalled` mechanism binding. NOT wrapped in
      * `executeCommand` — matching that route's own deliberate choice (`uninstall.ts`'s header: "there
      * is no meaningful 'restore the prior state' for deleted bytes"), so there is nothing here for a
-     * `captureInverse`/`rollback` pair to capture.
+     * `captureInverse`/`rollback` pair to capture. That is a statement about revertability, not about
+     * consent — the two are orthogonal, and this DOES now confirm (2026-09-16, see `agent-tools.ts`'s
+     * header for why the prior "confirm with the human before calling this" description was never
+     * actually enforced here, only asked of the model in prose).
+     *
+     * Order is load-bearing, same as `plugins_set_enabled` above: parse -> authorize -> preview ->
+     * confirm -> write. `previewUninstallPlugin` runs BEFORE the dialog so an unknown, built-in, or
+     * still-enabled plugin is refused without ever asking a human to approve an uninstall that was
+     * never going to happen — reuses the SAME held-open exchange `plugins_set_enabled`'s enable path
+     * already does (`uninstall-confirmation-ui.ts`).
      */
     plugins_uninstall: async (ctx) => {
       const input = requireInputRecord(ctx.input);
@@ -540,15 +608,16 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.plugins.enable", entityType: "plugin", entityId: pluginId });
 
       const discovery = await routeDeps.discoverPlugins();
-      const result = await uninstallPlugin({
-        deps: {
-          repo: routeDeps.pluginActivationRepo,
-          discovery,
-          onUninstall: routeDeps.onPluginUninstalled,
-        },
+      const request = {
+        deps: { repo: routeDeps.pluginActivationRepo, discovery, onUninstall: routeDeps.onPluginUninstalled },
         input: { pluginId },
-      });
+      };
+      const preview = await previewUninstallPlugin(request); // throws PluginNotFoundError/NotUninstallableError/EnabledError BEFORE any dialog
 
+      const outcome = await confirmUninstall(surfaces, ctx, preview);
+      if (!outcome.confirmed) return notConfirmedUninstallResult(outcome, pluginId);
+
+      const result = await uninstallPlugin(request);
       return { pluginId, clearedWorkspaceIds: result.clearedWorkspaceIds };
     },
   };

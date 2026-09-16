@@ -79,6 +79,14 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // schema DDL — so it belongs here for the identical reason, not a lesser one. The DISABLE direction
   // raises no dialog and never reaches this endpoint.
   "plugins_set_enabled",
+  // 2026-09-16 — `plugins_uninstall` (`features/plugin-runtime/tool-registrations.ts`) holds up the
+  // SAME shape `agent_plugins_uninstall`/`media_trash_asset` do: it opens a `SurfaceExchangeStore`
+  // exchange and parks on the human's Uninstall/Cancel click
+  // (`features/plugin-runtime/uninstall-confirmation-ui.ts`) before deleting a site plugin's on-disk
+  // artifact and every workspace's activation row for it. This is the SITE/RUNTIME plugin family's
+  // uninstall tool — the sibling one family over, `agent_plugins_uninstall` below, already had this
+  // entry; this closes the identical gap for `.tovu-plugin` uninstalls.
+  "plugins_uninstall",
   // 2026-09-14 — `agent_plugins_uninstall` (`features/agent-plugins/tool-registrations.ts`) holds up
   // the SAME shape `media_trash_asset` does: it opens a `SurfaceExchangeStore` exchange and parks on
   // the human's Uninstall/Cancel click (`features/agent-plugins/uninstall-confirmation-ui.ts`) before
