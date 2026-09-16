@@ -13,5 +13,11 @@ export type {
   OriginRegistryPort,
   OriginSettingRepoPort,
 } from "./ports.js";
-export { OriginRegistry, normalizeOriginCandidate, type NormalizedTarget, type OriginRegistryDeps } from "./origin.js";
+export {
+  OriginRegistry,
+  isSameOrigin,
+  normalizeOriginCandidate,
+  type NormalizedTarget,
+  type OriginRegistryDeps,
+} from "./origin.js";
 export { InMemoryOriginSettingRepo, type OriginSettingSeed } from "./repo.memory.js";

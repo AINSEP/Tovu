@@ -211,3 +211,39 @@ test("an allowlisted cross-origin interpolated target still resolves (the oracle
   assert.equal(result.matched, true);
   if (result.matched) assert.equal(result.location, "https://partner.example");
 });
+
+/**
+ * t91 B1 (2026-09-16): `isReservedSameOriginDestination` used to compare `parsed.origin` against a
+ * STRING-composed canonical origin, so a trailing-dot or percent-encoded-dot host — which a WHATWG
+ * `URL` parser keeps as a distinct `origin` string — sailed past the "is this the same origin"
+ * check entirely, and the reserved-path rule never ran. `checkSameOriginDestination` decides same-
+ * origin the way the oracle itself does (`normalizeOriginCandidate` + `isSameOrigin`: lower-cased,
+ * trailing-dot-stripped host), so these three spellings of the workspace's own `/admin`/`/api`
+ * surface are refused exactly like the plain `https://trusted.example/admin` case above.
+ */
+const SAME_ORIGIN_SPELLINGS_OF_RESERVED: readonly { readonly target: string; readonly why: string }[] = [
+  { target: "https://trusted.example./admin", why: "a trailing dot: URL.origin keeps it, the oracle strips it" },
+  { target: "https://trusted.example%2E/admin", why: "a percent-encoded trailing dot, decodes to the same host" },
+  { target: "https://trusted.example./api/admin/v1/workspaces", why: "trailing dot, api surface" },
+];
+
+for (const { target, why } of SAME_ORIGIN_SPELLINGS_OF_RESERVED) {
+  test(`a same-origin admin target spelled as '${target}' never resolves to matched:true (${why})`, async () => {
+    const resolver = resolverWith([rule({ id: "dash-N", matchType: "exact", fromPattern: "/dash-N", toTarget: target })]);
+
+    const result = await resolver.resolve({ workspaceId: WORKSPACE_ID, path: "/dash-N", phase: "post_content" });
+
+    assert.deepEqual(result, { matched: false });
+  });
+}
+
+test("a same-origin absolute target to ordinary content still resolves, trailing dot or not", async () => {
+  for (const target of ["https://trusted.example/blog/post", "https://trusted.example./blog/post"]) {
+    const resolver = resolverWith([rule({ id: "ordinary-abs", matchType: "exact", fromPattern: "/old", toTarget: target })]);
+
+    const result = await resolver.resolve({ workspaceId: WORKSPACE_ID, path: "/old", phase: "post_content" });
+
+    assert.equal(result.matched, true, `expected '${target}' to still resolve`);
+    if (result.matched) assert.equal(result.location, target);
+  }
+});

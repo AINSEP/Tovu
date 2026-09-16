@@ -30,7 +30,7 @@ import type { RedirectRecord } from "../types.js";
 const WORKSPACE_ID = "workspace-1";
 const ACTOR_ID = "user-1";
 
-function makeDeps(): RedirectsWriteDeps {
+function makeDeps(opts: { redirectAllowlist?: string[] } = {}): RedirectsWriteDeps {
   const repo = new InMemoryRedirectRepo();
   const originRepo = new InMemoryOriginSettingRepo([
     {
@@ -41,7 +41,7 @@ function makeDeps(): RedirectsWriteDeps {
         verifiedAt: "2026-07-13T00:00:00.000Z",
         source: "workspace-setting",
       }),
-      redirectAllowlist: [],
+      redirectAllowlist: opts.redirectAllowlist ?? [],
     },
   ]);
   let clockTick = 0;
@@ -219,4 +219,60 @@ test("updateRedirect can still REPOINT a legacy rule away from a refused target"
     input: { workspaceId: WORKSPACE_ID, id: "planted-3", toTarget: "/somewhere-safe", actorId: ACTOR_ID },
   });
   assert.equal(record.toTarget, "/somewhere-safe");
+});
+
+/**
+ * t91 B1 (2026-09-16): an ABSOLUTE same-origin target used to skip the reserved-path rule
+ * entirely on write — `assertTargetAllowed` sent it only to the origin allowlist, which answers
+ * "is that HOST allowed" and the workspace's own host trivially is. These four all resolve to the
+ * workspace's own `/admin` or `/api` surface (a plain same-origin target, and three spellings the
+ * read-path gate already refused via `checkSameOriginDestination` — see
+ * `phase-handler.read-path-target.test.ts`), so a legacy rule using any of them was previously
+ * stored and simply never fired. The write gate now applies the same rule so it is refused before
+ * it is ever stored.
+ */
+const ABSOLUTE_SAME_ORIGIN_RESERVED: readonly { readonly target: string; readonly surface: string }[] = [
+  { target: "https://trusted.example./admin", surface: "/admin" },
+  { target: "https://trusted.example%2E/admin", surface: "/admin" },
+  { target: "https://trusted.example./api/admin/v1/workspaces", surface: "/api" },
+  { target: "https://trusted.example/admin", surface: "/admin" },
+];
+
+for (const { target, surface } of ABSOLUTE_SAME_ORIGIN_RESERVED) {
+  test(`createRedirect refuses the absolute same-origin target '${target}'`, async () => {
+    const deps = makeDeps();
+    const expectedMessage = `toTarget '${target}' is not an allowed redirect destination: it resolves to '${surface}', which serves the authenticated admin application rather than this site's public pages`;
+    await assert.rejects(() => create(deps, "/old", target), (err: unknown) => {
+      assert.ok(err instanceof RedirectTargetNotAllowedError, `expected RedirectTargetNotAllowedError, got ${String(err)}`);
+      assert.equal(err.message, expectedMessage);
+      return true;
+    });
+  });
+}
+
+test("updateRedirect refuses an absolute same-origin reserved target on a live rule", async () => {
+  const deps = makeDeps();
+  const { record } = await create(deps, "/old", "/new");
+  await assert.rejects(
+    () =>
+      updateRedirect({
+        deps,
+        input: { workspaceId: WORKSPACE_ID, id: record.id, toTarget: "https://trusted.example./admin", actorId: ACTOR_ID },
+      }),
+    RedirectTargetNotAllowedError
+  );
+});
+
+test("createRedirect still allows a same-origin absolute target to ordinary content", async () => {
+  const deps = makeDeps();
+  for (const target of ["https://trusted.example/blog/post", "https://trusted.example./blog/post"]) {
+    const { record } = await create(deps, `/old-${target}`, target);
+    assert.equal(record.toTarget, target);
+  }
+});
+
+test("createRedirect still allows an allowlisted cross-origin host's own /admin", async () => {
+  const deps = makeDeps({ redirectAllowlist: ["partner.example"] });
+  const { record } = await create(deps, "/old", "https://partner.example/admin");
+  assert.equal(record.toTarget, "https://partner.example/admin");
 });

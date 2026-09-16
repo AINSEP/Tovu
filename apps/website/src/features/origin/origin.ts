@@ -132,8 +132,19 @@ function effectivePort(origin: Pick<VerifiedOrigin, "scheme" | "port">): number 
   return origin.port ?? (origin.scheme === "https" ? 443 : 80);
 }
 
-/** Whether a normalized target is same-origin with a workspace's verified origin. */
-function isSameOrigin(target: NormalizedTarget, canonical: VerifiedOrigin): boolean {
+/**
+ * THE same-origin rule: scheme equal, host lower-cased with one trailing dot stripped on BOTH
+ * sides, effective port equal. Exported (t91 B1, 2026-09-16) so a caller deciding "is this
+ * candidate on the workspace's own origin" never falls back to a URL-string `origin` comparison —
+ * `new URL("https://site./x").origin` is `"https://site."`, a distinct string from
+ * `"https://site"` even though every browser treats them as the same origin. The redirect oracle
+ * (`isAllowedTarget` below) and `features/redirects/reserved-destination.ts`'s
+ * `checkSameOriginDestination` both call this exact function so "same origin" can never mean two
+ * different things for the same candidate.
+ *
+ * @complexity O(1).
+ */
+export function isSameOrigin(target: NormalizedTarget, canonical: VerifiedOrigin): boolean {
   if (canonical.scheme !== target.scheme) return false;
   if (stripTrailingDot(canonical.host.toLowerCase()) !== target.host) return false;
   return effectivePort(canonical) === target.port;

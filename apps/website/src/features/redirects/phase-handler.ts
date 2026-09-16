@@ -12,10 +12,9 @@
  * `OriginRegistryPort.isAllowedRedirectTarget` in EVERY code path before ever
  * returning a `matched: true` outcome (INV-03), and then — for a destination that is same-origin
  * with the workspace's own verified origin, which the oracle allows by construction — the shared
- * reserved-path rule from `platform/routing/reserved-paths.ts` (see
- * `isReservedSameOriginDestination`). The second half has to live here rather than only at the
- * write chokepoint because interpolation happens on THIS path: the stored `toTarget` is a
- * template, and `Location` is what comes out of it.
+ * reserved-path rule from `./reserved-destination.ts`'s `checkSameOriginDestination`. The second
+ * half has to live here rather than only at the write chokepoint because interpolation happens on
+ * THIS path: the stored `toTarget` is a template, and `Location` is what comes out of it.
  *
  * Oracle-call discipline (documented, load-bearing): `isAllowedRedirectTarget`
  * only accepts a fully-qualified, WHATWG-parseable candidate URL (see
@@ -42,10 +41,7 @@
  */
 import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort } from "@jini-ai/cms/core";
 import type { OriginRegistryPort, RedirectTargetContext, VerifiedOrigin } from "../../features/origin/index.js";
-import {
-  checkSitePathname,
-  registerResolvePhase,
-} from "../../platform/routing/index.js";
+import { registerResolvePhase } from "../../platform/routing/index.js";
 import type { RouteResolveContext, RouteResolvePhaseOutcome } from "../../platform/routing/index.js";
 
 import type {
@@ -54,6 +50,7 @@ import type {
   RedirectRepoPort,
   RedirectResolver,
 } from "./ports.js";
+import { checkSameOriginDestination } from "./reserved-destination.js";
 import type { RedirectRecord, RedirectRequest, RedirectResolution } from "./types.js";
 
 /** The bounded dynamic (wildcard) set cap (behavior.spec.md §3/§4, OQ-01). */
@@ -96,40 +93,6 @@ async function toOracleCandidate(
   } catch {
     return null;
   }
-}
-
-/**
- * Whether the destination the oracle just approved lands the visitor on the admin application's
- * own URL space rather than on a public page.
- *
- * This runs on the READ path, after interpolation, because the string a visitor's browser receives
- * is NOT the stored `toTarget`. `matcher.ts` substitutes a request-path capture into a wildcard
- * target and appends the un-matched tail to a prefix target, so `/go/*` -> `/$1` — a stored target
- * that names no reserved segment and that `redirects.ts`'s `assertTargetAllowed` therefore
- * accepts — becomes `Location: /admin` for a request to `/go/admin`. The write-path gate can only
- * ever see the template; this is where the finished value exists.
- *
- * It also covers the two shapes the write-path gate does not reach at all: a row stored before that
- * gate existed, and an ABSOLUTE target on the workspace's OWN origin (which the write path routes
- * to the origin allowlist, and the workspace's own host is trivially allowed there).
- *
- * Scoped to SAME-ORIGIN destinations on purpose: `/admin` on an allowlisted partner host is that
- * host's business, not this site's, and refusing it would break a legitimate allowlisted redirect.
- *
- * @param candidate - The absolute, oracle-approved candidate URL.
- * @param canonicalOriginUrl - This workspace's verified origin, as `URL.origin` spells it.
- * @returns `true` when the redirect must not be served. Unparseable candidates fail closed.
- * @complexity O(n) in the candidate length.
- */
-function isReservedSameOriginDestination(candidate: string, canonicalOriginUrl: string): boolean {
-  let parsed: URL;
-  try {
-    parsed = new URL(candidate);
-  } catch {
-    return true;
-  }
-  if (parsed.origin !== canonicalOriginUrl) return false;
-  return checkSitePathname(parsed).kind !== "ok";
 }
 
 export interface RedirectPhaseHandlerDeps {
@@ -189,7 +152,7 @@ export class RedirectPhaseHandlerResolver implements RedirectResolver {
     }
 
     // The oracle answers "is that HOST allowed", which a same-origin destination passes by
-    // construction — including `/admin` and `/api`. See `isReservedSameOriginDestination`.
+    // construction — including `/admin` and `/api`. See `checkSameOriginDestination`.
     if (await this.landsOnReservedSurface(ctx, oracleCandidate)) return { matched: false };
 
     this.recordHitFireAndForget(request.workspaceId, resolution.redirectId);
@@ -207,7 +170,7 @@ export class RedirectPhaseHandlerResolver implements RedirectResolver {
   private async landsOnReservedSurface(ctx: RedirectTargetContext, oracleCandidate: string): Promise<boolean> {
     try {
       const canonical = await this.deps.originRegistry.canonicalOrigin(ctx);
-      return isReservedSameOriginDestination(oracleCandidate, composeOriginUrl(canonical));
+      return checkSameOriginDestination(oracleCandidate, canonical).kind !== "ok";
     } catch {
       return true;
     }

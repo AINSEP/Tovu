@@ -27,6 +27,7 @@ import type { SiteRelativeTargetCheck } from "../../platform/routing/index.js";
 
 import { insertRedirectAndRevision, type RedirectDbHandle } from "./ports.internal.js";
 import type { RedirectMatcher, RedirectMutatedEvent, RedirectRepoPort } from "./ports.js";
+import { checkSameOriginDestination } from "./reserved-destination.js";
 import {
   RedirectConflictError,
   RedirectLoopError,
@@ -128,7 +129,9 @@ async function resolveCollapsedTarget(
  * it exhausts — a new arm in `SiteRelativeTargetCheck` becomes a type error here rather than a
  * silently generic message.
  *
- * @param check - The verdict from `checkSiteRelativeTarget`.
+ * @param check - The verdict from `checkSiteRelativeTarget`, or from `checkSameOriginDestination`
+ * when `assertTargetAllowed` phrases the absolute same-origin verdict (t91 B1, 2026-09-16) — its
+ * arms are a subset of this parameter's, so no separate phrasing function is needed.
  * @returns The reason clause, or `null` when the target is allowed.
  * @complexity O(1).
  */
@@ -165,8 +168,15 @@ function siteRelativeRefusalReason(check: SiteRelativeTargetCheck): string | nul
  * still be turned off with `tombstoneRedirect` (which only flips `status` and never re-validates
  * the target) or repointed with `updateRedirect` by supplying a new `toTarget`.
  *
+ * An absolute target that names the workspace's OWN origin passes the host oracle trivially (its
+ * own host is always allowed there), so it also gets the reserved-path rule — via the same
+ * `checkSameOriginDestination` the read path applies to the interpolated `Location` (t91 B1,
+ * 2026-09-16). Before this, `/admin`/`/api/...` written as an absolute same-origin target was
+ * stored and simply never served, because only the read gate refused it.
+ *
  * @throws {RedirectTargetNotAllowedError} Naming which half refused, and why.
- * @complexity O(n) in the target length, plus one `OriginRegistryPort` read for absolute targets.
+ * @complexity O(n) in the target length, plus one or two `OriginRegistryPort`/`canonicalOrigin`
+ * reads for absolute targets.
  */
 async function assertTargetAllowed(
   originRegistry: OriginRegistryPort,
@@ -185,6 +195,15 @@ async function assertTargetAllowed(
   if (!allowed) {
     throw new RedirectTargetNotAllowedError(`toTarget '${target}' is not an allowed redirect destination`);
   }
+  // The host oracle only answers "is that host allowed" — a same-origin target passes it by
+  // construction, so it still needs the reserved-path check. No try/catch around
+  // canonicalOrigin: isAllowedRedirectTarget above only returns true once a canonical origin
+  // exists, so a throw here is a real repo/infra error and must surface — the write does not
+  // happen (fail closed), not get reworded as a target verdict.
+  const verdict = checkSameOriginDestination(target, await originRegistry.canonicalOrigin(ctx));
+  const reason = siteRelativeRefusalReason(verdict);
+  if (reason === null) return;
+  throw new RedirectTargetNotAllowedError(`toTarget '${target}' is not an allowed redirect destination: ${reason}`);
 }
 
 async function assertNoDuplicate(
