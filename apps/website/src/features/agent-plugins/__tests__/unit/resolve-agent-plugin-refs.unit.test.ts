@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, readdir } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
+import { setAgentPluginActivation } from "../../activation.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
 import { resolveAgentPluginDeliveryMode, resolveAgentPluginRefs } from "../../resolve-agent-plugin-refs.js";
@@ -209,6 +210,58 @@ test("fails closed with an exact ambiguity reason naming both digests when two i
     assert.deepEqual(result, {
       ok: false,
       reason: `Agent Plugin 'ui-ux-design' matches 2 installed packages (digests: ${sortedDigests.join(", ")}) — refusing to guess which one to use`,
+    });
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ * F1.1b (t91, 2026-09-16) — run-start injection reads the activation record STRICTLY
+ * ---------------------------------------------------------------------------
+ * Before this, the once-per-call read here (`readAgentPluginActivations`) was lenient: a corrupt
+ * `activations.json` read as "nothing recorded", so an operator-disabled plugin's SKILL.md still got
+ * injected while the file was broken. Injecting guidance SPENDS the plugin the same way a tool call
+ * does, so this surface must refuse exactly like the per-call tool gate does.
+ */
+
+test("refuses a pinned ref when the activation record cannot be read — and never injects the skill's content", async () => {
+  const { cwd, layout } = await freshLayout();
+  try {
+    await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-refs-corrupt-1");
+    await writeFile(path.join(layout.root, "activations.json"), '{"schemaVersion":1,"plugins":{"ui-ux-design":{"enabled":false}}', "utf8");
+
+    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+
+    assert.equal(result.ok, false);
+    assert.ok(result.ok === false);
+    assert.match(result.reason, /activation record .*could not be read/);
+    assert.ok(
+      result.reason.startsWith(
+        "Agent Plugin 'ui-ux-design' was not loaded: this workspace's activation record could not be read, so whether it is enabled cannot be confirmed (",
+      ),
+    );
+    assert.ok(result.reason.endsWith("). Nothing was injected; repair activations.json and start the run again."));
+    assert.ok(!result.reason.includes("8px spacing grid"), "the refusal must never carry the plugin's own skill content");
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("GUARD: a well-formed file with enabled:false still gives the existing 'not enabled' reason, unchanged", async () => {
+  const { cwd, layout } = await freshLayout();
+  try {
+    await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-refs-corrupt-2");
+    await setAgentPluginActivation({ workspaceRoot: layout.root, pluginId: "ui-ux-design", enabled: false, actor: "op-1" });
+
+    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+
+    assert.deepEqual(result, {
+      ok: false,
+      reason:
+        "Agent Plugin 'ui-ux-design' is installed in this workspace but is not enabled — it ships with Tovu and " +
+        "stays inactive until an operator turns it on. Enable it before pinning it to a run.",
     });
   } finally {
     await forceRemove(cwd);

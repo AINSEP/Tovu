@@ -52,7 +52,7 @@
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
-import { isAgentPluginActive, readAgentPluginActivations } from "./activation.js";
+import { resolveAgentPluginActivation, type AgentPluginActivationVerdict } from "./activation.js";
 import { indexInstalledRoot, type InstalledAgentPlugin } from "./install.js";
 import { readInstalledSkillMarkdown } from "./capability-projection.js";
 import type { AgentPluginWorkspaceLayout } from "./layout.js";
@@ -115,30 +115,42 @@ export async function resolveAgentPluginRefs(
 ): Promise<ResolveAgentPluginRefsResult> {
   if (pluginRefIds.length === 0) return { ok: true, promptPrefix: "" };
 
-  // ACTIVATION GATE (2026-08-26) — the third and last surface (see `activation.ts`). Read once per
-  // call rather than per ref: the record is one small file and every ref in a single run belongs to
-  // the same workspace.
-  const activations = await readAgentPluginActivations(workspaceLayout.root);
-
   const sections: string[] = [];
   for (const pluginRefId of pluginRefIds) {
-    if (!isAgentPluginActive(activations, pluginRefId)) {
-      // A distinct reason from "not installed", because the operator's remedy is different: the
-      // bytes ARE here and the fix is to enable the plugin, not to install it. Telling them to
-      // install something already present is the kind of wrong-but-plausible error message that
-      // costs an afternoon.
-      return {
-        ok: false,
-        reason:
-          `Agent Plugin '${pluginRefId}' is installed in this workspace but is not enabled — it ships with Tovu and ` +
-          "stays inactive until an operator turns it on. Enable it before pinning it to a run.",
-      };
-    }
+    // ACTIVATION GATE (2026-08-26; strict per ref since 2026-09-16, t91 F1.1b) — the third and last
+    // surface (see `activation.ts`). One small file read per pinned ref: refs are few, and the
+    // fail-CLOSED `resolveAgentPluginActivation` (the same reader the per-call tool gate uses)
+    // refuses on a corrupt/unreadable file instead of reading it as "nothing recorded" — injecting a
+    // plugin's guidance SPENDS it exactly like a tool call, so this surface must refuse rather than
+    // read a fault as consent.
+    const refusal = activationRefusal(pluginRefId, await resolveAgentPluginActivation(workspaceLayout.root, pluginRefId));
+    if (refusal !== undefined) return { ok: false, reason: refusal };
+
     const resolved = await resolveOnePluginRef(pluginRefId, workspaceLayout.packages, deliveryMode);
     if (!resolved.ok) return resolved;
     sections.push(resolved.section);
   }
   return { ok: true, promptPrefix: sections.join("\n\n") };
+}
+
+/** The run-start refusal for one ref's activation verdict, or `undefined` when it may be injected.
+ *  @complexity O(1). */
+function activationRefusal(pluginRefId: string, verdict: AgentPluginActivationVerdict): string | undefined {
+  if (verdict.verdict === "active") return undefined;
+  if (verdict.verdict === "undetermined") {
+    return (
+      `Agent Plugin '${pluginRefId}' was not loaded: this workspace's activation record could not be read, so whether ` +
+      `it is enabled cannot be confirmed (${verdict.reason}). Nothing was injected; repair activations.json and start the run again.`
+    );
+  }
+  // A distinct reason from "not installed", because the operator's remedy is different: the bytes
+  // ARE here and the fix is to enable the plugin, not to install it. Telling them to install
+  // something already present is the kind of wrong-but-plausible error message that costs an
+  // afternoon.
+  return (
+    `Agent Plugin '${pluginRefId}' is installed in this workspace but is not enabled — it ships with Tovu and ` +
+    "stays inactive until an operator turns it on. Enable it before pinning it to a run."
+  );
 }
 
 /** Every installed digest's `InstalledAgentPlugin`, indexed once per call to
