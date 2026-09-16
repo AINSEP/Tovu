@@ -738,7 +738,7 @@ test("handleSendBatchClaimed: BUG REGRESSION -- a suppressed row must still reac
  * must never send or count one row twice.
  * ------------------------------------------------------------------------------------------------ */
 
-test("handleSendBatchClaimed: two overlapping runs of the same batch send each row exactly once and count it once", async () => {
+test("handleSendBatchClaimed: two overlapping runs of the same batch send each row exactly once and count it once", async (t) => {
   let releaseGate = () => {};
   const gate = new Promise<void>((resolve) => {
     releaseGate = resolve;
@@ -768,6 +768,14 @@ test("handleSendBatchClaimed: two overlapping runs of the same batch send each r
   await rig.sendRepo.save(makeSendRow({ id: "send-2", subscriberId: "sub-2", recipientEmail: "b@test.com", status: "pending" }));
   await rig.sendRepo.save(makeSendRow({ id: "send-3", subscriberId: "sub-3", recipientEmail: "c@test.com", status: "pending" }));
   const job = makeJob({ sendIds: ["send-1", "send-2", "send-3"] });
+  // `recordResult` is the only writer of a send row once it is leased, and it saves the row before it
+  // bumps the campaign counters, so one terminal save per row is exactly one counter increment per row.
+  const recorded: string[] = [];
+  const saveRow = rig.sendRepo.save.bind(rig.sendRepo);
+  t.mock.method(rig.sendRepo, "save", async (row: SendRow) => {
+    recorded.push(`${row.id}:${row.status}`);
+    return saveRow(row);
+  });
 
   const runA = handleSendBatchClaimed({ deps: rig.deps, job });
   assert.ok(await flushUntil(() => sentTo.length === 1), "run A never reached its first send");
@@ -782,16 +790,12 @@ test("handleSendBatchClaimed: two overlapping runs of the same batch send each r
 
   assert.deepEqual([...sentTo].sort(), ["a@test.com", "b@test.com", "c@test.com"]);
   const campaign = await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" });
-  // NOT `=== 3`: this scenario's first two rows (send-1 by run A, send-2 by run B) dispatch and
-  // record truly concurrently (both were blocked on the same `gate` and released together), which
-  // exercises a DIFFERENT, pre-existing, documented-out-of-scope race in `recordResult` -- its
-  // `campaignRepo.findById` + `campaignRepo.saveCampaignRow` counters read-modify-write is not
-  // atomic, so one of those two concurrent updates can be lost (see plan §5 residual risk (a); this
-  // is the SAME class of race, not one this slice fixes). What THIS slice guarantees, and what stays
-  // asserted below, is that a row is never sent or counted MORE than once -- the per-row `attempts`
-  // and `status` assertions are the real proof; `delivered` can only ever be under-counted here, not
-  // over-counted, so `<= 3` still catches a real double-count regression.
-  assert.ok(campaign && campaign.counters.delivered >= 1 && campaign.counters.delivered <= 3, `counters.delivered must never exceed 3 (was ${campaign?.counters.delivered})`);
+  // Exact, not a bound on `counters.delivered`: that persisted value can read LOW here because
+  // `recordResult`'s campaign read-modify-write is not atomic and this scenario records send-1 (run A)
+  // and send-2 (run B) concurrently. That lost update predates the lease (c4bd5103e) and is tracked
+  // separately. A bound cannot prove "no double count" (one double count plus one lost update still
+  // reads 3); one terminal save per row can.
+  assert.deepEqual([...recorded].sort(), ["send-1:delivered", "send-2:delivered", "send-3:delivered"]);
   assert.equal(campaign?.status, "sent");
   for (const id of ["send-1", "send-2", "send-3"]) {
     const row = await rig.sendRepo.findById({ workspaceId: WS, id });
