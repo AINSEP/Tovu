@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { diffThemeFolders, writeGeneratedThemeOriginal } from "../sync-originals.js";
+import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "../theme.js";
+
 /**
- * @file Canary: every SHIPPED theme that has a stored original must still be byte-identical to it.
+ * @file Canary: every SHIPPED theme's committed original matches what the generator produces from
+ * its live folder, right now.
  *
  * ---------------------------------------------------------------------------
  * The bug this exists to catch
@@ -16,39 +21,52 @@ import test from "node:test";
  * theme through the admin UI, `content/themes/` is the read-only seed source (`deps.ts`'s
  * `builtInThemesDir()`), so any difference between the two is drift, not customization.
  *
- * Drift happened, undetected, for four weeks. `497c9d35` (2026-08-18) migrated `basic` to the v2
- * folder layout and did not carry the change into `__original-themes__`; 16 further product commits
- * landed on `content/themes/static/basic` after it (WCAG contrast fixes, the observer-threshold fix
- * that un-blanked long pages, Geist vendoring, the PWA icon set) and none of them touched the stored
- * original either. Pressing "Reset" would have restored a user to the pre-fix design — the exact
- * opposite of what the button promises. `c7ef123d` (2026-09-14) repaired the DATA by hand.
- *
- * Nothing repaired the CAUSE, which is that there is no step anywhere — no script, no gate, no test —
- * connecting an edit to a shipped theme with its stored original. The only writer of
- * `__original-themes__` in product code is `downloadMarketplaceTheme`, which writes both sides in
- * lockstep for marketplace themes only; `development/scripts/theme-tool.ts` treats originals as
- * read-only by design. A shipped theme's original is maintained by hand and by memory. This canary is
- * the missing step: it does not sync anything, it makes the omission fail loudly the next time.
+ * Drift happened, undetected, for four weeks (2026-08-18 to 2026-09-14, `497c9d35` to `c7ef123d`) back
+ * when the original was a folder someone had to remember to update by hand. `c7ef123d` repaired that
+ * one theme's DATA; `sync-originals.ts` (2026-09-16) removed the CAUSE by making the original a
+ * GENERATED artifact (`tovu theme sync-originals`) instead of a hand-kept one.
  *
  * ---------------------------------------------------------------------------
- * Scope: the package stock tree only
+ * Why this is regenerate-and-diff, not tree-vs-tree
+ * ---------------------------------------------------------------------------
+ * The original version of this canary (2026-09-14, commit `1abfbec6`) compared the committed catalog
+ * against the committed live tree directly. Once the catalog became a GENERATED artifact, that
+ * comparison would have gone tautological: "does `content/themes/` equal a copy of itself" can never
+ * fail, so drift would stop being detectable rather than stopping from happening — exactly the
+ * regression this file exists to prevent.
+ *
+ * This version regenerates each theme's original into a throwaway temp directory through the SAME
+ * production code path `tovu theme sync-originals` runs
+ * ({@link writeGeneratedThemeOriginal} — never a second, hand-rolled copy-and-filter), and diffs THAT
+ * against the committed catalog. A real difference now means one of two things, both real bugs: the
+ * committed catalog was hand-edited (or left stale) since the last `sync-originals` run, or the
+ * generator itself broke. Either way, the fix is the same: run `tovu theme sync-originals
+ * content/themes` and commit the result — never edit `__original-themes__` by hand.
+ *
+ * ---------------------------------------------------------------------------
+ * Scope: every shipped theme, not just already-cataloged ones
  * ---------------------------------------------------------------------------
  * `content/themes/` and NOT `<site>/themes/`. A site's copy is meant to diverge from its original —
  * that divergence IS the user's work, and the original is what it gets compared against. Sweeping a
  * site tree would assert the opposite of the feature.
  *
- * A shipped theme with NO stored original is a supported state, not a failure: the product reports it
- * as "not resettable" (`marketplace.ts`'s `resettable` flag) and `restoreBuiltThemeGeneratedTree`
- * throws a named error for it. Only 1 of the 8 themes in `content/themes/` has an original today. So
- * the sweep is driven from the ORIGINALS side — every original must have a matching live theme and
- * match it exactly — rather than demanding an original for every theme.
+ * The sweep is driven from the SHIPPED-THEME side (every tier folder under `content/themes/`), not
+ * from `__original-themes__`'s own contents (as the pre-2026-09-16 version was) — deliberately, for
+ * two reasons. First, D's whole premise is that every shipped theme gets an original from now on with
+ * nobody able to forget one, so a shipped theme with no committed original is no longer a supported
+ * state; this canary is the thing that would catch that regression, and a catalog-driven sweep cannot,
+ * by construction, notice a theme the catalog doesn't know about. Second, it means deleting
+ * `__original-themes__` entirely does not turn this file green — every per-theme test below would
+ * instead fail loudly on the missing committed folder, which is a stronger non-vacuity guarantee than
+ * the explicit empty-list check the old version needed (kept below anyway, since it costs nothing and
+ * still catches deleting `content/themes/` itself, which a shipped-theme sweep alone would not).
  */
 
 const THEMES_DIR = path.resolve(import.meta.dirname, "../../../../../../content/themes");
-const ORIGINALS_DIR = path.join(THEMES_DIR, "__original-themes__");
+const ORIGINALS_DIR = path.join(THEMES_DIR, THEME_CATALOG_DIR);
 
-/** A `<tier>/<id>` pair that has a stored original under {@link ORIGINALS_DIR}. */
-interface CatalogedTheme {
+/** A `<tier>/<id>` pair discovered as a shipped theme's live folder. */
+interface ShippedTheme {
   readonly tier: string;
   readonly id: string;
 }
@@ -63,38 +81,16 @@ function directoriesIn(dir: string): string[] {
 }
 
 /**
- * Every theme with a stored original, discovered from disk rather than listed by hand so a theme that
- * gains an original later is swept without anyone remembering to add it here.
+ * Every shipped theme, discovered from the live tier folders rather than from
+ * `__original-themes__`'s own contents — see this file's header for why that side is load-bearing.
  *
- * @returns Cataloged `<tier>/<id>` pairs, tier-then-id sorted.
- * @complexity O(t + n) in tiers and cataloged themes — two shallow directory reads per tier.
+ * @returns Shipped `<tier>/<id>` pairs, tier-then-id sorted.
+ * @complexity O(t + n) in tiers and shipped themes — one shallow directory read per tier.
  */
-function catalogedThemes(): CatalogedTheme[] {
-  return directoriesIn(ORIGINALS_DIR).flatMap((tier) =>
-    directoriesIn(path.join(ORIGINALS_DIR, tier)).map((id) => ({ tier, id }))
+function shippedThemes(): ShippedTheme[] {
+  return ENGINE_SUBFOLDERS.flatMap((tier) =>
+    directoriesIn(path.join(THEMES_DIR, tier)).map((id) => ({ tier, id }))
   );
-}
-
-/**
- * Every file in a theme folder, as paths relative to that folder.
- *
- * Anything that is neither a regular file nor a directory (symlink, socket, device) is returned as a
- * path too, so it shows up as a difference instead of being silently dropped from one side of a
- * comparison — a skipped entry on one side only is exactly how a "no differences" result lies.
- *
- * @param themeDir - Absolute path to a theme folder.
- * @returns Sorted relative paths, POSIX-separated.
- * @complexity O(f) in the folder's entry count; one `readdir` per directory, no file reads.
- */
-function relativeFilePaths(themeDir: string): string[] {
-  const walk = (dir: string, prefix: string): string[] =>
-    fs
-      .readdirSync(dir, { withFileTypes: true })
-      .flatMap((entry) => {
-        const relativePath = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
-        return entry.isDirectory() ? walk(path.join(dir, entry.name), relativePath) : [relativePath];
-      });
-  return walk(themeDir, "").sort();
 }
 
 /** Bounds a failure message to something readable while still stating the true total. */
@@ -103,53 +99,46 @@ function summarize(paths: string[]): string {
   return paths.length > 10 ? `${shown}, … (${paths.length} total)` : shown;
 }
 
-const CATALOGED = catalogedThemes();
+const SHIPPED = shippedThemes();
 
-test("canary: the originals sweep is not vacuous", () => {
-  // Without this, deleting `__original-themes__` — or moving it, or renaming a tier — turns every
-  // check below into a pass over an empty list, and this file goes green while the feature it guards
-  // has no data left at all.
-  assert.ok(
-    CATALOGED.length > 0,
-    `no stored originals found under ${ORIGINALS_DIR}; either the catalog moved or "reset to original" has nothing to restore from`
-  );
+test("canary: the shipped-theme sweep is not vacuous", () => {
+  // Without this, `content/themes/` moving or every `ENGINE_SUBFOLDERS` tier emptying out turns every
+  // check below into a pass over an empty list, and this file goes green while there is nothing left
+  // for "reset to original" to serve at all.
+  assert.ok(SHIPPED.length > 0, `no shipped themes found under ${THEMES_DIR}; the theme tree may have moved`);
 });
 
-for (const { tier, id } of CATALOGED) {
-  test(`canary: shipped theme ${tier}/${id} is byte-identical to its stored original`, () => {
+for (const { tier, id } of SHIPPED) {
+  test(`canary: shipped theme ${tier}/${id}'s committed original matches what the generator produces from it`, () => {
     const liveDir = path.join(THEMES_DIR, tier, id);
-    const originalDir = path.join(ORIGINALS_DIR, tier, id);
+    const committedOriginalDir = path.join(ORIGINALS_DIR, tier, id);
 
     assert.ok(
-      fs.existsSync(liveDir),
-      `__original-themes__/${tier}/${id} has no shipped theme at content/themes/${tier}/${id} — an orphan original is restorable-looking dead weight; delete it or restore the theme`
+      fs.existsSync(committedOriginalDir),
+      `content/themes/${tier}/${id} has no committed original at __original-themes__/${tier}/${id} — ` +
+        `run 'tovu theme sync-originals content/themes' and commit the result; every shipped theme is ` +
+        `expected to have one since D (2026-09-16), so a missing one is a regression, not a supported state.`
     );
 
-    const livePaths = relativeFilePaths(liveDir);
-    const originalPaths = relativeFilePaths(originalDir);
-    const liveSet = new Set(livePaths);
-    const originalSet = new Set(originalPaths);
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "theme-original-drift-canary-"));
+    try {
+      const generatedDir = path.join(tmpRoot, tier, id);
+      writeGeneratedThemeOriginal({ liveDir, targetDir: generatedDir });
 
-    const onlyLive = livePaths.filter((p) => !originalSet.has(p));
-    const onlyOriginal = originalPaths.filter((p) => !liveSet.has(p));
-    assert.deepEqual(
-      { added: onlyLive, removed: onlyOriginal },
-      { added: [], removed: [] },
-      `content/themes/${tier}/${id} and its stored original no longer hold the same files.\n` +
-        `  in the shipped theme but not the original: ${summarize(onlyLive) || "(none)"}\n` +
-        `  in the original but not the shipped theme: ${summarize(onlyOriginal) || "(none)"}\n` +
-        `A shipped theme's original is NOT maintained by any automated step. If you changed the theme, copy the change into content/themes/__original-themes__/${tier}/${id}/ (and keep sites/*/themes/__original-themes__ in mind for already-seeded sites) — otherwise "Reset to original" restores the old design.`
-    );
-
-    const drifted = livePaths.filter(
-      (relativePath) =>
-        !fs.readFileSync(path.join(liveDir, relativePath)).equals(fs.readFileSync(path.join(originalDir, relativePath)))
-    );
-    assert.deepEqual(
-      drifted,
-      [],
-      `content/themes/${tier}/${id} has drifted from its stored original in: ${summarize(drifted)}.\n` +
-        `Every one of those files would be REVERTED by "Reset to original". Copy the current shipped bytes into content/themes/__original-themes__/${tier}/${id}/, or explain in the commit why the original should stay behind.`
-    );
+      const diff = diffThemeFolders(generatedDir, committedOriginalDir);
+      assert.deepEqual(
+        diff,
+        { added: [], removed: [], changed: [] },
+        `content/themes/__original-themes__/${tier}/${id} no longer matches what 'tovu theme sync-originals' ` +
+          `generates from content/themes/${tier}/${id}.\n` +
+          `  generated but not committed: ${summarize(diff.added) || "(none)"}\n` +
+          `  committed but not generated: ${summarize(diff.removed) || "(none)"}\n` +
+          `  byte-different: ${summarize(diff.changed) || "(none)"}\n` +
+          `Run 'tovu theme sync-originals content/themes' and commit the result — the catalog is a ` +
+          `generated artifact now, never hand-edited.`
+      );
+    } finally {
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
   });
 }
