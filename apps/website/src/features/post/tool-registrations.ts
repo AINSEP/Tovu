@@ -69,6 +69,11 @@ import {
 // rejection `errorKind: 'validation'`. Everything else this file needs comes from `@jini-ai/cms/core`.
 import { ToolInputError } from "@jini-ai/core";
 import { resolveConfirmationDecision, type AssistantSurfaceDeps, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
+import {
+  forbiddenRule,
+  withModelFacingErrors,
+  type ModelFacingErrorRule,
+} from "../../contracts/core/model-facing-tool-errors.js";
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
@@ -93,6 +98,7 @@ import {
   DEFAULT_POST_LIST_LIMIT,
   MAX_POST_LIST_LIMIT,
   ROOT_SLUG,
+  PostConflictError,
   PostNotFoundError,
   PostValidationError,
   PostVersionConflictError,
@@ -219,32 +225,54 @@ const VERSION_CONFLICT_GUIDANCE =
   "that row's `version` as `expectedVersion`. Do not resend this call unchanged.";
 
 /**
- * Re-classifies a `PostVersionConflictError` as a `ToolInputError` on its way to the model, and
- * passes every other rejection through untouched.
+ * The Posts/Pages errors that reach the model with their real reason instead of a redacted
+ * `INTERNAL_ERROR` — see `contracts/core/model-facing-tool-errors.ts` for the mechanism, for why a
+ * whole-map wrap is used rather than a per-call-site reshape, and for why this list is an
+ * ALLOWLIST: anything unlisted is returned unchanged and stays redacted.
  *
- * Not cosmetic, and NOT removable: `@jini-ai/daemon`'s `ToolExecutor` tags any rejection that is
- * not a `ToolInputError` as `errorKind: 'internal'`, and `@jini-ai/http-kit`'s
- * `delegatedToolExecuteRoute` — the real `/api/delegated-tool-calls` transport a spawned agent CLI
- * calls this tool through — then SEC-005-redacts an `'internal'` failure into a bare
- * `INTERNAL_ERROR` with the message stripped. Verified end to end by
- * `__tests__/tool-registrations.optimistic-concurrency.test.ts`. Without this the model would be
- * told a version conflict is a server crash: it could not tell "someone else saved" from "your
- * input was malformed" from "the site fell over", and the one thing it most needs to know — that
- * its edit did not land and re-reading fixes it — would never reach it.
+ * This replaces a `toModelFacingUpdateError` helper that handled exactly one class and was wired at
+ * exactly one of six handlers — the correct-primitive/unwired-call-site shape this codebase keeps
+ * reproducing. `content_post_delete`'s own version re-check threw the SAME class through an
+ * unwrapped arm, so the identical conflict was actionable from update and a bare 500 from delete.
  *
- * `ToolInputError` is also the honest classification, not a trick to defeat the redaction: the
- * marker means "the CALLER's input was the problem and a different input would fix it", and a stale
- * `expectedVersion` is exactly that — a different (freshly re-read) basis resolves it, and nothing
- * server-side is broken. Same precedent as `features/media/promote-chat-attachment.ts`, which
- * re-classifies `AttachmentRejectedError` for the identical reason. The message is safe to surface:
- * it carries the post id the caller already sent plus two version integers, no internal detail.
+ * ORDER IS LOAD-BEARING. `PostVersionConflictError extends PostConflictError` (deliberately — see
+ * `post.ts`'s class doc for why that subclassing made the optimistic-concurrency guard additive at
+ * every existing 409 call site), and `reclassifyToolError` takes the FIRST `instanceof` match.
+ * Listed the other way round, every version conflict would be answered by the generic
+ * slug-conflict arm and would lose the one thing the model most needs to hear — that its edit did
+ * NOT land and that re-reading the row fixes it. Pinned directly by
+ * `__tests__/tool-registrations.model-facing-errors.test.ts`'s ordering case.
  *
- * @complexity O(1).
+ * `VERSION_CONFLICT` keeps its bare, un-prefixed code on purpose: it is the shared discriminator
+ * `entries/` and `content-types/` already publish for the identical condition
+ * (`expected-version.ts`), a client branches on it, and
+ * `__tests__/tool-registrations.optimistic-concurrency.test.ts` pins the exact wire message
+ * byte-for-byte. The rest take a `CONTENT_POST_` prefix rather than `POST_` so the token names the
+ * tool family the model actually calls (`content_post_update`, `content_read.content_post`) instead
+ * of reading as the HTTP verb.
+ *
+ * `PostValidationError` is listed even though `content_post_search`/`_create`/`_update` already
+ * convert it into a schema-decorated `ToolInputError` via `withSchemaOnRejection`: that decoration
+ * covers three of the six handlers, and `reclassifyToolError` returns an already-`ToolInputError`
+ * rejection untouched, so listing it here adds the real reason to the other three WITHOUT touching
+ * the decorated ones or double-prefixing them.
+ *
+ * On disclosure: every message these classes carry is built from the caller's own input and this
+ * domain's own vocabulary — an id or slug the caller itself sent, a field name, two version
+ * integers, a reserved slug, or (for `ForbiddenError`) the permission string plus the `authorize()`
+ * reason. Checked at each construction site rather than assumed (`post.ts` 473 / 720-766 / 825 /
+ * 898-932 / 952 / 1003-1004 / 1055 / 1220-1294, `search.ts` 247 & 253, `expected-version.ts` 52,
+ * and this file's own four throws): none interpolates post body content, a member or subscriber
+ * email, a token, a SQL fragment, or an internal filesystem path.
  */
-function toModelFacingUpdateError(err: unknown): unknown {
-  if (!(err instanceof PostVersionConflictError)) return err;
-  return new ToolInputError(`${VERSION_CONFLICT_CODE}: ${err.message}. ${VERSION_CONFLICT_GUIDANCE}`);
-}
+const POST_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
+  // FIRST, and it must stay first — the subclass ahead of its superclass. See this list's doc.
+  { error: PostVersionConflictError, code: VERSION_CONFLICT_CODE, guidance: VERSION_CONFLICT_GUIDANCE },
+  { error: PostConflictError, code: "CONTENT_POST_CONFLICT" },
+  { error: PostNotFoundError, code: "CONTENT_POST_NOT_FOUND" },
+  { error: PostValidationError, code: "CONTENT_POST_VALIDATION_FAILED" },
+  forbiddenRule("CONTENT_POST"),
+];
 
 function requirePostKind(input: Record<string, unknown>): PostKind {
   const value = input.kind;
@@ -467,10 +495,16 @@ async function resolveDeleteDecision(
  */
 function assertFreshVersion(current: PostRecord | null, existing: PostRecord, kind: PostKind): void {
   if (current && !isTrashed(current) && current.version !== existing.version) {
-    throw new Error(
-      `content_post_delete: the confirmation could not be honored (stale-entity-version). The ${kind} was edited ` +
-        `after the confirmation dialog was shown. Nothing was deleted. Call content_post_delete again with ` +
-        `{ id, kind } to raise a fresh dialog against the current version.`
+    // A `ToolInputError`, not a bare `Error`: that marker is the only thing keeping this out of the
+    // `errorKind: 'internal'` bucket the delegated-tool transport SEC-005-redacts, and a model told
+    // only "500" here cannot learn that nothing was deleted or that calling again fixes it. The code
+    // goes in FRONT of the original wording, which is otherwise unchanged character for character —
+    // `__tests__/agent-tools.delete-confirmation.test.ts` matches on `/stale-entity-version/`.
+    throw new ToolInputError(
+      `CONTENT_POST_STALE_CONFIRMATION: content_post_delete: the confirmation could not be honored ` +
+        `(stale-entity-version). The ${kind} was edited after the confirmation dialog was shown. ` +
+        `Nothing was deleted. Call content_post_delete again with { id, kind } to raise a fresh ` +
+        `dialog against the current version.`
     );
   }
   // A missing or already-trashed `current` is not handled specially here: `deletePost` performs its
@@ -642,65 +676,58 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         // `posts/update.ts`/`pages/update.ts`'s identical unit-of-work compensation.
         let priorPost: PostRecord | null = null;
 
-        try {
-          const { result } = await executeCommand<{ post: PostRecord }>({
-            deps: postCommandDeps(routeDeps),
-            command: {
-              workspaceId: routeDeps.workspaceId,
-              actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
-              summary: `Agent update ${kind} '${id}'`,
-              permission: "content.write",
+        const { result } = await executeCommand<{ post: PostRecord }>({
+          deps: postCommandDeps(routeDeps),
+          command: {
+            workspaceId: routeDeps.workspaceId,
+            actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
+            summary: `Agent update ${kind} '${id}'`,
+            permission: "content.write",
+          },
+          mutation: {
+            entityType: "post",
+            entityId: id,
+            operation: "update",
+            captureInverse: async () => {
+              const existing = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
+              if (!existing) throw new PostNotFoundError(`post '${id}' was not found`);
+              if (kind === "page" && existing.kind !== "page") {
+                // Kind mismatch treated identically to not-found — mirrors pages/update.ts exactly
+                // (see agent-tools.ts's disclosed asymmetry; kind:"post" carries no such guard,
+                // mirroring posts/update.ts's own kind-blind captureInverse).
+                throw new PostNotFoundError(`page '${id}' was not found`);
+              }
+              priorPost = existing;
+              return { title: existing.title, slug: existing.slug, bodyJson: existing.bodyJson, status: existing.status };
             },
-            mutation: {
-              entityType: "post",
-              entityId: id,
-              operation: "update",
-              captureInverse: async () => {
-                const existing = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
-                if (!existing) throw new PostNotFoundError(`post '${id}' was not found`);
-                if (kind === "page" && existing.kind !== "page") {
-                  // Kind mismatch treated identically to not-found — mirrors pages/update.ts exactly
-                  // (see agent-tools.ts's disclosed asymmetry; kind:"post" carries no such guard,
-                  // mirroring posts/update.ts's own kind-blind captureInverse).
-                  throw new PostNotFoundError(`page '${id}' was not found`);
-                }
-                priorPost = existing;
-                return { title: existing.title, slug: existing.slug, bodyJson: existing.bodyJson, status: existing.status };
-              },
-              execute: () =>
-                updatePost({
-                  deps: {
-                    repo: routeDeps.postRepo,
-                    clock: routeDeps.clock,
-                    outbox: routeDeps.outbox,
-                    beforeSaveHook: routeDeps.pluginBeforeSaveHook,
-                  },
-                  // `expectedVersion` forwarded exactly the way `posts/update.ts` forwards it, and
-                  // omitted-means-absent for the same reason: `undefined` is what keeps the guard
-                  // opt-in, so a caller that sends nothing keeps the original last-write-wins save.
-                  input: { workspaceId: routeDeps.workspaceId, id, title, slug, bodyJson, status, expectedVersion },
-                }),
-              captureEntityVersion: (r) => r.post.version,
-              rollback: async () => {
-                if (priorPost) await routeDeps.postRepo.save(priorPost);
-              },
+            execute: () =>
+              updatePost({
+                deps: {
+                  repo: routeDeps.postRepo,
+                  clock: routeDeps.clock,
+                  outbox: routeDeps.outbox,
+                  beforeSaveHook: routeDeps.pluginBeforeSaveHook,
+                },
+                // `expectedVersion` forwarded exactly the way `posts/update.ts` forwards it, and
+                // omitted-means-absent for the same reason: `undefined` is what keeps the guard
+                // opt-in, so a caller that sends nothing keeps the original last-write-wins save.
+                input: { workspaceId: routeDeps.workspaceId, id, title, slug, bodyJson, status, expectedVersion },
+              }),
+            captureEntityVersion: (r) => r.post.version,
+            rollback: async () => {
+              if (priorPost) await routeDeps.postRepo.save(priorPost);
             },
-          });
+          },
+        });
 
-          // Mirrors posts/update.ts's/pages/update.ts's identical inline processOutbox call — drains
-          // updatePost's entry.published/entry.updated/entry.unpublished event (if any) to SEO's
-          // sitemap-cache invalidation subscriber at once. In the agent daemon the outbox is
-          // enqueue-only, so this claims nothing and the serving process's background drainer
-          // delivers instead (`server/runtime/composition/agent-daemon-deps.ts`).
-          await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
+        // Mirrors posts/update.ts's/pages/update.ts's identical inline processOutbox call — drains
+        // updatePost's entry.published/entry.updated/entry.unpublished event (if any) to SEO's
+        // sitemap-cache invalidation subscriber at once. In the agent daemon the outbox is
+        // enqueue-only, so this claims nothing and the serving process's background drainer
+        // delivers instead (`server/runtime/composition/agent-daemon-deps.ts`).
+        await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
-          return { post: toPostToolView(result.post) };
-        } catch (err) {
-          // Only a version conflict is reshaped; everything else propagates exactly as before —
-          // see {@link toModelFacingUpdateError} for why the reshape is load-bearing rather than
-          // cosmetic (an unreshaped conflict reaches the model as a redacted INTERNAL_ERROR).
-          throw toModelFacingUpdateError(err);
-        }
+        return { post: toPostToolView(result.post) };
       });
     },
 
@@ -747,9 +774,14 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
 
       // Fail closed rather than degrade — see this handler's own doc comment above.
       if (!ctx.emitSurface) {
-        throw new Error(
-          "content_post_delete: this execution context has no interactive confirmation channel " +
-            "(no emitSurface), so a destructive delete cannot be gated here. Nothing was deleted."
+        // `ToolInputError` for the same reason `webhooks_delete_subscription`'s identical guard uses
+        // it: a redacted 500 here makes a model retry a delete that can never succeed in this
+        // context. The message names no internals — only the missing capability and the fact that
+        // nothing was deleted. Original wording preserved behind the code prefix.
+        throw new ToolInputError(
+          "CONTENT_POST_NO_CONFIRMATION_CHANNEL: content_post_delete: this execution context has no " +
+            "interactive confirmation channel (no emitSurface), so a destructive delete cannot be " +
+            "gated here. Nothing was deleted."
         );
       }
 
@@ -845,7 +877,13 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
     domain: "post",
     catalogModule: "features/post/agent-tools.ts",
     catalog: CATALOG_BY_ID as ReadonlyMap<string, PostAgentToolDefinition>,
-    handlers,
+    // The whole map at once, so no handler can be the one that forgot — which is precisely what
+    // happened here before: `toModelFacingUpdateError` was correct and wired into `content_post_update`
+    // alone while its five siblings sent the same classes straight into the SEC-005 redactor.
+    // Composes with the three handlers' inner `withSchemaOnRejection` rather than competing with it:
+    // a shape rejection is already a `ToolInputError` by the time it arrives, and
+    // `reclassifyToolError` returns those untouched.
+    handlers: withModelFacingErrors(handlers, POST_MODEL_FACING_ERRORS),
     derivedRisk: postDerivedRisk,
   });
 }
