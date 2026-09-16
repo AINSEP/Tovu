@@ -306,6 +306,34 @@ test("POST /forms/:slug/submit: a cross-origin Referer is REJECTED as the redire
   assert.equal(location.pathname, "/");
 });
 
+test("POST /forms/:slug/submit: a SAME-host Referer whose path starts with '//' is rejected too — its pathname alone is a protocol-relative Location that leaves the site", async (t) => {
+  // t91 open-redirect sweep (2026-09-16): the host check passes for `http://site//evil.example/x`
+  // (and for the `/\` and `/.//` spellings a URL parser folds into it), yet the route rebuilt its
+  // Location from `pathname` + `search` alone — `//evil.example/x?form=...`, which a browser follows
+  // to evil.example.
+  const { server, baseUrl, definitionRepo } = await startTestApp();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  await definitionRepo.create(makeDefinition());
+
+  const leaks: { referer: string; location: string | null }[] = [];
+  for (const path of ["//evil.example/contact", "/\\evil.example/contact", "/.//evil.example/contact"]) {
+    const referer = `${baseUrl}${path}`;
+    const res = await fetch(`${baseUrl}/forms/contact/submit`, {
+      method: "POST",
+      redirect: "manual",
+      headers: { "content-type": "application/json", accept: "text/html", referer },
+      body: JSON.stringify({ name: "Ada" }),
+    });
+    assert.equal(res.status, 303);
+    const raw = res.headers.get("location");
+    const location = new URL(raw ?? "", baseUrl);
+    if (location.origin !== baseUrl || location.pathname !== "/" || location.searchParams.get("form_status") !== "success") {
+      leaks.push({ referer: path, location: raw });
+    }
+  }
+  assert.deepEqual(leaks, []);
+});
+
 test("POST /forms/:slug/submit: Accept: application/json (an explicit API caller) still gets the untouched JSON contract, not a redirect", async (t) => {
   const { server, baseUrl, definitionRepo } = await startTestApp();
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));

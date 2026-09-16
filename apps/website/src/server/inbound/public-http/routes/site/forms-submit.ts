@@ -7,6 +7,7 @@ import {
   type FieldDescriptor,
 } from "#src/features/forms/index";
 import { submitForm, type SubmitFormDeps } from "#src/features/forms/submit-service";
+import { siteRelativeTargetReason } from "#src/features/redirects/index";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { isHttpsRequest } from "../oauth/public-origin.js";
 import {
@@ -75,6 +76,12 @@ function wantsHtmlResponse(req: Request): boolean {
  * off — an absent, unparsable, or cross-origin Referer all fall back to the site root instead, a
  * real and safe page rather than a raw JSON blob, just not necessarily the one the visitor submitted
  * from.
+ *
+ * The host match alone is not enough (t91 open-redirect sweep, 2026-09-16): the Location is rebuilt
+ * from the Referer's `pathname` + `search` only, and `http://site//evil.example/x` (or the `/\` and
+ * `/.//` spellings a URL parser folds into it) has the right host but a pathname of
+ * `//evil.example/x` — a protocol-relative Location. The pathname must also pass the redirects write
+ * gate's site-relative check, which refuses that shape (and the admin surface) the same way.
  */
 function resolveSameOriginRedirectBase(req: Request): URL {
   const fallback = new URL("/", `${req.protocol}://${req.get("host") ?? "localhost"}`);
@@ -82,7 +89,8 @@ function resolveSameOriginRedirectBase(req: Request): URL {
   if (!referer) return fallback;
   try {
     const refUrl = new URL(referer);
-    return refUrl.host === req.get("host") ? refUrl : fallback;
+    const onThisSite = refUrl.host === req.get("host") && siteRelativeTargetReason(refUrl.pathname) === null;
+    return onThisSite ? refUrl : fallback;
   } catch {
     return fallback;
   }
