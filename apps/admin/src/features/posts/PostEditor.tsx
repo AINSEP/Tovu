@@ -1723,16 +1723,24 @@ function PostPreview({
       aria-label={expanded ? "Exit full screen" : "Show full screen"}
       {...agentHandle("post-preview-expand", {
         role: "button",
-        // The agent label must contain the words the control itself shows a human.
-        // `page.find_elements`'s `query` is a plain case-insensitive SUBSTRING match over handle and
-        // label — no stemming, no ranking (`@jini-ai/agentic`'s `dom-page-driver.ts`) — so a word
-        // missing from this string is a word that retrieves nothing. This said "big, filling the
-        // admin content area" while the button itself said "Show full screen", which meant
-        // `query: "fullscreen"` and `query: "full screen"` both returned ZERO elements. Keep this in
-        // step with `aria-label`/`title` above; `post-editor-agent-drive.unit.test.tsx` pins it.
+        // These labels read redundantly ON PURPOSE. `page.find_elements`'s `query` is a plain
+        // case-insensitive SUBSTRING match over handle and label — no stemming, no synonyms, no
+        // ranking (`@jini-ai/agentic`'s `dom-page-driver.ts`, `findElements`) — so a word that is not
+        // literally here retrieves NOTHING, and an assistant that gets an empty list abandons the
+        // route rather than broadening its query. That is not hypothetical: this label once read
+        // "Show the preview big, filling the admin content area" while the button said "Show full
+        // screen", and on a recorded demo an assistant asked to show the preview full screen called
+        // `page.find_elements({query:"full"})`, got `{"elements":[]}`, and gave up.
+        //
+        // So both directions carry the whole vocabulary, including the opposite direction's: a model
+        // that asks for "fullscreen" while it is ALREADY full screen must find this control and read
+        // "Exit full screen" off it, which tells it the state. Returning nothing instead teaches it
+        // the feature does not exist. Direction is communicated by what the label SAYS, never by
+        // being absent from the index. Keep in step with `aria-label`/`title` above —
+        // `post-editor-agent-drive.unit.test.tsx` pins both the vocabulary and that agreement.
         label: expanded
-          ? "Exit full screen (fullscreen) — collapse the preview back to its normal, smaller size"
-          : "Show the preview full screen (fullscreen) — makes it big, filling the whole admin content area",
+          ? "Exit full screen — exit fullscreen, collapse or close the expanded preview back to its normal, smaller size. It is already maximized: if the ask was to show it big, it already is."
+          : "Show the preview full screen — fullscreen, maximize or expand it, show it big, filling the whole admin content area.",
       })}
     >
       <span aria-hidden="true">{expanded ? "\u2921" : "\u2922"}</span>
