@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readdir, stat } from "node:fs/promises";
+import { chmod, mkdtemp, readdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
-import { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } from "../../activation.js";
+import { ACTIVATIONS_FILENAME, readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } from "../../activation.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import {
@@ -163,6 +163,60 @@ test("removing a frozen (read-only, 0o555) published package root does not throw
 
     await uninstallAgentPlugin({ layout: instanceLayout, workspaceId: WORKSPACE_ID, pluginId: "frozen-check" });
     await assert.rejects(() => stat(installed.packageRoot));
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("a failed uninstall puts every staged package tree back — no digest is left half-deleted", async (t) => {
+  if (process.getuid !== undefined && process.getuid() === 0) {
+    t.skip("running as root: a 0o555 directory does not deny root a write, so the failure cannot be forced here");
+    return;
+  }
+  const { cwd, instanceLayout, workspaceLayout } = await freshLayout();
+  try {
+    const first = await installTestPackage(instanceLayout, "multi-digest", "archive-multi-digest-a");
+    const second = await installTestPackage(instanceLayout, "multi-digest", "archive-multi-digest-b");
+    await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "multi-digest", enabled: true, actor: "op-1" });
+
+    // Freeze the workspace ROOT only. `packages/sha256/` keeps its own mode, so every digest can be
+    // staged successfully and the failure lands on the activation record's write-temp-then-rename —
+    // the one ordering under which "did the rollback actually run?" is a real question. A rollback
+    // that only ever fires on the FIRST digest (i.e. before anything is staged) is a no-op, and the
+    // two assertions below it would pass for an implementation that never staged anything at all.
+    await chmod(workspaceLayout.root, 0o555);
+    let failure: unknown = null;
+    try {
+      await uninstallAgentPlugin({ layout: instanceLayout, workspaceId: WORKSPACE_ID, pluginId: "multi-digest" });
+    } catch (error) {
+      failure = error;
+    } finally {
+      await chmod(workspaceLayout.root, 0o700);
+    }
+
+    assert.notEqual(failure, null, "uninstall must reject when the activation record cannot be rewritten");
+    assert.match(
+      failure instanceof Error ? failure.message : String(failure),
+      new RegExp(ACTIVATIONS_FILENAME.replace(".", "\\.")),
+      "the failure must come from the activation-record write, proving every package tree was already staged " +
+        "aside — an EACCES naming a package root instead would mean staging never got off the ground",
+    );
+
+    assert.equal((await stat(first.packageRoot)).isDirectory(), true, "a failed uninstall must not leave the first digest deleted");
+    assert.equal((await stat(second.packageRoot)).isDirectory(), true, "a failed uninstall must not leave the second digest deleted");
+    assert.equal(
+      (await stat(first.packageRoot)).mode & 0o777,
+      0o555,
+      "staging has to unfreeze a package root to rename it; a restored tree must be frozen again, not left writable",
+    );
+    assert.deepEqual(
+      (await readdir(workspaceLayout.packages)).sort(),
+      [first.archiveDigest, second.archiveDigest].sort(),
+      "the rollback must restore the original digest names and leave no staged directory behind",
+    );
+
+    const activations = await readAgentPluginActivations(workspaceLayout.root);
+    assert.equal(activations.plugins["multi-digest"]?.enabled, true, "the activation record must survive, so it still describes real bytes");
   } finally {
     await forceRemove(cwd);
   }

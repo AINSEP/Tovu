@@ -74,8 +74,36 @@
  * exists to work around in tests). `removeFrozenPackageTree` below is that same "restore write
  * permission, then remove" logic as real production code — this is the first production caller that
  * ever needs to remove a package root that install-time freezing already made.
+ *
+ * ---------------------------------------------------------------------------
+ * Why removal stages first — and why it stages NEXT TO the package, not under `staging/`
+ * ---------------------------------------------------------------------------
+ * Removing a multi-digest plugin is several irreversible `rm`s followed by one activation-record
+ * write. Done directly, a failure anywhere after the first `rm` leaves an installation that is
+ * half-deleted and an activation record describing bytes that no longer exist — recoverable by
+ * nobody. So every package root is first `rename`d aside (cheap, atomic within one filesystem, and
+ * reversible), the activation record is deleted, and only then are the renamed trees actually
+ * removed. Any failure before that last step puts every renamed tree straight back.
+ *
+ * Renaming a frozen package root needs its write bit back FIRST. `install.ts`'s own publish comment
+ * records the measured fact this depends on: on this filesystem renaming an already-`0o555`
+ * directory fails EACCES — and, re-measured here, that holds even when the rename stays inside the
+ * same parent, so there is no permission-free way to move a frozen tree. `stageForRemoval` therefore
+ * restores the owner write bit on the package ROOT only (never its contents), renames, and — on any
+ * failure, including a rollback — puts the exact original mode back, so a failed uninstall leaves a
+ * tree that is still frozen. That briefly-writable window is the same "accidental same-process
+ * write" surface `freezeTree`'s own header scopes itself to, not a security boundary.
+ *
+ * The staged name is a SIBLING inside the same `packages/sha256/` directory rather than
+ * `<workspaceRoot>/staging/` (which install uses for its own transactions): same parent means the
+ * rename is guaranteed to be within one filesystem, and therefore atomic, without depending on a
+ * second directory existing. The names begin with a dot and carry a random suffix, so they can never
+ * be mistaken for an installed digest (`resolve-agent-plugin-refs.ts` matches `^[a-f0-9]{64}$`) nor
+ * collide with a concurrent uninstall. A crash between the rename and the final remove strands a
+ * `.uninstalling-*` directory an operator can delete — strictly better than a half-deleted install.
  */
-import { chmod, readdir, rm } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { chmod, readdir, rename, rm, stat } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import path from "node:path";
 
@@ -119,8 +147,22 @@ export interface AgentPluginUninstallPreview {
  *  paths (`packageRoot`) and must not reach a preview. */
 interface UninstallTargets {
   readonly workspaceRoot: string;
+  /** `<workspaceRoot>/packages/sha256` — the parent every staged rename stays inside. */
+  readonly packagesDir: string;
   readonly matches: readonly InstalledAgentPlugin[];
 }
+
+/** One package root renamed aside, and what restoring it takes: the path it must go back to, and the
+ *  mode it carried before staging unfroze its root directory. */
+interface StagedTree {
+  readonly quarantined: string;
+  readonly original: string;
+  readonly originalMode: number;
+}
+
+/** Prefix for a staged (renamed-aside) package root. Leading dot plus a random suffix: never a
+ *  valid installed-digest directory name, never colliding with a concurrent uninstall. */
+const STAGED_DIRNAME_PREFIX = ".uninstalling-";
 
 /**
  * Reports what uninstalling `pluginId` would remove, without removing anything.
@@ -141,6 +183,8 @@ export async function previewAgentPluginUninstall(required: UninstallAgentPlugin
  *
  * @throws {AgentPluginNotFoundError} No installed package for `pluginId` exists in this workspace.
  * @throws {AgentPluginNotUninstallableError} The plugin's activation record has `origin: "bundled"`.
+ * @throws Whatever the filesystem raised, after every staged tree has been put back — or, if a tree
+ * could not be put back, an error naming the staged paths an operator must recover by hand.
  * @complexity O(d) in this workspace's installed-digest count (one `listInstalledPlugins` walk) plus
  * O(f) in the total file count under the matching digest(s) being removed.
  */
@@ -148,20 +192,79 @@ export async function uninstallAgentPlugin(
   required: UninstallAgentPluginRequired,
   _optional: UninstallAgentPluginOptional = {},
 ): Promise<UninstallAgentPluginResult> {
-  const { workspaceRoot, matches } = await resolveUninstallTargets(required);
+  const { workspaceRoot, packagesDir, matches } = await resolveUninstallTargets(required);
 
-  const removedDigests: string[] = [];
-  for (const plugin of matches) {
-    await removeFrozenPackageTree(plugin.packageRoot);
-    removedDigests.push(plugin.archiveDigest);
+  // Reversible work first — see this file's header, "Why removal stages first". Nothing on this
+  // side of the try is destructive: every step up to and including the activation-record delete can
+  // be undone by renaming the staged trees back where they came from.
+  const staged: StagedTree[] = [];
+  try {
+    for (const plugin of matches) {
+      staged.push(await stageForRemoval(packagesDir, plugin.packageRoot));
+    }
+    await deleteAgentPluginActivation({ workspaceRoot, pluginId: required.pluginId });
+  } catch (error) {
+    throw await restoreStagedTrees(staged, error);
   }
 
-  // Files first, activation record second: if the removal above throws, no activation state has
-  // been touched yet, matching plugin-runtime's own "files-first" ordering rationale (uninstall.ts's
-  // header there) for the identical reason — a failed attempt leaves state exactly as it was.
-  await deleteAgentPluginActivation({ workspaceRoot, pluginId: required.pluginId });
+  // Past this point the live state is already settled: the packages are no longer reachable under
+  // any installed-digest name and the activation record is gone. These removes are the only
+  // irreversible step, and nothing observable depends on them finishing.
+  for (const tree of staged) {
+    await removeFrozenPackageTree(tree.quarantined);
+  }
 
-  return { pluginId: required.pluginId, removedDigests };
+  return { pluginId: required.pluginId, removedDigests: matches.map((plugin) => plugin.archiveDigest) };
+}
+
+/**
+ * Renames one package root aside, inside its own parent directory, so removing it becomes
+ * reversible. Unfreezes the root directory itself first — a frozen directory cannot be renamed at
+ * all (see this file's header) — and re-freezes it if the rename fails, so a package this function
+ * could not stage is left exactly as it found it.
+ *
+ * @complexity One `stat`, one or two `chmod`s, one `rename`.
+ */
+async function stageForRemoval(packagesDir: string, packageRoot: string): Promise<StagedTree> {
+  const quarantined = path.join(packagesDir, `${STAGED_DIRNAME_PREFIX}${randomUUID()}`);
+  const originalMode = (await stat(packageRoot)).mode & 0o777;
+
+  await chmod(packageRoot, originalMode | 0o700);
+  try {
+    await rename(packageRoot, quarantined);
+  } catch (error) {
+    await chmod(packageRoot, originalMode).catch(() => undefined);
+    throw error;
+  }
+
+  return { quarantined, original: packageRoot, originalMode };
+}
+
+/**
+ * Puts every staged tree back, newest first, and returns the error `uninstallAgentPlugin` should
+ * throw: `cause` when everything was restored, or — when some tree could not be — an error naming
+ * the staged paths, since those directories hold the only remaining copy of that package.
+ *
+ * @complexity O(s) renames in the staged-tree count.
+ */
+async function restoreStagedTrees(staged: readonly StagedTree[], cause: unknown): Promise<unknown> {
+  const stranded: string[] = [];
+  for (const tree of [...staged].reverse()) {
+    try {
+      await rename(tree.quarantined, tree.original);
+      await chmod(tree.original, tree.originalMode).catch(() => undefined);
+    } catch {
+      stranded.push(tree.quarantined);
+    }
+  }
+  if (stranded.length === 0) return cause;
+
+  const reason = cause instanceof Error ? cause.message : String(cause);
+  return new Error(
+    `Agent Plugin uninstall failed (${reason}) and ${stranded.length} package tree(s) could not be put back. ` +
+      `They still hold the package bytes and were left in place for recovery: ${stranded.join(", ")}`,
+    { cause },
+  );
 }
 
 /**
@@ -190,7 +293,7 @@ async function resolveUninstallTargets(required: UninstallAgentPluginRequired): 
     throw new AgentPluginNotUninstallableError(bundledRefusalMessage(pluginId));
   }
 
-  return { workspaceRoot: workspaceLayout.root, matches };
+  return { workspaceRoot: workspaceLayout.root, packagesDir: workspaceLayout.packages, matches };
 }
 
 /** Names the levers that do work for a bundled plugin — see this file's header, item 2. */
