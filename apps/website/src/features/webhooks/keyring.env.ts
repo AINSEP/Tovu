@@ -327,20 +327,42 @@ export interface GeneratedFileRootKey {
  * `resolveRootKey`'s own generated-file fallback above uses — not a second, independently-reasoned
  * source of randomness.
  *
- * Refuses (throws {@link RootKeyFileAlreadyExistsError}) if a file already exists at that path —
+ * Refuses (throws {@link RootKeyFileAlreadyExistsError}) if anything already exists at that path —
  * this function only ever CREATES, it never overwrites. Silently replacing an existing key here
  * would orphan every credential already sealed under the old one with no confirmation at all;
  * a deliberate rotate/replace flow is out of scope for this function (and, as of this writing, not
  * built anywhere in this admin).
+ *
+ * That refusal is the WRITE ITSELF, via `O_CREAT | O_EXCL` (`flag: "wx"`), not a preceding
+ * `existsSync` — a pre-check plus a separate write is a check-then-write race, and the thing it
+ * races for is the key that every stored credential is sealed under. Two concurrent
+ * `POST .../generate` calls (a double-clicked Generate button is enough) could both see "no key
+ * here" and the second would replace the first, returning `201` either way. The exclusive create
+ * also refuses a path that is a SYMLINK, dangling or not, which `existsSync` follows and reports
+ * as absent.
+ *
+ * @throws {RootKeyFileAlreadyExistsError} Anything already occupies `keyFilePath`.
+ * @complexity One 32-byte random draw plus one exclusive file create.
  */
 export function generateFileRootKey(options: { keyFilePath?: string } = {}): GeneratedFileRootKey {
   const keyFilePath = options.keyFilePath ?? defaultRootKeyFilePath();
-  if (existsSync(keyFilePath)) {
-    throw new RootKeyFileAlreadyExistsError(keyFilePath);
-  }
   const generated = randomBytes(ROOT_KEY_LENGTH_BYTES);
-  mkdirSync(dirname(keyFilePath), { recursive: true });
-  writeFileSync(keyFilePath, generated.toString("hex"), { mode: 0o600 });
   const hex = generated.toString("hex");
+  mkdirSync(dirname(keyFilePath), { recursive: true });
+  try {
+    writeFileSync(keyFilePath, hex, { mode: 0o600, flag: "wx" });
+  } catch (err) {
+    if (isAlreadyExistsError(err)) throw new RootKeyFileAlreadyExistsError(keyFilePath);
+    throw err;
+  }
   return { hex, fingerprint: fingerprintRootKeyHex(hex), keyFilePath };
+}
+
+/** Whether a failed exclusive create failed BECAUSE the path was taken (`EEXIST`), as opposed to a
+ *  genuine I/O or permission fault that must keep propagating. `ELOOP` is the same answer wearing a
+ *  different errno: a symlink chain the kernel refused to follow is still "something is there". */
+function isAlreadyExistsError(err: unknown): boolean {
+  if (typeof err !== "object" || err === null || !("code" in err)) return false;
+  const code = (err as { code?: unknown }).code;
+  return code === "EEXIST" || code === "ELOOP";
 }

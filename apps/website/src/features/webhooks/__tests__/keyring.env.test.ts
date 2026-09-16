@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -253,6 +253,31 @@ test("generateFileRootKey throws RootKeyFileAlreadyExistsError, and never overwr
     assert.throws(() => generateFileRootKey({ keyFilePath }), RootKeyFileAlreadyExistsError);
     // Untouched — the original value survived the refused second call.
     assert.equal(readFileSync(keyFilePath, "utf8").trim(), first.hex);
+  });
+});
+
+/**
+ * "Never overwrites" has to hold structurally, not just sequentially.
+ *
+ * A pre-check followed by a separate write is a check-then-write race: two concurrent
+ * `POST .../generate` calls, or a double-clicked Generate button, can both observe "no key here"
+ * and the second write then replaces the first key — orphaning every credential already sealed
+ * under it, with a 201 and no error. A dangling symlink is the deterministic way to observe the
+ * same missing guarantee, because `existsSync` follows the link and reports `false` for a target
+ * that is not there while an ordinary `writeFileSync` follows it and creates one. An exclusive
+ * create (`O_CREAT | O_EXCL`) refuses both, which is why the assertion is on the refusal and not
+ * on any particular timing.
+ */
+test("generateFileRootKey refuses a target it did not create, even one existsSync() reports as absent", async () => {
+  await withTempDir(async (dir) => {
+    const keyFilePath = join(dir, "root-key.hex");
+    const linkTarget = join(dir, "somewhere-else.hex");
+    symlinkSync(linkTarget, keyFilePath);
+
+    assert.equal(existsSync(keyFilePath), false, "precondition: a dangling symlink reads as absent");
+
+    assert.throws(() => generateFileRootKey({ keyFilePath }), RootKeyFileAlreadyExistsError);
+    assert.equal(existsSync(linkTarget), false, "the key must not have been written through the link");
   });
 });
 
