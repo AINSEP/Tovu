@@ -1,4 +1,4 @@
-import type { Response } from "express";
+import type { Request, Response } from "express";
 
 import { AgentPluginActivationsUnreadableError } from "#src/features/agent-plugins/activation";
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
@@ -151,19 +151,74 @@ async function provisionAgentPluginMcpServersBestEffort(
   }
 }
 
+/**
+ * Maps a thrown error from the handler's try block to an HTTP response. Pulled out of
+ * `registerAgentPluginSetEnabledRoute` purely to keep the handler's own cyclomatic/cognitive
+ * complexity under this repo's per-function ceiling (t91, 2026-09-16) — behavior is byte-identical
+ * to the inline branches it replaces, and every case in `agent-plugin-set-enabled.integration.test.ts`
+ * stays green unchanged.
+ *
+ * - `AgentPluginNotInstalledError`: `setAgentPluginEnabled` re-asserts the installed precondition
+ *   independently of the handler's own `candidates` lookup, so a package removed between the two
+ *   reads lands here rather than as an opaque 500 — the same 404 the pre-check produces, for the
+ *   same reason.
+ * - `AgentPluginActivationsUnreadableError`: t91 F1.1 (2026-09-16) — the activations file exists
+ *   but could not be read. Nothing was written — `setAgentPluginEnabled` refuses before any write,
+ *   per `activation.ts`'s "Writers never rewrite what they could not read". The host path stays in
+ *   the server log only; the response body carries the fixed, path-free E2 text.
+ * - Anything else: opaque 500, matching every other route in this admin surface.
+ */
+function sendSetEnabledError(res: Response, pluginId: string, error: unknown): void {
+  if (error instanceof AgentPluginNotInstalledError) {
+    res.status(404).json({ error: error.message, code: "AGENT_PLUGIN_NOT_FOUND" });
+    return;
+  }
+  if (error instanceof AgentPluginActivationsUnreadableError) {
+    console.warn(`[agent-plugins] '${pluginId}': enable/disable refused — ${error.message}`);
+    res.status(409).json({
+      error:
+        "This workspace's Agent Plugin activation record (activations.json) could not be read, so nothing was changed. " +
+        "No Agent Plugin can be enabled or disabled until it is repaired — the server log names the file and the fault.",
+      code: "AGENT_PLUGIN_ACTIVATIONS_UNREADABLE",
+    });
+    return;
+  }
+  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+}
+
+/**
+ * Validates the two ways this PATCH can fail before any work begins: `:workspaceId` must match the
+ * configured workspace, and `enabled` must be a real boolean, not a coerced one — see this file's
+ * own header, "`enabled` is validated, not coerced", for why. Responds and returns `undefined` on
+ * either failure; the caller's only job is to stop. Pulled out of the handler alongside
+ * {@link sendSetEnabledError} to keep the handler's own complexity under this repo's per-function
+ * ceiling (t91, 2026-09-16) — behavior is byte-identical to the inline checks it replaces.
+ */
+function validateSetEnabledRequest(
+  req: Pick<Request, "params" | "body">,
+  res: Response,
+  deps: AgentPluginsRouteDeps,
+): { pluginId: string; enabled: boolean } | undefined {
+  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    res.status(404).json({ error: "workspace was not found" });
+    return undefined;
+  }
+
+  const pluginId = String(req.params.pluginId ?? "");
+  const enabled = (req.body as { enabled?: unknown } | undefined)?.enabled;
+  if (typeof enabled !== "boolean") {
+    res.status(400).json({ error: "'enabled' must be a boolean", code: "VALIDATION_ERROR" });
+    return undefined;
+  }
+
+  return { pluginId, enabled };
+}
+
 export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (app, deps) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
-
-    const pluginId = String(req.params.pluginId ?? "");
-    const enabled = (req.body as { enabled?: unknown } | undefined)?.enabled;
-    if (typeof enabled !== "boolean") {
-      res.status(400).json({ error: "'enabled' must be a boolean", code: "VALIDATION_ERROR" });
-      return;
-    }
+    const validated = validateSetEnabledRequest(req, res, deps);
+    if (validated === undefined) return;
+    const { pluginId, enabled } = validated;
 
     try {
       const principal = getAuthedPrincipal(res);
@@ -195,28 +250,7 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (a
 
       sendUpdatedRow(res, candidate, written.enabled);
     } catch (error) {
-      // `setAgentPluginEnabled` re-asserts the installed precondition independently of the
-      // `candidates` lookup above, so a package removed between the two reads lands here rather than
-      // as an opaque 500 — the same 404 the pre-check produces, for the same reason.
-      if (error instanceof AgentPluginNotInstalledError) {
-        res.status(404).json({ error: error.message, code: "AGENT_PLUGIN_NOT_FOUND" });
-        return;
-      }
-      // t91 F1.1 (2026-09-16): the activations file exists but could not be read. Nothing was
-      // written — `setAgentPluginEnabled` refuses before any write, per `activation.ts`'s "Writers
-      // never rewrite what they could not read". The host path stays in the server log only; the
-      // response body carries the fixed, path-free E2 text.
-      if (error instanceof AgentPluginActivationsUnreadableError) {
-        console.warn(`[agent-plugins] '${pluginId}': enable/disable refused — ${error.message}`);
-        res.status(409).json({
-          error:
-            "This workspace's Agent Plugin activation record (activations.json) could not be read, so nothing was changed. " +
-            "No Agent Plugin can be enabled or disabled until it is repaired — the server log names the file and the fault.",
-          code: "AGENT_PLUGIN_ACTIVATIONS_UNREADABLE",
-        });
-        return;
-      }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendSetEnabledError(res, pluginId, error);
     }
   });
 };
