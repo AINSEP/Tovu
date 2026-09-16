@@ -489,6 +489,23 @@ test("plugins_set_enabled: disabling a site-runtime plugin says its tool is refu
   );
 });
 
+test("disabling an Agent Plugin says exactly what stopped — and that its provisioned external MCP connections did NOT", async () => {
+  await withInstalledAgentPlugin(async () => {
+    const { deps } = fakeRouteDeps();
+    const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+    const out = (await call(tool, { pluginId: AGENT_PLUGIN_ID, enabled: false, family: "agent-plugin" })) as { note: string };
+
+    assert.equal(
+      out.note,
+      `Disabled and saved. This takes effect immediately, with no restart: the activation record is re-read at ` +
+        `the start of every run AND again before every agent_plugin_${AGENT_PLUGIN_ID} call, so the plugin's own ` +
+        `tool stops answering at once rather than lingering until Tovu restarts. This does NOT change any external ` +
+        `MCP server connection the plugin set up: if an operator turned one on, its mcp__<server>__* tools keep ` +
+        `working until that connection is disabled under Integrations → External MCP.`,
+    );
+  });
+});
+
 test("plugins_set_enabled: authorize() runs before any confirmation dialog is raised", async () => {
   const { deps, authorizeCalls } = fakeRouteDeps({ allow: false });
   const tool = setEnabledTool(deps, createSurfaceExchangeStore());

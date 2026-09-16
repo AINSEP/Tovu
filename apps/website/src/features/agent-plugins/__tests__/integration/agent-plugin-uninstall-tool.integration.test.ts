@@ -310,6 +310,28 @@ test("confirm: uninstalls — package root gone, activation record deleted, and 
   });
 });
 
+test("confirm: the result note says the plugin's provisioned external MCP connections were NOT removed", async () => {
+  await withAgentPluginsDir(async () => {
+    await installReal(WORKSPACE_A, "operator-plugin", "archive-note-mcp");
+    const { deps } = fakeDeps();
+    const surfaceExchanges = createSurfaceExchangeStore();
+
+    const { result } = await answerDialog(findRegistration(deps, surfaceExchanges), surfaceExchanges, "operator-plugin", "confirm");
+    const out = result as UninstallToolOutput;
+
+    assert.equal(out.uninstalled, true);
+    assert.equal(
+      out.note,
+      "Uninstalled. Its files and activation record are gone, new runs no longer load it, and its own agent_plugin_<id> " +
+        "tool stops running immediately — every call is refused from now on, with no restart needed. That tool does stay " +
+        "LISTED in this already-running daemon until Tovu restarts, so tell the user it may still appear in tool listings " +
+        "until then, and that calling it will simply be denied. Uninstalling does NOT remove any external MCP server " +
+        "connection the plugin set up: if an operator turned one on, its mcp__<server>__* tools keep working until that " +
+        "connection is disabled or deleted under Integrations → External MCP.",
+    );
+  });
+});
+
 test("cancel: nothing is removed and the result reports the cancellation, not an error", async () => {
   await withAgentPluginsDir(async () => {
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-cancel");

@@ -418,6 +418,10 @@ async function uninstallConfirmedPlugin(routeDeps: PluginsToolDeps, preview: Plu
  * note, `plugin_capability_<id>` via `capability-tool-registrations.ts`'s "Revocation" section
  * (t91 F1.2). ENABLE still needs a restart, because there is no registration to re-admit: an
  * append-only `ToolRegistry` has nothing to un-skip.
+ *
+ * Neither Agent Plugin note may imply that the plugin's provisioned external MCP connections were
+ * turned off — they never are (`agent-plugins/federate-mcp.ts`'s header, "THE ROW SURVIVES"), so the
+ * disable note says so (t91 F1.3).
  * @complexity O(1).
  */
 function restartNoteFor(request: SetEnabledRequest): string {
@@ -428,7 +432,9 @@ function restartNoteFor(request: SetEnabledRequest): string {
           `restarted before that tool can be called, rather than implying it is usable right now.`
       : `Disabled and saved. This takes effect immediately, with no restart: the activation record is re-read at ` +
           `the start of every run AND again before every agent_plugin_${request.pluginId} call, so the plugin's own ` +
-          `tool stops answering at once rather than lingering until Tovu restarts.`;
+          `tool stops answering at once rather than lingering until Tovu restarts. This does NOT change any external ` +
+          `MCP server connection the plugin set up: if an operator turned one on, its mcp__<server>__* tools keep ` +
+          `working until that connection is disabled under Integrations → External MCP.`;
   }
   return request.enabled
     ? "Enabled and saved. The plugin's hooks are live now, but any tool it contributes is registered only when the agent " +

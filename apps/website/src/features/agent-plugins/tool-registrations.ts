@@ -1126,12 +1126,16 @@ const AGENT_PLUGINS_UNINSTALL_DESCRIPTION =
  *  changes is VISIBILITY: `@jini-ai/core`'s `ToolRegistry` and `search_tools`' boot-time FTS
  *  snapshot are both append-only, so the tool stays listed (and refusing) until the daemon restarts.
  *  Saying only "uninstalled" would leave the model to explain a listed-but-refusing tool it was not
- *  told about — the same confusion `plugins_set_enabled`'s `restartRequired` exists to prevent. */
+ *  told about — the same confusion `plugins_set_enabled`'s `restartRequired` exists to prevent.
+ *  It also says the plugin's provisioned external MCP connections survive the uninstall, for the
+ *  reason `federate-mcp.ts`'s header gives (t91 F1.3). */
 const UNINSTALL_RESTART_NOTE =
   "Uninstalled. Its files and activation record are gone, new runs no longer load it, and its own agent_plugin_<id> " +
   "tool stops running immediately — every call is refused from now on, with no restart needed. That tool does stay " +
   "LISTED in this already-running daemon until Tovu restarts, so tell the user it may still appear in tool listings " +
-  "until then, and that calling it will simply be denied.";
+  "until then, and that calling it will simply be denied. Uninstalling does NOT remove any external MCP server " +
+  "connection the plugin set up: if an operator turned one on, its mcp__<server>__* tools keep working until that " +
+  "connection is disabled or deleted under Integrations → External MCP.";
 
 const AGENT_PLUGINS_UNINSTALL_SCHEMA = {
   type: "object",
