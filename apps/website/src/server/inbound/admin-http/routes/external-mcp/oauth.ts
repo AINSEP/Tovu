@@ -164,6 +164,12 @@ export function registerAdminExternalMcpOAuthDevicePollRoute(
  * operator's command, args and allowlist survive, so reconnecting is one click rather than a
  * re-entry. Deleting the server itself is the existing DELETE route's job.
  *
+ * Its tools refuse from the next call, the same as DELETE — `external-mcp-revocation.ts`'s per-call
+ * gate refuses a `disconnected` OAuth connection on every federated call. `restartRequired` stays
+ * true because the running assistant still holds the open connection and lists the tools until it
+ * restarts. Unlike DELETE, reconnecting makes them work again without a restart, once the row is
+ * back to `connected`.
+ *
  * Not rate-limited: it makes no outbound call, so the self-DoS the other two guard against does not
  * exist here.
  */

@@ -20,10 +20,18 @@ import type { FederationDeps } from "./registrations.js";
  * `admittedConnectionIds` is filtered out before `attach` is ever called on it again). It only ever
  * widens the set of connections that have been admitted AT ALL — new rows, never revised ones — which
  * is the same guarantee a fresh boot already gives, just applied to a connection that did not exist
- * yet when this process started. An operator editing an already-admitted connection's allowlist,
- * credentials, or OAuth config still needs a real restart to take effect: that connection's one-time
- * admission already happened, and `ToolRegistry` (`@jini-ai/core`) is deliberately append-only with no
- * unregister, so there is no way to revise it even if this file wanted to.
+ * yet when this process started. `ToolRegistry` (`@jini-ai/core`) is deliberately append-only with no
+ * unregister, so this module still has no way to revise or drop an admitted tool even if it wanted to.
+ *
+ * That admission freeze no longer means an operator's edit is inert until restart, though —
+ * `external-mcp-revocation.ts`'s per-call gate (`mcp-federation/registrations.ts`'s
+ * `FederationDeps.assertConnectionUsable`) re-reads the connection's row on every call, independent of
+ * this reload path. Turning a connection off, deleting it, disconnecting its OAuth, or narrowing its
+ * allowlist or write list all take effect on the very NEXT call, with no restart and no reload
+ * required. Widening the allowlist, or changing the server's address, command, args or sign-in method,
+ * still needs a real restart: the new tools are never registered, and the old ones refuse as
+ * `"changed"` (the row's admission revision no longer matches what the tool was admitted under) until
+ * the process restarts and re-admits the connection fresh.
  *
  * ## Concurrency
  *

@@ -9,9 +9,10 @@ import { guardExternalMcpRequest } from "./guard.js";
  * a silent success here would tell an operator a server is gone when what actually happened is that
  * they deleted a typo and the real one is still configured and still being launched at every boot.
  *
- * Like the write route, the effect lands at the next daemon restart, so `restartRequired` is
- * returned for the same reason: a still-running daemon holds an already-connected session for this
- * server, and the tab must not imply otherwise.
+ * Its tools refuse from the next call — `external-mcp-revocation.ts`'s per-call gate re-reads the
+ * row on every federated call and refuses one whose row is gone. `restartRequired` stays true
+ * because the running assistant still holds the open connection and lists the tools until it
+ * restarts. The delete itself is unchanged and permanent.
  */
 export const registerAdminExternalMcpDeleteRoute: ExternalMcpRouteRegistrar = (app, deps) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId", async (req, res) => {

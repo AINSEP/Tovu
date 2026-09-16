@@ -115,6 +115,12 @@ function parseExternalMcpPutBody(rawBody: unknown) {
  * trigger below actually admitted it depends on facts this route does not read back (daemon
  * reachability, whether the connection is `authMode: "oauth"` and therefore not yet authorized).
  *
+ * That said, `restartRequired: true` no longer means "does nothing until restart": turning a
+ * connection off, or removing a tool or its write permission, takes effect on the next tool call.
+ * Adding tools, or changing the server's address, command or sign-in method, needs a restart; until
+ * then that connection's tools refuse. This is `external-mcp-revocation.ts`'s per-call gate, not this
+ * route — the response value itself is unchanged (see that file's header for why).
+ *
  * Federation hot-reload trigger (2026-09-11), fired unconditionally after every successful save,
  * fire-and-forget (never awaited by the response): the daemon-side coordinator
  * (`mcp-federation/reload.ts`) is what actually decides whether anything changed — a save that only

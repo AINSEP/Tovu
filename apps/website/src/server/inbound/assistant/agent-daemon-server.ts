@@ -1244,8 +1244,9 @@ async function start(): Promise<void> {
     authorize: routeDeps.authorize,
     workspaceId: routeDeps.workspaceId,
     // Nothing here unregisters a federated tool once it is in the FTS index, so a connection whose
-    // authorization dies mid-run stays discoverable and selectable. The gate is what stops the model
-    // looping on it: every call to a `needs_reauth` connection returns one terminal, explicitly
+    // authorization dies mid-run, or that an operator turns off, deletes, narrows or disconnects,
+    // stays discoverable and selectable. The gate is what stops the model looping on it: every call
+    // to a `needs_reauth`, or now operator-revoked, connection returns one terminal, explicitly
     // non-retryable message instead of a transient-looking transport error. See
     // `mcp-federation/registrations.ts`'s `assertConnectionUsable` doc.
     assertConnectionUsable: createExternalMcpConnectionGate({
