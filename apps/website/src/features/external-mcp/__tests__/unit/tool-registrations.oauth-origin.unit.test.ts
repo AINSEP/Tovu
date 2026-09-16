@@ -162,6 +162,37 @@ test("TOVU_PUBLIC_URL set: it wins over a derived origin, never the reverse", as
   }
 });
 
+test("TOVU_PUBLIC_URL set to a malformed value: the connect is refused naming it, never silently demoted to the derived origin", async () => {
+  const previous = process.env.TOVU_PUBLIC_URL;
+  try {
+    // Two shapes, because the resolver has two ways to reject one: a value `new URL()` parses but
+    // whose scheme is not http(s) (a typed-over "https"), and one it cannot parse at all (a bare
+    // host, the other thing an operator types into an env var called *_URL).
+    for (const malformed of ["htps://public.example", "public.example.com"]) {
+      process.env.TOVU_PUBLIC_URL = malformed;
+      const handler = await makeConnectHandler("https://localhost:3000");
+
+      await assert.rejects(
+        () => call(handler, { id: SERVER }),
+        (error: unknown) => {
+          // The operator override must win WHENEVER it is present — so an invalid value cannot be
+          // indistinguishable from an absent one. Degrading to `undefined` here would hand the
+          // provider a localhost callback in dev, or a proxy-derived one in production, that the
+          // operator never configured and cannot see in the emitted authorization URL.
+          assert.ok(error instanceof ToolInputError, `expected a ToolInputError (400) for '${malformed}', got ${String(error)}`);
+          assert.match(error.message, /TOVU_PUBLIC_URL/, "the refusal must name the variable the operator has to fix");
+          assert.ok(error.message.includes(malformed), `the refusal must quote the offending value, got: ${error.message}`);
+          assert.doesNotMatch(error.message, /localhost/, "a silent fallback to the derived origin is the exact failure this refuses");
+          return true;
+        },
+      );
+    }
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_PUBLIC_URL;
+    else process.env.TOVU_PUBLIC_URL = previous;
+  }
+});
+
 test("neither TOVU_PUBLIC_URL nor a derived origin: the last-resort refusal still fires, naming both", async () => {
   const previous = process.env.TOVU_PUBLIC_URL;
   delete process.env.TOVU_PUBLIC_URL;
