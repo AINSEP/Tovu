@@ -16,17 +16,12 @@ import { MediaImage, MediaImageNodeView } from "../media-image-extension";
  *   `NodeViewProps`, so the REF/LEGACY/broken-ref branches and the Replace/Remove actions are all
  *   asserted directly, no `Editor` involved.
  * - `MediaImage` itself — a real `@tiptap/core` `Editor` (StarterKit + this extension), so
- *   `addAttributes`/`addCommands` are proven through the actual TipTap pipeline.
+ *   `addAttributes` is proven through the actual TipTap pipeline.
  *
  * `MediaImageInsertControl` had its own third tier in the reference file's shape, but this file's
  * insert control was dead code (zero callers, superseded by `EmbedInsertControl`) and was deleted
  * in the same pass that added this suite — see this file's own former header/git history, not
  * reproduced here.
- *
- * The single highest-value test below is `never persists a preview URL into stored content`: it
- * exists because ADR-027 §4 states plainly that `bodyJson` stores refs, never URLs, and nothing
- * else in this codebase would catch that invariant regressing except a real `Editor.getJSON()`
- * assertion after `insertMediaRef`.
  */
 
 function media(overrides: Partial<AdminMedia> = {}): AdminMedia {
@@ -86,8 +81,8 @@ describe("MediaImageNodeView", () => {
   });
 
   it("REF wins over LEGACY when both assetId/transformName and src are present", () => {
-    // Not a reachable combination through `insertMediaRef`/`replaceWith` (see this file's other
-    // tests — both always null out `src`), but the component's own branch order should still favor
+    // Not a reachable combination through `replaceWith` (see this file's other tests — it always
+    // nulls out `src`), but the component's own branch order should still favor
     // the ref, since a stray legacy `src` is exactly what ADR-027 §4 says must never win.
     render(
       <MediaImageNodeView
@@ -182,40 +177,6 @@ describe("MediaImage — real @tiptap/core Editor integration", () => {
     return new Editor({ extensions: [StarterKit, MediaImage], content: "<p>hello</p>" });
   }
 
-  it("stays named 'image' — render.ts's renderDocNode switches on node.type === 'image' specifically", () => {
-    const editor = newEditor();
-    try {
-      editor.commands.insertMediaRef({ assetId: "asset-1", transformName: "public" });
-      const json = editor.getJSON();
-      const imageNode = json.content?.find((n) => n.attrs?.assetId === "asset-1");
-      expect(imageNode?.type).toBe("image");
-    } finally {
-      editor.destroy();
-    }
-  });
-
-  it("never persists a preview URL into stored content — insertMediaRef writes only assetId/transformName/alt, no src", () => {
-    // This is the ADR-027 §4 invariant this whole file exists to pin: `MediaImageNodeView` computes
-    // `api.mediaOriginalUrl(assetId)` live, on every render, and must never write that (or any other)
-    // URL back into `node.attrs`. If it ever did, the stored `src` would round-trip through
-    // `getJSON()`/`setContent()` and freeze a preview URL into content permanently — silently, since
-    // nothing else in the app reads `bodyJson` back out and complains about an extra field.
-    const editor = newEditor();
-    try {
-      editor.commands.insertMediaRef({ assetId: "asset-1", transformName: "public", alt: "Dune" });
-      const json = editor.getJSON();
-      const imageNode = json.content?.find((n) => n.attrs?.assetId === "asset-1");
-
-      expect(imageNode?.attrs?.assetId).toBe("asset-1");
-      expect(imageNode?.attrs?.transformName).toBe("public");
-      expect(imageNode?.attrs?.alt).toBe("Dune");
-      // The actual invariant: no URL of any kind made it into stored attrs.
-      expect(imageNode?.attrs?.src ?? null).toBeNull();
-    } finally {
-      editor.destroy();
-    }
-  });
-
   it("addAttributes: assetId/transformName default to null for a plain legacy setImage insert", () => {
     const editor = newEditor();
     try {
@@ -225,16 +186,6 @@ describe("MediaImage — real @tiptap/core Editor integration", () => {
 
       expect(imageNode?.attrs?.assetId ?? null).toBeNull();
       expect(imageNode?.attrs?.transformName ?? null).toBeNull();
-    } finally {
-      editor.destroy();
-    }
-  });
-
-  it("insertMediaRef reports success (applied === true)", () => {
-    const editor = newEditor();
-    try {
-      const applied = editor.commands.insertMediaRef({ assetId: "asset-1", transformName: "public" });
-      expect(applied).toBe(true);
     } finally {
       editor.destroy();
     }

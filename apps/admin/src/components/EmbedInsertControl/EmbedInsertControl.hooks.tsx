@@ -13,10 +13,12 @@ import { useWidgetAddControl } from "../WidgetPickerDialog/WidgetPickerDialog";
 export interface EmbedEditor {
   commands: {
     // 2026-09-11: the "Media" menu item now inserts the generic `media` node (`insertMediaEmbed`,
-    // `lib/media-embed-extension.tsx`) instead of the legacy `image`-only ref node (`insertMediaRef`
-    // stays defined on `MediaImage` for backward-compat content and the "Insert image by URL"
-    // button, neither of which goes through this control) — see that file's own header for why one
-    // dispatching node replaces a per-kind one.
+    // `lib/media-embed-extension.tsx`) instead of the legacy `image`-only ref node. That node's own
+    // `insertMediaRef` command is gone — deleted as dead code in 2f53240d once this control stopped
+    // calling it; `MediaImage` still RENDERS backward-compat ref content, it just has no insert
+    // command of its own any more, and the "Insert image by URL" button uses the unrelated legacy
+    // `src`-only `setImage`. See `media-embed-extension.tsx`'s header for why one dispatching node
+    // replaces a per-kind one.
     insertMediaEmbed: (attrs: { assetId: string; transformName: string; alt?: string }) => boolean;
     insertWidgetEmbed: (attrs: { placementId: string; widgetEntryId: string }) => boolean;
   };
