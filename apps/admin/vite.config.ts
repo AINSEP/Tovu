@@ -85,13 +85,40 @@ const apiScheme = httpsOptions ? "https" : "http";
  */
 const adminDevPort = Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173);
 
+/**
+ * Injects `__TOVU_ADMIN_DEV_PORT__` from the port Vite is ACTUALLY going to bind, which is not
+ * always `adminDevPort`: a `--port` on the CLI outranks this file, and every
+ * `development/playwright.*.config.ts` starts this dev server as `npx vite --port <suite port>`
+ * without ever setting `TOVU_ADMIN_DEV_PORT`. A define computed from the env var alone would tell
+ * those bundles "the admin dev server is :5173" while Vite listens on, say, :7852 — so
+ * `src/lib/admin-dev-origin.ts` would read every E2E page as "not the dev server" and
+ * `src/lib/site-url.ts` would keep public-site links relative, where they resolve against Vite
+ * (which serves no site routes) and 404. `playwright.post-editor.config.ts` and
+ * `playwright.theme-liquid-preview.config.ts` set `VITE_TOVU_SITE_URL` precisely for that branch.
+ *
+ * A plugin `config` hook is what sees the right number: Vite merges CLI options (passed as inline
+ * config) into the user config BEFORE running this hook, so `config.server.port` here is the same
+ * value `resolveConfig` lands on — verified against Vite 7.3.6, which is also why this is not
+ * `configResolved` (too late to add a `define`) or a `process.argv` parse (a second, drifting copy
+ * of Vite's own CLI parsing).
+ */
+const injectAdminDevPort: Plugin = {
+  name: "tovu:admin-dev-port-define",
+  config: (config) => ({
+    define: {
+      __TOVU_ADMIN_DEV_PORT__: JSON.stringify(String(config.server?.port ?? adminDevPort)),
+    },
+  }),
+};
+
 export default defineConfig({
   base: "/admin/",
   define: {
     __TOVU_ADMIN_VERSION__: JSON.stringify(adminPackageVersion),
-    __TOVU_ADMIN_DEV_PORT__: JSON.stringify(String(adminDevPort)),
+    // `__TOVU_ADMIN_DEV_PORT__` is NOT here: `injectAdminDevPort` supplies it from the resolved
+    // `server.port`, so a CLI `--port` cannot leave the define disagreeing with the real bind.
   },
-  plugins: [redirectBareAdmin, react()],
+  plugins: [injectAdminDevPort, redirectBareAdmin, react()],
   resolve: {
     // The `@jini-ai/*` deps are `file:` links into a sibling Jini checkout, and three of them
     // (`admin`, `chat`, `ui`) carry their OWN `node_modules/react`. Without
