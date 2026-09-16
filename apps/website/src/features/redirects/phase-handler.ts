@@ -45,7 +45,6 @@ import type { OriginRegistryPort, RedirectTargetContext, VerifiedOrigin } from "
 import {
   checkSitePathname,
   registerResolvePhase,
-  unregisterResolvePhaseOwner,
 } from "../../platform/routing/index.js";
 import type { RouteResolveContext, RouteResolvePhaseOutcome } from "../../platform/routing/index.js";
 
@@ -269,8 +268,13 @@ const REDIRECTS_PHASE_OWNER: unique symbol = Symbol("redirects.phase-handlers");
  * adapters into `routing`'s registry, superseding any previous composition's
  * (see {@link REDIRECTS_PHASE_OWNER}).
  *
- * @returns a disposer that revokes this feature's registration outright, for a host
- * that tears a site down without immediately composing the next one.
+ * @returns a disposer that removes exactly THIS registration (both phases) — not
+ * "whatever Redirects registration happens to be live". It composes `registerResolvePhase`'s
+ * own per-call disposers, each of which is a no-op once an owner-scoped re-registration has
+ * already superseded it. That identity-scoping is load-bearing: a stale composition's disposer
+ * called AFTER a newer one has registered (site A torn down after site B booted) must decline
+ * to remove B's redirects, not revoke them via the shared owner symbol (t91 F4.2 Part A,
+ * 2026-09-16 — see `phase-handler.disposer-scope.test.ts`).
  * @complexity O(1) amortized; O(n) in each phase's existing registrations for the
  * supersede scan.
  */
@@ -296,9 +300,18 @@ export function registerRedirectsPhaseHandlers(deps: RegisterRedirectsPhaseHandl
   // onError: "skip" (t91 F4.3 — routing.ts's default changed to "fail"): a redirect lookup
   // failure can only DECLINE to redirect (INV-03, toOutcome above never fabricates one), so one
   // broken rule store must not 500 every page on the site the way a guard-type handler should.
-  registerResolvePhase("pre_content", preContentHandler, { owner: REDIRECTS_PHASE_OWNER, onError: "skip" });
-  registerResolvePhase("post_content", postContentHandler, { owner: REDIRECTS_PHASE_OWNER, onError: "skip" });
-  return () => unregisterResolvePhaseOwner(REDIRECTS_PHASE_OWNER);
+  const disposePreContent = registerResolvePhase("pre_content", preContentHandler, {
+    owner: REDIRECTS_PHASE_OWNER,
+    onError: "skip",
+  });
+  const disposePostContent = registerResolvePhase("post_content", postContentHandler, {
+    owner: REDIRECTS_PHASE_OWNER,
+    onError: "skip",
+  });
+  return () => {
+    disposePreContent();
+    disposePostContent();
+  };
 }
 
 function toOutcome(resolution: RedirectResolution): RouteResolvePhaseOutcome | null {
