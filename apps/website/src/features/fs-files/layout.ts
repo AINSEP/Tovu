@@ -6,7 +6,7 @@ import { getCustomFsRoot } from "./custom-root-store.js";
 
 /**
  * @file Filesystem layout for the `fs_list_files`/`fs_read_file` agent-tool domain
- * (`agent-tools.ts`/`fs-files.ts`) — TWO broad roots, resolved without any `server/**` import
+ * (`agent-tools.ts`/`fs-files.ts`) — THREE broad roots, resolved without any `server/**` import
  * (`.dependency-cruiser.mjs`'s `feature-no-server-or-framework-imports` forbids that from
  * `features/**`). Mirrors `features/skills/layout.ts`/`features/agent-plugins/layout.ts`, which solve
  * the identical "a feature needs a real site-relative directory but must not import the composition
@@ -105,7 +105,7 @@ export const FS_ROOT_DESCRIPTORS: readonly FsRootDescriptor[] = [
   {
     id: "custom",
     description:
-      "A folder the operator has pointed the assistant at from the chat composer (including by dropping it onto the composer), anywhere on their machine — not part of this repo or site. Unset until the operator chooses one; a call against this root before then is refused, saying so. Secrets, .env files, private keys, and database files are refused wherever they appear, exactly as for the other roots. If what you find here looks like an existing website the operator wants turned into a Tovu theme or Page, proactively mention the installed 'tovuize-site' Agent Plugin (search_agent_plugin_local, e.g. query 'convert website to theme') even while it is inactive — do not make the operator ask for it by name. Offer to turn it on, and do not proceed as if it were already on: once the operator agrees, call plugins_set_enabled with family 'agent-plugin', pluginId 'tovuize-site', enabled true (it opens a confirmation dialog they must approve), or they can switch it on from the Agent Plugins admin screen. Its own agent_plugin_tovuize_site tool appears only after Tovu is restarted — say so. Multiple HTML files sharing navigation/footer markup suggest a whole theme; one page with no site-wide chrome suggests a single Page (Pages agent tools) instead — when the operator hasn't said which and the shape is ambiguous, ask, don't guess.",
+      "A folder the operator has pointed the assistant at from the chat composer (including by dropping it onto the composer), anywhere on their machine — not part of this repo or site. Unset until the operator chooses one; a call against this root before then is refused, saying so. Secrets, .env files, private keys, and database files are refused wherever they appear, exactly as for the other roots. If this folder looks like an existing website, mention that the installed 'tovuize-site' Agent Plugin can convert it and can be turned on with plugins_set_enabled (family 'agent-plugin', pluginId 'tovuize-site').",
   },
 ];
 
