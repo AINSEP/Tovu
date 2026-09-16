@@ -1,0 +1,197 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import {
+  registerResolvePhase,
+  resetRoutingRegistrationsForTests,
+  runPostContentPhase,
+  runPreContentPhase,
+  unregisterResolvePhaseOwner,
+} from "#src/platform/routing/routing";
+import type { RouteResolveContext } from "#src/platform/routing/types";
+
+/**
+ * @file The phase registry's LIFECYCLE contract (2026-09-16) — the half `routing.test.ts` and
+ * `routing.phase-runners.test.ts` never covered, because both only ever ask what a registered
+ * handler resolves to, never what happens to a handler whose registrant is gone.
+ *
+ * `phaseRegistry` is module-level and so process-wide, but its registrants are not: a composition
+ * root registers a handler that has closed over THAT composition's resources, and a process runs
+ * more than one composition (`composition/app.ts`'s module-load `export const app = createApp();`
+ * composes an in-memory root before `createSqliteRouteDeps()` composes the real one on every boot;
+ * an integration test composes one per site it boots). Append-only, every superseded composition's
+ * closure stayed on the live request path forever. The concrete production-shaped failure that
+ * produced these tests: a site's `SqliteRedirectRepo` handler outliving that site's database, so a
+ * later request threw `TypeError: The database connection is not open` out of the phase and 500ed
+ * `/` and `/pricing` — while `/products`, which runs no phase at all, kept serving and made it look
+ * like a render bug.
+ *
+ * Two independent guarantees are pinned here, deliberately not one:
+ *   1. OWNERSHIP — an owned registration supersedes that owner's previous one, and can be revoked
+ *      outright, so the stale handler is not merely harmless but absent.
+ *   2. ISOLATION — a handler that throws is skipped, not propagated, so ONE registrant's fault can
+ *      never take down an unrelated route. This holds even if (1) is someday regressed.
+ */
+
+const ctx: RouteResolveContext = { workspaceId: "ws-lifecycle" };
+
+test.beforeEach(() => resetRoutingRegistrationsForTests());
+test.afterEach(() => resetRoutingRegistrationsForTests());
+
+test("an owned registration REPLACES that owner's previous handlers rather than appending", async () => {
+  const owner = Symbol("owner");
+  let staleRan = false;
+
+  registerResolvePhase(
+    "pre_content",
+    async () => {
+      staleRan = true;
+      return { kind: "redirect", location: "/from-the-stale-handler", statusCode: 301 };
+    },
+    { owner }
+  );
+  registerResolvePhase("pre_content", async () => null, { owner });
+
+  const outcome = await runPreContentPhase("/anything", ctx);
+  assert.equal(outcome, null, "only the most recent registration for this owner may run");
+  assert.equal(staleRan, false, "the superseded handler must not be on the request path at all");
+});
+
+test("superseding is per-owner: a different owner's registration is untouched", async () => {
+  const replaced = Symbol("replaced");
+  const other = Symbol("other");
+  let otherRan = false;
+
+  registerResolvePhase("pre_content", async () => null, { owner: replaced });
+  registerResolvePhase(
+    "pre_content",
+    async () => {
+      otherRan = true;
+      return null;
+    },
+    { owner: other }
+  );
+  registerResolvePhase("pre_content", async () => null, { owner: replaced });
+
+  await runPreContentPhase("/anything", ctx);
+  assert.equal(otherRan, true, "replacing one owner's registration must not evict another's");
+});
+
+test("superseding is per-phase-and-owner: re-registering pre_content leaves the same owner's post_content handler alone", async () => {
+  const owner = Symbol("owner");
+  let postRan = false;
+
+  registerResolvePhase("pre_content", async () => null, { owner });
+  registerResolvePhase(
+    "post_content",
+    async () => {
+      postRan = true;
+      return null;
+    },
+    { owner }
+  );
+  registerResolvePhase("pre_content", async () => null, { owner });
+
+  await runPostContentPhase("/anything", ctx);
+  assert.equal(postRan, true, "a pre_content re-registration must not evict this owner's post_content handler");
+});
+
+test("unregisterResolvePhaseOwner revokes that owner's handlers in EVERY phase", async () => {
+  const owner = Symbol("owner");
+  const seen: string[] = [];
+
+  registerResolvePhase(
+    "pre_content",
+    async () => {
+      seen.push("pre");
+      return null;
+    },
+    { owner }
+  );
+  registerResolvePhase(
+    "post_content",
+    async () => {
+      seen.push("post");
+      return null;
+    },
+    { owner }
+  );
+
+  unregisterResolvePhaseOwner(owner);
+
+  await runPreContentPhase("/anything", ctx);
+  await runPostContentPhase("/anything", ctx);
+  assert.deepEqual(seen, [], "a revoked owner must run in neither phase");
+});
+
+test("unregisterResolvePhaseOwner(undefined) is a no-op — `undefined` is the no-owner marker, not an owner", async () => {
+  let unownedRan = false;
+  registerResolvePhase("pre_content", async () => {
+    unownedRan = true;
+    return null;
+  });
+
+  unregisterResolvePhaseOwner(undefined);
+
+  await runPreContentPhase("/anything", ctx);
+  assert.equal(unownedRan, true, "revoking `undefined` must not sweep away every unowned registration");
+});
+
+test("registerResolvePhase returns a disposer that removes exactly its own registration", async () => {
+  const seen: string[] = [];
+  const disposeFirst = registerResolvePhase("pre_content", async () => {
+    seen.push("first");
+    return null;
+  });
+  registerResolvePhase("pre_content", async () => {
+    seen.push("second");
+    return null;
+  });
+
+  disposeFirst();
+  disposeFirst(); // idempotent — a second call must not remove the sibling too.
+
+  await runPreContentPhase("/anything", ctx);
+  assert.deepEqual(seen, ["second"], "only the disposed registration may be removed");
+});
+
+test("a handler that THROWS is skipped, and the phase's remaining handlers still run", async () => {
+  let laterRan = false;
+  registerResolvePhase("pre_content", async () => {
+    throw new TypeError("The database connection is not open");
+  });
+  registerResolvePhase("pre_content", async () => {
+    laterRan = true;
+    return { kind: "redirect", location: "/still-resolved", statusCode: 301 };
+  });
+
+  const outcome = await runPreContentPhase("/anything", ctx);
+  assert.equal(laterRan, true, "a failing handler must not abort the chain");
+  assert.deepEqual(outcome, { kind: "redirect", location: "/still-resolved", statusCode: 301 });
+});
+
+test("a phase whose ONLY handler throws resolves to null — the request falls through to content, it does not 500", async () => {
+  registerResolvePhase("post_content", async () => {
+    throw new TypeError("The database connection is not open");
+  });
+
+  // The exact shape `routes/site/pages.ts` depends on: no throw escapes the phase, so its own
+  // outer catch never turns one registrant's fault into `<h1>Site error</h1>` for the whole route.
+  const outcome = await runPostContentPhase("/anything", ctx);
+  assert.equal(outcome, null);
+});
+
+test("a synchronously-throwing handler is isolated too, not just a rejected promise", async () => {
+  let laterRan = false;
+  registerResolvePhase("pre_content", (() => {
+    throw new Error("thrown before any promise exists");
+  }) as never);
+  registerResolvePhase("pre_content", async () => {
+    laterRan = true;
+    return null;
+  });
+
+  const outcome = await runPreContentPhase("/anything", ctx);
+  assert.equal(laterRan, true, "a handler that throws before returning a promise must be isolated the same way");
+  assert.equal(outcome, null);
+});

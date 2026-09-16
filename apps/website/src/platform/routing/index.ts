@@ -11,12 +11,14 @@ export {
   runPostContentPhase,
   runPreContentPhase,
   RouteResolutionError,
+  unregisterResolvePhaseOwner,
   urlFor,
 } from "./routing.js";
 export type {
   IsActiveOptional,
   IsActiveRequired,
   RegisterNamedRouteInput,
+  RegisterResolvePhaseOptions,
   ResolveInput,
   ResolveOptional,
   ResolveRequired,

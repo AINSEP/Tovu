@@ -156,10 +156,12 @@ async function tryRedirectPhase(
   // non-test caller repo-wide, `registerRedirectsPhaseHandlers` (redirects/phase-handler.ts),
   // whose own `toOutcome` is the ONLY constructor of this type anywhere in the tree and returns
   // only `null` or `{ kind: "redirect", ... }` — never `"resolved"`/`"not_found"`. Testing that
-  // sub-arm would require pushing a resolver onto `registerResolvePhase`'s module-level,
-  // append-only `phaseRegistry` (no unregister exists) from a test, permanently polluting every
-  // other test sharing this process for the rest of the run — a worse trade than leaving this
-  // documented rather than covered. A future SECOND registrant that legitimately returns
+  // sub-arm would require pushing a resolver onto `registerResolvePhase`'s module-level
+  // `phaseRegistry` from a test. That is no longer permanently polluting — as of 2026-09-16 that
+  // registry is no longer append-only (`registerResolvePhase` returns a disposer and takes an
+  // `owner`, so a test can revoke what it added) — but it still leaves the cost of standing up a
+  // second registrant just to reach a sub-arm no shipped code constructs, which is a worse trade
+  // than leaving this documented rather than covered. A future SECOND registrant that legitimately returns
   // `"resolved"`/`"not_found"` would make this reachable again; this comment is the disclosure,
   // not a claim that it can never happen.
   if (!outcome || outcome.kind !== "redirect") return false;

@@ -42,7 +42,11 @@
  */
 import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort } from "@jini-ai/cms/core";
 import type { OriginRegistryPort, RedirectTargetContext, VerifiedOrigin } from "../../features/origin/index.js";
-import { checkSitePathname, registerResolvePhase } from "../../platform/routing/index.js";
+import {
+  checkSitePathname,
+  registerResolvePhase,
+  unregisterResolvePhaseOwner,
+} from "../../platform/routing/index.js";
 import type { RouteResolveContext, RouteResolvePhaseOutcome } from "../../platform/routing/index.js";
 
 import type {
@@ -239,12 +243,37 @@ export interface RegisterRedirectsPhaseHandlersDeps {
 }
 
 /**
- * Composition-root wiring entry — registers the two `RouteResolvePhaseHandler`
- * adapters into `routing`'s registry (once, at boot). Call exactly once (W-004).
+ * The identity every Redirects registration claims in `routing`'s phase registry
+ * (`RegisterResolvePhaseOptions.owner`). One module-private token, shared by every
+ * call: there is exactly ONE live Redirects registration per process — whichever
+ * composition root registered most recently.
  *
- * @complexity O(1).
+ * That is the policy half of the lifecycle fix `registerResolvePhase`'s own doc
+ * describes. `registerRedirectsPhaseHandlers` runs once per composition root, and a
+ * process runs more than one of those: `server/runtime/composition/app.ts`'s
+ * module-load `export const app = createApp();` composes an in-memory root on EVERY
+ * boot, before `createSqliteRouteDeps()` composes the real SQLite one, and an
+ * integration test composes one per site it boots. Each registration closes over
+ * that composition's own `RedirectRepoPort`, so under the old append-only registry
+ * the superseded ones stayed on the live request path: harmless while the orphan was
+ * an `InMemoryRedirectRepo` (empty, so it returned `null` and yielded to the real
+ * registration queued behind it), a 500 on every phase-running route once it was a
+ * `SqliteRedirectRepo` whose site database had since closed. Owning the slot makes
+ * W-004's "call exactly once" structural rather than a comment asking nicely.
  */
-export function registerRedirectsPhaseHandlers(deps: RegisterRedirectsPhaseHandlersDeps): void {
+const REDIRECTS_PHASE_OWNER: unique symbol = Symbol("redirects.phase-handlers");
+
+/**
+ * Composition-root wiring entry — registers the two `RouteResolvePhaseHandler`
+ * adapters into `routing`'s registry, superseding any previous composition's
+ * (see {@link REDIRECTS_PHASE_OWNER}).
+ *
+ * @returns a disposer that revokes this feature's registration outright, for a host
+ * that tears a site down without immediately composing the next one.
+ * @complexity O(1) amortized; O(n) in each phase's existing registrations for the
+ * supersede scan.
+ */
+export function registerRedirectsPhaseHandlers(deps: RegisterRedirectsPhaseHandlersDeps): () => void {
   const { resolver } = deps;
 
   const preContentHandler = async (
@@ -263,8 +292,9 @@ export function registerRedirectsPhaseHandlers(deps: RegisterRedirectsPhaseHandl
     return toOutcome(resolution);
   };
 
-  registerResolvePhase("pre_content", preContentHandler);
-  registerResolvePhase("post_content", postContentHandler);
+  registerResolvePhase("pre_content", preContentHandler, { owner: REDIRECTS_PHASE_OWNER });
+  registerResolvePhase("post_content", postContentHandler, { owner: REDIRECTS_PHASE_OWNER });
+  return () => unregisterResolvePhaseOwner(REDIRECTS_PHASE_OWNER);
 }
 
 function toOutcome(resolution: RedirectResolution): RouteResolvePhaseOutcome | null {

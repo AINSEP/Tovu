@@ -305,12 +305,38 @@ export async function isActive(
 // Forward resolution pipeline (ADR-039 §1) — registration seam for Redirects
 // ---------------------------------------------------------------------------
 
-type PhaseRegistry = Record<RouteResolvePhaseName, RouteResolvePhaseHandler[]>;
+/**
+ * One handler plus the registrant that owns it. `owner` is an opaque identity
+ * token supplied by the registrant (see {@link RegisterResolvePhaseOptions.owner});
+ * `undefined` means "unowned", the historical append-only behavior.
+ */
+interface PhaseRegistration {
+  readonly owner: unknown;
+  readonly handler: RouteResolvePhaseHandler;
+}
+
+type PhaseRegistry = Record<RouteResolvePhaseName, PhaseRegistration[]>;
 
 const phaseRegistry: PhaseRegistry = {
   pre_content: [],
   post_content: [],
 };
+
+/** Every phase, so an owner-wide revoke never has to be told which phases it used. */
+const ALL_PHASES: readonly RouteResolvePhaseName[] = ["pre_content", "post_content"];
+
+export interface RegisterResolvePhaseOptions {
+  /**
+   * The registrant's identity. Registering under an owner that already holds
+   * handlers in this phase REPLACES them rather than appending, so a registrant
+   * whose handlers close over a per-boot resource (a site's database handle, a
+   * request-scoped client) cannot leave the previous boot's closures reachable.
+   *
+   * Omit it and the registration is appended and never superseded — the v0
+   * behavior this library's own tests still use.
+   */
+  readonly owner?: unknown;
+}
 
 /**
  * Register a resolver into an ordered, core-owned pipeline phase
@@ -327,22 +353,93 @@ const phaseRegistry: PhaseRegistry = {
  * resolve. This library does not enforce that invariant (no rules exist yet
  * to violate it); it is a contract note for the future Redirects implementer.
  *
- * @complexity O(1) registration; O(1) additional space per registered handler.
+ * Lifecycle (2026-09-16). This registry is module-level and therefore
+ * process-wide, but its registrants are not: a composition root registers a
+ * handler that has CLOSED OVER that composition's resources, and more than one
+ * composition runs per process (`server/runtime/composition/app.ts`'s
+ * module-load `export const app = createApp();` composes an in-memory root
+ * before `createSqliteRouteDeps()` composes the real one, on every boot; an
+ * integration test boots one site per case). Append-only, that left every
+ * previous composition's closure live on the request path forever — benign
+ * while the superseded resources were in-memory, a `TypeError: The database
+ * connection is not open` 500 on every phase-running route once one of them
+ * was a site database that had since closed. Pass {@link
+ * RegisterResolvePhaseOptions.owner} to opt into supersede-on-re-registration;
+ * {@link unregisterResolvePhaseOwner} revokes an owner outright.
+ *
+ * @returns a disposer that removes exactly this registration (idempotent, and
+ * a no-op once an owner-scoped re-registration has already superseded it).
+ * @complexity O(1) for an unowned registration; O(n) in the phase's existing
+ * registrations for an owned one (it first evicts that owner's). O(1) space.
  */
 export function registerResolvePhase(
   phase: RouteResolvePhaseName,
-  resolver: RouteResolvePhaseHandler
-): void {
-  phaseRegistry[phase].push(resolver);
+  resolver: RouteResolvePhaseHandler,
+  options: RegisterResolvePhaseOptions = {}
+): () => void {
+  const owner = options.owner;
+  if (owner !== undefined) {
+    phaseRegistry[phase] = phaseRegistry[phase].filter((entry) => entry.owner !== owner);
+  }
+  const registration: PhaseRegistration = { owner, handler: resolver };
+  phaseRegistry[phase].push(registration);
+  return () => {
+    phaseRegistry[phase] = phaseRegistry[phase].filter((entry) => entry !== registration);
+  };
 }
 
+/**
+ * Revoke every handler `owner` registered, across every phase — the explicit
+ * teardown half of {@link RegisterResolvePhaseOptions.owner}, for a host that
+ * knows when a site is finished rather than only when the next one starts.
+ *
+ * Unowned registrations are never matched: `undefined` is the "no owner" marker,
+ * not an owner, so `unregisterResolvePhaseOwner(undefined)` is a deliberate no-op.
+ *
+ * @complexity O(n) in total registered handlers. O(1) space.
+ */
+export function unregisterResolvePhaseOwner(owner: unknown): void {
+  if (owner === undefined) return;
+  for (const phase of ALL_PHASES) {
+    phaseRegistry[phase] = phaseRegistry[phase].filter((entry) => entry.owner !== owner);
+  }
+}
+
+/**
+ * Run one phase's handlers in registration order, first non-`null` outcome wins.
+ *
+ * A handler that THROWS is isolated: the failure is logged and the chain
+ * continues with the next handler, rather than propagating out of the phase.
+ * Deliberate, and the direction matters — this pipeline only ever ADDS an
+ * outcome (a redirect, a gone), so a handler that produced no outcome because
+ * it failed is operationally identical to one that returned `null`: the request
+ * falls through to ordinary content resolution. Letting it propagate instead
+ * means one registrant's fault 500s every route that runs the phase, including
+ * every route with no rules of its own — which is exactly how a stale
+ * closed-database handler took down `/` and `/pricing` while `/products` (which
+ * runs no phase) kept serving. A swallowed failure can never fabricate a
+ * redirect target, so it cannot weaken the open-redirect gate
+ * (`redirects/phase-handler.ts`'s INV-03) — it can only decline to redirect.
+ *
+ * @complexity O(h) in the phase's registered handlers, plus each handler's own
+ * opaque cost; short-circuits on the first outcome.
+ */
 async function runPhase(
   phase: RouteResolvePhaseName,
   path: string,
   ctx: RouteResolveContext
 ): Promise<RouteResolvePhaseOutcome | null> {
-  for (const handler of phaseRegistry[phase]) {
-    const outcome = await handler(path, ctx);
+  // Snapshot: a handler is free to register or revoke during its own run, and
+  // mutating the live array mid-iteration would silently skip a sibling.
+  for (const { handler } of [...phaseRegistry[phase]]) {
+    let outcome: RouteResolvePhaseOutcome | null;
+    try {
+      outcome = await handler(path, ctx);
+    } catch (err) {
+      // eslint-disable-next-line no-console -- same operator-facing channel `routes/site/pages.ts` logs its own route faults on.
+      console.error(`[routing] a ${phase} resolver failed for ${path} — skipping it`, err);
+      continue;
+    }
     if (outcome) return outcome;
   }
   return null;
