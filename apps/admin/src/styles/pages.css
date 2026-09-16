@@ -149,6 +149,13 @@
 .page > .interactive-html-editor {
   margin-top: calc(-1 * var(--space-6));
 }
+/* The preview surface is deliberately NOT in the negative-pull rule above (owner, 2026-09-16):
+   they asked for breathing room between the Save/Delete row and the preview frame. -15px is tuned to a MEASURED 9px gap,
+   the owner's chosen value. The surface sits 24px below the action row on its own, so the margin is
+   negative to reach 18px; re-measure rather than reasoning from the number if this moves. Expanded stays flush —
+   `.page-preview-expanded .page-preview-surface` below sets `margin-top: 0`, and the surface is not
+   a direct child of `.page` in that state anyway. */
+.page > .page-preview-surface { margin-top: -15px; }
 
 /*
  * The preview renders at a FIXED viewport width and is scaled down to fit — see
@@ -184,6 +191,62 @@
   font-size: 0.85rem;
   color: var(--muted);
 }
+
+/*
+ * Preview fullscreen (2026-09-16) — the Pages twin of `styles/editor.css`'s `.post-preview-*`
+ * block. Duplicated rather than shared, for the same reason `.page-preview-notice` above duplicates
+ * `.editor-preview-notice`: Pages and Posts keep separate stylesheets on purpose (see this file's
+ * own header). The geometry genuinely differs too — a Post's expanded iframe fills an
+ * `.editor-shell`, and there is no `.editor-shell` ANYWHERE on this screen to hang the equivalent
+ * rule off; a Page's preview is a fixed-width `.page-preview-scaler` transform-scaled to fit inside
+ * an `overflow: hidden` `.page-preview-frame`, so the height chain has to run through those two.
+ *
+ * `.page-preview-surface` is the `position: relative` ancestor the fab's `position: absolute`
+ * resolves against, and `PageEditor.tsx` renders it in BOTH states so the control never moves.
+ * Collapsed it is layout-neutral: it inherits the `-space-6` pull the frame used to take directly
+ * (the rule near the top of this file, which now names the surface — the frame is no longer a
+ * direct child of `.page`), and its flex column changes nothing about a notice stacked above a
+ * fixed-height frame.
+ */
+.page-preview-surface { position: relative; display: flex; flex-direction: column; }
+.page-preview-fab {
+  position: absolute; top: 0.6rem; right: 0.6rem; z-index: 3;
+  width: 2.25rem; height: 2.25rem; padding: 0; border: 0; border-radius: 0.5rem;
+  display: grid; place-items: center; cursor: pointer;
+  font-size: 1.15rem; line-height: 1; color: #fff;
+  background: rgba(17, 17, 17, 0.42); backdrop-filter: blur(6px);
+  opacity: 0.32; transition: opacity 0.15s ease, background 0.15s ease;
+}
+.page-preview-fab:hover, .page-preview-fab:focus-visible { opacity: 1; background: rgba(17, 17, 17, 0.72); }
+
+/* `position: absolute; inset: 0` against `.admin-main-col` (`styles.css`, which is where its own
+   `position: relative` lives), NOT `position: fixed` over the whole viewport — deliberately, so it
+   is geometrically incapable of covering `.admin-chat-dock`'s separate flex column: the two boxes
+   never overlap, so no z-index arithmetic against the dock is needed. `z-index: 25` matches
+   `.post-preview-expanded`'s own for the same reasons that rule records — above `.admin-content`'s
+   in-flow content, below `.chat-fab`'s 30 (`styles/assistant.css`) and below the mobile sheet
+   dock's 55, so the sheet still slides up over this exactly as it does over `<main>`. */
+.page-preview-expanded { position: absolute; inset: 0; z-index: 25; display: flex; flex-direction: column; background: var(--surface); }
+/* The `-space-6` pull above is a gap fix for sitting directly under the toolbar; expanded there is
+   no toolbar above this panel. */
+.page-preview-expanded .page-preview-surface { flex: 1; min-height: 0; margin-top: 0; }
+/* THE LOAD-BEARING CHAIN, and the one jsdom can never see. The expanded frame has no inline height
+   (`PageEditor.tsx` writes one only when collapsed) and takes its height from this `flex: 1`, which
+   only works because every ancestor up to `.page-preview-expanded` is a flex column: panel ->
+   surface -> frame. Drop any link and the frame falls back to its intrinsic height — on the Posts
+   side the identical omission rendered a ~150px sliver of site header over an empty white box, and
+   its unit tests stayed green throughout. `min-height: 0` on each is what lets a flex item shrink
+   below its content; without it the chain overflows instead of fitting. Pinned by a CSS-text
+   regression test, since no DOM assertion can reach it. */
+.page-preview-expanded .page-preview-frame { flex: 1; min-height: 0; border-radius: 0; background: var(--surface-2); }
+/* Fullscreen widens the PANE, never the previewed page: the Desktop/Tablet/Mobile choice is the
+   operator's statement about which viewport they are inspecting, and inheriting it is what makes a
+   fullscreen Mobile preview useful (a 390px box that was being scaled DOWN to fit a narrow pane
+   renders 1:1 once the pane is wide enough). Centred here rather than pinned to the corner
+   `transform-origin: top left` would leave it in — when the scaler's own box is WIDER than the
+   frame, as Desktop on a narrow pane is, `auto` margins resolve to 0 and it stays flush left, which
+   is exactly what an over-wide, scaled-down preview wants. */
+.page-preview-expanded .page-preview-scaler { margin-inline: auto; }
 
 .page-html-source {
   width: 100%;

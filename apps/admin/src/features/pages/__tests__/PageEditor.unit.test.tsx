@@ -82,6 +82,8 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     setView: vi.fn(),
     device: "desktop",
     setDevice: vi.fn(),
+    previewExpanded: false,
+    togglePreviewExpanded: vi.fn(),
     // Callback ref — `usePageEditor`'s real `frameRef` is `setFrameNode`, not a `RefObject` (see
     // `use-page-editor.hooks.ts`'s measuring-effect comment). A `vi.fn()` is a fine stand-in here:
     // `PagePreview`'s `<div ref={frameRef}>` just needs something callable to attach, and none of

@@ -492,6 +492,8 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     setView,
     device,
     setDevice,
+    previewExpanded,
+    togglePreviewExpanded,
     frameRef,
     paneWidth,
     saving,
@@ -644,6 +646,8 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         previewFormTarget={previewFormTarget}
         frameRef={frameRef}
         paneWidth={paneWidth}
+        previewExpanded={previewExpanded}
+        onTogglePreviewExpanded={togglePreviewExpanded}
       />
 
       <ConfirmDialog
@@ -695,6 +699,8 @@ function PageEditorPane({
   previewFormTarget,
   frameRef,
   paneWidth,
+  previewExpanded,
+  onTogglePreviewExpanded,
 }: {
   view: PageEditorView;
   canvasStyling: ThemeCanvasStylingState;
@@ -712,6 +718,12 @@ function PageEditorPane({
   previewFormTarget: string;
   frameRef: (node: HTMLDivElement | null) => void;
   paneWidth: number;
+  /** Preview fullscreen (2026-09-16) — `usePageEditor`'s `previewExpanded` / `togglePreviewExpanded`.
+   *  Only the `preview` surface below reads them: the fab is part of the preview, not of this
+   *  dispatcher, so switching to HTML/Interactive takes it out of the DOM entirely (and the hook's
+   *  own effect collapses the state at the same time). */
+  previewExpanded: boolean;
+  onTogglePreviewExpanded: () => void;
 }) {
   const surface = pageEditorSurface(view, canvasStyling);
   if (surface.kind === "preview") {
@@ -728,6 +740,8 @@ function PageEditorPane({
         previewFormTarget={previewFormTarget}
         frameRef={frameRef}
         paneWidth={paneWidth}
+        expanded={previewExpanded}
+        onToggleExpanded={onTogglePreviewExpanded}
       />
     );
   }
@@ -815,6 +829,17 @@ function PageEditorPane({
  * codebase sets no `X-Frame-Options`/`frame-ancestors` anywhere that would block it (checked
  * `src/server/app.ts`). The cross-origin document's `contentDocument` is therefore unreachable from
  * here — nothing in this component depends on reaching into it.
+ *
+ * Preview fullscreen (2026-09-16). Expanding widens the PANE, never the previewed page: the
+ * Desktop/Tablet/Mobile choice (`PAGE_PREVIEW_WIDTHS`, the `page-preview-width-*` buttons) is the
+ * operator's statement about which viewport they are inspecting, so it is carried into the expanded
+ * panel unchanged rather than overridden to Desktop. Overriding would silently discard a selection
+ * they just made and would make the single most useful thing this control can do — look at the
+ * mobile layout properly — impossible. It also pays off arithmetically: `scale` is
+ * `min(1, paneWidth / width)`, so a 390px Mobile preview that a narrow pane was scaling DOWN
+ * renders at a true 1:1 once the pane is wide enough, and Desktop on a narrow pane keeps the
+ * scaled-down behavior it already had. `pages.css`'s `.page-preview-expanded .page-preview-scaler`
+ * centres it; see that rule for why `auto` margins are the right tool for both regimes.
  */
 function PagePreview({
   html,
@@ -828,6 +853,8 @@ function PagePreview({
   previewFormTarget,
   frameRef,
   paneWidth,
+  expanded,
+  onToggleExpanded,
 }: {
   html: string;
   width: number;
@@ -849,21 +876,49 @@ function PagePreview({
    *  rather than `view` or an empty dependency array. */
   frameRef: (node: HTMLDivElement | null) => void;
   paneWidth: number;
+  /** Preview fullscreen (2026-09-16) — see `PageEditorController.previewExpanded`'s own doc for the
+   *  state's lifetime, and this component's own doc for what expanding does and does NOT change. */
+  expanded: boolean;
+  /** `usePageEditor`'s `togglePreviewExpanded`, bound to the single `.page-preview-fab` this
+   *  component renders in BOTH states. Nothing in `PageEditor`'s toolbar toggles it. */
+  onToggleExpanded: () => void;
 }) {
-  const scale = Math.min(1, paneWidth / width);
+  // Floored above zero, not just capped at 1: `paneWidth` is whatever `ResizeObserver` last reported
+  // for the frame, and a zero-width observation (the frame measured during a paint where its column
+  // has no width yet) would make the expanded scaler's height `calc(100% / 0)` — not a big number
+  // but an INVALID declaration, which CSS drops entirely, silently reverting the height to `auto`.
+  // The floor keeps that expression well-formed. It cannot affect the ordinary path: any real
+  // measurement is orders of magnitude above it.
+  const scale = Math.max(0.01, Math.min(1, paneWidth / width));
   const canShowLiveSite = status === "published" && !dirty;
 
-  return (
+  const pane = (
     <>
       {canShowLiveSite ? null : (
         <p className="page-preview-notice">
           {pagePreviewNotice({ status, contentDirty })}
         </p>
       )}
-      <div ref={frameRef} className="page-preview-frame" style={{ height: `${900 * scale}px` }}>
+      {/* Collapsed the frame is a fixed `900 * scale` box, exactly as it has always been. Expanded
+          it takes its height from the flex column instead (`pages.css`'s
+          `.page-preview-expanded .page-preview-frame`), so no inline height is written at all —
+          an inline height would beat that rule and pin the panel back to 900px.
+
+          The scaler's own height follows from that: `calc(100% / scale)` of a frame that is `H`
+          tall renders, after `scale(scale)`, as exactly `H` — i.e. the previewed viewport gets
+          TALLER as the panel does, which is the whole point of going full screen. Collapsed it
+          stays the literal `900px` it has always been (which is the same number this formula
+          would produce there, since `H` is `900 * scale` — written as a constant anyway so the
+          collapsed pane cannot drift on a rounding change). No measurement is needed for either:
+          the percentage resolves against the flex item's own used height. */}
+      <div
+        ref={frameRef}
+        className="page-preview-frame"
+        style={expanded ? undefined : { height: `${900 * scale}px` }}
+      >
         <div
           className="page-preview-scaler"
-          style={{ width: `${width}px`, height: "900px", transform: `scale(${scale})` }}
+          style={{ width: `${width}px`, height: expanded ? `calc(100% / ${scale})` : "900px", transform: `scale(${scale})` }}
         >
           <PagePreviewFrame
             canShowLiveSite={canShowLiveSite}
@@ -876,6 +931,80 @@ function PagePreview({
         </div>
       </div>
     </>
+  );
+
+  const fab = <PagePreviewFab expanded={expanded} onToggle={onToggleExpanded} />;
+
+  // Collapsed: the pane plus the control, wrapped in `.page-preview-surface` — that wrapper is the
+  // `position: relative` ancestor the fab's `position: absolute` resolves against (`pages.css`), so
+  // the fab must stay inside it. Same wrapper in the expanded branch below, for the same reason.
+  if (!expanded) return <div className="page-preview-surface">{pane}{fab}</div>;
+
+  // Expanded: `.page-preview-expanded` (`styles/pages.css`) is `position: absolute; inset: 0`
+  // against `.admin-main-col` — see `styles/editor.css`'s `.post-preview-expanded` comment for the
+  // full containment argument (why this covers only the admin content column, never
+  // `.admin-chat-dock`); Pages reuses the geometry and the `z-index`, not the rule.
+  return (
+    <div className="page-preview-expanded">
+      <div className="page-preview-surface">
+        {pane}
+        {fab}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The one control that toggles the preview between its normal pane and the full-screen panel,
+ * rendered in the SAME place in both states so the way out is always visible on screen — the
+ * failure that killed an earlier overlay attempt was an operator who could not see how to get back.
+ * A top-level component rather than inline JSX so its three state ternaries score in their own
+ * scope, the same reason `PagePreviewFrame` below is one.
+ *
+ * The glyph is `aria-hidden`, so `aria-label` is the ONLY thing naming this button for a screen
+ * reader; keep the two directions' names distinct. `data-agent-label` is a SEPARATE string and is
+ * NOT an accessible description — `agentHandle` emits only `data-agent-element/-role/-label/-page`
+ * (`handle.ts`), never `aria-label`/`aria-describedby`, so widening it carries no a11y consequence
+ * and nobody should "fix" a11y by editing it.
+ */
+function PagePreviewFab({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      className="page-preview-fab"
+      onClick={onToggle}
+      title={expanded ? "Exit full screen (Esc)" : "Show full screen"}
+      aria-label={expanded ? "Exit full screen" : "Show full screen"}
+      {...agentHandle("page-preview-expand", {
+        role: "button",
+        // These labels read redundantly ON PURPOSE. `page.find_elements`'s `query` is a plain
+        // case-insensitive SUBSTRING match over handle and label only — no stemming, no synonyms,
+        // no ranking, and `role` is not searched at all (`@jini-ai/agentic`'s `dom-page-driver.ts`,
+        // `findElements`) — so a word that is not literally here retrieves NOTHING, and an
+        // assistant that gets an empty list abandons the route rather than broadening its query.
+        // That is not hypothetical: the Posts twin's label once read "Show the preview big, filling
+        // the admin content area" while the button said "Show full screen", and on a recorded demo
+        // an assistant asked to show the preview full screen called
+        // `page.find_elements({query:"full"})`, got `{"elements":[]}`, and gave up.
+        //
+        // The durable rule that came out of that, and which both editors now follow: every word of
+        // the button's own `aria-label` must appear in the label published to agents, and both
+        // spellings — "full screen" and "fullscreen" — must be present, since they are different
+        // substrings. Both directions also carry the OPPOSITE direction's vocabulary: a model that
+        // asks for "fullscreen" while it is ALREADY full screen must find this control and read
+        // "Exit full screen" off it, which tells it the state. Returning nothing instead teaches it
+        // the feature does not exist. Direction is communicated by what the label SAYS, never by
+        // being absent from the index. Prose, not a keyword dump — every synonym is worked into a
+        // real sentence a person can read. Kept under `normalizeAgentLabel`'s 200-character
+        // truncation (`handle.ts`), past which text is still matchable but invisible in a listing;
+        // the agent-drive test pins both the vocabulary and that length.
+        label: expanded
+          ? "Exit full screen: exit fullscreen to collapse or close the expanded preview, putting it back to its normal, smaller size. Already maximized, so if the ask was to show it big, it already is."
+          : "Show the preview full screen: fullscreen this page preview to maximize or expand it and show it big across the admin content area, at the Desktop, Tablet or Mobile width already chosen.",
+      })}
+    >
+      <span aria-hidden="true">{expanded ? "\u2921" : "\u2922"}</span>
+    </button>
   );
 }
 

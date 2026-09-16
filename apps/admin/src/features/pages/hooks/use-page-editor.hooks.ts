@@ -107,6 +107,22 @@ export interface PageEditorController {
   device: PagePreviewDevice;
   setDevice: (value: PagePreviewDevice) => void;
   /**
+   * Preview fullscreen (2026-09-16) — whether the Preview tab's own pane is expanded to fill
+   * `.admin-main-col` (see `PageEditor.tsx`'s `.page-preview-expanded` wrapper). The Pages-side
+   * twin of `PostEditorController.previewExpanded`; see that field's own doc for the full
+   * lifetime/containment reasoning this deliberately copies rather than lifts to `App.tsx` or a
+   * module-level bus — a route change unmounts `PageEditor`, which unmounts this hook, which
+   * discards this for free. Never persisted.
+   *
+   * Deliberately independent of {@link device}: expanding does NOT override the operator's chosen
+   * preview width. See `PagePreview`'s own doc for why widening the pane (not widening the page)
+   * is what fullscreen means here.
+   */
+  previewExpanded: boolean;
+  /** Flips {@link previewExpanded}. A separate action rather than a setter, matching `setView`'s
+   *  own shape above — the caller never needs to set it to a specific value directly. */
+  togglePreviewExpanded: () => void;
+  /**
    * `PagePreview`'s own frame element and its live-measured width (moved here from `PagePreview`,
    * 2026-08-11 complexity-ceiling pass — see the measuring effect below for the full "why ResizeObserver
    * instead of a guessed constant" reasoning this used to carry in that component). `PageEditor.tsx`
@@ -400,6 +416,11 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const [savedHtml, setSavedHtml] = useState("");
   const [view, setView] = useState<PageEditorView>("preview");
   const [device, setDevice] = useState<PagePreviewDevice>("desktop");
+  // Preview fullscreen (2026-09-16) — see `PageEditorController.previewExpanded`'s own doc for why
+  // this lives here instead of `App.tsx` or a bus. `false` by default: opening a Page must never
+  // itself land on the expanded surface, even though `view` DOES default to "preview" here (unlike
+  // Posts, which open on "edit").
+  const [previewExpanded, setPreviewExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -485,6 +506,35 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     }
     prevViewRef.current = view;
   }, [view, html]);
+
+  // Leaving the Preview tab collapses (2026-09-16) — the expanded surface only ever shows the
+  // preview, so any other view being selected means the operator is done with it. Returning to
+  // Preview later therefore always starts collapsed rather than resuming a state they did not ask
+  // for this time. Mirrors `use-post-editor.hooks.ts`'s identical effect.
+  useEffect(() => {
+    if (view !== "preview") setPreviewExpanded(false);
+  }, [view]);
+
+  // Escape collapses (2026-09-16) — a raw `document.addEventListener`, not a synthetic React
+  // handler, for the reasons `use-post-editor.hooks.ts`'s twin records: nothing here needs to
+  // intercept a keystroke the editor itself is using, and a real listener is what a test can
+  // dispatch a genuine `KeyboardEvent` against. Deliberately no `preventDefault()`/
+  // `stopPropagation()` — nothing on this surface traps focus, and swallowing the event only risks
+  // this repo's documented jsdom/React-delegation false-RED trap. The `.page-preview-fab` rendered
+  // inside the expanded surface is the exit that always works; this is a convenience on top of it,
+  // gated on `previewExpanded` so no listener is registered at all while collapsed.
+  useEffect(() => {
+    if (!previewExpanded) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPreviewExpanded(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [previewExpanded]);
+
+  function togglePreviewExpanded(): void {
+    setPreviewExpanded((on) => !on);
+  }
 
   // `PagePreview`'s frame element and its REAL rendered width, measured live via `ResizeObserver`
   // rather than a guessed constant — a flat `880` here would mean the scale computed once and stayed
@@ -769,6 +819,8 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     setView,
     device,
     setDevice,
+    previewExpanded,
+    togglePreviewExpanded,
     frameRef: setFrameNode,
     paneWidth,
     saving,
