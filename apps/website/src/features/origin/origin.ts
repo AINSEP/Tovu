@@ -42,9 +42,35 @@ export interface NormalizedTarget {
  * `https:/\evil.com` bypasses), whitespace, and C0/DEL control characters.
  * The URL parser silently strips some of these, which is exactly the
  * ambiguity ADR-040 F3 requires rejecting outright instead of tolerating.
+ *
+ * Load-bearing for the redirect READ path too, not just this oracle (t91 B2, 2026-09-16):
+ * `features/redirects/phase-handler.ts` builds a relative location's oracle candidate by
+ * CONCATENATING it onto the canonical origin, and Express's `res.redirect` does not percent-encode
+ * `\`, so a stored template `\` plus a request tail `/evil.example` becomes `Location:
+ * \/evil.example`, which a browser follows to `evil.example`. `platform/routing`'s
+ * `checkSitePathname` cannot see that backslash — it reads an already-parsed pathname, where `\` is
+ * already `/`. This raw check is what refuses it on read (pinned by
+ * `phase-handler.read-path-target.test.ts`'s backslash cases). The redirect WRITE gate applies this
+ * same predicate via {@link hasForbiddenRawUrlCharacter} so write and read agree — a target this
+ * check would refuse must never be storable. Do not narrow this class without re-checking both
+ * paths.
  */
 // biome-ignore lint/suspicious/noControlCharactersInRegex: control chars are the POINT — ADR-040 F3 requires rejecting C0/DEL and backslash in a raw candidate URL before the WHATWG parser silently strips them. See this constant's own doc comment.
 const FORBIDDEN_RAW_CHARS = /[\\\s\x00-\x1F\x7F]/;
+
+/**
+ * The oracle's own raw-character rule, exported (t91 B2, 2026-09-16) so a write path that stores a
+ * future candidate can refuse exactly what this oracle — and the read path built on top of it —
+ * will refuse. See {@link FORBIDDEN_RAW_CHARS}'s doc for why this class matters beyond this file.
+ *
+ * @param raw - Any untrusted string, parsed or not.
+ * @returns `true` if `raw` contains a backslash, whitespace, or a C0/DEL control character.
+ * @complexity O(n) in the length of `raw`.
+ * @example hasForbiddenRawUrlCharacter("/a b"); // => true
+ */
+export function hasForbiddenRawUrlCharacter(raw: string): boolean {
+  return FORBIDDEN_RAW_CHARS.test(raw);
+}
 
 /**
  * Rejects forbidden raw characters, then parses with the WHATWG `URL` parser. Any parser throw is
@@ -56,7 +82,7 @@ const FORBIDDEN_RAW_CHARS = /[\\\s\x00-\x1F\x7F]/;
  */
 function parseCandidateUrl(rawUrl: string): URL | null {
   if (typeof rawUrl !== "string" || rawUrl.length === 0) return null;
-  if (FORBIDDEN_RAW_CHARS.test(rawUrl)) return null;
+  if (hasForbiddenRawUrlCharacter(rawUrl)) return null;
   try {
     return new URL(rawUrl);
   } catch {

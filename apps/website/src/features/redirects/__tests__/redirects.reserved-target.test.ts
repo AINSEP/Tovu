@@ -158,9 +158,18 @@ test("createRedirect refuses a one-hop chain that COLLAPSES onto a reserved targ
 test("createRedirect refuses a backslash-disguised protocol-relative target", async () => {
   // `/\evil.example` starts with a single '/', so the absolute/protocol-relative branch never
   // fires — but a URL parser treats '\' as '/', making this `//evil.example`. The origin
-  // allowlist is the gate this was walking around.
+  // allowlist is the gate this was walking around. Asserting the exact message (not just the
+  // error class) proves the OFF-ORIGIN reason wins here — the more specific `checkSiteRelativeTarget`
+  // verdict, checked before B2's raw-character rule, keeps its own wording (t91 B2, 2026-09-16).
   const deps = makeDeps();
-  await assert.rejects(() => create(deps, "/old", "/\\evil.example"), RedirectTargetNotAllowedError);
+  await assert.rejects(() => create(deps, "/old", "/\\evil.example"), (err: unknown) => {
+    assert.ok(err instanceof RedirectTargetNotAllowedError, `expected RedirectTargetNotAllowedError, got ${String(err)}`);
+    assert.equal(
+      err.message,
+      "toTarget '/\\evil.example' is not an allowed redirect destination: it looks site-relative but resolves to a different host (a URL parser reads '\\' as '/')"
+    );
+    return true;
+  });
 });
 
 test("tombstoneRedirect can still turn OFF a legacy rule whose target is now refused", async () => {
@@ -275,4 +284,60 @@ test("createRedirect still allows an allowlisted cross-origin host's own /admin"
   const deps = makeDeps({ redirectAllowlist: ["partner.example"] });
   const { record } = await create(deps, "/old", "https://partner.example/admin");
   assert.equal(record.toTarget, "https://partner.example/admin");
+});
+
+/**
+ * t91 B2 (2026-09-16): the write gate never checked a site-relative target for a raw backslash or
+ * whitespace. `checkSiteRelativeTarget` resolves `\` as `/` (a URL parser reads it that way, and on
+ * THIS site `\` really does resolve to `/`, so its own `ok` verdict is truthful), so these all
+ * passed the write gate and were stored. On read, `phase-handler.ts`'s `toOracleCandidate` builds
+ * the oracle candidate by CONCATENATING a relative location onto the canonical origin string, and
+ * the oracle's own `FORBIDDEN_RAW_CHARS` (`features/origin/origin.ts`) refuses any raw backslash or
+ * whitespace — so the read gate always refused these, and a stored rule using any of them could
+ * never fire. The write gate now applies the oracle's own raw-character predicate
+ * (`hasForbiddenRawUrlCharacter`) after `checkSiteRelativeTarget`, so write and read agree.
+ */
+const RAW_CHARACTER_TARGETS: readonly { readonly target: string; readonly why: string }[] = [
+  { target: "\\", why: "the prefix-rule case: '\\' plus a request tail becomes '\\/evil.example'" },
+  { target: "\\new", why: "a single leading backslash" },
+  { target: "/a\\b", why: "a mid-path backslash" },
+  { target: "/a b", why: "a raw space" },
+  { target: "/a b", why: "a non-breaking space (JS \\s, not a C0/C1 control)" },
+];
+
+for (const { target, why } of RAW_CHARACTER_TARGETS) {
+  test(`createRedirect refuses the raw-character target ${JSON.stringify(target)} (${why})`, async () => {
+    const deps = makeDeps();
+    const expectedMessage = `toTarget '${target}' is not an allowed redirect destination: it contains a backslash or whitespace, which the redirect origin check refuses (write a space as '%20')`;
+    await assert.rejects(() => create(deps, "/old", target), (err: unknown) => {
+      assert.ok(err instanceof RedirectTargetNotAllowedError, `expected RedirectTargetNotAllowedError, got ${String(err)}`);
+      assert.equal(err.message, expectedMessage);
+      return true;
+    });
+  });
+}
+
+test("createRedirect refuses a PREFIX rule whose target is a bare backslash (the reviewer's exact case)", async () => {
+  const deps = makeDeps();
+  await assert.rejects(
+    () =>
+      createRedirect({
+        deps,
+        input: {
+          workspaceId: WORKSPACE_ID,
+          matchType: "prefix",
+          fromPattern: "/go",
+          toTarget: "\\",
+          statusCode: 301,
+          actorId: ACTOR_ID,
+        },
+      }),
+    RedirectTargetNotAllowedError
+  );
+});
+
+test("createRedirect still allows a percent-encoded space", async () => {
+  const deps = makeDeps();
+  const { record } = await create(deps, "/old", "/a%20b");
+  assert.equal(record.toTarget, "/a%20b");
 });

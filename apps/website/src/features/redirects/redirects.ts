@@ -20,6 +20,7 @@
  * errors.spec.md.
  */
 import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort } from "@jini-ai/cms/core";
+import { hasForbiddenRawUrlCharacter } from "../../features/origin/index.js";
 import type { OriginRegistryPort, RedirectTargetContext } from "../../features/origin/index.js";
 
 import { checkSiteRelativeTarget } from "../../platform/routing/index.js";
@@ -153,6 +154,25 @@ function siteRelativeRefusalReason(check: SiteRelativeTargetCheck): string | nul
 }
 
 /**
+ * The site-relative half of the write gate: routing's structural + reserved-path verdict, then the
+ * redirect oracle's own raw-character rule. The read path hands a relative location to that oracle
+ * by concatenation, so a target it refuses (a raw backslash, any whitespace) would be stored and
+ * never fire; refusing it here keeps write and read agreeing. Checked SECOND so the more specific
+ * routing reasons (off-origin, control character, reserved) keep their own wording — a bare
+ * backslash target is `ok` to `checkSiteRelativeTarget` (on this site, `\` really does resolve to
+ * `/`), so only this second check ever refuses it (t91 B2, 2026-09-16).
+ *
+ * @returns The reason clause, or `null` when the target is allowed.
+ * @complexity O(n) in the target length.
+ */
+function siteRelativeTargetReason(target: string): string | null {
+  const reason = siteRelativeRefusalReason(checkSiteRelativeTarget(target));
+  if (reason !== null) return reason;
+  if (!hasForbiddenRawUrlCharacter(target)) return null;
+  return "it contains a backslash or whitespace, which the redirect origin check refuses (write a space as '%20')";
+}
+
+/**
  * The write-path target gate (REQ-08), in two halves that close the SAME hole from opposite sides.
  *
  * An ABSOLUTE or protocol-relative target names a host, so the question is "is that host allowed"
@@ -184,7 +204,7 @@ async function assertTargetAllowed(
   target: string
 ): Promise<void> {
   if (!isAbsoluteOrProtocolRelative(target)) {
-    const reason = siteRelativeRefusalReason(checkSiteRelativeTarget(target));
+    const reason = siteRelativeTargetReason(target);
     if (reason === null) return;
     throw new RedirectTargetNotAllowedError(
       `toTarget '${target}' is not an allowed redirect destination: ${reason}`

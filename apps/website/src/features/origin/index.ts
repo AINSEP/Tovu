@@ -15,6 +15,7 @@ export type {
 } from "./ports.js";
 export {
   OriginRegistry,
+  hasForbiddenRawUrlCharacter,
   isSameOrigin,
   normalizeOriginCandidate,
   type NormalizedTarget,
