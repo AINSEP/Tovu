@@ -10,8 +10,10 @@ import type { ThemeExplorePort } from "../hooks/theme-explore-port.hooks";
 import {
   canResetThemeFile,
   isThemeFileModified,
+  loadedFileAfterRename,
   lockedPublishReason,
   readOnlyReason,
+  requestedSelectionMove,
   selectedFileLabel,
   selectedFilePublishState,
   shouldAdoptRefreshedText,
@@ -20,6 +22,8 @@ import {
   useThemeExplore,
   useWiredThemeExplore,
   withServerModifiedState,
+  type RequestedSelectionMove,
+  type SelectionHoldSnapshot,
   type ThemeExploreController,
   type ThemeExploreFile,
 } from "../hooks/use-theme-explore.hooks";
@@ -2866,6 +2870,350 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
     expect(result.current.selected).toBe("pages/index.html");
     expect(result.current.highlightedPath).toBe("pages/index.html");
   });
+
+  /**
+   * T91: a `?file=`/`?page=` change on the MOUNTED screen — Back/Forward, an in-app link, or the
+   * URL catching up after a click — must hold like a click (`select` above), not flash unloaded.
+   * See `requestedSelectionMove`.
+   */
+  describe("a ?file=/?page= change on the mounted screen", () => {
+    const THREE_PAGES = [
+      ...TWO_PAGES,
+      { path: "pages/contact.html", group: "page" as const, readable: true, editable: true, resettable: true },
+    ];
+    const THREE_CONTENTS = { ...TWO_CONTENTS, "pages/contact.html": "<h1>Contact</h1>" };
+
+    /** Same shape as this file's other `renderHook` calls, but with `fileId`/`pageId` props so a
+     *  `rerender` can simulate a `?file=`/`?page=` change on the mounted screen, plus `modes`/
+     *  `sources` arrays recording every render's HTML-tab mode and source text. */
+    function mountForNav(port: ThemeExplorePort) {
+      const modes: string[] = [];
+      const sources: string[] = [];
+      const rendered = renderHook(
+        ({ fileId, pageId }: { fileId?: string; pageId?: string }) => {
+          const c = useThemeExplore("basic", { port, t: (k) => k }, { fileId, pageId });
+          modes.push(modeOf(c));
+          sources.push(c.source);
+          return c;
+        },
+        { initialProps: {} as { fileId?: string; pageId?: string } }
+      );
+      return { ...rendered, modes, sources };
+    }
+
+    /** Holds `port.getThemeDetail` open until `releaseDetail()`. Installed AFTER a load has already
+     *  landed, so only a LATER listing is held — the theme's own first load must not be gated. */
+    function installDetailGate(port: ThemeExplorePort): { releaseDetail: () => void } {
+      const serverDetail = port.getThemeDetail;
+      let releaseDetail: () => void = () => {};
+      const detailGate = new Promise<void>((resolve) => {
+        releaseDetail = resolve;
+      });
+      port.getThemeDetail = async (id) => {
+        await detailGate;
+        return serverDetail(id);
+      };
+      return { releaseDetail };
+    }
+
+    it("U1: never renders the unloaded mode on any render when ?file= moves between two loaded files", async () => {
+      const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
+      const about = holdReads(port, "pages/about.html");
+      const { result, rerender, modes } = mountForNav(port);
+      await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+      act(() => result.current.setView("html"));
+      modes.length = 0;
+
+      rerender({ fileId: "pages/about.html" });
+      await waitFor(() => expect(result.current.highlightedPath).toBe("pages/about.html"));
+      about.release();
+      await waitFor(() => expect(result.current.source).toBe("<h1>About</h1>"));
+
+      expect(modes).not.toContain("unloaded");
+      expect(result.current.selected).toBe("pages/about.html");
+      expect(modeOf(result.current)).toBe("editable");
+    });
+
+    it("U2: keeps the open file editable, moving only the highlight, while a ?page= navigation's text is in flight", async () => {
+      const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
+      holdReads(port, "pages/about.html");
+      const { result, rerender } = mountForNav(port);
+      await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+      act(() => result.current.setView("html"));
+
+      rerender({ pageId: "about" });
+      await waitFor(() => expect(result.current.highlightedPath).toBe("pages/about.html"));
+
+      expect(result.current.selected).toBe("pages/index.html");
+      expect(result.current.source).toBe("<h1>Home</h1>");
+      expect(modeOf(result.current)).toBe("editable");
+      expect(result.current.sourceLoaded).toBe(true);
+    });
+
+    it("U3: still lands a ?file= target whose read failed unloaded, with its error and Save refused", async () => {
+      const tooLarge = "file 'pages/big.html' exceeds the 1000000-byte readable limit";
+      const port = createFakeThemeExplorePort({
+        files: [TWO_PAGES[0]!, { path: "pages/big.html", group: "page", readable: true, editable: true, resettable: true }],
+        contents: { "pages/index.html": "<h1>Home</h1>" },
+      });
+      const serverRead = port.getThemeFile;
+      port.getThemeFile = (themeId, path) => (path === "pages/big.html" ? Promise.reject(new Error(tooLarge)) : serverRead(themeId, path));
+      const putSpy = vi.spyOn(port, "putThemeFile");
+      const { result, rerender } = mountForNav(port);
+      await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+      act(() => result.current.setView("html"));
+
+      rerender({ fileId: "pages/big.html" });
+      await waitFor(() => expect(result.current.error).toBe(tooLarge));
+      act(() => result.current.setSource("<h1>Home</h1><p>typed</p>"));
+      await act(async () => {
+        await result.current.save();
+      });
+
+      expect(result.current.selected).toBe("pages/big.html");
+      expect(result.current.highlightedPath).toBe("pages/big.html");
+      expect(modeOf(result.current)).toBe("unloaded");
+      expect(putSpy).not.toHaveBeenCalled();
+    });
+
+    it("U4: a second navigation while the first one's text is in flight wins, and the first read's late text is never written", async () => {
+      const port = createFakeThemeExplorePort({ files: THREE_PAGES, contents: THREE_CONTENTS });
+      const about = holdReads(port, "pages/about.html");
+      const { result, rerender, modes, sources } = mountForNav(port);
+      await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+      act(() => result.current.setView("html"));
+      modes.length = 0;
+
+      rerender({ fileId: "pages/about.html" });
+      await waitFor(() => expect(result.current.highlightedPath).toBe("pages/about.html"));
+      rerender({ fileId: "pages/contact.html" });
+      await waitFor(() => expect(result.current.source).toBe("<h1>Contact</h1>"));
+      about.release();
+      await act(async () => {});
+
+      expect(result.current.selected).toBe("pages/contact.html");
+      expect(result.current.source).toBe("<h1>Contact</h1>");
+      expect(sources).not.toContain("<h1>About</h1>");
+      expect(modes).not.toContain("unloaded");
+    });
+
+    it("U5: a navigation back to the open file cancels the held switch without re-reading over typed edits", async () => {
+      const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
+      holdReads(port, "pages/about.html");
+      const { result, rerender } = mountForNav(port);
+      await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+      act(() => result.current.setView("html"));
+      act(() => result.current.setSource("<h1>Home</h1><p>typed</p>"));
+      const readSpy = vi.spyOn(port, "getThemeFile");
+
+      rerender({ fileId: "pages/about.html" });
+      await waitFor(() => expect(result.current.highlightedPath).toBe("pages/about.html"));
+      rerender({ fileId: "pages/index.html" });
+      await act(async () => {});
+
+      expect(result.current.highlightedPath).toBe("pages/index.html");
+      expect(result.current.selected).toBe("pages/index.html");
+      expect(readSpy.mock.calls.filter(([, path]) => path === "pages/index.html")).toHaveLength(0);
+      expect(result.current.source).toBe("<h1>Home</h1><p>typed</p>");
+      expect(result.current.dirty).toBe(true);
+    });
+
+    it("U6: a click after a navigation started owns the selection when that navigation's listing lands late", async () => {
+      const port = createFakeThemeExplorePort({ files: THREE_PAGES, contents: THREE_CONTENTS });
+      const { result, rerender } = mountForNav(port);
+      await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+      act(() => result.current.setView("html"));
+      const { releaseDetail } = installDetailGate(port);
+      const readSpy = vi.spyOn(port, "getThemeFile");
+
+      rerender({ fileId: "pages/about.html" });
+      act(() => result.current.select("pages/contact.html"));
+      await waitFor(() => expect(result.current.source).toBe("<h1>Contact</h1>"));
+      await act(async () => {
+        releaseDetail();
+      });
+      await act(async () => {});
+
+      expect(result.current.selected).toBe("pages/contact.html");
+      expect(result.current.highlightedPath).toBe("pages/contact.html");
+      expect(result.current.source).toBe("<h1>Contact</h1>");
+      expect(readSpy.mock.calls.some(([, path]) => path === "pages/about.html")).toBe(false);
+    });
+
+    it("U7: a click on the old theme's list during a theme switch does not stop the new theme opening", async () => {
+      const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
+      const { result, rerender } = renderHook(
+        ({ themeId }: { themeId: string }) => useThemeExplore(themeId, { port, t: (k) => k }),
+        { initialProps: { themeId: "a" } }
+      );
+      await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+      act(() => result.current.setView("html"));
+      const { releaseDetail } = installDetailGate(port);
+
+      rerender({ themeId: "b" });
+      act(() => result.current.select("pages/about.html"));
+      releaseDetail();
+      await waitFor(() => expect(result.current.selected).toBe("pages/index.html"));
+      await waitFor(() => expect(result.current.sourceLoaded).toBe(true));
+
+      expect(result.current.source).toBe("<h1>Home</h1>");
+    });
+  });
+
+  /**
+   * T91: renaming the open file must keep its text loaded (and its unsaved edits) instead of
+   * re-reading and silently discarding them. See `loadedFileAfterRename`.
+   */
+  describe("renaming a file", () => {
+    const STYLE_FILES = [
+      { path: "pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true },
+      { path: "css/a.css", group: "style" as const, readable: true, editable: true, resettable: true },
+      { path: "css/c.css", group: "style" as const, readable: true, editable: true, resettable: true },
+    ];
+    const STYLE_CONTENTS = { "pages/index.html": "<h1>Home</h1>", "css/a.css": "body{}", "css/c.css": "p{}" };
+
+    /** `startRename` + `setRenameDraft` + `commitRename`, then wait for the rename's own notice.
+     *  Style files (`kind !== "page"`) skip the page-rename confirm dialog, so `commitRename` alone
+     *  dispatches the rename. */
+    async function renameOpenFile(
+      result: { current: ThemeExploreController },
+      path: string,
+      name: string,
+      renamedTo: string
+    ): Promise<void> {
+      act(() => result.current.startRename(path));
+      act(() => result.current.setRenameDraft(name));
+      await act(async () => {
+        result.current.commitRename();
+      });
+      await waitFor(() => expect(result.current.notice).toBe(`Renamed to ${renamedTo}`));
+      await act(async () => {});
+    }
+
+    it("R1: never renders the unloaded mode on any render when the open file is renamed, and does not re-read it", async () => {
+      const port = createFakeThemeExplorePort({ files: STYLE_FILES, contents: STYLE_CONTENTS });
+      const modes: string[] = [];
+      const { result } = renderHook(() => {
+        const c = useThemeExplore("basic", { port, t: (k) => k }, { fileId: "css/a.css" });
+        modes.push(modeOf(c));
+        return c;
+      });
+      await waitFor(() => expect(result.current.source).toBe("body{}"));
+      act(() => result.current.setView("html"));
+      modes.length = 0;
+      const readSpy = vi.spyOn(port, "getThemeFile");
+
+      await renameOpenFile(result, "css/a.css", "b.css", "css/b.css");
+
+      expect(modes).not.toContain("unloaded");
+      expect(result.current.selected).toBe("css/b.css");
+      expect(result.current.highlightedPath).toBe("css/b.css");
+      expect(result.current.sourceLoaded).toBe(true);
+      expect(result.current.source).toBe("body{}");
+      expect(readSpy).not.toHaveBeenCalled();
+    });
+
+    it("R2: keeps unsaved edits, still unsaved, across a rename of the open file, and saves them to the new path", async () => {
+      const port = createFakeThemeExplorePort({ files: STYLE_FILES, contents: STYLE_CONTENTS });
+      const putSpy = vi.spyOn(port, "putThemeFile");
+      const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { fileId: "css/a.css" }));
+      await waitFor(() => expect(result.current.source).toBe("body{}"));
+      act(() => result.current.setView("html"));
+      act(() => result.current.setSource("body{color:red}"));
+
+      await renameOpenFile(result, "css/a.css", "b.css", "css/b.css");
+
+      expect(result.current.source).toBe("body{color:red}");
+      expect(result.current.dirty).toBe(true);
+
+      await act(async () => {
+        await result.current.save();
+      });
+      expect(putSpy).toHaveBeenCalledWith("basic", "css/b.css", "body{color:red}");
+    });
+
+    it("R3: a rename that settles after the operator opened another file does not pull the selection back", async () => {
+      const port = createFakeThemeExplorePort({ files: STYLE_FILES, contents: STYLE_CONTENTS });
+      const serverRename = port.renameThemeFile;
+      let finish: () => void = () => {};
+      port.renameThemeFile = (id, p, n) =>
+        new Promise((res) => {
+          finish = () => res(serverRename(id, p, n));
+        });
+      const modes: string[] = [];
+      const { result } = renderHook(() => {
+        const c = useThemeExplore("basic", { port, t: (k) => k });
+        modes.push(modeOf(c));
+        return c;
+      });
+      await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+      act(() => result.current.setView("html"));
+
+      act(() => result.current.startRename("css/a.css"));
+      act(() => result.current.setRenameDraft("b.css"));
+      act(() => result.current.commitRename());
+
+      act(() => result.current.select("css/c.css"));
+      await waitFor(() => expect(result.current.source).toBe("p{}"));
+      modes.length = 0;
+
+      await act(async () => {
+        finish();
+      });
+      await waitFor(() => expect(result.current.notice).toBe("Renamed to css/b.css"));
+
+      expect(result.current.selected).toBe("css/c.css");
+      expect(result.current.highlightedPath).toBe("css/c.css");
+      expect(result.current.source).toBe("p{}");
+      expect(modes).not.toContain("unloaded");
+    });
+
+    it("R4: renaming the open file whose read failed still lands unloaded with the read's error, and Save stays refused", async () => {
+      const port = createFakeThemeExplorePort({ files: STYLE_FILES, contents: STYLE_CONTENTS });
+      const serverRead = port.getThemeFile;
+      port.getThemeFile = (themeId, path) =>
+        path === "css/a.css" || path === "css/b.css" ? Promise.reject(new Error("too large")) : serverRead(themeId, path);
+      const putSpy = vi.spyOn(port, "putThemeFile");
+      const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { fileId: "css/a.css" }));
+      await waitFor(() => expect(result.current.error).toBe("too large"));
+      act(() => result.current.setView("html"));
+
+      await renameOpenFile(result, "css/a.css", "b.css", "css/b.css");
+      await waitFor(() => expect(result.current.error).toBe("too large"));
+
+      expect(result.current.selected).toBe("css/b.css");
+      expect(result.current.sourceLoaded).toBe(false);
+      expect(modeOf(result.current)).toBe("unloaded");
+      act(() => result.current.setSource("x"));
+      await act(async () => {
+        await result.current.save();
+      });
+      expect(putSpy).not.toHaveBeenCalled();
+    });
+
+    it("R5: renaming a file that is not open leaves the open file, its text and its unsaved edits alone, with no re-read", async () => {
+      const port = createFakeThemeExplorePort({ files: STYLE_FILES, contents: STYLE_CONTENTS });
+      const modes: string[] = [];
+      const { result } = renderHook(() => {
+        const c = useThemeExplore("basic", { port, t: (k) => k });
+        modes.push(modeOf(c));
+        return c;
+      });
+      await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+      act(() => result.current.setView("html"));
+      act(() => result.current.setSource("<h1>Home</h1><p>typed</p>"));
+      const readSpy = vi.spyOn(port, "getThemeFile");
+      modes.length = 0;
+
+      await renameOpenFile(result, "css/a.css", "b.css", "css/b.css");
+
+      expect(result.current.selected).toBe("pages/index.html");
+      expect(result.current.source).toBe("<h1>Home</h1><p>typed</p>");
+      expect(result.current.dirty).toBe(true);
+      expect(readSpy).not.toHaveBeenCalled();
+      expect(modes).not.toContain("unloaded");
+    });
+  });
 });
 
 describe("shouldAwaitFileText", () => {
@@ -2894,6 +3242,116 @@ describe("shouldAwaitFileText", () => {
     ["an open file whose text is not loaded", { sourceLoaded: false }],
   ])("opens at once for %s", (_case, override) => {
     expect(shouldAwaitFileText({ ...base, ...override })).toBe(false);
+  });
+});
+
+describe("requestedSelectionMove", () => {
+  function file(path: string, readable: boolean): ThemeExploreFile {
+    return {
+      path,
+      label: path.slice(path.lastIndexOf("/") + 1).replace(/\.html$/, ""),
+      kind: "page",
+      readable,
+      editable: true,
+      resettable: true,
+      modified: false,
+      published: null,
+      collidingContent: null,
+    };
+  }
+  const index = file("pages/index.html", true);
+  const about = file("pages/about.html", true);
+  const img: ThemeExploreFile = { ...file("img/logo.png", false), kind: "asset", label: "logo.png" };
+  const files = [index, about, img];
+  const open: SelectionHoldSnapshot = {
+    themeId: "basic",
+    selected: "pages/index.html",
+    source: "x",
+    savedSource: "x",
+    loadedFile: { themeId: "basic", path: "pages/index.html" },
+    view: "html",
+  };
+  const base = { themeId: "basic", path: "pages/about.html", files, open, clickedSinceLoad: false, listedThemeId: "basic" };
+
+  it("holds a readable target while the open file's text is loaded and still listed as readable", () => {
+    expect(requestedSelectionMove(base)).toEqual({ kind: "hold", path: "pages/about.html" });
+  });
+
+  const opensAtOnceCases: Array<[string, Record<string, unknown>, RequestedSelectionMove]> = [
+    ["the Preview view", { open: { ...open, view: "preview" as const } }, { kind: "open", path: "pages/about.html" }],
+    ["the open file's text not loaded", { open: { ...open, loadedFile: null } }, { kind: "open", path: "pages/about.html" }],
+    [
+      "the open file loaded under another theme",
+      { open: { ...open, loadedFile: { themeId: "other", path: "pages/index.html" } } },
+      { kind: "open", path: "pages/about.html" },
+    ],
+    ["the target already the open file", { path: "pages/index.html" }, { kind: "open", path: "pages/index.html" }],
+    ["a target that is not readable", { path: "img/logo.png" }, { kind: "open", path: "img/logo.png" }],
+    ["a target not listed", { path: "pages/gone.html" }, { kind: "open", path: "pages/gone.html" }],
+    ["the open file missing from the new listing", { files: [about, img] }, { kind: "open", path: "pages/about.html" }],
+    [
+      "the open file listed but not readable",
+      { files: [{ ...index, readable: false }, about, img] },
+      { kind: "open", path: "pages/about.html" },
+    ],
+    ["path: null", { path: null }, { kind: "open", path: null }],
+    [
+      "a first load",
+      { open: { ...open, selected: null, loadedFile: null }, listedThemeId: null },
+      { kind: "open", path: "pages/about.html" },
+    ],
+  ];
+
+  it.each(opensAtOnceCases)("opens at once for %s", (_case, override, expected) => {
+    expect(requestedSelectionMove({ ...base, ...override })).toEqual(expected);
+  });
+
+  it("skips when a click landed after this load started, on this same theme's listing", () => {
+    expect(requestedSelectionMove({ ...base, clickedSinceLoad: true })).toEqual({ kind: "skip" });
+  });
+
+  it("does not skip a click on the OLD theme's listing during a theme switch — it still holds", () => {
+    expect(requestedSelectionMove({ ...base, clickedSinceLoad: true, listedThemeId: "other" })).toEqual({
+      kind: "hold",
+      path: "pages/about.html",
+    });
+  });
+});
+
+describe("loadedFileAfterRename", () => {
+  const renamed: ThemeExploreFile = {
+    path: "css/b.css",
+    label: "b.css",
+    kind: "style",
+    readable: true,
+    editable: true,
+    resettable: true,
+    modified: false,
+    published: null,
+    collidingContent: null,
+  };
+  const loaded = { themeId: "basic", path: "css/a.css" };
+
+  it("moves the marker to the renamed path", () => {
+    expect(loadedFileAfterRename(loaded, { themeId: "basic", from: "css/a.css", to: "css/b.css", renamed })).toEqual({
+      themeId: "basic",
+      path: "css/b.css",
+    });
+  });
+
+  const keepsMarkerCases: Array<
+    [string, { themeId: string; path: string } | null, { themeId: string; from: string; to: string; renamed: ThemeExploreFile | undefined }]
+  > = [
+    ["a buffer from another file", loaded, { themeId: "basic", from: "css/c.css", to: "css/b.css", renamed }],
+    ["no buffer", null, { themeId: "basic", from: "css/a.css", to: "css/b.css", renamed }],
+    ["another theme's buffer", loaded, { themeId: "other", from: "css/a.css", to: "css/b.css", renamed }],
+    ["no listing entry", loaded, { themeId: "basic", from: "css/a.css", to: "css/b.css", renamed: undefined }],
+    ["not readable", loaded, { themeId: "basic", from: "css/a.css", to: "css/b.css", renamed: { ...renamed, readable: false } }],
+    ["readable but not editable", loaded, { themeId: "basic", from: "css/a.css", to: "css/b.css", renamed: { ...renamed, editable: false } }],
+  ];
+
+  it.each(keepsMarkerCases)("keeps the marker for %s", (_case, input, args) => {
+    expect(loadedFileAfterRename(input, args)).toBe(input);
   });
 });
 

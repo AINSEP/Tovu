@@ -537,6 +537,8 @@ export function shouldAdoptRefreshedText({
  * briefly on every file load"). With nothing loaded there is nothing better to show, and the Preview
  * view shows no source, so those still open at once.
  *
+ * Also decides a `?file=`/`?page=` reselect, through {@link requestedSelectionMove}.
+ *
  * @complexity O(1).
  */
 export function shouldAwaitFileText({
@@ -568,6 +570,83 @@ function readPathFor(
   selected: string | null
 ): string | null {
   return pending !== null && pending.themeId === themeId ? pending.path : selected;
+}
+
+/** `OpenFileSnapshot` plus the view: what a `?file=`/`?page=` reselect decides against (see {@link requestedSelectionMove}). */
+export interface SelectionHoldSnapshot extends OpenFileSnapshot {
+  view: ThemeExploreView;
+}
+
+/** Whether `files` lists `path` as a readable file. `null` never is.
+ *
+ * @complexity O(n) in `files.length`.
+ */
+function isListedReadable(files: ThemeExploreFile[], path: string | null): boolean {
+  return path !== null && files.find((f) => f.path === path)?.readable === true;
+}
+
+export type RequestedSelectionMove = { kind: "skip" } | { kind: "hold"; path: string } | { kind: "open"; path: string | null };
+
+/**
+ * What the initial-load effect does with the path `?file=`/`?page=` (or the default) resolved to, once `files` (the new
+ * listing) has landed. `skip` when a click landed after the load started on this same theme's listing: the click is newer
+ * and owns the selection. `hold` exactly when `select` would hold a click (see {@link shouldAwaitFileText}), and only while
+ * the open file is still listed as readable, so the text kept on screen still has an entry to save to. `open` otherwise.
+ * `open` is also the answer for a first load and a theme switch.
+ *
+ * @complexity O(n) in `files.length`.
+ */
+export function requestedSelectionMove({
+  themeId,
+  path,
+  files,
+  open,
+  clickedSinceLoad,
+  listedThemeId,
+}: {
+  themeId: string;
+  path: string | null;
+  files: ThemeExploreFile[];
+  open: SelectionHoldSnapshot;
+  clickedSinceLoad: boolean;
+  listedThemeId: string | null;
+}): RequestedSelectionMove {
+  if (clickedSinceLoad && listedThemeId === themeId) return { kind: "skip" };
+  if (path === null || !isListedReadable(files, open.selected)) return { kind: "open", path };
+  const hold = shouldAwaitFileText({
+    view: open.view,
+    file: files.find((f) => f.path === path),
+    path,
+    selected: open.selected,
+    sourceLoaded: isOpenFileLoaded(open.loadedFile, themeId, open.selected),
+  });
+  return hold ? { kind: "hold", path } : { kind: "open", path };
+}
+
+/** `path` after the file at `from` was renamed to `to`.
+ *
+ * @complexity O(1).
+ */
+function renamedPath(path: string | null, from: string, to: string): string | null {
+  return path === from ? to : path;
+}
+
+/**
+ * The loaded-file marker after the file at `from` in `themeId` was renamed to `to`. The server moves a file's bytes
+ * unchanged, in the same folder and with the same extension (`theme-files.ts`'s `renameThemeFile`, `explore.ts`'s
+ * `renameThemeFileIfChanged`). So a buffer read from `from` IS that file's text under `to`. The marker moves with it,
+ * and the editor stays loaded: no re-read, no unloaded render, and unsaved edits kept. Returned unchanged when the buffer
+ * is another file's or nothing's, or when `renamed` (the new listing's entry) is not a readable, editable file. The
+ * file-read effect then reads or clears it like any other open file.
+ *
+ * @complexity O(1).
+ */
+export function loadedFileAfterRename(
+  loaded: { themeId: string; path: string } | null,
+  { themeId, from, to, renamed }: { themeId: string; from: string; to: string; renamed: ThemeExploreFile | undefined }
+): { themeId: string; path: string } | null {
+  if (!isOpenFileLoaded(loaded, themeId, from) || renamed?.readable !== true || renamed?.editable !== true) return loaded;
+  return { themeId, path: to };
 }
 
 /**
@@ -780,12 +859,20 @@ export function useThemeExplore(
   const [savedSource, setSavedSource] = useState("");
   // The theme and path `source`/`savedSource` were last set from by a read, save or text-returning
   // reset (see `sourceLoaded`). Keyed by theme too, so opening another theme at the same path does not
-  // count as loaded before that theme's own read lands.
+  // count as loaded before that theme's own read lands. A rename of that file moves it along (see
+  // `loadedFileAfterRename`).
   const [loadedFile, setLoadedFile] = useState<{ themeId: string; path: string } | null>(null);
-  // A click `select` is holding until the clicked file's text is read (see `shouldAwaitFileText`),
-  // keyed by theme. Cleared when that read settles, or when another action sets the selection itself
-  // (a load, copy, rename or delete).
+  // A click, or a `?file=`/`?page=` change, that `select` or the initial-load effect is holding
+  // (see `shouldAwaitFileText`), keyed by theme. Cleared when that read settles, or when another
+  // action sets the selection itself (a load, copy, rename or delete).
   const [pendingSelection, setPendingSelection] = useState<{ themeId: string; path: string } | null>(null);
+  // Bumped by every `select` and by every start of the initial-load effect, so that effect can tell a
+  // click landed after it started and must not be overridden (see `requestedSelectionMove`).
+  const selectionGeneration = useSettlementGeneration();
+  // The theme whose listing `files` holds, as last set by the initial-load effect. A later click only
+  // outranks a reselect of that same listing. During a theme switch, the click was on the old theme's
+  // list.
+  const listedThemeRef = useRef<string | null>(null);
   // Bumped to read the open file again without changing the selection: only after a reset that
   // returned no text.
   const [fileReadNonce, setFileReadNonce] = useState(0);
@@ -829,13 +916,21 @@ export function useThemeExplore(
     tRef.current = t;
   });
 
+  // The editor state as of the last commit. A refresh read settles after renders its own closure never
+  // saw, so it checks this instead (see `shouldAdoptRefreshedText`). A layout effect writes it during
+  // the commit itself, so no settlement can land between a commit and the snapshot catching up. The
+  // initial-load effect's reselect reads it too, for the same reason.
+  const openFileRef = useRef<SelectionHoldSnapshot>({ themeId, selected, source, savedSource, loadedFile, view });
+  useLayoutEffect(() => {
+    openFileRef.current = { themeId, selected, source, savedSource, loadedFile, view };
+  });
+
   useEffect(() => {
     let cancelled = false;
+    const generation = selectionGeneration.next();
     fetchThemeExploreState(themeId, port)
       .then(({ detail: nextDetail, files: nextFiles }) => {
         if (cancelled) return;
-        setDetail(nextDetail);
-        setFiles(nextFiles);
         // `?file=`/`?page=` when the caller named one (through the shared resolver), else the
         // theme's own index page — `loadTheme` requires it, so a valid theme always has one. See
         // {@link initialSelectedPath}. Deliberately does NOT write back to the address bar itself —
@@ -847,8 +942,29 @@ export function useThemeExplore(
           pageId,
           apiVersion: nextDetail.apiVersion,
         });
-        setSelected(path);
-        setPendingSelection(null);
+        // Decided from the commit-time snapshot, not this closure: the view, the open file and a click
+        // can all have moved while the listing was in flight. MUST be computed before `listedThemeRef`
+        // is updated below.
+        const move = requestedSelectionMove({
+          themeId,
+          path,
+          files: nextFiles,
+          open: openFileRef.current,
+          clickedSinceLoad: !selectionGeneration.isCurrent(generation),
+          listedThemeId: listedThemeRef.current,
+        });
+        setDetail(nextDetail);
+        setFiles(nextFiles);
+        listedThemeRef.current = themeId;
+        if (move.kind === "skip") return;
+        if (move.kind === "hold") {
+          // Same hold as a click (see `select`): the open file stays on screen until the requested
+          // file's text lands.
+          setPendingSelection({ themeId, path: move.path });
+        } else {
+          setSelected(move.path);
+          setPendingSelection(null);
+        }
         // Only when something was actually asked for and NEITHER param resolved to a file this
         // theme has — an intentional layered fallback (`fileId` failing over to a valid `pageId`)
         // is not a miss. This is the fix for the owner-reported bug: a stale/mistyped link must
@@ -868,8 +984,11 @@ export function useThemeExplore(
     // own `select` (see `writeThemeExploreSelectionToUrl`'s own doc, `theme-explore-url.hooks.ts`,
     // for why that write deliberately does not notify this effect) — so this does not refetch on an
     // ordinary click, and re-running the INITIAL-load effect is exactly right on the navigations
-    // where it does move.
-  }, [themeId, port, pageId, fileId]);
+    // where it does move. `selectionGeneration` has a stable identity, so listing it here never re-runs
+    // this effect on its own — it only lets `.then` tell a click landed after this run started. A
+    // reselect in the HTML view holds like a click, and a click after the reselect started wins (see
+    // `requestedSelectionMove`).
+  }, [themeId, port, pageId, fileId, selectionGeneration]);
 
   // The effect below keys off the open file's `readable` flag, not the whole `files` array. A list
   // update that leaves that flag alone (the modified-state refresh after a save or reset, a publish
@@ -930,14 +1049,6 @@ export function useThemeExplore(
       cancelled = true;
     };
   }, [themeId, readPath, readPathReadable, readPathLoaded, port, fileReadNonce]);
-
-  // The editor state as of the last commit. A refresh read settles after renders its own closure never
-  // saw, so it checks this instead (see `shouldAdoptRefreshedText`). A layout effect writes it during
-  // the commit itself, so no settlement can land between a commit and the snapshot catching up.
-  const openFileRef = useRef<OpenFileSnapshot>({ themeId, selected, source, savedSource, loadedFile });
-  useLayoutEffect(() => {
-    openFileRef.current = { themeId, selected, source, savedSource, loadedFile };
-  });
 
   // Same stale-settlement guard as `renameSettlement` above: two saves, or a save then a reset, can
   // have their detail reads land out of order, and the older read must not overwrite the newer one.
@@ -1074,6 +1185,8 @@ export function useThemeExplore(
    * authoritative for the renamed entry's `group`/`editable`/`resettable` (a `.html` renamed to
    * `.txt` would reclassify, for instance), and a targeted patch would have to reproduce that logic
    * a second time to stay correct.
+   *
+   * The open file keeps its text through a rename: see `loadedFileAfterRename`.
    */
   const performRename = useCallback(
     async (sourcePath: string, name: string) => {
@@ -1082,7 +1195,6 @@ export function useThemeExplore(
       setError(null);
       try {
         const r = await port.renameThemeFile(themeId, sourcePath, name);
-        const nextSelected = selected === sourcePath ? r.path : selected;
         const { detail: nextDetail, files: nextFiles } = await fetchThemeExploreState(themeId, port);
         // Superseded by a newer rename call started after this one — that later call owns
         // `detail`/`files`/`selected`/`notice` now, and applying this stale result would let
@@ -1091,7 +1203,13 @@ export function useThemeExplore(
         if (!renameSettlement.isCurrent(generation)) return;
         setDetail(nextDetail);
         setFiles(nextFiles);
-        setSelected(nextSelected);
+        // Functional: the operator may have opened another file while this rename was in flight, and
+        // the selection and the loaded-file marker must follow the same current state. A rename of the
+        // open file keeps its text loaded (see `loadedFileAfterRename`), so the editor never renders
+        // unloaded and no re-read discards unsaved edits.
+        const renamed = nextFiles.find((f) => f.path === r.path);
+        setSelected((current) => renamedPath(current, sourcePath, r.path));
+        setLoadedFile((current) => loadedFileAfterRename(current, { themeId, from: sourcePath, to: r.path, renamed }));
         setPendingSelection(null);
         setNotice(translateWith(tRef.current, "Renamed to {file}", "file", r.path));
         setPreviewNonce((n) => n + 1);
@@ -1105,7 +1223,7 @@ export function useThemeExplore(
         setRenameDraft("");
       }
     },
-    [themeId, selected, port, renameSettlement]
+    [themeId, port, renameSettlement]
   );
 
   const startRename = useCallback(
@@ -1266,9 +1384,13 @@ export function useThemeExplore(
    * In the HTML view a readable file is not opened here: the click is held until its text is read (see
    * {@link shouldAwaitFileText}) and the file-read effect opens it. The address bar and
    * `highlightedPath` still follow the click at once.
+   *
+   * Every click also bumps `selectionGeneration`, so a `?file=`/`?page=` reselect that started earlier
+   * cannot override it.
    */
   const select = useCallback(
     (path: string) => {
+      selectionGeneration.next();
       const file = files.find((f) => f.path === path);
       if (file) writeThemeExploreSelectionToUrl(file);
       if (shouldAwaitFileText({ view, file, path, selected, sourceLoaded })) {
@@ -1278,7 +1400,7 @@ export function useThemeExplore(
       setPendingSelection(null);
       setSelected(path);
     },
-    [files, view, selected, sourceLoaded, themeId]
+    [files, view, selected, sourceLoaded, themeId, selectionGeneration]
   );
 
   /**
