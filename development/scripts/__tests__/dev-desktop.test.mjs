@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 
@@ -19,6 +20,13 @@ const { waitForFileStable } = devDesktop;
  * saw the real change. The fix adds a `sinceMs` freshness floor: a stat older than `sinceMs` is
  * treated as not-yet-built-this-run and cannot satisfy the wait on its own — see the function's own
  * doc comment in `../dev-desktop.mjs` for the full mechanism.
+ *
+ * Also covers the admin-Vite autostart helpers added later (second section below).
+ *
+ * Run with: `node --import tsx --test development/scripts/__tests__/dev-desktop.test.mjs` — `tsx` is
+ * required because this file imports a `.ts` module for `DEFAULT_STOP_GRACE_MS`. Nothing in CI runs
+ * it: the root `test`/`test:ci` scripts glob only `.test.ts` files under `development/scripts`, so
+ * every `.test.mjs` in this directory is manual-run-only.
  */
 
 function delay(ms) {
@@ -82,4 +90,105 @@ test("waitForFileStable: resolves false, not hung forever, when the file never a
   const missingPath = path.join(dir, "never-written.html");
   const result = await waitForFileStable(missingPath, { timeoutMs: 100, pollMs: 20, stableChecks: 2 });
   assert.equal(result, false);
+});
+
+// --- admin Vite autostart ---------------------------------------------------------
+//
+// `npm run desktop` starts an admin Vite so `/admin` inside the app hot-reloads instead of serving
+// whatever `apps/admin/dist` last held. The helpers below are the decision points in that path:
+// whether the opt-out was set, whether a Vite is answering, and how long to wait for one.
+
+const { isFlagEnabled, probeAdminVite, waitForAdminVite } = devDesktop;
+
+test("isFlagEnabled: only an explicit 1/true enables — a literal \"false\" must not read as \"on\"", () => {
+  // The 2026-09-05 audit finding against TOVU_DISABLE_DEV_TLS: a bare truthy check on the raw string
+  // treated `TOVU_DISABLE_DEV_TLS=false` as "disable", inverting the operator's stated intent.
+  for (const raw of ["1", "true", "TRUE", " true ", "True"]) {
+    assert.equal(isFlagEnabled(raw), true, `${JSON.stringify(raw)} must enable`);
+  }
+  for (const raw of ["false", "FALSE", "0", "", "  ", "yes", "no", undefined, null]) {
+    assert.equal(isFlagEnabled(raw), false, `${JSON.stringify(raw)} must not enable`);
+  }
+});
+
+/** A stand-in Vite: any listener that speaks HTTP is "up" as far as the probe is concerned. */
+function listeningServer(t, handler = (_req, res) => res.end("ok")) {
+  return new Promise((resolve) => {
+    const server = http.createServer(handler);
+    server.listen(0, "127.0.0.1", () => {
+      t.after(() => server.close());
+      resolve(server.address().port);
+    });
+  });
+}
+
+test("probeAdminVite: any HTTP answer counts as up, 404 included — Vite 404s /admin/ during startup", async (t) => {
+  const port = await listeningServer(t, (_req, res) => {
+    res.statusCode = 404;
+    res.end("not found");
+  });
+  assert.equal(await probeAdminVite(port, { host: "127.0.0.1" }), true);
+});
+
+test("probeAdminVite: nothing listening is a miss, not a hang", async () => {
+  // Port 1 is privileged and unbound; the connection is refused immediately rather than timing out.
+  // Do not "fix" this into a high port — an unbound high port can sit in a filtered state and burn
+  // the full probe timeout on both schemes.
+  assert.equal(await probeAdminVite(1, { host: "127.0.0.1" }), false);
+});
+
+/** A port nothing is listening on right now: bind an ephemeral one, note it, give it back. */
+function reservePort() {
+  return new Promise((resolve) => {
+    const probe = http.createServer();
+    probe.listen(0, "127.0.0.1", () => {
+      const chosen = probe.address().port;
+      probe.close(() => resolve(chosen));
+    });
+  });
+}
+
+test("waitForAdminVite: resolves true for a Vite that only comes up AFTER the wait begins", async (t) => {
+  const port = await reservePort();
+  const server = http.createServer((_req, res) => res.end("ok"));
+  // Both cleaned up unconditionally: a pending `listen` timer that fires after a FAILED assertion
+  // leaves a bound server nothing ever closes, and the test runner then hangs on the live handle
+  // instead of reporting the failure.
+  const timer = setTimeout(() => server.listen(port, "127.0.0.1"), 80);
+  t.after(() => {
+    clearTimeout(timer);
+    if (server.listening) server.close();
+  });
+
+  assert.equal(await waitForAdminVite(port, { host: "127.0.0.1", timeoutMs: 5_000, pollMs: 25 }), true);
+});
+
+test("waitForAdminVite: resolves false on timeout rather than rejecting — a broken Vite must still let Electron start", async () => {
+  assert.equal(await waitForAdminVite(1, { host: "127.0.0.1", timeoutMs: 120, pollMs: 25 }), false);
+});
+
+test("waitForAdminVite: an aborted wait resolves false at once — a Vite that failed to boot must not cost 30s", async () => {
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), 20);
+  const startedAt = Date.now();
+  assert.equal(
+    await waitForAdminVite(1, { host: "127.0.0.1", timeoutMs: 30_000, pollMs: 25, signal: controller.signal }),
+    false,
+  );
+  assert.ok(Date.now() - startedAt < 5_000, "abort must short-circuit the deadline, not wait it out");
+});
+
+test("waitForAdminVite: an already-aborted signal resolves false without probing at all", async () => {
+  assert.equal(
+    await waitForAdminVite(1, { host: "127.0.0.1", timeoutMs: 30_000, signal: AbortSignal.abort() }),
+    false,
+  );
+});
+
+test("probeAdminVite: a junk TOVU_ADMIN_DEV_PORT is a miss, not an unhandled rejection in the launcher", async () => {
+  // `ADMIN_VITE_PORT` is `Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173)`, so a non-numeric value
+  // arrives here as NaN and `new URL("https://localhost:NaN")` throws. Same verdict
+  // `apps/desktop/src/admin-dev-proxy.ts` reaches for the same input: no candidate.
+  assert.equal(await probeAdminVite(Number("not-a-port"), { host: "127.0.0.1" }), false);
+  assert.equal(await probeAdminVite(70000, { host: "127.0.0.1" }), false);
 });

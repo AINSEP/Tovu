@@ -30,6 +30,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { loadRepoRootEnvFile } from "./load-repo-root-env.mjs";
+import { listenersOn } from "./port-listeners.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -113,24 +114,6 @@ export function deriveDevScheme(tlsActive) {
   return tlsActive ? "https" : "http";
 }
 
-/** @returns {{pid: string, command: string}[]} processes listening on `port`. */
-function listenersOn(port) {
-  const out = spawnSync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-F", "pc"], {
-    encoding: "utf8",
-  });
-  if (out.status !== 0 || !out.stdout) return [];
-  const found = [];
-  let pid = null;
-  for (const line of out.stdout.split("\n")) {
-    if (line.startsWith("p")) pid = line.slice(1);
-    else if (line.startsWith("c") && pid) {
-      found.push({ pid, command: line.slice(1) });
-      pid = null;
-    }
-  }
-  return found;
-}
-
 function preflight() {
   const conflicts = [];
   for (const [label, port] of [
@@ -149,7 +132,9 @@ function preflight() {
   console.error(
     "\nThis is usually an orphaned process from an earlier run. Inspect it first, then:\n" +
       `  kill ${conflicts.map((c) => c.match(/PID (\d+)/)?.[1]).filter(Boolean).join(" ")}\n\n` +
-      "If it is a daemon holding infra/content.db, killing it also releases the database.\n"
+      "If it is a daemon holding infra/content.db, killing it also releases the database.\n" +
+      `\`npm run desktop\` now starts an admin Vite on port ${VITE_PORT} too; if that is what is holding it,\n` +
+      "stop the desktop or re-run it with TOVU_DESKTOP_DISABLE_ADMIN_VITE=1.\n"
   );
   process.exit(1);
 }
