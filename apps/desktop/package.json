@@ -9,7 +9,7 @@
     "dev": "electron .",
     "attach": "electron .",
     "build": "npm run build:preload && npm run build:renderer",
-    "build:preload": "tsc -p tsconfig.preload.json",
+    "build:preload": "rm -rf dist/preload dist/contracts dist/speech && tsc -p tsconfig.preload.json",
     "build:renderer": "vite build",
     "watch:renderer": "vite build --watch",
     "typecheck": "tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json && tsc -p tsconfig.main.json",
