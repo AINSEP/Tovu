@@ -192,3 +192,16 @@ export {
   type ThemeFileGroup,
   type FileIdentityLockResult,
 } from "./file-identity-lock.js";
+
+// 2026-09-16 (w4 lifecycle design "D") — generates `__original-themes__` from the shipped tree it
+// mirrors instead of hand-maintaining it. Re-exported so `cli/commands/theme/sync-originals.ts` and
+// the drift canary (`__tests__/shipped-theme-original-drift.canary.test.ts`) both reach it through
+// this barrel, same reasoning as every export above.
+export {
+  syncThemeOriginals,
+  writeGeneratedThemeOriginal,
+  diffThemeFolders,
+  relativeFilePaths,
+  type SyncThemeOriginalsResult,
+  type SyncThemeOriginalsThemeResult,
+} from "./sync-originals.js";
