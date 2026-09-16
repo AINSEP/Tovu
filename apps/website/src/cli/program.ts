@@ -9,6 +9,7 @@ import { runServeCommand } from "./commands/serve.js";
 import { runThemeGenerateIndexCommand } from "./commands/theme/generate-index.js";
 import { runThemeMigrateCommand } from "./commands/theme/migrate.js";
 import { runThemeNormalizeBuildCommand } from "./commands/theme/normalize-build.js";
+import { runThemeSyncOriginalsCommand } from "./commands/theme/sync-originals.js";
 import { runThemeValidateCommand } from "./commands/theme/validate.js";
 import { introspectProgram } from "./introspect.js";
 
@@ -118,6 +119,16 @@ export function createProgram(): Command {
     .option("--json", "print the full machine-readable result instead of a human-readable summary")
     .action(async (dir: string, options: { json?: boolean }) => {
       await runThemeGenerateIndexCommand({ dir, json: options.json });
+    });
+  themeProgram
+    .command("sync-originals")
+    .description(
+      "(re)generate every shipped theme's '__original-themes__' entry from its live folder, filtered the same way a marketplace download is — removes the need to hand-maintain the 'reset to original' catalog"
+    )
+    .argument("<themesRoot>", "themes root directory (e.g. content/themes) — NOT a single theme's own folder")
+    .option("--json", "print the full machine-readable result instead of a human-readable summary")
+    .action(async (themesRoot: string, options: { json?: boolean }) => {
+      await runThemeSyncOriginalsCommand({ themesRoot, json: options.json });
     });
   themeProgram
     .command("normalize-build")
