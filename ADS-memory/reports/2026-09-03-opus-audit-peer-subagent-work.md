@@ -336,7 +336,7 @@ Three paths, one fixture file under its pre-restructure names. Distinct AIza VAL
 |---|---|---|
 | 9 | `AIzaSyCUyt…` (39 chars, real Google key shape) | **the already-known, already-revoked Gemini key** |
 | 9 | `AIzaFAKEFAKEFAKE…` | self-identifying placeholder, not a credential |
-| 8 | `AIzaTest-FAKE-GEMINI-KEY-NOT-REAL-00000` | the 44-char synthetic fixture; the guard's lookahead means it does not actually produce a hit |
+| 8 | the self-labeled `AIza`-prefixed "Test-FAKE-GEMINI-KEY-NOT-REAL" placeholder (already allowlisted in `secret-scan-guard.ts` for `development/e2e/byok-google-tool-schema.spec.ts`) | the 44-char synthetic fixture; the guard's lookahead means it does not actually produce a hit |
 
 *(The real key's full value is deliberately not written into this report — writing it here would create a new tracked file containing it.)*
 
