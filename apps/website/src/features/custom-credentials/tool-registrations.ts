@@ -40,7 +40,9 @@ import {
   type CredentialedRequestAuditPort,
   type CredentialedRequestDeclinedResult,
   type CredentialedRequestDeps,
+  type CredentialedRequestExecutedResult,
   type CredentialedRequestOutcome,
+  type MakeCredentialedRequestInput,
 } from "./credentialed-request.js";
 import { buildCreateFormResource, buildCreateOutcomeResource, CREATE_TOOL_ID, type CreateCredentialPrefill } from "./custom-credential-create-ui.js";
 import { buildSetTokenFormResource, buildSetTokenOutcomeResource, SET_TOKEN_TOOL_ID } from "./custom-credential-set-token-ui.js";
@@ -289,6 +291,10 @@ const WRITE_PERMISSION = `${DOMAIN}.write`;
  * `EgressRefusedError` unchanged — see its own doc); this predicate is the second half, recognizing
  * the preserved type once it arrives here.
  *
+ * An `EgressRefusedError` reaches the model in its `callerSafeMessage` form only — without the
+ * address the hostname resolved to — via {@link makeModelFacingCredentialedRequest}, which every
+ * call site uses instead of wrapping this predicate directly.
+ *
  * Deliberately NOT `CredentialedRequestTransportError` (a DNS failure, timeout, or connection error
  * is not a decision this process made, and a different URL does not reliably fix it — same reasoning
  * `isImportShapeRejection`'s own doc gives for the identical class of failure) and NOT
@@ -299,6 +305,30 @@ const WRITE_PERMISSION = `${DOMAIN}.write`;
  */
 function isCredentialedRequestShapeRejection(error: unknown): boolean {
   return error instanceof CredentialedRequestValidationError || error instanceof EgressRefusedError;
+}
+
+/**
+ * `makeCredentialedRequest` as the model may see it fail: shape rejections schema-decorated per
+ * {@link isCredentialedRequestShapeRejection}, and an `EgressRefusedError` narrowed to its
+ * `callerSafeMessage` BEFORE that decoration reads `.message`.
+ *
+ * Coordinator default (2026-09-16), awaiting owner confirmation: the refusal and the hostname the
+ * request named are the real reason and still reach the model; the address that hostname resolved
+ * to does not. A model that can name any host and read back its resolved address can map internal
+ * DNS one call at a time (`internal-db.corp` -> `10.0.4.7`). The full message, address included, is
+ * kept server-side in the audit entry `makeCredentialedRequest` records (`egressRefusal`).
+ *
+ * @complexity O(1) beyond `makeCredentialedRequest` itself.
+ */
+async function makeModelFacingCredentialedRequest(requestDeps: CredentialedRequestDeps, input: MakeCredentialedRequestInput): Promise<CredentialedRequestExecutedResult> {
+  return withSchemaOnRejection({ toolId: MAKE_CREDENTIALED_REQUEST_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: isCredentialedRequestShapeRejection }, async () => {
+    try {
+      return await makeCredentialedRequest(requestDeps, input);
+    } catch (err) {
+      if (err instanceof EgressRefusedError) throw new EgressRefusedError(err.callerSafeMessage, { callerSafeMessage: err.callerSafeMessage });
+      throw err;
+    }
+  });
 }
 
 /**
@@ -351,8 +381,8 @@ function isWriteFilesShapeRejection(error: unknown): boolean {
  * - `CustomCredentialSecretStoreUnconfiguredError`: its decrypt arm embeds the sealer's or
  *   `JSON.parse`'s own message, and `JSON.parse` quotes the start of its input — decrypted plaintext.
  * - `CredentialedRequestTransportError`: embeds raw transport text (`connect ECONNREFUSED <ip>:443`).
- * - `EgressRefusedError` at map level: `make_request`'s own predicate already decides where it
- *   surfaces, and its message names a resolved address (`platform/http/client.ts`).
+ * - `EgressRefusedError` at map level: its `message` names a resolved address. It surfaces only
+ *   through {@link makeModelFacingCredentialedRequest}, in its address-free form.
  * - `CustomCredentialDuplicateLabelError`: never escapes as a throw (`mapCreateCredentialError`).
  * - `write_files`' plan-failure `Error`, which carries upstream GitHub or transport text, and
  *   {@link buildWriteFilesConfirmationFileSpecs}' internal-invariant `Error`.
@@ -1149,10 +1179,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: WRITE_PERMISSION, entityType: DOMAIN });
 
       if (method !== "DELETE") {
-        return withSchemaOnRejection(
-          { toolId: MAKE_CREDENTIALED_REQUEST_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: isCredentialedRequestShapeRejection },
-          () => makeCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method, url, headers: input.headers, body: input.body })
-        );
+        return makeModelFacingCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method, url, headers: input.headers, body: input.body });
       }
 
       // Non-decrypting: a declined/expired/off-allowlist DELETE must never have cost a decrypt.
@@ -1191,10 +1218,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       }
       if (!decision.confirmed) return decision.result;
 
-      return withSchemaOnRejection(
-        { toolId: MAKE_CREDENTIALED_REQUEST_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: isCredentialedRequestShapeRejection },
-        () => makeCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method: "DELETE", url, headers: input.headers, body: input.body })
-      );
+      return makeModelFacingCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method: "DELETE", url, headers: input.headers, body: input.body });
     },
 
     // Writes one or more named files into a saved credential's repository, in one atomic commit, ALWAYS

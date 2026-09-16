@@ -209,6 +209,45 @@ test("rejects a private/loopback/link-local target pre-connect for each address 
   assert.equal(transport.calls.length, 0, "transport must never be reached for a rejected target");
 });
 
+test("an address refusal keeps the resolved address in `message` but never in `callerSafeMessage`", async () => {
+  // `localhost` resolves offline through the hosts file and is not an IP literal, so the host the
+  // request named and the address it resolved to are different strings. A caller shown the address
+  // could map internal DNS one request at a time — see `errors.ts`.
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  const err = await client.send(makeRequest({ url: "https://localhost/" })).then(
+    () => null,
+    (caught: unknown) => caught
+  );
+
+  assert.ok(err instanceof EgressRefusedError, String(err));
+  assert.match(err.message, /^egress to 'localhost' \((127\.0\.0\.1|::1)\) rejected: resolved address is loopback$/);
+  assert.equal(err.callerSafeMessage, "egress to 'localhost' rejected: resolved address is loopback");
+  assert.equal(transport.calls.length, 0);
+});
+
+test("scheme and embedded-credential refusals carry the same text in both messages — neither names an address", async () => {
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  for (const url of ["http://example.com/", "https://user:pass@example.com/"]) {
+    const err = await client.send(makeRequest({ url })).then(
+      () => null,
+      (caught: unknown) => caught
+    );
+    assert.ok(err instanceof EgressRefusedError, `${url}: ${String(err)}`);
+    assert.equal(err.callerSafeMessage, err.message, url);
+  }
+});
+
+test("an EgressRefusedError built without a callerSafeMessage says LESS, never more", () => {
+  const err = new EgressRefusedError("egress to 'internal-db.corp' (10.0.4.7) rejected: resolved address is private");
+
+  assert.equal(err.callerSafeMessage, "egress to the requested host was refused by this site's outbound network policy");
+  assert.ok(!err.callerSafeMessage.includes("10.0.4.7"));
+});
+
 test("rejects bracketed IPv6-literal link-local/private/multicast targets, correctly classified despite the URL's bracketed hostname", async () => {
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
   const client = createHttpClient({ transport, policy: makePolicy() });

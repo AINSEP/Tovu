@@ -228,7 +228,9 @@ import { EgressRefusedError, type HttpClientPort } from "../../platform/http/ind
  * exactly `{label, host, method, status, bodyBytes, at}` via {@link CredentialedRequestAuditPort}.
  * `status: 0` means "never got a response" (DNS failure, timeout, or an `EgressPolicy` refusal),
  * distinct from any real HTTP status a provider could return. `bodyBytes` is a SIZE only — never the
- * body itself, never the token.
+ * body itself, never the token. An egress refusal adds `egressRefusal`, the refusal's FULL message
+ * (2026-09-16): the resolved address it names is withheld from the model (see
+ * `platform/http/errors.ts`), so this server-side trail is where it is kept.
  *
  * **Bounded.** {@link CREDENTIALED_REQUEST_TIMEOUT_MS} caps one call; {@link MAX_REQUEST_BODY_BYTES}
  * caps the request body this tool will send; the response-size cap (`EgressPolicy.maxResponseBytes`/
@@ -629,7 +631,7 @@ function buildAuthFailureDiagnostic(connection: CustomProviderConnectionInput, s
 }
 
 /** One audited call outcome — see this file's header, "Audit, never the secret", for exactly why
- *  these six fields and no others. */
+ *  these fields and no others. */
 export interface CredentialedRequestAuditEntry {
   readonly label: string;
   readonly host: string;
@@ -640,6 +642,10 @@ export interface CredentialedRequestAuditEntry {
   /** Byte length of the request body sent, `0` when none — a SIZE only, never the body itself. */
   readonly bodyBytes: number;
   readonly at: string;
+  /** Present only when the guarded client refused the target: `EgressRefusedError.message` in full,
+   *  including the resolved address the model is never shown. Hostname, address, and classification
+   *  only — no URL path or query, no header, no token. */
+  readonly egressRefusal?: string;
 }
 
 /** Records exactly {@link CredentialedRequestAuditEntry}'s six fields — never the token, the
@@ -660,8 +666,9 @@ export class ConsoleCredentialedRequestAuditLog implements CredentialedRequestAu
   constructor(private readonly log: (line: string) => void = (line) => console.log(line)) {}
 
   record(entry: CredentialedRequestAuditEntry): void {
+    const refusal = entry.egressRefusal !== undefined ? ` egressRefusal=${JSON.stringify(entry.egressRefusal)}` : "";
     this.log(
-      `[custom-credentials] request label=${entry.label} host=${entry.host} method=${entry.method} status=${entry.status} bodyBytes=${entry.bodyBytes} at=${entry.at}`
+      `[custom-credentials] request label=${entry.label} host=${entry.host} method=${entry.method} status=${entry.status} bodyBytes=${entry.bodyBytes} at=${entry.at}${refusal}`
     );
   }
 }
@@ -927,6 +934,17 @@ function buildResponseSecrets(connection: CustomProviderConnectionInput, authori
   return [authorizationHeader, connection.token];
 }
 
+/**
+ * The audit-only detail a failed send adds: an egress refusal's FULL message, resolved address
+ * included — the one place that address is kept once the model-facing copy drops it. Any other
+ * failure adds nothing; its raw transport text is not audit material.
+ *
+ * @complexity O(1).
+ */
+function egressRefusalAuditDetail(err: unknown): Pick<CredentialedRequestAuditEntry, "egressRefusal"> {
+  return err instanceof EgressRefusedError ? { egressRefusal: err.message } : {};
+}
+
 export async function makeCredentialedRequest(deps: CredentialedRequestDeps, input: MakeCredentialedRequestInput): Promise<CredentialedRequestExecutedResult> {
   const label = requireLabel(input.label);
   const method = validateMethod(input.method);
@@ -951,7 +969,7 @@ export async function makeCredentialedRequest(deps: CredentialedRequestDeps, inp
       ...(body !== undefined ? { body } : {}),
     });
   } catch (err) {
-    audit.record({ label, host: url.hostname, method, status: 0, bodyBytes, at });
+    audit.record({ label, host: url.hostname, method, status: 0, bodyBytes, at, ...egressRefusalAuditDetail(err) });
     // `EgressRefusedError` rethrown UNCHANGED, never wrapped into `CredentialedRequestTransportError`
     // below — see that class's own doc for why this `instanceof` identity is what lets
     // `tool-registrations.ts`'s `isCredentialedRequestShapeRejection` recognize an egress refusal as

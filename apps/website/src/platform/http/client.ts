@@ -217,10 +217,12 @@ function isCrossOrigin(a: URL, b: URL): boolean {
 /** @throws {EgressRefusedError} on a disallowed scheme, or on credentials embedded in the target URL. */
 function assertAllowedTarget(url: URL, policy: EgressPolicy): void {
   if (!policy.allowedSchemes.includes(url.protocol.replace(":", ""))) {
-    throw new EgressRefusedError(`scheme '${url.protocol}' is not in the allowed egress schemes`);
+    const message = `scheme '${url.protocol}' is not in the allowed egress schemes`;
+    throw new EgressRefusedError(message, { callerSafeMessage: message });
   }
   if (url.username || url.password) {
-    throw new EgressRefusedError("credentials embedded in the target URL are not allowed");
+    const message = "credentials embedded in the target URL are not allowed";
+    throw new EgressRefusedError(message, { callerSafeMessage: message });
   }
 }
 
@@ -243,12 +245,17 @@ async function resolveHostAddresses(hostname: string): Promise<string[]> {
   return resolved.map((entry) => entry.address);
 }
 
-/** @throws {EgressRefusedError} naming the first non-public resolved address, per {@link classifyAddress}. */
+/**
+ * @throws {EgressRefusedError} naming the first non-public resolved address, per {@link classifyAddress}.
+ * The address appears in `message` only, never in `callerSafeMessage` — see `./errors.ts` for why.
+ */
 function assertNoPrivateAddress(hostname: string, addresses: readonly string[]): void {
   for (const address of addresses) {
     const addressClass = classifyAddress(address);
     if (addressClass !== "public") {
-      throw new EgressRefusedError(`egress to '${hostname}' (${address}) rejected: resolved address is ${addressClass}`);
+      throw new EgressRefusedError(`egress to '${hostname}' (${address}) rejected: resolved address is ${addressClass}`, {
+        callerSafeMessage: `egress to '${hostname}' rejected: resolved address is ${addressClass}`,
+      });
     }
   }
 }

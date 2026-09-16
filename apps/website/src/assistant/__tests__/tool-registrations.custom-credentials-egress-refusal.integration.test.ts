@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { lookup } from "node:dns/promises";
 import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
@@ -12,6 +13,9 @@ import { createCustomCredential, type CustomCredentialWriteDeps } from "../../fe
 import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../../features/custom-credentials/tool-registrations.js";
 import { createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../platform/http/index.js";
+import { createHttpClient } from "../../platform/http/client.js";
+import type { HttpTransportAdapter } from "../../platform/http/ports.js";
+import { InMemoryCredentialedRequestAuditLog } from "../../features/custom-credentials/credentialed-request.js";
 
 /**
  * @file Regression test for the `custom_credential_make_request` half of the 2026-09-10
@@ -32,7 +36,7 @@ import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpRes
  *
  * ONLY the network is faked. The `HttpClientPort` double throws the same `EgressRefusedError` the
  * real `platform/http/client.ts` throws (`__tests__/client.test.ts` in that module owns the other
- * half of this contract), and `credentialed-request.unit.test.ts` owns the unit-level proof that
+ * half of this contract; the last two tests below drive that real client itself), and `credentialed-request.unit.test.ts` owns the unit-level proof that
  * `makeCredentialedRequest` rethrows it unchanged rather than wrapping it into
  * `CredentialedRequestTransportError` — this file's job is proving that preserved type actually
  * reaches the wire as a specific, actionable message instead of a generic 500.
@@ -41,9 +45,15 @@ import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpRes
 const WORKSPACE_ID = "ws-custom-credentials-egress";
 const TOOL_ID = "custom_credential_make_request";
 
-/** The verbatim message `client.ts`'s `assertNoPrivateAddress` produces when a redirect hop resolves
- *  to the cloud metadata address — the single most consequential target this guard blocks. */
-const METADATA_REFUSAL = "egress to '169.254.169.254' (169.254.169.254) rejected: resolved address is link-local";
+/** The refusal `client.ts`'s `assertNoPrivateAddress` builds when a redirect hop resolves to the cloud
+ *  metadata address — the single most consequential target this guard blocks — with both of its
+ *  messages, exactly as that function constructs them. Here the hostname IS the address, so the
+ *  caller-safe form still names it: it is the host the request named, not something DNS revealed. */
+function metadataRefusal(): EgressRefusedError {
+  return new EgressRefusedError("egress to '169.254.169.254' (169.254.169.254) rejected: resolved address is link-local", {
+    callerSafeMessage: "egress to '169.254.169.254' rejected: resolved address is link-local",
+  });
+}
 
 /** An `HttpClientPort` that refuses exactly as the guarded client does. */
 class RefusingHttpClient implements HttpClientPort {
@@ -114,8 +124,8 @@ async function executeMakeRequest(clientError: Error) {
   );
 }
 
-test("an SSRF refusal on a redirect hop reaches the caller as a BAD_REQUEST naming the blocked address, not a redacted INTERNAL_ERROR", async () => {
-  const result = await executeMakeRequest(new EgressRefusedError(METADATA_REFUSAL));
+test("an SSRF refusal on a redirect hop reaches the caller as a BAD_REQUEST naming the blocked host, not a redacted INTERNAL_ERROR", async () => {
+  const result = await executeMakeRequest(metadataRefusal());
 
   assert.equal(result.ok, false, "a refused request must not report success");
   assert.ok(!result.ok);
@@ -126,13 +136,13 @@ test("an SSRF refusal on a redirect hop reaches the caller as a BAD_REQUEST nami
   );
   assert.match(
     result.error.message,
-    /egress to '169\.254\.169\.254' \(169\.254\.169\.254\) rejected: resolved address is link-local/,
+    /^egress to '169\.254\.169\.254' rejected: resolved address is link-local\. /,
     "the refusal REASON must reach the wire verbatim — a 400 with the message stripped is the same defect wearing a different status code"
   );
 });
 
 test("the refusal names the tool's own schema, not just a bare rejection", async () => {
-  const result = await executeMakeRequest(new EgressRefusedError(METADATA_REFUSAL));
+  const result = await executeMakeRequest(metadataRefusal());
 
   assert.ok(!result.ok);
   assert.match(result.error.message, /will not resolve on retry without an input change/);
@@ -140,7 +150,8 @@ test("the refusal names the tool's own schema, not just a bare rejection", async
 });
 
 test("an off-allowlist redirect target refuses the same way a bad scheme does — classified by TYPE, not by one message", async () => {
-  const result = await executeMakeRequest(new EgressRefusedError("scheme 'http:' is not in the allowed egress schemes"));
+  const schemeRefusal = "scheme 'http:' is not in the allowed egress schemes";
+  const result = await executeMakeRequest(new EgressRefusedError(schemeRefusal, { callerSafeMessage: schemeRefusal }));
 
   assert.ok(!result.ok);
   assert.equal(result.error.code, "BAD_REQUEST");
@@ -157,4 +168,106 @@ test("a genuine transport failure is STILL a redacted INTERNAL_ERROR — the fix
   assert.ok(!result.ok);
   assert.equal(result.error.code, "INTERNAL_ERROR", "a transport failure is not a caller-input problem");
   assert.doesNotMatch(result.error.message, /EAI_AGAIN/, "internal transport detail must never reach the wire");
+});
+
+/* ------------------------------------------------------------------------------------------------
+ * The resolved address is infrastructure detail, not the reason (coordinator default, 2026-09-16,
+ * awaiting owner confirmation). A model that can name any host and read back what it resolved to
+ * can map internal DNS one call at a time: ask for `internal-db.corp`, learn `10.0.4.7`. The
+ * refusal and the host the request named still reach the model; the address does not. The full
+ * detail stays server-side, in the audit trail.
+ *
+ * Driven through the REAL guarded `createHttpClient` rather than a double, so the message under
+ * test is the one `platform/http/client.ts` actually builds. `localhost` is the one name that
+ * resolves to a non-public address offline, through the hosts file, and is not an IP literal —
+ * so the host the caller named and the address it resolved to are different strings.
+ * ---------------------------------------------------------------------------------------------- */
+
+/** Never reached: every request below is refused pre-connect. */
+class UnreachableTransport implements HttpTransportAdapter {
+  calls = 0;
+  async requestPinned(): Promise<HttpResponse> {
+    this.calls += 1;
+    return { status: 200, headers: {}, bodyText: "" };
+  }
+}
+
+async function executeThroughGuardedClient() {
+  const repo = new InMemoryCustomCredentialSetRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  const clock = { nowIso: () => "2026-09-16T00:00:00.000Z" };
+  await createCustomCredential(
+    { repo, sealer, keyring, clock, idGen: { newId: () => "cred-1" } },
+    { workspaceId: WORKSPACE_ID, label: "internal", category: "ops", baseUrl: "https://localhost", connection: { token: "internal-secret-token" } }
+  );
+
+  const transport = new UnreachableTransport();
+  const audit = new InMemoryCredentialedRequestAuditLog();
+  const routeDeps: CustomCredentialsToolDeps = {
+    authorize: async () => ({ allowed: true, reason: "matched" }),
+    workspaceId: WORKSPACE_ID,
+    clock,
+    customCredentialSetRepo: repo,
+    siteAssistantSecretSealer: sealer,
+    siteAssistantSecretKeyring: keyring,
+    idGen: { newId: () => "deps-cred-1" },
+    customCredentialsHttpClient: createHttpClient({
+      transport,
+      policy: {
+        allowedSchemes: ["https"],
+        denyPrivateAddresses: true,
+        devHostAllowlist: [],
+        maxRedirects: 0,
+        connectTimeoutMs: 1000,
+        maxResponseBytes: 1_000_000,
+        maxDecompressedBytes: 1_000_000,
+      },
+    }),
+    customCredentialsAudit: audit,
+  };
+
+  const registry = createToolRegistry();
+  for (const registration of buildCustomCredentialsRegistrations(routeDeps, { surfaceExchanges: createSurfaceExchangeStore() })) {
+    registry.register(registration);
+  }
+  const toolExecutor = createToolExecutor({ registry });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const { run } = await lifecycle.start({ contextRef: "ctx-1" });
+
+  const result = await delegatedToolExecuteRoute.handle(
+    { runId: run.id, toolUseId: "tu-guarded", toolId: TOOL_ID, input: { label: "internal", method: "GET", url: "https://localhost/admin" } },
+    { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "principal-1" }) }
+  );
+  return { result, audit, transport };
+}
+
+test("an egress refusal tells the model WHICH host was refused and why, but never the address that host resolved to", async () => {
+  const resolved = (await lookup("localhost", { all: true, verbatim: true })).map((entry) => entry.address);
+  assert.ok(resolved.length > 0, "precondition: localhost resolves through the hosts file");
+
+  const { result, transport } = await executeThroughGuardedClient();
+
+  assert.equal(transport.calls, 0, "precondition: the guarded client refused pre-connect");
+  assert.ok(!result.ok);
+  assert.equal(result.error.code, "BAD_REQUEST", `the refusal must still surface — got ${result.error.code}: ${result.error.message}`);
+  assert.match(result.error.message, /^egress to 'localhost' rejected: resolved address is loopback\. /, "the host and the reason must survive");
+  for (const address of resolved) {
+    assert.ok(!JSON.stringify(result).includes(address), `the resolved address ${address} reached the model: ${result.error.message}`);
+  }
+});
+
+test("the address the model is not told stays available server-side, in the audit trail", async () => {
+  const resolved = (await lookup("localhost", { all: true, verbatim: true })).map((entry) => entry.address);
+
+  const { audit } = await executeThroughGuardedClient();
+
+  assert.equal(audit.entries.length, 1);
+  const entry = audit.entries[0]!;
+  assert.equal(entry.status, 0);
+  assert.match(entry.egressRefusal ?? "", /^egress to 'localhost' \((.+)\) rejected: resolved address is loopback$/);
+  assert.ok(
+    resolved.some((address) => entry.egressRefusal?.includes(`(${address})`)),
+    `the audit entry must keep the resolved address: ${entry.egressRefusal}`
+  );
 });

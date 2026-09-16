@@ -19,18 +19,31 @@
  * transport error), and that distinction is the whole point: a refusal is a DECISION this process
  * made about the caller's target, and the caller can act on it by supplying a different URL. A
  * timeout or a DNS failure is not. Consumers at a tool/HTTP boundary map this class to a
- * caller-visible refusal carrying `message` — see `features/media-import/tool-registrations.ts`,
+ * caller-visible refusal carrying `callerSafeMessage` — see `features/media-import/tool-registrations.ts`,
  * whose `media_import_from_url` handler is the first agent-supplied-URL consumer of this port and
  * where surfacing an SSRF block as a redacted `INTERNAL_ERROR` was a real operator-facing defect
  * (2026-09-07, SEC-05).
  *
- * `message` is safe to surface: it names only the hostname the caller already sent, the address it
- * resolved to, and the classification — no internal detail. `classifyAddress`'s verdict is derived
- * from public IANA ranges, not from anything about this deployment.
+ * Two messages, because they have two audiences (2026-09-16):
+ * - `message` is the FULL refusal, for server-side logs and audit. For a non-public target it names
+ *   the address the hostname resolved to.
+ * - `callerSafeMessage` is what a boundary may show a caller outside this process — an agent's model
+ *   above all. It keeps the refusal, the hostname the request named, and the classification, and
+ *   drops the resolved address. A caller who can name any host and read back what it resolved to can
+ *   map internal DNS one request at a time (`internal-db.corp` -> `10.0.4.7`). The classification
+ *   stays: it is the actionable reason, and it is derived from public IANA ranges, not from anything
+ *   about this deployment.
+ *
+ * `callerSafeMessage` defaults to a generic refusal rather than to `message`, so a future throw site
+ * that forgets to supply one says less, never more.
  */
 export class EgressRefusedError extends Error {
-  constructor(message: string) {
+  /** The refusal as a caller outside this process may see it. See the class doc. */
+  readonly callerSafeMessage: string;
+
+  constructor(message: string, options: { callerSafeMessage?: string } = {}) {
     super(message);
     this.name = "EgressRefusedError";
+    this.callerSafeMessage = options.callerSafeMessage ?? "egress to the requested host was refused by this site's outbound network policy";
   }
 }

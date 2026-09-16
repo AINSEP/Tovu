@@ -818,6 +818,24 @@ test("makeCredentialedRequest: an EgressRefusedError from the http client passes
   assert.equal(audit.entries[0]!.status, 0);
 });
 
+test("ConsoleCredentialedRequestAuditLog: an egress refusal's full detail, resolved address included, is kept in the server-side line", () => {
+  const lines: string[] = [];
+  new ConsoleCredentialedRequestAuditLog((line) => lines.push(line)).record({
+    label: "internal",
+    host: "internal-db.corp",
+    method: "GET",
+    status: 0,
+    bodyBytes: 0,
+    at: "2026-09-16T00:00:00.000Z",
+    egressRefusal: "egress to 'internal-db.corp' (10.0.4.7) rejected: resolved address is private",
+  });
+
+  assert.deepEqual(lines, [
+    "[custom-credentials] request label=internal host=internal-db.corp method=GET status=0 bodyBytes=0 at=2026-09-16T00:00:00.000Z " +
+      "egressRefusal=\"egress to 'internal-db.corp' (10.0.4.7) rejected: resolved address is private\"",
+  ]);
+});
+
 test("makeCredentialedRequest: ConsoleCredentialedRequestAuditLog logs a structured line (including bodyBytes) and never the token", async () => {
   const writeDeps = await seedNameComAndFlyIo();
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "ok" }]);
