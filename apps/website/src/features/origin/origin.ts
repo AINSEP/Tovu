@@ -63,7 +63,9 @@ const FORBIDDEN_RAW_CHARS = /[\\\s\x00-\x1F\x7F]/;
  * future candidate can refuse exactly what this oracle — and the read path built on top of it —
  * will refuse. See {@link FORBIDDEN_RAW_CHARS}'s doc for why this class matters beyond this file.
  *
- * @param raw - Any untrusted string, parsed or not.
+ * @param raw - The untrusted string exactly as received, BEFORE any `new URL()` parse. A parsed and
+ * re-serialized URL can never fail this check (the parser already percent-encoded whitespace and
+ * turned `\` into `/`), so running it on `url.href` checks nothing.
  * @returns `true` if `raw` contains a backslash, whitespace, or a C0/DEL control character.
  * @complexity O(n) in the length of `raw`.
  * @example hasForbiddenRawUrlCharacter("/a b"); // => true
@@ -159,15 +161,21 @@ function effectivePort(origin: Pick<VerifiedOrigin, "scheme" | "port">): number 
 }
 
 /**
- * THE same-origin rule: scheme equal, host lower-cased with one trailing dot stripped on BOTH
- * sides, effective port equal. Exported (t91 B1, 2026-09-16) so a caller deciding "is this
- * candidate on the workspace's own origin" never falls back to a URL-string `origin` comparison —
+ * THE same-origin rule: scheme equal, host equal after lower-casing and stripping one trailing dot,
+ * effective port equal. Exported (t91 B1, 2026-09-16) so a caller deciding "is this candidate on
+ * the workspace's own origin" never falls back to a URL-string `origin` comparison —
  * `new URL("https://site./x").origin` is `"https://site."`, a distinct string from
- * `"https://site"` even though every browser treats them as the same origin. The redirect oracle
- * (`isAllowedTarget` below) and `features/redirects/reserved-destination.ts`'s
+ * `"https://site"`, yet a request to either reaches the same server (browsers do keep them as
+ * separate origins for cookies and scripting, which is exactly why a string comparison misses it).
+ * The redirect oracle (`isAllowedTarget` below) and `features/redirects/reserved-destination.ts`'s
  * `checkSameOriginDestination` both call this exact function so "same origin" can never mean two
  * different things for the same candidate.
  *
+ * PRECONDITION: `target` came from {@link normalizeOriginCandidate}. Only `canonical` is normalized
+ * here; `target.host` is compared as given, so a hand-built `{ host: "Site." }` answers `false`.
+ *
+ * @param target - A candidate already normalized by `normalizeOriginCandidate`.
+ * @param canonical - The workspace's verified origin, normalized here.
  * @complexity O(1).
  */
 export function isSameOrigin(target: NormalizedTarget, canonical: VerifiedOrigin): boolean {
