@@ -44,6 +44,23 @@ test("a confirmed preview refuses when the record's version no longer matches th
   assert.equal((await repo.listAll()).length, 1);
 });
 
+test("a confirmed preview refuses when the record's NAME changed but its version did not", async () => {
+  const repo = new InMemoryPluginActivationRepo();
+  await repo.save({ pluginId: "my-plugin", workspaceId: "ws-1", version: "1.0.0", enabled: false, updatedAt: "2026-09-16T00:00:00.000Z" });
+  const calls: string[] = [];
+  const renamed: PluginDiscoveryRecord = { ...SITE, name: "Someone Else's Plugin" };
+
+  await assert.rejects(
+    () => uninstallPlugin(requestFor(renamed, repo, calls), { confirmedPreview: { pluginId: "my-plugin", name: "My Plugin", version: "1.0.0" } }),
+    (error: unknown) =>
+      error instanceof PluginChangedSincePreviewError &&
+      error.message ===
+        "plugin 'my-plugin' changed after its uninstall was previewed (previewed My Plugin 1.0.0; now Someone Else's Plugin 1.0.0) — nothing was removed",
+  );
+  assert.deepEqual(calls, []);
+  assert.equal((await repo.listAll()).length, 1);
+});
+
 test("guard: an unchanged confirmed preview uninstalls normally", async () => {
   const repo = new InMemoryPluginActivationRepo();
   await repo.save({ pluginId: "my-plugin", workspaceId: "ws-1", version: "1.0.0", enabled: false, updatedAt: "2026-09-16T00:00:00.000Z" });
