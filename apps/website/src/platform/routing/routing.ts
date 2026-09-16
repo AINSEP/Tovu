@@ -341,8 +341,10 @@ export interface RegisterResolvePhaseOptions {
   /**
    * This registration's fault policy when its handler throws. `"fail"` (the default) rethrows
    * out of the phase, so the caller's own error handling runs (the public site routes answer
-   * `500 <h1>Site error</h1>`). `"skip"` logs `[routing] a <phase> resolver failed for <path> —
-   * skipping it` and continues to the phase's remaining handlers.
+   * `500 <h1>Site error</h1>`, on BOTH phases as of 2026-09-16, t91 F4.3-A: `post_content` on
+   * `GET /:slug` used to leave a default-policy throw with no response at all — see
+   * `routes/site/pages.ts`'s `handlePostNotFoundInSlugCatch`). `"skip"` logs `[routing] a <phase>
+   * resolver failed for <path> — skipping it` and continues to the phase's remaining handlers.
    *
    * Choose `"skip"` only for a handler whose failure can only DECLINE an outcome — it can never
    * fabricate one, so a swallowed failure cannot weaken any guard. Redirects opts into it for
@@ -516,7 +518,14 @@ export async function resolve(
  * after that lookup has failed — exactly ADR-039 §1's documented pipeline
  * order (`pre_content -> content-resolve -> post_content`), which the single
  * `resolve()` export cannot reproduce when a real content lookup must run in
- * the middle. `resolve()` itself is UNCHANGED by this addition.
+ * the middle. `resolve()`'s own SHAPE is UNCHANGED by this addition — this
+ * paragraph is about these wrapper functions existing alongside it, not about
+ * `resolve()`'s own throw behavior. Separately (2026-09-16, t91 F4.3):
+ * `resolve()` now CAN reject when a `"fail"`-policy handler throws, exactly
+ * like these wrappers — both go through the same `runPhase()`, which gained
+ * that throw path in the same change. `resolve()` has no production caller
+ * today (grep; only tests call it), so this is a latent property, not a
+ * behavior change any caller currently observes.
  *
  * @complexity O(h) in registered `pre_content` handlers.
  */
