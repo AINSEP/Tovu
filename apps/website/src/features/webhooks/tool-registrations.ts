@@ -28,8 +28,14 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+import { ToolInputError } from "@jini-ai/core";
 import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { ToolContributor } from "#src/assistant/index";
+import {
+  forbiddenRule,
+  withModelFacingErrors,
+  type ModelFacingErrorRule,
+} from "#src/contracts/core/model-facing-tool-errors";
 import {
   createSurfaceExchangeStore,
   resolveConfirmationDecision,
@@ -45,6 +51,7 @@ import {
   deleteSubscription,
   pauseSubscription,
   WebhookSubscriptionNotFoundError,
+  WebhookSubscriptionValidationError,
 } from "./subscriptions.js";
 import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "./types.js";
 
@@ -206,6 +213,31 @@ export const webhooksDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
   ["webhooks_delete_subscription", "deletes-durable-state"],
 ]);
 
+/**
+ * The Integrations errors that reach the model with their real reason instead of a redacted
+ * `INTERNAL_ERROR` — see `contracts/core/model-facing-tool-errors.ts` for the mechanism and for why
+ * this list is an ALLOWLIST rather than a blanket unwrap.
+ *
+ * Reviewed against this domain's secret handling before listing anything, because Integrations is
+ * the one domain in this sweep that holds credential material at all. Nothing on this list can
+ * carry it: `WebhookSubscriptionValidationError` is raised only by `subscriptions.ts`'s own
+ * label/topics/target_url checks (every construction site interpolates the CALLER's submitted
+ * `targetUrl` or nothing at all), and `WebhookSubscriptionNotFoundError` interpolates the caller's
+ * own id. The HMAC signing secret is never stored and never named by either class — it is derived
+ * at delivery time by `KeyringPort.deriveSigningSecret` and lives entirely in `signing.ts`/
+ * `keyring.env.ts`, whose errors (`RootKeyFileAlreadyExistsError` among them) are deliberately
+ * ABSENT here: they are operator/installation faults naming real filesystem paths, exactly the
+ * class of internals this allowlist exists to keep redacted.
+ *
+ * `WebhookDeliveryVetoedError` (`delivery.ts`) is absent for a different reason — it is raised on
+ * the OUTBOUND send path, which no tool in this catalog calls, so listing it would be speculative.
+ */
+const WEBHOOKS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
+  forbiddenRule("WEBHOOKS"),
+  { error: WebhookSubscriptionNotFoundError, code: "WEBHOOKS_SUBSCRIPTION_NOT_FOUND" },
+  { error: WebhookSubscriptionValidationError, code: "WEBHOOKS_VALIDATION_FAILED" },
+];
+
 export function buildWebhooksRegistrations(
   routeDeps: IntegrationsToolDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
@@ -316,9 +348,15 @@ export function buildWebhooksRegistrations(
       if (!existing) throw new WebhookSubscriptionNotFoundError(`webhook subscription '${subscriptionId}' was not found`);
 
       if (!ctx.emitSurface) {
-        throw new Error(
-          "webhooks_delete_subscription: this execution context has no interactive confirmation channel " +
-            "(no emitSurface), so a destructive delete cannot be gated here. Nothing was deleted."
+        // A `ToolInputError`, not a bare `Error`: that marker is the only thing keeping this out of
+        // the `errorKind: 'internal'` bucket the delegated-tool transport SEC-005-redacts, and a
+        // model that is told only "500" here will retry a delete that can never succeed in this
+        // context. The message names no internals — only the missing capability and the fact that
+        // nothing was deleted, which is exactly what the caller needs to stop and ask a human.
+        throw new ToolInputError(
+          "WEBHOOKS_NO_CONFIRMATION_CHANNEL: webhooks_delete_subscription: this execution context has " +
+            "no interactive confirmation channel (no emitSurface), so a destructive delete cannot be " +
+            "gated here. Nothing was deleted."
         );
       }
 
@@ -365,7 +403,9 @@ export function buildWebhooksRegistrations(
     domain: "integrations",
     catalogModule: "webhooks/agent-tools.ts",
     catalog: CATALOG_BY_ID,
-    handlers,
+    // The whole map at once, so no handler can be the one that forgot — see
+    // `withModelFacingErrors`' own doc for why a per-call-site reshape is the defect this avoids.
+    handlers: withModelFacingErrors(handlers, WEBHOOKS_MODEL_FACING_ERRORS),
     derivedRisk: webhooksDerivedRisk,
   });
 }
