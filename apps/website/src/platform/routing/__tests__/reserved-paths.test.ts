@@ -107,6 +107,21 @@ test("checkSiteRelativeTarget refuses a raw control character before parsing", (
   assert.deepEqual(checkSiteRelativeTarget("/ok\r\nX-Injected: 1"), { kind: "disallowed-character" });
 });
 
+/**
+ * t85 independent review (2026-09-16): the structural pass asks "did the origin survive resolution
+ * against the probe origin", so a reference that NAMES the probe origin answered that question
+ * trivially and came back `ok` — a reference off this site, approved by the check whose entire job
+ * is refusing exactly that. Reachable through `/store/buy?returnTo=//reserved-path-probe.invalid/x`,
+ * which is a protocol-relative `Location` a browser leaves the site for. Resolving against TWO
+ * different probe origins and requiring the answer to track the base is what makes the sentinel
+ * unnameable, rather than a denylist of its spellings.
+ */
+test("checkSiteRelativeTarget refuses a reference that names the probe origin it resolves against", () => {
+  assert.deepEqual(checkSiteRelativeTarget("//reserved-path-probe.invalid/x"), { kind: "off-origin" });
+  assert.deepEqual(checkSiteRelativeTarget("http://reserved-path-probe.invalid/x"), { kind: "off-origin" });
+  assert.deepEqual(checkSiteRelativeTarget("/\\reserved-path-probe.invalid/x"), { kind: "off-origin" });
+});
+
 test("checkSiteRelativeTarget passes an ordinary relative target, query and fragment included", () => {
   assert.deepEqual(checkSiteRelativeTarget("/new"), { kind: "ok" });
   assert.deepEqual(checkSiteRelativeTarget("/new?utm=1#section"), { kind: "ok" });

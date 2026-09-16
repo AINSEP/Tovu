@@ -34,6 +34,10 @@ const ATTACK_RETURN_TOS: readonly string[] = [
   "https://evil.example",
   "javascript:alert(1)",
   "back",
+  // t85 independent review (2026-09-16): the site-relative check resolves against a fixed probe
+  // origin and asks whether the origin survived, so naming that origin answered "yes" and this
+  // left the site as `Location: //reserved-path-probe.invalid/x`.
+  "//reserved-path-probe.invalid/x",
 ];
 
 type StoreDep = NonNullable<RouteDeps["store"]>;

@@ -58,10 +58,20 @@ export type SiteRelativeTargetCheck =
 const RESERVED_SEGMENTS: ReadonlySet<string> = new Set<ReservedSurface>(["admin", "api"]);
 
 /**
- * A host this deployment can never actually reach, used only so `new URL()` has a base to resolve
- * a site-relative reference against. `.invalid` is reserved by RFC 2606 precisely for this.
+ * Two hosts this deployment can never actually reach, used only so `new URL()` has a base to
+ * resolve a site-relative reference against. `.invalid` is reserved by RFC 2606 precisely for this.
+ *
+ * There are TWO because one base is NAMEABLE (t85 independent review, 2026-09-16). With a single
+ * base, `//reserved-path-probe.invalid/x` resolves to that very origin, so "did the origin survive"
+ * answered yes for a reference that leaves the site — reachable as `/store/buy`'s `returnTo`, which
+ * sent `Location: //reserved-path-probe.invalid/x`. Requiring the resolved origin to TRACK whichever
+ * base it was given leaves no origin an input can name, which is a structural answer rather than a
+ * denylist of the sentinel's spellings (the same reasoning as the probe itself — see
+ * {@link checkSiteRelativeTarget}). Both are bare origins, so a reference resolves to the same
+ * pathname against either.
  */
 const PROBE_ORIGIN = "http://reserved-path-probe.invalid";
+const SECOND_PROBE_ORIGIN = "http://reserved-path-probe-2.invalid";
 
 /**
  * Whether `value` contains a C0 or C1 control character.
@@ -179,8 +189,10 @@ export function checkSitePathname(url: URL): SitePathCheck {
  * The structural pass runs FIRST and matters on its own: `/\evil.example` begins with exactly one
  * slash, so a `startsWith("//")` or scheme test calls it site-relative, while `new URL()` — and
  * every browser following a `Location` — reads the backslash as a separator and lands on
- * `evil.example`. Resolving against a probe origin and asserting the origin survived is a
- * structural answer to that instead of a pattern someone has to keep correct.
+ * `evil.example`. Resolving against a probe origin and asserting the origin TRACKED that base is a
+ * structural answer to that instead of a pattern someone has to keep correct — done against two
+ * different bases so the probe origin itself is not a nameable way to pass (see
+ * {@link PROBE_ORIGIN}).
  *
  * @param raw - The untrusted reference, expected to be site-relative.
  * @returns `{ kind: "ok" }` when it stays on this site and names ordinary content; otherwise the
@@ -192,11 +204,13 @@ export function checkSitePathname(url: URL): SitePathCheck {
 export function checkSiteRelativeTarget(raw: string): SiteRelativeTargetCheck {
   if (hasControlCharacter(raw)) return { kind: "disallowed-character" };
   let parsed: URL;
+  let reparsed: URL;
   try {
     parsed = new URL(raw, PROBE_ORIGIN);
+    reparsed = new URL(raw, SECOND_PROBE_ORIGIN);
   } catch {
     return { kind: "unparseable" };
   }
-  if (parsed.origin !== PROBE_ORIGIN) return { kind: "off-origin" };
+  if (parsed.origin !== PROBE_ORIGIN || reparsed.origin !== SECOND_PROBE_ORIGIN) return { kind: "off-origin" };
   return checkSitePathname(parsed);
 }
