@@ -1,0 +1,53 @@
+{
+  "$schema": "https://tovu.dev/schemas/theme/v2/theme.schema.json",
+  "apiVersion": 2,
+  "id": "tailark-quartz-libre",
+  "name": "Meridian",
+  "version": "0.1.0",
+  "tier": "static",
+  "description": "A fintech/SaaS marketing kit — landing, product, solutions, customers, customer stories, blog, pricing, and legal pages. Plain HTML/CSS/JS, no build step, no template language.",
+  "modes": [
+    "dark",
+    "light"
+  ],
+  "defaultMode": "dark",
+  "fonts": [
+    "Geist:wght@400;500;600",
+    "Geist+Mono:wght@400;500"
+  ],
+  "pages": [
+    "index",
+    "product",
+    "solution",
+    "customers",
+    "customer-story",
+    "blog",
+    "blog-article",
+    "pricing",
+    "legal",
+    "terms",
+    "privacy",
+    "landing-two",
+    "product-two",
+    "solution-two",
+    "solution-three",
+    "customer-story-two",
+    "customer-story-three",
+    "blog-two",
+    "blog-three",
+    "blog-article-two",
+    "blog-article-three"
+  ],
+  "templates": [
+    "blog-post.html"
+  ],
+  "slots": {
+    "nav": {
+      "source": "nav.html",
+      "honorsCurrentPage": true
+    },
+    "footer": {
+      "source": "footer.html"
+    }
+  }
+}
