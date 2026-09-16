@@ -400,7 +400,13 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   "admin.show_site_page":
     "show me the page show the site published live view preview see it look at it here it is " +
     "open the page display render the published version what does it look like live now on screen " +
-    "put it on screen after publishing pull it up",
+    "put it on screen after publishing pull it up " +
+    // 2026-09-15 review: a ranking probe against the real ~160-tool catalog put the bare phrase
+    // "view site" — the literal label of the desktop shell's own toggle, so the phrasing an operator
+    // is likeliest to reuse — at rank 6, behind `page.scroll_to`. These raise the term frequency of
+    // "view"/"site"/"live"/"visit", which is the only lever BM25 offers here.
+    "view site view the site view the live site visit the site visit the page site preview live " +
+    "preview of the site see the live page take a look at the site",
 
   // --- agent-driven admin screen capture --------------------------------------------------------------
   "admin.capture_screenshot":

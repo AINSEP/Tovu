@@ -112,13 +112,12 @@ function assertRawPathShape(raw: unknown): string {
 }
 
 /**
- * Parses `raw` against `origin` and asserts the result stayed on that origin. Split out purely to
+ * Parses `raw` against `base` and asserts the result stayed on that origin. Split out purely to
  * keep {@link resolveAdminSitePreviewPath}'s own complexity below the repo's gate.
  *
  * @throws {SitePreviewPathError} If `raw` does not parse, or parses off-origin.
  */
-function resolveWithinOrigin(raw: string, origin: string): URL {
-  const base = new URL(origin);
+function resolveWithinOrigin(raw: string, base: URL): URL {
   let resolved: URL;
   try {
     resolved = new URL(raw, base);
@@ -136,10 +135,73 @@ function resolveWithinOrigin(raw: string, origin: string): URL {
 /** `true` for `/admin` itself or any `/admin/...` sub-path, case-insensitively; `false` for a
  *  sibling segment that merely starts with the same letters (e.g. `/administer-survey`), which is
  *  why this compares the FIRST SEGMENT rather than using a bare `startsWith("/admin")`.
- *  @complexity O(1) — one lowercase + one string comparison on an already-bounded path. */
+ *
+ *  Empty segments are dropped before that comparison, so `//admin` and `///admin` are caught too.
+ *  The earlier `const [, firstSegment] = …split("/")` read index 1 unconditionally, which made
+ *  `//admin` present a first segment of `""` and pass — reachable because the ONLY caller feeds this
+ *  a once-percent-DECODED string, where `/%2fadmin` becomes exactly that.
+ *  @complexity O(L) in the path length, bounded by {@link MAX_SITE_PREVIEW_PATH_LENGTH}. */
 function isAdminAppPath(decodedPathname: string): boolean {
-  const [, firstSegment] = decodedPathname.toLowerCase().split("/");
+  const [firstSegment] = decodedPathname
+    .toLowerCase()
+    .split("/")
+    .filter((segment) => segment !== "");
   return firstSegment === "admin";
+}
+
+/**
+ * The two refused destinations, checked against one already-decoded pathname. Extracted so the
+ * decoded form AND its re-resolved form (see {@link assertDecodedFormStaysInBounds}) are checked by
+ * the same code rather than two copies that could drift apart.
+ *
+ * @throws {SitePreviewPathError} On a path under `/api/`, or one that is the admin app itself.
+ */
+function assertPathnameNotRefused(pathname: string): void {
+  if (pathname.toLowerCase().startsWith("/api/")) {
+    throw new SitePreviewPathError(
+      "path must not target '/api/' — that is the authenticated admin/API surface, not a published page.",
+    );
+  }
+  // ⚠️ Load-bearing, not defence-in-depth (see this file's own header, §Q4 Finding 2): the iframe
+  // this path feeds carries the operator's admin session cookie, so `/admin` must be refused here
+  // even though `resolveSameOriginPath` (its unauthenticated sibling) has no equivalent rule.
+  if (isAdminAppPath(pathname)) {
+    throw new SitePreviewPathError(
+      "path must not target '/admin' — that is the admin application itself, not a published page. Showing " +
+        "it here would render an authenticated admin surface inside this preview.",
+    );
+  }
+}
+
+/**
+ * Re-resolves the DECODED pathname against `base` and re-runs {@link assertPathnameNotRefused} on
+ * the result.
+ *
+ * Why a second resolve rather than trusting the first: `new URL()` deliberately does NOT decode
+ * `%2f`/`%5c`, and only collapses a `..` segment when the segment is EXACTLY `..`/`%2e%2e`. So
+ * `/%2e%2e%2fadmin`, `/a/..%2fadmin` and `/a/%252e%252e/admin` all survive the first resolve intact,
+ * and their once-decoded form (`/../admin`, `/a/../admin`) is a plain string whose first segment is
+ * `..` or `a` — which a string-only check reads as "not admin". Resolving that decoded string is
+ * what turns it back into the `/admin` it denotes. Any consumer that decodes before routing (a
+ * reverse proxy, a rewrite rule, a future non-Express server) would do exactly this, so the
+ * validator has to refuse what they would resolve, not only what this server happens to match today.
+ *
+ * @throws {SitePreviewPathError} If the decoded form does not parse, leaves `base`'s origin (the
+ * `//host` case a decoded `%2f%2f` produces), or resolves to a refused path.
+ */
+function assertDecodedFormStaysInBounds(decodedPathname: string, raw: string, base: URL): void {
+  let renormalized: URL;
+  try {
+    renormalized = new URL(decodedPathname, base);
+  } catch {
+    throw new SitePreviewPathError(`path is not a valid URL path once decoded: '${raw}'.`);
+  }
+  if (renormalized.origin !== base.origin) {
+    throw new SitePreviewPathError(
+      `path decodes to an off-origin reference (to '${renormalized.origin}') — this tool only shows routes on this site.`,
+    );
+  }
+  assertPathnameNotRefused(renormalized.pathname);
 }
 
 /**
@@ -148,9 +210,9 @@ function isAdminAppPath(decodedPathname: string): boolean {
  * repo's gate — the decode-once rule mirrors `published-page.ts`'s identical helper.
  *
  * @throws {SitePreviewPathError} On a malformed encoding, a decoded backslash/control character, a
- * decoded path under `/api/`, or a decoded path that is the admin app itself.
+ * decoded path under `/api/`, or a decoded path that is — or resolves to — the admin app itself.
  */
-function assertNoDisallowedDecodedForm(resolved: URL, raw: string): void {
+function assertNoDisallowedDecodedForm(resolved: URL, raw: string, base: URL): void {
   let decodedPathname: string;
   try {
     decodedPathname = decodeURIComponent(resolved.pathname);
@@ -160,20 +222,8 @@ function assertNoDisallowedDecodedForm(resolved: URL, raw: string): void {
   if (decodedPathname.includes("\\") || hasControlCharacter(decodedPathname)) {
     throw new SitePreviewPathError("path decodes to a backslash or control character, which is refused.");
   }
-  if (decodedPathname.toLowerCase().startsWith("/api/")) {
-    throw new SitePreviewPathError(
-      "path must not target '/api/' — that is the authenticated admin/API surface, not a published page.",
-    );
-  }
-  // ⚠️ Load-bearing, not defence-in-depth (see this file's own header, §Q4 Finding 2): the iframe
-  // this path feeds carries the operator's admin session cookie, so `/admin` must be refused here
-  // even though `resolveSameOriginPath` (its unauthenticated sibling) has no equivalent rule.
-  if (isAdminAppPath(decodedPathname)) {
-    throw new SitePreviewPathError(
-      "path must not target '/admin' — that is the admin application itself, not a published page. Showing " +
-        "it here would render an authenticated admin surface inside this preview.",
-    );
-  }
+  assertPathnameNotRefused(decodedPathname);
+  assertDecodedFormStaysInBounds(decodedPathname, raw, base);
 }
 
 /**
@@ -192,7 +242,8 @@ function assertNoDisallowedDecodedForm(resolved: URL, raw: string): void {
  */
 export function resolveAdminSitePreviewPath(raw: unknown, origin: string = window.location.origin): string {
   const path = assertRawPathShape(raw);
-  const resolved = resolveWithinOrigin(path, origin);
-  assertNoDisallowedDecodedForm(resolved, path);
+  const base = new URL(origin);
+  const resolved = resolveWithinOrigin(path, base);
+  assertNoDisallowedDecodedForm(resolved, path, base);
   return `${resolved.pathname}${resolved.search}`;
 }

@@ -77,6 +77,57 @@ describe("resolveAdminSitePreviewPath", () => {
     expect(() => resolveAdminSitePreviewPath("/%61dmin", ORIGIN)).toThrow(/admin/i);
   });
 
+  it("refuses '/ADMIN' and '/Admin/...' — the case-insensitivity is load-bearing, not incidental", () => {
+    // Pins `isAdminAppPath`'s own `.toLowerCase()`. The pre-existing cases below are all already
+    // lowercase, so dropping that call left every one of them green (mutation M1, 2026-09-15).
+    expect(() => resolveAdminSitePreviewPath("/ADMIN", ORIGIN)).toThrow(/admin/i);
+    expect(() => resolveAdminSitePreviewPath("/Admin/settings", ORIGIN)).toThrow(/admin/i);
+    expect(() => resolveAdminSitePreviewPath("/aDmIn", ORIGIN)).toThrow(/admin/i);
+  });
+
+  it("⚠️ refuses an ENCODED-SLASH path whose decoded form denotes '/admin' or '/api/'", () => {
+    // `new URL()` never decodes `%2f`, so the once-decoded pathname of `/%2fadmin` is `//admin`,
+    // whose split("/") index 1 is the empty string — the shape the original first-segment read
+    // scored as "not admin". Any consumer that decodes before routing resolves it to the admin app.
+    // The MESSAGE is asserted, not just the class: `isAdminAppPath`'s empty-segment filter is what
+    // names this "/admin" rather than letting it fall through to the later off-origin refusal. Both
+    // refuse, so a class-only assertion cannot tell the two layers apart — and a mutation sweep
+    // (2026-09-15, M5) confirmed dropping the filter stayed green against one.
+    expect(() => resolveAdminSitePreviewPath("/%2fadmin", ORIGIN)).toThrow(/must not target '\/admin'/);
+    expect(() => resolveAdminSitePreviewPath("/%2Fadmin", ORIGIN)).toThrow(/must not target '\/admin'/);
+    expect(() => resolveAdminSitePreviewPath("/%2f%2fadmin", ORIGIN)).toThrow(/must not target '\/admin'/);
+    expect(() => resolveAdminSitePreviewPath("/%2fapi/x", ORIGIN)).toThrow(SitePreviewPathError);
+  });
+
+  it("does NOT refuse a path that merely starts with the letters 'api' — the refusal is '/api/', not '/api'", () => {
+    // Sibling of the '/administer-survey' case below, for the OTHER refused prefix. Without this,
+    // widening `startsWith("/api/")` to `startsWith("/api")` stays green (mutation sweep M8) and
+    // silently makes every page slugged `api-…` unshowable.
+    expect(resolveAdminSitePreviewPath("/apifoo", ORIGIN)).toBe("/apifoo");
+    expect(resolveAdminSitePreviewPath("/api-docs", ORIGIN)).toBe("/api-docs");
+  });
+
+  it("⚠️ refuses a traversal that only becomes one AFTER the single decode", () => {
+    // `%2e%2e%2fadmin` is one segment, so neither the raw `..` scan nor `new URL()`'s own
+    // double-dot collapsing sees it; only re-resolving the DECODED `/../admin` does.
+    expect(() => resolveAdminSitePreviewPath("/%2e%2e%2fadmin", ORIGIN)).toThrow(SitePreviewPathError);
+    expect(() => resolveAdminSitePreviewPath("/%2E%2E%2Fadmin", ORIGIN)).toThrow(SitePreviewPathError);
+    expect(() => resolveAdminSitePreviewPath("/a/..%2fadmin", ORIGIN)).toThrow(SitePreviewPathError);
+    expect(() => resolveAdminSitePreviewPath("/a/%252e%252e/admin", ORIGIN)).toThrow(SitePreviewPathError);
+    expect(() => resolveAdminSitePreviewPath("/admin%20", ORIGIN)).toThrow(/admin/i);
+  });
+
+  it("the decode-and-re-resolve pass refuses nothing an ordinary published path needs", () => {
+    // The refusals above are additive; these are the shapes a real site slug actually takes, and
+    // every one of them must survive the second resolve untouched.
+    expect(resolveAdminSitePreviewPath("/blog/hello%20world", ORIGIN)).toBe("/blog/hello%20world");
+    expect(resolveAdminSitePreviewPath("/blog/caf%C3%A9", ORIGIN)).toBe("/blog/caf%C3%A9");
+    expect(resolveAdminSitePreviewPath("/blog/100%25-off", ORIGIN)).toBe("/blog/100%25-off");
+    expect(resolveAdminSitePreviewPath("/search?q=admin", ORIGIN)).toBe("/search?q=admin");
+    expect(resolveAdminSitePreviewPath("/blog/admin", ORIGIN)).toBe("/blog/admin");
+    expect(resolveAdminSitePreviewPath("/docs/api/overview", ORIGIN)).toBe("/docs/api/overview");
+  });
+
   it("does NOT refuse a path that merely CONTAINS 'admin' as a sibling segment or substring", () => {
     // '/administer-survey' shares no path segment with '/admin' — must not be caught by a naive
     // prefix check that forgets the trailing-slash/exact-match boundary.

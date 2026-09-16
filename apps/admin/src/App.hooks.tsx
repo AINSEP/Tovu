@@ -733,8 +733,10 @@ export interface UseAgentPageBridge {
 export const ADMIN_SHOW_SITE_PAGE_CAPABILITY_ID = "admin.show_site_page";
 
 /** `admin.show_site_page`'s tool result — `{path, shown, status, ok, note?}` per
- *  `2026-09-15-view-site-tool-PLAN.md` §Q5. `note` is present only when `ok` is `false`: a non-2xx
- *  status is a reported RESULT (the page is still shown), not a tool failure. */
+ *  `2026-09-15-view-site-tool-PLAN.md` §Q5. `note` is present when `ok` is `false` (a non-2xx status
+ *  is a reported RESULT — the page is still shown — not a tool failure) and/or when the request
+ *  redirected, in which case it names where it landed, because `path` alone would otherwise describe
+ *  something other than what is on screen. */
 export interface ShowSitePageResult {
   /** The validated path actually shown, as `resolveAdminSitePreviewPath` canonicalized it. */
   readonly path: string;
@@ -763,38 +765,99 @@ export interface ShowSitePageResult {
  * narrows it.
  * @param fetchSitePage - Test seam; defaults to the real global `fetch`. Mirrors
  * {@link buildAdminCapabilityExecutors}'s existing `renderElementToCanvas` seam.
- * @throws {SitePreviewPathError} When `input.path` fails validation (fix the path and retry).
+ * @throws {SitePreviewPathError} When `input.path` fails validation (fix the path and retry), or when
+ * the request followed a same-origin redirect INTO a path the validator refuses — see
+ * {@link assertLandedOnAShowablePath}, which is the only place that second, redirect-borne bypass of
+ * the `/admin` rule can be caught.
  * @throws {Error} When the status-check fetch itself fails (a network fault, not a bad path) — wrapped
  * with the path in the message so the failure reads as actionable rather than a bare `TypeError`.
  * @complexity O(1) plus one network round trip.
  */
+/**
+ * Where the status-check request actually ended up, or `null` when it did not move.
+ *
+ * `response.redirected` is deliberately NOT the test: a hand-built `Response` in a unit test does
+ * not set it, and the security check below must not be silently skippable by a caller that omits an
+ * optional field. Comparing the final `response.url` to the URL we asked for answers the same
+ * question from data every real and fake `Response` carries.
+ *
+ * @complexity O(1).
+ */
+function resolveLandingUrl(response: Response, requestedUrl: string): URL | null {
+  if (typeof response.url !== "string" || response.url === "") return null;
+  let landed: URL;
+  try {
+    landed = new URL(response.url, window.location.origin);
+  } catch {
+    return null;
+  }
+  const requested = new URL(requestedUrl, window.location.origin);
+  return landed.href === requested.href ? null : landed;
+}
+
+/**
+ * Re-runs {@link resolveAdminSitePreviewPath} against the path the request LANDED on, closing the
+ * one bypass of that validator that never passes through it.
+ *
+ * ⚠️ Why this exists: the validator refuses `/admin` and `/api/` in the caller-supplied path, but
+ * `redirect: "follow"` means both this fetch and the `<iframe>` will happily walk a 30x into either
+ * of them. The assistant can create that 30x itself — `redirects.ts`'s `assertTargetAllowed` returns
+ * early for a SITE-RELATIVE target (only absolute/protocol-relative targets hit the host allowlist),
+ * so a redirect rule `/x -> /admin/settings` is writable through the redirects tools the same
+ * assistant already holds. Without this check, `show_site_page('/x')` then renders the authenticated
+ * admin SPA inside a panel whose whole contract is "a read-only preview of the PUBLIC site".
+ *
+ * Only a SAME-ORIGIN landing is re-validated. An off-origin landing is a legitimate operator
+ * feature (that is what the redirect-target host allowlist is for) and carries none of this site's
+ * session cookies, so it is reported in `note` rather than refused.
+ *
+ * Residual, not closable from here: the `<iframe>` issues its own request and could in principle be
+ * redirected somewhere this one was not. Nothing in the browser lets a parent document inspect or
+ * veto a child frame's redirect chain, so this check is the closest enforceable point.
+ *
+ * @throws {SitePreviewPathError} When the same-origin landing path is one the validator refuses.
+ */
+function assertLandedOnAShowablePath(landed: URL, requestedUrl: string): void {
+  const requested = new URL(requestedUrl, window.location.origin);
+  if (landed.origin !== requested.origin) return;
+  resolveAdminSitePreviewPath(`${landed.pathname}${landed.search}`, landed.origin);
+}
+
 export async function executeShowSitePage(
   input: Record<string, unknown>,
   fetchSitePage: typeof fetch = fetch,
 ): Promise<ShowSitePageResult> {
   const path = resolveAdminSitePreviewPath(input.path);
+  const requestedUrl = siteUrl(path);
 
   let response: Response;
   try {
-    response = await fetchSitePage(siteUrl(path), { redirect: "follow" });
+    response = await fetchSitePage(requestedUrl, { redirect: "follow" });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`could not check what is at "${path}": ${message}`);
   }
 
+  // BEFORE `publishSitePreview` — a refused landing must never reach the screen at all.
+  const landed = resolveLandingUrl(response, requestedUrl);
+  if (landed !== null) assertLandedOnAShowablePath(landed, requestedUrl);
+
   publishSitePreview({ path });
 
   const ok = response.status >= 200 && response.status < 300;
+  const notes = [
+    ok ? null : `the operator's browser received HTTP ${response.status} for '${path}'. The preview is still shown — a non-2xx status is a reported result, not a failed call.`,
+    // The panel's header still reads `path`, but what the iframe renders is this. Reporting it is
+    // what keeps `status` an honest description of WHAT IS ON SCREEN rather than of an unrelated URL.
+    landed === null ? null : `'${path}' redirected to '${landed.href}' — that is what the preview and this status describe.`,
+  ].filter((note): note is string => note !== null);
+
   return {
     path,
     shown: true,
     status: response.status,
     ok,
-    ...(ok
-      ? {}
-      : {
-          note: `the operator's browser received HTTP ${response.status} for '${path}'. The preview is still shown — a non-2xx status is a reported result, not a failed call.`,
-        }),
+    ...(notes.length === 0 ? {} : { note: notes.join(" ") }),
   };
 }
 

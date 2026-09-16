@@ -5,10 +5,11 @@ import { resetScreenshotCapturedBus, subscribeToScreenshotCaptured } from "../..
 import { ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID } from "../../lib/agent-screenshot";
 import { resetSitePreviewBus, subscribeToSitePreview } from "../../lib/site-preview-bus";
 
-/** A `Response`-shaped stub — the executor only reads `.status`/`.ok`, never the body, so this needs
- *  no real `fetch` Response construction. */
-function fakeFetchResponse(status: number): Response {
-  return { status, ok: status >= 200 && status < 300 } as Response;
+/** A `Response`-shaped stub — the executor only reads `.status`/`.ok`/`.url`, never the body, so this
+ *  needs no real `fetch` Response construction. `url` is what a real `fetch` sets to the FINAL URL
+ *  after following redirects; omitting it is the "did not move" case. */
+function fakeFetchResponse(status: number, url?: string): Response {
+  return { status, ok: status >= 200 && status < 300, ...(url === undefined ? {} : { url }) } as Response;
 }
 
 /**
@@ -158,6 +159,62 @@ describe("buildAdminCapabilityExecutors: admin.show_site_page", () => {
       /pricing/,
     );
     expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("⚠️ refuses a path that REDIRECTS into '/admin', and never publishes it — the one bypass the path validator alone cannot see", async () => {
+    // The assistant can create this redirect itself: `redirects.ts`'s `assertTargetAllowed` returns
+    // early for a site-relative target, so a rule `/x -> /admin/settings` needs no host allowlist.
+    // `redirect: "follow"` then walks it, and so would the iframe — see `assertLandedOnAShowablePath`.
+    const fetchSitePage = vi
+      .fn()
+      .mockResolvedValue(fakeFetchResponse(200, `${window.location.origin}/admin/settings`));
+    const listener = vi.fn();
+    subscribeToSitePreview(listener);
+    const executors = buildAdminCapabilityExecutors(null, vi.fn(), fetchSitePage);
+
+    await expect(executors["admin."]!(ADMIN_SHOW_SITE_PAGE_CAPABILITY_ID, { path: "/x" })).rejects.toThrow(/admin/i);
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("⚠️ refuses a path that redirects into '/api/', and never publishes it", async () => {
+    const fetchSitePage = vi
+      .fn()
+      .mockResolvedValue(fakeFetchResponse(200, `${window.location.origin}/api/admin/v1/auth/me`));
+    const listener = vi.fn();
+    subscribeToSitePreview(listener);
+    const executors = buildAdminCapabilityExecutors(null, vi.fn(), fetchSitePage);
+
+    await expect(executors["admin."]!(ADMIN_SHOW_SITE_PAGE_CAPABILITY_ID, { path: "/x" })).rejects.toThrow(
+      /'\/api\/'/,
+    );
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("allows an ordinary same-origin redirect but says in the note where it actually landed", async () => {
+    // `status` has to describe WHAT IS ON SCREEN. A silent redirect would leave `path` naming one
+    // page while the iframe renders another, with no way for the model to notice.
+    const fetchSitePage = vi.fn().mockResolvedValue(fakeFetchResponse(200, `${window.location.origin}/blog/new-slug`));
+    const listener = vi.fn();
+    subscribeToSitePreview(listener);
+    const executors = buildAdminCapabilityExecutors(null, vi.fn(), fetchSitePage);
+
+    const result = await executors["admin."]!(ADMIN_SHOW_SITE_PAGE_CAPABILITY_ID, { path: "/blog/old-slug" });
+
+    expect(listener).toHaveBeenCalledWith({ path: "/blog/old-slug" });
+    expect(result).toMatchObject({ path: "/blog/old-slug", shown: true, status: 200, ok: true });
+    expect((result as { note?: string }).note).toMatch(/redirected to .*\/blog\/new-slug/);
+  });
+
+  it("does not treat an OFF-ORIGIN landing as a refusal — an external redirect target carries none of this site's cookies", async () => {
+    const fetchSitePage = vi.fn().mockResolvedValue(fakeFetchResponse(200, "https://elsewhere.example/admin"));
+    const listener = vi.fn();
+    subscribeToSitePreview(listener);
+    const executors = buildAdminCapabilityExecutors(null, vi.fn(), fetchSitePage);
+
+    const result = await executors["admin."]!(ADMIN_SHOW_SITE_PAGE_CAPABILITY_ID, { path: "/go" });
+
+    expect(listener).toHaveBeenCalledWith({ path: "/go" });
+    expect((result as { note?: string }).note).toMatch(/elsewhere\.example/);
   });
 
   it("an unrecognized id under the 'admin.' prefix still throws by name — the existing branch is not broken by this new one", async () => {
