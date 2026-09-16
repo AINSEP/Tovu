@@ -44,6 +44,16 @@ test("an explicit enabled:false record makes a plugin inactive", () => {
   assert.equal(isAgentPluginActive(activations, "site-compliance"), false);
 });
 
+test("isAgentPluginActive: a plugin named for an Object.prototype member is active by absence, never an inherited value", () => {
+  const activations: AgentPluginActivations = { schemaVersion: 1, plugins: {} };
+  // `constructor` passes the plugin-name grammar (`NAME_PATTERN` in `manifest.ts`, identical to this
+  // file's `SAFE_PLUGIN_ID_PATTERN`), so a plain bag lookup (`activations.plugins["constructor"]`)
+  // hands back `Object.prototype.constructor` instead of `undefined` — and `.enabled` on that
+  // function is `undefined`, not the `true` this function's own doc promises for an absent record.
+  assert.equal(isAgentPluginActive(activations, "constructor"), true);
+  assert.equal(isAgentPluginActive(activations, "hasownproperty"), true);
+});
+
 test("filterActiveAgentPlugins drops exactly the disabled ones, keeping order", () => {
   const activations: AgentPluginActivations = {
     schemaVersion: 1,

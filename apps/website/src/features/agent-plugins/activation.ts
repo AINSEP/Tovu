@@ -168,8 +168,12 @@ const SAFE_PLUGIN_ID_PATTERN = /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/;
  * @complexity O(1).
  */
 export function isAgentPluginActive(activations: AgentPluginActivations, pluginId: string): boolean {
-  const record = activations.plugins[pluginId];
-  return record === undefined ? true : record.enabled;
+  // `Object.hasOwn`, not a plain lookup: `activations.plugins` comes straight from `JSON.parse` (via
+  // `normalizeActivations`), so it still carries `Object.prototype`, and an id like `constructor` or
+  // `hasownproperty` passes the plugin-name grammar and would otherwise resolve to an inherited
+  // value rather than a missing entry — see `resolveAgentPluginActivation`'s identical guard.
+  if (!Object.hasOwn(activations.plugins, pluginId)) return true;
+  return activations.plugins[pluginId].enabled;
 }
 
 /**
