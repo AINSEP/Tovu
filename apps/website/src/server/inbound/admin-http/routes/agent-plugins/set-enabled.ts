@@ -84,9 +84,12 @@ import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "./deps.j
  * one MCP row could not be written — the same fail-open posture `agent-daemon-server.ts`'s own
  * `resolveStoredExternalMcpConnections` takes for the identical store at boot. `plugins_set_enabled`
  * (`features/plugin-runtime/tool-registrations.ts`, the assistant's own in-chat equivalent of this
- * toggle) does NOT yet call this — a known gap, not an oversight: wiring it needs the same DB-backed
- * deps this route now threads through `AgentPluginsRouteDeps`, which that tool's own call site does
- * not have today.
+ * toggle) now calls the same two primitives (`resolveAgentPluginMcpServers` +
+ * `provisionAgentPluginMcpServers`) on enable, so both inbound adapters of the same logical enable
+ * have identical side effects. The provisioning step and its logging are mirrored, not shared,
+ * because a `features/**` module may not import this server route; that tool's deps bag carries the
+ * same `externalMcpServerRepo`/`siteAssistantSecretSealer`/`siteAssistantSecretKeyring` slice this
+ * route threads through `AgentPluginsRouteDeps`.
  *
  * A provisioned row is created DISABLED and needs an assistant restart on top of that once an
  * operator enables and authorizes it (`external-mcp/put.ts`'s own doc states the same restart rule

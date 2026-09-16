@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
+import { InMemoryExternalMcpServerRepo, MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import {
   SURFACE_EXCHANGE_ID_PARAM,
@@ -17,6 +17,8 @@ import {
 import { readAgentPluginActivations } from "../../features/agent-plugins/activation.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../features/agent-plugins/install.js";
 import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/force-remove.js";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
@@ -100,8 +102,12 @@ function fileEntry(entryPath: string, content: string): AgentPluginArchiveEntry 
 
 /** Installs one REAL Agent Plugin through the production pipeline, against a temp
  *  `TOVU_AGENT_PLUGINS_DIR`, so the activation write this suite asserts on lands exactly where
- *  production writes it rather than in a stub. */
-async function withInstalledAgentPlugin<T>(fn: (workspaceRoot: string) => Promise<T>): Promise<T> {
+ *  production writes it rather than in a stub. `extraEntries` lets a test add an `mcp.json` (or any
+ *  other archive member) to the same real package. */
+async function withInstalledAgentPlugin<T>(
+  fn: (workspaceRoot: string) => Promise<T>,
+  extraEntries: readonly AgentPluginArchiveEntry[] = [],
+): Promise<T> {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-plugin-family-"));
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
@@ -116,6 +122,7 @@ async function withInstalledAgentPlugin<T>(fn: (workspaceRoot: string) => Promis
           JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: AGENT_PLUGIN_ID, version: "1.0.0" }),
         ),
         fileEntry(`skills/${AGENT_PLUGIN_ID}/SKILL.md`, `---\nname: ${AGENT_PLUGIN_ID}\ndescription: test\n---\n\nguidance\n`),
+        ...extraEntries,
       ]),
       layout: resolveAgentPluginLayout(),
       workspaceId: WORKSPACE_ID,
@@ -132,6 +139,9 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const allow = options.allow ?? true;
   const authorizeCalls: Array<Record<string, unknown>> = [];
   const pluginActivationRepo = new InMemoryPluginActivationRepo();
+  const externalMcpServerRepo = new InMemoryExternalMcpServerRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
   let counter = 0;
 
   const deps = {
@@ -149,9 +159,12 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     onPluginEnabled: async () => undefined,
     onPluginDisabled: () => undefined,
     onPluginUninstalled: async () => undefined,
+    externalMcpServerRepo,
+    siteAssistantSecretSealer: sealer,
+    siteAssistantSecretKeyring: keyring,
   };
 
-  return { deps: deps as unknown as PluginsToolDeps, authorizeCalls, pluginActivationRepo };
+  return { deps: deps as unknown as PluginsToolDeps, authorizeCalls, pluginActivationRepo, externalMcpServerRepo };
 }
 
 function setEnabledTool(deps: PluginsToolDeps, surfaceExchanges: SurfaceExchangeStore): ToolRegistration {
@@ -308,6 +321,36 @@ test("plugins_set_enabled: a confirmed enable writes the Agent Plugin's activati
     assert.equal(activations.plugins[AGENT_PLUGIN_ID]?.enabled, true);
     assert.equal(activations.plugins[AGENT_PLUGIN_ID]?.updatedBy, PRINCIPAL_ID, "the confirming operator is the recorded actor");
   });
+});
+
+test("plugins_set_enabled: a confirmed in-chat enable also provisions the plugin's declared remote MCP server, exactly like the admin toggle", async () => {
+  await withInstalledAgentPlugin(
+    async () => {
+      const { deps, externalMcpServerRepo } = fakeRouteDeps();
+      const surfaceExchanges = createSurfaceExchangeStore();
+      const tool = setEnabledTool(deps, surfaceExchanges);
+
+      await answerDialog(tool, surfaceExchanges, { pluginId: AGENT_PLUGIN_ID, enabled: true, family: "agent-plugin" }, "confirm");
+
+      const rows = await externalMcpServerRepo.listByWorkspaceId(WORKSPACE_ID);
+      const federated = rows.find((row) => row.label?.startsWith(AGENT_PLUGIN_ID));
+      assert.ok(federated, "enabling an Agent Plugin in chat must provision its remote MCP servers, not only write activations.json");
+      assert.equal(federated?.url, "https://mcp.example.com/mcp");
+      assert.equal(federated?.provisionedByPluginId, AGENT_PLUGIN_ID);
+      // Rule 2 (`federate-mcp.ts`'s header): a freshly provisioned row starts disabled — the same
+      // guarantee the admin route's enable branch already makes.
+      assert.equal(federated?.enabled, false, "a freshly provisioned row must start disabled, not auto-enabled by the plugin toggle");
+    },
+    [
+      fileEntry(
+        "mcp.json",
+        JSON.stringify({
+          $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+          mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" } },
+        }),
+      ),
+    ],
+  );
 });
 
 test("plugins_set_enabled: a declined enable writes nothing and says so", async () => {

@@ -80,7 +80,7 @@ import {
   type AssistantSurfaceDeps,
   type ConfirmationOutcome,
 } from "../../contracts/core/tool-surface-exchanges.js";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ExternalMcpStoreDeps, ToolContributor } from "#src/assistant/index";
 // Now sourced from this same module — `toAdminPluginResponse` moved to
 // `features/plugin-runtime/admin-response.ts` (this domain's own projection), closing the back-edge
 // into `server/http/admin` this file used to carry. `server/http/admin/plugins.ts` re-exports the
@@ -112,6 +112,10 @@ import type { InstalledAgentPlugin } from "../agent-plugins/install.js";
 // adds no `plugin-runtime -> agent-plugins/tool-registrations` edge. See its header, and the
 // "one tool, two families" section below.
 import { AgentPluginNotInstalledError, setAgentPluginEnabled } from "../agent-plugins/set-enabled.js";
+// The Agent Plugins MCP-provisioning half of `plugins_set_enabled` (2026-09-15). The route's own
+// enable path calls these same two primitives; see `applyAgentPluginDecision` below for why the
+// in-chat enable must not skip them.
+import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "../agent-plugins/federate-mcp.js";
 import { buildEnableConfirmationResource, PLUGINS_SET_ENABLED_TOOL_ID, type PluginFamily } from "./set-enabled-confirmation-ui.js";
 
 const CATALOG_BY_ID = indexCatalogById(pluginAgentToolCatalog);
@@ -140,6 +144,14 @@ export interface PluginsToolDeps {
    *  (`server/runtime/composition/plugin-runtime.ts`'s `onPluginUninstalled`), so this domain adds
    *  no second implementation of "how a plugin's files actually get removed". */
   onPluginUninstalled: (pluginId: string) => Promise<void>;
+  /** The external-MCP store slice `provisionAgentPluginMcpServers` writes into. Enabling an Agent
+   *  Plugin from chat must provision its auto-admitted MCP servers exactly as the admin toggle does
+   *  (`server/inbound/admin-http/routes/agent-plugins/set-enabled.ts`); these are the same fields
+   *  that route's `AgentPluginsRouteDeps` threads. The `clock` above is already the fourth
+   *  `ExternalMcpStoreDeps` field, so it is not repeated here. */
+  externalMcpServerRepo: ExternalMcpStoreDeps["repo"];
+  siteAssistantSecretSealer: ExternalMcpStoreDeps["sealer"];
+  siteAssistantSecretKeyring: ExternalMcpStoreDeps["keyring"];
 }
 
 /**
@@ -312,6 +324,42 @@ function restartNoteFor(request: SetEnabledRequest): string {
 }
 
 /**
+ * Best-effort: provisions `pluginId`'s auto-admitted remote MCP servers into the external-MCP store
+ * on a successful enable. Calls the SAME two primitives
+ * (`resolveAgentPluginMcpServers` + `provisionAgentPluginMcpServers`) the admin route's own
+ * `provisionAgentPluginMcpServersBestEffort` does, so the in-chat enable and the admin toggle have
+ * identical side effects. Create-if-absent, never clobbering an existing row (`federate-mcp.ts`'s
+ * header); a failure is logged, never thrown, matching that route's own fail-open posture — the
+ * plugin's own activation, the operation this tool is named for, must not fail because one MCP row
+ * could not be written.
+ * @complexity O(s) in the plugin's declared server count.
+ */
+async function provisionAgentPluginMcpServersBestEffort(
+  routeDeps: PluginsToolDeps,
+  input: { readonly pluginId: string; readonly principalId: string },
+): Promise<void> {
+  try {
+    const servers = await resolveAgentPluginMcpServers({ workspaceId: routeDeps.workspaceId, pluginId: input.pluginId });
+    const result = await provisionAgentPluginMcpServers(
+      {
+        repo: routeDeps.externalMcpServerRepo,
+        sealer: routeDeps.siteAssistantSecretSealer,
+        keyring: routeDeps.siteAssistantSecretKeyring,
+        clock: routeDeps.clock,
+      },
+      { workspaceId: routeDeps.workspaceId, pluginId: input.pluginId, servers, principalId: input.principalId },
+    );
+    for (const failure of result.failed) {
+      console.warn(`[agent-plugins] '${input.pluginId}': MCP provisioning for server '${failure.serverKey}' failed — ${failure.reason}`);
+    }
+  } catch (error) {
+    console.warn(
+      `[agent-plugins] '${input.pluginId}': MCP provisioning could not run — ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+/**
  * The Agent Plugin branch. Reuses `agent-plugins/set-enabled.ts` — the SAME composition
  * `AGENT_PLUGIN_SET_ENABLED` (the admin route) calls, so there is one writer and one definition of
  * "installed in this workspace", not a second copy that could drift.
@@ -325,6 +373,13 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
       enabled: request.enabled,
       actor: principalId,
     });
+    // Enabling an Agent Plugin also provisions its auto-admitted MCP servers, exactly as the admin
+    // route's enable branch does; disabling has nothing to provision. Without this, the same logical
+    // enable produced a partially enabled plugin in chat while the admin toggle produced the
+    // documented disabled connection rows — see this file's header.
+    if (result.enabled) {
+      await provisionAgentPluginMcpServersBestEffort(routeDeps, { pluginId: request.pluginId, principalId });
+    }
     return {
       changed: true,
       cancelled: false,
