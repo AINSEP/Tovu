@@ -892,8 +892,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
  * module — confirmed by direct source read of every file in that closure, a repo-wide grep for any
  * specifier reaching `runtime/composition/app`, and independently by `.dependency-cruiser.mjs`'s own
  * 2026-08-28 cross-validated (DFS + `no-circular` + madge) 5-SCC baseline, which names the real
- * `deps.ts`/`app.ts`/`deployment-overview.ts` cycle (a DIFFERENT `require()`, in `deps.ts`, left
- * untouched — see that file's own doc) but does not include this edge. This file already statically
+ * `deps.ts`/`app.ts`/`deployment-overview.ts` cycle (deps.ts closed the same cycle via a static
+ * import as of 2026-09-16, t91 F4.1-A — see that file's own doc) but does not include this edge. This file already statically
  * imports every one of those modules' own dependencies anyway (`#src/features/theme/index`,
  * `#src/features/post/index`, `#src/features/presentation/index`, `#src/features/redirects/index`,
  * `#src/platform/routing/index`, `#src/contracts/core/**` are all imported above), so this static
