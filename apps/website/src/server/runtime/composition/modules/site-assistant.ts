@@ -81,11 +81,14 @@ import type { ServerModuleHandle } from "./types.js";
  *    `(protocol, key, baseUrl, model)` into a provider call.
  *
  *    The companion rule is that nothing here may silently substitute a provider. `GEMINI_API_KEY`
- *    is a Google key by name and by issuer, so it is offered ONLY when the resolved provider is
- *    `google`; a workspace configured for Anthropic with no Anthropic key gets a 503 naming the
- *    provider and the missing key, never a working-looking answer paid for by the wrong credential.
- *    Same for an unsupported `provider` string, and for a non-Google provider with no model
- *    configured: refuse before the stream opens, and say which one it is.
+ *    — and, since 2026-09-16 (t91 F3.1), `TOVU_SITE_ASSISTANT_BASE_URL` and
+ *    `TOVU_SITE_ASSISTANT_MODEL` too — are Google env fallbacks by name and by issuer, so all three
+ *    are offered ONLY when the resolved provider is `google` (see {@link siteAssistantEnvFallbacks}).
+ *    A workspace configured for Anthropic with no Anthropic key gets a 503 naming the provider and
+ *    the missing key, never a working-looking answer paid for by the wrong credential, and never an
+ *    endpoint or model borrowed from a Google deployment's env configuration either. Same for an
+ *    unsupported `provider` string, and for a non-Google provider with no model configured: refuse
+ *    before the stream opens, and say which one it is.
  */
 
 const CHAT_PATH = "/api/site-assistant/chat";
@@ -119,8 +122,8 @@ const DEFAULT_MODEL = "gemini-flash-latest";
  */
 /**
  * The model this turn runs, in priority order: the operator's stored model, then
- * `TOVU_SITE_ASSISTANT_MODEL`, then a per-provider default — and `""` when there is none, which the
- * caller turns into an explicit refusal.
+ * `TOVU_SITE_ASSISTANT_MODEL` for `google` only (see {@link siteAssistantEnvFallbacks}), then the
+ * Google default — and `""` when there is none, which the caller turns into an explicit refusal.
  *
  * The stored value wins over the env var deliberately, reversing nothing that ever worked: before
  * 2026-09-16 no stored model reached this route at all, so no deployment can be relying on the env
@@ -128,6 +131,8 @@ const DEFAULT_MODEL = "gemini-flash-latest";
  * `TOVU_SITE_ASSISTANT_MODEL=gemini-flash-latest` left over from a Google deployment would
  * otherwise be sent to Anthropic the moment the operator switched providers in the admin tab — a
  * value the admin screen shows as something else, silently overriding the one the operator can see.
+ * That leftover-gemini-id-sent-to-Anthropic failure mode can no longer happen at all now: the env
+ * var itself is gated to `google` by {@link siteAssistantEnvFallbacks}, not just outranked here.
  *
  * Only `google` gets a default. `DEFAULT_MODEL`'s own doc above explains why an alias is safe for
  * Gemini; there is no equivalent for the others, and an invented Anthropic/OpenAI/Azure model id
@@ -135,31 +140,32 @@ const DEFAULT_MODEL = "gemini-flash-latest";
  *
  * @complexity O(1).
  */
-function resolveModel(env: NodeJS.ProcessEnv, protocol: ByokProtocol, storedModel: string | null): string {
-  return storedModel?.trim() || env.TOVU_SITE_ASSISTANT_MODEL?.trim() || (protocol === "google" ? DEFAULT_MODEL : "");
+function resolveModel(protocol: ByokProtocol, storedModel: string | null, envModel: string | undefined): string {
+  return storedModel?.trim() || envModel || (protocol === "google" ? DEFAULT_MODEL : "");
 }
 
 /**
- * The endpoint this turn dials, in the same priority order {@link resolveModel} uses and for the
- * same reason: the operator's stored `baseUrl` (the admin tab's own field), then
- * `TOVU_SITE_ASSISTANT_BASE_URL`, then `undefined` — which leaves each provider adapter's own public
- * default in effect (`@jini-ai/agent-runtime`'s `DEFAULT_GOOGLE_BASE_URL` and friends).
+ * The endpoint this turn dials, in the same priority order {@link resolveModel} uses: the
+ * operator's stored `baseUrl` (the admin tab's own field), then `TOVU_SITE_ASSISTANT_BASE_URL` for
+ * `google` only (see {@link siteAssistantEnvFallbacks}), then `undefined` — which leaves each
+ * provider adapter's own public default in effect (`@jini-ai/agent-runtime`'s
+ * `DEFAULT_GOOGLE_BASE_URL` and friends).
  *
- * The env var still matters for two audiences, both of which have no stored credential: an operator
- * routing an env-key deployment through Vertex AI, a regional endpoint, or an enterprise proxy, and
- * this route's own scoped tests, which point it at a loopback stub server instead of a real provider
- * (see `stub-provider-server.ts`'s doc for why that redirect is the only interception point left:
- * every `run*ToolTurn` dials via `pinnedFetch` — `node:https`/`node:http` directly — not
- * `globalThis.fetch`).
- *
- * `azure` has no public default at all and `runAzureTurn` reports that itself as a turn error; this
- * function does not special-case it, so an Azure workspace with no stored endpoint gets that
- * adapter's own message rather than a second, divergent copy of it here.
+ * The env var is Google-only. Its audiences are the Google env-key deployment (an operator routing
+ * through Vertex AI, a regional endpoint, or an enterprise proxy with no stored credential) and this
+ * route's own Google-path scoped tests, which point it at a loopback stub server instead of a real
+ * provider (see `stub-provider-server.ts`'s doc for why that redirect is the only interception
+ * point left: every `run*ToolTurn` dials via `pinnedFetch` — `node:https`/`node:http` directly —
+ * not `globalThis.fetch`). A non-Google workspace with no stored endpoint gets the adapter's own
+ * public default instead — Azure has none, and `runAzureTurn` reports that itself as a turn error;
+ * this function does not special-case it, so that workspace gets the adapter's own message rather
+ * than a second, divergent copy of it here. The adapter still validates whatever URL is chosen
+ * (SSRF: `validateBaseUrlResolved`), unchanged by this function's gating.
  *
  * @complexity O(1).
  */
-function resolveBaseUrl(env: NodeJS.ProcessEnv, storedBaseUrl: string | null): string | undefined {
-  return storedBaseUrl?.trim() || env.TOVU_SITE_ASSISTANT_BASE_URL?.trim() || undefined;
+function resolveBaseUrl(storedBaseUrl: string | null, envBaseUrl: string | undefined): string | undefined {
+  return storedBaseUrl?.trim() || envBaseUrl || undefined;
 }
 
 const SYSTEM_PREAMBLE = [
@@ -426,12 +432,37 @@ function toCredentialChoice(
   };
 }
 
-/** The narrow rule this route's whole fallback branch exists for: `GEMINI_API_KEY` is a Google key
- *  by name and by issuer, so it is offered ONLY to a Google workspace. Any other provider with no
- *  stored key has nothing to fall back to, and saying so is the only honest answer available.
- *  @complexity O(1). */
-function googleEnvKey(env: NodeJS.ProcessEnv, protocol: ByokProtocol): string | undefined {
-  return protocol === "google" ? env.GEMINI_API_KEY?.trim() : undefined;
+/** Every value this route may take from the process environment for a provider turn. All three
+ *  belong to the Google env-key deployment (the "no stored credential" path, where
+ *  {@link getSiteAssistantCredential} answers `google`): `apiKey` <- `GEMINI_API_KEY`, `baseUrl` <-
+ *  `TOVU_SITE_ASSISTANT_BASE_URL`, `model` <- `TOVU_SITE_ASSISTANT_MODEL`. A stored
+ *  Anthropic/OpenAI/Azure credential must never be sent to an endpoint or model chosen for that
+ *  deployment, because the endpoint receives the key (`x-api-key`, `Authorization: Bearer`,
+ *  `api-key`). The key was gated to `google` here first (ed954257); the endpoint and model were
+ *  not, until 2026-09-16 (t91 F3.1) — this single function is now the one place any of the three
+ *  can leak from, so a future fourth env fallback cannot repeat that mistake by omission. */
+export interface SiteAssistantEnvFallbacks {
+  readonly apiKey: string | undefined;
+  readonly baseUrl: string | undefined;
+  readonly model: string | undefined;
+}
+
+const NO_ENV_FALLBACKS: SiteAssistantEnvFallbacks = { apiKey: undefined, baseUrl: undefined, model: undefined };
+
+/** @complexity O(1). */
+export function siteAssistantEnvFallbacks(env: NodeJS.ProcessEnv, protocol: ByokProtocol): SiteAssistantEnvFallbacks {
+  if (protocol !== "google") return NO_ENV_FALLBACKS;
+  return {
+    apiKey: nonBlank(env.GEMINI_API_KEY),
+    baseUrl: nonBlank(env.TOVU_SITE_ASSISTANT_BASE_URL),
+    model: nonBlank(env.TOVU_SITE_ASSISTANT_MODEL),
+  };
+}
+
+/** `value` trimmed, or `undefined` when absent or whitespace-only. @complexity O(n) in its length. */
+function nonBlank(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
 }
 
 /**
@@ -454,12 +485,14 @@ function resolveProviderFromCredential(
     );
   }
 
-  const apiKey = choice.apiKey ?? googleEnvKey(env, protocol);
+  const envFallbacks = siteAssistantEnvFallbacks(env, protocol);
+
+  const apiKey = choice.apiKey ?? envFallbacks.apiKey;
   if (!apiKey) {
     return respondUnavailable(res, "NOT_CONFIGURED", describeMissingKey(protocol, choice.keyStored));
   }
 
-  const model = resolveModel(env, protocol, choice.model);
+  const model = resolveModel(protocol, choice.model, envFallbacks.model);
   if (!model) {
     return respondUnavailable(
       res,
@@ -468,7 +501,7 @@ function resolveProviderFromCredential(
     );
   }
 
-  return { protocol, apiKey, baseUrl: resolveBaseUrl(env, choice.baseUrl), model };
+  return { protocol, apiKey, baseUrl: resolveBaseUrl(choice.baseUrl, envFallbacks.baseUrl), model };
 }
 
 /**

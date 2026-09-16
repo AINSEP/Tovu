@@ -36,6 +36,13 @@ import { startStubProviderServer, type StubProviderReply, type StubProviderReque
  * requests to `generativelanguage.googleapis.com`. `site-assistant-routes.test.ts`'s own
  * `withoutGeminiApiKey` helper documents that exact accident happening once already. Both knobs
  * point at the same loopback stub, so no configuration of the route under test can escape it.
+ *
+ * Since t91 F3.1 (2026-09-16), `TOVU_SITE_ASSISTANT_BASE_URL`/`_MODEL` apply to `google` only
+ * (`site-assistant.ts`'s `siteAssistantEnvFallbacks`) — `bootProviderStub`'s env override is now
+ * only an escape guard for the `google` tests above; every non-Google test is held to the stub
+ * exclusively by its own stored `baseUrl`, and the two "no stored endpoint" tests below prove
+ * exactly that: a stored non-Google key with no stored `baseUrl`/`model` must reach the stub NOT AT
+ * ALL, not merely reach it via the wrong knob.
  */
 
 const alwaysAllow = async () => ({ allowed: true, reason: "test" });
@@ -328,4 +335,52 @@ test("site assistant: an unsupported stored provider refuses by name instead of 
   const body = JSON.parse(raw.text) as { error?: string; code?: string };
   assert.equal(body.code, "PROVIDER_UNSUPPORTED");
   assert.match(body.error ?? "", /cohere/);
+});
+
+/**
+ * t91 F3.1: `TOVU_SITE_ASSISTANT_BASE_URL`/`_MODEL` are a Google-deployment escape hatch
+ * (`googleEnvKey`'s sibling gate for the key already restricts THAT fallback to `protocol ===
+ * "google"`), but until this fix `resolveBaseUrl`/`resolveModel` applied to every protocol. A
+ * stored non-Google key with no stored endpoint/model would silently borrow the env values —
+ * concretely, a stored Azure key with no stored `baseUrl` got posted, with its real key in the
+ * `api-key` header, to whatever `TOVU_SITE_ASSISTANT_BASE_URL` pointed at (here, this file's own
+ * loopback stub standing in for a Google-only deployment's endpoint).
+ */
+test("site assistant: a stored AZURE key with no stored endpoint is never sent to TOVU_SITE_ASSISTANT_BASE_URL (a Google-deployment setting)", async (t) => {
+  const deps = createRouteDeps();
+  await enablePublicAssistant(deps);
+  const stub = await bootProviderStub(t, deps, () => openAiReply("this must never be produced"));
+  await storeSiteCredential(deps, { apiKey: FAKE_KEY, provider: "azure", model: "tovu-deployment" });
+
+  const raw = await drainedBody(await postChat(stub.siteUrl));
+
+  assert.equal(stub.requests.length, 0, "the stored azure key must not reach the env endpoint");
+  assert.equal(raw.status, 200, `expected a 200 stream carrying the turn error, got ${raw.status} with body ${raw.text}`);
+  assert.match(
+    raw.text,
+    /the azure protocol requires a base URL/i,
+    `expected the azure adapter's own missing-base-URL error, got ${raw.text}`,
+  );
+});
+
+/**
+ * The env `_MODEL` half of the same bug: a stored Anthropic key with no stored model must not
+ * borrow `TOVU_SITE_ASSISTANT_MODEL` (also a Google-deployment setting), and — because
+ * `resolveModel` is checked before `resolveBaseUrl` — must refuse before dialing anything, not
+ * merely dial with the wrong model.
+ */
+test("site assistant: a stored ANTHROPIC key with no stored model or endpoint does not borrow TOVU_SITE_ASSISTANT_MODEL, and reaches no endpoint", async (t) => {
+  const deps = createRouteDeps();
+  await enablePublicAssistant(deps);
+  const stub = await bootProviderStub(t, deps, () => anthropicReply("this must never be produced"), {
+    TOVU_SITE_ASSISTANT_MODEL: "claude-x",
+  });
+  await storeSiteCredential(deps, { apiKey: FAKE_KEY, provider: "anthropic" });
+
+  const raw = await drainedBody(await postChat(stub.siteUrl));
+
+  assert.equal(stub.requests.length, 0, "no provider call may be made without a stored model");
+  assert.equal(raw.status, 503, `expected a 503 refusal, got ${raw.status} with body ${raw.text}`);
+  const body = JSON.parse(raw.text) as { error?: string; code?: string };
+  assert.equal(body.code, "MODEL_NOT_CONFIGURED");
 });
