@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
@@ -9,8 +9,8 @@ import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { SecretSealerPort } from "../../webhooks/index.js";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
-import { createCustomCredential, CustomCredentialNotFoundError, type CustomCredentialWriteDeps } from "../store.js";
-import { CredentialedRequestValidationError, InMemoryCredentialedRequestAuditLog } from "../credentialed-request.js";
+import { createCustomCredential, type CustomCredentialWriteDeps } from "../store.js";
+import { InMemoryCredentialedRequestAuditLog } from "../credentialed-request.js";
 import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 
@@ -435,7 +435,7 @@ test("a denied principal never even sees a dialog, and the credential is never d
   assert.equal(authorizeCalls[0]?.permission, "custom-credentials.write");
 });
 
-test("an unknown label is refused with CustomCredentialNotFoundError before any dialog is raised", async () => {
+test("an unknown label is refused as not-found before any dialog is raised", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
   await seedFlyIo(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore();
@@ -444,8 +444,10 @@ test("an unknown label is refused with CustomCredentialNotFoundError before any 
   await assert.rejects(
     () => call(deleteTool, { input: { label: "does-not-exist", method: "DELETE", url: "https://api.fly.io/v1/apps" } }),
     (err: unknown) => {
-      assert.ok(err instanceof CustomCredentialNotFoundError);
-      assert.equal((err as Error).message, "no custom credential labeled 'does-not-exist' in this workspace");
+      // A `ToolInputError` since 2026-09-16: the map-level model-facing wrap re-classifies
+      // `CustomCredentialNotFoundError` so the real reason is not redacted on its way to the model.
+      assert.ok(err instanceof ToolInputError);
+      assert.equal((err as Error).message, "CUSTOM_CREDENTIALS_NOT_FOUND: no custom credential labeled 'does-not-exist' in this workspace");
       return true;
     }
   );
@@ -463,10 +465,11 @@ test("an off-allowlist url is refused with the exact validation message before a
   await assert.rejects(
     () => call(deleteTool, { input: { label: "fly.io", method: "DELETE", url: "https://evil.example.com/steal" } }),
     (err: unknown) => {
-      assert.ok(err instanceof CredentialedRequestValidationError);
+      // A `ToolInputError` since 2026-09-16 — see the not-found case above.
+      assert.ok(err instanceof ToolInputError);
       assert.equal(
         (err as Error).message,
-        "url 'https://evil.example.com/steal' resolves to origin 'https://evil.example.com', which is not one of this credential's saved hosts (https://api.fly.io, https://api.machines.dev) — add it to this credential in the Access Tokens form first"
+        "CUSTOM_CREDENTIALS_REQUEST_REJECTED: url 'https://evil.example.com/steal' resolves to origin 'https://evil.example.com', which is not one of this credential's saved hosts (https://api.fly.io, https://api.machines.dev) — add it to this credential in the Access Tokens form first"
       );
       return true;
     }

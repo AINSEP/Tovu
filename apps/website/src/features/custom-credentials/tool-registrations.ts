@@ -14,12 +14,16 @@ import {
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "../../contracts/core/model-facing-tool-errors.js";
 import { askThenReport, resolveConfirmationDecision, SURFACE_DISMISSED_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../contracts/core/tool-surface-exchanges.js";
 // `SurfaceEmission` itself is `@jini-ai/core`'s own type (`tool-surface-exchanges.ts` re-exports the
 // functions that use it, but not the type) — imported directly here so `handleSetTokenAnswer` below
 // can name its `askThenReport`-shaped return type explicitly, mirroring `features/deployments/
 // publish-agent-tools.ts`'s identical import for the same reason.
 import type { SurfaceEmission } from "@jini-ai/core";
+// `ToolInputError` is the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a rejection
+// `errorKind: 'validation'` instead of the `'internal'` bucket the delegated transport redacts.
+import { ToolInputError } from "@jini-ai/core";
 // `EgressRefusedError` is a runtime import, and the ONLY one this file takes from `platform/http` —
 // the barrel is otherwise types-only by design. Imported for `instanceof`, not to construct
 // anything; see {@link isCredentialedRequestShapeRejection}. Same pattern
@@ -317,6 +321,51 @@ function isCredentialedRequestShapeRejection(error: unknown): boolean {
 function isWriteFilesShapeRejection(error: unknown): boolean {
   return error instanceof CustomCredentialValidationError;
 }
+
+/**
+ * The custom-credentials errors that reach the model with their real reason instead of a redacted
+ * `INTERNAL_ERROR` — see `contracts/core/model-facing-tool-errors.ts` for the mechanism, for why a
+ * whole-map wrap is used rather than a per-call-site reshape, and for why this list is an
+ * ALLOWLIST: anything unlisted is returned unchanged and stays redacted.
+ *
+ * The two predicates above already rescue `make_request`'s and `write_files`' shape rejections, but
+ * only around the calls they wrap. Every other throw — the kit's `ForbiddenError` on all seven tools,
+ * a wrong label on the five that resolve one, `set_username`/`set_token`'s own field checks, and the
+ * DELETE pre-check — reached the model as the same opaque 500 a crash produces. No class below
+ * extends another, so order is not load-bearing here. A rejection a predicate already turned into a
+ * `ToolInputError` passes through untouched, so nothing gains a second prefix.
+ *
+ * On disclosure, checked at each construction site because this domain holds live tokens:
+ * - `CustomCredentialNotFoundError` names only the label the caller sent or a row id
+ *   (`credentialed-request.ts` 708/730, `store.ts` 494, and this file's three throws). Every one runs
+ *   AFTER `requireToolPermission`, so a denied principal cannot use it to enumerate labels.
+ * - `CustomCredentialValidationError` names field NAMES and fixed rules, never a field value:
+ *   `rejectUnexpectedSet{Username,Token}Fields` echo the offending KEYS (a smuggled token's value is
+ *   never read), `requireUsernameOrClearSentinel` and `store.ts` 140-263 are fixed strings.
+ * - `CredentialedRequestValidationError` echoes the caller's own `url` (credentials-in-URL is refused
+ *   first, with fixed text), header KEYS, a byte count, and the credential's saved origins, which
+ *   `custom_credential_list` already returns. GET/POST already surface this class; listing it closes
+ *   the DELETE pre-check arm only.
+ *
+ * Deliberately NOT listed, and so still redacted:
+ * - `CustomCredentialSecretStoreUnconfiguredError`: its decrypt arm embeds the sealer's or
+ *   `JSON.parse`'s own message, and `JSON.parse` quotes the start of its input — decrypted plaintext.
+ * - `CredentialedRequestTransportError`: embeds raw transport text (`connect ECONNREFUSED <ip>:443`).
+ * - `EgressRefusedError` at map level: `make_request`'s own predicate already decides where it
+ *   surfaces, and its message names a resolved address (`platform/http/client.ts`).
+ * - `CustomCredentialDuplicateLabelError`: never escapes as a throw (`mapCreateCredentialError`).
+ * - `write_files`' plan-failure `Error`, which carries upstream GitHub or transport text, and
+ *   {@link buildWriteFilesConfirmationFileSpecs}' internal-invariant `Error`.
+ *
+ * The structured `{ saved: false }` / `{ created: false }` / `{ executed: false }` results are return
+ * values, not throws, and this wrap never sees them.
+ */
+const CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
+  forbiddenRule("CUSTOM_CREDENTIALS"),
+  { error: CustomCredentialNotFoundError, code: "CUSTOM_CREDENTIALS_NOT_FOUND" },
+  { error: CustomCredentialValidationError, code: "CUSTOM_CREDENTIALS_VALIDATION_FAILED" },
+  { error: CredentialedRequestValidationError, code: "CUSTOM_CREDENTIALS_REQUEST_REJECTED" },
+];
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -1023,7 +1072,9 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       // fresh MODEL-ISSUED tool call carrying the human's answer as its own input, which is exactly the
       // path this tool exists to make impossible for a secret. See this file's header.
       if (!ctx.emitSurface) {
-        throw new Error(
+        // A `ToolInputError` with the wording unchanged: a bare `Error` is redacted to a 500 that
+        // no allowlist rule can rescue. No code prefix — the per-tool suites pin this exact string.
+        throw new ToolInputError(
           "custom_credential_set_token: this execution context has no interactive confirmation channel " +
             "(no emitSurface), so a token cannot be collected here. Nothing was changed."
         );
@@ -1062,7 +1113,9 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       // Fail closed rather than degrade — same posture `custom_credential_set_token` documents above,
       // and for the identical reason: the only place a token can ever enter is the rendered form.
       if (!ctx.emitSurface) {
-        throw new Error(
+        // A `ToolInputError` with the wording unchanged: a bare `Error` is redacted to a 500 that
+        // no allowlist rule can rescue. No code prefix — the per-tool suites pin this exact string.
+        throw new ToolInputError(
           "custom_credential_create: this execution context has no interactive confirmation channel " +
             "(no emitSurface), so a credential cannot be created here. Nothing was changed."
         );
@@ -1103,19 +1156,18 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       }
 
       // Non-decrypting: a declined/expired/off-allowlist DELETE must never have cost a decrypt.
-      // Deliberately NOT wrapped in `withSchemaOnRejection` — unlike the two `makeCredentialedRequest`
-      // calls above/below, this pre-check's own `CredentialedRequestValidationError` already reaches
-      // the caller directly, with its own type and an exact, actionable message (pinned by
-      // `make-request-delete-confirmation.test.ts`'s "off-allowlist url" case); decorating it here
-      // would change that established, tested contract for a code path this fix's own incident
-      // (a GET hitting a redirect) never touches. Out of scope for this pass — see this file's
-      // header for a pointer if that daemon-boundary redaction is later confirmed to reach here too.
+      // Not wrapped in `withSchemaOnRejection`: its `CredentialedRequestValidationError` and
+      // `CustomCredentialNotFoundError` reach the model through the map-level
+      // `CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS` wrap instead (2026-09-16) — the daemon-boundary
+      // redaction this comment once deferred was confirmed to reach here too.
       const target = await resolveRequestTarget({ repo: requestDeps.repo }, { workspaceId: routeDeps.workspaceId, label, url });
 
       // Fail closed rather than degrade — same posture `content_post_delete`'s own handler documents:
       // an execution context that cannot hold this call open cannot run a gated DELETE at all.
       if (!ctx.emitSurface) {
-        throw new Error(
+        // A `ToolInputError` with the wording unchanged: a bare `Error` is redacted to a 500 that
+        // no allowlist rule can rescue. No code prefix — the per-tool suites pin this exact string.
+        throw new ToolInputError(
           "custom_credential_make_request: this execution context has no interactive confirmation channel " +
             "(no emitSurface), so a DELETE cannot be gated here. Nothing was sent."
         );
@@ -1164,7 +1216,9 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       // `custom_credential_create` document above: a write only a human can confirm has nowhere to go
       // in an execution context that cannot hold this call open.
       if (!ctx.emitSurface) {
-        throw new Error(
+        // A `ToolInputError` with the wording unchanged: a bare `Error` is redacted to a 500 that
+        // no allowlist rule can rescue. No code prefix — the per-tool suites pin this exact string.
+        throw new ToolInputError(
           "custom_credential_write_files: this execution context has no interactive confirmation channel " +
             "(no emitSurface), so a write cannot be confirmed here. Nothing was written."
         );
@@ -1217,7 +1271,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
     domain: DOMAIN,
     catalogModule: "features/custom-credentials/agent-tools.ts",
     catalog: CATALOG_BY_ID,
-    handlers,
+    handlers: withModelFacingErrors(handlers, CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS),
     derivedRisk: customCredentialsDerivedRisk,
   });
 }
