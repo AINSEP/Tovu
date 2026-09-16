@@ -13,9 +13,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryChangeSetRepo, ForbiddenError as CommandForbiddenError } from "../../contracts/core/commands/index.js";
+import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import { formsAgentToolCatalog, type AgentToolDefinition } from "../../features/forms/agent-tools.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../../features/forms/repo.memory.js";
 import type { FormDefinitionRecord, FormSubmissionRecord } from "../../features/forms/types.js";
@@ -369,7 +369,15 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     await assert.rejects(
       () => wired(toolId, deps).handler(executionContext(TOOL_INPUTS[toolId](id))),
       (error: unknown) => {
-        assert.ok(error instanceof CommandForbiddenError, `expected ForbiddenError, got ${String(error)}`);
+        // `withModelFacingErrors` (forms/tool-registrations.ts) reclassifies the kit's
+        // `ForbiddenError` into a `ToolInputError` prefixed `FORMS_FORBIDDEN:` so the real reason
+        // reaches the model instead of the SEC-005-redacted `INTERNAL_ERROR` a non-`ToolInputError`
+        // collapses into — the 2026-09-16 "always say the real reason" sweep, matching what
+        // `tool-registrations.widgets-authorization.test.ts` already pins for Widgets. What this
+        // test exists to prove is unchanged and still asserted below: the gate runs ahead of every
+        // durable effect.
+        assert.ok(error instanceof ToolInputError, `expected ToolInputError (ForbiddenError wrapped), got ${String(error)}`);
+        assert.match((error as Error).message, /^FORMS_FORBIDDEN: /);
         assert.match((error as Error).message, new RegExp(PRINCIPAL_ID));
         assert.match((error as Error).message, /admin\.forms\.manage/);
         return true;
@@ -447,7 +455,10 @@ test("forms_list_submissions: a denied principal is rejected and the submission 
   await assert.rejects(
     () => wired("forms_list_submissions", deps).handler(executionContext({ formId: "some-form" })),
     (error: unknown) => {
-      assert.ok(error instanceof CommandForbiddenError, `expected ForbiddenError, got ${String(error)}`);
+      // Same reclassification as the definition tools above; the "never read the repo" guarantee
+      // this test owns is asserted below and is untouched by it.
+      assert.ok(error instanceof ToolInputError, `expected ToolInputError (ForbiddenError wrapped), got ${String(error)}`);
+      assert.match((error as Error).message, /^FORMS_FORBIDDEN: /);
       assert.match((error as Error).message, /admin\.forms\.submissions\.read/);
       return true;
     },

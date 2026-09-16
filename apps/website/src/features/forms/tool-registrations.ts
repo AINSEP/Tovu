@@ -30,10 +30,22 @@ import {
 } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import type { ToolContributor, DuplicateResourceHandlerContributor } from "#src/assistant/index";
+import {
+  forbiddenRule,
+  withModelFacingErrors,
+  type ModelFacingErrorRule,
+} from "#src/contracts/core/model-facing-tool-errors";
 import { formsAgentToolCatalog } from "./agent-tools.js";
 import { deriveAvailableFormSlug } from "./duplicate-slug.js";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
-import { FormDefinitionNotFoundError, FormFieldValidationError } from "./errors.js";
+import {
+  FormDefinitionNotFoundError,
+  FormFieldValidationError,
+  FormRateLimitExceededError,
+  FormSlugConflictError,
+  FormSubmissionNotFoundError,
+  FormSubmissionValidationError,
+} from "./errors.js";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js";
 import type {
   FieldDescriptor,
@@ -241,6 +253,36 @@ function requireFormsPatch(input: Record<string, unknown>): { name?: string; fie
   return patch;
 }
 
+/**
+ * The Forms errors that reach the model with their real reason instead of a redacted
+ * `INTERNAL_ERROR` — see `contracts/core/model-facing-tool-errors.ts` for the mechanism and for why
+ * this list is an ALLOWLIST rather than a blanket unwrap.
+ *
+ * Codes are `errors.ts`'s own documented per-class codes verbatim (`FORMS_SLUG_CONFLICT`,
+ * `FORMS_DEFINITION_NOT_FOUND`, ...), the same discipline `features/widgets/tool-registrations.ts`
+ * follows, so the model-facing token matches what that class already claims to be.
+ *
+ * `FormFieldValidationError` is deliberately ABSENT, and its absence is load-bearing rather than an
+ * oversight: `isFormsShapeRejection`/`withSchemaOnRejection` already converts it into a
+ * schema-decorated `ToolInputError`, which `reclassifyToolError` passes through untouched. Listing
+ * it here would prepend a second code onto a message that has already been shaped for the model.
+ * `tool-registrations.model-facing-errors.test.ts`'s last case pins that non-interference directly.
+ *
+ * On PII: a form SUBMISSION carries whatever a visitor typed, but no error class here interpolates
+ * submission content — `FormSubmissionNotFoundError` names the id the caller itself supplied, and
+ * nothing else. `FormSubmissionValidationError` is listed for the public-submit path's benefit even
+ * though no tool in this catalog currently reaches it; its `fieldErrors` detail rides on the
+ * property, not in the `message` this surfaces.
+ */
+const FORMS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
+  forbiddenRule("FORMS"),
+  { error: FormDefinitionNotFoundError, code: "FORMS_DEFINITION_NOT_FOUND" },
+  { error: FormSubmissionNotFoundError, code: "FORMS_SUBMISSION_NOT_FOUND" },
+  { error: FormSlugConflictError, code: "FORMS_SLUG_CONFLICT" },
+  { error: FormSubmissionValidationError, code: "FORMS_SUBMISSION_VALIDATION_ERROR" },
+  { error: FormRateLimitExceededError, code: "FORMS_RATE_LIMIT_EXCEEDED" },
+];
+
 export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     forms_list_definitions: async (ctx) => {
@@ -310,7 +352,10 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
       });
 
       const definition = await routeDeps.formDefinitionRepo.findById({ workspaceId: routeDeps.workspaceId, id: formId });
-      if (!definition) throw new Error(`form definition '${formId}' was not found`);
+      // The domain's own typed class, not a bare `Error`: `errors.ts` already declares it with the
+      // `FORMS_DEFINITION_NOT_FOUND` code this reaches the model under, and a bare `Error` could
+      // never be matched by any allowlist without opening one that matches everything.
+      if (!definition) throw new FormDefinitionNotFoundError(`form definition '${formId}' was not found`);
 
       const limit = requireSubmissionsLimit(input);
       const cursor = typeof input.cursor === "string" ? input.cursor : undefined;
@@ -336,7 +381,11 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
 
       const submission = await routeDeps.formSubmissionRepo.findById({ workspaceId: routeDeps.workspaceId, id: submissionId });
       if (!submission || submission.formDefinitionId !== formId) {
-        throw new Error(`submission '${submissionId}' was not found`);
+        // Same reasoning as `forms_list_submissions` above. Note this arm deliberately answers
+        // "not found" for a submission that EXISTS under a different definition — the cross-form
+        // probe is refused with the same text as a genuine miss, and surfacing the real reason
+        // does not change that: the message names only the id the caller already supplied.
+        throw new FormSubmissionNotFoundError(`submission '${submissionId}' was not found`);
       }
       return { submission: toFormSubmissionView(submission) };
     },
@@ -348,7 +397,12 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
     domain: "forms",
     catalogModule: "forms/agent-tools.ts",
     catalog: CATALOG_BY_ID,
-    handlers,
+    // The whole map at once, so no handler can be the one that forgot — see
+    // `withModelFacingErrors`' own doc for why a per-call-site reshape is the defect this avoids.
+    // Composes with the three handlers' inner `withSchemaOnRejection` rather than competing with
+    // it: a shape rejection is already a `ToolInputError` by the time it reaches here, and
+    // `reclassifyToolError` returns those untouched.
+    handlers: withModelFacingErrors(handlers, FORMS_MODEL_FACING_ERRORS),
     derivedRisk: formsDerivedRisk,
   });
 }
