@@ -40,6 +40,7 @@ import type { Principal, RunRef, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import type { ToolAttemptAuditSink, ToolAttemptPhase } from "../features/tool-audit/types.js";
+import { readToolErrorId } from "./tool-failure-redaction.js";
 
 export interface ToolAttemptAuditOptions {
   /** The workspace every attempt is attributed to — the daemon serves exactly one. */
@@ -81,6 +82,22 @@ export function describeInput(input: unknown): string {
 /** Maps a `ToolExecutionResult.status` onto the phase recorded for it. The unions are aligned by design. */
 function phaseForStatus(status: ToolExecutionResult["status"]): ToolAttemptPhase {
   return status as ToolAttemptPhase;
+}
+
+/**
+ * The `detail` column for a settled (non-throwing) result — `"output truncated"` when the output
+ * itself was cut, else the value-free `errorId=<ID>` link (2026-09-16) when `withRedactedToolFailures`
+ * (`tool-failure-redaction.ts`) tagged this result, else `null`. Never the error TEXT itself: the
+ * table is durable, and a redacted message is still operator content, not metadata — the id alone is
+ * enough to join this row back to the full, already-redacted server-side record (see that file's own
+ * header, §3(a)).
+ *
+ * @complexity O(1).
+ */
+function attemptResultDetail(result: ToolExecutionResult): string | null {
+  if (result.truncated) return "output truncated";
+  const errorId = readToolErrorId(result);
+  return errorId === undefined ? null : `errorId=${errorId}`;
 }
 
 /**
@@ -160,7 +177,7 @@ export function withToolAttemptAudit(inner: ToolExecutor, sink: ToolAttemptAudit
 
       try {
         const result = await inner.execute(principal, run, toolId, input, signal, emitSurface);
-        await appendSafely({ ...base, executionId: result.executionId, phase: phaseForStatus(result.status), at: now(), detail: result.truncated ? "output truncated" : null });
+        await appendSafely({ ...base, executionId: result.executionId, phase: phaseForStatus(result.status), at: now(), detail: attemptResultDetail(result) });
         return result;
       } catch (error) {
         const phase: ToolAttemptPhase = isUnknownToolError(error) ? "unknown-tool" : "failed";

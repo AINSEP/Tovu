@@ -218,6 +218,21 @@ test("a truncated output is noted, since the recorded result is then not the who
   assert.equal(sink.events[1].detail, "output truncated");
 });
 
+test("2026-09-16: a redacted internal failure's row links to its error ID, never its (already redacted) text", async () => {
+  const sink = createInMemoryToolAttemptAuditSink();
+  const secret = "sk_" + "live_" + "Ab3".repeat(8);
+  const errorId = "ERR-AAAA-BBBB-CCCC-DDDD";
+  const inner = fakeExecutor({
+    result: { executionId: "exec-8", status: "failed", errorKind: "internal", error: `Error ${errorId}: boom ${secret}`, errorId },
+  });
+
+  await wrap(inner, sink).execute(PRINCIPAL, RUN, "t", {});
+
+  assert.equal(sink.events[1].detail, `errorId=${errorId}`);
+  assert.equal(String(sink.events[1].detail).includes("boom"), false, "the detail must never carry the error's own text");
+  assert.equal(String(sink.events[1].detail).includes(secret), false);
+});
+
 test("distinct executions get distinct attempt ids, so concurrent runs cannot be conflated", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
   const executor = withToolAttemptAudit(fakeExecutor({ result: { executionId: "e", status: "completed", output: null } }), sink, { workspaceId: WORKSPACE_ID });

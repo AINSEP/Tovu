@@ -117,6 +117,29 @@ test("BRIDGE: the persisted tool_result event and http-kit's internal-error log 
 });
 
 // ---------------------------------------------------------------------------
+// 4. The durable audit row links to the SAME id, never the redacted text — commit 3.
+// ---------------------------------------------------------------------------
+
+test("AUDIT LINK: the failed attempt row's detail is exactly errorId=<ID>, never the message", async () => {
+  const registry = createToolRegistry();
+  registerThrowingTool(registry);
+  const sink = createInMemoryToolAttemptAuditSink();
+  const executor = createAssistantToolExecutor({
+    registry,
+    surfaceExchanges: createSurfaceExchangeStore(),
+    toolAttemptAudit: { sink, workspaceId: WORKSPACE_ID },
+    toolFailures: { mintErrorId: () => FIXED_ID },
+  });
+
+  await executor.execute(PRINCIPAL, RUN, "throws_secret", {});
+
+  const failedEvent = sink.events.find((e) => e.phase === "failed");
+  assert.ok(failedEvent, "a failed attempt row must have been appended");
+  assert.equal(failedEvent!.detail, `errorId=${FIXED_ID}`);
+  containsNoSecret(String(failedEvent!.detail));
+});
+
+// ---------------------------------------------------------------------------
 // 3. The MCP-UI redemption route (P6) — the legacy, no-exchangeId shape.
 // ---------------------------------------------------------------------------
 
