@@ -93,6 +93,30 @@ async function patch(
   return { status: res.status, json };
 }
 
+// ---------------------------------------------------------------------------
+// Error-mapping characterization, added 2026-09-16 ahead of extracting the route handler's inline
+// instanceof chain into `mapMediaUpdateError` (source-complexity-drift ceiling). The 404 branch had
+// no coverage at all before this — every existing test above only reaches 200/400/409.
+// ---------------------------------------------------------------------------
+
+test("update: a nonexistent mediaId is rejected with 404 naming it, not 500 or a silent no-op", async (t) => {
+  const base = createRouteDeps();
+  const app = buildApp({
+    mediaRepo: base.mediaRepo,
+    assetBlobRepo: base.assetBlobRepo,
+    assetRenditionRepo: base.assetRenditionRepo,
+    blobStore: base.blobStore,
+    mediaContentTypeStore: base.mediaContentTypeStore,
+    transformDefinitionRepo: base.transformDefinitionRepo,
+    imageTransformer: base.imageTransformer,
+    idGen: base.idGen,
+    clock: base.clock,
+  });
+  const { status, json } = await patch(t, app, "no-such-media-id", { alt: "does not matter" });
+  assert.equal(status, 404);
+  assert.equal(json.error, "media 'no-such-media-id' was not found");
+});
+
 test("update: alt: null clears the field to empty string", async (t) => {
   const base = createRouteDeps();
   const app = buildApp({

@@ -53,6 +53,33 @@ function parseMediaMetadataPatch(rawBody: unknown) {
   };
 }
 
+/** One mapped error response: the exact status/body this route has always returned for it. */
+interface MediaUpdateErrorResponse {
+  readonly status: number;
+  readonly body: { readonly error: string };
+}
+
+/**
+ * Maps a thrown `updateMediaMetadata` error to the status/body this route has always returned for
+ * it, one function per error type — same table-shaped pattern
+ * `custom-credentials/tool-registrations.ts`'s `mapCreateCredentialError` uses for the same reason
+ * (source-complexity-drift ceiling: an inline instanceof chain inside the route handler's own
+ * try/catch pushed it over 9). Anything not one of the three known error types falls through to a
+ * generic 500, matching this route's prior behavior exactly.
+ *
+ * @complexity O(1) — three `instanceof` checks.
+ */
+function mapMediaUpdateError(err: unknown): MediaUpdateErrorResponse {
+  if (err instanceof MediaNotFoundError) return { status: 404, body: { error: err.message } };
+  if (err instanceof MediaValidationError) return { status: 400, body: { error: err.message } };
+  // A slug collision — either `resolveSlugForUpdate`'s own app-level courtesy check, or (on a
+  // genuine race) `SqliteMediaRepo.save()`'s translated UNIQUE-constraint catch; both throw the
+  // same `MediaConflictError` so this route needs only one branch regardless of which layer
+  // caught it. 409, not 400: the request is well-formed, it just collides with existing state.
+  if (err instanceof MediaConflictError) return { status: 409, body: { error: err.message } };
+  return { status: 500, body: { error: "internal error" } };
+}
+
 /**
  * PATCH media metadata (title/slug/alt/caption/credit/width/height/cssClass — `source.sha256` is
  * write-once and this route's input shape has no field for it, matching
@@ -93,23 +120,8 @@ export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = (app, deps) =>
       });
       res.json({ media: toAdminMediaResponse(media, await readRecordedContentType(deps, media.source.sha256)) });
     } catch (err) {
-      if (err instanceof MediaNotFoundError) {
-        res.status(404).json({ error: err.message });
-        return;
-      }
-      if (err instanceof MediaValidationError) {
-        res.status(400).json({ error: err.message });
-        return;
-      }
-      // A slug collision — either `resolveSlugForUpdate`'s own app-level courtesy check, or (on a
-      // genuine race) `SqliteMediaRepo.save()`'s translated UNIQUE-constraint catch; both throw the
-      // same `MediaConflictError` so this route needs only one branch regardless of which layer
-      // caught it. 409, not 400: the request is well-formed, it just collides with existing state.
-      if (err instanceof MediaConflictError) {
-        res.status(409).json({ error: err.message });
-        return;
-      }
-      res.status(500).json({ error: "internal error" });
+      const { status, body } = mapMediaUpdateError(err);
+      res.status(status).json(body);
     }
   });
 };
