@@ -41,7 +41,7 @@ import {
 import { buildCreateFormResource, buildCreateOutcomeResource, CREATE_TOOL_ID, type CreateCredentialPrefill } from "./custom-credential-create-ui.js";
 import { buildSetTokenFormResource, buildSetTokenOutcomeResource, SET_TOKEN_TOOL_ID } from "./custom-credential-set-token-ui.js";
 import { buildDeleteRequestConfirmationResource, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
-import { commitGitHubFiles, planGitHubFileWrite, type GitHubWriteFilesPlan } from "./github-write-files.js";
+import { commitGitHubFiles, planGitHubFileWrite, type FileWriteState, type GitHubWriteFilesPlan } from "./github-write-files.js";
 import {
   createCustomCredential,
   CustomCredentialDuplicateLabelError,
@@ -54,8 +54,8 @@ import {
   updateCustomCredential,
 } from "./store.js";
 import type { CustomCredentialSetRepoPort, CustomCredentialSummary, CustomProviderConnectionInput } from "./types.js";
-import { buildWriteFilesConfirmationResource, WRITE_FILES_TOOL_ID } from "./write-files-confirmation-ui.js";
-import { isWorkflowPath, validateWriteFilesInput, type ValidatedWriteFilesInput } from "./write-files-validation.js";
+import { buildWriteFilesConfirmationResource, WRITE_FILES_TOOL_ID, type WriteFilesConfirmationFileSpec } from "./write-files-confirmation-ui.js";
+import { isWorkflowPath, validateWriteFilesInput, type NormalizedWriteFile, type ValidatedWriteFilesInput } from "./write-files-validation.js";
 
 /**
  * @file Wires `agent-tools.ts`'s three-tool catalog onto `credentialed-request.ts`'s domain logic (plus
@@ -414,6 +414,83 @@ async function performGitHubFilesWrite(
     return { executed: false, cancelled: false, reason: "error", message: commitResult.message };
   }
   return { executed: true, commitSha: commitResult.commitSha, commitUrl: commitResult.commitUrl, filesWritten: validated.files.length };
+}
+
+/** The longest content excerpt `custom_credential_write_files`'s confirmation dialog shows per file.
+ *  Long enough to recognize a config/workflow file's opening lines at a glance, short enough that a
+ *  full `WRITE_FILES_LIMITS.maxFiles`-file dialog stays readable and the emitted UI payload stays
+ *  bounded regardless of how large the actual files are. */
+const WRITE_FILES_EXCERPT_MAX_CHARS = 200;
+
+/**
+ * The short, per-file content excerpt the confirmation dialog renders beside each path — the whole
+ * content when it is already at or under {@link WRITE_FILES_EXCERPT_MAX_CHARS} characters, otherwise
+ * its first `WRITE_FILES_EXCERPT_MAX_CHARS` characters plus an ellipsis. Truncated HERE, before the
+ * spec is built, so the emitted dialog carries one bounded excerpt per file rather than a full file
+ * body — the human is asked to review the contents, so there must be some to review, without the
+ * payload growing with the files themselves.
+ *
+ * @complexity O(1) in the excerpt cap; O(n) only for content shorter than the cap.
+ */
+function buildWriteFilesContentExcerpt(content: string): string {
+  return content.length > WRITE_FILES_EXCERPT_MAX_CHARS ? `${content.slice(0, WRITE_FILES_EXCERPT_MAX_CHARS)}…` : content;
+}
+
+/**
+ * Maps one {@link FileWriteState} from `planGitHubFileWrite` plus its already-validated content onto
+ * `write-files-confirmation-ui.ts`'s own spec shape — the one place this wiring layer decides what
+ * the dialog shows for a file. The byte size is computed here from the content itself rather than
+ * read off `NormalizedWriteFile` (which carries only `path`/`content`; `write-files-validation.ts`'s
+ * own byte checks are local to validation), so the two can never drift.
+ *
+ * @complexity O(1) in the excerpt cap; O(n) only for content shorter than the cap.
+ */
+function buildWriteFilesConfirmationFileSpec(fileState: FileWriteState, content: string): WriteFilesConfirmationFileSpec {
+  return {
+    path: fileState.path,
+    exists: fileState.exists,
+    isWorkflow: isWorkflowPath(fileState.path),
+    contentExcerpt: buildWriteFilesContentExcerpt(content),
+    sizeBytes: Buffer.byteLength(content, "utf8"),
+  };
+}
+
+/**
+ * Pairs every path `planGitHubFileWrite` planned with the validated content this call would write
+ * there, producing the file list `buildWriteFilesConfirmationResource` renders.
+ *
+ * THROWS when a planned path has no entry in `files`, rather than substituting an empty string: a
+ * detail row reading `(empty file)` for a file that is about to be written with real content is the
+ * confirmation dialog lying to the human whose consent it is asking for — the one failure this
+ * dialog exists to make impossible. `planGitHubFileWrite` derives its `fileStates` from this same
+ * `files` array (one state per entry, same normalized path — see `github-write-files.ts`'s own
+ * existence loop), so a miss is never a caller mistake; it means these two modules have drifted, and
+ * the only safe answer is to raise no dialog at all and let the write fail loudly.
+ *
+ * Exported for that reason: the miss is unreachable through the handler precisely because the two
+ * lists share an origin, and an invariant no test can reach is an invariant nothing protects.
+ *
+ * @param input.fileStates - `planGitHubFileWrite`'s per-file create/update reconnaissance.
+ * @param input.files - The same validated files that plan was built from.
+ * @throws {Error} A planned path is absent from `files`. Deliberately a plain `Error`, not a
+ * `ToolInputError`: no different input from the caller would fix it.
+ * @complexity O(files) — one map insertion and one lookup per file, plus each file's own capped excerpt.
+ */
+export function buildWriteFilesConfirmationFileSpecs(input: {
+  fileStates: readonly FileWriteState[];
+  files: readonly NormalizedWriteFile[];
+}): WriteFilesConfirmationFileSpec[] {
+  const contentByPath = new Map(input.files.map((file): [string, string] => [file.path, file.content]));
+  return input.fileStates.map((fileState) => {
+    const content = contentByPath.get(fileState.path);
+    if (content === undefined) {
+      throw new Error(
+        `custom_credential_write_files: the write plan names '${fileState.path}', which is not one of the ${input.files.length} validated file(s) — ` +
+          "refusing to raise a confirmation dialog that cannot say what would be written there. Nothing was written."
+      );
+    }
+    return buildWriteFilesConfirmationFileSpec(fileState, content);
+  });
 }
 
 /** The exact keys `custom_credential_set_username` accepts — nothing else, ever. This is the
@@ -1094,7 +1171,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
         owner: validated.owner,
         repo: validated.repo,
         branch: validated.branch,
-        files: planResult.plan.fileStates.map((fileState) => ({ path: fileState.path, exists: fileState.exists, isWorkflow: isWorkflowPath(fileState.path) })),
+        files: buildWriteFilesConfirmationFileSpecs({ fileStates: planResult.plan.fileStates, files: validated.files }),
         exchangeId: exchange.id,
       });
 

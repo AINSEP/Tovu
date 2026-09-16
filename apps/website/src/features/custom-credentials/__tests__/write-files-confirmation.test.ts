@@ -10,7 +10,7 @@ import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { SecretSealerPort } from "../../webhooks/index.js";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential, type CustomCredentialWriteDeps } from "../store.js";
-import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
+import { buildCustomCredentialsRegistrations, buildWriteFilesConfirmationFileSpecs, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 
 /**
@@ -224,7 +224,11 @@ test("a file that already exists on the branch is labeled as an update, resolved
     httpSteps: [
       { match: /\/git\/ref\/heads\/main$/, status: 200, json: { object: { sha: "parent-sha" } } },
       { match: /\/git\/commits\/parent-sha$/, status: 200, json: { tree: { sha: "base-tree-sha" } } },
-      { match: /\/contents\/fly\.toml\?ref=main$/, status: 200, json: { sha: "existing-sha" } },
+      // `type: "file"` is what GitHub's real Contents API answers for a regular file, and what
+      // `github-write-files.ts`'s existence check requires (5716426c added that check — a directory
+      // or submodule at the path must NOT be described as an update). Without it this fixture
+      // exercises the refusal path, not the update path this test is about.
+      { match: /\/contents\/fly\.toml\?ref=main$/, status: 200, json: { sha: "existing-sha", type: "file" } },
     ],
   });
   await seedGithub(writeDeps);
@@ -272,6 +276,97 @@ test("an ordinary file (no workflow path) never renders the workflow warning", a
 
   surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
   await pending;
+});
+
+// ---------------------------------------------------------------------------
+// 1b. The excerpt — what the human is told each file CONTAINS
+//
+// The dialog's own warning tells the human to "review its contents carefully", so the contents have
+// to be in it. These pin the three ways that can go wrong: showing nothing, showing the whole file
+// (an unbounded payload), and showing content the frame would execute rather than display.
+// ---------------------------------------------------------------------------
+
+/** Mirrors `tool-registrations.ts`'s own `WRITE_FILES_EXCERPT_MAX_CHARS`. Restated rather than
+ *  imported: a test that reads the cap off the module under test would pass at any cap, including a
+ *  silently-raised one that puts a whole file in the dialog payload. */
+const EXCERPT_MAX_CHARS = 200;
+
+/** Raises the dialog for a single `fly.toml` carrying `content`, returns the surface's rendered HTML,
+ *  and settles the parked call so no test leaves a live exchange behind. */
+async function dialogHtmlForContent(content: string): Promise<string> {
+  const { deps, writeDeps } = fakeRouteDeps();
+  await seedGithub(writeDeps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
+
+  const { ui, exchangeId, pending } = await raiseDialog(writeTool, { ...VALID_INPUT, files: [{ path: "fly.toml", content }] });
+  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+  await pending;
+  return ui.resource.text;
+}
+
+test("the dialog shows the file's real content and its byte size, not just its path", async () => {
+  const html = await dialogHtmlForContent('app = "demo"\nprimary_region = "iad"');
+
+  assert.match(html, /primary_region/, "the dialog asks the human to review the contents, so the contents must be in it");
+  assert.match(html, /35 bytes/, "the size is the fact that tells a human a 'small config change' is actually not one");
+});
+
+test(`content of exactly ${EXCERPT_MAX_CHARS} characters is shown whole, with no ellipsis`, async () => {
+  const html = await dialogHtmlForContent("x".repeat(EXCERPT_MAX_CHARS));
+
+  assert.match(html, new RegExp(`x{${EXCERPT_MAX_CHARS}}`));
+  assert.doesNotMatch(html, /x…/, "an off-by-one cap would claim a complete file was truncated");
+});
+
+test(`content over ${EXCERPT_MAX_CHARS} characters is cut to the cap plus an ellipsis, and the tail never travels in the dialog`, async () => {
+  const html = await dialogHtmlForContent(`${"x".repeat(EXCERPT_MAX_CHARS)}TAIL_BEYOND_THE_CAP`);
+
+  assert.match(html, new RegExp(`x{${EXCERPT_MAX_CHARS}}…`));
+  assert.doesNotMatch(html, new RegExp(`x{${EXCERPT_MAX_CHARS + 1}}`), "the cap is a cap, not a hint");
+  assert.doesNotMatch(html, /TAIL_BEYOND_THE_CAP/, "an uncapped excerpt would put whole megabyte files into the emitted surface");
+});
+
+test("a file whose content is genuinely empty says so", async () => {
+  const html = await dialogHtmlForContent("");
+
+  assert.match(html, /\(empty file\)/);
+});
+
+test("HTML in a file's content is escaped into the dialog, never rendered as live markup", async () => {
+  const html = await dialogHtmlForContent("<script>alert(1)</script>");
+
+  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/, "@jini-ai/ui's renderDetailList escapes every detail value — this pins that it still does");
+  assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/, "an unescaped excerpt would execute inside the confirmation frame the human is about to click");
+});
+
+test("a planned path with no validated content throws — the dialog never calls a file about to be written '(empty file)'", () => {
+  assert.throws(
+    () =>
+      buildWriteFilesConfirmationFileSpecs({
+        fileStates: [{ path: "fly.toml", exists: false }],
+        files: [{ path: "somewhere/else.toml", content: 'app = "demo"' }],
+      }),
+    /the write plan names 'fly\.toml'/
+  );
+});
+
+test("each planned path is paired with its OWN content, matched by path rather than by position", () => {
+  const specs = buildWriteFilesConfirmationFileSpecs({
+    fileStates: [
+      { path: "a.txt", exists: false },
+      { path: ".github/workflows/deploy.yml", exists: true },
+    ],
+    files: [
+      { path: ".github/workflows/deploy.yml", content: "name: deploy" },
+      { path: "a.txt", content: "hello" },
+    ],
+  });
+
+  assert.deepEqual(specs, [
+    { path: "a.txt", exists: false, isWorkflow: false, contentExcerpt: "hello", sizeBytes: 5 },
+    { path: ".github/workflows/deploy.yml", exists: true, isWorkflow: true, contentExcerpt: "name: deploy", sizeBytes: 12 },
+  ]);
 });
 
 // ---------------------------------------------------------------------------

@@ -32,27 +32,36 @@ export function writeFilesConfirmationUri(exchangeId: string): UIResourceUri {
 /** One file the confirmation dialog names — `exists` (create vs. update) and `isWorkflow` are both
  *  facts the caller must have already resolved (`github-write-files.ts`'s plan phase,
  *  `write-files-validation.ts`'s `isWorkflowPath`) — this module only renders them, it never decides
- *  them. */
+ *  them. `contentExcerpt`/`sizeBytes` are supplied by the caller the same way: the caller truncates
+ *  the excerpt to a short, reviewable length (see `tool-registrations.ts`'s own
+ *  `buildWriteFilesContentExcerpt`) so the detail row gives the human something real to review
+ *  without the dialog payload ever carrying a full file body. */
 export interface WriteFilesConfirmationFileSpec {
   readonly path: string;
   readonly exists: boolean;
   readonly isWorkflow: boolean;
+  readonly contentExcerpt: string;
+  readonly sizeBytes: number;
 }
 
 /** One `{label, value}` detail row per file — a workflow file's LABEL itself carries the emphasis
  *  (`SurfaceDetail` has no per-row style/variant field to hook into — see `@jini-ai/ui`'s own
  *  `confirmation.ts`), so the words in the label are the only lever this builder has to make that row
  *  read differently from an ordinary file's row, in addition to the dedicated warning sentence
- *  {@link buildWriteFilesConfirmationResource} adds below the whole list.
+ *  {@link buildWriteFilesConfirmationResource} adds below the whole list. The value carries the
+ *  caller-supplied excerpt and byte size beside the path, so the dialog's own "Review its contents
+ *  carefully" instruction points at something the human can actually see.
  *
  * @complexity O(1).
  */
 function fileDetailRow(file: WriteFilesConfirmationFileSpec): { label: string; value: string } {
   const action = file.exists ? "update" : "create";
+  const excerpt = file.contentExcerpt === "" ? "(empty file)" : file.contentExcerpt;
+  const value = `${file.path} (${file.sizeBytes} bytes)\n${excerpt}`;
   if (file.isWorkflow) {
-    return { label: `WORKFLOW FILE — controls CI, runs on every future push (${action})`, value: file.path };
+    return { label: `WORKFLOW FILE — controls CI, runs on every future push (${action})`, value };
   }
-  return { label: `File (${action})`, value: file.path };
+  return { label: `File (${action})`, value };
 }
 
 /**
