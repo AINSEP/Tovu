@@ -73,6 +73,15 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
    *  under test knowing — the only way to reach a genuine stale-basis refusal from `putAutosave`
    *  rather than stubbing the rejection. Mirrors `createFakePostEditorPort`'s identical member. */
   simulateConcurrentSave(title?: string): void;
+  /** Advances the stored row as though an agent tool (`pages_write_html` / `pages_write_region`)
+   *  wrote it — the content-refresh background check's own trigger, distinct from
+   *  {@link simulateConcurrentSave} only in NAME (both bump `version` the identical way); kept as a
+   *  separate method so a test reads as "the assistant changed this" rather than "another operator's
+   *  Save", matching the scenario `use-external-entry-refresh.hooks.ts` is testing for. */
+  simulateExternalWrite(patch: Partial<AdminPost>): void;
+  /** Count of `getPage` calls this fake has served — the assertion surface for "a notification that
+   *  named other resources cost no fetch", which `current` alone cannot show. */
+  readonly getPageCalls: number;
 } {
   let page = { ...options.page };
   const updatePostCalls: Array<Partial<AdminPost> & { expectedVersion?: number }> = [];
@@ -81,6 +90,7 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
   let autosave: StandingDraftAutosaveSnapshot | null = options.autosave ?? null;
   const putAutosaveCalls: StandingDraftAutosaveInput[] = [];
   let discardAutosaveCalled = false;
+  let getPageCalls = 0;
 
   return {
     get current() {
@@ -95,12 +105,20 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
     get discardAutosaveCalled() {
       return discardAutosaveCalled;
     },
+    get getPageCalls() {
+      return getPageCalls;
+    },
 
     simulateConcurrentSave(title = "Saved by someone else") {
       page = { ...page, title, version: page.version + 1 };
     },
 
+    simulateExternalWrite(patch) {
+      page = { ...page, ...patch, version: page.version + 1 };
+    },
+
     async getPage() {
+      getPageCalls += 1;
       return { post: page };
     },
 

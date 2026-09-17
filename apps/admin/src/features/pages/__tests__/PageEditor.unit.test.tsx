@@ -124,6 +124,14 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     // Stale basis (2026-09-06). `null` is "autosave is healthy", so the notice never renders in the
     // pre-existing tests here — its own suite below overrides it.
     autosaveStaleBasis: null,
+    // Content refresh (2026-09-16). `null` is required, not merely defaulted to it: an override
+    // object missing this key entirely reads as `undefined !== null`, which would render the
+    // external-change notice in EVERY pre-existing test above — see this feature's plan doc for why
+    // this line is called out explicitly.
+    pendingExternalVersion: null,
+    loadExternalChange: vi.fn(),
+    dismissExternalChange: vi.fn(),
+    contentRevision: 0,
     ...overrides,
   };
 }
@@ -483,12 +491,20 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
   // Regression (2026-09-03) — same root-slug bug as the "view live" link above, for the "Live site"
   // preview branch (`PagePreviewFrame`'s `canShowLiveSite` case). Before the fix this rendered
   // `src=".../{origin}//"`, which the site served as "Cannot GET //" instead of the Home page.
-  it("preview iframe's live-site src renders a single '/' for the root-slug page, not '//'", () => {
-    renderEditor({ view: "preview", status: "published", dirty: false, contentDirty: false, slug: "/" });
+  // Cache-busting (2026-09-16) appended `?_v=<version>` to this src, so the root-slug regression
+  // check can no longer assert "ends in a single slash" — the query string now occupies the end of
+  // the string. Re-pointed at the slash immediately BEFORE `?_v=`, which is exactly the character
+  // the original "//" bug doubled; `not.toMatch(/\/\/\?/)` keeps guarding that regression directly.
+  it("preview iframe's live-site src renders a single '/' before the query string for the root-slug page, not '//'", () => {
+    renderEditor({ view: "preview", status: "published", dirty: false, contentDirty: false, slug: "/", page: { ...BASE_PAGE, slug: "/", version: 5 } });
     const preview = screen.getByTitle("Page preview");
     const src = preview.getAttribute("src")!;
-    expect(src).toMatch(/\/$/);
-    expect(src).not.toMatch(/\/\/$/);
+    // `siteUrl` in this test environment returns the bare path with no origin prefixed, so the
+    // slash is the FIRST character, not one preceded by a domain — accept either that start-of-
+    // string form or a real "somechar/?_v=" form (what a real `siteUrl` origin produces).
+    expect(src).toMatch(/[^/]\/\?_v=\d+$|^\/\?_v=\d+$/);
+    expect(src).not.toMatch(/\/\/\?/);
+    expect(src).toContain("?_v=5");
   });
 
   // 2026-09-09 widening — a clean draft now gets the SAME template-preview mechanism a published
@@ -674,5 +690,47 @@ describe("sanity", () => {
   it("mounts the editor shell once a page is loaded", async () => {
     renderEditor();
     await waitFor(() => expect(screen.getByRole("heading", { name: /edit page/i })).toBeInTheDocument());
+  });
+});
+
+/**
+ * The external-change notice (2026-09-16) — an assistant tool wrote a newer version of this page
+ * while the editor had unsaved edits. `controller()`'s default `pendingExternalVersion: null` keeps
+ * this notice off in every OTHER suite in this file; see that default's own comment for why the key
+ * must be present, not merely falsy-by-omission.
+ */
+describe("external-change notice", () => {
+  it("shows no notice when pendingExternalVersion is null", () => {
+    renderEditor({ pendingExternalVersion: null });
+    expect(screen.queryByText(/changed outside the editor/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the notice with Load latest and Keep my edits when pendingExternalVersion is set", () => {
+    renderEditor({ pendingExternalVersion: 4 });
+    expect(screen.getByText(/changed outside the editor/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /load latest/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /keep my edits/i })).toBeInTheDocument();
+  });
+
+  it("Load latest calls loadExternalChange; Keep my edits calls dismissExternalChange", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderEditor({ pendingExternalVersion: 4 });
+    await user.click(screen.getByRole("button", { name: /load latest/i }));
+    expect(ctrl.loadExternalChange).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("button", { name: /keep my edits/i }));
+    expect(ctrl.dismissExternalChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("preview iframes the live URL with the page version, so a new version cannot come from browser cache", () => {
+    renderEditor({
+      view: "preview",
+      status: "published",
+      dirty: false,
+      contentDirty: false,
+      slug: "about",
+      page: { ...BASE_PAGE, slug: "about", version: 9 },
+    });
+    const preview = screen.getByTitle("Page preview");
+    expect(preview.getAttribute("src")).toContain("/about?_v=9");
   });
 });

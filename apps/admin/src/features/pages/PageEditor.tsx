@@ -16,9 +16,11 @@ import {
 import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
 import {
   isAutosaveDraftStale,
+  PAGE_EXTERNAL_CHANGE_MESSAGE,
   pageAutosaveBannerMessage,
   pageAutosaveStaleBasisMessage,
   pageEditorSurface,
+  pageLivePreviewPath,
   pagePublicPath,
   pageVersionConflictMessage,
   type PageSaveConflict,
@@ -368,6 +370,112 @@ function PageAutosaveStaleBanner({ staleBasis }: { staleBasis: StandingDraftStal
 }
 
 /**
+ * The EXTERNAL-CHANGE notice (2026-09-16) — an assistant tool wrote a newer version of this page
+ * while the editor had unsaved edits. `usePageEditor` never renders this for a CLEAN editor: a clean
+ * editor applies the newer version silently (see `use-external-entry-refresh.hooks.ts`), and this
+ * banner exists only for the case a silent apply would clobber real unsaved work.
+ *
+ * Distinct from `PageVersionConflictBanner` above: that one is a Save the operator pressed and
+ * watched fail; this one is a background check that found the row moved before they ever pressed
+ * Save. "Load latest" mirrors that banner's "Save anyway" in shape (an explicit, named action) but
+ * opposite in effect — it discards the operator's edits rather than the other write.
+ */
+function PageExternalChangeBanner({ onLoadLatest, onKeepEdits }: { onLoadLatest: () => void; onKeepEdits: () => void }) {
+  return (
+    <div
+      className="notice warning"
+      {...agentHandle("page-external-change", {
+        role: "region",
+        label: "This page was changed outside the editor, probably by the assistant — load the latest version or keep your unsaved edits",
+      })}
+    >
+      <p>{PAGE_EXTERNAL_CHANGE_MESSAGE}</p>
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={onLoadLatest}
+        {...agentHandle("page-external-change-load-latest", {
+          role: "button",
+          label: "Load latest version, discarding my unsaved edits",
+        })}
+      >
+        Load latest
+      </button>
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={onKeepEdits}
+        {...agentHandle("page-external-change-keep-edits", {
+          role: "button",
+          label: "Keep my edits and ignore the outside change",
+        })}
+      >
+        Keep my edits
+      </button>
+    </div>
+  );
+}
+
+/**
+ * The four "something happened to your work" notices, grouped into one component so their four
+ * independent render decisions are scored in this scope instead of accumulating onto `PageEditor`'s
+ * own complexity — same extraction `features/posts/PostEditor.tsx`'s `PostEditorNotices` already
+ * makes, added there for the identical reason (recovery/stale-basis/conflict already put that
+ * component over the ceiling; a fourth notice here would do the same to this one).
+ *
+ * Order: recovery (work from a previous session) first, then the stale-basis notice (a condition
+ * still true right now), then the rejected save (the most recent thing the operator personally did),
+ * then the external-change notice last (the newest kind, and the only one whose trigger — an
+ * assistant write — has nothing to do with what the operator themselves just did). All four can be
+ * true at once; none is suppressed in favor of another.
+ */
+function PageEditorNotices({
+  recoverableDraft,
+  currentVersion,
+  onRestore,
+  onDiscard,
+  autosaveStaleBasis,
+  saveConflict,
+  onSaveAnyway,
+  onDismissConflict,
+  pendingExternalVersion,
+  onLoadExternalChange,
+  onDismissExternalChange,
+}: {
+  recoverableDraft: StandingDraftAutosaveSnapshot | null;
+  currentVersion: number;
+  onRestore: () => void;
+  onDiscard: () => void;
+  autosaveStaleBasis: StandingDraftStaleBasis | null;
+  saveConflict: PageSaveConflict | null;
+  onSaveAnyway: () => void;
+  onDismissConflict: () => void;
+  pendingExternalVersion: number | null;
+  onLoadExternalChange: () => void;
+  onDismissExternalChange: () => void;
+}) {
+  return (
+    <>
+      {recoverableDraft ? (
+        <PageAutosaveRecoveryBanner
+          recoverableDraft={recoverableDraft}
+          currentVersion={currentVersion}
+          onRestore={onRestore}
+          onDiscard={onDiscard}
+        />
+      ) : null}
+      {autosaveStaleBasis ? <PageAutosaveStaleBanner staleBasis={autosaveStaleBasis} /> : null}
+      {saveConflict ? (
+        <PageVersionConflictBanner saveConflict={saveConflict} onSaveAnyway={onSaveAnyway} onDismiss={onDismissConflict} />
+      ) : null}
+      {pendingExternalVersion !== null ? (
+        <PageExternalChangeBanner onLoadLatest={onLoadExternalChange} onKeepEdits={onDismissExternalChange} />
+      ) : null}
+    </>
+  );
+}
+
+/**
  * The toolbar's right-hand group — the device-width control (preview view only) and the template
  * picker. Extracted out of `PageEditor` for the same reason `PageEditorHeader` above was: this is
  * where nearly all of the remaining branching in that component's render lived (the preview-only
@@ -516,6 +624,10 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     restoreRecoveredDraft,
     discardRecoveredDraft,
     autosaveStaleBasis,
+    pendingExternalVersion,
+    loadExternalChange,
+    dismissExternalChange,
+    contentRevision,
   } = usePageEditorHook(routeSlug);
 
   if (error && !page) return <div className="notice error">{error}</div>;
@@ -525,22 +637,19 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     <div className="page">
       <PageEditorHeader confirmLeave={confirmLeave} />
 
-      {recoverableDraft ? (
-        <PageAutosaveRecoveryBanner
-          recoverableDraft={recoverableDraft}
-          currentVersion={page.version}
-          onRestore={restoreRecoveredDraft}
-          onDiscard={discardRecoveredDraft}
-        />
-      ) : null}
-      {autosaveStaleBasis ? <PageAutosaveStaleBanner staleBasis={autosaveStaleBasis} /> : null}
-      {saveConflict ? (
-        <PageVersionConflictBanner
-          saveConflict={saveConflict}
-          onSaveAnyway={() => void saveOverwritingConflict()}
-          onDismiss={dismissSaveConflict}
-        />
-      ) : null}
+      <PageEditorNotices
+        recoverableDraft={recoverableDraft}
+        currentVersion={page.version}
+        onRestore={restoreRecoveredDraft}
+        onDiscard={discardRecoveredDraft}
+        autosaveStaleBasis={autosaveStaleBasis}
+        saveConflict={saveConflict}
+        onSaveAnyway={() => void saveOverwritingConflict()}
+        onDismissConflict={dismissSaveConflict}
+        pendingExternalVersion={pendingExternalVersion}
+        onLoadExternalChange={() => void loadExternalChange()}
+        onDismissExternalChange={dismissExternalChange}
+      />
 
       {/* `editor-title`/`editor-slug` are the existing editor chrome from `styles/editor.css`,
           reused verbatim so a Page's header looks and behaves exactly like the screen it replaces.
@@ -638,6 +747,8 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         setDraftHtml={setDraftHtml}
         device={device}
         slug={slug}
+        version={page.version}
+        contentRevision={contentRevision}
         status={status}
         dirty={dirty}
         contentDirty={contentDirty}
@@ -691,6 +802,8 @@ function PageEditorPane({
   setDraftHtml,
   device,
   slug,
+  version,
+  contentRevision,
   status,
   dirty,
   contentDirty,
@@ -710,6 +823,13 @@ function PageEditorPane({
   setDraftHtml: (value: string) => void;
   device: PagePreviewDevice;
   slug: string;
+  /** The loaded row's current version — see `PagePreviewFrame`'s own doc for why the live-site src
+   *  is cache-busted with it. */
+  version: number;
+  /** Content refresh (2026-09-16) — `usePageEditor`'s `contentRevision`, keyed onto the Interactive
+   *  surface below so an assistant write applied while already on this tab remounts GrapesJS with
+   *  the new body, the same way switching tabs already does. */
+  contentRevision: number;
   status: "draft" | "published";
   dirty: boolean;
   contentDirty: boolean;
@@ -732,6 +852,7 @@ function PageEditorPane({
         html={html}
         width={PAGE_PREVIEW_WIDTHS[device]}
         slug={slug}
+        version={version}
         status={status}
         dirty={dirty}
         contentDirty={contentDirty}
@@ -767,7 +888,7 @@ function PageEditorPane({
   if (surface.kind === "interactive-pending") {
     return <div className="notice">Loading the theme's styles…</div>;
   }
-  return <InteractiveHtmlEditor html={html} onChange={setHtml} canvasStyling={surface.styling} />;
+  return <InteractiveHtmlEditor key={contentRevision} html={html} onChange={setHtml} canvasStyling={surface.styling} />;
 }
 
 /**
@@ -845,6 +966,7 @@ function PagePreview({
   html,
   width,
   slug,
+  version,
   status,
   dirty,
   contentDirty,
@@ -859,6 +981,8 @@ function PagePreview({
   html: string;
   width: number;
   slug: string;
+  /** Cache-busts the live-site branch's `src` — see `PagePreviewFrame`'s own doc. */
+  version: number;
   status: "draft" | "published";
   dirty: boolean;
   contentDirty: boolean;
@@ -923,6 +1047,7 @@ function PagePreview({
           <PagePreviewFrame
             canShowLiveSite={canShowLiveSite}
             slug={slug}
+            version={version}
             html={html}
             templatePreviewUrl={templatePreviewUrl}
             previewFormRef={previewFormRef}
@@ -1016,6 +1141,7 @@ function PagePreviewFab({ expanded, onToggle }: { expanded: boolean; onToggle: (
 function PagePreviewFrame({
   canShowLiveSite,
   slug,
+  version,
   html,
   templatePreviewUrl,
   previewFormRef,
@@ -1023,6 +1149,14 @@ function PagePreviewFrame({
 }: {
   canShowLiveSite: boolean;
   slug: string;
+  /**
+   * Cache-busts the live-site `src` (2026-09-16): the public route serves
+   * `Cache-Control: public, max-age=60, stale-while-revalidate=300`
+   * (`apps/website/src/server/inbound/public-http/routes/site/pages.ts`), so an unchanged `src`
+   * after an assistant write can keep showing the pre-write HTML for up to a minute. `_v` is never
+   * read server-side — it exists purely to change the URL. See `pageLivePreviewPath` (`rules.ts`).
+   */
+  version: number;
   html: string;
   /** Pre-built by `usePageEditor` — see `PagePreview`'s own doc, branch 2. */
   templatePreviewUrl: string;
@@ -1031,7 +1165,12 @@ function PagePreviewFrame({
 }) {
   if (canShowLiveSite) {
     return (
-      <iframe src={siteUrl(pagePublicPath(slug))} title="Page preview" className="page-preview-iframe" referrerPolicy="no-referrer" />
+      <iframe
+        src={siteUrl(pageLivePreviewPath(slug, version))}
+        title="Page preview"
+        className="page-preview-iframe"
+        referrerPolicy="no-referrer"
+      />
     );
   }
   return (

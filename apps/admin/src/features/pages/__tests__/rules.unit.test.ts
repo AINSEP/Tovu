@@ -16,7 +16,9 @@ import {
   pageAutosaveStaleBasisMessage,
   pageColumnSortLabel,
   pageDirtyGuardBaseline,
+  pageEditableHtml,
   pageEditorSurface,
+  pageLivePreviewPath,
   pagePreviewFormTarget,
   pagePublicPath,
   pageRowMenuItems,
@@ -570,5 +572,29 @@ describe("pageDirtyGuardBaseline", () => {
       html: "<p>saved</p>",
       templateChoice: "pages-default.html",
     });
+  });
+});
+
+describe("pageEditableHtml", () => {
+  it("returns bodyHtml for an html-format page", () => {
+    expect(pageEditableHtml(page({ bodyFormat: "html", bodyHtml: "<p>hi</p>" }))).toBe("<p>hi</p>");
+  });
+
+  it("returns \"\" for a doc-format page", () => {
+    expect(pageEditableHtml(page({ bodyFormat: "doc", bodyHtml: "<p>ignored</p>" }))).toBe("");
+  });
+
+  it("returns \"\" for a null bodyHtml on an html-format page", () => {
+    expect(pageEditableHtml(page({ bodyFormat: "html", bodyHtml: null }))).toBe("");
+  });
+});
+
+describe("pageLivePreviewPath", () => {
+  it("appends the version to an ordinary slug", () => {
+    expect(pageLivePreviewPath("landing", 7)).toBe("/landing?_v=7");
+  });
+
+  it("keeps the root slug a single slash before the query string", () => {
+    expect(pageLivePreviewPath("/", 7)).toBe("/?_v=7");
   });
 });

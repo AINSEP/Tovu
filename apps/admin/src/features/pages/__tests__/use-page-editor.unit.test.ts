@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useWiredPageEditor, usePageEditor, type PageEditorController } from "../hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { PAGES_RESOURCE } from "../rules";
 
 /**
  * @file `usePageEditor` — regression coverage for a real data-loss bug found by external audit
@@ -1438,5 +1440,205 @@ describe("usePageEditor — pending-html preview debounce (2026-09-09)", () => {
     vi.advanceTimersByTime(1000);
 
     expect(form.submit).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `usePageEditor` wired into the REAL `lib/content-refresh-bus` (2026-09-16) — the owner bug fix:
+ * an assistant tool (`pages_write_html` / `pages_write_region`) writes this page while the editor is
+ * open, and nothing updates until a manual reload. Uses the injected-port `fakeDeps` shape (same
+ * convention as "injected port — usePageEditor with no fetch stub" above), driven through the real
+ * bus rather than a stub `checkForExternalChange`, since the wiring between `usePageEditor` and the
+ * bus is exactly what's under test. `resetContentRefreshBus()` in `afterEach` keeps a publish in one
+ * test from leaking a listener into the next.
+ */
+describe("usePageEditor — content refresh bus (assistant writes while the editor is open)", () => {
+  afterEach(() => resetContentRefreshBus());
+
+  function refreshDeps(page: typeof HTML_PAGE = HTML_PAGE) {
+    const port = createFakePageEditorPort({ page: page as Parameters<typeof createFakePageEditorPort>[0]["page"] });
+    const themeCanvasPort = createFakeThemeCanvasPort();
+    return {
+      port,
+      themeCanvasPort,
+      navigate: vi.fn(),
+      t: (locale: string, key: string) => `${locale}:${key}`,
+      locale: "en",
+    };
+  }
+
+  it("clean editor: an assistant write replaces the working copy and preview baseline without a reload", async () => {
+    const deps = refreshDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    const startingVersion = result.current.page!.version;
+
+    act(() => {
+      deps.port.simulateExternalWrite({ bodyHtml: "<p>new hero</p>", title: "Landing v2" });
+      publishContentRefresh([PAGES_RESOURCE]);
+    });
+
+    await waitFor(() => expect(result.current.html).toBe("<p>new hero</p>"));
+    expect(result.current.title).toBe("Landing v2");
+    expect(result.current.page!.version).toBe(startingVersion + 1);
+    expect(result.current.dirty).toBe(false);
+    expect(result.current.pendingExternalVersion).toBeNull();
+  });
+
+  it("clean editor: contentRevision moves on an applied refresh and NOT on the editor's own save", async () => {
+    const deps = refreshDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    const startingRevision = result.current.contentRevision;
+
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(result.current.contentRevision).toBe(startingRevision);
+
+    act(() => {
+      deps.port.simulateExternalWrite({ title: "Landing v2" });
+      publishContentRefresh([PAGES_RESOURCE]);
+    });
+    await waitFor(() => expect(result.current.contentRevision).toBe(startingRevision + 1));
+  });
+
+  it("clean editor on the HTML tab: draftHtml shows the new body", async () => {
+    const deps = refreshDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => result.current.setView("html"));
+
+    act(() => {
+      deps.port.simulateExternalWrite({ bodyHtml: "<p>new hero</p>" });
+      publishContentRefresh([PAGES_RESOURCE]);
+    });
+
+    await waitFor(() => expect(result.current.draftHtml).toContain("new hero"));
+  });
+
+  it("a refresh that finds no newer version changes nothing", async () => {
+    const deps = refreshDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    const startingRevision = result.current.contentRevision;
+
+    await act(async () => {
+      publishContentRefresh([PAGES_RESOURCE]);
+      // Flushes the fetch's own promise chain (`fetchLatest` chains TWO `.then`s onto
+      // `port.getPage`) so the "nothing happened" assertion below observes the settled state,
+      // not a check still in flight.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(result.current.contentRevision).toBe(startingRevision);
+  });
+
+  it("a notification naming only other resources costs no fetch", async () => {
+    const deps = refreshDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    const callsAfterLoad = deps.port.getPageCalls;
+
+    await act(async () => {
+      publishContentRefresh(["taxonomy"]);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(deps.port.getPageCalls).toBe(callsAfterLoad);
+
+    deps.port.simulateExternalWrite({ title: "Landing v2" });
+    act(() => publishContentRefresh([PAGES_RESOURCE]));
+    await waitFor(() => expect(result.current.title).toBe("Landing v2"));
+  });
+
+  it("dirty editor: a refresh never touches the working copy and raises pendingExternalVersion", async () => {
+    const deps = refreshDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => result.current.setHtml("<p>mine</p>"));
+    expect(result.current.dirty).toBe(true);
+
+    act(() => {
+      deps.port.simulateExternalWrite({ title: "Landing v2" });
+      publishContentRefresh([PAGES_RESOURCE]);
+    });
+
+    await waitFor(() => expect(result.current.pendingExternalVersion).toBe(deps.port.current.version));
+    expect(result.current.html).toBe("<p>mine</p>");
+    expect(result.current.title).toBe(HTML_PAGE.title);
+  });
+
+  it("loadExternalChange replaces the working copy, discards the standing draft, and clears the notice", async () => {
+    const deps = refreshDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => result.current.setHtml("<p>mine</p>"));
+    act(() => {
+      deps.port.simulateExternalWrite({ bodyHtml: "<p>new hero</p>" });
+      publishContentRefresh([PAGES_RESOURCE]);
+    });
+    await waitFor(() => expect(result.current.pendingExternalVersion).not.toBeNull());
+
+    await act(async () => {
+      await result.current.loadExternalChange();
+    });
+
+    expect(result.current.html).toBe("<p>new hero</p>");
+    expect(result.current.dirty).toBe(false);
+    expect(result.current.pendingExternalVersion).toBeNull();
+    expect(deps.port.discardAutosaveCalled).toBe(true);
+  });
+
+  it("dismissExternalChange keeps edits, stays quiet on the next agent write, and an explicit Save still hits the version conflict", async () => {
+    const deps = refreshDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => result.current.setHtml("<p>mine</p>"));
+    act(() => {
+      deps.port.simulateExternalWrite({ title: "Landing v2" });
+      publishContentRefresh([PAGES_RESOURCE]);
+    });
+    await waitFor(() => expect(result.current.pendingExternalVersion).not.toBeNull());
+
+    act(() => result.current.dismissExternalChange());
+    expect(result.current.pendingExternalVersion).toBeNull();
+
+    // A second agent write on the SAME (dismissed) basis stays quiet.
+    act(() => {
+      deps.port.simulateExternalWrite({ title: "Landing v3" });
+      publishContentRefresh([PAGES_RESOURCE]);
+    });
+    await waitFor(() => expect(deps.port.getPageCalls).toBeGreaterThan(0));
+    expect(result.current.pendingExternalVersion).toBeNull();
+    expect(result.current.html).toBe("<p>mine</p>");
+
+    // The existing safety net survives: an explicit Save against the now-stale loaded basis still
+    // raises the version-conflict banner rather than silently overwriting.
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(result.current.saveConflict).not.toBeNull();
+  });
+
+  it("Save anyway after a notice hides the notice", async () => {
+    const deps = refreshDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => result.current.setHtml("<p>mine</p>"));
+    act(() => {
+      deps.port.simulateExternalWrite({ title: "Landing v2" });
+      publishContentRefresh([PAGES_RESOURCE]);
+    });
+    await waitFor(() => expect(result.current.pendingExternalVersion).not.toBeNull());
+
+    await act(async () => {
+      await result.current.saveOverwritingConflict();
+    });
+
+    expect(result.current.pendingExternalVersion).toBeNull();
   });
 });

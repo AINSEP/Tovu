@@ -35,6 +35,12 @@ import { describe, expect, it } from "vitest";
  * add its resource constant to the feature's `rules.ts` (mirroring `TAXONOMY_RESOURCE`), wire
  * `useContentRefreshSubscription` in the hook, add its own behavioral suite, and add the hook's path
  * to {@link WIRED_HOOKS} below.
+ *
+ * An EDITOR (as opposed to a list) holding an unsaved working copy is a distinct case from every
+ * hook above — a plain reload on any bus notification would clobber whatever the operator is mid-
+ * typing. Those are wired through `use-external-entry-refresh.hooks.ts` instead (silent apply when
+ * clean, a resolve-conflict notice when dirty), still via `useContentRefreshSubscription` underneath,
+ * so they belong in this same tripwire. See that hook's own file header for a future editor to follow.
  */
 
 const ADMIN_SRC = path.resolve(__dirname, "..", "..");
@@ -68,6 +74,9 @@ const WIRED_HOOKS: readonly string[] = [
   "features/recovery/hooks/use-recovery.hooks.ts",
   "features/sites/hooks/use-sites.hooks.ts",
   "features/themes/hooks/use-theme-explore.hooks.ts",
+  // Editors wired through `use-external-entry-refresh.hooks.ts` (2026-09-16) — see this file's own
+  // header note above for why these belong here despite holding an unsaved working copy.
+  "features/pages/hooks/use-page-editor.hooks.ts",
 ];
 
 /** Matches a call to either the shared hook, or `subscribeToContentRefresh` directly — taxonomy

@@ -55,6 +55,24 @@ export function pagePublicPath(slug: string): string {
   return slug === "/" ? "/" : `/${slug}`;
 }
 
+/**
+ * The public preview URL for the CURRENT stored version — cache-busted, so a background refresh
+ * (2026-09-16, `use-external-entry-refresh.hooks.ts`) can force the live-preview iframe to reload
+ * even though its `slug` did not change.
+ *
+ * The public route serves `Cache-Control: public, max-age=60, stale-while-revalidate=300`
+ * (`apps/website/src/server/inbound/public-http/routes/site/pages.ts`), so an unchanged `src` can
+ * keep showing the pre-write HTML for up to a minute after an assistant tool saves a new one. The
+ * `_v` param is never read server-side (the route's only `req.query` use is
+ * `decodeFormSubmissionResultFromQuery`, which looks at form-result keys only) — it exists purely to
+ * change the URL, which is what actually busts the browser cache.
+ *
+ * @complexity O(1).
+ */
+export function pageLivePreviewPath(slug: string, version: number): string {
+  return `${pagePublicPath(slug)}?_v=${version}`;
+}
+
 /** The subset of a page {@link pageAdminPath} reads — kept narrow, same reasoning as
  *  {@link SavablePage} below, so a collision record (`ThemePageSlugCollision`/
  *  `ThemeExploreSlugCollision`, both `{ id, slug, title, kind }`) satisfies it structurally with no
@@ -488,6 +506,29 @@ export function pageEditorSurface(view: PageEditorView, canvasStyling: ThemeCanv
 export function pagePreviewFormTarget(page: AdminPost | null): string {
   return page ? `page-preview-pending-${page.id}` : "";
 }
+
+/**
+ * The working copy's editable HTML for a loaded row — exactly the mount effect's own
+ * `post.bodyFormat === "html" ? (post.bodyHtml ?? "") : ""` rule, lifted out so
+ * `applyExternalPage` (an assistant write landing while the editor is open) can seed the SAME
+ * initial value the mount effect does, rather than duplicating the ternary at a second call site.
+ * A doc-format row has no editable HTML here — see `pageAcceptsHtmlBody`'s own doc for why this
+ * editor cannot render that body at all.
+ *
+ * @complexity O(1).
+ */
+export function pageEditableHtml(post: AdminPost): string {
+  return post.bodyFormat === "html" ? (post.bodyHtml ?? "") : "";
+}
+
+/** The external-change notice's own message — plain English, not run through `t()`, matching
+ *  {@link pageVersionConflictMessage} and {@link pageAutosaveStaleBasisMessage} just above:
+ *  `PageEditor.tsx`'s markup is outside the pages dictionary's declared scope (`pages-i18n.ts`'s own
+ *  header). Shown when a newer version lands while the editor has unsaved edits — see
+ *  `use-external-entry-refresh.hooks.ts` for the clean/dirty decision this banner is the dirty half
+ *  of. */
+export const PAGE_EXTERNAL_CHANGE_MESSAGE =
+  "Changed outside the editor, probably by the assistant. Loading the latest version discards your unsaved edits.";
 
 /** The Page editor's `useDirtyGuard` baseline: the loaded row's title/slug/status plus the saved html
  *  and template choice. `null` before `page` loads, which the guard reads as "nothing is dirty yet".

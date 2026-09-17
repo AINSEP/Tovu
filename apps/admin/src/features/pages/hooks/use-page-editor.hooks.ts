@@ -3,8 +3,10 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import type { AdminPost } from "@/lib/api";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
 import { useAgentScreenEntry } from "@/hooks/use-agent-screen-context.hooks";
+import { useExternalEntryRefresh } from "@/hooks/use-external-entry-refresh.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import {
   useStandingDraftAutosave,
@@ -18,8 +20,10 @@ import {
   buildPageSavePlan,
   pageAcceptsHtmlBody,
   pageDirtyGuardBaseline,
+  pageEditableHtml,
   pagePreviewFormTarget,
   pageSaveSuccessMessage,
+  PAGES_RESOURCE,
   readPageVersionConflict,
   type PageSaveConflict,
   type PageSavePlan,
@@ -235,6 +239,63 @@ export interface PageEditorController {
    * not touched on this path, by this hook or by the shared one.
    */
   autosaveStaleBasis: StandingDraftStaleBasis | null;
+  /**
+   * Content refresh (2026-09-16) — non-null only while an assistant tool (`pages_write_html` /
+   * `pages_write_region`) has written a newer version of this page AND the editor has unsaved edits
+   * the operator hasn't resolved yet. `null` means either nothing changed, or the editor was clean
+   * and already applied the change silently. See `use-external-entry-refresh.hooks.ts` for the
+   * clean/dirty decision this is the dirty half of.
+   */
+  pendingExternalVersion: number | null;
+  /** Discards the standing draft, re-reads the row, and applies it — the operator's explicit choice
+   *  to throw away their unsaved edits in favor of the newer version. */
+  loadExternalChange: () => Promise<void>;
+  /** Hides {@link pendingExternalVersion}'s notice and silences further ones until this editor's own
+   *  loaded basis version moves (a Save, Save anyway, or Load latest). */
+  dismissExternalChange: () => void;
+  /**
+   * Bumped only when an EXTERNAL write is applied silently (never by this editor's own save) — the
+   * Interactive tab's remount key, so GrapesJS picks up an assistant-written body without losing its
+   * canvas state on every own Save. See `PageEditorPane`'s `key={contentRevision}`.
+   */
+  contentRevision: number;
+}
+
+/**
+ * Applies a loaded row into the working copy AND the saved baseline — the mount effect's own
+ * initialization, named out so `applyExternalPage` (an assistant write landing while the editor is
+ * open, 2026-09-16) can seed the SAME fields from the SAME row shape rather than a second,
+ * independently-maintained copy of this list drifting from it over time.
+ *
+ * UNLIKE `usePostEditor`'s equivalent, no "default to the theme's first template" here — `null` is a
+ * Page's normal, fully-working state (render its own body), not an absence-of-decision that needs
+ * papering over. `pageEditableHtml` (`rules.ts`) is the single place that decides whether `bodyHtml`
+ * is real editable content for this row.
+ *
+ * @complexity Time/space: O(1).
+ */
+function applyLoadedPage(
+  post: AdminPost,
+  setters: {
+    setPage: (page: AdminPost) => void;
+    setTitle: (value: string) => void;
+    setSlug: (value: string) => void;
+    setStatus: (value: "draft" | "published") => void;
+    setTemplateChoice: (value: string | null) => void;
+    setSavedTemplateChoice: (value: string | null) => void;
+    setHtml: (value: string) => void;
+    setSavedHtml: (value: string) => void;
+  },
+): void {
+  setters.setPage(post);
+  setters.setTitle(post.title);
+  setters.setSlug(post.slug);
+  setters.setStatus(post.status);
+  setters.setTemplateChoice(post.templateChoice ?? null);
+  setters.setSavedTemplateChoice(post.templateChoice ?? null);
+  const body = pageEditableHtml(post);
+  setters.setHtml(body);
+  setters.setSavedHtml(body);
 }
 
 /** `contentDirty`'s own computation, named out of `usePageEditor`'s body purely to keep that
@@ -462,24 +523,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         setAvailableTemplates(activeThemeTemplates);
         setActiveThemeId(themeId);
         setActiveThemeApiVersion(themeApiVersion);
-        setPage(post);
-        setTitle(post.title);
-        setSlug(post.slug);
-        setStatus(post.status);
-        // UNLIKE `usePostEditor`, no "default to the theme's first template" here — `null` is a
-        // Page's normal, fully-working state (render its own body), not an absence-of-decision that
-        // needs papering over for the UI and the public render to agree (see
-        // `isEligibleForTemplateBranch`'s doc, `features/theme/static-render.ts`, for the full
-        // reasoning). The picker simply shows whatever is actually stored.
-        setTemplateChoice(post.templateChoice ?? null);
-        setSavedTemplateChoice(post.templateChoice ?? null);
-        // A Page that has never been opened in this editor is still `doc`-format and has no
-        // `bodyHtml` yet — the server births the html row on the first save. Starting from an empty
-        // string (rather than seeding a skeleton client-side) keeps the skeleton defined in exactly
-        // one place, server-side, where the region vocabulary lives.
-        const body = post.bodyFormat === "html" ? (post.bodyHtml ?? "") : "";
-        setHtml(body);
-        setSavedHtml(body);
+        applyLoadedPage(post, { setPage, setTitle, setSlug, setStatus, setTemplateChoice, setSavedTemplateChoice, setHtml, setSavedHtml });
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : t(locale, "failed to load page"));
@@ -500,6 +544,32 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // top of it. `prevViewRef` is what makes this fire only on the TRANSITION into the HTML tab, never on
   // every render while already on it — reformatting mid-edit would fight the operator's cursor position.
   const [draftHtml, setDraftHtml] = useState(() => prettifyHtml(html));
+
+  // Content refresh (2026-09-16) — bumped only when an assistant write is applied SILENTLY (never
+  // by this editor's own save), so the Interactive tab can remount and pick up the new body without
+  // losing GrapesJS's canvas state on every own Save (a `page.version` key would do that too, since
+  // an own save bumps it exactly the same way). See `PageEditorController.contentRevision`.
+  const [contentRevision, setContentRevision] = useState(0);
+
+  /**
+   * The shared refresh hook's `applyLatest` — replaces the working copy AND the saved baseline with
+   * an externally-written row, the CLEAN-editor half of `use-external-entry-refresh.hooks.ts`'s
+   * decision (the dirty half surfaces `pendingExternalVersion` instead and touches nothing here).
+   * Reuses {@link applyLoadedPage} so this seeds the exact same fields the mount effect does, then
+   * layers on the two things unique to a live re-apply: the HTML tab's `draftHtml` (only re-seeded
+   * on tab-switch otherwise — see that effect's own doc) and clearing any stale `saveConflict`,
+   * since the version it was raised against is no longer the one loaded.
+   *
+   * All setters passed in are `useState` setters — referentially stable across renders — so this can
+   * safely close over them with an empty dependency array.
+   */
+  const applyExternalPage = useCallback((fresh: AdminPost) => {
+    applyLoadedPage(fresh, { setPage, setTitle, setSlug, setStatus, setTemplateChoice, setSavedTemplateChoice, setHtml, setSavedHtml });
+    setDraftHtml(prettifyHtml(pageEditableHtml(fresh)));
+    setSaveConflict(null);
+    setContentRevision((n) => n + 1);
+  }, []);
+
   const prevViewRef = useRef(view);
   useEffect(() => {
     if (view === "html" && prevViewRef.current !== "html") {
@@ -719,6 +789,26 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
 
   // Template-preview fix (2026-08-11) — see `contentDirty`'s doc on `PageEditorController`.
   const contentDirty = computeContentDirty(page, { title, slug, status, html, savedHtml });
+  // The Save button's own "is there anything unsaved" signal — split out to a named variable (was
+  // previously inlined at the return statement) so `useExternalEntryRefresh`'s `isDirty` below reads
+  // the SAME value `dirty` reports, rather than a second copy of this expression that could drift.
+  const dirty = contentDirty || templateChoice !== savedTemplateChoice;
+
+  // Content refresh (2026-09-16) — see `use-external-entry-refresh.hooks.ts`'s file header for the
+  // clean/dirty/saving decision this wraps, and `PAGES_RESOURCE`'s own doc (`rules.ts`) for the bug
+  // this closes: `pages_write_html`/`pages_write_region` are agent-callable, and this editor never
+  // re-read its row after one fired. `loaded`/`isDirty`/`isSaving` are read through the hook's own
+  // ref on every check, so listing `dirty`/`saving`/`page` in a dependency array here is unnecessary.
+  const externalRefresh = useExternalEntryRefresh<AdminPost>({
+    loaded: page,
+    fetchLatest: (id) => port.getPage(id).then(({ post }) => post),
+    isDirty: () => dirty,
+    isSaving: () => saving,
+    applyLatest: applyExternalPage,
+    discardStandingDraft: autosave.clearStandingDraft,
+    onLoadLatestFailed: () => setError(t(locale, "could not re-read the current version — your changes are still here, try again")),
+  });
+  useContentRefreshSubscription(PAGES_RESOURCE, externalRefresh.checkForExternalChange);
 
   // Unsaved-work guard (2026-09-06, alongside standing-draft autosave — audit finding: this screen
   // had none at all, unlike `usePostEditor`'s own `useDirtyGuard` call). Same five-field comparison
@@ -760,8 +850,11 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       }),
     // `page?.id`, not `page` — same reasoning `use-post-editor.hooks.ts`'s identical effect gives:
     // a `setPage(updated)` after a successful save (a new object reference, same id) must not by
-    // itself restart the debounce timer.
-    [view, page?.id, status, contentDirty, templateChoice, savedTemplateChoice, html]
+    // itself restart the debounce timer. `contentRevision` IS added (2026-09-16): a clean editor's
+    // silent external apply changes `html`/`title`/etc. without ever changing `view`/`status`/
+    // `templateChoice`, so without this the pending preview would sit on the pre-write body until
+    // some unrelated field also happened to change.
+    [view, page?.id, status, contentDirty, templateChoice, savedTemplateChoice, html, contentRevision]
   );
 
   const restoreRecoveredDraft = useCallback(() => {
@@ -838,7 +931,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     // from "the operator actually edited something" — see `contentDirty`'s own doc on
     // `PageEditorController` for why that distinction exists.
     contentDirty,
-    dirty: contentDirty || templateChoice !== savedTemplateChoice,
+    dirty,
     templatePreviewUrl,
     previewFormRef,
     previewFormTarget,
@@ -856,6 +949,10 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     restoreRecoveredDraft,
     discardRecoveredDraft,
     autosaveStaleBasis: autosave.staleBasis,
+    pendingExternalVersion: externalRefresh.pendingExternalVersion,
+    loadExternalChange: externalRefresh.loadExternalChange,
+    dismissExternalChange: externalRefresh.dismissExternalChange,
+    contentRevision,
   };
 }
 
