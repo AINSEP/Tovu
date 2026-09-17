@@ -47,7 +47,8 @@ export interface ExternalEntryRefreshController {
    *  basis catches up (a Save, Save anyway, or Load latest) without a separate effect. */
   pendingExternalVersion: number | null;
   /** Fire-and-forget background check, triggered by a content-refresh notification. Stable
-   *  identity across renders. */
+   *  identity across renders. While a Load latest click is in flight it is deferred and runs once
+   *  that click settles, rather than superseding it. */
   checkForExternalChange: () => void;
   /** Discards the standing draft, then re-reads and applies the row, clearing any notice. */
   loadExternalChange: () => Promise<void>;
@@ -79,10 +80,21 @@ export function useExternalEntryRefresh<Row extends ExternalEntryRevision>(
 
   const dismissedForBasisRef = useRef<number | null>(null);
   const [notifiedVersion, setNotifiedVersion] = useState<number | null>(null);
+  // True while a Load latest click waits on its re-read, and whether a check arrived meanwhile.
+  const loadInFlightRef = useRef(false);
+  const checkDeferredRef = useRef(false);
 
   const checkForExternalChange = useCallback(() => {
     const loaded = latestRef.current.loaded;
     if (loaded === null) return;
+    // Never supersedes a Load latest click (reviewer finding 3, 2026-09-16): with one shared
+    // generation, a tool-result publish landing during the click's re-read dropped the click
+    // without a word. Deferred rather than skipped, because the notification may name a write newer
+    // than the row the click is fetching.
+    if (loadInFlightRef.current) {
+      checkDeferredRef.current = true;
+      return;
+    }
     const generation = generations.next();
     latestRef.current
       .fetchLatest(loaded.id)
@@ -111,19 +123,8 @@ export function useExternalEntryRefresh<Row extends ExternalEntryRevision>(
       });
   }, [generations]);
 
-  const loadExternalChange = useCallback(async () => {
-    const loaded = latestRef.current.loaded;
-    if (loaded === null || latestRef.current.isSaving()) return;
-    const generation = generations.next();
-    const fresh = await latestRef.current.fetchLatest(loaded.id).then(
-      (row) => row,
-      () => null
-    );
-    if (!generations.isCurrent(generation)) return;
-    if (fresh === null) {
-      latestRef.current.onLoadLatestFailed();
-      return;
-    }
+  /** Load latest's apply half, once its re-read succeeded. @complexity O(1) plus the callbacks. */
+  const applyLoadedLatest = useCallback((fresh: Row) => {
     const current = latestRef.current;
     setNotifiedVersion(null);
     dismissedForBasisRef.current = null;
@@ -135,7 +136,30 @@ export function useExternalEntryRefresh<Row extends ExternalEntryRevision>(
     void current.discardStandingDraft();
     current.supersedeStandingDraftBasis(fresh.version);
     current.applyLatest(fresh);
-  }, [generations]);
+  }, []);
+
+  const loadExternalChange = useCallback(async () => {
+    const loaded = latestRef.current.loaded;
+    if (loaded === null || latestRef.current.isSaving()) return;
+    const generation = generations.next();
+    loadInFlightRef.current = true;
+    const fresh = await latestRef.current.fetchLatest(loaded.id).then(
+      (row) => row,
+      () => null
+    );
+    // A later click (or unmount) owns the in-flight state and any deferred check now.
+    if (!generations.isCurrent(generation)) return;
+    loadInFlightRef.current = false;
+    if (fresh === null) {
+      latestRef.current.onLoadLatestFailed();
+    } else {
+      applyLoadedLatest(fresh);
+    }
+    if (checkDeferredRef.current) {
+      checkDeferredRef.current = false;
+      checkForExternalChange();
+    }
+  }, [applyLoadedLatest, checkForExternalChange, generations]);
 
   const dismissExternalChange = useCallback(() => {
     dismissedForBasisRef.current = latestRef.current.loaded?.version ?? null;

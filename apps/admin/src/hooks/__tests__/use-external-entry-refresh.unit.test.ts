@@ -386,6 +386,103 @@ describe("useExternalEntryRefresh — loadExternalChange", () => {
     expect(env.supersedeStandingDraftBasis).not.toHaveBeenCalled();
   });
 
+  // Reviewer finding 3 (2026-09-16): a check and the click shared one generation counter, so a
+  // tool-result publish landing during the click's re-read dropped the click without a word.
+  it("a background check landing while Load latest is in flight neither drops the click nor is lost", async () => {
+    const load = deferred<TestRow>();
+    const recheck = deferred<TestRow>();
+    const fetchLatest = vi.fn().mockReturnValueOnce(load.promise).mockReturnValueOnce(recheck.promise);
+    const env = setup({ loaded: { id: "a", version: 1 }, dirty: true, fetchLatest });
+
+    let loadPromise!: Promise<void>;
+    act(() => {
+      loadPromise = env.result.current.loadExternalChange();
+    });
+    act(() => {
+      env.result.current.checkForExternalChange();
+    });
+    // Deferred, not started over the click.
+    expect(env.fetchLatest).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      load.resolve({ id: "a", version: 6 });
+      await loadPromise;
+    });
+    expect(env.applyLatest).toHaveBeenCalledWith({ id: "a", version: 6 });
+    // The editor is clean on version 6 now; the deferred check runs because the notification may
+    // name a write newer than the row the click fetched.
+    env.setDirty(false);
+    env.rerender({ loaded: { id: "a", version: 6 } });
+    expect(env.fetchLatest).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      recheck.resolve({ id: "a", version: 7 });
+      await recheck.promise;
+    });
+    expect(env.applyLatest).toHaveBeenLastCalledWith({ id: "a", version: 7 });
+  });
+
+  it("a check deferred behind a Load latest that fails still runs", async () => {
+    const load = deferred<TestRow>();
+    const recheck = deferred<TestRow>();
+    const fetchLatest = vi.fn().mockReturnValueOnce(load.promise).mockReturnValueOnce(recheck.promise);
+    const env = setup({ loaded: { id: "a", version: 1 }, dirty: true, fetchLatest });
+
+    let loadPromise!: Promise<void>;
+    act(() => {
+      loadPromise = env.result.current.loadExternalChange();
+      env.result.current.checkForExternalChange();
+    });
+    await act(async () => {
+      load.reject(new Error("offline"));
+      await loadPromise;
+    });
+    expect(env.onLoadLatestFailed).toHaveBeenCalledTimes(1);
+    expect(env.fetchLatest).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      recheck.resolve({ id: "a", version: 3 });
+      await recheck.promise;
+    });
+    expect(env.applyLatest).not.toHaveBeenCalled();
+    expect(env.result.current.pendingExternalVersion).toBe(3);
+  });
+
+  it("a superseded Load latest click neither ends the in-flight state nor runs the deferred check early", async () => {
+    const firstLoad = deferred<TestRow>();
+    const secondLoad = deferred<TestRow>();
+    const recheck = deferred<TestRow>();
+    const fetchLatest = vi
+      .fn()
+      .mockReturnValueOnce(firstLoad.promise)
+      .mockReturnValueOnce(secondLoad.promise)
+      .mockReturnValueOnce(recheck.promise);
+    const env = setup({ loaded: { id: "a", version: 1 }, dirty: true, fetchLatest });
+
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = env.result.current.loadExternalChange();
+      second = env.result.current.loadExternalChange();
+    });
+    await act(async () => {
+      firstLoad.resolve({ id: "a", version: 2 });
+      await first;
+    });
+    act(() => {
+      env.result.current.checkForExternalChange();
+    });
+    expect(env.fetchLatest).toHaveBeenCalledTimes(2);
+    expect(env.applyLatest).not.toHaveBeenCalled();
+
+    await act(async () => {
+      secondLoad.resolve({ id: "a", version: 2 });
+      await second;
+    });
+    expect(env.applyLatest).toHaveBeenCalledTimes(1);
+    expect(env.fetchLatest).toHaveBeenCalledTimes(3);
+  });
+
   it("supersedes a background check still in flight", async () => {
     const checkDeferred = deferred<TestRow>();
     const loadDeferred = deferred<TestRow>();
