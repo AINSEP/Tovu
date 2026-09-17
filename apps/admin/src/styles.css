@@ -1602,6 +1602,13 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .notice.error { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
 .notice.warning { border-color: var(--warning); background: var(--warning-bg); color: var(--warning); margin: 0.6rem 0; }
 .notice.warning label { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.85rem; color: var(--fg-2); cursor: pointer; }
+/* Banner action pairs (2026-09-16) — the editors' notices put their buttons straight after the
+   message (Load latest / Keep my edits, Restore / Discard, Save anyway / Keep editing), and JSX
+   leaves no whitespace between them, so each pair rendered touching. Same `--space-2` step
+   `.card-head-actions` uses for its buttons. Direct children only: a notice that lays its buttons out
+   in its own flex row already has a gap. */
+.notice.warning > .btn-secondary + .btn-secondary,
+.notice.error > .btn-secondary + .btn-secondary { margin-left: var(--space-2); }
 /* Recovery's top-of-screen degraded banner (2026-09-10, owner: read as plain text, not a boxed
    card) — `DegradedBannerView` in `Recovery.tsx`. (Its sibling `RestoreCapabilityNotice` got this
    same treatment the same day, then was cut outright — "seems useless" — later the same day; this
