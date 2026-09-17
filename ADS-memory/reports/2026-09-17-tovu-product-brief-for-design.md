@@ -70,7 +70,8 @@ the time of writing, not against planning documents — those drift. Status is o
 | Integrations / External MCP | Tovu connects OUT to third-party MCP tool servers (OAuth, credential storage, tool federation) | Ships |
 | MCP (Tovu as an MCP server) | Exposing Tovu's own tools TO an external MCP client (e.g. a desktop AI app) | Planned — only an outbound MCP client exists today; no inbound server |
 | WebMCP (browser-agent-operable pages) | Letting a general-purpose browser agent (e.g. Chrome's own) discover and operate actions on a page | Partial — the underlying registration machinery exists but is off by default in the admin and not built at all on the public site yet (decided 2026-09-17) |
-| Local CLI coding-agent runtime | The assistant can spawn a real local coding-agent CLI process (Claude Code, Codex CLI, OpenCode, and 21 others via one shared registry) and drive it | Partial, demo-only — deliberately double-gated off in production; not the default operating mode. No dedicated Gemini CLI integration — Gemini only appears as a selectable model inside some other tools (e.g. OpenCode) |
+| Local CLI coding-agent runtime (admin) | The admin chat dock spawns a real local coding-agent CLI process (Claude Code, Codex CLI, OpenCode, and 21 others via one shared registry) as a separate OS process and drives it through a standalone daemon | Ships — this is how the admin assistant works today, on by default, not a demo. Verified: chat rows and real runs are recorded in the site's own `chat.db` |
+| Local CLI coding-agent runtime (public site) | The same registry, exposed as a demo mode on the public-facing site so anonymous visitors can trigger a local CLI run | Partial, demo-only — a separate, deliberately double-gated code path (env var plus a hard refusal in production) governs only this public-site exposure, not the admin |
 | BYOK (bring-your-own-key) | Server-side API keys for Anthropic, OpenAI, Azure OpenAI, and Google, called in-process | Ships |
 | **Publishing & operations** | | |
 | Static export & one-shot publish | Exports the rendered site and pushes it to GitHub Pages, Vercel, Netlify, Cloudflare Pages, or any S3-compatible bucket (AWS S3, R2, B2, Spaces, MinIO, etc.) | Ships |
@@ -88,6 +89,11 @@ Note on the desktop app: some project documentation describes desktop packaging 
 in a separate, sibling product. That is only partly accurate — this codebase does contain a
 single-site desktop shell. A separate multi-site manager product is a different, unrelated
 application and out of scope for this brief.
+
+Note on the local CLI agent runtime: there is no dedicated Gemini CLI integration in the shared
+agent registry. Gemini shows up only as one selectable model inside a couple of the other tools'
+own model lists (for example OpenCode offers `google/gemini-2.5-pro`, and Devin offers `gemini`) —
+it is not itself one of the runnable agents.
 
 ### What a theme can actually surface
 
