@@ -537,15 +537,24 @@ type ResolvedMediaRecord = NonNullable<Awaited<ReturnType<MediaRepoPort["findByI
  *  ref's `id`/`variant` fails {@link isPlausibleMediaRefId}'s check — split out of
  *  {@link resolveOneMediaEmbed} so that function's own branch count stays proportional to "which
  *  resolution step failed", not also this shape check. */
+/**
+ * T10 (2026-09-16 embed-attributes plan): `ref.id ?? ref.slug` — a `"media"` marker accepts a `slug`
+ * the same way a `"widget"` marker already does ({@link resolveWidgetTypeEmbeds}'s own doc,
+ * 2026-08-31): `id` wins when both are present and `slug` is never even consulted, matching
+ * `resolveOneMediaEmbed`'s own doc on its `refAssetId` — the value returned here IS that map key, and
+ * is passed straight into `findMediaByIdOrSlug`, which has always accepted either shape; only this
+ * shape-check gate was missing it before. Named `assetId` still (not `idOrSlug`) since that field is
+ * renamed at its one call site immediately.
+ */
 function parseMediaEmbedRef(
   ref: PageHtmlEmbedRef,
   context: WidgetResolveContext
 ): { assetId: string; transformName: string } | undefined {
-  const assetId = ref.id;
+  const assetId = ref.id ?? ref.slug;
   const transformName = ref.variant ?? CORE_PUBLIC_TRANSFORM_NAME;
   if (assetId === null || !isPlausibleMediaRefId(assetId) || !isPlausibleMediaRefId(transformName)) {
     console.warn(
-      '[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — missing or invalid "id"/"variant" in data-embed-config',
+      '[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — missing or invalid "id"/"slug"/"variant" in data-embed-config',
       { workspaceId: context.workspaceId }
     );
     return undefined;

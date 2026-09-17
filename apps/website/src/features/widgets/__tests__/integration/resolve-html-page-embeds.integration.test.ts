@@ -657,6 +657,73 @@ test("resolveHtmlPageEmbeds: media and widget embeds on the same page all resolv
 });
 
 // ---------------------------------------------------------------------------
+// T10, 2026-09-16 embed-attributes plan — a "media" marker accepts "slug" the same way "widget"
+// already does (2026-08-31, the block above): `{"type":"media","slug":"hero-video"}` resolves to that
+// asset. `parseMediaEmbedRef` (resolver-service.ts) previously read `ref.id` ONLY, so a slug-only
+// media marker silently degraded to the REQ-28 placeholder even though `findMediaByIdOrSlug` (the
+// lookup it already called) has always accepted either. `id` still wins when both are present, and
+// the returned map is keyed by whichever the marker itself typed (`ref.id ?? ref.slug`), matching
+// render.ts's own lookup and the identical widget-slug precedent's doc.
+// ---------------------------------------------------------------------------
+
+test('resolveHtmlPageEmbeds: a media marker with only "slug" resolves to that asset, keyed by the slug', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const mediaRepo = new InMemoryMediaRepo([
+    mediaRecord({ id: "asset-1", slug: "hero-video", alt: "A scenic photo", width: 640, height: 480, cssClass: "rounded" }),
+  ]);
+  const transformRepo = new InMemoryTransformDefinitionRepo([
+    transformDefinition({ name: CORE_PUBLIC_TRANSFORM_NAME, version: 2 }),
+  ]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, mediaRepo, transformRepo },
+    input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"media","slug":"hero-video"}'></div>` },
+  });
+
+  assert.equal(resolved.get("media")?.has("asset-1"), false, "must not be keyed by the resolved canonical id — the marker never typed it");
+  const ir = resolved.get("media")?.get("hero-video");
+  assert.equal(ir?.componentId, "media-image");
+  assert.equal(ir?.props.assetId, "asset-1", "the served URL must still use the canonical id, not the slug");
+  assert.equal(ir?.props.alt, "A scenic photo");
+});
+
+test("resolveHtmlPageEmbeds: a media marker with both id and slug uses id and never consults slug", async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const mediaRepo = new InMemoryMediaRepo([
+    mediaRecord({ id: "asset-a", slug: "asset-a-slug", alt: "Asset A" }),
+    mediaRecord({ id: "asset-b", slug: "asset-b-slug", alt: "Asset B" }),
+  ]);
+  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ name: CORE_PUBLIC_TRANSFORM_NAME, version: 1 })]);
+
+  // Only asset-a's own id key is populated; if this fell back to slug for a marker carrying both, it
+  // would surface asset-b's data instead of asset-a's.
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, mediaRepo, transformRepo },
+    input: {
+      workspaceId: WORKSPACE_ID,
+      html: `<div data-embed-config='{"type":"media","id":"asset-a","slug":"asset-b-slug"}'></div>`,
+    },
+  });
+
+  const ir = resolved.get("media")?.get("asset-a");
+  assert.equal(ir?.props.assetId, "asset-a");
+  assert.equal(ir?.props.alt, "Asset A", "id must win — asset-b's slug is never even consulted");
+});
+
+test("resolveHtmlPageEmbeds: an unknown media slug degrades to no entry (placeholder), never a throw", async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const mediaRepo = new InMemoryMediaRepo([]);
+  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition()]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, mediaRepo, transformRepo },
+    input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"media","slug":"does-not-exist"}'></div>` },
+  });
+
+  assert.equal(resolved.get("media")?.has("does-not-exist"), false);
+});
+
+// ---------------------------------------------------------------------------
 // `content`/`post` types (2026-08-11 unification) — guard 2 (visibility) at the resolver layer.
 // `content` is the unified id-addressable marker's "doc"-format half; `post` is the legacy generic
 // reference, retrofitted with the SAME visibility fix alongside it. Both resolve via
