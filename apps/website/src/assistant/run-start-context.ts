@@ -12,6 +12,7 @@
  * `AttachmentStore`, or `AgentExecutor` involved — and with no risk of the test process binding a
  * real port or being torn down by the daemon's own `EADDRINUSE`/`process.exit()` handling.
  */
+import { readRunPageContext, type RunPageContext } from "./run-page-context.js";
 
 /** Requires `value` to be a non-empty string, or throws naming `label` — the shared shape
  *  `prompt`/`principalId` both need (a malformed value means the run cannot proceed at all).
@@ -53,7 +54,8 @@ function readOptionalContextString(value: unknown): string | undefined {
  * @returns The seven fields `onStarted` forwards into the prompt prefix, `principalByRunId`, the
  *   attachment claim step, `AgentExecutor.run()`'s `model` and `reasoning`, the Agent Plugin
  *   resolution step, and the per-conversation agent-session lookup (`agent-session-resume.ts`)
- *   respectively.
+ *   respectively — plus the optional `pageContext` (`run-page-context.ts`) the prompt block is
+ *   rendered from.
  * @throws If `contextRef` is not valid JSON, or decodes without a non-empty string `prompt` or
  *   `principalId`.
  * @complexity O(n + m) in `attachmentIds` and `pluginRefIds` length combined; O(1) otherwise.
@@ -67,6 +69,7 @@ export function parseRunStartContextRef(contextRef: string): {
   reasoning?: string;
   pluginRefIds: readonly string[];
   conversationId?: string;
+  pageContext?: RunPageContext;
 } {
   const parsed = JSON.parse(contextRef) as {
     prompt?: unknown;
@@ -76,6 +79,7 @@ export function parseRunStartContextRef(contextRef: string): {
     reasoning?: unknown;
     pluginRefIds?: unknown;
     conversationId?: unknown;
+    pageContext?: unknown;
   };
   const prompt = requireNonEmptyContextField(parsed.prompt, "prompt");
   const principalId = requireNonEmptyContextField(parsed.principalId, "principalId");
@@ -92,6 +96,9 @@ export function parseRunStartContextRef(contextRef: string): {
   // `pluginRefIds` above: a caller that never sends one (any daemon client other than the admin
   // chat pane, today) just never gets session-resume behavior, rather than the whole run failing.
   const conversationId = readOptionalContextString(parsed.conversationId);
+  // The admin screen the message was sent from — same "silently degrade to none" convention; see
+  // `run-page-context.ts` for why it rides here rather than behind a tool.
+  const pageContext = readRunPageContext(parsed.pageContext);
   return {
     prompt,
     principalId,
@@ -100,5 +107,6 @@ export function parseRunStartContextRef(contextRef: string): {
     ...(model === undefined ? {} : { model }),
     ...(reasoning === undefined ? {} : { reasoning }),
     ...(conversationId === undefined ? {} : { conversationId }),
+    ...(pageContext === undefined ? {} : { pageContext }),
   };
 }

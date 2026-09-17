@@ -27,6 +27,7 @@ import { PostTitleDocument, PostTitle } from "@/lib/post-title-extension";
 import { navigate as realNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
+import { useAgentScreenEntry } from "@/hooks/use-agent-screen-context.hooks";
 import {
   useStandingDraftAutosave,
   type StandingDraftAutosaveSnapshot,
@@ -826,6 +827,10 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // shared by `useDirtyGuard`, `contentDirty`, the pending-content-preview effect below, and the
   // controller's own `bodyJson` field, rather than four separate `editor?.getJSON() ?? null` calls.
   const bodyJson = editor?.getJSON() ?? null;
+
+  // Tells the assistant which entry "this post" is (`lib/agent-screen-context.ts`) — the saved row,
+  // same as `usePageEditor`.
+  useAgentScreenEntry(post === null ? null : { kind: post.kind, id: post.id, title: post.title, slug: post.slug, status: post.status });
 
   const { isDirty, confirmLeave } = useDirtyGuard<PostFormState>(
     { title, slug, status, bodyJson, templateChoice, overridesThemePage },

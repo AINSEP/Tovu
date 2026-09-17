@@ -11,6 +11,7 @@ import { ADMIN_PANELS } from "./panels";
 import { translateAdminNavGroups, translateAdminNavLabel } from "./lib/admin-nav-i18n";
 import { t as tApp } from "./app-i18n";
 import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
+import { useAgentScreenRoute } from "./hooks/use-agent-screen-context.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
 import { ChatFab } from "./components/ChatFab/ChatFab";
 import {
@@ -463,6 +464,8 @@ export function App(props: AppProps) {
   const siteSection = useSiteSectionAvailability(user);
   const routePath = useRouteLocation();
   const route = useMemo(() => parseRoute(routePath), [routePath]);
+  // Tells the assistant which screen each message is sent from; an editor adds its open entry.
+  useAgentScreenRoute({ path: routePath, section: agentPageId(route), view: route.view });
 
   const { sidebarOpen, setSidebarOpen } = useDrawer({ routePath });
   useLinkInterceptor();

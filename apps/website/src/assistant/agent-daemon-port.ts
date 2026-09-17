@@ -62,6 +62,7 @@ export { registerMcpUiToolCallsRoute } from "./mcp-ui-tool-calls-route.js";
 export { resolveMcpJsonInjection } from "./mcp-injection.js";
 export { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership, RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
 export { parseRunStartContextRef } from "./run-start-context.js";
+export { buildPageContextPromptBlock } from "./run-page-context.js";
 export { buildComponentCatalogQuery } from "./component-catalog-query.js";
 export { buildToolCatalogQuery, listToolCatalogEntries } from "./tool-catalog-query.js";
 export { withToolAttemptAudit } from "./tool-executor-audit.js";

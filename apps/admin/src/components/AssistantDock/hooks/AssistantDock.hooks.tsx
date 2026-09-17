@@ -23,6 +23,7 @@ import { createBrowserWorkingDirectoryAccess } from "@/lib/browser-working-direc
 import { isAbortError, retryWhileUnreachable } from "@/lib/retry-unreachable";
 import { useWiredAssistantChats, type UseAssistantChats } from "@/hooks/use-assistant-chats.hooks";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { readAgentScreenContext, type AgentScreenContext } from "@/lib/agent-screen-context";
 import {
   DEFAULT_EXECUTION_CONFIG,
   EXECUTION_NAMESPACE,
@@ -1294,12 +1295,14 @@ function includeIfNonEmptyArray<K extends string, V>(key: K, value: readonly V[]
  * const context = resolveRunContext({ bindToken: agentBridge?.bindToken(), model: selection.model, pluginRefIds, conversationId });
  */
 export function resolveRunContext(
-  { bindToken, model, reasoning, pluginRefIds, conversationId }: {
+  { bindToken, model, reasoning, pluginRefIds, conversationId, pageContext }: {
     bindToken: string | undefined;
     model?: string;
     reasoning?: string;
     pluginRefIds?: readonly string[];
     conversationId?: string | null;
+    /** `readAgentScreenContext()` at send time — the screen "this page" refers to. */
+    pageContext?: AgentScreenContext;
   },
 ): {
   frontendBindToken?: string;
@@ -1307,6 +1310,7 @@ export function resolveRunContext(
   reasoning?: string;
   pluginRefIds?: readonly string[];
   conversationId?: string;
+  pageContext?: AgentScreenContext;
 } {
   return {
     ...includeIfDefined("frontendBindToken", bindToken),
@@ -1321,6 +1325,7 @@ export function resolveRunContext(
     // `assistant-transport.ts`'s `buildLocalCliContextRef`.
     ...includeIfNonEmptyArray("pluginRefIds", pluginRefIds),
     ...includeIfNonEmptyString("conversationId", conversationId),
+    ...includeIfDefined("pageContext", pageContext),
   };
 }
 
@@ -1380,17 +1385,21 @@ export function buildAssistantMcpUiSandboxProxyUrl(hostOrigin: string): URL {
  *   identity mid-render.
  * @param input.conversationId - {@link resolveRunContext}'s own `conversationId` doc — forwarded
  *   straight through, same "rebuild when it changes" posture as `model`/`pluginRefIds`.
+ * @param input.readScreenContext - Reads the admin screen the operator is on; called inside the
+ *   callback, like `bindToken()`, because navigation does not rebuild this callback. Defaults to
+ *   `lib/agent-screen-context.ts`'s real store; a test passes its own.
  * @returns The memoized `runContext` callback.
  * @example
  * const runContext = useRunContext({ agentBridge, model: localCliSelection.model, pluginRefIds: selectedPluginRefIds, conversationId: chats.activeId });
  */
 export function useRunContext(
-  { agentBridge, model, reasoning, pluginRefIds, conversationId }: {
+  { agentBridge, model, reasoning, pluginRefIds, conversationId, readScreenContext = readAgentScreenContext }: {
     agentBridge: FrontendSessionBridge | null | undefined;
     model?: string;
     reasoning?: string;
     pluginRefIds?: readonly string[];
     conversationId?: string | null;
+    readScreenContext?: () => AgentScreenContext | undefined;
   },
 ): () => {
   frontendBindToken?: string;
@@ -1398,11 +1407,19 @@ export function useRunContext(
   reasoning?: string;
   pluginRefIds?: readonly string[];
   conversationId?: string;
+  pageContext?: AgentScreenContext;
 } {
   return useMemo(
     () => () =>
-      resolveRunContext({ bindToken: agentBridge?.bindToken(), model, reasoning, pluginRefIds, conversationId }),
-    [agentBridge, model, reasoning, pluginRefIds, conversationId],
+      resolveRunContext({
+        bindToken: agentBridge?.bindToken(),
+        model,
+        reasoning,
+        pluginRefIds,
+        conversationId,
+        pageContext: readScreenContext(),
+      }),
+    [agentBridge, model, reasoning, pluginRefIds, conversationId, readScreenContext],
   );
 }
 

@@ -148,6 +148,7 @@ import {
   requireRunOwnership,
   RUN_PRINCIPAL_HEADER,
   parseRunStartContextRef,
+  buildPageContextPromptBlock,
   buildComponentCatalogQuery,
   buildToolCatalogQuery,
   listToolCatalogEntries,
@@ -746,7 +747,10 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     // startup banner, offers to install slash commands) before touching the user's actual request
     // — confirmed live, burning real turns on a product-facing feature that has nothing to do with
     // this repo's own AI-Dev-Shop pipeline.
-    prompt = `<<SUBAGENT_DISPATCH>>\n\n${decoded.prompt}`;
+    // The admin screen this message was sent from goes AFTER the marker (the marker only works as
+    // the prompt's first line) and directly before the operator's words, so "this page" has
+    // something to refer to — see `run-page-context.ts`. `""` (no context) leaves the prompt as is.
+    prompt = `<<SUBAGENT_DISPATCH>>\n\n${assemblePromptWithPluginPrefix(decoded.prompt, buildPageContextPromptBlock(decoded.pageContext))}`;
     principal = { id: decoded.principalId };
     attachmentIds = decoded.attachmentIds;
     pluginRefIds = decoded.pluginRefIds;

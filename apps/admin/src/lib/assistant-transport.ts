@@ -851,6 +851,17 @@ function conversationIdField(input: StartRunInput, resolvedConversationId?: stri
 }
 
 /**
+ * The admin screen this message was sent from (`lib/agent-screen-context.ts`, read by
+ * `AssistantDock.hooks.tsx`'s `useRunContext` at send time), so the agent knows what "this page"
+ * means. Forwarded as-is when it is a plain object — the daemon's `run-page-context.ts` owns
+ * validating and capping its fields, the same split `attachmentIds` has — and omitted otherwise.
+ */
+function pageContextField(input: StartRunInput): Record<string, unknown> {
+  const pageContext = input.context?.["pageContext"];
+  return typeof pageContext === "object" && pageContext !== null && !Array.isArray(pageContext) ? { pageContext } : {};
+}
+
+/**
  * Assembles the Local CLI path's `contextRef` — everything `startRun`'s daemon branch sends besides
  * `agentId` itself. Pulled out of `startRun` (2026-08-06, complexity pass, second pass) as its own
  * pure function, then split again (2026-09-04, complexity pass) into one pure field-helper per
@@ -883,6 +894,7 @@ export function buildLocalCliContextRef(
     ...attachmentIdsField(input),
     ...pluginRefIdsField(input),
     ...conversationIdField(input, resolvedConversationId),
+    ...pageContextField(input),
   };
 }
 

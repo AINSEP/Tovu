@@ -132,6 +132,22 @@ describe("buildLocalCliContextRef", () => {
     expect(buildLocalCliContextRef(input({ context: { pluginRefIds: "not-an-array" } }), "p")).toEqual({ prompt: "p" });
   });
 
+  // 2026-09-16: the screen the message was sent from, so "this page" means something to the agent.
+  // Forwarded as an object (the daemon's `run-page-context.ts` validates and caps its fields); any
+  // non-object is dropped rather than sent.
+  test("includes pageContext only when it is a plain object", () => {
+    const pageContext = {
+      path: "/pages/4f22",
+      section: "pages",
+      view: "page-editor",
+      entry: { kind: "page", id: "4f22", title: "Landing sample — xai" },
+    };
+    expect(buildLocalCliContextRef(input({ context: { pageContext } }), "p")).toEqual({ prompt: "p", pageContext });
+    expect(buildLocalCliContextRef(input({ context: { pageContext: "pages" } }), "p")).toEqual({ prompt: "p" });
+    expect(buildLocalCliContextRef(input({ context: { pageContext: ["pages"] } }), "p")).toEqual({ prompt: "p" });
+    expect(buildLocalCliContextRef(input({ context: { pageContext: null } }), "p")).toEqual({ prompt: "p" });
+  });
+
   test("includes conversationId only when it is a non-empty string", () => {
     expect(buildLocalCliContextRef(input({ context: { conversationId: "c1" } }), "p")).toEqual({
       prompt: "p",

@@ -4,6 +4,7 @@ import type { AdminPost } from "@/lib/api";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
+import { useAgentScreenEntry } from "@/hooks/use-agent-screen-context.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import {
   useStandingDraftAutosave,
@@ -711,6 +712,10 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // that early.
   const previewFormRef = useRef<HTMLFormElement>(null);
   const previewFormTarget = pagePreviewFormTarget(page);
+
+  // Tells the assistant which page "this page" is (`lib/agent-screen-context.ts`) — the saved row,
+  // so the id/slug it is given are ones its tools can actually look up.
+  useAgentScreenEntry(page === null ? null : { kind: page.kind, id: page.id, title: page.title, slug: page.slug, status: page.status });
 
   // Template-preview fix (2026-08-11) — see `contentDirty`'s doc on `PageEditorController`.
   const contentDirty = computeContentDirty(page, { title, slug, status, html, savedHtml });

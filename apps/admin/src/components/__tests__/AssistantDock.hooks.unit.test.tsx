@@ -1382,6 +1382,28 @@ describe("useRunContext", () => {
     expect(result.current()).toEqual({ model: "sonnet" });
   });
 
+  // 2026-09-16 owner report: in the page editor for "Landing sample — xai", the assistant could not
+  // say which page was open. The screen must be read when Send is pressed — the callback is memoized
+  // and outlives navigation, so a value captured at build time would describe a screen already left.
+  it("carries the screen the operator is on, read fresh at call time", () => {
+    const pageEditor = {
+      path: "/pages/4f22",
+      section: "pages",
+      view: "page-editor",
+      entry: { kind: "page", id: "4f22", title: "Landing sample — xai" },
+    };
+    let screen: typeof pageEditor | { path: string; section: string } | undefined = pageEditor;
+    const { result } = renderHook(() => useRunContext({ agentBridge: null, readScreenContext: () => screen }));
+
+    expect(result.current()).toEqual({ pageContext: pageEditor });
+
+    screen = { path: "/pages", section: "pages" };
+    expect(result.current()).toEqual({ pageContext: { path: "/pages", section: "pages" } });
+
+    screen = undefined;
+    expect(result.current()).toEqual({});
+  });
+
   it("memoizes the callback while agentBridge and model are unchanged", () => {
     const agentBridge = { bindToken: () => "tok" } as unknown as FrontendSessionBridge;
     const { result, rerender } = renderHook(() => useRunContext({ agentBridge, model: "sonnet" }));
