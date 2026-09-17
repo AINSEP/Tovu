@@ -1551,6 +1551,59 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     await waitFor(() => expect(result.current.title).toBe("Landing v2"));
   });
 
+  // Owner-reported shape, reproduced live 2026-09-16: text typed into the Interactive canvas reaches
+  // `html` only when the operator leaves that text element (GrapesJS syncs its inline editor on
+  // blur-out, and its `update` event is deferred), so `dirty` read false while typed text sat in the
+  // canvas, the refresh applied silently, and the `key={contentRevision}` remount destroyed it.
+  it("clean-looking editor on the Interactive tab: a refresh asks instead of remounting the canvas", async () => {
+    const deps = refreshDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => result.current.setView("interactive"));
+    expect(result.current.dirty).toBe(false);
+    const startingRevision = result.current.contentRevision;
+
+    act(() => {
+      deps.port.simulateExternalWrite({ bodyHtml: "<p>new hero</p>" });
+      publishContentRefresh([PAGES_RESOURCE]);
+    });
+
+    await waitFor(() => expect(result.current.pendingExternalVersion).toBe(deps.port.current.version));
+    expect(result.current.contentRevision).toBe(startingRevision);
+    expect(result.current.html).toBe(HTML_PAGE.bodyHtml);
+
+    // Load latest is the explicit discard, so it DOES remount the canvas with the new body.
+    await act(async () => {
+      await result.current.loadExternalChange();
+    });
+    expect(result.current.html).toBe("<p>new hero</p>");
+    expect(result.current.contentRevision).toBe(startingRevision + 1);
+    expect(result.current.pendingExternalVersion).toBeNull();
+  });
+
+  it("typing that lands while the re-read is in flight is kept: dirty is judged when the fetch settles", async () => {
+    const deps = refreshDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    let settle!: (value: { post: typeof deps.port.current }) => void;
+    const loaded = deps.port.current;
+    deps.port.getPage = () =>
+      new Promise((resolve) => {
+        settle = resolve;
+      });
+
+    act(() => publishContentRefresh([PAGES_RESOURCE]));
+    act(() => result.current.setHtml("<p>typed mid-fetch</p>"));
+    await act(async () => {
+      settle({ post: { ...loaded, bodyHtml: "<p>agent</p>", version: loaded.version + 1 } });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(result.current.html).toBe("<p>typed mid-fetch</p>");
+    expect(result.current.pendingExternalVersion).toBe(loaded.version + 1);
+  });
+
   it("dirty editor: a refresh never touches the working copy and raises pendingExternalVersion", async () => {
     const deps = refreshDeps();
     const { result } = renderHook(() => usePageEditor("landing", deps));
@@ -1606,12 +1659,17 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     act(() => result.current.dismissExternalChange());
     expect(result.current.pendingExternalVersion).toBeNull();
 
-    // A second agent write on the SAME (dismissed) basis stays quiet.
-    act(() => {
+    // A second agent write on the SAME (dismissed) basis stays quiet. The check's fetch is settled
+    // inside `act` before asserting, and the call count proves a check actually ran: waiting on
+    // `getPageCalls > 0` passed on its first poll (the mount load already counted), so it only
+    // worked because `waitFor`'s own internal awaits happened to let the fetch settle.
+    const callsBeforeSecondWrite = deps.port.getPageCalls;
+    await act(async () => {
       deps.port.simulateExternalWrite({ title: "Landing v3" });
       publishContentRefresh([PAGES_RESOURCE]);
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    await waitFor(() => expect(deps.port.getPageCalls).toBeGreaterThan(0));
+    expect(deps.port.getPageCalls).toBe(callsBeforeSecondWrite + 1);
     expect(result.current.pendingExternalVersion).toBeNull();
     expect(result.current.html).toBe("<p>mine</p>");
 

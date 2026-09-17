@@ -21,6 +21,7 @@ import {
   pageLivePreviewPath,
   pagePreviewFormTarget,
   pagePublicPath,
+  pageRefreshMayHaveUnsavedEdits,
   pageRowMenuItems,
   themePageRowMenuItems,
   updatedPageColumnSortLabel,
@@ -596,5 +597,22 @@ describe("pageLivePreviewPath", () => {
 
   it("keeps the root slug a single slash before the query string", () => {
     expect(pageLivePreviewPath("/", 7)).toBe("/?_v=7");
+  });
+});
+
+describe("pageRefreshMayHaveUnsavedEdits", () => {
+  it("is false for a clean editor on the Preview or HTML tab", () => {
+    expect(pageRefreshMayHaveUnsavedEdits({ dirty: false, view: "preview" })).toBe(false);
+    expect(pageRefreshMayHaveUnsavedEdits({ dirty: false, view: "html" })).toBe(false);
+  });
+
+  it("is true for a dirty editor on any tab", () => {
+    expect(pageRefreshMayHaveUnsavedEdits({ dirty: true, view: "preview" })).toBe(true);
+    expect(pageRefreshMayHaveUnsavedEdits({ dirty: true, view: "html" })).toBe(true);
+    expect(pageRefreshMayHaveUnsavedEdits({ dirty: true, view: "interactive" })).toBe(true);
+  });
+
+  it("is true on the Interactive tab even when dirty reads false, since canvas typing may not have reached html yet", () => {
+    expect(pageRefreshMayHaveUnsavedEdits({ dirty: false, view: "interactive" })).toBe(true);
   });
 });

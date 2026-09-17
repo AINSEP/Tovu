@@ -24,6 +24,7 @@ import {
   pagePreviewFormTarget,
   pageSaveSuccessMessage,
   PAGES_RESOURCE,
+  pageRefreshMayHaveUnsavedEdits,
   readPageVersionConflict,
   type PageSaveConflict,
   type PageSavePlan,
@@ -241,8 +242,9 @@ export interface PageEditorController {
   autosaveStaleBasis: StandingDraftStaleBasis | null;
   /**
    * Content refresh (2026-09-16) — non-null only while an assistant tool (`pages_write_html` /
-   * `pages_write_region`) has written a newer version of this page AND the editor has unsaved edits
-   * the operator hasn't resolved yet. `null` means either nothing changed, or the editor was clean
+   * `pages_write_region`) has written a newer version of this page AND the editor may have unsaved
+   * edits the operator hasn't resolved yet (on the Interactive tab that is always assumed — see
+   * `pageRefreshMayHaveUnsavedEdits`). `null` means either nothing changed, or the editor was clean
    * and already applied the change silently. See `use-external-entry-refresh.hooks.ts` for the
    * clean/dirty decision this is the dirty half of.
    */
@@ -254,9 +256,10 @@ export interface PageEditorController {
    *  loaded basis version moves (a Save, Save anyway, or Load latest). */
   dismissExternalChange: () => void;
   /**
-   * Bumped only when an EXTERNAL write is applied silently (never by this editor's own save) — the
-   * Interactive tab's remount key, so GrapesJS picks up an assistant-written body without losing its
-   * canvas state on every own Save. See `PageEditorPane`'s `key={contentRevision}`.
+   * Bumped only when an EXTERNAL write is applied — silently, or through Load latest — never by this
+   * editor's own save. The Interactive tab's remount key, so GrapesJS picks up an assistant-written
+   * body without losing its canvas state on every own Save. On that tab only Load latest bumps it
+   * (see `pageRefreshMayHaveUnsavedEdits`). See `PageEditorPane`'s `key={contentRevision}`.
    */
   contentRevision: number;
 }
@@ -545,8 +548,8 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // every render while already on it — reformatting mid-edit would fight the operator's cursor position.
   const [draftHtml, setDraftHtml] = useState(() => prettifyHtml(html));
 
-  // Content refresh (2026-09-16) — bumped only when an assistant write is applied SILENTLY (never
-  // by this editor's own save), so the Interactive tab can remount and pick up the new body without
+  // Content refresh (2026-09-16) — bumped only when an assistant write is applied (silently, or via
+  // Load latest; never by this editor's own save), so the Interactive tab can remount and pick up the new body without
   // losing GrapesJS's canvas state on every own Save (a `page.version` key would do that too, since
   // an own save bumps it exactly the same way). See `PageEditorController.contentRevision`.
   const [contentRevision, setContentRevision] = useState(0);
@@ -799,10 +802,11 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // this closes: `pages_write_html`/`pages_write_region` are agent-callable, and this editor never
   // re-read its row after one fired. `loaded`/`isDirty`/`isSaving` are read through the hook's own
   // ref on every check, so listing `dirty`/`saving`/`page` in a dependency array here is unnecessary.
+  // `isDirty` is wider than `dirty` on the Interactive tab — see `pageRefreshMayHaveUnsavedEdits`.
   const externalRefresh = useExternalEntryRefresh<AdminPost>({
     loaded: page,
     fetchLatest: (id) => port.getPage(id).then(({ post }) => post),
-    isDirty: () => dirty,
+    isDirty: () => pageRefreshMayHaveUnsavedEdits({ dirty, view }),
     isSaving: () => saving,
     applyLatest: applyExternalPage,
     discardStandingDraft: autosave.clearStandingDraft,

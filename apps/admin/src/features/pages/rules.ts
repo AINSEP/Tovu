@@ -521,6 +521,24 @@ export function pageEditableHtml(post: AdminPost): string {
   return post.bodyFormat === "html" ? (post.bodyHtml ?? "") : "";
 }
 
+/**
+ * Whether a background refresh must treat the working copy as possibly holding unsaved edits — the
+ * `isDirty` `usePageEditor` hands `useExternalEntryRefresh`, deliberately wider than the Save
+ * button's own `dirty`.
+ *
+ * The Interactive tab is always "maybe": GrapesJS keeps typed text in its canvas and writes it to
+ * `html` only when the operator leaves that text element (its `update` event is deferred too), so
+ * `dirty` can read false while unsaved typing is on screen. A silent apply there remounts the canvas
+ * and destroys that text — reproduced in a real browser 2026-09-16. On that tab the refresh shows the
+ * Load latest / Keep my edits notice instead. The Preview and HTML tabs write every keystroke
+ * straight to `html`, so `dirty` is exact there.
+ *
+ * @complexity O(1).
+ */
+export function pageRefreshMayHaveUnsavedEdits(input: { dirty: boolean; view: PageEditorView }): boolean {
+  return input.dirty || input.view === "interactive";
+}
+
 /** The external-change notice's own message — plain English, not run through `t()`, matching
  *  {@link pageVersionConflictMessage} and {@link pageAutosaveStaleBasisMessage} just above:
  *  `PageEditor.tsx`'s markup is outside the pages dictionary's declared scope (`pages-i18n.ts`'s own

@@ -371,9 +371,10 @@ function PageAutosaveStaleBanner({ staleBasis }: { staleBasis: StandingDraftStal
 
 /**
  * The EXTERNAL-CHANGE notice (2026-09-16) — an assistant tool wrote a newer version of this page
- * while the editor had unsaved edits. `usePageEditor` never renders this for a CLEAN editor: a clean
- * editor applies the newer version silently (see `use-external-entry-refresh.hooks.ts`), and this
- * banner exists only for the case a silent apply would clobber real unsaved work.
+ * while the editor had unsaved edits. A CLEAN editor applies the newer version silently instead (see
+ * `use-external-entry-refresh.hooks.ts`); this banner exists only for the case a silent apply could
+ * clobber unsaved work — which, on the Interactive tab, is always assumed, because canvas typing can
+ * be invisible to `dirty` (see `pageRefreshMayHaveUnsavedEdits`, `rules.ts`).
  *
  * Distinct from `PageVersionConflictBanner` above: that one is a Save the operator pressed and
  * watched fail; this one is a background check that found the row moved before they ever pressed
@@ -827,8 +828,8 @@ function PageEditorPane({
    *  is cache-busted with it. */
   version: number;
   /** Content refresh (2026-09-16) — `usePageEditor`'s `contentRevision`, keyed onto the Interactive
-   *  surface below so an assistant write applied while already on this tab remounts GrapesJS with
-   *  the new body, the same way switching tabs already does. */
+   *  surface below so an assistant write the operator loads (Load latest, while on this tab) remounts
+   *  GrapesJS with the new body, the same way switching tabs already does. */
   contentRevision: number;
   status: "draft" | "published";
   dirty: boolean;
