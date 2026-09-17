@@ -345,3 +345,21 @@ test("substituteHtmlEmbeds: a controls-only marker on a media wrapper still move
   const out = substituteHtmlEmbeds(html, () => "RESOLVED");
   assert.equal(out, `<div class="hero">RESOLVED</div>`);
 });
+
+test("substituteHtmlEmbeds: controls is NEVER forwarded via occurrence.elementAttributes, on a wrapper or a collapsed <video> — a browser treats controls=\"false\" as controls ON by presence alone, so the boolean must be the only channel", () => {
+  const wrapperHtml = `<div class="hero" data-embed-config='{"type":"media","id":"a"}' autoplay controls="false"></div>`;
+  let wrapperNames: string[] = [];
+  substituteHtmlEmbeds(wrapperHtml, (_ref, occurrence) => {
+    wrapperNames = occurrence.elementAttributes.map((a) => a.name);
+    return "RESOLVED";
+  });
+  assert.deepEqual(wrapperNames, ["autoplay"], "the wrapper case must never hand a controls entry to the occurrence");
+
+  const collapseHtml = `<video muted controls data-embed-config='{"type":"media","id":"a"}'></video>`;
+  let collapseNames: string[] = [];
+  substituteHtmlEmbeds(collapseHtml, (_ref, occurrence) => {
+    collapseNames = occurrence.elementAttributes.map((a) => a.name);
+    return "<video>RESOLVED</video>";
+  });
+  assert.deepEqual(collapseNames, ["muted"], "the collapse case must never hand a controls entry to the occurrence either");
+});

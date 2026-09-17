@@ -393,8 +393,9 @@ const DEFAULT_OCCURRENCE: EmbedOccurrence = { elementAttributes: NO_ELEMENT_ATTR
  * the rendered tag: `controls` is an HTML boolean attribute a browser honors by PRESENCE alone, so a
  * literal `controls="false"` in the output would still show controls, exactly the bug this rule
  * exists to prevent. This is the ONLY place that inspects a `"controls"`-named {@link MarkerAttribute}
- * — `render.ts`'s merge helper renders {@link EmbedOccurrence.controls} as a bare `controls`/nothing,
- * never a raw forwarded attribute of that name.
+ * — {@link planMediaMarkerAttributes} strips any `"controls"` entry out of
+ * {@link EmbedOccurrence.elementAttributes} unconditionally, so `render.ts`'s merge helper never even
+ * sees one; it renders controls-on-or-off purely from the `controls` boolean this function returns.
  *
  * @complexity O(n) in the attribute count (one linear find).
  */
@@ -423,13 +424,24 @@ interface MediaMarkerAttributePlan {
 function planMediaMarkerAttributes(marker: EmbedMarker): MediaMarkerAttributePlan {
   const parsed = parseMarkerAttributes(marker);
   const controls = resolveMarkerControls(parsed);
+  // `controls` is NEVER included in `elementAttributes` (2026-09-16, tightened per owner review) —
+  // its effect is carried exclusively by `controls` above. A browser honors an HTML boolean attribute
+  // by PRESENCE alone regardless of value, so leaving a `controls`/`controls="false"` entry inside
+  // `elementAttributes` for a renderer to forward verbatim would risk shipping a literal
+  // `controls="false"` that still shows controls — stripping it here, once, removes that hazard
+  // entirely rather than trusting every downstream renderer to skip the name correctly.
+  const withoutControls = (attrs: readonly MarkerAttribute[]) => attrs.filter((attr) => attr.name !== "controls");
   if (SELF_RENDERING_MEDIA_TAGS.has(marker.tag.toLowerCase())) {
-    // Collapse case: there is no wrapper, so every authored attribute hands to the occurrence.
-    return { occurrence: { elementAttributes: parsed, controls }, wrapperAttributes: NO_ELEMENT_ATTRIBUTES, movedAnyAttribute: true };
+    // Collapse case: there is no wrapper, so every authored attribute (besides controls) hands to the
+    // occurrence.
+    return { occurrence: { elementAttributes: withoutControls(parsed), controls }, wrapperAttributes: NO_ELEMENT_ATTRIBUTES, movedAnyAttribute: true };
   }
-  const elementAttributes = parsed.filter((attr) => MEDIA_ELEMENT_ATTRIBUTE_NAMES.has(attr.name));
+  const mediaElementAttrs = parsed.filter((attr) => MEDIA_ELEMENT_ATTRIBUTE_NAMES.has(attr.name));
   const wrapperAttributes = parsed.filter((attr) => !MEDIA_ELEMENT_ATTRIBUTE_NAMES.has(attr.name));
-  return { occurrence: { elementAttributes, controls }, wrapperAttributes, movedAnyAttribute: elementAttributes.length > 0 };
+  // `movedAnyAttribute` is computed from the PRE-strip count: a controls-only marker still moved an
+  // attribute off the wrapper (controls means nothing on a div either), even though `elementAttributes`
+  // itself ends up empty after `controls` is stripped out.
+  return { occurrence: { elementAttributes: withoutControls(mediaElementAttrs), controls }, wrapperAttributes, movedAnyAttribute: mediaElementAttrs.length > 0 };
 }
 
 /**
