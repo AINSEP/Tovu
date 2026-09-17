@@ -11,7 +11,8 @@ import {
 import { isPageEmbedType, type ResolveHtmlPageEmbedsResult, type ResolvePageWidgetsResult } from "#src/features/widgets/resolver-service";
 import type { AssignedTermView } from "#src/features/taxonomy/repo.sqlite";
 import type { WidgetRenderIR } from "#src/features/widgets/types";
-import { substituteHtmlEmbeds, type PageHtmlEmbedRef } from "#src/features/widgets/html-embeds";
+import { substituteHtmlEmbeds, type EmbedOccurrence, type PageHtmlEmbedRef } from "#src/features/widgets/html-embeds";
+import type { MarkerAttribute } from "#src/contracts/core/embeds/marker";
 import { ATTRIBUTE_NAME_PATTERN } from "#src/features/forms/forms";
 import { renderHandlebarsInSandbox } from "./handlebars-sandbox.js";
 import { renderLiquidInSandbox } from "./liquid-sandbox.js";
@@ -678,6 +679,114 @@ function formatHtmlAttributes(attributes: Record<string, string>): string {
     .join("");
 }
 
+/** No marker forwarded any attribute — the common case (most media markers are bare), shared so
+ *  {@link renderImageTag}/{@link renderVideoTag}'s callers don't each allocate an empty array. */
+const NO_MARKER_ATTRIBUTES: readonly MarkerAttribute[] = [];
+
+/**
+ * Formats one already-decided value for embedding inside a double-quoted HTML attribute — the render-
+ * path half of D3/D4 (2026-09-16 embed-attributes plan). An **asset**-sourced value (`MediaRecord.
+ * cssClass`/`htmlAttributes`, already allowlist-validated by {@link resolveMediaHtmlAttributes}, not
+ * itself entity-encoded) goes through the ordinary {@link escapeHtml}, matching every pre-existing call
+ * site in this file. A **marker**-sourced value is SOURCE TEXT (D4: `EmbedMarker.attrs`'s own
+ * {@link MarkerAttribute}) and only its literal `"` is escaped — the identical rule
+ * {@link formatMarkerAttributes} applies when re-serializing a wrapper's own kept attributes — so a
+ * marker's `&amp;` is never re-escaped into `&amp;amp;`.
+ *
+ * @complexity O(n) in the value's length.
+ */
+function attributeValueHtml(value: string, source: "asset" | "marker"): string {
+  return source === "asset" ? escapeHtml(value) : value.replace(/"/g, "&quot;");
+}
+
+/**
+ * D3's `class` rule: the asset's `cssClass` comes first, then the author's marker `class` value,
+ * joined with one space — an ADDITION, never a replacement, unlike every other attribute name (see
+ * {@link mergeMediaExtraAttributes}'s own doc for why `class` is excluded from that generic merge and
+ * handled here instead). A bare (valueless) marker `class` attribute contributes nothing — an
+ * attribute name with no class names to add.
+ *
+ * @complexity O(1) beyond the linear `find` over `markerAttributes`.
+ */
+function mergeMediaClassAttr(assetClass: string | null, markerAttributes: readonly MarkerAttribute[]): string {
+  const markerClass = markerAttributes.find((attr) => attr.name === "class")?.value;
+  const parts = [
+    assetClass ? attributeValueHtml(assetClass, "asset") : null,
+    markerClass ? attributeValueHtml(markerClass, "marker") : null,
+  ].filter((part): part is string => part !== null);
+  return parts.length > 0 ? ` class="${parts.join(" ")}"` : "";
+}
+
+/**
+ * D3's `alt` rule for an `<img>`: the author's marker value REPLACES the asset's own `alt`, never
+ * appends — unlike `class`. {@link renderVideoTag} has its own sibling for the fallback-text-node case
+ * (`<video>` has no `alt` attribute at all).
+ *
+ * @complexity O(1) beyond the linear `find` over `markerAttributes`.
+ */
+function mediaAltAttrValue(assetAlt: string, markerAttributes: readonly MarkerAttribute[]): string {
+  const markerAlt = markerAttributes.find((attr) => attr.name === "alt");
+  return markerAlt ? attributeValueHtml(markerAlt.value ?? "", "marker") : attributeValueHtml(assetAlt, "asset");
+}
+
+/**
+ * D3's `width`/`height` rule: the author's marker value replaces the asset's own numeric value; a
+ * BARE marker `width`/`height` (no `="…"`, meaningless on its own) is treated as no override rather
+ * than emitting an empty `width=""`. Shared by both dimensions since the rule (and the "author wins,
+ * asset is the fallback, absent is omitted entirely" shape) is identical for each.
+ *
+ * @complexity O(1) beyond the linear `find` over `markerAttributes`.
+ */
+function mediaDimensionAttr(name: "width" | "height", assetValue: number | null, markerAttributes: readonly MarkerAttribute[]): string {
+  const markerAttr = markerAttributes.find((attr) => attr.name === name);
+  if (markerAttr) {
+    return markerAttr.value === null ? "" : ` ${name}="${attributeValueHtml(markerAttr.value, "marker")}"`;
+  }
+  return assetValue != null ? ` ${name}="${assetValue}"` : "";
+}
+
+/**
+ * Merges the asset's own already-allowlisted `htmlAttributes` extras with a media marker's forwarded
+ * attributes (D3, 2026-09-16 embed-attributes plan) into one ordered, ready-to-emit fragment tail —
+ * the shared "everything else" merge both {@link renderImageTag} and {@link renderVideoTag} call for
+ * the names they don't each render at a fixed position themselves.
+ *
+ * Order and precedence: asset extras first, in their stored order; a marker attribute of the SAME
+ * name then replaces that entry'S VALUE IN PLACE (same position — a `Map`'s `set` on an existing key
+ * never moves it), while a marker attribute with a NEW name is appended, in authored order, after
+ * every asset extra. This is "author wins, asset extras keep their position" (D3), not "marker
+ * attributes always come last."
+ *
+ * `excludeNames` is how each caller keeps its own fixed-position names (`class`, `alt`, `width`,
+ * `height`, `loading` for `<img>`, `controls` for `<video>`) out of this generic tail, so they are
+ * never emitted twice. `src`/`srcset` are ALWAYS excluded regardless of caller — they are
+ * renderer-owned (D3: the resolved asset URL is the whole point of the marker; a `srcset` would
+ * silently override `src`) and a marker's own value for either name must never reach the output, not
+ * even into this generic merge.
+ *
+ * @complexity O(n + m) in the asset-extra count n and the marker-attribute count m.
+ */
+function mergeMediaExtraAttributes(
+  assetExtras: Record<string, string>,
+  markerAttributes: readonly MarkerAttribute[],
+  excludeNames: ReadonlySet<string>
+): string {
+  const merged = new Map<string, string>();
+  for (const [name, value] of Object.entries(assetExtras)) {
+    if (excludeNames.has(name)) continue;
+    merged.set(name, ` ${name}="${attributeValueHtml(value, "asset")}"`);
+  }
+  for (const attr of markerAttributes) {
+    if (excludeNames.has(attr.name) || attr.name === "src" || attr.name === "srcset") continue;
+    merged.set(attr.name, attr.value === null ? ` ${attr.name}` : ` ${attr.name}="${attributeValueHtml(attr.value, "marker")}"`);
+  }
+  return [...merged.values()].join("");
+}
+
+/** Names {@link renderImageTag} renders itself at a fixed position — kept out of
+ *  {@link mergeMediaExtraAttributes}'s generic tail so none of them is ever emitted twice. */
+const MEDIA_IMAGE_FIXED_ATTRIBUTE_NAMES: ReadonlySet<string> = new Set(["class", "alt", "width", "height", "loading"]);
+
 function renderImageTag(props: {
   readonly assetId: string;
   readonly transformName: string;
@@ -687,19 +796,25 @@ function renderImageTag(props: {
   readonly height: number | null;
   readonly cssClass: string | null;
   readonly htmlAttributes: string | null;
+  readonly markerAttributes?: readonly MarkerAttribute[];
 }): string {
   const src = `/m/${encodeURIComponent(props.assetId)}/${encodeURIComponent(props.transformName)}.v${props.version}/image.jpg`;
-  const altAttr = escapeHtml(props.alt);
-  const widthAttr = props.width != null ? ` width="${props.width}"` : "";
-  const heightAttr = props.height != null ? ` height="${props.height}"` : "";
-  const classAttr = props.cssClass ? ` class="${escapeHtml(props.cssClass)}"` : "";
+  const markerAttributes = props.markerAttributes ?? NO_MARKER_ATTRIBUTES;
+  const altAttr = mediaAltAttrValue(props.alt, markerAttributes);
+  const widthAttr = mediaDimensionAttr("width", props.width, markerAttributes);
+  const heightAttr = mediaDimensionAttr("height", props.height, markerAttributes);
+  const classAttr = mergeMediaClassAttr(props.cssClass, markerAttributes);
   // `loading` is on the allowlist (an operator may legitimately want `loading="eager"`) but this
-  // tag already hardcodes a `loading="lazy"` default below — the operator's own value, when
-  // present, wins instead of being silently dropped or duplicated as a second `loading` attribute.
+  // tag already hardcodes a `loading="lazy"` default below — the asset's own value, when present,
+  // wins over the default, and a marker's own `loading` attribute (D3: author wins over asset) wins
+  // over both, never a silently dropped or duplicated second `loading` attribute.
   const allExtra = resolveMediaHtmlAttributes(props.htmlAttributes);
-  const loadingValue = allExtra.loading ?? "lazy";
-  const extraAttrs = formatHtmlAttributes(omitKey(allExtra, "loading"));
-  return `<img src="${escapeHtml(src)}" alt="${altAttr}"${widthAttr}${heightAttr}${classAttr}${extraAttrs} loading="${escapeHtml(loadingValue)}">`;
+  const markerLoading = markerAttributes.find((attr) => attr.name === "loading");
+  const loadingValue = markerLoading
+    ? attributeValueHtml(markerLoading.value ?? "lazy", "marker")
+    : attributeValueHtml(allExtra.loading ?? "lazy", "asset");
+  const extraAttrs = mergeMediaExtraAttributes(omitKey(allExtra, "loading"), markerAttributes, MEDIA_IMAGE_FIXED_ATTRIBUTE_NAMES);
+  return `<img src="${escapeHtml(src)}" alt="${altAttr}"${widthAttr}${heightAttr}${classAttr}${extraAttrs} loading="${loadingValue}">`;
 }
 
 /**
@@ -714,6 +829,17 @@ function renderImageTag(props: {
  *
  * @complexity O(1).
  */
+/** Names {@link renderVideoTag} renders itself at a fixed position (or, for `controls`, via its own
+ *  boolean prop rather than a forwarded attribute at all) — kept out of
+ *  {@link mergeMediaExtraAttributes}'s generic tail so none of them is ever emitted twice. `controls`
+ *  is excluded unconditionally even though `EmbedOccurrence.elementAttributes` never actually carries
+ *  a `"controls"`-named entry (`html-embeds.ts`'s `resolveMarkerControls`/`planMediaMarkerAttributes`
+ *  strip it before this function ever sees `markerAttributes`) — this is defence-in-depth for the same
+ *  reason {@link resolveMediaHtmlAttributes} fails closed on a re-parse: never trust a single upstream
+ *  guarantee alone for a rule this precise (a stray `controls="false"` reaching a browser as a literal
+ *  attribute still shows controls, since it is a boolean-by-presence attribute). */
+const MEDIA_VIDEO_FIXED_ATTRIBUTE_NAMES: ReadonlySet<string> = new Set(["class", "alt", "width", "height", "controls"]);
+
 function renderVideoTag(props: {
   readonly assetId: string;
   readonly alt: string;
@@ -721,19 +847,39 @@ function renderVideoTag(props: {
   readonly height: number | null;
   readonly cssClass: string | null;
   readonly htmlAttributes: string | null;
+  readonly markerAttributes?: readonly MarkerAttribute[];
+  /** `EmbedOccurrence.controls` (owner decision, 2026-09-16): `false` only when the marker's own
+   *  `controls` attribute resolves to off. Rendered as a bare `controls`/nothing — never a raw
+   *  forwarded attribute of that name; see {@link MEDIA_VIDEO_FIXED_ATTRIBUTE_NAMES}'s own doc.
+   *  Defaults to `true` (the pre-existing, only-ever behavior before this prop existed). */
+  readonly controls?: boolean;
 }): string {
   const src = `/m/${encodeURIComponent(props.assetId)}/original`;
-  const widthAttr = props.width != null ? ` width="${props.width}"` : "";
-  const heightAttr = props.height != null ? ` height="${props.height}"` : "";
-  const classAttr = props.cssClass ? ` class="${escapeHtml(props.cssClass)}"` : "";
+  const markerAttributes = props.markerAttributes ?? NO_MARKER_ATTRIBUTES;
+  const controlsAttr = (props.controls ?? true) ? " controls" : "";
+  const widthAttr = mediaDimensionAttr("width", props.width, markerAttributes);
+  const heightAttr = mediaDimensionAttr("height", props.height, markerAttributes);
+  const classAttr = mergeMediaClassAttr(props.cssClass, markerAttributes);
   // No hardcoded default here to collide with (unlike `renderImageTag`'s `loading`) — every
-  // allowlisted attribute the operator set is emitted as-is, including boolean ones (`muted`,
-  // `loop`, `autoplay`, `playsinline`), which the parser records as an empty-string value; HTML
-  // treats ANY value (including `""`) on a boolean attribute as "true", so `muted=""` and bare
-  // `muted` are equivalent — no separate boolean-vs-valued branch is needed here.
-  const extraAttrs = formatHtmlAttributes(resolveMediaHtmlAttributes(props.htmlAttributes));
-  const fallback = props.alt ? escapeHtml(props.alt) : "Your browser does not support the video tag.";
-  return `<video src="${escapeHtml(src)}" controls${widthAttr}${heightAttr}${classAttr}${extraAttrs}>${fallback}</video>`;
+  // allowlisted asset attribute is emitted as-is, including boolean ones (`muted`, `loop`,
+  // `autoplay`, `playsinline`), which the parser records as an empty-string value; HTML treats ANY
+  // value (including `""`) on a boolean attribute as "true", so `muted=""` and bare `muted` are
+  // equivalent. A marker's own boolean attribute keeps ITS OWN shape instead (a bare `autoplay`
+  // renders as bare `autoplay`, never `autoplay=""`) — {@link mergeMediaExtraAttributes} preserves
+  // that distinction rather than normalizing every boolean attribute to the asset path's convention.
+  const extraAttrs = mergeMediaExtraAttributes(resolveMediaHtmlAttributes(props.htmlAttributes), markerAttributes, MEDIA_VIDEO_FIXED_ATTRIBUTE_NAMES);
+  // `alt` has no `<video>` attribute equivalent (see this function's own header doc) — a marker's
+  // `alt` attribute (D3) replaces the fallback TEXT NODE instead, used verbatim as source text (never
+  // re-escaped: this text node sits inside a page whose own body HTML is already unsanitized by
+  // design — D6 — so a marker attribute's value carries no less trust here than it does anywhere else
+  // on the same page).
+  const markerAlt = markerAttributes.find((attr) => attr.name === "alt");
+  const fallback = markerAlt
+    ? (markerAlt.value ?? "")
+    : props.alt
+      ? escapeHtml(props.alt)
+      : "Your browser does not support the video tag.";
+  return `<video src="${escapeHtml(src)}"${controlsAttr}${widthAttr}${heightAttr}${classAttr}${extraAttrs}>${fallback}</video>`;
 }
 
 /**
@@ -1519,12 +1665,45 @@ const HTML_EMBED_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeho
  * `post.bodyHtml`).
  */
 export function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbedsResult | undefined): string {
-  return substituteHtmlEmbeds(html, (ref) => {
+  return substituteHtmlEmbeds(html, (ref, occurrence) => {
     if (!isPageEmbedType(ref.type)) return undefined;
     const lookupKey = ref.id ?? ref.slug;
     const ir = (lookupKey !== null ? resolved?.get(ref.type)?.get(lookupKey) : undefined) ?? HTML_EMBED_PLACEHOLDER_IR;
-    return renderWidgetIr(withOccurrenceHeader(ir, ref));
+    return renderWidgetIr(withOccurrenceMediaAttributes(withOccurrenceHeader(ir, ref), ref, occurrence));
   });
+}
+
+/**
+ * Carries one `"media"` marker occurrence's forwarded attributes (T4's {@link EmbedOccurrence}, D2/D3
+ * of the 2026-09-16 embed-attributes plan) onto the `"media-image"` IR `renderWidgetMediaImage` reads
+ * — the render-side half of "attributes on the marker element reach the rendered output." Scoped to
+ * `ref.type === "media"` producing a `"media-image"` IR: every other type's `occurrence` is the shared
+ * `DEFAULT_OCCURRENCE` (`html-embeds.ts`), so this is a no-op for them, and a `"media"` ref that missed
+ * resolution carries the `"widget-placeholder"` IR instead, which this also leaves untouched (nothing
+ * to attach attributes to).
+ *
+ * Returns a NEW IR object rather than mutating `ir.props` in place — the SAME `WidgetRenderIR` for one
+ * asset id can be read for MULTIPLE marker occurrences on one page (`resolved`'s map is keyed by
+ * asset id, not by occurrence), so mutating the shared object would let one occurrence's attributes
+ * leak onto another's — the identical race {@link withOccurrenceHeader}'s own doc describes for
+ * `"content"` markers' `header` option, fixed here the same way, one call earlier in the pipeline.
+ *
+ * `markerAttributes`/`controls` are plain-object/primitive `JsonValue`s, not the live
+ * {@link MarkerAttribute} objects, because `WidgetRenderIR.props` is a `JsonObject` — normalized back
+ * out by {@link normalizeMediaDimensions} on the read side.
+ *
+ * @complexity O(k) in the occurrence's own attribute count (one array copy).
+ */
+function withOccurrenceMediaAttributes(ir: WidgetRenderIR, ref: PageHtmlEmbedRef, occurrence: EmbedOccurrence): WidgetRenderIR {
+  if (ref.type !== "media" || ir.componentId !== "media-image") return ir;
+  return {
+    ...ir,
+    props: {
+      ...ir.props,
+      markerAttributes: occurrence.elementAttributes.map((attr) => ({ name: attr.name, value: attr.value })),
+      controls: occurrence.controls,
+    },
+  };
 }
 
 /**
@@ -2069,17 +2248,41 @@ function renderWidgetPlaceholder(): string {
  *  three-field narrowing step stops being three of `renderWidgetMediaImage`'s own branches (complexity-
  *  debt sweep, 2026-09-03; that function was at cyclomatic 11 against this repo's 9 ceiling). No
  *  behavior change: same "wrong-typed value degrades to null, never a lie" rule as before. */
+/** Narrows `props.markerAttributes` (the plain-object array {@link withOccurrenceMediaAttributes}
+ *  wrote) back to {@link MarkerAttribute}[] — a malformed entry (wrong-typed `name`, a `value` that
+ *  is neither `string` nor `null`) is dropped rather than trusted, the same "wrong-typed value
+ *  degrades to null/empty, never a lie" rule {@link normalizeMediaDimensions} already applies to
+ *  every other field here; this codebase's own IR is the only producer, so this should never actually
+ *  reject anything, but a malformed/foreign IR must still degrade safely rather than throw.
+ *  @complexity O(n) in the array's length. */
+function normalizeMarkerAttributesProp(value: JsonValue | undefined): readonly MarkerAttribute[] {
+  if (!Array.isArray(value)) return NO_MARKER_ATTRIBUTES;
+  const attrs: MarkerAttribute[] = [];
+  for (const entry of value) {
+    if (!isObject(entry) || typeof entry.name !== "string") continue;
+    if (typeof entry.value !== "string" && entry.value !== null) continue;
+    attrs.push({ name: entry.name, value: entry.value });
+  }
+  return attrs;
+}
+
 function normalizeMediaDimensions(props: JsonObject): {
   width: number | null;
   height: number | null;
   cssClass: string | null;
   htmlAttributes: string | null;
+  markerAttributes: readonly MarkerAttribute[];
+  controls: boolean;
 } {
   return {
     width: typeof props.width === "number" ? props.width : null,
     height: typeof props.height === "number" ? props.height : null,
     cssClass: typeof props.cssClass === "string" ? props.cssClass : null,
     htmlAttributes: typeof props.htmlAttributes === "string" ? props.htmlAttributes : null,
+    markerAttributes: normalizeMarkerAttributesProp(props.markerAttributes),
+    // `EmbedOccurrence.controls`'s own default (`html-embeds.ts`) is `true`; the ONLY way this ends up
+    // `false` is `withOccurrenceMediaAttributes` writing the literal JSON boolean `false` here.
+    controls: props.controls !== false,
   };
 }
 
@@ -2088,11 +2291,11 @@ function renderWidgetMediaImage(props: JsonObject): string {
   if (typeof assetId !== "string" || !isPlausibleMediaRefId(assetId)) {
     return renderWidgetPlaceholder();
   }
-  const { width, height, cssClass, htmlAttributes } = normalizeMediaDimensions(props);
+  const { width, height, cssClass, htmlAttributes, markerAttributes, controls } = normalizeMediaDimensions(props);
   const alt = str(props.alt);
 
   if (typeof props.contentType === "string" && props.contentType.startsWith("video/")) {
-    return renderVideoTag({ assetId, alt, width, height, cssClass, htmlAttributes });
+    return renderVideoTag({ assetId, alt, width, height, cssClass, htmlAttributes, markerAttributes, controls });
   }
 
   const transformName = props.transformName;
@@ -2100,7 +2303,7 @@ function renderWidgetMediaImage(props: JsonObject): string {
   if (typeof transformName !== "string" || typeof version !== "number" || !isPlausibleMediaRefId(transformName)) {
     return renderWidgetPlaceholder();
   }
-  return renderImageTag({ assetId, transformName, version, alt, width, height, cssClass, htmlAttributes });
+  return renderImageTag({ assetId, transformName, version, alt, width, height, cssClass, htmlAttributes, markerAttributes });
 }
 
 /**
