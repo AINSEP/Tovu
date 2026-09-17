@@ -262,6 +262,45 @@ export interface PageEditorController {
    * (see `pageRefreshMayHaveUnsavedEdits`). See `PageEditorPane`'s `key={contentRevision}`.
    */
   contentRevision: number;
+  /**
+   * Per-tab scroll memory (2026-09-16, owner report: "when i click on HTML and Preview for the html
+   * it goes back to the top. anyway not to lose position?"). `PageEditorPane` renders each surface as
+   * its own root element keyed on `view` (`PageEditor.tsx`'s three-way branch), so React unmounts one
+   * surface and mounts a fresh one on every tab switch — a brand-new `<textarea>`/`<iframe>` always
+   * starts at `scrollTop`/`scrollY` `0`, independent of anything CSS or React state can fix on its
+   * own. These three fields are that fix: the position is kept in a ref here (session-only, discarded
+   * with the rest of this hook's state on navigating away — no persistence was asked for), restored
+   * the instant the new DOM node mounts, and captured continuously while scrolling so the LAST
+   * position before the node unmounts is always the one on file. HTML and Preview each get their own
+   * ref, so switching tabs never mixes the two — syncing position BETWEEN tabs was explicitly not
+   * wanted (owner, same report).
+   *
+   * `htmlTextareaRef` attaches to `PageEditorPane`'s `<textarea>` (`ref={htmlTextareaRef}`) and
+   * restores its `scrollTop` the moment React commits the node; {@link onHtmlScroll} is wired to that
+   * same textarea's native `onScroll` and keeps the ref current after that. A content refresh
+   * (`contentRevision` bump) never unmounts this node — same tab, same element, `value` prop just
+   * changes — so nothing here needs to re-restore for that case; the browser clamps `scrollTop` to the
+   * new (possibly shorter) content on its own.
+   */
+  htmlTextareaRef: (node: HTMLTextAreaElement | null) => void;
+  /** See {@link htmlTextareaRef}'s own doc. Wired to the HTML textarea's `onScroll`. */
+  onHtmlScroll: (scrollTop: number) => void;
+  /**
+   * See {@link htmlTextareaRef}'s own doc — the Preview tab's counterpart. Wired to BOTH
+   * `PagePreviewFrame` branches' `<iframe onLoad>`: the live-site iframe (`canShowLiveSite`) and the
+   * template-preview iframe (the hidden-form POST target) each fire a fresh `load` on every mount AND
+   * on every re-navigation (a content refresh re-submits the same iframe without unmounting it), which
+   * is exactly the hook this needs — restoring and re-attaching a scroll listener on whichever `Window`
+   * the iframe holds right now.
+   *
+   * The live-site iframe is cross-origin in dev (`siteUrl`'s own origin, `:3000` vs. the admin's
+   * `:5173` — see `PagePreview`'s own doc). Reading or driving scroll on a foreign `Window` is a
+   * browser security restriction this code cannot route around without the site itself cooperating
+   * (out of scope — another agent owns `apps/website`), so that branch's position is NOT remembered;
+   * the template-preview branch (same-origin through the `/api` dev-proxy) is unaffected and works
+   * normally. See this function's own implementation comment for the try/catch this relies on.
+   */
+  onPreviewFrameLoad: (iframe: HTMLIFrameElement) => void;
 }
 
 /**
@@ -548,6 +587,17 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // every render while already on it — reformatting mid-edit would fight the operator's cursor position.
   const [draftHtml, setDraftHtml] = useState(() => prettifyHtml(html));
 
+  // Per-tab scroll memory (2026-09-16) — see `PageEditorController.htmlTextareaRef`'s own doc for the
+  // full "why a ref, why here" reasoning. A `useRef`, not `useState`: a scroll position changing must
+  // never itself trigger a re-render, only be there the next time the tab mounts.
+  const htmlScrollTopRef = useRef(0);
+  const htmlTextareaRef = useCallback((node: HTMLTextAreaElement | null) => {
+    if (node) node.scrollTop = htmlScrollTopRef.current;
+  }, []);
+  const onHtmlScroll = useCallback((scrollTop: number) => {
+    htmlScrollTopRef.current = scrollTop;
+  }, []);
+
   // Content refresh (2026-09-16) — bumped only when an assistant write is applied (silently, or via
   // Load latest; never by this editor's own save), so the Interactive tab can remount and pick up the new body without
   // losing GrapesJS's canvas state on every own Save (a `page.version` key would do that too, since
@@ -786,6 +836,25 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const previewFormRef = useRef<HTMLFormElement>(null);
   const previewFormTarget = pagePreviewFormTarget(page);
 
+  // Per-tab scroll memory, Preview half — see `PageEditorController.onPreviewFrameLoad`'s own doc.
+  const previewScrollYRef = useRef(0);
+  const onPreviewFrameLoad = useCallback((iframe: HTMLIFrameElement) => {
+    try {
+      // Cross-origin (the live-site branch): reading `.scrollY` or calling `.scrollTo()` on a foreign
+      // `Window` throws a `SecurityError` — caught below, so that branch's position is simply never
+      // remembered rather than crashing the load handler. The same-origin template-preview branch
+      // reaches neither restriction.
+      const win = iframe.contentWindow;
+      if (!win) return;
+      win.scrollTo(0, previewScrollYRef.current);
+      win.addEventListener("scroll", () => {
+        previewScrollYRef.current = win.scrollY;
+      });
+    } catch {
+      // See this function's own doc on `PageEditorController` — cross-origin, nothing to do here.
+    }
+  }, []);
+
   // Tells the assistant which page "this page" is (`lib/agent-screen-context.ts`) — the saved row,
   // so the id/slug it is given are ones its tools can actually look up.
   useAgentScreenEntry(page === null ? null : { kind: page.kind, id: page.id, title: page.title, slug: page.slug, status: page.status });
@@ -918,6 +987,9 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     setHtml,
     draftHtml,
     setDraftHtml,
+    htmlTextareaRef,
+    onHtmlScroll,
+    onPreviewFrameLoad,
     view,
     setView,
     device,

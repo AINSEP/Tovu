@@ -597,6 +597,9 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     setHtml,
     draftHtml,
     setDraftHtml,
+    htmlTextareaRef,
+    onHtmlScroll,
+    onPreviewFrameLoad,
     view,
     setView,
     device,
@@ -746,6 +749,9 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         setHtml={setHtml}
         draftHtml={draftHtml}
         setDraftHtml={setDraftHtml}
+        htmlTextareaRef={htmlTextareaRef}
+        onHtmlScroll={onHtmlScroll}
+        onPreviewFrameLoad={onPreviewFrameLoad}
         device={device}
         slug={slug}
         version={page.version}
@@ -801,6 +807,9 @@ function PageEditorPane({
   setHtml,
   draftHtml,
   setDraftHtml,
+  htmlTextareaRef,
+  onHtmlScroll,
+  onPreviewFrameLoad,
   device,
   slug,
   version,
@@ -822,6 +831,12 @@ function PageEditorPane({
   setHtml: (value: string) => void;
   draftHtml: string;
   setDraftHtml: (value: string) => void;
+  /** Per-tab scroll memory — see `PageEditorController.htmlTextareaRef`'s own doc. */
+  htmlTextareaRef: (node: HTMLTextAreaElement | null) => void;
+  onHtmlScroll: (scrollTop: number) => void;
+  /** Per-tab scroll memory, Preview half — see `PageEditorController.onPreviewFrameLoad`'s own doc.
+   *  Threaded straight through to `PagePreview` below; this dispatcher does not call it itself. */
+  onPreviewFrameLoad: (iframe: HTMLIFrameElement) => void;
   device: PagePreviewDevice;
   slug: string;
   /** The loaded row's current version — see `PagePreviewFrame`'s own doc for why the live-site src
@@ -864,12 +879,14 @@ function PageEditorPane({
         paneWidth={paneWidth}
         expanded={previewExpanded}
         onToggleExpanded={onTogglePreviewExpanded}
+        onFrameLoad={onPreviewFrameLoad}
       />
     );
   }
   if (surface.kind === "html") {
     return (
       <textarea
+        ref={htmlTextareaRef}
         className="page-html-source"
         value={draftHtml}
         onChange={(e) => {
@@ -879,6 +896,7 @@ function PageEditorPane({
           setDraftHtml(e.target.value);
           setHtml(e.target.value);
         }}
+        onScroll={(e) => onHtmlScroll(e.currentTarget.scrollTop)}
         spellCheck={false}
         aria-label="Page HTML"
         placeholder="This page has no HTML yet. Ask the assistant to build it, or write some here."
@@ -978,6 +996,7 @@ function PagePreview({
   paneWidth,
   expanded,
   onToggleExpanded,
+  onFrameLoad,
 }: {
   html: string;
   width: number;
@@ -1007,6 +1026,9 @@ function PagePreview({
   /** `usePageEditor`'s `togglePreviewExpanded`, bound to the single `.page-preview-fab` this
    *  component renders in BOTH states. Nothing in `PageEditor`'s toolbar toggles it. */
   onToggleExpanded: () => void;
+  /** Per-tab scroll memory — see `PageEditorController.onPreviewFrameLoad`'s own doc. Wired to both
+   *  `PagePreviewFrame` branches' `<iframe onLoad>` below. */
+  onFrameLoad: (iframe: HTMLIFrameElement) => void;
 }) {
   // Floored above zero, not just capped at 1: `paneWidth` is whatever `ResizeObserver` last reported
   // for the frame, and a zero-width observation (the frame measured during a paint where its column
@@ -1053,6 +1075,7 @@ function PagePreview({
             templatePreviewUrl={templatePreviewUrl}
             previewFormRef={previewFormRef}
             previewFormTarget={previewFormTarget}
+            onFrameLoad={onFrameLoad}
           />
         </div>
       </div>
@@ -1147,6 +1170,7 @@ function PagePreviewFrame({
   templatePreviewUrl,
   previewFormRef,
   previewFormTarget,
+  onFrameLoad,
 }: {
   canShowLiveSite: boolean;
   slug: string;
@@ -1163,6 +1187,9 @@ function PagePreviewFrame({
   templatePreviewUrl: string;
   previewFormRef: RefObject<HTMLFormElement | null>;
   previewFormTarget: string;
+  /** Per-tab scroll memory — see `PageEditorController.onPreviewFrameLoad`'s own doc. Wired to both
+   *  branches' `onLoad` below: cross-origin (the live-site branch) it silently does nothing. */
+  onFrameLoad: (iframe: HTMLIFrameElement) => void;
 }) {
   if (canShowLiveSite) {
     return (
@@ -1171,6 +1198,7 @@ function PagePreviewFrame({
         title="Page preview"
         className="page-preview-iframe"
         referrerPolicy="no-referrer"
+        onLoad={(e) => onFrameLoad(e.currentTarget)}
       />
     );
   }
@@ -1185,7 +1213,13 @@ function PagePreviewFrame({
       <form ref={previewFormRef} method="post" target={previewFormTarget} action={templatePreviewUrl} hidden>
         <input type="hidden" name="bodyHtml" value={html} />
       </form>
-      <iframe name={previewFormTarget} title="Page preview" className="page-preview-iframe" referrerPolicy="no-referrer" />
+      <iframe
+        name={previewFormTarget}
+        title="Page preview"
+        className="page-preview-iframe"
+        referrerPolicy="no-referrer"
+        onLoad={(e) => onFrameLoad(e.currentTarget)}
+      />
     </>
   );
 }

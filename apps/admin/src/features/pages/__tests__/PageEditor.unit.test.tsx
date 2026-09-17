@@ -78,6 +78,11 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     setHtml: vi.fn(),
     draftHtml: html,
     setDraftHtml: vi.fn(),
+    // Per-tab scroll memory (2026-09-16) — callback refs/handlers, same "a `vi.fn()` stand-in is
+    // fine, nothing here asserts on calls into it" reasoning `frameRef` above already documents.
+    htmlTextareaRef: vi.fn(),
+    onHtmlScroll: vi.fn(),
+    onPreviewFrameLoad: vi.fn(),
     view: "preview",
     setView: vi.fn(),
     device: "desktop",

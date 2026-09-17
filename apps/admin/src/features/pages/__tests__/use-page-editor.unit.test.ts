@@ -1061,6 +1061,163 @@ describe("frameRef / paneWidth (preview-scale regression — frame mounts after 
 });
 
 /**
+ * Per-tab scroll memory (owner report, 2026-09-16: "when i click on HTML and Preview for the html it
+ * goes back to the top. anyway not to lose position?"). `PageEditorPane` (`PageEditor.tsx`) renders
+ * the HTML textarea and the Preview iframe as separate root elements picked by `view`, so React
+ * unmounts one and mounts the other on every tab switch — this hook is what remembers each tab's
+ * position across that remount. See `PageEditorController.htmlTextareaRef`'s own doc for the full
+ * mechanism.
+ */
+describe("per-tab scroll memory (HTML textarea and Preview iframe each remember their own position)", () => {
+  function deps() {
+    return {
+      port: createFakePageEditorPort({ page: HTML_PAGE }),
+      themeCanvasPort: createFakeThemeCanvasPort(),
+      navigate: vi.fn(),
+      t: (locale: string, key: string) => `${locale}:${key}`,
+      locale: "en",
+    };
+  }
+
+  it("restores the HTML textarea's scrollTop on the next mount, using the last position saved before it unmounted", async () => {
+    const { result } = renderHook(() => usePageEditor("landing", deps()));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    // First mount (the operator opens the HTML tab): nothing saved yet, so this behaves exactly like
+    // an ordinary fresh textarea.
+    const firstTextarea = document.createElement("textarea");
+    act(() => {
+      result.current.htmlTextareaRef(firstTextarea);
+    });
+    expect(firstTextarea.scrollTop).toBe(0);
+
+    // The operator scrolls, then switches to another tab — `onHtmlScroll` is wired to the textarea's
+    // native `onScroll`, so every scroll (not just the last one) updates the saved position, and the
+    // callback ref fires with `null` on unmount (React's own contract for callback refs).
+    act(() => {
+      result.current.onHtmlScroll(140);
+      result.current.onHtmlScroll(220);
+      result.current.htmlTextareaRef(null);
+    });
+
+    // Switching back to HTML mounts a BRAND NEW textarea node (this is the bug: a fresh DOM node
+    // always starts at `scrollTop: 0`) — the ref callback must push the saved position onto it.
+    const secondTextarea = document.createElement("textarea");
+    act(() => {
+      result.current.htmlTextareaRef(secondTextarea);
+    });
+    expect(secondTextarea.scrollTop).toBe(220);
+  });
+
+  it("keeps the Preview tab's position independent of the HTML tab's — switching one never moves the other", async () => {
+    const { result } = renderHook(() => usePageEditor("landing", deps()));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    const textareaA = document.createElement("textarea");
+    act(() => {
+      result.current.htmlTextareaRef(textareaA);
+      result.current.onHtmlScroll(300);
+      result.current.htmlTextareaRef(null);
+    });
+
+    // A same-origin ("template preview") iframe load — see the describe block below for the
+    // cross-origin ("live site") case.
+    const fakeWindow = { scrollY: 0, scrollTo: vi.fn(), addEventListener: vi.fn() };
+    const fakeIframe = { contentWindow: fakeWindow } as unknown as HTMLIFrameElement;
+    act(() => {
+      result.current.onPreviewFrameLoad(fakeIframe);
+    });
+
+    // The Preview iframe restoring to its own (still-zero) saved position must not read or touch
+    // anything the HTML tab saved, and vice versa.
+    expect(fakeWindow.scrollTo).toHaveBeenCalledWith(0, 0);
+    const secondTextarea = document.createElement("textarea");
+    act(() => {
+      result.current.htmlTextareaRef(secondTextarea);
+    });
+    expect(secondTextarea.scrollTop).toBe(300);
+  });
+
+  describe("Preview iframe (same-origin — the template-preview branch)", () => {
+    it("restores the saved scrollY on load and keeps tracking it via a scroll listener on the iframe's window", async () => {
+      const { result } = renderHook(() => usePageEditor("landing", deps()));
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+
+      const firstWindow = { scrollY: 0, scrollTo: vi.fn(), addEventListener: vi.fn() };
+      const firstIframe = { contentWindow: firstWindow } as unknown as HTMLIFrameElement;
+      act(() => {
+        result.current.onPreviewFrameLoad(firstIframe);
+      });
+      // Nothing saved yet on first load.
+      expect(firstWindow.scrollTo).toHaveBeenCalledWith(0, 0);
+      expect(firstWindow.addEventListener).toHaveBeenCalledWith("scroll", expect.any(Function));
+
+      // Simulate the operator scrolling inside the iframe — the listener this hook registered is the
+      // one thing standing between a real scroll and the saved position ever updating.
+      const scrollHandler = firstWindow.addEventListener.mock.calls.find(([type]) => type === "scroll")?.[1];
+      firstWindow.scrollY = 480;
+      act(() => {
+        scrollHandler?.();
+      });
+
+      // Content refresh / tab switch re-navigates the SAME conceptual tab — a fresh `Window` (a real
+      // iframe navigation always produces one, same-origin or not) fires `onPreviewFrameLoad` again.
+      const secondWindow = { scrollY: 0, scrollTo: vi.fn(), addEventListener: vi.fn() };
+      const secondIframe = { contentWindow: secondWindow } as unknown as HTMLIFrameElement;
+      act(() => {
+        result.current.onPreviewFrameLoad(secondIframe);
+      });
+      expect(secondWindow.scrollTo).toHaveBeenCalledWith(0, 480);
+    });
+  });
+
+  describe("Preview iframe (cross-origin — the live-site branch)", () => {
+    it("does not throw when the browser blocks reading/driving scroll on a foreign window", async () => {
+      const { result } = renderHook(() => usePageEditor("landing", deps()));
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+
+      // Models the real restriction: `contentWindow` itself is always reachable cross-origin, but
+      // calling a method on it (here, `scrollTo`) throws a `SecurityError` — reading `scrollY` or
+      // calling `addEventListener` are blocked the same way, but `scrollTo` is the first one this
+      // function reaches, so that's the one that needs to actually throw for this test to prove
+      // anything.
+      const blockedWindow = {
+        get scrollY(): number {
+          throw new DOMException("Blocked a frame with origin from accessing a cross-origin frame.", "SecurityError");
+        },
+        scrollTo: () => {
+          throw new DOMException("Blocked a frame with origin from accessing a cross-origin frame.", "SecurityError");
+        },
+        addEventListener: vi.fn(),
+      };
+      const blockedIframe = { contentWindow: blockedWindow } as unknown as HTMLIFrameElement;
+
+      expect(() => {
+        act(() => {
+          result.current.onPreviewFrameLoad(blockedIframe);
+        });
+      }).not.toThrow();
+
+      // The blocked branch must not have gotten far enough to register a listener it could never
+      // clean up correctly on a window it isn't allowed to touch.
+      expect(blockedWindow.addEventListener).not.toHaveBeenCalled();
+    });
+
+    it("does not throw when contentWindow itself is null (e.g. a detached/about:blank frame)", async () => {
+      const { result } = renderHook(() => usePageEditor("landing", deps()));
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+
+      const nullWindowIframe = { contentWindow: null } as unknown as HTMLIFrameElement;
+      expect(() => {
+        act(() => {
+          result.current.onPreviewFrameLoad(nullWindowIframe);
+        });
+      }).not.toThrow();
+    });
+  });
+});
+
+/**
  * A page created by `New Page` (`use-pages.hooks.ts`'s `createPage` -> `POST .../pages` ->
  * `createPost`) is born `bodyFormat: "doc"` with `DEFAULT_BODY_JSON` (`{type:"doc",content:[]}`) as
  * its body — `createPost` forces `resolveBodyFields()`'s `("doc", null)` by construction and
