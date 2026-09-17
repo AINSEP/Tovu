@@ -252,7 +252,7 @@ test("with a saved credential: generates through the injected seam, uploads the 
   assert.ok(out.media.sha256, "the uploaded bytes must be hashed like any other upload");
   assert.equal(out.media.publicUrl, `/m/${out.media.id}/public.v1/image.webp`);
   assert.equal(out.media.placeholder, false, "a real (non-stub) generation must report placeholder:false");
-  assert.deepEqual(Object.keys(out.media).sort(), ["alt", "caption", "credit", "id", "placeholder", "publicUrl", "sha256", "status", "title", "version"]);
+  assert.deepEqual(Object.keys(out.media).sort(), ["alt", "caption", "credit", "id", "placeholder", "publicUrl", "sha256", "slug", "status", "title", "version"]);
 });
 
 test("an explicit model is passed through instead of the default", async () => {

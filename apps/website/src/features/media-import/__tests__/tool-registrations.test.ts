@@ -244,7 +244,7 @@ test("the returned view is the same shape media_upload_asset/media_generate_asse
 
   const out = (await wired("media_import_from_url", deps).handler(executionContext({ url: SOURCE_URL }))) as ImportResult;
 
-  assert.deepEqual(Object.keys(out.media).sort(), ["alt", "caption", "credit", "id", "publicUrl", "sha256", "sourceUrl", "status", "title", "version"]);
+  assert.deepEqual(Object.keys(out.media).sort(), ["alt", "caption", "credit", "id", "publicUrl", "sha256", "slug", "sourceUrl", "status", "title", "version"]);
   assert.equal(out.media.status, "active");
   assert.equal(out.media.version, 1);
   assert.equal(out.media.publicUrl, `/m/${out.media.id}/public.v1/image.webp`);

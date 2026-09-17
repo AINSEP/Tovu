@@ -423,6 +423,8 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "Can I edit the credit line on this photo?",
     "I want to change the title of an uploaded image — can I replace the actual file this way?",
     "How do I fix the metadata on an existing media asset?",
+    "Can you make this video autoplay everywhere it's used?",
+    "How do I add a CSS class to an image?",
   ],
   media_trash_asset: [
     "Can you delete this image from the media library?",

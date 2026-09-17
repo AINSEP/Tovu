@@ -252,7 +252,20 @@ test("a tool result is an explicit model-facing view: workspaceId/timestamps dro
   const media = (await wired("content_read.media_asset", deps).handler(executionContext({}))) as { media: Array<Record<string, unknown>> };
   const found = media.media.find((m) => m.id === id);
   assert.ok(found);
-  assert.deepEqual(Object.keys(found).sort(), ["alt", "caption", "credit", "id", "publicUrl", "sha256", "status", "title", "version"]);
+  assert.deepEqual(Object.keys(found).sort(), [
+    "alt",
+    "caption",
+    "credit",
+    "cssClass",
+    "htmlAttributes",
+    "id",
+    "publicUrl",
+    "sha256",
+    "slug",
+    "status",
+    "title",
+    "version",
+  ]);
   assert.equal("workspaceId" in found, false, "the agent is already scoped to one workspace it cannot change");
   assert.equal("createdAt" in found, false);
   assert.equal("updatedAt" in found, false);

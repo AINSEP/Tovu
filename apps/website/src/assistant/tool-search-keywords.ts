@@ -53,10 +53,11 @@ import { DOC2QUERY } from "./tool-search-doc2query.js";
  */
 export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // --- media -------------------------------------------------------------------------------
-  media_list_assets: "image images photo photos picture pictures file files upload uploads uploaded library gallery attachment attachments",
+  media_list_assets: "image images photo photos picture pictures file files upload uploads uploaded library gallery attachment attachments slug slugs",
   media_upload_asset: "image images photo upload uploads uploading add attach file files picture",
   media_trash_asset: "image images photo delete remove trash file picture attachment",
-  media_update_metadata: "image alt text caption description rename file photo metadata",
+  media_update_metadata:
+    "image alt text caption description rename file photo metadata video videos autoplay muted loop playsinline poster controls attribute attributes html class classes css lazy loading slug slugs",
   media_generate_asset: "image images generate generated generating create created ai art artwork draw drawing design logo banner illustration picture dall-e dalle openai gpt make making",
   media_promote_chat_attachment: "image images photo attachment attachments attached uploaded chat file files add save promote this the one I sent library gallery",
   // 2026-09-06 — the incident this tool exists for was a DISCOVERY failure as much as a capability
