@@ -34,7 +34,81 @@ npx tsx apps/website/src/cli/main.ts serve my-site
 Everything the site owns lives in one folder (`my-site/`): `content.db`, `uploads/`,
 `themes/`, `plugins/`.
 
-## 2. Who it's for, and how it's different
+## 2. Feature inventory
+
+Every row below was checked against the running code (database schema, source files, or both) at
+the time of writing, not against planning documents — those drift. Status is one of:
+
+- **Ships** — real, working code and data behind it today.
+- **Partial** — real code exists but it's incomplete, off by default, or demo-only.
+- **Planned** — named in project backlog documents; no implementation found.
+
+| Feature | What it does | Status |
+|---|---|---|
+| **Content** | | |
+| Posts | Blog-style entries: drafts, publishing, revisions | Ships |
+| Pages | Standalone site pages, edited in the same page editor as templates | Ships |
+| Media library | Upload, store, and serve images/video/audio/files; generates renditions | Ships |
+| Collections | Custom structured content types beyond posts/pages (e.g. a "products" or "events" type), with their own entries and revisions | Ships (newer, less proven than posts/pages) |
+| Categories & tags | Hierarchical and flat taxonomy, attachable to any content type | Ships |
+| Forms | Form builder: field definitions plus stored submissions | Ships |
+| Widgets & regions | Reusable content blocks bound into named layout regions on a page | Ships |
+| Redirects | URL redirect rules with status codes and hit-count tracking | Ships |
+| Comments | Threaded comments with a moderation queue, built as a bundled plugin | Ships |
+| Search | Ranked full-text search (SQLite FTS5 + BM25 ranking) over posts and pages | Ships (posts & pages only — not yet collections) |
+| **Marketing** | | |
+| SEO | Per-entry metadata overrides, sitemap generation/regeneration | Ships |
+| AEO (answer-engine optimization) | Structuring content for AI answer engines | Planned — backlog only, nothing built |
+| GEO (generative-engine optimization) | Structuring content/entity data for generative search engines | Planned — backlog only, nothing built |
+| Newsletter | Subscriber lists, campaigns, sends, built as a bundled plugin | Ships |
+| Members | Site-visitor accounts, tiers, subscriptions, magic-link sign-in | Ships |
+| **Front end** | | |
+| Themes | Four capability tiers (static / templated / handlebars / declarative) — see §6 | Ships (see §8 for tier-by-tier maturity) |
+| **Extensibility** | | |
+| Plugins | Install/enable/disable/quarantine runtime for first-party extensions | Ships, small catalog (a handful of first-party plugins today; no third-party or marketplace ecosystem) |
+| Agent plugins | Plugins that register additional tools into the assistant's tool catalog | Ships |
+| Integrations / External MCP | Tovu connects OUT to third-party MCP tool servers (OAuth, credential storage, tool federation) | Ships |
+| MCP (Tovu as an MCP server) | Exposing Tovu's own tools TO an external MCP client (e.g. a desktop AI app) | Planned — only an outbound MCP client exists today; no inbound server |
+| WebMCP (browser-agent-operable pages) | Letting a general-purpose browser agent (e.g. Chrome's own) discover and operate actions on a page | Partial — the underlying registration machinery exists but is off by default in the admin and not built at all on the public site yet (decided 2026-09-17) |
+| Local CLI coding-agent runtime | The assistant can spawn a real local coding-agent CLI process (Claude Code, Codex CLI, OpenCode, and 21 others via one shared registry) and drive it | Partial, demo-only — deliberately double-gated off in production; not the default operating mode. No dedicated Gemini CLI integration — Gemini only appears as a selectable model inside some other tools (e.g. OpenCode) |
+| BYOK (bring-your-own-key) | Server-side API keys for Anthropic, OpenAI, Azure OpenAI, and Google, called in-process | Ships |
+| **Publishing & operations** | | |
+| Static export & one-shot publish | Exports the rendered site and pushes it to GitHub Pages, Vercel, Netlify, Cloudflare Pages, or any S3-compatible bucket (AWS S3, R2, B2, Spaces, MinIO, etc.) | Ships |
+| Continuous deployment | Promotes an existing git commit through a connected GitHub App | Ships |
+| Source control | Commits the site's own content/config to a connected git repository | Ships |
+| Database | SQLite, one file per site | Ships |
+| | Postgres as a second database backend | Planned — only isolated evaluation logic exists; no live adapter |
+| Media storage | Local filesystem by default, or an S3-compatible bucket | Ships (both) |
+| Users, roles & permissions | Staff/admin accounts under a roles-to-policies permission model | Ships |
+| Settings | Typed, versioned settings scoped globally, per-workspace, or per-user | Ships |
+| Backups & recovery | Restore points with a guided, reversible restore process | Ships |
+| Desktop app | A native (Electron) shell that wraps one Tovu site's admin and site locally | Partial — real and present in this codebase, but its feature completeness relative to the browser experience was not verified in this pass |
+
+Note on the desktop app: some project documentation describes desktop packaging as living entirely
+in a separate, sibling product. That is only partly accurate — this codebase does contain a
+single-site desktop shell. A separate multi-site manager product is a different, unrelated
+application and out of scope for this brief.
+
+### What a theme can actually surface
+
+Most of the table above lives entirely in the admin and never reaches a theme. A theme is
+responsible for rendering or linking to a much smaller subset:
+
+- **Rendered directly by theme markup:** posts, pages, media, categories & tags, forms (as an
+  embeddable block), widgets/regions, comments (as an embeddable thread), navigation menus,
+  newsletter sign-up, and member sign-in/sign-up pages. Collections can be queried and rendered by
+  a theme but this is newer and less common in shipped themes today.
+  SEO shows up only as metadata in the page `<head>`, never as visible UI.
+- **Markup convention only, not a visible feature:** the WebMCP `tool*`/`data-tool*` attributes
+  (§7) are something every interactive theme element should carry, but they don't change what
+  renders — they change whether an agent can operate it.
+- **Never touched by a theme:** redirects, search infrastructure (a theme can host a search box,
+  but the ranking/indexing is server-side), plugins, agent plugins, integrations/MCP, the local
+  CLI agent runtime, BYOK, the desktop app, publishing/deploy, database/storage choice, users and
+  roles (as opposed to members), settings, and backups/recovery. All of these are admin- or
+  infrastructure-only and have no theme-facing surface at all.
+
+## 3. Who it's for, and how it's different
 
 Tovu's own positioning is against WordPress, Ghost, Payload, and Directus — general-purpose
 CMS/headless-CMS platforms. Per the project's competitive-positioning analysis:
@@ -66,7 +140,7 @@ community support, and a track record.
 decisions consistently favor simplicity over features like SSO or built-in BI dashboards
 that would only matter to a larger customer profile.
 
-## 3. The distinctive idea: agent-operable surfaces
+## 4. The distinctive idea: agent-operable surfaces
 
 This is the one idea a design partner needs to internalize, because it changes what
 "finished" looks like for a screen or a page template.
@@ -83,7 +157,7 @@ a typed tool an agent calls. Same definitions, same permissions, same validation
 browser-native standard that lets a general-purpose browser agent (e.g., Chrome's own
 agent) discover and operate actions on a page it's visiting, not just an in-house
 assistant. This is a decision made the same day as this brief (2026-09-17) and is not
-yet implemented on themes — see §6 for the concrete markup convention a new theme must
+yet implemented on themes — see §7 for the concrete markup convention a new theme must
 support.
 
 **What this is not:** it is not a chatbot bolted onto a normal CMS. There's no separate
@@ -92,16 +166,16 @@ calls. Design work should treat "can an agent reliably identify and operate this
 control" as a real, checkable requirement for admin components and theme forms — on the
 same footing as accessibility, not an add-on.
 
-## 4. The surfaces that need design
+## 5. The surfaces that need design
 
-### 4.1 The public site — themes
+### 5.1 The public site — themes
 
-The public-facing surface is entirely theme-driven (see §5). A theme is the only thing
+The public-facing surface is entirely theme-driven (see §6). A theme is the only thing
 that determines the visitor-facing look of a site: header/nav, footer, page layouts,
 typography, color tokens, and the handful of "embed" building blocks (menus, widgets,
 media, forms, and reusable partials) that a page can drop into its markup.
 
-### 4.2 The admin
+### 5.2 The admin
 
 The admin is a full dashboard-style application, organized into sidebar groups. Pulled
 directly from the current panel registry (`apps/admin/src/panels.tsx`), grouped as
@@ -124,14 +198,14 @@ a design system for the admin needs to hold together across all of them, includi
 data tables, forms, editors (page/post editors), a theme file browser/editor, and a
 chat dock that can appear alongside any of these screens.
 
-## 5. How theming actually works
+## 6. How theming actually works
 
 This is the section that constrains what a design partner can actually deliver, so it's
 worth being precise. A theme is a folder of files; nothing about how it is built,
 validated, or served is up for negotiation by choosing a different tool or stack outside
 what's described here.
 
-### 5.1 Four theme tiers
+### 6.1 Four theme tiers
 
 A theme declares a `tier` in its manifest (`theme.json`). The tier is a trust/capability
 level, not just a stylistic choice — it determines what kind of logic the theme is
@@ -160,7 +234,7 @@ a real framework build while still running as an ordinary static theme at reques
 but the author (or their CI) does the build; Tovu never runs a framework's build step
 itself.
 
-### 5.2 What a theme is made of on disk
+### 6.2 What a theme is made of on disk
 
 Every theme is one folder, named to match its `id` in `theme.json`. The real, currently
 shipping shape (verified against `content/themes/static/basic/`):
@@ -194,7 +268,7 @@ widgets, media, forms, other posts, and theme-owned partials — via a
 `data-embed-config` HTML attribute holding a small JSON payload. This is how a theme's
 own header/nav or footer gets reused across every page without duplicating markup.
 
-### 5.3 What a theme author can and cannot change
+### 6.3 What a theme author can and cannot change
 
 - Can fully control: page layout and markup (within the chosen tier's rules), CSS,
   design tokens, fonts, iconography, light/dark mode token sets, JS behavior (static
@@ -207,7 +281,7 @@ own header/nav or footer gets reused across every page without duplicating marku
   keep the admin's trusted-surface convention out of visitor-facing, eventually
   third-party-authored theme content).
 
-### 5.4 What ships today vs. what's still a target design
+### 6.4 What ships today vs. what's still a target design
 
 A schema migration ("v2") landed for the built-in themes as of 2026-08-18 — the folder
 shape and manifest fields described above (`render/`, `partials`, `tokens.json`,
@@ -217,9 +291,9 @@ for this brief. Some adjacent ideas that show up in design discussion are **not*
 an `ai/` folder for a theme's own agent-capability metadata, a root `AGENTS.md` file for
 theme authors, and a `tests/` fixture folder are all named in planning documents but have
 zero implementation on disk as of this writing. Treat anything not shown in the folder
-tree in §5.2 as aspirational unless you confirm otherwise.
+tree in §6.2 as aspirational unless you confirm otherwise.
 
-## 6. Constraints and requirements a new theme must honor
+## 7. Constraints and requirements a new theme must honor
 
 - **Agent tagging, decided 2026-09-17 (see `development/todos.md`).** Themes should
   bias toward the WebMCP standard's real declarative attributes now, because agents are
@@ -252,7 +326,7 @@ tree in §5.2 as aspirational unless you confirm otherwise.
   `templated`/`handlebars` are sandboxed template languages, and `declarative` is pure
   data.
 
-## 7. Current state, honestly
+## 8. Current state, honestly
 
 Themes shipping today (verified on disk, `content/themes/`), all `apiVersion: 2`:
 
@@ -267,7 +341,7 @@ Themes shipping today (verified on disk, `content/themes/`), all `apiVersion: 2`
 
 What's rough or unfinished, stated plainly rather than oversold:
 
-- The WebMCP/`tool*` tagging convention in §6 is a same-day decision with zero themes
+- The WebMCP/`tool*` tagging convention in §7 is a same-day decision with zero themes
   implementing it and no validator support yet.
 - The "code" tier (trusted signed-plugin JS) is a reserved type value with nothing built
   behind it.
@@ -277,7 +351,7 @@ What's rough or unfinished, stated plainly rather than oversold:
   history, but no public release, no third-party theme or plugin ecosystem, and (per the
   project's own competitive analysis) no production track record yet.
 
-## 8. What the owner wants from the redesign — TBD
+## 9. What the owner wants from the redesign — TBD
 
 The owner has asked for a complete redo of the Tovu theme but has not yet specified a
 visual direction, target audience feel, or which theme(s) to start from. This is
@@ -292,7 +366,7 @@ back before starting visual work:
 3. Is there a reference aesthetic, competitor site, or existing design system to align
    with, or is this greenfield?
 4. Should the new theme be the first to implement the `tool*` WebMCP tagging convention
-   from §6 (i.e., does this redesign double as the reference implementation for that
+   from §7 (i.e., does this redesign double as the reference implementation for that
    decision)?
 5. Does the admin's visual language need to relate to the new public-site theme at all,
    or are they independent design problems?
