@@ -36,15 +36,26 @@
  * REQ-28 placeholder via the caller's own `resolve`, never to a crash and never to raw marker markup
  * reaching a visitor.
  *
- * **`"media"`, `"post"`, and `"content"` are wrapper-preserving; `"widget"` stays whole-element
- * replace (media landed 2026-08-24, generalized the same day per a direct owner ask).** An author
- * who wraps one of these markers in their own element — `<div style="max-width:600px"
+ * **`"media"`, `"post"`, and `"content"` are wrapper-preserving.** An author who wraps one of these
+ * markers in their own element — `<div style="max-width:600px"
  * data-embed-config='{"type":"media","id":"..."}'></div>`, or `<main class="page-body"
  * data-embed-config='{"type":"content","id":"..."}'></main>` — expects that element and its own
  * attributes (style, class, id, aria-*) to survive; only the marker's CONTENT should become the
  * resolved markup. See {@link WRAPPER_PRESERVING_EMBED_TYPES}'s own doc for the per-type reasoning,
- * including why `"widget"` is deliberately excluded, and {@link substituteHtmlEmbeds}'s own doc for
- * the one tag-nesting exception `"media"` alone needs.
+ * and {@link substituteHtmlEmbeds}'s own doc for the one tag-nesting exception `"media"` alone needs.
+ *
+ * **`"widget"` (and any other type this stage resolves) keeps its element ONLY if the author gave it
+ * attributes (2026-09-16, direct owner ask: "regular attributes that somebody puts on a
+ * data-embed-config should work on the rendered tag").** A BARE `<div
+ * data-embed-config='{"type":"widget","id":"w1"}'></div>` is still whole-element replaced,
+ * byte-identical to before — `"widget"`'s resolved root tag is not a small, closed set (see
+ * {@link WRAPPER_PRESERVING_EMBED_TYPES}'s own doc for why it still cannot unconditionally join the
+ * wrapper-preserving group), but an author who wrote `<div style="max-width:600px"
+ * data-embed-config='{"type":"widget","id":"w1"}'></div>` plainly wants that `style` to survive.
+ * {@link withElementKeptIfAttributed} is the shared primitive for this rule.
+ *
+ * **`"media"`'s own attributes (2026-09-16) are partitioned, not simply kept-or-dropped.** See
+ * {@link MEDIA_ELEMENT_ATTRIBUTE_NAMES} and {@link substituteHtmlEmbeds}'s own doc.
  *
  * **Why attribute VALUES are not re-validated here for injection safety.** A Page's `body_html` is
  * already unescaped, trusted-ish markup by the time it reaches this module (see
@@ -82,7 +93,16 @@
  * a schema migration).
  */
 
-import { scanEmbedMarkers, substituteMarkers, withInnerContentFinal, type EmbedMarker } from "#src/contracts/core/embeds/marker";
+import {
+  parseMarkerAttributes,
+  scanEmbedMarkers,
+  substituteMarkers,
+  withElementKeptIfAttributed,
+  withInnerContentAndAttributes,
+  withInnerContentFinal,
+  type EmbedMarker,
+  type MarkerAttribute,
+} from "#src/contracts/core/embeds/marker";
 
 /**
  * One embed reference found in a Page's `body_html`. `type` is deliberately a free string (see this
@@ -244,15 +264,48 @@ export function scanHtmlEmbeds(html: string): PageHtmlEmbedRef[] {
 const SELF_RENDERING_MEDIA_TAGS: ReadonlySet<string> = new Set(["img", "video", "audio"]);
 
 /**
+ * Attribute names D2 (2026-09-16 embed-attributes plan) says mean something on a rendered
+ * `<video>`/`<img>` and NOTHING on a `<div>`/other wrapper tag — so when a `"media"` marker is
+ * authored on a non-self-rendering wrapper, an attribute in this set moves off the wrapper and onto
+ * the resolved media element; every other authored attribute (`class`, `style`, `id`, `data-*`,
+ * `aria-*`, an unknown name) stays on the wrapper. See {@link substituteHtmlEmbeds}'s own doc for how
+ * this partition is used, and `render.ts`'s merge helper for how `EmbedOccurrence.elementAttributes`
+ * actually lands on the rendered tag (D3's precedence rules).
+ *
+ * `controls` is listed here (it means nothing on a `<div>` either) even though it is ALSO read
+ * separately into {@link EmbedOccurrence.controls} — see {@link resolveMarkerControls}'s own doc for
+ * why a raw `controls` attribute is never itself re-emitted onto the rendered element.
+ */
+export const MEDIA_ELEMENT_ATTRIBUTE_NAMES: ReadonlySet<string> = new Set([
+  "autoplay",
+  "muted",
+  "loop",
+  "playsinline",
+  "controls",
+  "controlslist",
+  "disablepictureinpicture",
+  "disableremoteplayback",
+  "poster",
+  "preload",
+  "crossorigin",
+  "alt",
+  "loading",
+  "decoding",
+  "fetchpriority",
+  "sizes",
+  "referrerpolicy",
+  "width",
+  "height",
+]);
+
+/**
  * Embed types whose resolved replacement is spliced INSIDE the marker's own tag/attrs
  * ({@link withInnerContentFinal}) rather than replacing the whole element — the generalization
- * (2026-08-24, same day as the `"media"`-only fix) of the reasoning that fix established, applied
- * per type rather than blanket:
+ * (2026-08-24, same day as the original `"media"`-only fix) of the reasoning that fix established,
+ * applied per type rather than blanket. `"media"` itself is no longer driven through this constant
+ * (2026-09-16): it needs its own attribute-partitioning logic (see {@link substituteHtmlEmbeds}), not
+ * a plain splice-or-not decision, so it is handled in its own branch instead.
  *
- * - **`media`** (2026-08-24): resolves to a single bare `<img>`/`<video>` tag with no wrapper of its
- *   own — exactly the shape an author's own styled container (`<div style="max-width:600px">`,
- *   `<figure class="hero">`) is written to hold. See {@link SELF_RENDERING_MEDIA_TAGS} for the one
- *   tag-nesting case this type alone needs to fall back on whole-element replace for.
  * - **`content`** (generalized 2026-08-24): `development/docs/architecture/embed-type-inventory.md`
  *   names the realistic authored shape directly — `<main class="page-body"
  *   data-embed-config='{"type":"content"}'></main>` — and already documents that the SAME marker's
@@ -266,43 +319,121 @@ const SELF_RENDERING_MEDIA_TAGS: ReadonlySet<string> = new Set(["img", "video", 
  *   the placeholder `<div>` on a miss). Since the resolved shape is byte-for-byte the same producer,
  *   the same "an author plausibly wraps this in their own spotlight/teaser container" reasoning
  *   applies without a separate justification.
- * - **`widget` is deliberately excluded.** Unlike the three above, a widget's resolved root tag is
- *   NOT a small, closed set this function can reason about: `WIDGET_IR_RENDERERS`
+ * - **`widget` stays excluded from THIS constant** (it has its own 2026-09-16 rule instead — see this
+ *   file's header and {@link withElementKeptIfAttributed}). Unlike `post`/`content`, a widget's
+ *   resolved root tag is NOT a small, closed set this function can reason about: `WIDGET_IR_RENDERERS`
  *   (`server/http/site/render.ts`) alone spans `<div>`, `<ul>`, `<li>`, `<nav>`, and `<form>` across
- *   its registered component ids, and `resolver-service.ts`'s own doc states adding a new widget
- *   type is meant to be cheap — a future one can introduce any root tag. Several of today's shapes
- *   are also written to BE the final element at the marker's position rather than content for a
- *   further wrapper: `entry-summary`'s bare `<li>` is meant as a direct child of a `<ul>`, and
- *   `contact-form`'s `<form>` nested inside an author's own `<form>` marker tag would be invalid
- *   HTML — the same kind of self-nesting hazard {@link SELF_RENDERING_MEDIA_TAGS} guards for media,
- *   but spanning a tag set this function cannot enumerate (it only ever sees the resolved STRING
- *   `resolve()` returns, never the `componentId` that produced it). Keeping `widget` on the
- *   pre-existing whole-element replace avoids guessing at that mapping; an author wanting a custom
- *   wrapper around a widget can style the widget instance itself (most component props accept a
- *   `cssClass`) rather than relying on this pipeline to preserve marker attrs onto content whose
- *   shape it does not control.
+ *   its registered component ids, and `resolver-service.ts`'s own doc states adding a new widget type
+ *   is meant to be cheap — a future one can introduce any root tag. Several of today's shapes are also
+ *   written to BE the final element at the marker's position rather than content for a further
+ *   wrapper: `entry-summary`'s bare `<li>` is meant as a direct child of a `<ul>`, and
+ *   `contact-form`'s `<form>` nested inside an author's own `<form>` marker tag would be invalid HTML
+ *   — the same kind of self-nesting hazard {@link SELF_RENDERING_MEDIA_TAGS} guards for media, but
+ *   spanning a tag set this function cannot enumerate (it only ever sees the resolved STRING
+ *   `resolve()` returns, never the `componentId` that produced it). Unconditionally wrapping every
+ *   widget the way `post`/`content` are wrapped would risk exactly that invalid nesting; keeping a
+ *   BARE widget marker on the pre-existing whole-element replace avoids guessing at the mapping, while
+ *   an author who explicitly attributed the marker gets their element kept (their choice, their risk).
  */
-const WRAPPER_PRESERVING_EMBED_TYPES: ReadonlySet<string> = new Set(["media", "post", "content"]);
+const WRAPPER_PRESERVING_EMBED_TYPES: ReadonlySet<string> = new Set(["post", "content"]);
 
 /**
- * A wrapper-preserving-type marker's own resolved replacement: the resolved markup alone when the
- * marker's own tag would collide with it ({@link SELF_RENDERING_MEDIA_TAGS}, `"media"` only),
- * otherwise the resolved markup spliced inside the marker's own tag/attrs via
- * {@link withInnerContentFinal} so an authored wrapper (style, class, id, aria-*) survives in the
- * rendered output — `withInnerContentFinal`, not the plainer {@link withInnerContent}, because this
- * output is the final HTML a visitor receives: leaving `data-embed-config` on the rebuilt tag would
- * ship a dead JSON attribute into that markup (an existing invariant `render.test.ts` already pins —
- * the rendered page must never carry `data-embed-config`). `withInnerContent` stays correct for
- * `static-render.ts`'s menu markers, which are theme-authored scaffolding, not this function's final
- * render output.
+ * A wrapper-preserving-type (`"post"`/`"content"`) marker's own resolved replacement: the resolved
+ * markup spliced inside the marker's own tag/attrs via {@link withInnerContentFinal} so an authored
+ * wrapper (style, class, id, aria-*) survives in the rendered output — `withInnerContentFinal`, not
+ * the plainer {@link withInnerContent}, because this output is the final HTML a visitor receives:
+ * leaving `data-embed-config` on the rebuilt tag would ship a dead JSON attribute into that markup (an
+ * existing invariant `render.test.ts` already pins — the rendered page must never carry
+ * `data-embed-config`). `withInnerContent` stays correct for `static-render.ts`'s menu markers, which
+ * are theme-authored scaffolding, not this function's final render output.
+ *
+ * `"media"` no longer reaches this function (2026-09-16) — its own attribute-partitioning branch in
+ * {@link substituteHtmlEmbeds} replaced the self-rendering-tag check this function used to make for it.
  */
-function spliceWrapperPreservingReplacement(marker: EmbedMarker, refType: string, resolved: string): string {
-  if (refType === "media" && SELF_RENDERING_MEDIA_TAGS.has(marker.tag.toLowerCase())) return resolved;
+function spliceWrapperPreservingReplacement(marker: EmbedMarker, resolved: string): string {
   return withInnerContentFinal(marker, resolved);
 }
 
 /**
- * Replaces every embed placeholder in `html` with `resolve(ref)`'s return value.
+ * One marker occurrence's forwarded attribute data (2026-09-16 embed-attributes plan), handed to
+ * `resolve` alongside its {@link PageHtmlEmbedRef} — the per-occurrence half of "attributes on the
+ * marker element reach the rendered output" that a `PageHtmlEmbedRef` alone cannot carry (it is keyed
+ * by config content, not by which literal marker element authored it; `entry_refs`/the resolver both
+ * intentionally do not need presentation data on that shape).
+ */
+export interface EmbedOccurrence {
+  /**
+   * Only meaningful for `"media"`: on a wrapper, the authored attributes D2
+   * ({@link MEDIA_ELEMENT_ATTRIBUTE_NAMES}) says belong on `<video>`/`<img>`, not the wrapper; on a
+   * marker authored directly on a self-rendering tag ({@link SELF_RENDERING_MEDIA_TAGS}), every
+   * authored attribute. Empty for every other type.
+   */
+  readonly elementAttributes: readonly MarkerAttribute[];
+  /**
+   * `false` only when the marker's own `controls` attribute resolves to off — see
+   * {@link resolveMarkerControls}. `true` (the pre-existing default) for every non-`"media"` type,
+   * where the field is unused.
+   */
+  readonly controls: boolean;
+}
+
+const NO_ELEMENT_ATTRIBUTES: readonly MarkerAttribute[] = [];
+
+/** The occurrence handed to `resolve` for every type this function does not partition attributes
+ *  for — `"post"`, `"content"`, and the widget/fallback branch. Shared so those branches allocate
+ *  nothing per marker. */
+const DEFAULT_OCCURRENCE: EmbedOccurrence = { elementAttributes: NO_ELEMENT_ATTRIBUTES, controls: true };
+
+/**
+ * Whether a `"media"` marker's `controls` attribute turns controls OFF — the 2026-09-16 owner
+ * decision: controls-off is an HTML ATTRIBUTE authored on the marker (`controls="false"`), not a JSON
+ * config key. `false` only when the attribute's value, trimmed and lowercased, is the literal string
+ * `"false"`; a bare `controls` (no value), any other value (e.g. a typo), or no `controls` attribute
+ * at all all keep controls ON — the pre-existing default. Deliberately never itself re-emitted onto
+ * the rendered tag: `controls` is an HTML boolean attribute a browser honors by PRESENCE alone, so a
+ * literal `controls="false"` in the output would still show controls, exactly the bug this rule
+ * exists to prevent. This is the ONLY place that inspects a `"controls"`-named {@link MarkerAttribute}
+ * — `render.ts`'s merge helper renders {@link EmbedOccurrence.controls} as a bare `controls`/nothing,
+ * never a raw forwarded attribute of that name.
+ *
+ * @complexity O(n) in the attribute count (one linear find).
+ */
+function resolveMarkerControls(attrs: readonly MarkerAttribute[]): boolean {
+  const controlsAttr = attrs.find((attr) => attr.name === "controls");
+  if (!controlsAttr || controlsAttr.value === null) return true;
+  return controlsAttr.value.trim().toLowerCase() !== "false";
+}
+
+/** One `"media"` marker's resolved occurrence, PLUS how the wrapper (if any) should be rebuilt — see
+ *  D2/D3/D5 of the 2026-09-16 embed-attributes plan. Split out of {@link substituteHtmlEmbeds} so that
+ *  function's own per-type branching stays flat. */
+interface MediaMarkerAttributePlan {
+  readonly occurrence: EmbedOccurrence;
+  /** Attributes that stay on the wrapper's own rebuilt tag — empty when the marker collapses (no
+   *  wrapper at all). */
+  readonly wrapperAttributes: readonly MarkerAttribute[];
+  /** Whether ANY authored attribute moved off the wrapper (including a `controls`-only marker, whose
+   *  effect is conveyed via {@link EmbedOccurrence.controls} rather than a literal forwarded
+   *  attribute, but which still must not remain on the rendered wrapper's own tag). `false` means the
+   *  wrapper's output can take the byte-identical fast path ({@link withInnerContentFinal} over the
+   *  marker's own verbatim attrs) instead of re-serializing from a reduced attribute list. */
+  readonly movedAnyAttribute: boolean;
+}
+
+function planMediaMarkerAttributes(marker: EmbedMarker): MediaMarkerAttributePlan {
+  const parsed = parseMarkerAttributes(marker);
+  const controls = resolveMarkerControls(parsed);
+  if (SELF_RENDERING_MEDIA_TAGS.has(marker.tag.toLowerCase())) {
+    // Collapse case: there is no wrapper, so every authored attribute hands to the occurrence.
+    return { occurrence: { elementAttributes: parsed, controls }, wrapperAttributes: NO_ELEMENT_ATTRIBUTES, movedAnyAttribute: true };
+  }
+  const elementAttributes = parsed.filter((attr) => MEDIA_ELEMENT_ATTRIBUTE_NAMES.has(attr.name));
+  const wrapperAttributes = parsed.filter((attr) => !MEDIA_ELEMENT_ATTRIBUTE_NAMES.has(attr.name));
+  return { occurrence: { elementAttributes, controls }, wrapperAttributes, movedAnyAttribute: elementAttributes.length > 0 };
+}
+
+/**
+ * Replaces every embed placeholder in `html` with `resolve(ref, occurrence)`'s return value.
  * `resolve` is synchronous and pure from this function's own perspective — the caller is expected
  * to have already batch-resolved every ref it cares about (mirroring how `render.ts`'s
  * `renderDocNode` receives an already-resolved `inlineResolved` map rather than doing its own I/O);
@@ -319,26 +450,42 @@ function spliceWrapperPreservingReplacement(marker: EmbedMarker, refType: string
  * placeholder — silently deletes a nav. Which types this stage owns is `resolver-service.ts`'s
  * `isPageEmbedType` to answer; this function only carries the answer through.
  *
- * A ref of a {@link WRAPPER_PRESERVING_EMBED_TYPES} type is spliced via
- * {@link spliceWrapperPreservingReplacement} instead of a whole-element replace, so an authored
- * wrapper element survives with only its content swapped — see this file's header and that constant's
- * own doc for the per-type reasoning and the one tag-nesting exception `"media"` alone needs. Every
- * other type (`"widget"`, and any type this stage does not itself own) keeps the original
- * whole-element replace unchanged.
+ * Per-type handling (2026-09-16):
+ * - **`"media"`**: {@link planMediaMarkerAttributes} computes the occurrence AND the wrapper split.
+ *   On the marker's own self-rendering tag ({@link SELF_RENDERING_MEDIA_TAGS}) the replacement is
+ *   returned as-is (no wrapper, unchanged from before). On any other tag: if nothing moved, the
+ *   wrapper is rebuilt via the byte-identical {@link withInnerContentFinal} path; otherwise via
+ *   {@link withInnerContentAndAttributes} with only the reduced wrapper attribute list.
+ * - **`"post"`/`"content"`** ({@link WRAPPER_PRESERVING_EMBED_TYPES}): spliced via
+ *   {@link spliceWrapperPreservingReplacement}, occurrence attributes always empty.
+ * - **Every other type** (`"widget"`, and any type this stage does not itself own but still
+ *   resolves): {@link withElementKeptIfAttributed} — a bare marker keeps the pre-existing
+ *   whole-element replace; an attributed one keeps its element around the resolved output.
  *
- * @complexity O(n) over `html`'s length for the shared scan, plus O(1) per marker for `resolve`.
+ * @complexity O(n) over `html`'s length for the shared scan, plus O(k) per `"media"` marker in its own
+ * attribute count (one two-way partition), O(1) per marker otherwise.
  * @overallScore 100
  */
 export function substituteHtmlEmbeds(
   html: string,
-  resolve: (ref: PageHtmlEmbedRef) => string | undefined
+  resolve: (ref: PageHtmlEmbedRef, occurrence: EmbedOccurrence) => string | undefined
 ): string {
   return substituteMarkers(html, (marker) => {
     const ref = toEmbedRef(marker);
-    const replacement = resolve(ref);
+
+    if (ref.type === "media") {
+      const plan = planMediaMarkerAttributes(marker);
+      const replacement = resolve(ref, plan.occurrence);
+      if (replacement === undefined) return undefined;
+      if (SELF_RENDERING_MEDIA_TAGS.has(marker.tag.toLowerCase())) return replacement;
+      return plan.movedAnyAttribute
+        ? withInnerContentAndAttributes(marker, plan.wrapperAttributes, replacement)
+        : withInnerContentFinal(marker, replacement);
+    }
+
+    const replacement = resolve(ref, DEFAULT_OCCURRENCE);
     if (replacement === undefined) return undefined;
-    return WRAPPER_PRESERVING_EMBED_TYPES.has(ref.type)
-      ? spliceWrapperPreservingReplacement(marker, ref.type, replacement)
-      : replacement;
+    if (WRAPPER_PRESERVING_EMBED_TYPES.has(ref.type)) return spliceWrapperPreservingReplacement(marker, replacement);
+    return withElementKeptIfAttributed(marker, replacement);
   });
 }

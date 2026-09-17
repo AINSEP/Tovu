@@ -250,8 +250,14 @@ test('substituteHtmlEmbeds: a "media" marker\'s own resolve() returning undefine
   assert.equal(out, html);
 });
 
-test('substituteHtmlEmbeds: a "widget" marker wrapped in its own div still gets the OLD whole-element replace — "widget" is deliberately excluded from wrapper-preservation because its resolved root tag is not a small, closed set (see WRAPPER_PRESERVING_EMBED_TYPES\'s own doc)', () => {
+test('substituteHtmlEmbeds: a "widget" marker that carries its own attributes keeps its element (minus data-embed-config) around the resolved output — owner rule 2026-09-16: authored attributes reach the rendered output', () => {
   const html = `<div style="max-width: 600px;" data-embed-config='{"type":"widget","id":"w1"}'></div>`;
+  const out = substituteHtmlEmbeds(html, () => "<section>widget output</section>");
+  assert.equal(out, `<div style="max-width: 600px;"><section>widget output</section></div>`);
+});
+
+test('substituteHtmlEmbeds: a BARE "widget" marker is still whole-element replaced, byte-identical to before', () => {
+  const html = `<div data-embed-config='{"type":"widget","id":"w1"}'></div>`;
   const out = substituteHtmlEmbeds(html, () => "<section>widget output</section>");
   assert.equal(out, "<section>widget output</section>");
 });
@@ -278,4 +284,64 @@ test('substituteHtmlEmbeds: "post"/"content" have no self-rendering-tag exceptio
   const html = `<div data-embed-config='{"type":"post","id":"post-1"}'></div>`;
   const out = substituteHtmlEmbeds(html, () => `<div class="post-detail-header"><h1>Title</h1></div>`);
   assert.equal(out, `<div><div class="post-detail-header"><h1>Title</h1></div></div>`);
+});
+
+// ---------------------------------------------------------------------------
+// Marker attributes (2026-09-16) — owner: "regular attributes that somebody puts on a
+// data-embed-config should work on the rendered tag". `occurrence` is the second arg `resolve` now
+// receives; T5 (`render.ts`) is what actually merges `occurrence.elementAttributes`/`controls` onto
+// the rendered `<video>`/`<img>` tag — these tests only prove what `substituteHtmlEmbeds` computes
+// and hands to `resolve`, plus how the wrapper (if any) gets rebuilt.
+// ---------------------------------------------------------------------------
+
+test("substituteHtmlEmbeds: media-element attributes on a media wrapper move to the occurrence, the rest stay on the wrapper", () => {
+  const html = `<div class="xai-video" data-embed-config='{"type":"media","id":"a"}' autoplay muted loop playsinline></div>`;
+  let seenNames: string[] = [];
+  const out = substituteHtmlEmbeds(html, (_ref, occurrence) => {
+    seenNames = occurrence.elementAttributes.map((a) => a.name);
+    return "RESOLVED";
+  });
+  assert.equal(out, `<div class="xai-video">RESOLVED</div>`);
+  assert.deepEqual(seenNames, ["autoplay", "muted", "loop", "playsinline"]);
+});
+
+test("substituteHtmlEmbeds: a media wrapper with no media-element attributes is byte-identical to before", () => {
+  const html = `<div style="max-width: 600px;" data-embed-config='{"type":"media","id":"asset-1"}'></div>`;
+  const out = substituteHtmlEmbeds(html, () => `<video src="/m/asset-1/original" controls></video>`);
+  assert.equal(out, `<div style="max-width: 600px;"><video src="/m/asset-1/original" controls></video></div>`);
+});
+
+test("substituteHtmlEmbeds: a media marker authored on <video> hands ALL its attributes to the occurrence and emits no wrapper", () => {
+  const html = `<video class="collapse" muted data-embed-config='{"type":"media","id":"a"}'></video>`;
+  let seenNames: string[] = [];
+  const out = substituteHtmlEmbeds(html, (_ref, occurrence) => {
+    seenNames = occurrence.elementAttributes.map((a) => a.name);
+    return "<video>RESOLVED</video>";
+  });
+  assert.equal(out, "<video>RESOLVED</video>");
+  assert.deepEqual(seenNames, ["class", "muted"]);
+});
+
+test("substituteHtmlEmbeds: occurrence.controls is false only when the marker's own controls attribute trims/lowercases to 'false'", () => {
+  const cases: Array<{ html: string; expectedControls: boolean }> = [
+    { html: `<div data-embed-config='{"type":"media","id":"a"}' controls="false"></div>`, expectedControls: false },
+    { html: `<div data-embed-config='{"type":"media","id":"a"}' controls=" FALSE "></div>`, expectedControls: false },
+    { html: `<div data-embed-config='{"type":"media","id":"a"}' controls></div>`, expectedControls: true },
+    { html: `<div data-embed-config='{"type":"media","id":"a"}' controls="yes"></div>`, expectedControls: true },
+    { html: `<div data-embed-config='{"type":"media","id":"a"}'></div>`, expectedControls: true },
+  ];
+  for (const { html, expectedControls } of cases) {
+    let seenControls: boolean | undefined;
+    substituteHtmlEmbeds(html, (_ref, occurrence) => {
+      seenControls = occurrence.controls;
+      return "RESOLVED";
+    });
+    assert.equal(seenControls, expectedControls, html);
+  }
+});
+
+test("substituteHtmlEmbeds: a controls-only marker on a media wrapper still moves it off the rebuilt wrapper tag (never left as a stray controls attribute on the div)", () => {
+  const html = `<div class="hero" data-embed-config='{"type":"media","id":"a"}' controls="false"></div>`;
+  const out = substituteHtmlEmbeds(html, () => "RESOLVED");
+  assert.equal(out, `<div class="hero">RESOLVED</div>`);
 });
