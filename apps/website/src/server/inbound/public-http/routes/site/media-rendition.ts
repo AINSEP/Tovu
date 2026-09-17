@@ -169,7 +169,13 @@ function isGatedEntry(entry: PostRecord): boolean {
  */
 function addHtmlEmbedAssetIds(bodyHtml: string, out: Set<string>): void {
   for (const marker of scanEmbedMarkers(bodyHtml).markers) {
-    if (marker.type === "media" && marker.id) out.add(marker.id);
+    if (marker.type !== "media") continue;
+    // Same `id ?? slug` precedence `resolver-service.ts`'s `parseMediaEmbedRef` resolves with (2026-09-16):
+    // a marker that renders via its `"slug"` key must count as a referrer here too, or a members-only
+    // page's asset serves to anyone. The slug is matched against `resolveAssetAliases`'s id+slug set.
+    const slug = typeof marker.config.slug === "string" ? marker.config.slug : undefined;
+    const ref = marker.id ?? slug;
+    if (ref) out.add(ref);
   }
 }
 

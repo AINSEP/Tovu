@@ -166,6 +166,41 @@ test("media gate: a VIDEO whose only referrer is a members-only html Page's medi
   });
 });
 
+// Regression (2026-09-16) — `57b352e8` taught `resolver-service.ts`'s `parseMediaEmbedRef` to accept a
+// `"slug"` key (`ref.id ?? ref.slug`), so `{"type":"media","slug":"…"}` now RENDERS a working
+// `<video src="/m/{id}/original">`. This gate's collector read `marker.id` only, so a members-only Page
+// using the slug KEY had no referrer at all and the video served to anyone.
+test("media gate: a VIDEO referenced by a members-only html Page's media marker via the \"slug\" KEY is 404'd for an anonymous caller, and served to an entitled member", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, mp4Bytes("gated-video-by-slug-key"), "gated-by-slug.mp4", "video/mp4");
+    assert.ok(media.slug, "precondition: an uploaded asset gets a slug");
+    await deps.postRepo.save(
+      makePost(
+        {
+          id: "p-html-video-slug-key",
+          slug: "gated-html-page-with-video-by-slug-key",
+          kind: "page",
+          bodyFormat: "html",
+          bodyHtml: `<section><div data-embed-config='{"type":"media","slug":"${media.slug}"}'></div></section>`,
+          memberAccessJson: MEMBERS_ONLY,
+        },
+        deps.workspaceId
+      )
+    );
+
+    const anon = await fetch(`${baseUrl}/m/${media.id}/original`);
+    assert.equal(anon.status, 404, "a slug-keyed marker on a members-only Page must gate its video too");
+    assert.equal(anon.headers.get("cache-control"), "private, no-store");
+    assert.deepEqual(await anon.json(), { error: "video rendition not found" });
+
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    const member = await fetch(`${baseUrl}/m/${media.id}/original`, {
+      headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` },
+    });
+    assert.equal(member.status, 200, "an entitled signed-in member must still get the video");
+  });
+});
+
 test("media gate: an IMAGE whose only referrer is a members-only html Page's media embed marker is 404'd for an anonymous caller, and served to an entitled member", async () => {
   await withServer(async (baseUrl, deps) => {
     const { media } = await uploadOne(deps, bytesFrom("gated-image-in-html-page"), "gated.png", "image/png");
