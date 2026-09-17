@@ -378,6 +378,125 @@ export function substituteMarkers(
 }
 
 /**
+ * One HTML attribute authored directly on a marker element (2026-09-16 — owner: "regular attributes
+ * that somebody puts on a data-embed-config should work on the rendered tag"). Produced by
+ * {@link parseMarkerAttributes}, consumed by callers that forward some or all of a marker's authored
+ * attributes onto whatever it resolves to.
+ */
+export interface MarkerAttribute {
+  readonly name: string;
+  /** Source text, exactly as authored — never entity-decoded (see {@link parseMarkerAttributes}'s
+   *  own doc for why). `null` means the attribute was written with no `="..."` at all (a boolean
+   *  attribute like a bare `autoplay`), not that it had an empty value. */
+  readonly value: string | null;
+}
+
+/**
+ * The shape every attribute name {@link parseMarkerAttributes} accepts must have — deliberately
+ * narrower than the full HTML spec's own name production, sized for real attribute names (`class`,
+ * `data-*`, `aria-*`, `autoplay`, …), the same "narrower on purpose" discipline
+ * `@jini-ai/cms/media`'s `html-attributes.ts` applies to its own allowlisted names. A token whose name
+ * fails this is skipped, not thrown — this parser runs over already-authored page HTML (page trust,
+ * no allowlist; see the 2026-09-16 embed-attributes plan §0), so "not a well-formed attribute name" is
+ * a shape problem this parser degrades past, not a security boundary.
+ */
+const MARKER_ATTRIBUTE_NAME_PATTERN = /^[a-z_:][-a-z0-9_:.]*$/;
+
+/**
+ * Quote-aware attribute-token scanner: matches one `name`, or one `name=unquoted`, `name="value"`, or
+ * `name='value'` pair. The identical loose shape `@jini-ai/cms/media`'s `html-attributes.ts` uses for
+ * its own `HTML_ATTRIBUTE_TOKEN` — quote-aware so a `data-embed-config='{"type":"media"}'` token
+ * (double quotes living inside a single-quoted value) is consumed as ONE token rather than corrupting
+ * the scan at its first interior `"`.
+ */
+const MARKER_ATTRIBUTE_TOKEN = /([^\s="']+)(?:=(?:"([^"]*)"|'([^']*)'|([^\s"']+)))?/g;
+
+/**
+ * Parses a marker's verbatim {@link EmbedMarker.attrs} text into structured attributes, in authored
+ * order, with `data-embed-config` itself removed (it is the marker, not an attribute a caller would
+ * ever want to forward) — the read half of the 2026-09-16 embed-attributes contract:
+ * {@link formatMarkerAttributes} is its inverse.
+ *
+ * - Names are lowercased (HTML attribute names are case-insensitive).
+ * - A token whose (lowercased) name is not a valid attribute name per
+ *   {@link MARKER_ATTRIBUTE_NAME_PATTERN} is skipped, never thrown.
+ * - A duplicate name keeps its FIRST occurrence — the same rule a real HTML parser applies, so this
+ *   parser's result matches what a browser would actually expose on the element.
+ * - Every value is kept as SOURCE TEXT: never entity-decoded. Re-decoding `&amp;` here and
+ *   re-escaping on output (see {@link formatMarkerAttributes}) would double-escape a value like
+ *   `title="a &amp; b"` into `&amp;amp;` — this module never round-trips through a decoded form.
+ *
+ * @complexity O(n) in the marker's own attrs length (one regex pass) — independent of the surrounding
+ * document's size.
+ */
+export function parseMarkerAttributes(marker: EmbedMarker): MarkerAttribute[] {
+  const seenNames = new Set<string>();
+  const attributes: MarkerAttribute[] = [];
+  MARKER_ATTRIBUTE_TOKEN.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = MARKER_ATTRIBUTE_TOKEN.exec(marker.attrs)) !== null) {
+    const name = match[1]!.toLowerCase();
+    if (name === "data-embed-config") continue;
+    if (!MARKER_ATTRIBUTE_NAME_PATTERN.test(name)) continue;
+    if (seenNames.has(name)) continue;
+    seenNames.add(name);
+    const value = match[2] ?? match[3] ?? match[4] ?? null;
+    attributes.push({ name, value });
+  }
+  return attributes;
+}
+
+/**
+ * Formats parsed attributes back into attribute-string text, the inverse of
+ * {@link parseMarkerAttributes}: a valueless attribute is emitted as a bare ` name`; a valued one as
+ * ` name="value"`. The ONLY transform applied to a value is `"` -> `&quot;` (a value may itself
+ * contain a literal `"`, e.g. carried over from a single-quoted authored attribute) — `&` is never
+ * touched, so source text that already reads `&amp;` is emitted unchanged rather than
+ * double-escaping into `&amp;amp;`.
+ *
+ * @complexity O(n) in the total length of every attribute's name and value.
+ */
+export function formatMarkerAttributes(attrs: readonly MarkerAttribute[]): string {
+  return attrs.map((attr) => (attr.value === null ? ` ${attr.name}` : ` ${attr.name}="${attr.value.replace(/"/g, "&quot;")}"`)).join("");
+}
+
+/** Whether a marker carries any authored attribute besides `data-embed-config` itself — the "bare
+ *  marker" test {@link withElementKeptIfAttributed} uses to decide whether an element survives a
+ *  whole-marker substitution.
+ *
+ * @complexity O(n) in the marker's own attrs length (delegates to {@link parseMarkerAttributes}).
+ */
+export function hasAuthoredAttributes(marker: EmbedMarker): boolean {
+  return parseMarkerAttributes(marker).length > 0;
+}
+
+/**
+ * Rebuild a marker's element around new inner content using an EXPLICIT attribute list (rather than
+ * the marker's own verbatim {@link EmbedMarker.attrs}) — for a caller that has partitioned a marker's
+ * authored attributes and needs only a subset on the rebuilt wrapper (e.g. {@link substituteHtmlEmbeds}
+ * moving media-element attribute names off a non-media wrapper onto the resolved `<video>`/`<img>`,
+ * keeping the rest on the wrapper). The counterpart to {@link withInnerContent}, which always keeps
+ * every authored attribute verbatim.
+ */
+export function withInnerContentAndAttributes(marker: EmbedMarker, attrs: readonly MarkerAttribute[], inner: string): string {
+  return `<${marker.tag}${formatMarkerAttributes(attrs)}>${inner}</${marker.tag}>`;
+}
+
+/**
+ * Whole-element replace UNLESS the marker carries authored attributes, in which case its element
+ * survives (minus `data-embed-config`) around the resolved content — the 2026-09-16 rule for marker
+ * types (`widget`, `partial`) that default to disappearing entirely: a bare marker keeps disappearing,
+ * byte-identical to before, while an attributed one keeps whatever styling/accessibility hook the
+ * author put on it. Delegates to {@link withInnerContentFinal} for the attributed case so the kept
+ * wrapper's attribute text is the marker's own verbatim {@link EmbedMarker.attrs} (not a
+ * parse-then-reformat round trip) — the same byte-identical-when-nothing-moves discipline
+ * {@link withInnerContentFinal} itself already provides.
+ */
+export function withElementKeptIfAttributed(marker: EmbedMarker, inner: string): string {
+  return hasAuthoredAttributes(marker) ? withInnerContentFinal(marker, inner) : inner;
+}
+
+/**
  * Human-readable one-liner for a rejection, for a warning line or a write-time validation error.
  * Deliberately quotes the offending JSON: the author needs to see what they typed, and the raw text
  * is theme- or admin-authored, never end-user input.

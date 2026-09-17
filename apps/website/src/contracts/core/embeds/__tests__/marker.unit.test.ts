@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { scanEmbedMarkers, substituteMarkers, withInnerContent, withInnerContentFinal } from "../marker.js";
+import {
+  formatMarkerAttributes,
+  hasAuthoredAttributes,
+  parseMarkerAttributes,
+  scanEmbedMarkers,
+  substituteMarkers,
+  withElementKeptIfAttributed,
+  withInnerContent,
+  withInnerContentFinal,
+} from "../marker.js";
 
 /**
  * @file Direct unit coverage of the three marker-rebuild functions that
@@ -184,4 +193,76 @@ test("scanEmbedMarkers still finds a live marker whose fallback content sits rig
   assert.ok(marker.whole.endsWith("</nav>"));
   // The marker's true offset in the ORIGINAL (unmasked) string — substituteMarkers splices by this.
   assert.equal(html.slice(marker.index, marker.index + marker.whole.length), marker.whole);
+});
+
+/**
+ * 2026-09-16 — owner: "regular attributes that somebody puts on a data-embed-config should work on
+ * the rendered tag". These primitives are the shared read/write half of that contract; per-type
+ * forwarding rules live in `features/widgets/__tests__/unit/html-embeds.unit.test.ts` (T4).
+ */
+test('parseMarkerAttributes: drops data-embed-config even though its JSON holds double quotes', () => {
+  const html = `<div class="a" data-embed-config='{"type":"media","id":"x"}' autoplay></div>`;
+  const { markers } = scanEmbedMarkers(html);
+
+  const attrs = parseMarkerAttributes(markers[0]);
+
+  assert.deepEqual(attrs, [
+    { name: "class", value: "a" },
+    { name: "autoplay", value: null },
+  ]);
+});
+
+test("parseMarkerAttributes: reads unquoted, single-quoted and double-quoted values as source text, never entity-decoded", () => {
+  const html = `<div title="a &amp; b" data-embed-config='{"type":"widget"}'></div>`;
+  const { markers } = scanEmbedMarkers(html);
+
+  const attrs = parseMarkerAttributes(markers[0]);
+
+  assert.deepEqual(attrs, [{ name: "title", value: "a &amp; b" }]);
+});
+
+test("parseMarkerAttributes: lowercases names and keeps the FIRST of a duplicate", () => {
+  const html = `<div CLASS="first" class="second" data-embed-config='{"type":"widget"}'></div>`;
+  const { markers } = scanEmbedMarkers(html);
+
+  const attrs = parseMarkerAttributes(markers[0]);
+
+  assert.deepEqual(attrs, [{ name: "class", value: "first" }]);
+});
+
+test("parseMarkerAttributes: skips a token whose name is not a valid attribute name instead of throwing", () => {
+  const html = `<div 1bad="x" ok="y" data-embed-config='{"type":"widget"}'></div>`;
+  const { markers } = scanEmbedMarkers(html);
+
+  const attrs = parseMarkerAttributes(markers[0]);
+
+  assert.deepEqual(attrs, [{ name: "ok", value: "y" }]);
+});
+
+test('formatMarkerAttributes: round-trips source text without double-escaping & and turns an embedded " into &quot;', () => {
+  const result = formatMarkerAttributes([{ name: "title", value: 'say "hi" &amp; bye' }]);
+
+  assert.equal(result, ' title="say &quot;hi&quot; &amp; bye"');
+});
+
+test("formatMarkerAttributes: a valueless attribute is emitted bare", () => {
+  const result = formatMarkerAttributes([{ name: "autoplay", value: null }]);
+
+  assert.equal(result, " autoplay");
+});
+
+test("hasAuthoredAttributes: false for a bare marker, true once any other attribute is present", () => {
+  const bare = scanEmbedMarkers(`<div data-embed-config='{"type":"widget"}'></div>`).markers[0];
+  const attributed = scanEmbedMarkers(`<div class="a" data-embed-config='{"type":"widget"}'></div>`).markers[0];
+
+  assert.equal(hasAuthoredAttributes(bare), false);
+  assert.equal(hasAuthoredAttributes(attributed), true);
+});
+
+test("withElementKeptIfAttributed: a bare marker returns inner alone; an attributed one keeps tag and attributes and strips data-embed-config", () => {
+  const bare = scanEmbedMarkers(`<div data-embed-config='{"type":"widget"}'></div>`).markers[0];
+  const attributed = scanEmbedMarkers(`<div style="max-width: 600px;" data-embed-config='{"type":"widget"}'></div>`).markers[0];
+
+  assert.equal(withElementKeptIfAttributed(bare, "resolved"), "resolved");
+  assert.equal(withElementKeptIfAttributed(attributed, "resolved"), `<div style="max-width: 600px;">resolved</div>`);
 });
