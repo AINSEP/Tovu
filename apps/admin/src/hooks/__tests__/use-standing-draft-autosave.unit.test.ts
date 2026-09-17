@@ -507,6 +507,100 @@ describe("useStandingDraftAutosave", () => {
     expect(vi.mocked(port.putAutosave).mock.calls.map(([id]) => id)).toEqual(["post-1", "post-2"]);
   });
 
+  /**
+   * `supersedeBasis` (2026-09-16, reviewer finding 2) — the editor replaced its basis with an
+   * externally-written row. Before it existed, a write built on the old basis could still reach the
+   * server after that (queued in the debounce, scheduled by a render that committed just before the
+   * replacement, or already in flight), be refused, and pause autosaving plus mirror text for a
+   * version the editor had already left. Each test asserts on a write or a mirror that provably did
+   * not happen.
+   */
+  it("supersedeBasis cancels a pending write built on an older basis — it never fires", async () => {
+    const port = createFakePort({ putAutosave: vi.fn(async () => ({ applied: false })) });
+    const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+
+    act(() => result.current.scheduleAutosave(DOC_DRAFT));
+    act(() => result.current.supersedeBasis(2));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+
+    expect(port.putAutosave).not.toHaveBeenCalled();
+    expect(result.current.staleBasis).toBeNull();
+    expect(readStandingDraftLocalBackup("post-1")).toBeNull();
+  });
+
+  it("supersedeBasis drops an older-basis schedule that arrives AFTER it, and still sends one on the new basis", async () => {
+    const port = createFakePort();
+    const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+
+    act(() => result.current.supersedeBasis(2));
+    // A render that committed before the replacement runs its autosave effect late.
+    act(() => result.current.scheduleAutosave(DOC_DRAFT));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    expect(port.putAutosaveCalls).toEqual([]);
+
+    const onNewBasis = { ...DOC_DRAFT, baseVersion: 2, title: "Typed after the reload" };
+    act(() => result.current.scheduleAutosave(onNewBasis));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    expect(port.putAutosaveCalls).toEqual([onNewBasis]);
+  });
+
+  it("supersedeBasis ignores the refusal of an older-basis write already in flight — no pause, no mirror", async () => {
+    let refuse!: () => void;
+    const port = createFakePort({
+      putAutosave: vi.fn(
+        () =>
+          new Promise<{ applied: boolean }>((resolve) => {
+            refuse = () => resolve({ applied: false });
+          })
+      ),
+    });
+    const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+
+    act(() => result.current.scheduleAutosave(DOC_DRAFT));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    expect(port.putAutosave).toHaveBeenCalledTimes(1);
+
+    act(() => result.current.supersedeBasis(2));
+    await act(async () => {
+      refuse();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(result.current.staleBasis).toBeNull();
+    expect(readStandingDraftLocalBackup("post-1")).toBeNull();
+  });
+
+  it("supersedeBasis lifts a gate recorded on an older basis, but keeps that refusal's mirror", async () => {
+    const port = createFakePort({ putAutosave: vi.fn(async () => ({ applied: false })) });
+    const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+
+    act(() => result.current.scheduleAutosave({ ...DOC_DRAFT, title: "Refused before the replacement" }));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    expect(result.current.staleBasis).not.toBeNull();
+
+    act(() => result.current.supersedeBasis(2));
+
+    expect(result.current.staleBasis).toBeNull();
+    // Nothing has accepted that text anywhere, so the mirror is still its only durable copy.
+    expect(readStandingDraftLocalBackup("post-1")).toMatchObject({ title: "Refused before the replacement" });
+  });
+
+  it("supersedeBasis does not carry across an entryId change — another entry's version 1 is not 'older'", async () => {
+    const port = createFakePort();
+    const { result, rerender } = renderHook(
+      ({ entryId }: { entryId: string }) => useStandingDraftAutosave({ port, entryId, enabled: true }),
+      { initialProps: { entryId: "post-1" } }
+    );
+
+    act(() => result.current.supersedeBasis(7));
+    rerender({ entryId: "post-2" });
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+
+    act(() => result.current.scheduleAutosave(DOC_DRAFT));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    expect(port.putAutosaveCalls).toEqual([DOC_DRAFT]);
+  });
+
   it("prefers the server's parked draft over a local backup when both exist", async () => {
     const port = createFakePort({
       putAutosave: vi.fn(async () => ({ applied: false })),

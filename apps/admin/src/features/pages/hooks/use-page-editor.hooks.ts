@@ -810,6 +810,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     isSaving: () => saving,
     applyLatest: applyExternalPage,
     discardStandingDraft: autosave.clearStandingDraft,
+    supersedeStandingDraftBasis: autosave.supersedeBasis,
     onLoadLatestFailed: () => setError(t(locale, "could not re-read the current version — your changes are still here, try again")),
   });
   useContentRefreshSubscription(PAGES_RESOURCE, externalRefresh.checkForExternalChange);

@@ -32,8 +32,14 @@ function setup(overrides?: {
   saving?: boolean;
   fetchLatest?: (id: string) => Promise<TestRow>;
 }) {
-  const applyLatest = vi.fn();
+  const callLog: string[] = [];
+  const applyLatest = vi.fn((row: TestRow) => {
+    callLog.push(`apply ${row.version}`);
+  });
   const discardStandingDraft = vi.fn().mockResolvedValue(undefined);
+  const supersedeStandingDraftBasis = vi.fn((version: number) => {
+    callLog.push(`supersede ${version}`);
+  });
   const onLoadLatestFailed = vi.fn();
   let dirty = overrides?.dirty ?? false;
   let saving = overrides?.saving ?? false;
@@ -51,6 +57,7 @@ function setup(overrides?: {
         isSaving: () => saving,
         applyLatest,
         discardStandingDraft,
+        supersedeStandingDraftBasis,
         onLoadLatestFailed,
       }),
     { initialProps: { loaded } }
@@ -70,8 +77,10 @@ function setup(overrides?: {
     },
     applyLatest,
     discardStandingDraft,
+    supersedeStandingDraftBasis,
     onLoadLatestFailed,
     fetchLatest,
+    callLog,
   };
 }
 
@@ -91,6 +100,49 @@ describe("useExternalEntryRefresh — checkForExternalChange", () => {
 
     expect(env.applyLatest).toHaveBeenCalledWith({ id: "a", version: 2 });
     expect(env.result.current.pendingExternalVersion).toBeNull();
+  });
+
+  // Reviewer finding 2 (2026-09-16): an autosave built on the replaced version must not reach the
+  // server and be refused after the apply, so the basis moves first.
+  it("a silent apply supersedes the standing draft's basis BEFORE replacing the working copy", async () => {
+    const { promise, resolve } = deferred<TestRow>();
+    const env = setup({ loaded: { id: "a", version: 1 }, dirty: false, fetchLatest: vi.fn().mockReturnValue(promise) });
+
+    act(() => {
+      env.result.current.checkForExternalChange();
+    });
+    await act(async () => {
+      resolve({ id: "a", version: 2 });
+      await promise;
+    });
+
+    expect(env.callLog).toEqual(["supersede 2", "apply 2"]);
+  });
+
+  it("a notice or a no-op check never supersedes the basis — the editor is still on it", async () => {
+    const notified = deferred<TestRow>();
+    const unchanged = deferred<TestRow>();
+    const fetchLatest = vi.fn().mockReturnValueOnce(notified.promise).mockReturnValueOnce(unchanged.promise);
+    const env = setup({ loaded: { id: "a", version: 1 }, dirty: true, fetchLatest });
+
+    act(() => {
+      env.result.current.checkForExternalChange();
+    });
+    await act(async () => {
+      notified.resolve({ id: "a", version: 2 });
+      await notified.promise;
+    });
+    expect(env.result.current.pendingExternalVersion).toBe(2);
+
+    act(() => {
+      env.result.current.checkForExternalChange();
+    });
+    await act(async () => {
+      unchanged.resolve({ id: "a", version: 1 });
+      await unchanged.promise;
+    });
+
+    expect(env.supersedeStandingDraftBasis).not.toHaveBeenCalled();
   });
 
   it("does nothing when the fetched row is not newer", async () => {
@@ -199,6 +251,7 @@ describe("useExternalEntryRefresh — checkForExternalChange", () => {
         isSaving: () => false,
         applyLatest,
         discardStandingDraft: vi.fn().mockResolvedValue(undefined),
+        supersedeStandingDraftBasis: vi.fn(),
         onLoadLatestFailed: vi.fn(),
       })
     );
@@ -282,6 +335,7 @@ describe("useExternalEntryRefresh — loadExternalChange", () => {
         isSaving: () => false,
         applyLatest,
         discardStandingDraft,
+        supersedeStandingDraftBasis: vi.fn(),
         onLoadLatestFailed: vi.fn(),
       })
     );
@@ -300,6 +354,25 @@ describe("useExternalEntryRefresh — loadExternalChange", () => {
     expect(result.current.pendingExternalVersion).toBeNull();
   });
 
+  it("supersedes the standing draft's basis after discarding and before applying", async () => {
+    const { promise, resolve } = deferred<TestRow>();
+    const env = setup({ loaded: { id: "a", version: 1 }, dirty: true, fetchLatest: vi.fn().mockReturnValue(promise) });
+    env.discardStandingDraft.mockImplementation(async () => {
+      env.callLog.push("discard");
+    });
+
+    let loadPromise!: Promise<void>;
+    act(() => {
+      loadPromise = env.result.current.loadExternalChange();
+    });
+    await act(async () => {
+      resolve({ id: "a", version: 2 });
+      await loadPromise;
+    });
+
+    expect(env.callLog).toEqual(["discard", "supersede 2", "apply 2"]);
+  });
+
   it("reports failure through onLoadLatestFailed and leaves the working copy alone", async () => {
     const fetchLatest = vi.fn().mockRejectedValue(new Error("boom"));
     const env = setup({ loaded: { id: "a", version: 1 }, fetchLatest });
@@ -310,6 +383,7 @@ describe("useExternalEntryRefresh — loadExternalChange", () => {
 
     expect(env.onLoadLatestFailed).toHaveBeenCalledTimes(1);
     expect(env.applyLatest).not.toHaveBeenCalled();
+    expect(env.supersedeStandingDraftBasis).not.toHaveBeenCalled();
   });
 
   it("supersedes a background check still in flight", async () => {

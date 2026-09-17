@@ -5,6 +5,7 @@ import { useWiredPageEditor, usePageEditor, type PageEditorController } from "..
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { readStandingDraftLocalBackup } from "@/lib/standing-draft-local-backup";
 import { PAGES_RESOURCE } from "../rules";
 
 /**
@@ -1698,5 +1699,41 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     });
 
     expect(result.current.pendingExternalVersion).toBeNull();
+  });
+
+  // Reviewer finding 2 (2026-09-16), seen live as "you were working from version N, so autosaving
+  // has paused" right after Load latest, plus a recovery banner on the next reload. The
+  // deterministic shape: an autosave is still queued on the old version when an assistant write is
+  // applied, then fires against a row that has moved on, is refused, and the refusal pauses
+  // autosaving and mirrors the text into browser storage — for a version this editor already left.
+  it("an applied refresh supersedes an autosave still queued on the replaced version: nothing is refused, paused, or mirrored", async () => {
+    vi.useFakeTimers();
+    try {
+      localStorage.clear();
+      const deps = refreshDeps();
+      const { result } = renderHook(() => usePageEditor("landing", deps));
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(result.current.page).not.toBeNull();
+
+      // Typed, then reverted inside the 3s idle window: clean again, but the typed draft is queued.
+      act(() => result.current.setHtml("<p>typed</p>"));
+      act(() => result.current.setHtml(HTML_PAGE.bodyHtml));
+      expect(result.current.dirty).toBe(false);
+
+      await act(async () => {
+        deps.port.simulateExternalWrite({ bodyHtml: "<p>new hero</p>" });
+        publishContentRefresh([PAGES_RESOURCE]);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(result.current.html).toBe("<p>new hero</p>");
+
+      await act(async () => vi.advanceTimersByTimeAsync(3001));
+
+      expect(deps.port.putAutosaveCalls).toEqual([]);
+      expect(result.current.autosaveStaleBasis).toBeNull();
+      expect(readStandingDraftLocalBackup(HTML_PAGE.id)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -33,6 +33,10 @@ export interface ExternalEntryRefreshInput<Row extends ExternalEntryRevision> {
   applyLatest: (row: Row) => void;
   /** Load latest only — the editor's `autosave.clearStandingDraft`. */
   discardStandingDraft: () => Promise<void>;
+  /** Both apply paths, called with the applied row's version just before `applyLatest` — the
+   *  editor's `autosave.supersedeBasis`, so no autosave built on the replaced version can still be
+   *  refused and pause autosaving afterwards. */
+  supersedeStandingDraftBasis: (version: number) => void;
   /** Load latest only, when the re-read fails. The editor sets its own (translated) error. */
   onLoadLatestFailed: () => void;
 }
@@ -94,6 +98,7 @@ export function useExternalEntryRefresh<Row extends ExternalEntryRevision>(
         });
         if (decision === "apply") {
           setNotifiedVersion(null);
+          current.supersedeStandingDraftBasis(fresh.version);
           current.applyLatest(fresh);
         } else if (decision === "notify") {
           setNotifiedVersion(fresh.version);
@@ -122,10 +127,13 @@ export function useExternalEntryRefresh<Row extends ExternalEntryRevision>(
     const current = latestRef.current;
     setNotifiedVersion(null);
     dismissedForBasisRef.current = null;
-    // Discard first: its synchronous prefix cancels the pending autosave timer and lifts the
-    // stale-basis gate before the working copy changes, so the autosave hook never schedules a
-    // write against the basis this is about to replace.
+    // Discard first: its synchronous prefix cancels the pending autosave timer, lifts the stale-basis
+    // gate and drops the local mirror before the working copy changes. That alone did not stop a
+    // write on the replaced basis: a render that committed just before this one (GrapesJS syncing
+    // canvas text on the click) can still run its autosave effect afterwards. The basis supersede
+    // closes that, and ignores the refusal of a write already in flight.
     void current.discardStandingDraft();
+    current.supersedeStandingDraftBasis(fresh.version);
     current.applyLatest(fresh);
   }, [generations]);
 

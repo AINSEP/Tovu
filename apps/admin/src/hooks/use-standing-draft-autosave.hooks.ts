@@ -133,6 +133,20 @@ export interface StandingDraftAutosaveController {
    * explicit discard) just superseded.
    */
   clearStandingDraft: () => Promise<void>;
+  /**
+   * The caller replaced its basis with a newer saved row it did not write itself (an assistant
+   * write applied by `use-external-entry-refresh.hooks.ts`, silently or through Load latest). Every
+   * write built on an OLDER `baseVersion` is superseded from here on: a pending one is cancelled, a
+   * later `scheduleAutosave` on one is dropped (a render that committed before the replacement can
+   * still run its autosave effect after this call), and the refusal of one already in flight is
+   * ignored. Without this, that write reached the server, was refused, paused autosaving and
+   * mirrored text for a version the editor had already left (reviewer finding 2, 2026-09-16).
+   *
+   * A gate recorded on an older basis lifts, because the editor is no longer on it. That refusal's
+   * mirror is kept: nothing has accepted its text anywhere (see this file's header). Does not touch
+   * the server-side draft — Load latest also calls {@link clearStandingDraft} for that.
+   */
+  supersedeBasis: (baseVersion: number) => void;
 }
 
 /** Idle debounce: fires this long after the LAST `scheduleAutosave` call with no further calls. */
@@ -172,6 +186,10 @@ export function useStandingDraftAutosave(deps: {
   // closure is unreachable from outside the `setTimeout` callback, which is why cancelling the
   // timer used to be indistinguishable from losing the edit.
   const pendingDraftRef = useRef<StandingDraftAutosaveInput | null>(null);
+  // The lowest `baseVersion` a write may still carry for the current entry — see `supersedeBasis`.
+  // `null` until the caller supersedes a basis; reset on an entry change, because another entry's
+  // version numbers are unrelated.
+  const minBaseVersionRef = useRef<number | null>(null);
 
   const clearPendingTimer = useCallback(() => {
     if (idleTimerRef.current !== null) clearTimeout(idleTimerRef.current);
@@ -223,6 +241,7 @@ export function useStandingDraftAutosave(deps: {
     // storage under ITS OWN key and stays recoverable there — only this hook's permission to drop a
     // mirror is reset, so a later accepted write for THIS entry cannot delete that other copy.
     backupEntryIdRef.current = null;
+    minBaseVersionRef.current = null;
     if (!enabled || !entryId) return;
     let cancelled = false;
     port
@@ -269,6 +288,8 @@ export function useStandingDraftAutosave(deps: {
       enqueue(async () => {
         const result = await port.putAutosave(id, draft, { keepalive });
         if (!result.applied) {
+          // Refused because the caller already moved past this basis — nothing to pause or mirror.
+          if (isSupersededBasis(draft.baseVersion, minBaseVersionRef.current)) return;
           markStaleBasis(id, draft);
           return;
         }
@@ -283,6 +304,7 @@ export function useStandingDraftAutosave(deps: {
   const scheduleAutosave = useCallback(
     (draft: StandingDraftAutosaveInput) => {
       if (!enabled || !entryId) return;
+      if (isSupersededBasis(draft.baseVersion, minBaseVersionRef.current)) return;
       // The gate. Same basis as the one the server already refused => this write would be refused
       // too, so it is not scheduled at all; a DIFFERENT basis means the editor reloaded the row, so
       // the gate lifts by itself and no caller has to remember to reset anything.
@@ -390,5 +412,22 @@ export function useStandingDraftAutosave(deps: {
 
   const dismissRecoverable = useCallback(() => setRecoverableDraft(null), []);
 
-  return { recoverableDraft, staleBasis, dismissRecoverable, scheduleAutosave, clearStandingDraft };
+  const supersedeBasis = useCallback(
+    (baseVersion: number) => {
+      minBaseVersionRef.current = baseVersion;
+      const pending = pendingDraftRef.current;
+      if (pending !== null && isSupersededBasis(pending.baseVersion, baseVersion)) clearPendingTimer();
+      const stale = staleBasisRef.current;
+      if (stale !== null && isSupersededBasis(stale.baseVersion, baseVersion)) liftStaleGate();
+    },
+    [clearPendingTimer, liftStaleGate]
+  );
+
+  return { recoverableDraft, staleBasis, dismissRecoverable, scheduleAutosave, clearStandingDraft, supersedeBasis };
+}
+
+/** Whether a write built on `baseVersion` belongs to a basis the caller has left (see
+ *  `supersedeBasis`). @complexity O(1). */
+function isSupersededBasis(baseVersion: number, minBaseVersion: number | null): boolean {
+  return minBaseVersion !== null && baseVersion < minBaseVersion;
 }
