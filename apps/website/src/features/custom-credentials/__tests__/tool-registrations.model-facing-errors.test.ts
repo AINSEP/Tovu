@@ -110,6 +110,13 @@ async function call(harness: Harness, toolId: string, input: unknown) {
   return delegatedToolExecuteRoute.handle({ runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, harness as never);
 }
 
+/** The exact fixed text `CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS` publishes for a secret-store
+ *  failure — pinned here rather than imported so a silent reword of the rule fails this suite. */
+const SECRET_STORE_UNAVAILABLE_MESSAGE =
+  "CUSTOM_CREDENTIALS_SECRET_STORE_UNAVAILABLE: this site's secret store could not open the saved credential: " +
+  "its root key (site token) is missing or unusable, or the stored credential is unreadable. No request was sent. " +
+  "An operator can check this site's token on the admin Secrets page.";
+
 const VALID_WRITE_FILES_INPUT = { owner: "octo", repo: "demo", branch: "main", commitMessage: "deploy", files: [{ path: "fly.toml", content: "app = 'demo'" }] };
 
 /* ------------------------------------------------------------------------------------------------
@@ -288,7 +295,7 @@ test("a GET off-allowlist rejection keeps its schema decoration and gains no sec
  * The security half: UNLISTED failures stay redacted — the allowlist is not a blanket unwrap
  * ---------------------------------------------------------------------------------------------- */
 
-test("a secret-store failure stays redacted — its message can carry decrypted plaintext, so it must never reach the wire", async () => {
+test("a secret-store failure names its KIND under a fixed message — its own text can carry decrypted plaintext, so that never reaches the wire", async () => {
   // Node's own JSON.parse error quotes the start of its input, so a decrypt that "succeeds" into
   // garbage produces exactly this shape inside `CustomCredentialSecretStoreUnconfiguredError`.
   const { deps, httpClient } = await makeRouteDeps({
@@ -305,10 +312,47 @@ test("a secret-store failure stays redacted — its message can carry decrypted 
 
   assert.equal(result.ok, false, JSON.stringify(result));
   if (result.ok) return;
-  assert.equal(result.error.code, "INTERNAL_ERROR");
-  assert.equal(result.error.message, "an internal error occurred");
+  assert.equal(result.error.code, "BAD_REQUEST");
+  assert.equal(result.error.message, SECRET_STORE_UNAVAILABLE_MESSAGE);
   assert.ok(!JSON.stringify(result).includes(SEEDED_TOKEN), "a token fragment must never reach the wire");
   assert.equal(httpClient.calls.length, 0);
+});
+
+test("a MISSING ROOT KEY reaches the model as the actionable secret-store reason, not a redacted 500", async () => {
+  // The live 2026-09-18 incident, verbatim: the desktop app booted its site server with no
+  // `TOVU_INTEGRATIONS_ROOT_KEY` and no key file, so `EnvOrFileKeyring` threw this exact text,
+  // `decryptRecord` wrapped it, and BOTH credential-using tools answered `500 INTERNAL_ERROR` —
+  // the one operator-fixable condition in this domain, indistinguishable from a crash.
+  const keyringMessage =
+    "no root key: TOVU_INTEGRATIONS_ROOT_KEY is not set, no key file exists at " +
+    "/Users/someone/.tovu/integrations-root-key.hex, and this instance does not auto-generate one";
+  const { deps, httpClient } = await makeRouteDeps({
+    sealer: (inner) => ({
+      seal: (input) => inner.seal(input),
+      open: async () => {
+        throw new Error(keyringMessage);
+      },
+    }),
+  });
+  const harness = await buildHarness(deps);
+
+  for (const [toolId, input] of [
+    ["custom_credential_verify", { label: "fly.io" }],
+    ["custom_credential_make_request", { label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps" }],
+  ] as const) {
+    const result = await call(harness, toolId, input);
+
+    assert.equal(result.ok, false, `${toolId}: ${JSON.stringify(result)}`);
+    if (result.ok) return;
+    assert.equal(result.error.code, "BAD_REQUEST", `${toolId} must not redact the one reason an operator can act on`);
+    assert.equal(result.error.message, SECRET_STORE_UNAVAILABLE_MESSAGE, toolId);
+    // The KIND is safe to name; the keyring's own text is not — it publishes the env var name and
+    // an absolute filesystem path, the same disclosure `FORM_SAVE_CALLER_SAFE_ERRORS` already refuses.
+    const wire = JSON.stringify(result);
+    assert.ok(!wire.includes("TOVU_INTEGRATIONS_ROOT_KEY"), `${toolId} leaked the env var name`);
+    assert.ok(!wire.includes("integrations-root-key.hex"), `${toolId} leaked the key file path`);
+  }
+  assert.equal(httpClient.calls.length, 0, "no outbound call may be attempted once the credential cannot be opened");
 });
 
 test("a transport failure stays redacted — its message can carry an internal address", async () => {

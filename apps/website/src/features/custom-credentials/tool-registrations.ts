@@ -409,6 +409,22 @@ const CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = 
   { error: CustomCredentialNotFoundError, code: "CUSTOM_CREDENTIALS_NOT_FOUND" },
   { error: CustomCredentialValidationError, code: "CUSTOM_CREDENTIALS_VALIDATION_FAILED" },
   { error: CredentialedRequestValidationError, code: "CUSTOM_CREDENTIALS_REQUEST_REJECTED" },
+  // A FIXED message, never `err.message`: this class wraps the sealer's, the keyring's, or
+  // `JSON.parse`'s own text, which can carry the decrypted token, the env var name, and an absolute
+  // key-file path — the identical disclosure {@link FORM_SAVE_CALLER_SAFE_ERRORS} already refuses for
+  // this same class on the SAVE path. Its KIND, though, is the one failure in this domain an operator
+  // can actually act on, and until 2026-09-18 it was the only one that reached the model redacted:
+  // a site booted with no root key answered `500 INTERNAL_ERROR` on every credentialed call, which is
+  // indistinguishable from the site having crashed. Listed LAST because it is the broadest of the
+  // four — no ordering hazard today (no class here subclasses another), but the safe habit.
+  {
+    error: CustomCredentialSecretStoreUnconfiguredError,
+    code: "CUSTOM_CREDENTIALS_SECRET_STORE_UNAVAILABLE",
+    message:
+      "this site's secret store could not open the saved credential: its root key (site token) is missing or unusable, " +
+      "or the stored credential is unreadable. No request was sent",
+    guidance: "An operator can check this site's token on the admin Secrets page.",
+  },
 ];
 
 /**

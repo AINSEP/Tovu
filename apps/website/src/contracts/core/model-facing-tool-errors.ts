@@ -78,6 +78,22 @@ export interface ModelFacingErrorRule {
   readonly error: abstract new (...args: never[]) => Error;
   /** The stable code published before `: `. Conventionally `<DOMAIN>_<REASON>`, SCREAMING_SNAKE. */
   readonly code: string;
+  /** Published INSTEAD of the error's own message. Set it for a class whose KIND is the actionable
+   *  reason a caller needs but whose TEXT is not safe to publish — one that wraps another
+   *  component's error (a sealer's, a driver's, a keyring's), which can carry plaintext, an internal
+   *  address, an env var name or an absolute path. Omit it to publish the class's own message
+   *  verbatim, which is only correct when every construction site builds that message from fixed
+   *  text and the caller's own input.
+   *
+   *  The same field, for the same reason, as {@link CallerSafeErrorRule.message} — these two
+   *  allowlists are the RETURNED-result and THROWN-rejection halves of one policy, and a class whose
+   *  kind is safe to name on one half is safe to name on the other. They drifted until 2026-09-18:
+   *  `features/custom-credentials` listed `CustomCredentialSecretStoreUnconfiguredError` with a fixed
+   *  message in its `CallerSafeErrorRule` allowlist, but could not list it here at all, because the
+   *  only thing this shape could publish was the very text that had to stay in. A missing site root
+   *  key — the one operator-fixable failure in that domain — therefore reached the model as a bare
+   *  `INTERNAL_ERROR` on every credential-using tool. */
+  readonly message?: string;
   /** Optional recovery guidance appended after the message. */
   readonly guidance?: string;
 }
@@ -117,6 +133,9 @@ export function forbiddenRule(domainPrefix: string): ModelFacingErrorRule {
  * hand-written `instanceof` ladder carries, made explicit here because an array hides it less than
  * a chain of `if`s does.
  *
+ * A matched rule publishes the error's own message, or {@link ModelFacingErrorRule.message} instead
+ * when the rule sets one — see that field for which classes need it and why.
+ *
  * An already-`ToolInputError` rejection is returned untouched: it is already correctly classified,
  * and re-wrapping it would double a code prefix that a `withSchemaOnRejection` wrap may have
  * already attached.
@@ -131,7 +150,7 @@ export function reclassifyToolError(err: unknown, rules: readonly ModelFacingErr
   if (err instanceof ToolInputError) return err;
   for (const rule of rules) {
     if (err instanceof rule.error) {
-      const message = `${rule.code}: ${err.message}`;
+      const message = `${rule.code}: ${rule.message ?? err.message}`;
       return new ToolInputError(rule.guidance ? `${message}. ${rule.guidance}` : message);
     }
   }
