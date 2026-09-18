@@ -68,10 +68,41 @@ export interface SitePower {
 }
 
 /** The status a click's own transition reads as while it is in flight. */
-const IN_FLIGHT_STATUS: Record<SitePowerAction, SiteLifecycleStatus> = {
+export const IN_FLIGHT_STATUS: Record<SitePowerAction, SiteLifecycleStatus> = {
   start: 'starting',
   stop: 'stopping',
 };
+
+/** What one start or stop came back with: main's refreshed record, or an operator-facing reason. */
+export type SitePowerResult = { record: SiteRecord; error?: undefined } | { record?: undefined; error: string };
+
+/**
+ * Run one start or stop against the desktop bridge and report the outcome.
+ *
+ * Separated from the hook below so the whole decision — which bridge call, what a rejection turns
+ * into, what "no bridge at all" means — is directly testable: this package has no React renderer,
+ * so anything left inside a `useCallback` can only be asserted against source text. Same split
+ * `use-site-rename.hooks.ts` makes, for the same reason.
+ *
+ * A missing bridge is reported exactly like a rejection rather than thrown: a renderer with no
+ * `window.tovuRunner` is a shell that failed to wire its preload, and the card's own error line is
+ * where an operator can see that.
+ *
+ * @returns `{record}` on success — main's, never one composed here from what was clicked.
+ * @complexity O(1) beyond the IPC round trip, which for a stop includes the child's own drain.
+ */
+export async function performPowerAction(
+  action: SitePowerAction,
+  id: string,
+  bridge: { startSite: (id: string) => Promise<SiteRecord>; stopSite: (id: string) => Promise<SiteRecord> } | undefined,
+): Promise<SitePowerResult> {
+  if (bridge === undefined) return { error: 'The desktop bridge is unavailable.' };
+  try {
+    return { record: action === 'start' ? await bridge.startSite(id) : await bridge.stopSite(id) };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}
 
 /**
  * @param onSiteUpdated applies the refreshed record main resolves with. Optional, and the card is
@@ -106,18 +137,14 @@ export function useSitePower(onSiteUpdated?: (record: SiteRecord) => void): Site
       setPending((current) => ({ ...current, [id]: action }));
       setErrors((current) => withoutKey(current, id));
 
-      const bridge = runnerInventoryBridge();
-      try {
-        if (bridge === undefined) throw new Error('The desktop bridge is unavailable.');
-        onSiteUpdated?.(action === 'start' ? await bridge.startSite(id) : await bridge.stopSite(id));
-      } catch (err) {
-        setErrors((current) => ({ ...current, [id]: err instanceof Error ? err.message : String(err) }));
-      } finally {
-        // Always, including the failure arm: a start that failed leaves the site stopped, which is
-        // what the polled record already says. Holding `starting` after that would be the button
-        // remembering its own press.
-        setPending((current) => withoutKey(current, id));
-      }
+      const result = await performPowerAction(action, id, runnerInventoryBridge());
+      if (result.error === undefined) onSiteUpdated?.(result.record);
+      else setErrors((current) => ({ ...current, [id]: result.error }));
+
+      // Cleared on BOTH arms: a start that failed leaves the site stopped, which is what the polled
+      // record already says. Holding `starting` after that would be the button remembering its own
+      // press — the one thing this control must never do.
+      setPending((current) => withoutKey(current, id));
     },
     [onSiteUpdated, statusOf],
   );

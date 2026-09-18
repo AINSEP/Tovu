@@ -11,7 +11,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { SITE_IPC_CHANNELS, buildSiteRecord, handleList, handleAddSite, handleCreate, handleDelete, handleOpenExternal, handleStart, handleRename, handleGetPreview, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
+import { SITE_IPC_CHANNELS, buildSiteRecord, handleList, handleAddSite, handleCreate, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
+import { createSiteTransitions } from "./site-transitions.ts";
 import type { ProjectIpcDeps } from "./project-ipc.ts";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./tracked-sites.ts";
 import { classifySiteDir, classifySiteDirSafely } from "./site-dir-store.ts";
@@ -45,6 +46,14 @@ function writeSite(dir: string, siteId: string, contents: Record<string, string>
   fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId, schemaVersion: 58 }));
   for (const [name, body] of Object.entries(contents)) fs.writeFileSync(path.join(dir, name), body);
   return dir;
+}
+
+/** The first record of a list that must not be empty — the `handleList(deps)[0]` every transition
+ *  test reads, with the "possibly undefined" answered once rather than at each call site. */
+function first<T>(records: readonly T[]): T {
+  const record = records[0];
+  assert.ok(record !== undefined, "expected at least one record");
+  return record;
 }
 
 /** A minimal `deps` object every handler needs, with per-test overrides layered on. The return type
@@ -502,6 +511,185 @@ test("handleStart serializes on the site dir, calls openSiteServer with ctx, and
   assert.deepEqual(openedWith, { siteDir: "/sites/a", ctx: deps.ctx });
   assert.equal(record.status, "running");
   assert.equal(record.port, 4321);
+});
+
+// --- stop (2026-09-18) ---------------------------------------------------------------------
+//
+// The site card's own Stop, and the first way this app has ever had to take ONE site down from
+// inside itself. Every test below is about an ordering rule rather than the happy path: the stop
+// itself is one `server.stop()` call, and everything that can go wrong is about what happens around
+// it.
+
+test("handleStop refuses an id this shell is not tracking", async () => {
+  const deps = baseDeps();
+  await assert.rejects(() => handleStop("/sites/unknown", deps), /Unknown project/);
+});
+
+test("handleStop drains the server, drops the entry, and returns a stopped record with no port", async () => {
+  let stopped = 0;
+  const deps = baseDeps();
+  deps.openSites.set("/sites/a", { server: { port: 4321, pid: 777, stop: async () => { stopped += 1; } } });
+  trackSite(deps.projectsPath, "/sites/a");
+
+  const record = await handleStop("/sites/a", deps);
+
+  assert.equal(stopped, 1, "the child's own graceful drain must be what stops it");
+  assert.equal(deps.openSites.get("/sites/a"), undefined);
+  assert.equal(record.status, "stopped");
+  assert.equal(record.desiredState, "stopped");
+  // A site's port is reassigned on every start, so a stopped record carrying its old one would be
+  // a card showing an address nothing answers on.
+  assert.equal(record.port, 0);
+});
+
+test("the entry is dropped BEFORE the stop is awaited, so a deliberate stop is never reported as a crash", async () => {
+  // `site-supervisor.ts` watches each entry's child and calls `onUnexpectedExit` for an exit it did
+  // not expect — which drops the crash-safety row and makes `lastExitOf` answer, so the card would
+  // then read "the site's server was stopped by SIGTERM" about a stop the operator ASKED for.
+  // Removing the entry first is what makes the supervisor's identity check ignore this exit.
+  const unexpected: string[] = [];
+  // `pid`/`stop` on top of `SupervisorEntry`'s own shape: `handleStop` reads both, and the
+  // supervisor's generic is what carries them through to `onUnexpectedExit`.
+  const openSites = createSiteSupervisor<SupervisorEntry & { server: { pid: number; stop: () => Promise<void> } }>({
+    onUnexpectedExit: (siteDir) => unexpected.push(siteDir),
+  });
+  const listeners: Array<(exit: { code: number | null; signal: string | null }) => void> = [];
+  const deps = baseDeps({ openSites });
+  openSites.set("/sites/a", {
+    server: {
+      port: 4321,
+      pid: 777,
+      onExit: (listener) => listeners.push(listener),
+      // What a real `stopChild` does: the child exits, and its `exit` listener fires, DURING the stop.
+      stop: async () => { for (const listener of listeners) listener({ code: null, signal: "SIGTERM" }); },
+    },
+  });
+  trackSite(deps.projectsPath, "/sites/a");
+
+  const record = await handleStop("/sites/a", deps);
+
+  assert.deepEqual(unexpected, [], "a stop the operator asked for is not an unexpected exit");
+  assert.equal(record.statusDetail, null, "no crash reason may be shown for a deliberate stop");
+});
+
+test("the crash-safety row is dropped only AFTER the child is really gone, and by pid", async () => {
+  // It exists so the NEXT launch can reap a child this process left running, so it has to outlive
+  // the child: dropping it up front means a hard kill mid-drain strands a `tovu serve` that
+  // `reconcileOrphans` can never find. By pid because a live SIBLING instance can hold its own row
+  // for this same site dir (D-07).
+  const order: string[] = [];
+  const deps = baseDeps({ recordSiteClosed: (_registryPath, siteDir, options) => order.push(`closed:${siteDir}:${options?.pid}`) });
+  deps.openSites.set("/sites/a", { server: { port: 4321, pid: 777, stop: async () => { order.push("stopped"); } } });
+  trackSite(deps.projectsPath, "/sites/a");
+
+  await handleStop("/sites/a", deps);
+
+  assert.deepEqual(order, ["stopped", "closed:/sites/a:777"]);
+});
+
+test("stopping an already-stopped site is a no-op that still returns its record, not an error", async () => {
+  // The renderer polls on an interval, so a card can be a click behind main's truth through no
+  // fault of the operator's. Refusing would surface an error for the state they already wanted.
+  const deps = baseDeps({ recordSiteClosed: () => assert.fail("nothing was open to close") });
+  trackSite(deps.projectsPath, "/sites/a");
+
+  const record = await handleStop("/sites/a", deps);
+
+  assert.equal(record.status, "stopped");
+});
+
+test("handleStop runs inside the per-site serializer, so a delete cannot erase under a running stop", async () => {
+  const keys: string[] = [];
+  const deps = baseDeps({ serializer: { run: <T,>(key: string, fn: () => T | PromiseLike<T>) => { keys.push(key); return fn(); } } });
+  deps.openSites.set("/sites/a", { server: { port: 4321, pid: 1, stop: async () => {} } });
+  trackSite(deps.projectsPath, "/sites/a");
+
+  await handleStop("/sites/a", deps);
+
+  assert.deepEqual(keys, ["/sites/a"]);
+});
+
+test("a site reads `stopping` for the whole drain, and `stopped` the moment it is over", async () => {
+  // The defect this closes: `openSites` answers "is it alive", so a stop read `running` until the
+  // child was gone — and a Stop button that leaves the card saying Running looks like a dead button.
+  const transitions = createSiteTransitions();
+  const deps = baseDeps({ transitions });
+  let release = () => {};
+  const draining = new Promise<void>((resolve) => { release = resolve; });
+  deps.openSites.set("/sites/a", { server: { port: 4321, pid: 1, stop: () => draining } });
+  trackSite(deps.projectsPath, "/sites/a");
+
+  const stopping = handleStop("/sites/a", deps);
+  assert.equal(first(handleList(deps)).status, "stopping", "mid-drain the card must say so");
+  assert.equal(first(handleList(deps)).desiredState, "stopped", "the operator's intent, not the child's liveness");
+
+  release();
+  const record = await stopping;
+  assert.equal(record.status, "stopped", "what the call RESOLVES with is the settled answer");
+  assert.equal(first(handleList(deps)).status, "stopped");
+});
+
+test("a site reads `starting` for its whole boot, not `stopped` until the port opens", async () => {
+  const transitions = createSiteTransitions();
+  const deps = baseDeps({ transitions });
+  let release = () => {};
+  const booting = new Promise<void>((resolve) => { release = resolve; });
+  deps.openSiteServer = async (siteDir: string) => { await booting; deps.openSites.set(siteDir, { server: { port: 4321 } }); };
+  trackSite(deps.projectsPath, "/sites/a");
+
+  const starting = handleStart("/sites/a", deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer">); // assigned just above
+  assert.equal(first(handleList(deps)).status, "starting");
+  assert.equal(first(handleList(deps)).desiredState, "running");
+  // Never a stale port: the record carries one only once a live entry publishes it.
+  assert.equal(first(handleList(deps)).port, 0);
+
+  release();
+  assert.equal((await starting).status, "running");
+});
+
+test("a start that FAILS leaves the card stopped, not starting forever", async () => {
+  const transitions = createSiteTransitions();
+  const deps = baseDeps({ transitions });
+  deps.openSiteServer = async () => { throw new Error("tovu serve failed: PORT_IN_USE"); };
+  trackSite(deps.projectsPath, "/sites/a");
+
+  await assert.rejects(() => handleStart("/sites/a", deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer">), /PORT_IN_USE/); // assigned just above
+  assert.equal(first(handleList(deps)).status, "stopped");
+});
+
+test("a mid-transition card shows no stale crash reason from a previous exit", async () => {
+  // Two different moments reported as one: "Starting" and "the server exited (code 1)" in the same
+  // breath is a card describing the boot it is watching AND the death that preceded it.
+  const transitions = createSiteTransitions();
+  const openSites = createSiteSupervisor<SupervisorEntry>({ onUnexpectedExit: () => {} });
+  const listeners: Array<(exit: { code: number | null; signal: string | null }) => void> = [];
+  const deps = baseDeps({ openSites, transitions });
+  openSites.set("/sites/a", { server: { port: 4321, onExit: (listener) => listeners.push(listener) } });
+  for (const listener of listeners) listener({ code: 1, signal: null });
+  trackSite(deps.projectsPath, "/sites/a");
+  assert.match(first(handleList(deps)).statusDetail ?? "", /exited \(code 1\)/, "the crash IS reported while settled");
+
+  let release = () => {};
+  const booting = new Promise<void>((resolve) => { release = resolve; });
+  deps.openSiteServer = async () => { await booting; };
+  const starting = handleStart("/sites/a", deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer">); // assigned just above
+
+  assert.equal(first(handleList(deps)).statusDetail, null);
+  release();
+  await starting;
+});
+
+test("without a transitions store, every record is exactly the two-valued answer it always was", () => {
+  // The dep is optional so no existing caller or test has to fabricate one. That tolerance is only
+  // safe if its absence changes nothing.
+  const deps = baseDeps();
+  deps.openSites.set("/sites/a", { server: { port: 4321 } });
+  trackSite(deps.projectsPath, "/sites/a");
+  trackSite(deps.projectsPath, "/sites/b");
+
+  const records = handleList(deps);
+  assert.equal(records[0]?.status, "running");
+  assert.equal(records[1]?.status, "stopped");
 });
 
 test("registerSiteIpcHandlers registers exactly the real channels declared in SITE_IPC_CHANNELS", () => {

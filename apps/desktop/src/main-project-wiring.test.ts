@@ -87,6 +87,19 @@ test("the shared deps object the handlers get is the one the boot scan is run ag
   assert.match(source, /rescanSites\(projectDeps\)/);
 });
 
+test("the deps carry the transitions store, or every start and stop reports the state it just left", () => {
+  // `project-ipc.ts` takes `transitions` OPTIONALLY, so every existing test bag stays valid — which
+  // means a production wiring that forgot it would fail nothing and look fine: cards would simply
+  // go on saying `Stopped` for a whole boot and `Running` for a whole drain. This is the only place
+  // that omission is visible.
+  const depsStart = source.indexOf("const projectDeps = {");
+  assert.notEqual(depsStart, -1, "expected a projectDeps object in the sites-home branch");
+  const deps = source.slice(depsStart, source.indexOf("};", depsStart));
+  assert.match(deps, /transitions: siteTransitions,/);
+  assert.match(source, /const siteTransitions = createSiteTransitions\(\);/);
+  assert.match(source, /import \{ createSiteTransitions \} from "\.\/src\/site-transitions\.ts";/);
+});
+
 test("the deps carry a scan root and the recently-opened list for the scan to read", () => {
   const depsStart = source.indexOf("const projectDeps = {");
   assert.notEqual(depsStart, -1, "expected a projectDeps object in the sites-home branch");
