@@ -73,10 +73,19 @@ name: Deploy to Fly.io
 # ============================================================================
 # Fires on push to `main` — this repo's default branch (confirmed via `gh repo view --json
 # defaultBranchRef`), not the branch this workflow was authored on
-# (`restructure/apps-website-phased`, 1783 commits ahead of `main` with `main` zero commits ahead
-# of it). Pushes to that branch will NOT trigger this workflow until it's merged — use
-# `workflow_dispatch` (the "Run workflow" button on this workflow's Actions tab page) to deploy
-# by hand from any branch in the meantime.
+# (`restructure/apps-website-phased`). A push to any other branch does nothing here: no run, no
+# error, no warning. `workflow_dispatch` (the "Run workflow" button on this workflow's Actions tab
+# page) is the manual escape hatch.
+#
+# How far that other branch is from `main` is deliberately NOT recorded here. It was written down
+# as a number once and was wrong; `git rev-list --left-right --count origin/main...HEAD` answers it
+# in one command and cannot go stale.
+#
+# What a dispatch pins: nothing. It resolves a branch NAME, at dispatch time, to whatever that
+# branch points at, and `actions/checkout` below builds that SHA. On 2026-09-18 that resolved
+# `main` to a week-old commit and shipped it — successfully, changing nothing visible. See
+# ADS-memory/reports/2026-09-18-deploy-ref-gap.md. So read the tip before you dispatch:
+#   gh api repos/<owner>/<repo>/branches/main --jq '.commit.sha, .commit.commit.committer.date'
 
 on:
   push:

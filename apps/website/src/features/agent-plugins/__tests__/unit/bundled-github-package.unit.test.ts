@@ -235,3 +235,69 @@ test("SKILL.md forbids shelling out to git/curl for GitHub, and never invents a 
   // This plugin ships no server, so it must not promise a tool that does not exist.
   assert.match(skill, /ships no MCP server|adds no tool/i);
 });
+
+/**
+ * The deploy-ref gap (ADS-memory/reports/2026-09-18-deploy-ref-gap.md, §G4 and recommendation W2).
+ *
+ * A production deploy on 2026-09-18 succeeded and changed nothing on the live site: the dispatch
+ * named the ref `main`, `main` had not moved since 2026-09-11, and NO layer — workflow, plugin or
+ * tool — ever told the operator which commit they were shipping. A branch name cannot distinguish
+ * "your work is on this ref" from "your work is 480 commits away from this ref"; only a SHA and a
+ * date can, and both are one GET away on an endpoint this procedure already had a credential for.
+ *
+ * These assertions pin the RESOLUTION STEP, not its wording: the endpoint, the three fields read
+ * off it, and the two properties a later edit would most plausibly drop — that the step reports
+ * rather than gates (gating is a separate, owner-only decision), and that the assistant must not
+ * pretend to see a local working copy it has no shell to read.
+ */
+
+test("actions.md: the ref is RESOLVED to a commit before dispatch, via the branches endpoint", async () => {
+  const actions = await readReference("actions.md");
+
+  assert.ok(
+    actions.includes("https://api.github.com/repos/<owner>/<repo>/branches/<ref>"),
+    "the pre-dispatch resolution call must name the branches endpoint literally — a described-but-unwritten URL is one a model composes wrong",
+  );
+  assert.ok(actions.includes("commit.sha"), "the resolved commit's field path must be named exactly — `sha` alone is a different field on that response");
+  assert.ok(
+    actions.includes("commit.commit.committer.date"),
+    "the tip's DATE is the half that exposed the incident: a week-old tip under a week of local work. Naming the field path is what makes it reportable",
+  );
+});
+
+test("actions.md: the resolved ref, its SHA and its date are STATED to the human before the POST", async () => {
+  const actions = await readReference("actions.md");
+  assert.match(actions, /before you POST the dispatch/i);
+  // A branch name read at two different times is the same string and a different commit. That is
+  // the whole reason the SHA is required rather than nice to have.
+  assert.match(actions, /A branch name is not a commit/i);
+});
+
+test("actions.md: the resolution step REPORTS and does not gate — refusing is a separate owner decision", async () => {
+  const actions = await readReference("actions.md");
+
+  // Turning this into a confirmation prompt would extend the DELETE-only gate the owner named as
+  // "the one exception, not a template to extend" (custom-credentials/tool-registrations.ts:122).
+  assert.ok(actions.includes("This step reports. It never blocks."), "the report-not-gate property must be stated, not merely implied by the absence of a gate");
+  assert.match(actions, /Do not ask for\s+confirmation/i);
+});
+
+test("actions.md: an identical head_sha predicts a no-op deploy, and head_sha is read when polling", async () => {
+  const actions = await readReference("actions.md");
+
+  assert.ok(actions.includes("workflow_runs[0].head_sha"), "the last run's built commit is the cheap comparison — same list the poll loop already reads");
+  assert.match(actions, /byte-identical source to the last one/i);
+
+  // And the poll loop must carry the field forward, or the follow-up report drops back to a branch
+  // name and the pre-dispatch fact cannot be confirmed against what actually built.
+  assert.ok(
+    actions.includes("`head_branch`, `head_sha`"),
+    "head_sha must be in the list of fields read off workflow_runs[0] — it is already in that response and costs nothing",
+  );
+});
+
+test("actions.md: the human's LOCAL working copy is declared invisible, not guessed at", async () => {
+  const actions = await readReference("actions.md");
+  assert.match(actions, /no `git` and no shell/i);
+  assert.match(actions, /do not imply you\s+checked/i);
+});

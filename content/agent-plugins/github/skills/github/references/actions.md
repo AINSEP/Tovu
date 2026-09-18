@@ -14,7 +14,8 @@ Three facts, none of which you may guess:
    recognizes, so prefer it.
 3. **The ref** — the branch to run on. GitHub reads the workflow definition *from that ref*, so the
    workflow file must already exist there. `GET /repos/{owner}/{repo}` returns `default_branch` if
-   you need it; do not assume `main`.
+   you need it; do not assume `main`. And naming the ref is not knowing it — resolve it to a commit
+   before you dispatch, per the section below.
 
 And one check worth its single call: confirm the workflow is actually registered.
 
@@ -32,6 +33,66 @@ catching here rather than in a confused poll loop ten minutes later.
 
 If a file you just wrote is not in that list, GitHub has not picked it up yet, or it is not on the
 ref you are looking at. Do not dispatch into that gap.
+
+---
+
+## Resolve the ref to a commit, and say which commit, before you dispatch
+
+**A branch name is not a commit.** `main` reads as the same string on the day your work lands on it
+and on a day it is a month behind — the name cannot tell those two apart, and neither can the human,
+unless you tell them. One GET turns the name into a fact:
+
+```
+custom_credential_make_request({
+  label: "github",
+  method: "GET",
+  url: "https://api.github.com/repos/<owner>/<repo>/branches/<ref>"
+})
+```
+
+Three fields off that response:
+
+| Field | What it gives you |
+|---|---|
+| `name` | The ref, confirmed to exist. A 404 here is the same missing ref the dispatch would have returned as a **422**, caught one call earlier and in a message that names it plainly. |
+| `commit.sha` | The exact commit this run will build. |
+| `commit.commit.committer.date` | When that commit landed on the ref. |
+
+**State all three before you POST the dispatch**, with the age in plain words:
+
+> Deploying `main` @ `f2997c6e` — committed 2026-09-11, 7 days ago.
+
+The date is the half that does the work. A tip a week old, told to someone who has been working all
+week, is the visible shape of *"this is about to ship something other than what you just wrote"* —
+and it is one line, at the only moment it is still cheap.
+
+**This step reports. It never blocks.** Say what the ref resolves to, then dispatch. Do not ask for
+confirmation, do not refuse, and do not wait to be told to continue. Whether this deploy should go
+out is the human's call, and they can only make it if you have said what it is.
+
+### One more comparison, already paid for
+
+The runs list you will poll *after* the dispatch also answers a question worth asking *before* it:
+
+```
+custom_credential_make_request({
+  label: "github",
+  method: "GET",
+  url: "https://api.github.com/repos/<owner>/<repo>/actions/workflows/<file.yml>/runs?per_page=1"
+})
+```
+
+If `workflow_runs[0].head_sha` equals the `commit.sha` you just resolved, this run will build
+**byte-identical source to the last one**. Say so, in those words, before you dispatch. A green run
+that changes nothing is the most confusing outcome anything in this document can produce, and it is
+fully predictable one call ahead of it happening.
+
+### What you cannot compare against
+
+The human's own working copy. There is no `git` and no shell here — their local branch, their
+uncommitted work, and whether they have pushed any of it are all invisible to you. Do not guess at
+them, and do not imply you checked. Give them the ref, the SHA and its date; if that tip reads older
+than the conversation you are having, say the date out loud and let them draw the conclusion.
 
 ---
 
@@ -74,7 +135,10 @@ custom_credential_make_request({
 })
 ```
 
-Read `workflow_runs[0]`: `id`, `status`, `conclusion`, `html_url`, `head_branch`, `created_at`.
+Read `workflow_runs[0]`: `id`, `status`, `conclusion`, `html_url`, `head_branch`, `head_sha`,
+`created_at`. `head_sha` is the commit that actually built: check it against the SHA you resolved
+before dispatching, and report it next to the conclusion. The two differ when someone pushed
+between your read and your dispatch — a fact to state, not a problem to solve.
 
 **Two things to get right before you interpret it:**
 
