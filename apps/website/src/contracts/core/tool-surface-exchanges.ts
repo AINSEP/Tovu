@@ -84,6 +84,42 @@ export const SURFACE_EXCHANGE_ID_PARAM = "__exchangeId";
 export const SURFACE_DISMISSED_PARAM = "__dismissed";
 
 /**
+ * The callback param carrying free text a human TYPED — into the chat composer — as their answer to
+ * an outstanding surface, rather than clicking the rendered form.
+ *
+ * ## The deadlock this exists to break
+ *
+ * A held-open exchange can only be resolved by a message that names it, and until now every param
+ * shape a surface posts back was one the FORM produced. A human who reads the question, ignores the
+ * dialog and types the answer into the composer therefore resolved nothing: their message was queued
+ * behind the very run it was meant to unblock, and the agent sat parked until the idle deadline
+ * fired minutes later. Observed live 2026-09-18 (`sites/tovu-com/chat.db` run
+ * `2adef4d1-3bf2-496f-9e22-7c53ffcc1503`, still `run_status='running'` 35 minutes on), owner's
+ * words: *"it asked a question and I answered but it's stuck ... it should get messages as I type
+ * them, not hold it."*
+ *
+ * ## Why it is a separate param rather than the tool's own answer fields
+ *
+ * Prose is not a selection. A tool whose answer fields are option VALUES the model itself supplied
+ * (`assistant_ask_choice`'s `choice`/`selections`) would, if prose were poured into them, report to
+ * the model that the administrator picked an option that was never offered. Carrying typed text
+ * under its own name is what forces each tool to decide, explicitly, what a typed answer means for
+ * its own result — and lets a tool that has no safe reading of one simply ignore it.
+ *
+ * ## What it deliberately cannot do
+ *
+ * It cannot confirm anything. `classifyConfirmationAnswer` reads only a literal `decision:
+ * "confirm"`, so a typed answer arriving at a confirmation-shaped exchange fails closed to
+ * `"declined"` with no code change and no exception — which is the correct reading of "the human
+ * wrote a sentence instead of clicking Confirm". Nothing here should ever grow a prose-to-consent
+ * mapping.
+ *
+ * Double-underscored, and named here rather than at a tool, for the same reason as
+ * {@link SURFACE_EXCHANGE_ID_PARAM}: several parties must agree on the spelling.
+ */
+export const SURFACE_TYPED_ANSWER_PARAM = "__typedAnswer";
+
+/**
  * How long an exchange may sit with nothing happening before it gives up.
  *
  * Per *turn*, not per exchange: it resets whenever a message is sent or received, so a long

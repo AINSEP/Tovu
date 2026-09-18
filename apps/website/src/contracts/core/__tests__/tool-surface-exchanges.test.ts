@@ -8,6 +8,7 @@ import {
   DEFAULT_SURFACE_MAX_LIFETIME_MS,
   askOnce,
   askThenReport,
+  SURFACE_TYPED_ANSWER_PARAM,
   classifyConfirmationAnswer,
   createSurfaceExchangeStore,
   resolveConfirmationDecision,
@@ -414,6 +415,22 @@ test("classifyConfirmationAnswer: a non-string 'decision' is declined, not confi
     confirmed: false,
     reason: "declined",
   });
+});
+
+/**
+ * The security boundary on {@link SURFACE_TYPED_ANSWER_PARAM}: it unblocks a QUESTION, never a
+ * CONFIRMATION. A human who types "yes do it" into the chat composer while a delete/publish/
+ * credential-save dialog is outstanding must not thereby consent to it — consent for an
+ * externally-visible action comes from clicking the button on the surface that names what is about
+ * to happen, and nothing else. This passes today only because `classifyConfirmationAnswer` reads a
+ * literal `decision: "confirm"` and ignores everything else; pinning it means any future attempt to
+ * add a prose-to-consent mapping has to delete this test on purpose.
+ */
+test("classifyConfirmationAnswer: a typed chat answer never confirms — even when the words say yes", () => {
+  assert.deepEqual(
+    classifyConfirmationAnswer({ status: "received", params: { [SURFACE_TYPED_ANSWER_PARAM]: "yes do it" } }),
+    { confirmed: false, reason: "declined" },
+  );
 });
 
 test("classifyConfirmationAnswer: an unrecognised 'decision' string is declined, not confirmed", () => {

@@ -16,6 +16,7 @@ import { buildUIToolResult } from "./mcp-ui.js";
 import {
   SURFACE_DISMISSED_PARAM,
   SURFACE_EXCHANGE_ID_PARAM,
+  SURFACE_TYPED_ANSWER_PARAM,
   askOnce,
   type AssistantSurfaceDeps,
   type SurfaceExchange,
@@ -414,6 +415,47 @@ function describeAskChoiceAnswer(params: Record<string, unknown>): Record<string
   };
 }
 
+/**
+ * Shapes a TYPED answer — free text the administrator wrote into the chat composer instead of
+ * clicking the rendered form — into the tool's return value, or `undefined` when the delivery
+ * carried no usable one.
+ *
+ * ## Why this is not just another key in {@link describeAskChoiceAnswer}
+ *
+ * `choice` and `selections` report the option VALUES the model itself supplied. Prose is not one of
+ * them. Reporting `{"choice": "take15-cut-v3 should be the video"}` would tell the model the
+ * administrator picked an option that was never offered — a fabricated selection, arriving through
+ * an entirely legitimate channel. So typed text comes back under its own field, with both option
+ * fields absent, and the note says in as many words that nothing was selected.
+ *
+ * ## Fail-quiet, not fail-closed, on a malformed value
+ *
+ * A non-string or blank value returns `undefined` and the caller falls through to the ordinary
+ * form-answer branch, which reports `submitted: true` with no answer fields — "they responded, they
+ * chose nothing". That is the truthful reading, and it is strictly safer than either alternative:
+ * `String(value)` would hand the model `"[object Object]"` as the human's words, and throwing would
+ * turn a malformed client into a failed agent call the administrator cannot recover from without
+ * the whole run dying.
+ *
+ * @param params - The delivered exchange params, straight off `SurfaceExchangeStore.deliver`.
+ * @returns The tool result for a typed answer, or `undefined` when there is no usable typed answer.
+ * @complexity O(1).
+ */
+function describeTypedAskChoiceAnswer(params: Record<string, unknown>): Record<string, unknown> | undefined {
+  const raw = params[SURFACE_TYPED_ANSWER_PARAM];
+  if (typeof raw !== "string") return undefined;
+  const freeText = raw.trim();
+  if (freeText.length === 0) return undefined;
+  return {
+    submitted: true,
+    freeText,
+    note:
+      "The administrator answered in their own words instead of picking one of the options. Treat 'freeText' as " +
+      "what they said, not as a selection: none of the options you offered was chosen. Say what you understood " +
+      "before acting on it, and ask again if it is ambiguous.",
+  };
+}
+
 /** The two {@link SurfaceMessage} statuses that mean "the administrator never answered" — mirrors
  *  `demo-choices-tool.ts#describeUnansweredForm`. */
 function describeUnansweredAskChoice(status: Exclude<SurfaceMessage["status"], "received">): Record<string, unknown> {
@@ -491,7 +533,11 @@ async function awaitAskChoiceSubmission(input: {
         note: "The administrator cancelled the form without answering. Do not assume any answer.",
       };
     }
-    return describeAskChoiceAnswer(answer.params);
+    // Checked before the form-answer branch, not after: a typed answer carries no `choice`/
+    // `selections` at all, so falling through would report `submitted: true` with the administrator's
+    // actual words silently dropped — the model would be told they answered and never learn what
+    // they said.
+    return describeTypedAskChoiceAnswer(answer.params) ?? describeAskChoiceAnswer(answer.params);
   } finally {
     signal.removeEventListener("abort", closeOnAbort);
   }
