@@ -5,6 +5,7 @@ import { createServingApp } from "./server/runtime/composition/serving-app.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./server/runtime/boot/dev-tls.js";
 import { createSqliteRouteDeps, defaultContentDbPath, siteDir } from "./server/runtime/composition/deps.js";
 import { runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-readiness-gate.js";
+import { warnIfNoRootKeyAtBoot } from "./server/runtime/boot/root-key-boot-notice.js";
 import { runBootLifecycle } from "./server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules, logCriticalBootFailures } from "./server/runtime/boot/bootstrap.js";
 import { agentDaemonWanted } from "./server/runtime/boot/agent-daemon-wanted.js";
@@ -252,6 +253,12 @@ async function main(): Promise<void> {
   registerPluginSdkResolver();
 
   await runProductionReadinessGateOrExit();
+
+  // The LOCAL-mode counterpart to the gate above, which returns immediately outside production.
+  // "Do not refuse to boot without a root key" was implemented as "do not mention it", and that
+  // silence cost an afternoon on 2026-09-18 — see `root-key-boot-notice.ts`'s own header. Warns
+  // and carries on; never refuses, never throws.
+  warnIfNoRootKeyAtBoot();
 
   if (!useMemory) guardContentDbSchemaOrExit(defaultContentDbPath());
 
