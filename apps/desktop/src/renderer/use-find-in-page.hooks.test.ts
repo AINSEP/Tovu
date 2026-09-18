@@ -15,6 +15,7 @@ import {
   initialFindBarState,
   resolveFindTarget,
   runFind,
+  shouldCloseOnGuestChange,
   stopFind,
   type FindBarState,
   type FindableGuest,
@@ -105,6 +106,14 @@ test('resolveFindTarget is top with no active tab, and none with no bridge eithe
   assert.equal(resolveFindTarget({ activeGuestId: null, guests: new Map(), bridge: fakeBridge() }).kind, 'top');
   assert.equal(resolveFindTarget({ activeGuestId: null, guests: new Map(), bridge: undefined }).kind, 'none');
   assert.equal(resolveFindTarget({ activeGuestId: 'site-1', guests: new Map(), bridge: undefined }).kind, 'none');
+});
+
+test('shouldCloseOnGuestChange: true only when the bar is open AND the visible surface actually changed', () => {
+  assert.equal(shouldCloseOnGuestChange('a', 'a', true), false, 'same tab, no-op');
+  assert.equal(shouldCloseOnGuestChange('a', 'b', true), true, 'switched tabs while open');
+  assert.equal(shouldCloseOnGuestChange(null, 'a', true), true, 'Projects screen -> a tab, while open');
+  assert.equal(shouldCloseOnGuestChange('a', null, true), true, 'a tab -> Projects screen, while open');
+  assert.equal(shouldCloseOnGuestChange('a', 'b', false), false, 'switched while already closed: nothing to close');
 });
 
 test('runFind on a guest target calls the guest directly, never the bridge', () => {

@@ -119,6 +119,21 @@ export function runFind(target: FindTarget, bridge: FindBridge | undefined, text
 }
 
 /**
+ * Whether a bar that is currently `open` should close because the visible surface just changed
+ * (a different tab, or Projects screen <-> a tab) — never for a re-render that left
+ * `activeGuestId` the same, and never while already closed (nothing open to reset).
+ *
+ * Extracted as a plain decision, not inlined in the effect that calls it, for the same reason
+ * every other routing choice in this file is a function: `useFindInPage` cannot be unit tested
+ * directly (see this file's own header), so the DECISION has to be testable on its own.
+ *
+ * @complexity O(1).
+ */
+export function shouldCloseOnGuestChange(previousGuestId: string | null, activeGuestId: string | null, open: boolean): boolean {
+  return open && previousGuestId !== activeGuestId;
+}
+
+/**
  * Stops any in-flight search on `target` and clears its highlights. Same not-attached-yet tolerance
  * as {@link runFind}.
  *
@@ -232,6 +247,25 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
     runFind(target, bridge, state.query, { forward: true, findNext: true });
     // biome-ignore lint/correctness/useExhaustiveDependencies: depends on target's stable inputs (activeGuestId), not the fresh `target`/`bridge` objects themselves.
   }, [state.query, state.open, activeGuestId]);
+
+  // Closes (and clears the OUTGOING surface's own highlights) on a tab switch while the bar is
+  // open — known rough edge until now: switching tabs left the bar open, still showing the
+  // previous tab's stale query/count, and never cleared that tab's own highlight because nothing
+  // called `stopFind` for it once it went off screen. Mirrors `App.hooks.ts`'s
+  // `expandedAfterWorkspaceChange` precedent for the identical class of problem (collapse-on-
+  // workspace-change). `previousGuestIdRef` — not `target` — resolves the OUTGOING guest: by the
+  // time this effect runs post-commit, `activeGuestId` (and therefore `target`) already point at
+  // the NEW surface.
+  const previousGuestIdRef = useRef(activeGuestId);
+  useEffect(() => {
+    if (shouldCloseOnGuestChange(previousGuestIdRef.current, activeGuestId, state.open)) {
+      const outgoing = resolveFindTarget({ activeGuestId: previousGuestIdRef.current, guests, bridge });
+      stopFind(outgoing, bridge);
+      dispatch({ type: 'close' });
+    }
+    previousGuestIdRef.current = activeGuestId;
+    // biome-ignore lint/correctness/useExhaustiveDependencies: keys on activeGuestId's stable identity only, matching this file's other target-derived effects above.
+  }, [activeGuestId]);
 
   const close = () => {
     stopFind(target, bridge);
