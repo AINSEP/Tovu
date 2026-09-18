@@ -31,6 +31,7 @@
  * it shares with `duplicateSite` (SPEC-050 REQ-12/REQ-14), so both copy paths run the same SQL.
  */
 import Database from "better-sqlite3";
+import { spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -217,10 +218,11 @@ function vacuumAndVerify(db) {
 }
 
 /**
- * Whether the file backing one `asset_blobs` row is actually a usable blob: a real, regular file
- * (not a directory, symlink, or other non-regular entry) whose BYTES really hash to the row's own
- * `sha256` column. `fs.existsSync()` alone answers neither question — it returns `true` for a
- * directory or a valid symlink, and says nothing about content — which is exactly how this check's
+ * Whether the WORKING-TREE file backing one `asset_blobs` row is actually a usable blob: a real,
+ * regular file (not a directory, symlink, or other non-regular entry) whose BYTES really hash to the
+ * row's own `sha256` column. Half the answer only — {@link findSeedBlobDefect} also asks git whether
+ * the file will survive a clone. `fs.existsSync()` alone answers neither question — it returns
+ * `true` for a directory or a valid symlink, and says nothing about content — which is exactly how this check's
  * prior version let a directory or wrong-content file pass as a "blob" (see `findMissingSeedBlobs`'s
  * own doc for the incident this closes). Since `storage_key` is content-addressed
  * (`ws/{workspaceId}/blobs/{shard}/{sha256}`, `blob-key.ts`'s own template), the row's `sha256`
@@ -239,7 +241,7 @@ function vacuumAndVerify(db) {
  *   whole live db in-process, so a synchronous full-file hash per blob is consistent with its
  *   existing resource profile rather than a new concern this change introduces.
  */
-function seedBlobIsValid(row, liveDir) {
+function uploadFileHasValidBytes(row, liveDir) {
   const filePath = path.join(liveDir, "uploads", row.storage_key);
   let stat;
   try {
@@ -253,8 +255,71 @@ function seedBlobIsValid(row, liveDir) {
 }
 
 /**
- * Cross-checks the seed's remaining `asset_blobs` rows against `<site>/uploads/` on disk — every
- * row's `storage_key` must resolve to a real, correctly content-addressed regular file, or this
+ * Every uploads file git actually TRACKS under `liveDir`, as the `uploads/...`-relative,
+ * forward-slash paths `git ls-files` prints — the same shape `uploads/${row.storage_key}` has.
+ *
+ * WHY GIT AND NOT THE DISK (2026-09-18). CI and the Fly image build from a git CLONE, and the
+ * Dockerfile copies `uploads/` out of that clone — so a blob that was never staged is absent from the
+ * build context however valid it looks here. Checking only the working tree passed 16 such rows on
+ * branch HEAD while the deployed commit shipped 6 of them (measured in
+ * `ADS-memory/reports/2026-09-18-deploy-content-inventory.md` §c): real `media` rows, no bytes, blank
+ * previews — the exact incident this guard exists to prevent, reintroduced through the guard itself.
+ *
+ * The INDEX, not `HEAD`: `content.seed.db` and its blobs are meant to be committed together, so the
+ * question worth answering is "will the commit I am about to make carry these bytes", and `HEAD`
+ * lags that by exactly one commit. `git ls-files` therefore also keeps listing a path whose file has
+ * been deleted from the working tree; {@link findSeedBlobDefect} still rejects that row, because this
+ * check never reads bytes back out of git's object store and so cannot vouch for them.
+ *
+ * @throws if git cannot answer — no git binary, or `liveDir` is not inside a checkout (a tarball or
+ *   a consumer install). Falling back to the working-tree-only answer would silently restore the hole
+ *   above, and this guard's whole failure mode is silence, so it fails loud instead.
+ * @complexity one `git` process and one Set of t tracked paths per call, for t files under
+ *   `uploads/` — not per row.
+ */
+function listTrackedUploadPaths(liveDir) {
+  // `-z` so paths arrive raw rather than quoted/escaped; no `--full-name`, so they are relative to
+  // `liveDir` itself instead of to the repo root, which is what the rows' keys are relative to.
+  // `maxBuffer` well above spawnSync's 1 MB default: a site with tens of thousands of tracked
+  // uploads would otherwise fail this check on ENOBUFS rather than on anything about its blobs.
+  const listed = spawnSync("git", ["-C", liveDir, "ls-files", "-z", "--", "uploads"], {
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (listed.error || listed.status !== 0) {
+    const detail = listed.error ? listed.error.message : `git exited ${listed.status}: ${String(listed.stderr).trim()}`;
+    throw new Error(
+      `seed-site: cannot ask git which files under ${path.join(liveDir, "uploads")} are tracked (${detail}). ` +
+        "A deployed site gets its uploads from a git clone, not from this working tree, so without git " +
+        "there is no way to tell a blob that will travel from one that will not — and guessing would " +
+        "restore the exact missing-bytes incident this check exists to prevent. Run `npm run seed:site` " +
+        "inside a git checkout."
+    );
+  }
+  return new Set(listed.stdout.split("\0").filter((trackedPath) => trackedPath !== ""));
+}
+
+/**
+ * Why one `asset_blobs` row's bytes would not reach a deployed site, or `null` when they will.
+ * Both conditions must hold and neither implies the other: the working tree proves the bytes are
+ * right, git proves they will travel.
+ *
+ * @returns `"missing"` (no usable regular file with matching bytes in the working tree — including a
+ *   path git still tracks but whose file was deleted), `"untracked"` (a perfectly valid local file
+ *   git does not track, so a clone will not have it), or `null`.
+ */
+function findSeedBlobDefect(row, liveDir, trackedUploadPaths) {
+  // Working tree first: a bad file is the deeper defect, and reporting it as merely "untracked"
+  // would send the operator off to `git add` bytes that are wrong anyway.
+  if (!uploadFileHasValidBytes(row, liveDir)) return "missing";
+  if (!trackedUploadPaths.has(path.posix.join("uploads", row.storage_key))) return "untracked";
+  return null;
+}
+
+/**
+ * Cross-checks the seed's remaining `asset_blobs` rows against `<site>/uploads/` — every row's
+ * `storage_key` must resolve to a real, correctly content-addressed regular file that git also
+ * TRACKS (see {@link listTrackedUploadPaths} for why tracking is half the question), or this
  * script would publish a seed that ships real `media`/`asset_blobs` ROWS with no way to ever get
  * their BYTES (the exact production incident this check exists to prevent: `content.seed.db` ships
  * regardless of whether `uploads/` has the matching file, since neither table is in
@@ -269,12 +334,22 @@ function seedBlobIsValid(row, liveDir) {
  * without running this script's real live-db-copying `main()` as an import side effect (see the
  * `main()` guard at the bottom of this file).
  *
- * @returns every `storage_key` whose file is missing, non-regular, or hash-mismatched — empty
- *   means consistent.
+ * @returns one `{ storageKey, reason }` per row whose bytes a fresh deploy would not get, in table
+ *   order — `reason` as {@link findSeedBlobDefect} defines it. Empty means consistent.
+ * @throws (via {@link listTrackedUploadPaths}) if there are rows to check and git cannot say which
+ *   uploads files are tracked.
  */
 export function findMissingSeedBlobs(db, liveDir) {
   const rows = db.prepare(`SELECT storage_key, sha256 FROM asset_blobs`).all();
-  return rows.filter((row) => !seedBlobIsValid(row, liveDir)).map((row) => row.storage_key);
+  // No rows means nothing can ship without its bytes, so there is nothing to ask git about — and a
+  // blob-free site must not start failing merely because it is being seeded outside a checkout.
+  if (rows.length === 0) return [];
+
+  const trackedUploadPaths = listTrackedUploadPaths(liveDir);
+  return rows.flatMap((row) => {
+    const reason = findSeedBlobDefect(row, liveDir, trackedUploadPaths);
+    return reason === null ? [] : [{ storageKey: row.storage_key, reason }];
+  });
 }
 
 /** Atomically publishes the finished scratch copy to `seedDbPath` (write-then-rename, same dir/fs). */
@@ -337,11 +412,15 @@ export function seedSite(required) {
       // `findMissingSeedBlobs`'s own doc for the incident this prevents.
       const missingBlobs = findMissingSeedBlobs(db, liveDir);
       if (missingBlobs.length > 0) {
+        const untrackedCount = missingBlobs.filter((blob) => blob.reason === "untracked").length;
         throw new Error(
-          `seed-site: ${missingBlobs.length} asset_blobs row(s) reference a storage_key with no file under ` +
-            `${path.join(liveDir, "uploads")} — refusing to publish a seed that would ship media rows with ` +
-            "permanently missing bytes. Missing:\n" +
-            missingBlobs.map((key) => `  - ${key}`).join("\n")
+          `seed-site: ${missingBlobs.length} asset_blobs row(s) reference bytes a fresh deploy would never get ` +
+            `(${untrackedCount} on disk under ${path.join(liveDir, "uploads")} but untracked by git, ` +
+            `${missingBlobs.length - untrackedCount} with no usable file there at all) — refusing to publish a ` +
+            "seed that would ship media rows with permanently missing bytes. An `untracked` blob travels only " +
+            "once it is committed, since the deploy builds from a git clone; a `missing` one has no bytes left " +
+            "to ship at all, so its row has to go instead. Affected:\n" +
+            missingBlobs.map(({ storageKey, reason }) => `  - [${reason}] ${storageKey}`).join("\n")
         );
       }
 
@@ -363,7 +442,9 @@ export function seedSite(required) {
       console.log(
         `  site title: ${siteTitleReset.markerRowsDeleted} legacy marker row(s) and ${siteTitleReset.pinRowsDeleted} system pin(s) reset`
       );
-      console.log(`  blobs:    every asset_blobs.storage_key has a matching file under ${path.join(liveDir, "uploads")}`);
+      console.log(
+        `  blobs:    every asset_blobs.storage_key has a matching, git-tracked file under ${path.join(liveDir, "uploads")}`
+      );
     } finally {
       db.close();
     }
