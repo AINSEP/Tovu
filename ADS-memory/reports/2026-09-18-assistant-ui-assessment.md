@@ -4,6 +4,22 @@ Date: 2026-09-18. Branch `restructure/apps-website-phased`. Software-architect `
 loaded. Research and assessment only — no production code written, nothing started, stopped or
 restarted.
 
+> **Corrections, 2026-09-18 (same day, after first commit `62671495`).** Two claims in the original
+> version were checked against the source by the agent that owns this code and **disproven**. Both
+> are corrected in place below, and each correction is marked `[CORRECTED]` so a later reader can
+> see it was checked rather than silently edited.
+>
+> 1. **§3's `interleaveMessageBlocks` lead was wrong.** That bail-out changes block *order*, never
+>    *presence* — the flat fallback renders every ext group. It could not have caused problem 2.
+>    This contradicted a finding stated two paragraphs earlier in my own §3; I published both.
+> 2. **§1's "the server half is already built" was materially wrong** — the route accepting a
+>    top-level `exchangeId` was necessary and nowhere near sufficient. This one was relayed to the
+>    owner before it was checked, so it cost something. Detail in §1.
+>
+> The fix for problem 2 is committed: `f90453e3`, `c4542107`, `c1b4b496`. The rest of the
+> assessment — including the finding that problem 2 was never a missing capability in the component
+> model — was independently confirmed and stands.
+
 ---
 
 ## Verdict
@@ -42,12 +58,31 @@ casually replaces it is replacing a decision, not fixing a defect.
 
 **Item 3 deserves a nuance.** It is *partly* a UI problem — the composer had no idea a tool call was
 awaiting a human answer, so it offered the owner the only affordance it has (send a message). A UI
-that knows about pending tool calls would route or at least warn. But note the server side is
-**already built**: `mcp-ui-tool-calls-route.ts` accepts the exchange id as a **top-level
-`exchangeId`**, explicitly so that "any channel that can name an exchange directly… uses the
-top-level field and never touches the tool-call shape at all." So "typed text answers the parked
-exchange" is buildable today against the endpoint that already exists. assistant-ui is not what
-unlocks it.
+that knows about pending tool calls would route or at least warn.
+
+**[CORRECTED]** The original version of this report went on to claim the server half was "already
+built," on the grounds that `mcp-ui-tool-calls-route.ts` accepts the exchange id as a top-level
+`exchangeId`. **That claim was materially wrong**, and I relayed it upward before it was checked.
+The route has always accepted that field — that was read and quoted before any work began. It was
+necessary and nowhere near sufficient:
+
+- **The composer has no exchange id to send.** The only client-side copy lives inside sandboxed,
+  model-influenced surface HTML. A client that scraped it would be posting back a correlation the
+  model wrote both ends of — which is the exact forgery `ask-choice-tool.ts`'s ticket store already
+  exists to prevent on the sibling path.
+- **Even handed a correct id, the answer was dropped.** `deliver()` would unpark the call, but
+  `describeAskChoiceAnswer` reads only `choice`/`selections`, so the model would receive
+  `{submitted: true}` with the human's actual words silently discarded — worse than the deadlock,
+  because it *looks* answered. That was the RED test.
+
+So "typed text answers the parked exchange" was **not** buildable today against the existing
+endpoint. It required real work, now committed (`f90453e3`, `c4542107`, `c1b4b496`). The conclusion
+this paragraph supports is unchanged — assistant-ui is not what unlocks it — but the reasoning
+above is the correct reasoning, and the cost was not near zero.
+
+**The general lesson, since it is this repo's recurring defect:** I read a route that accepts the
+right parameter and concluded the path was wired. Correct primitive, unwired call site. Reading one
+end of a path is not tracing it.
 
 **Items 4 and 5 are out of reach of any chat library.** Item 4 is the `assistant_agent_sessions`
 table's `PRIMARY KEY (conversation_id, agent_id)` — one CLI session per conversation, independently
@@ -164,11 +199,24 @@ its files. But I established enough to keep the assessment honest, and this boun
   and the flat fallback), so neither path structurally drops an `mcp-ui` surface.
 
 Therefore problem 2 is **a wiring/association defect in our own event→message plumbing, not a
-missing capability in the component model.** One candidate worth handing the sibling agent:
-`interleaveMessageBlocks` bails to the flat layout when `concatenated !== content`
-(`Jini/packages/chat/src/react/message-blocks.ts:91`) — a real possibility for an in-flight
-message. The flat path still renders ext groups, so that alone is not sufficient, but it is where
-the two paths diverge. **Unverified — flagged, not concluded.**
+missing capability in the component model.** That conclusion was independently confirmed and the
+fix is committed (`f90453e3`, `c4542107`, `c1b4b496`).
+
+**[CORRECTED]** The original version of this report offered `interleaveMessageBlocks` bailing to the
+flat layout (`Jini/packages/chat/src/react/message-blocks.ts:91`) as a candidate cause. **That lead
+is disproven.** The bail-out changes block *order*, never *presence*: `MessageRow.tsx:250` falls
+back to the flat layout and `MessageRow.tsx:352` renders `extGroups.map(renderExtGroup)`
+unconditionally there, so an in-flight message that fails the byte-for-byte check still renders
+every ext group, MCP-UI card included. The module's own doc says this is deliberate — losing
+ordering is a presentation regression, dropping the assistant's words is a correctness one, so it
+prefers the former. The second bail at `MessageRow.tsx:250`
+(`visibleContent === message.content ? interleave(...) : null`) lands in the same flat path and is
+equally harmless.
+
+Worth naming plainly: that lead contradicted the sentence two paragraphs above it in this same
+section, which already established that *both* layouts render ext groups. I published both. A
+"flagged, not concluded" label does not make an internally inconsistent claim safe to ship — it
+still sends someone down a dead end.
 
 This matters for the verdict: *a defect we can fix is not a reason to adopt a library.*
 
@@ -216,8 +264,9 @@ genuinely more robust than "widget is a separate event that must arrive and be c
 
 Sequence, in priority order:
 
-1. **Fix items 2, 3, 4 in Tovu code now.** Already in flight (`chat-askchoice-fix`). This is what
-   actually unsticks the owner's chat, this week. Do not let a library evaluation delay it.
+1. **Fix items 2, 3, 4 in Tovu code now.** **Done, same day** — `f90453e3`, `c4542107`, `c1b4b496`
+   (`chat-askchoice-fix`). This is what actually unstuck the owner's chat. A library evaluation was
+   never going to.
 2. **Run the probe in §6.** 1–2 days, throwaway, zero production code.
 3. **Only if the probe is clean**, budget the side-by-side dock the owner already directed on
    2026-09-11.
@@ -258,8 +307,9 @@ shapes, attachments, history, A2UI, and bundle size.
 
 ## 7. Claims I am marking UNVERIFIED
 
-- The exact root cause of problem 2 (§3). Owned by `chat-askchoice-fix`. My `interleaveMessageBlocks`
-  note is a lead, not a finding.
+- ~~The exact root cause of problem 2 (§3).~~ **[CORRECTED]** Resolved by `chat-askchoice-fix` and
+  committed (`f90453e3`, `c4542107`, `c1b4b496`). My `interleaveMessageBlocks` lead was disproven —
+  see §3.
 - Bundle impact of `@assistant-ui/react` in Tovu's admin build. Needs a locked build; still
   unverified, exactly as `development/todos.md` said in September.
 - Whether `ExternalStoreRuntime` can carry `ToolCallMessagePart.mcp` metadata end to end without the
