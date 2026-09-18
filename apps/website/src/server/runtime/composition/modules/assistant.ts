@@ -54,6 +54,7 @@ import {
   getLiveClaudeModels,
   unionModels,
   isMcpUiToolCallAllowed,
+  isTypedSurfaceAnswer,
   MCP_UI_TOOL_CALLS_PATH,
   RUN_PRINCIPAL_HEADER,
   SURFACE_EXCHANGE_ID_PARAM,
@@ -310,7 +311,18 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
   // that call's own params — see `surface-exchanges.ts`'s doc on `SURFACE_EXCHANGE_ID_PARAM`).
   const params = isPlainObject(body.params) ? body.params : {};
   const exchangeId = typeof body.exchangeId === "string" ? body.exchangeId : params[SURFACE_EXCHANGE_ID_PARAM];
-  if (tryLocalMcpUiDelivery(res, byokSurfaceExchanges, exchangeId, params, toolName)) return;
+  // A TYPED answer (prose from the chat composer) names no exchange — the human never saw one. The
+  // daemon-side route recovers the correlation from its own store; this hop does the same against
+  // the BYOK store first, for the identical reason the exchange-id branch tries local first: a
+  // Local-CLI run's exchange lives HERE and the daemon cannot see it. An unmatched typed answer
+  // falls through below exactly like an unknown exchange id does, so the daemon still answers
+  // authoritatively for every run it owns.
+  const namesAnExchange = typeof exchangeId === "string" && exchangeId.length > 0;
+  const typedTarget =
+    !namesAnExchange && isTypedSurfaceAnswer(params)
+      ? byokSurfaceExchanges.findTypedAnswerTarget({ principalId: getAuthedPrincipal(res).id, toolId: toolName })
+      : undefined;
+  if (tryLocalMcpUiDelivery(res, byokSurfaceExchanges, typedTarget ?? exchangeId, params, toolName)) return;
 
   // `forwardToAgentDaemon` deliberately does NOT relay (see its doc comment) — each caller relays
   // for itself. Without the two lines below this route fetches the daemon's answer and then never

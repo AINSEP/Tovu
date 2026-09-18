@@ -186,7 +186,7 @@ export { createRespawnPolicy } from "./daemon-respawn-policy.js";
 export type { RespawnDecision, RespawnPolicy } from "./daemon-respawn-policy.js";
 export { getLiveClaudeModels, unionModels } from "./live-model-cache.js";
 export { isMcpUiToolCallAllowed } from "./mcp-ui-tool-calls.js";
-export { MCP_UI_TOOL_CALLS_PATH } from "./mcp-ui-tool-calls-route.js";
+export { MCP_UI_TOOL_CALLS_PATH, isTypedSurfaceAnswer } from "./mcp-ui-tool-calls-route.js";
 // `UIResource`/`MCP_UI_MIME_TYPE` are the MCP-UI wire-format contract `mcp-ui.ts` declares —
 // `features/post`'s own agent-tools tests build/assert against this exact shape to verify their
 // tool output conforms to it, the same "consumer needs the port's own type" reasoning as any other

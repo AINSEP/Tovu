@@ -243,7 +243,7 @@ function deliverMcpUiExchange(
  *
  * @complexity O(1).
  */
-function isTypedSurfaceAnswer(params: Record<string, unknown>): boolean {
+export function isTypedSurfaceAnswer(params: Record<string, unknown>): boolean {
   const raw = params[SURFACE_TYPED_ANSWER_PARAM];
   return typeof raw === "string" && raw.trim().length > 0;
 }

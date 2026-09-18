@@ -179,3 +179,90 @@ test("a browser-supplied principal header is overwritten, never trusted", async 
 
   assert.equal(recorded[0].headers[RUN_PRINCIPAL_HEADER], me.user.id);
 });
+
+/**
+ * Typed answers (prose from the chat composer, carried as `SURFACE_TYPED_ANSWER_PARAM`) name no
+ * exchange — the human never saw one — so this hop resolves the target against its OWN
+ * `byokSurfaceExchanges` before forwarding, exactly as the exchange-id branch already does. The two
+ * tests below pin the fork: a locally-parked question is answered here, and anything this store does
+ * not hold still reaches the daemon, which owns every Local-CLI run's exchanges.
+ */
+async function bootWithStore(t: import("node:test").TestContext) {
+  const { origin } = { origin: process.env.JINI_AGENT_DAEMON_URL };
+  assert.ok(origin, "the stand-in daemon must already be running");
+  const { createRouteDeps } = await import("../runtime/composition/app.js");
+  const { createAssistantModule } = await import("../runtime/composition/modules/assistant.js");
+  const { registerAuthRoutes } = await import("../inbound/admin-http/dev-auth.js");
+  const { createSurfaceExchangeStore } = await import("../../contracts/core/tool-surface-exchanges.js");
+
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deps: RouteDeps = createRouteDeps();
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes(app, deps);
+  createAssistantModule(deps, surfaceExchanges).registerRoutes(app);
+
+  recorded = [];
+  const baseUrl = await startTestServer(app, t);
+  const cookie = await loginAsOwner(baseUrl);
+  return { baseUrl, cookie, surfaceExchanges };
+}
+
+/** The session principal this proxy stamps outbound — read off a forwarded request rather than
+ *  hardcoded, since only `getAuthedPrincipal` knows it. */
+async function authedPrincipalId(baseUrl: string, cookie: string): Promise<string> {
+  await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ toolName: "content_post_delete", params: {} }),
+  });
+  const forwarded = recorded.at(-1);
+  assert.ok(forwarded, "the probe request must have reached the stand-in daemon");
+  const principalId = forwarded.headers[RUN_PRINCIPAL_HEADER.toLowerCase()];
+  assert.equal(typeof principalId, "string");
+  return principalId as string;
+}
+
+test("a typed answer is delivered to a locally-parked exchange without a daemon round trip", async (t) => {
+  const { baseUrl, cookie, surfaceExchanges } = await bootWithStore(t);
+  const principalId = await authedPrincipalId(baseUrl, cookie);
+  const exchange = surfaceExchanges.open(
+    { toolId: "assistant_ask_choice", principalId },
+    async () => undefined,
+  );
+  const waiting = exchange.receive();
+  const forwardedBefore = recorded.length;
+
+  const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({
+      toolName: "assistant_ask_choice",
+      params: { __typedAnswer: "take15-cut-v3 should be the video" },
+    }),
+  });
+
+  const body = (await res.json()) as { delivered?: boolean };
+  assert.equal(res.status, 202, JSON.stringify(body));
+  assert.deepEqual(body, { delivered: true });
+  assert.deepEqual(await waiting, {
+    status: "received",
+    params: { __typedAnswer: "take15-cut-v3 should be the video" },
+  });
+  assert.equal(recorded.length, forwardedBefore, "a locally-parked question must not cost a daemon round trip");
+});
+
+test("a typed answer this process holds no exchange for still reaches the daemon", async (t) => {
+  const { baseUrl, cookie } = await bootWithStore(t);
+  const forwardedBefore = recorded.length;
+
+  await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ toolName: "assistant_ask_choice", params: { __typedAnswer: "deploy it" } }),
+  });
+
+  // The owner's own case: the parked call lives in the DAEMON, so refusing here would strand it.
+  assert.equal(recorded.length, forwardedBefore + 1);
+  assert.equal(recorded.at(-1)!.url, MCP_UI_TOOL_CALLS_PATH);
+});
