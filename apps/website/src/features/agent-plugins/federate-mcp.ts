@@ -3,6 +3,7 @@ import { saveExternalMcpServer, type ExternalMcpServerRecord, type ExternalMcpSt
 import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
 import { resolveAgentPluginLayout } from "./layout.js";
 import type { McpServerConfig } from "./manifest.js";
+import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./bundled-digests.js";
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
 
 /**
@@ -266,7 +267,13 @@ export async function resolveAgentPluginMcpServers(input: {
   readonly pluginId: string;
 }): Promise<Readonly<Record<string, McpServerConfig>>> {
   const workspaceLayout = resolveAgentPluginLayout().forWorkspace(input.workspaceId);
-  const installed = await listInstalledPlugins(workspaceLayout.packages);
+  // A bundled plugin that was upgraded in place has its superseded package dropped here, so the
+  // servers this provisions come from the digest the running build published rather than whichever
+  // one the directory walk happened to reach first (`bundled-digests.ts`).
+  const installed = preferBundledAgentPluginDigests(
+    await listInstalledPlugins(workspaceLayout.packages),
+    await readBundledAgentPluginDigests(workspaceLayout.root),
+  );
   const plugin = installed.find((candidate) => candidate.pluginId === input.pluginId);
   return plugin ? readInstalledMcpServers(plugin.packageRoot) : {};
 }

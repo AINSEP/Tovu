@@ -35,6 +35,7 @@ import {
 } from "./activation.js";
 import { readInstalledMcpServerIds, readInstalledSkillMarkdown } from "./capability-projection.js";
 import { resolveAgentPluginLayout } from "./layout.js";
+import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./bundled-digests.js";
 import { isInstalledDigestPresent, listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
 import { rankInstalledAgentPlugins, type AgentPluginSearchCandidate } from "./search.js";
 import {
@@ -131,6 +132,12 @@ import type { ToolContributor } from "#src/assistant/index";
  * one ambiguous plugin rather than aborting every other installed plugin's tool along with it.
  * Adapted here from per-(plugin,skill)-pair to per-plugin, since a plugin id is now the entire
  * granularity of a tool.
+ *
+ * ONE case is no longer ambiguous, since 2026-09-18: a BUNDLED plugin whose upgraded package landed
+ * beside its predecessor. The boot seeder records which digest the running build published
+ * (`bundled-digests.ts`), so superseded installs are dropped before this guard sees them — by the
+ * build's own answer, never by picking one. Every id that ledger has no authority over (operator
+ * installs, a ledger naming a digest that is not present) still reaches the refusal unchanged.
  *
  * ---------------------------------------------------------------------------
  * The optional `skill` argument, and why the default is NOT "dump everything"
@@ -428,7 +435,13 @@ export async function loadInstalledAgentPluginToolSources(ctx: {
   readonly workspaceId: string;
 }): Promise<readonly AgentPluginToolSource[]> {
   const workspaceLayout = resolveAgentPluginLayout().forWorkspace(ctx.workspaceId);
-  const installed = await listInstalledPlugins(workspaceLayout.packages);
+  // Superseded installs of a BUNDLED plugin are dropped BEFORE the ambiguity guard below ever sees
+  // them, by the build's own recorded answer rather than by picking one — see `bundled-digests.ts`.
+  // An id that ledger has no authority over still reaches `assertSingleDigestPerPlugin` unchanged.
+  const installed = preferBundledAgentPluginDigests(
+    await listInstalledPlugins(workspaceLayout.packages),
+    await readBundledAgentPluginDigests(workspaceLayout.root),
+  );
 
   // ACTIVATION GATE (2026-08-26) — the second of three surfaces (see `activation.ts`). Filtered
   // BEFORE the ambiguity check below on purpose: two installed digests of a plugin nobody has
@@ -956,7 +969,13 @@ export const agentPluginSearchAgentToolCatalog: WirableToolDefinition[] = [
  */
 export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceId: string }): Promise<readonly AgentPluginSearchCandidate[]> {
   const workspaceLayout = resolveAgentPluginLayout().forWorkspace(ctx.workspaceId);
-  const installed = await listInstalledPlugins(workspaceLayout.packages);
+  // The first-encountered-digest rule below is a fallback for an ambiguity nothing can resolve. An
+  // upgraded BUNDLED plugin is no longer one of those cases: its superseded package is dropped here,
+  // so this lists the version the running build ships (`bundled-digests.ts`).
+  const installed = preferBundledAgentPluginDigests(
+    await listInstalledPlugins(workspaceLayout.packages),
+    await readBundledAgentPluginDigests(workspaceLayout.root),
+  );
   const activations = await readAgentPluginActivations(workspaceLayout.root);
 
   const seenPluginIds = new Set<string>();

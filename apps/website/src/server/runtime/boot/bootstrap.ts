@@ -90,6 +90,14 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
             console.warn(`[bundled-agent-plugins] '${outcome.pluginId}' could not be seeded: ${outcome.reason}`);
           }
         }
+        if (result.ledgerFailure !== undefined) {
+          // Not a seed failure: every package is installed and every activation decision intact.
+          // What is lost is this boot's record of WHICH digest the build published, so a bundled
+          // plugin that was upgraded in place falls back to being refused as ambiguous until a
+          // later boot writes the ledger (`features/agent-plugins/bundled-digests.ts`).
+          // eslint-disable-next-line no-console
+          console.warn(`[bundled-agent-plugins] the bundled-digest ledger could not be written: ${result.ledgerFailure}`);
+        }
       },
       start: noop,
       stop: noop,

@@ -1,4 +1,5 @@
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
+import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "#src/features/agent-plugins/bundled-digests";
 import { listInstalledPlugins } from "#src/features/agent-plugins/resolve-agent-plugin-refs";
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "#src/features/plugin-runtime/package-files";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -42,7 +43,12 @@ export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = (app, d
         return;
 
       const workspaceLayout = resolveAgentPluginLayout().forWorkspace(deps.workspaceId);
-      const plugin = (await listInstalledPlugins(workspaceLayout.packages)).find((candidate) => candidate.pluginId === pluginId);
+      // An upgraded bundled plugin's superseded package is dropped first, so this browses the
+      // version the running build ships rather than whichever digest the walk reached first.
+      const plugin = preferBundledAgentPluginDigests(
+        await listInstalledPlugins(workspaceLayout.packages),
+        await readBundledAgentPluginDigests(workspaceLayout.root),
+      ).find((candidate) => candidate.pluginId === pluginId);
       if (!plugin) {
         res.status(404).json({ error: "agent plugin was not found", code: "AGENT_PLUGIN_NOT_FOUND" });
         return;

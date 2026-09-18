@@ -9,14 +9,17 @@
  * ---------------------------------------------------------------------------
  * PARTIALLY CLOSED, 2026-08-26. `activation.ts` now records, per workspace, whether a plugin id is
  * ENABLED — and this function refuses a pinned ref for a disabled one before it resolves anything.
- * What that record deliberately does NOT carry is which installed DIGEST is current for a plugin
- * id, which is the half of the original gap the paragraph below describes; a workspace with two
- * digests of the same plugin is still an explicit error rather than a silent choice. Closing that
- * half needs the operator-facing upgrade/pin flow (and, alongside it, the admission gate for MCP
- * servers `capability-projection.ts`'s own header names) and remains a separate, later decision.
+ * What that record deliberately does NOT carry is which installed DIGEST is current for a plugin id.
+ * For a BUNDLED plugin, `bundled-digests.ts`'s ledger now answers that (2026-09-18): the boot seeder
+ * records which digest the running build published, so a workspace holding an upgraded plugin's old
+ * and new package is no longer ambiguous — the build's own record names the winner. For every other
+ * plugin id, closing this needs the operator-facing upgrade/pin flow (and, alongside it, the
+ * admission gate for MCP servers `capability-projection.ts`'s own header names) and remains a
+ * separate, later decision.
  *
  * So this function still scans every digest this workspace has ever installed under
- * `packages/sha256/*` and matches on the installed `plugin.json`'s own `name` field:
+ * `packages/sha256/*` and matches on the installed `plugin.json`'s own `name` field, after dropping
+ * any digest of a bundled plugin the ledger records as superseded:
  *
  * - Exactly one match: resolves normally.
  * - Zero matches: fails with a "not installed" reason — the operator pinned a chip for a plugin
@@ -25,7 +28,10 @@
  *   Silently picking one (e.g. the lexicographically-last, or "the newest") would be a WORSE
  *   failure mode than an explicit error — a wrong plugin's content would reach the agent, and
  *   nothing about the run would look wrong until someone noticed the agent's advice didn't match
- *   what was supposedly pinned. An explicit error is loud and immediately actionable instead.
+ *   what was supposedly pinned. An explicit error is loud and immediately actionable instead. That
+ *   refusal is UNCHANGED and still the default: the ledger narrows a plugin id only when the build
+ *   itself published one of the installed digests, which is authority rather than a guess, and it
+ *   has no say at all over packages an operator installed (`bundled-digests.ts`, consequence 1).
  *
  * ---------------------------------------------------------------------------
  * What gets injected, and why not the whole 280K package
@@ -53,6 +59,7 @@ import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { resolveAgentPluginActivation, type AgentPluginActivationVerdict } from "./activation.js";
+import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests, type BundledAgentPluginDigests } from "./bundled-digests.js";
 import { indexInstalledRoot, type InstalledAgentPlugin } from "./install.js";
 import { readInstalledSkillMarkdown } from "./capability-projection.js";
 import type { AgentPluginWorkspaceLayout } from "./layout.js";
@@ -115,6 +122,11 @@ export async function resolveAgentPluginRefs(
 ): Promise<ResolveAgentPluginRefsResult> {
   if (pluginRefIds.length === 0) return { ok: true, promptPrefix: "" };
 
+  // Read ONCE for the whole call, not per ref: it is one small file, and every ref resolves against
+  // the same workspace's ledger. See `bundled-digests.ts` for why this can only ever RESOLVE an
+  // ambiguity below, never create one.
+  const bundledDigests = await readBundledAgentPluginDigests(workspaceLayout.root);
+
   const sections: string[] = [];
   for (const pluginRefId of pluginRefIds) {
     // ACTIVATION GATE (2026-08-26; strict per ref since 2026-09-16, t91 F1.1b) — the third and last
@@ -126,7 +138,7 @@ export async function resolveAgentPluginRefs(
     const refusal = activationRefusal(pluginRefId, await resolveAgentPluginActivation(workspaceLayout.root, pluginRefId));
     if (refusal !== undefined) return { ok: false, reason: refusal };
 
-    const resolved = await resolveOnePluginRef(pluginRefId, workspaceLayout.packages, deliveryMode);
+    const resolved = await resolveOnePluginRef(pluginRefId, workspaceLayout.packages, deliveryMode, bundledDigests);
     if (!resolved.ok) return resolved;
     sections.push(resolved.section);
   }
@@ -235,8 +247,12 @@ async function resolveOnePluginRef(
   pluginRefId: string,
   packagesDir: string,
   deliveryMode: AgentPluginDeliveryMode,
+  bundledDigests: BundledAgentPluginDigests,
 ): Promise<{ readonly ok: true; readonly section: string } | { readonly ok: false; readonly reason: string }> {
-  const installed = await listInstalledPlugins(packagesDir);
+  // Superseded installs of a BUNDLED plugin are dropped here — by the build's own recorded answer,
+  // never by picking one. Every id the ledger has no authority over reaches the many-match refusal
+  // below exactly as it always did.
+  const installed = preferBundledAgentPluginDigests(await listInstalledPlugins(packagesDir), bundledDigests);
   const matches = installed.filter((plugin) => plugin.pluginId === pluginRefId);
 
   if (matches.length === 0) {

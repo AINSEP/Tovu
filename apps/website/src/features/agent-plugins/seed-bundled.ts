@@ -37,8 +37,20 @@
  * Re-running it therefore costs one directory walk and one hash, and buys two things a one-shot
  * first-run seed would not:
  *
- * 1. A product upgrade that ships a NEW bundled plugin, or a new version of one, reaches existing
+ * 1. A product upgrade that ships a NEW bundled plugin, or a NEW VERSION of one, reaches existing
  *    workspaces without a migration step.
+ *
+ *    The second half of that claim was FALSE IN EFFECT until 2026-09-18, and the correction is the
+ *    reason `bundled-digests.ts` exists. The package store is content-addressed and nothing retires
+ *    an entry, so a revised bundled plugin installs ALONGSIDE its predecessor rather than replacing
+ *    it — after which both consumption surfaces refused the plugin outright as ambiguous
+ *    (`resolve-agent-plugin-refs.ts`'s "refusing to guess which one to use",
+ *    `tool-registrations.ts`'s `poisonedPluginIds`). An upgrade did reach the workspace; it also
+ *    silently broke the plugin. What makes the claim true now is the ledger this function writes
+ *    below: the seed RECORDS which digest this build published, so the read side has the build's own
+ *    answer to "which one" instead of a guess. The superseded bytes stay on disk — see
+ *    `bundled-digests.ts`'s header for why nothing is deleted, and this file's own report for what
+ *    an operator still has to prune by hand.
  * 2. Deleting `activations.json` re-creates the bundled plugin's DISABLED record. Without the
  *    re-run, deleting that file would silently promote every bundled plugin to active, because
  *    `isAgentPluginActive`'s "absent means active" default is what keeps operator-installed plugins
@@ -69,6 +81,7 @@ import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { assertAgentPluginActivationsWritable, recordBundledAgentPluginIfAbsent } from "./activation.js";
+import { recordBundledAgentPluginDigests } from "./bundled-digests.js";
 import { createBundledSourceArchiveReader, packAgentPluginDirectory } from "./bundled-source-archive.js";
 import { installAgentPlugin } from "./install.js";
 import type { AgentPluginLayout } from "./layout.js";
@@ -87,6 +100,13 @@ export type SeededAgentPluginOutcome =
 export interface SeedBundledAgentPluginsResult {
   readonly sourceRoot: string;
   readonly outcomes: readonly SeededAgentPluginOutcome[];
+  /** Why this boot could not record which digest it published for each plugin
+   *  (`bundled-digests.ts`), or absent when it did. Reported rather than thrown, for the same
+   *  failure-isolation reason every per-plugin failure is: a workspace whose ledger cannot be
+   *  written still has every package installed and every activation decision intact — it only falls
+   *  back to refusing a multi-digest plugin id, which is exactly the behaviour that predates the
+   *  ledger. */
+  readonly ledgerFailure?: string;
 }
 
 export interface SeedBundledAgentPluginsRequired {
@@ -133,7 +153,33 @@ export async function seedBundledAgentPlugins(
     outcomes.push(await seedOne({ layout, workspaceId, sourceDir: path.join(sourceRoot, dirName), dirName }));
   }
 
-  return { sourceRoot, outcomes };
+  // AFTER every install, never before: the ledger names digests, and a digest is only worth naming
+  // once its bytes are actually on disk for this workspace.
+  const ledgerFailure = await recordSeededDigests(layout.forWorkspace(workspaceId).root, outcomes);
+
+  return { sourceRoot, outcomes, ...(ledgerFailure !== undefined ? { ledgerFailure } : {}) };
+}
+
+/** Records which digest this boot published for each plugin that seeded successfully, and returns
+ *  why it could not, rather than throwing — {@link seedBundledAgentPlugins}'s own contract is
+ *  "@throws Nothing", and a ledger this boot failed to write costs the workspace nothing it had
+ *  before the ledger existed.
+ *  @complexity One file read and one atomic write. */
+async function recordSeededDigests(
+  workspaceRoot: string,
+  outcomes: readonly SeededAgentPluginOutcome[],
+): Promise<string | undefined> {
+  try {
+    await recordBundledAgentPluginDigests({
+      workspaceRoot,
+      seeded: outcomes.flatMap((outcome) =>
+        outcome.status === "seeded" ? [{ pluginId: outcome.pluginId, archiveDigest: outcome.archiveDigest }] : [],
+      ),
+    });
+    return undefined;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
 }
 
 /** Why nothing may be seeded into this workspace right now, or `undefined`. One strict read BEFORE
