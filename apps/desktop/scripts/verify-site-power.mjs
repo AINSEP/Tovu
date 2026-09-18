@@ -10,6 +10,13 @@
  * deleting directly. Start/Stop was also restyled to the header's "Create website" look
  * (`.button--create`), checked here by comparing computed styles rather than trusting a class name.
  *
+ * **Second revision, same day.** The owner moved the controls again after seeing that layout: the
+ * ⋮ to the card's top-right, level with the site name, and Start/Stop directly beneath it. The
+ * card body is two columns now (`.card__info` and `.card__actions`). Everything above still holds —
+ * nothing about what either control DOES changed — and `LAYOUT_*` below adds the three geometric
+ * claims that only a laid-out window can settle, read from `getBoundingClientRect` rather than from
+ * pixels: a screenshot cannot tell a right-aligned column from one that merely looks flush.
+ *
  * Not part of `npm test`: it launches a real Electron app and a real site server, so it is opt-in
  * and slow. Run it after touching `src/renderer/use-site-power.hooks.ts`, `src/renderer/SiteGrid.tsx`,
  * `src/project-ipc.ts`'s `handleStart`/`handleStop`, or `src/site-transitions.ts`:
@@ -83,9 +90,48 @@ const cardState = (win) =>
       // Must be absent at the TOP level of the card — delete lives only inside the closed ⋮ menu.
       trashOnCard: Boolean(card.querySelector('.card__delete')),
       actionsInBody: Boolean(card.querySelector('.card__body .card__actions')),
+      // The owner's layout, as boxes. `null` for anything absent so a missing element reads as a
+      // failed check rather than a thrown script.
+      layout: (() => {
+        const box = (sel) => {
+          const el = card.querySelector(sel);
+          if (!el) return null;
+          const b = el.getBoundingClientRect();
+          return { top: b.top, right: b.right, bottom: b.bottom, left: b.left };
+        };
+        return { name: box('.card__name'), menu: box('.card__menubutton'), power: box('.card__power'), info: box('.card__info') };
+      })(),
       error: card.querySelector('.card__actionerror')?.textContent?.trim() ?? null,
     };
   });
+
+/**
+ * The three geometric claims the owner's second layout makes, each with the tolerance that belongs
+ * to it: sub-pixel rounding for two edges that must line up, and a real gap where one element sits
+ * under another. Returns a reason per claim rather than a bare boolean, so a failure names the
+ * pixels rather than sending the reader back to the screenshot.
+ */
+function layoutClaims(layout) {
+  const { name, menu, power, info } = layout ?? {};
+  if (!name || !menu || !info) return null;
+  return {
+    // "align dotes with tovu-com" — same row as the name, not under it.
+    onNameRow: {
+      ok: Math.abs(menu.top - name.top) <= 4 && menu.left >= info.right,
+      why: `⋮ top ${menu.top.toFixed(1)} vs name top ${name.top.toFixed(1)}; ⋮ left ${menu.left.toFixed(1)} vs text column right ${info.right.toFixed(1)}`,
+    },
+    // "right aligned in the card" — the ⋮ and Start/Stop share ONE edge, the card's.
+    sharedRightEdge: {
+      ok: power === null || Math.abs(menu.right - power.right) <= 1,
+      why: power === null ? 'no power button for this status' : `⋮ right ${menu.right.toFixed(1)} vs power right ${power.right.toFixed(1)}`,
+    },
+    // "have stop button right under it" — below the ⋮, never beside it.
+    powerBelowMenu: {
+      ok: power === null || power.top >= menu.bottom - 1,
+      why: power === null ? 'no power button for this status' : `power top ${power.top.toFixed(1)} vs ⋮ bottom ${menu.bottom.toFixed(1)}`,
+    },
+  };
+}
 
 /** Computed style of the card's power button versus the header's "Create website" button — the
  *  live proof that Start/Stop actually wears that style rather than merely sharing a class name
@@ -173,6 +219,10 @@ async function main() {
       !idle.trashOnCard,
       `a standalone .card__delete exists on the card outside the ⋮ menu (${idle.trashOnCard})`,
     );
+    const layout = layoutClaims(idle.layout);
+    check('LAYOUT_KEBAB_ON_NAME_ROW', Boolean(layout?.onNameRow.ok), layout?.onNameRow.why ?? 'card is missing a name, a ⋮ or a text column');
+    check('LAYOUT_SHARED_RIGHT_EDGE', Boolean(layout?.sharedRightEdge.ok), layout?.sharedRightEdge.why ?? 'no layout to read');
+    check('LAYOUT_POWER_BELOW_KEBAB', Boolean(layout?.powerBelowMenu.ok), layout?.powerBelowMenu.why ?? 'no layout to read');
     check('POWER_OFFERS_START', idle.power?.label === 'Start', `power button reads "${idle.power?.label}"`);
     const startStyle = await powerMatchesCreate(win);
     check(
@@ -195,6 +245,14 @@ async function main() {
     const running = await waitForStatus(win, 'Running', 90_000);
     check('STARTED', running.status === 'Running', `status after start: ${running.status}`);
     check('POWER_OFFERS_STOP', running.power?.label === 'Stop', `power button reads "${running.power?.label}"`);
+    // Re-read with the WIDER label in place: "Stop" is a bigger box than "Start", and a column that
+    // only lines up around the narrow one is not right-aligned, it is coincidental.
+    const runningLayout = layoutClaims(running.layout);
+    check(
+      'LAYOUT_HOLDS_WITH_STOP',
+      Boolean(runningLayout?.onNameRow.ok && runningLayout.sharedRightEdge.ok && runningLayout.powerBelowMenu.ok),
+      `with "Stop" — ${runningLayout?.sharedRightEdge.why}; ${runningLayout?.powerBelowMenu.why}`,
+    );
     await shot(win, 'light-running');
 
     // --- and really stops ---
@@ -227,6 +285,25 @@ async function main() {
       [...document.querySelectorAll('.card__menulist [role="menuitem"]')].map((el) => el.textContent.trim()),
     );
     check('MENU_OPENS', menuItems.length > 0, `menu items: ${menuItems.join(' | ')}`);
+    // New risk from the ⋮ moving to the TOP of the body: `.card` clips to its rounded corners, and
+    // the list opens upward over the preview tile. Too tall a list, or a trigger that drifts back
+    // down, and the top of the menu is silently cut off — a screenshot shows a shorter menu, not an
+    // obviously broken one, so this is read from boxes.
+    const menuClip = await win.evaluate(() => {
+      const list = document.querySelector('.card__menulist');
+      const card = document.querySelector('.card');
+      if (!list || !card) return null;
+      const l = list.getBoundingClientRect();
+      const c = card.getBoundingClientRect();
+      return { listTop: l.top, listBottom: l.bottom, cardTop: c.top, cardBottom: c.bottom };
+    });
+    check(
+      'MENU_LIST_NOT_CLIPPED',
+      menuClip !== null && menuClip.listTop >= menuClip.cardTop && menuClip.listBottom <= menuClip.cardBottom,
+      menuClip === null
+        ? 'no open menu list to measure'
+        : `list ${menuClip.listTop.toFixed(1)}–${menuClip.listBottom.toFixed(1)} inside card ${menuClip.cardTop.toFixed(1)}–${menuClip.cardBottom.toFixed(1)}`,
+    );
     check(
       'MENU_HAS_NO_LIFECYCLE',
       !menuItems.some((item) => item === 'Start' || item === 'Stop'),
@@ -272,6 +349,12 @@ async function main() {
       'DARK_ALWAYS_VISIBLE',
       dark.menuVisible && !dark.trashOnCard && dark.power !== null,
       `dark mode: ⋮ ${dark.menuVisible}, top-level trash present ${dark.trashOnCard}, power "${dark.power?.label}"`,
+    );
+    const darkLayout = layoutClaims(dark.layout);
+    check(
+      'DARK_LAYOUT_HOLDS',
+      Boolean(darkLayout?.onNameRow.ok && darkLayout.sharedRightEdge.ok && darkLayout.powerBelowMenu.ok),
+      `dark mode — ${darkLayout?.onNameRow.why}`,
     );
     await shot(win, 'dark-stopped');
     await win.click('.card__menubutton');
