@@ -42,10 +42,15 @@ function declaredChannels(): Set<string> {
     for (const match of source.matchAll(/'((?:runner|workspace):[a-z-]+(?::[a-z-]+)+)'/g)) found.add(match[1]!);
   }
   // Main->renderer sends, not `invoke` targets: there is no handler to register for any of them, so
-  // `runner-ipc-stubs.ts` deliberately omits them.
+  // `runner-ipc-stubs.ts` deliberately omits them. `find:query`/`find:stop` are NOT in this list —
+  // those two ARE real `invoke` targets, with real handlers in `find-in-page-ipc.ts`; see
+  // `IMPLEMENTED_CHANNELS` below.
   found.delete("workspace:chat:event");
   found.delete("workspace:chat:navigate");
   found.delete("runner:sites:history");
+  found.delete("runner:find:toggle");
+  found.delete("runner:find:result");
+  found.delete("runner:zoom:command");
   return found;
 }
 
@@ -67,6 +72,11 @@ const IMPLEMENTED_CHANNELS = new Set([
   "runner:sites:add-site",
   "runner:sites:rename",
   "runner:sites:preview",
+  // Real handlers in `find-in-page-ipc.ts` (`registerFindInPageIpc`, called from `main.ts`) — the
+  // sites home window's OWN top-level find target. `runner:find:toggle`/`runner:find:result` are
+  // push-only and excluded in `declaredChannels()` instead; see that function's own comment.
+  "runner:find:query",
+  "runner:find:stop",
 ]);
 
 test("the contract sources really do declare channels (the parse is not silently matching nothing)", () => {

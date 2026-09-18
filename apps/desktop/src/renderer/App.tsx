@@ -24,6 +24,7 @@ import { useWorkspaceChatPane, WORKSPACE_RUN_CONTEXT } from './use-workspace-cha
 import { useAddSite } from './use-add-site.hooks.js';
 import { useSiteWorkspace } from './use-site-workspace.hooks.js';
 import { useFindInPage, useComposedGuestRef, type FindInPage, type FindableGuest } from './use-find-in-page.hooks.js';
+import { useZoom, type ZoomableGuest } from './use-zoom.hooks.js';
 import { SiteGrid } from './SiteGrid.js';
 import { CreateWebsiteOnboarding } from './CreateWebsiteOnboarding.js';
 import { STATUS_LABEL } from './site-status.js';
@@ -91,6 +92,8 @@ export function App({
   // The visible project tab's guest when one is on screen, else the Projects screen itself — see
   // `use-find-in-page.hooks.ts`'s own header for why the target routing lives there, not here.
   const find = useFindInPage(showSiteTab ? visibleWorkspaceId : null);
+  // Same routing, for Cmd+Plus / Cmd+- / Cmd+0 — see `use-zoom.hooks.ts`'s own header.
+  const zoom = useZoom(showSiteTab ? visibleWorkspaceId : null);
   // Expanded mode's whole visible effect. See `expanded-mode.ts` for why this is a plain function
   // rather than three conditions inlined into the JSX below.
   const { showTopNav, showTabStrip } = chromeVisibility({ expanded, inSites, appearanceOpen });
@@ -168,6 +171,7 @@ export function App({
           expanded={expanded}
           onToggleExpanded={toggleExpanded}
           registerGuest={find.registerGuest}
+          registerZoomGuest={zoom.registerGuest}
         />
       </main>
 
@@ -502,6 +506,7 @@ function SiteWorkspaces({
   expanded,
   onToggleExpanded,
   registerGuest,
+  registerZoomGuest,
 }: {
   inSites: boolean;
   openSites: readonly SiteRecord[];
@@ -509,6 +514,7 @@ function SiteWorkspaces({
   expanded: boolean;
   onToggleExpanded: () => void;
   registerGuest: (projectId: string, element: FindableGuest | null) => void;
+  registerZoomGuest: (projectId: string, element: ZoomableGuest | null) => void;
 }) {
   if (!inSites) return null;
   return (
@@ -521,6 +527,7 @@ function SiteWorkspaces({
           expanded={expanded}
           onToggleExpanded={onToggleExpanded}
           registerGuest={registerGuest}
+          registerZoomGuest={registerZoomGuest}
         />
       ))}
     </>
@@ -559,12 +566,14 @@ function SiteWorkspace({
   expanded,
   onToggleExpanded,
   registerGuest,
+  registerZoomGuest,
 }: {
   project: SiteRecord;
   hidden: boolean;
   expanded: boolean;
   onToggleExpanded: () => void;
   registerGuest: (projectId: string, element: FindableGuest | null) => void;
+  registerZoomGuest: (projectId: string, element: ZoomableGuest | null) => void;
 }) {
   // Everything this tab remembers and every action its bar takes: which surface it asked for, where
   // its guest is, its history, and Reload that keeps that history. Per tab, never lifted into `App`.
@@ -573,9 +582,10 @@ function SiteWorkspace({
   // `guestRef` is a CALLBACK ref, not a ref object, and that distinction is the whole of D-03: the
   // hooks' listeners have to attach when the guest actually mounts, and this tab mounts it
   // conditionally (`running && !workspace.failed` below). See `useWebviewLoadFailure`'s own doc.
-  // Composed with the find bar's own registration so ONE ref does both — see `useComposedGuestRef`.
+  // Composed with the find bar's and the zoom feature's own registration so ONE ref does all three
+  // — see `useComposedGuestRef`.
   const { guestRef } = workspace;
-  const combinedGuestRef = useComposedGuestRef(guestRef, registerGuest, project.id);
+  const combinedGuestRef = useComposedGuestRef(guestRef, registerGuest, project.id, (node) => registerZoomGuest(project.id, node));
   const running = project.status === 'running';
 
   return (

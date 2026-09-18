@@ -22,7 +22,7 @@
  * preload is unsandboxed, so a relative import resolves, and the contracts are pure constant/type
  * modules with no Node surface of their own.
  */
-import { contextBridge, ipcRenderer, webUtils } from 'electron';
+import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron';
 import { RUNNER_AGENT_INVENTORY_CHANNELS } from '../contracts/runtime-inventory.js';
 import {
   SITE_HISTORY_CHANNEL,
@@ -46,6 +46,7 @@ import {
   type FindInPageQuery,
   type FindInPageResult,
 } from '../contracts/find-in-page.js';
+import { ZOOM_COMMAND_CHANNEL, type ZoomDirection } from '../contracts/zoom.js';
 import { RUNNER_CHAT_ATTACHMENT_CHANNELS, type SaveChatAttachmentInput } from '../contracts/chat-attachments.js';
 import {
   WORKSPACE_CONVERSATION_CHANNELS,
@@ -123,6 +124,19 @@ contextBridge.exposeInMainWorld(
     stopFindInPage: () => ipcRenderer.invoke(FIND_IN_PAGE_CHANNELS.stop),
     /** One `found-in-page` result for the top-level target above. */
     onFindResult: (listener: (result: FindInPageResult) => void) => subscribe(FIND_RESULT_CHANNEL, listener),
+    /** The app menu's Zoom In / Zoom Out / Actual Size (Cmd+Plus / Cmd+- / Cmd+0). Carries the
+     *  direction. See `use-zoom.hooks.ts`. */
+    onZoomCommand: (listener: (direction: ZoomDirection) => void) => subscribe(ZOOM_COMMAND_CHANNEL, listener),
+    /**
+     * The SITES HOME WINDOW'S OWN top-level page's zoom — used only when no project tab's
+     * `<webview>` is the visible surface, which zooms itself directly instead (`WebviewTag`'s own
+     * `getZoomLevel`/`setZoomLevel`). Synchronous and in-process, like `getPathForFile` above:
+     * `webFrame` is this renderer's OWN frame, so there is nothing for main to do here — no
+     * `ipcRenderer.invoke` round trip, unlike `findInPage`'s top-level target (which needs
+     * `webContents`, main-process-only). Zoom level 0 is 100%; see Electron's own `webFrame` doc.
+     */
+    getZoomLevel: () => webFrame.getZoomLevel(),
+    setZoomLevel: (level: number) => webFrame.setZoomLevel(level),
     // Synchronous and in-process, deliberately not an `ipcRenderer.invoke` round trip: `webUtils`
     // only exists in the preload's Node-capable context, not the isolated page, so this function IS
     // the bridge rather than a proxy for one. Electron's contextBridge structured-clones `File`

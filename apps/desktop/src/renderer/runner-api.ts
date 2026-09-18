@@ -22,6 +22,7 @@ import type {
   SaveConversationMessageInput,
 } from '../contracts/workspace-conversations.js';
 import type { FindInPageQuery, FindInPageResult } from '../contracts/find-in-page.js';
+import type { ZoomDirection } from '../contracts/zoom.js';
 
 export interface RunnerInventoryBridge {
   listAgents: () => Promise<readonly RunnerAgentSummary[]>;
@@ -82,6 +83,14 @@ export interface RunnerInventoryBridge {
   stopFindInPage: () => Promise<void>;
   /** One `found-in-page` result for the top-level target above; returns its teardown. */
   onFindResult: (listener: (result: FindInPageResult) => void) => () => void;
+  /** Fires on the app menu's Zoom In / Zoom Out / Actual Size (Cmd+Plus / Cmd+- / Cmd+0); returns
+   *  its teardown. See `use-zoom.hooks.ts`. */
+  onZoomCommand: (listener: (direction: ZoomDirection) => void) => () => void;
+  /** The sites home window's OWN top-level page's zoom level (0 = 100%) — used only when no project
+   *  tab's `<webview>` is the visible surface, which zooms itself directly instead. Synchronous,
+   *  like `getPathForFile`: see the preload's own doc on why this needs no IPC round trip. */
+  getZoomLevel: () => number;
+  setZoomLevel: (level: number) => void;
   /**
    * Resolves a `File`'s absolute OS path. Runs in the preload, not over IPC — see the bridge
    * implementation. Returns `''` for a `File` that did not come directly off a drop/dialog event

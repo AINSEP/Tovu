@@ -25,6 +25,7 @@
  * and `loadURL()`. `findInPage`/`stopFindInPage`/`found-in-page` are the ones
  * `use-find-in-page.hooks.ts` calls — Electron's `WebviewTag` exposes these directly on the DOM
  * element itself, so a project tab's find target needs no IPC at all; see that file's own header.
+ * `getZoomLevel`/`setZoomLevel` are `use-zoom.hooks.ts`'s, same reasoning, same tag.
  *
  * The `HTMLWebViewElement` merge further down is a DIFFERENT kind of augmentation, and it is NOT
  * inert. React's own `webview` entry types `ref` against `HTMLWebViewElement`
@@ -121,5 +122,8 @@ declare global {
      *  never as this call's return value in practice — see `use-find-in-page.hooks.ts`'s `runFind`. */
     findInPage(text: string, options?: { forward?: boolean; findNext?: boolean; matchCase?: boolean }): number;
     stopFindInPage(action: 'clearSelection' | 'keepSelection' | 'activateSelection'): void;
+    /** 0 is 100%; see `use-zoom.hooks.ts`'s own header. */
+    getZoomLevel(): number;
+    setZoomLevel(level: number): void;
   }
 }

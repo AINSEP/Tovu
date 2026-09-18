@@ -21,6 +21,8 @@
  */
 import { findMenu } from "./find-menu.ts";
 import type { FindMenu } from "./find-menu.ts";
+import { zoomMenuItems } from "./zoom-menu.ts";
+import type { ZoomMenuItem } from "./zoom-menu.ts";
 
 /** Mirrors `contracts/project.ts`'s `SITE_HISTORY_CHANNEL`. */
 const SITE_HISTORY_CHANNEL = "runner:sites:history";
@@ -48,12 +50,51 @@ interface SiteHistoryMenu {
   submenu: [SiteHistoryMenuItem, SiteHistoryMenuItem];
 }
 
-/** One top-level entry of {@link sitesHomeMenuTemplate}: an Electron menu role, History, or Find. */
+/** The View menu: Electron's default reload/dev-tools items, this shell's own Zoom controls in
+ *  place of the built-in zoom roles (see `zoom-menu.ts`'s header for why those are the wrong
+ *  target), then Toggle Full Screen. */
+interface ViewMenu {
+  label: "View";
+  submenu: [
+    { role: "reload" },
+    { role: "forceReload" },
+    { role: "toggleDevTools" },
+    { type: "separator" },
+    ...ZoomMenuItem[],
+    { type: "separator" },
+    { role: "togglefullscreen" },
+  ];
+}
+
+/** One top-level entry of {@link sitesHomeMenuTemplate}: an Electron menu role, View, History, or
+ *  Find. */
 type SitesHomeMenuEntry =
-  | { role: "appMenu" | "fileMenu" | "editMenu" | "viewMenu" | "windowMenu" }
+  | { role: "appMenu" | "fileMenu" | "editMenu" | "windowMenu" }
   | { role: "help"; submenu: [] }
+  | ViewMenu
   | SiteHistoryMenu
   | FindMenu;
+
+/**
+ * Electron's default View menu, with this shell's own Zoom controls (`zoom-menu.ts`) in place of
+ * the built-in zoom roles.
+ *
+ * @complexity O(1).
+ */
+function viewMenu(): ViewMenu {
+  return {
+    label: "View",
+    submenu: [
+      { role: "reload" },
+      { role: "forceReload" },
+      { role: "toggleDevTools" },
+      { type: "separator" },
+      ...zoomMenuItems(),
+      { type: "separator" },
+      { role: "togglefullscreen" },
+    ],
+  };
+}
 
 /**
  * Sends one history command to a window's renderer.
@@ -98,7 +139,7 @@ function sitesHomeMenuTemplate(platform: NodeJS.Platform): SitesHomeMenuEntry[] 
     ...(platform === "darwin" ? [{ role: "appMenu" } as const] : []),
     { role: "fileMenu" },
     { role: "editMenu" },
-    { role: "viewMenu" },
+    viewMenu(),
     siteHistoryMenu(),
     findMenu(),
     { role: "windowMenu" },
@@ -106,5 +147,5 @@ function sitesHomeMenuTemplate(platform: NodeJS.Platform): SitesHomeMenuEntry[] 
   ];
 }
 
-export { SITE_HISTORY_CHANNEL, sendSiteHistoryCommand, siteHistoryMenu, sitesHomeMenuTemplate };
-export type { HistoryCommandWindow, SiteHistoryCommand, SiteHistoryMenu, SiteHistoryMenuItem, SitesHomeMenuEntry };
+export { SITE_HISTORY_CHANNEL, sendSiteHistoryCommand, siteHistoryMenu, viewMenu, sitesHomeMenuTemplate };
+export type { HistoryCommandWindow, SiteHistoryCommand, SiteHistoryMenu, SiteHistoryMenuItem, ViewMenu, SitesHomeMenuEntry };

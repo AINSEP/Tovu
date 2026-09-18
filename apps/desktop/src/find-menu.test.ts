@@ -57,7 +57,7 @@ test("the sites-home menu adds Find between History and Window", () => {
     "appMenu",
     "fileMenu",
     "editMenu",
-    "viewMenu",
+    "View",
     "History",
     "Find",
     "windowMenu",

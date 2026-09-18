@@ -58,8 +58,8 @@ test("with no focused window, a destroyed one, or one without webContents, nothi
 
 test("the sites-home menu keeps Electron's default menus and adds History and Find before Window", () => {
   const roles = (template: { role?: string; label?: string }[]) => template.map((entry) => entry.role ?? entry.label);
-  assert.deepEqual(roles(sitesHomeMenuTemplate("darwin")), ["appMenu", "fileMenu", "editMenu", "viewMenu", "History", "Find", "windowMenu", "help"]);
-  assert.deepEqual(roles(sitesHomeMenuTemplate("linux")), ["fileMenu", "editMenu", "viewMenu", "History", "Find", "windowMenu", "help"]);
+  assert.deepEqual(roles(sitesHomeMenuTemplate("darwin")), ["appMenu", "fileMenu", "editMenu", "View", "History", "Find", "windowMenu", "help"]);
+  assert.deepEqual(roles(sitesHomeMenuTemplate("linux")), ["fileMenu", "editMenu", "View", "History", "Find", "windowMenu", "help"]);
 });
 
 test("the inlined channel literal matches contracts/project.ts", () => {

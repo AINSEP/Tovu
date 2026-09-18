@@ -101,7 +101,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session } from "electron";
+import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen } from "electron";
 
 import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "./src/tovu-server.ts";
 import { resolveAdminDevProxyUrl } from "./src/admin-dev-proxy.ts";
@@ -127,6 +127,8 @@ import { registerSitesMcpServer, writeSitesMcpLauncher } from "./src/sites-mcp-r
 import { fileURLToPath } from "node:url";
 import { resolveDesktopRoots } from "./src/packaged-paths.ts";
 import { sitesHomeMenuTemplate } from "./src/site-history-menu.ts";
+import { windowBoundsFilePath, readWindowBounds, writeWindowBounds, resolveWindowBounds } from "./src/window-bounds-store.ts";
+import { registerSpellCheckContextMenu } from "./src/spellcheck-menu.ts";
 import type { MenuItemConstructorOptions } from "electron";
 import type { QuitPhase } from "./src/quit-drain-gate.ts";
 import type { SelftestTracker } from "./src/selftest-tracker.ts";
@@ -490,9 +492,18 @@ function openSitesHomeWindow(): BrowserWindow | null {
     return null;
   }
 
+  // Reopen where the operator left it, on whichever display still has it — `resolveWindowBounds`
+  // is what refuses a remembered spot that no display covers anymore (an unplugged monitor), so
+  // this never seeds the constructor with an off-screen `x`/`y`. See `window-bounds-store.ts`.
+  const boundsPath = windowBoundsFilePath(app.getPath("userData"));
+  const resolvedBounds = resolveWindowBounds({
+    stored: readWindowBounds(boundsPath),
+    displays: screen.getAllDisplays(),
+    fallback: { width: 1360, height: 900 },
+  });
+
   const window = new BrowserWindow({
-    width: 1360,
-    height: 900,
+    ...resolvedBounds,
     /**
      * Floors, not a preference — a window with no minimum can be dragged to a width nothing has
      * an answer for.
@@ -516,9 +527,21 @@ function openSitesHomeWindow(): BrowserWindow | null {
   if (selftestTracker) selftestTracker.add(window);
   window.on("page-title-updated", (event) => event.preventDefault());
 
+  // Remembers the spot for NEXT launch. `close` (not `closed`): bounds are still readable right up
+  // to that event, and skipped in full screen — that rectangle is the whole display, not a size the
+  // operator chose and would want restored.
+  window.on("close", () => {
+    if (window.isDestroyed() || window.isFullScreen()) return;
+    writeWindowBounds(boundsPath, window.getBounds());
+  });
+
   // The find bar's top-level target (`find-in-page-ipc.ts`) — the Projects screen itself, when no
   // project tab's own `<webview>` is the visible surface. See `contracts/find-in-page.ts`'s header.
   relayFindResults(window);
+
+  // The right-click spelling-suggestions menu for the Projects screen's own text fields (site
+  // names, search boxes). A project tab's own editing surface is the GUEST below, wired separately.
+  registerSpellCheckContextMenu(window.webContents, Menu);
 
   // The guest gets the shell's OWN speech preload, not none (D-10) — see
   // `webview-guest-policy.ts` for why assigning is strictly stronger than the `delete` this
@@ -526,6 +549,14 @@ function openSitesHomeWindow(): BrowserWindow | null {
   // input needs the desktop app, from inside the desktop app.
   window.webContents.on("will-attach-webview", (_event, webPreferences) => {
     applyGuestWebPreferences(webPreferences, { preloadPath: SPEECH_PRELOAD_PATH });
+  });
+
+  // The right-click spelling-suggestions menu for a project tab's own editing surface (the embedded
+  // site admin — `FormEditor`, page content, etc.) — a CMS, where people write real prose. Electron
+  // hands back the guest's own `webContents` on attach; `spellcheck` itself needs no toggle here,
+  // Electron's own `webPreferences` default (`spellcheck: true`) already covers it.
+  window.webContents.on("did-attach-webview", (_event, contents) => {
+    registerSpellCheckContextMenu(contents, Menu);
   });
 
   void window.loadFile(SITES_RENDERER_PATH);
