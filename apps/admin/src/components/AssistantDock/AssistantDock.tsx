@@ -36,6 +36,8 @@ import {
   useAssistantTransportSeam,
   useAttachmentUploader,
   useAttachmentUploaderSeam,
+  useAttachmentValidator,
+  useAttachmentValidatorSeam,
   useByokRuntime,
   useByokRuntimeSeam,
   useChatsSeam,
@@ -312,6 +314,13 @@ export interface AssistantDockProps {
    */
   useAttachmentUploader?: typeof useAttachmentUploader;
   /**
+   * Injectable seam for the composer's attachment liveness validator — see
+   * {@link useAttachmentValidator}. Defaults to the real hook, same rationale as
+   * `useAttachmentUploader` above: the real hook's validator probes `/api/attachments/:ref` with a
+   * real `fetch`, which a fake bypasses entirely.
+   */
+  useAttachmentValidator?: typeof useAttachmentValidator;
+  /**
    * Injectable seam for the Local CLI picker's agent list/rescan/daemon-online poll — see
    * {@link useRuntimeAccess}. Defaults to the real hook, same 2026-08-18 rationale as the two
    * above: the real hook's `listAgents`/`rescanAgents`/`daemonOnline` are all `fetch`-backed, which
@@ -379,6 +388,7 @@ export function AssistantDock({
   useComposerCapabilities: useComposerCapabilitiesOverride,
   useAssistantTransport: useAssistantTransportOverride,
   useAttachmentUploader: useAttachmentUploaderOverride,
+  useAttachmentValidator: useAttachmentValidatorOverride,
   useRuntimeAccess: useRuntimeAccessOverride,
   onFolderDropCaptureReady,
 }: AssistantDockProps) {
@@ -412,6 +422,7 @@ export function AssistantDock({
     persistUserTurn: chats.persistUserTurn,
   });
   const uploadAttachments = useAttachmentUploaderSeam(useAttachmentUploaderOverride);
+  const validateAttachments = useAttachmentValidatorSeam(useAttachmentValidatorOverride);
   const runtimeAccess = useRuntimeAccessSeam(useRuntimeAccessOverride);
   /**
    * The composer's discovery catalog, projected asynchronously (debate 2, "Composer slash
@@ -562,6 +573,11 @@ export function AssistantDock({
         // the ungated in-page WebMCP surface — see that option's own doc for why that stays opt-in.
         agentControl={{ enabled: true, bridgeAccess: agentBridge?.bridgeAccess }}
         uploadAttachments={uploadAttachments}
+        // Restores a persisted draft's ATTACHMENTS, not just its text. `@jini-ai/chat` caches the
+        // references but hands back only the subset a host confirms is still served — the staged
+        // bytes sit under the daemon's `retentionMs` (one hour, not overridden here), and a chip for
+        // a pruned file looks intact and fails at send. Absent, the package restores text only.
+        validateAttachments={validateAttachments}
         // Host-owned, data-only inventory, now an async projection (debate 2) instead of a static
         // import. Jini renders/filter/selects it generically; these rows describe source-backed
         // resources and do not claim that Agent Plugin installation or execution exists. The same

@@ -134,6 +134,32 @@ test("chat attachment read: the route is registered by the real assistant module
   assert.equal(res.headers.get("content-disposition"), null, "a real image is previewable inline");
 });
 
+test("chat attachment read: a HEAD answers the liveness question without sending the bytes", async (t) => {
+  const staged = await stageUploadRoot(t);
+  const { baseUrl, uploader } = await boot(t, staged);
+  await writeSidecar(staged, uploader.id);
+
+  // The admin's composer-draft restore probes with HEAD rather than GET — it asks whether a staged
+  // attachment still exists, and a GET would move the whole file (up to 50 MB a turn) to answer it.
+  // That rests on two behaviors neither this file's route nor `apps/admin` owns: Express routes a
+  // HEAD to a GET handler when no HEAD handler is registered, and Node suppresses the body of a HEAD
+  // response. Asserted here rather than assumed, because if either stopped holding, the validator in
+  // `apps/admin/src/lib/chat-attachment-liveness.ts` would quietly drop EVERY live attachment.
+  const alive = await fetch(attachmentUrl(baseUrl, REF), { method: "HEAD", headers: { cookie: uploader.cookie } });
+
+  assert.equal(alive.status, 200, "a 404/405 here means HEAD does not reach this route's GET handler");
+  assert.equal(alive.headers.get("content-type"), "image/png", "the status line and headers are the whole answer");
+  assert.equal((await alive.arrayBuffer()).byteLength, 0, "a HEAD must not carry the bytes the probe exists to avoid");
+
+  // ...and the other verdict is distinguishable, or the probe above proves nothing: a validator that
+  // sees 200 for everything would restore pruned references exactly as happily as live ones.
+  const pruned = await fetch(attachmentUrl(baseUrl, "attachment:99999999-9999-9999-9999-999999999999"), {
+    method: "HEAD",
+    headers: { cookie: uploader.cookie },
+  });
+  assert.equal(pruned.status, 404);
+});
+
 test("chat attachment read: an unauthenticated request is refused by the prefix session gate", async (t) => {
   const staged = await stageUploadRoot(t);
   const { baseUrl, uploader } = await boot(t, staged);

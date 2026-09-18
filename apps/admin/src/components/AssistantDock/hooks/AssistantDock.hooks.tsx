@@ -15,6 +15,7 @@ import { DEFAULT_PROVIDER_PRESETS, resolveSelectedPreset, type ExecutionConfig }
 import { buildSandboxProxyDataUrl } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { navigate } from "@/lib/router";
+import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
 import { publishContentRefresh } from "@/lib/content-refresh-bus";
 import { createTovuAssistantTransport } from "@/lib/assistant-transport";
@@ -807,6 +808,28 @@ export function useAttachmentUploader(): ReturnType<typeof createDaemonAttachmen
 }
 
 /**
+ * Builds the `validateAttachments` callback `AssistantDock.tsx` passes to `<ChatPane>` — the host
+ * half of restoring a persisted composer draft's ATTACHMENTS. Injectable per `INFO.md`'s Components
+ * rule 3 for the same reason {@link useAttachmentUploader} above is: every probe is a real `fetch`
+ * to `/api/attachments/:ref`, which a fake bypasses entirely.
+ *
+ * Without this prop `@jini-ai/chat` restores such a draft's TEXT only: it persists the attachment
+ * references, but hands back none that no host has vouched for, because the staged bytes sit under
+ * the daemon's one-hour `retentionMs` and a chip for a pruned file looks intact and dies at send.
+ * See `lib/chat-attachment-liveness.ts` for the full rule and why a HEAD answers it.
+ *
+ * Memoized for the same reason the uploader is: `ChatPane` reads this on a draft restore at mount,
+ * and a new identity each render would make that a moving dependency.
+ *
+ * @returns The memoized validator instance.
+ * @example
+ * const validateAttachments = useAttachmentValidator();
+ */
+export function useAttachmentValidator(): ReturnType<typeof createChatAttachmentValidator> {
+  return useMemo(() => createChatAttachmentValidator(), []);
+}
+
+/**
  * Mirrors `lib/api.ts`'s `DEFAULT_REQUEST_TIMEOUT_MS` (60s). `listAgents`/`rescanAgents`/
  * `daemonOnline` below bypass that shared `request()` seam entirely — `/api/agents` is not under
  * `request()`'s `/api/admin/v1` base path — so without their own bound they can hang forever under
@@ -1566,6 +1589,12 @@ export function useAttachmentUploaderSeam(
   override: typeof useAttachmentUploader | undefined,
 ): ReturnType<typeof createDaemonAttachmentUploader> {
   return (override ?? useAttachmentUploader)();
+}
+
+export function useAttachmentValidatorSeam(
+  override: typeof useAttachmentValidator | undefined,
+): ReturnType<typeof createChatAttachmentValidator> {
+  return (override ?? useAttachmentValidator)();
 }
 
 export function useRuntimeAccessSeam(override: typeof useRuntimeAccess | undefined): ChatPaneRuntimeAccess {

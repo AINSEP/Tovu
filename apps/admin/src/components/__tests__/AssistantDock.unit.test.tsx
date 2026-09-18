@@ -536,6 +536,18 @@ describe("AssistantDock useAttachmentUploader injection", () => {
   });
 });
 
+describe("AssistantDock useAttachmentValidator injection", () => {
+  it("wires ChatPane's validateAttachments prop off the injected fake, not the real liveness prober", () => {
+    const fakeValidator = vi.fn();
+
+    render(<AssistantDock useChats={() => fakeChats()} useAttachmentValidator={() => fakeValidator} />);
+
+    // Without this prop `@jini-ai/chat` restores a persisted draft's TEXT only and silently discards
+    // its attachment references — it will not hand back a reference no host vouched for.
+    expect(chatPaneSpy).toHaveBeenCalledWith(expect.objectContaining({ validateAttachments: fakeValidator }));
+  });
+});
+
 describe("AssistantDock useRuntimeAccess injection", () => {
   it("wires ChatPane's runtimeAccess prop off the injected fake, not the real fetch-backed one", () => {
     const fakeRuntimeAccess = {
