@@ -115,6 +115,7 @@ import { decideBeforeQuit } from "./src/quit-drain-gate.ts";
 import { applyGuestWebPreferences } from "./src/webview-guest-policy.ts";
 import { createSelftestTracker } from "./src/selftest-tracker.ts";
 import { registerSpeechIpc } from "./src/speech/speech-ipc.ts";
+import { registerFindInPageIpc, relayFindResults } from "./src/find-in-page-ipc.ts";
 import { registerRunnerIpcStubs } from "./src/runner-ipc-stubs.ts";
 import { redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "./src/desktop-auth.ts";
 import { sitesFilePath, seedDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "./src/tracked-sites.ts";
@@ -514,6 +515,10 @@ function openSitesHomeWindow(): BrowserWindow | null {
 
   if (selftestTracker) selftestTracker.add(window);
   window.on("page-title-updated", (event) => event.preventDefault());
+
+  // The find bar's top-level target (`find-in-page-ipc.ts`) — the Projects screen itself, when no
+  // project tab's own `<webview>` is the visible surface. See `contracts/find-in-page.ts`'s header.
+  relayFindResults(window);
 
   // The guest gets the shell's OWN speech preload, not none (D-10) — see
   // `webview-guest-policy.ts` for why assigning is strictly stronger than the `delete` this
@@ -1282,6 +1287,11 @@ app
     // channel — see `SPEECH_PRELOAD_PATH`'s own doc for why this and the preload path are both
     // needed for `window.tovuVoice` to exist at all.
     registerSpeechIpc({ ipcMain });
+    // General, not sites-home-only: registered here for the same reason `registerSpeechIpc` is —
+    // resolves its target from `event.sender` at call time, so it needs no per-window setup and is
+    // harmless to register even for a boot mode whose window never calls it (no preload exposes
+    // these channels outside the sites home window today). See `find-in-page-ipc.ts`.
+    registerFindInPageIpc({ ipcMain, browserWindow: BrowserWindow });
     applyDockIcon();
 
     // ABOVE the mode split, deliberately: the sites home UI writes crash-safety rows (every project tab's

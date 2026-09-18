@@ -39,6 +39,13 @@ import {
   type WorkspaceChatStartInput,
 } from '../contracts/workspace-chat.js';
 import { RUNNER_WORKING_DIRECTORY_CHANNELS } from '../contracts/working-directory.js';
+import {
+  FIND_IN_PAGE_CHANNELS,
+  FIND_RESULT_CHANNEL,
+  FIND_TOGGLE_CHANNEL,
+  type FindInPageQuery,
+  type FindInPageResult,
+} from '../contracts/find-in-page.js';
 import { RUNNER_CHAT_ATTACHMENT_CHANNELS, type SaveChatAttachmentInput } from '../contracts/chat-attachments.js';
 import {
   WORKSPACE_CONVERSATION_CHANNELS,
@@ -108,6 +115,14 @@ contextBridge.exposeInMainWorld(
     /** The app menu's History > Back / Forward. Only the visible project tab subscribes. */
     onSiteHistory: (listener: (command: SiteHistoryCommand) => void) =>
       subscribe(SITE_HISTORY_CHANNEL, listener),
+    /** The app menu's Find (Cmd+F). Carries no payload — see `use-find-in-page.hooks.ts`. */
+    onFindToggle: (listener: () => void) => subscribe<undefined>(FIND_TOGGLE_CHANNEL, listener),
+    /** Runs a `webContents.findInPage` on the SITES HOME WINDOW'S OWN top-level page — used only
+     *  when no project tab's `<webview>` is the visible surface. See `find-in-page-ipc.ts`. */
+    findInPage: (query: FindInPageQuery) => ipcRenderer.invoke(FIND_IN_PAGE_CHANNELS.find, query),
+    stopFindInPage: () => ipcRenderer.invoke(FIND_IN_PAGE_CHANNELS.stop),
+    /** One `found-in-page` result for the top-level target above. */
+    onFindResult: (listener: (result: FindInPageResult) => void) => subscribe(FIND_RESULT_CHANNEL, listener),
     // Synchronous and in-process, deliberately not an `ipcRenderer.invoke` round trip: `webUtils`
     // only exists in the preload's Node-capable context, not the isolated page, so this function IS
     // the bridge rather than a proxy for one. Electron's contextBridge structured-clones `File`

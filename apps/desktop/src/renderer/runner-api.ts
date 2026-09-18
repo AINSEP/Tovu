@@ -21,6 +21,7 @@ import type {
   WorkspaceConversationSummary,
   SaveConversationMessageInput,
 } from '../contracts/workspace-conversations.js';
+import type { FindInPageQuery, FindInPageResult } from '../contracts/find-in-page.js';
 
 export interface RunnerInventoryBridge {
   listAgents: () => Promise<readonly RunnerAgentSummary[]>;
@@ -72,6 +73,15 @@ export interface RunnerInventoryBridge {
   onNavigate: (listener: (section: RunnerSectionId) => void) => () => void;
   /** Fires on the app menu's History > Back / Forward (Cmd+[ / Cmd+]); returns its teardown. */
   onSiteHistory: (listener: (command: SiteHistoryCommand) => void) => () => void;
+  /** Fires on the app menu's Find (Cmd+F); returns its teardown. See `use-find-in-page.hooks.ts`. */
+  onFindToggle: (listener: () => void) => () => void;
+  /** Runs a `webContents.findInPage` on the SITES HOME WINDOW'S OWN top-level page — used only when
+   *  no project tab's `<webview>` is the visible surface, which calls its own `findInPage` directly
+   *  instead. See `contracts/find-in-page.ts`'s header for the full split. */
+  findInPage: (query: FindInPageQuery) => Promise<void>;
+  stopFindInPage: () => Promise<void>;
+  /** One `found-in-page` result for the top-level target above; returns its teardown. */
+  onFindResult: (listener: (result: FindInPageResult) => void) => () => void;
   /**
    * Resolves a `File`'s absolute OS path. Runs in the preload, not over IPC — see the bridge
    * implementation. Returns `''` for a `File` that did not come directly off a drop/dialog event

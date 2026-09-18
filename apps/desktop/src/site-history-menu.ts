@@ -19,6 +19,8 @@
  *
  * No `electron` import, so it can be tested under plain `node --test`.
  */
+import { findMenu } from "./find-menu.ts";
+import type { FindMenu } from "./find-menu.ts";
 
 /** Mirrors `contracts/project.ts`'s `SITE_HISTORY_CHANNEL`. */
 const SITE_HISTORY_CHANNEL = "runner:sites:history";
@@ -46,11 +48,12 @@ interface SiteHistoryMenu {
   submenu: [SiteHistoryMenuItem, SiteHistoryMenuItem];
 }
 
-/** One top-level entry of {@link sitesHomeMenuTemplate}: an Electron menu role, or History. */
+/** One top-level entry of {@link sitesHomeMenuTemplate}: an Electron menu role, History, or Find. */
 type SitesHomeMenuEntry =
   | { role: "appMenu" | "fileMenu" | "editMenu" | "viewMenu" | "windowMenu" }
   | { role: "help"; submenu: [] }
-  | SiteHistoryMenu;
+  | SiteHistoryMenu
+  | FindMenu;
 
 /**
  * Sends one history command to a window's renderer.
@@ -83,8 +86,8 @@ function siteHistoryMenu(): SiteHistoryMenu {
 }
 
 /**
- * Electron's default application menu with History added before Window. The Help menu is empty,
- * as a packaged app's default is.
+ * Electron's default application menu with History and Find added before Window. The Help menu is
+ * empty, as a packaged app's default is.
  *
  * @param platform `process.platform`; only macOS gets the app menu.
  * @complexity O(1).
@@ -97,6 +100,7 @@ function sitesHomeMenuTemplate(platform: NodeJS.Platform): SitesHomeMenuEntry[] 
     { role: "editMenu" },
     { role: "viewMenu" },
     siteHistoryMenu(),
+    findMenu(),
     { role: "windowMenu" },
     { role: "help", submenu: [] },
   ];

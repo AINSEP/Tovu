@@ -23,6 +23,7 @@ import { chromeVisibility, workspaceOnScreen } from './expanded-mode.js';
 import { useWorkspaceChatPane, WORKSPACE_RUN_CONTEXT } from './use-workspace-chat-pane.hooks.js';
 import { useAddSite } from './use-add-site.hooks.js';
 import { useSiteWorkspace } from './use-site-workspace.hooks.js';
+import { useFindInPage, useComposedGuestRef, type FindInPage, type FindableGuest } from './use-find-in-page.hooks.js';
 import { SiteGrid } from './SiteGrid.js';
 import { CreateWebsiteOnboarding } from './CreateWebsiteOnboarding.js';
 import { STATUS_LABEL } from './site-status.js';
@@ -87,6 +88,9 @@ export function App({
   const { openSites, inSites, showSiteTab, showSitesHome, visibleWorkspaceId, showCreateForm } =
     deriveSitesHomeView({ activeId, appearanceOpen, activeTab, openTabs, projects, isCreating });
   const { expanded, toggleExpanded } = useExpanded(showSiteTab);
+  // The visible project tab's guest when one is on screen, else the Projects screen itself — see
+  // `use-find-in-page.hooks.ts`'s own header for why the target routing lives there, not here.
+  const find = useFindInPage(showSiteTab ? visibleWorkspaceId : null);
   // Expanded mode's whole visible effect. See `expanded-mode.ts` for why this is a plain function
   // rather than three conditions inlined into the JSX below.
   const { showTopNav, showTabStrip } = chromeVisibility({ expanded, inSites, appearanceOpen });
@@ -104,6 +108,7 @@ export function App({
 
   return (
     <div className="app">
+      <FindBar find={find} />
       {showTopNav && (
       <TopNav
         activeId={activeId}
@@ -162,6 +167,7 @@ export function App({
           visibleWorkspaceId={visibleWorkspaceId}
           expanded={expanded}
           onToggleExpanded={toggleExpanded}
+          registerGuest={find.registerGuest}
         />
       </main>
 
@@ -183,6 +189,74 @@ export function App({
           actually built it should be a PANEL reachable from this app's own chrome, not a second
           floating button competing with the guest's. `WorkspaceChatPane` and the `.chat-fab*` rules
           in `app.css` are kept for it. */}
+    </div>
+  );
+}
+
+/**
+ * Cmd+F's own bar: a query input, the "N of M" counter, previous/next, and a close button that
+ * stops the search and clears its highlights. Always mounted (see `App`'s root), hidden with a
+ * plain early return rather than being conditionally rendered out of the tree — the input DOM node
+ * only exists while `find.open`, so its `inputRef` has nothing to attach to when closed either way,
+ * and there is no state here worth preserving across a close (`useFindInPage`'s `close` already
+ * resets it).
+ *
+ * Floats over whichever surface is on screen — the Projects grid or a project tab's own bar — top
+ * right, the same corner Chrome puts its own in.
+ */
+function FindBar({ find }: { find: FindInPage }) {
+  if (!find.open) return null;
+  return (
+    <div className="findbar" role="search">
+      <input
+        ref={find.inputRef}
+        type="text"
+        className="findbar__input"
+        value={find.query}
+        onChange={(event) => find.setQuery(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            find.close();
+          } else if (event.key === 'Enter') {
+            event.preventDefault();
+            if (event.shiftKey) find.previous();
+            else find.next();
+          }
+        }}
+        placeholder="Find in page"
+        aria-label="Find in page"
+      />
+      <span className="findbar__count" aria-live="polite">{find.countLabel}</span>
+      <button
+        type="button"
+        className="findbar__act"
+        onClick={find.previous}
+        disabled={find.query === ''}
+        title="Previous match (Shift+Enter)"
+        aria-label="Previous match"
+      >
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+          <path d="M4 10l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="findbar__act"
+        onClick={find.next}
+        disabled={find.query === ''}
+        title="Next match (Enter)"
+        aria-label="Next match"
+      >
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+          <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <button type="button" className="findbar__act findbar__close" onClick={find.close} title="Close (Esc)" aria-label="Close find bar">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+          <path d="M6 6l8 8M14 6l-8 8" strokeLinecap="round" />
+        </svg>
+      </button>
     </div>
   );
 }
@@ -427,12 +501,14 @@ function SiteWorkspaces({
   visibleWorkspaceId,
   expanded,
   onToggleExpanded,
+  registerGuest,
 }: {
   inSites: boolean;
   openSites: readonly SiteRecord[];
   visibleWorkspaceId: string | null;
   expanded: boolean;
   onToggleExpanded: () => void;
+  registerGuest: (projectId: string, element: FindableGuest | null) => void;
 }) {
   if (!inSites) return null;
   return (
@@ -444,6 +520,7 @@ function SiteWorkspaces({
           hidden={!workspaceOnScreen({ inSites, projectId: project.id, visibleWorkspaceId })}
           expanded={expanded}
           onToggleExpanded={onToggleExpanded}
+          registerGuest={registerGuest}
         />
       ))}
     </>
@@ -481,11 +558,13 @@ function SiteWorkspace({
   hidden,
   expanded,
   onToggleExpanded,
+  registerGuest,
 }: {
   project: SiteRecord;
   hidden: boolean;
   expanded: boolean;
   onToggleExpanded: () => void;
+  registerGuest: (projectId: string, element: FindableGuest | null) => void;
 }) {
   // Everything this tab remembers and every action its bar takes: which surface it asked for, where
   // its guest is, its history, and Reload that keeps that history. Per tab, never lifted into `App`.
@@ -494,7 +573,9 @@ function SiteWorkspace({
   // `guestRef` is a CALLBACK ref, not a ref object, and that distinction is the whole of D-03: the
   // hooks' listeners have to attach when the guest actually mounts, and this tab mounts it
   // conditionally (`running && !workspace.failed` below). See `useWebviewLoadFailure`'s own doc.
+  // Composed with the find bar's own registration so ONE ref does both — see `useComposedGuestRef`.
   const { guestRef } = workspace;
+  const combinedGuestRef = useComposedGuestRef(guestRef, registerGuest, project.id);
   const running = project.status === 'running';
 
   return (
@@ -596,7 +677,7 @@ function SiteWorkspace({
               `key` is now recovery only: Reload calls the guest's own `reload()`, which keeps its
               history, and `useSiteWorkspace` remounts only a guest that failed or stalled. */}
           <webview
-            ref={guestRef}
+            ref={combinedGuestRef}
             key={workspace.reloadNonce}
             className="workspace__frame"
             src={workspace.src}

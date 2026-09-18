@@ -647,6 +647,65 @@ button { font: inherit; color: inherit; }
 
 .workspace__error { margin: 0; max-width: 34rem; color: var(--danger); font-size: 0.8125rem; }
 
+/* ---------- find bar ---------- */
+
+/* Floats over whichever surface is on screen, top right — the same corner Chrome's own Cmd+F bar
+   uses. `z-index` above `.workspace__overlay` (1) and the chat pane, so it is reachable however
+   the app is laid out underneath it. */
+.findbar {
+  position: fixed;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.findbar__input {
+  width: 13rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+  color: var(--fg);
+  padding: 0.25rem 0.5rem;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+.findbar__input:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+.findbar__count {
+  min-width: 4.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.findbar__act {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--muted);
+  padding: 0;
+  cursor: pointer;
+}
+.findbar__act svg { width: 14px; height: 14px; }
+.findbar__act:hover:not(:disabled) { background: var(--surface-2); color: var(--fg); }
+.findbar__act:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.findbar__close { border-color: transparent; background: none; }
+.findbar__close:hover { background: var(--surface-2); color: var(--fg); }
+
 /* ---------- chat ---------- */
 
 .chat {

@@ -22,7 +22,9 @@
  *
  * The element methods merged below are the ones `use-site-workspace.hooks.ts` calls: history
  * (`canGoBack`/`goBack`/…), `reload()`, which keeps that history where a `key` remount would not,
- * and `loadURL()`.
+ * and `loadURL()`. `findInPage`/`stopFindInPage`/`found-in-page` are the ones
+ * `use-find-in-page.hooks.ts` calls — Electron's `WebviewTag` exposes these directly on the DOM
+ * element itself, so a project tab's find target needs no IPC at all; see that file's own header.
  *
  * The `HTMLWebViewElement` merge further down is a DIFFERENT kind of augmentation, and it is NOT
  * inert. React's own `webview` entry types `ref` against `HTMLWebViewElement`
@@ -71,6 +73,17 @@ declare global {
     readonly isMainFrame: boolean;
   }
 
+  /** Narrowed to the two fields `use-find-in-page.hooks.ts` reads off Electron's own `Result` —
+   *  see `electron-webview.d.ts`'s own header on why this is declared locally rather than imported. */
+  interface WebviewFoundInPageResult {
+    readonly activeMatchOrdinal: number;
+    readonly matches: number;
+  }
+
+  interface WebviewFoundInPageEvent extends Event {
+    readonly result: WebviewFoundInPageResult;
+  }
+
   interface HTMLWebViewElement {
     // Only what `useWebviewLoadFailure` and `use-site-workspace.hooks.ts` use. Electron's
     // `WebviewTag` types every event and method this tag has; widening just these keeps the merge
@@ -95,6 +108,8 @@ declare global {
     removeEventListener(event: 'did-finish-load', listener: (event: Event) => void): void;
     removeEventListener(event: 'did-navigate', listener: (event: WebviewDidNavigateEvent) => void): void;
     removeEventListener(event: 'did-navigate-in-page', listener: (event: WebviewDidNavigateInPageEvent) => void): void;
+    addEventListener(event: 'found-in-page', listener: (event: WebviewFoundInPageEvent) => void, useCapture?: boolean): void;
+    removeEventListener(event: 'found-in-page', listener: (event: WebviewFoundInPageEvent) => void): void;
     // Every one of these throws until the guest is attached; callers catch that.
     canGoBack(): boolean;
     canGoForward(): boolean;
@@ -102,5 +117,9 @@ declare global {
     goForward(): void;
     reload(): void;
     loadURL(url: string): Promise<void>;
+    /** Begins (or steps through) a search; the result arrives on the `found-in-page` event above,
+     *  never as this call's return value in practice — see `use-find-in-page.hooks.ts`'s `runFind`. */
+    findInPage(text: string, options?: { forward?: boolean; findNext?: boolean; matchCase?: boolean }): number;
+    stopFindInPage(action: 'clearSelection' | 'keepSelection' | 'activateSelection'): void;
   }
 }
