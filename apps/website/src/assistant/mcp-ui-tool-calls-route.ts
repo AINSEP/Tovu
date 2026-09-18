@@ -7,7 +7,11 @@ import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import { RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
 import { isMcpUiToolCallAllowed } from "./mcp-ui-tool-calls.js";
-import { SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
+import {
+  SURFACE_EXCHANGE_ID_PARAM,
+  SURFACE_TYPED_ANSWER_PARAM,
+  type SurfaceExchangeStore,
+} from "../contracts/core/tool-surface-exchanges.js";
 
 /**
  * @file The daemon-side half of the MCP-UI callback endpoint — where a rendered surface's answer
@@ -232,6 +236,60 @@ function deliverMcpUiExchange(
 }
 
 /**
+ * True when this callback is a human's TYPED answer — prose from the chat composer rather than a
+ * click on the rendered surface. Presence of a non-blank {@link SURFACE_TYPED_ANSWER_PARAM} is the
+ * whole discriminator: no form produces that param, and nothing else in the request distinguishes a
+ * typed answer from a Shape-2 redemption.
+ *
+ * @complexity O(1).
+ */
+function isTypedSurfaceAnswer(params: Record<string, unknown>): boolean {
+  const raw = params[SURFACE_TYPED_ANSWER_PARAM];
+  return typeof raw === "string" && raw.trim().length > 0;
+}
+
+/**
+ * Shape 3: a typed answer that names no exchange. Resolves which open exchange it is for, delivers
+ * it, and writes the response.
+ *
+ * ## Why the route resolves the correlation rather than the client
+ *
+ * A human typing into the composer has never seen an exchange id. The only place one exists
+ * client-side is inside the surface's own HTML — which is model-influenced and rendered in a
+ * sandboxed iframe, so a client that scraped an id out of it and posted it back would be supplying a
+ * correlation the model wrote both ends of. `findTypedAnswerTarget` reads it off the store instead,
+ * scoped to this request's server-verified principal and to the named (already allowlisted) tool.
+ *
+ * ## Why an unmatched typed answer must not fall through to Shape 2
+ *
+ * Shape 2 EXECUTES the named tool as a brand-new call. For `assistant_ask_choice` that would put a
+ * second, unasked-for form on the human's screen in response to a message that was only ever meant to
+ * answer the first one. A refusal is the honest outcome: there is nothing outstanding to answer.
+ */
+function deliverTypedSurfaceAnswer(
+  res: Response,
+  deps: Pick<McpUiToolCallsRouteDeps, "surfaceExchanges">,
+  input: { params: Record<string, unknown>; toolId: string; principalId: string },
+): void {
+  const exchangeId = deps.surfaceExchanges.findTypedAnswerTarget({
+    principalId: input.principalId,
+    toolId: input.toolId,
+  });
+  if (exchangeId === undefined) {
+    // Same 409 body as `deliverMcpUiExchange`'s own refusal, for the same reason: from the human's
+    // side "nothing is outstanding", "it already expired" and "you have two open and named neither"
+    // are one situation they cannot act on differently.
+    res.status(409).json({
+      error: "that dialog is no longer waiting for an answer",
+      code: "SURFACE_NOT_PENDING",
+      reason: "unknown-or-closed",
+    });
+    return;
+  }
+  deliverMcpUiExchange(res, deps, { exchangeId, params: input.params, toolId: input.toolId, principalId: input.principalId });
+}
+
+/**
  * Shape 2: legacy two-call redemption (ADR-053) — executes the tool through the same
  * `ToolExecutor.execute` a model-issued call uses, and maps the outcome onto the HTTP response.
  * Split out of {@link registerMcpUiToolCallsRoute} purely to keep that function's complexity under
@@ -276,6 +334,14 @@ export function registerMcpUiToolCallsRoute(app: Express, deps: McpUiToolCallsRo
     // ---- Shape 1: an open exchange is waiting for this message. ----
     if (parsed.exchangeId !== undefined) {
       deliverMcpUiExchange(res, deps, { exchangeId: parsed.exchangeId, params: parsed.params, toolId: parsed.toolName, principalId });
+      return;
+    }
+
+    // ---- Shape 3: a human typed their answer instead of clicking the form, so it names no
+    // exchange. Checked before Shape 2 because Shape 2 would EXECUTE the tool afresh — putting a
+    // second, unasked-for dialog on screen in reply to an answer to the first. ----
+    if (isTypedSurfaceAnswer(parsed.params)) {
+      deliverTypedSurfaceAnswer(res, deps, { params: parsed.params, toolId: parsed.toolName, principalId });
       return;
     }
 

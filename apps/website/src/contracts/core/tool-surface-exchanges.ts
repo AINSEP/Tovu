@@ -226,6 +226,24 @@ export interface SurfaceExchangeStore {
    * {@link SurfaceExchangeBinding} here.
    */
   deliver(spec: DeliverySpec): DeliverResult;
+  /**
+   * Resolves which open exchange a TYPED answer is for, when the human named none.
+   *
+   * A person typing into the chat composer does not know exchanges exist, so they cannot carry a
+   * {@link SURFACE_EXCHANGE_ID_PARAM} the way a rendered form does. This store is the only thing
+   * that knows what is open, so the correlation is recovered here rather than guessed by a client
+   * scraping an id out of the surface's own (model-influenced) HTML.
+   *
+   * Scoped by `toolId` as well as `principalId` on purpose: it is an OPT-IN, not a broadcast. Only
+   * a tool that has a safe reading of prose should ever be named here, which is what keeps typed
+   * text away from confirmation-shaped exchanges (see {@link SURFACE_TYPED_ANSWER_PARAM}).
+   *
+   * @returns The single matching open exchange's id, or `undefined` when there is none — or more
+   * than one. Ambiguity fails closed: delivering to the wrong one would silently answer a question
+   * the human was not looking at, and report their words as an answer to it.
+   * @complexity O(n) in the number of open exchanges, which is bounded by concurrent agent runs.
+   */
+  findTypedAnswerTarget(spec: { principalId: string; toolId: string }): string | undefined;
   /** Open, unsettled count — for tests and diagnostics only. */
   size(): number;
 }
@@ -502,6 +520,18 @@ export function createSurfaceExchangeStore(
 
       entry.accept(spec.params);
       return { ok: true };
+    },
+
+    findTypedAnswerTarget({ principalId, toolId }) {
+      let found: string | undefined;
+      for (const [id, entry] of openExchanges) {
+        if (entry.binding.principalId !== principalId || entry.binding.toolId !== toolId) continue;
+        // A second match means the human has two questions outstanding and their prose names
+        // neither. Return nothing rather than picking one — see the interface doc.
+        if (found !== undefined) return undefined;
+        found = id;
+      }
+      return found;
     },
 
     size() {

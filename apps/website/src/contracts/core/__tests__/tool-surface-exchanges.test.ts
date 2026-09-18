@@ -483,3 +483,52 @@ test("the deadlines are ordered so the exchange, not the transport, gives up fir
   assert.ok(DEFAULT_SURFACE_IDLE_TTL_MS <= DEFAULT_SURFACE_MAX_LIFETIME_MS);
   assert.ok(DEFAULT_SURFACE_MAX_LIFETIME_MS < 6 * 60 * 1000);
 });
+
+/**
+ * `findTypedAnswerTarget` is the correlation a TYPED answer has to borrow. A human typing into the
+ * chat composer names no exchange — they do not know exchanges exist — so the store, which is the
+ * only thing that knows what is open, resolves it from the principal and the tool instead. See
+ * `SURFACE_TYPED_ANSWER_PARAM`'s own doc for why typed text needed a route in at all.
+ */
+test("findTypedAnswerTarget: resolves the one open exchange a typed answer could be meant for", () => {
+  const store = createSurfaceExchangeStore();
+  const exchange = store.open({ toolId: "assistant_ask_choice", principalId: "p" }, recordingEmitter().emit);
+
+  assert.equal(store.findTypedAnswerTarget({ principalId: "p", toolId: "assistant_ask_choice" }), exchange.id);
+});
+
+test("findTypedAnswerTarget: another principal's open question is never a target", () => {
+  const store = createSurfaceExchangeStore();
+  store.open({ toolId: "assistant_ask_choice", principalId: "someone-else" }, recordingEmitter().emit);
+
+  assert.equal(store.findTypedAnswerTarget({ principalId: "p", toolId: "assistant_ask_choice" }), undefined);
+});
+
+test("findTypedAnswerTarget: an exchange opened by a different tool is never a target", () => {
+  const store = createSurfaceExchangeStore();
+  // A confirmation-shaped tool's exchange, open for the same human at the same moment. Typed prose
+  // must not reach it — see `classifyConfirmationAnswer`'s own fail-closed test above for the
+  // second, independent guard on the same property.
+  store.open({ toolId: "content_post_delete", principalId: "p" }, recordingEmitter().emit);
+
+  assert.equal(store.findTypedAnswerTarget({ principalId: "p", toolId: "assistant_ask_choice" }), undefined);
+});
+
+test("findTypedAnswerTarget: refuses to guess when the same human has two questions outstanding", () => {
+  const store = createSurfaceExchangeStore();
+  store.open({ toolId: "assistant_ask_choice", principalId: "p" }, recordingEmitter().emit);
+  store.open({ toolId: "assistant_ask_choice", principalId: "p" }, recordingEmitter().emit);
+
+  // Fail closed, deliberately. Delivering to the wrong one would silently answer a question the
+  // human was not looking at, and the tool would report their words as an answer to it. "Click the
+  // form you mean" is a worse experience and a correct one.
+  assert.equal(store.findTypedAnswerTarget({ principalId: "p", toolId: "assistant_ask_choice" }), undefined);
+});
+
+test("findTypedAnswerTarget: a closed exchange stops being a target", async () => {
+  const store = createSurfaceExchangeStore();
+  const exchange = store.open({ toolId: "assistant_ask_choice", principalId: "p" }, recordingEmitter().emit);
+  exchange.close();
+
+  assert.equal(store.findTypedAnswerTarget({ principalId: "p", toolId: "assistant_ask_choice" }), undefined);
+});

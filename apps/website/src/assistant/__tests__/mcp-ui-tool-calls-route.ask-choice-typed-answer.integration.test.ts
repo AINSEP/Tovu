@@ -221,3 +221,77 @@ test("an empty typed answer is not treated as an answer at all", async (t) => {
   const output = executed.output as Record<string, unknown>;
   assert.equal(output["freeText"], undefined, "whitespace is not an answer — the model must not be told one arrived");
 });
+
+/**
+ * The composer cannot name an exchange. A human typing an answer has never seen an exchange id, and
+ * the only place one appears client-side is inside the surface's own HTML — which is model-influenced
+ * and rendered in a sandbox, so scraping it there and posting it back would be a correlation the
+ * model writes both ends of. The route resolves it from the store instead.
+ */
+test("a typed answer that names no exchange still reaches the one question outstanding for that human", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const toolExecutor = buildRealAskChoiceToolExecutor(surfaceExchanges);
+  const { pending } = await openRealDialog(toolExecutor);
+  const baseUrl = await startRoute(t, toolExecutor, surfaceExchanges);
+
+  const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: PRINCIPAL },
+    body: JSON.stringify({
+      toolName: ASK_CHOICE_TOOL_ID,
+      params: { [SURFACE_TYPED_ANSWER_PARAM]: "take15-cut-v3 should be the video" },
+    }),
+  });
+
+  const body = (await res.json()) as { delivered?: boolean; error?: string; code?: string };
+  assert.equal(res.status, 202, `the typed answer must be routed to the open question: ${JSON.stringify(body)}`);
+  assert.equal(body.delivered, true);
+
+  const executed = await pending;
+  assert.equal((executed.output as Record<string, unknown>)["freeText"], "take15-cut-v3 should be the video");
+});
+
+test("a typed answer with nothing outstanding is refused, not executed as a fresh tool call", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const toolExecutor = buildRealAskChoiceToolExecutor(surfaceExchanges);
+  const baseUrl = await startRoute(t, toolExecutor, surfaceExchanges);
+
+  const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: PRINCIPAL },
+    body: JSON.stringify({
+      toolName: ASK_CHOICE_TOOL_ID,
+      params: { [SURFACE_TYPED_ANSWER_PARAM]: "take15-cut-v3 should be the video" },
+    }),
+  });
+
+  // Must NOT fall through to Shape 2, which would run `assistant_ask_choice` as a brand-new call and
+  // put a second, unasked-for form on the human's screen.
+  const body = (await res.json()) as { error?: string; code?: string };
+  assert.equal(res.status, 409, `expected a refusal, got ${res.status}: ${JSON.stringify(body)}`);
+  assert.equal(body.code, "SURFACE_NOT_PENDING");
+  assert.equal(body.error, "that dialog is no longer waiting for an answer");
+});
+
+test("a typed answer never reaches another human's open question", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const toolExecutor = buildRealAskChoiceToolExecutor(surfaceExchanges);
+  const { pending } = await openRealDialog(toolExecutor);
+  const baseUrl = await startRoute(t, toolExecutor, surfaceExchanges);
+
+  const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: "principal-someone-else" },
+    body: JSON.stringify({
+      toolName: ASK_CHOICE_TOOL_ID,
+      params: { [SURFACE_TYPED_ANSWER_PARAM]: "deploy it" },
+    }),
+  });
+
+  assert.equal(res.status, 409);
+  assert.equal(
+    await Promise.race([pending.then(() => "resolved" as const), Promise.resolve("still-parked" as const)]),
+    "still-parked",
+    "another principal's typing must not answer this human's question",
+  );
+});
