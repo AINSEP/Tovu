@@ -14,12 +14,14 @@ import {
   formatMatchCount,
   initialFindBarState,
   resolveFindTarget,
+  restoreFocusAfterResult,
   runFind,
   shouldCloseOnGuestChange,
   stopFind,
   type FindBarState,
   type FindableGuest,
   type FindBridge,
+  type AnchorSelection,
 } from './use-find-in-page.hooks.js';
 
 /** A `<webview>` stand-in that records every imperative call. */
@@ -133,6 +135,66 @@ test('runFind on the top target calls the bridge with the query merged into the 
   const bridge = fakeBridge();
   runFind({ kind: 'top' }, bridge, 'hello', { forward: false, findNext: false });
   assert.deepEqual(bridge.calls, [['findInPage', { text: 'hello', forward: false, findNext: false }]]);
+});
+
+/** Records the ORDER of a top-level find's two effects, since ordering is the whole point: the
+ *  selection has to be gone by the time Chromium reads it. */
+function orderedTopFind(): { bridge: FindBridge; selection: AnchorSelection; order: string[] } {
+  const order: string[] = [];
+  return {
+    order,
+    bridge: {
+      onFindToggle: () => () => {},
+      findInPage: async () => {
+        order.push('findInPage');
+      },
+      stopFindInPage: async () => {
+        order.push('stopFindInPage');
+      },
+      onFindResult: () => () => {},
+    },
+    selection: {
+      removeAllRanges: () => {
+        order.push('removeAllRanges');
+      },
+    },
+  };
+}
+
+test('runFind on the top target clears the document selection BEFORE searching', () => {
+  const { bridge, selection, order } = orderedTopFind();
+  runFind({ kind: 'top' }, bridge, 'hello', { forward: true, findNext: false }, selection);
+  assert.deepEqual(order, ['removeAllRanges', 'findInPage'], 'a selection still present when Chromium reads it re-anchors the search on the find bar itself');
+});
+
+test('runFind on a guest target leaves the host document selection alone', () => {
+  const { selection, order } = orderedTopFind();
+  runFind({ kind: 'guest', element: fakeGuest() }, undefined, 'hello', { forward: true, findNext: false }, selection);
+  assert.deepEqual(order, [], "the guest is a different document — its search never reads this one's selection");
+});
+
+test('runFind on the top target with no bridge does not clear the selection either', () => {
+  const { selection, order } = orderedTopFind();
+  runFind({ kind: 'top' }, undefined, 'hello', { forward: true, findNext: false }, selection);
+  assert.deepEqual(order, [], 'no search to anchor, so nothing to clear');
+});
+
+test('restoreFocusAfterResult refocuses the input after a top-level result, never after a guest one', () => {
+  let focused = 0;
+  const input = {
+    focus: () => {
+      focused += 1;
+    },
+  };
+
+  restoreFocusAfterResult({ kind: 'top' }, input);
+  assert.equal(focused, 1, "the top-level search blurs the input it searches past — one character in and the bar is dead without this");
+
+  restoreFocusAfterResult({ kind: 'guest', element: fakeGuest() }, input);
+  restoreFocusAfterResult({ kind: 'none' }, input);
+  assert.equal(focused, 1, 'a guest clears its own document selection, not this one — stealing focus back would be gratuitous');
+
+  assert.doesNotThrow(() => restoreFocusAfterResult({ kind: 'top' }, null), 'the bar can be closed by the time a result lands');
 });
 
 test('runFind/stopFind on none, or on top with no bridge, are no-ops', () => {

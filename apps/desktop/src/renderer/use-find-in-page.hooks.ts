@@ -19,6 +19,13 @@
  * bar's own input, which lives in THIS document (`App.tsx`'s `FindBar`), so only `onFindToggle`
  * needs the bridge.
  *
+ * **The top-level target searches the document this bar is IN, so the bar's own caret is in the
+ * way.** Chromium anchors a find on the frame's live selection when there is one, and then clears
+ * it — blurring whatever held it. With a caret in the find input that meant every search restarted
+ * from the bar's own position (Enter never advanced) and the input lost focus after the first
+ * keystroke (every later character was dropped). {@link runFind} clears the selection itself, first,
+ * for that target only. A `<webview>` guest searches its own document and is unaffected.
+ *
  * **`findNext`'s meaning is Electron's own, and it reads backwards.** `true` begins a NEW search
  * session (the right value for a fresh or changed query); `false` is a follow-up within the current
  * session (the right value for stepping to the next/previous match). See {@link runFind}.
@@ -30,6 +37,21 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
 import type { FindInPageResult } from '../contracts/find-in-page.js';
+
+/** The slice of the DOM `Selection` API this file drives — see {@link runFind}. A fake of it is
+ *  what tests pass. */
+export type AnchorSelection = Pick<Selection, 'removeAllRanges'>;
+
+/**
+ * This window's own document selection, or `null` where there is no DOM at all (this package's
+ * tests run on bare node — see this file's header). Only the top-level target needs it; a
+ * `<webview>` guest searches its OWN document, whose selection this one cannot touch.
+ *
+ * @complexity O(1).
+ */
+export function liveAnchorSelection(): AnchorSelection | null {
+  return typeof document === 'undefined' ? null : document.getSelection();
+}
 
 /** The slice of Electron's `<webview>` this file drives. A fake of it is what tests pass. */
 export type FindableGuest = Pick<HTMLWebViewElement, 'findInPage' | 'stopFindInPage' | 'addEventListener' | 'removeEventListener'>;
@@ -101,12 +123,31 @@ export function resolveFindTarget(input: {
  * nothing to recover: the next query change or keypress tries again against whatever is mounted by
  * then.
  *
+ * **The top-level target must have NO document selection when Chromium reads it.** The find bar's
+ * input lives in the very document that target searches, so a caret sitting in it IS this frame's
+ * selection — and Chromium's find takes a live selection as the search's anchor, then clears it,
+ * which also blurs whatever owned it. Both halves broke the bar: every search re-resolved from the
+ * find bar's own position in the DOM instead of advancing past the previous match (Enter appeared
+ * to do nothing), and the blur dropped focus so the second keystroke onwards never reached the
+ * input at all. Clearing the selection ourselves first leaves Chromium continuing from the previous
+ * match — and, verified live, leaves focus where it is. Only the `top` target needs this: a guest
+ * searches its own document, which this one's selection has no bearing on.
+ *
  * @param options.findNext Electron's own meaning, not the button's: `true` begins a NEW session
  *   (pass it for a query CHANGE), `false` is a follow-up within the current one (pass it for
  *   Enter/Shift+Enter). See this file's own header.
+ * @param selection this window's own selection; defaults to the live one, so no call site can
+ *   forget it. Tests pass a fake to assert it is cleared BEFORE the search, which is the whole
+ *   point — a selection still standing when Chromium reads it is the bug.
  * @complexity O(1) beyond Chromium's own search cost.
  */
-export function runFind(target: FindTarget, bridge: FindBridge | undefined, text: string, options: { forward: boolean; findNext: boolean }): void {
+export function runFind(
+  target: FindTarget,
+  bridge: FindBridge | undefined,
+  text: string,
+  options: { forward: boolean; findNext: boolean },
+  selection: AnchorSelection | null = liveAnchorSelection(),
+): void {
   if (target.kind === 'guest') {
     try {
       target.element.findInPage(text, options);
@@ -115,7 +156,26 @@ export function runFind(target: FindTarget, bridge: FindBridge | undefined, text
     }
     return;
   }
-  if (target.kind === 'top') void bridge?.findInPage({ text, ...options });
+  if (target.kind === 'top' && bridge) {
+    selection?.removeAllRanges();
+    void bridge.findInPage({ text, ...options });
+  }
+}
+
+/**
+ * Puts focus back in the find input after a result, for the one target that takes it away.
+ *
+ * A top-level search runs in the very document this bar lives in, and Chromium's find clears that
+ * frame's selection before searching — which blurs whatever held it. A focused text input ALWAYS
+ * holds a selection (a caret is one), so there is no way to keep focus through the search; it has
+ * to be restored after. Without this the bar accepts exactly one character and Enter reaches
+ * nobody. A `<webview>` guest clears its OWN document's selection, never this one's, so nothing to
+ * restore.
+ *
+ * @complexity O(1).
+ */
+export function restoreFocusAfterResult(target: FindTarget, input: { focus(): void } | null): void {
+  if (target.kind === 'top') input?.focus();
 }
 
 /**
@@ -227,7 +287,11 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
       target.element.addEventListener('found-in-page', onFound);
       return () => target.element.removeEventListener('found-in-page', onFound);
     }
-    if (target.kind === 'top') return bridge?.onFindResult((result) => dispatch({ type: 'result', result }));
+    if (target.kind === 'top')
+      return bridge?.onFindResult((result) => {
+        restoreFocusAfterResult(target, inputElement.current);
+        dispatch({ type: 'result', result });
+      });
     return undefined;
     // `target` is a fresh object every render (`resolveFindTarget` builds one), so this depends on
     // its STABLE identity components instead — the guest map is a ref (never itself a dependency
@@ -292,23 +356,31 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
 /**
  * Composes a project tab's own `guestRef` (`useSiteWorkspace`'s callback ref, which feeds
  * `useWebviewLoadFailure`'s `setGuest`) with {@link FindInPage.registerGuest}, so `App.tsx` sets ONE
- * `ref` on the `<webview>` rather than two. Memoized on its three stable inputs — `guestRef` is a
+ * `ref` on the `<webview>` rather than two. Memoized on its stable inputs — `guestRef` is a
  * `useState` setter (always stable), `registerGuest` is `useCallback`-stable, and `projectId` does
  * not change for a mounted tab's own instance — so this is not a fresh function every render, which
  * would otherwise make React detach and reattach the ref on every commit for no reason.
  *
+ * @param extra an optional third registration, called last, for a feature with its own per-guest
+ *   registry — `use-zoom.hooks.ts`'s `registerGuest`, wrapped by its caller as
+ *   `(node) => zoom.registerGuest(projectId, node)`. Not typed against `FindableGuest`: a second
+ *   feature's own narrower `Pick<HTMLWebViewElement, ...>` is a different type from this file's,
+ *   and the real DOM node this ref actually receives satisfies both, so the caller narrows it, not
+ *   this function.
  * @complexity O(1).
  */
 export function useComposedGuestRef(
   guestRef: (node: HTMLWebViewElement | null) => void,
   registerGuest: (projectId: string, element: FindableGuest | null) => void,
   projectId: string,
+  extra?: (node: HTMLWebViewElement | null) => void,
 ): (node: HTMLWebViewElement | null) => void {
   return useCallback(
     (node: HTMLWebViewElement | null) => {
       guestRef(node);
       registerGuest(projectId, node);
+      extra?.(node);
     },
-    [guestRef, registerGuest, projectId],
+    [guestRef, registerGuest, projectId, extra],
   );
 }
