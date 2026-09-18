@@ -14,15 +14,17 @@ import {
   formatMatchCount,
   initialFindBarState,
   resolveFindTarget,
-  restoreFocusAfterResult,
+  restoreFocusAfterWindowResult,
   runFind,
   shouldCloseOnGuestChange,
   stopFind,
+  subscribeToFindResults,
   type FindBarState,
   type FindableGuest,
   type FindBridge,
   type AnchorSelection,
 } from './use-find-in-page.hooks.js';
+import type { FindInPageResult } from '../contracts/find-in-page.js';
 
 /** A `<webview>` stand-in that records every imperative call. */
 function fakeGuest(options: { notAttached?: boolean } = {}): FindableGuest & { calls: unknown[][] } {
@@ -167,10 +169,15 @@ test('runFind on the top target clears the document selection BEFORE searching',
   assert.deepEqual(order, ['removeAllRanges', 'findInPage'], 'a selection still present when Chromium reads it re-anchors the search on the find bar itself');
 });
 
-test('runFind on a guest target leaves the host document selection alone', () => {
+test('runFind on a guest target ALSO clears the host selection first', () => {
   const { selection, order } = orderedTopFind();
-  runFind({ kind: 'guest', element: fakeGuest() }, undefined, 'hello', { forward: true, findNext: false }, selection);
-  assert.deepEqual(order, [], "the guest is a different document — its search never reads this one's selection");
+  const guest = fakeGuest();
+  runFind({ kind: 'guest', element: guest }, undefined, 'hello', { forward: true, findNext: false }, selection);
+  // Not belt-and-braces: Chromium serves a guest's find from the WINDOW's find manager once that
+  // manager exists, and a rerouted search anchors on THIS frame's selection — the find bar's own
+  // caret. See this file's header for the measurement.
+  assert.deepEqual(order, ['removeAllRanges'], 'the host selection must be gone before a guest search too');
+  assert.deepEqual(guest.calls, [['findInPage', 'hello', { forward: true, findNext: false }]]);
 });
 
 test('runFind on the top target with no bridge does not clear the selection either', () => {
@@ -179,22 +186,20 @@ test('runFind on the top target with no bridge does not clear the selection eith
   assert.deepEqual(order, [], 'no search to anchor, so nothing to clear');
 });
 
-test('restoreFocusAfterResult refocuses the input after a top-level result, never after a guest one', () => {
+test('restoreFocusAfterWindowResult refocuses the input, and tolerates a closed bar', () => {
   let focused = 0;
   const input = {
     focus: () => {
       focused += 1;
     },
   };
-
-  restoreFocusAfterResult({ kind: 'top' }, input);
-  assert.equal(focused, 1, "the top-level search blurs the input it searches past — one character in and the bar is dead without this");
-
-  restoreFocusAfterResult({ kind: 'guest', element: fakeGuest() }, input);
-  restoreFocusAfterResult({ kind: 'none' }, input);
-  assert.equal(focused, 1, 'a guest clears its own document selection, not this one — stealing focus back would be gratuitous');
-
-  assert.doesNotThrow(() => restoreFocusAfterResult({ kind: 'top' }, null), 'the bar can be closed by the time a result lands');
+  // Every call site is already a result that arrived on the WINDOW's own found-in-page — the one
+  // source whose search blurred the input. A guest's own event never reaches here.
+  restoreFocusAfterWindowResult(input);
+  assert.equal(focused, 1);
+  restoreFocusAfterWindowResult(input);
+  assert.equal(focused, 2, 'every window-reported result restores focus, not just the first');
+  assert.doesNotThrow(() => restoreFocusAfterWindowResult(null), 'the bar can be closed by the time a result lands');
 });
 
 test('runFind/stopFind on none, or on top with no bridge, are no-ops', () => {
@@ -223,4 +228,92 @@ test('formatMatchCount: blank until a result exists, "No results" for zero match
   assert.equal(formatMatchCount(null), '');
   assert.equal(formatMatchCount({ activeMatchOrdinal: 0, matches: 0 }), 'No results');
   assert.equal(formatMatchCount({ activeMatchOrdinal: 3, matches: 17 }), '3 of 17');
+});
+
+/** A guest whose `found-in-page` listeners a test can fire, and a bridge whose relayed window
+ *  results a test can fire — the two sources a search can be reported on. */
+function twoSourceFakes() {
+  const guestListeners = new Set<(event: { result: FindInPageResult }) => void>();
+  const windowListeners = new Set<(result: FindInPageResult) => void>();
+  const guest: FindableGuest = {
+    findInPage: () => 1,
+    stopFindInPage: () => {},
+    // Cast because `HTMLWebViewElement`'s listener methods are an OVERLOAD SET over every webview
+    // event; this fake only ever receives `'found-in-page'`, whose payload is the one shape below.
+    addEventListener: ((_event: string, listener: (event: { result: FindInPageResult }) => void) => void guestListeners.add(listener)) as FindableGuest['addEventListener'],
+    removeEventListener: ((_event: string, listener: (event: { result: FindInPageResult }) => void) => void guestListeners.delete(listener)) as FindableGuest['removeEventListener'],
+  };
+  const bridge: FindBridge = {
+    onFindToggle: () => () => {},
+    findInPage: async () => {},
+    stopFindInPage: async () => {},
+    onFindResult: (listener) => {
+      windowListeners.add(listener);
+      return () => void windowListeners.delete(listener);
+    },
+  };
+  return {
+    guest,
+    bridge,
+    guestCount: () => guestListeners.size,
+    windowCount: () => windowListeners.size,
+    emitGuest: (result: FindInPageResult) => guestListeners.forEach((l) => l({ result })),
+    emitWindow: (result: FindInPageResult) => windowListeners.forEach((l) => l(result)),
+  };
+}
+
+test('subscribeToFindResults: a GUEST target listens to the window too, because Chromium may report there', () => {
+  const fakes = twoSourceFakes();
+  const results: FindInPageResult[] = [];
+  let windowResults = 0;
+  const unsubscribe = subscribeToFindResults({ kind: 'guest', element: fakes.guest }, fakes.bridge, {
+    onResult: (result) => results.push(result),
+    onWindowResult: () => {
+      windowResults += 1;
+    },
+  });
+  assert.equal(fakes.guestCount(), 1, "the guest's own event");
+  assert.equal(fakes.windowCount(), 1, "the window's relayed event — the source that reports once its find manager exists");
+
+  fakes.emitGuest({ activeMatchOrdinal: 1, matches: 98 });
+  assert.deepEqual(results, [{ activeMatchOrdinal: 1, matches: 98 }]);
+  assert.equal(windowResults, 0, 'a guest-reported result took no focus away, so nothing to restore');
+
+  fakes.emitWindow({ activeMatchOrdinal: 2, matches: 98 });
+  assert.deepEqual(results.at(-1), { activeMatchOrdinal: 2, matches: 98 }, 'a rerouted guest find still reaches the counter');
+  assert.equal(windowResults, 1, 'a window-reported result blurred the input and must restore focus');
+
+  unsubscribe();
+  assert.equal(fakes.guestCount(), 0);
+  assert.equal(fakes.windowCount(), 0, 'both listeners come off together');
+});
+
+test('subscribeToFindResults: a TOP target listens to the window alone', () => {
+  const fakes = twoSourceFakes();
+  const results: FindInPageResult[] = [];
+  let windowResults = 0;
+  const unsubscribe = subscribeToFindResults({ kind: 'top' }, fakes.bridge, {
+    onResult: (result) => results.push(result),
+    onWindowResult: () => {
+      windowResults += 1;
+    },
+  });
+  assert.equal(fakes.guestCount(), 0, 'no guest element to listen to');
+  fakes.emitWindow({ activeMatchOrdinal: 3, matches: 12 });
+  assert.deepEqual(results, [{ activeMatchOrdinal: 3, matches: 12 }]);
+  assert.equal(windowResults, 1);
+  unsubscribe();
+  assert.equal(fakes.windowCount(), 0);
+});
+
+test('subscribeToFindResults: no bridge (outside a desktop window) still subscribes a guest, and unsubscribing is safe', () => {
+  const fakes = twoSourceFakes();
+  const unsubscribe = subscribeToFindResults({ kind: 'guest', element: fakes.guest }, undefined, {
+    onResult: () => {},
+    onWindowResult: () => {},
+  });
+  assert.equal(fakes.guestCount(), 1);
+  assert.doesNotThrow(unsubscribe);
+  assert.equal(fakes.guestCount(), 0);
+  assert.doesNotThrow(() => subscribeToFindResults({ kind: 'none' }, undefined, { onResult: () => {}, onWindowResult: () => {} })());
 });

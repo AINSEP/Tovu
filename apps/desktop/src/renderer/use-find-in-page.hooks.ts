@@ -26,6 +26,19 @@
  * keystroke (every later character was dropped). {@link runFind} clears the selection itself, first,
  * for that target only. A `<webview>` guest searches its own document and is unaffected.
  *
+ * **A guest's find does not always stay in the guest, and that is Chromium's doing, not ours.**
+ * `WebContents::GetFindRequestManager` walks UP the outer-WebContents chain and reuses the first
+ * manager it finds. A `<webview>` guest is an inner WebContents of this window, so the moment the
+ * window itself has run one find — one Cmd+F on the Projects screen is enough — every later guest
+ * find is served by the WINDOW's manager instead of the guest's own. Measured, not assumed: with a
+ * cold window the guest reports `1 of 98` on its own `found-in-page` and the window reports
+ * nothing; after a single `webContents.findInPage` on the window, the identical guest find reports
+ * on the WINDOW and the guest's event never fires. Nothing in the renderer can opt out, so this
+ * file tolerates both: {@link runFind} clears this frame's selection for either target, results are
+ * subscribed from both sources whenever a guest is the target, and focus is restored by whichever
+ * source actually reported — see {@link restoreFocusAfterWindowResult}. Left unhandled, the counter
+ * stayed blank and the input lost focus the moment a tab was searched after the Projects screen was.
+ *
  * **`findNext`'s meaning is Electron's own, and it reads backwards.** `true` begins a NEW search
  * session (the right value for a fresh or changed query); `false` is a follow-up within the current
  * session (the right value for stepping to the next/previous match). See {@link runFind}.
@@ -148,7 +161,13 @@ export function runFind(
   options: { forward: boolean; findNext: boolean },
   selection: AnchorSelection | null = liveAnchorSelection(),
 ): void {
+  // Cleared before EITHER target's search, and only when one is actually issued. For `top` it is
+  // this frame's own search anchor (below). For a guest it is insurance that costs nothing:
+  // Chromium reroutes a guest's find to the WINDOW's find manager once that manager exists (see
+  // this file's header), and a rerouted search reads this frame's selection as its anchor after
+  // all. When it is not rerouted, the guest searches its own document and this clearing is inert.
   if (target.kind === 'guest') {
+    selection?.removeAllRanges();
     try {
       target.element.findInPage(text, options);
     } catch {
@@ -163,19 +182,25 @@ export function runFind(
 }
 
 /**
- * Puts focus back in the find input after a result, for the one target that takes it away.
+ * Puts focus back in the find input after a result that arrived on the WINDOW's own
+ * `found-in-page` — the one source whose search took focus away.
  *
- * A top-level search runs in the very document this bar lives in, and Chromium's find clears that
- * frame's selection before searching — which blurs whatever held it. A focused text input ALWAYS
- * holds a selection (a caret is one), so there is no way to keep focus through the search; it has
- * to be restored after. Without this the bar accepts exactly one character and Enter reaches
- * nobody. A `<webview>` guest clears its OWN document's selection, never this one's, so nothing to
- * restore.
+ * A search reported by this window's own webContents ran in the very document this bar lives in,
+ * and Chromium's find clears that frame's selection before searching, which blurs whatever held it.
+ * A focused text input ALWAYS holds a selection (a caret is one), so there is no way to keep focus
+ * through the search; it has to be restored after. Without this the bar accepts exactly one
+ * character and Enter reaches nobody.
+ *
+ * Keyed on where the result CAME FROM rather than on which target was asked, because those two
+ * come apart: a guest's find is rerouted to the window's own find manager once that manager
+ * exists, and then it is the window that reports — and the window that blurred the input. A result
+ * arriving on the `<webview>` element's own event took nothing away and needs nothing restored,
+ * which is why only this path calls it.
  *
  * @complexity O(1).
  */
-export function restoreFocusAfterResult(target: FindTarget, input: { focus(): void } | null): void {
-  if (target.kind === 'top') input?.focus();
+export function restoreFocusAfterWindowResult(input: { focus(): void } | null): void {
+  input?.focus();
 }
 
 /**
@@ -218,6 +243,38 @@ export function formatMatchCount(result: FindInPageResult | null): string {
   if (result === null) return '';
   if (result.matches === 0) return 'No results';
   return `${result.activeMatchOrdinal} of ${result.matches}`;
+}
+
+/**
+ * Subscribes to every source that could report the search running against `target`, and hands back
+ * one unsubscribe for all of them.
+ *
+ * The WINDOW's own results are subscribed for every target, not just `top`: Chromium serves a
+ * guest's find from the window's find manager once that manager exists, and then the guest's own
+ * `found-in-page` never fires (see this file's header). A guest target subscribes to BOTH, because
+ * which one reports is Chromium's choice and not observable from here.
+ *
+ * @param handlers.onResult every reported result, whichever source carried it.
+ * @param handlers.onWindowResult called first, and only for a result the WINDOW reported — the one
+ *   source whose search blurred the find input. See {@link restoreFocusAfterWindowResult}.
+ * @complexity O(1); at most two listeners, both removed by the returned cleanup.
+ */
+export function subscribeToFindResults(
+  target: FindTarget,
+  bridge: FindBridge | undefined,
+  handlers: { onResult: (result: FindInPageResult) => void; onWindowResult: () => void },
+): () => void {
+  const unsubscribeWindow = bridge?.onFindResult((result) => {
+    handlers.onWindowResult();
+    handlers.onResult(result);
+  });
+  if (target.kind !== 'guest') return () => unsubscribeWindow?.();
+  const onFound = (event: WebviewFoundInPageEvent) => handlers.onResult(event.result);
+  target.element.addEventListener('found-in-page', onFound);
+  return () => {
+    target.element.removeEventListener('found-in-page', onFound);
+    unsubscribeWindow?.();
+  };
 }
 
 export interface FindInPage {
@@ -282,17 +339,10 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
   // query never subscribes at all (see the early return), matching `runFind`'s own stop-not-search.
   useEffect(() => {
     if (!state.open || state.query === '') return undefined;
-    if (target.kind === 'guest') {
-      const onFound = (event: WebviewFoundInPageEvent) => dispatch({ type: 'result', result: event.result });
-      target.element.addEventListener('found-in-page', onFound);
-      return () => target.element.removeEventListener('found-in-page', onFound);
-    }
-    if (target.kind === 'top')
-      return bridge?.onFindResult((result) => {
-        restoreFocusAfterResult(target, inputElement.current);
-        dispatch({ type: 'result', result });
-      });
-    return undefined;
+    return subscribeToFindResults(target, bridge, {
+      onWindowResult: () => restoreFocusAfterWindowResult(inputElement.current),
+      onResult: (result) => dispatch({ type: 'result', result }),
+    });
     // `target` is a fresh object every render (`resolveFindTarget` builds one), so this depends on
     // its STABLE identity components instead — the guest map is a ref (never itself a dependency
     // trigger) and `activeGuestId` is what actually changes which entry it names.

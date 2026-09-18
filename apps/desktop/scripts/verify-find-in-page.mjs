@@ -209,9 +209,13 @@ async function verifyGuest(app, win) {
   await openBar(app, win);
   check('GUEST_BAR_OPENS', await barOpen(win), 'find bar present over the project tab');
 
-  // Which surface did the search actually reach? A guest search never touches the WINDOW's own
-  // webContents, so one `found-in-page` there means the routing fell back to the top-level target
-  // while a tab was on screen — the guest would then never be searched at all.
+  // WHERE a guest's find is reported is Chromium's choice, not ours, and it is not stable:
+  // `WebContents::GetFindRequestManager` walks up the outer-WebContents chain and reuses the first
+  // manager it finds, so once this WINDOW has run one find (the top-level phase above did), every
+  // later guest find is served by the window's manager and reported on the window's own
+  // `found-in-page` instead of the `<webview>`'s. Measured here, both ways. So counting window
+  // results proves nothing about routing — what matters is that the guest's CONTENT was searched,
+  // which the match total below establishes: the Projects screen alone reports ~12 for this query.
   await app.evaluate(({ BrowserWindow }) => {
     const contents = BrowserWindow.getAllWindows()[0].webContents;
     globalThis.__topLevelFinds = 0;
@@ -234,7 +238,12 @@ async function verifyGuest(app, win) {
   const forward = await pressEnter(win, 3, { shotName: 'tab-enter' });
   check('GUEST_ENTER_ADVANCES', advancesEveryStep(start.ordinal, forward, start.total), `${start.ordinal} -> ${forward.map((s) => s?.ordinal).join(' -> ')} of ${start.total}`);
   const topLevelFinds = await app.evaluate(() => globalThis.__topLevelFinds ?? -1);
-  check('GUEST_TARGET_IS_THE_GUEST', topLevelFinds === 0, `the window's own webContents reported ${topLevelFinds} found-in-page result(s) while a tab was on screen (must be 0)`);
+  const here = parseCount(await countText(win));
+  check(
+    'GUEST_CONTENT_IS_SEARCHED',
+    here !== null && here.total > 30,
+    `${here?.total} matches over the tab (the Projects screen alone reports ~12 for this query, so a search that reached only the shell would land there); the window's own webContents reported ${topLevelFinds} of these results, which is Chromium's find-manager reuse, not a routing fallback`,
+  );
 }
 
 async function main() {
