@@ -50,7 +50,11 @@ test("the listeners are keyed on the guest NODE, so their lifetime is the node's
 
 test("the hook hands back the callback ref, and App.tsx puts it on the guest", () => {
   assert.match(hookBody(), /guestRef/, "the hook must expose the callback ref that captures the node");
-  assert.match(appTsx, /<webview\s+ref=\{guestRef\}/, "the guest must be attached through the hook's own callback ref");
+  // `combinedGuestRef` is `useComposedGuestRef(guestRef, …)` — the hook's own callback ref, wrapped
+  // so ONE `ref` also feeds the find bar's and zoom's per-guest registries. Both halves are pinned:
+  // a `combinedGuestRef` that stopped composing `guestRef` would silently retire D-03.
+  assert.match(appTsx, /<webview\s+ref=\{combinedGuestRef\}/, "the guest must be attached through a ref composed from the hook's own callback ref");
+  assert.match(appTsx, /useComposedGuestRef\(guestRef,/, "the composed ref must still be built from the hook's own callback ref");
   assert.doesNotMatch(appTsx, /useRef<HTMLWebViewElement>\(null\)/, "the stale ref object must be gone, not left alongside");
 });
 

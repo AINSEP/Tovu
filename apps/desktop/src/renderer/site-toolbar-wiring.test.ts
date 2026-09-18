@@ -85,9 +85,12 @@ test('SiteWorkspace holds no state or effects of its own', () => {
 
 test('the remount survives only as recovery: key on the guest, and both recovery panels retry through it', () => {
   const body = workspaceBody();
-  // `ref={guestRef}` by that bare name: `webview-failure-wiring.test.ts` pins the D-03 callback ref.
-  assert.match(body, /<webview\s+ref=\{guestRef\}\s+key=\{workspace\.reloadNonce\}/);
+  // The ref on the guest is `combinedGuestRef`, which COMPOSES `guestRef` with the find bar's and
+  // zoom's own registration (`useComposedGuestRef`); `webview-failure-wiring.test.ts` pins that the
+  // D-03 callback ref is the one inside it.
+  assert.match(body, /<webview\s+ref=\{combinedGuestRef\}\s+key=\{workspace\.reloadNonce\}/);
   assert.match(body, /const \{ guestRef \} = workspace;/);
+  assert.match(body, /useComposedGuestRef\(guestRef,/);
   assert.equal((body.match(/onStarted=\{workspace\.recover\}/g) ?? []).length, 2);
   assert.match(
     workspaceHooks,

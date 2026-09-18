@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  applyStoredZoom,
   applyZoomCommand,
   nextZoomLevel,
   readStoredZoom,
@@ -18,17 +19,37 @@ import {
   type ZoomStorage,
 } from './use-zoom.hooks.js';
 
-/** A `<webview>` stand-in that records every imperative call and starts at a given zoom level. */
-function fakeGuest(startLevel = 0): ZoomableGuest & { calls: unknown[][] } {
+/** A `<webview>` stand-in that records every imperative call and starts at a given zoom level.
+ *  `attached` is the real tag's own gate: Electron throws from every method until the guest is in
+ *  the DOM and has emitted `dom-ready`, and `emitDomReady` is how a test crosses that line. */
+function fakeGuest(startLevel = 0, attached = true): ZoomableGuest & { calls: unknown[][]; emitDomReady: () => void; listenerCount: () => number } {
   const calls: unknown[][] = [];
+  const listeners = new Set<(event: Event) => void>();
   let level = startLevel;
+  const gate = () => {
+    if (!attached) throw new Error('The WebView must be attached to the DOM and the dom-ready event emitted before this method can be called');
+  };
   return {
     calls,
-    getZoomLevel: () => level,
+    listenerCount: () => listeners.size,
+    emitDomReady: () => {
+      attached = true;
+      for (const listener of [...listeners]) listener(new Event('dom-ready'));
+    },
+    getZoomLevel: () => {
+      gate();
+      return level;
+    },
     setZoomLevel: (next: number) => {
+      gate();
       calls.push(['setZoomLevel', next]);
       level = next;
     },
+    addEventListener: (event: 'dom-ready', listener: (event: Event) => void) => {
+      assert.equal(event, 'dom-ready', 'zoom only ever waits on dom-ready');
+      listeners.add(listener);
+    },
+    removeEventListener: (_event: 'dom-ready', listener: (event: Event) => void) => void listeners.delete(listener),
   };
 }
 
@@ -138,4 +159,42 @@ test('applyZoomCommand: a top target with no bridge, or a none target, is an ine
   const storage = fakeStorage();
   assert.doesNotThrow(() => applyZoomCommand({ kind: 'top' }, undefined, 'in', storage));
   assert.doesNotThrow(() => applyZoomCommand({ kind: 'none' }, fakeBridge(), 'in', storage));
+});
+
+test('applyStoredZoom: an attached guest takes the stored level at once, with no listener left behind', () => {
+  const storage = fakeStorage();
+  writeStoredZoom(storage, 'proj-1', 1.5);
+  const guest = fakeGuest(0);
+  applyStoredZoom(guest, 'proj-1', storage);
+  assert.deepEqual(guest.calls, [['setZoomLevel', 1.5]]);
+  assert.equal(guest.listenerCount(), 0, 'nothing to wait for — it already applied');
+});
+
+test('applyStoredZoom: a guest that is not attached yet does not throw', () => {
+  const storage = fakeStorage();
+  writeStoredZoom(storage, 'proj-1', 1.5);
+  const guest = fakeGuest(0, false);
+  // The regression this guards: this call runs inside a React ref callback, so a throw here
+  // unmounts the whole sites-home tree and the window goes blank white.
+  assert.doesNotThrow(() => applyStoredZoom(guest, 'proj-1', storage));
+  assert.deepEqual(guest.calls, [], 'nothing could be applied to a guest that is not attached');
+});
+
+test('applyStoredZoom: the stored level still lands once the guest reaches dom-ready', () => {
+  const storage = fakeStorage();
+  writeStoredZoom(storage, 'proj-1', -1);
+  const guest = fakeGuest(0, false);
+  applyStoredZoom(guest, 'proj-1', storage);
+  assert.equal(guest.listenerCount(), 1, 'a not-yet-attached guest is waited on');
+  guest.emitDomReady();
+  assert.deepEqual(guest.calls, [['setZoomLevel', -1]], 'the remembered zoom is not lost, only deferred');
+  assert.equal(guest.listenerCount(), 0, 'the wait is a one-shot, not a listener re-fired on every navigation');
+});
+
+test('applyZoomCommand: a guest that is not attached yet is an inert no-op, not a throw', () => {
+  const storage = fakeStorage();
+  const guest = fakeGuest(0, false);
+  assert.doesNotThrow(() => applyZoomCommand({ kind: 'guest', element: guest, projectId: 'proj-1' }, undefined, 'in', storage));
+  assert.deepEqual(guest.calls, []);
+  assert.equal(readStoredZoom(storage, 'proj-1'), 0, 'a level the guest never took must not be remembered');
 });

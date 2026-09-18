@@ -20,7 +20,9 @@
  * `openSitesHomeWindow` loads it via `loadFile`), so no new main-process store or IPC channel earns
  * its cost for ten bytes per site; {@link registerGuest} re-applies the stored level every time a
  * guest (re)registers, which covers both a tab switch back to an already-zoomed guest and a fresh
- * WebContents after a recovery reload. The window's own top-level zoom is deliberately NOT
+ * WebContents after a recovery reload — waiting on that guest's `dom-ready` when it is not attached
+ * yet, since a ref callback fires at attach and every `<webview>` method throws until then
+ * ({@link applyStoredZoom}). The window's own top-level zoom is deliberately NOT
  * persisted — it is shell chrome, not site content, and always starting a fresh session at 100% is
  * the same convention Chrome itself follows for its own UI zoom.
  */
@@ -28,8 +30,17 @@ import { useCallback, useEffect, useRef } from 'react';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
 import type { ZoomDirection } from '../contracts/zoom.js';
 
-/** The slice of Electron's `<webview>` this file drives. A fake of it is what tests pass. */
-export type ZoomableGuest = Pick<HTMLWebViewElement, 'getZoomLevel' | 'setZoomLevel'>;
+/** The slice of Electron's `<webview>` this file drives. A fake of it is what tests pass.
+ *
+ *  The two listener methods are spelled out for `'dom-ready'` alone rather than `Pick`ed like the
+ *  rest: `HTMLWebViewElement`'s `addEventListener` is an OVERLOAD SET covering every webview event
+ *  (`electron-webview.d.ts`), and picking it would oblige a fake to satisfy all of them. A real
+ *  `<webview>` still satisfies this narrower pair, and it says exactly what zoom listens for —
+ *  see {@link applyStoredZoom}. */
+export type ZoomableGuest = Pick<HTMLWebViewElement, 'getZoomLevel' | 'setZoomLevel'> & {
+  addEventListener(event: 'dom-ready', listener: (event: Event) => void): void;
+  removeEventListener(event: 'dom-ready', listener: (event: Event) => void): void;
+};
 
 /** The slice of {@link RunnerInventoryBridge} this file drives. */
 export type ZoomBridge = Pick<RunnerInventoryBridge, 'onZoomCommand' | 'getZoomLevel' | 'setZoomLevel'>;
@@ -106,6 +117,52 @@ export function writeStoredZoom(storage: ZoomStorage, projectId: string, level: 
   }
 }
 
+/** Sets a guest's zoom level, reporting whether it landed rather than throwing when it did not.
+ *  Electron's `<webview>` throws from EVERY method until the guest is attached to the DOM and has
+ *  emitted `dom-ready` — the same tolerance `use-find-in-page.hooks.ts` and
+ *  `use-site-workspace.hooks.ts` already wrap their own guest calls in. */
+function setGuestZoom(element: ZoomableGuest, level: number): boolean {
+  try {
+    element.setZoomLevel(level);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** A guest's current zoom level, or `null` when it cannot answer yet — same not-attached-yet gate
+ *  as {@link setGuestZoom}. */
+function readGuestZoom(element: ZoomableGuest): number | null {
+  try {
+    return element.getZoomLevel();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Applies a project's remembered zoom to a guest that has just (re)registered, deferring to the
+ * guest's `dom-ready` when it is not attached yet.
+ *
+ * **This runs inside a React ref callback, so it must not throw.** A `<webview>` is attached to the
+ * DOM before it is usable, and the ref fires at attach — every method on it throws until
+ * `dom-ready`, and a throw escaping a ref callback unmounts the tree, blanking the whole sites home
+ * window the moment a project tab mounts. Swallowing alone would not do, either: the ref is the
+ * ONLY moment a registration happens, so a swallowed first attempt would quietly retire per-site
+ * zoom memory altogether. Hence the one-shot `dom-ready` wait — the level is deferred, not lost.
+ *
+ * @complexity O(1). At most one listener per registration, removed the first time it fires.
+ */
+export function applyStoredZoom(element: ZoomableGuest, projectId: string, storage: ZoomStorage): void {
+  const level = readStoredZoom(storage, projectId);
+  if (setGuestZoom(element, level)) return;
+  const onReady = () => {
+    element.removeEventListener('dom-ready', onReady);
+    setGuestZoom(element, level);
+  };
+  element.addEventListener('dom-ready', onReady);
+}
+
 /**
  * Runs one zoom command against `target`, persisting the result when the target is a guest.
  *
@@ -113,9 +170,13 @@ export function writeStoredZoom(storage: ZoomStorage, projectId: string, level: 
  */
 export function applyZoomCommand(target: ZoomTarget, bridge: ZoomBridge | undefined, direction: ZoomDirection, storage: ZoomStorage): void {
   if (target.kind === 'guest') {
-    const level = nextZoomLevel(target.element.getZoomLevel(), direction);
-    target.element.setZoomLevel(level);
-    writeStoredZoom(storage, target.projectId, level);
+    // A command that arrives before the guest is attached does nothing — see {@link setGuestZoom}.
+    // Nothing is persisted in that case either: a remembered level the guest never took would be
+    // re-applied on its next registration and silently shift the site under the owner.
+    const current = readGuestZoom(target.element);
+    if (current === null) return;
+    const level = nextZoomLevel(current, direction);
+    if (setGuestZoom(target.element, level)) writeStoredZoom(storage, target.projectId, level);
     return;
   }
   if (target.kind === 'top' && bridge) {
@@ -153,7 +214,7 @@ export function useZoom(activeGuestId: string | null): UseZoom {
     (projectId: string, element: ZoomableGuest | null) => {
       if (element) {
         guests.set(projectId, element);
-        element.setZoomLevel(readStoredZoom(window.localStorage, projectId));
+        applyStoredZoom(element, projectId, window.localStorage);
       } else {
         guests.delete(projectId);
       }
