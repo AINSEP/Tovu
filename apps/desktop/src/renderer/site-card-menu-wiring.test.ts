@@ -60,19 +60,22 @@ test("the trigger carries the same a11y contract SettingsControl uses", () => {
   assert.match(body, /aria-label=\{`More actions for \$\{project\.displayName\}`\}/);
 });
 
-test("Stop is NOT offered — runner:sites:stop is a throwing stub with no handler", () => {
-  // Not a design preference: `project-ipc.ts` registers no handler for it. An entry here, even a
-  // disabled one, would imply it is coming.
-  assert.doesNotMatch(menuBody(), />\s*Stop\s*</);
+test("neither Start nor Stop is in the menu — the card's own action row owns the lifecycle", () => {
+  // Not a preference about menu length: Start USED to live here, and it moved to a labelled button
+  // in `CardActions` when Stop became possible. The same action in a menu AND on a button is two
+  // places to look for one thing, and the ⋮ entry would have to restate what the button says.
+  const body = menuBody();
+  assert.doesNotMatch(body, />\s*Stop\s*</);
+  assert.doesNotMatch(body, />\s*Start\s*</);
 });
 
-test("Start shows only for a stopped site and Open in browser only for a running one", () => {
+test("Open in browser shows only for a running site, and reads the RENDERED status", () => {
   // An entry that is present but inert teaches the operator that this menu's items sometimes do
-  // nothing, which is worse than a shorter menu.
+  // nothing, which is worse than a shorter menu — and a running-only entry decided from the polled
+  // record would still be offering a port that this window's own in-flight Stop is closing.
   const body = menuBody();
-  assert.match(body, /\{!running && \([\s\S]*?Start[\s\S]*?\)\}/, "Start must be gated on !running");
   assert.match(body, /\{running && \([\s\S]*?Open in browser[\s\S]*?\)\}/, "Open in browser must be gated on running");
-  assert.match(body, /const running = project\.status === 'running';/);
+  assert.match(body, /const running = status === 'running';/);
 });
 
 test("every menu item closes the menu before acting, never after", () => {
@@ -83,7 +86,8 @@ test("every menu item closes the menu before acting, never after", () => {
   assert.match(body, /const choose = closeMenuThen\(setOpen\);/);
   // And every item goes through it, rather than some calling their action directly.
   const items = body.match(/role="menuitem"[\s\S]*?onClick=\{([^}]*)\}/g) ?? [];
-  assert.equal(items.length, 3, `expected 3 menu items, found ${items.length}`);
+  // Two: Rename…, and Open in browser for a running site. Start left for the action row's button.
+  assert.equal(items.length, 2, `expected 2 menu items, found ${items.length}`);
   for (const item of items) assert.match(item, /choose\(/, `a menu item bypasses choose(): ${item}`);
 });
 

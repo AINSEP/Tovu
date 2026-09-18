@@ -11,8 +11,8 @@
  * **Every handler throws. None returns a value.** An empty array from a stubbed list channel would
  * render as a real, correct, empty result — a lie the UI has no way to detect. A rejection surfaces
  * in the renderer's own error paths as text naming the channel, which is the honest answer to "why
- * is nothing here". (`runner:sites:list`/`create`/`delete`/`open-external`/`start` are no
- * longer stubbed here — see `project-ipc.ts` for their real handlers.)
+ * is nothing here". (No `runner:sites:*` verb is stubbed here any more — every one of them has a
+ * real handler in `project-ipc.ts`.)
  *
  * The push channels — `workspace:chat:event`, `workspace:chat:navigate` and `runner:sites:history` —
  * are deliberately absent. They are main→renderer sends, not `invoke` targets, so there is no
@@ -51,10 +51,9 @@ const RUNNER_STUB_CHANNELS = Object.freeze([
   "runner:agents:list",
   "runner:agents:rescan",
   "runner:daemon:online",
-  // contracts/project.ts — list/create/delete/open-external/start are real handlers now
-  // (`project-ipc.ts`, registered in `main.ts` before this module runs). `stop` stays stubbed —
-  // no control in the per-project bar calls it yet; see `SITE_IPC_CHANNELS.stop`'s own doc.
-  "runner:sites:stop",
+  // contracts/project.ts — every `runner:sites:*` verb is a real handler now (`project-ipc.ts`,
+  // registered in `main.ts` before this module runs), `stop` included as of the site card's own
+  // Stop control. None of them is stubbed here; see `SITE_IPC_CHANNELS`'s own docs.
   // contracts/workspace-chat.ts — `event` and `navigate` are push-only, see this file's header
   "workspace:chat:start",
   "workspace:chat:reattach",
@@ -102,7 +101,7 @@ function notPortedError(channel: string): RunnerNotPortedError {
  *
  * @param deps `ipcMain`, injected rather than `require("electron")`'d so this is testable under plain `node --test`.
  * @returns the channels registered, in list order.
- * @complexity O(n) in the channel count (19, fixed — 24 total minus the 5 real handlers in
+ * @complexity O(n) in the channel count (18, fixed — 24 total minus the 6 real handlers in
  *   `project-ipc.ts`).
  */
 function registerRunnerIpcStubs({ ipcMain }: { ipcMain: StubIpcMain }): readonly string[] {

@@ -171,8 +171,20 @@ export const SITE_IPC_CHANNELS = {
    *   is operator-facing.
    */
   rename: 'runner:sites:rename',
-  /** Not implemented yet — no control in the per-project bar calls it. Closing the app
-   *  (`before-quit`) or deleting the project are the two ways a sites-home-opened site stops today. */
+  /**
+   * Take one site's `tovu serve` down — the site card's own Stop, and the only way to stop a single
+   * site from inside the app. Real (`project-ipc.ts`'s `handleStop`).
+   *
+   * **A drain, not a kill**: SIGTERM to the child so `serve.ts` runs its own shutdown (finish
+   * in-flight requests, stop the agent daemon, close the sqlite handle), with a SIGKILL of the
+   * process group only as the 5 s escalation. The same `server.stop()` `before-quit` and `delete`
+   * already call.
+   *
+   * @returns the refreshed `SiteRecord` — `stopped`, with `port: 0`. A site's port is reassigned on
+   *   every start, so nothing may keep the one it had; see `handleStart`.
+   * @throws when the row is unknown. Stopping a site that is already stopped is NOT an error: the
+   *   renderer polls on an interval, so a card can be a click behind main's truth.
+   */
   stop: 'runner:sites:stop',
   /** Irreversible: stops the process, removes the install dir, drops the row. Returns nothing. */
   delete: 'runner:sites:delete',

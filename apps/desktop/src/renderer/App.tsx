@@ -15,6 +15,7 @@ import {
   useSiteStart,
   useProjectTabs,
   useSiteRescan,
+  useApplySiteRecord,
   useSitesPolling,
   useRunnerNavigation,
   useSectionNav,
@@ -70,6 +71,9 @@ export function App({
   const [theme, setTheme] = useTheme();
   const { projects, setProjects, projectsLoading, loadError } = useProjects();
   const { rescanning, rescanError, rescan } = useSiteRescan(setProjects);
+  // A card's Start/Stop resolves with main's refreshed record; this is what puts it on screen
+  // rather than leaving the card four seconds behind the poll. See `useApplySiteRecord`.
+  const applySiteRecord = useApplySiteRecord(setProjects);
   const { adding, addError, addSite } = useAddSite(setProjects);
   // Tabs before nav, and not the other way round: `useSectionNav` needs `setActiveTab` because
   // every section-level move also drops back to the sites home tab. What used to make that ordering
@@ -149,6 +153,7 @@ export function App({
           onCreateWebsite={openCreateWebsite}
           onOpenProject={openProjectTab}
           onDeleteProject={handleDelete}
+          onSiteUpdated={applySiteRecord}
           onRescan={rescan}
           rescanning={rescanning}
           rescanError={rescanError}
@@ -859,6 +864,7 @@ function MainArea({
   onCreateWebsite,
   onOpenProject,
   onDeleteProject,
+  onSiteUpdated,
   onRescan,
   rescanning,
   rescanError,
@@ -879,6 +885,8 @@ function MainArea({
   onCreateWebsite: () => void;
   onOpenProject: (id: string) => void;
   onDeleteProject: (id: string) => Promise<void>;
+  /** Applies main's refreshed record after a card's Start or Stop — see `useApplySiteRecord`. */
+  onSiteUpdated: (record: SiteRecord) => void;
   onRescan: () => Promise<void>;
   rescanning: boolean;
   rescanError: string | null;
@@ -916,6 +924,7 @@ function MainArea({
         onCreateWebsite={onCreateWebsite}
         onOpenProject={onOpenProject}
         onDeleteProject={onDeleteProject}
+        onSiteUpdated={onSiteUpdated}
       />
     </>
   );
@@ -978,6 +987,7 @@ function ProjectsBody({
   projects,
   onOpen,
   onDelete,
+  onSiteUpdated,
 }: {
   projectsLoading: boolean;
   loadError: string | null;
@@ -1002,6 +1012,7 @@ function ProjectsBody({
   projects: readonly SiteRecord[];
   onOpen: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
+  onSiteUpdated: (record: SiteRecord) => void;
 }) {
   if (projectsLoading) {
     return (
@@ -1021,7 +1032,7 @@ function ProjectsBody({
     <>
       {rescanError && <p className="empty__body">{rescanError}</p>}
       {addError && <p className="empty__body">{addError}</p>}
-      {projects.length === 0 ? <NoWebsitesYet /> : <SiteGrid projects={projects} onOpen={onOpen} onDelete={onDelete} />}
+      {projects.length === 0 ? <NoWebsitesYet /> : <SiteGrid projects={projects} onOpen={onOpen} onDelete={onDelete} onSiteUpdated={onSiteUpdated} />}
     </>
   );
 }
@@ -1062,6 +1073,7 @@ function MainContent({
   onCreateWebsite,
   onOpenProject,
   onDeleteProject,
+  onSiteUpdated,
 }: {
   activeId: RunnerSectionId;
   isCreating: boolean;
@@ -1076,6 +1088,7 @@ function MainContent({
   onCreateWebsite: () => void;
   onOpenProject: (id: string) => void;
   onDeleteProject: (id: string) => Promise<void>;
+  onSiteUpdated: (record: SiteRecord) => void;
 }) {
   if (activeId !== 'projects') {
     return <NotBuilt label={activeLabel} description={activeDescription} />;
@@ -1118,6 +1131,7 @@ function MainContent({
         projects={projects}
         onOpen={onOpenProject}
         onDelete={onDeleteProject}
+        onSiteUpdated={onSiteUpdated}
       />
     </>
   );

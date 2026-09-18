@@ -109,6 +109,7 @@ import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, cl
 import { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-process-registry.ts";
 import { createKeyedSerializer } from "./src/keyed-serializer.ts";
 import { createSiteSupervisor } from "./src/site-supervisor.ts";
+import { createSiteTransitions } from "./src/site-transitions.ts";
 import { createShutdownTracker } from "./src/shutdown-tracker.ts";
 import { routeQuitSignals } from "./src/quit-signals.ts";
 import { decideBeforeQuit } from "./src/quit-drain-gate.ts";
@@ -318,6 +319,12 @@ const openSites = createSiteSupervisor<OpenSite>({
 
 /** Serializes site opens PER SITE DIR — see this file's own header on why. */
 const serializer = createKeyedSerializer();
+
+/** Which sites are mid-start or mid-stop right now — the fact {@link openSites} cannot express,
+ *  since its answer is two-valued and both transitions take seconds of wall clock. Read by
+ *  `project-ipc.ts`'s `buildSiteRecord`, written by its `handleStart`/`handleStop`; see
+ *  `site-transitions.ts` for why it is not folded into the supervisor. */
+const siteTransitions = createSiteTransitions();
 
 /** Teardowns a window's `closed` handler has STARTED but not finished, so `before-quit` below can
  *  wait for them — see `shutdown-tracker.ts`'s own header for the leak this closes (D-09). */
@@ -1376,6 +1383,10 @@ app
         dialog,
         shell,
         openSites,
+        // The other half of what a card reads as a site's status: `openSites` says whether its
+        // server is alive, this says whether a start or a stop is in flight on it. Without it here
+        // the Stop button the card just showed would report `running` for the whole drain.
+        transitions: siteTransitions,
         serializer,
         projectsPath: sitesCtx.projectsPath,
         registryPath: sitesCtx.registryPath,

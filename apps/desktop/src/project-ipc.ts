@@ -1,13 +1,14 @@
 /**
- * @file Real handlers for the nine `runner:sites:*` IPC verbs the Projects screen needs — see
+ * @file Real handlers for the ten `runner:sites:*` IPC verbs the Projects screen needs — see
  * `contracts/project.ts`'s `SITE_IPC_CHANNELS` for what each one is for. Registered in
  * `main.ts` BEFORE `registerRunnerIpcStubs` runs, so these channels are never also stubbed —
  * Electron's `ipcMain.handle` throws on a duplicate registration, which is the desired failure if
  * that ever regresses (see `runner-ipc-stubs.ts`'s own doc).
  *
- * `stop` is deliberately absent — no control in the per-project bar calls it yet; closing the app
- * (`before-quit`, `main.ts`) or deleting the project (`handleDelete` below) are the two ways a
- * sites-home-opened site stops today. It stays registered as a throwing stub.
+ * `stop` is one of them as of the site card's own Start/Stop control ({@link handleStop}). Until
+ * that control existed there was NO way to stop a site from inside the app at all: closing the app
+ * (`before-quit`, `main.ts`) and deleting the project (`handleDelete` below) were the only two
+ * paths, and an operator who wanted one site down had to find and kill its process from a terminal.
  *
  * The channel literals below are INLINED rather than imported from `contracts/project.ts`, same
  * reason `runner-ipc-stubs.ts` inlines its own: this is CommonJS main-process code and the
@@ -31,6 +32,7 @@ const SITE_IPC_CHANNELS = Object.freeze({
   delete: "runner:sites:delete",
   openExternal: "runner:sites:open-external",
   start: "runner:sites:start",
+  stop: "runner:sites:stop",
   rescan: "runner:sites:rescan",
   addSite: "runner:sites:add-site",
   rename: "runner:sites:rename",
@@ -98,6 +100,14 @@ interface OpenSites {
   has(siteDir: string): boolean;
   delete(siteDir: string): boolean;
   lastExitOf?(siteDir: string): ServerExitLike | null;
+}
+
+/** `deps.transitions` — `site-transitions.ts`'s store, as the two readers here need it. Structural
+ *  rather than an import of its own type, for the same reason {@link OpenSites} is a duck type:
+ *  this file's handlers stay callable from plain `node --test` against a two-line fake. */
+interface SiteTransitionsLike {
+  get(siteDir: string): "starting" | "stopping" | null;
+  during<T>(siteDir: string, transition: "starting" | "stopping", body: () => Promise<T>): Promise<T>;
 }
 
 /** A crash-safety registry row, as {@link liveForeignServers} needs it — mirrors
@@ -214,6 +224,27 @@ function describeLastExit(openSites: OpenSites, siteDir: string): string | null 
 }
 
 /**
+ * What to report as a site's `status` and `desiredState`, from the two facts that decide them: is
+ * its `tovu serve` alive right now, and is a start or a stop in flight on it.
+ *
+ * Its own function because those two facts do not compose by precedence alone — a `stopping` site
+ * IS still alive, and a `starting` one is NOT yet, so the transition has to win over `running` in
+ * one direction and over `stopped` in the other. Inlined in {@link buildSiteRecord} that reads as
+ * three nested ternaries whose ordering is load-bearing and invisible.
+ *
+ * `desiredState` follows the transition's INTENT rather than its current liveness: an operator
+ * mid-stop wants this site down, which is the honest thing for a card to say while the drain runs.
+ *
+ * @complexity O(1).
+ */
+function siteLifecycle(running: boolean, transition: "starting" | "stopping" | null) {
+  if (transition === "starting") return { status: "starting" as const, desiredState: "running" as const };
+  if (transition === "stopping") return { status: "stopping" as const, desiredState: "stopped" as const };
+  if (running) return { status: "running" as const, desiredState: "running" as const };
+  return { status: "stopped" as const, desiredState: "stopped" as const };
+}
+
+/**
  * One tracked row plus `openSites` (ground truth for "running") joined into the `SiteRecord`
  * shape `contracts/project.ts` declares. Every field this shell cannot really know — `templateId`,
  * `templateVersion`, `database` — gets a stated, honest default rather than a fabricated value:
@@ -222,9 +253,16 @@ function describeLastExit(openSites: OpenSites, siteDir: string): string | null 
  *
  * @complexity O(1).
  */
-function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion">) {
+function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions">) {
   const openEntry = deps.openSites.get(row.siteDir);
   const running = openEntry !== undefined;
+  // `openSites` answers "is it alive", which is a two-valued answer to a four-valued question:
+  // both transitions take real wall-clock time, and during either one the two-valued answer is
+  // wrong in the direction the operator can SEE — a Start they just pressed reads `stopped` for the
+  // whole boot, a Stop reads `running` until the child is gone, and both look like a dead button.
+  // `site-transitions.ts` is what makes the other two answers producible; absent (every test that
+  // is not exercising them) it reads `null` and nothing here changes.
+  const lifecycle = siteLifecycle(running, deps.transitions?.get(row.siteDir) ?? null);
   return {
     id: row.siteDir,
     slug: path.basename(row.siteDir),
@@ -239,12 +277,16 @@ function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | 
     templateId: "tovu",
     templateVersion: null,
     database: { kind: "sqlite" },
-    desiredState: running ? "running" : "stopped",
-    status: running ? "running" : "stopped",
+    desiredState: lifecycle.desiredState,
+    status: lifecycle.status,
     // Not always `null` any more: a site that DIED is `stopped` exactly like one that was never
     // started, and before `site-supervisor.ts` owned that transition the two were indistinguishable
     // to the renderer (D-06). This is the one place the difference can be told.
-    statusDetail: running ? null : describeLastExit(deps.openSites, row.siteDir),
+    //
+    // Only for a settled `stopped`. Mid-transition the prior crash is not what the operator is
+    // looking at — a card that says "Starting" and "the server exited (code 1)" in the same breath
+    // is reporting two different moments as one.
+    statusDetail: lifecycle.status === "stopped" ? describeLastExit(deps.openSites, row.siteDir) : null,
     createdAt: row.createdAt,
     updatedAt: row.createdAt,
     // Computed by the SAME function `handleDelete` obeys, never re-derived from `origin` in the
@@ -259,7 +301,7 @@ function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | 
 }
 
 /** @complexity O(n) in the tracked-project count. */
-function handleList(deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion">) {
+function handleList(deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions">) {
   return readTrackedSites(deps.projectsPath).map((row) => buildSiteRecord(row, deps));
 }
 
@@ -288,7 +330,7 @@ function handleList(deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "r
  */
 async function handleCreate(
   input: CreateSiteInput,
-  deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "adoptSiteDir" | "repoRoot" | "statePath" | "cliMode" | "projectsPath" | "openSites" | "readSiteName" | "readPreviewVersion">
+  deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "adoptSiteDir" | "repoRoot" | "statePath" | "cliMode" | "projectsPath" | "openSites" | "readSiteName" | "readPreviewVersion" | "transitions">
 ) {
   const kind = input.database?.kind;
   if (kind !== undefined && kind !== "sqlite") {
@@ -351,7 +393,7 @@ async function handleCreate(
  *   complete Tovu site — either way an operator-facing message that names the fix.
  * @complexity O(n) in the tracked-project count, plus one classification.
  */
-async function handleAddSite(deps: Pick<ProjectIpcDeps, "dialog" | "addSitePointer" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion">) {
+async function handleAddSite(deps: Pick<ProjectIpcDeps, "dialog" | "addSitePointer" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions">) {
   const picked = await deps.dialog.showOpenDialog({
     title: "Choose your Tovu website's folder",
     message: "Pick a folder that already contains a Tovu website. Nothing in it will be changed.",
@@ -563,7 +605,7 @@ function identityHasChanged(row: SiteRow): boolean {
  *   every boot).
  * @complexity O(n) in the tracked-site count, for the row lookup.
  */
-function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projectsPath" | "classifySiteDir" | "writeSiteName" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion">) {
+function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projectsPath" | "classifySiteDir" | "writeSiteName" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions">) {
   const id = input?.id;
   const row = readTrackedSites(deps.projectsPath).find((tracked) => tracked.siteDir === id);
   if (row === undefined) {
@@ -658,20 +700,108 @@ function handleGetPreview(id: string, deps: Pick<ProjectIpcDeps, "readPreviewDat
  * would then start a `tovu serve` on a path that no longer exists. Inside, "is this project still
  * tracked" is asked at the only instant its answer is still true when acted on.
  *
+ * The boot is marked `starting` for its whole duration (`site-transitions.ts`) — seconds, during
+ * which `openSites` still says "not running" and a card left to that alone shows the operator a
+ * Start button that appears to have done nothing. The mark is released before the record below is
+ * built, so what this RESOLVES with is the settled answer, never `starting`.
+ *
  * @throws {Error} when `id` names a project this shell is not tracking — a stale id from a renderer
  *   that has not yet re-polled past a delete, refused rather than opening an arbitrary path.
  * @complexity O(1) beyond `openSiteServer`'s own cost, plus however long an already-queued
  *   operation on the same site takes to settle.
  */
-async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "serializer" | "projectsPath" | "openSiteServer" | "ctx" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion">) {
+async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "serializer" | "projectsPath" | "openSiteServer" | "ctx" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions">) {
   return await deps.serializer.run(id, async () => {
     const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
     if (row === undefined) {
       throw new Error(`Unknown project: ${id}`);
     }
-    await deps.openSiteServer(id, deps.ctx);
+    await markTransition(deps.transitions, id, "starting", () => deps.openSiteServer(id, deps.ctx));
     return buildSiteRecord(row, deps);
   });
+}
+
+/**
+ * Take one site's `tovu serve` down — the card's Stop, and the first way this app has ever had to
+ * stop a single site from inside itself. Before it, `before-quit` (every site at once) and
+ * `handleDelete` (the project is going away) were the only two, so an operator who wanted one site
+ * down had to kill its process from a terminal.
+ *
+ * **Drains rather than kills.** `server.stop()` is `tovu-server.ts`'s `stopChild`: SIGTERM to the
+ * child, which runs `serve.ts`'s own BR-07 shutdown — stop accepting, finish in-flight requests,
+ * stop the agent daemon, close the sqlite handle — with a SIGKILL of the process GROUP only as the
+ * 5 s escalation. That is the same call `before-quit` and `handleDelete` make; nothing here is a
+ * shortcut past it, and nothing is left orphaned: `stopChild` resolves only once the child is
+ * really gone.
+ *
+ * **The entry is dropped BEFORE the stop is awaited, deliberately** — the window-`closed` path in
+ * `main.ts` does the identical thing for the identical reason. `site-supervisor.ts` watches each
+ * entry's child and reports an exit it did not expect through `onUnexpectedExit`, which logs a
+ * crash and records a `lastExitOf` the card then shows as "the site's server was stopped by
+ * SIGTERM". For a stop the operator ASKED for, that is a lie in the one place they can read it.
+ * Removing the entry first is what makes the supervisor's own identity check see this exit as no
+ * longer its business. `stopChild` cannot reject (every path resolves), so there is no arm where
+ * this forgets a site whose child is still alive.
+ *
+ * The crash-safety row is dropped only AFTER the stop, never before: it exists so the NEXT launch
+ * can reap a child this process left running, so it has to outlive the child. Dropping it up front
+ * would mean a hard kill of the app mid-drain left a `tovu serve` that `reconcileOrphans` could
+ * never find — the exact bug the window-`closed` path's own comment records.
+ *
+ * Stopping a site nobody started is a no-op that still returns its record, not an error: the
+ * renderer polls every 4 s, so a card can be a click behind main's truth through no fault of the
+ * operator's, and refusing would surface an error for a state they already wanted.
+ *
+ * @returns the project's fresh record, so the card settles on `stopped` without waiting for a poll.
+ * @throws {Error} when `id` names a project this shell is not tracking — same refusal, and same
+ *   reason, as {@link handleStart}'s.
+ * @complexity O(1) beyond `server.stop()`'s own drain (bounded by its 5 s grace), plus however long
+ *   an already-queued operation on the same site takes to settle.
+ */
+async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions">) {
+  return await deps.serializer.run(id, async () => {
+    const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
+    if (row === undefined) {
+      throw new Error(`Unknown project: ${id}`);
+    }
+    await markTransition(deps.transitions, id, "stopping", () => stopSiteServer(id, deps));
+    return buildSiteRecord(row, deps);
+  });
+}
+
+/**
+ * {@link handleStop}'s side effect, split out so the handler above reads as its three steps — find
+ * the row, stop the server, report the result — rather than interleaving the drain's own ordering
+ * rules with them. Assumes it holds this site's serializer key.
+ *
+ * @complexity see {@link handleStop}.
+ */
+async function stopSiteServer(id: string, deps: Pick<ProjectIpcDeps, "openSites" | "registryPath" | "recordSiteClosed">): Promise<void> {
+  const openEntry = deps.openSites.get(id);
+  if (openEntry === undefined) return;
+  deps.openSites.delete(id);
+  await openEntry.server.stop!(); // an entry with no `.stop` never reaches this line in practice — see `OpenSiteEntry.server.stop`'s own note in `deleteProject`
+  // By pid, never by site dir alone: a live SIBLING app instance can hold its own row for this same
+  // site, and a close by site dir would take that one too (D-07).
+  deps.recordSiteClosed(deps.registryPath, id, { pid: openEntry.server.pid });
+}
+
+/**
+ * Run `body` with `siteDir` marked as mid-`transition`, when a transitions store was wired in.
+ *
+ * The optional half is what the two handlers would otherwise each repeat: `deps.transitions` is
+ * absent in every test that is not exercising transition status, and a handler that had to
+ * null-check it inline would state the boot/drain's own logic twice.
+ *
+ * @complexity O(1) beyond `body`'s own cost.
+ */
+function markTransition<T>(
+  transitions: SiteTransitionsLike | undefined,
+  siteDir: string,
+  transition: "starting" | "stopping",
+  body: () => Promise<T>,
+): Promise<T> {
+  return transitions === undefined ? body() : transitions.during(siteDir, transition, body);
 }
 
 /**
@@ -698,7 +828,7 @@ async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "s
  * @returns the same records {@link handleList} would return, after the pass.
  * @complexity O(n) in the scanned child count, times the registry size.
  */
-function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDirs" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion">) {
+function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDirs" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions">) {
   const found = discoverSiteDirs({
     scanRoots: deps.siteScanRoots,
     knownDirs: deps.recentSiteDirs(),
@@ -709,7 +839,7 @@ function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDir
 }
 
 /**
- * Registers the nine real `runner:sites:*` handlers above.
+ * Registers the ten real `runner:sites:*` handlers above.
  *
  * @param deps
  * @param deps.openSites live open sites, keyed by site dir — `main.ts`'s own module-level
@@ -752,7 +882,7 @@ function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDir
  * @param deps.isLiveServeRow `site-process-registry.ts`'s "is this row's pid still its own live
  *   `tovu serve`" identity proof, so a stale or recycled pid can never block a delete.
  * @param deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
- * @complexity O(1) — nine registrations.
+ * @complexity O(1) — ten registrations.
  */
 function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
   deps.ipcMain.handle(SITE_IPC_CHANNELS.list, () => handleList(deps));
@@ -760,6 +890,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
   deps.ipcMain.handle(SITE_IPC_CHANNELS.delete, (_event, id) => handleDelete(id, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.openExternal, (_event, input) => handleOpenExternal(input, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.start, (_event, id) => handleStart(id, deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.stop, (_event, id) => handleStop(id, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rescan, () => rescanSites(deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rename, (_event, input) => handleRename(input, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, () => handleAddSite(deps));
@@ -793,6 +924,16 @@ interface ProjectIpcDeps<TCtx = unknown> {
   // `SiteClassification`. The throwing `classifySiteDir` and the tests' fakes return a subset.
   classifySiteDir: (dir: string) => "site" | "incomplete" | "empty" | "occupied" | "unreadable";
   openSiteServer: (siteDir: string, ctx: TCtx) => Promise<unknown>;
+  /**
+   * `site-transitions.ts`'s store — which sites are mid-start or mid-stop right now, the fact
+   * `openSites` cannot express. `main.ts` wires the real one (`main-project-wiring.test.ts` holds
+   * it there); `buildSiteRecord` and the two lifecycle handlers are its only readers.
+   *
+   * Optional so every existing test bag stays valid: a handler asked to build a record without one
+   * reports the same two-valued `running`/`stopped` it always did, which is exactly right for a
+   * test that is not exercising a transition.
+   */
+  transitions?: SiteTransitionsLike;
   recordSiteClosed: (registryPath: string, siteDir: string, options?: { pid?: number }) => void;
   readRegistry: (registryPath: string) => { sites: RegistryRow[] };
   isLiveServeRow: (row: RegistryRow) => boolean;
@@ -811,9 +952,10 @@ export {
   handleDelete,
   handleOpenExternal,
   handleStart,
+  handleStop,
   handleRename,
   handleGetPreview,
   rescanSites,
   registerSiteIpcHandlers,
 };
-export type { ProjectIpcDeps, SiteRow, OpenSiteEntry, OpenSites, RegistryRow };
+export type { ProjectIpcDeps, SiteRow, OpenSiteEntry, OpenSites, RegistryRow, SiteTransitionsLike };

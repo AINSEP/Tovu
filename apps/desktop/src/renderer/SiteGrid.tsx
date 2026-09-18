@@ -14,16 +14,28 @@
  * The tile was also the de-facto empty state, so removing it alone would have left an operator with
  * no websites looking at nothing at all. `ProjectsBody` (`App.tsx`) renders an explicit empty state
  * instead — this grid is only ever asked to draw cards.
+ *
+ * **Every action a card carries lives in one always-visible row at the bottom of it**, not overlaid
+ * on the preview image and not revealed by hover. The ⋮ and the trash used to sit on the screenshot
+ * and appear on hover; an operator could not see what a card could do without pointing at it, and
+ * on a touchpad or by keyboard that is a control you have to go looking for. They are toolbar
+ * buttons in the info block now, beside the site's own Start/Stop.
+ *
+ * The three do not overlap: Start/Stop is the lifecycle, the trash is the one destructive action
+ * (still behind its own confirm overlay), and ⋮ holds what is neither — Rename, and Open in
+ * browser. Nothing is reachable two ways, which is the rule that keeps the row readable as it grows.
  */
 import { useDeleteConfirmation, useDismissibleDropdown } from './App.hooks.js';
 import { useSiteRename, renameInputKeyDown, showsInvalidNameHint } from './use-site-rename.hooks.js';
 import { useSiteActions } from './use-site-actions.hooks.js';
+import { powerControl, useSitePower } from './use-site-power.hooks.js';
 import { useSitePreview } from './use-site-preview.hooks.js';
 import { cardDeleteClick, cardOpenProps, cardOverlay, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
 import type { SiteRecord } from '../contracts/project.js';
 import type { SiteRenameState } from './use-site-rename.hooks.js';
 import type { SiteActions } from './use-site-actions.hooks.js';
+import type { SitePower } from './use-site-power.hooks.js';
 
 /**
  * `useDeleteState` is the delete-confirm hook itself, defaulted to the real one — the function,
@@ -45,26 +57,36 @@ export function SiteGrid({
   onOpen,
   onDelete,
   onRenamed,
+  onSiteUpdated,
   useDeleteState = useDeleteConfirmation,
   useRenameState = useSiteRename,
   useActions = useSiteActions,
+  usePower = useSitePower,
 }: {
   projects: readonly SiteRecord[];
   onOpen: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
   /** Called with main's refreshed record after a rename, so the caller can refresh its list. */
   onRenamed?: (record: SiteRecord) => void;
+  /** Called with main's refreshed record after a start or a stop, for the same reason `onRenamed`
+   *  exists: the 4s poll would get there eventually, and "eventually" is up to four seconds of a
+   *  stopped site still reading `Running`. See `use-site-power.hooks.ts`. */
+  onSiteUpdated?: (record: SiteRecord) => void;
   useDeleteState?: typeof useDeleteConfirmation;
   useRenameState?: typeof useSiteRename;
-  /** The ⋮ menu's Start / Open-in-browser implementations. Injectable for the same reason
-   *  `useDeleteState` is — see `use-site-actions.hooks.ts` on why these call the bridge directly
-   *  rather than arriving as props from `App.tsx`. */
+  /** The ⋮ menu's Open-in-browser implementation. Injectable for the same reason `useDeleteState`
+   *  is — see `use-site-actions.hooks.ts` on why it calls the bridge directly rather than arriving
+   *  as a prop from `App.tsx`. */
   useActions?: typeof useSiteActions;
+  /** The card's Start/Stop. Injectable for the same reason, and the one a test reaches for to
+   *  render a mid-transition card without driving a real site's boot. */
+  usePower?: typeof useSitePower;
 }) {
   const { pendingId, deletingId, deleteError, requestDelete, cancelDelete, confirmDelete } =
     useDeleteState(onDelete);
   const rename = useRenameState(onRenamed);
   const actions = useActions();
+  const power = usePower(onSiteUpdated);
 
   return (
     <div className="grid">
@@ -78,6 +100,7 @@ export function SiteGrid({
           rename={rename}
           onOpen={onOpen}
           actions={actions}
+          power={power}
           onRequestDelete={requestDelete}
           onCancelDelete={cancelDelete}
           onConfirmDelete={confirmDelete}
@@ -95,6 +118,7 @@ function SiteCard({
   rename,
   onOpen,
   actions,
+  power,
   onRequestDelete,
   onCancelDelete,
   onConfirmDelete,
@@ -106,6 +130,7 @@ function SiteCard({
   rename: SiteRenameState;
   onOpen: (id: string) => void;
   actions: SiteActions;
+  power: SitePower;
   onRequestDelete: (id: string) => void;
   onCancelDelete: () => void;
   onConfirmDelete: (id: string) => Promise<void>;
@@ -123,9 +148,13 @@ function SiteCard({
   // `null` until main has actually captured this site once (or the fetch is still in flight) — see
   // `use-site-preview.hooks.ts`.
   const previewUrl = useSitePreview(project.id, project.previewVersion);
+  // The polled status, or the transition THIS window started and is still waiting on — see
+  // `use-site-power.hooks.ts` on why the local half exists and why it is never the whole answer.
+  const status = power.statusOf(project);
+  const powerError = power.errorOf(project.id);
 
   return (
-    <article className={`card is-${project.status} ${openable ? 'is-openable' : ''}`} {...openProps}>
+    <article className={`card is-${status} ${openable ? 'is-openable' : ''}`} {...openProps}>
       <div className="card__tile">
         {/* A capture exists once this site has been opened at least once, this run or a prior one.
             Until then — and forever as the fallback if a capture ever failed — the tile carries the
@@ -137,30 +166,13 @@ function SiteCard({
         ) : (
           <span className="card__port">{project.port}</span>
         )}
-        <SiteCardMenu
-          project={project}
-          onRename={() => rename.startRename(project)}
-          actions={actions}
-        />
-        <button
-          type="button"
-          className="card__delete"
-          title={copy.cardButtonLabel}
-          aria-label={copy.cardButtonLabel}
-          // Stops the click first: the card itself is the open target. See `cardDeleteClick`.
-          onClick={cardDeleteClick(onRequestDelete, project.id)}
-        >
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
-            <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8h5.8l.6-8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
       </div>
       <div className="card__body">
         <h3 className="card__name">{project.displayName}</h3>
         <p className="card__meta">
           <span className="state">
             <span className="state__dot" aria-hidden="true" />
-            {STATUS_LABEL[project.status]}
+            {STATUS_LABEL[status]}
           </span>
           {project.statusDetail && (
             <span className="card__detail" title={project.statusDetail}>
@@ -173,6 +185,19 @@ function SiteCard({
           {project.templateVersion && <> · Tovu {project.templateVersion}</>}
         </p>
         {project.status === 'provisioning' && <span className="card__draft">Provisioning setup</span>}
+        {/* Main's own sentence, verbatim, when a start or a stop was refused. In the body rather
+            than an overlay: nothing is pending, the card is still openable, and the failure is one
+            fact about it rather than a question to answer. */}
+        {powerError && <p className="card__actionerror">{powerError}</p>}
+        <CardActions
+          project={project}
+          status={status}
+          copy={copy}
+          rename={rename}
+          actions={actions}
+          power={power}
+          onRequestDelete={onRequestDelete}
+        />
       </div>
 
       {overlay === 'rename' && <CardRenameOverlay project={project} rename={rename} />}
@@ -243,6 +268,89 @@ function CardConfirmOverlay({
 }
 
 /**
+ * A card's action row: Start/Stop, then ⋮, then the trash — always visible, in the info block,
+ * never on the preview image.
+ *
+ * **Always visible is the whole point.** These were hover-revealed overlays on the screenshot, and
+ * the operator's own words for why that was wrong are "that way you see it whether you hover or
+ * not". A hover-revealed control is invisible to anyone reading the screen rather than pointing at
+ * it, and on a trackpad it is a control you have to go hunting for.
+ *
+ * **`role="group"` with both event handlers stopped**, the identical contract `CardConfirmOverlay`
+ * and `SiteCardMenu` document and for the identical reason: the card is an open target for clicks
+ * AND for keys, so every event that starts in this row must stop in it, or pressing Start would
+ * also open the site in a tab.
+ *
+ * The three controls are deliberately non-overlapping. Start/Stop is the site's lifecycle and is a
+ * LABELLED button rather than a glyph — it is the one control here whose meaning changes with the
+ * site's state, and an icon cannot say "Stopping…". The trash keeps its own confirm overlay
+ * untouched: making it permanently visible raises the odds of a misclick, so the confirmation is
+ * more load-bearing than it was, not less.
+ *
+ * @complexity O(1) — one conditional button plus two fixed ones.
+ */
+function CardActions({
+  project,
+  status,
+  copy,
+  rename,
+  actions,
+  power,
+  onRequestDelete,
+}: {
+  project: SiteRecord;
+  status: SiteRecord['status'];
+  copy: DeleteActionCopy;
+  rename: SiteRenameState;
+  actions: SiteActions;
+  power: SitePower;
+  onRequestDelete: (id: string) => void;
+}) {
+  // `null` for `provisioning`/`blocked` — a site with nothing to start yet, or ever. See
+  // `powerControl`'s own doc on why that is no button rather than a disabled one.
+  const control = powerControl(status);
+
+  return (
+    <div
+      className="card__actions"
+      role="group"
+      aria-label={`Actions for ${project.displayName}`}
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      {control && (
+        <button
+          type="button"
+          className="card__power"
+          // Disabled mid-transition rather than hidden: a row that reflows under the pointer is how
+          // a second click lands on the trash.
+          disabled={control.action === null}
+          aria-label={`${control.label} ${project.displayName}`}
+          onClick={() => void power.toggle(project)}
+        >
+          {control.label}
+        </button>
+      )}
+      <SiteCardMenu project={project} status={status} onRename={() => rename.startRename(project)} actions={actions} />
+      <button
+        type="button"
+        className="card__delete"
+        title={copy.cardButtonLabel}
+        aria-label={copy.cardButtonLabel}
+        // Stops the click first: the card itself is the open target. See `cardDeleteClick`. Kept
+        // even though this row already stops both — the row's handler is the general rule, this is
+        // the one control where a leak would erase a site directory.
+        onClick={cardDeleteClick(onRequestDelete, project.id)}
+      >
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
+          <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8h5.8l.6-8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+/**
  * A card's ⋮ overflow menu.
  *
  * **Its own component, following `CardConfirmOverlay`'s precedent rather than the complexity
@@ -261,27 +369,35 @@ function CardConfirmOverlay({
  * Markup matches `SettingsControl`'s contract (`App.tsx`) — `aria-expanded`, `aria-haspopup`,
  * `role="menu"` with `role="menuitem"` children — so the app has one menu pattern, not two.
  *
- * Entries render only when their action is both possible and meaningful: `onStart` for a stopped
- * site, `onOpenExternal` for a running one. An entry that is present but inert teaches the operator
- * that this menu's items sometimes do nothing, which is worse than a shorter menu.
+ * Entries render only when their action is both possible and meaningful: `openInBrowser` for a
+ * running site only. An entry that is present but inert teaches the operator that this menu's items
+ * sometimes do nothing, which is worse than a shorter menu.
  *
- * **"Stop" is deliberately absent** — `runner:sites:stop` is a throwing stub with no registered
- * handler (`project-ipc.ts`), so there is nothing to call. A disabled entry would imply it is
- * coming; leaving it out states the truth.
+ * **Start and Stop are deliberately absent, and this is the whole reason the card has an action
+ * row.** Start used to live here, because a stopped site had no other way up; it is now a labelled
+ * button two elements to the left (`CardActions`). The same action in a menu AND on a button is the
+ * duplicate affordance a coherent card cannot have — an operator would have two places to look for
+ * one thing, and the menu's copy would have to restate what the button already says.
  *
- * @complexity O(1) — one hook, at most three conditional entries.
+ * `status` rather than `project.status`: while THIS window's start or stop is in flight the record
+ * has not caught up yet, and a menu offering "Open in browser" for a site that is mid-stop would
+ * hand the browser a port about to close. See `use-site-power.hooks.ts`.
+ *
+ * @complexity O(1) — one hook, one fixed entry plus one conditional.
  */
 function SiteCardMenu({
   project,
+  status,
   onRename,
   actions,
 }: {
   project: SiteRecord;
+  status: SiteRecord['status'];
   onRename: () => void;
   actions: SiteActions;
 }) {
   const { open, setOpen, containerRef } = useDismissibleDropdown<HTMLDivElement>();
-  const running = project.status === 'running';
+  const running = status === 'running';
 
   // Every entry closes the menu first, then acts. See `closeMenuThen`.
   const choose = closeMenuThen(setOpen);
@@ -315,16 +431,6 @@ function SiteCardMenu({
           <button type="button" role="menuitem" className="card__menuitem" onClick={choose(onRename)}>
             Rename…
           </button>
-          {!running && (
-            <button
-              type="button"
-              role="menuitem"
-              className="card__menuitem"
-              onClick={choose(() => void actions.startSite(project.id))}
-            >
-              Start
-            </button>
-          )}
           {running && (
             <button
               type="button"

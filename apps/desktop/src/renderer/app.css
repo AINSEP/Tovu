@@ -949,7 +949,17 @@ button { font: inherit; color: inherit; }
 .card.is-running .card__tile { background: var(--primary-dim); }
 .card.is-running .card__port { color: var(--primary); }
 
-.card__body { padding: 0.75rem 0.875rem 0.875rem; display: grid; gap: 0.3125rem; justify-items: start; }
+/* `flex` with `flex: 1`, not the `grid` it was: the action row's `margin-top: auto` needs a flex
+   parent that fills the card's remaining height, so every card's buttons sit on the same line
+   however long its name or status detail runs. */
+.card__body {
+  flex: 1;
+  padding: 0.75rem 0.875rem 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3125rem;
+  align-items: start;
+}
 
 .card__name {
   margin: 0;
@@ -1010,14 +1020,59 @@ button { font: inherit; color: inherit; }
 }
 
 /*
- * Revealed on hover or keyboard focus rather than always drawn — a sites screen whose every
- * tile carries a visible delete button reads as a screen about deleting. `pointer-events` goes
- * with the opacity so the hidden state cannot be clicked by accident.
+ * The card's action row: Start/Stop at the left, then ⋮ and the trash pushed to the right.
+ *
+ * ALWAYS VISIBLE, and in the info block rather than on the preview image. Both controls used to be
+ * hover-revealed overlays on the screenshot; the owner's own reason for moving them is "that way
+ * you see it whether you hover or not". Nothing here fades: an operator must be able to read what a
+ * card can do without pointing at it, which is also what makes these reachable on a touch screen
+ * and legible to anyone using the keyboard rather than a pointer.
+ *
+ * `margin-top: auto` pins the row to the bottom of the body, so cards whose names wrap to two lines
+ * still line their buttons up with their neighbours'.
  */
+.card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+
+/* The lifecycle control. A LABELLED button, not a glyph: it is the one control on the card whose
+   meaning changes with the site's state, and no icon says "Stopping…". */
+.card__power {
+  min-height: 26px;
+  padding: 0.1875rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.card__power:hover:not(:disabled) { border-color: var(--border-strong); background: var(--surface-2); }
+.card__power:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+/* Mid-transition. Dimmed and inert, but still the same box in the same place — a disabled control
+   that vanished would let the next click land on the trash beside it. */
+.card__power:disabled { opacity: 0.6; cursor: default; }
+
+/* A refused start or stop, in main's own words. One line, clamped like `.card__detail` so an
+   unbounded message can never stretch the card out of the grid. */
+.card__actionerror {
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--danger);
+  font-size: 0.6875rem;
+}
+
 .card__delete {
-  position: absolute;
-  top: 0.4375rem;
-  right: 0.4375rem;
   display: grid;
   place-items: center;
   width: 26px;
@@ -1028,20 +1083,16 @@ button { font: inherit; color: inherit; }
   background: var(--surface);
   color: var(--muted);
   cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 120ms ease;
 }
-.card:hover .card__delete,
-.card:focus-within .card__delete { opacity: 1; pointer-events: auto; }
 .card__delete:hover { border-color: var(--danger); background: var(--danger-dim); color: var(--danger); }
+.card__delete:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 .card__delete svg { width: 14px; height: 14px; }
 
-/* The ⋮ overflow menu, sharing the delete button's box and its reveal-on-hover behaviour so the
-   two read as one control cluster rather than two unrelated affordances. Sits to the LEFT of
-   delete: destructive stays at the corner where it has always been, and a menu that displaced it
-   would move the one control an operator has muscle memory for. */
-.card__menu { position: absolute; top: 0.4375rem; right: calc(0.4375rem + 26px + 0.25rem); z-index: 3; }
+/* The ⋮ overflow menu, sharing the delete button's box so the two read as one control cluster.
+   `margin-left: auto` is what splits the row: the lifecycle button stays left with the text it
+   labels, the two icon buttons sit together at the right edge, trash last — the corner an operator
+   already reaches for it in. */
+.card__menu { position: relative; margin-left: auto; z-index: 3; }
 .card__menubutton {
   display: grid;
   place-items: center;
@@ -1053,22 +1104,18 @@ button { font: inherit; color: inherit; }
   background: var(--surface);
   color: var(--muted);
   cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 120ms ease;
 }
-/* `:focus-within` on the MENU too, not only the card: an open menu whose trigger has lost focus to
-   one of its own items must stay visible, or keyboard users watch it vanish mid-navigation. */
-.card:hover .card__menubutton,
-.card:focus-within .card__menubutton,
-.card__menu:focus-within .card__menubutton { opacity: 1; pointer-events: auto; }
 .card__menubutton:hover { border-color: var(--border-strong); background: var(--surface-2); color: var(--fg); }
-.card__menubutton[aria-expanded='true'] { opacity: 1; pointer-events: auto; background: var(--surface-2); color: var(--fg); }
+.card__menubutton:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.card__menubutton[aria-expanded='true'] { background: var(--surface-2); color: var(--fg); }
 .card__menubutton svg { width: 14px; height: 14px; }
 
 .card__menulist {
   position: absolute;
-  top: calc(100% + 0.25rem);
+  /* Opens UPWARD, over the card's own preview. The trigger sits at the bottom of the card now, and
+     `.card` clips to its rounded corners (`overflow: hidden`), so a list dropping below it would be
+     cut off rather than merely hanging outside. */
+  bottom: calc(100% + 0.25rem);
   /* Right-anchored: the trigger sits near the card's right edge, so a left-anchored list would
      overflow the card on every card in the last grid column. */
   right: 0;
@@ -1142,8 +1189,12 @@ button { font: inherit; color: inherit; }
 
 .card.is-running .state { color: var(--primary); }
 .card.is-running .state__dot { box-shadow: 0 0 0 3px var(--primary-ring); }
-.card.is-starting .state { color: var(--warning); }
-.card.is-starting .state__dot { animation: pulse 1.4s ease-in-out infinite; }
+/* Both transitions, not only the boot: a stop takes as long as its drain does, and a card that
+   showed `Running` throughout it would be reporting the state the operator just ended. */
+.card.is-starting .state,
+.card.is-stopping .state { color: var(--warning); }
+.card.is-starting .state__dot,
+.card.is-stopping .state__dot { animation: pulse 1.4s ease-in-out infinite; }
 
 @keyframes pulse { 50% { opacity: 0.3; } }
 

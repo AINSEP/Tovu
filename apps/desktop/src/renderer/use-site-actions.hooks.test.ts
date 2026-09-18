@@ -72,19 +72,10 @@ async function withBridge(
   }
 }
 
-test('with no desktop bridge at all, both actions resolve the SAME operator-facing refusal, without throwing', async () => {
+test('with no desktop bridge at all, the action resolves an operator-facing refusal, without throwing', async () => {
   await withBridge(undefined, async () => {
     const actions = useSiteActions();
-    assert.equal(await actions.startSite('site-1'), 'The desktop bridge is unavailable.');
     assert.equal(await actions.openInBrowser('site-1'), 'The desktop bridge is unavailable.');
-  });
-});
-
-test('startSite calls bridge.startSite with the given id and resolves null on success', async () => {
-  await withBridge({}, async (calls) => {
-    const actions = useSiteActions();
-    assert.equal(await actions.startSite('site-42'), null);
-    assert.deepEqual(calls.startSite, ['site-42']);
   });
 });
 
@@ -98,13 +89,6 @@ test('openInBrowser calls bridge.openSiteExternal with the PUBLIC site view, not
   });
 });
 
-test('startSite surfaces a rejected Error message verbatim, not a re-wrapped string', async () => {
-  await withBridge({ startSite: () => Promise.reject(new Error('daemon offline')) }, async () => {
-    const actions = useSiteActions();
-    assert.equal(await actions.startSite('site-1'), 'daemon offline');
-  });
-});
-
 test('openInBrowser surfaces a rejected Error message verbatim', async () => {
   await withBridge({ openSiteExternal: () => Promise.reject(new Error('no default browser registered')) }, async () => {
     const actions = useSiteActions();
@@ -113,8 +97,8 @@ test('openInBrowser surfaces a rejected Error message verbatim', async () => {
 });
 
 test('a non-Error rejection is coerced with String(), not left as [object Object]', async () => {
-  await withBridge({ startSite: () => Promise.reject('offline') }, async () => {
+  await withBridge({ openSiteExternal: () => Promise.reject('offline') }, async () => {
     const actions = useSiteActions();
-    assert.equal(await actions.startSite('site-1'), 'offline');
+    assert.equal(await actions.openInBrowser('site-1'), 'offline');
   });
 });

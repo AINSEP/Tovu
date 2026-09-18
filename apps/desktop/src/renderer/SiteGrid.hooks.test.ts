@@ -55,7 +55,10 @@ test("the card's keydown handler routes through isCardOpenKey rather than checki
   // went unused is precisely the "unwired call site" this test exists to catch.
   assert.match(tsx, /import \{[^}]*\bcardOpenProps\b[^}]*\} from '\.\/SiteGrid\.hooks\.js'/);
   assert.match(tsx, /const openProps = cardOpenProps\(openable, \(\) => onOpen\(project\.id\)\);/);
-  assert.match(tsx, /<article className=\{`card is-\$\{project\.status\}[^`]*`\} \{\.\.\.openProps\}>/);
+  // `status`, not `project.status`: the class carries the status the card is actually RENDERING,
+  // which during this window's own start or stop is the transition rather than the polled record.
+  // See `use-site-power.hooks.ts`, and `.card.is-stopping` in `app.css`.
+  assert.match(tsx, /<article className=\{`card is-\$\{status\}[^`]*`\} \{\.\.\.openProps\}>/);
 
   // Neither file may go back to an inline key check.
   const sources: readonly (readonly [string, string])[] = [

@@ -59,8 +59,8 @@ function declaredChannels(): Set<string> {
  * in `main.ts` before `registerRunnerIpcStubs` runs) — see `SITE_IPC_CHANNELS`'s own doc.
  * Declared by the contracts, on purpose absent from `RUNNER_STUB_CHANNELS`: a real handler and a
  * stub for the same channel is a duplicate `ipcMain.handle` registration, which Electron itself
- * refuses. `stop` stays stubbed — no control in the per-project bar calls it yet — so it is NOT in
- * this list.
+ * refuses. `stop` joined them with the site card's own Stop button — every `runner:sites:*` verb is
+ * real now.
  */
 const IMPLEMENTED_CHANNELS = new Set([
   "runner:sites:list",
@@ -68,6 +68,7 @@ const IMPLEMENTED_CHANNELS = new Set([
   "runner:sites:delete",
   "runner:sites:open-external",
   "runner:sites:start",
+  "runner:sites:stop",
   "runner:sites:rescan",
   "runner:sites:add-site",
   "runner:sites:rename",
@@ -131,7 +132,7 @@ test("every registered handler throws rather than returning any value", () => {
 
 test("notPortedError names the channel it was built for, not a shared one", () => {
   assert.notEqual(
-    notPortedError("runner:sites:list").message,
-    notPortedError("runner:sites:stop").message,
+    notPortedError("workspace:chat:start").message,
+    notPortedError("workspace:chat:stop").message,
   );
 });

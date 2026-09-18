@@ -337,6 +337,29 @@ export interface SiteMutationsState {
  * is touched, that delete drops the row locally AND closes its tab, and that `openCreateWebsite`
  * clears a stale notice before the form opens rather than after.
  */
+/**
+ * Replace one project's row with the refreshed `SiteRecord` main just resolved with, leaving every
+ * other row untouched.
+ *
+ * The alternative is waiting for `useSitesPolling`'s 4 s tick, and for a start or a stop those four
+ * seconds are the whole problem: the card would go on saying `Running` after the operator watched
+ * their stop succeed. A record NOT in the list is dropped rather than appended — this applies a
+ * change to a project the grid is already showing, and a row that arrives here for an unknown id is
+ * a stale id, not a new site (`rescan`/`create`/`add` are what add rows).
+ *
+ * @complexity O(n) in the project count, once per applied record.
+ */
+export function useApplySiteRecord(
+  setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>,
+): (record: SiteRecord) => void {
+  return useCallback(
+    (record: SiteRecord) => {
+      setProjects((current) => current.map((project) => (project.id === record.id ? record : project)));
+    },
+    [setProjects],
+  );
+}
+
 export function useProjectMutations(deps: {
   setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>;
   closeProjectTab: (id: string) => void;
