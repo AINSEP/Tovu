@@ -31,13 +31,15 @@ What that buys a site operator, concretely:
   today, a full payments-processing framework (multiple gateways, webhook normalization, one file
   and one registration line per new provider) and a sample storefront are built on the same plugin
   SDK — proof it can carry serious complexity, not just toy examples.
-- **Agent plugins that connect to outside vendors — and any vendor that speaks the same open
-  protocol, not just a hand-picked list.** Six ship today: GitHub, Supabase, Higgsfield (AI media
-  generation), Fly.io deployment, automated site-compliance checking, and a site-configuration
-  helper. Every one of them is powered by an external MCP connection under the hood — MCP is an
-  open, cross-vendor standard for exposing tools to an AI agent, so a new vendor's integration
-  doesn't require Tovu to write bespoke code for it. Two are live-connected on Tovu's own
-  reference site right now: Higgsfield and Tovu's own desktop companion app.
+- **Agent plugins, two of which run on an open protocol any vendor can speak — not a hand-picked
+  list.** Six ship today: GitHub, Supabase, Higgsfield (AI media generation), Fly.io deployment,
+  automated site-compliance screening, and a static-site-to-Tovu-theme converter. Two of the six —
+  Supabase and Higgsfield — connect through an external MCP server, the open, cross-vendor standard
+  covered in full below: a new vendor's integration doesn't require Tovu to write bespoke code for
+  it. The other four run entirely on Tovu's own native tool catalog plus a bundled skill file, no
+  external server involved — proof the "install a plugin" flow doesn't depend on MCP either. On
+  Tovu's own reference site right now, two MCP connections are live end to end: Higgsfield (remote,
+  OAuth) and Tovu's own desktop companion app (a local process, no external network at all).
 - **Media generation wired to real providers, not a single vendor.** The media library calls
   directly into more than a dozen wired providers today, including OpenAI, ElevenLabs, fal.ai,
   Leonardo AI, and MiniMax for image, audio, and video generation — plus Higgsfield connected as
@@ -45,7 +47,8 @@ What that buys a site operator, concretely:
 - **A theme system with an install-and-switch flow already built.** The admin has a real
   browse/preview/install/activate flow across four theme tiers, from plain HTML/CSS/JS you fully
   own up to a safe, agent-editable JSON structure with no template language at all. Today's catalog
-  is Tovu's own themes; there's no outside submission pipeline yet — see the closing list.
+  is Tovu's own themes; a public submission pipeline is the stated direction, not built yet — see
+  "What's coming."
 - **Your folder, not someone else's account.** Install creates one folder holding the whole
   site — database, uploads, themes, plugins. One SQLite file, no separate database server, no
   signup, no hosted account.
@@ -127,6 +130,60 @@ agent-operable write path and a product you can walk away from with your content
 
 ---
 
+## External MCP — connect any vendor's tools, not a fixed list
+
+MCP (Model Context Protocol) is an open standard a server publishes so an AI agent can call its
+tools directly — the same idea as a plug shape everyone agrees on, instead of Tovu writing custom
+integration code for every vendor one at a time. Any server that speaks MCP can be connected; the
+bundled agent plugins are proof it's already in use here, not the ceiling of what's connectable.
+
+**How a connection looks, concretely.** A workspace's saved connections support two transports side
+by side: `stdio` — a locally spawned process talking over its own stdin/stdout, how Tovu's own
+desktop companion app connects today — and `streamable_http`, a remote HTTPS endpoint, how
+Higgsfield and Supabase both connect. Authentication is a separate axis from transport: none, a
+static credential, or OAuth — a stdio server can use OAuth and an HTTP server can use a static
+token, independently of which transport it runs on. Where OAuth applies, Tovu self-configures it
+against the vendor's own discovery endpoint and registers itself as a client automatically, no
+client id to hand-type for most providers, and supports both the standard browser-redirect flow and
+the device-code flow from RFC 8628 — the one built for a self-hosted install with no public
+callback URL to redirect back to. When a vendor's OAuth can't be negotiated automatically, the
+fallback is a masked in-chat form for pasting a personal access token; the raw value is sealed and
+never shown back to the model or written to a log.
+
+**The safety story — connections start closed, not open.** A brand-new connection begins fully
+disabled with an empty tool allowlist, whether an operator adds it by hand or a plugin provisions
+it. From there, the same rules hold for every connection, not just the bundled ones:
+- **Default deny.** A remote server can advertise a hundred tools; the agent is exposed to none of
+  them until the site owner names each one, by exact name, in an allowlist. Discovering a tool is
+  not the same as being allowed to call it.
+- **Writes need a second, separate grant.** A tool that admits — through its own MCP metadata —
+  that it isn't read-only is refused even after being allowlisted, unless the owner has also named
+  it in a second, write-specific list. Visible to the agent and allowed to write are two different
+  decisions, and only the site owner can grant the second one. The one real gap: a remote server
+  that stays silent about whether a tool writes is admitted on the first list alone — this
+  mechanism only catches a vendor that's honest about it.
+- **A tool that flags itself as destructive is refused outright, with no override available,**
+  regardless of any grant.
+- Every remote tool is renamed on the way in so it can never collide with or impersonate one of
+  Tovu's own tools, and third-party tool descriptions and results are boundary-marked before they
+  reach the model — the same defense Supabase's own MCP server applies to its own query output.
+
+That isn't a hypothetical policy — it's what's configured today. On Tovu's own reference site, the
+Higgsfield connection allows 8 of its remote tools and separately write-grants 3 of those; the
+desktop connection allows 3 tools and write-grants 2. Nothing outside those lists is callable.
+
+**What ships bundled today.** Six agent plugins: GitHub (commits, Actions runs, logs, through the
+workspace's own saved credential — no external MCP involved), Supabase (schema, SQL, and docs
+through Supabase's own hosted MCP server, OAuth-connected, read-only by default), Higgsfield (AI
+image and video generation, OAuth-connected to Higgsfield's own hosted MCP server — it comes with
+the product, not as an add-on to go find separately), Fly.io deployment, automated site-compliance
+screening, and a static-site-to-Tovu-theme converter — the last three run entirely on Tovu's own
+native tools with a bundled skill file, no external server at all. MCP is the mechanism the two
+vendor-facing plugins use; the other four show that installing and running a plugin doesn't require
+it.
+
+---
+
 ## FAQ — the real objections, answered with what's actually built
 
 **"Every WordPress site I've run eventually breaks from a plugin update. How is this different?"**
@@ -137,7 +194,9 @@ database schema access — it can't reach into another plugin's or core's data b
 **"I don't trust running other people's code with full access to my site."**
 No plugin — first-party today, third-party eventually — gets arbitrary code execution against the
 whole system. Every plugin acts through the same permissioned, typed capability surface the admin
-itself uses; it can't silently gain more access than it was granted.
+itself uses; it can't silently gain more access than it was granted. Connections out to outside
+vendors are locked down the same way, with their own default-deny allowlist — see "External MCP"
+above for exactly how.
 
 **"Patching a CMS, its plugins, and its database server is a part-time job."**
 There's no separate database server to patch or expose — the whole site is one process and one
@@ -169,8 +228,19 @@ build around it existing.
 
 **"Can I bring my own theme, or am I stuck with what ships?"**
 Yes — four theme tiers, from plain HTML/CSS/JS you fully control up to a template language or a
-pure-data structure an AI agent can edit safely. There's a real install/preview/activate flow in
-the admin today; there is not yet a public marketplace for outside authors to submit to.
+pure-data structure an AI agent can edit safely. Browse, preview, install, and activate are real
+today, working against Tovu's own built-in catalog. A public marketplace for outside theme authors
+is the stated direction, not something built yet — see "What's coming" below.
+
+---
+
+## What's coming
+
+Three marketplaces are the stated direction: a theme marketplace, a plugin marketplace, and an
+agent-plugin marketplace, so outside authors can publish and site owners can install from more than
+Tovu's own catalog. None of the three exist yet, and none has a ship date — what exists today, and
+is real now, is the built-in catalog and the browse/preview/install/activate flow described above
+for themes, plus the equivalent install/enable/disable flow for plugins and agent plugins.
 
 ---
 
@@ -179,9 +249,9 @@ the admin today; there is not yet a public marketplace for outside authors to su
 Stated plainly so nobody writes a false claim onto a public page. Each of these is either backlog
 only or explicitly deferred, verified against running code, not documentation:
 
-- A public, third-party theme or plugin marketplace. Today's install/browse/activate flow works
-  against Tovu's own built-in catalog only — there's no outside submission pipeline or remote index
-  behind it.
+- A public, third-party theme, plugin, or agent-plugin marketplace — see "What's coming" above for
+  the stated direction. Today's install/browse/activate flow works against Tovu's own built-in
+  catalog only, with no outside submission pipeline or remote index behind it yet.
 - Answer-engine or generative-engine optimization (AEO/GEO) — backlog only, nothing built.
 - Postgres as a database option — deferred, evaluation logic only, no live adapter.
 - Tovu acting as an MCP server so an outside AI client (like a desktop AI app) can drive Tovu's own
