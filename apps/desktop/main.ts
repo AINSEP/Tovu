@@ -117,6 +117,7 @@ import { applyGuestWebPreferences } from "./src/webview-guest-policy.ts";
 import { createSelftestTracker } from "./src/selftest-tracker.ts";
 import { registerSpeechIpc } from "./src/speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "./src/find-in-page-ipc.ts";
+import { installRootKeyBootGuard } from "./src/root-key-boot-guard.ts";
 import { registerRunnerIpcStubs } from "./src/runner-ipc-stubs.ts";
 import { redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "./src/desktop-auth.ts";
 import { sitesFilePath, seedDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "./src/tracked-sites.ts";
@@ -1330,6 +1331,19 @@ app
     // harmless to register even for a boot mode whose window never calls it (no preload exposes
     // these channels outside the sites home window today). See `find-in-page-ipc.ts`.
     registerFindInPageIpc({ ipcMain, browserWindow: BrowserWindow });
+    // ABOVE the mode split, and BEFORE any window opens: reads once whether this launch has usable
+    // integrations root-key material, warns loudly on the terminal if not, and serves that BOOT
+    // snapshot to the renderer's banner (`RootKeyBanner.tsx`).
+    //
+    // Here rather than inside the sites-home branch because the environment it inspects is THIS
+    // process's, and every `tovu serve` this shell spawns in any mode inherits it — a launch that
+    // never read the repo's `.env` (`electron .` instead of `npm run desktop`) leaves every site
+    // server without a root key, which then surfaces hours later as an opaque 500 on the first
+    // credentialed action. See `root-key-boot-guard.ts`'s header for the 2026-09-18 incident.
+    //
+    // Never throws and never exits: a missing key is recoverable and the operator needs the app
+    // running to go fix it.
+    installRootKeyBootGuard({ ipcMain });
     applyDockIcon();
 
     // ABOVE the mode split, deliberately: the sites home UI writes crash-safety rows (every project tab's
