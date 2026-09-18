@@ -15,6 +15,12 @@
  * placement was before. The live check in `scripts/verify-site-power.mjs` covers what only a real
  * DOM can prove — computed style equality, and that clicking the menu entry actually opens the
  * confirm overlay rather than deleting.
+ *
+ * **Second revision, same day.** The owner saw THAT layout and moved the controls again: the ⋮ to
+ * the card's top-right, level with the site name, and Start/Stop directly beneath it. The row is a
+ * COLUMN now, so the two tests below assert the shape rather than the old bottom-pinned row — and
+ * they assert it on `.card__body`/`.card__actions`' CSS, because nothing about either button's own
+ * markup changed and every other test in this file stayed green through the move.
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -55,6 +61,42 @@ test('the actions row is in the card BODY, and the preview tile carries nothing 
   const tile = body.slice(body.indexOf('<div className="card__tile">'), body.indexOf('<div className="card__body">'));
   assert.doesNotMatch(tile, /card__menu|SiteCardMenu/, 'no action control may sit on the screenshot');
   assert.match(body, /<div className="card__body">[\s\S]*<CardActions/, 'CardActions belongs to the info block');
+});
+
+test('the card body is two columns — the text on the left, the action column at the right edge', () => {
+  // The owner's layout, in their own words: the ⋮ "parallel right aligned in the card" with the
+  // site name, and Stop under it. That is not a property of either control; it is the body being a
+  // ROW of two columns rather than the stack of rows it was, so it is asserted on the body's rule.
+  // A silent revert to `flex-direction: column` would put the ⋮ back under the text with every
+  // other assertion in this file still green.
+  const body = cardBody();
+  assert.match(body, /<div className="card__body">[\s\S]*<div className="card__info">/, 'the text needs its own column element');
+  // The three lines the card SAYS about the site live in that left column, not beside the buttons.
+  const info = body.slice(body.indexOf('<div className="card__info">'), body.indexOf('<CardActions'));
+  for (const cls of ['card__name', 'card__meta', 'card__details', 'card__actionerror']) {
+    assert.match(info, new RegExp(`className="${cls}"`), `${cls} belongs in the left column`);
+  }
+  const rule = css.slice(css.indexOf('.card__body {'), css.indexOf('}', css.indexOf('.card__body {')));
+  assert.match(rule, /flex-direction:\s*row/, 'the body must lay its two columns side by side');
+  // Without this a long site name refuses to shrink and shoves the ⋮ off the card's right edge.
+  const infoRule = css.slice(css.indexOf('.card__info {'), css.indexOf('}', css.indexOf('.card__info {')));
+  assert.match(infoRule, /min-width:\s*0/, 'the text column must be allowed to shrink, or a long name pushes the ⋮ out');
+});
+
+test('the action column stacks ⋮ above Start/Stop, sharing the card\'s right edge', () => {
+  const rule = css.slice(css.indexOf('.card__actions {'), css.indexOf('}', css.indexOf('.card__actions {')));
+  assert.match(rule, /flex-direction:\s*column/, 'the ⋮ and Start/Stop stack, they no longer sit side by side');
+  assert.match(rule, /align-items:\s*flex-end/, 'both controls share the card\'s right edge, not each other\'s');
+  // The old bottom-pinned row. Left in place it would drag the whole column to the foot of the
+  // body, which is exactly the layout the owner asked to move away from.
+  assert.doesNotMatch(rule, /margin-top:\s*auto/, 'the column is pinned to the TOP of the body now');
+  // DOM order must match the order on screen, or Tab moves from the name to Start and back up to
+  // the ⋮. The menu is written first because it is drawn first.
+  const actions = actionsBody();
+  assert.ok(
+    actions.indexOf('<SiteCardMenu') < actions.indexOf('card__power'),
+    'the ⋮ must render before Start/Stop, the order it is drawn in',
+  );
 });
 
 test('no standalone trash control exists anywhere — delete lives only inside the ⋮ menu', () => {

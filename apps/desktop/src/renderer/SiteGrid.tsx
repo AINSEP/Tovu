@@ -15,11 +15,16 @@
  * no websites looking at nothing at all. `ProjectsBody` (`App.tsx`) renders an explicit empty state
  * instead — this grid is only ever asked to draw cards.
  *
- * **Every action a card carries lives in one always-visible row at the bottom of it**, not overlaid
- * on the preview image and not revealed by hover. The ⋮ and the trash used to sit on the screenshot
- * and appear on hover; an operator could not see what a card could do without pointing at it, and
- * on a touchpad or by keyboard that is a control you have to go looking for. They are toolbar
- * buttons in the info block now, beside the site's own Start/Stop.
+ * **Every action a card carries lives in one always-visible COLUMN down the body's right edge**, not
+ * overlaid on the preview image and not revealed by hover. The ⋮ and the trash used to sit on the
+ * screenshot and appear on hover; an operator could not see what a card could do without pointing at
+ * it, and on a touchpad or by keyboard that is a control you have to go looking for.
+ *
+ * That column was a horizontal row along the bottom of the body until the owner asked for this
+ * shape: the ⋮ level with the site name at the card's right edge, and Start/Stop directly beneath
+ * it. The body is two columns now — `.card__info` carries everything the card SAYS about the site,
+ * `CardActions` everything it can DO — which is what lets the ⋮ share a line with the name without
+ * either one being positioned on top of the other.
  *
  * **The right-hand side carries exactly one icon control: the ⋮ menu.** Delete used to be its own
  * always-visible trash button beside Start/Stop; the owner's own reason for pulling it inside the
@@ -28,7 +33,8 @@
  * confirm overlay before anything happens. Start/Stop stays the lifecycle and the one labelled
  * button, wearing `.button--create` — the header's "Create website" style — on the owner's own
  * request, so the app's two ways to bring a site up read as one family rather than two different
- * looks. Nothing is reachable two ways, which is the rule that keeps the row readable as it grows.
+ * looks. Nothing is reachable two ways, which is the rule that keeps the column readable as it
+ * grows.
  */
 import { useDeleteConfirmation, useDismissibleDropdown } from './App.hooks.js';
 import { useSiteRename, renameInputKeyDown, showsInvalidNameHint } from './use-site-rename.hooks.js';
@@ -173,27 +179,32 @@ function SiteCard({
         )}
       </div>
       <div className="card__body">
-        <h3 className="card__name">{project.displayName}</h3>
-        <p className="card__meta">
-          <span className="state">
-            <span className="state__dot" aria-hidden="true" />
-            {STATUS_LABEL[status]}
-          </span>
-          {project.statusDetail && (
-            <span className="card__detail" title={project.statusDetail}>
-              {project.statusDetail}
+        {/* The left column: everything the card SAYS about the site, in its reading order. It is
+            its own element rather than a direct run of children because the body is two columns
+            now — this text, and the action column pinned to the card's right edge beside it. */}
+        <div className="card__info">
+          <h3 className="card__name">{project.displayName}</h3>
+          <p className="card__meta">
+            <span className="state">
+              <span className="state__dot" aria-hidden="true" />
+              {STATUS_LABEL[status]}
             </span>
-          )}
-        </p>
-        <p className="card__details">
-          {databaseLabel(project)}
-          {project.templateVersion && <> · Tovu {project.templateVersion}</>}
-        </p>
-        {project.status === 'provisioning' && <span className="card__draft">Provisioning setup</span>}
-        {/* Main's own sentence, verbatim, when a start or a stop was refused. In the body rather
-            than an overlay: nothing is pending, the card is still openable, and the failure is one
-            fact about it rather than a question to answer. */}
-        {powerError && <p className="card__actionerror">{powerError}</p>}
+            {project.statusDetail && (
+              <span className="card__detail" title={project.statusDetail}>
+                {project.statusDetail}
+              </span>
+            )}
+          </p>
+          <p className="card__details">
+            {databaseLabel(project)}
+            {project.templateVersion && <> · Tovu {project.templateVersion}</>}
+          </p>
+          {project.status === 'provisioning' && <span className="card__draft">Provisioning setup</span>}
+          {/* Main's own sentence, verbatim, when a start or a stop was refused. In the body rather
+              than an overlay: nothing is pending, the card is still openable, and the failure is one
+              fact about it rather than a question to answer. */}
+          {powerError && <p className="card__actionerror">{powerError}</p>}
+        </div>
         <CardActions
           project={project}
           status={status}
@@ -273,8 +284,16 @@ function CardConfirmOverlay({
 }
 
 /**
- * A card's action row: Start/Stop, then the ⋮ menu — always visible, in the info block, never on
- * the preview image.
+ * A card's action column, at the right edge of the body: the ⋮ menu on the site name's own row,
+ * then Start/Stop directly beneath it — always visible, in the info block, never on the preview
+ * image.
+ *
+ * **The order here is the owner's, and it is the order on screen.** This was a bottom-pinned
+ * horizontal row (Start/Stop at the left, ⋮ pushed right) until they asked for the ⋮ to sit
+ * "parallel right aligned in the card" with the name, and Stop to sit under it. Nothing about what
+ * either control DOES changed — only where it lands, in `.card__actions`' own CSS and in the order
+ * these two are written below, which must keep matching the visual order or the Tab key stops
+ * agreeing with the eye.
  *
  * **Always visible is the whole point.** These were hover-revealed overlays on the screenshot, and
  * the operator's own words for why that was wrong are "that way you see it whether you hover or
@@ -283,11 +302,12 @@ function CardConfirmOverlay({
  *
  * **`role="group"` with both event handlers stopped**, the identical contract `CardConfirmOverlay`
  * and `SiteCardMenu` document and for the identical reason: the card is an open target for clicks
- * AND for keys, so every event that starts in this row must stop in it, or pressing Start would
- * also open the site in a tab.
+ * AND for keys, so every event that starts in this column must stop in it, or pressing Start would
+ * also open the site in a tab. The grouping moved with the controls; it was not dropped when the
+ * row became a column.
  *
  * **The ⋮ menu is the only icon control here now.** Delete moved inside it — see `SiteCardMenu`'s
- * own doc — so this row carries no standalone trash button at all, hover-revealed or not: the
+ * own doc — so this column carries no standalone trash button at all, hover-revealed or not: the
  * owner's reason is misclicks, a destructive control beside a button pressed often. Start/Stop is
  * the site's lifecycle and stays a LABELLED button rather than a glyph — it is the one control here
  * whose meaning changes with the site's state, and an icon cannot say "Stopping…". It wears
@@ -325,19 +345,9 @@ function CardActions({
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      {control && (
-        <button
-          type="button"
-          className="button button--create card__power"
-          // Disabled mid-transition rather than hidden: a row that reflows under the pointer is how
-          // a second click lands on the ⋮ trigger beside it.
-          disabled={control.action === null}
-          aria-label={`${control.label} ${project.displayName}`}
-          onClick={() => void power.toggle(project)}
-        >
-          {control.label}
-        </button>
-      )}
+      {/* First in the DOM because it is first on the screen — the ⋮ sits on the site name's own
+          row, and Start/Stop directly beneath it. Tab order follows reading order only while the
+          two agree. */}
       <SiteCardMenu
         project={project}
         status={status}
@@ -346,6 +356,19 @@ function CardActions({
         onRequestDelete={onRequestDelete}
         actions={actions}
       />
+      {control && (
+        <button
+          type="button"
+          className="button button--create card__power"
+          // Disabled mid-transition rather than hidden: a column that reflows under the pointer is
+          // how a second click lands on the ⋮ trigger above it.
+          disabled={control.action === null}
+          aria-label={`${control.label} ${project.displayName}`}
+          onClick={() => void power.toggle(project)}
+        >
+          {control.label}
+        </button>
+      )}
     </div>
   );
 }
@@ -386,8 +409,8 @@ function CardActions({
  * scarier one.
  *
  * **Start and Stop are deliberately absent, and this is the whole reason the card has an action
- * row.** Start used to live here, because a stopped site had no other way up; it is now a labelled
- * button two elements to the left (`CardActions`). The same action in a menu AND on a button is the
+ * column.** Start used to live here, because a stopped site had no other way up; it is now a
+ * labelled button directly BELOW this trigger (`CardActions`). The same action in a menu AND on a button is the
  * duplicate affordance a coherent card cannot have — an operator would have two places to look for
  * one thing, and the menu's copy would have to restate what the button already says.
  *

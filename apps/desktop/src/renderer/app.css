@@ -949,12 +949,27 @@ button { font: inherit; color: inherit; }
 .card.is-running .card__tile { background: var(--primary-dim); }
 .card.is-running .card__port { color: var(--primary); }
 
-/* `flex` with `flex: 1`, not the `grid` it was: the action row's `margin-top: auto` needs a flex
-   parent that fills the card's remaining height, so every card's buttons sit on the same line
-   however long its name or status detail runs. */
+/* TWO COLUMNS: everything the card says about the site on the left, the controls pinned to the
+   right edge. The owner asked for the ⋮ to sit on the site name's own row rather than below the
+   text, with Start/Stop directly under it, and a row of two columns is what that is — not a
+   bottom-pinned action bar with a `margin-top: auto`, which is what this was.
+   `align-items: start` tops both columns out together, which is what puts the ⋮ level with the
+   name however many lines the left column ends up running. */
 .card__body {
   flex: 1;
   padding: 0.75rem 0.875rem 0.875rem;
+  display: flex;
+  flex-direction: row;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+/* The left column. `min-width: 0` is load-bearing: without it a flex item refuses to shrink below
+   its content's intrinsic width, so a long site name would push the ⋮ off the card's right edge
+   instead of ellipsizing the way `.card__name` asks to. */
+.card__info {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.3125rem;
@@ -1020,7 +1035,8 @@ button { font: inherit; color: inherit; }
 }
 
 /*
- * The card's action row: Start/Stop at the left, then the ⋮ menu pushed to the right.
+ * The card's action COLUMN, at the body's right edge: the ⋮ on the site name's row, Start/Stop
+ * directly beneath it. It was a bottom-pinned horizontal row until the owner asked for this shape.
  *
  * ALWAYS VISIBLE, and in the info block rather than on the preview image. Both controls used to be
  * hover-revealed overlays on the screenshot; the owner's own reason for moving them is "that way
@@ -1028,16 +1044,20 @@ button { font: inherit; color: inherit; }
  * card can do without pointing at it, which is also what makes these reachable on a touch screen
  * and legible to anyone using the keyboard rather than a pointer.
  *
- * `margin-top: auto` pins the row to the bottom of the body, so cards whose names wrap to two lines
- * still line their buttons up with their neighbours'.
+ * `flex: none` rather than the old `width: 100%`: this column is as wide as its widest control, and
+ * `.card__info` beside it takes the rest. `align-items: flex-end` keeps the ⋮ and a wider
+ * Start/Stop sharing one right edge — the card's, not each other's.
+ *
+ * The old `margin-top: auto` is gone with the row it pinned. Cards no longer line their buttons up
+ * along the bottom; they line the ⋮ up along the TOP, which is the alignment the owner asked for
+ * and the one that survives a name wrapping to two lines.
  */
 .card__actions {
+  flex: none;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 0.375rem;
-  width: 100%;
-  margin-top: auto;
-  padding-top: 0.5rem;
 }
 
 /* The lifecycle control. A LABELLED button, not a glyph: it is the one control on the card whose
@@ -1062,10 +1082,10 @@ button { font: inherit; color: inherit; }
   font-size: 0.6875rem;
 }
 
-/* The ⋮ overflow menu — the only icon control left in the row now that delete lives inside it (see
-   `SiteCardMenu`'s own doc). `margin-left: auto` is what splits the row: the lifecycle button stays
-   left with the text it labels, the trigger sits alone at the right edge. */
-.card__menu { position: relative; margin-left: auto; z-index: 3; }
+/* The ⋮ overflow menu — the only icon control in the action column now that delete lives inside it
+   (see `SiteCardMenu`'s own doc). No `margin-left: auto` any more: it used to be what split a
+   horizontal row, and in a column the parent's `align-items: flex-end` already holds the edge. */
+.card__menu { position: relative; z-index: 3; }
 .card__menubutton {
   display: grid;
   place-items: center;
@@ -1085,9 +1105,11 @@ button { font: inherit; color: inherit; }
 
 .card__menulist {
   position: absolute;
-  /* Opens UPWARD, over the card's own preview. The trigger sits at the bottom of the card now, and
-     `.card` clips to its rounded corners (`overflow: hidden`), so a list dropping below it would be
-     cut off rather than merely hanging outside. */
+  /* Opens UPWARD, over the card's own preview. The trigger sits at the TOP of the body now, and
+     `.card` clips to its rounded corners (`overflow: hidden`): the body below the trigger is only
+     tall enough for the two controls beside the site's three lines of text, so a list dropping
+     downward would be cut off rather than merely hanging outside. Upward it has the whole preview
+     tile to cover, and `.card__menu`'s `z-index` keeps it over the image. */
   bottom: calc(100% + 0.25rem);
   /* Right-anchored: the trigger sits near the card's right edge, so a left-anchored list would
      overflow the card on every card in the last grid column. */
