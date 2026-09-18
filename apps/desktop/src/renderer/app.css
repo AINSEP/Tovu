@@ -1020,7 +1020,7 @@ button { font: inherit; color: inherit; }
 }
 
 /*
- * The card's action row: Start/Stop at the left, then ⋮ and the trash pushed to the right.
+ * The card's action row: Start/Stop at the left, then the ⋮ menu pushed to the right.
  *
  * ALWAYS VISIBLE, and in the info block rather than on the preview image. Both controls used to be
  * hover-revealed overlays on the screenshot; the owner's own reason for moving them is "that way
@@ -1041,24 +1041,14 @@ button { font: inherit; color: inherit; }
 }
 
 /* The lifecycle control. A LABELLED button, not a glyph: it is the one control on the card whose
-   meaning changes with the site's state, and no icon says "Stopping…". */
-.card__power {
-  min-height: 26px;
-  padding: 0.1875rem 0.625rem;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  background: var(--surface);
-  color: var(--fg);
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-}
-.card__power:hover:not(:disabled) { border-color: var(--border-strong); background: var(--surface-2); }
-.card__power:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+   meaning changes with the site's state, and no icon says "Stopping…". No colour or sizing rule of
+   its own — it wears `.button` and `.button--create` (the header's "Create website" look) verbatim,
+   on the owner's own request, so this class is layout-only now. */
+.card__power { flex: none; }
 /* Mid-transition. Dimmed and inert, but still the same box in the same place — a disabled control
-   that vanished would let the next click land on the trash beside it. */
-.card__power:disabled { opacity: 0.6; cursor: default; }
+   that vanished would let the next click land on the ⋮ trigger beside it. `.button--create:disabled`
+   already covers the dimming; this only keeps the cursor honest. */
+.card__power:disabled { cursor: default; }
 
 /* A refused start or stop, in main's own words. One line, clamped like `.card__detail` so an
    unbounded message can never stretch the card out of the grid. */
@@ -1072,26 +1062,9 @@ button { font: inherit; color: inherit; }
   font-size: 0.6875rem;
 }
 
-.card__delete {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  background: var(--surface);
-  color: var(--muted);
-  cursor: pointer;
-}
-.card__delete:hover { border-color: var(--danger); background: var(--danger-dim); color: var(--danger); }
-.card__delete:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
-.card__delete svg { width: 14px; height: 14px; }
-
-/* The ⋮ overflow menu, sharing the delete button's box so the two read as one control cluster.
-   `margin-left: auto` is what splits the row: the lifecycle button stays left with the text it
-   labels, the two icon buttons sit together at the right edge, trash last — the corner an operator
-   already reaches for it in. */
+/* The ⋮ overflow menu — the only icon control left in the row now that delete lives inside it (see
+   `SiteCardMenu`'s own doc). `margin-left: auto` is what splits the row: the lifecycle button stays
+   left with the text it labels, the trigger sits alone at the right edge. */
 .card__menu { position: relative; margin-left: auto; z-index: 3; }
 .card__menubutton {
   display: grid;
@@ -1141,6 +1114,14 @@ button { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .card__menuitem:hover { background: var(--surface-2); }
+/* Delete's own entry, when it actually erases the site — `project.deleteErasesFiles` in
+   `SiteCardMenu`. The same `--danger`/`--danger-dim` tokens the card's old standalone trash icon
+   used to reach for on hover, reused rather than a new hand-picked colour, so "destructive" still
+   means one red in this app. An adopted site's "Remove from Projects" stays the plain
+   `.card__menuitem` look on purpose — see `deleteActionCopy`'s doc on why that case must not read
+   as the scarier one. */
+.card__menuitem--danger { color: var(--danger); }
+.card__menuitem--danger:hover { background: var(--danger-dim); }
 
 /* The rename form reuses `.card__confirm`'s box (same overlay, same reasoning) and adds only the
    two elements a confirm dialog has no equivalent of. */

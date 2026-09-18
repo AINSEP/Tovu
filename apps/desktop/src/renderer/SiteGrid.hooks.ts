@@ -66,7 +66,12 @@ export function databaseLabel(project: SiteRecord): string {
 
 /** The words one project card's destructive control uses, and the class its confirm button wears. */
 export interface DeleteActionCopy {
-  cardButtonLabel: string;
+  /** The ⋮ menu's own entry text. A short verb, not the card's icon-button aria-label this field
+   *  used to be (`cardButtonLabel`) — the entry is now a visible `role="menuitem"` with its own
+   *  text, so it is its own accessible name, the same way "Rename…" needs none either. The ellipsis
+   *  matches "Rename…"'s convention: both entries open something else (a confirm overlay, a rename
+   *  form) rather than acting immediately. */
+  menuItemLabel: string;
   confirmTitle: string;
   confirmBody: string;
   confirmButtonLabel: string;
@@ -83,7 +88,8 @@ export interface DeleteActionCopy {
  * that already held a site when it was picked) loses nothing but its card, so the control says
  * "Remove", explains that the files stay, and is not styled as a destructive action, because it
  * is not one. Calling both of them "Delete" would train the operator to read the scarier meaning
- * onto a harmless button — or, far worse, the harmless meaning onto the irreversible one.
+ * onto a harmless button — or, far worse, the harmless meaning onto the irreversible one. The same
+ * split decides `card__menuitem--danger` in `SiteGrid.tsx`'s `SiteCardMenu`.
  *
  * Driven by `project.deleteErasesFiles`, which is main's own guard answer rather than anything
  * derived here, so the overlay can never promise a consequence `handleDelete` will not deliver.
@@ -93,7 +99,7 @@ export interface DeleteActionCopy {
 export function deleteActionCopy(project: SiteRecord): DeleteActionCopy {
   if (project.deleteErasesFiles) {
     return {
-      cardButtonLabel: `Delete ${project.displayName}`,
+      menuItemLabel: 'Delete…',
       confirmTitle: `Delete ${project.displayName}?`,
       confirmBody:
         'Stops its process and erases its install directory and all of its content. This cannot be undone.',
@@ -103,7 +109,7 @@ export function deleteActionCopy(project: SiteRecord): DeleteActionCopy {
     };
   }
   return {
-    cardButtonLabel: `Remove ${project.displayName} from Projects`,
+    menuItemLabel: 'Remove from Projects…',
     confirmTitle: `Remove ${project.displayName} from Projects?`,
     confirmBody:
       'Takes this card off the Projects screen and stops its process. Tovu did not create this folder, so nothing on disk is touched — its content stays exactly where it is.',
@@ -190,28 +196,6 @@ export function cardOpenProps(
       event.preventDefault();
       onOpen();
     },
-  };
-}
-
-/**
- * The card's delete button `onClick`: stops the click, then asks to delete this card's project.
- *
- * The card itself is the open target, so without the stop every delete click would also open the
- * project it is about to remove.
- *
- * @param onRequestDelete the grid's `requestDelete`.
- * @param id the project this card shows.
- * @returns the handler; its event is narrowed to the one method it calls, so a test can pass a
- *   plain object.
- * @complexity O(1) time, O(1) space.
- */
-export function cardDeleteClick(
-  onRequestDelete: (id: string) => void,
-  id: string,
-): (event: { stopPropagation: () => void }) => void {
-  return (event) => {
-    event.stopPropagation();
-    onRequestDelete(id);
   };
 }
 

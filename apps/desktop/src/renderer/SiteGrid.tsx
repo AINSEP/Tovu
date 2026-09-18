@@ -21,16 +21,21 @@
  * on a touchpad or by keyboard that is a control you have to go looking for. They are toolbar
  * buttons in the info block now, beside the site's own Start/Stop.
  *
- * The three do not overlap: Start/Stop is the lifecycle, the trash is the one destructive action
- * (still behind its own confirm overlay), and ⋮ holds what is neither — Rename, and Open in
- * browser. Nothing is reachable two ways, which is the rule that keeps the row readable as it grows.
+ * **The right-hand side carries exactly one icon control: the ⋮ menu.** Delete used to be its own
+ * always-visible trash button beside Start/Stop; the owner's own reason for pulling it inside the
+ * menu is misclicks — a destructive control next to a button pressed often is too easy to hit by
+ * accident. It is a `role="menuitem"` in `SiteCardMenu` now, and it still opens the exact same
+ * confirm overlay before anything happens. Start/Stop stays the lifecycle and the one labelled
+ * button, wearing `.button--create` — the header's "Create website" style — on the owner's own
+ * request, so the app's two ways to bring a site up read as one family rather than two different
+ * looks. Nothing is reachable two ways, which is the rule that keeps the row readable as it grows.
  */
 import { useDeleteConfirmation, useDismissibleDropdown } from './App.hooks.js';
 import { useSiteRename, renameInputKeyDown, showsInvalidNameHint } from './use-site-rename.hooks.js';
 import { useSiteActions } from './use-site-actions.hooks.js';
 import { powerControl, useSitePower } from './use-site-power.hooks.js';
 import { useSitePreview } from './use-site-preview.hooks.js';
-import { cardDeleteClick, cardOpenProps, cardOverlay, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
+import { cardOpenProps, cardOverlay, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
 import type { SiteRecord } from '../contracts/project.js';
 import type { SiteRenameState } from './use-site-rename.hooks.js';
@@ -268,8 +273,8 @@ function CardConfirmOverlay({
 }
 
 /**
- * A card's action row: Start/Stop, then ⋮, then the trash — always visible, in the info block,
- * never on the preview image.
+ * A card's action row: Start/Stop, then the ⋮ menu — always visible, in the info block, never on
+ * the preview image.
  *
  * **Always visible is the whole point.** These were hover-revealed overlays on the screenshot, and
  * the operator's own words for why that was wrong are "that way you see it whether you hover or
@@ -281,13 +286,15 @@ function CardConfirmOverlay({
  * AND for keys, so every event that starts in this row must stop in it, or pressing Start would
  * also open the site in a tab.
  *
- * The three controls are deliberately non-overlapping. Start/Stop is the site's lifecycle and is a
- * LABELLED button rather than a glyph — it is the one control here whose meaning changes with the
- * site's state, and an icon cannot say "Stopping…". The trash keeps its own confirm overlay
- * untouched: making it permanently visible raises the odds of a misclick, so the confirmation is
- * more load-bearing than it was, not less.
+ * **The ⋮ menu is the only icon control here now.** Delete moved inside it — see `SiteCardMenu`'s
+ * own doc — so this row carries no standalone trash button at all, hover-revealed or not: the
+ * owner's reason is misclicks, a destructive control beside a button pressed often. Start/Stop is
+ * the site's lifecycle and stays a LABELLED button rather than a glyph — it is the one control here
+ * whose meaning changes with the site's state, and an icon cannot say "Stopping…". It wears
+ * `.button--create`, the header's "Create website" style, on the owner's own request: reusing that
+ * class rather than a one-off look, so the two read as one family.
  *
- * @complexity O(1) — one conditional button plus two fixed ones.
+ * @complexity O(1) — one conditional button plus one fixed one.
  */
 function CardActions({
   project,
@@ -321,9 +328,9 @@ function CardActions({
       {control && (
         <button
           type="button"
-          className="card__power"
+          className="button button--create card__power"
           // Disabled mid-transition rather than hidden: a row that reflows under the pointer is how
-          // a second click lands on the trash.
+          // a second click lands on the ⋮ trigger beside it.
           disabled={control.action === null}
           aria-label={`${control.label} ${project.displayName}`}
           onClick={() => void power.toggle(project)}
@@ -331,27 +338,20 @@ function CardActions({
           {control.label}
         </button>
       )}
-      <SiteCardMenu project={project} status={status} onRename={() => rename.startRename(project)} actions={actions} />
-      <button
-        type="button"
-        className="card__delete"
-        title={copy.cardButtonLabel}
-        aria-label={copy.cardButtonLabel}
-        // Stops the click first: the card itself is the open target. See `cardDeleteClick`. Kept
-        // even though this row already stops both — the row's handler is the general rule, this is
-        // the one control where a leak would erase a site directory.
-        onClick={cardDeleteClick(onRequestDelete, project.id)}
-      >
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
-          <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8h5.8l.6-8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
+      <SiteCardMenu
+        project={project}
+        status={status}
+        copy={copy}
+        onRename={() => rename.startRename(project)}
+        onRequestDelete={onRequestDelete}
+        actions={actions}
+      />
     </div>
   );
 }
 
 /**
- * A card's ⋮ overflow menu.
+ * A card's ⋮ overflow menu — the card's only icon control now.
  *
  * **Its own component, following `CardConfirmOverlay`'s precedent rather than the complexity
  * gate.** Two independent reasons, both structural. First, it carries the identical event contract
@@ -371,7 +371,19 @@ function CardActions({
  *
  * Entries render only when their action is both possible and meaningful: `openInBrowser` for a
  * running site only. An entry that is present but inert teaches the operator that this menu's items
- * sometimes do nothing, which is worse than a shorter menu.
+ * sometimes do nothing, which is worse than a shorter menu. Delete/Remove is the one entry that is
+ * always present — a card must always have a way to leave the grid.
+ *
+ * **Delete moved in here from its own always-visible trash button, on the owner's own request,
+ * after seeing that layout.** Their stated reason is misclicks: a destructive control sitting next
+ * to Start, a button pressed often, was too easy to hit by accident. The move changes nothing about
+ * WHAT the entry does — it still only calls `onRequestDelete`, exactly as the old button did, so the
+ * confirm overlay (`CardConfirmOverlay`) still gates the actual delete. It closes the menu first
+ * (`choose`, same as every other entry) so the open dropdown cannot float over that overlay. It
+ * wears `card__menuitem--danger` — the same `--danger` tokens the confirm dialog's own destructive
+ * button uses — only when `project.deleteErasesFiles`; an adopted site's "Remove from Projects"
+ * does not touch disk, and `deleteActionCopy`'s own doc explains why that case must not read as the
+ * scarier one.
  *
  * **Start and Stop are deliberately absent, and this is the whole reason the card has an action
  * row.** Start used to live here, because a stopped site had no other way up; it is now a labelled
@@ -383,17 +395,22 @@ function CardActions({
  * has not caught up yet, and a menu offering "Open in browser" for a site that is mid-stop would
  * hand the browser a port about to close. See `use-site-power.hooks.ts`.
  *
- * @complexity O(1) — one hook, one fixed entry plus one conditional.
+ * @complexity O(1) — one hook, two fixed entries (Rename, Delete/Remove) plus one conditional
+ *   (Open in browser).
  */
 function SiteCardMenu({
   project,
   status,
+  copy,
   onRename,
+  onRequestDelete,
   actions,
 }: {
   project: SiteRecord;
   status: SiteRecord['status'];
+  copy: DeleteActionCopy;
   onRename: () => void;
+  onRequestDelete: (id: string) => void;
   actions: SiteActions;
 }) {
   const { open, setOpen, containerRef } = useDismissibleDropdown<HTMLDivElement>();
@@ -441,6 +458,17 @@ function SiteCardMenu({
               Open in browser
             </button>
           )}
+          {/* Always present, and last: the destructive entry belongs at the bottom of the list,
+              separated from the safe entries above it by nothing but that position — the same
+              convention every native app menu uses for its own Delete item. */}
+          <button
+            type="button"
+            role="menuitem"
+            className={project.deleteErasesFiles ? 'card__menuitem card__menuitem--danger' : 'card__menuitem'}
+            onClick={choose(() => onRequestDelete(project.id))}
+          >
+            {copy.menuItemLabel}
+          </button>
         </div>
       )}
     </div>

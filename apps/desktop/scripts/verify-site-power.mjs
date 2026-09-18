@@ -1,7 +1,14 @@
 /**
- * @file Live verification for a site card's Start/Stop button and its always-visible action row —
- * the behaviour no unit test in this package can reach, because it ends in a real `tovu serve`
- * being spawned and drained.
+ * @file Live verification for a site card's Start/Stop button and its action row — the behaviour no
+ * unit test in this package can reach, because it ends in a real `tovu serve` being spawned and
+ * drained.
+ *
+ * **Revision (2026-09-18):** delete moved OFF the card and into the ⋮ menu — the owner's own reason
+ * is misclicks, a destructive control beside a button pressed often. Only the ⋮ trigger is now
+ * always-visible without hovering; the trash is checked ABSENT at top level and present only once
+ * the menu is opened, and a click through it still lands on the same confirm overlay rather than
+ * deleting directly. Start/Stop was also restyled to the header's "Create website" look
+ * (`.button--create`), checked here by comparing computed styles rather than trusting a class name.
  *
  * Not part of `npm test`: it launches a real Electron app and a real site server, so it is opt-in
  * and slow. Run it after touching `src/renderer/use-site-power.hooks.ts`, `src/renderer/SiteGrid.tsx`,
@@ -31,7 +38,7 @@ const DESKTOP = path.resolve(import.meta.dirname, '..');
 const REPO = path.resolve(DESKTOP, '../..');
 const SHOT_DIR =
   process.env.SITE_POWER_SHOT_DIR ??
-  path.join(REPO, 'ADS-memory/.local-artifacts/site-card-actions-screenshots-2026-09-18');
+  path.join(REPO, 'ADS-memory/.local-artifacts/site-card-actions-v2-screenshots-2026-09-18');
 const USER_DATA =
   process.env.SITE_POWER_USERDATA ?? fs.mkdtempSync(path.join(process.env.TMPDIR ?? '/tmp', 'tovu-site-power-'));
 const SITE_DIR = process.env.SITE_POWER_SITE_DIR;
@@ -68,14 +75,34 @@ const cardState = (win) =>
       status: card.querySelector('.state')?.textContent?.trim() ?? '',
       port: card.querySelector('.card__port')?.textContent?.trim() ?? null,
       power: power ? { label: power.textContent.trim(), disabled: power.disabled, visible: visible(power) } : null,
-      // The two controls the owner asked to be visible without hovering. Read WITHOUT any pointer
-      // over the card, which is the whole claim being checked.
+      // The one control the owner asked to be visible without hovering, now that delete no longer
+      // sits beside it. Read WITHOUT any pointer over the card, which is the whole claim being
+      // checked.
       menuVisible: visible(card.querySelector('.card__menubutton')),
-      trashVisible: visible(card.querySelector('.card__delete')),
       menuInTile: Boolean(card.querySelector('.card__tile .card__menu')),
-      trashInTile: Boolean(card.querySelector('.card__tile .card__delete')),
+      // Must be absent at the TOP level of the card — delete lives only inside the closed ⋮ menu.
+      trashOnCard: Boolean(card.querySelector('.card__delete')),
       actionsInBody: Boolean(card.querySelector('.card__body .card__actions')),
       error: card.querySelector('.card__actionerror')?.textContent?.trim() ?? null,
+    };
+  });
+
+/** Computed style of the card's power button versus the header's "Create website" button — the
+ *  live proof that Start/Stop actually wears that style rather than merely sharing a class name
+ *  that some other rule overrides. */
+const powerMatchesCreate = (win) =>
+  win.evaluate(() => {
+    const power = document.querySelector('.card__power');
+    const create = document.querySelector('.button--create');
+    if (!power || !create) return null;
+    const p = getComputedStyle(power);
+    const c = getComputedStyle(create);
+    return {
+      sameBackground: p.backgroundColor === c.backgroundColor,
+      sameBorderColor: p.borderColor === c.borderColor,
+      sameFontWeight: p.fontWeight === c.fontWeight,
+      powerBg: p.backgroundColor,
+      createBg: c.backgroundColor,
     };
   });
 
@@ -133,15 +160,26 @@ async function main() {
     check('CARD_SEEDED', idle !== null, `card rendered, status ${idle?.status}`);
     check(
       'ACTIONS_IN_BODY',
-      idle.actionsInBody && !idle.menuInTile && !idle.trashInTile,
-      `actions row in the info block (menu on preview: ${idle.menuInTile}, trash on preview: ${idle.trashInTile})`,
+      idle.actionsInBody && !idle.menuInTile,
+      `actions row in the info block (menu on preview: ${idle.menuInTile})`,
     );
     check(
       'ALWAYS_VISIBLE',
-      idle.menuVisible && idle.trashVisible,
-      `⋮ visible ${idle.menuVisible}, trash visible ${idle.trashVisible} — with no pointer over the card`,
+      idle.menuVisible,
+      `⋮ visible ${idle.menuVisible} — with no pointer over the card`,
+    );
+    check(
+      'NO_TOP_LEVEL_TRASH',
+      !idle.trashOnCard,
+      `a standalone .card__delete exists on the card outside the ⋮ menu (${idle.trashOnCard})`,
     );
     check('POWER_OFFERS_START', idle.power?.label === 'Start', `power button reads "${idle.power?.label}"`);
+    const startStyle = await powerMatchesCreate(win);
+    check(
+      'POWER_MATCHES_CREATE_STYLE',
+      startStyle !== null && startStyle.sameBackground && startStyle.sameBorderColor && startStyle.sameFontWeight,
+      `power bg ${startStyle?.powerBg} vs create bg ${startStyle?.createBg} (border match: ${startStyle?.sameBorderColor}, weight match: ${startStyle?.sameFontWeight})`,
+    );
     await shot(win, 'light-stopped');
 
     // --- the site really starts ---
@@ -177,8 +215,14 @@ async function main() {
     check('NO_ERROR', stopped.error === null, `no failure text on the card (${stopped.error})`);
     await shot(win, 'light-stopped-again');
 
-    // --- the ⋮ menu still opens from its new home ---
+    // --- the ⋮ menu still opens from its new home, and now carries delete ---
     await win.click('.card__menubutton');
+    // The menu's background is theme-derived (`var(--surface)`), and screenshotting in the same
+    // tick as the click can catch the freshly-mounted popover before that paints — a genuine paint
+    // race, not a styling bug: `getComputedStyle` on it is correct even in the same tick a
+    // screenshot taken then is not. The wait is for the SHOT below to be trustworthy, not for the
+    // checks, which already read computed truth.
+    await win.waitForTimeout(150);
     const menuItems = await win.evaluate(() =>
       [...document.querySelectorAll('.card__menulist [role="menuitem"]')].map((el) => el.textContent.trim()),
     );
@@ -188,7 +232,36 @@ async function main() {
       !menuItems.some((item) => item === 'Start' || item === 'Stop'),
       'neither Start nor Stop is duplicated in the ⋮ menu',
     );
+    check(
+      'MENU_HAS_DELETE_ENTRY',
+      menuItems.some((item) => item === 'Delete…' || item === 'Remove from Projects…'),
+      `menu items: ${menuItems.join(' | ')}`,
+    );
     await shot(win, 'light-menu-open');
+
+    // --- the seeded site is adopted (origin: 'adopted'), so its entry must read as the SAFE
+    //     branch — plain text, not the danger styling erasing-file deletes get — and clicking it
+    //     must still land on the confirm overlay rather than deleting straight away. ---
+    const deleteEntry = await win.evaluate(() => {
+      const item = [...document.querySelectorAll('.card__menulist [role="menuitem"]')].find((el) =>
+        /Delete|Remove from Projects/.test(el.textContent),
+      );
+      return item ? { text: item.textContent.trim(), danger: item.classList.contains('card__menuitem--danger') } : null;
+    });
+    check(
+      'ADOPTED_SITE_ENTRY_NOT_DANGER_STYLED',
+      deleteEntry?.text === 'Remove from Projects…' && deleteEntry.danger === false,
+      `entry "${deleteEntry?.text}", danger class present: ${deleteEntry?.danger}`,
+    );
+    await win.click('.card__menulist [role="menuitem"]:has-text("Remove from Projects")');
+    const confirmShown = await win.evaluate(() => document.querySelector('.card__confirm') !== null);
+    check('DELETE_ENTRY_OPENS_CONFIRM', confirmShown, 'clicking the menu entry must open the confirm overlay, not delete directly');
+    await shot(win, 'light-menu-delete-confirm');
+    // Cancel rather than confirm: the scratch site stays intact for any rerun of this script.
+    await win.click('.card__confirmacts .button--quiet');
+    const confirmDismissed = await win.evaluate(() => document.querySelector('.card__confirm') === null);
+    check('CONFIRM_CANCEL_DISMISSES', confirmDismissed, 'Cancel must close the overlay without deleting');
+
     await win.keyboard.press('Escape');
     await win.click('body', { position: { x: 5, y: 5 } });
 
@@ -197,11 +270,12 @@ async function main() {
     const dark = await cardState(win);
     check(
       'DARK_ALWAYS_VISIBLE',
-      dark.menuVisible && dark.trashVisible && dark.power !== null,
-      `dark mode: ⋮ ${dark.menuVisible}, trash ${dark.trashVisible}, power "${dark.power?.label}"`,
+      dark.menuVisible && !dark.trashOnCard && dark.power !== null,
+      `dark mode: ⋮ ${dark.menuVisible}, top-level trash present ${dark.trashOnCard}, power "${dark.power?.label}"`,
     );
     await shot(win, 'dark-stopped');
     await win.click('.card__menubutton');
+    await win.waitForTimeout(150); // see the identical wait above — the same paint race.
     await shot(win, 'dark-menu-open');
     await win.keyboard.press('Escape');
     await win.click('body', { position: { x: 5, y: 5 } });

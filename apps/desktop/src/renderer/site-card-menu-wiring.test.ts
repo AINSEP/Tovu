@@ -86,8 +86,10 @@ test("every menu item closes the menu before acting, never after", () => {
   assert.match(body, /const choose = closeMenuThen\(setOpen\);/);
   // And every item goes through it, rather than some calling their action directly.
   const items = body.match(/role="menuitem"[\s\S]*?onClick=\{([^}]*)\}/g) ?? [];
-  // Two: Rename…, and Open in browser for a running site. Start left for the action row's button.
-  assert.equal(items.length, 2, `expected 2 menu items, found ${items.length}`);
+  // Three: Rename…, Open in browser for a running site, and Delete/Remove — the last of these moved
+  // in from its own always-visible trash button (2026-09-18, owner's misclick fix). Start left for
+  // the action row's button.
+  assert.equal(items.length, 3, `expected 3 menu items, found ${items.length}`);
   for (const item of items) assert.match(item, /choose\(/, `a menu item bypasses choose(): ${item}`);
 });
 
