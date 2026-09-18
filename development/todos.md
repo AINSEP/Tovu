@@ -22,6 +22,79 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## WebMCP: let Chrome's agent operate the admin and the published site (owner call, 2026-09-17)
+
+**Goal.** If a user asks a browser agent (Chrome's, or any WebMCP client), it can talk to and
+operate both the admin and the front end.
+
+**Direction: lean toward WebMCP's `tool*` paradigm, but do NOT migrate `data-agent-*` now.**
+Keep `data-agent-*` as the working convention and add a WebMCP layer on top. Revisit the migration
+as the spec evolves. Why not now, verified 2026-09-17:
+- WebMCP's declarative attributes cover **forms only**: `toolname`, `tooldescription`,
+  `toolautosubmit` on `<form>`, and `toolparamdescription` / `toolparamtitle` on its controls.
+  There is also `SubmitEvent.agentInvoked` / `respondWith()`, the `toolactivated` /
+  `toolcanceled` events, and `:tool-form-active` / `:tool-submit-active`. Nothing covers buttons,
+  tabs, links, or status text. `data-agent-element` has ~140 admin uses and most are not form
+  fields.
+- Chrome ships it only as an origin trial (149–156), and Edge only behind a flag. Firefox and Safari
+  have made no commitment. The API already moved once (`navigator.modelContext` →
+  `document.modelContext`, 2026-07-21).
+- Sources: `webmachinelearning/webmcp` `declarative-api-explainer.md`;
+  developer.chrome.com/docs/ai/webmcp/declarative-api.
+- An earlier agent wrongly told the owner WebMCP had no such attributes, which is why
+  `data-agent-*` exists. See `ADS-memory/knowledge/mistakes/2026-09-17-told-owner-webmcp-has-no-declarative-attributes.md`.
+
+**Pieces that already exist (Jini):**
+- `packages/chat/src/react/features/chat-pane/hooks/useChatPaneAgentControl.hooks.ts` has a
+  `webmcp?: boolean` switch. It registers the chat pane's own actions (send message, draft, …) with
+  `document.modelContext`. Tovu's `AssistantDock.tsx` leaves it OFF on purpose. Turned on, Chrome's
+  agent can ask Tovu's assistant, which then acts through the normal ToolExecutor gate.
+- `packages/agentic/src/core/webmcp.ts` has `toWebMcpTool`, which turns any `CapabilityDef` into a
+  WebMCP registration: `readOnlyHint` comes from `risk`, and a fail-closed confirmation gate
+  refuses to run a `requiresConfirmation` capability unless a confirmation handler is supplied.
+  It is **not wired** to the `page.*` capabilities (navigate / find_elements / act on
+  `data-agent-element` handles).
+- `packages/agentic/src/core/dom/model-context.ts` has `getAgentModelContext()` (feature
+  detection).
+
+**Tasks:**
+- [ ] **Admin prototype first.** Turn on the chat-pane `webmcp` switch, and register the `page.*`
+      tools through `toWebMcpTool`, requiring confirmation for writes. Test in real Chrome (trial
+      token or flag).
+- [ ] **Setting.** Add an admin Settings switch for browser-agent (WebMCP) access. **Owner decision
+      still open: off until enabled (recommended) vs on by default.**
+- [ ] **Front end (published site).** It has no page driver today. Put the declarative attributes
+      on real site forms (contact, search, newsletter, booking), plus a small registration script
+      for non-form actions.
+- [ ] **The admin agent tags the HTML pages it creates.** When the assistant builds or edits a
+      page (page editor: "Ask the assistant to build this page"), the output carries agent tags:
+      WebMCP attributes on forms, the site's agent-handle attribute on other actionable
+      elements. Decide whether that is prompt/tool guidance, a post-save pass, or both.
+- [ ] **Themes people create carry the tags too — themes use WebMCP `tool*` naming (owner call,
+      2026-09-17).** Unlike the admin, themes bias toward WebMCP now, because agents will act on
+      themes first and foremost on the front end.
+      - Forms in theme markup use the real declarative attributes: `toolname`, `tooldescription`,
+        `toolautosubmit`, and `toolparamdescription` / `toolparamtitle` on their controls.
+      - **Non-form elements use `data-tool*` (DECIDED, owner, 2026-09-17; adjustable later).**
+        Buttons, links, tabs and other non-form elements mirror the WebMCP names with a `data-`
+        prefix: `data-toolname`, `data-tooldescription`, and so on. WebMCP has no attribute for
+        them, and the prefix is valid HTML, can't clash with future spec meanings, and migrates by
+        dropping `data-`.
+      - Update the theme authoring guide, theme scaffolds, and the theme validator
+        (`apps/website/src/features/theme/validation/markup.ts`): validate the `tool*` attributes,
+        keep forbidding `data-agent-element` (admin-only), and retire the unsettled
+        `data-tovu-agent` in favor of the `tool*` convention.
+      - The admin agent building front-end pages (task above) should emit the same `tool*`
+        convention, so site pages and theme markup match.
+- [ ] **Security note for the plan.** A WebMCP call carries no run and no principal, so ToolExecutor
+      cannot authorize it. Anything that can reach `document.modelContext` (browser extensions,
+      other scripts on the page) can call registered tools. Server-side permissions still apply
+      to the logged-in user. Keep write tools behind confirmation.
+- [ ] **Later: migrate `data-agent-*` → WebMCP `tool*`** once the spec covers non-form elements
+      and leaves the origin trial.
+
+---
+
 ## Desktop shell: one window, project tabs — match Tovu Runner (owner directive, 2026-09-06)
 
 **DONE 2026-09-06** — `204e01a7` (backend/IPC: `openSiteServer` and `openWindow` removed, `start` is
