@@ -79,6 +79,9 @@ const cardState = (win) =>
     };
     return {
       className: card.className,
+      // Which site this card is actually about. Read so the run can prove, BEFORE it clicks Start,
+      // that the card it is driving is the scratch site it seeded — see `CARD_IS_SEEDED_SITE`.
+      name: card.querySelector('.card__name')?.textContent?.trim() ?? null,
       status: card.querySelector('.state')?.textContent?.trim() ?? '',
       port: card.querySelector('.card__port')?.textContent?.trim() ?? null,
       power: power ? { label: power.textContent.trim(), disabled: power.disabled, visible: visible(power) } : null,
@@ -176,6 +179,10 @@ async function main() {
     process.exitCode = 1;
     return;
   }
+  // The display name the seeded card must carry, read from the site's own config.json rather than
+  // passed in a second env var that could disagree with it. `CARD_IS_SEEDED_SITE` below is the
+  // reason this exists.
+  const expectedSiteName = JSON.parse(fs.readFileSync(path.join(SITE_DIR, 'config.json'), 'utf8')).name;
   fs.mkdirSync(SHOT_DIR, { recursive: true });
   fs.mkdirSync(USER_DATA, { recursive: true });
   // The seed a fresh profile cannot produce for itself: `handleList` renders this file and there is
@@ -204,6 +211,23 @@ async function main() {
 
     const idle = await cardState(win);
     check('CARD_SEEDED', idle !== null, `card rendered, status ${idle?.status}`);
+    // Every check below reads `document.querySelector('.card')` — the FIRST card — and this script
+    // goes on to really start and really stop whatever site that card is about. The seeded profile
+    // is not the only thing that puts cards on this screen: `rescanSites` adopts every site under
+    // the app's scan roots at boot, which on a dev checkout means the repo's own `sites/` — the
+    // operator's real site, very possibly already being served by their own running app. Two `tovu
+    // serve` children on one content.db is not a thing to discover from a screenshot afterwards, so
+    // the run stops here rather than clicking Start on a card it cannot name.
+    check(
+      'CARD_IS_SEEDED_SITE',
+      idle?.name === expectedSiteName,
+      `first card is "${idle?.name}", seeded site's config.json says "${expectedSiteName}"`,
+    );
+    if (idle?.name !== expectedSiteName) {
+      throw new Error(
+        `refusing to drive a card this run did not seed: first card is "${idle?.name}", expected "${expectedSiteName}" (${SITE_DIR})`,
+      );
+    }
     check(
       'ACTIONS_IN_BODY',
       idle.actionsInBody && !idle.menuInTile,
