@@ -6,7 +6,7 @@
  * destination at boot drags `node:fs` in behind it.
  */
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import type { ProvisioningFileIo } from "./provisioning.js";
@@ -31,8 +31,21 @@ export const nodeProvisioningFileIo: ProvisioningFileIo = {
     }
   },
 
+  /**
+   * Writes through a temporary file and one `rename`, so a reader never sees a half-written
+   * document. This matters most for `revocations.ts`, which the RUNNING server writes while
+   * requests are being admitted against it: a torn read there parses as a broken list, and a broken
+   * revocation list correctly refuses every publish — so a non-atomic write would turn one
+   * disconnect click into a brief outage of publishing.
+   *
+   * `rename` within a directory is atomic on every filesystem Tovu deploys onto, which is why the
+   * temporary file is placed beside the target rather than in a temp dir on another device.
+   */
   async write(path: string, contents: string): Promise<void> {
-    await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, contents, "utf8");
+    const directory = dirname(path);
+    await mkdir(directory, { recursive: true });
+    const staging = `${path}.${process.pid}.tmp`;
+    await writeFile(staging, contents, "utf8");
+    await rename(staging, path);
   },
 };
