@@ -25,6 +25,25 @@ Claims from the brief I **confirmed** unchanged: `change_set_items` shape and it
 
 ---
 
+## 0b. CONSTRAINT — vendor neutrality (owner, 2026-09-19)
+
+Publish must work on AWS, Railway, Render, a bare VPS — not just fly.io. Verified 2026-09-19:
+`grep -rniE "fly\.io|flyctl|fly\.toml|fly_"` across `features/publish-content/` returns ZERO hits, so
+the feature is vendor-neutral by construction today. Transport is an HTTP peer push over
+`HttpClientPort` to another Tovu's export/import routes — "a Tovu at a URL" does not care what runs
+underneath. The only Fly coupling in the repo is deployment plumbing (`fly.toml`, the deploy
+workflow, Dockerfile build args) plus two doc comments in `configured-origin.ts` naming
+`fly secrets set` as an EXAMPLE of setting `TOVU_PUBLIC_URL`, which is a plain env var everywhere.
+
+**Task 10 is the one place this can regress.** Hold the line on:
+- Peers identified by URL + sealed credential — never a platform identifier (app name, project id, region).
+- The `devHostAllowlist` diagnosis must not assume Fly's private-network shape; Railway and Render
+  have their own internal DNS and AWS puts you in a VPC.
+- No assumption of a writable filesystem or a single instance. Fly defaults to one machine with a
+  volume; Render and Railway scale horizontally, so the blob store behind `putIfAbsent` matters.
+  `features/media/blob-store.s3.ts` suggests the seam is already right — confirm, do not assume.
+- Anything genuinely platform-aware goes behind a port with Fly as one adapter, never an `if`.
+
 ## 1. The seam
 
 ### 1.1 HTTP routes
