@@ -15,6 +15,7 @@ import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-regi
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
+import { contributePublishContentTools } from "#src/features/publish-content/tool-registrations";
 import { contributePostTools, contributePostDuplicateHandlers } from "#src/features/post/tool-registrations";
 import { contributeRecoveryTools } from "#src/features/recovery/tool-registrations";
 import { contributeTaxonomyTools } from "#src/features/taxonomy/tool-registrations";
@@ -288,6 +289,10 @@ export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributePagesTools());
   registerToolContributor(contributePluginsTools());
   registerToolContributor(contributePostTools());
+  // The three publishing tools (2026-09-19): 'is publishing set up', 'set it up', 'publish'.
+  // `publish_content_publish` holds its own call open for a human's answer — see that feature's
+  // `tool-registrations.ts` header for why an assistant may not confirm its own publish.
+  registerToolContributor(contributePublishContentTools());
   registerToolContributor(contributeRecoveryTools());
   registerToolContributor(contributeRedirectsTools());
   registerToolContributor(contributeSeoTools());
