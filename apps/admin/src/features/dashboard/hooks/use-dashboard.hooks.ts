@@ -74,6 +74,14 @@ export interface DashboardController {
   /** Bound translator — `key` already resolved against the caller's locale, so `Dashboard.tsx`
    *  never imports `useAdminLocale`/`DASHBOARD_DICT` itself. See this file's header. */
   t: Translate;
+  /** Whether the "Publish Content" confirm dialog is open. Presentation flow ("has the operator
+   *  confirmed yet"), not a network mutation — same split `AgentPlugins.tsx`'s own
+   *  `pendingDisable` documents for the identical shape of interstitial, applied here instead of
+   *  a `useState` in `Dashboard.tsx` because THIS screen's own convention (this file's header)
+   *  already puts all of Dashboard's state here, markup-only in the component. */
+  isPublishDialogOpen: boolean;
+  openPublishDialog: () => void;
+  closePublishDialog: () => void;
 }
 
 export interface DashboardDependencies {
@@ -102,6 +110,7 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
   const [themeId, setThemeId] = useState<string | null>(null);
   const [themeError, setThemeError] = useState<string | null>(null);
   const [recent, setRecent] = useState<AdminPost[] | null>(null);
+  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
 
   // Deliberately `[]`, not `[port, locale]` — preserved from the pre-port version, which had no
   // dependency to list either. A caller changing `port`/`locale` after mount does not re-fetch;
@@ -146,7 +155,21 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
       .catch((e) => setThemeError(describeApiError(e, translate(locale, "failed to load the active theme"))));
   }, []);
 
-  return { posts, published, pages, drafts, media, comments, themeId, themeError, recent, t };
+  return {
+    posts,
+    published,
+    pages,
+    drafts,
+    media,
+    comments,
+    themeId,
+    themeError,
+    recent,
+    t,
+    isPublishDialogOpen,
+    openPublishDialog: () => setIsPublishDialogOpen(true),
+    closePublishDialog: () => setIsPublishDialogOpen(false),
+  };
 }
 
 /**

@@ -5,6 +5,7 @@ import type { Translate } from "../../lib/dictionary-translator";
 import { agentHandle } from "@jini-ai/agentic";
 import { useWiredDashboard, type StatState } from "./hooks/use-dashboard.hooks";
 import { activityRowHref, commentsStatMeta, pagesStatMeta, postsStatMeta } from "./rules";
+import { PublishContentDialog } from "./PublishContentDialog";
 
 /**
  * @file Admin landing screen — markup only.
@@ -114,7 +115,21 @@ function AppearanceBody(props: { themeError: string | null; themeId: string | nu
 }
 
 export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardProps = {}) {
-  const { posts, published, pages, drafts, media, comments, themeId, themeError, recent, t } = useDashboardHook();
+  const {
+    posts,
+    published,
+    pages,
+    drafts,
+    media,
+    comments,
+    themeId,
+    themeError,
+    recent,
+    t,
+    isPublishDialogOpen,
+    openPublishDialog,
+    closePublishDialog,
+  } = useDashboardHook();
 
   return (
     <div className="page">
@@ -124,7 +139,7 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
           <h1 className="page-title">{t("Dashboard")}</h1>
           <p className="page-description">{t("Everything happening on this site at a glance.")}</p>
         </div>
-        <div className="page-actions">
+        <div className="page-actions dash-header-actions">
           <a
             className="btn-secondary"
             href={siteUrl("/")}
@@ -134,8 +149,30 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
           >
             {t("View site ↗")}
           </a>
+          {/* Orange/`.btn-primary`, directly under "View site" — a deliberate, meaningful action,
+              not a nav link. See `PublishContentDialog.tsx` for why the dialog it opens exists and
+              why its own Confirm is a stub. */}
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={openPublishDialog}
+            {...agentHandle("dashboard-publish-content", {
+              role: "button",
+              label: "Publish content to the live site",
+            })}
+          >
+            {t("Publish Content")}
+          </button>
         </div>
       </div>
+
+      {isPublishDialogOpen ? (
+        // `onConfirm` is unreachable today — the dialog's own Confirm button is `disabled` until
+        // the publish API exists (see `PublishContentDialog.tsx`'s TODO). Left as a no-op rather
+        // than `closePublishDialog` so wiring the real call in later doesn't inherit a handler
+        // that silently just closes the dialog without publishing anything.
+        <PublishContentDialog onConfirm={() => {}} onCancel={closePublishDialog} t={t} />
+      ) : null}
 
       <div className="dash-stats">
         <Stat

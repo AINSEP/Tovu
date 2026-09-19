@@ -310,6 +310,28 @@ button:disabled {
   background: color-mix(in oklch, var(--primary) 30%, var(--surface));
   color: color-mix(in oklch, var(--primary-ink) 55%, var(--surface));
 }
+/* Dark-mode-only fix, found live building Dashboard's "Publish Content" (2026-09-18): the generic
+   rule above mixes IN OKLCH, which interpolates hue along whichever arc is shorter between the two
+   endpoints. Light mode's `--surface` is `oklch(100% 0 none)` — `none` marks its hue POWERLESS (see
+   that token's own comment further up this file), so the mix just carries `--primary`'s hue (44,
+   orange) through unaffected. Dark mode's `--surface` is `oklch(18.5% 0.018 255)` — a REAL, small
+   but non-zero blue hue, not powerless — so mixing it with `--primary` (hue 44) sends the
+   interpolation the short way around the wheel, through magenta/purple (measured: this produced
+   `oklch(0.2975 0.0426 299.7)`, hue ~300, on a disabled `.btn-primary` in dark mode — a button that
+   reads as muddy purple instead of a desaturated orange). Not a `none`-hue fix like `--surface`'s
+   own, because dark `--surface`'s chroma is genuinely non-zero (an intentional blue-tinted paper),
+   so its hue isn't powerless to begin with; `in srgb` sidesteps the whole hue-arc question by
+   mixing R/G/B channels directly instead of a polar hue, which is why it lands warm/brown instead
+   (measured: `color(srgb 0.230 0.165 0.150)`, R > G > B — reads as a desaturated dark orange, not a
+   hue-neutral grey or an off-hue purple). Scoped to `.btn-primary` alone (not the generic rule
+   above, not `--surface` itself) — the fix is verified against exactly the one button variant this
+   change actually renders disabled in dark mode; `.btn-danger`/`.btn-warning`/etc.'s own disabled
+   states were not part of this pass and are left as they were. `.btn-primary:disabled` outranks
+   the bare `button:disabled` above on specificity ((0,2,0) vs (0,1,1)) regardless of source order,
+   so this only needs the one declaration. */
+:root[data-theme="dark"] .btn-primary:disabled {
+  background: color-mix(in srgb, var(--primary) 30%, var(--surface));
+}
 /* ============================================================
    FORM CONTROLS — the control layer. Previously two bare-element rules total (this block's old
    `input, select { ... }` plus a `:focus` override); rebuilt against Open Design's own reference
@@ -1794,6 +1816,14 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    exceptions, which is what makes a row of them scan — and `.dash-panel` carries everything that
    is prose, a list, or a name. The theme moved into a panel for exactly that reason. */
 .dash-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-4); }
+
+/* "Publish Content" sits directly under "View site ↗" instead of beside it — a column, not
+   `.page-actions`'s own row. A modifier on THIS screen's actions row rather than changing
+   `.page-actions` itself, which ~39 other screens share and still want laid out as a row.
+   `align-items: flex-end` right-aligns both buttons' edges the same way a row's `justify-content`
+   would, since `.page-header`'s own `justify-content: space-between` already pins this whole
+   column to the header's right side. */
+.dash-header-actions { flex-direction: column; align-items: flex-end; gap: var(--space-2); }
 
 /* An `<a>`, not a `<div>` — the number was already the answer to "how many posts", so the card is
    the natural way to go read them. Being a real link also means it is keyboard-reachable and
