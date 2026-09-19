@@ -4,6 +4,7 @@ import {
   ChangeSetInvalidStatusError,
   ChangeSetNotFoundError,
   RevertConflictError,
+  RevertForbiddenError,
   RevertNotPossibleError,
   revertChangeSet,
 } from "#src/contracts/core/commands/index";
@@ -21,8 +22,19 @@ function sendChangeSetRevertError(res: Response, err: unknown): void {
     res.status(409).json({ error: err.message, code: "CHANGE_SET_INVALID_STATUS" });
     return;
   }
+  // Before `RevertConflictError` below only by file convention (matches `sendPostUpdateError`'s
+  // 403-checks-first ordering) — the two classes are unrelated, so ordering has no `instanceof`
+  // hazard here.
+  if (err instanceof RevertForbiddenError) {
+    res.status(403).json({ error: err.message, code: "REVERT_FORBIDDEN", details: { reason: err.reasonCode } });
+    return;
+  }
   if (err instanceof RevertConflictError) {
-    res.status(409).json({ error: err.message, code: "REVERT_CONFLICT" });
+    res.status(409).json({
+      error: err.message,
+      code: "REVERT_CONFLICT",
+      details: { currentVersion: err.currentVersion, currentActorId: err.currentActorId },
+    });
     return;
   }
   if (err instanceof RevertNotPossibleError) {
@@ -39,6 +51,15 @@ function sendChangeSetRevertError(res: Response, err: unknown): void {
  * `revertChangeSet` is a standalone `core/commands` function called directly by this route, not
  * routed through `executeCommand` (that gateway wraps forward mutations, not reverts), so this
  * uses the same in-route pattern as `members/disable.ts` rather than the gateway pair.
+ *
+ * Task 14b (2026-09-18): accepts an optional `force: true` body field, which is itself the
+ * "operator explicitly clicked through a warning" signal — the same shape
+ * `features/recovery/recovery-orchestrator.ts`'s `disclosureAcknowledged` uses (a single
+ * strictly-`=== true` boolean the caller must deliberately set), not the full
+ * `gated-mutations` plan -> confirm -> execute token ceremony, which is a separate, heavier
+ * primitive this route has no other reason to adopt. `force` is forwarded to `revertChangeSet`
+ * alongside `principal.kind` so the agent-cannot-force rule is enforced once, in `core/commands`,
+ * not re-implemented at this layer.
  */
 export const registerAdminChangeSetRevertRoute: ContentRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId/revert", async (req, res) => {
@@ -67,6 +88,7 @@ export const registerAdminChangeSetRevertRoute: ContentRouteRegistrar = (app, de
         return;
       }
 
+      const body = req.body ?? {};
       const reverted = await revertChangeSet({
         deps: {
           changeSets: deps.changeSets,
@@ -78,6 +100,8 @@ export const registerAdminChangeSetRevertRoute: ContentRouteRegistrar = (app, de
         input: {
           workspaceId: deps.workspaceId,
           changeSetId,
+          force: body.force === true,
+          principalKind: principal.kind,
         },
       });
 

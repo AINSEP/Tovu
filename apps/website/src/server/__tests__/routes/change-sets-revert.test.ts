@@ -10,6 +10,7 @@ import { registerAdminChangeSetRevertRoute } from "../../inbound/admin-http/rout
 import { createRevertRegistry, type EntityReverter } from "../../../contracts/core/commands/index.js";
 import type { RouteDeps } from "../../routes/types.js";
 import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/cms/core";
+import type { PrincipalRecord } from "@jini-ai/cms/identity";
 
 /**
  * @file Route-level tests for `POST .../change-sets/:changeSetId/revert` — the HTTP wiring
@@ -29,11 +30,21 @@ import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/cms/core";
 
 const WS = "workspace-local";
 
-function fakeReverter(opts: { currentVersion: number | null }): EntityReverter {
-  return {
+function fakeReverter(opts: {
+  currentVersion: number | null;
+  currentActor?: string | null;
+  onApplyInverse?: () => void;
+}): EntityReverter {
+  const reverter: EntityReverter = {
     currentVersion: async () => opts.currentVersion,
-    applyInverse: async () => {},
+    applyInverse: async () => {
+      opts.onApplyInverse?.();
+    },
   };
+  if (opts.currentActor !== undefined) {
+    reverter.currentActor = async () => opts.currentActor ?? null;
+  }
+  return reverter;
 }
 
 function buildTestApp(): { app: express.Express; deps: RouteDeps } {
@@ -207,4 +218,89 @@ test("change-sets revert: `req.params.changeSetId ?? \"\"` fallback, forced via 
   assert.equal(capture.statusCode, 404);
   const body = capture.jsonBody as { code: string };
   assert.equal(body.code, "CHANGE_SET_NOT_FOUND");
+});
+
+/**
+ * Task 14b (2026-09-18) — the `force`/`principalKind` wiring this route adds around
+ * `revertChangeSet`'s new operator-override. Direct-handler invocation (not `fetch`) so an agent
+ * principal can be supplied without a real agent session flow existing in this harness — mirrors
+ * the two `extractRouteHandler`-based tests above.
+ */
+test("change-sets revert: an agent principal with force:true is 403 REVERT_FORBIDDEN, before any repo read", async () => {
+  const { app, deps } = buildTestApp();
+  deps.authorize = async () => ({ allowed: true, reason: "OK" });
+  let findByIdCalled = false;
+  deps.changeSets.findById = async () => {
+    findByIdCalled = true;
+    return null;
+  };
+
+  const agentPrincipal: PrincipalRecord = {
+    id: "agent-1",
+    workspaceId: WS,
+    kind: "agent",
+    displayName: "Agent",
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
+  };
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId/revert");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = agentPrincipal;
+
+  await handler({ params: { workspaceId: WS, changeSetId: "cs-1" }, body: { force: true } }, res);
+
+  assert.equal(capture.statusCode, 403);
+  const body = capture.jsonBody as { code: string };
+  assert.equal(body.code, "REVERT_FORBIDDEN");
+  assert.equal(findByIdCalled, false, "the agent-cannot-force refusal must fire before any repo read");
+});
+
+test("change-sets revert: force:true past a real conflict reverts the entity through the real HTTP route (200)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  deps.revertRegistry = createRevertRegistry();
+  let applyInverseCalled = false;
+  deps.revertRegistry.register(
+    "widget",
+    "update",
+    fakeReverter({ currentVersion: 5, onApplyInverse: () => { applyInverseCalled = true; } })
+  );
+  await deps.changeSets.insert(seededChangeSet({ id: "cs-force" }), [
+    seededItem({ changeSetId: "cs-force", entityVersionAtApply: 3 }),
+  ]);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/change-sets/cs-force/revert`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ force: true }),
+  });
+
+  assert.equal(res.status, 200);
+  assert.equal(applyInverseCalled, true, "force:true must actually apply the inverse through the real route");
+});
+
+test("change-sets revert: without force, a real conflict names the newer version and the actor in the 409 details", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  deps.revertRegistry = createRevertRegistry();
+  deps.revertRegistry.register("widget", "update", fakeReverter({ currentVersion: 5, currentActor: "principal-77" }));
+  await deps.changeSets.insert(seededChangeSet({ id: "cs-actor" }), [
+    seededItem({ changeSetId: "cs-actor", entityVersionAtApply: 3 }),
+  ]);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/change-sets/cs-actor/revert`, {
+    method: "POST",
+    headers: { cookie },
+  });
+
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as {
+    code: string;
+    error: string;
+    details: { currentVersion: number; currentActorId: string };
+  };
+  assert.equal(body.code, "REVERT_CONFLICT");
+  assert.match(body.error, /last changed by principal 'principal-77'/);
+  assert.equal(body.details.currentVersion, 5);
+  assert.equal(body.details.currentActorId, "principal-77");
 });

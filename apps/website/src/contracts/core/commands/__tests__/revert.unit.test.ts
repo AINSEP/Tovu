@@ -7,6 +7,7 @@ import {
   ChangeSetInvalidStatusError,
   RevertNotPossibleError,
   RevertConflictError,
+  RevertForbiddenError,
   type RevertChangeSetDeps,
 } from "../revert.js";
 import { createRevertRegistry, type EntityReverter } from "../appliers.js";
@@ -38,14 +39,23 @@ const idGen = { newId: () => "id-1" };
 
 function fakeReverter(opts: {
   currentVersion: number | null;
+  currentActor?: string | null;
   onApplyInverse?: (item: ChangeSetItemRecord) => void;
 }): EntityReverter {
-  return {
+  const reverter: EntityReverter = {
     currentVersion: async () => opts.currentVersion,
     applyInverse: async ({ item }) => {
       opts.onApplyInverse?.(item);
     },
   };
+  // Only attach `currentActor` when the test opts in — omitting the property entirely (not just
+  // returning `null` from it) is what proves `revert.ts` treats "no currentActor method at all"
+  // (the two pre-existing tests' fakes, and every real fake in this file before Task 14b) exactly
+  // like "resolves null", per `EntityReverter.currentActor`'s own optional/additive doc comment.
+  if (opts.currentActor !== undefined) {
+    reverter.currentActor = async () => opts.currentActor ?? null;
+  }
+  return reverter;
 }
 
 function baseChangeSet(overrides: Partial<ChangeSetRecord> = {}): ChangeSetRecord {
@@ -304,4 +314,179 @@ test("completes without enqueuing anything when no outbox is provided", async ()
 
   assert.equal(reverted.status, "reverted");
   assert.equal(reverted.revertedAt, "2026-08-21T00:00:00.000Z");
+});
+
+/**
+ * Task 14b (2026-09-18) — multi-author hardening. Before this, `revertChangeSet`'s version guard
+ * was unconditional: once ANYONE saved the entity again, the change set became permanently
+ * unrevertable, even for a completely unrelated later edit by a second author. `force` lets an
+ * operator explicitly override a stale-version conflict; it must never bypass a missing entity,
+ * and an agent principal must never be able to set it.
+ */
+
+test("conflict message names the actor when the reverter resolves one via currentActor", async () => {
+  const changeSet = baseChangeSet();
+  const item = baseItem({ entityType: "widget", entityId: "entity-1", entityVersionAtApply: 3 });
+  const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
+  const registry = createRevertRegistry();
+  registry.register("widget", "update", fakeReverter({ currentVersion: 5, currentActor: "principal-42" }));
+  const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
+
+  await assert.rejects(
+    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
+    (err: unknown) => {
+      assert.ok(err instanceof RevertConflictError);
+      assert.equal(
+        (err as Error).message,
+        "entity 'widget:entity-1' changed since this change set (expected version 3, found 5, last changed by principal 'principal-42')"
+      );
+      assert.equal((err as RevertConflictError).currentVersion, 5);
+      assert.equal((err as RevertConflictError).currentActorId, "principal-42");
+      return true;
+    }
+  );
+});
+
+test("conflict message omits the actor suffix when a currentActor method exists but resolves null", async () => {
+  const changeSet = baseChangeSet();
+  const item = baseItem({ entityType: "widget", entityId: "entity-1", entityVersionAtApply: 3 });
+  const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
+  const registry = createRevertRegistry();
+  registry.register("widget", "update", fakeReverter({ currentVersion: 5, currentActor: null }));
+  const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
+
+  await assert.rejects(
+    () => revertChangeSet({ deps, input: { workspaceId: WS, changeSetId: "cs-1" } }),
+    (err: unknown) => {
+      assert.ok(err instanceof RevertConflictError);
+      assert.equal(
+        (err as Error).message,
+        "entity 'widget:entity-1' changed since this change set (expected version 3, found 5)"
+      );
+      assert.equal((err as RevertConflictError).currentActorId, null);
+      return true;
+    }
+  );
+});
+
+test("force:true past a stale-version conflict resolves without throwing and applies the inverse anyway", async () => {
+  const changeSet = baseChangeSet();
+  const item = baseItem({ entityType: "widget", entityId: "entity-1", entityVersionAtApply: 3 });
+  const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
+  const registry = createRevertRegistry();
+  let applyInverseCalled = false;
+  registry.register(
+    "widget",
+    "update",
+    fakeReverter({ currentVersion: 5, onApplyInverse: () => { applyInverseCalled = true; } })
+  );
+  const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
+
+  const reverted = await revertChangeSet({
+    deps,
+    input: { workspaceId: WS, changeSetId: "cs-1", force: true, principalKind: "user" },
+  });
+
+  assert.equal(reverted.status, "reverted");
+  assert.equal(applyInverseCalled, true, "force must actually apply the inverse, not just swallow the conflict");
+});
+
+test("force:true does NOT bypass a missing entity — still throws RevertConflictError", async () => {
+  const changeSet = baseChangeSet();
+  const item = baseItem({ entityType: "widget", entityId: "entity-1", entityVersionAtApply: 3 });
+  const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
+  const registry = createRevertRegistry();
+  let applyInverseCalled = false;
+  registry.register(
+    "widget",
+    "update",
+    fakeReverter({ currentVersion: null, onApplyInverse: () => { applyInverseCalled = true; } })
+  );
+  const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
+
+  await assert.rejects(
+    () =>
+      revertChangeSet({
+        deps,
+        input: { workspaceId: WS, changeSetId: "cs-1", force: true, principalKind: "user" },
+      }),
+    (err: unknown) => {
+      assert.ok(err instanceof RevertConflictError);
+      assert.equal((err as RevertConflictError).currentVersion, null);
+      return true;
+    }
+  );
+  assert.equal(applyInverseCalled, false, "a missing entity must never have an inverse applied onto it");
+});
+
+test("force omitted/false with a real mismatch is unchanged — the default path still refuses", async () => {
+  const changeSet = baseChangeSet();
+  const item = baseItem({ entityType: "widget", entityId: "entity-1", entityVersionAtApply: 3 });
+  const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
+  const registry = createRevertRegistry();
+  registry.register("widget", "update", fakeReverter({ currentVersion: 5 }));
+  const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
+
+  await assert.rejects(
+    () =>
+      revertChangeSet({
+        deps,
+        input: { workspaceId: WS, changeSetId: "cs-1", force: false, principalKind: "user" },
+      }),
+    (err: unknown) => {
+      assert.ok(err instanceof RevertConflictError);
+      return true;
+    }
+  );
+});
+
+test("force:true with an agent principal throws RevertForbiddenError before any repo read", async () => {
+  let findByIdCalled = false;
+  const changeSets: RevertChangeSetDeps["changeSets"] = {
+    async insert() {},
+    async findById() {
+      findByIdCalled = true;
+      return null;
+    },
+    async findByIdempotencyKey() {
+      return null;
+    },
+    async listByWorkspace() {
+      return [];
+    },
+    async save() {},
+  };
+  const registry = createRevertRegistry();
+  const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
+
+  await assert.rejects(
+    () =>
+      revertChangeSet({
+        deps,
+        input: { workspaceId: WS, changeSetId: "cs-1", force: true, principalKind: "agent" },
+      }),
+    (err: unknown) => {
+      assert.ok(err instanceof RevertForbiddenError);
+      assert.equal((err as Error).message, "agent principals may not force a revert past a version conflict");
+      assert.equal((err as RevertForbiddenError).reasonCode, "AGENT_CANNOT_FORCE");
+      return true;
+    }
+  );
+  assert.equal(findByIdCalled, false, "the agent-cannot-force check must fire before any repo read");
+});
+
+test("an agent principal WITHOUT force reverts normally — the restriction is force-specific, not agent-specific", async () => {
+  const changeSet = baseChangeSet();
+  const item = baseItem();
+  const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
+  const registry = createRevertRegistry();
+  registry.register("widget", "update", fakeReverter({ currentVersion: 1 }));
+  const deps: RevertChangeSetDeps = { changeSets, registry, clock, idGen };
+
+  const reverted = await revertChangeSet({
+    deps,
+    input: { workspaceId: WS, changeSetId: "cs-1", principalKind: "agent" },
+  });
+
+  assert.equal(reverted.status, "reverted");
 });

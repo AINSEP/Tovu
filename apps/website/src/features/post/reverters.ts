@@ -29,6 +29,30 @@ export interface PostReverterDeps {
 }
 
 /**
+ * `EntityReverter.currentActor` for both post reverters (Task 14b, 2026-09-18) — the raw
+ * `actorId` that produced the post's CURRENT revision, read off the same `post_revisions` ledger
+ * `d90c1174f` already stamps at every write call site. `.find` (not the last array element) so
+ * this stays correct regardless of `listRevisions`' documented ascending-`seq` order: matching on
+ * `seq === current` is the one predicate that is order-independent by construction. Shared by both
+ * reverters rather than duplicated — same post repo, same lookup, same "no revisions yet" fallback.
+ *
+ * Returns `null` (never throws) when no revision matches, or the post predates this ledger
+ * (`listRevisions` returns `[]` for it) — `revert.ts` already treats a `null` `currentActor`
+ * resolution as "unknown, omit the actor from the message", which is the correct fallback here:
+ * a resolution gap should degrade the conflict message, not fail the revert outright.
+ */
+async function resolveCurrentActor(
+  deps: PostReverterDeps,
+  { workspaceId, entityId }: { workspaceId: string; entityId: string }
+): Promise<string | null> {
+  const post = await deps.postRepo.findById({ workspaceId, id: entityId });
+  if (!post) return null;
+  const revisions = await deps.postRepo.listRevisions({ workspaceId, postId: entityId });
+  const matching = revisions.find((revision) => revision.seq === post.version);
+  return matching ? matching.actorId : null;
+}
+
+/**
  * Restores a post to the title/slug/bodyJson/status/ext captured before the edit.
  *
  * **SPEC-005 CIC U-005-B1 / SM2 transition (`ESCALATE_SECURITY`) — read before editing:** this
@@ -51,6 +75,7 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
       const post = await deps.postRepo.findById({ workspaceId, id: entityId });
       return post ? post.version : null;
     },
+    currentActor: (params) => resolveCurrentActor(deps, params),
     async applyInverse({ workspaceId, item }) {
       const inverse = item.inversePayload as
         | {
@@ -134,6 +159,7 @@ function createPostDeleteReverter(deps: PostReverterDeps): EntityReverter {
       const post = await deps.postRepo.findById({ workspaceId, id: entityId });
       return post ? post.version : null;
     },
+    currentActor: (params) => resolveCurrentActor(deps, params),
     async applyInverse({ workspaceId, item }) {
       const existing = await deps.postRepo.findById({ workspaceId, id: item.entityId });
       if (!existing) {

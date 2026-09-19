@@ -29,6 +29,18 @@ import type { ChangeSetItemRecord, UUID } from "@jini-ai/cms/core";
 export interface EntityReverter {
   /** Current entity version, or null when the entity no longer exists. */
   currentVersion(required: { workspaceId: UUID; entityId: UUID }): Promise<number | null>;
+  /**
+   * Optional: the raw principal id that produced the entity's CURRENT (still-live) write — used
+   * only to enrich `revert.ts`'s version-conflict message with "who changed this" so a human can
+   * judge whether to force past it. Deliberately optional and additive (Task 14b, 2026-09-18): the
+   * two pre-existing `revert.unit.test.ts` fakes that predate this field never implement it, and
+   * `revert.ts` treats a missing/`null`-resolving `currentActor` identically to "unknown", so their
+   * exact conflict-message assertions stay byte-for-byte unchanged. Returns the raw id (never a
+   * resolved display name), matching `gated-mutations/composition.ts`'s own disclosed
+   * `resolveActorClassIdentity` precedent — resolving a friendlier name belongs at the route layer,
+   * which already has `deps.principalRepo`, not here.
+   */
+  currentActor?(required: { workspaceId: UUID; entityId: UUID }): Promise<string | null>;
   /** Apply the item's inverse as a new write (bumps the entity version). */
   applyInverse(required: { workspaceId: UUID; item: ChangeSetItemRecord }): Promise<void>;
 }
