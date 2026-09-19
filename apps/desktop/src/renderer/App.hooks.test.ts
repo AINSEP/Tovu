@@ -27,6 +27,7 @@ import {
   computeCanCreate,
   countRunningSites,
   navLinkClick,
+  performSiteStart,
   settingsControlHandlers,
   siteSlug,
   startThenNotify,
@@ -182,6 +183,43 @@ test("a start that rejects skips onStarted, and the SAME rejection reaches the c
     (error) => error === failure,
   );
   assert.equal(calls.length, 0);
+});
+
+// ---------------------------------------------------------------------------------------------
+// performSiteStart
+// ---------------------------------------------------------------------------------------------
+
+const STARTED_RECORD = { id: "/sites/a", status: "running", port: 4321 } as unknown as SiteRecord;
+
+test("performSiteStart calls startSite and reports main's own record back", async () => {
+  const calls: string[] = [];
+  const result = await performSiteStart("/sites/a", {
+    startSite: async (id) => {
+      calls.push(`start:${id}`);
+      return STARTED_RECORD;
+    },
+  });
+  assert.deepEqual(calls, ["start:/sites/a"]);
+  assert.equal(result.record, STARTED_RECORD, "the record must be the one main resolved with, not one composed here");
+});
+
+test("performSiteStart surfaces a rejection's Error message verbatim", () => {
+  return performSiteStart("/sites/a", {
+    startSite: () => Promise.reject(new Error("tovu serve did not report a port within 60000ms.")),
+  }).then((result) => {
+    assert.equal(result.error, "tovu serve did not report a port within 60000ms.");
+    assert.equal(result.record, undefined);
+  });
+});
+
+test("performSiteStart coerces a non-Error rejection with String(), not [object Object]", async () => {
+  const result = await performSiteStart("/sites/a", { startSite: () => Promise.reject("offline") });
+  assert.equal(result.error, "offline");
+});
+
+test("performSiteStart with no bridge is an operator-facing message, not a thrown error", async () => {
+  const result = await performSiteStart("/sites/a", undefined);
+  assert.equal(result.error, "Tovu desktop connection required to start a website.");
 });
 
 test("a start that RESOLVES but reports failure (useSiteStart's bridge-missing/caught-error path) skips onStarted", () => {

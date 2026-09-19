@@ -668,13 +668,57 @@ export function useDeleteConfirmation(onDelete: (id: string) => Promise<void>): 
   return { pendingId, deletingId, deleteError, requestDelete, cancelDelete, confirmDelete };
 }
 
+/** What one `startSite` call came back with: main's refreshed record, or an operator-facing
+ *  reason — {@link useSiteStart}'s own counterpart to `use-site-power.hooks.ts`'s
+ *  `SitePowerResult`. */
+export type SiteStartResult = { record: SiteRecord; error?: undefined } | { record?: undefined; error: string };
+
+/**
+ * Runs one `startSite` call against the desktop bridge and reports the outcome.
+ *
+ * Separated from {@link useSiteStart} for the identical reason `use-site-power.hooks.ts` splits
+ * `performPowerAction` out of `useSitePower`: this package has no React renderer, so anything left
+ * inside a hook's own closure can only be asserted against source text. This is the plain function
+ * a test can call directly.
+ *
+ * A missing bridge is reported exactly like a rejected call rather than thrown — `useSiteStart`'s
+ * `error` state is where an operator reads either one, matching `performPowerAction`'s own
+ * contract verbatim (same message shape, same "no exception" rule).
+ *
+ * @returns `{record}` on success — main's own refreshed record, never one composed here from
+ *   whatever was on screen before the click. That record is what lets a caller apply the outcome
+ *   the instant this resolves, instead of waiting on `useSitesPolling`'s 4s poll to notice.
+ * @complexity O(1) beyond the IPC round trip, which for a start includes the child's own boot
+ *   (`DEFAULT_READY_TIMEOUT_MS`, up to 60s).
+ */
+export async function performSiteStart(
+  id: string,
+  bridge: { startSite: (id: string) => Promise<SiteRecord> } | undefined,
+): Promise<SiteStartResult> {
+  if (bridge === undefined) return { error: 'Tovu desktop connection required to start a website.' };
+  try {
+    return { record: await bridge.startSite(id) };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 /**
  * `SiteStartPanel`'s start/pending/error state.
  *
  * Starting from here rather than only from the grid matters because this is where the operator
- * already is when they find out — the tab was opened expecting a site. Nothing is set locally on
- * success: `useSitesPolling`'s 4s poll flips `status` to `running`, which swaps the panel this
- * hook backs for the webview on its own.
+ * already is when they find out — the tab was opened expecting a site.
+ *
+ * **`onSiteUpdated` is what closes the gap between "main's call resolved" and "this tab's own
+ * `project` prop agrees".** Before it existed, nothing was set locally on success at all: the
+ * button's `starting` flag cleared the instant `startSite` resolved, reverting to an enabled,
+ * idle-looking "Start site" — while the site had, in fact, already finished its 40-75s boot — and
+ * stayed that way for up to `useSitesPolling`'s own 4s before `project.status` caught up to
+ * `running` and `SiteWorkspace` swapped this panel for the guest. An operator glancing back in
+ * that window saw a button that looked like their click had done nothing. Passing main's own
+ * resolved record straight to `App`'s `applySiteRecord` (the same setter `use-site-power.hooks.ts`
+ * already wires for the grid card) removes the wait entirely: the prop update and the button
+ * clearing land in the same tick.
  *
  * Deliberately NOT built on `useDeleteConfirmation`'s shape, even though both are a "pending flag
  * + error string around one async call": on a missing bridge, `start` sets `error` and returns
@@ -690,8 +734,15 @@ export function useDeleteConfirmation(onDelete: (id: string) => Promise<void>): 
  * paths are already reported through `error` state, so a caller does not also need a try/catch.
  * That boolean is what lets {@link startThenNotify} tell a real start apart from a failed attempt
  * that merely finished.
+ *
+ * @param onSiteUpdated applies main's refreshed record the moment a start resolves. Optional, and
+ *   the tab is still eventually correct without it — the 4s poll gets there — but see this
+ *   function's own doc above for why that gap is exactly the bug an operator can see.
  */
-export function useSiteStart(project: SiteRecord): {
+export function useSiteStart(
+  project: SiteRecord,
+  onSiteUpdated?: (record: SiteRecord) => void,
+): {
   starting: boolean;
   error: string | null;
   start: () => Promise<boolean>;
@@ -700,19 +751,16 @@ export function useSiteStart(project: SiteRecord): {
   const [error, setError] = useState<string | null>(null);
 
   const start = async () => {
-    const bridge = runnerInventoryBridge();
-    if (bridge === undefined) {
-      setError('Tovu desktop connection required to start a website.');
-      return false;
-    }
     setStarting(true);
     setError(null);
+    const result = await performSiteStart(project.id, runnerInventoryBridge());
     try {
-      await bridge.startSite(project.id);
+      if (result.error !== undefined) {
+        setError(result.error);
+        return false;
+      }
+      onSiteUpdated?.(result.record);
       return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      return false;
     } finally {
       setStarting(false);
     }
@@ -797,18 +845,30 @@ export function startThenNotify(
  * guest, which fires `guestRef(null)`, which would re-run a combined effect and clear the very
  * flag that unmounted it — the guest remounts, fails again, and the panel flickers forever.
  *
- * @returns `guestRef` alongside the two flags — the caller MUST put it on the `<webview>`; there is
- *   no other way for this hook to see the node. `guest` is that node, for `useSiteWorkspace`'s
+ * **`loaded` is the third flag, added alongside `failed`/`stalled` for the same reason those two
+ * exist: "the guest is mounted" is not "the admin is on screen".** Before it, a fresh guest gave
+ * the operator nothing to look at from the moment it mounted until either `did-finish-load` swapped
+ * in real content or `STALL_TIMEOUT_MS` ran out and guessed something was wrong — a blank pane for
+ * up to 8 seconds on every ordinary open, indistinguishable from a hang. `loaded` is what a caller
+ * checks to show its OWN "still loading" state in that window, instead of leaving it silent.
+ * `true` only once `did-finish-load` has actually fired for the CURRENT `resetKey`; it resets to
+ * `false` in lockstep with `failed`/`stalled` so a remount, a view switch, or a soft load all start
+ * from "not loaded yet" rather than carrying over a previous navigation's finished state.
+ *
+ * @returns `guestRef` alongside the three flags — the caller MUST put it on the `<webview>`; there
+ *   is no other way for this hook to see the node. `guest` is that node, for `useSiteWorkspace`'s
  *   history listeners, which need the same lifetime and cannot take a second ref on one element.
  */
 export function useWebviewLoadFailure(resetKey: unknown): {
   failed: boolean;
   stalled: boolean;
+  loaded: boolean;
   guest: HTMLWebViewElement | null;
   guestRef: (node: HTMLWebViewElement | null) => void;
 } {
   const [failed, setFailed] = useState(false);
   const [stalled, setStalled] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [guest, setGuest] = useState<HTMLWebViewElement | null>(null);
 
   useEffect(() => {
@@ -817,6 +877,7 @@ export function useWebviewLoadFailure(resetKey: unknown): {
     // to it here, Biome's exhaustive-deps rule reads the dependency as dead weight and asks to
     // drop it, which would drop the reset along with it.
     void resetKey;
+    setLoaded(false);
     setFailed(false);
     setStalled(false);
   }, [resetKey]);
@@ -839,6 +900,7 @@ export function useWebviewLoadFailure(resetKey: unknown): {
       window.clearTimeout(stallTimer);
       setFailed(false);
       setStalled(false);
+      setLoaded(true);
     };
 
     guest.addEventListener('did-fail-load', onFailLoad);
@@ -853,7 +915,7 @@ export function useWebviewLoadFailure(resetKey: unknown): {
     // navigation. A recovery remount changes both (`key` remounts the element).
   }, [guest, resetKey]);
 
-  return { failed, stalled, guest, guestRef: setGuest };
+  return { failed, stalled, loaded, guest, guestRef: setGuest };
 }
 
 /**

@@ -71,6 +71,44 @@ test("clearing the failure is a SEPARATE effect keyed on resetKey alone", () => 
   );
 });
 
+test("loaded resets alongside failed/stalled, and only did-finish-load sets it true", () => {
+  const body = hookBody();
+  assert.match(
+    body,
+    /setLoaded\(false\);\s*\n\s*setFailed\(false\);\s*\n\s*setStalled\(false\);\s*\n\s*\}, \[resetKey\]\);/,
+    "a fresh load (remount/view-switch/soft-load) must not still claim the admin already finished loading",
+  );
+  const finish = body.slice(body.indexOf("const onFinishLoad = () => {"));
+  assert.match(
+    finish.slice(0, finish.indexOf("guest.addEventListener")),
+    /setLoaded\(true\);/,
+    "did-finish-load is the one signal that flips loaded true",
+  );
+  assert.match(hookBody(), /return \{ failed, stalled, loaded, guest, guestRef: setGuest \};/, "the hook must expose loaded to its callers");
+});
+
+test("useSiteWorkspace passes loaded straight through from useWebviewLoadFailure", () => {
+  const workspace = fs.readFileSync(path.join(__dirname, "use-site-workspace.hooks.ts"), "utf8");
+  assert.match(workspace, /const \{ failed, stalled, loaded, guest, guestRef \} = useWebviewLoadFailure/);
+  assert.match(workspace, /failed,\s*\n\s*stalled,\s*\n\s*loaded,\s*\n\s*guestRef,/, "loaded must reach SiteWorkspace's own return, not stop at the reducer");
+});
+
+test("SiteWorkspace covers the guest with its own loading state until loaded (or stalled) says otherwise", () => {
+  assert.match(
+    appTsx,
+    /\{!workspace\.loaded && !workspace\.stalled && \(/,
+    "the guest must not sit blank between mount and did-finish-load — stalled's own 8s guess is a separate, later state",
+  );
+  assert.match(appTsx, /className="workspace__overlay workspace__overlay--loading"/);
+});
+
+test("App actually hands applySiteRecord down to the workspaces, not just to the grid", () => {
+  // The correct-primitive-unwired-call-site trap: `useSiteStart`'s onSiteUpdated parameter and
+  // SiteWorkspace's own prop threading can both be perfectly correct while App's own render never
+  // passes the real setter in, leaving every tab waiting on the 4s poll exactly as before.
+  assert.match(appTsx, /<SiteWorkspaces[^>]*\n(?:[^>]*\n)*?\s*onSiteUpdated=\{applySiteRecord\}/, "SiteWorkspaces must receive the real applySiteRecord setter, not just declare the prop");
+});
+
 /**
  * D-02 lives in the same renderer and has the same lack of a runner, so its wiring guard goes here
  * rather than in a third one-test file.

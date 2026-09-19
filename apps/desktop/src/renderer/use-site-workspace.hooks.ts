@@ -249,6 +249,11 @@ export interface SiteWorkspace extends WorkspaceActions {
   reloadNonce: number;
   failed: boolean;
   stalled: boolean;
+  /** Whether the guest's admin has actually finished its FIRST load since the last mount, view
+   *  switch, or soft load — `useWebviewLoadFailure`'s own flag, passed through unchanged. `false`
+   *  is the window `SiteWorkspace` covers with its own loading state: the guest is mounted and
+   *  navigating, but nothing is on screen for the operator to read yet. */
+  loaded: boolean;
   guestRef: (node: HTMLWebViewElement | null) => void;
 }
 
@@ -258,7 +263,7 @@ export interface SiteWorkspace extends WorkspaceActions {
  */
 export function useSiteWorkspace(project: SiteRecord, hidden: boolean): SiteWorkspace {
   const [state, dispatch] = useReducer(siteWorkspaceReducer, initialSiteWorkspaceState);
-  const { failed, stalled, guest, guestRef } = useWebviewLoadFailure(loadResetKey(state));
+  const { failed, stalled, loaded, guest, guestRef } = useWebviewLoadFailure(loadResetKey(state));
 
   // A new guest node (a remount, or the guest appearing at all) has its own, empty history.
   useEffect(() => {
@@ -288,6 +293,7 @@ export function useSiteWorkspace(project: SiteRecord, hidden: boolean): SiteWork
     reloadNonce: state.reloadNonce,
     failed,
     stalled,
+    loaded,
     guestRef,
   };
 }

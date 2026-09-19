@@ -177,6 +177,11 @@ export function App({
           onToggleExpanded={toggleExpanded}
           registerGuest={find.registerGuest}
           registerZoomGuest={zoom.registerGuest}
+          // Same setter the grid's own Start/Stop uses (`onSiteUpdated` on `MainArea` above) — see
+          // `useSiteStart`'s own doc on why a tab's "Start site" needs it too: without it, main's
+          // resolved record sits unused and the tab waits on `useSitesPolling`'s 4s poll to agree
+          // the site is actually up.
+          onSiteUpdated={applySiteRecord}
         />
       </main>
 
@@ -512,6 +517,7 @@ function SiteWorkspaces({
   onToggleExpanded,
   registerGuest,
   registerZoomGuest,
+  onSiteUpdated,
 }: {
   inSites: boolean;
   openSites: readonly SiteRecord[];
@@ -520,6 +526,8 @@ function SiteWorkspaces({
   onToggleExpanded: () => void;
   registerGuest: (projectId: string, element: FindableGuest | null) => void;
   registerZoomGuest: (projectId: string, element: ZoomableGuest | null) => void;
+  /** Applies main's refreshed record after a tab's own "Start site" — see `useSiteStart`. */
+  onSiteUpdated: (record: SiteRecord) => void;
 }) {
   if (!inSites) return null;
   return (
@@ -533,6 +541,7 @@ function SiteWorkspaces({
           onToggleExpanded={onToggleExpanded}
           registerGuest={registerGuest}
           registerZoomGuest={registerZoomGuest}
+          onSiteUpdated={onSiteUpdated}
         />
       ))}
     </>
@@ -572,6 +581,7 @@ function SiteWorkspace({
   onToggleExpanded,
   registerGuest,
   registerZoomGuest,
+  onSiteUpdated,
 }: {
   project: SiteRecord;
   hidden: boolean;
@@ -579,6 +589,8 @@ function SiteWorkspace({
   onToggleExpanded: () => void;
   registerGuest: (projectId: string, element: FindableGuest | null) => void;
   registerZoomGuest: (projectId: string, element: ZoomableGuest | null) => void;
+  /** Applies main's refreshed record after this tab's own "Start site" — see `useSiteStart`. */
+  onSiteUpdated: (record: SiteRecord) => void;
 }) {
   // Everything this tab remembers and every action its bar takes: which surface it asked for, where
   // its guest is, its history, and Reload that keeps that history. Per tab, never lifted into `App`.
@@ -699,12 +711,26 @@ function SiteWorkspace({
             partition={project.partition}
             allowpopups={'' as unknown as boolean}
           />
+          {/* Covers the guest from the moment it mounts until its FIRST real content answers —
+              `did-finish-load`, not the server merely accepting the connection. Without this an
+              operator who just watched a 40-75s boot finish saw a blank pane next, indistinguishable
+              from a hang, for however long the admin's own bundle then took to answer. `stalled`
+              wins once `useWebviewLoadFailure`'s own guess kicks in (`STALL_TIMEOUT_MS`, 8s): that
+              overlay says the wait may be abnormal, which this one must not claim while it is still
+              well within an ordinary load. */}
+          {!workspace.loaded && !workspace.stalled && (
+            <div className="workspace__overlay workspace__overlay--loading" role="status">
+              <Spinner />
+              <p>Loading {project.displayName}’s admin…</p>
+            </div>
+          )}
           {workspace.stalled && (
             <div className="workspace__overlay">
               <SiteStartPanel
                 project={project}
                 body={`${project.displayName} is taking longer than usual to answer on port ${project.port}. It may still be starting.`}
                 onStarted={workspace.recover}
+                onSiteUpdated={onSiteUpdated}
               />
             </div>
           )}
@@ -718,9 +744,10 @@ function SiteWorkspace({
           project={project}
           body={`${project.displayName} isn't answering on port ${project.port}. It may still be running, but stuck.`}
           onStarted={workspace.recover}
+          onSiteUpdated={onSiteUpdated}
         />
       ) : (
-        <SiteStartPanel project={project} />
+        <SiteStartPanel project={project} onSiteUpdated={onSiteUpdated} />
       )}
     </section>
   );
@@ -768,21 +795,33 @@ function SiteStartPanel({
   project,
   body,
   onStarted,
+  onSiteUpdated,
 }: {
   project: SiteRecord;
   body?: string;
   onStarted?: () => void;
+  /** Applies main's refreshed record the instant a start resolves — see `useSiteStart`'s own doc
+   *  on why this panel needs it as much as the grid card's Start/Stop does. Optional so the three
+   *  test-only/incidental call sites this component has never needed a stub for it keep compiling;
+   *  every real `App.tsx` call site passes it. */
+  onSiteUpdated?: (record: SiteRecord) => void;
 }) {
-  const { starting, error, start } = useSiteStart(project);
+  const { starting, error, start } = useSiteStart(project, onSiteUpdated);
 
   const handleStart = startThenNotify(start, onStarted);
 
   return (
     <div className="workspace__idle">
+      {/* Immediate, visible feedback for the click itself — the 40-75s server boot this button
+          kicks off, not the (usually much shorter) admin load `SiteWorkspace`'s own overlay covers
+          once the guest mounts. Shown ONLY while `starting`: a spinner sitting beside an already-
+          idle "Start site" button would read as the page being broken, not as progress. */}
+      {starting && <Spinner />}
       <h2 className="empty__title">{project.displayName}</h2>
       <p className="empty__body">
-        {body ??
-          `${STATUS_LABEL[project.status]} on port ${project.port}.`}
+        {starting
+          ? 'Starting the server. This can take up to a minute.'
+          : (body ?? `${STATUS_LABEL[project.status]} on port ${project.port}.`)}
       </p>
       {/* A blocked project is waiting on database-provider support Tovu does not have, so the
           only honest affordance is none — starting it would fail every time. Every project this
@@ -802,6 +841,17 @@ function SiteStartPanel({
       {error && <p className="workspace__error">{error}</p>}
     </div>
   );
+}
+
+/**
+ * One small rotating ring — "still working", not its own moment. Shared by `SiteStartPanel`'s
+ * server-boot state and `SiteWorkspace`'s own admin-loading overlay, so a press of Start reads as
+ * one continuous wait across both phases rather than two different treatments. `aria-hidden`: the
+ * text beside it (both call sites render a `role="status"`/adjacent sentence) already carries the
+ * accessible message, so an unlabelled decorative spinner would only announce twice.
+ */
+function Spinner() {
+  return <span className="spinner" aria-hidden="true" />;
 }
 
 /**
