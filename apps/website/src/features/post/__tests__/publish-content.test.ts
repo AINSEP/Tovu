@@ -1,19 +1,25 @@
 /**
- * @file Task 2 of the publish-content (Publish Content) feature — direct unit tests for
- * `contributePostPublish()`/`contributePagePublish()` (`../publish-content.ts`), which
- * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 2 requires as
- * "data only" contributors. Not required by the team-lead dispatch's own test list (that list covers
- * only registry mechanics — see `features/publish-content/__tests__/type-registry.test.ts`), but
- * added per this repo's own coverage-self-check discipline: every changed function should be
- * directly asserted.
+ * @file Task 2 (data-only registry mechanics) AND Task 8 (the real `apply()`, 2026-09-18) of the
+ * publish-content (Publish Content) feature — direct unit tests for
+ * `contributePostPublish()`/`contributePagePublish()` (`../publish-content.ts`). Not required by the
+ * team-lead dispatch's own test list for `pack`/`inspect`/`precheck` (that list covers only registry
+ * mechanics — see `features/publish-content/__tests__/type-registry.test.ts`), but added per this
+ * repo's own coverage-self-check discipline: every changed function should be directly asserted. The
+ * `apply()` tests below ARE part of the dispatch's own required coverage (Task 8's create/update
+ * paths, Task 15's authorship rule, and the "no changeSets/authorize wired" guard).
  *
- * Exercises only READ paths (`pack`/`inspect`/`precheck`), against `InMemoryPostRepo` — the same
- * double `post.test.ts` itself uses. `apply()` is deliberately left unimplemented for now (see
- * `../publish-content.ts`'s own header); the one test for it here just pins that it fails loudly
- * rather than silently no-oping.
+ * Exercises `pack`/`inspect`/`precheck` against `InMemoryPostRepo` — the same double `post.test.ts`
+ * itself uses. `apply()`'s own unit tests additionally wire an `InMemoryChangeSetRepo` and an
+ * always-allow `authorize` stub — the apply LOOP's own race-guard/conflict-downgrade behavior
+ * (re-`inspect()` before writing, baseline re-verification) is `apply-loop.ts`'s concern and is
+ * tested at that level (`__tests__/apply-loop.test.ts`), not here: this file proves `apply()` itself
+ * writes through `createPost`/`updatePost` correctly given a caller that already decided to call it.
  */
 import assert from "node:assert/strict";
 import test from "node:test";
+
+import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 import { InMemoryPostRepo } from "../repo.memory.js";
 import type { PostRecord } from "../post.js";
@@ -54,6 +60,30 @@ function makeDeps(rows: PostRecord[]) {
     postRepo: new InMemoryPostRepo(rows),
     clock: makeClock(),
     idGen: makeIdGen(),
+  };
+}
+
+/** Same as {@link makeDeps} plus a real `changeSets`/`authorize`/`outbox` — what `apply()` actually
+ *  requires (see its own doc). `authorize` always allows: these tests exercise `apply()`'s own write
+ *  path, not `executeCommand`'s authorization gate (already covered elsewhere). */
+function makeApplyDeps(rows: PostRecord[]) {
+  const outbox = new InMemoryOutbox();
+  return {
+    ...makeDeps(rows),
+    outbox,
+    changeSets: new InMemoryChangeSetRepo([], [], outbox),
+    authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
+  };
+}
+
+function packedFrom(entityType: "post" | "page", post: PostRecord) {
+  return {
+    entityType,
+    id: post.id,
+    contentHash: contentHash(entityType, { ...post }),
+    hashVersion: 1,
+    requiredBlobs: [],
+    state: { ...post },
   };
 }
 
@@ -209,10 +239,68 @@ test("precheck() blocks an entity with no usable slug rather than throwing", asy
 // apply() — deliberately unimplemented (Task 7/8), must fail loudly, never silently no-op
 // ---------------------------------------------------------------------------
 
-test("apply() throws rather than silently no-opping or writing — Task 7/8 wires the real path", async () => {
+// ---------------------------------------------------------------------------
+// apply() — Task 8's real write path
+// ---------------------------------------------------------------------------
+
+test("apply() throws when changeSets/authorize/outbox are not wired — never silently no-ops", async () => {
   const handler = contributePostPublish().build(makeDeps([]));
   await assert.rejects(
     () => handler.apply({ entity: { entityType: "post", id: "x", contentHash: "h", hashVersion: 1, requiredBlobs: [], state: {} }, expectedVersion: undefined, principalId: "p1" }),
-    /not implemented yet/
+    /requires PublishContentDeps.changeSets\/authorize\/outbox/
   );
+});
+
+test("apply() 'created' path: writes through createPost and copies the SOURCE author, never the operator's id (Task 15)", async () => {
+  const deps = makeApplyDeps([]);
+  const handler = contributePostPublish().build(deps);
+  const source = makePost({ id: "post-new", title: "Imported", slug: "imported", createdByPrincipalId: "source-author-1" });
+
+  const { changeSetId } = await handler.apply({
+    entity: packedFrom("post", source),
+    expectedVersion: undefined,
+    principalId: "operator-1",
+  });
+
+  assert.ok(changeSetId);
+  const saved = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-new" });
+  assert.equal(saved?.createdByPrincipalId, "source-author-1", "created row's author must be the SOURCE's, not the operator's");
+});
+
+test("apply() 'created' path: a null source author imports as null, not the operator's id (Task 15)", async () => {
+  const deps = makeApplyDeps([]);
+  const handler = contributePostPublish().build(deps);
+  const source = makePost({ id: "post-new-2", slug: "imported-2", createdByPrincipalId: null });
+
+  await handler.apply({ entity: packedFrom("post", source), expectedVersion: undefined, principalId: "operator-1" });
+
+  const saved = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-new-2" });
+  assert.equal(saved?.createdByPrincipalId, null);
+});
+
+test("apply() 'applied' path: writes through updatePost with expectedVersion, actor is the OPERATOR", async () => {
+  const existing = makePost({ id: "post-1", version: 3, title: "Old title", createdByPrincipalId: "source-author-1" });
+  const deps = makeApplyDeps([existing]);
+  const handler = contributePostPublish().build(deps);
+  const source = makePost({ ...existing, title: "New title from peer" });
+
+  await handler.apply({ entity: packedFrom("post", source), expectedVersion: 3, principalId: "operator-1" });
+
+  const saved = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
+  assert.equal(saved?.title, "New title from peer");
+  assert.equal(saved?.createdByPrincipalId, "source-author-1", "update must never touch createdByPrincipalId (write-once)");
+});
+
+test("apply() 'applied' path: a stale expectedVersion rejects with PostVersionConflictError, never overwrites", async () => {
+  const existing = makePost({ id: "post-1", version: 5, title: "Someone else's edit" });
+  const deps = makeApplyDeps([existing]);
+  const handler = contributePostPublish().build(deps);
+  const source = makePost({ ...existing, title: "Stale import" });
+
+  await assert.rejects(
+    () => handler.apply({ entity: packedFrom("post", source), expectedVersion: 3, principalId: "operator-1" }),
+    /was modified by another save|version/i
+  );
+  const saved = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
+  assert.equal(saved?.title, "Someone else's edit", "a version conflict must never overwrite the destination");
 });
