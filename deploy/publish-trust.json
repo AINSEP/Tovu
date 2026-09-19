@@ -1,0 +1,23 @@
+[
+  {
+    "version": 1,
+    "sourceInstallationId": "abiSzOQdEeFshJUlrVPNMw",
+    "publicKeys": [
+      {
+        "publicKeyB64u": "0VHs-WuSvZz_sUaIh9Erf0u_LDQ_bB4vkKFVqfFR2K0",
+        "generation": 1
+      }
+    ],
+    "workspaceId": "workspace-local",
+    "entityTypes": [
+      "post",
+      "page",
+      "media"
+    ],
+    "capabilities": [
+      "publish_content.read",
+      "publish_content.apply"
+    ],
+    "notAfter": "2027-09-19T18:37:35.101Z"
+  }
+]
