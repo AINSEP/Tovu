@@ -125,16 +125,29 @@
 }
 .select-option:hover, .select-option.is-highlighted { background: var(--surface-2); }
 /* Selected row — the same low-alpha `color-mix` tint idiom `styles.css` already uses for a primary-
-   family fill (its `button:disabled` rule, `color-mix(in oklch, var(--primary) 30%, var(--surface))`)
+   family fill (its `button:disabled` rule, `color-mix(in oklab, var(--primary) 30%, var(--surface))`)
    rather than a flat `--primary-dim` background, so this reads as "the primary color, faded" and
    not a generic separate tint. Text goes fully `--primary` (not mixed) — the row still needs to
    read clearly at 13px, and the tinted background alone already carries the "faded" quality. */
+/* `in oklab`, not `in oklch`, for the same reason that rule uses it (its comment has the full
+   mechanism): oklch interpolates HUE along the shorter arc, and dark mode's `--surface` is
+   `oklch(18.5% 0.018 255)` — real blue chroma, not powerless — so mixing `--primary` (hue 44)
+   with it travelled the short way round through purple AND gained chroma on the way. Measured
+   in dark before the change: `C 0.0295 H 275.9` here and `C 0.0360 H 287.8` on the highlighted
+   row — visibly violet selected rows, more saturated than the surface they sit on. OKLab is the
+   same perceptual space in rectangular a/b coordinates, so there is no arc to take the wrong
+   way: the small warm contribution now partly CANCELS the surface's blue instead of rotating
+   past it, measuring `C 0.0080` and `C 0.0123` after — below the level at which a hue is
+   identifiable, i.e. the intended "surface, very slightly tinted". Light mode is untouched
+   (`--surface` is `oklch(100% 0 none)`, and a `none` component is carried forward in ANY
+   interpolation space): bit-identical `L 0.9374 C 0.0158 H 43.4` / `L 0.9016 C 0.0248 H 43.4`
+   before and after, which is why neither rule needs a dark-scoped arm. */
 .select-option.is-selected {
-  background: color-mix(in oklch, var(--primary) 14%, var(--surface));
+  background: color-mix(in oklab, var(--primary) 14%, var(--surface));
   color: var(--primary);
   font-weight: 600;
 }
 .select-option.is-selected.is-highlighted {
-  background: color-mix(in oklch, var(--primary) 22%, var(--surface));
+  background: color-mix(in oklab, var(--primary) 22%, var(--surface));
 }
 .select-option-check { flex-shrink: 0; width: 16px; height: 16px; color: var(--primary); }

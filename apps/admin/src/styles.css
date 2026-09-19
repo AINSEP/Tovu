@@ -325,9 +325,12 @@ button:disabled {
      carried forward from the other color in ANY interpolation space, so the mix is bit-identical
      in oklch and oklab — measured `L 0.8659 C 0.0339 H 43.4` both before and after. One
      declaration is correct in both themes, so this rule has no second arm left to go stale.
-     Do not switch it to `in srgb` either: sRGB mixing is gamma-encoded and non-perceptual, and it
+     Do not switch THIS rule to `in srgb`: sRGB mixing is gamma-encoded and non-perceptual, and it
      moves the lightness these tokens were tuned for (measured `L 0.3037` in dark, and it shifts
-     light mode too, to `H 45`). */
+     light mode too, to `H 45`) — across 13 variants and both themes, that is 13 fills drifting
+     off the ramp to fix a hue problem `in oklab` already fixes exactly. The `.btn-primary`
+     override ~20 lines below DOES still use `in srgb`; that is deliberate and variant-specific,
+     not a contradiction — see its own comment for the seam test that kept it. */
   background: color-mix(in oklab, var(--primary) 30%, var(--surface));
   /* Left `in oklch` on purpose, having been measured rather than skipped. `--primary-ink` is
      `oklch(99% 0 0)`, and its ZERO CHROMA does not make its hue powerless — only `none` does (see
@@ -362,10 +365,22 @@ button:disabled {
    see its own comment) — 12 further variants were rendering the same hue-300 purple, so the fix
    belonged one level up, not in a 13th override. This rule is therefore no longer load-bearing:
    the generic rule now resolves to `L 0.2975 C 0.0203 H 25.3` in dark and this `in srgb` override
-   to `L 0.3037 C 0.0258 H 33.2`. Both read as the same desaturated orange-brown and the
-   difference is not visible, so it is KEPT rather than removed — this is the one disabled button
-   the owner has actually seen rendered — but it is now a near-duplicate of the generic rule
-   rather than a correction of it, and dropping it would be a safe simplification. */
+   to `L 0.3037 C 0.0258 H 33.2`. Both read as a desaturated orange-brown, so the two were tested
+   rather than argued about: an ADJACENT-PATCH SEAM TEST (the two fills butted edge to edge with
+   no gap, the most sensitive presentation there is, against three null pairs of identical fill as
+   a control — `followup-seam-control-row*.png` in
+   `ADS-memory/.local-artifacts/darkmode-disabled-2026-09-18/`). The null pairs read as one
+   uniform block; the real pair shows a seam, the `in srgb` side visibly warmer and a touch
+   lighter. So the difference IS visible when the two are compared directly (ΔE-OK 0.0098; sRGB
+   `#372928` vs `#3b2a26`, a 4/255 red-channel step), and this override is NOT a no-op duplicate.
+   It is therefore KEPT — this is the one disabled button the owner has actually seen rendered,
+   and removing it would change that button's colour rather than simplify away a redundancy.
+   What changed is its STATUS: it is no longer a correction of a broken generic rule (the generic
+   rule is correct now) but a deliberate variant-specific tone for `.btn-primary` alone. Do not
+   copy the `in srgb` idiom to further variants on the strength of this rule: sRGB mixing is
+   non-perceptual and drifts lightness off the token ramp (see the generic rule's comment) — it
+   is grandfathered here because this exact colour is the one that shipped and was seen, not
+   because it is the better mixing space. */
 :root[data-theme="dark"] .btn-primary:disabled {
   background: color-mix(in srgb, var(--primary) 30%, var(--surface));
 }
@@ -2979,13 +2994,21 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 /* Mixed toward `--surface` rather than toward `transparent`: every other mix in this block is
    opaque, and an oklch mix with `transparent` premultiplies against transparent BLACK, which
    drags the hue on a light ground. Opaque keeps the marker the same muted red in both themes. */
+/* `in oklab`, not `in oklch` — see `button:disabled`'s comment (~L300) for the full mechanism.
+   The claim above that this "keeps the marker the same muted red in both themes" was only true
+   in light mode: dark `--surface` is `oklch(18.5% 0.018 255)`, real blue chroma rather than a
+   powerless hue, so the oklch mix rotated `--danger` (hue 25) the short way round through
+   magenta and landed at `C 0.0961 H 326.5` — a clearly PINK marker, the loudest instance of
+   this bug in the file. OKLab has no hue arc to take the wrong way: measured `C 0.0830 H 20.7`
+   after, the muted red the rule always intended. Light mode is bit-identical (`L 0.7360
+   C 0.1045 H 25` before and after), so the declaration stays single-armed. */
 /* `0.72em` rather than a smaller value: the row's tallest element is `.recovery-loss-what`, not
    the muted qualifier that starts the line, so the marker is aligned to the noun's optical centre
    — at 0.55em it sat visibly high against it. */
 .recovery-loss-list li::before {
   content: ""; position: absolute; left: 0; top: 0.72em;
   width: 6px; height: 6px; border-radius: 1px;
-  background: color-mix(in oklch, var(--danger) 55%, var(--surface));
+  background: color-mix(in oklab, var(--danger) 55%, var(--surface));
 }
 /* The quantity slot. Two states, deliberately not interchangeable (INV-05: an "unknown" is never
    a verified 0, and the type must not let them be mistaken for each other). */
@@ -3074,9 +3097,22 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 /* Deliberately a much weaker tint than `--primary-dim` itself: full-strength it sits directly
    beneath the solid `--danger` alarm and the two saturated bands fight each other. The checkbox's
    own `accent-color` carries the signal; this only needs to confirm the band's state changed. */
+/* Both declarations are `in oklab` — see `button:disabled`'s comment (~L300) for the mechanism.
+   The background is the familiar dark-mode case: the oklch mix rotated toward purple and came
+   out MORE chromatic than the surface it tints (`C 0.0237 H 265.4`); in oklab the 7% of warm
+   primary partly cancels the surface's blue instead, `C 0.0113` — less saturated than the plain
+   surface, which is the point of a 7% tint. Light mode is bit-identical (`H 43.4`) either way.
+   The BORDER was wrong in BOTH themes, for the two different reasons this file has now hit:
+   light `--border` is `oklch(91.5% 0.007 255)`, a real blue hue, so the short arc from
+   `--primary`'s 44 ran backwards through purple to `H 292.1` — a lavender hairline under a
+   warm band; dark `--border` is `oklch(100% 0 0 / 0.11)`, whose hue is a literal `0` and
+   therefore NOT powerless (only `none` is — see `--surface`'s token comment), so the same mix
+   landed at `H 11`, a red. In oklab both resolve to the intended warm `H 36.8` (light) and
+   `H 44` (dark). Found by measuring the whole rule rather than only the one declaration it was
+   reported on. */
 .recovery-ack-gate:has(input:checked) {
-  background: color-mix(in oklch, var(--primary) 7%, var(--surface));
-  border-bottom-color: color-mix(in oklch, var(--primary) 25%, var(--border));
+  background: color-mix(in oklab, var(--primary) 7%, var(--surface));
+  border-bottom-color: color-mix(in oklab, var(--primary) 25%, var(--border));
 }
 .recovery-ack-gate input[type="checkbox"] {
   width: 1.35rem; height: 1.35rem; margin: 0.02rem 0 0;
