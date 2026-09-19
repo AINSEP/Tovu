@@ -5,6 +5,7 @@ import { buildExportBundle } from "#src/features/publish-content/export-bundle";
 import {
   confirmPeerImport,
   executePeerImport,
+  pullBlobsFromPeer,
   pullBundleFromPeer,
   pushBundleToPeer,
   PublishContentPeerTransportError,
@@ -204,6 +205,24 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       const peer = await openPeer(deps, String(req.params.peerId ?? ""));
       const envelope = await pullBundleFromPeer(peer);
 
+      // Blobs BEFORE staging, for the same reason the push driver uploads before it stages: this
+      // instance's own `planImport` marks an entity `blocked` when a required blob is absent HERE,
+      // so bytes that arrive after the plan would produce a plan that is wrong the moment it is
+      // acted on. Bytes are verified against the sha that was requested before they are stored —
+      // see `pullBlobsFromPeer`'s own doc; a peer serving mismatched bytes aborts the pull and
+      // stages nothing.
+      const blobs = await pullBlobsFromPeer(
+        {
+          ...peer,
+          blobSink: deps.blobStore,
+          // THIS instance's workspace id: the bytes are being stored locally. The peer's id appears
+          // only in the request path, which `peerRoute` builds from the credential.
+          workspaceId: deps.workspaceId,
+          computeStorageKey: (sha256) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
+        },
+        { blobManifest: envelope.blobManifest }
+      );
+
       // Staged through the SAME `stageBundle` a pushed bundle arrives by, so `expiresAt` is
       // server-computed and `sourcePrincipalId` is this request's AUTHENTICATED principal — never a
       // peer-declared identity (plan §1.6 / §5 risk #9: baselines key on the authenticated
@@ -227,6 +246,15 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         expiresAt,
         entityCount: envelope.entities.length,
         blobManifest: envelope.blobManifest,
+        blobsDownloaded: blobs.downloaded,
+        blobsAlreadyPresent: blobs.alreadyPresent,
+        // Reported, not thrown: the peer no longer holds these bytes, so whatever entity requires
+        // one will be `blocked` by this instance's own plan — the fail-closed outcome, and the
+        // mirror of `push/plan`'s `blobsUnavailable`.
+        blobsUnavailable: blobs.unavailable,
+        // Beyond one pull's blob cap. Nothing is lost — pull again and these are fetched next
+        // (`PUBLISH_CONTENT_PULL_MAX_BLOBS`).
+        blobsDeferred: blobs.deferredOverCap,
       });
     } catch (err) {
       respondWithError(res, err);

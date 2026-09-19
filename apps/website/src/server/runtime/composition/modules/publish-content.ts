@@ -7,6 +7,7 @@ import { installFirstPartyPublishContentTypes } from "#src/server/runtime/compos
 import { registerPublishContentExportRoute } from "#src/server/inbound/admin-http/routes/publish-content/export";
 import { registerPublishContentBlobsProbeRoute } from "#src/server/inbound/admin-http/routes/publish-content/blobs-probe";
 import { registerPublishContentBlobPutRoute } from "#src/server/inbound/admin-http/routes/publish-content/blob-put";
+import { registerPublishContentBlobGetRoute } from "#src/server/inbound/admin-http/routes/publish-content/blob-get";
 import { registerPublishContentBundleCreateRoute } from "#src/server/inbound/admin-http/routes/publish-content/bundle-create";
 import { registerPublishContentImportRoutes } from "#src/server/inbound/admin-http/routes/publish-content/import";
 import { registerPublishContentPeerRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peers";
@@ -43,6 +44,10 @@ export function createPublishContentModule(deps: PublishContentRouteDeps): Serve
       registerPublishContentExportRoute(app, deps);
       registerPublishContentBlobsProbeRoute(app, deps);
       registerPublishContentBlobPutRoute(app, deps);
+      // The download half of the same blob channel (2026-09-19) — what makes the PULL direction
+      // able to carry media bytes at all. Gated on `publish_content.read`, not `.apply`; see
+      // `blob-get.ts`'s own header for why that is the read-side permission and not a relaxation.
+      registerPublishContentBlobGetRoute(app, deps);
       registerPublishContentBundleCreateRoute(app, deps);
       registerPublishContentImportRoutes(app, deps);
       // Task 10: peer CRUD, then the outbound push/pull driver that dials a peer's own copies of

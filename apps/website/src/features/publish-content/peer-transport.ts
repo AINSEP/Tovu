@@ -1,3 +1,4 @@
+import { bytesMatchSha256 } from "./blob-staging.js";
 import { peerHostname, peerUrl } from "./peer-url.js";
 import type { PublishContentExportEnvelope } from "./export-bundle.js";
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
@@ -359,18 +360,17 @@ export async function executePeerImport(
  * uses this instance's already-built `stageBundle` + gated `/import/plan` — the same importer a
  * pushed bundle goes through. Nothing in the pull path re-implements classification.
  *
- * KNOWN GAP — LIVE, not theoretical. This transfers no blob BYTES. The peer exposes
- * `PUT .../blobs/:sha` but no GET, so there is no route to fetch them through; a pulled entity that
- * requires a blob this instance lacks is `blocked` by `planImport`, which is the fail-closed
- * outcome and never a partial write.
+ * This function transfers no blob BYTES — deliberately, and it is no longer a gap: the bytes are
+ * {@link pullBlobsFromPeer}'s job, called by the pull route with the `blobManifest` this envelope
+ * carries. The split is the same one the push side uses (blobs are their own leg, not a field of
+ * the bundle call), and it keeps the envelope fetch a single bounded response.
  *
- * `media` IS a registered publish-content type (`publish-content-manifest.ts` registers
- * `contributeMediaPublish()`; commits `72e4992c7`/`a9b265ce1`), so a pulled media entity reaches
- * this gap for real as soon as the `PublishContentDeps` builders pass media's ports through. An
- * earlier revision of this comment claimed media was not yet registered — that was wrong, and the
- * difference matters: it is the difference between an empty `blobManifest` and a pull that blocks
- * every image. **A blob-fetch route on the peer (`GET .../blobs/:sha`) is the prerequisite for the
- * pull direction carrying media at all.**
+ * Until 2026-09-19 there was no such function, because the peer exposed `PUT .../blobs/:sha` but no
+ * GET — a pulled media entity therefore always ended `blocked` by `planImport`. `media` IS a
+ * registered publish-content type (`publish-content-manifest.ts` registers
+ * `contributeMediaPublish()`; commits `72e4992c7`/`a9b265ce1`), so that was live, not theoretical:
+ * the difference between an empty `blobManifest` and a pull that blocks every image. `blob-get.ts`
+ * is the route that closed it.
  *
  * @complexity O(1) network round trip; O(e) memory in the peer's corpus size.
  */
@@ -394,4 +394,150 @@ export async function pullBundleFromPeer(deps: PeerCallDeps): Promise<PublishCon
     entities: body.entities as PublishContentExportEnvelope["entities"],
     blobManifest: (body.blobManifest as unknown[]).filter((sha): sha is string => typeof sha === "string"),
   };
+}
+
+/** The narrow blob-WRITE seam the pull driver needs — `BlobStorePort`'s presence check plus its
+ *  create-only write, and nothing else. No `put`, no `remove`: this module can never overwrite or
+ *  delete a blob, only add one that is absent. */
+export interface PeerBlobSink {
+  exists(input: { storageKey: string }): Promise<boolean>;
+  putIfAbsent(input: {
+    workspaceId: string;
+    sha256: string;
+    bytes: Uint8Array;
+  }): Promise<{ storageKey: string; written: boolean }>;
+}
+
+/**
+ * How many blobs ONE pull will fetch from a peer. A resource bound, not a product limit: the
+ * manifest is peer-controlled, and without a ceiling a single pull could hold an admin request open
+ * for an unbounded number of round trips. Set to the same value as
+ * `PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS` (the push direction's own cap on the same quantity) so the
+ * two directions bound the same thing identically.
+ *
+ * Exceeding it is not an error and loses nothing: the remainder is reported as
+ * `deferredOverCap`, whatever entity needed those blobs is `blocked` by this instance's own
+ * `planImport` (the established fail-closed outcome), and a SECOND pull picks them up — the blobs
+ * already fetched are skipped by the `exists()` short-circuit, so progress is monotonic.
+ */
+export const PUBLISH_CONTENT_PULL_MAX_BLOBS = 2000;
+
+/** What one pull's blob leg did, per sha. Four disjoint lists rather than a count, because an
+ *  operator acts differently on each: nothing to do for `alreadyPresent`, "the source no longer has
+ *  these" for `unavailable`, and "pull again" for `deferredOverCap`. */
+export interface PullBlobsResult {
+  /** Fetched from the peer, verified against the requested sha, and written to this instance. */
+  readonly downloaded: readonly string[];
+  /** Already in this instance's blob store — no network call was made for these. */
+  readonly alreadyPresent: readonly string[];
+  /** The peer answered 404: it no longer holds those bytes. Reported, never thrown — the entity
+   *  that requires one is `blocked` by `planImport`, which is a fail-closed plan, not a partial
+   *  write. Mirrors `PushBundleResult.blobsUnavailable` on the other direction. */
+  readonly unavailable: readonly string[];
+  /** Beyond {@link PUBLISH_CONTENT_PULL_MAX_BLOBS} for this request. Fetch them with another pull. */
+  readonly deferredOverCap: readonly string[];
+}
+
+/**
+ * PULL step 2: fetch the blob bytes a pulled envelope requires and store them HERE, so the
+ * entities that need them plan as applicable instead of `blocked`.
+ *
+ * ## The security property this function holds
+ *
+ * A peer's bytes are UNTRUSTED. `BlobStorePort.putIfAbsent` does not verify that bytes hash to the
+ * sha256 it is given — it derives the storage key from that string and writes whatever it was
+ * handed (`blob-staging.ts`'s header traces this through both adapters). Since the sha IS the
+ * identity throughout this feature, storing unverified bytes would poison content-addressed
+ * storage: every later "do you have X?" would answer yes for bytes that are not X, and a `probe`
+ * from a third instance would then skip re-uploading the real ones. So every response is hashed
+ * with {@link bytesMatchSha256} BEFORE `putIfAbsent`, and a mismatch throws rather than being
+ * skipped — a peer serving wrong bytes for a requested hash is corrupt or hostile, and neither is
+ * something to continue a pull through. Nothing is written on that path.
+ *
+ * A 404 is the one peer answer that is NOT an error (see `unavailable` above); every other non-2xx
+ * propagates from {@link callPeer} unchanged.
+ *
+ * @param deps.blobSink - This instance's blob store, write half.
+ * @param deps.workspaceId - THIS instance's workspace id. Never the peer's: the bytes are being
+ * stored locally, and `putIfAbsent` derives the local storage key from it.
+ * @param deps.computeStorageKey - Local storage key for a sha, used for the `exists()` short-circuit.
+ * @param deps.maxBlobs - Test seam / operator override for {@link PUBLISH_CONTENT_PULL_MAX_BLOBS}.
+ * @returns The four disjoint sha lists described by {@link PullBlobsResult}.
+ * @throws {PublishContentPeerTransportError} `PEER_RESPONSE_INVALID` when a peer's bytes do not hash
+ * to the sha they were requested by, or the response is not a blob body; other codes per
+ * {@link toTransportError}.
+ * @complexity O(min(b, maxBlobs)) sequential round trips for `b` distinct shas. Memory is O(size of
+ * the largest single blob) — downloaded, verified and written one at a time, never collected (the
+ * same bound `pushBundleToPeer` documents for the opposite direction).
+ */
+export async function pullBlobsFromPeer(
+  deps: PeerCallDeps & {
+    blobSink: PeerBlobSink;
+    workspaceId: string;
+    computeStorageKey: (sha256: string) => string;
+    maxBlobs?: number;
+  },
+  required: { blobManifest: readonly string[] }
+): Promise<PullBlobsResult> {
+  const maxBlobs = deps.maxBlobs ?? PUBLISH_CONTENT_PULL_MAX_BLOBS;
+  const downloaded: string[] = [];
+  const alreadyPresent: string[] = [];
+  const unavailable: string[] = [];
+  const deferredOverCap: string[] = [];
+
+  // Deduplicated: one manifest legitimately names the same blob for many entities (a logo on every
+  // page), and fetching it once per reference would multiply the round trips by the reuse factor.
+  for (const sha256 of new Set(required.blobManifest)) {
+    if (await deps.blobSink.exists({ storageKey: deps.computeStorageKey(sha256) })) {
+      alreadyPresent.push(sha256);
+      continue;
+    }
+    // The cap counts FETCHES, not manifest entries: a blob already held costs no round trip, so it
+    // must not consume the budget that bounds them.
+    if (downloaded.length + unavailable.length >= maxBlobs) {
+      deferredOverCap.push(sha256);
+      continue;
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = requireObject(
+        await callPeer(deps, { method: "GET", path: peerRoute(deps.credential, `/blobs/${encodeURIComponent(sha256)}`) }),
+        "blob fetch",
+        deps.credential.baseUrl
+      );
+    } catch (err) {
+      if (err instanceof PublishContentPeerTransportError && err.peerStatus === 404) {
+        unavailable.push(sha256);
+        continue;
+      }
+      throw err;
+    }
+
+    if (typeof body.dataBase64 !== "string") {
+      throw new PublishContentPeerTransportError(
+        `the peer's response for blob '${sha256}' carried no 'dataBase64' string`,
+        "PEER_RESPONSE_INVALID"
+      );
+    }
+    // `Buffer.from(..., "base64")` never throws — it drops invalid characters — so a malformed
+    // payload is caught by the hash check below rather than by a decode error, which is the check
+    // that has to hold anyway.
+    const bytes = new Uint8Array(Buffer.from(body.dataBase64, "base64"));
+
+    // The security property this function exists to hold — see the doc above. MUST precede the
+    // write: `putIfAbsent` will not catch it.
+    if (!bytesMatchSha256({ bytes, claimedSha256: sha256 })) {
+      throw new PublishContentPeerTransportError(
+        `the peer's bytes for blob '${sha256}' do not hash to it — refusing to store them under that ` +
+          `sha256, because the hash IS the identity this feature addresses content by`,
+        "PEER_RESPONSE_INVALID"
+      );
+    }
+
+    await deps.blobSink.putIfAbsent({ workspaceId: deps.workspaceId, sha256, bytes });
+    downloaded.push(sha256);
+  }
+
+  return { downloaded, alreadyPresent, unavailable, deferredOverCap };
 }
