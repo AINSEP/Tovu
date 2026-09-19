@@ -1,5 +1,5 @@
 /**
- * `PublishContentDialog.tsx` — the publish report table and the dialog width it needs.
+ * `features/publish-content/PublishContentDialog.tsx` — the publish report table and its dialog width.
  *
  * Every colour, radius and spacing value below is an existing token from `styles.css`
  * (`--surface*`, `--border`, `--muted`, `--warning`, `--space-*`, `--text-*`), so the table

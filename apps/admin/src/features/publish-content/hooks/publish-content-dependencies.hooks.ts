@@ -11,7 +11,7 @@ import { api, type AdminPublishDestinationView } from "@/lib/api";
 import type { PublishContentPort } from "./publish-content-port.hooks";
 
 /**
- * @file The only place under `features/dashboard` that reaches `lib/api` for publishing — see
+ * @file The only place under `features/publish-content` that reaches `lib/api` for publishing — see
  * `publish-content-port.hooks.ts` for why the split exists.
  */
 

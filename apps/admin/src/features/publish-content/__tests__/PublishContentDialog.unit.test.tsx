@@ -20,8 +20,8 @@ import { createFakePublishContentPort } from "../hooks/publish-content-dependenc
  * deliberately broken implementation before this file was accepted (`conflict` mapped to `publish`
  * in `report-rows.ts`, and `executePublish` called with a hardcoded token).
  *
- * Harness follows `Dashboard.unit.test.tsx` next door (RTL, no server), except that the network is
- * replaced at the PORT rather than at `fetch`. The port seam was what let this dialog be built while
+ * Harness follows `features/dashboard/__tests__/Dashboard.unit.test.tsx` (RTL, no server), except
+ * that the network is replaced at the PORT rather than at `fetch`. The port seam was what let this dialog be built while
  * Task 10's peer routes were still being written; it stays because a URL mock would assert on
  * `lib/api.ts`'s path building rather than on the dialog's own behaviour — see
  * `hooks/publish-content-port.hooks.ts`.

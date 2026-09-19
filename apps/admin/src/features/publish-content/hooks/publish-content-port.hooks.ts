@@ -12,9 +12,9 @@ import type { AdminPublishDestinationView } from "@/lib/api";
  * rather than a direct `lib/api` import.
  *
  * Follows the `useX(dependencies)` / `useWiredX()` pair documented in
- * `development/docs/architecture/wired-hooks-convention.md` and mirrored next door in
+ * `development/docs/architecture/wired-hooks-convention.md` and mirrored in
  * `dashboard-port.hooks.ts`: this file declares, `publish-content-dependencies.hooks.ts` binds the
- * real `api` client, and nothing else under `features/dashboard` reaches `lib/api` for publishing.
+ * real `api` client, and nothing else under `features/publish-content` reaches `lib/api` for publishing.
  *
  * The split earns its keep twice over here. The routes behind `planPublish`/`confirmPublish`/
  * `executePublish` are Task 10's, landing in parallel with this dialog — the fake in the

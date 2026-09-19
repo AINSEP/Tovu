@@ -15,7 +15,7 @@ import "./styles/site-token.css";
 import "./styles/settings.css";
 import "./styles/external-mcp-tool-picker.css";
 import "./styles/seo.css";
-import "./styles/publish-content.css";
+import "./features/publish-content/publish-content.css";
 
 // `@jini-ai/ui`'s `RemixIcon` component loads its default webfont/CSS itself, but it does so via
 // `new URL('./remixicon.css', import.meta.url)` + a runtime `<link>` injection rather than a

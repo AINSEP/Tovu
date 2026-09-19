@@ -5,7 +5,7 @@ import type { Translate } from "../../lib/dictionary-translator";
 import { agentHandle } from "@jini-ai/agentic";
 import { useWiredDashboard, type StatState } from "./hooks/use-dashboard.hooks";
 import { activityRowHref, commentsStatMeta, pagesStatMeta, postsStatMeta } from "./rules";
-import { PublishContentDialog } from "./PublishContentDialog";
+import { PublishContentDialog } from "../publish-content/PublishContentDialog";
 
 /**
  * @file Admin landing screen — markup only.

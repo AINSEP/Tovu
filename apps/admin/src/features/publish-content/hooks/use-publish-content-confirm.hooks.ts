@@ -20,7 +20,7 @@ import { defaultPublishContentPort } from "./publish-content-dependencies.hooks"
 import type { PublishContentPort } from "./publish-content-port.hooks";
 
 /**
- * @file `PublishContentDialog`'s behaviour — Escape-to-cancel, plus the whole plan -> confirm ->
+ * @file The colocated `PublishContentDialog` behaviour — Escape-to-cancel, plus plan -> confirm ->
  * execute ceremony (`ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4
  * task 11). The component renders what this returns and decides nothing itself, per the standing
  * rule that component logic belongs in a hook.

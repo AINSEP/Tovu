@@ -5,7 +5,7 @@ import { usePublishContentConfirm } from "./hooks/use-publish-content-confirm.ho
 import type { PublishContentPort } from "./hooks/publish-content-port.hooks";
 
 /**
- * @file The "Publish Content" dialog opened from the Dashboard's header button, and the whole
+ * @file The publish-content slice's dialog, opened from the Dashboard's header button, and the whole
  * plan -> report -> confirm -> execute ceremony behind it
  * (`ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 11).
  *
