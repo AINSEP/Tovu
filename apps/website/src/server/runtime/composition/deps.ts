@@ -112,8 +112,8 @@ import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RouteDeps } from "../../routes/types.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
-import { createVerifiedOrigin, OriginRegistry } from "#src/features/origin/index";
-import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
+import { createVerifiedOrigin, OriginRegistry, planOriginBoot } from "#src/features/origin/index";
+import { registerConfiguredOrigin, seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
 import {
   SqliteAssetBlobRepo,
@@ -995,11 +995,18 @@ export function createSqliteRouteDeps(
   // `claimPending()`/`markDelivered()`/`markFailed()` share the same `outbox_events` table.
   const outbox = new SqliteOutboxAdapter(db);
   const bus = new InMemoryEventBus();
-  // ADR-046 Phase 1 (2026-07-16): durable SQLite origin-settings adapter. `seedDevCapabilityOrigin`
-  // is idempotent (find-or-create) — a real future verification flow's write is never clobbered by
-  // a re-run of this seed. Read-only adapter/port by design; see `origin-repo.sqlite.ts`'s file
-  // header for the disclosed "no real production-origin verification flow exists yet" gap this
-  // durability slice does not itself close.
+  // ADR-046 Phase 1 (2026-07-16): durable SQLite origin-settings adapter.
+  //
+  // 2026-09-18 — `planOriginBoot` (`features/origin/configured-origin.ts`) now decides what this
+  // boot writes, instead of an unconditional dev seed. Design note:
+  // `ADS-memory/reports/2026-09-18-public-origin-registration-design.md`.
+  //   - `TOVU_PUBLIC_URL` names a real public https origin -> register it, correcting an existing
+  //     dev-capability row in place. This is what finally lets production's sitemap.xml emit
+  //     absolute URLs, and what heals the `http://localhost:3000` row Fly's first boot persisted.
+  //   - nothing configured, local mode -> the dev seed below, byte-for-byte unchanged.
+  //   - nothing configured, production mode -> write NOTHING. ADR-040 §2 fails closed on an absent
+  //     origin; the unconditional seed is what poisoned prod in the first place, and its
+  //     find-or-create contract made that row immortal.
   //
   // `devCapabilityScheme` is DERIVED, not the `"https"` literal this used to hardcode (2026-09-05
   // audit finding, Chunk D finding 3): the dev API server only terminates TLS when `resolveDevTls`
@@ -1013,25 +1020,33 @@ export function createSqliteRouteDeps(
   // evidence) for a server that only ever answers on `http://`. `REPO_ROOT` here mirrors this same
   // directory's own `app.ts` (`distDir` fallbacks a few hundred lines down) — six `..` from
   // `runtime/composition/` back to the repo root, not counting segments independently per file.
+  // NOTE: `devCapabilityScheme` stays at this scope, NOT inside the dev-seed branch below — the
+  // `derivedPublicOrigin` field near the end of this function is a second consumer (see its own
+  // comment). Narrowing it to the branch compiles nowhere and was caught by `tsc`.
   const REPO_ROOT = resolve(import.meta.dirname, "..", "..", "..", "..", "..", "..");
   const devCapabilityScheme = deriveDevScheme(resolveDevTls(resolveDevTlsCertPaths(REPO_ROOT)).active);
-  seedDevCapabilityOrigin({
-    db,
-    seed: {
-      workspaceId: workspaceId,
-      origin: createVerifiedOrigin({
-        scheme: devCapabilityScheme,
-        host: "localhost",
-        port: 3000,
-        verifiedAt: clock.nowIso(),
-        source: "dev-capability",
-      }),
-      // ADR-PIPE-015 T016: a dev-capability egress allowlist entry so the real
-      // isAllowedEgressTarget oracle doesn't fail-closed on every fresh dev server — matches the
-      // `example.com` target every integrations fixture/test in this repo already uses.
-      egressAllowlist: ["example.com"],
-    },
-  });
+  const originBoot = planOriginBoot({ now: clock.nowIso() });
+  if (originBoot.kind === "configured") {
+    registerConfiguredOrigin({ db, workspaceId: workspaceId, origin: originBoot.origin });
+  } else if (originBoot.kind === "dev-seed") {
+    seedDevCapabilityOrigin({
+      db,
+      seed: {
+        workspaceId: workspaceId,
+        origin: createVerifiedOrigin({
+          scheme: devCapabilityScheme,
+          host: "localhost",
+          port: 3000,
+          verifiedAt: clock.nowIso(),
+          source: "dev-capability",
+        }),
+        // ADR-PIPE-015 T016: a dev-capability egress allowlist entry so the real
+        // isAllowedEgressTarget oracle doesn't fail-closed on every fresh dev server — matches the
+        // `example.com` target every integrations fixture/test in this repo already uses.
+        egressAllowlist: ["example.com"],
+      },
+    });
+  }
   const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo(db) });
   const redirectRepo = new SqliteRedirectRepo(db);
   const redirectHitSink = new RedirectHitSinkImpl();
