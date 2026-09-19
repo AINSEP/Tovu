@@ -184,6 +184,60 @@ export const posts = sqliteTable(
   ]
 );
 
+/**
+ * Append-only revision ledger for `posts` (ADR-008 §items / ADR-022 §4a discipline — the same
+ * "revisioned entity" half `entryRevisions` already implements for `entries`; posts never had one
+ * until this table, which is the whole reason `change_set_items.before_revision_id`/
+ * `after_revision_id` were NULL for every post row before this migration).
+ *
+ * `id` is a caller-generated UUID (`SqlitePostRepo.appendRevision`, via `crypto.randomUUID()`), NOT
+ * an autoincrement integer — deliberately, unlike `entryRevisions.seq`/`settingRevisions.seq`: this
+ * id is the value `change_set_items.before_revision_id`/`after_revision_id` store (both declared
+ * `UUID` on `ChangeSetItemRecord` in `@jini-ai/cms/core`), so it has to exist and be knowable BEFORE
+ * the change-set item's row is written, the same reason `posts.id`/`redirects.id` are app-generated
+ * text primary keys rather than DB autoincrement.
+ *
+ * `seq` is `PostRecord.version` AFTER the write this revision captures — not a second, independently
+ * counted sequence: `version` already increments by exactly 1 on every `createPost`/`updatePost`/
+ * `deletePost` call (see `post.ts`), so reusing it here is one fact with two names instead of a
+ * second counter that could ever disagree with it. Plain `integer`, not a primary key or
+ * autoincrement column, so it needs no entry in `migration/manifest.ts`'s
+ * `REVIEWED_INTEGER_ID_COLUMNS` (that registry gates only autoincrement PKs — see its own doc).
+ *
+ * `stateJson` carries the FULL `PostRecord` this revision captures (see `PostRevisionInput` in
+ * `features/post/post.ts`) — deliberately not the narrower shape `posts/update.ts`'s
+ * `captureInverse`/`postUpdateReverter` round-trip today (that inverse payload drops `seoExtJson`,
+ * `memberAccessJson`, `bodyHtml`/`bodyFormat`, `kind`, and `deletedAt` — a documented, disclosed gap
+ * this table does not repeat).
+ *
+ * `contentHash` is a `sha256` hex digest of `stateJson`'s exact serialized bytes (same `node:crypto`
+ * `createHash("sha256")` convention this codebase already uses everywhere else — see e.g.
+ * `features/members/write-service.ts`), computed once at write time so a later integrity check never
+ * has to re-derive "was this row's payload tampered with or truncated" from the payload alone.
+ *
+ * `restoredFrom` is the id of the revision a `"restore"`-op row was restored FROM, or `NULL` for
+ * every `"create"`/`"update"`/`"delete"` row (nothing was restored to produce them). Nullable and
+ * additive: this column is meaningless until the first restore ever happens.
+ */
+export const postRevisions = sqliteTable(
+  "post_revisions",
+  {
+    id: text("id").primaryKey(),
+    postId: text("post_id").notNull(),
+    workspaceId: text("workspace_id").notNull(),
+    seq: integer("seq").notNull(),
+    op: text("op").notNull(),
+    stateJson: text("state_json").notNull(),
+    contentHash: text("content_hash").notNull(),
+    actorId: text("actor_id").notNull(),
+    delegatedByWorkspaceId: text("delegated_by_workspace_id"),
+    delegatedById: text("delegated_by_id"),
+    restoredFrom: text("restored_from"),
+    recordedAt: text("recorded_at").notNull(),
+  },
+  (table) => [index("idx_post_revisions_workspace_post").on(table.workspaceId, table.postId, table.seq)]
+);
+
 export const presentationSettings = sqliteTable("presentation_settings", {
   workspaceId: text("workspace_id").primaryKey(),
   activeThemeId: text("active_theme_id").notNull(),

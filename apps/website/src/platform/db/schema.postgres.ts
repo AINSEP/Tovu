@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 84
+ * Tables: 85
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -890,6 +890,23 @@ export const policyPermissions = pgTable("policy_permissions", {
   constraintJson: text("constraint_json"),
 }, (t) => [
     index("idx_policy_permissions_workspace_policy").on(t.workspaceId, t.policyId),
+  ]);
+
+export const postRevisions = pgTable("post_revisions", {
+  id: text("id").primaryKey(),
+  postId: text("post_id").notNull(),
+  workspaceId: text("workspace_id").notNull(),
+  seq: bigint("seq", { mode: "number" }).notNull(),
+  op: text("op").notNull(),
+  stateJson: text("state_json").notNull(),
+  contentHash: text("content_hash").notNull(),
+  actorId: text("actor_id").notNull(),
+  delegatedByWorkspaceId: text("delegated_by_workspace_id"),
+  delegatedById: text("delegated_by_id"),
+  restoredFrom: text("restored_from"),
+  recordedAt: text("recorded_at").notNull(),
+}, (t) => [
+    index("idx_post_revisions_workspace_post").on(t.workspaceId, t.postId, t.seq),
   ]);
 
 export const posts = pgTable("posts", {
