@@ -150,10 +150,14 @@ async function callPeer(
       method: request.method,
       url: peerUrl(baseUrl, request.path),
       headers: {
-        // The ONE place the opened key is used. `dev-auth.ts`'s `API_KEY_AUTHORIZATION_PATTERN`
-        // accepts `Bearer <raw-key>`; a peer therefore authenticates as an ordinary API-key
-        // principal and its grants come from its own issuance snapshot (plan §1.2) — there is no
-        // transport-specific auth mechanism to get wrong.
+        // The ONE place the resolved credential is used, and it is deliberately incurious about
+        // which kind it got. Two reach here (`features/publish-content/destination-credential.ts`):
+        // an explicitly-configured peer's API key, which `dev-auth.ts`'s
+        // `API_KEY_AUTHORIZATION_PATTERN` accepts as `Bearer <raw-key>` and whose grants come from
+        // its own issuance snapshot (plan §1.2); and a connected destination's short-lived
+        // publishing session token, which the destination's `requirePublishTrust` gate recognises
+        // ahead of the admin session gate. Both are `Bearer <opaque>` on the wire, so there is
+        // still no transport-specific auth mechanism here to get wrong.
         authorization: `Bearer ${apiKey}`,
         ...(request.body === undefined ? {} : { "content-type": "application/json" }),
       },

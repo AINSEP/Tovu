@@ -500,3 +500,74 @@ export class InMemoryPublishContentPeerRepo implements PublishContentPeerRepoPor
     this.rows.delete(InMemoryPublishContentPeerRepo.key(input.workspaceId, input.id));
   }
 }
+
+/**
+ * Saves (or refreshes) the row for a destination this install is CONNECTED to — a site whose
+ * publishing is authorized by the derived Site Token handshake rather than by a pasted key.
+ *
+ * `sealed: null` IS the marker, and it needs no migration or new column because it was previously
+ * unreachable: {@link createPublishContentPeer} always seals, and {@link updatePublishContentPeer}
+ * can only replace a sealed value, so no existing row can be null. `destination-credential.ts` is
+ * the one reader of that distinction.
+ *
+ * Keyed on `baseUrl`, not on `label`: the address is what identifies a site, and re-connecting the
+ * same site must update its row rather than collide with it. A label already taken by a DIFFERENT
+ * site falls back to the full address, so connecting can never fail on a name the owner never chose
+ * and would have to go and edit.
+ *
+ * @returns The read model, which by construction can carry no credential-shaped field.
+ * @complexity O(n) in the workspace's peer count (one list scan), plus one write.
+ */
+export async function saveConnectedDestination(
+  deps: PublishContentPeerReadDeps & { clock: { nowIso(): string }; idGen: { newId(): string } },
+  input: { workspaceId: string; label: string; baseUrl: string; remoteWorkspaceId: string }
+): Promise<PublishContentPeerSummary> {
+  const baseUrl = requireBaseUrl(input.baseUrl);
+  const remoteWorkspaceId = requireBoundedField(input.remoteWorkspaceId, "remoteWorkspaceId");
+  const existing = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
+  const match = existing.find((row) => row.baseUrl === baseUrl) ?? null;
+
+  const wanted = requireBoundedField(input.label, "label");
+  const takenByAnother = existing.some((row) => row.label === wanted && row.id !== match?.id);
+  const label = takenByAnother ? baseUrl : wanted;
+
+  const now = deps.clock.nowIso();
+  const record: PublishContentPeerRecord = {
+    workspaceId: input.workspaceId,
+    id: match?.id ?? deps.idGen.newId(),
+    label,
+    baseUrl,
+    remoteWorkspaceId,
+    // Never a key: a connected destination authenticates by proving possession of the Site Token
+    // at publish time, so there is nothing to store between publishes.
+    sealed: null,
+    masked: null,
+    aadVersion: PUBLISH_CONTENT_PEER_AAD_VERSION,
+    createdAt: match?.createdAt ?? now,
+    updatedAt: now,
+  };
+
+  if (match) await deps.repo.update(record);
+  else await deps.repo.insert(record);
+  return toPeerSummary(record);
+}
+
+/**
+ * Removes the row for a connected destination, by address.
+ *
+ * Refuses to touch a row that carries a sealed key — disconnecting must never silently delete a
+ * peer the owner configured by hand with a credential they would then have to find again.
+ *
+ * @returns `true` when a row was removed.
+ * @complexity O(n) in the workspace's peer count, plus at most one delete.
+ */
+export async function removeConnectedDestination(
+  deps: PublishContentPeerReadDeps,
+  input: { workspaceId: string; baseUrl: string }
+): Promise<boolean> {
+  const rows = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
+  const match = rows.find((row) => row.baseUrl === input.baseUrl && row.sealed === null);
+  if (!match) return false;
+  await deps.repo.delete({ workspaceId: input.workspaceId, id: match.id });
+  return true;
+}

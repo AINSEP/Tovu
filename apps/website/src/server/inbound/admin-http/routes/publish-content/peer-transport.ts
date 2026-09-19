@@ -10,13 +10,14 @@ import {
   pushBundleToPeer,
   PublishContentPeerTransportError,
 } from "#src/features/publish-content/peer-transport";
+import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import {
   PublishContentPeerCredentialMissingError,
   PublishContentPeerNotFoundError,
   PublishContentPeerSecretStoreUnconfiguredError,
-  resolvePeerCredential,
   type ResolvedPeerCredential,
 } from "#src/features/publish-content/peers";
+import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
@@ -38,9 +39,9 @@ import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContent
  *
  * ## FROZEN CONTRACT: every route here takes a `peerId`
  *
- * Never a raw URL and never a credential from the client. The URL and the key come from the
- * `publish_content_peers` row, and the key is opened by `resolvePeerCredential` for the lifetime of
- * one request. A client that could supply a URL would turn these routes into an SSRF primitive
+ * Never a raw URL and never a credential from the client. The URL comes from the
+ * `publish_content_peers` row, and the credential is resolved from that row for the lifetime of one
+ * request (see the next section). A client that could supply a URL would turn these routes into an SSRF primitive
  * wearing an authorization check; a client that could supply a credential would make the sealed
  * column pointless.
  *
@@ -55,6 +56,14 @@ import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContent
  * route stops at staging rather than planning: adding a second entry point into `planImport` would
  * be a second place the gate could be forgotten.
  *
+ * ## Two kinds of destination, resolved in one place
+ *
+ * `openPeer` no longer calls `resolvePeerCredential` directly. `destination-credential.ts` decides
+ * whether this destination is an explicitly-configured peer (a sealed key, opened per request) or
+ * one this install is CONNECTED to (nothing stored; a session token minted by proving possession of
+ * the Site Token). Both arrive as the same `ResolvedPeerCredential`, so every route below is
+ * unchanged and cannot tell them apart.
+ *
  * ## The credential never appears in a response
  *
  * Nothing in this file reads `credential.apiKey`; it is passed straight into the transport driver,
@@ -65,6 +74,10 @@ import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContent
 /** @complexity O(1). */
 function statusFor(err: unknown): { status: number; code: string } {
   if (err instanceof PublishContentPeerNotFoundError) return { status: 404, code: "PEER_NOT_FOUND" };
+  // A connected destination's handshake. 502 for the same reason a transport error is: this
+  // instance is fine and the request was well-formed — the far side (or the path to it) is what
+  // failed, and the message is already the sentence the owner needs to act on.
+  if (err instanceof PublishTrustHandshakeError) return { status: 502, code: "PUBLISH_TRUST_HANDSHAKE_FAILED" };
   if (err instanceof PublishContentPeerCredentialMissingError) return { status: 409, code: "PEER_CREDENTIAL_MISSING" };
   if (err instanceof PublishContentPeerSecretStoreUnconfiguredError) return { status: 503, code: "SECRET_STORE_UNCONFIGURED" };
   if (err instanceof PublishContentPeerTransportError) {
@@ -87,8 +100,13 @@ function respondWithError(res: { status(code: number): { json(body: unknown): vo
 /** The per-request transport bag: the guarded client plus the opened credential.
  *  @complexity O(1) plus one repo read and one AEAD open. */
 async function openPeer(deps: PublishContentRouteDeps, peerId: string): Promise<{ credential: ResolvedPeerCredential; httpClient: PublishContentRouteDeps["publishContentPeerHttpClient"] }> {
-  const credential = await resolvePeerCredential(
-    { repo: deps.publishContentPeerRepo, sealer: deps.siteAssistantSecretSealer },
+  const credential = await resolvePublishDestinationCredential(
+    {
+      repo: deps.publishContentPeerRepo,
+      sealer: deps.siteAssistantSecretSealer,
+      keyring: deps.siteAssistantSecretKeyring,
+      httpClient: deps.publishContentPeerHttpClient,
+    },
     { workspaceId: deps.workspaceId, id: peerId }
   );
   return { credential, httpClient: deps.publishContentPeerHttpClient };

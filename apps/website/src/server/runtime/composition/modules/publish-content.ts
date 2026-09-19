@@ -12,6 +12,14 @@ import { registerPublishContentBundleCreateRoute } from "#src/server/inbound/adm
 import { registerPublishContentImportRoutes } from "#src/server/inbound/admin-http/routes/publish-content/import";
 import { registerPublishContentPeerRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peers";
 import { registerPublishContentPeerTransportRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peer-transport";
+import { registerPublishContentDestinationRoutes } from "#src/server/inbound/admin-http/routes/publish-content/destination";
+import { findCandidateDestination } from "#src/features/publish-trust/connect";
+import {
+  COMMITTED_JSON_CODEC,
+  createFileProvisioning,
+  PUBLISH_TRUST_CONFIG_PATH,
+} from "#src/features/publish-trust/provisioning";
+import { nodeProvisioningFileIo } from "#src/features/publish-trust/provisioning.node-io";
 import type { PublishContentRouteDeps } from "#src/server/inbound/admin-http/routes/publish-content/deps";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -38,6 +46,22 @@ import type { ServerModuleHandle } from "./types.js";
  */
 export function createPublishContentModule(deps: PublishContentRouteDeps): ServerModuleHandle {
   installFirstPartyPublishContentTypes();
+
+  // The SOURCE half of publishing trust, composed here for the same reason
+  // `publish-trust-grants.ts` composes the destination half at the composition root: the feature
+  // owns the merge semantics and stays pure, and only this layer is allowed to touch a disk.
+  //
+  // Paths are repo-relative, and therefore resolved against the process's working directory — the
+  // repository root for a normal `tovu serve`. That is deliberate: what is written here is
+  // committed deploy config, so it belongs to the repo rather than to a site directory, and it is
+  // the same resolution the boot-time reader already uses for the same file.
+  const provisioning = createFileProvisioning({
+    io: nodeProvisioningFileIo,
+    codec: COMMITTED_JSON_CODEC,
+    path: PUBLISH_TRUST_CONFIG_PATH,
+  });
+  const findCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: (relative) => relative });
+
   return {
     name: "publish-content",
     registerRoutes: (app) => {
@@ -54,6 +78,10 @@ export function createPublishContentModule(deps: PublishContentRouteDeps): Serve
       // the routes registered above.
       registerPublishContentPeerRoutes(app, deps);
       registerPublishContentPeerTransportRoutes(app, deps);
+      // Zero-setup publishing: the one action that turns a fresh install into one that can publish,
+      // without a key ever being minted, displayed or copied. See `destination.ts`'s header for why
+      // it lives behind the Publish button rather than on a settings screen.
+      registerPublishContentDestinationRoutes(app, deps, { provisioning, findCandidate });
     },
   };
 }
