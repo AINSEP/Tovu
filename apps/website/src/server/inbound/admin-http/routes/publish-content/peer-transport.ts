@@ -153,6 +153,15 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         { bundle }
       );
 
+      // The peer's gated plan is SPREAD at the top level, not nested under a `plan` key: this route
+      // answers with the same `{domain, planId, planHash, details}` shape the LOCAL `/import/plan`
+      // route does, so a client renders one plan shape regardless of direction (Task 11 binds
+      // `details` as its `PublishContentReport`). The push-only fields sit alongside it.
+      //
+      // `bundleId` is load-bearing, not informational: the peer's `/import/execute` requires the
+      // same bundle it planned, so a client MUST carry this value from here into `push/execute`.
+      // Holding it server-side instead would mean remembering per-operator state between two
+      // requests, which is exactly the kind of implicit session the gated ceremony avoids.
       res.json({
         peerId: peer.credential.id,
         peerLabel: peer.credential.label,
@@ -160,7 +169,7 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         entityCount: bundle.entities.length,
         blobsUploaded: result.blobsUploaded,
         blobsUnavailable: result.blobsUnavailable,
-        plan: result.plan,
+        ...result.plan,
       });
     } catch (err) {
       respondWithError(res, err);
