@@ -189,6 +189,7 @@ import { createPendingAuthorizationStore } from "#src/platform/oauth/index";
 import { createMediaModule } from "./modules/media.js";
 import { createTaxonomyModule } from "./modules/taxonomy.js";
 import { createContentModule } from "./modules/content.js";
+import { createContentTransportModule } from "./modules/content-transport.js";
 import { createMembersModule } from "./modules/members.js";
 import type { MembersRouteDeps } from "../../inbound/admin-http/routes/members/deps.js";
 import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
@@ -1079,6 +1080,12 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // inline immediately below — it was never one of this module's 11 registrations.
   mountRoutes(app, createContentModule(routeDeps));
   registerContentPostGetRoute(app, routeDeps);
+
+  // Task 4 of the content-transport (Publish Content) feature (`ADS-memory/reports/
+  // 2026-09-18-publish-feature-implementation-plan.md` §1.1/§4) — the export/pull route. This is
+  // also where `installFirstPartyTransportTypes()` first gets a real caller (see
+  // `content-transport-manifest.ts`'s own header and `modules/content-transport.ts`'s).
+  mountRoutes(app, createContentTransportModule(routeDeps));
 
   // ADR-PIPE-013 Decision §2-3 (FEAT-013 Phase 2) — one shared
   // MAGIC_LINK_PER_EMAIL limiter instance consulted by BOTH the admin
