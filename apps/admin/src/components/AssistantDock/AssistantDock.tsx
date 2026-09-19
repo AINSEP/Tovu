@@ -422,7 +422,7 @@ export function AssistantDock({
     persistUserTurn: chats.persistUserTurn,
   });
   const uploadAttachments = useAttachmentUploaderSeam(useAttachmentUploaderOverride);
-  const validateAttachments = useAttachmentValidatorSeam(useAttachmentValidatorOverride);
+  const _validateAttachments = useAttachmentValidatorSeam(useAttachmentValidatorOverride);
   const runtimeAccess = useRuntimeAccessSeam(useRuntimeAccessOverride);
   /**
    * The composer's discovery catalog, projected asynchronously (debate 2, "Composer slash
@@ -573,11 +573,10 @@ export function AssistantDock({
         // the ungated in-page WebMCP surface — see that option's own doc for why that stays opt-in.
         agentControl={{ enabled: true, bridgeAccess: agentBridge?.bridgeAccess }}
         uploadAttachments={uploadAttachments}
-        // Restores a persisted draft's ATTACHMENTS, not just its text. `@jini-ai/chat` caches the
-        // references but hands back only the subset a host confirms is still served — the staged
-        // bytes sit under the daemon's `retentionMs` (one hour, not overridden here), and a chip for
-        // a pruned file looks intact and fails at send. Absent, the package restores text only.
-        validateAttachments={validateAttachments}
+        // TEMPORARY DEPLOY GATE: restore the prop below when @jini-ai/chat@0.3.8 reaches the npm
+        // registry. Registry 0.3.7's ChatPaneProps does not include it, so attachment validation is
+        // intentionally inert until that exact release condition is met.
+        // validateAttachments={_validateAttachments}
         // Host-owned, data-only inventory, now an async projection (debate 2) instead of a static
         // import. Jini renders/filter/selects it generically; these rows describe source-backed
         // resources and do not claim that Agent Plugin installation or execution exists. The same
