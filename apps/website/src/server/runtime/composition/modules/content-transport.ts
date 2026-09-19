@@ -1,3 +1,8 @@
+// Side-effect import, same shape as `features/pages/permissions.ts`'s own consumers: registers the
+// Task 9 built-in-role grants (`content.transport.read`/`content.transport.apply` -> admin) before
+// any composition-root code runs — see that module's header for why this must happen here, in the
+// static import graph, rather than inline at call time below.
+import "#src/features/content-transport/permissions";
 import { installFirstPartyTransportTypes } from "#src/server/runtime/composition/content-transport-manifest";
 import { registerContentTransportExportRoute } from "#src/server/inbound/admin-http/routes/content-transport/export";
 import { registerContentTransportBlobsProbeRoute } from "#src/server/inbound/admin-http/routes/content-transport/blobs-probe";
