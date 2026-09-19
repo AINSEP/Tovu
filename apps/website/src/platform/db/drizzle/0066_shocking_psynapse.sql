@@ -1,4 +1,4 @@
-CREATE TABLE `content_transport_baselines` (
+CREATE TABLE `publish_content_baselines` (
 	`workspace_id` text NOT NULL,
 	`peer_principal_id` text NOT NULL,
 	`entity_type` text NOT NULL,
@@ -9,8 +9,8 @@ CREATE TABLE `content_transport_baselines` (
 	`run_id` text NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `content_transport_baselines_unique` ON `content_transport_baselines` (`workspace_id`,`peer_principal_id`,`entity_type`,`entity_id`);--> statement-breakpoint
-CREATE TABLE `content_transport_bundles` (
+CREATE UNIQUE INDEX `publish_content_baselines_unique` ON `publish_content_baselines` (`workspace_id`,`peer_principal_id`,`entity_type`,`entity_id`);--> statement-breakpoint
+CREATE TABLE `publish_content_bundles` (
 	`id` text PRIMARY KEY NOT NULL,
 	`workspace_id` text NOT NULL,
 	`source_principal_id` text NOT NULL,
@@ -22,8 +22,8 @@ CREATE TABLE `content_transport_bundles` (
 	`expires_at` text NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX `idx_content_transport_bundles_workspace` ON `content_transport_bundles` (`workspace_id`,`expires_at`);--> statement-breakpoint
-CREATE TABLE `content_transport_peers` (
+CREATE INDEX `idx_publish_content_bundles_workspace` ON `publish_content_bundles` (`workspace_id`,`expires_at`);--> statement-breakpoint
+CREATE TABLE `publish_content_peers` (
 	`id` text PRIMARY KEY NOT NULL,
 	`workspace_id` text NOT NULL,
 	`label` text NOT NULL,
@@ -40,8 +40,8 @@ CREATE TABLE `content_transport_peers` (
 	FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `content_transport_peers_workspace_label_unique` ON `content_transport_peers` (`workspace_id`,`label`);--> statement-breakpoint
-CREATE TABLE `content_transport_runs` (
+CREATE UNIQUE INDEX `publish_content_peers_workspace_label_unique` ON `publish_content_peers` (`workspace_id`,`label`);--> statement-breakpoint
+CREATE TABLE `publish_content_runs` (
 	`id` text PRIMARY KEY NOT NULL,
 	`workspace_id` text NOT NULL,
 	`direction` text NOT NULL,
@@ -56,4 +56,4 @@ CREATE TABLE `content_transport_runs` (
 	`report_json` text
 );
 --> statement-breakpoint
-CREATE INDEX `idx_content_transport_runs_workspace` ON `content_transport_runs` (`workspace_id`,`started_at`);
+CREATE INDEX `idx_publish_content_runs_workspace` ON `publish_content_runs` (`workspace_id`,`started_at`);

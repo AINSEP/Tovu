@@ -3107,11 +3107,11 @@ export const deploymentRunEvents = sqliteTable(
 );
 
 // ---------------------------------------------------------------------------
-// Content Transport (SPEC pending) — export/import content between two Tovu instances over the
+// Publish Content (SPEC pending) — export/import content between two Tovu instances over the
 // existing admin-http API-key auth. Four tables, all additive; no column added to, and no
 // constraint changed on, any existing table. See the 2026-09-18 Publish Content implementation
 // plan (`ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md`) §2 for the full
-// design reasoning this doc summarizes. Feature named "content-transport" deliberately, not
+// design reasoning this doc summarizes. Feature named "publish-content" deliberately, not
 // "publish" — that name is already taken by static-deploy (`publishCredentialSets`,
 // `publish_history`, `PublishExecutionMode`); "Publish Content" stays a UI label only.
 // ---------------------------------------------------------------------------
@@ -3119,7 +3119,7 @@ export const deploymentRunEvents = sqliteTable(
 /**
  * Per-peer sync memory: the content hash of each entity as last exchanged with that peer. This —
  * not a version number — is what tells "unchanged since we last spoke" apart from "edited on the
- * far side" (the whole safety mechanism a content-transport run relies on: no baseline for an
+ * far side" (the whole safety mechanism a publish-content run relies on: no baseline for an
  * entity means the run can only ever `create`, never overwrite). Each instance keeps its OWN
  * table; the design is symmetric, so a push and a pull both read/write this same shape locally.
  *
@@ -3137,8 +3137,8 @@ export const deploymentRunEvents = sqliteTable(
  * is per-peer sync bookkeeping, not a referential config row a workspace delete should cascade
  * through in the same transaction.
  */
-export const contentTransportBaselines = sqliteTable(
-  "content_transport_baselines",
+export const publishContentBaselines = sqliteTable(
+  "publish_content_baselines",
   {
     workspaceId: text("workspace_id").notNull(),
     peerPrincipalId: text("peer_principal_id").notNull(),
@@ -3154,7 +3154,7 @@ export const contentTransportBaselines = sqliteTable(
     runId: text("run_id").notNull(),
   },
   (table) => [
-    uniqueIndex("content_transport_baselines_unique").on(
+    uniqueIndex("publish_content_baselines_unique").on(
       table.workspaceId,
       table.peerPrincipalId,
       table.entityType,
@@ -3175,8 +3175,8 @@ export const contentTransportBaselines = sqliteTable(
  * that registry exists only for columns the naming convention cannot see, and
  * `migration-manifest.test.ts` fails a column named this way if it is added there as redundant.
  */
-export const contentTransportRuns = sqliteTable(
-  "content_transport_runs",
+export const publishContentRuns = sqliteTable(
+  "publish_content_runs",
   {
     id: text("id").primaryKey(),
     workspaceId: text("workspace_id").notNull(),
@@ -3198,7 +3198,7 @@ export const contentTransportRuns = sqliteTable(
      *  `blocked` | `refused`), as JSON — the report the operator sees and acts on. */
     reportJson: text("report_json"),
   },
-  (table) => [index("idx_content_transport_runs_workspace").on(table.workspaceId, table.startedAt)]
+  (table) => [index("idx_publish_content_runs_workspace").on(table.workspaceId, table.startedAt)]
 );
 
 /**
@@ -3208,10 +3208,10 @@ export const contentTransportRuns = sqliteTable(
  * row only carries the manifest of which blobs the bundle needs.
  *
  * `entitiesJson`/`blobManifestJson` end in `_json`, matching `isJsonColumnName` — see
- * `contentTransportRuns`'s own doc above for why that means no `REVIEWED_JSON_COLUMNS` entry.
+ * `publishContentRuns`'s own doc above for why that means no `REVIEWED_JSON_COLUMNS` entry.
  */
-export const contentTransportBundles = sqliteTable(
-  "content_transport_bundles",
+export const publishContentBundles = sqliteTable(
+  "publish_content_bundles",
   {
     id: text("id").primaryKey(),
     workspaceId: text("workspace_id").notNull(),
@@ -3226,7 +3226,7 @@ export const contentTransportBundles = sqliteTable(
      *  clean up itself. */
     expiresAt: text("expires_at").notNull(),
   },
-  (table) => [index("idx_content_transport_bundles_workspace").on(table.workspaceId, table.expiresAt)]
+  (table) => [index("idx_publish_content_bundles_workspace").on(table.workspaceId, table.expiresAt)]
 );
 
 /**
@@ -3237,8 +3237,8 @@ export const contentTransportBundles = sqliteTable(
  * shape (`sealedKeyId`/`sealedCiphertext`/`sealedNonce`/`sealedAlg`/`masked` + `aadVersion`) over
  * the same `KeyringPort`/`SecretSealerPort` — no new crypto, no new AAD discipline.
  */
-export const contentTransportPeers = sqliteTable(
-  "content_transport_peers",
+export const publishContentPeers = sqliteTable(
+  "publish_content_peers",
   {
     id: text("id").primaryKey(),
     workspaceId: text("workspace_id")
@@ -3258,5 +3258,5 @@ export const contentTransportPeers = sqliteTable(
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
-  (table) => [uniqueIndex("content_transport_peers_workspace_label_unique").on(table.workspaceId, table.label)]
+  (table) => [uniqueIndex("publish_content_peers_workspace_label_unique").on(table.workspaceId, table.label)]
 );
