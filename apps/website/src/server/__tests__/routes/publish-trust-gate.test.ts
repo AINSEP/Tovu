@@ -307,3 +307,56 @@ test("an install that has never provisioned refuses the handshake without saying
     await stop(server);
   }
 });
+
+/** Stages a bundle carrying one entity of `entityType`, the way a push would. */
+function bundle(baseUrl: string, token: string, entityType: unknown): Promise<Response> {
+  return fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/bundles`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      hashVersion: 1,
+      sourceLabel: "test source",
+      entities: [{ entityType, id: "e-1", contentHash: "x", hashVersion: 1, requiredBlobs: [], data: {} }],
+      blobManifest: [],
+    }),
+  });
+}
+
+test("a granted entity type is accepted at the bundle door", async () => {
+  const key = await sourceKey();
+  const { server, baseUrl } = await startServer(grantDocument(key.publicKeyB64u));
+  try {
+    const token = await tokenFor(baseUrl);
+    const res = await bundle(baseUrl, token, "post");
+    assert.equal(res.status, 201, await res.text());
+  } finally {
+    await stop(server);
+  }
+});
+
+test("an entity type the grant does not name is refused, and the whole bundle with it", async () => {
+  const key = await sourceKey();
+  const { server, baseUrl } = await startServer(grantDocument(key.publicKeyB64u));
+  try {
+    const token = await tokenFor(baseUrl);
+    // The grant names `post` and `media`. `page` is a real travelling type this grant omits.
+    const res = await bundle(baseUrl, token, "page");
+    const raw = await res.text();
+    assert.equal(res.status, 403, raw);
+    assert.equal((JSON.parse(raw) as { details: { reason: string } }).details.reason, "entity_type_not_granted");
+  } finally {
+    await stop(server);
+  }
+});
+
+test("an entity that declares no type at all is refused, not skipped", async () => {
+  const key = await sourceKey();
+  const { server, baseUrl } = await startServer(grantDocument(key.publicKeyB64u));
+  try {
+    const token = await tokenFor(baseUrl);
+    const res = await bundle(baseUrl, token, undefined);
+    assert.equal(res.status, 403, await res.text());
+  } finally {
+    await stop(server);
+  }
+});

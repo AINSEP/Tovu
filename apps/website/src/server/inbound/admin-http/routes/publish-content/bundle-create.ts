@@ -1,6 +1,7 @@
 import { stageBundle, PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES } from "#src/features/publish-content/bundle-staging";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 
 import type { PublishContentRouteRegistrar } from "./deps.js";
@@ -77,6 +78,41 @@ export const registerPublishContentBundleCreateRoute: PublishContentRouteRegistr
         if ("error" in validated) {
           res.status(400).json({ error: validated.error });
           return;
+        }
+
+        // The grant's entity-type allowlist, enforced at the door a publishing credential comes
+        // through. A capability says "may publish"; `entityTypes` says WHAT, and without this the
+        // second half of the grant would be decorative. The WHOLE bundle is refused rather than
+        // filtered down to the allowed types, matching `grant.ts`'s own refuse-never-repair stance:
+        // a source that sent a type it may not send has a wrong idea of what it is allowed to do,
+        // and quietly dropping part of its bundle would leave it believing the publish succeeded
+        // in full. An empty `entityTypes` allows nothing, which is the correct reading of a
+        // permission nobody stated.
+        const publishTrust = getPublishTrustContext(res);
+        if (publishTrust) {
+          // `validated.entities` is `unknown[]` on purpose (see `validateBundleBody`), so an entry
+          // that does not declare a string `entityType` is refused rather than skipped: skipping it
+          // would let `{}` walk straight past the allowlist and reach `planImport` unchecked.
+          // `findIndex`, not `find`, because `find` reports a match by returning the element: a
+          // matching `undefined` entry would be indistinguishable from "no match". Not reachable
+          // over this route today — JSON has no `undefined`, so a parsed body cannot produce one,
+          // and a deliberate break confirmed the tests below do not distinguish the two spellings.
+          // Kept because it costs nothing and the next caller may not arrive through JSON.
+          const refusedAt = validated.entities.findIndex((entity) => {
+            const declared =
+              typeof entity === "object" && entity !== null
+                ? (entity as { entityType?: unknown }).entityType
+                : undefined;
+            return typeof declared !== "string" || !publishTrust.entityTypes.includes(declared);
+          });
+          if (refusedAt >= 0) {
+            res.status(403).json({
+              error: "this bundle carries an entity type outside the publishing grant",
+              code: "FORBIDDEN",
+              details: { permission: "publish_content.apply", reason: "entity_type_not_granted" },
+            });
+            return;
+          }
         }
 
         const { bundleId, expiresAt } = await stageBundle(
