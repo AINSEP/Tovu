@@ -413,6 +413,13 @@ export interface CreatePostInput {
    *  repo's own ~9 direct-unit-test call sites (documented on {@link CreatePostDeps}) keep
    *  compiling and behaving exactly as before. */
   actorId?: UUID;
+  /** Same optional-with-null-default contract as {@link PostRevisionInput.delegatedByWorkspaceId} —
+   *  set only by a call site acting through a delegate (an agent or api_key acting on a human's
+   *  behalf, per `contracts/core/gated-mutations/actor-identity.ts`'s documented convention).
+   *  Omitted/null for a direct human action. */
+  delegatedByWorkspaceId?: UUID | null;
+  /** See {@link CreatePostInput.delegatedByWorkspaceId}. */
+  delegatedById?: UUID | null;
 }
 
 export interface CreatePostDeps {
@@ -487,6 +494,10 @@ export interface UpdatePostInput {
   expectedVersion?: number;
   /** Same optional-with-fallback contract as {@link CreatePostInput.actorId}. */
   actorId?: UUID;
+  /** Same optional-with-null-default contract as {@link CreatePostInput.delegatedByWorkspaceId}. */
+  delegatedByWorkspaceId?: UUID | null;
+  /** See {@link CreatePostInput.delegatedByWorkspaceId}. */
+  delegatedById?: UUID | null;
 }
 
 export interface UpdatePostDeps {
@@ -520,6 +531,10 @@ export interface DeletePostInput {
   id: UUID;
   /** Same optional-with-fallback contract as {@link CreatePostInput.actorId}. */
   actorId?: UUID;
+  /** Same optional-with-null-default contract as {@link CreatePostInput.delegatedByWorkspaceId}. */
+  delegatedByWorkspaceId?: UUID | null;
+  /** See {@link CreatePostInput.delegatedByWorkspaceId}. */
+  delegatedById?: UUID | null;
 }
 
 export interface DeletePostDeps {
@@ -599,6 +614,8 @@ export async function deletePost(
       op: "delete",
       stateJson: post,
       actorId: input.actorId ?? SYSTEM_ACTOR_ID,
+      delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
+      delegatedById: input.delegatedById ?? null,
       recordedAt: post.updatedAt,
     });
   });
@@ -1008,6 +1025,8 @@ export async function createPost(
       op: "create",
       stateJson: post,
       actorId: input.actorId ?? SYSTEM_ACTOR_ID,
+      delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
+      delegatedById: input.delegatedById ?? null,
       recordedAt: post.updatedAt,
     });
   });
@@ -1238,6 +1257,8 @@ export async function updatePost(
       op: "update",
       stateJson: post,
       actorId: input.actorId ?? SYSTEM_ACTOR_ID,
+      delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
+      delegatedById: input.delegatedById ?? null,
       recordedAt: post.updatedAt,
     });
   });

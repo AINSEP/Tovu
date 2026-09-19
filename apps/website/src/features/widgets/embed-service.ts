@@ -362,6 +362,13 @@ async function writePostHostBody(
               status: current.status,
               bodyJson: nextBodyJson as JsonObject,
               expectedVersion: baseVersion,
+              actorId: actor.principalId,
+              // `actor.kind` is this call's real provenance ("user" for the admin HTTP routes,
+              // "agent" for the widget tool surface — see `InsertWidgetEmbedInput.actor`'s own
+              // doc). Only a non-"user" kind is delegated — mirrors `tool-registrations.ts`'s
+              // identical delegatedBy* convention for `post_revisions` attribution.
+              delegatedByWorkspaceId: actor.kind === "user" ? undefined : workspaceId,
+              delegatedById: actor.kind === "user" ? undefined : actor.principalId,
             },
           }),
         captureEntityVersion: (r) => r.post.version,

@@ -68,7 +68,7 @@ export const registerAdminPageDeleteRoute: ContentRouteRegistrar = (app, deps) =
           execute: () =>
             deletePost({
               deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox },
-              input: { workspaceId: deps.workspaceId, id: pageId },
+              input: { workspaceId: deps.workspaceId, id: pageId, actorId: principal.id },
             }),
           captureEntityVersion: (r) => r.post.version,
           rollback: async () => {

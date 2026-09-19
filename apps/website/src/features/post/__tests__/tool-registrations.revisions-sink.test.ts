@@ -17,11 +17,13 @@ import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations
  * own — this test PROVES that, rather than assuming it (per the audit discipline: a correct
  * primitive with an unwired call site is this codebase's most common defect).
  *
- * Also documents a real, disclosed gap found while proving this: neither tool handler forwards
- * `ctx.principal.id` as `actorId` on the domain-function input, so every revision this sink writes
- * is attributed to the `"system"` fallback actor, not the agent's real principal. Wiring real
- * attribution through these handlers (and the other 9 production call sites) is follow-up work,
- * out of this dispatch's scope — flagged, not fixed, here.
+ * Also proves the follow-up fix (2026-09-18 round 4): every tool handler now forwards
+ * `ctx.principal.id` as `actorId`, so the revision this sink writes carries the real principal, not
+ * the `"system"` fallback — and stamps `delegatedByWorkspaceId`/`delegatedById` (both non-null),
+ * which is what makes an agent-run write distinguishable from a direct admin-route write in
+ * `post_revisions`: `ctx.principal.id` is already the same real human id either way (see
+ * `AGENT_TOOL_PRINCIPAL_KIND`'s own doc in `@jini-ai/cms/core`), so `actorId` alone cannot tell the
+ * two apart — only the delegatedBy* marker can.
  */
 
 const WORKSPACE_ID = "ws-post-revisions-sink";
@@ -80,9 +82,12 @@ test("content_post_create appends a post_revisions row, proving the ledger cover
   const revisions = await postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: result.post.id });
   assert.equal(revisions.length, 1);
   assert.equal(revisions[0].op, "create");
-  // Disclosed gap (see file header): the tool handler never forwards ctx.principal.id as actorId,
-  // so this production sink attributes every write to the system fallback, not the real agent.
-  assert.equal(revisions[0].actorId, "system");
+  // The fix (see file header): the real principal, not the system fallback.
+  assert.equal(revisions[0].actorId, PRINCIPAL_ID);
+  // The distinguishing marker: an agent-run write carries a non-null delegatedBy* pair; a direct
+  // admin-route write (see `revision-attribution.test.ts`) leaves both null.
+  assert.equal(revisions[0].delegatedByWorkspaceId, WORKSPACE_ID);
+  assert.equal(revisions[0].delegatedById, PRINCIPAL_ID);
 });
 
 test("content_post_update appends a chained post_revisions row, proving the ledger covers this executeCommand-wrapped updatePost() sink", async () => {
@@ -113,4 +118,7 @@ test("content_post_update appends a chained post_revisions row, proving the ledg
   assert.equal(revisions.length, 1, "the seed above bypassed createPost, so this update is the only appendRevision call");
   assert.equal(revisions[0].op, "update");
   assert.equal(revisions[0].stateJson.title, "Updated by an agent");
+  assert.equal(revisions[0].actorId, PRINCIPAL_ID);
+  assert.equal(revisions[0].delegatedByWorkspaceId, WORKSPACE_ID);
+  assert.equal(revisions[0].delegatedById, PRINCIPAL_ID);
 });

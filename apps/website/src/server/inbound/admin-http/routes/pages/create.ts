@@ -100,6 +100,7 @@ export const registerAdminPageCreateRoute: ContentRouteRegistrar = (app, deps) =
                   slug: req.body?.slug !== undefined ? String(req.body.slug) : undefined,
                   bodyJson: req.body?.bodyJson,
                   status: req.body?.status,
+                  actorId: principal.id,
                 },
               }),
             captureEntityVersion: (r) => r.post.version,

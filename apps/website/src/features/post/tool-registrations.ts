@@ -637,7 +637,24 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                   beforeSaveHook: routeDeps.pluginBeforeSaveHook,
                   outbox: routeDeps.outbox,
                 },
-                input: { workspaceId: routeDeps.workspaceId, id: postId, title, kind, slug, bodyJson, status },
+                input: {
+                  workspaceId: routeDeps.workspaceId,
+                  id: postId,
+                  title,
+                  kind,
+                  slug,
+                  bodyJson,
+                  status,
+                  actorId: ctx.principal.id,
+                  // Every `tool-registrations.ts` handler is, by definition, reached only via
+                  // `@jini-ai/daemon`'s agent-run path (see `AGENT_TOOL_PRINCIPAL_KIND`'s own doc
+                  // in `@jini-ai/cms/core` — `ctx.principal.id` is already the real human's id here,
+                  // the same id a direct admin-UI edit would carry). Stamping delegatedBy* is what
+                  // makes an agent-run write distinguishable from a direct one in `post_revisions`,
+                  // since `actorId` alone is identical either way.
+                  delegatedByWorkspaceId: routeDeps.workspaceId,
+                  delegatedById: ctx.principal.id,
+                },
               }),
             captureEntityVersion: (r) => r.post.version,
           },
@@ -711,7 +728,19 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                 // `expectedVersion` forwarded exactly the way `posts/update.ts` forwards it, and
                 // omitted-means-absent for the same reason: `undefined` is what keeps the guard
                 // opt-in, so a caller that sends nothing keeps the original last-write-wins save.
-                input: { workspaceId: routeDeps.workspaceId, id, title, slug, bodyJson, status, expectedVersion },
+                input: {
+                  workspaceId: routeDeps.workspaceId,
+                  id,
+                  title,
+                  slug,
+                  bodyJson,
+                  status,
+                  expectedVersion,
+                  actorId: ctx.principal.id,
+                  // See content_post_create's identical delegatedBy* comment just above.
+                  delegatedByWorkspaceId: routeDeps.workspaceId,
+                  delegatedById: ctx.principal.id,
+                },
               }),
             captureEntityVersion: (r) => r.post.version,
             rollback: async () => {
@@ -851,7 +880,14 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
             execute: () =>
               deletePost({
                 deps: { repo: routeDeps.postRepo, clock: routeDeps.clock, outbox: routeDeps.outbox },
-                input: { workspaceId: routeDeps.workspaceId, id },
+                input: {
+                  workspaceId: routeDeps.workspaceId,
+                  id,
+                  actorId: ctx.principal.id,
+                  // See content_post_create's identical delegatedBy* comment above.
+                  delegatedByWorkspaceId: routeDeps.workspaceId,
+                  delegatedById: ctx.principal.id,
+                },
               }),
             captureEntityVersion: (r) => r.post.version,
             rollback: async () => {
@@ -1020,7 +1056,19 @@ async function duplicatePostOrPage(
           // disambiguation input. bodyJson is omitted (undefined) on the HTML branch — the new row
           // is born as an ordinary empty "doc" row and converted by ensureHtmlFormat below, exactly
           // like pages_write_html's own first-write sequence.
-          input: { workspaceId: routeDeps.workspaceId, id: newId, title, kind: source.kind, slug, bodyJson: bodyJsonForCreate, status },
+          input: {
+            workspaceId: routeDeps.workspaceId,
+            id: newId,
+            title,
+            kind: source.kind,
+            slug,
+            bodyJson: bodyJsonForCreate,
+            status,
+            actorId: input.principalId,
+            // See content_post_create's identical delegatedBy* comment above.
+            delegatedByWorkspaceId: routeDeps.workspaceId,
+            delegatedById: input.principalId,
+          },
         }),
       captureEntityVersion: (r) => r.post.version,
     },

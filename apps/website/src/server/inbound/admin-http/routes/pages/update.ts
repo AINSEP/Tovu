@@ -186,6 +186,7 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = (app, deps) =
                   workspaceId: deps.workspaceId,
                   id: pageId,
                   ...parsePageUpdateBody(req.body),
+                  actorId: principal.id,
                 },
               }),
             captureEntityVersion: (r) => r.post.version,

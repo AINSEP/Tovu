@@ -171,6 +171,37 @@ for (const adapter of ADAPTERS) {
     assert.equal(rows[0].actorId, "user-42");
   });
 
+  test(`${adapter.name}: createPost honors a caller-supplied delegatedByWorkspaceId/delegatedById (agent-path attribution)`, async () => {
+    const repo = adapter.make();
+    await createPost({
+      deps: { repo, clock },
+      input: {
+        workspaceId: WS,
+        id: "post-1",
+        title: "Hello",
+        actorId: "user-42",
+        delegatedByWorkspaceId: WS,
+        delegatedById: "user-42",
+      },
+    });
+
+    const rows = await repo.listRevisions({ workspaceId: WS, postId: "post-1" });
+    assert.equal(rows[0].delegatedByWorkspaceId, WS);
+    assert.equal(rows[0].delegatedById, "user-42");
+  });
+
+  test(`${adapter.name}: createPost defaults delegatedByWorkspaceId/delegatedById to null when omitted — a direct (non-delegated) write is distinguishable from a delegated one`, async () => {
+    const repo = adapter.make();
+    await createPost({
+      deps: { repo, clock },
+      input: { workspaceId: WS, id: "post-1", title: "Hello", actorId: "user-42" },
+    });
+
+    const rows = await repo.listRevisions({ workspaceId: WS, postId: "post-1" });
+    assert.equal(rows[0].delegatedByWorkspaceId, null);
+    assert.equal(rows[0].delegatedById, null);
+  });
+
   test(`${adapter.name}: updatePost writes an update revision chained to the create revision`, async () => {
     const repo = adapter.make();
     const { revisionId: createRevisionId } = await createPost({
@@ -199,6 +230,32 @@ for (const adapter of ADAPTERS) {
     assert.deepEqual(rows[1].stateJson, post);
   });
 
+  test(`${adapter.name}: updatePost honors a caller-supplied actorId and delegatedByWorkspaceId/delegatedById`, async () => {
+    const repo = adapter.make();
+    await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "post-1", title: "Hello" } });
+
+    await updatePost({
+      deps: { repo, clock, outbox: noopOutbox },
+      input: {
+        workspaceId: WS,
+        id: "post-1",
+        title: "Hello, Updated",
+        slug: "hello",
+        bodyJson: { type: "doc", content: [] },
+        status: "draft",
+        actorId: "agent-1",
+        delegatedByWorkspaceId: WS,
+        delegatedById: "human-1",
+      },
+    });
+
+    const rows = await repo.listRevisions({ workspaceId: WS, postId: "post-1" });
+    const latest = rows[rows.length - 1];
+    assert.equal(latest.actorId, "agent-1");
+    assert.equal(latest.delegatedByWorkspaceId, WS);
+    assert.equal(latest.delegatedById, "human-1");
+  });
+
   test(`${adapter.name}: deletePost writes a delete revision carrying the trashed state, chained to the prior revision`, async () => {
     const repo = adapter.make();
     const { revisionId: createRevisionId } = await createPost({
@@ -219,6 +276,22 @@ for (const adapter of ADAPTERS) {
     assert.equal(rows[1].id, revisionId);
     assert.equal(rows[1].stateJson.deletedAt, post.deletedAt);
     assert.deepEqual(rows[1].stateJson, post);
+  });
+
+  test(`${adapter.name}: deletePost honors a caller-supplied actorId and delegatedByWorkspaceId/delegatedById`, async () => {
+    const repo = adapter.make();
+    await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "post-1", title: "Hello" } });
+
+    await deletePost({
+      deps: { repo, clock, outbox: noopOutbox },
+      input: { workspaceId: WS, id: "post-1", actorId: "agent-2", delegatedByWorkspaceId: WS, delegatedById: "human-2" },
+    });
+
+    const rows = await repo.listRevisions({ workspaceId: WS, postId: "post-1" });
+    const latest = rows[rows.length - 1];
+    assert.equal(latest.actorId, "agent-2");
+    assert.equal(latest.delegatedByWorkspaceId, WS);
+    assert.equal(latest.delegatedById, "human-2");
   });
 
   test(`${adapter.name}: a revision's payload round-trips fields the older captureInverse path is known to drop`, async () => {
