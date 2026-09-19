@@ -360,7 +360,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
   }
 
   return {
-    async applyReport({ report, principalId, bundleId, restorePointId }) {
+    async applyReport({ report, principalId, bundleId, restorePointId, authorize }) {
       const startedAt = input.clock.nowIso();
       const staged = await loadActiveBundle({
         repo: input.bundleRepo,
@@ -398,8 +398,13 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
       // Registry read fresh, at apply time, every call — same rule `planner.ts`'s own header pins
       // for planning; a handler built once and cached across calls would go stale the moment a
       // contributor re-registers (e.g. a hot-reloaded dev process).
+      // The caller's authorize wins when it supplies one: this port is built once per process and
+      // closes over RBAC, which is the wrong authority for a publishing credential. See
+      // `PublishContentApplyPort.applyReport`'s own doc.
+      const handlerDeps =
+        authorize === undefined ? input.publishContentDeps : { ...input.publishContentDeps, authorize };
       const handlerByType = new Map(
-        listPublishContentContributors().map((contributor) => [contributor.entityType, contributor.build(input.publishContentDeps)] as const)
+        listPublishContentContributors().map((contributor) => [contributor.entityType, contributor.build(handlerDeps)] as const)
       );
       const ctx: ApplyRowContext = {
         workspaceId: input.workspaceId,

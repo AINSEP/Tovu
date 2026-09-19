@@ -126,6 +126,19 @@ export interface PublishContentApplyPort {
     principalId: string;
     bundleId: string;
     restorePointId: string;
+    /**
+     * The authorization function each registered type's `apply()` must run under, when the CALLER
+     * knows better than the port's own bag.
+     *
+     * The port is a composition-root singleton and closes over the instance-wide `authorize`, which
+     * is RBAC. That is right for a human and wrong for a publishing credential: `pub:<installation>`
+     * is deliberately not a row in `principals`, so RBAC answers `principal_disabled` and the whole
+     * execute fails. The import route therefore hands down the per-request attenuated function that
+     * answers from the grant — see `publish-trust-auth.ts`'s `withPublishTrustContentAuthorize`.
+     *
+     * Absent means "use the port's own", so every existing caller is unchanged.
+     */
+    authorize?: PublishContentDeps["authorize"];
   }): Promise<{ changeSetIds: readonly string[] }>;
 }
 
@@ -257,6 +270,10 @@ export function buildPublishContentImportHooks(
         principalId: input.actorId,
         bundleId: input.bundleId,
         restorePointId,
+        // This hooks bag's OWN authorize, which the route may have attenuated for a publishing
+        // credential. Threaded rather than left to the port because the port is built once per
+        // process and this decision is per request.
+        ...(input.publishContentDeps.authorize === undefined ? {} : { authorize: input.publishContentDeps.authorize }),
       });
       return { restorePointId, changeSetIds };
     },

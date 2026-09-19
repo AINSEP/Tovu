@@ -334,3 +334,64 @@ export function withPublishTrustAuthorize(res: Response, deps: GatewayDeps): Gat
   if (!context) return deps;
   return { ...deps, authorize: publishTrustAuthorizeFor(context) };
 }
+
+/**
+ * The same attenuation for the APPLY bag — the one `publish-content`'s registered types authorize
+ * their own writes against.
+ *
+ * ## Why this exists, and why it is not a hole in the closed capability set
+ *
+ * The gated ceremony's own `authorize` ({@link publishTrustAuthorizeFor}) deliberately denies
+ * `content.write`, because a publishing token must never be able to borrow a human's content
+ * permissions on an ordinary route. But the import's apply loop hands each entity to its type's own
+ * `apply()`, which runs `executeCommand` with that type's OWN write permission
+ * (`PublishContentHandler.permission` — `content.write` for post/page). With no attenuation there,
+ * a publish executes against RBAC as `pub:<installation>`, which resolves to nothing, and the whole
+ * ceremony fails at execute with `principal_disabled`. That is what "publishing does not work"
+ * looked like before this function existed: plan and confirm succeeded, and execute 500'd.
+ *
+ * So the grant has to be able to answer that question, and this is the narrowest form that can:
+ *
+ * - It answers ONLY for a permission that some REGISTERED publish-content type declares. The set is
+ *   owned by this codebase and computed from the registry per request; a grant cannot name a
+ *   permission, and an unregistered permission is denied here exactly as before.
+ * - It answers YES only for a type whose `entityType` the grant itself names, so a grant limited to
+ *   `post` cannot write `media` even though both declare `content.write`. The permission alone is
+ *   too coarse to express that; pairing it with the entity type is what makes it exact.
+ * - It requires `publish_content.apply`. A read-only grant authorizes no write.
+ *
+ * The blast radius is bounded twice over independently of this function: the token only resolves at
+ * all on a `PUBLISH_TRUST_ROUTES` path, and the entities that reach the apply loop can only be ones
+ * already admitted by the bundle door's own `entityTypes` check.
+ *
+ * @param typePermissions - `permission -> entityType`, from the registered contributors.
+ * @returns The ORIGINAL bag untouched when this request carries no publishing credential.
+ * @complexity O(1) per authorize call — one map lookup and one array scan of at most 2 entries.
+ */
+export function withPublishTrustContentAuthorize<
+  TAuthorize extends (params: never) => Promise<{ allowed: boolean; reason: string }>,
+  T extends { authorize?: TAuthorize },
+>(res: Response, deps: T, typePermissions: ReadonlyMap<string, string>): T {
+  const context = getPublishTrustContext(res);
+  if (!context) return deps;
+
+  const granted = publishTrustAuthorizeFor(context);
+  const authorize = async (params: { permission: string }): Promise<{ allowed: boolean; reason: string }> => {
+    const entityType = typePermissions.get(params.permission);
+    if (entityType === undefined) return granted(params);
+    const allowed =
+      context.capabilities.includes("publish_content.apply") && context.entityTypes.includes(entityType);
+    return {
+      allowed,
+      reason: allowed
+        ? `granted by the publishing grant for '${entityType}'`
+        : `this publishing grant does not cover '${entityType}'`,
+    };
+  };
+
+  // The cast is to the CALLER's own authorize signature, which this function deliberately does not
+  // depend on: it reads `permission` and nothing else, so it substitutes safely for any authorize
+  // whose parameter object carries one. `PublishTrustAuthorize`'s own doc records the same reasoning
+  // for the same reason.
+  return { ...deps, authorize: authorize as unknown as TAuthorize };
+}

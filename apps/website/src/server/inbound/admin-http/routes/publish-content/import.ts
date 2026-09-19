@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Response } from "express";
 
 import {
   authorizeForHooks,
@@ -18,7 +18,8 @@ import {
 } from "#src/features/publish-content/gated-hooks";
 import { executePublishContentImport, RestorePointUnavailableError } from "#src/features/publish-content/execute-import";
 import { gatedPrincipalKindFor, getAuthedCredentialKind, getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { withPublishTrustAuthorize } from "#src/server/inbound/admin-http/publish-trust-auth";
+import { withPublishTrustAuthorize, withPublishTrustContentAuthorize } from "#src/server/inbound/admin-http/publish-trust-auth";
+import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
 import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
 
 /**
@@ -52,14 +53,30 @@ function statusFor(err: unknown): { status: number; code: string } {
 }
 
 export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = (app: Express, deps) => {
-  function buildHooks(bundleId: string, actorId: string) {
+  /** `permission -> entityType` for every registered type, so the publishing attenuation can answer
+   *  a type's OWN write permission for exactly the types a grant names, and nothing else. Built per
+   *  request from the bag the handlers will actually run against, the same way the export route and
+   *  the planner already resolve contributors. */
+  function registeredTypePermissions(publishContentDeps: ReturnType<typeof toPublishContentDeps>): ReadonlyMap<string, string> {
+    const byPermission = new Map<string, string>();
+    for (const contributor of listPublishContentContributors()) {
+      byPermission.set(contributor.build(publishContentDeps).permission, contributor.entityType);
+    }
+    return byPermission;
+  }
+
+  function buildHooks(bundleId: string, actorId: string, res: Response) {
+    const publishContentDeps = toPublishContentDeps(deps);
     return buildPublishContentImportHooks({
       workspaceId: deps.workspaceId,
       bundleId,
       actorId,
       clock: deps.clock,
       idGen: deps.idGen,
-      publishContentDeps: toPublishContentDeps(deps),
+      // The apply loop authorizes each entity against its TYPE's own write permission. For a human
+      // that is RBAC, unchanged. For a publishing credential it has to be the grant, or the
+      // ceremony fails at execute — see `withPublishTrustContentAuthorize`'s own doc.
+      publishContentDeps: withPublishTrustContentAuthorize(res, publishContentDeps, registeredTypePermissions(publishContentDeps)),
       bundleRepo: deps.publishContentBundleRepo,
       baselineRepo: deps.publishContentBaselineRepo,
       blobStore: deps.blobStore,
@@ -82,7 +99,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         return;
       }
 
-      const hooks = buildHooks(bundleId, principal.id);
+      const hooks = buildHooks(bundleId, principal.id, res);
       const result = await plan({
         deps: withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
         principalId: principal.id,
@@ -174,7 +191,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         return;
       }
 
-      const hooks = buildHooks(bundleId, principal.id);
+      const hooks = buildHooks(bundleId, principal.id, res);
       const capabilities = await deps.dbOps.getCapabilities();
 
       const result = await executePublishContentImport({
