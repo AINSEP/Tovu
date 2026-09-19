@@ -12,6 +12,12 @@ export const WORKSPACE_ID = "workspace-local";
 
 const BASE = "/api/admin/v1";
 
+/** The peer-scoped prefix every publish-content push call hangs off — the peer is named in the PATH
+ *  (`routes/publish-content/peer-transport.ts`), never in a body, and never as a URL or credential. */
+function publishContentPeerPath(peerId: string): string {
+  return `/workspaces/${WORKSPACE_ID}/publish-content/peers/${encodeURIComponent(peerId)}`;
+}
+
 export interface AdminUser {
   id: string;
   username: string;
@@ -3998,7 +4004,7 @@ export const api = {
    *  `deployments` domain's environments/targets/releases/runs. `deployments.read`-gated. */
   getDeployments: () => request<AdminDeploymentsSnapshot>(`/workspaces/${WORKSPACE_ID}/deployments`),
 
-  // Publish Content — the plan/confirm/execute ceremony behind the Dashboard's "Publish Content"
+  // Publish Content — the peer push ceremony behind the Dashboard's "Publish Content"
   // button (`ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 11).
   // Same 3-endpoint gated-mutation shape as `planMergeTerm`/`planRestore` above; the result types
   // come from `@tovu/publish-content-ui` so this client and the server's own planner cannot hold
@@ -4010,24 +4016,23 @@ export const api = {
   listPublishContentPeers: () =>
     request<{ peers: PublishContentPeerSummary[] }>(`/workspaces/${WORKSPACE_ID}/publish-content/peers`),
   planPublishContent: ({ peerId }: { peerId: string }) =>
-    request<PublishContentPlanResult>(`/workspaces/${WORKSPACE_ID}/publish-content/push/plan`, {
-      method: "POST",
-      body: JSON.stringify({ peerId }),
-    }),
+    request<PublishContentPlanResult>(`${publishContentPeerPath(peerId)}/push/plan`, { method: "POST" }),
   confirmPublishContent: (
     { peerId, planId, planHash }: { peerId: string; planId: string; planHash: string },
     _options: Record<string, never> = {}
   ) =>
-    request<PublishContentConfirmResult>(`/workspaces/${WORKSPACE_ID}/publish-content/push/confirm`, {
+    request<PublishContentConfirmResult>(`${publishContentPeerPath(peerId)}/push/confirm`, {
       method: "POST",
-      body: JSON.stringify({ peerId, planId, planHash }),
+      body: JSON.stringify({ planId, planHash }),
     }),
+  /** `bundleId` comes from `planPublishContent`'s own response and is required: the peer's
+   *  `/import/execute` refuses a confirmation token against any bundle but the one it planned. */
   executePublishContent: (
-    { peerId, confirmationToken }: { peerId: string; confirmationToken: string },
+    { peerId, bundleId, confirmationToken }: { peerId: string; bundleId: string; confirmationToken: string },
     _options: Record<string, never> = {}
   ) =>
-    request<PublishContentExecuteResult>(`/workspaces/${WORKSPACE_ID}/publish-content/push/execute`, {
+    request<PublishContentExecuteResult>(`${publishContentPeerPath(peerId)}/push/execute`, {
       method: "POST",
-      body: JSON.stringify({ peerId, confirmationToken }),
+      body: JSON.stringify({ bundleId, confirmationToken }),
     }),
 };

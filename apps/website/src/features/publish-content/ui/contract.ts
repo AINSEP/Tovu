@@ -56,25 +56,34 @@ export interface PublishContentPeerSummary {
   readonly label: string;
   readonly baseUrl: string;
   readonly remoteWorkspaceId: string;
-  readonly masked: string;
+  /** A display hint derived from the key, never the key. `null` when the peer holds no credential. */
+  readonly masked: string | null;
   readonly hasCredential: boolean;
 }
 
-/** `POST .../publish-content/push/plan` — the shared gated-mutation envelope (`GatedPlanResult` in
- *  `apps/admin/src/lib/api.ts`) with this ceremony's own `details`. */
+/**
+ * `POST .../publish-content/peers/:peerId/push/plan` — the shared gated-mutation envelope
+ * (`GatedPlanResult` in `apps/admin/src/lib/api.ts`) with this ceremony's own `details`, spread at
+ * the top level so one client render path serves both this route and the local `/import/plan`.
+ *
+ * `bundleId` is load-bearing, not informational: the peer's `/import/execute` requires the same
+ * bundle it planned against, so the client MUST carry this value from the plan into the execute
+ * call. Losing it turns a confirmed plan into an unexecutable one.
+ */
 export interface PublishContentPlanResult {
   readonly planId: string;
   readonly planHash: string;
+  readonly bundleId: string;
   readonly details: PublishContentReport;
 }
 
-/** `POST .../publish-content/push/confirm`. The token is the ONLY thing that authorizes an
+/** `POST .../publish-content/peers/:peerId/push/confirm`. The token is the ONLY thing that authorizes an
  *  execute — see `phase.ts`. */
 export interface PublishContentConfirmResult {
   readonly confirmationToken: string;
 }
 
-/** `POST .../publish-content/push/execute` — mirrors `gated-hooks.ts`'s `executeMutation()` return.
+/** `POST .../publish-content/peers/:peerId/push/execute` — mirrors `gated-hooks.ts`'s `executeMutation()` return.
  *  `restorePointId` is what an operator needs to undo a whole bad run; `changeSetIds` is what they
  *  need to undo one entity. */
 export interface PublishContentExecuteResult {

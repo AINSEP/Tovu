@@ -21,8 +21,10 @@ import { createFakePublishContentPort } from "../hooks/publish-content-dependenc
  * in `report-rows.ts`, and `executePublish` called with a hardcoded token).
  *
  * Harness follows `Dashboard.unit.test.tsx` next door (RTL, no server), except that the network is
- * replaced at the PORT rather than at `fetch`: this dialog talks to Task 10's routes, which do not
- * exist yet, so there is no URL to mock — see `hooks/publish-content-port.hooks.ts`.
+ * replaced at the PORT rather than at `fetch`. The port seam was what let this dialog be built while
+ * Task 10's peer routes were still being written; it stays because a URL mock would assert on
+ * `lib/api.ts`'s path building rather than on the dialog's own behaviour — see
+ * `hooks/publish-content-port.hooks.ts`.
  */
 
 const t = (key: string) => key;
@@ -107,13 +109,13 @@ describe("PublishContentDialog — a conflict row is reported, never silently ap
     expect(primaryButton().textContent).toBe("Publish 1 item");
   });
 
-  it("never sends the conflicted entity anywhere — execute carries only the token", async () => {
+  it("never sends the conflicted entity anywhere — execute carries only the bundle and the token", async () => {
     const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
     const user = await planFrom(port);
 
     await user.click(primaryButton());
     await waitFor(() => expect(port.calls.executePublish).toHaveLength(1));
-    expect(port.calls.executePublish[0]).toEqual({ peerId: "peer-prod", confirmationToken: "fake-token" });
+    expect(port.calls.executePublish[0]).toEqual({ peerId: "peer-prod", bundleId: "fake-bundle", confirmationToken: "fake-token" });
   });
 });
 
@@ -156,6 +158,7 @@ describe("PublishContentDialog — execute is gated on a confirmed plan", () => 
     const port = createFakePublishContentPort({
       peers: ONE_PEER,
       report: MIXED_REPORT,
+      bundleId: "bundle-from-plan",
       confirmationToken: "tok-from-server",
       executeResult: { restorePointId: "rp-9", changeSetIds: ["cs-1", "cs-2"] },
     });
@@ -165,7 +168,9 @@ describe("PublishContentDialog — execute is gated on a confirmed plan", () => 
     await waitFor(() => expect(port.calls.executePublish).toHaveLength(1));
 
     expect(port.calls.confirmPublish).toEqual([{ peerId: "peer-prod", planId: "fake-plan", planHash: "fake-plan-hash" }]);
-    expect(port.calls.executePublish).toEqual([{ peerId: "peer-prod", confirmationToken: "tok-from-server" }]);
+    expect(port.calls.executePublish).toEqual([
+      { peerId: "peer-prod", bundleId: "bundle-from-plan", confirmationToken: "tok-from-server" },
+    ]);
     expect(await screen.findByText("Published 2 changes.")).toBeTruthy();
   });
 

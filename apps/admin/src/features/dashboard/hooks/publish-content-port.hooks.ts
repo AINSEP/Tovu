@@ -16,9 +16,9 @@ import type {
  *
  * The split earns its keep twice over here. The routes behind `planPublish`/`confirmPublish`/
  * `executePublish` are Task 10's, landing in parallel with this dialog — the fake in the
- * dependencies module is what let the whole ceremony be built and tested before a single one of
- * them existed, and a path change when they land is a one-line edit there rather than a rewrite
- * here.
+ * dependencies module is what let the whole ceremony be built and tested before a single one of them
+ * existed, and it is what made absorbing their real shape (peer in the PATH, `bundleId` carried from
+ * plan into execute) a change to `lib/api.ts` and this interface rather than to the dialog.
  *
  * ## The credential rule, restated where it is easiest to break
  *
@@ -34,6 +34,17 @@ export interface PublishContentPort {
   planPublish(input: { peerId: string }): Promise<PublishContentPlanResult>;
   /** `publish_content.apply`. Issues the one token that authorizes an execute. */
   confirmPublish(input: { peerId: string; planId: string; planHash: string }): Promise<PublishContentConfirmResult>;
-  /** `publish_content.apply`. The only call in this port that writes anything. */
-  executePublish(input: { peerId: string; confirmationToken: string }): Promise<PublishContentExecuteResult>;
+  /**
+   * `publish_content.apply`. The only call in this port that writes anything.
+   *
+   * `bundleId` comes from {@link planPublish}'s own result and is not optional: the peer's
+   * `/import/execute` refuses a confirmation token presented against any bundle but the one it
+   * planned, so the client carries the value across the ceremony rather than the server keeping
+   * implicit per-operator state between two requests.
+   */
+  executePublish(input: {
+    peerId: string;
+    bundleId: string;
+    confirmationToken: string;
+  }): Promise<PublishContentExecuteResult>;
 }

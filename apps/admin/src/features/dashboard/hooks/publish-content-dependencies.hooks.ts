@@ -34,6 +34,7 @@ export interface FakePublishContentPortOptions {
   report?: PublishContentReport;
   planId?: string;
   planHash?: string;
+  bundleId?: string;
   confirmationToken?: string;
   executeResult?: PublishContentExecuteResult;
   listPeersError?: Error;
@@ -49,7 +50,7 @@ export interface FakePublishContentPortCalls {
   readonly listPeers: number;
   readonly planPublish: Array<{ peerId: string }>;
   readonly confirmPublish: Array<{ peerId: string; planId: string; planHash: string }>;
-  readonly executePublish: Array<{ peerId: string; confirmationToken: string }>;
+  readonly executePublish: Array<{ peerId: string; bundleId: string; confirmationToken: string }>;
 }
 
 /**
@@ -77,6 +78,7 @@ export function createFakePublishContentPort(
       return {
         planId: options.planId ?? "fake-plan",
         planHash: options.planHash ?? "fake-plan-hash",
+        bundleId: options.bundleId ?? "fake-bundle",
         details: options.report ?? { refused: false, refusalReason: null, applyOrder: [], rows: [] },
       };
     },

@@ -193,7 +193,13 @@ export function usePublishContentConfirm(props: {
     setPhase({ kind: "executing", plan, confirmationToken: executionToken });
     void (async () => {
       try {
-        const result = await port.executePublish({ peerId: selectedPeerId, confirmationToken: executionToken });
+        // `plan.bundleId` travels from the plan response into the execute call — the peer refuses a
+        // token presented against any bundle but the one it planned.
+        const result = await port.executePublish({
+          peerId: selectedPeerId,
+          bundleId: plan.bundleId,
+          confirmationToken: executionToken,
+        });
         if (!live.current) return;
         setPhase({ kind: "done", result });
       } catch (error) {
