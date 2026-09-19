@@ -308,13 +308,27 @@ export function rejectUnlessSessionCredential(
   return false;
 }
 
-/** Express middleware factory: reject unauthenticated /api/admin requests; attach the principal. */
+/**
+ * Express middleware factory: reject unauthenticated /api/admin requests; attach the principal.
+ *
+ * Steps aside for a request `publish-trust-auth.ts`'s `requirePublishTrust` already resolved. That
+ * gate mounts immediately before this one and only ever reaches `next()` with a credential
+ * attached when it has verified the token's MAC, its audience, its expiry, its grant AND that the
+ * request is on a route `grant.ts`'s `PUBLISH_TRUST_ROUTES` names — so by the time this sees the
+ * marker, every check this middleware would perform has a stricter counterpart that already ran.
+ * `res.locals` is server-side and per-request: no client can set the marker.
+ */
 export function requireAdminSession(deps: SessionAuthDeps) {
   return async function requireAdminSessionMiddleware(
     req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> {
+    if (res.locals.authCredentialKind === "publish_key") {
+      next();
+      return;
+    }
+
     const credential = await currentCredential(deps, req);
     if (!credential) {
       res.status(401).json({ error: "unauthenticated", code: "UNAUTHENTICATED" });

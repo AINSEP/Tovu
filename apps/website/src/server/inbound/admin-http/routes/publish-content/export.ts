@@ -1,5 +1,6 @@
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import { packAuthorizedEntities } from "#src/features/publish-content/export-bundle";
 import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
@@ -53,6 +54,25 @@ export const registerPublishContentExportRoute: PublishContentRouteRegistrar = (
 
     try {
       const principal = getAuthedPrincipal(res);
+
+      // A publishing credential is refused here, loudly, even though it holds
+      // `publish_content.read`. The route-level gate is not the only check this handler applies:
+      // `packAuthorizedEntities` below ALSO asks for each registered type's own write permission
+      // (this file's header, "Two DIFFERENT permission checks"), and a per-type denial omits that
+      // type and continues rather than failing. A publishing grant's capability set is closed and
+      // cannot contain `content.write` (`features/publish-trust/grant.ts`), so every type would be
+      // omitted and the caller would receive a well-formed bundle containing NOTHING — a silently
+      // wrong answer, which is worse than a refusal. Pull-by-publishing-credential needs the
+      // per-type gate to be answerable from the grant's `entityTypes`; until it is, this says so.
+      if (getPublishTrustContext(res)) {
+        res.status(403).json({
+          error: "a publishing credential cannot export from this site",
+          code: "FORBIDDEN",
+          details: { permission: "publish_content.read", reason: "publish_trust_export_not_wired" },
+        });
+        return;
+      }
+
       if (
         !(await authorizeOrRespond(res, deps.authorize, {
           principalId: principal.id,

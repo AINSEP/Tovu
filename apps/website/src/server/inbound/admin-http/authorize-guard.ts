@@ -1,6 +1,7 @@
 import type { Response } from "express";
 
 import type { RouteDeps } from "#src/server/routes/types";
+import { getPublishTrustContext, publishTrustAuthorizeFor } from "./publish-trust-auth.js";
 
 /**
  * @file Shared `authorize()`-then-403 response helper (SPEC-006 admin RBAC gate).
@@ -35,6 +36,14 @@ export interface AuthorizeGuardParams {
  * `false`. Returns `true` when the caller is authorized (nothing written to `res` — the route
  * continues its own logic). Callers must `return` immediately when this resolves `false`.
  *
+ * **One exception, and it is the reason this takes `res` rather than just the two things it
+ * writes:** when the request authenticated with a publishing credential
+ * (`publish-trust-auth.ts`), the answer comes from that grant's closed capability set instead of
+ * RBAC. Doing it HERE rather than at each route is deliberate — a publishing token must never be
+ * able to inherit a human's permissions, and 125+ call sites already funnel through this one
+ * function, so the property cannot be lost by a route that forgets to ask. Every other request is
+ * untouched: `getPublishTrustContext` returns `null` and the original `authorize` runs.
+ *
  * @complexity O(1) — one `authorize()` call, one branch.
  */
 export async function authorizeOrRespond(
@@ -42,7 +51,9 @@ export async function authorizeOrRespond(
   authorize: RouteDeps["authorize"],
   params: AuthorizeGuardParams
 ): Promise<boolean> {
-  const authResult = await authorize(params);
+  const publishTrust = getPublishTrustContext(res);
+  const effectiveAuthorize = publishTrust ? publishTrustAuthorizeFor(publishTrust) : authorize;
+  const authResult = await effectiveAuthorize(params);
   if (!authResult.allowed) {
     res.status(403).json({
       error: `principal '${params.principalId}' is not authorized for '${params.permission}' (${authResult.reason})`,

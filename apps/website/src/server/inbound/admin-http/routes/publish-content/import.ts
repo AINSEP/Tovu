@@ -18,6 +18,7 @@ import {
 } from "#src/features/publish-content/gated-hooks";
 import { executePublishContentImport, RestorePointUnavailableError } from "#src/features/publish-content/execute-import";
 import { gatedPrincipalKindFor, getAuthedCredentialKind, getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { withPublishTrustAuthorize } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
 
 /**
@@ -83,7 +84,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
 
       const hooks = buildHooks(bundleId, principal.id);
       const result = await plan({
-        deps: deps.gatedMutations.gatewayDeps,
+        deps: withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
         principalId: principal.id,
         principalKind: gatedPrincipalKindFor(getAuthedCredentialKind(res)),
         hooks: hooks as unknown as GatedMutationHooks<unknown, unknown>,
@@ -117,7 +118,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       });
 
       const record = await confirm({
-        deps: deps.gatedMutations.gatewayDeps,
+        deps: withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
         principalId: principal.id,
         // Reports the credential that actually authenticated this request rather than the literal
         // `"user"` this used to pass for every caller: a session is a human, an api_key is a peer
@@ -156,7 +157,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       // workspace's restore-point capability at all. `gateway.execute()`'s own fresh authorize()
       // (CIC U-001) remains the authoritative check and is unchanged by this.
       const preCheck = await authorizeForHooks(
-        deps.gatedMutations.gatewayDeps,
+        withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
         buildConfirmOnlyHooks({
           domain: "publish_content.import",
           readPermission: "publish_content.read",
@@ -181,7 +182,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         costClass: capabilities.restorePoint.costClass,
         gatewayExecute: () =>
           execute({
-            deps: deps.gatedMutations.gatewayDeps,
+            deps: withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
             principalId: principal.id,
             principalKind: gatedPrincipalKindFor(getAuthedCredentialKind(res)),
             hooks: hooks as unknown as GatedMutationHooks<unknown, { restorePointId: string; changeSetIds: readonly string[] }>,

@@ -1,5 +1,10 @@
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
+import { requirePublishTrust } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { registerHealthRoute, registerHealthzRoute, registerReadyzRoute } from "#src/server/inbound/public-http/routes/ops/health";
+import { registerPublishTrustHandshakeRoutes } from "#src/server/inbound/public-http/routes/publish-trust/handshake";
+import { InMemoryPublishChallengeStore } from "#src/features/publish-trust/challenge";
+import { deriveInstallationId } from "#src/features/publish-trust/keys";
+import { createPublishTrustGrantResolver } from "../publish-trust-grants.js";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -29,6 +34,17 @@ import type { ServerModuleHandle } from "./types.js";
  * because `RouteDeps` is a strict superset of `SessionAuthDeps`.
  */
 export function createCoreModule(deps: RouteDeps): ServerModuleHandle {
+  // This install's own publishing identity — the audience every publishing token must name.
+  // Derived once per process rather than per request: it is a pure function of the root key and
+  // the workspace, so it cannot change while the process runs. Awaited inside each consumer, so a
+  // slow keyring delays the first handshake rather than boot.
+  const targetInstallationId = deriveInstallationId({
+    keyring: deps.siteAssistantSecretKeyring,
+    workspaceId: deps.workspaceId,
+  });
+  const challengeStore = new InMemoryPublishChallengeStore(deps.clock);
+  const grants = createPublishTrustGrantResolver();
+
   return {
     name: "core",
     registerRoutes: (app) => {
@@ -36,10 +52,36 @@ export function createCoreModule(deps: RouteDeps): ServerModuleHandle {
       registerHealthzRoute(app);
       registerReadyzRoute(app);
 
+      // Unauthenticated by design and deliberately NOT under `/api/admin`: a source that has not
+      // yet proved possession has no credential to present. See `handshake.ts`'s own header for
+      // what `/identity` discloses and why that is acceptable.
+      registerPublishTrustHandshakeRoutes(app, {
+        keyring: deps.siteAssistantSecretKeyring,
+        workspaceId: deps.workspaceId,
+        clock: deps.clock,
+        idGen: deps.idGen,
+        challengeStore,
+        targetInstallationId,
+        grants,
+      });
+
       // Order is load-bearing: `registerAuthRoutes` registers the ungated
       // `POST /api/admin/v1/auth/login` (plus logout/me) route BEFORE the
       // gate below mounts, so login itself is never caught by its own gate.
       registerAuthRoutes(app, deps);
+
+      // Order is load-bearing here too, and in the other direction: the publishing gate runs
+      // BEFORE the admin session gate, because a publishing token is presented in the same
+      // `Authorization` header an API key uses and only this gate can tell them apart. It leaves
+      // every request it does not recognise completely untouched, so the session gate behind it
+      // behaves exactly as it did before.
+      app.use("/api/admin", requirePublishTrust({
+        keyring: deps.siteAssistantSecretKeyring,
+        workspaceId: deps.workspaceId,
+        clock: deps.clock,
+        targetInstallationId,
+        grants,
+      }));
       app.use("/api/admin", requireAdminSession(deps));
     },
   };
