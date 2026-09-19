@@ -39,15 +39,23 @@ import type { PublishContentDeps, PackedEntity } from "./type-registry.js";
  * `DbOpsPort.captureRestorePoint` and persists it through `restorePointsRepo`, BEFORE any write this
  * run might make (plan §4 task 7's own instruction); (2) re-derives the report and hands it to
  * {@link PublishContentApplyPort.applyReport}. This file owns (1) and the wiring in (2); it does
- * NOT own what happens inside `applyReport` — that is Task 8's apply loop (per-type ordering,
- * ~200-entity chunks, one transaction per chunk, `executeCommand` + `expectedVersion`, baseline
- * upserts). The default binding this file ships, {@link createNotYetImplementedPublishContentApplyPort},
- * throws {@link PublishContentApplyNotImplementedError} unconditionally — the same "throw loudly
- * rather than fake a write" discipline `features/post/publish-content.ts`'s own `apply()` stub
- * already uses, for the identical reason: a caller that reaches this before Task 8 lands gets an
- * immediate, unambiguous failure, never a silent no-op reported as success. Task 8 replaces the
- * COMPOSITION-ROOT BINDING of `applyPort` with a real implementation; it should not need to touch
- * this file's `executeMutation()` body at all.
+ * NOT own what happens inside `applyReport` — that is Task 8's apply loop
+ * (`features/publish-content/apply-loop.ts`: per-type ordering, ~200-entity chunks, `executeCommand`
+ * + `expectedVersion`, baseline upserts). The default binding this file ships, {@link
+ * createNotYetImplementedPublishContentApplyPort}, throws {@link PublishContentApplyNotImplementedError}
+ * unconditionally for any composition root that has not yet rebound `publishContentApplyPort` to a
+ * real implementation — the same "throw loudly rather than fake a write" discipline
+ * `features/post/publish-content.ts`'s own (now-implemented) `apply()` originally used the stub for.
+ *
+ * **Task 8 addendum (2026-09-18):** the ORIGINAL seam here was too narrow to actually apply
+ * anything — `applyReport({report, principalId})` alone gives a real apply port no way to reload the
+ * staged bundle's packed entities or its `sourcePrincipalId` (the baseline peer key, plan §5 risk
+ * #9 — never the executing operator's id). `applyReport`'s input is widened below with `bundleId`/
+ * `restorePointId`, both already free in this function's own closure/locals, so a real apply port
+ * can call `loadActiveBundle` itself rather than `TransportReport` growing an apply-time-only field.
+ * This is the one disclosed, necessary touch to this file Task 8 makes — see
+ * `apply-loop.ts`'s own header for why threading raw entities through the report instead would have
+ * leaked apply-time concerns into Task 5's planner.
  *
  * ## Restore-point cost-class refusal lives OUTSIDE this file
  *
@@ -107,9 +115,18 @@ export class PublishContentApplyNotImplementedError extends Error {
  * Task 8's seam: applies an already-computed, already-authorized {@link PublishContentReport}. Never
  * called by anything in this file except `executeMutation()`, and never before the restore point is
  * captured (see this file's header).
+ *
+ * `bundleId`/`restorePointId` (2026-09-18, this file's "Task 8 addendum" above) let a real
+ * implementation (`apply-loop.ts`) reload the staged bundle itself — the report alone does not carry
+ * enough to apply anything (no packed entity state, no source principal id).
  */
 export interface PublishContentApplyPort {
-  applyReport(input: { report: PublishContentReport; principalId: string }): Promise<{ changeSetIds: readonly string[] }>;
+  applyReport(input: {
+    report: PublishContentReport;
+    principalId: string;
+    bundleId: string;
+    restorePointId: string;
+  }): Promise<{ changeSetIds: readonly string[] }>;
 }
 
 /**
@@ -235,7 +252,12 @@ export function buildPublishContentImportHooks(
       // re-run `computePlan()` and hash-compared it moments ago (CIC U-001-B3), so this is
       // guaranteed consistent with what was just verified, not a second independent judgment call.
       const report = await buildReport();
-      const { changeSetIds } = await input.applyPort.applyReport({ report, principalId: input.actorId });
+      const { changeSetIds } = await input.applyPort.applyReport({
+        report,
+        principalId: input.actorId,
+        bundleId: input.bundleId,
+        restorePointId,
+      });
       return { restorePointId, changeSetIds };
     },
     resolveActorClassIdentity,

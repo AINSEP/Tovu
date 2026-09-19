@@ -1,4 +1,5 @@
 import type { BeforeSaveHookPort, PostRepoPort } from "#src/features/post/post";
+import type { AssetBlobRepoPort, BlobStorePort, MediaRepoPort } from "#src/features/media/index";
 import type { AuthorizeFn, ChangeSetRepoPort, ClockPort, OutboxPort } from "@jini-ai/cms/core";
 
 /**
@@ -99,6 +100,20 @@ export interface PublishContentDeps {
    */
   readonly changeSets?: ChangeSetRepoPort;
   readonly authorize?: AuthorizeFn;
+  /**
+   * Task 12 (plan §4 task 12) — `media`'s own ports, widening this bag for the first non-`post`/
+   * `page` contributor (this interface's own header, "`PublishContentDeps` — deliberately narrow
+   * today, meant to grow", anticipates exactly this). All three arrive together (one type's real
+   * deps, not three independently-optional knobs) and stay OPTIONAL for the identical reason
+   * {@link outbox}/{@link beforeSaveHook}/{@link changeSets} already are: every existing
+   * `PublishContentDeps` builder that has no use for media stays unchanged, and
+   * `features/media/publish-content.ts`'s `pack`/`inspect`/`precheck` degrade to "nothing to
+   * report" rather than throwing when absent (see that file's own doc). `apply()` there is not
+   * wired to these yet regardless of whether they are present — see its own doc for why.
+   */
+  readonly mediaRepo?: MediaRepoPort;
+  readonly assetBlobRepo?: AssetBlobRepoPort;
+  readonly blobStore?: BlobStorePort;
 }
 
 /**
