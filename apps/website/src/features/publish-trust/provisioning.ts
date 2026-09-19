@@ -212,23 +212,34 @@ export interface PublishTrustResolution {
   readonly reason: string | null;
 }
 
+/** The ONLY constructor that puts grants in a resolution, which is what makes "nothing but
+ *  `configured` can authorise anything" a property of the type rather than of a guard someone has
+ *  to remember to write.
+ *  @complexity O(1). */
+function configured(origin: "env" | "file", grants: readonly PublishTrustGrant[]): PublishTrustResolution {
+  return { state: "configured", origin, grants, reason: null };
+}
+
 /** @complexity O(1). */
-function resolution(
-  state: PublishTrustState,
+function withoutGrants(
+  state: Exclude<PublishTrustState, "configured">,
   origin: PublishTrustResolution["origin"],
-  grants: readonly PublishTrustGrant[],
   reason: string | null = null
 ): PublishTrustResolution {
-  return { state, origin, grants: state === "configured" ? grants : [], reason };
+  return { state, origin, grants: [], reason };
 }
 
 /** @complexity O(n) in the document's grant count. */
-function resolveText(text: string, origin: "env" | "file", emptyState: PublishTrustState): PublishTrustResolution {
-  if (text.trim().length === 0) return resolution(emptyState, origin, []);
+function resolveText(
+  text: string,
+  origin: "env" | "file",
+  emptyState: Exclude<PublishTrustState, "configured">
+): PublishTrustResolution {
+  if (text.trim().length === 0) return withoutGrants(emptyState, origin);
   const parsed = parseGrantDocument(text);
-  if (!parsed.ok) return resolution("invalid", origin, [], parsed.reason);
-  if (parsed.grants.length === 0) return resolution("revoked", origin, []);
-  return resolution("configured", origin, parsed.grants);
+  if (!parsed.ok) return withoutGrants("invalid", origin, parsed.reason);
+  if (parsed.grants.length === 0) return withoutGrants("revoked", origin);
+  return configured(origin, parsed.grants);
 }
 
 /**
@@ -260,14 +271,16 @@ export function resolvePublishTrust(input: {
 }): PublishTrustResolution {
   if (input.envValue !== undefined) return resolveText(input.envValue, "env", "revoked");
   if (input.fileContents !== null) return resolveText(input.fileContents, "file", "absent");
-  return resolution("absent", "none", []);
+  return withoutGrants("absent", "none");
 }
 
 /**
  * The grant for one source, or `null`.
  *
- * Returns `null` for every state but `configured`, so an `invalid` or `revoked` document can never
- * authorise anything through this accessor.
+ * The `state` check guards the MODULE BOUNDARY, not this file's own paths: {@link resolvePublishTrust}
+ * already cannot produce grants outside `configured`. It is here because callers — a middleware, a
+ * test double — build `PublishTrustResolution` values of their own, and a caller who sets a
+ * plausible-looking `state: "invalid"` beside a leftover `grants` array must still be refused.
  *
  * @complexity O(n) in the resolved grant count.
  */

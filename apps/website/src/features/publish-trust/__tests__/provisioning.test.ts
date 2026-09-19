@@ -4,7 +4,7 @@ import test from "node:test";
 import type { PublishTrustGrant } from "../grant.js";
 import { PUBLISH_TRUST_GRANT_VERSION } from "../grant.js";
 import { FLY_TOML_CODEC } from "../provisioning.fly-toml.js";
-import type { ProvisioningEvent, ProvisioningFileIo } from "../provisioning.js";
+import type { ProvisioningEvent, ProvisioningFileIo, PublishTrustResolution } from "../provisioning.js";
 import {
   COMMITTED_JSON_CODEC,
   createFileProvisioning,
@@ -152,6 +152,18 @@ test("findGrantForSource refuses every state but configured", () => {
   const revoked = resolvePublishTrust({ envValue: "", fileContents: JSON.stringify([grantFor("laptop")]) });
   assert.equal(revoked.state, "revoked");
   assert.equal(findGrantForSource(revoked, "laptop"), null);
+});
+
+test("a hand-built resolution cannot smuggle grants past a non-configured state", () => {
+  // resolvePublishTrust can never produce this, but a middleware or a test double can — and a
+  // leftover grants array beside a state that says "do not trust me" must still be refused.
+  const smuggled: PublishTrustResolution = {
+    state: "invalid",
+    origin: "env",
+    grants: [grantFor("laptop")],
+    reason: "held over from a previous read",
+  };
+  assert.equal(findGrantForSource(smuggled, "laptop"), null);
 });
 
 test("a configured install resolves the right source's grant and only that one", () => {
@@ -335,6 +347,20 @@ test("the grant survives a fly.toml round trip, quoting and all", async () => {
 
   assert.equal(read.ok, true);
   assert.deepEqual(read.ok ? read.grants[0].entityTypes : [], ['post"with\\quotes']);
+});
+
+test("a value ending in a backslash survives the fly.toml round trip", async () => {
+  // The escape sequences a decoder is most likely to mis-pair: a backslash run running straight
+  // into the quote that closes the TOML string.
+  const io = memoryIo({ "/repo/fly.toml": FLY_TOML });
+  const port = createFileProvisioning({ io, codec: FLY_TOML_CODEC, path: "/repo/fly.toml" });
+  const awkward = ["ends-with-backslash\\\\", '\\\\"leading-escaped-quote', "a\\\\\\\\b"];
+
+  await port.connect({ grant: grantFor("laptop", { entityTypes: awkward }) });
+  const read = await port.readProvisioned();
+
+  assert.equal(read.ok, true);
+  assert.deepEqual(read.ok ? read.grants[0].entityTypes : [], awkward);
 });
 
 test("a second Fly provisioning replaces the assignment instead of adding a duplicate key", async () => {

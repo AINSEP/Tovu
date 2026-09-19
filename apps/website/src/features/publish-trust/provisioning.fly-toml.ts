@@ -47,8 +47,11 @@ function escapeBasicString(value: string): string {
 /**
  * Reverses {@link escapeBasicString}.
  *
- * Scans once rather than chaining two `replace` calls: `\\"` unescaped by two passes becomes an
- * unbalanced quote, because the second pass sees the backslash the first pass produced.
+ * A single left-to-right scan, because an escape sequence is decided by the character that follows
+ * a backslash and nothing else. Two chained `replace` passes happen to agree with this one for
+ * everything {@link escapeBasicString} emits — that was checked, not assumed — but only because of
+ * how backslash runs pair up, which is an argument that has to be re-derived every time someone
+ * reads it. The scan needs no such argument.
  *
  * @complexity O(n) in the value length.
  */
