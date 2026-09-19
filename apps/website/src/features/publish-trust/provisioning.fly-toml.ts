@@ -29,6 +29,9 @@ const ENV_TABLE_HEADER = /^\s*\[env\]\s*$/;
 
 const ASSIGNMENT = new RegExp(`^\\s*${PUBLISH_TRUST_ENV_VAR}\\s*=`);
 
+/** Any `key = value` line, used to place a new assignment beside its siblings. */
+const ANY_ASSIGNMENT = /^\s*[A-Za-z_][A-Za-z0-9_-]*\s*=/;
+
 /** TOML basic strings may not carry raw control characters. `JSON.stringify` never emits one, so
  *  seeing one means the document did not come from this feature — refuse rather than emit a file
  *  that no TOML parser will accept. */
@@ -133,8 +136,27 @@ function encode(input: { readonly fileContents: string | null; readonly document
     return { ok: true as const, contents: next.join("\n") };
   }
   const next = [...lines];
-  next.splice(span.end, 0, assignment);
+  next.splice(insertionPoint(lines, span), 0, assignment);
   return { ok: true as const, contents: next.join("\n") };
+}
+
+/**
+ * Where a NEW assignment goes inside `[env]`: straight after the last existing one.
+ *
+ * Not at the end of the table's span, which is what a first version did — and what the real
+ * `fly.toml` exposed. Comments trailing a table belong to it syntactically, so a key appended at
+ * the span's end lands underneath the `[[mounts]]` explanation and reads as part of it. TOML does
+ * not care; the next person to edit that comment block does.
+ *
+ * @returns The line index to splice at. An `[env]` table holding only comments gets the assignment
+ *   directly under its header.
+ * @complexity O(n) in the table's line count.
+ */
+function insertionPoint(lines: readonly string[], span: { readonly start: number; readonly end: number }): number {
+  for (let i = span.end - 1; i >= span.start; i -= 1) {
+    if (ANY_ASSIGNMENT.test(lines[i])) return i + 1;
+  }
+  return span.start;
 }
 
 /** Fly: the grant lives in `fly.toml`'s committed `[env]` table, on one line. */

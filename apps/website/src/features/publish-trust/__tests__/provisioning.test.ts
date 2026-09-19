@@ -374,6 +374,34 @@ test("a second Fly provisioning replaces the assignment instead of adding a dupl
   assert.equal(occurrences.length, 1, "a duplicate TOML key makes the file unparseable");
 });
 
+test("a new assignment lands beside the other env keys, not under a trailing comment", () => {
+  // The real fly.toml ends its [env] table with a comment block explaining [[mounts]]. Appending
+  // at the end of the table's span put the grant inside that explanation.
+  const withTrailingComment = [
+    "[env]",
+    '  PORT = "3000"',
+    "",
+    "# This comment introduces the mount below, not the env table above.",
+    "[[mounts]]",
+    '  source = "tovu_sites"',
+    "",
+  ].join("\n");
+
+  const encoded = FLY_TOML_CODEC.encode({ fileContents: withTrailingComment, document: "[]" });
+  const lines = (encoded.ok ? encoded.contents : "").split("\n");
+  const at = lines.findIndex((l) => l.includes(PUBLISH_TRUST_ENV_VAR));
+
+  assert.ok(at > 0, "the assignment must be written");
+  assert.match(lines[at - 1], /PORT/, "it belongs directly after the last env assignment");
+  assert.equal(FLY_TOML_CODEC.decode(encoded.ok ? encoded.contents : ""), "[]");
+});
+
+test("an [env] table holding only comments still gets the assignment", () => {
+  const commentsOnly = ["[env]", "# nothing set yet", "", "[[mounts]]", ""].join("\n");
+  const encoded = FLY_TOML_CODEC.encode({ fileContents: commentsOnly, document: "[]" });
+  assert.equal(FLY_TOML_CODEC.decode(encoded.ok ? encoded.contents : ""), "[]");
+});
+
 test("a same-named key outside [env] is not mistaken for the grant", () => {
   const decoy = [`[build]`, `  ${PUBLISH_TRUST_ENV_VAR} = "not-the-one"`, "", "[env]", ""].join("\n");
   assert.equal(FLY_TOML_CODEC.decode(decoy), null, "only an assignment inside [env] reaches the deployed process");
