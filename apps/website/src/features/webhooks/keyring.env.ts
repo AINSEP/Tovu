@@ -15,6 +15,13 @@ import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
  * signing secret itself (ADR-024 secret invariant, ADR-036 §5) — only the *root* key material is
  * held, and every signing secret is re-derived via HKDF on demand from it.
  *
+ * ## One thing, three names
+ * The admin UI's Security page calls this the **"Site Token"**; this codebase calls it the **root
+ * key**; the environment variable is **`TOVU_INTEGRATIONS_ROOT_KEY`**. They are the same secret.
+ * Reading two names as two mechanisms has already cost real time here, so do not go looking for a
+ * separate "site token" — `features/identity/site-token-permission.ts` and
+ * `server/inbound/admin-http/routes/system/site-token.ts` both manage exactly this key.
+ *
  * How it relates to the project:
  * - Root key resolution order: `TOVU_INTEGRATIONS_ROOT_KEY` env var (hex-encoded) first; else a
  *   generated key file. In LOCAL mode that file stays at `~/.tovu/` (outside the portable
