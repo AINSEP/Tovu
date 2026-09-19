@@ -1,5 +1,6 @@
 import type { OriginRegistryPort, VerifiedOrigin } from "../origin/index.js";
 import { OriginNotVerifiedError } from "../origin/index.js";
+import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
 
 /**
  * @file `toAbsoluteUrl`/`resolveWorkspaceOrigin` — the one seam that joins a workspace's verified
@@ -77,14 +78,36 @@ export function toAbsoluteUrl(origin: VerifiedOrigin | undefined, path: string):
  * precondition on `canonicalOrigin`, not a bug). Any OTHER error is a real registry failure and is
  * rethrown rather than silently swallowed into the same degraded path.
  *
+ * 2026-09-18 production sitemap fix: a `dev-capability`-sourced origin (always `http://localhost`,
+ * per `origin/types.ts`'s own invariant) is ALSO degraded to `undefined` whenever this process is
+ * running in production (`resolveRuntimeMode() === "production"`, which `fly.toml` sets). Root
+ * cause this guards against: `server/runtime/composition/deps.ts`'s `seedDevCapabilityOrigin` call
+ * is the origin registry's only writer (`origin-repo.sqlite.ts`'s file header — "no admin route or
+ * verification flow exists yet to let an operator register a real production origin") and runs
+ * unconditionally on every boot, including the Fly deployment's. Its first boot durably persisted
+ * `http://localhost:3000` into `content.db`'s `origin_settings` table, and its own idempotent
+ * find-or-create contract (by design, so a future real registration is never clobbered) means that
+ * row survives every later boot too — it can never self-correct on its own. Every public SEO
+ * document (`sitemap.xml`, `robots.txt`'s `Sitemap:` line, `canonical`, `og:url`, `og:image`) goes
+ * through this one seam, so this is the one place that must refuse to let that row leak into a
+ * document served to real crawlers. Degrading here reuses the SAME pre-existing "no verified
+ * origin" relative-path fallback `toAbsoluteUrl` already had — never a fabricated origin, per
+ * INV-07. Outside production (local dev, tests), a `dev-capability` origin still resolves as
+ * before — its entire purpose is to let a dev server exercise absolute-URL code paths.
+ *
+ * @param mode - Defaults to `resolveRuntimeMode`; injectable for tests, mirroring
+ * `root-key-boot-notice.ts`'s `RootKeyBootNoticeDeps.mode` convention.
  * @complexity O(1) plus one `canonicalOrigin` lookup.
  */
 export async function resolveWorkspaceOrigin(
   originRegistry: OriginRegistryPort,
-  workspaceId: string
+  workspaceId: string,
+  mode: () => RuntimeMode = resolveRuntimeMode
 ): Promise<VerifiedOrigin | undefined> {
   try {
-    return await originRegistry.canonicalOrigin({ workspaceId });
+    const origin = await originRegistry.canonicalOrigin({ workspaceId });
+    if (origin.source === "dev-capability" && mode() === "production") return undefined;
+    return origin;
   } catch (err) {
     if (err instanceof OriginNotVerifiedError) return undefined;
     throw err;

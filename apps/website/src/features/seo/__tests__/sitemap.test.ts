@@ -95,6 +95,34 @@ test("buildSitemap: with a verified origin, entries' loc is absolute (2026-09-03
   assert.equal(entries[0]!.loc, "https://example.test/published-visible");
 });
 
+// 2026-09-18 production bug (reproduced live on tovu.fly.dev via WebFetch before this fix):
+// `seedDevCapabilityOrigin` (server/runtime/composition/deps.ts) durably persisted
+// `http://localhost:3000` as the registered origin on Fly's first boot, and every sitemap entry's
+// `loc` inherited it verbatim -- exactly the shape asserted as the (pre-fix) wrong value below.
+// `resolveWorkspaceOrigin` (absolute-url.ts) now degrades a dev-capability origin to "unverified"
+// under production runtime mode, so `buildSitemap` must fall back to the pre-existing bare-relative-
+// path behavior instead, never a localhost URL.
+test("buildSitemap: a dev-capability localhost origin never leaks into loc when running in production (regression pin, 2026-09-18)", async () => {
+  const originalMode = process.env.TOVU_RUNTIME_MODE;
+  process.env.TOVU_RUNTIME_MODE = "production";
+  try {
+    const deps = await makeDeps([post({ id: "a", slug: "published-visible", status: "published" })], {
+      scheme: "http",
+      host: "localhost",
+      port: 3000,
+      verifiedAt: "2026-07-16T00:00:00.000Z",
+      source: "dev-capability",
+    });
+    const entries = await buildSitemap(deps, { workspaceId: WORKSPACE });
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0]!.loc, "/published-visible", "must degrade to the bare relative path, never http://localhost:3000/published-visible");
+    assert.ok(!entries[0]!.loc.includes("localhost"), "sitemap loc must never contain the dev-capability localhost origin in production");
+  } finally {
+    if (originalMode === undefined) delete process.env.TOVU_RUNTIME_MODE;
+    else process.env.TOVU_RUNTIME_MODE = originalMode;
+  }
+});
+
 test("buildSitemap: excludes drafts and effective-noindex entries, includes only eligible published entries (AC-16/17)", async () => {
   const deps = await makeDeps([
     post({ id: "a", slug: "published-visible", status: "published" }),

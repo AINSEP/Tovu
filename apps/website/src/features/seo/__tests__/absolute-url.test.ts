@@ -90,3 +90,36 @@ test("resolveWorkspaceOrigin: any OTHER error is rethrown, not silently swallowe
     /registry is down/
   );
 });
+
+const DEV_CAPABILITY_ORIGIN: VerifiedOrigin = {
+  scheme: "http",
+  host: "localhost",
+  port: 3000,
+  verifiedAt: "2026-07-16T00:00:00.000Z",
+  source: "dev-capability",
+};
+
+// 2026-09-18 production sitemap fix (reproduced live on tovu.fly.dev): `seedDevCapabilityOrigin`
+// (server/runtime/composition/deps.ts) unconditionally persists `http://localhost:3000` as the
+// registered origin on first boot, including in production, and its idempotent find-or-create
+// contract means that row is never overwritten by a later boot. Without this guard, every public
+// SEO document built from it — sitemap.xml chief among them — leaks that dev origin to real
+// crawlers forever.
+test("resolveWorkspaceOrigin: a dev-capability origin (http://localhost:3000) degrades to undefined in production runtime mode -- must never leak into a public SEO URL", async () => {
+  const result = await resolveWorkspaceOrigin(
+    fakeOriginRegistry(DEV_CAPABILITY_ORIGIN),
+    "workspace-1",
+    () => "production"
+  );
+  assert.equal(result, undefined);
+});
+
+test("resolveWorkspaceOrigin: a dev-capability origin still resolves normally outside production (local mode, unchanged pre-existing behavior)", async () => {
+  const result = await resolveWorkspaceOrigin(fakeOriginRegistry(DEV_CAPABILITY_ORIGIN), "workspace-1", () => "local");
+  assert.deepEqual(result, DEV_CAPABILITY_ORIGIN);
+});
+
+test("resolveWorkspaceOrigin: a real workspace-setting origin is never degraded by production mode", async () => {
+  const result = await resolveWorkspaceOrigin(fakeOriginRegistry(ORIGIN), "workspace-1", () => "production");
+  assert.deepEqual(result, ORIGIN);
+});
