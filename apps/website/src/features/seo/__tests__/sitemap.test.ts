@@ -4,7 +4,14 @@ import test from "node:test";
 import { InMemoryPostRepo, type PostRecord } from "../../post/index.js";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
-import { OriginNotVerifiedError, type OriginRegistryPort } from "../../origin/index.js";
+import {
+  OriginNotVerifiedError,
+  OriginRegistry,
+  resolveConfiguredOrigin,
+  type OriginRegistryPort,
+} from "../../origin/index.js";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { registerConfiguredOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
 import { ensureSeoSettingDefinitions } from "../settings.js";
 import { buildSitemap, invalidateSitemapCache } from "../sitemap.js";
 
@@ -121,6 +128,59 @@ test("buildSitemap: a dev-capability localhost origin never leaks into loc when 
     if (originalMode === undefined) delete process.env.TOVU_RUNTIME_MODE;
     else process.env.TOVU_RUNTIME_MODE = originalMode;
   }
+});
+
+/**
+ * Prod-shaped end-to-end pair (2026-09-18; design note:
+ * `ADS-memory/reports/2026-09-18-public-origin-registration-design.md`). No fake origin registry —
+ * the REAL chain, under `TOVU_RUNTIME_MODE=production`:
+ *
+ *   TOVU_PUBLIC_URL -> resolveConfiguredOrigin -> registerConfiguredOrigin -> real sqlite row
+ *                   -> SqliteOriginSettingRepo -> OriginRegistry -> resolveWorkspaceOrigin
+ *                   -> buildSitemap
+ *
+ * Every other origin assertion in this file stubs `canonicalOrigin`, which cannot catch a break in
+ * the registration or persistence half — and the registration half is exactly what did not exist
+ * before this change. `:memory:` DB only; nothing here touches a real site's content.db.
+ */
+async function sitemapFromRegisteredOrigin(configuredUrl: string | undefined) {
+  const db = openContentDb(":memory:");
+  const configured = resolveConfiguredOrigin(
+    { now: "2026-09-18T00:00:00.000Z" },
+    { env: configuredUrl === undefined ? {} : { TOVU_PUBLIC_URL: configuredUrl }, warn: () => {} }
+  );
+  if (configured) registerConfiguredOrigin({ db, workspaceId: WORKSPACE, origin: configured });
+
+  const deps = {
+    ...(await makeDeps([post({ id: "a", slug: "published-visible", status: "published" })])),
+    originRegistry: new OriginRegistry({ repo: new SqliteOriginSettingRepo(db) }),
+  };
+  return buildSitemap(deps, { workspaceId: WORKSPACE });
+}
+
+async function inProductionMode<T>(run: () => Promise<T>): Promise<T> {
+  const previous = process.env.TOVU_RUNTIME_MODE;
+  process.env.TOVU_RUNTIME_MODE = "production";
+  try {
+    return await run();
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_RUNTIME_MODE;
+    else process.env.TOVU_RUNTIME_MODE = previous;
+  }
+}
+
+test("buildSitemap end-to-end: with TOVU_PUBLIC_URL configured, loc is absolute in production (2026-09-18)", async () => {
+  const entries = await inProductionMode(() => sitemapFromRegisteredOrigin("https://tovu.fly.dev"));
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0]!.loc, "https://tovu.fly.dev/published-visible");
+});
+
+test("buildSitemap end-to-end: with nothing configured, loc stays a safe relative path in production -- never localhost", async () => {
+  const entries = await inProductionMode(() => sitemapFromRegisteredOrigin(undefined));
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0]!.loc, "/published-visible", "an unregistered origin must fail closed to a relative path");
+  assert.ok(!entries[0]!.loc.includes("localhost"), "loc must never contain localhost");
+  assert.ok(!entries[0]!.loc.includes("://"), "loc must not be absolute when no origin is registered");
 });
 
 test("buildSitemap: excludes drafts and effective-noindex entries, includes only eligible published entries (AC-16/17)", async () => {

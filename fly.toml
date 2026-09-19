@@ -57,6 +57,29 @@ primary_region = "iad" # PLACEHOLDER — confirm the intended region.
   TOVU_RUNTIME_MODE = "production"
   PORT = "3000"
 
+  # This deployment's public origin. NOT a secret (it is the URL crawlers already see), so it
+  # belongs here rather than in `fly secrets set`.
+  #
+  # Load-bearing, added 2026-09-18 — see
+  # `ADS-memory/reports/2026-09-18-public-origin-registration-design.md`. This is the ONLY input by
+  # which a real public origin can enter the ADR-040 origin registry
+  # (`features/origin/configured-origin.ts` reads it at boot;
+  # `platform/db/sqlite/origin-repo.sqlite.ts`'s `registerConfiguredOrigin` writes it). With it
+  # unset, a production boot registers no origin at all and every public URL degrades to a
+  # relative path: `sitemap.xml`'s `<loc>`, `robots.txt`'s `Sitemap:` line, `canonical`, `og:url`,
+  # `og:image`, plus newsletter confirm/unsubscribe and member magic links. The sitemap protocol
+  # requires absolute `<loc>` values, so leaving this unset is a real (if safe) SEO regression.
+  #
+  # Setting it also corrects the `http://localhost:3000` row that Fly's FIRST boot durably wrote
+  # into this app's `content.db` (the bug `d21d6e7ac` patched defensively on the read side). That
+  # correction happens on the next boot after this value is in place — no migration needed.
+  #
+  # Must be an `https` URL with a non-loopback host, or it is refused with a warning in the boot
+  # log and no origin is registered. The same variable already drives OAuth callback URLs and
+  # admin deep links, deliberately reused rather than duplicated (ADR-040 names duplicated origin
+  # settings as a fracture it exists to close).
+  TOVU_PUBLIC_URL = "https://tovu.fly.dev"
+
 # Persistent state: every site's content.db + WAL sidecars, uploads/,
 # themes/, ops state — everything else in the image is disposable. A missing
 # or misconfigured mount here is silent data loss on next deploy, not a

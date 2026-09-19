@@ -22,3 +22,9 @@ export {
   type OriginRegistryDeps,
 } from "./origin.js";
 export { InMemoryOriginSettingRepo, type OriginSettingSeed } from "./repo.memory.js";
+export {
+  planOriginBoot,
+  resolveConfiguredOrigin,
+  type ConfiguredOriginOptions,
+  type OriginBootPlan,
+} from "./configured-origin.js";

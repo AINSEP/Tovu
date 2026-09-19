@@ -22,11 +22,22 @@ import {
  * real running server (`server/deps.ts`) — worse, hardcoded fresh into the constructor's seed
  * array on every boot, not even genuinely "seeded once." This adapter makes the row durable.
  *
- * Read-only by design (matches `OriginSettingRepoPort`, which declares no write method): no admin
- * route or verification flow exists yet to let an operator register a real production origin —
- * that is a separate, disclosed, future gap (see `capability-inventory.ts`'s "origin" entry). The
- * only writer is `seedDevCapabilityOrigin` below, an idempotent boot-time seed mirroring exactly
- * what the in-memory adapter's constructor-seed already did.
+ * The READ adapter is read-only by design (matches `OriginSettingRepoPort`, which declares no write
+ * method). Writes are two standalone boot-time functions below, not port methods — ADR-006's
+ * rule-of-two says don't abstract before the second adapter needs it, and there is still only one
+ * durable adapter:
+ *
+ * 1. {@link seedDevCapabilityOrigin} — the idempotent find-or-create dev default
+ *    (`http://localhost:3000`), mirroring exactly what the in-memory adapter's constructor-seed did.
+ * 2. {@link registerConfiguredOrigin} — the operator-declared public origin, from
+ *    `features/origin/configured-origin.ts`'s `TOVU_PUBLIC_URL` resolver (2026-09-18; design note:
+ *    `ADS-memory/reports/2026-09-18-public-origin-registration-design.md`). This is what finally
+ *    closes the "no way to register a real production origin" gap this header used to disclose as
+ *    permanent, and it is why production's sitemap can emit absolute URLs again.
+ *
+ * Still open, and still a real gap: no ADMIN route or reachability/ownership VERIFICATION flow
+ * exists (ADR-040's own "Open" section keeps that as a v0.1 item). Registration authority today is
+ * "whoever can set this deployment's process environment", nothing weaker and nothing stronger.
  */
 
 function toVerifiedOrigin(row: typeof originSettings.$inferSelect): VerifiedOrigin {
@@ -99,4 +110,84 @@ export function seedDevCapabilityOrigin(
       egressAllowlistJson: JSON.stringify(normalizeHostList(seed.egressAllowlist)),
     })
     .run();
+}
+
+/** What {@link registerConfiguredOrigin} did, so the composition root can log it. */
+export type ConfiguredOriginWriteResult = "inserted" | "updated" | "unchanged";
+
+/** The origin columns only — deliberately NOT the allowlist columns. See
+ *  {@link registerConfiguredOrigin}. */
+function originColumns(origin: VerifiedOrigin) {
+  return {
+    scheme: origin.scheme,
+    host: origin.host,
+    port: origin.port ?? null,
+    basePath: origin.basePath ?? null,
+    verifiedAt: origin.verifiedAt,
+    source: origin.source,
+  };
+}
+
+/**
+ * Whether the stored row already names the same origin. `verifiedAt` is excluded on purpose: it is
+ * a stamp, not part of the origin's identity, so including it would make every boot an UPDATE and
+ * churn the row forever.
+ *
+ * @complexity O(1).
+ */
+function sameOrigin(row: typeof originSettings.$inferSelect, origin: VerifiedOrigin): boolean {
+  return (
+    row.scheme === origin.scheme &&
+    row.host === origin.host &&
+    row.port === (origin.port ?? null) &&
+    row.basePath === (origin.basePath ?? null) &&
+    row.source === origin.source
+  );
+}
+
+/**
+ * Registers the operator-declared public origin — insert-or-correct, NOT find-or-create.
+ *
+ * This is deliberately a different function with a different contract from
+ * {@link seedDevCapabilityOrigin}, not a change to it. The certified idempotency test
+ * (`features/origin/__tests__/repo.contract.test.ts`) protects "a re-run of the boot seed can never
+ * clobber a real registered origin", and that assertion stands unchanged: the dev seed still never
+ * overwrites anything. What this function adds is the one authority that IS allowed to correct the
+ * row — whoever can set this deployment's process environment (on Fly, `fly secrets set` /
+ * `fly.toml`), which is strictly more privileged than an admin-UI login and can already deploy
+ * arbitrary code. Without a correcting writer, production's `http://localhost:3000` row — durably
+ * persisted by Fly's first boot and immortal under find-or-create — could never be fixed without a
+ * hand-written migration against the live DB.
+ *
+ * WRITES THE ORIGIN COLUMNS ONLY. `redirect_allowlist_json` and `egress_allowlist_json` are left
+ * exactly as found. A blind full-row overwrite would silently empty both, which in production
+ * fail-closes every `isAllowedEgressTarget` check — a behavior change with no relationship to the
+ * origin it is here to fix. Pinned by that suite's "preserves both allowlists" test.
+ *
+ * @param required.origin - Re-validated through `createVerifiedOrigin`, so the ADR-040 scheme/source
+ * invariant cannot be bypassed by a caller that hand-built the object.
+ * @returns which write happened, for the boot log.
+ * @throws {InsecureOriginSourceError} if `origin` violates the scheme/source invariant. Callers
+ * pass `resolveConfiguredOrigin`'s output, which can never produce that combination.
+ * @complexity O(1) — one indexed lookup plus at most one write.
+ */
+export function registerConfiguredOrigin(
+  required: { db: ContentDb; workspaceId: UUID; origin: VerifiedOrigin },
+  _optional: Record<string, never> = {}
+): ConfiguredOriginWriteResult {
+  const { db, workspaceId } = required;
+  const verified = createVerifiedOrigin(required.origin);
+
+  const existing = db.select().from(originSettings).where(eq(originSettings.workspaceId, workspaceId)).all()[0];
+  if (!existing) {
+    db.insert(originSettings)
+      .values({ workspaceId, ...originColumns(verified), redirectAllowlistJson: "[]", egressAllowlistJson: "[]" })
+      .run();
+    return "inserted";
+  }
+
+  if (sameOrigin(existing, verified)) return "unchanged";
+
+  db.update(originSettings).set(originColumns(verified)).where(eq(originSettings.workspaceId, workspaceId)).run();
+  return "updated";
 }

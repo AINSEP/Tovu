@@ -82,18 +82,25 @@ export function toAbsoluteUrl(origin: VerifiedOrigin | undefined, path: string):
  * per `origin/types.ts`'s own invariant) is ALSO degraded to `undefined` whenever this process is
  * running in production (`resolveRuntimeMode() === "production"`, which `fly.toml` sets). Root
  * cause this guards against: `server/runtime/composition/deps.ts`'s `seedDevCapabilityOrigin` call
- * is the origin registry's only writer (`origin-repo.sqlite.ts`'s file header — "no admin route or
- * verification flow exists yet to let an operator register a real production origin") and runs
- * unconditionally on every boot, including the Fly deployment's. Its first boot durably persisted
- * `http://localhost:3000` into `content.db`'s `origin_settings` table, and its own idempotent
- * find-or-create contract (by design, so a future real registration is never clobbered) means that
- * row survives every later boot too — it can never self-correct on its own. Every public SEO
+ * used to be the origin registry's ONLY writer, and ran unconditionally on every boot, including
+ * the Fly deployment's. Its first boot durably persisted `http://localhost:3000` into
+ * `content.db`'s `origin_settings` table, and its own idempotent find-or-create contract (by
+ * design, so a future real registration is never clobbered) means that row survives every later
+ * boot too — it can never self-correct on its own. Every public SEO
  * document (`sitemap.xml`, `robots.txt`'s `Sitemap:` line, `canonical`, `og:url`, `og:image`) goes
  * through this one seam, so this is the one place that must refuse to let that row leak into a
  * document served to real crawlers. Degrading here reuses the SAME pre-existing "no verified
  * origin" relative-path fallback `toAbsoluteUrl` already had — never a fabricated origin, per
  * INV-07. Outside production (local dev, tests), a `dev-capability` origin still resolves as
  * before — its entire purpose is to let a dev server exercise absolute-URL code paths.
+ *
+ * STILL LOAD-BEARING after the 2026-09-18 registration work (`features/origin/configured-origin.ts`,
+ * design note `ADS-memory/reports/2026-09-18-public-origin-registration-design.md`), which stopped
+ * the dev seed from running in production at all. That change prevents NEW poisoned rows; it cannot
+ * remove the one production's `content.db` already holds. Until `TOVU_PUBLIC_URL` is set on that
+ * deployment (and `registerConfiguredOrigin` corrects the row on the next boot), this degradation
+ * is the only thing keeping that row out of documents served to real crawlers. Do not delete it as
+ * "now redundant".
  *
  * @param mode - Defaults to `resolveRuntimeMode`; injectable for tests, mirroring
  * `root-key-boot-notice.ts`'s `RootKeyBootNoticeDeps.mode` convention.

@@ -1316,10 +1316,12 @@ export const gatedMutationTokens = sqliteTable("gated_mutation_tokens", {
  * Origin settings (ADR-040, ADR-046 Phase 1). One row per workspace: the verified canonical
  * origin plus its two allowlists (redirect targets, egress targets), each stored as a JSON text
  * array (small, bounded exact-match host lists — not worth a child table). `OriginSettingRepoPort`
- * (`origin/ports.ts`) is READ-ONLY by design (no admin route or write flow exists yet to verify a
- * real production origin) — this table's only writer today is the composition-root dev-capability
- * seed (`db/sqlite/origin-repo.sqlite.ts`'s `seedDevCapabilityOrigin`), mirroring exactly what
- * the in-memory adapter's constructor-seed did, just durable instead of recreated every restart.
+ * (`origin/ports.ts`) is READ-ONLY by design; the two writers are standalone boot-time functions in
+ * `db/sqlite/origin-repo.sqlite.ts` (2026-09-18):
+ * `seedDevCapabilityOrigin` (idempotent find-or-create `http://localhost:3000` dev default) and
+ * `registerConfiguredOrigin` (the operator-declared public origin from `TOVU_PUBLIC_URL`, which
+ * corrects an existing dev-capability row in place). Still no ADMIN route and no
+ * reachability/ownership verification flow — ADR-040's own v0.1 open item.
  */
 export const originSettings = sqliteTable("origin_settings", {
   workspaceId: text("workspace_id").primaryKey(),
