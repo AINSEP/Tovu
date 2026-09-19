@@ -174,7 +174,7 @@ describe("createPage", () => {
 });
 
 describe("disablePage", () => {
-  it("PATCHes status: draft for the given page id", async () => {
+  it("PATCHes status: draft AND expectedVersion for the given page id", async () => {
     const { result } = await renderLoaded();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...PAGE, status: "draft" } }));
 
@@ -184,7 +184,34 @@ describe("disablePage", () => {
 
     const call = fetchMock.mock.calls.at(-1)!;
     expect(String(call[0])).toContain(`/workspaces/workspace-local/posts/${PAGE.id}`);
-    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({ status: "draft" });
+    // `expectedVersion` (2026-09-18, multi-author hardening) — mirrors `use-posts.unit.test.ts`'s
+    // identical assertion; before this fix the body was `{ status: "draft" }` alone.
+    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({ status: "draft", expectedVersion: PAGE.version });
+  });
+
+  /** Multi-author hardening (2026-09-18, Task 14a) — mirrors `use-posts.unit.test.ts`'s identical
+   *  two-author test; Pages shares the exact same route and guard. */
+  it("a save by another operator since this list loaded turns disablePage into a 409, not a silent overwrite", async () => {
+    const { result } = await renderLoaded();
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        {
+          error: `post '${PAGE.id}' was modified by another save (expected version ${PAGE.version}, current version ${PAGE.version + 1})`,
+          code: "VERSION_CONFLICT",
+          details: { expectedVersion: PAGE.version, currentVersion: PAGE.version + 1 },
+        },
+        409
+      )
+    );
+
+    await act(async () => {
+      await result.current.disablePage(PAGE);
+    });
+
+    const call = fetchMock.mock.calls.at(-1)!;
+    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({ status: "draft", expectedVersion: PAGE.version });
+    expect(result.current.pages).toEqual([PAGE]);
+    expect(result.current.error).toMatch(/modified by another save/);
   });
 
   it("replaces only the matching row in local state with the server's response, on success", async () => {
@@ -294,6 +321,24 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
     expect(port.pages[0]!.status).toBe("draft");
     expect(result.current.pages![0].status).toBe("draft");
+  });
+
+  /** Reached by the fake genuinely being stale (`simulateConcurrentSave`) — mirrors
+   *  `use-posts.unit.test.ts`'s identical test. */
+  it("disablePage rejects with the SAME basis it loaded once another operator has saved, and never applies the write", async () => {
+    const port = createFakePagesPort({ pages: [PAGE] });
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    await waitFor(() => expect(result.current.pages).not.toBeNull());
+
+    port.simulateConcurrentSave(PAGE.id, "Their edit");
+
+    await act(async () => {
+      await result.current.disablePage(PAGE);
+    });
+
+    expect(result.current.error).toMatch(/modified by another save/);
+    expect(port.pages[0]!.title).toBe("Their edit");
+    expect(port.pages[0]!.status).not.toBe("draft");
   });
 
   it("removePage deletes the pending page through the injected port", async () => {

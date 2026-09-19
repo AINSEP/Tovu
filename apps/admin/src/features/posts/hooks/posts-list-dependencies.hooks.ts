@@ -1,4 +1,5 @@
-import { api, type AdminPost } from "@/lib/api";
+import { ApiError, api, type AdminPost } from "@/lib/api";
+import { POST_VERSION_CONFLICT_CODE } from "../rules";
 import type { PostsListPort } from "./posts-list-port.hooks";
 
 /**
@@ -56,11 +57,21 @@ export interface FakePostsListPortOptions {
 export function createFakePostsListPort(options: FakePostsListPortOptions = {}): PostsListPort & {
   /** Every post currently in the fake's store, in list order. */
   readonly posts: AdminPost[];
+  /** Advances one stored row's version as though a DIFFERENT operator (the full editor, or another
+   *  list action) had just saved it, without the caller under test knowing — the only way to reach a
+   *  genuine stale-basis conflict rather than seeding a canned rejection. Mirrors
+   *  `post-editor-dependencies.hooks.ts`'s identical `simulateConcurrentSave`. */
+  simulateConcurrentSave(id: string, title?: string): void;
 } {
   const posts = [...(options.posts ?? [])];
 
   return {
     posts,
+    simulateConcurrentSave(id, title = "Saved by someone else") {
+      const index = posts.findIndex((p) => p.id === id);
+      if (index < 0) throw new Error(`fake post not found: ${id}`);
+      posts[index] = { ...posts[index]!, title, version: posts[index]!.version + 1 };
+    },
     async listPosts() {
       return { posts: posts.map((post) => ({ post })) };
     },
@@ -74,7 +85,21 @@ export function createFakePostsListPort(options: FakePostsListPortOptions = {}):
       if (options.updateError) throw options.updateError;
       const index = posts.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake post not found: ${id}`);
-      const updated = { ...posts[index]!, ...patch };
+      const current = posts[index]!;
+      // The real route's optimistic-concurrency guard, modeled rather than stubbed — see
+      // `post-editor-dependencies.hooks.ts`'s identical comment on its own `updatePost` for why this
+      // is modeled (a caller reaches a conflict by genuinely being stale) rather than a canned
+      // rejection (which would pass even if the caller never sent a version at all).
+      const { expectedVersion, ...fields } = patch;
+      if (expectedVersion !== undefined && expectedVersion !== current.version) {
+        throw new ApiError(
+          `post '${current.id}' was modified by another save (expected version ${expectedVersion}, current version ${current.version})`,
+          409,
+          POST_VERSION_CONFLICT_CODE,
+          { details: { expectedVersion, currentVersion: current.version } }
+        );
+      }
+      const updated = { ...current, ...fields, version: current.version + 1 };
       posts[index] = updated;
       return { post: updated };
     },

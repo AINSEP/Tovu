@@ -171,12 +171,15 @@ export function usePages(deps: PagesDependencies): PagesController {
    *  action (not destructive: no `ConfirmDialog`, matching `ConfirmButton`'s own warning-vs-
    *  destructive distinction). Only ever called for a `status === "published"` row — `RowMenu`'s
    *  item list in the view omits "Disable" entirely once a page is already a draft, rather than
-   *  rendering it disabled with no explanation. */
+   *  rendering it disabled with no explanation.
+   *
+   * `expectedVersion: page.version` (2026-09-18, multi-author hardening, Task 14a) — mirrors
+   * `use-posts.hooks.ts`'s identical `disablePost` fix exactly; see its doc for the full rationale. */
   async function disablePage(page: AdminPost) {
     setRowSavingId(page.id);
     setError(null);
     try {
-      const { post: updated } = await port.updatePost({ id: page.id }, { status: "draft" });
+      const { post: updated } = await port.updatePost({ id: page.id }, { status: "draft", expectedVersion: page.version });
       setPages((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to disable page");

@@ -1,4 +1,5 @@
-import { api, type AdminPost } from "@/lib/api";
+import { ApiError, api, type AdminPost } from "@/lib/api";
+import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
 import type { PagesPort } from "./pages-port.hooks";
 
 /**
@@ -56,11 +57,19 @@ export interface FakePagesPortOptions {
 export function createFakePagesPort(options: FakePagesPortOptions = {}): PagesPort & {
   /** Every page currently in the fake's store, in list order. */
   readonly pages: AdminPost[];
+  /** Advances one stored row's version as though a DIFFERENT operator had just saved it — see
+   *  `posts-list-dependencies.hooks.ts`'s identical `simulateConcurrentSave`. */
+  simulateConcurrentSave(id: string, title?: string): void;
 } {
   const pages = [...(options.pages ?? [])];
 
   return {
     pages,
+    simulateConcurrentSave(id, title = "Saved by someone else") {
+      const index = pages.findIndex((p) => p.id === id);
+      if (index < 0) throw new Error(`fake page not found: ${id}`);
+      pages[index] = { ...pages[index]!, title, version: pages[index]!.version + 1 };
+    },
     async listPages() {
       return { posts: pages.map((post) => ({ post })) };
     },
@@ -74,7 +83,18 @@ export function createFakePagesPort(options: FakePagesPortOptions = {}): PagesPo
       if (options.updateError) throw options.updateError;
       const index = pages.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake page not found: ${id}`);
-      const updated = { ...pages[index]!, ...patch };
+      const current = pages[index]!;
+      // Modeled real guard — see `posts-list-dependencies.hooks.ts`'s identical comment.
+      const { expectedVersion, ...fields } = patch;
+      if (expectedVersion !== undefined && expectedVersion !== current.version) {
+        throw new ApiError(
+          `post '${current.id}' was modified by another save (expected version ${expectedVersion}, current version ${current.version})`,
+          409,
+          PAGE_VERSION_CONFLICT_CODE,
+          { details: { expectedVersion, currentVersion: current.version } }
+        );
+      }
+      const updated = { ...current, ...fields, version: current.version + 1 };
       pages[index] = updated;
       return { post: updated };
     },

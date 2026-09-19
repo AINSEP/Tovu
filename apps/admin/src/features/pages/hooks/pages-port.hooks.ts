@@ -8,9 +8,16 @@ import type { AdminPost } from "@/lib/api";
 export interface PagesPort {
   listPages(): Promise<{ posts: Array<{ post: AdminPost }> }>;
   createPage(title: string): Promise<{ post: AdminPost }>;
+  /**
+   * `expectedVersion` (2026-09-18, multi-author hardening) — mirrors `posts-list-port.hooks.ts`'s
+   * identical member exactly (Pages and Posts share this one route). `disablePage`
+   * (`use-pages.hooks.ts`) always sends it.
+   */
   updatePost(
     target: { id: string },
-    patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">>
+    patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> & {
+      expectedVersion?: number;
+    }
   ): Promise<{ post: AdminPost }>;
   deletePage(id: string): Promise<{ post: AdminPost }>;
 }

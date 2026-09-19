@@ -105,13 +105,13 @@ describe("createPost", () => {
 });
 
 describe("disablePost", () => {
-  it("PATCHes status: draft for the given post id and replaces only the matching row", async () => {
+  it("PATCHes status: draft AND expectedVersion for the given post id, and replaces only the matching row", async () => {
     const OTHER_POST = { ...POST, id: "p-other", title: "Other" };
     fetchMock.mockResolvedValueOnce(jsonResponse({ posts: [{ post: POST }, { post: OTHER_POST }] }));
     const { result } = renderHook(() => useWiredPosts());
     await waitFor(() => expect(result.current.posts).not.toBeNull());
 
-    const updated = { ...POST, status: "draft" as const };
+    const updated = { ...POST, status: "draft" as const, version: POST.version + 1 };
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: updated }));
     await act(async () => {
       await result.current.disablePost(POST);
@@ -119,7 +119,11 @@ describe("disablePost", () => {
 
     const call = fetchMock.mock.calls.at(-1)!;
     expect(String(call[0])).toContain(`/workspaces/workspace-local/posts/${POST.id}`);
-    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({ status: "draft" });
+    // `expectedVersion` (2026-09-18, multi-author hardening) — the row this list last loaded, so
+    // this list-view action races the same shared post exactly as the full editor's Save does. Before
+    // this fix the body was `{ status: "draft" }` alone, which meant this action always won
+    // regardless of what a concurrent editor session had just saved.
+    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({ status: "draft", expectedVersion: POST.version });
     expect(result.current.posts).toEqual([updated, OTHER_POST]);
   });
 
@@ -133,6 +137,41 @@ describe("disablePost", () => {
 
     expect(result.current.rowSavingId).toBeNull();
     expect(result.current.error).toBe("failed to disable post");
+  });
+
+  /**
+   * Multi-author hardening (2026-09-18, Task 14a) — the two-author race this whole change exists
+   * for: an operator has `POST` open in the full editor (or another list session loaded the same
+   * row) and saves, superseding the version this list still holds. Before this fix, `disablePost`
+   * carried no basis at all, so the server had nothing to compare and this action always won —
+   * silently reverting whatever the other operator just saved, with no error and no trace. The
+   * `409` here is set up as a genuine server response, not asserted from behavior this test invents.
+   */
+  it("a save by another operator since this list loaded turns disablePost into a 409, not a silent overwrite", async () => {
+    const { result } = await renderLoaded();
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        {
+          error: `post '${POST.id}' was modified by another save (expected version ${POST.version}, current version ${POST.version + 1})`,
+          code: "VERSION_CONFLICT",
+          details: { expectedVersion: POST.version, currentVersion: POST.version + 1 },
+        },
+        409
+      )
+    );
+
+    await act(async () => {
+      await result.current.disablePost(POST);
+    });
+
+    // The request carried the stale basis it actually loaded with — proof the 409 came from a real
+    // comparison the client set up, not a response this test could get for free either way.
+    const call = fetchMock.mock.calls.at(-1)!;
+    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({ status: "draft", expectedVersion: POST.version });
+    // A rejection, not a report: the row in local state must still read exactly as it was loaded —
+    // in particular still "published", never silently painted over with "draft".
+    expect(result.current.posts).toEqual([POST]);
+    expect(result.current.error).toMatch(/modified by another save/);
   });
 });
 
@@ -193,6 +232,27 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
     expect(port.posts[0]!.status).toBe("draft");
     expect(result.current.posts![0].status).toBe("draft");
+  });
+
+  /** Reached by the fake genuinely being stale (`simulateConcurrentSave`), not a canned rejection —
+   *  same idiom `use-post-editor.hooks.unit.test.tsx`'s "usePostEditor — optimistic concurrency"
+   *  block uses for the editor's own save. */
+  it("disablePost rejects with the SAME basis it loaded once another operator has saved, and never applies the write", async () => {
+    const port = createFakePostsListPort({ posts: [POST] });
+    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    await waitFor(() => expect(result.current.posts).not.toBeNull());
+
+    // Another operator (the full editor, say) saves first.
+    port.simulateConcurrentSave(POST.id, "Their edit");
+
+    await act(async () => {
+      await result.current.disablePost(POST);
+    });
+
+    expect(result.current.error).toMatch(/modified by another save/);
+    // Rejected, not applied: the fake's own row still reads exactly as the other operator left it.
+    expect(port.posts[0]!.title).toBe("Their edit");
+    expect(port.posts[0]!.status).not.toBe("draft");
   });
 
   it("removePost deletes the pending post through the injected port", async () => {

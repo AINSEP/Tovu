@@ -157,12 +157,20 @@ export function usePosts(deps: PostsListDependencies): PostsController {
    *  action (not destructive: no `ConfirmDialog`, matching `ConfirmButton`'s own warning-vs-
    *  destructive distinction). Only ever called for a `status === "published"` row — `RowMenu`'s
    *  item list in the view omits "Disable" entirely once a post is already a draft, rather than
-   *  rendering it disabled with no explanation. */
+   *  rendering it disabled with no explanation.
+   *
+   * `expectedVersion: post.version` (2026-09-18, multi-author hardening, Task 14a) — this row's
+   * `version` as THIS LIST last loaded it. Before this, the request carried no basis at all, so a
+   * concurrent save elsewhere (the full editor, or another operator's own list) was silently
+   * overwritten by whichever request landed last, with no error and no trace — this action always
+   * won regardless of the row's real current state. Now it races the same shared post exactly as
+   * `usePostEditor.save()` already does, and a stale basis surfaces as the same `409
+   * VERSION_CONFLICT` (caught below, same as any other failure) instead of a silent overwrite. */
   async function disablePost(post: AdminPost) {
     setRowSavingId(post.id);
     setError(null);
     try {
-      const { post: updated } = await port.updatePost({ id: post.id }, { status: "draft" });
+      const { post: updated } = await port.updatePost({ id: post.id }, { status: "draft", expectedVersion: post.version });
       setPosts((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to disable post");

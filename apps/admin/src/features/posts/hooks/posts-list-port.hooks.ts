@@ -9,9 +9,19 @@ import type { AdminPost } from "@/lib/api";
 export interface PostsListPort {
   listPosts(): Promise<{ posts: Array<{ post: AdminPost }> }>;
   createPost(title: string): Promise<{ post: AdminPost }>;
+  /**
+   * `expectedVersion` (2026-09-18, multi-author hardening) — the optimistic-concurrency basis, same
+   * contract as `post-editor-port.hooks.ts`'s `updatePost`: the row's `version` as this list last
+   * loaded it, so a row action here that races a second author's edit gets `409 VERSION_CONFLICT`
+   * instead of silently overwriting whatever they just saved. `disablePost` (`use-posts.hooks.ts`)
+   * always sends it — this is the row-menu action, not the full editor, but it hits the exact same
+   * `PUT /posts/:id` route and the same shared-post race the editor already guards against.
+   */
   updatePost(
     target: { id: string },
-    patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">>
+    patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> & {
+      expectedVersion?: number;
+    }
   ): Promise<{ post: AdminPost }>;
   deletePost(id: string): Promise<{ post: AdminPost }>;
 }
