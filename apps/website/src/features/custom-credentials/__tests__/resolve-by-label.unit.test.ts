@@ -26,13 +26,13 @@ const WORKSPACE = "ws-1";
  *  unavailable" — see `vendor-credentials/__tests__/store.unit.test.ts`'s own `BrokenKeyring`. */
 class BrokenKeyring implements KeyringPort {
   async activeKey(): Promise<{ readonly keyId: string }> {
-    throw new Error("no root key: TOVU_INTEGRATIONS_ROOT_KEY is not set and allowFileFallback is disabled");
+    throw new Error("no Site Token: TOVU_INTEGRATIONS_ROOT_KEY is not set and allowFileFallback is disabled");
   }
   async deriveSigningSecret(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no Site Token");
   }
   async derive(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no Site Token");
   }
 }
 
@@ -113,7 +113,7 @@ test("resolveCustomCredentialByLabel throws CustomCredentialSecretStoreUnconfigu
       assert.ok(err instanceof CustomCredentialSecretStoreUnconfiguredError);
       assert.equal(
         (err as Error).message,
-        "custom credential could not be decrypted (secret store unconfigured, or the stored row is corrupted): no root key"
+        "custom credential could not be decrypted (secret store unconfigured, or the stored row is corrupted): no Site Token"
       );
       return true;
     }

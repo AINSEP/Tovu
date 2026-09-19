@@ -414,14 +414,14 @@ const CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = 
   // key-file path — the identical disclosure {@link FORM_SAVE_CALLER_SAFE_ERRORS} already refuses for
   // this same class on the SAVE path. Its KIND, though, is the one failure in this domain an operator
   // can actually act on, and until 2026-09-18 it was the only one that reached the model redacted:
-  // a site booted with no root key answered `500 INTERNAL_ERROR` on every credentialed call, which is
+  // a site booted with no Site Token answered `500 INTERNAL_ERROR` on every credentialed call, which is
   // indistinguishable from the site having crashed. Listed LAST because it is the broadest of the
   // four — no ordering hazard today (no class here subclasses another), but the safe habit.
   {
     error: CustomCredentialSecretStoreUnconfiguredError,
     code: "CUSTOM_CREDENTIALS_SECRET_STORE_UNAVAILABLE",
     message:
-      "this site's secret store could not open the saved credential: its root key (site token) is missing or unusable, " +
+      "this site's secret store could not open the saved credential: its Site Token is missing or unusable, " +
       "or the stored credential is unreadable. No request was sent",
     guidance: "An operator can check this site's token on the admin Secrets page.",
   },
@@ -714,7 +714,7 @@ function rejectUnexpectedSetTokenFields(input: Record<string, unknown>): void {
  * messages ever embeds a field value. That was false: `store.ts`'s `sealConnection` wraps the sealer's
  * own failure text, the sealer is handed the submitted token as plaintext, and `decryptRecord`'s
  * `JSON.parse` arm shows the shape (it quotes its input). With the shipped `EnvOrFileKeyring`, a
- * missing root key put the env var name and the absolute key-file path on screen. A raw repo error
+ * missing Site Token put the env var name and the absolute key-file path on screen. A raw repo error
  * went out verbatim.
  *
  * - `CustomCredentialValidationError`, `CustomCredentialNotFoundError`: verbatim. Fixed text, field
@@ -731,7 +731,7 @@ const FORM_SAVE_CALLER_SAFE_ERRORS: readonly CallerSafeErrorRule[] = [
   {
     error: CustomCredentialSecretStoreUnconfiguredError,
     message:
-      "The site's secret store could not seal or open this credential: its root key is missing or unusable, or the stored credential is unreadable. Nothing was saved.",
+      "The site's secret store could not seal or open this credential: its Site Token is missing or unusable, or the stored credential is unreadable. Nothing was saved.",
   },
 ];
 

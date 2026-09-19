@@ -100,7 +100,7 @@ export function removeDialogLastRowNote(locale: string, provider: string): strin
 /** Site Token tab's load-error banner — same `{error}`-interpolated shape as
  *  {@link accessTokensLoadErrorMessage}. */
 const SITE_TOKEN_LOAD_ERROR_TEMPLATE: Record<string, string> = {
-  en: "Couldn't load the root key's status: {error}",
+  en: "Couldn't load the Site Token's status: {error}",
 };
 export function siteTokenLoadErrorMessage(locale: string, error: string): string {
   return interpolate(SITE_TOKEN_LOAD_ERROR_TEMPLATE[locale] ?? SITE_TOKEN_LOAD_ERROR_TEMPLATE.en!, { error });
@@ -120,7 +120,7 @@ export function siteTokenGenerateErrorMessage(locale: string, error: string): st
  *  reveal has no known-marker cases to special-case (a reveal either works or fails outright), so
  *  this is the only error template that call site needs. */
 const SITE_TOKEN_REVEAL_ERROR_TEMPLATE: Record<string, string> = {
-  en: "Couldn't reveal the root key: {error}",
+  en: "Couldn't reveal the Site Token: {error}",
 };
 export function siteTokenRevealErrorMessage(locale: string, error: string): string {
   return interpolate(SITE_TOKEN_REVEAL_ERROR_TEMPLATE[locale] ?? SITE_TOKEN_REVEAL_ERROR_TEMPLATE.en!, { error });

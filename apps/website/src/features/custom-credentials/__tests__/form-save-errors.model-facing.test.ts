@@ -10,7 +10,7 @@
  *   `CustomCredentialSecretStoreUnconfiguredError`, and the sealer is handed the submitted token as
  *   its plaintext. A `SecretSealerPort` adapter whose failure text quotes its input puts the token in
  *   that message; `decryptRecord`'s `JSON.parse` arm is the in-tree precedent for exactly that shape.
- * - With the SHIPPED `EnvOrFileKeyring`, an install with no root key puts the env var name and the
+ * - With the SHIPPED `EnvOrFileKeyring`, an install with no Site Token puts the env var name and the
  *   absolute key-file path into that same message.
  * - A raw repo/driver failure reached the model and the human verbatim.
  *
@@ -48,13 +48,13 @@ const LEAK_MARKER = "LEAK-";
 const SAVED_TOKEN = "LEAK-OLD-TOKEN-7f3a";
 const SUBMITTED_TOKEN = "LEAK-NEW-TOKEN-91c2";
 
-/** The SHIPPED keyring, configured the way an install with no root key is: env var unset, no key
+/** The SHIPPED keyring, configured the way an install with no Site Token is: env var unset, no key
  *  file, no auto-generation. Nothing is read or written — the path does not exist. */
-const MISSING_ROOT_KEY_ENV = "TOVU_W7_TEST_UNSET_ROOT_KEY";
-const MISSING_ROOT_KEY_PATH = "/nonexistent-w7-root-key-dir/integrations-root-key.hex";
+const MISSING_SITE_TOKEN_ENV = "TOVU_W7_TEST_UNSET_SITE_TOKEN";
+const MISSING_SITE_TOKEN_PATH = "/nonexistent-w7-root-key-dir/integrations-root-key.hex";
 
 const SECRET_STORE_MESSAGE =
-  "The site's secret store could not seal or open this credential: its root key is missing or unusable, or the stored credential is unreadable. Nothing was saved.";
+  "The site's secret store could not seal or open this credential: its Site Token is missing or unusable, or the stored credential is unreadable. Nothing was saved.";
 const INTERNAL_FAILURE_MESSAGE = "Saving failed because of an internal server error. Nothing was saved. The server log has the details.";
 
 class ExplodingHttpClient implements HttpClientPort {
@@ -187,14 +187,14 @@ test("set_token: a seal failure that quotes the submitted token never reaches th
 
 test("set_token: the SHIPPED keyring's missing-root-key text (env var name, absolute key-file path) never reaches the model or the human", async () => {
   const harness = await buildHarness({
-    keyring: new EnvOrFileKeyring({ envVarName: MISSING_ROOT_KEY_ENV, keyFilePath: MISSING_ROOT_KEY_PATH, allowFileFallback: true, allowFileAutoGenerate: false }),
+    keyring: new EnvOrFileKeyring({ envVarName: MISSING_SITE_TOKEN_ENV, keyFilePath: MISSING_SITE_TOKEN_PATH, allowFileFallback: true, allowFileAutoGenerate: false }),
   });
 
   const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { label: "fly.io" }, { token: SUBMITTED_TOKEN });
 
   const haystacks = { "model-facing result": wireText, "run events (outcome resource)": eventsText, log: harness.logLines.join("\n") };
-  assertNowhere("set_token", haystacks, MISSING_ROOT_KEY_PATH);
-  assertNowhere("set_token", haystacks, MISSING_ROOT_KEY_ENV);
+  assertNowhere("set_token", haystacks, MISSING_SITE_TOKEN_PATH);
+  assertNowhere("set_token", haystacks, MISSING_SITE_TOKEN_ENV);
   assertNowhere("set_token", haystacks, LEAK_MARKER);
   assert.deepEqual(structuredOutput(wireText), { reason: "error", message: SECRET_STORE_MESSAGE });
 });

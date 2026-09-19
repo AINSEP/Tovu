@@ -61,7 +61,7 @@ import { useWiredSecurityPermissions } from "./hooks/use-security-permissions.ho
  * tabs of this page).
  *
  * Page renamed "Security" -> "Secrets" the same day (owner naming decision, not this agent's
- * call): the most accurate label for what's actually here — access tokens, the site/root key,
+ * call): the most accurate label for what's actually here — access tokens, the Site Token,
  * credentials — matching what Fly/GitHub already call the same thing. The rename is cosmetic
  * (nav label + `<h1>` only, per `translateAdminNavLabel`'s "copy string is its own i18n key"
  * convention — `panels.tsx`'s nav entry and this file's own `t(locale, "Secrets")` calls are the
@@ -149,7 +149,7 @@ export function Security(props: SecurityProps) {
             label: t(locale, "Site Token"),
             icon: <SiteTokenIcon size={16} />,
             handle: "security-tab-site-token",
-            handleLabel: "Switch to the Site Token tab — view and generate the site token that decrypts every credential this install has saved (BYOK/AI keys, publish, source-control, media-provider, and MCP credentials), plus webhook signing and newsletter tokens on a local install",
+            handleLabel: "Switch to the Site Token tab — view and generate the Site Token that decrypts every credential this install has saved (BYOK/AI keys, publish, source-control, media-provider, and MCP credentials), plus webhook signing and newsletter tokens on a local install",
           } satisfies TabBarTab,
         ]
       : []),
@@ -165,7 +165,7 @@ export function Security(props: SecurityProps) {
         className="page-header"
         {...agentHandle("security-header", {
           role: "region",
-          label: "Secrets panel header — every saved access token and the root key that protects them, in one place",
+          label: "Secrets panel header — every saved access token and the Site Token that protects them, in one place",
         })}
       >
         <div className="page-header-text">

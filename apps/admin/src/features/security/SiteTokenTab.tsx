@@ -60,7 +60,7 @@ export function SiteTokenTab(props: SiteTokenTabProps) {
       className="site-token-tab"
       {...agentHandle("security-site-token", {
         role: "region",
-        label: "View, reveal, and generate the root key that protects every credential this install holds",
+        label: "View, reveal, and generate the Site Token that protects every credential this install holds",
       })}
     >
       <SiteTokenBody controller={controller} />
@@ -74,7 +74,7 @@ function SiteTokenBody({ controller }: { controller: SiteTokenController }) {
   const translate = controller.t;
   if (controller.loadError) {
     return (
-      <p className="notice error" role="status" {...agentHandle("security-site-token-load-error", { role: "status", label: "Shows the error when the root key's status could not be loaded" })}>
+      <p className="notice error" role="status" {...agentHandle("security-site-token-load-error", { role: "status", label: "Shows the error when the Site Token's status could not be loaded" })}>
         {controller.loadError}
       </p>
     );
@@ -103,7 +103,7 @@ function SiteTokenBody({ controller }: { controller: SiteTokenController }) {
  *  a real but secondary caveat, not something a first-time reader needs to parse up front. */
 function SiteTokenScopeNotice({ runtimeMode, t: translate }: { runtimeMode: "production" | "local"; t: Translate }) {
   return (
-    <div className="notice warning site-token-scope-notice" {...agentHandle("security-site-token-scope-notice", { role: "status", label: "What this root key does and does not cover" })}>
+    <div className="notice warning site-token-scope-notice" {...agentHandle("security-site-token-scope-notice", { role: "status", label: "What this Site Token does and does not cover" })}>
       <p>{translate("This key protects the passwords, API keys, and other credentials you've saved in Tovu — including on your live site.")}</p>
       {runtimeMode === "production" ? (
         <p>{translate("On a live site, this key is stored right next to your database. Anyone who gets a full backup of your server would get both your data and the key that unlocks it.")}</p>
@@ -122,8 +122,8 @@ function SiteTokenStatusCard({ controller }: { controller: SiteTokenController }
   const status = controller.status;
   if (!status) return null;
   return (
-    <section className="card site-token-status-card" {...agentHandle("security-site-token-status", { role: "region", label: "The active root key's source, fingerprint, and reveal control" })}>
-      <h3 className="site-token-status-heading">{translate("Site token")}</h3>
+    <section className="card site-token-status-card" {...agentHandle("security-site-token-status", { role: "region", label: "The active Site Token's source, fingerprint, and reveal control" })}>
+      <h3 className="site-token-status-heading">{translate("Site Token")}</h3>
       <p className="site-token-status-badge-row">
         <span className={`status ${siteTokenStatusBadgeClass(status.active, status.invalid)}`}>{siteTokenStatusBadgeLabel(status.active, status.source, translate)}</span>
         {status.fingerprint ? (
@@ -201,12 +201,12 @@ function SiteTokenRevealAction({ controller }: { controller: SiteTokenController
         className="btn-secondary"
         disabled={controller.revealing}
         onClick={() => void controller.reveal()}
-        {...agentHandle("security-site-token-reveal", { role: "button", label: "Reveal the active root key's value" })}
+        {...agentHandle("security-site-token-reveal", { role: "button", label: "Reveal the active Site Token's value" })}
       >
         {controller.revealing ? translate("Revealing…") : translate("Reveal")}
       </button>
       {controller.revealError ? (
-        <p className="notice error" role="status" {...agentHandle("security-site-token-reveal-error", { role: "status", label: "Shows the error when revealing the root key failed" })}>
+        <p className="notice error" role="status" {...agentHandle("security-site-token-reveal-error", { role: "status", label: "Shows the error when revealing the Site Token failed" })}>
           {controller.revealError}
         </p>
       ) : null}
@@ -220,12 +220,12 @@ function SiteTokenRevealedValue({ hex, onHide, t: translate }: { hex: string; on
   const { copied, copy } = useRevealedKeyCopy(hex);
   return (
     <div className="site-token-revealed-value">
-      <code {...agentHandle("security-site-token-reveal-value", { role: "field", label: "The active root key's value, in the clear" })}>{hex}</code>
+      <code {...agentHandle("security-site-token-reveal-value", { role: "field", label: "The active Site Token's value, in the clear" })}>{hex}</code>
       <div className="site-token-revealed-actions">
-        <button type="button" className="btn-secondary" onClick={() => void copy()} {...agentHandle("security-site-token-copy", { role: "button", label: "Copy the root key to the clipboard" })}>
+        <button type="button" className="btn-secondary" onClick={() => void copy()} {...agentHandle("security-site-token-copy", { role: "button", label: "Copy the Site Token to the clipboard" })}>
           {copied ? translate("Copied!") : translate("Copy")}
         </button>
-        <button type="button" className="btn-ghost" onClick={onHide} {...agentHandle("security-site-token-hide", { role: "button", label: "Hide the revealed root key" })}>
+        <button type="button" className="btn-ghost" onClick={onHide} {...agentHandle("security-site-token-hide", { role: "button", label: "Hide the revealed Site Token" })}>
           {translate("Hide")}
         </button>
       </div>
@@ -252,7 +252,7 @@ function SiteTokenGenerateAction({ controller }: { controller: SiteTokenControll
         className="btn-primary"
         disabled={controller.generating}
         onClick={() => void controller.generate()}
-        {...agentHandle("security-site-token-generate", { role: "button", label: "Generate a root key file for this install" })}
+        {...agentHandle("security-site-token-generate", { role: "button", label: "Generate a Site Token file for this install" })}
       >
         {controller.generating ? translate("Generating…") : translate("Generate a key")}
       </button>
@@ -270,7 +270,7 @@ function SiteTokenGenerateErrorNote({ failure, t: translate }: { failure: SiteTo
         ? translate("A key file already exists. This tab only creates a new key — it never overwrites one.")
         : siteTokenGenerateErrorMessage(locale, failure.detail);
   return (
-    <p className="notice error" role="status" {...agentHandle("security-site-token-generate-error", { role: "status", label: "Shows the error when generating a root key file failed" })}>
+    <p className="notice error" role="status" {...agentHandle("security-site-token-generate-error", { role: "status", label: "Shows the error when generating a Site Token file failed" })}>
       {text}
     </p>
   );

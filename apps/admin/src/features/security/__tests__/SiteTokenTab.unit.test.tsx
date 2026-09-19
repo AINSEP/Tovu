@@ -7,7 +7,7 @@ import type { AdminSiteTokenStatus } from "@/lib/api";
 
 /**
  * @file First dedicated test file for `SiteTokenTab.tsx`. It exists because the 2026-09-09 copy
- * pass (`27e16a1e` — "Site token" replacing "Root key", plus the added "Fingerprint" label and the
+ * pass (`27e16a1e` — "Site Token" as the canonical label, plus the added "Fingerprint" label and the
  * rewritten scope notice) shipped with no assertion that would fail if any of that wording
  * regressed; until now `Security.unit.test.tsx` only mounted this tab's shell, and its own header
  * noted there was no `*.unit.test.tsx` here. Each test below pins one of the strings that pass
@@ -46,10 +46,10 @@ function renderTab(status: AdminSiteTokenStatus = ACTIVE_FILE_STATUS) {
 }
 
 describe("SiteTokenTab — status card copy", () => {
-  it('labels the section "Site token", not the older "Root key" wording', () => {
+  it('labels the section "Site Token" with the canonical terminology', () => {
     renderTab();
 
-    expect(screen.getByRole("heading", { name: "Site token" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Site Token" })).toBeInTheDocument();
   });
 
   it("renders the fingerprint label beside the active key's fingerprint", () => {

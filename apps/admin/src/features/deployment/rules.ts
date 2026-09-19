@@ -603,7 +603,7 @@ export const FULL_SITE_CAPABILITIES: readonly DeploymentCapability[] = STATIC_SI
 /**
  * The Overview tab's per-env-var explanatory note, as a dictionary key. `TOVU_INTEGRATIONS_ROOT_KEY`
  * is boot-blocking in production (`REQUIRED_SECRETS` above; `boot-readiness-gate.ts`'s
- * `hasMissingIntegrationsRootKey` calls `process.exit(1)` when neither the env var nor a valid key
+ * the production readiness gate calls `process.exit(1)` when neither the env var nor a valid key
  * file resolves) but NOT in local/dev mode, where an unset value instead surfaces later as a 503 on
  * the AI Assistant screen — worded here so the note itself states that split, rather than the UI
  * inventing a severity color the underlying fact doesn't support.

@@ -103,7 +103,7 @@ describe("deploymentEnvVarNoteKey", () => {
     expect(notes.every((n) => n.length > 0)).toBe(true);
   });
 
-  it("states the integrations root key is boot-blocking in production, with the local-mode 503 fallback noted too", () => {
+  it("states the integrations Site Token is boot-blocking in production, with the local-mode 503 fallback noted too", () => {
     expect(deploymentEnvVarNoteKey("TOVU_INTEGRATIONS_ROOT_KEY")).toMatch(/required to boot in production/i);
     expect(deploymentEnvVarNoteKey("TOVU_INTEGRATIONS_ROOT_KEY")).toMatch(/503/);
   });

@@ -114,7 +114,7 @@ async function call(harness: Harness, toolId: string, input: unknown) {
  *  failure — pinned here rather than imported so a silent reword of the rule fails this suite. */
 const SECRET_STORE_UNAVAILABLE_MESSAGE =
   "CUSTOM_CREDENTIALS_SECRET_STORE_UNAVAILABLE: this site's secret store could not open the saved credential: " +
-  "its root key (site token) is missing or unusable, or the stored credential is unreadable. No request was sent. " +
+  "its Site Token is missing or unusable, or the stored credential is unreadable. No request was sent. " +
   "An operator can check this site's token on the admin Secrets page.";
 
 const VALID_WRITE_FILES_INPUT = { owner: "octo", repo: "demo", branch: "main", commitMessage: "deploy", files: [{ path: "fly.toml", content: "app = 'demo'" }] };
@@ -318,13 +318,13 @@ test("a secret-store failure names its KIND under a fixed message — its own te
   assert.equal(httpClient.calls.length, 0);
 });
 
-test("a MISSING ROOT KEY reaches the model as the actionable secret-store reason, not a redacted 500", async () => {
+test("a MISSING SITE TOKEN reaches the model as the actionable secret-store reason, not a redacted 500", async () => {
   // The live 2026-09-18 incident, verbatim: the desktop app booted its site server with no
   // `TOVU_INTEGRATIONS_ROOT_KEY` and no key file, so `EnvOrFileKeyring` threw this exact text,
   // `decryptRecord` wrapped it, and BOTH credential-using tools answered `500 INTERNAL_ERROR` —
   // the one operator-fixable condition in this domain, indistinguishable from a crash.
   const keyringMessage =
-    "no root key: TOVU_INTEGRATIONS_ROOT_KEY is not set, no key file exists at " +
+    "no Site Token: TOVU_INTEGRATIONS_ROOT_KEY is not set, no key file exists at " +
     "/Users/someone/.tovu/integrations-root-key.hex, and this instance does not auto-generate one";
   const { deps, httpClient } = await makeRouteDeps({
     sealer: (inner) => ({
