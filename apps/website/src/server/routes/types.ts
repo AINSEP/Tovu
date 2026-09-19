@@ -121,6 +121,7 @@ import type { DeploymentsReadRepoPort, ExportEngine } from "../../features/deplo
 import type { PublishContentBundleRepoPort } from "../../features/publish-content/bundle-staging.js";
 import type { PublishContentBaselineRepoPort } from "../../features/publish-content/baseline-repo.js";
 import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
+import type { PublishContentRunRepoPort } from "../../features/publish-content/run-repo.js";
 
 /**
  * Slice 1 of the `RouteDeps` god-object decomposition (2026-08-18) — the process-wide clock + id-gen
@@ -1419,6 +1420,13 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * yet — see that function's own doc for why throwing is the correct, disclosed behavior).
    */
   publishContentApplyPort: PublishContentApplyPort;
+  /**
+   * Task 8 of the publish-content (Publish Content) feature — the apply loop's audit trail
+   * (`publish_content_runs`, migration `0066`). Exposed on `RouteDeps` (rather than only closed over
+   * inside the `publishContentApplyPort` factory) because a test needs to read a run row back
+   * directly — same rule-of-two both composition roots follow for every other repo here.
+   */
+  publishContentRunRepo: PublishContentRunRepoPort;
   /**
    * The static-site export engine (`src/platform/export/site-exporter.ts`'s `exportSite`), injected here
    * rather than imported directly by `export-site.ts` or `features/deployments/export-run.ts`

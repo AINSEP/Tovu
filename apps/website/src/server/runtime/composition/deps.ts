@@ -16,7 +16,8 @@ import { SqlitePublishCredentialSetRepo } from "#src/platform/db/sqlite/publish-
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
 import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-content-bundle-repo.sqlite";
 import { SqlitePublishContentBaselineRepo } from "#src/platform/db/sqlite/publish-content-baseline-repo.sqlite";
-import { createNotYetImplementedPublishContentApplyPort } from "#src/features/publish-content/gated-hooks";
+import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
+import { createPublishContentApplyPort } from "#src/features/publish-content/apply-loop";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { CUSTOM_CREDENTIALS_EGRESS_POLICY, MEDIA_IMPORT_EGRESS_POLICY, SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
@@ -1310,6 +1311,34 @@ export function createSqliteRouteDeps(
   // `outbox`/`settingsRepo` above).
   const postRepo = new SqlitePostRepo(db);
 
+  // Task 8 of the publish-content (Publish Content) feature — same "reuse one instance" convention
+  // as `postRepo` just above: `publishContentApplyPort`'s own bundle/baseline reads must hit the
+  // SAME rows `RouteDeps.publishContentBundleRepo`/`publishContentBaselineRepo` expose (both are
+  // stateless wrappers over the shared `db`, so a second instance would behave identically, but one
+  // instance matches this root's own stated convention). `changeSets` is hoisted for the identical
+  // reason as `revertRegistry`'s `postRepo` above.
+  const changeSets = new SqliteChangeSetRepo(db);
+  const publishContentBundleRepo = new SqlitePublishContentBundleRepo(db);
+  const publishContentBaselineRepo = new SqlitePublishContentBaselineRepo(db);
+  const publishContentRunRepo = new SqlitePublishContentRunRepo(db);
+  const publishContentApplyPort = createPublishContentApplyPort({
+    workspaceId,
+    bundleRepo: publishContentBundleRepo,
+    baselineRepo: publishContentBaselineRepo,
+    runRepo: publishContentRunRepo,
+    publishContentDeps: {
+      workspaceId,
+      postRepo,
+      clock,
+      idGen,
+      outbox,
+      changeSets,
+      authorize: identity.authorize,
+    },
+    clock,
+    idGen,
+  });
+
   const routeDeps: NewsletterRouteDeps = {
     workspaceId: workspaceId,
     workspaceRepo: new SqliteWorkspaceRepo(db),
@@ -1583,16 +1612,20 @@ export function createSqliteRouteDeps(
     // callers on either end. See `routes/types.ts`'s `deploymentsReadRepo` doc.
     deploymentsReadRepo: new SqliteDeploymentsReadRepo(db),
     // Task 6 of the publish-content (Publish Content) feature — see `routes/types.ts`'s
-    // `publishContentBundleRepo` doc. Real, DB-backed; `server/runtime/composition/app.ts`'s
+    // `publishContentBundleRepo` doc. Real, DB-backed (hoisted above so Task 8's
+    // `publishContentApplyPort` reads the SAME store); `server/runtime/composition/app.ts`'s
     // hermetic composition uses `InMemoryPublishContentBundleRepo` instead.
-    publishContentBundleRepo: new SqlitePublishContentBundleRepo(db),
-    // Task 7 — see `routes/types.ts`'s `publishContentBaselineRepo` doc. Real, DB-backed;
-    // `server/runtime/composition/app.ts`'s hermetic composition uses
+    publishContentBundleRepo,
+    // Task 7 — see `routes/types.ts`'s `publishContentBaselineRepo` doc. Real, DB-backed (hoisted
+    // above for the same reason); `server/runtime/composition/app.ts`'s hermetic composition uses
     // `InMemoryPublishContentBaselineRepo` instead.
-    publishContentBaselineRepo: new SqlitePublishContentBaselineRepo(db),
-    // Task 7 — same default binding as the hermetic composition (`app.ts`): neither has a real
-    // apply loop yet (Task 8). See `routes/types.ts`'s `publishContentApplyPort` doc.
-    publishContentApplyPort: createNotYetImplementedPublishContentApplyPort(),
+    publishContentBaselineRepo,
+    // Task 8 — the real apply loop (`apply-loop.ts`), replacing the throwing
+    // `createNotYetImplementedPublishContentApplyPort()` default. See `routes/types.ts`'s
+    // `publishContentApplyPort` doc.
+    publishContentApplyPort,
+    // Task 8 — the apply loop's audit trail. See `routes/types.ts`'s `publishContentRunRepo` doc.
+    publishContentRunRepo,
     // 2026-08-15 — the real export engine, bound here rather than imported inside
     // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
     // `runExportSite` doc for why that indirection exists (a real circular-load crash it began as a

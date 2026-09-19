@@ -10,7 +10,8 @@ import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, li
 import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
 import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
 import { InMemoryPublishContentBaselineRepo } from "#src/features/publish-content/baseline-repo";
-import { createNotYetImplementedPublishContentApplyPort } from "#src/features/publish-content/gated-hooks";
+import { InMemoryPublishContentRunRepo } from "#src/features/publish-content/run-repo";
+import { createPublishContentApplyPort } from "#src/features/publish-content/apply-loop";
 import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
@@ -538,6 +539,35 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     ...(process.env.TOVU_COMPOSIO_BASE_URL ? { baseUrl: process.env.TOVU_COMPOSIO_BASE_URL } : {}),
   });
 
+  // Extracted (not inlined into the return object below), same reasoning as `restorePointsRepo`
+  // above: Task 8's real `publishContentApplyPort` (`apply-loop.ts`) must read/write the SAME
+  // in-memory bundle/baseline/run stores the routes below expose on `RouteDeps`, not a second,
+  // disconnected instance — an apply loop reading an empty baseline store would never see `applied`,
+  // only ever `created`/`conflict`. `changeSets` is hoisted for the identical reason: the apply
+  // loop's `executeCommand` calls must land in the SAME change-set store every other route/test
+  // reads off `RouteDeps.changeSets`.
+  const changeSets = new InMemoryChangeSetRepo([], [], outbox);
+  const publishContentBundleRepo = new InMemoryPublishContentBundleRepo();
+  const publishContentBaselineRepo = new InMemoryPublishContentBaselineRepo();
+  const publishContentRunRepo = new InMemoryPublishContentRunRepo();
+  const publishContentApplyPort = createPublishContentApplyPort({
+    workspaceId: seededWorkspace.id,
+    bundleRepo: publishContentBundleRepo,
+    baselineRepo: publishContentBaselineRepo,
+    runRepo: publishContentRunRepo,
+    publishContentDeps: {
+      workspaceId: seededWorkspace.id,
+      postRepo,
+      clock,
+      idGen,
+      outbox,
+      changeSets,
+      authorize: identity.authorize,
+    },
+    clock,
+    idGen,
+  });
+
   const routeDeps: NewsletterRouteDeps = {
     workspaceId: seededWorkspace.id,
     workspaceRepo,
@@ -610,7 +640,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     siteDisplayName: { read: () => undefined },
     // BR-04 (2026-07-16): the repo forwards insert()'s optional event to this SAME outbox
     // instance, matching what the old separate executeCommand()-level enqueue() call did.
-    changeSets: new InMemoryChangeSetRepo([], [], outbox),
+    // Hoisted above (not constructed inline) — see the comment there for why.
+    changeSets,
     // Pre-loaded with the post-domain reverters, closed over the SAME postRepo/clock/outbox
     // instances this root threads through everything else (ADR-018 C-005/C-006; 2026-08-13
     // features-post-deep-import-trace.md Job 2 — see `features/post/reverters.ts`'s header).
@@ -769,15 +800,20 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // field rather than this composition root taking on fixture-authoring for every case.
     deploymentsReadRepo: new InMemoryDeploymentsReadRepo(),
     // Task 6 of the publish-content (Publish Content) feature — hermetic double for
-    // `server/runtime/composition/deps.ts`'s real `SqlitePublishContentBundleRepo`. See
+    // `server/runtime/composition/deps.ts`'s real `SqlitePublishContentBundleRepo`. Hoisted above
+    // (not constructed inline) so Task 8's `publishContentApplyPort` reads the SAME store. See
     // `routes/types.ts`'s `publishContentBundleRepo` doc.
-    publishContentBundleRepo: new InMemoryPublishContentBundleRepo(),
+    publishContentBundleRepo,
     // Task 7 — hermetic double for `server/runtime/composition/deps.ts`'s real
-    // `SqlitePublishContentBaselineRepo`. See `routes/types.ts`'s `publishContentBaselineRepo` doc.
-    publishContentBaselineRepo: new InMemoryPublishContentBaselineRepo(),
-    // Task 7 — same default binding as the real composition (`deps.ts`): neither has a real apply
-    // loop yet (Task 8). See `routes/types.ts`'s `publishContentApplyPort` doc.
-    publishContentApplyPort: createNotYetImplementedPublishContentApplyPort(),
+    // `SqlitePublishContentBaselineRepo`. Hoisted above for the same reason. See
+    // `routes/types.ts`'s `publishContentBaselineRepo` doc.
+    publishContentBaselineRepo,
+    // Task 8 — the real apply loop (`apply-loop.ts`), replacing the throwing
+    // `createNotYetImplementedPublishContentApplyPort()` default. See `routes/types.ts`'s
+    // `publishContentApplyPort` doc.
+    publishContentApplyPort,
+    // Task 8 — the apply loop's audit trail. See `routes/types.ts`'s `publishContentRunRepo` doc.
+    publishContentRunRepo,
     // 2026-08-15 — the real export engine, bound here rather than imported inside
     // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
     // `runExportSite` doc for why that indirection is required, not stylistic. NOT resolved lazily
