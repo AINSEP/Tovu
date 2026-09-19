@@ -10,6 +10,7 @@ import {
   type IdentityRepos,
   type PrincipalRecord,
 } from "@jini-ai/cms/identity";
+import type { PrincipalKind } from "#src/contracts/core/gated-mutations/ports";
 import type { ClockDeps, IdentityDeps, RouteDeps } from "../../routes/types.js";
 import { authenticateApiKey, type ApiKeyServiceDeps } from "#src/features/identity/api-key-service";
 import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
@@ -75,8 +76,39 @@ const SESSION_COOKIE = "tovu_session";
 const API_KEY_AUTHORIZATION_PATTERN = /^(?:Bearer|ApiKey)[ \t]+(\S+)$/i;
 
 /** How the current request authenticated. Route families that must not be reachable by a machine
- *  credential (see `routes/admin/api-keys/*`) branch on this. */
-export type AuthCredentialKind = "session" | "api_key";
+ *  credential (see `routes/admin/api-keys/*`) branch on this.
+ *
+ * `"publish_key"` is resolved by `publish-trust-auth.ts`'s `requirePublishTrust`, NOT by
+ * `currentCredential` below — a publishing session token is never a credential this file can
+ * issue or validate, and it reaches only the routes `grant.ts`'s `PUBLISH_TRUST_ROUTES` names.
+ * It is listed here so the existing `rejectUnlessSessionCredential` guard (which admits only
+ * `"session"`) refuses it on every machine-credential-forbidden route without a second edit. */
+export type AuthCredentialKind = "session" | "api_key" | "publish_key";
+
+/**
+ * Maps how a request authenticated onto the principal class a gated ceremony records
+ * (`core/gated-mutations/ports.ts`'s `PrincipalKind`).
+ *
+ * Exists so a route stops hardcoding `principalKind: "user"` for every caller. The mapping is
+ * total and deliberately has no default arm: a new credential kind is a compile error here rather
+ * than a silent re-label of automation as a human.
+ *
+ * `"agent"` is unreachable from this mapping because no agent authenticates through the admin HTTP
+ * gate — agent-driven ceremonies pass their own kind directly from each feature's own
+ * `tool-registrations.ts`.
+ *
+ * @complexity O(1).
+ */
+export function gatedPrincipalKindFor(kind: AuthCredentialKind): PrincipalKind {
+  switch (kind) {
+    case "session":
+      return "user";
+    case "api_key":
+      return "api_key";
+    case "publish_key":
+      return "publish_key";
+  }
+}
 
 /** A resolved credential: who is calling, and which of the two credential types proved it. */
 export interface AuthenticatedCredential {

@@ -12,12 +12,20 @@ import type { UUID } from "@jini-ai/cms/core";
  */
 
 /**
- * The three principal classes a gated mutation can be driven by. Deliberately narrower than
+ * The principal classes a gated mutation can be driven by. Deliberately narrower than
  * `identity.PrincipalKind` (which also has `"system"`) — kept local so `core/gated-mutations`
  * never imports `identity` (same "kept generic to avoid inverting the dependency direction"
  * rule `core/commands/command.ts`'s own `AuthorizeFn` doc comment documents).
+ *
+ * `"publish_key"` is a publishing installation pushing content into this one over the
+ * publish-trust handshake (`features/publish-trust/`). It is listed here so a gated ceremony can
+ * RECORD what actually drove it: before this member existed, `routes/publish-content/import.ts`
+ * passed the literal `"user"` for every caller, so an automated cross-site publish was written
+ * into the audit trail as a human. Adding a member widens nothing — the only behavioral branch on
+ * this type is `gateway.ts`'s `principalKind === "agent"` confirm refusal, which a new member does
+ * not reach — and every authorization decision still runs through `AuthorizeFn`.
  */
-export type PrincipalKind = "user" | "agent" | "api_key";
+export type PrincipalKind = "user" | "agent" | "api_key" | "publish_key";
 
 /**
  * The shape of the SPEC-006 `authorize()` gate. Structurally identical to

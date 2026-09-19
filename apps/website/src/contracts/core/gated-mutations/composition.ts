@@ -136,10 +136,18 @@ export function planHashOf(details: unknown): string {
  * `[CIC_REQUESTED]` Unit=gated-mutations-composition Trigger=agent/api_key ceremony confirmation
  * Property=REQ-13's actor-class rule Correctly narrows only `kind='user'` MissingConstraint=a
  * `resolveCurrentDelegator(agentId)`/`resolveApiKeyOwner(apiKeyId)` port Evidence=ADR-041 §5, this
- * file. Every route wired this pass authenticates as a `kind='user'` principal (session-cookie
- * auth, `getAuthedPrincipal`), so this simplification is inert for the traffic this dispatch
- * actually serves; flagged rather than silently narrowed for whoever wires agent/api_key traffic
- * through these ceremonies next.
+ * file.
+ *
+ * 2026-09-19 — this doc previously asserted that every route wired through these ceremonies
+ * authenticates as `kind='user'`, which made the simplification inert. That is no longer true:
+ * `routes/publish-content/import.ts` now reports the credential it actually saw
+ * (`dev-auth.ts`'s `gatedPrincipalKindFor`), so `api_key` and `publish_key` reach here with their
+ * real kind. Nothing about the RESULT changes — this function already ignored `principalKind` —
+ * but the remaining gap is now reachable rather than hypothetical for `api_key` (REQ-13 wants the
+ * key's owning user, and gets the key's own principal id instead). For `publish_key` the identity
+ * function is the CORRECT answer and not a simplification: a publishing installation has no
+ * delegator and no owning user, so "only the installation that confirmed may redeem" is exactly
+ * the rule REQ-13 asks for.
  */
 export async function resolveActorClassIdentity(params: { principalId: string; principalKind: PrincipalKind }): Promise<string | null> {
   return params.principalId;

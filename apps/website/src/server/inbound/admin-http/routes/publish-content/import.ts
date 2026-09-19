@@ -17,7 +17,7 @@ import {
   PublishContentBundleNotFoundError,
 } from "#src/features/publish-content/gated-hooks";
 import { executePublishContentImport, RestorePointUnavailableError } from "#src/features/publish-content/execute-import";
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { gatedPrincipalKindFor, getAuthedCredentialKind, getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
 
 /**
@@ -85,7 +85,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       const result = await plan({
         deps: deps.gatedMutations.gatewayDeps,
         principalId: principal.id,
-        principalKind: "user",
+        principalKind: gatedPrincipalKindFor(getAuthedCredentialKind(res)),
         hooks: hooks as unknown as GatedMutationHooks<unknown, unknown>,
       });
 
@@ -119,12 +119,13 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       const record = await confirm({
         deps: deps.gatedMutations.gatewayDeps,
         principalId: principal.id,
-        // Session-cookie auth resolves to a `kind: 'user'` principal, same as every other
-        // gated-mutation route in this codebase (`composition.ts`'s own disclosed narrowing) — an
-        // `agent`-kind principal reaching this handler is a scenario this route can never itself
-        // construct; the "agent cannot confirm" property is proved directly against `gateway.
-        // confirm()` in this feature's own unit tests, not via HTTP (see `gated-hooks.test.ts`).
-        principalKind: "user",
+        // Reports the credential that actually authenticated this request rather than the literal
+        // `"user"` this used to pass for every caller: a session is a human, an api_key is a peer
+        // push, and a `publish_key` is the zero-setup publishing handshake. No `agent`-kind
+        // principal can reach this handler — nothing authenticates as an agent through the admin
+        // HTTP gate — so the "agent cannot confirm" property is still proved directly against
+        // `gateway.confirm()` in this feature's unit tests, not via HTTP (`gated-hooks.test.ts`).
+        principalKind: gatedPrincipalKindFor(getAuthedCredentialKind(res)),
         hooks,
         planId,
         planHash,
@@ -182,7 +183,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
           execute({
             deps: deps.gatedMutations.gatewayDeps,
             principalId: principal.id,
-            principalKind: "user",
+            principalKind: gatedPrincipalKindFor(getAuthedCredentialKind(res)),
             hooks: hooks as unknown as GatedMutationHooks<unknown, { restorePointId: string; changeSetIds: readonly string[] }>,
             confirmationToken,
           }),
