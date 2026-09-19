@@ -8,9 +8,9 @@ import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDef
 import { registerPageHeadContributor, resetPageHeadRegistry } from "../../inbound/public-http/http/site/page-head.js";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
-import { InMemoryContentTransportBundleRepo } from "#src/features/content-transport/bundle-staging";
-import { InMemoryContentTransportBaselineRepo } from "#src/features/content-transport/baseline-repo";
-import { createNotYetImplementedContentTransportApplyPort } from "#src/features/content-transport/gated-hooks";
+import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
+import { InMemoryPublishContentBaselineRepo } from "#src/features/publish-content/baseline-repo";
+import { createNotYetImplementedPublishContentApplyPort } from "#src/features/publish-content/gated-hooks";
 import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
@@ -192,7 +192,7 @@ import { createPendingAuthorizationStore } from "#src/platform/oauth/index";
 import { createMediaModule } from "./modules/media.js";
 import { createTaxonomyModule } from "./modules/taxonomy.js";
 import { createContentModule } from "./modules/content.js";
-import { createContentTransportModule } from "./modules/content-transport.js";
+import { createPublishContentModule } from "./modules/publish-content.js";
 import { createMembersModule } from "./modules/members.js";
 import type { MembersRouteDeps } from "../../inbound/admin-http/routes/members/deps.js";
 import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
@@ -768,16 +768,16 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // and overrides this field, the same way other tests override a single `createRouteDeps()`
     // field rather than this composition root taking on fixture-authoring for every case.
     deploymentsReadRepo: new InMemoryDeploymentsReadRepo(),
-    // Task 6 of the content-transport (Publish Content) feature — hermetic double for
-    // `server/runtime/composition/deps.ts`'s real `SqliteContentTransportBundleRepo`. See
-    // `routes/types.ts`'s `contentTransportBundleRepo` doc.
-    contentTransportBundleRepo: new InMemoryContentTransportBundleRepo(),
+    // Task 6 of the publish-content (Publish Content) feature — hermetic double for
+    // `server/runtime/composition/deps.ts`'s real `SqlitePublishContentBundleRepo`. See
+    // `routes/types.ts`'s `publishContentBundleRepo` doc.
+    publishContentBundleRepo: new InMemoryPublishContentBundleRepo(),
     // Task 7 — hermetic double for `server/runtime/composition/deps.ts`'s real
-    // `SqliteContentTransportBaselineRepo`. See `routes/types.ts`'s `contentTransportBaselineRepo` doc.
-    contentTransportBaselineRepo: new InMemoryContentTransportBaselineRepo(),
+    // `SqlitePublishContentBaselineRepo`. See `routes/types.ts`'s `publishContentBaselineRepo` doc.
+    publishContentBaselineRepo: new InMemoryPublishContentBaselineRepo(),
     // Task 7 — same default binding as the real composition (`deps.ts`): neither has a real apply
-    // loop yet (Task 8). See `routes/types.ts`'s `contentTransportApplyPort` doc.
-    contentTransportApplyPort: createNotYetImplementedContentTransportApplyPort(),
+    // loop yet (Task 8). See `routes/types.ts`'s `publishContentApplyPort` doc.
+    publishContentApplyPort: createNotYetImplementedPublishContentApplyPort(),
     // 2026-08-15 — the real export engine, bound here rather than imported inside
     // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
     // `runExportSite` doc for why that indirection is required, not stylistic. NOT resolved lazily
@@ -1094,11 +1094,11 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   mountRoutes(app, createContentModule(routeDeps));
   registerContentPostGetRoute(app, routeDeps);
 
-  // Task 4 of the content-transport (Publish Content) feature (`ADS-memory/reports/
+  // Task 4 of the publish-content (Publish Content) feature (`ADS-memory/reports/
   // 2026-09-18-publish-feature-implementation-plan.md` §1.1/§4) — the export/pull route. This is
-  // also where `installFirstPartyTransportTypes()` first gets a real caller (see
-  // `content-transport-manifest.ts`'s own header and `modules/content-transport.ts`'s).
-  mountRoutes(app, createContentTransportModule(routeDeps));
+  // also where `installFirstPartyPublishContentTypes()` first gets a real caller (see
+  // `publish-content-manifest.ts`'s own header and `modules/publish-content.ts`'s).
+  mountRoutes(app, createPublishContentModule(routeDeps));
 
   // ADR-PIPE-013 Decision §2-3 (FEAT-013 Phase 2) — one shared
   // MAGIC_LINK_PER_EMAIL limiter instance consulted by BOTH the admin

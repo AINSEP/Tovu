@@ -14,9 +14,9 @@ import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createP
 import { SqliteDeploymentsReadRepo } from "#src/features/deployments/index";
 import { SqlitePublishCredentialSetRepo } from "#src/platform/db/sqlite/publish-credential-repo.sqlite";
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
-import { SqliteContentTransportBundleRepo } from "#src/platform/db/sqlite/content-transport-bundle-repo.sqlite";
-import { SqliteContentTransportBaselineRepo } from "#src/platform/db/sqlite/content-transport-baseline-repo.sqlite";
-import { createNotYetImplementedContentTransportApplyPort } from "#src/features/content-transport/gated-hooks";
+import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-content-bundle-repo.sqlite";
+import { SqlitePublishContentBaselineRepo } from "#src/platform/db/sqlite/publish-content-baseline-repo.sqlite";
+import { createNotYetImplementedPublishContentApplyPort } from "#src/features/publish-content/gated-hooks";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { CUSTOM_CREDENTIALS_EGRESS_POLICY, MEDIA_IMPORT_EGRESS_POLICY, SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
@@ -1567,17 +1567,17 @@ export function createSqliteRouteDeps(
     // 2026-08-15 — read-only wiring onto migration 0037's tables, previously applied with zero
     // callers on either end. See `routes/types.ts`'s `deploymentsReadRepo` doc.
     deploymentsReadRepo: new SqliteDeploymentsReadRepo(db),
-    // Task 6 of the content-transport (Publish Content) feature — see `routes/types.ts`'s
-    // `contentTransportBundleRepo` doc. Real, DB-backed; `server/runtime/composition/app.ts`'s
-    // hermetic composition uses `InMemoryContentTransportBundleRepo` instead.
-    contentTransportBundleRepo: new SqliteContentTransportBundleRepo(db),
-    // Task 7 — see `routes/types.ts`'s `contentTransportBaselineRepo` doc. Real, DB-backed;
+    // Task 6 of the publish-content (Publish Content) feature — see `routes/types.ts`'s
+    // `publishContentBundleRepo` doc. Real, DB-backed; `server/runtime/composition/app.ts`'s
+    // hermetic composition uses `InMemoryPublishContentBundleRepo` instead.
+    publishContentBundleRepo: new SqlitePublishContentBundleRepo(db),
+    // Task 7 — see `routes/types.ts`'s `publishContentBaselineRepo` doc. Real, DB-backed;
     // `server/runtime/composition/app.ts`'s hermetic composition uses
-    // `InMemoryContentTransportBaselineRepo` instead.
-    contentTransportBaselineRepo: new SqliteContentTransportBaselineRepo(db),
+    // `InMemoryPublishContentBaselineRepo` instead.
+    publishContentBaselineRepo: new SqlitePublishContentBaselineRepo(db),
     // Task 7 — same default binding as the hermetic composition (`app.ts`): neither has a real
-    // apply loop yet (Task 8). See `routes/types.ts`'s `contentTransportApplyPort` doc.
-    contentTransportApplyPort: createNotYetImplementedContentTransportApplyPort(),
+    // apply loop yet (Task 8). See `routes/types.ts`'s `publishContentApplyPort` doc.
+    publishContentApplyPort: createNotYetImplementedPublishContentApplyPort(),
     // 2026-08-15 — the real export engine, bound here rather than imported inside
     // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
     // `runExportSite` doc for why that indirection exists (a real circular-load crash it began as a

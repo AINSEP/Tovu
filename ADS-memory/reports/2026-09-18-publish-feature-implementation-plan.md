@@ -19,7 +19,7 @@ wrong in several load-bearing specifics. These change the task list.
 | 5 | "Postgres/Supabase/Neon are already targets" (dispatch brief) | **SCHEMA ONLY** | `schema.postgres.ts` is generated and CI-drift-guarded, but the only file that imports it is `platform/db/migration/manifest.ts`. There is **no Postgres runtime adapter for posts, media or anything else** — `platform/db/postgres/` contains one file, `db-ops.ts`. Design dialect-neutrally (cheap), but do not budget for a live pg path. |
 | 6 | "UNVERIFIED whether the desktop app copies `siteId` when cloning a site dir" | **RESOLVED — it does not** | `platform/site-dir/duplicate-site.ts:191`: `const siteId = randomUUID(); // NEW identity — never copied from sourceMeta.siteId.` The product's duplicate path is safe. A raw `cp -r` outside the product still clones it, which is why §1.6 keys baselines on the **authenticated principal**, not a self-declared `siteId`. |
 | 7 | r3's bespoke `?mode=dry-run` then `?mode=apply` flow | **REINVENTS A BUILT THING** | `contracts/core/gated-mutations/` is a live plan→confirm→execute gateway that already gives: fresh re-authorization at execute, single-redemption tokens, "an agent may never confirm", and **plan-hash re-derivation → `PLAN_STALE`**. That last one is precisely "someone edited the destination between the dry-run and the apply" — the race r3's flow has no answer for. Use it. `features/database/gated-hooks.ts` and `features/recovery/gated-hooks.ts` are the two worked examples. |
-| 8 | "Name the feature `publish`" | **COLLIDES** | `publish` is taken by deploy: `publish_credential_sets`, `publish_history` tables, `PublishExecutionMode`, `features/deployments/static-publish/`, `publish-agent-tools.ts`. The feature dir, tables and permissions below are named **`content-transport`**. "Publish Content" stays the UI label only. |
+| 8 | "Name the feature `publish`" | **COLLIDES** | `publish` is taken by deploy: `publish_credential_sets`, `publish_history` tables, `PublishExecutionMode`, `features/deployments/static-publish/`, `publish-agent-tools.ts`. The feature dir, tables and permissions below are named **`content-transport`**. "Publish Content" stays the UI label only. **Superseded 2026-09-18:** the owner decided the feature should read as `publish-content` after all, since that is what the UI button already says — `content-transport` served no purpose beyond avoiding the exact collision named here, and the static-publish identifiers above remain untouched and still the reason `publish` alone is unavailable. Every reference below this row has been renamed accordingly (dir `features/publish-content/`, tables `publish_content_*`, permissions `publish_content.read`/`publish_content.apply`). |
 
 Claims from the brief I **confirmed** unchanged: `change_set_items` shape and its NULL `before_revision_id`/`after_revision_id` (no domain-level writer exists — only the repo passthrough at `change-set-repo.sqlite.ts:105`); the strict-equality revert guard (`contracts/core/commands/revert.ts:99-105`); post ids preservable at create (`routes/posts/create.ts:72` mints, `:104` passes into `createPost`); `asset_blobs` UNIQUE(workspace_id, sha256); registries are append-only/read-once **only in some places** — see §3.
 
@@ -29,8 +29,8 @@ Claims from the brief I **confirmed** unchanged: `change_set_items` shape and it
 
 ### 1.1 HTTP routes
 - Handlers: `apps/website/src/server/inbound/admin-http/routes/<domain>/<verb>.ts`, each exporting a `registerAdmin*Route` registrar.
-- Registration: `apps/website/src/server/runtime/composition/modules/content.ts` (and siblings). Add a new module `content-transport.ts` rather than widening `content.ts`.
-- Deps narrowing: each module has its own slice type, e.g. `routes/content/deps.ts`'s `ContentRouteDeps`. Write `routes/content-transport/deps.ts` the same way — a genuine narrowing, not a widening of `RouteDeps`.
+- Registration: `apps/website/src/server/runtime/composition/modules/content.ts` (and siblings). Add a new module `publish-content.ts` rather than widening `content.ts`.
+- Deps narrowing: each module has its own slice type, e.g. `routes/content/deps.ts`'s `ContentRouteDeps`. Write `routes/publish-content/deps.ts` the same way — a genuine narrowing, not a widening of `RouteDeps`.
 - Mount path convention: `/api/admin/v1/workspaces/:workspaceId/...`, with the handler 404ing when `req.params.workspaceId !== deps.workspaceId`.
 
 ### 1.2 Auth and permissions (this already exists — do not build one)
@@ -88,8 +88,8 @@ Next migration number is **0064** (`platform/db/drizzle/` ends at `0063_site_tit
  * attacker-chosen, and keying on it would let any key-holder poison another peer's
  * baselines into "safe to overwrite".
  */
-export const contentTransportBaselines = sqliteTable(
-  "content_transport_baselines",
+export const publishContentBaselines = sqliteTable(
+  "publish_content_baselines",
   {
     workspaceId: text("workspace_id").notNull(),
     peerPrincipalId: text("peer_principal_id").notNull(),
@@ -103,15 +103,15 @@ export const contentTransportBaselines = sqliteTable(
     runId: text("run_id").notNull(),
   },
   (t) => [
-    uniqueIndex("content_transport_baselines_unique").on(
+    uniqueIndex("publish_content_baselines_unique").on(
       t.workspaceId, t.peerPrincipalId, t.entityType, t.entityId
     ),
   ]
 );
 
 /** One row per export/import run — the audit trail and the report the operator acted on. */
-export const contentTransportRuns = sqliteTable(
-  "content_transport_runs",
+export const publishContentRuns = sqliteTable(
+  "publish_content_runs",
   {
     id: text("id").primaryKey(),
     workspaceId: text("workspace_id").notNull(),
@@ -127,7 +127,7 @@ export const contentTransportRuns = sqliteTable(
     /** Per-entity outcomes: created | unchanged | applied | forced | conflict | blocked | refused. */
     reportJson: text("report_json"),
   },
-  (t) => [index("idx_content_transport_runs_workspace").on(t.workspaceId, t.startedAt)]
+  (t) => [index("idx_publish_content_runs_workspace").on(t.workspaceId, t.startedAt)]
 );
 
 /**
@@ -135,8 +135,8 @@ export const contentTransportRuns = sqliteTable(
  * and large media bytes are uploaded once. Bytes are NOT stored here — they go to the blob
  * store by sha256 (see Task 6), so a re-push of unchanged media costs nothing.
  */
-export const contentTransportBundles = sqliteTable(
-  "content_transport_bundles",
+export const publishContentBundles = sqliteTable(
+  "publish_content_bundles",
   {
     id: text("id").primaryKey(),
     workspaceId: text("workspace_id").notNull(),
@@ -150,7 +150,7 @@ export const contentTransportBundles = sqliteTable(
      *  ordinary blobs and are left to the existing blob GC. */
     expiresAt: text("expires_at").notNull(),
   },
-  (t) => [index("idx_content_transport_bundles_workspace").on(t.workspaceId, t.expiresAt)]
+  (t) => [index("idx_publish_content_bundles_workspace").on(t.workspaceId, t.expiresAt)]
 );
 
 /**
@@ -158,8 +158,8 @@ export const contentTransportBundles = sqliteTable(
  * `publishCredentialSets` (sealedKeyId/sealedCiphertext/sealedNonce/sealedAlg/masked +
  * aadVersion) — same KeyringPort/SecretSealerPort, same AAD discipline, no new crypto.
  */
-export const contentTransportPeers = sqliteTable(
-  "content_transport_peers",
+export const publishContentPeers = sqliteTable(
+  "publish_content_peers",
   {
     id: text("id").primaryKey(),
     workspaceId: text("workspace_id").notNull(),
@@ -175,7 +175,7 @@ export const contentTransportPeers = sqliteTable(
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
-  (t) => [uniqueIndex("content_transport_peers_workspace_label_unique").on(t.workspaceId, t.label)]
+  (t) => [uniqueIndex("publish_content_peers_workspace_label_unique").on(t.workspaceId, t.label)]
 );
 ```
 
@@ -194,10 +194,10 @@ export const contentTransportPeers = sqliteTable(
 Use the second, and copy `duplicate-resource-registry.ts` almost verbatim — it is the same problem (one generic operation over a growing set of resources, each contributing its own implementation) and it already solved the module-cycle problem this would otherwise reopen.
 
 ```ts
-// apps/website/src/features/content-transport/type-registry.ts
+// apps/website/src/features/publish-content/type-registry.ts
 
 /** One content type's contract for participating in Publish Content. */
-export interface ContentTransportHandler {
+export interface PublishContentHandler {
   /** Stable wire discriminator. Appears in bundles and in baselines; never renamed. */
   readonly entityType: string;
   /** The resource's OWN existing write permission (e.g. "content.write" for post/page,
@@ -236,19 +236,19 @@ export interface PackedEntity {
 
 /** Deferred like ToolContributor.build: registration happens once at boot, before any real
  *  deps bag exists; the handler is resolved per composition, later. */
-export interface ContentTransportContributor {
+export interface PublishContentContributor {
   readonly entityType: string;
-  readonly build: (deps: ContentTransportDeps) => ContentTransportHandler;
+  readonly build: (deps: PublishContentDeps) => PublishContentHandler;
 }
 
-export function registerContentTransportContributor(c: ContentTransportContributor): void;
-export function listContentTransportContributors(): readonly ContentTransportContributor[];
-export function resetContentTransportContributorsForTests(): void;
+export function registerPublishContentContributor(c: PublishContentContributor): void;
+export function listPublishContentContributors(): readonly PublishContentContributor[];
+export function resetPublishContentContributorsForTests(): void;
 ```
 
 Rules that make it actually extensible:
-1. **Registration happens at the composition root only** — `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors` (or a sibling `installFirstPartyTransportTypes`). A feature returns *data* (`contributePostTransport(): ContentTransportContributor`) and imports only the `type`. `features/post -> assistant/server` value edges previously closed a real module cycle and had to be removed; do not reopen it.
-2. **`listContentTransportContributors()` is called at publish time**, inside the planner, never captured at module load. A type registered later is picked up on the next run.
+1. **Registration happens at the composition root only** — `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors` (or a sibling `installFirstPartyPublishContentTypes`). A feature returns *data* (`contributePostPublish(): PublishContentContributor`) and imports only the `type`. `features/post -> assistant/server` value edges previously closed a real module cycle and had to be removed; do not reopen it.
+2. **`listPublishContentContributors()` is called at publish time**, inside the planner, never captured at module load. A type registered later is picked up on the next run.
 3. **Never `register on import`.** No module-evaluation side effects.
 4. **Apply order is derived from `dependsOn` at publish time** (topological sort), not hardcoded. Adding media-before-post is then a property of the media contributor, not an edit to the planner.
 5. **A type absent from the registry is absent from the bundle and from the report.** Silence is never "nothing changed" — the report lists the types it covered, so an operator can see that, say, forms were not included.
@@ -265,14 +265,14 @@ Prereqs in brackets. Tasks 1–5 write nothing to any database and cannot break 
 | # | Task | Prereq | Test |
 |---|---|---|---|
 | 1 | `content-hash.ts`: `canonicalize(entityType, state)` + `contentHash()` + exported `CONTENT_HASH_VERSION`. Excludes `id`, `workspaceId`, `version`, `updatedAt`, `autosaveJson`. Stable key order, no whitespace, explicit `null` for absent. | — | Same content on two DBs with different `version`/`updated_at` hashes equal; changing any content field changes it; a snapshot test pins the algorithm so a change to it is a deliberate `CONTENT_HASH_VERSION` bump. |
-| 2 | `type-registry.ts` per §3, plus `contributePostTransport()` / `contributePageTransport()` returning data only, wired at the composition root. | 1 | Fresh-read (a contributor registered after the first `list()` is seen by the second); replace-by-key on double registration; `resetForTests`; no runtime import edge from `features/post` into the registry module (architecture check). |
+| 2 | `type-registry.ts` per §3, plus `contributePostPublish()` / `contributePagePublish()` returning data only, wired at the composition root. | 1 | Fresh-read (a contributor registered after the first `list()` is seen by the second); replace-by-key on double registration; `resetForTests`; no runtime import edge from `features/post` into the registry module (architecture check). |
 | 3 | Migration 0064 + the four tables + `REVIEWED_JSON_COLUMNS` entries + regenerated `schema.postgres.ts`. | — | `migration-manifest.test.ts` green; pg drift check green; migration applies to a copy of `sites/tovu-com/content.db` and to an empty DB. |
-| 4 | `GET /api/admin/v1/workspaces/:ws/content-transport/export` — `content.transport.read`, read-only, streams `{hashVersion, sourceLabel, entities[], blobManifest[]}`. Deny-list is an **allowlist of registered types**, so operational data cannot leak by omission. | 2 | Returns registered types only; a principal without the type's own permission gets that type omitted, not a 500; no row from `sessions`/`principals`/`api_keys`/`*credential*`/`change_sets`/`outbox_events`/`analytics_events`/`commerce_*`/`member*`/`form_submissions`/`content_transport_*` appears in any bundle. |
+| 4 | `GET /api/admin/v1/workspaces/:ws/publish-content/export` — `publish_content.read`, read-only, streams `{hashVersion, sourceLabel, entities[], blobManifest[]}`. Deny-list is an **allowlist of registered types**, so operational data cannot leak by omission. | 2 | Returns registered types only; a principal without the type's own permission gets that type omitted, not a 500; no row from `sessions`/`principals`/`api_keys`/`*credential*`/`change_sets`/`outbox_events`/`analytics_events`/`commerce_*`/`member*`/`form_submissions`/`publish_content_*` appears in any bundle. |
 | 5 | `planImport(bundle, deps) -> TransportReport`. **Pure planning, zero writes.** Produces one outcome per entity. | 2,3 | The seven outcomes (below) each produced from a constructed fixture; a `conflict` or `blocked` row leaves the destination byte-identical. |
-| 6 | Blob pre-flight: `POST .../content-transport/blobs/probe` (which shas do you have?) then `PUT .../content-transport/blobs/:sha` → `putIfAbsent`. Bundle staging route `POST .../content-transport/bundles` → `{bundleId}`. | 3 | Probe short-circuits an already-present sha; a re-uploaded sha writes nothing and reports `written: false`; a sha whose bytes do not hash to it is refused; bundle past `expiresAt` is refused. |
-| 7 | `gated-hooks.ts`: `domain: "content.transport"`, `readPermission: "content.transport.read"`, `mutatePermission: "content.transport.apply"`, `scopeKind: "workspace"`, `computePlan()` = `planImport` hashed, `executeMutation()` = apply. Routes `plan`/`confirm`/`execute`. Restore point captured in `executeMutation` before the first write, via `DbOpsPort.captureRestorePoint`. | 5,6 | `PLAN_STALE` when the destination row changes between plan and execute; an agent principal cannot `confirm`; a redeemed token cannot be redeemed twice; a `restorePoint` cost class of `unavailable` refuses with no override. |
+| 6 | Blob pre-flight: `POST .../publish-content/blobs/probe` (which shas do you have?) then `PUT .../publish-content/blobs/:sha` → `putIfAbsent`. Bundle staging route `POST .../publish-content/bundles` → `{bundleId}`. | 3 | Probe short-circuits an already-present sha; a re-uploaded sha writes nothing and reports `written: false`; a sha whose bytes do not hash to it is refused; bundle past `expiresAt` is refused. |
+| 7 | `gated-hooks.ts`: `domain: "publish_content.import"`, `readPermission: "publish_content.read"`, `mutatePermission: "publish_content.apply"`, `scopeKind: "workspace"`, `computePlan()` = `planImport` hashed, `executeMutation()` = apply. Routes `plan`/`confirm`/`execute`. Restore point captured in `executeMutation` before the first write, via `DbOpsPort.captureRestorePoint`. | 5,6 | `PLAN_STALE` when the destination row changes between plan and execute; an agent principal cannot `confirm`; a redeemed token cannot be redeemed twice; a `restorePoint` cost class of `unavailable` refuses with no override. |
 | 8 | The apply loop: per type in `dependsOn` order, chunks of ~200 entities, each chunk one transaction, each write through `executeCommand` + the type's `apply()` with `expectedVersion`. Baseline upserted for `created`/`unchanged`/`applied`/`forced` only. | 7 | A concurrent local edit during a chunk produces `conflict`, not an overwrite; baselines written only for the four outcomes; the run row records every `changeSetId`. |
-| 9 | Permission registration: `registerBuiltinRoleGrant` for `content.transport.read` (admin) and `content.transport.apply` (admin), modelled on `features/pages/permissions.ts`. | 7 | An already-seeded `content.db` (copy of `sites/tovu-com/content.db`) gains both grants at boot; `editor` and `viewer` do not; re-running boot adds nothing. |
+| 9 | Permission registration: `registerBuiltinRoleGrant` for `publish_content.read` (admin) and `publish_content.apply` (admin), modelled on `features/pages/permissions.ts`. | 7 | An already-seeded `content.db` (copy of `sites/tovu-com/content.db`) gains both grants at boot; `editor` and `viewer` do not; re-running boot adds nothing. |
 | 10 | Peers: CRUD route + sealed key (copy `publishCredentialSets`' sealing), outbound push driver over `HttpClientPort`, and the `devHostAllowlist` diagnosis. Then pull: call the peer's export route and run the **same** `planImport` locally. | 8,9 | Pull and push exercise one importer; a private-address peer without an allowlist entry fails with a message naming `devHostAllowlist`, not a generic network error; the sealed key never appears in a log, a report, or an error body. |
 | 11 | Wire `PublishContentDialog.tsx`'s `onConfirm` → plan → report table (per-entity outcome, with the skip reasons visible) → confirm → execute. Drop its `notice.warning` block. Logic in `use-publish-content-confirm.hooks.ts`. | 10 | Playwright: a conflict row renders its reason and is not selectable for silent apply; the dialog cannot fire execute without a confirmed plan. Screenshot before "done". |
 | 12 | **Media.** New host-owned `importMediaEntity()` in `features/media/` composing `blobStore.putIfAbsent` + `blobRepo` + `mediaRepo.save(record)` (which *does* take a full record including `id`), deliberately bypassing `uploadMedia` — with a file header saying why (§0 #2). Then `contributeMediaTransport()`. | 6,8 | Imported media keeps its source `id`; a post importing alongside it renders its embed; a `media.slug` already held by a *different* id reports `blocked:slug-taken` and writes nothing; `sourceSha256` of an existing row is never rewritten (`resolveWriteOnceSource`'s invariant). |
@@ -313,7 +313,7 @@ Absence from a bundle produces **no outcome and no write**. There is no delete p
 | 8 | Operational data leaking to a peer | The bundle is built from an **allowlist** (registered types only), not a deny-list. A new table is invisible to transport by default. Task 4's test asserts absence of each sensitive table by name. |
 | 9 | A peer poisoning another peer's baselines | Baselines are keyed by the **authenticated principal id**, never by a `siteId` the bundle declares. A self-declared identity is display-only. |
 | 10 | An algorithm change silently turning every row into a conflict | `CONTENT_HASH_VERSION` travels in the bundle and is stored on each baseline. A mismatch **refuses the run** with "these two instances are on different content-hash versions; upgrade the older one", rather than producing an all-conflicts report an operator might force through. |
-| 11 | The transport API key becoming a general-purpose admin key | The key's grants come from its issuance snapshot and are evaluated by the same `authorize()`. Issue transport keys holding only `content.transport.*` plus the per-type write permissions. Each type's own `permission` is checked separately (§3), so a posts-only key cannot write media. |
+| 11 | The transport API key becoming a general-purpose admin key | The key's grants come from its issuance snapshot and are evaluated by the same `authorize()`. Issue transport keys holding only `publish_content.*` plus the per-type write permissions. Each type's own `permission` is checked separately (§3), so a posts-only key cannot write media. |
 | 12 | A peer secret leaking through a report or a log | Sealed at rest with the same `KeyringPort`/`SecretSealerPort`/AAD discipline as `publish_credential_sets`; only `masked` is ever rendered. `HttpClientPort` already strips auth headers on cross-origin redirect and rejects credentials-in-URL. |
 | 13 | A staged bundle accumulating unbounded | `expiresAt` TTL + a sweep; staged bytes are ordinary content-addressed blobs and fall to the existing blob GC. Size cap on the staging route, mirroring `rejectOversizedJsonBody`'s use at `routes/posts/create.ts:64`. |
 | 14 | Two authors making an old change set permanently unrevertable | Known live defect (`revert.ts:99-105`, strict equality). Task 14b. Not caused by this feature — but it is the first thing a second author hits, so it ships with it. |
@@ -339,4 +339,4 @@ Absence from a bundle produces **no outcome and no write**. There is no delete p
 - **UNVERIFIED**: the exact `BlobStorePort.putIfAbsent` body and its concurrency guarantee. The interface is used by `hydrate-blob-store-from-seed.ts` and both adapters, and `{written: boolean}` is its documented return, but I did not read the `@jini-ai/cms` implementation.
 - **UNVERIFIED**: whether `restoreFromArtifact`'s `restartRequired: true` (SQLite file swap) is acceptable inside an admin request, or whether the recovery UI already handles that. It matters only for the panic path, not the apply path.
 - **UNVERIFIED**: whether the in-flight `post_revisions` agent intends to change `PostRepoPort`. If it adds `saveWithRevision`, Task 12's `mediaRepo.save` analogue and Task 8's apply loop should use it rather than `updatePost`'s current path. Coordinate before Task 8.
-- **UNVERIFIED**: the current prod instance's `content.db` — whether it has an owner principal able to hold `content.transport.apply`, and whether its API-key issuance path is reachable. Task 9's grant is additive and idempotent, so it is safe either way, but the first real push needs a key issued *on prod*.
+- **UNVERIFIED**: the current prod instance's `content.db` — whether it has an owner principal able to hold `publish_content.apply`, and whether its API-key issuance path is reachable. Task 9's grant is additive and idempotent, so it is safe either way, but the first real push needs a key issued *on prod*.
