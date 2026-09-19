@@ -1482,3 +1482,173 @@ export async function getAdminPostByIdOrSlug(
 function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
+// ---------------------------------------------------------------------------
+// Replication (publish-content) — importPostEntity
+// ---------------------------------------------------------------------------
+
+export interface ImportPostEntityDeps {
+  clock: ClockPort;
+  repo: PostRepoPort;
+  outbox: OutboxPort;
+  /** Same optional "absent ⇒ zero-plugin path unchanged" contract as {@link UpdatePostDeps.beforeSaveHook}. */
+  beforeSaveHook?: BeforeSaveHookPort;
+}
+
+export interface ImportPostEntityInput {
+  workspaceId: UUID;
+  /**
+   * The SOURCE instance's own `PostRecord`, carried VERBATIM — this is the whole point of this
+   * function (see its own doc). `id` is preserved; `version`/`updatedAt` are ignored (destination-
+   * local write bookkeeping, recomputed here), and `createdAt`/`createdByPrincipalId` are honored
+   * only for a row that does not exist at this destination yet (write-once).
+   */
+  record: PostRecord;
+  /**
+   * Optimistic-concurrency basis, same contract as {@link UpdatePostInput.expectedVersion}:
+   * `undefined` means the caller believes no row exists here (a create), a number means it read
+   * that version and expects to still be writing over it.
+   */
+  expectedVersion?: number;
+  /** Attribution for the revision this write appends — the IMPORTING OPERATOR, never the source's
+   *  own author (which travels in `record.createdByPrincipalId` and is a different fact). */
+  actorId?: UUID;
+  delegatedByWorkspaceId?: UUID | null;
+  delegatedById?: UUID | null;
+}
+
+/**
+ * Replicates ONE post/page row from another instance, preserving every content field verbatim.
+ *
+ * ## Why this is a third function rather than a wider `createPost`/`updatePost`
+ *
+ * `createPost`/`updatePost` are the AUTHORING chokepoint. They deliberately refuse to accept
+ * `bodyFormat`/`bodyHtml` (SPEC-047/ADR-056 CIC-3), `seoExtJson` (SPEC-008 INV-01, owned by
+ * `features/seo/write-service.ts`), `memberAccessJson` (ADR-030 §4) and `deletedAt` (owned by
+ * `PostRepoPort.softDelete`), because an editor must not be able to reach those columns by sending
+ * an extra field on a save. Publishing is not authoring: it REPLICATES a row another instance
+ * already authored, through those same chokepoints, and must therefore reproduce every column or it
+ * is not a publish at all.
+ *
+ * Widening the authoring inputs to serve this one caller would have handed every existing editor
+ * call site a way through those guards. This function keeps them intact and takes a whole
+ * `PostRecord` instead — the identical shape and reasoning `features/media/import-media-entity.ts`
+ * already uses for media (`mediaRepo.save({...record, ...})`), which is why media has never had the
+ * fidelity defect this function exists to fix on the post side.
+ *
+ * DISCLOSED DEVIATION: this is a second writer for `posts.seo_ext_json` alongside SPEC-008 INV-01's
+ * `setEntrySeoOverrides`, and the first writer for `posts.member_access_json`. It writes both as
+ * OPAQUE strings, copied without interpretation from a value the source instance's own chokepoint
+ * already validated — it never constructs, parses or merges either one. The alternative (refusing to
+ * publish any post carrying SEO overrides or member gating) would have made the feature unusable for
+ * ordinary content while still leaving member-gating loss as the failure mode for anyone who forced
+ * it through.
+ *
+ * ## What it refuses
+ *
+ * Fail-closed on every condition where a verbatim copy would destroy destination state rather than
+ * replicate source state — a body-format conversion (the data-loss bug `resolveUpdateBodyFields`
+ * documents), a resurrection of a trashed destination row, a kind change (`PostKind` is fixed at
+ * creation), or a slug already held by a different row.
+ *
+ * @complexity O(1) — a fixed, small number of repo calls; no iteration over caller-controlled
+ * collections.
+ */
+export async function importPostEntity(required: {
+  deps: ImportPostEntityDeps;
+  input: ImportPostEntityInput;
+}): Promise<{ post: PostRecord; revisionId: string; previousRevisionId: string | null }> {
+  const { deps, input } = required;
+  const { workspaceId, record } = input;
+
+  const existing = await deps.repo.findById({ workspaceId, id: record.id });
+
+  // The caller's basis and the destination's reality must agree BEFORE anything is written. A
+  // create whose row already exists would otherwise upsert straight over it (`persistUpdatedPost`
+  // falls through to an unconditional `save()` when no basis is supplied), silently winning a race
+  // the whole `expectedVersion` mechanism exists to lose. Mirrors `import-media-entity.ts`'s own
+  // "expected no existing row, found version N" guard.
+  if (input.expectedVersion === undefined && existing) {
+    throw new PostVersionConflictError(
+      `post '${record.id}' already exists at this destination (version ${existing.version}) but was published as new`,
+      0,
+      existing.version
+    );
+  }
+
+  if (existing) {
+    // A trashed destination row is NOT an update target. Overwriting it with a live source record
+    // would silently resurrect content an operator here deliberately binned; restoring it is a
+    // separate, deliberate act (revert the delete change set).
+    if (isTrashed(existing)) {
+      throw new PostConflictError(
+        `post '${record.id}' is in the trash at this destination — restore it before publishing over it`
+      );
+    }
+    if (existing.kind !== record.kind) {
+      throw new PostConflictError(
+        `post '${record.id}' is a '${existing.kind}' at this destination but a '${record.kind}' at the source — kind is fixed at creation`
+      );
+    }
+    // Converting an existing row's body format either way discards a whole body: doc -> html loses
+    // the Tiptap document, html -> doc loses `body_html`. See `resolveUpdateBodyFields`'s doc for
+    // the real incident that behavior caused.
+    if (existing.bodyFormat !== record.bodyFormat) {
+      throw new PostConflictError(
+        `post '${record.id}' is '${existing.bodyFormat}'-format at this destination but '${record.bodyFormat}'-format at the source — publishing cannot convert a body format`
+      );
+    }
+  }
+
+  await assertSlugAvailableForUpdate(deps.repo, workspaceId, record.slug, record.id);
+
+  // CIC U-004: the hook resolves (or throws) BEFORE the record is built and BEFORE the single
+  // repo write below, exactly as on the authoring paths. The draft carries the INCOMING body and
+  // ext, so a destination plugin filters the entry it is about to see saved, not the one it had.
+  const extPatch = await runBeforeSaveHook(deps.beforeSaveHook, {
+    id: record.id,
+    workspaceId,
+    title: record.title,
+    slug: record.slug,
+    status: record.status,
+    bodyJson: record.bodyJson,
+    ext: (record.ext ?? {}) as Readonly<Record<string, Readonly<Record<string, unknown>>>>,
+  });
+  const ext = mergeExt(record.ext, extPatch);
+
+  const { ext: _incomingExt, ...carriedOver } = record;
+  const post: PostRecord = {
+    ...carriedOver,
+    workspaceId,
+    updatedAt: deps.clock.nowIso(),
+    version: (existing?.version ?? 0) + 1,
+    // Write-once authorship, same convention `importMediaEntity` applies to `media.createdAt`: an
+    // existing row keeps its own, a brand-new row takes the source's. `repo.sqlite.ts`'s
+    // `updatableColumns()` omits both columns, so the existing-row branch is also enforced
+    // structurally and not only by this expression.
+    createdByPrincipalId: existing ? existing.createdByPrincipalId : record.createdByPrincipalId,
+    createdAt: existing ? existing.createdAt : record.createdAt,
+    ...(ext !== undefined ? { ext } : {}),
+  };
+
+  const { id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
+    await persistUpdatedPost(deps.repo, post, input.expectedVersion);
+    return deps.repo.appendRevision({
+      postId: post.id,
+      workspaceId: post.workspaceId,
+      seq: post.version,
+      op: existing ? "update" : "create",
+      stateJson: post,
+      actorId: input.actorId ?? SYSTEM_ACTOR_ID,
+      delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
+      delegatedById: input.delegatedById ?? null,
+      recordedAt: post.updatedAt,
+    });
+  });
+
+  // Same SEO/sitemap signal every other write path emits — a post that arrives already-published
+  // must invalidate the destination's sitemap cache exactly like one published locally.
+  await emitStatusTransitionEvent(deps.outbox, existing?.status ?? "draft", post.status, post);
+
+  return { post, revisionId, previousRevisionId };
+}

@@ -3,7 +3,7 @@ import { executeCommand } from "@jini-ai/cms/core";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import type { PublishContentContributor, PublishContentDeps, PublishContentHandler, PackedEntity } from "#src/features/publish-content/type-registry";
 
-import { createPost, updatePost } from "./post.js";
+import { importPostEntity, isTrashed } from "./post.js";
 import type { PostKind, PostRecord } from "./post.js";
 
 /**
@@ -41,12 +41,148 @@ import type { PostKind, PostRecord } from "./post.js";
  */
 const POST_AND_PAGE_DEPENDS_ON: readonly string[] = ["media", "term"];
 
-/** `PostRecord` fields {@link contentHash} treats as this entity's real content — every field
- *  except `id`/`workspaceId`/`version`/`updatedAt` (which `content-hash.ts`'s own `canonicalize`
- *  already excludes unconditionally, so passing the whole record through is safe and simpler than
- *  hand-picking a subset that could silently drift from `PostRecord`'s own field list). */
-function toHashableState(post: PostRecord): Record<string, unknown> {
-  return { ...post };
+/**
+ * Every `PostRecord` field, classified by what this transport DOES with it. This map is the single
+ * place that decision is recorded, and `Record<keyof PostRecord, ...>` is what makes it a decision
+ * rather than an omission: adding a field to `PostRecord` fails this file's typecheck until someone
+ * classifies the new field here.
+ *
+ * ## The defect this exists to prevent
+ *
+ * This file used to hash `{...post}` — the WHOLE record — while `apply()` wrote back a hand-listed
+ * subset of six or so fields. Everything in the gap (`bodyFormat`/`bodyHtml`, `seoExtJson`, `ext`,
+ * `deletedAt`, `memberAccessJson`, and `templateChoice`/`overridesThemePage` on the create path) was
+ * hashed but never applied, so publishing silently dropped or replaced it and still reported
+ * success. `memberAccessJson` made that a SECURITY defect and not only a fidelity one: a
+ * members-only post published to production as a publicly readable row.
+ *
+ * **"hashed but not applied" is the defect.** The reverse combination is safe: a field that is
+ * applied but not hashed simply never triggers a publish on its own. So `"transferred"` is the only
+ * disposition that participates in the content hash, and `"local"` fields are excluded from BOTH
+ * sides — they are per-destination facts that a source instance has no standing to overwrite.
+ *
+ * @see `content-hash.ts`'s `EXCLUDED_KEYS`, which independently drops `id`/`workspaceId`/`version`/
+ * `updatedAt`/`createdAt`/`createdByPrincipalId`. This map agrees with it by classifying those same
+ * fields `"local"`; the two are belt and braces, not one relying on the other.
+ */
+const POST_FIELD_DISPOSITIONS: Record<keyof PostRecord, "transferred" | "provenance" | "local"> = {
+  // Content — packed, hashed, and written verbatim by `importPostEntity` (`post.ts`).
+  title: "transferred",
+  slug: "transferred",
+  bodyJson: "transferred",
+  status: "transferred",
+  kind: "transferred",
+  bodyFormat: "transferred",
+  bodyHtml: "transferred",
+  seoExtJson: "transferred",
+  templateChoice: "transferred",
+  overridesThemePage: "transferred",
+  memberAccessJson: "transferred",
+
+  // Authorship PROVENANCE (Task 15) — packed and applied, but NOT hashed. The source is the
+  // authority on who wrote a post and when, so an import copies both rather than re-stamping every
+  // row with the importing operator's id; they are write-once, so only a row that does not exist at
+  // the destination yet takes them. Excluded from the hash by `content-hash.ts`'s own
+  // `EXCLUDED_KEYS` (which is why they can safely ride along in `state`): two instances that merely
+  // disagree on a row's author or creation time must not read as a content edit.
+  createdByPrincipalId: "provenance",
+  createdAt: "provenance",
+
+  // Identity and per-database write bookkeeping. Two instances holding the same logical content
+  // legitimately disagree on all of these — this feature's founding premise, see
+  // `content-hash.ts`'s header.
+  id: "local",
+  workspaceId: "local",
+  version: "local",
+  updatedAt: "local",
+
+  // Plugin-namespaced extension data (SPEC-005 CIC U-004), written only by the local
+  // `content.entry.beforeSave` hook chain. Neither packed nor hashed: a plugin's namespace is a
+  // fact about the instance the plugin is INSTALLED on, and a destination running a different
+  // plugin set would otherwise repack to a different hash forever and report the row as eternally
+  // "changed". The destination's own `ext` survives an import untouched (`toImportableRecord` hands
+  // `importPostEntity` the destination's existing bag, and its `beforeSaveHook` merge runs on top),
+  // so this exclusion loses nothing that belongs to this instance.
+  ext: "local",
+
+  // Trash. Never packed and never hashed: `pack()` skips trashed rows outright rather than shipping
+  // them, and `precheck` refuses a trashed DESTINATION row, so publishing can neither export trash
+  // nor resurrect it. OPEN PRODUCT QUESTION (2026-09-19): whether a locally-deleted post should
+  // instead delete on production. This is the safe reading — it never resurrects trash as live
+  // content and never deletes production content — until that is answered.
+  deletedAt: "local",
+};
+
+/** The keys {@link toPublishableState} puts on the wire: `"transferred"` plus `"provenance"`.
+ *  Derived from {@link POST_FIELD_DISPOSITIONS} rather than re-listed, so the two cannot drift. */
+const PACKED_POST_FIELDS = Object.freeze(
+  (Object.keys(POST_FIELD_DISPOSITIONS) as Array<keyof PostRecord>).filter(
+    (field) => POST_FIELD_DISPOSITIONS[field] !== "local"
+  )
+);
+
+/** The wire shape of a packed `post`/`page`: exactly {@link PACKED_POST_FIELDS}, nothing else.
+ *  Named so `pack`, `inspect` and `apply` read one contract instead of three hand-listed field sets
+ *  that can drift apart. */
+export type PublishablePostState = Pick<PostRecord, (typeof PACKED_POST_FIELDS)[number]>;
+
+/**
+ * Projects a `PostRecord` onto {@link PublishablePostState} — the ONE state builder behind `pack`,
+ * `inspect` and the content hash.
+ *
+ * Undefined optional fields are normalized to `null` so a row whose optional column was never set
+ * and one whose column holds SQL `NULL` hash identically across two instances whose adapters
+ * represent that difference differently. (`content-hash.ts`'s `normalize` collapses the same two
+ * cases, but doing it here makes the WIRE shape unambiguous too, not just the hash input.)
+ *
+ * Exported so a test can assert against THE state builder rather than re-deriving the field list
+ * on its own — a duplicated recipe in a test is the same drift this DTO exists to close, and it
+ * is how four suites came to hash `{...post}` while production hashed something else.
+ *
+ * @complexity O(1) — a fixed field count, no iteration over anything caller-controlled.
+ */
+export function toPublishableState(post: PostRecord): Record<string, unknown> {
+  const state: Record<string, unknown> = {};
+  for (const field of PACKED_POST_FIELDS) {
+    state[field] = post[field] ?? null;
+  }
+  return state;
+}
+
+/**
+ * Rebuilds the full `PostRecord` `importPostEntity` replicates, from a packed state plus whatever
+ * the destination already holds.
+ *
+ * `"local"` fields are filled from the DESTINATION's own row (or a documented default when there is
+ * none) and never from the wire; `"provenance"` fields come from the wire only for a row that does
+ * not exist here yet, matching their write-once contract.
+ *
+ * @complexity O(1).
+ */
+function toImportableRecord(
+  required: { state: Record<string, unknown>; workspaceId: string; id: string; existing: PostRecord | null }
+): PostRecord {
+  const { state, workspaceId, id, existing } = required;
+  const packed = state as Partial<PostRecord>;
+  const wire: Record<string, unknown> = {};
+  for (const field of PACKED_POST_FIELDS) {
+    wire[field] = packed[field] ?? null;
+  }
+  return {
+    ...(wire as unknown as PublishablePostState),
+    id,
+    workspaceId,
+    // Recomputed by `importPostEntity` itself; present only because `PostRecord` requires them, and
+    // never read off the wire.
+    version: existing?.version ?? 0,
+    updatedAt: existing?.updatedAt ?? "",
+    // A packed entity is never trashed (`pack` skips trashed rows) and a trashed destination row is
+    // refused before this point, so the only correct value here is "live".
+    deletedAt: null,
+    ...(existing?.ext !== undefined ? { ext: existing.ext } : {}),
+    createdByPrincipalId: existing ? existing.createdByPrincipalId : ((wire.createdByPrincipalId as string | null) ?? null),
+    createdAt: existing ? existing.createdAt : ((wire.createdAt as string | null) ?? null),
+  };
 }
 
 /** Shared pack/inspect/precheck implementation behind both `"post"` and `"page"` contributors —
@@ -64,16 +200,22 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
     const rows = await deps.postRepo.list({ workspaceId: deps.workspaceId });
     for (const row of rows) {
       if (row.kind !== kind) continue;
+      // Trash is not content to publish. `PostRepoPort` is deliberately trash-BLIND (see
+      // `PostRecord.deletedAt`'s own doc), so this filter has to live here, exactly the way every
+      // other trash-aware read in `post.ts` applies its own. Without it a binned post would be
+      // shipped and then land at the destination as live content, since `deletedAt` is not a field
+      // this transport carries.
+      if (isTrashed(row)) continue;
       yield {
         entityType,
         id: row.id,
-        contentHash: contentHash(entityType, toHashableState(row)),
+        contentHash: contentHash(entityType, toPublishableState(row)),
         hashVersion: CONTENT_HASH_VERSION,
         // Blob-reference detection (which media sha256s a body embeds) is Task 12's job (plan §5
         // risk #5: media is not a registered type until ids are preserved) — an empty list here is
         // a disclosed gap, not a silent one; see `PackedEntity.requiredBlobs`'s own doc.
         requiredBlobs: [],
-        state: toHashableState(row),
+        state: toPublishableState(row),
       };
     }
   }
@@ -81,9 +223,23 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
   async function inspect(id: string): Promise<{ version: number; hash: string } | null> {
     const found = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id });
     if (!found || found.kind !== kind) return null;
-    return { version: found.version, hash: contentHash(entityType, toHashableState(found)) };
+    return { version: found.version, hash: contentHash(entityType, toPublishableState(found)) };
   }
 
+  /**
+   * Reports, WITHOUT writing anything, every condition under which `apply()` would refuse this
+   * entity — a slug already held here, a destination row in the trash, a kind or body-format that
+   * cannot be converted. Each of these is a real, ordinary outcome of importing real-world data,
+   * not a programming error, so they come back as a human-readable reason rather than a throw
+   * (`PublishContentHandler.precheck`'s own contract).
+   *
+   * Every guard below is enforced a SECOND time inside `importPostEntity`, which is what actually
+   * makes them safe: `apply()` can be reached without a precheck, and the destination can change
+   * between the two calls. This function exists so an operator sees the problem in the plan rather
+   * than as a failed row mid-run.
+   *
+   * @complexity O(1) — two indexed repo reads.
+   */
   async function precheck(entity: PackedEntity): Promise<string | null> {
     const slug = entity.state.slug;
     if (typeof slug !== "string" || slug.length === 0) {
@@ -92,6 +248,19 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
     const holder = await deps.postRepo.findBySlug({ workspaceId: deps.workspaceId, slug });
     if (holder && holder.id !== entity.id) {
       return `slug '${slug}' is already held by a different ${entityType} ('${holder.id}')`;
+    }
+
+    const existing = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: entity.id });
+    if (!existing) return null;
+    if (isTrashed(existing)) {
+      return `${entityType} '${entity.id}' is in the trash at this destination — restore it before publishing over it, or publishing would resurrect it as live content`;
+    }
+    if (existing.kind !== kind) {
+      return `'${entity.id}' is a '${existing.kind}' at this destination but a '${kind}' at the source — kind is fixed at creation and cannot be changed by publishing`;
+    }
+    const sourceBodyFormat = entity.state.bodyFormat;
+    if (typeof sourceBodyFormat === "string" && existing.bodyFormat !== sourceBodyFormat) {
+      return `${entityType} '${entity.id}' is '${existing.bodyFormat}'-format at this destination but '${sourceBodyFormat}'-format at the source — publishing cannot convert a body format without discarding a whole body`;
     }
     return null;
   }
@@ -161,78 +330,70 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
       );
     }
     const gatewayDeps = { clock: deps.clock, idGen: deps.idGen, changeSets, outbox, authorize };
-    const source = input.entity.state as unknown as PostRecord; // trusted round-trip: this file's own pack() produced it.
     const summary = `Import ${entityType} '${input.entity.id}' via publish-content`;
     const actor = { id: input.principalId, kind: "user" as const };
+    const isCreate = input.expectedVersion === undefined;
 
-    if (input.expectedVersion === undefined) {
-      // "created" — no destination row existed at plan time. Task 15: authorship comes from the
-      // SOURCE, never the importing operator (see this function's own doc above).
-      const { changeSetId } = await executeCommand({
-        deps: gatewayDeps,
-        command: { workspaceId: deps.workspaceId, actor, summary, permission: "content.write" },
-        mutation: {
-          entityType,
-          entityId: input.entity.id,
-          operation: "create",
-          captureInverse: async () => null, // nothing existed before this write.
-          execute: () =>
-            createPost({
-              deps: { repo: deps.postRepo, clock: deps.clock, outbox, beforeSaveHook: deps.beforeSaveHook },
-              input: {
-                workspaceId: deps.workspaceId,
-                id: input.entity.id,
-                kind,
-                title: source.title,
-                slug: source.slug,
-                bodyJson: source.bodyJson,
-                status: source.status,
-                actorId: typeof source.createdByPrincipalId === "string" ? source.createdByPrincipalId : undefined,
-              },
-            }),
-          captureEntityVersion: (result) => result.post.version,
-        },
-      });
-      return { changeSetId };
-    }
+    // Read once BEFORE the gateway so the imported record can be assembled against what this
+    // destination actually holds (its own `ext`, its own write-once authorship). `importPostEntity`
+    // re-reads inside the mutation and owns the AUTHORITATIVE decision — this read only shapes the
+    // record handed to it, and a row that changes between the two is caught there by
+    // `expectedVersion`.
+    let priorPost = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: input.entity.id });
+    const record = toImportableRecord({
+      state: input.entity.state,
+      workspaceId: deps.workspaceId,
+      id: input.entity.id,
+      existing: priorPost,
+    });
 
-    // "applied"/"forced" — an existing row, guarded by `expectedVersion` (plan §5 risk #3: a losing
-    // write reports conflict and moves on, it never retries with a stale record — `updatePost`'s own
-    // `saveIfVersion` atomic `UPDATE … WHERE version = ?` is what makes that true). The revision
-    // ledger's actorId is the IMPORTING OPERATOR here, not the source author — see this function's
-    // own doc; `updatePost` never touches `createdByPrincipalId` regardless, so Task 15's write-once
-    // guarantee holds by construction on this path with no extra logic needed.
-    let priorPost: PostRecord | null = null;
     const { changeSetId } = await executeCommand({
       deps: gatewayDeps,
       command: { workspaceId: deps.workspaceId, actor, summary, permission: "content.write" },
       mutation: {
         entityType,
         entityId: input.entity.id,
-        operation: "update",
+        operation: isCreate ? "create" : "update",
         captureInverse: async () => {
           priorPost = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: input.entity.id });
           return priorPost ? { ...priorPost } : null;
         },
         execute: () =>
-          updatePost({
+          importPostEntity({
             deps: { repo: deps.postRepo, clock: deps.clock, outbox, beforeSaveHook: deps.beforeSaveHook },
             input: {
               workspaceId: deps.workspaceId,
-              id: input.entity.id,
-              title: source.title,
-              slug: source.slug,
-              bodyJson: source.bodyJson,
-              status: source.status,
-              templateChoice: source.templateChoice ?? null,
-              overridesThemePage: source.overridesThemePage ?? null,
+              record,
               expectedVersion: input.expectedVersion,
+              // The revision ledger's actor is always the IMPORTING OPERATOR — see this function's
+              // own doc. The SOURCE's author travels separately, on `record.createdByPrincipalId`.
               actorId: input.principalId,
             },
           }),
         captureEntityVersion: (result) => result.post.version,
         rollback: async () => {
-          if (priorPost) await deps.postRepo.save(priorPost);
+          // Compensating undo for a change-set record that failed AFTER the write landed. An update
+          // restores the prior record verbatim, `version` included.
+          if (priorPost) {
+            await deps.postRepo.save(priorPost);
+            return;
+          }
+          // A create has no pre-image, and `PostRepoPort` exposes no hard delete (every content
+          // delete in Tovu is soft — see `PostRecord.deletedAt`'s own doc), so the strongest
+          // available undo is to trash the row this import just added. That is deliberately not a
+          // no-op: leaving it would publish live content at the destination with no change-set
+          // record to revert it by, which is the worse of the two failure modes. A trashed row is
+          // invisible to every public read and restorable if the failure turns out to be transient.
+          const orphan = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: input.entity.id });
+          if (!orphan) return;
+          const trashedAt = deps.clock.nowIso();
+          await deps.postRepo.softDelete({
+            workspaceId: deps.workspaceId,
+            id: input.entity.id,
+            deletedAt: trashedAt,
+            updatedAt: trashedAt,
+            version: orphan.version + 1,
+          });
         },
       },
     });

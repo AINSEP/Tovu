@@ -26,7 +26,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import type { PostRecord } from "#src/features/post/post";
-import { contributePostPublish } from "#src/features/post/publish-content";
+import { contributePostPublish, toPublishableState } from "#src/features/post/publish-content";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaRepo, computeBlobStorageKey, type MediaRecord } from "#src/features/media/index";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 
@@ -81,7 +81,7 @@ function packedFrom(post: PostRecord): PackedEntity {
   return {
     entityType: "post",
     id: post.id,
-    contentHash: contentHash("post", { ...post }),
+    contentHash: contentHash("post", toPublishableState(post)),
     hashVersion: CONTENT_HASH_VERSION,
     requiredBlobs: [],
     state: { ...post },
@@ -179,7 +179,7 @@ test("a destination edit landing AFTER plan but BEFORE apply downgrades 'applied
     peerPrincipalId: SOURCE_PRINCIPAL_ID,
     entityType: "post",
     entityId: "post-1",
-    hashAtLastSync: contentHash("post", { ...original }),
+    hashAtLastSync: contentHash("post", toPublishableState(original)),
     hashVersion: CONTENT_HASH_VERSION,
     syncedAt: clock.nowIso(),
     runId: "prior-run",
@@ -209,7 +209,7 @@ test("a destination edit landing AFTER plan but BEFORE apply downgrades 'applied
   assert.equal(run!.phase, "applied", "the run itself completed — only the one row was downgraded, the run did not abort");
 
   const baseline = await baselineRepo.findOne({ workspaceId: WORKSPACE_ID, peerPrincipalId: SOURCE_PRINCIPAL_ID, entityType: "post", entityId: "post-1" });
-  assert.equal(baseline?.hashAtLastSync, contentHash("post", { ...original }), "a conflicted row must never refresh the baseline");
+  assert.equal(baseline?.hashAtLastSync, contentHash("post", toPublishableState(original)), "a conflicted row must never refresh the baseline");
 });
 
 // ---------------------------------------------------------------------------
@@ -262,7 +262,7 @@ test("baselines are upserted for created/unchanged/applied/forced and NEVER for 
     peerPrincipalId: SOURCE_PRINCIPAL_ID,
     entityType: "post",
     entityId: "p-applied",
-    hashAtLastSync: contentHash("post", { ...applied }),
+    hashAtLastSync: contentHash("post", toPublishableState(applied)),
     hashVersion: CONTENT_HASH_VERSION,
     syncedAt: clock.nowIso(),
     runId: "prior-run",

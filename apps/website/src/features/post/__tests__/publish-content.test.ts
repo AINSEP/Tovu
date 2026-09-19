@@ -24,7 +24,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import type { PostRecord } from "../post.js";
 import { contentHash } from "#src/features/publish-content/content-hash";
-import { contributePagePublish, contributePostPublish } from "../publish-content.js";
+import { contributePagePublish, contributePostPublish, toPublishableState } from "../publish-content.js";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -80,10 +80,10 @@ function packedFrom(entityType: "post" | "page", post: PostRecord) {
   return {
     entityType,
     id: post.id,
-    contentHash: contentHash(entityType, { ...post }),
+    contentHash: contentHash(entityType, toPublishableState(post)),
     hashVersion: 1,
     requiredBlobs: [],
-    state: { ...post },
+    state: toPublishableState(post),
   };
 }
 
@@ -125,7 +125,27 @@ test("post.pack() yields only kind:'post' rows, each hashed with contentHash('po
   assert.equal(packed.length, 1);
   assert.equal(packed[0].id, "post-1");
   assert.equal(packed[0].entityType, "post");
-  assert.equal(packed[0].contentHash, contentHash("post", { ...post }));
+  assert.deepEqual(
+    Object.keys(packed[0].state).sort(),
+    [
+      "bodyFormat",
+      "bodyHtml",
+      "bodyJson",
+      "createdAt",
+      "createdByPrincipalId",
+      "kind",
+      "memberAccessJson",
+      "overridesThemePage",
+      "seoExtJson",
+      "slug",
+      "status",
+      "templateChoice",
+      "title",
+    ],
+    "the packed wire shape changed — every field here is one publish is expected to carry, and a " +
+      "field that leaves this list must also leave the content hash (see POST_FIELD_DISPOSITIONS)"
+  );
+  assert.equal(packed[0].contentHash, contentHash("post", packed[0].state));
   assert.deepEqual(packed[0].requiredBlobs, []);
 });
 
@@ -162,8 +182,16 @@ test("inspect() returns {version, hash} for an existing row of the matching kind
   const post = makePost({ id: "post-1", version: 3 });
   const handler = contributePostPublish().build(makeDeps([post]));
 
+  const packed = [];
+  for await (const entity of handler.pack()) packed.push(entity);
+
   const result = await handler.inspect("post-1");
-  assert.deepEqual(result, { version: 3, hash: contentHash("post", { ...post }) });
+  assert.deepEqual(
+    result,
+    { version: 3, hash: packed[0].contentHash },
+    "inspect() and pack() must hash the same row identically, or a destination can never be " +
+      "compared against a source"
+  );
 });
 
 test("inspect() returns null for a row that does not exist", async () => {
