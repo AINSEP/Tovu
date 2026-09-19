@@ -170,7 +170,7 @@ test("getEntryMeta: clearing a description override falls through to the derived
   const deps = await makeDeps([seedPost({ seoExtJson: JSON.stringify({ description: "" }) })]);
 
   await setEntrySeoOverrides({
-    deps: { postRepo: deps.postRepo, authorize: alwaysAllow, invalidateSitemapCache: () => {} },
+    deps: { postRepo: deps.postRepo, authorize: alwaysAllow, invalidateSitemapCache: () => {}, clock },
     input: { workspaceId: WORKSPACE, entryId: "post-1", patch: { description: null }, callerPrincipalId: "caller-1" },
   });
 
@@ -187,7 +187,7 @@ test("getEntryMeta: clearing a description override falls through to the site de
   });
 
   await setEntrySeoOverrides({
-    deps: { postRepo: deps.postRepo, authorize: alwaysAllow, invalidateSitemapCache: () => {} },
+    deps: { postRepo: deps.postRepo, authorize: alwaysAllow, invalidateSitemapCache: () => {}, clock },
     input: { workspaceId: WORKSPACE, entryId: "post-1", patch: { description: null }, callerPrincipalId: "caller-1" },
   });
 

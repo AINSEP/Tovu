@@ -1,4 +1,4 @@
-import { ForbiddenError, type AuthorizeFn } from "@jini-ai/cms/core";
+import { ForbiddenError, type AuthorizeFn, type ClockPort } from "@jini-ai/cms/core";
 import type { PostRepoPort } from "../post/index.js";
 import {
   SeoConcurrentWriteError,
@@ -161,6 +161,14 @@ export interface SetEntrySeoOverridesDeps {
   authorize: AuthorizeFn;
   /** Injected so this chokepoint stays testable ahead of Phase 6's `sitemap.ts` (see file header). */
   invalidateSitemapCache: (input: { workspaceId: string }) => void;
+  /**
+   * `post_revisions` timestamping (2026-09-18, round 4) — see {@link mergeOverridesOntoCurrentRow}'s
+   * updated doc. Required, not optional-with-a-fallback like `createPost`/`updatePost`'s own
+   * `beforeSaveHook`: every real caller (`seo/tool-registrations.ts`, `routes/seo/put-entry.ts`)
+   * already has a `ClockPort` on its own deps bag, so there is no "existing caller with no reachable
+   * clock" case to preserve compiling here the way `CreatePostDeps.beforeSaveHook`'s doc describes.
+   */
+  clock: ClockPort;
 }
 
 export interface SetEntrySeoOverridesInput {
@@ -220,13 +228,25 @@ const MAX_MERGE_ATTEMPTS = 3;
  * is pre-existing behaviour and deliberately unchanged here — it is a contract question about what
  * `posts.version` means, not a concurrency bug.
  *
+ * Revision ledger (2026-09-18, round 4): this was the one production write path that bumped
+ * `posts.version` without appending a `post_revisions` row — a real, disclosed bypass
+ * (`2026-09-18-impl-post-revisions-3.md` finding #1). Fixed by reusing the SAME
+ * `PostRepoPort.transaction`/`appendRevision` primitive `createPost`/`updatePost`/`deletePost`
+ * already use for exactly this purpose (`post.ts`), rather than calling `updatePost()` itself:
+ * `updatePost` throws `PostVersionConflictError` on a stale basis, which would turn this function's
+ * own retry-on-conflict loop (the whole point of SEO-01, see above) into a single-shot rejection —
+ * a real behavior change to an already-tested concurrency contract. Reusing the lower primitive
+ * keeps `saveIfVersion`'s retry loop byte-for-byte unchanged while still writing exactly one
+ * revision per successful merge, atomically with the row write it describes.
+ *
  * @throws SeoEntryNotFoundError when the entry does not exist (or is deleted mid-retry).
  * @throws SeoConcurrentWriteError when {@link MAX_MERGE_ATTEMPTS} reads all lost the row.
- * @complexity O(attempts) queries, one read + one conditional write each; one of each in the
- * uncontended case.
+ * @complexity O(attempts) queries, one read + one conditional write (+ one revision append on the
+ * attempt that lands) each; one of each in the uncontended case.
  */
 async function mergeOverridesOntoCurrentRow(
   postRepo: PostRepoPort,
+  clock: ClockPort,
   input: SetEntrySeoOverridesInput
 ): Promise<SeoExtFields> {
   for (let attempt = 0; attempt < MAX_MERGE_ATTEMPTS; attempt += 1) {
@@ -237,16 +257,34 @@ async function mergeOverridesOntoCurrentRow(
 
     const currentOverrides: SeoExtFields = existing.seoExtJson ? JSON.parse(existing.seoExtJson) : {};
     const mergedOverrides: SeoExtFields = applyOverridesPatch(currentOverrides, input.patch);
+    const nextVersion = existing.version + 1;
+    const updatedRecord = {
+      ...existing,
+      // Zero remaining keys returns the row to its true original state (`NULL`), not a leftover
+      // `"{}"` — see file header.
+      seoExtJson: Object.keys(mergedOverrides).length === 0 ? null : JSON.stringify(mergedOverrides),
+      version: nextVersion,
+    };
 
-    const { applied } = await postRepo.saveIfVersion({
-      record: {
-        ...existing,
-        // Zero remaining keys returns the row to its true original state (`NULL`), not a leftover
-        // `"{}"` — see file header.
-        seoExtJson: Object.keys(mergedOverrides).length === 0 ? null : JSON.stringify(mergedOverrides),
-        version: existing.version + 1,
-      },
-      ifVersion: existing.version,
+    // The write and its revision-ledger append are one atomic unit, same discipline as
+    // `createPost`/`updatePost`/`deletePost` (`post.ts`'s own doc on `PostRepoPort.transaction`) —
+    // a revision must never be recorded for a save that didn't apply, and an applied save must
+    // never land unaccompanied by its revision. A `saveIfVersion` miss (lost the race) returns
+    // normally with `applied: false` rather than throwing, so the transaction still commits (a
+    // harmless no-op) and the outer loop retries with a fresh read, exactly as before this change.
+    const applied = await postRepo.transaction(async () => {
+      const { applied: didApply } = await postRepo.saveIfVersion({ record: updatedRecord, ifVersion: existing.version });
+      if (!didApply) return false;
+      await postRepo.appendRevision({
+        postId: updatedRecord.id,
+        workspaceId: updatedRecord.workspaceId,
+        seq: nextVersion,
+        op: "update",
+        stateJson: updatedRecord,
+        actorId: input.callerPrincipalId,
+        recordedAt: clock.nowIso(),
+      });
+      return true;
     });
     if (applied) return mergedOverrides;
   }
@@ -279,7 +317,7 @@ export async function setEntrySeoOverrides(
 
   validateSeoExtFieldsPatch(input.patch as Record<string, unknown>);
 
-  const mergedOverrides = await mergeOverridesOntoCurrentRow(deps.postRepo, input);
+  const mergedOverrides = await mergeOverridesOntoCurrentRow(deps.postRepo, deps.clock, input);
 
   if (touchesSitemapEligibility(input.patch as Record<string, unknown>)) {
     deps.invalidateSitemapCache({ workspaceId: input.workspaceId });

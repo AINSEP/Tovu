@@ -38,6 +38,7 @@ function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 const alwaysDeny = async () => ({ allowed: false, reason: "no_grant" });
 const noopInvalidate = () => {};
+const clock = { nowIso: () => "2026-09-18T00:00:00.000Z" };
 
 test("setEntrySeoOverrides: authorize() runs first — unauthorized caller gets FORBIDDEN, zero writes", async () => {
   const repo = new InMemoryPostRepo([seedPost()]);
@@ -45,7 +46,7 @@ test("setEntrySeoOverrides: authorize() runs first — unauthorized caller gets 
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysDeny, invalidateSitemapCache: noopInvalidate },
+        deps: { postRepo: repo, authorize: alwaysDeny, invalidateSitemapCache: noopInvalidate, clock },
         input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { title: "New Title" }, callerPrincipalId: "p1" },
       }),
     ForbiddenError
@@ -61,7 +62,7 @@ test("setEntrySeoOverrides: an unregistered key is rejected, existing row unchan
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
         input: {
           workspaceId: WORKSPACE,
           entryId: ENTRY_ID,
@@ -81,7 +82,7 @@ test("setEntrySeoOverrides: a 500-char title string is accepted", async () => {
   const title = "a".repeat(500);
 
   const result = await setEntrySeoOverrides({
-    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
     input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { title }, callerPrincipalId: "p1" },
   });
 
@@ -95,7 +96,7 @@ test("setEntrySeoOverrides: a 501-char title string is rejected", async () => {
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
         input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { title }, callerPrincipalId: "p1" },
       }),
     SeoFieldValidationError
@@ -108,7 +109,7 @@ test("setEntrySeoOverrides: a 2048-char canonical URL is accepted", async () => 
   assert.equal(canonical.length, 2048);
 
   const result = await setEntrySeoOverrides({
-    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
     input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { canonical }, callerPrincipalId: "p1" },
   });
 
@@ -122,7 +123,7 @@ test("setEntrySeoOverrides: a 2049-char canonical URL is rejected", async () => 
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
         input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { canonical }, callerPrincipalId: "p1" },
       }),
     SeoFieldValidationError
@@ -135,7 +136,7 @@ test("setEntrySeoOverrides: a javascript: canonical scheme is rejected with SeoI
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
         input: {
           workspaceId: WORKSPACE,
           entryId: ENTRY_ID,
@@ -156,7 +157,7 @@ test("setEntrySeoOverrides: a data: canonical scheme is rejected with SeoInvalid
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
         input: {
           workspaceId: WORKSPACE,
           entryId: ENTRY_ID,
@@ -174,7 +175,7 @@ test("setEntrySeoOverrides: entry-not-found rejects with SeoEntryNotFoundError",
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
         input: { workspaceId: WORKSPACE, entryId: "missing", patch: { title: "x" }, callerPrincipalId: "p1" },
       }),
     SeoEntryNotFoundError
@@ -185,7 +186,7 @@ test("setEntrySeoOverrides: merges the patch into an existing override bag rathe
   const repo = new InMemoryPostRepo([seedPost({ seoExtJson: JSON.stringify({ title: "Old Title", noindex: true }) })]);
 
   const result = await setEntrySeoOverrides({
-    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
     input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { description: "New description" }, callerPrincipalId: "p1" },
   });
 
@@ -202,6 +203,7 @@ test("setEntrySeoOverrides: a noindex-affecting write invalidates the sitemap ca
     deps: {
       postRepo: repo,
       authorize: alwaysAllow,
+      clock,
       invalidateSitemapCache: (input) => {
         invalidatedFor = input.workspaceId;
       },
@@ -220,6 +222,7 @@ test("setEntrySeoOverrides: a write that touches neither noindex nor canonical d
     deps: {
       postRepo: repo,
       authorize: alwaysAllow,
+      clock,
       invalidateSitemapCache: () => {
         invalidateCalls++;
       },
@@ -234,7 +237,7 @@ test("setEntrySeoOverrides: bumps the post's version (audit signal)", async () =
   const repo = new InMemoryPostRepo([seedPost({ version: 3 })]);
 
   await setEntrySeoOverrides({
-    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
     input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { title: "New title" }, callerPrincipalId: "p1" },
   });
 
@@ -248,7 +251,7 @@ test("setEntrySeoOverrides: non-string value for string field throws SeoFieldVal
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
         input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { title: 123 as unknown as string }, callerPrincipalId: "p1" },
       }),
     (err: unknown) => err instanceof SeoFieldValidationError && err.message.includes("'title' must be a string")
@@ -261,7 +264,7 @@ test("setEntrySeoOverrides: non-string value for URL field throws SeoFieldValida
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
         input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { ogImage: false as unknown as string }, callerPrincipalId: "p1" },
       }),
     (err: unknown) => err instanceof SeoFieldValidationError && err.message.includes("'ogImage' must be a string")
@@ -274,7 +277,7 @@ test("setEntrySeoOverrides: URL field exceeding 2048 chars throws SeoFieldValida
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
         input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { ogImage: "https://example.com/" + "a".repeat(2040) }, callerPrincipalId: "p1" },
       }),
     (err: unknown) => err instanceof SeoFieldValidationError && err.message.includes("'ogImage' must be at most 2048 characters")
@@ -287,7 +290,7 @@ test("setEntrySeoOverrides: vbscript: and file: canonical schemes are rejected w
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
         input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { canonical: "vbscript:msgbox(1)" }, callerPrincipalId: "p1" },
       }),
     SeoInvalidCanonicalUrlError
@@ -296,7 +299,7 @@ test("setEntrySeoOverrides: vbscript: and file: canonical schemes are rejected w
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
         input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { canonical: "file:///etc/passwd" }, callerPrincipalId: "p1" },
       }),
     SeoInvalidCanonicalUrlError
@@ -309,7 +312,7 @@ test("setEntrySeoOverrides: non-boolean value for boolean field throws SeoFieldV
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
         input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { noindex: "true" as unknown as boolean }, callerPrincipalId: "p1" },
       }),
     (err: unknown) => err instanceof SeoFieldValidationError && err.message.includes("'noindex' must be a boolean")
@@ -318,7 +321,7 @@ test("setEntrySeoOverrides: non-boolean value for boolean field throws SeoFieldV
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
         input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { nofollow: 0 as unknown as boolean }, callerPrincipalId: "p1" },
       }),
     (err: unknown) => err instanceof SeoFieldValidationError && err.message.includes("'nofollow' must be a boolean")
@@ -331,7 +334,7 @@ test("setEntrySeoOverrides: invalid ogType and twitterCard values throw SeoField
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
         input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { ogType: "invalid_type" as unknown as "website" }, callerPrincipalId: "p1" },
       }),
     (err: unknown) => err instanceof SeoFieldValidationError && err.message.includes("'ogType' must be one of")
@@ -340,7 +343,7 @@ test("setEntrySeoOverrides: invalid ogType and twitterCard values throw SeoField
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
         input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { twitterCard: "invalid_card" as unknown as "summary" }, callerPrincipalId: "p1" },
       }),
     (err: unknown) => err instanceof SeoFieldValidationError && err.message.includes("'twitterCard' must be one of")
@@ -351,7 +354,7 @@ test("setEntrySeoOverrides: valid ogType and twitterCard values are accepted and
   const repo = new InMemoryPostRepo([seedPost()]);
 
   const result = await setEntrySeoOverrides({
-    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
     input: {
       workspaceId: WORKSPACE,
       entryId: ENTRY_ID,
@@ -377,6 +380,7 @@ test("setEntrySeoOverrides: canonical change triggers sitemap cache invalidation
     deps: {
       postRepo: repo,
       authorize: alwaysAllow,
+      clock,
       invalidateSitemapCache: (input) => {
         invalidatedFor = input.workspaceId;
       },
@@ -399,7 +403,7 @@ test("setEntrySeoOverrides: a null patch value clears that key back to absent, n
   const repo = new InMemoryPostRepo([seedPost({ seoExtJson: JSON.stringify({ description: "" }) })]);
 
   const result = await setEntrySeoOverrides({
-    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
     input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { description: null }, callerPrincipalId: "p1" },
   });
 
@@ -419,7 +423,7 @@ test("setEntrySeoOverrides: clearing one key leaves sibling overrides intact", a
   ]);
 
   const result = await setEntrySeoOverrides({
-    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
     input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { description: null }, callerPrincipalId: "p1" },
   });
 
@@ -435,7 +439,7 @@ test("setEntrySeoOverrides: a null value alongside a set value in the same patch
   const repo = new InMemoryPostRepo([seedPost({ seoExtJson: JSON.stringify({ description: "Old" }) })]);
 
   const result = await setEntrySeoOverrides({
-    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
     input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { description: null, title: "New Title" }, callerPrincipalId: "p1" },
   });
 

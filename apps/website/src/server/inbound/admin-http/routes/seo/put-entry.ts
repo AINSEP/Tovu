@@ -63,6 +63,7 @@ export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = (app, deps) => {
           postRepo: deps.postRepo,
           authorize: deps.authorize,
           invalidateSitemapCache,
+          clock: deps.clock,
         },
         input: {
           workspaceId: deps.workspaceId,

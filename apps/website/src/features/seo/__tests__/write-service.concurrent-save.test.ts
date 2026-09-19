@@ -29,6 +29,7 @@ const ENTRY_ID = "post-1";
 
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 const noopInvalidate = () => {};
+const clock = { nowIso: () => "2026-09-18T00:00:00.000Z" };
 
 function seedPost(): PostRecord {
   return {
@@ -85,6 +86,14 @@ function racingRepo(inner: InMemoryPostRepo): { repo: PostRepoPort; writeCalls: 
     readAutosave: (r) => inner.readAutosave(r),
     writeAutosave: (r) => inner.writeAutosave(r),
     clearAutosave: (r) => inner.clearAutosave(r),
+    // Delegated, not omitted: a real spread of a class instance (`{ ...inner }`, this fixture's own
+    // pattern) only copies own enumerable properties — `InMemoryPostRepo`'s methods live on its
+    // prototype, so `transaction`/`appendRevision`/`listRevisions` must be forwarded explicitly here
+    // once `setEntrySeoOverrides` starts calling them (2026-09-18, round 4 SEO revision fix) — the
+    // same trap `post-plugin-hook.integration.test.ts`'s own fixture hit in the prior round.
+    appendRevision: (r) => inner.appendRevision(r),
+    listRevisions: (r) => inner.listRevisions(r),
+    transaction: (fn) => inner.transaction(fn),
   };
 
   return { repo, writeCalls };
@@ -95,7 +104,7 @@ test("SEO-01: an SEO-only write must not revert a content save that landed betwe
   const { repo, writeCalls } = racingRepo(inner);
 
   const result = await setEntrySeoOverrides({
-    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
     input: {
       workspaceId: WORKSPACE,
       entryId: ENTRY_ID,
@@ -150,10 +159,14 @@ test("SEO-01: the uncontended path is unchanged — one predicated write, versio
     readAutosave: (r) => inner.readAutosave(r),
     writeAutosave: (r) => inner.writeAutosave(r),
     clearAutosave: (r) => inner.clearAutosave(r),
+    // See the identical comment on `racingRepo`'s own fixture above.
+    appendRevision: (r) => inner.appendRevision(r),
+    listRevisions: (r) => inner.listRevisions(r),
+    transaction: (fn) => inner.transaction(fn),
   };
 
   await setEntrySeoOverrides({
-    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
     input: {
       workspaceId: WORKSPACE,
       entryId: ENTRY_ID,

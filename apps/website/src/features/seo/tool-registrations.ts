@@ -185,7 +185,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
         },
         () =>
           setEntrySeoOverrides({
-            deps: { postRepo: routeDeps.postRepo, authorize: routeDeps.authorize, invalidateSitemapCache },
+            deps: { postRepo: routeDeps.postRepo, authorize: routeDeps.authorize, invalidateSitemapCache, clock: routeDeps.clock },
             input: {
               workspaceId: routeDeps.workspaceId,
               entryId,
