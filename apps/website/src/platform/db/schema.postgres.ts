@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 85
+ * Tables: 89
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -306,6 +306,69 @@ export const composioConnectorCredentials = pgTable("composio_connector_credenti
     primaryKey({ columns: [t.workspaceId, t.connectorId] }),
     foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
     check("composio_connector_credentials_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL)`),
+  ]);
+
+export const contentTransportBaselines = pgTable("content_transport_baselines", {
+  workspaceId: text("workspace_id").notNull(),
+  peerPrincipalId: text("peer_principal_id").notNull(),
+  entityType: text("entity_type").notNull(),
+  entityId: text("entity_id").notNull(),
+  hashAtLastSync: text("hash_at_last_sync").notNull(),
+  hashVersion: bigint("hash_version", { mode: "number" }).notNull(),
+  syncedAt: text("synced_at").notNull(),
+  runId: text("run_id").notNull(),
+}, (t) => [
+    uniqueIndex("content_transport_baselines_unique").on(t.workspaceId, t.peerPrincipalId, t.entityType, t.entityId),
+  ]);
+
+export const contentTransportBundles = pgTable("content_transport_bundles", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  sourcePrincipalId: text("source_principal_id").notNull(),
+  hashVersion: bigint("hash_version", { mode: "number" }).notNull(),
+  entitiesJson: text("entities_json").notNull(),
+  blobManifestJson: text("blob_manifest_json").notNull(),
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+  receivedAt: text("received_at").notNull(),
+  expiresAt: text("expires_at").notNull(),
+}, (t) => [
+    index("idx_content_transport_bundles_workspace").on(t.workspaceId, t.expiresAt),
+  ]);
+
+export const contentTransportPeers = pgTable("content_transport_peers", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  label: text("label").notNull(),
+  baseUrl: text("base_url").notNull(),
+  remoteWorkspaceId: text("remote_workspace_id").notNull(),
+  sealedKeyId: text("sealed_key_id"),
+  sealedCiphertext: text("sealed_ciphertext"),
+  sealedNonce: text("sealed_nonce"),
+  sealedAlg: text("sealed_alg"),
+  masked: text("masked"),
+  aadVersion: bigint("aad_version", { mode: "number" }).notNull().default(0),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => [
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
+    uniqueIndex("content_transport_peers_workspace_label_unique").on(t.workspaceId, t.label),
+  ]);
+
+export const contentTransportRuns = pgTable("content_transport_runs", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  direction: text("direction").notNull(),
+  peerPrincipalId: text("peer_principal_id").notNull(),
+  peerLabel: text("peer_label"),
+  phase: text("phase").notNull(),
+  restorePointId: text("restore_point_id"),
+  changeSetIdsJson: text("change_set_ids_json"),
+  actorId: text("actor_id").notNull(),
+  startedAt: text("started_at").notNull(),
+  finishedAt: text("finished_at"),
+  reportJson: text("report_json"),
+}, (t) => [
+    index("idx_content_transport_runs_workspace").on(t.workspaceId, t.startedAt),
   ]);
 
 export const contentTypeRevisions = pgTable("content_type_revisions", {
@@ -928,6 +991,8 @@ export const posts = pgTable("posts", {
   overridesThemePage: boolean("overrides_theme_page"),
   memberAccessJson: text("member_access_json"),
   autosaveJson: text("autosave_json"),
+  createdByPrincipalId: text("created_by_principal_id"),
+  createdAt: text("created_at"),
 }, (t) => [
     check("posts_body_format_shape", sql`(body_format = 'doc' AND body_json IS NOT NULL AND body_html IS NULL) OR (body_format = 'html' AND body_html IS NOT NULL AND body_json IS NULL)`),
     uniqueIndex("posts_workspace_slug_unique").on(t.workspaceId, t.slug),

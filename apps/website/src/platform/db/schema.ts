@@ -164,6 +164,44 @@ export const posts = sqliteTable(
      * `posts_body_format_shape` below has any reason to ever look at.
      */
     autosaveJson: text("autosave_json"),
+    /**
+     * Authorship attribution (2026-09-18) — the id of the {@link principals} row that created this
+     * post/page, or `NULL` when that is genuinely unknown. Plain `text`, deliberately NOT a
+     * `.references(() => principals.id, ...)` foreign key: this mirrors `redirects.createdByPrincipal`/
+     * `newsletterCampaigns.createdByPrincipal`/`webhookSubscriptions.createdByPrincipalId`/
+     * `releases.createdByPrincipalId` above — every existing "who created this row" column in this
+     * schema is an unenforced reference, not a live FK, because a "created by" fact must survive the
+     * referenced principal being deleted (the one place this schema DOES use a real FK on
+     * `principal_id`, `adminExecutionCredentials`, is a live per-admin credential meant to be
+     * cascade-deleted with its owner — the opposite intent from an audit trail).
+     *
+     * Nullable, additive, no backfill: every one of the ~54 pre-existing rows was created before this
+     * column existed and genuinely has no recorded author — `NULL` is the honest value, not a
+     * fabricated one (unlike `post_revisions.actor_id`, which is `NOT NULL` and fabricates
+     * `SYSTEM_ACTOR_ID` for an omitted caller because a ledger row must always attribute a write;
+     * this column is an attribution fact about the ROW, not a ledger entry, so it is allowed to say
+     * "unknown" outright). Written ONLY by `createPost` at insert time, from the same `actorId` the
+     * revision ledger already threads through (`features/post/post.ts`) — never invented a second way
+     * to learn who the caller is. `updatePost` must never overwrite it: `repo.sqlite.ts`'s
+     * `updatableColumns()` deliberately excludes this column from its `onConflictDoUpdate`/`UPDATE`
+     * set list, the exact mechanism that already protects `autosaveJson` from a whole-row save.
+     *
+     * This is an ATTRIBUTION field, not an authorization one — nothing may key a permission check off
+     * it; `authz_real_members_decorative`'s RBAC tables above are the only source of truth for that.
+     */
+    createdByPrincipalId: text("created_by_principal_id"),
+    /**
+     * Authorship attribution (2026-09-18) — the ISO timestamp this row was first created, or `NULL`
+     * when that is genuinely unknown. Nullable, additive, no backfill, same reasoning as
+     * {@link createdByPrincipalId} directly above: every pre-existing row predates this column and
+     * has no recorded creation time, so `NULL` ("unknown") is the honest value rather than a
+     * fabricated one (NOT `updatedAt`'s current value, which would misrepresent every existing row as
+     * having been created on the day this migration ran). Written ONLY by `createPost`, from the same
+     * clock (`ClockPort.nowIso()`) `updatedAt`/`post_revisions.recorded_at` already use — never a
+     * second time source. Write-once: excluded from `updatableColumns()` for the identical reason
+     * {@link createdByPrincipalId} is.
+     */
+    createdAt: text("created_at"),
   },
   (table) => [
     uniqueIndex("posts_workspace_slug_unique").on(table.workspaceId, table.slug),
@@ -3066,4 +3104,159 @@ export const deploymentRunEvents = sqliteTable(
     index("idx_deployment_run_events_run").on(table.runId, table.at),
     check("deployment_run_events_level_check", sql`${table.level} IN ('info', 'warning', 'error')`),
   ]
+);
+
+// ---------------------------------------------------------------------------
+// Content Transport (SPEC pending) — export/import content between two Tovu instances over the
+// existing admin-http API-key auth. Four tables, all additive; no column added to, and no
+// constraint changed on, any existing table. See the 2026-09-18 Publish Content implementation
+// plan (`ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md`) §2 for the full
+// design reasoning this doc summarizes. Feature named "content-transport" deliberately, not
+// "publish" — that name is already taken by static-deploy (`publishCredentialSets`,
+// `publish_history`, `PublishExecutionMode`); "Publish Content" stays a UI label only.
+// ---------------------------------------------------------------------------
+
+/**
+ * Per-peer sync memory: the content hash of each entity as last exchanged with that peer. This —
+ * not a version number — is what tells "unchanged since we last spoke" apart from "edited on the
+ * far side" (the whole safety mechanism a content-transport run relies on: no baseline for an
+ * entity means the run can only ever `create`, never overwrite). Each instance keeps its OWN
+ * table; the design is symmetric, so a push and a pull both read/write this same shape locally.
+ *
+ * `peerPrincipalId` is the AUTHENTICATED principal of the request that recorded the row (an
+ * API-key principal for an inbound import, the local peer record's id for an outbound pull).
+ * Deliberately NOT a self-declared `siteId` read out of the bundle: a bundle field is
+ * attacker-chosen, and keying on it would let any key-holder poison another peer's baselines into
+ * "safe to overwrite" — the same trust boundary `duplicate-site.ts` already draws for the same
+ * reason (a raw filesystem copy never carries an authenticated identity with it).
+ *
+ * No `id`/primary key: `(workspaceId, peerPrincipalId, entityType, entityId)` is the natural key
+ * every read and write goes through, so a surrogate key would only be a second name for the same
+ * row. `workspaceId` deliberately plain `text`, not a `workspaces` FK — matches `posts`/
+ * `postRevisions`/`entryRevisions` above, not `publishCredentialSets`/`deploymentRuns`: this table
+ * is per-peer sync bookkeeping, not a referential config row a workspace delete should cascade
+ * through in the same transaction.
+ */
+export const contentTransportBaselines = sqliteTable(
+  "content_transport_baselines",
+  {
+    workspaceId: text("workspace_id").notNull(),
+    peerPrincipalId: text("peer_principal_id").notNull(),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id").notNull(),
+    hashAtLastSync: text("hash_at_last_sync").notNull(),
+    /** Which canonicalization produced `hashAtLastSync`. A baseline written by an older algorithm
+     *  is NOT comparable; the run refuses rather than silently treating it as a mismatch. Plain
+     *  `integer`, not a primary key — no `REVIEWED_INTEGER_ID_COLUMNS` entry needed (that registry
+     *  gates only autoincrement PKs). */
+    hashVersion: integer("hash_version").notNull(),
+    syncedAt: text("synced_at").notNull(),
+    runId: text("run_id").notNull(),
+  },
+  (table) => [
+    uniqueIndex("content_transport_baselines_unique").on(
+      table.workspaceId,
+      table.peerPrincipalId,
+      table.entityType,
+      table.entityId
+    ),
+  ]
+);
+
+/**
+ * One row per export/import run — the audit trail and the report an operator acted on when
+ * choosing to force a conflict. `id` is a caller-generated UUID (same "must be knowable before a
+ * dependent row references it" reasoning `postRevisions.id` documents above), not autoincrement.
+ *
+ * `changeSetIdsJson`/`reportJson` end in `_json` (not merely named "json") on purpose — that
+ * suffix is this schema's existing machine-checked JSON-column naming convention
+ * (`isJsonColumnName` in `migration/manifest.ts`), so both columns are picked up by that
+ * convention automatically and deliberately do NOT get their own `REVIEWED_JSON_COLUMNS` entries:
+ * that registry exists only for columns the naming convention cannot see, and
+ * `migration-manifest.test.ts` fails a column named this way if it is added there as redundant.
+ */
+export const contentTransportRuns = sqliteTable(
+  "content_transport_runs",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    /** `'export' | 'import'`. */
+    direction: text("direction").notNull(),
+    peerPrincipalId: text("peer_principal_id").notNull(),
+    /** Display only — human label for the peer, never a key. */
+    peerLabel: text("peer_label"),
+    /** `'planned' | 'applied' | 'failed' | 'abandoned'`. */
+    phase: text("phase").notNull(),
+    /** Set only once the run actually applies a write (`DbOpsPort.captureRestorePoint`). */
+    restorePointId: text("restore_point_id"),
+    /** The `change_sets` ids this run produced, as a JSON array. */
+    changeSetIdsJson: text("change_set_ids_json"),
+    actorId: text("actor_id").notNull(),
+    startedAt: text("started_at").notNull(),
+    finishedAt: text("finished_at"),
+    /** Per-entity outcomes (`created` | `unchanged` | `applied` | `forced` | `conflict` |
+     *  `blocked` | `refused`), as JSON — the report the operator sees and acts on. */
+    reportJson: text("report_json"),
+  },
+  (table) => [index("idx_content_transport_runs_workspace").on(table.workspaceId, table.startedAt)]
+);
+
+/**
+ * A received bundle, staged between `plan()` and `execute()` so the gated-mutation plan hash has a
+ * stable input and large media bytes upload exactly once. Bytes are NOT stored here — they go to
+ * the content-addressed blob store by sha256, so re-pushing unchanged media costs nothing; this
+ * row only carries the manifest of which blobs the bundle needs.
+ *
+ * `entitiesJson`/`blobManifestJson` end in `_json`, matching `isJsonColumnName` — see
+ * `contentTransportRuns`'s own doc above for why that means no `REVIEWED_JSON_COLUMNS` entry.
+ */
+export const contentTransportBundles = sqliteTable(
+  "content_transport_bundles",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    sourcePrincipalId: text("source_principal_id").notNull(),
+    hashVersion: integer("hash_version").notNull(),
+    entitiesJson: text("entities_json").notNull(),
+    blobManifestJson: text("blob_manifest_json").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    receivedAt: text("received_at").notNull(),
+    /** Hard TTL. A bundle past it is refused by plan/execute and swept; staged bytes are ordinary
+     *  content-addressed blobs and are left to the existing blob GC — this table owns no bytes to
+     *  clean up itself. */
+    expiresAt: text("expires_at").notNull(),
+  },
+  (table) => [index("idx_content_transport_bundles_workspace").on(table.workspaceId, table.expiresAt)]
+);
+
+/**
+ * An outbound peer this instance can push to or pull from. Unlike the three tables above, this is
+ * a persistent per-workspace config row, not sync bookkeeping or an audit log — so it follows
+ * `publishCredentialSets`' convention instead: a real `workspaces` FK (`onDelete: "cascade"` — a
+ * deleted workspace's saved peers have no meaning left to keep) and the identical sealed-secret
+ * shape (`sealedKeyId`/`sealedCiphertext`/`sealedNonce`/`sealedAlg`/`masked` + `aadVersion`) over
+ * the same `KeyringPort`/`SecretSealerPort` — no new crypto, no new AAD discipline.
+ */
+export const contentTransportPeers = sqliteTable(
+  "content_transport_peers",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    baseUrl: text("base_url").notNull(),
+    remoteWorkspaceId: text("remote_workspace_id").notNull(),
+    sealedKeyId: text("sealed_key_id"),
+    sealedCiphertext: text("sealed_ciphertext"),
+    sealedNonce: text("sealed_nonce"),
+    sealedAlg: text("sealed_alg"),
+    /** The peer's own credential, held in the clear for display — same "public label, not secret
+     *  material" reasoning `publishCredentialSets`' analogous column documents. */
+    masked: text("masked"),
+    aadVersion: integer("aad_version").notNull().default(0),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [uniqueIndex("content_transport_peers_workspace_label_unique").on(table.workspaceId, table.label)]
 );

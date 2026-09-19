@@ -456,6 +456,20 @@
       "when": 1789780599415,
       "tag": "0064_famous_omega_sentinel",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "6",
+      "when": 1789782267205,
+      "tag": "0065_mature_forge",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "6",
+      "when": 1789782352339,
+      "tag": "0066_needy_katie_power",
+      "breakpoints": true
     }
   ]
 }
