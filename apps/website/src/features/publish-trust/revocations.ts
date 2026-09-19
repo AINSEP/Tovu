@@ -10,8 +10,8 @@
  *
  * - **Committed config can only GRANT.** It ships inside the image, it is reviewable in a diff, and
  *   it is restored by a redeploy.
- * - **This store can only DENY.** It lives on the destination's own persistent volume, is written by
- *   the running process, and takes effect on the next request.
+ * - **This store can only DENY.** Production persists it in the destination's content database,
+ *   is written by the running process, and takes effect on the next request.
  *
  * Deny wins, and a redeploy cannot clear a denial because denials are not in the image. That single
  * property is what makes three separate claims true at once: revocation does not need a deploy,
@@ -23,10 +23,10 @@
  * publishing", which means this one fails towards treating everyone as disconnected — see
  * {@link admitPublish}. Getting that backwards would turn a corrupt file into a bypass.
  *
- * WHERE THE FILE GOES IS LOAD-BEARING, and the caller owns it: it must be on the PERSISTENT VOLUME
- * (on Fly, under `fly.toml`'s `[[mounts]] destination`), never inside the image. A revocation list
- * written into the image is erased by the next deploy, silently reconnecting a computer the owner
- * disconnected. This module never guesses the path.
+ * The durable production adapter is deliberately selected by the composition root, over the same
+ * `content.db` that holds the site's content. A deployment that loses that database has an obvious
+ * content-loss outage; there is no second mount path whose omission can silently reconnect a
+ * disconnected computer.
  */
 
 import type { PublishTrustGrant } from "./grant.js";
@@ -68,8 +68,11 @@ export type RevocationWrite =
  * do on its own. A revocation that could lapse by accident is not a revocation.
  */
 export interface PublishTrustRevocationPort {
-  /** Absolute path of the backing file, so an operator can be told where the state lives. */
-  readonly path: string;
+  /**
+   * Present only for the legacy file test adapter. Production deliberately has no revocation-file
+   * path: its deny rows live in the site's content database instead.
+   */
+  readonly path?: string;
   list(): Promise<RevocationRead>;
   revoke(input: {
     readonly sourceInstallationId: string;
@@ -220,10 +223,11 @@ export function admitPublish(input: {
 // ---------------------------------------------------------------------------
 
 /**
- * Builds the revocation port over one file on the destination's persistent volume.
+ * Legacy file adapter retained only for parser/port unit tests. Production must use the SQLite
+ * adapter; no composition root selects this adapter or exposes a revocation-file environment
+ * override.
  *
- * @param deps - `path` must be on the persistent volume; see this file's header for why a path
- *   inside the image is a silent reconnect on the next deploy.
+ * @param deps - Test-controlled file I/O.
  * @complexity O(n) in the record count per call; one read and at most one write.
  */
 export function createFileRevocations(deps: {
@@ -260,5 +264,39 @@ export function createFileRevocations(deps: {
       ),
     restore: ({ sourceInstallationId }) =>
       applyEdit((current) => current.filter((r) => r.sourceInstallationId !== sourceInstallationId)),
+  };
+}
+
+/**
+ * Hermetic half of the revocation-store rule of two. The running server uses the SQLite adapter;
+ * this tiny process-local store lets the filesystem-free composition root keep exercising the same
+ * read/write port without manufacturing a pretend database path.
+ */
+export function createInMemoryRevocations(): PublishTrustRevocationPort {
+  let current: readonly PublishTrustRevocation[] = [];
+
+  const list = async (): Promise<RevocationRead> => ({ ok: true, revocations: current });
+  const applyEdit = async (
+    edit: (revocations: readonly PublishTrustRevocation[]) => readonly PublishTrustRevocation[]
+  ): Promise<RevocationWrite> => {
+    const next = edit(current);
+    if (next.length > MAX_REVOCATIONS) {
+      return { ok: false, reason: `this site already lists ${MAX_REVOCATIONS} disconnected computers` };
+    }
+    const changed = JSON.stringify(next) !== JSON.stringify(current);
+    if (changed) current = next;
+    return { ok: true, revocations: current, changed };
+  };
+
+  return {
+    list,
+    revoke: ({ sourceInstallationId, nowIso, note }) =>
+      applyEdit((revocations) =>
+        isRevoked(revocations, sourceInstallationId)
+          ? revocations
+          : [...revocations, { sourceInstallationId, revokedAt: nowIso, note: note ?? null }]
+      ),
+    restore: ({ sourceInstallationId }) =>
+      applyEdit((revocations) => revocations.filter((revocation) => revocation.sourceInstallationId !== sourceInstallationId)),
   };
 }

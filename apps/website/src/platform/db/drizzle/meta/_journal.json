@@ -470,6 +470,13 @@
       "when": 1789787937344,
       "tag": "0066_shocking_psynapse",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "6",
+      "when": 1789839111568,
+      "tag": "0067_durable_publish_trust_revocations",
+      "breakpoints": true
     }
   ]
 }

@@ -12,6 +12,7 @@ import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import { InMemoryPublishContentBaselineRepo } from "#src/features/publish-content/baseline-repo";
 import { InMemoryPublishContentRunRepo } from "#src/features/publish-content/run-repo";
+import { createInMemoryRevocations } from "#src/features/publish-trust/revocations";
 import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
 import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
@@ -589,6 +590,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
 
   const routeDeps: NewsletterRouteDeps = {
     workspaceId: seededWorkspace.id,
+    // The hermetic half of the real SQLite deny store. `core.ts` still narrows this to `list`
+    // before giving it to the request gate, so tests retain the same least-authority boundary.
+    publishTrustRevocations: createInMemoryRevocations(),
     workspaceRepo,
     postRepo,
     // Mirrors `postRepo` on every query rather than maintaining an index — see

@@ -118,6 +118,7 @@ import type { PluginActivationRepoPort } from "../../features/plugin-runtime/act
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
 import type { PluginPackageFiles } from "../../features/plugin-runtime/package-files.js";
 import type { DeploymentsReadRepoPort, ExportEngine } from "../../features/deployments/index.js";
+import type { PublishTrustRevocationPort } from "#src/features/publish-trust/revocations";
 import type { PublishContentBundleRepoPort } from "../../features/publish-content/bundle-staging.js";
 import type { PublishContentBaselineRepoPort } from "../../features/publish-content/baseline-repo.js";
 import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
@@ -1338,7 +1339,15 @@ export interface PluginRuntimeDeps {
   pluginBeforeSaveHook: BeforeSaveHookPort;
 }
 
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & {
+/**
+ * The destination's complete deny-store capability. Only composition code receives this writer;
+ * `core.ts` narrows it to `list` before handing anything to the publishing request middleware.
+ */
+export interface PublishTrustRevocationDeps {
+  publishTrustRevocations: PublishTrustRevocationPort;
+}
+
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & {
   workspaceRepo: WorkspaceRepoPort;
   /**
    * Durable AI chat history, obtained per-principal.

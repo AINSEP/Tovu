@@ -3108,6 +3108,18 @@ export const deploymentRunEvents = sqliteTable(
   ]
 );
 
+/**
+ * Destination-side publishing denials. A row survives exactly as long as this site's content: it
+ * belongs in `content.db`, rather than in a deploy-image-adjacent JSON file that a host can erase
+ * on every rollout. `sourceInstallationId` is the natural key because disconnecting a computer is
+ * idempotent and must retain its original timestamp and note.
+ */
+export const publishTrustRevocations = sqliteTable("publish_trust_revocations", {
+  sourceInstallationId: text("source_installation_id").primaryKey(),
+  revokedAt: text("revoked_at").notNull(),
+  note: text("note"),
+});
+
 // ---------------------------------------------------------------------------
 // Publish Content (SPEC pending) — export/import content between two Tovu instances over the
 // existing admin-http API-key auth. Four tables, all additive; no column added to, and no

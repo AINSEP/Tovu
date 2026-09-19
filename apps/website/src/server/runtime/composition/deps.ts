@@ -18,6 +18,7 @@ import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-
 import { SqlitePublishContentPeerRepo } from "#src/platform/db/sqlite/publish-content-peer-repo.sqlite";
 import { SqlitePublishContentBaselineRepo } from "#src/platform/db/sqlite/publish-content-baseline-repo.sqlite";
 import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
+import { SqlitePublishTrustRevocationStore } from "#src/platform/db/sqlite/publish-trust-revocations.sqlite";
 import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
@@ -1470,6 +1471,10 @@ export function createSqliteRouteDeps(
     // see `platform/observability/index.ts`'s `createObservabilityPort` doc and `routes/types.ts`'s
     // `ObservabilityDeps` doc for the rule-of-two this mirrors.
     observability: createObservabilityPort(),
+    // Constructed over the same already-opened content.db that carries site content. Its
+    // constructor reads the table now, so a missing or inaccessible deny store stops boot rather
+    // than making every disconnected publisher silently look connected.
+    publishTrustRevocations: new SqlitePublishTrustRevocationStore(db),
     clock,
     idGen,
     // ADR-046 Phase 1 (final capability slice): analytics ingest buffer is durable — survives a
@@ -1769,4 +1774,3 @@ export function createSqliteRouteDepsForWorkspace(
   const workspace = resolveWorkspace({ db }, { workspaceId: workspaceIdOverride });
   return createSqliteRouteDeps(dbPath, { db, workspaceId: workspace.id });
 }
-

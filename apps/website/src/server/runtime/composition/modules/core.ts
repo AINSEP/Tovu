@@ -5,10 +5,7 @@ import { registerPublishTrustHandshakeRoutes } from "#src/server/inbound/public-
 import { InMemoryPublishChallengeStore } from "#src/features/publish-trust/challenge";
 import { deriveInstallationId } from "#src/features/publish-trust/keys";
 import { createPublishTrustGrantResolver } from "../publish-trust-grants.js";
-import {
-  createPublishTrustRevocationReader,
-  createPublishTrustRevocations,
-} from "../publish-trust-revocations.js";
+import { createPublishTrustRevocationReader } from "../publish-trust-revocations.js";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -48,10 +45,10 @@ export function createCoreModule(deps: RouteDeps): ServerModuleHandle {
   });
   const challengeStore = new InMemoryPublishChallengeStore(deps.clock);
   const grants = createPublishTrustGrantResolver();
-  // The other half of the admission question. Built once (the path cannot move under a running
-  // process) but READ on every publishing request, because the owner disconnecting a computer has
-  // to bite on the next request rather than the next restart.
-  const revocationStore = createPublishTrustRevocations();
+  // The other half of the admission question. Its SQLite adapter proves the table is readable
+  // during real-process boot; this module gives the request path a read-only view and re-reads it
+  // for every publishing request so a disconnect bites immediately.
+  const revocationStore = deps.publishTrustRevocations;
 
   return {
     name: "core",
