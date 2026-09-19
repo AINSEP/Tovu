@@ -260,6 +260,40 @@ test("a valid publish token cannot reach an admin route outside the publishing s
   }
 });
 
+test("the export route REFUSES a publishing credential rather than handing back an empty bundle", async () => {
+  const key = await sourceKey();
+  const { server, baseUrl } = await startServer(grantDocument(key.publicKeyB64u));
+  try {
+    const token = await tokenFor(baseUrl);
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/export`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const raw = await res.text();
+    assert.equal(res.status, 403, raw);
+    const body = JSON.parse(raw) as Record<string, unknown>;
+    const details = (body.details ?? {}) as Record<string, unknown>;
+
+    // The identifier, not merely the status. `export` IS in `PUBLISH_TRUST_ROUTES`, so a valid
+    // publishing session reaches this handler; what stops it is one explicit refusal in
+    // `routes/publish-content/export.ts`, and an assertion on the status alone would still pass
+    // against the very answer that refusal exists to prevent.
+    assert.equal(details.reason, "publish_trust_export_not_wired");
+    assert.equal(details.permission, "publish_content.read");
+    assert.equal(body.code, "FORBIDDEN");
+
+    // And positively: the body must not be shaped like a bundle. Falling through would not fail —
+    // `packAuthorizedEntities` asks each registered type for its OWN write permission, a publishing
+    // grant's closed capability set can never hold `content.write`, so every type would be omitted
+    // and the caller would receive `{"hashVersion":…,"entities":[],…}`: success-shaped, empty, and
+    // indistinguishable from "this site has nothing to export". That silent wrong answer is the
+    // regression this pins, so assert the bundle shape is ABSENT instead of trusting a status code.
+    assert.equal("entities" in body, false, "a refusal must not be shaped like a bundle");
+    assert.equal("hashVersion" in body, false, "a refusal must not be shaped like a bundle");
+  } finally {
+    await stop(server);
+  }
+});
+
 test("a publish-trust route with NO token resolves to no credential", async () => {
   const key = await sourceKey();
   const { server, baseUrl } = await startServer(grantDocument(key.publicKeyB64u));
