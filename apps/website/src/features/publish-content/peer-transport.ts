@@ -359,12 +359,18 @@ export async function executePeerImport(
  * uses this instance's already-built `stageBundle` + gated `/import/plan` — the same importer a
  * pushed bundle goes through. Nothing in the pull path re-implements classification.
  *
- * KNOWN GAP, disclosed rather than silently handled: this transfers no blob BYTES. The peer exposes
+ * KNOWN GAP — LIVE, not theoretical. This transfers no blob BYTES. The peer exposes
  * `PUT .../blobs/:sha` but no GET, so there is no route to fetch them through; a pulled entity that
  * requires a blob this instance lacks is `blocked` by `planImport`, which is the fail-closed
- * outcome and never a partial write. Media is not a registered publish-content type yet (plan §4
- * task 12), so `blobManifest` is empty in practice today; a blob-fetch route is the prerequisite
- * for changing that, and belongs with Task 12.
+ * outcome and never a partial write.
+ *
+ * `media` IS a registered publish-content type (`publish-content-manifest.ts` registers
+ * `contributeMediaPublish()`; commits `72e4992c7`/`a9b265ce1`), so a pulled media entity reaches
+ * this gap for real as soon as the `PublishContentDeps` builders pass media's ports through. An
+ * earlier revision of this comment claimed media was not yet registered — that was wrong, and the
+ * difference matters: it is the difference between an empty `blobManifest` and a pull that blocks
+ * every image. **A blob-fetch route on the peer (`GET .../blobs/:sha`) is the prerequisite for the
+ * pull direction carrying media at all.**
  *
  * @complexity O(1) network round trip; O(e) memory in the peer's corpus size.
  */
