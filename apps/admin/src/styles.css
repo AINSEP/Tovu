@@ -307,7 +307,35 @@ button:hover { opacity: 0.88; }
    both `--surface` and `--surface-2` without a second hard-coded color. */
 button:disabled {
   cursor: default; opacity: 1;
-  background: color-mix(in oklch, var(--primary) 30%, var(--surface));
+  /* `in oklab`, NOT `in oklch` — deliberate, and the one thing in this rule that must not be
+     "tidied" back. OKLCh interpolates HUE, along whichever arc is shorter between the two
+     endpoints, and dark mode's `--surface` is `oklch(18.5% 0.018 255)` — a real, small, non-zero
+     blue chroma and hue. Mixing `--primary` (hue 44) with it therefore travelled the short way
+     round the wheel THROUGH PURPLE: measured `oklch(0.2975 0.0426 299.7)`, hue ~300, on EVERY
+     disabled button in dark mode that has no override of its own — 12 variants (`.btn-secondary`,
+     `.btn-ghost`, `.btn-warning`, `.tb-btn`, `.theme-explore-fullscreen-trigger`,
+     `.agent-plugin-switch`, `.agent-plugin-icon-btn`, `.plugin-icon-btn`, `.jini-composer-send`,
+     `.jini-conv-new`, `.tovu-fs-folder-indicator__action`, and a bare `<button>`), all measured
+     at that same hue 300. OKLab is the same perceptual space in rectangular a/b coordinates, so
+     there is no hue arc to take the wrong way: the mix desaturates toward the surface instead of
+     rotating past it. Measured after: `L 0.2975 C 0.0203 H 25.3` — the SAME lightness (identical
+     to 4dp, because both spaces interpolate L linearly) and a warm, desaturated orange-brown.
+     Light mode is provably untouched by this change, which is why it is NOT scoped to
+     `[data-theme="dark"]`: `--surface` there is `oklch(100% 0 none)`, and a `none` component is
+     carried forward from the other color in ANY interpolation space, so the mix is bit-identical
+     in oklch and oklab — measured `L 0.8659 C 0.0339 H 43.4` both before and after. One
+     declaration is correct in both themes, so this rule has no second arm left to go stale.
+     Do not switch it to `in srgb` either: sRGB mixing is gamma-encoded and non-perceptual, and it
+     moves the lightness these tokens were tuned for (measured `L 0.3037` in dark, and it shifts
+     light mode too, to `H 45`). */
+  background: color-mix(in oklab, var(--primary) 30%, var(--surface));
+  /* Left `in oklch` on purpose, having been measured rather than skipped. `--primary-ink` is
+     `oklch(99% 0 0)`, and its ZERO CHROMA does not make its hue powerless — only `none` does (see
+     `--surface`'s own token comment) — so this mix rotates the same wrong way as the one above.
+     It resolves to `L 0.6278 C 0.0081 H 312.8` in dark: chroma 0.008 is far below the level at
+     which a hue is identifiable, so the label reads as the intended near-white grey and there is
+     nothing visible to correct. A latent instance of the bug above, not a live one — if
+     `--primary-ink` or dark `--surface` ever gains chroma, this needs `in oklab` too. */
   color: color-mix(in oklch, var(--primary-ink) 55%, var(--surface));
 }
 /* Dark-mode-only fix, found live building Dashboard's "Publish Content" (2026-09-18): the generic
@@ -328,7 +356,16 @@ button:disabled {
    change actually renders disabled in dark mode; `.btn-danger`/`.btn-warning`/etc.'s own disabled
    states were not part of this pass and are left as they were. `.btn-primary:disabled` outranks
    the bare `button:disabled` above on specificity ((0,2,0) vs (0,1,1)) regardless of source order,
-   so this only needs the one declaration. */
+   so this only needs the one declaration.
+   UPDATE 2026-09-18, dark-mode disabled sweep: the sibling variants named above HAVE now been
+   audited, and the root cause was fixed in the generic `button:disabled` rule itself (`in oklab`,
+   see its own comment) — 12 further variants were rendering the same hue-300 purple, so the fix
+   belonged one level up, not in a 13th override. This rule is therefore no longer load-bearing:
+   the generic rule now resolves to `L 0.2975 C 0.0203 H 25.3` in dark and this `in srgb` override
+   to `L 0.3037 C 0.0258 H 33.2`. Both read as the same desaturated orange-brown and the
+   difference is not visible, so it is KEPT rather than removed — this is the one disabled button
+   the owner has actually seen rendered — but it is now a near-duplicate of the generic rule
+   rather than a correction of it, and dropping it would be a safe simplification. */
 :root[data-theme="dark"] .btn-primary:disabled {
   background: color-mix(in srgb, var(--primary) 30%, var(--surface));
 }
@@ -1141,11 +1178,32 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    disabled state. Muted red on every channel instead, so it stays legibly in the danger family.
    `.btn-danger:disabled` is (0,2,0), which beats `button:disabled`'s (0,1,1) outright — no
    `!important` or extra scoping needed. */
+/* All three mixes are `in oklab`, not `in oklch` — the same hue-arc trap `button:disabled` above
+   documents at length, except that THIS rule is where it bites in light mode too, so that rule's
+   "light is safe because its `--surface` hue is `none`" reasoning does not carry over: two of these
+   three mix against `--muted` and `--border-strong`, and both of those carry real chroma in LIGHT
+   mode as well (`oklch(53% 0.016 258)` and `oklch(86% 0.010 255)`). Measured on this button,
+   before -> after:
+     color  light  L0.5245 C0.1117 H327.9 -> C0.1003 H21.7  (magenta text -> muted red)
+     color  dark   L0.722  C0.0934 H324.3 -> C0.0843 H22.4  (magenta text -> muted red)
+     border light  L0.724  C0.082  H307   -> C0.0723 H21.4  (violet border -> muted red)
+     border dark   L0.7953 C0.126  H10    -> C0.126  H25    (was already red; now lands exactly
+            on `--danger`'s own hue, because `--border-strong` in dark is `oklch(100% 0 0 / 0.18)`
+            and its explicit hue 0 was dragging the mix down to 10 rather than off to blue)
+     bg     dark   L0.2516 C0.035  H270.6 -> C0.0151 H331.6 (blue-violet ground -> a near-neutral
+            dark ground with a faint red-pink lean. The CHROMA HALVING is the real fix here; the
+            residual hue is not 25 and is not claimed to be, because at 12% the surface dominates
+            the a/b sum and pushes `b` slightly negative)
+     bg     light  L0.9424 C0.0228 H25    -> unchanged (this one mixes against `--surface`, whose
+            `none` hue is carried forward identically in either space)
+   Lightness is identical to 4dp on every channel in both themes — oklab and oklch interpolate L
+   the same way — so the "stays legibly in the danger family" goal the comment above states is
+   preserved exactly. */
 .btn-danger:disabled {
   cursor: not-allowed;
-  background: color-mix(in oklch, var(--danger) 12%, var(--surface));
-  border-color: color-mix(in oklch, var(--danger) 40%, var(--border-strong));
-  color: color-mix(in oklch, var(--danger) 55%, var(--muted));
+  background: color-mix(in oklab, var(--danger) 12%, var(--surface));
+  border-color: color-mix(in oklab, var(--danger) 40%, var(--border-strong));
+  color: color-mix(in oklab, var(--danger) 55%, var(--muted));
 }
 /* Scaffold for phase 2 (MSG-14's hierarchy audit) — reversible-but-access-affecting row actions
    (Users' Disable/Reset-password) that are neither plain secondary nor fully destructive. No
