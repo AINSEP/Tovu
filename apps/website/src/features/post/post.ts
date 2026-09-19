@@ -119,6 +119,25 @@ export interface PostRecord {
    * writer exists yet; see that file's module doc for what a future writer needs.
    */
   memberAccessJson?: string | null;
+  /**
+   * Authorship attribution (2026-09-18, `posts.created_by_principal_id`) — the id of the
+   * {@link CreatePostInput.actorId} principal that created this row, or `null`/absent when that is
+   * genuinely unknown (every pre-migration row, and any row created without a known caller). Unlike
+   * {@link SYSTEM_ACTOR_ID} — the `post_revisions.actor_id` ledger's own fallback for the identical
+   * omission — this field is never fabricated: `createPost` stamps it from `input.actorId` with NO
+   * fallback, so an omitted actor stores `null` here even though the same call still attributes a
+   * `"system"` revision. Write-once: `updatePost` never sets this field (see {@link buildUpdatedPost},
+   * which carries it over unchanged via its `...carriedOver` spread) — `repo.sqlite.ts`'s
+   * `updatableColumns()` is the second, structural enforcement of the same rule. This is an
+   * ATTRIBUTION field, not an authorization one; nothing may key a permission check off it.
+   */
+  createdByPrincipalId?: string | null;
+  /**
+   * Authorship attribution (2026-09-18, `posts.created_at`) — the ISO timestamp `createPost` first
+   * wrote this row at, or `null`/absent when that is genuinely unknown (every pre-migration row).
+   * Same write-once contract as {@link createdByPrincipalId} — never set by `updatePost`.
+   */
+  createdAt?: string | null;
 }
 
 /**
@@ -952,6 +971,10 @@ export async function createPost(
   });
   const ext = mergeExt(undefined, extPatch);
 
+  // One clock read, reused for both `updatedAt` and `createdAt` below — a second `nowIso()` call
+  // would risk the pair disagreeing by a tick and misrepresenting "created" as happening after
+  // "last updated" on the very row that just created it.
+  const now = deps.clock.nowIso();
   const post: PostRecord = {
     id: input.id,
     workspaceId: input.workspaceId,
@@ -962,8 +985,14 @@ export async function createPost(
     bodyHtml,
     status,
     kind: input.kind ?? "post",
-    updatedAt: deps.clock.nowIso(),
+    updatedAt: now,
     version: 1,
+    // Authorship attribution (2026-09-18) — reuses the SAME `actorId` the revision ledger append
+    // below already threads through; deliberately NO `?? SYSTEM_ACTOR_ID` fallback (unlike that
+    // ledger append), so an actor-less call stores the honest `null` here instead of a fabricated
+    // value. See `PostRecord.createdByPrincipalId`'s own doc for the full contract.
+    createdByPrincipalId: input.actorId ?? null,
+    createdAt: now,
     ...(ext !== undefined ? { ext } : {}),
   };
 

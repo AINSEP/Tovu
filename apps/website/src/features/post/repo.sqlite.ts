@@ -85,6 +85,8 @@ function toRecord(row: PostRow): PostRecord {
     templateChoice: row.templateChoice ?? null,
     overridesThemePage: row.overridesThemePage,
     memberAccessJson: row.memberAccessJson ?? null,
+    createdByPrincipalId: row.createdByPrincipalId ?? null,
+    createdAt: row.createdAt ?? null,
     ...(ext !== undefined ? { ext } : {}),
   };
 }
@@ -128,6 +130,12 @@ function toRow(record: PostRecord) {
     // resolver, which is the one place the current default policy is allowed to live.
     overridesThemePage: record.overridesThemePage ?? null,
     memberAccessJson: record.memberAccessJson ?? null,
+    // Authorship attribution (2026-09-18) — written here so a fresh INSERT (createPost's `save()`
+    // upsert) carries them, but see `updatableColumns()` directly below: this same value is
+    // deliberately EXCLUDED from the columns an existing-row write may touch, which is what actually
+    // makes them write-once. See `posts.createdByPrincipalId`'s schema doc for the full contract.
+    createdByPrincipalId: record.createdByPrincipalId ?? null,
+    createdAt: record.createdAt ?? null,
     ext: JSON.stringify(record.ext ?? {}),
   };
 }
@@ -140,6 +148,13 @@ function toRow(record: PostRecord) {
  * a standing-draft snapshot is written only by `writeAutosave`/`clearAutosave`, so a whole-row save
  * (which carries no such field on `PostRecord` at all) must leave that column exactly where it is.
  * `id` is excluded because it is the match key on both write paths.
+ *
+ * `createdByPrincipalId`/`createdAt` (2026-09-18) are excluded for the identical reason, by the
+ * identical mechanism, for a different feature: they are write-once authorship attribution, set
+ * only by `createPost`'s insert. `save()`/`saveIfVersion()` both route an UPDATE through this same
+ * list (see each method below), so omitting the pair here — not a runtime `if` in either method —
+ * is what makes `updatePost` structurally incapable of overwriting them, regardless of what value
+ * the `PostRecord` it was handed happens to carry for either field.
  *
  * @complexity O(1).
  */
