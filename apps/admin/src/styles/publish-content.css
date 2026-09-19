@@ -24,7 +24,11 @@
    scrolls inside the dialog rather than growing the dialog past the viewport and stranding the
    Cancel/Publish buttons below the fold. */
 .publish-content-report {
-  max-height: min(24rem, 45vh);
+  /* 30rem clears a ~8-row report outright, which is the common shape; at 24rem a 7-row plan was cut
+     mid-row with nothing to say it scrolled, which reads as a rendering bug rather than an
+     affordance. Longer reports still cap and scroll — and there a partial row at the edge is a true
+     signal that more follows. */
+  max-height: min(30rem, 52vh);
   overflow-y: auto;
   border-radius: var(--r-lg);
 }
