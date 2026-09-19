@@ -42,8 +42,25 @@ export const CONTENT_HASH_VERSION = 1;
  *   real (last-saved) state. Named explicitly, even though {@link PostRecord} carries no such field
  *   itself (autosave lives in a separate `readAutosave`/`writeAutosave` seam) — a future entity
  *   `canonicalize` is asked to hash may realistically pass this key straight out of a raw row shape.
+ * - `createdByPrincipalId` / `createdAt` (Task 15, 2026-09-18, plan §4 task 15): per-instance
+ *   authorship PROVENANCE, not content — the same class of fact `id`/`workspaceId` already are.
+ *   Excluding them is what lets the importer copy the source's own values onto a `created` row
+ *   verbatim (plan's own requirement: "do not let an importer re-stamp every post with the importing
+ *   operator's id") without that copy ever being mistaken for a content edit by two instances whose
+ *   own local values for these fields legitimately differ (e.g. before vs. after this feature existed
+ *   pre-migration `null`s, or simply two independently-running databases disagreeing on wall-clock
+ *   `createdAt`). Without this exclusion, hashing two otherwise-identical posts that merely disagree
+ *   on who created them (or when) would report `conflict`/`unchanged` incorrectly.
  */
-const EXCLUDED_KEYS: ReadonlySet<string> = new Set(["id", "workspaceId", "version", "updatedAt", "autosaveJson"]);
+const EXCLUDED_KEYS: ReadonlySet<string> = new Set([
+  "id",
+  "workspaceId",
+  "version",
+  "updatedAt",
+  "autosaveJson",
+  "createdByPrincipalId",
+  "createdAt",
+]);
 
 /** The subset of JSON values {@link normalize} ever produces — deliberately narrower than
  *  `JsonValue` elsewhere in this codebase's own JSON types, since this module's only job is to

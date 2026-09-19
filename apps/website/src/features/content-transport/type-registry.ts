@@ -1,5 +1,5 @@
 import type { BeforeSaveHookPort, PostRepoPort } from "#src/features/post/post";
-import type { ClockPort, OutboxPort } from "@jini-ai/cms/core";
+import type { AuthorizeFn, ChangeSetRepoPort, ClockPort, OutboxPort } from "@jini-ai/cms/core";
 
 /**
  * @file Task 2 of the content-transport (Publish Content) feature —
@@ -85,6 +85,20 @@ export interface ContentTransportDeps {
    *  status-transition event fires, no plugin `ext` patch is applied. See `post.ts`'s own docs. */
   readonly outbox?: OutboxPort;
   readonly beforeSaveHook?: BeforeSaveHookPort;
+  /**
+   * Task 8 (plan §4 task 8) — added when `apply()` finally got a real implementation. Every
+   * `pack`/`inspect`/`precheck` caller (Task 4's export route, Task 5/7's planner/gated-hooks) never
+   * reads these, so they stay OPTIONAL rather than widening every existing `ContentTransportDeps`
+   * builder (`export.ts`/`import.ts`'s own `toContentTransportDeps`) into supplying values it has no
+   * use for — the same "absent behaves like it always did" convention {@link outbox}/
+   * {@link beforeSaveHook} already establish on this interface. Only a real
+   * `ContentTransportApplyPort` (`features/content-transport/apply-loop.ts`) supplies them, because
+   * only `apply()` (never `pack`/`inspect`/`precheck`) needs to route a write through the command
+   * gateway (plan §1.4). A handler whose `apply()` is reached without these wired throws loudly
+   * rather than silently skipping the gateway — see `features/post/content-transport.ts`'s own guard.
+   */
+  readonly changeSets?: ChangeSetRepoPort;
+  readonly authorize?: AuthorizeFn;
 }
 
 /**

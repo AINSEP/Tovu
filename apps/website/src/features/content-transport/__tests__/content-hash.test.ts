@@ -67,6 +67,28 @@ test("an autosaveJson field (per-editor standing draft) never affects the hash e
   assert.equal(contentHash("post", withoutAutosave), contentHash("post", withAutosave));
 });
 
+// Task 15 (plan §4 task 15) — authorship provenance fields must never perturb the content hash, the
+// same way id/workspaceId/version/updatedAt already don't (this file's header, `EXCLUDED_KEYS` doc).
+test("same content with different createdByPrincipalId/createdAt (as if authored on two different instances) hashes equal", () => {
+  const authoredHere = fixtureState({
+    createdByPrincipalId: "11111111-2222-3333-4444-555555555555",
+    createdAt: "2026-01-01T00:00:00.000Z",
+  });
+  const authoredThere = fixtureState({
+    createdByPrincipalId: "99999999-8888-7777-6666-555555555555",
+    createdAt: "2026-09-18T12:34:56.000Z",
+  });
+
+  assert.equal(contentHash("post", authoredHere), contentHash("post", authoredThere));
+});
+
+test("a createdByPrincipalId/createdAt of null (pre-migration row) hashes the same as any other value for those fields", () => {
+  const withAuthor = fixtureState({ createdByPrincipalId: "11111111-2222-3333-4444-555555555555", createdAt: "2026-01-01T00:00:00.000Z" });
+  const withoutAuthor = fixtureState({ createdByPrincipalId: null, createdAt: null });
+
+  assert.equal(contentHash("post", withAuthor), contentHash("post", withoutAuthor));
+});
+
 // ---------------------------------------------------------------------------
 // 2. Any real content field changes the hash
 // ---------------------------------------------------------------------------
@@ -130,13 +152,15 @@ test("canonicalize sorts keys and nulls-out undefined recursively inside nested 
   assert.equal(out, '{"entityType":"post","state":{"outer":{"a":null,"b":1}}}');
 });
 
-test("canonicalize excludes id, workspaceId, version, updatedAt, and autosaveJson", () => {
+test("canonicalize excludes id, workspaceId, version, updatedAt, autosaveJson, createdByPrincipalId, and createdAt", () => {
   const out = canonicalize("post", {
     id: "x",
     workspaceId: "y",
     version: 99,
     updatedAt: "z",
     autosaveJson: "w",
+    createdByPrincipalId: "author-1",
+    createdAt: "2026-01-01T00:00:00.000Z",
     title: "kept",
   });
   assert.equal(out, '{"entityType":"post","state":{"title":"kept"}}');
