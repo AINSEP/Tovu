@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
 
 import { PostConflictError, PostNotFoundError } from "../post/post.js";
@@ -5,7 +7,11 @@ import { PublishContentApplyRowError } from "./apply-errors.js";
 import { loadActiveBundle } from "./bundle-staging.js";
 import type { PublishContentBundleRepoPort } from "./bundle-staging.js";
 import type { PublishContentBaselineRepoPort } from "./baseline-repo.js";
-import type { PublishContentRunRepoPort, PublishContentRunRecord } from "./run-repo.js";
+import type {
+  PublishContentRunItemState,
+  PublishContentRunRepoPort,
+  PublishContentRunRecord,
+} from "./run-repo.js";
 import { PublishContentBundleNotFoundError } from "./gated-hooks.js";
 import type { PublishContentApplyPort } from "./gated-hooks.js";
 import { entityKey } from "./planner.js";
@@ -19,34 +25,7 @@ import type { PublishContentDeps, PublishContentHandler, PackedEntity } from "./
  * #1–#3, #6, #7, #9.
  *
  * `createPublishContentApplyPort` builds the real {@link PublishContentApplyPort} — the
- * implementation `gated-hooks.ts#createNotYetImplementedPublishContentApplyPort` stood in for until
- * now. Wired at both composition roots in place of that throwing default; nothing in `gated-hooks.ts`
- * itself changes beyond the seam widening its own "Task 8 addendum" note describes.
- *
- * ## Why chunking is an ITERATION unit here, not one SQL transaction per chunk
- *
- * The plan's own words ("chunks of ~200 entities, each chunk one transaction") cannot be followed
- * literally: `createPost`/`updatePost` each open their OWN `repo.transaction()`
- * (`repo.sqlite.ts:429`'s `BEGIN IMMEDIATE`/`COMMIT`), and SQLite refuses a second `BEGIN` inside an
- * already-open transaction on the same connection — confirmed empirically (`better-sqlite3`, in
- * memory: `db.exec('BEGIN IMMEDIATE')` twice throws `cannot start a transaction within a
- * transaction`), not assumed. Wrapping N such calls in one outer transaction would crash on the
- * second entity in any non-trivial chunk. `SAVEPOINT` nesting works, but retrofitting
- * `SqlitePostRepo.transaction()` into a depth-counter + `SAVEPOINT` reentrant method touches a file
- * under active concurrent edit by other agents this session, for a benefit that is purely
- * lock-duration (this feature's own measured scale is 115 KB across 54 posts — plan §6 item 7), not
- * correctness: per-entity atomicity is ALREADY guaranteed without any chunk-level transaction —
- * `createPost`/`updatePost`'s own internal transaction covers [row write + revision-ledger append]
- * atomically, and `executeCommand`'s own `changeSets.insert()` covers the change-set record
- * atomically with a compensating `mutation.rollback()` on failure (verified by reading
- * `@jini-ai/cms`'s `command.js` directly — `execute()` runs OUTSIDE any transaction `executeCommand`
- * itself opens; there isn't one). Plan §5 risk #7 states the safety property this relies on directly:
- * "partial application is safe because nothing is deleted and the restore point exists; the run row
- * records exactly which change sets landed" — a chunk boundary crash is explicitly tolerated by
- * design, not merely an accepted gap. `chunkSize` below is therefore a plain iteration/grouping unit
- * (readable batching, and a natural point to persist a baseline upsert), never a spanning SQL
- * transaction. Disclosed deviation from the plan's literal wording, not a silent one — if a reviewer
- * wants the literal reading, the fix is the `SAVEPOINT`-reentrant `transaction()` described above.
+ * implementation of the seam declared by `gated-hooks.ts`, wired at both composition roots.
  *
  * ## The property this file exists to hold — read before changing the per-row loop
  *
@@ -93,9 +72,23 @@ import type { PublishContentDeps, PublishContentHandler, PackedEntity } from "./
  * deviation corrects.
  */
 
-/** Default iteration/grouping unit for {@link createPublishContentApplyPort}'s `chunkSize` — see
- *  this file's header for why it is not a spanning SQL transaction boundary. */
-const DEFAULT_CHUNK_SIZE = 200;
+/** Stable command key for one source principal's exact serialized entity version. */
+export function publishContentItemIdempotencyKey(input: {
+  workspaceId: string;
+  sourcePrincipalId: string;
+  entity: PackedEntity;
+}): string {
+  const exactVersion = JSON.stringify([
+    input.workspaceId,
+    input.sourcePrincipalId,
+    input.entity.entityType,
+    input.entity.id,
+    input.entity.schemaVersion,
+    input.entity.hashVersion,
+    input.entity.contentHash,
+  ]);
+  return `publish-content:v1:${createHash("sha256").update(exactVersion).digest("hex")}`;
+}
 
 /**
  * Every port some registered type's `apply()` needs, with the ones a `pack`-only caller may omit
@@ -143,9 +136,6 @@ export interface CreatePublishContentApplyPortInput {
   readonly publishContentDeps: PublishContentDeps;
   readonly clock: ClockPort;
   readonly idGen: IdGeneratorPort;
-  /** See this file's header — an iteration unit, not a transaction boundary. Defaults to {@link
-   *  DEFAULT_CHUNK_SIZE}. */
-  readonly chunkSize?: number;
 }
 
 /** The mutable, per-call working state {@link applyOneRow} needs — grouped into one object so that
@@ -161,6 +151,10 @@ interface ApplyRowContext {
   readonly handlerByType: ReadonlyMap<string, PublishContentHandler>;
   readonly baselineRepo: PublishContentBaselineRepoPort;
   readonly clock: ClockPort;
+  readonly recordContentApplied: (input: {
+    itemKey: string;
+    changeSetId: string;
+  }) => Promise<void>;
 }
 
 /**
@@ -297,7 +291,15 @@ async function applyOneRow(
       entity,
       expectedVersion: current?.version, // `created` -> undefined (current is null); applied/forced -> fresh version just read above.
       principalId: ctx.principalId, // always the operator — see this file's header.
+      idempotencyKey: publishContentItemIdempotencyKey({
+        workspaceId: ctx.workspaceId,
+        sourcePrincipalId: ctx.sourcePrincipalId,
+        entity,
+      }),
     });
+    // Persist the change-set id BEFORE the baseline write. If that next write fails, status lookup
+    // still proves exactly which content mutation landed and a retry can use the same command key.
+    await ctx.recordContentApplied({ itemKey: key, changeSetId });
     await ctx.baselineRepo.upsert({
       workspaceId: ctx.workspaceId,
       peerPrincipalId: ctx.sourcePrincipalId,
@@ -323,7 +325,7 @@ async function applyOneRow(
 
 /**
  * Builds the real {@link PublishContentApplyPort} — Task 8's apply loop. See this file's header for
- * the chunking decision, the apply-time race guards, and the authorship-id disclosed deviation.
+ * the apply-time race guards and the authorship-id disclosed deviation.
  *
  * @complexity O(n) in the report's row count (one `inspect`/`apply`/baseline call per writing row,
  * one baseline call per `unchanged` row), plus one bundle reload and one contributor-registry read
@@ -331,8 +333,6 @@ async function applyOneRow(
  * flow.
  */
 export function createPublishContentApplyPort(input: CreatePublishContentApplyPortInput): PublishContentApplyPort {
-  const chunkSize = input.chunkSize ?? DEFAULT_CHUNK_SIZE;
-
   async function saveRun(fields: {
     runId: string;
     startedAt: string;
@@ -342,6 +342,8 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
     phase: PublishContentRunRecord["phase"];
     changeSetIds: readonly string[];
     report: PublishContentReport;
+    items: readonly PublishContentRunItemState[];
+    finishedAt: string | null;
   }): Promise<void> {
     await input.runRepo.save({
       id: fields.runId,
@@ -354,8 +356,9 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
       changeSetIdsJson: JSON.stringify(fields.changeSetIds),
       actorId: fields.principalId,
       startedAt: fields.startedAt,
-      finishedAt: input.clock.nowIso(),
+      finishedAt: fields.finishedAt,
       reportJson: JSON.stringify(fields.report),
+      itemsJson: JSON.stringify(fields.items),
     });
   }
 
@@ -389,8 +392,10 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
           phase: "abandoned",
           changeSetIds: [],
           report,
+          items: [],
+          finishedAt: input.clock.nowIso(),
         });
-        return { changeSetIds: [] };
+        return { runId, changeSetIds: [] };
       }
 
       const entities = JSON.parse(staged.entitiesJson) as readonly PackedEntity[];
@@ -404,6 +409,61 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
       const handlerDeps =
         authorize === undefined ? input.publishContentDeps : { ...input.publishContentDeps, authorize };
       const { handlerByType } = buildPublishContentCatalog(handlerDeps);
+
+      const effectiveRowsByKey = new Map(
+        report.rows.map((row) => [entityKey(row.entityType, row.entityId), row] as const)
+      );
+      const itemByKey = new Map<string, PublishContentRunItemState>();
+      for (const row of report.rows) {
+        const key = entityKey(row.entityType, row.entityId);
+        const entity = entityByKey.get(key);
+        const idempotencyKey = entity
+          ? publishContentItemIdempotencyKey({ workspaceId: input.workspaceId, sourcePrincipalId, entity })
+          : `publish-content:v1:missing:${createHash("sha256").update(`${input.workspaceId}:${sourcePrincipalId}:${key}`).digest("hex")}`;
+        itemByKey.set(key, {
+          entityType: row.entityType,
+          entityId: row.entityId,
+          idempotencyKey,
+          phase: "pending",
+          outcome: row.outcome,
+          writes: row.writes,
+          reason: row.reason,
+          changeSetId: null,
+          errorSummary: null,
+          updatedAt: startedAt,
+        });
+      }
+
+      const itemStates = (): PublishContentRunItemState[] =>
+        report.rows.map((row) => itemByKey.get(entityKey(row.entityType, row.entityId))!).filter(Boolean);
+      const currentChangeSetIds = (): string[] =>
+        Array.from(
+          new Set(itemStates().flatMap((item) => (item.changeSetId === null ? [] : [item.changeSetId])))
+        );
+      const currentReport = (): PublishContentReport => ({
+        ...report,
+        rows: report.rows.map((row) => effectiveRowsByKey.get(entityKey(row.entityType, row.entityId)) ?? row),
+      });
+      const saveSnapshot = async (
+        phase: PublishContentRunRecord["phase"],
+        finishedAt: string | null
+      ): Promise<void> =>
+        saveRun({
+          runId,
+          startedAt,
+          sourcePrincipalId,
+          principalId,
+          restorePointId,
+          phase,
+          changeSetIds: currentChangeSetIds(),
+          report: currentReport(),
+          items: itemStates(),
+          finishedAt,
+        });
+
+      // Persist the run and every pending item before the first content write.
+      await saveSnapshot("applying", null);
+
       const ctx: ApplyRowContext = {
         workspaceId: input.workspaceId,
         runId,
@@ -413,48 +473,65 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         handlerByType,
         baselineRepo: input.baselineRepo,
         clock: input.clock,
+        recordContentApplied: async ({ itemKey, changeSetId }) => {
+          const item = itemByKey.get(itemKey);
+          if (!item) return;
+          itemByKey.set(itemKey, {
+            ...item,
+            phase: "content_applied",
+            changeSetId,
+            updatedAt: input.clock.nowIso(),
+          });
+          await saveSnapshot("applying", null);
+        },
       };
 
-      const finalRows: PublishContentOutcomeRow[] = [];
-      const changeSetIds: string[] = [];
+      let activeItemKey: string | null = null;
 
       try {
-        for (let offset = 0; offset < report.rows.length; offset += chunkSize) {
-          const chunk = report.rows.slice(offset, offset + chunkSize);
-          for (const row of chunk) {
-            const result = await applyOneRow(row, ctx);
-            finalRows.push(result.row);
-            if (result.changeSetId) changeSetIds.push(result.changeSetId);
+        for (const row of report.rows) {
+          activeItemKey = entityKey(row.entityType, row.entityId);
+          const result = await applyOneRow(row, ctx);
+          effectiveRowsByKey.set(activeItemKey, result.row);
+          const item = itemByKey.get(activeItemKey);
+          if (item) {
+            itemByKey.set(activeItemKey, {
+              ...item,
+              phase: "completed",
+              outcome: result.row.outcome,
+              writes: result.row.writes,
+              reason: result.row.reason,
+              changeSetId: result.changeSetId ?? item.changeSetId,
+              errorSummary: null,
+              updatedAt: input.clock.nowIso(),
+            });
           }
+          await saveSnapshot("applying", null);
+          activeItemKey = null;
         }
       } catch (error) {
         // A non-conflict error aborted the run partway through — the run row must still record
         // exactly which change sets landed before the failure (plan §5 risk #7's own words), never
         // silently drop that trail just because the whole run did not complete.
-        await saveRun({
-          runId,
-          startedAt,
-          sourcePrincipalId,
-          principalId,
-          restorePointId,
-          phase: "failed",
-          changeSetIds,
-          report: { ...report, rows: finalRows },
-        });
+        if (activeItemKey) {
+          const item = itemByKey.get(activeItemKey);
+          if (item) {
+            itemByKey.set(activeItemKey, {
+              ...item,
+              // Preserve `content_applied`: that is the recovery signal for a baseline/status write
+              // failing after the domain command and its change set already landed.
+              phase: item.phase === "content_applied" ? "content_applied" : "failed",
+              errorSummary: error instanceof Error ? error.message : "unknown apply failure",
+              updatedAt: input.clock.nowIso(),
+            });
+          }
+        }
+        await saveSnapshot("failed", input.clock.nowIso());
         throw error;
       }
 
-      await saveRun({
-        runId,
-        startedAt,
-        sourcePrincipalId,
-        principalId,
-        restorePointId,
-        phase: "applied",
-        changeSetIds,
-        report: { ...report, rows: finalRows },
-      });
-      return { changeSetIds };
+      await saveSnapshot("applied", input.clock.nowIso());
+      return { runId, changeSetIds: currentChangeSetIds() };
     },
   };
 }

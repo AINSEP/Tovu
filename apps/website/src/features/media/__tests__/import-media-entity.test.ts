@@ -195,6 +195,24 @@ test("importMediaEntity: re-importing an existing id with the SAME claimed sha25
 // 5. Bytes that do not hash to the claimed sha are refused BEFORE putIfAbsent
 // ---------------------------------------------------------------------------
 
+test("importMediaEntity: a missing staged byte payload is an authoritative typed block and writes nothing", async () => {
+  const deps = makeDeps();
+  const record = makeMediaRecord({ id: "asset-missing" });
+
+  const result = await importMediaEntity({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, record, bytes: null, blobCreatedByPrincipal: "importer-1" },
+  });
+
+  assert.deepEqual(result, {
+    status: "blocked",
+    code: "missing-blob",
+    reason: `required blob '${HELLO_SHA256}' was never received by this destination`,
+  });
+  assert.equal(await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: record.id }), null);
+  assert.equal(await deps.assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: HELLO_SHA256 }), null);
+});
+
 test("importMediaEntity: bytes that do not hash to the claimed sha256 are refused before putIfAbsent is ever called", async () => {
   const deps = makeDeps();
   let putIfAbsentCalls = 0;

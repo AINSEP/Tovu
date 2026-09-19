@@ -94,6 +94,7 @@ test("the registered media contributor's apply() is a real write path, not a thr
     entity: {
       entityType: "media",
       id: record.id,
+      schemaVersion: 1,
       contentHash: contentHash("media", { ...record }),
       hashVersion: CONTENT_HASH_VERSION,
       requiredBlobs: [sha256],

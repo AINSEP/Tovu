@@ -3199,7 +3199,7 @@ export const publishContentRuns = sqliteTable(
     peerPrincipalId: text("peer_principal_id").notNull(),
     /** Display only — human label for the peer, never a key. */
     peerLabel: text("peer_label"),
-    /** `'planned' | 'applied' | 'failed' | 'abandoned'`. */
+    /** `'planned' | 'applying' | 'applied' | 'failed' | 'abandoned'`. */
     phase: text("phase").notNull(),
     /** Set only once the run actually applies a write (`DbOpsPort.captureRestorePoint`). */
     restorePointId: text("restore_point_id"),
@@ -3211,6 +3211,9 @@ export const publishContentRuns = sqliteTable(
     /** Per-entity outcomes (`created` | `unchanged` | `applied` | `forced` | `conflict` |
      *  `blocked` | `refused`), as JSON — the report the operator sees and acts on. */
     reportJson: text("report_json"),
+    /** Durable per-item apply progress, including the exact-version idempotency key and change-set
+     *  id captured before the baseline write. */
+    itemsJson: text("items_json"),
   },
   (table) => [index("idx_publish_content_runs_workspace").on(table.workspaceId, table.startedAt)]
 );
@@ -3230,6 +3233,9 @@ export const publishContentBundles = sqliteTable(
     id: text("id").primaryKey(),
     workspaceId: text("workspace_id").notNull(),
     sourcePrincipalId: text("source_principal_id").notNull(),
+    // Default exists only so an upgrade can retain already-staged, pre-version-field bundles as the
+    // original v1 format. New HTTP artifacts must still declare the field explicitly.
+    artifactFormatVersion: integer("artifact_format_version").notNull().default(1),
     hashVersion: integer("hash_version").notNull(),
     entitiesJson: text("entities_json").notNull(),
     blobManifestJson: text("blob_manifest_json").notNull(),

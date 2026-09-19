@@ -348,9 +348,10 @@ function bundle(baseUrl: string, token: string, entityType: unknown): Promise<Re
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
     body: JSON.stringify({
+      artifactFormatVersion: 1,
       hashVersion: 1,
       sourceLabel: "test source",
-      entities: [{ entityType, id: "e-1", contentHash: "x", hashVersion: 1, requiredBlobs: [], data: {} }],
+      entities: [{ entityType, id: "e-1", schemaVersion: 1, contentHash: "x", hashVersion: 1, requiredBlobs: [], state: {} }],
       blobManifest: [],
     }),
   });

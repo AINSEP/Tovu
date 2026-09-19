@@ -31,9 +31,11 @@ import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaRepo, computeBlo
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
 import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
+import type { PublishContentBaselineRepoPort } from "../baseline-repo.js";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "../bundle-staging.js";
-import { InMemoryPublishContentRunRepo } from "../run-repo.js";
+import { getPublishContentRunStatus, InMemoryPublishContentRunRepo } from "../run-repo.js";
 import { planImport } from "../planner.js";
 import type { PublishContentBundle, PublishContentReport } from "../planner.js";
 import {
@@ -41,7 +43,7 @@ import {
   resetPublishContentContributorsForTests,
 } from "../type-registry.js";
 import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
-import { createPublishContentApplyPort } from "../apply-loop.js";
+import { createPublishContentApplyPort, publishContentItemIdempotencyKey } from "../apply-loop.js";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 /** The bundle's AUTHENTICATED source — plan §1.6 / §5 risk #9's own peer key. Deliberately a
@@ -81,6 +83,7 @@ function packedFrom(post: PostRecord): PackedEntity {
   return {
     entityType: "post",
     id: post.id,
+    schemaVersion: 1,
     contentHash: contentHash("post", toPublishableState(post)),
     hashVersion: CONTENT_HASH_VERSION,
     requiredBlobs: [],
@@ -95,7 +98,10 @@ function packedFrom(post: PostRecord): PackedEntity {
  *  other id generator in this harness so `runId` is always predictably `"run-1"` for the first
  *  `applyReport()` call in a test, regardless of how many ids bundle staging/`executeCommand`
  *  consumed from their own counters first. */
-function makeHarness(rows: PostRecord[] = []) {
+function makeHarness(
+  rows: PostRecord[] = [],
+  baselineRepo: PublishContentBaselineRepoPort = new InMemoryPublishContentBaselineRepo()
+) {
   resetPublishContentContributorsForTests();
   registerPublishContentContributor(contributeMediaPublish());
   registerPublishContentContributor(contributePostPublish());
@@ -105,7 +111,6 @@ function makeHarness(rows: PostRecord[] = []) {
   const outbox = new InMemoryOutbox();
   const changeSets = new InMemoryChangeSetRepo([], [], outbox);
   const authorize = async () => ({ allowed: true, reason: "test-always-allow" });
-  const baselineRepo = new InMemoryPublishContentBaselineRepo();
   const bundleRepo = new InMemoryPublishContentBundleRepo();
   const runRepo = new InMemoryPublishContentRunRepo();
 
@@ -132,6 +137,42 @@ function makeHarness(rows: PostRecord[] = []) {
   return { postRepo, clock, changeSets, baselineRepo, bundleRepo, runRepo, publishContentDeps, applyPort };
 }
 
+test("the per-item idempotency key is stable for one exact version and changes with version identity", () => {
+  const entity = packedFrom(makePost({ id: "post-key", title: "Exact source version" }));
+  const key = publishContentItemIdempotencyKey({
+    workspaceId: WORKSPACE_ID,
+    sourcePrincipalId: SOURCE_PRINCIPAL_ID,
+    entity,
+  });
+  assert.equal(
+    publishContentItemIdempotencyKey({
+      workspaceId: WORKSPACE_ID,
+      sourcePrincipalId: SOURCE_PRINCIPAL_ID,
+      entity: { ...entity },
+    }),
+    key,
+    "retrying the same exact source entity must address the same command"
+  );
+  assert.notEqual(
+    publishContentItemIdempotencyKey({
+      workspaceId: WORKSPACE_ID,
+      sourcePrincipalId: SOURCE_PRINCIPAL_ID,
+      entity: { ...entity, contentHash: `${entity.contentHash}-changed` },
+    }),
+    key,
+    "a different content version must not alias the prior command"
+  );
+  assert.notEqual(
+    publishContentItemIdempotencyKey({
+      workspaceId: WORKSPACE_ID,
+      sourcePrincipalId: "a-different-peer",
+      entity,
+    }),
+    key,
+    "the same artifact from a different authenticated source must not alias the prior command"
+  );
+});
+
 async function stage(
   bundleRepo: InstanceType<typeof InMemoryPublishContentBundleRepo>,
   clock: { nowIso(): string },
@@ -139,7 +180,14 @@ async function stage(
   sourcePrincipalId: string = SOURCE_PRINCIPAL_ID
 ): Promise<string> {
   const { bundleId } = await stageBundle(
-    { workspaceId: WORKSPACE_ID, sourcePrincipalId, hashVersion: CONTENT_HASH_VERSION, entities, blobManifest: [] },
+    {
+      workspaceId: WORKSPACE_ID,
+      sourcePrincipalId,
+      artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+      hashVersion: CONTENT_HASH_VERSION,
+      entities,
+      blobManifest: [],
+    },
     { repo: bundleRepo, clock, idGen: makeCounterIdGen("bundle") }
   );
   return bundleId;
@@ -154,7 +202,11 @@ async function plan(
   sourcePrincipalId: string,
   entities: readonly PackedEntity[]
 ): Promise<PublishContentReport> {
-  const bundle: PublishContentBundle = { hashVersion: CONTENT_HASH_VERSION, entities };
+  const bundle: PublishContentBundle = {
+    artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+    hashVersion: CONTENT_HASH_VERSION,
+    entities,
+  };
   return planImport(bundle, {
     publishContentDeps,
     getBaseline: async ({ entityType, entityId }) => {
@@ -203,7 +255,7 @@ test("a destination edit landing AFTER plan but BEFORE apply downgrades 'applied
   const finalPost = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
   assert.equal(finalPost?.title, "Local edit happened concurrently", "the concurrent local edit must survive — never silently overwritten");
 
-  const run = runRepo.findById("run-1");
+  const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
   assert.ok(run, "a run row must be persisted even though the only row conflicted");
   const persistedReport = JSON.parse(run!.reportJson ?? "null") as PublishContentReport;
   assert.equal(persistedReport.rows[0].outcome, "conflict", "the run's OWN audit trail must reflect the downgrade, not the plan's stale prediction");
@@ -240,7 +292,7 @@ test("a destination row created by someone else between plan and apply downgrade
   assert.equal(finalPost?.title, "Race-created by someone else", "the racing create must survive — never silently overwritten by the import");
   assert.equal(finalPost?.createdByPrincipalId, "race-author", "authorship of the racing row must also survive untouched");
 
-  const run = runRepo.findById("run-1");
+  const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
   const persistedReport = JSON.parse(run!.reportJson ?? "null") as PublishContentReport;
   assert.equal(persistedReport.rows[0].outcome, "conflict");
 
@@ -364,10 +416,63 @@ test("the run row's changeSetIdsJson records every changeSetId the run produced"
 
   assert.equal(result.changeSetIds.length, 2);
 
-  const run = runRepo.findById("run-1");
+  const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
   assert.ok(run);
   const recorded = JSON.parse(run!.changeSetIdsJson ?? "[]") as string[];
   assert.deepEqual([...recorded].sort(), [...result.changeSetIds].sort(), "the run row must record EVERY changeSetId the run produced, not a subset");
+});
+
+test("a baseline failure after the content command durably records the landed item and exact retry key", async () => {
+  const storedBaselines = new InMemoryPublishContentBaselineRepo();
+  const failingBaselineRepo: PublishContentBaselineRepoPort = {
+    findOne: (input) => storedBaselines.findOne(input),
+    upsert: async () => {
+      throw new Error("simulated baseline write failure");
+    },
+  };
+  const { postRepo, clock, changeSets, bundleRepo, runRepo, publishContentDeps, applyPort } = makeHarness(
+    [],
+    failingBaselineRepo
+  );
+  const incoming = makePost({ id: "post-partial", title: "Content lands first", slug: "post-partial" });
+  const entity = packedFrom(incoming);
+  const report = await plan(publishContentDeps, failingBaselineRepo, SOURCE_PRINCIPAL_ID, [entity]);
+  const bundleId = await stage(bundleRepo, clock, [entity]);
+
+  await assert.rejects(
+    applyPort.applyReport({
+      report,
+      principalId: OPERATOR_PRINCIPAL_ID,
+      bundleId,
+      restorePointId: "rp-partial",
+    }),
+    /simulated baseline write failure/
+  );
+
+  assert.equal(
+    (await postRepo.findById({ workspaceId: WORKSPACE_ID, id: entity.id }))?.title,
+    "Content lands first",
+    "precondition: the domain write really landed before the simulated accounting failure"
+  );
+  const status = await getPublishContentRunStatus(runRepo, { workspaceId: WORKSPACE_ID, runId: "run-1" });
+  assert.equal(status?.phase, "failed");
+  assert.equal(status?.items.length, 1);
+  assert.equal(status?.items[0]?.phase, "content_applied");
+  assert.match(status?.items[0]?.errorSummary ?? "", /simulated baseline write failure/);
+  assert.ok(status?.items[0]?.changeSetId, "the landed command's change-set id must survive the later failure");
+  assert.deepEqual(status?.changeSetIds, [status?.items[0]?.changeSetId]);
+
+  const expectedKey = publishContentItemIdempotencyKey({
+    workspaceId: WORKSPACE_ID,
+    sourcePrincipalId: SOURCE_PRINCIPAL_ID,
+    entity,
+  });
+  assert.equal(status?.items[0]?.idempotencyKey, expectedKey);
+  assert.equal(
+    (await changeSets.findByIdempotencyKey({ workspaceId: WORKSPACE_ID, idempotencyKey: expectedKey }))?.id,
+    status?.items[0]?.changeSetId,
+    "status and the command ledger must point at the same exact-version command"
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -420,7 +525,7 @@ test("a refused report is persisted as an 'abandoned' run and produces no writes
   const result = await applyPort.applyReport({ report: refused, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
 
   assert.deepEqual(result.changeSetIds, []);
-  const run = runRepo.findById("run-1");
+  const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
   assert.equal(run?.phase, "abandoned");
 });
 
@@ -497,6 +602,7 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
   const mediaEntity: PackedEntity = {
     entityType: "media",
     id: mediaRecord.id,
+    schemaVersion: 1,
     contentHash: contentHash("media", { ...mediaRecord }),
     hashVersion: CONTENT_HASH_VERSION,
     requiredBlobs: [photoSha256],
@@ -527,7 +633,7 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
     restorePointId: "rp-1",
   });
 
-  const run = runRepo.findById("run-1");
+  const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
   assert.equal(run?.phase, "applied", "the run must COMPLETE — one bad row is not a failed run");
   const finalRows = (JSON.parse(run!.reportJson) as PublishContentReport).rows;
 

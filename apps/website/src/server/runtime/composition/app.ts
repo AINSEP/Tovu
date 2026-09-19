@@ -831,8 +831,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `SqlitePublishContentBaselineRepo`. Hoisted above for the same reason. See
     // `routes/types.ts`'s `publishContentBaselineRepo` doc.
     publishContentBaselineRepo,
-    // Task 8 — the real apply loop (`apply-loop.ts`), replacing the throwing
-    // `createNotYetImplementedPublishContentApplyPort()` default. See `routes/types.ts`'s
+    // Task 8 — the real apply loop (`apply-loop.ts`). See `routes/types.ts`'s
     // `publishContentApplyPort` doc.
     publishContentApplyPort,
     // Task 8 — the apply loop's audit trail. See `routes/types.ts`'s `publishContentRunRepo` doc.

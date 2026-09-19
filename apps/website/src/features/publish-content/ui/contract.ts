@@ -2,47 +2,18 @@
  * @file Task 11 of the publish-content (Publish Content) feature —
  * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 11.
  *
- * The wire shapes the Publish Content dialog exchanges with the server, declared once here so the
- * admin package and this package cannot hold two drifting copies of them.
- *
- * ## Why these are re-declared rather than `import type`d from `planner.ts`
- *
- * `planner.ts` is server code: it imports `content-hash.ts` (which imports `node:crypto`) and
- * `type-registry.ts` (which imports repo ports through `#src/...` subpath specifiers). `apps/admin`
- * has neither `@types/node` nor a `#src` path mapping, so even a *type-only* edge from this folder
- * into `planner.ts` would drag both into the admin TypeScript program and break the admin build —
- * the exact failure mode the boundary test in `__tests__/ui-stays-client-safe.boundary.test.ts`
- * exists to prevent.
- *
- * The drift that re-declaration would otherwise invite is closed at compile time instead, by
- * `planner-contract-check.ts` in this folder: a non-test, root-tsc-checked file that asserts these
- * declarations are mutually assignable with `planner.ts`'s own. Adding an outcome kind or a report
- * field there without mirroring it here is a typecheck error, not a silent divergence.
+ * The dialog-specific wire shapes live here. The report itself is imported from the neutral,
+ * client-safe `report-contract.ts` module so there is only one report DTO declaration.
  */
+import type {
+  PublishContentOutcomeKindDto,
+  PublishContentOutcomeRowDto,
+  PublishContentReportDto,
+} from "../report-contract.js";
 
-/** Mirrors `planner.ts`'s `PublishContentOutcomeKind`. `refused` is deliberately absent — it is a
- *  whole-run state on the report, never a per-entity outcome (see that file's header). */
-export type PublishContentOutcomeKind = "created" | "unchanged" | "applied" | "conflict" | "blocked" | "forced";
-
-/** Mirrors `planner.ts`'s `PublishContentOutcomeRow`. `writes` is the planner's OWN statement of
- *  what a later apply pass would do to this entity — this folder never re-derives it from
- *  `outcome`, so the two can never disagree. */
-export interface PublishContentOutcomeRow {
-  readonly entityType: string;
-  readonly entityId: string;
-  readonly outcome: PublishContentOutcomeKind;
-  readonly writes: boolean;
-  readonly reason: string | null;
-}
-
-/** Mirrors `planner.ts`'s `PublishContentReport`. When `refused` is true, `rows` and `applyOrder`
- *  are always empty — a refusal never coexists with a partial per-entity report. */
-export interface PublishContentReport {
-  readonly refused: boolean;
-  readonly refusalReason: string | null;
-  readonly applyOrder: readonly string[];
-  readonly rows: readonly PublishContentOutcomeRow[];
-}
+export type PublishContentOutcomeKind = PublishContentOutcomeKindDto;
+export type PublishContentOutcomeRow = PublishContentOutcomeRowDto;
+export type PublishContentReport = PublishContentReportDto;
 
 /**
  * One configured publish target, as `GET .../publish-content/peers` returns it.
@@ -88,5 +59,6 @@ export interface PublishContentConfirmResult {
  *  need to undo one entity. */
 export interface PublishContentExecuteResult {
   readonly restorePointId: string;
+  readonly runId: string;
   readonly changeSetIds: readonly string[];
 }

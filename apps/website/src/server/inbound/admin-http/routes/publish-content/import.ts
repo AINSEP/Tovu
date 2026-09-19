@@ -13,14 +13,17 @@ import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/cor
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import {
   buildPublishContentImportHooks,
-  PublishContentApplyNotImplementedError,
   PublishContentBundleNotFoundError,
 } from "#src/features/publish-content/gated-hooks";
 import { executePublishContentImport, RestorePointUnavailableError } from "#src/features/publish-content/execute-import";
+import { getPublishContentRunStatus } from "#src/features/publish-content/run-repo";
+import type { PublishContentReport } from "#src/features/publish-content/planner";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { gatedPrincipalKindFor, getAuthedCredentialKind, getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { withPublishTrustAuthorize, withPublishTrustContentAuthorize } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
 import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
+import { toPublishContentReportDto } from "./report-dto.js";
 
 /**
  * @file Task 7 of the publish-content (Publish Content) feature —
@@ -46,9 +49,6 @@ function statusFor(err: unknown): { status: number; code: string } {
   if (err instanceof TokenAlreadyRedeemedError) return { status: 409, code: "TOKEN_ALREADY_REDEEMED" };
   if (err instanceof RestorePointUnavailableError) return { status: 409, code: "RESTORE_POINT_UNAVAILABLE" };
   if (err instanceof PublishContentBundleNotFoundError) return { status: 404, code: "BUNDLE_NOT_FOUND" };
-  // Loud, specific, never a generic 500 — see `gated-hooks.ts`'s own doc for why this throws at all
-  // (Task 8's apply loop is not wired yet).
-  if (err instanceof PublishContentApplyNotImplementedError) return { status: 501, code: "APPLY_NOT_IMPLEMENTED" };
   return { status: 500, code: "INTERNAL_ERROR" };
 }
 
@@ -107,7 +107,10 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         hooks: hooks as unknown as GatedMutationHooks<unknown, unknown>,
       });
 
-      res.json(result);
+      res.json({
+        ...result,
+        details: toPublishContentReportDto(result.details as PublishContentReport),
+      });
     } catch (err) {
       const { status, code } = statusFor(err);
       res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
@@ -202,12 +205,47 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
             deps: withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
             principalId: principal.id,
             principalKind: gatedPrincipalKindFor(getAuthedCredentialKind(res)),
-            hooks: hooks as unknown as GatedMutationHooks<unknown, { restorePointId: string; changeSetIds: readonly string[] }>,
+            hooks: hooks as unknown as GatedMutationHooks<
+              unknown,
+              { restorePointId: string; runId: string; changeSetIds: readonly string[] }
+            >,
             confirmationToken,
           }),
       });
 
       res.json(result);
+    } catch (err) {
+      const { status, code } = statusFor(err);
+      res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
+    }
+  });
+
+  app.get("/api/admin/v1/workspaces/:workspaceId/publish-content/runs/:runId", async (req, res) => {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+      res.status(404).json({ error: "workspace was not found" });
+      return;
+    }
+    try {
+      const principal = getAuthedPrincipal(res);
+      if (
+        !(await authorizeOrRespond(res, deps.authorize, {
+          principalId: principal.id,
+          permission: "publish_content.read",
+          workspaceId: deps.workspaceId,
+        }))
+      )
+        return;
+
+      const runId = String(req.params.runId ?? "");
+      const status = await getPublishContentRunStatus(deps.publishContentRunRepo, {
+        workspaceId: deps.workspaceId,
+        runId,
+      });
+      if (!status) {
+        res.status(404).json({ error: "publish-content run was not found", code: "RUN_NOT_FOUND" });
+        return;
+      }
+      res.json(status);
     } catch (err) {
       const { status, code } = statusFor(err);
       res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });

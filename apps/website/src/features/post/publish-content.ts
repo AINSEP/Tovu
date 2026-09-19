@@ -194,6 +194,7 @@ function toImportableRecord(
  *  any code path currently in flux (this file's own header). */
 function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentHandler {
   const entityType = kind; // "post" | "page" — PostKind's two values are exactly this feature's two entityTypes.
+  const schemaVersion = 1;
 
   async function* pack(): AsyncIterable<PackedEntity> {
     const rows = await deps.postRepo.list({ workspaceId: deps.workspaceId });
@@ -208,6 +209,7 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
       yield {
         entityType,
         id: row.id,
+        schemaVersion,
         contentHash: contentHash(entityType, toPublishableState(row)),
         hashVersion: CONTENT_HASH_VERSION,
         // Blob-reference detection (which media sha256s a body embeds) is Task 12's job (plan §5
@@ -319,6 +321,7 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
     entity: PackedEntity;
     expectedVersion: number | undefined;
     principalId: string;
+    idempotencyKey: string;
   }): Promise<{ changeSetId: string }> {
     const { changeSets, authorize, outbox } = deps;
     if (!changeSets || !authorize || !outbox) {
@@ -348,7 +351,13 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
 
     const { changeSetId } = await executeCommand({
       deps: gatewayDeps,
-      command: { workspaceId: deps.workspaceId, actor, summary, permission: "content.write" },
+      command: {
+        workspaceId: deps.workspaceId,
+        actor,
+        summary,
+        permission: "content.write",
+        idempotencyKey: input.idempotencyKey,
+      },
       mutation: {
         entityType,
         entityId: input.entity.id,
@@ -399,7 +408,7 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
     return { changeSetId };
   }
 
-  return { entityType, permission: "content.write", dependsOn: POST_AND_PAGE_DEPENDS_ON, pack, inspect, precheck, apply };
+  return { entityType, schemaVersion, permission: "content.write", dependsOn: POST_AND_PAGE_DEPENDS_ON, pack, inspect, precheck, apply };
 }
 
 /**

@@ -33,6 +33,7 @@ import {
 function fakeContributor(entityType: string, dependsOn: readonly string[] = []): PublishContentContributor {
   const handler: PublishContentHandler = {
     entityType,
+    schemaVersion: 1,
     permission: "content.write",
     dependsOn,
     pack: async function* () {},

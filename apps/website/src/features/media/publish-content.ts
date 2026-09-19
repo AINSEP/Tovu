@@ -2,7 +2,6 @@ import { executeCommand } from "@jini-ai/cms/core";
 import type { JsonObject } from "@jini-ai/cms/core";
 
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
-import { bytesMatchSha256, isValidSha256Hex } from "#src/features/publish-content/blob-staging";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import type { PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler } from "#src/features/publish-content/type-registry";
 
@@ -43,9 +42,9 @@ import type { AssetBlobRepoPort, BlobStorePort, MediaRecord, MediaRepoPort } fro
  * `blocked:missing-blob`) that writes nothing — never a silent skip, and never a partial write that
  * leaves a media row pointing at bytes that are not there. It is reported twice over: {@link
  * PublishContentHandler.precheck} below surfaces it as an ordinary `blocked` report row (the channel
- * `type-registry.ts`'s own `precheck` doc names — "a required blob's absence"), and `apply()` checks
- * it again itself rather than trusting that a caller ran `precheck` first (the same "don't trust the
- * caller already checked" discipline `import-media-entity.ts` and `blob-put.ts` both apply).
+ * `type-registry.ts`'s own `precheck` doc names — "a required blob's absence"), while the
+ * authoritative `importMediaEntity` command refuses a missing byte payload at write time rather
+ * than trusting that a caller ran `precheck` first.
  *
  * **2. Whether `apply()` routes through the same `executeCommand` gateway `post`'s does.** YES, and
  * this matters MORE for media than for posts, not less. `type-registry.ts`'s own
@@ -69,8 +68,8 @@ import type { AssetBlobRepoPort, BlobStorePort, MediaRecord, MediaRepoPort } fro
  * `throw error`, abort the whole run and persist a `failed` phase, which is the correct behaviour
  * ONLY for a genuine fault (a broken repo, a bug) and never for the data-shaped refusals below.
  *
- * The invariant that makes those row outcomes honest: nothing is written before either error is
- * raised. Every check runs before `importMediaEntity` — the only thing on this path that writes.
+ * The invariant that makes those row outcomes honest: `importMediaEntity` completes every
+ * authoritative validation before its first write and reports a typed block to this wrapper.
  *
  * ## One disclosed limitation, in a file outside this feature directory
  *
@@ -154,9 +153,8 @@ function toHashableState(media: MediaRecord): Record<string, unknown> {
  * this entity has none — `media.slug` is nullable/optional in practice for pre-backfill rows, so an
  * empty slug has nothing to collide on; contrast `post.slug`, which is `NOT NULL`).
  *
- * Shared by {@link PublishContentHandler.precheck} and `apply()` rather than written twice, so the
- * planner's reported reason and the write path's own last-resort refusal can never disagree about
- * what counts as a collision.
+ * Used only by {@link PublishContentHandler.precheck} for a lightweight operator preview. The
+ * authoritative collision decision belongs to `importMediaEntity`.
  *
  * @complexity O(1) — one indexed `findBySlug` lookup, or none at all for a slugless entity.
  */
@@ -182,6 +180,7 @@ async function hasBlobBytes(required: { blobStore: BlobStorePort; workspaceId: s
 
 function buildHandler(deps: PublishContentDeps): PublishContentHandler {
   const entityType = "media";
+  const schemaVersion = 1;
 
   async function* pack(): AsyncIterable<PackedEntity> {
     // Absent `mediaRepo` (every caller before this feature's deps bag is widened for real — see
@@ -195,6 +194,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
       yield {
         entityType,
         id: row.id,
+        schemaVersion,
         contentHash: contentHash(entityType, toHashableState(row)),
         hashVersion: CONTENT_HASH_VERSION,
         // A media entity's own required blob is itself — the destination must hold these bytes
@@ -253,30 +253,25 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
    * decisions this implements and the two disclosed limitations it carries.
    *
    * Order inside the gateway matters and is not arbitrary. `executeCommand` runs
-   * `authorize` -> idempotency -> `captureInverse` -> `execute` -> record, so every precondition
-   * check below lives inside `execute()`: an unauthorized caller gets `ForbiddenError` rather than a
+   * `authorize` -> idempotency -> `captureInverse` -> `execute` -> record, so authoritative
+   * validation lives inside `execute()`: an unauthorized caller gets `ForbiddenError` rather than a
    * "that slug is taken" message that would tell them something about workspace content they are not
    * allowed to read. `captureInverse`'s read doubles as the freshest pre-write snapshot, so the
    * version guard reuses it rather than issuing a second query against a slightly older answer.
    *
-   * Nothing is written before any throw: `importMediaEntity` is the only thing here that writes, it
-   * is reached last, and it re-checks every precondition itself. `bytesMatchSha256` is called before
-   * the bytes ever reach `putIfAbsent` — once here (a storage-integrity check on bytes read back out
-   * of this destination's own content-addressed store) and once again inside `importMediaEntity`
-   * itself, which is the only `putIfAbsent` call site on this path. The hash is imported from
-   * `blob-staging.ts`, never reimplemented; `putIfAbsent` derives a storage key from the CLAIMED sha
-   * and verifies nothing, which is exactly why the check cannot be skipped.
+   * Nothing is written before any throw. Preview checks stay in `precheck()` so the operator sees
+   * likely blocks before confirmation; `importMediaEntity` is the one authoritative command for
+   * slug, source, and byte validation at write time. This wrapper only enforces optimistic
+   * concurrency and loads the staged bytes that command consumes.
    *
    * @complexity O(1) repo/store calls plus one O(n) hash pass over the blob's bytes (`n` = blob
    * size); the apply LOOP (`apply-loop.ts`) is what iterates a report's rows and calls this per row.
-   * @tradeoffs The bytes are hashed twice (here and inside `importMediaEntity`) — deliberate: it buys
-   * a precise "this destination's own stored blob does not match its key" diagnosis, separate from
-   * "the source sent us something wrong", for a cost that is negligible at this feature's scale.
    */
   async function apply(input: {
     entity: PackedEntity;
     expectedVersion: number | undefined;
     principalId: string;
+    idempotencyKey: string;
   }): Promise<MediaApplyResult> {
     const { changeSets, authorize, outbox, mediaRepo, assetBlobRepo, blobStore } = deps;
     if (!changeSets || !authorize || !outbox) {
@@ -319,6 +314,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
         actor: { id: input.principalId, kind: "user" as const },
         summary,
         permission: "content.write",
+        idempotencyKey: input.idempotencyKey,
       },
       mutation: {
         entityType,
@@ -353,39 +349,11 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
             }
           }
 
-          // Guard 2 — a slug held by a DIFFERENT id blocks the whole import: no blob row, no media
-          // row. `media.slug` carries `uniqueIndex("idx_media_workspace_slug")`, a second uniqueness
-          // axis alongside `id`, so this is a real collision and not a cosmetic one.
-          const holderId = await findSlugConflict({ mediaRepo, workspaceId, entityId: input.entity.id, slug: source.slug });
-          if (holderId) {
-            throw new MediaApplyBlockedError(
-              "blocked:slug-taken",
-              `${entityType} '${input.entity.id}' cannot be applied — slug '${source.slug}' is already held by a different media ('${holderId}')`
-            );
-          }
-
-          // Guard 3 — the bytes. A malformed sha is caught before it is ever used to derive a
-          // storage key (wording matched to `import-media-entity.ts`'s own, so an operator sees one
-          // message for one condition regardless of which layer refused).
-          if (!isValidSha256Hex(sha256)) {
-            throw new MediaApplyBlockedError(
-              "blocked:precondition",
-              `${entityType} '${input.entity.id}' has a malformed source sha256 '${sha256}'`
-            );
-          }
-          if (!(await hasBlobBytes({ blobStore, workspaceId, sha256 }))) {
-            throw new MediaApplyBlockedError(
-              "blocked:missing-blob",
-              `${entityType} '${input.entity.id}' cannot be applied — required blob '${sha256}' was never received by this destination`
-            );
-          }
-          const bytes = await blobStore.get({ storageKey: computeBlobStorageKey({ workspaceId, sha256 }) });
-          if (!bytesMatchSha256({ bytes, claimedSha256: sha256 })) {
-            throw new MediaApplyBlockedError(
-              "blocked:precondition",
-              `${entityType} '${input.entity.id}' cannot be applied — this destination's stored blob '${sha256}' does not hash to its own key`
-            );
-          }
+          // Fetch only. `null` carries a missing pre-staged object into the authoritative import
+          // command, which owns the refusal and its operator-facing reason.
+          const bytes = (await hasBlobBytes({ blobStore, workspaceId, sha256 }))
+            ? await blobStore.get({ storageKey: computeBlobStorageKey({ workspaceId, sha256 }) })
+            : null;
 
           const outcome = await importMediaEntity({
             deps: { mediaRepo, assetBlobRepo, blobStore, clock: deps.clock, idGen: deps.idGen },
@@ -401,10 +369,14 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
             },
           });
           if (outcome.status === "blocked") {
-            // Reachable only if a precondition changed under the guards above, or for a cause they
-            // do not model (the write-once `source.sha256` rule). The reason travels verbatim.
+            const code: MediaApplyBlockedCode =
+              outcome.code === "missing-blob"
+                ? "blocked:missing-blob"
+                : outcome.code === "slug-taken"
+                  ? "blocked:slug-taken"
+                  : "blocked:precondition";
             throw new MediaApplyBlockedError(
-              "blocked:precondition",
+              code,
               `${entityType} '${input.entity.id}' cannot be applied — ${outcome.reason}`
             );
           }
@@ -428,7 +400,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
     return { changeSetId, blobWritten: result.blobWritten };
   }
 
-  return { entityType, permission: "content.write", dependsOn: MEDIA_DEPENDS_ON, pack, inspect, precheck, apply };
+  return { entityType, schemaVersion, permission: "content.write", dependsOn: MEDIA_DEPENDS_ON, pack, inspect, precheck, apply };
 }
 
 /**

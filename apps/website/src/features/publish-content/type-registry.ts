@@ -134,6 +134,11 @@ export interface PackedEntity {
    *  self-describing once serialized, with no positional/grouping convention to preserve. */
   readonly entityType: string;
   readonly id: string;
+  /** Version of this entity type's serialized `state` shape. This is independent of
+   *  {@link hashVersion}: changing canonicalization does not necessarily change the wire DTO, and
+   *  changing the DTO does not necessarily change hashing. Importers accept only the exact version
+   *  declared by the registered handler unless an explicit migration is added. */
+  readonly schemaVersion: number;
   readonly contentHash: string;
   /** Which `canonicalize`/`contentHash` generation produced {@link contentHash} — see
    *  `content-hash.ts`'s own header for why a mismatch must refuse the whole run rather than being
@@ -164,6 +169,8 @@ export interface PublishContentHandler {
    *  silently orphan every baseline row keyed on the old string, turning every future sync for that
    *  type into a false `created` (no matching baseline) rather than the update it should be. */
   readonly entityType: string;
+  /** Exact serialized-state version this handler packs and applies. */
+  readonly schemaVersion: number;
   /** The resource's OWN existing write permission (e.g. `"content.write"` for post/page), never a
    *  flat transport-wide permission — this is what makes "a principal allowed posts but not media
    *  must be refused media by construction" true, the identical reasoning
@@ -194,7 +201,13 @@ export interface PublishContentHandler {
    *  for a brand-new entity with no destination row yet) and MUST fail rather than overwrite when the
    *  destination has moved on from it; this is what Task 8's per-write optimistic-concurrency guard
    *  (plan §5 risk #3) depends on. */
-  apply(input: { entity: PackedEntity; expectedVersion: number | undefined; principalId: string }): Promise<{ changeSetId: string }>;
+  apply(input: {
+    entity: PackedEntity;
+    expectedVersion: number | undefined;
+    principalId: string;
+    /** Stable for this source principal + exact entity schema/hash version; safe to reuse on retry. */
+    idempotencyKey: string;
+  }): Promise<{ changeSetId: string }>;
 }
 
 /**

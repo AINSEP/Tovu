@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 89
+ * Tables: 90
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -987,6 +987,7 @@ export const publishContentBundles = pgTable("publish_content_bundles", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull(),
   sourcePrincipalId: text("source_principal_id").notNull(),
+  artifactFormatVersion: bigint("artifact_format_version", { mode: "number" }).notNull().default(1),
   hashVersion: bigint("hash_version", { mode: "number" }).notNull(),
   entitiesJson: text("entities_json").notNull(),
   blobManifestJson: text("blob_manifest_json").notNull(),
@@ -1029,6 +1030,7 @@ export const publishContentRuns = pgTable("publish_content_runs", {
   startedAt: text("started_at").notNull(),
   finishedAt: text("finished_at"),
   reportJson: text("report_json"),
+  itemsJson: text("items_json"),
 }, (t) => [
     index("idx_publish_content_runs_workspace").on(t.workspaceId, t.startedAt),
   ]);
@@ -1073,6 +1075,12 @@ export const publishHistory = pgTable("publish_history", {
     index("idx_publish_history_workspace_id").on(t.workspaceId, t.id),
     index("idx_publish_history_workspace_target_id").on(t.workspaceId, t.target, t.id),
   ]);
+
+export const publishTrustRevocations = pgTable("publish_trust_revocations", {
+  sourceInstallationId: text("source_installation_id").primaryKey(),
+  revokedAt: text("revoked_at").notNull(),
+  note: text("note"),
+});
 
 export const redirectHits = pgTable("redirect_hits", {
   redirectId: text("redirect_id").primaryKey(),

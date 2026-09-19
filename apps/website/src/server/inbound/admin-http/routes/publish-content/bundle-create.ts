@@ -1,10 +1,12 @@
 import { stageBundle, PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES } from "#src/features/publish-content/bundle-staging";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
+import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 
-import type { PublishContentRouteRegistrar } from "./deps.js";
+import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
 
 /**
  * @file Task 6 of the publish-content (Publish Content) feature —
@@ -27,16 +29,46 @@ import type { PublishContentRouteRegistrar } from "./deps.js";
  *  shape — that is `planImport`'s job (Task 5, already built); duplicating it here would just be a
  *  second, driftable copy of the same rule.
  *  @complexity O(n) in `blobManifest.length` (one type check per element). */
-function validateBundleBody(
+export function validateBundleBody(
   rawBody: unknown
-): { hashVersion: number; sourceLabel: string | undefined; entities: unknown[]; blobManifest: string[] } | { error: string } {
+):
+  | {
+      artifactFormatVersion: number;
+      hashVersion: number;
+      sourceLabel: string | undefined;
+      entities: Array<Record<string, unknown>>;
+      blobManifest: string[];
+    }
+  | { error: string } {
   const body = (rawBody ?? {}) as Record<string, unknown>;
 
-  if (typeof body.hashVersion !== "number" || !Number.isFinite(body.hashVersion)) {
-    return { error: "hashVersion must be a number" };
+  if (!Number.isInteger(body.artifactFormatVersion)) {
+    return { error: "artifactFormatVersion must be an integer" };
+  }
+  if (body.artifactFormatVersion !== PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION) {
+    return {
+      error:
+        `unsupported artifactFormatVersion ${String(body.artifactFormatVersion)}; ` +
+        `this instance supports ${PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION}`,
+    };
+  }
+  if (!Number.isInteger(body.hashVersion)) {
+    return { error: "hashVersion must be an integer" };
   }
   if (!Array.isArray(body.entities)) {
     return { error: "entities must be an array" };
+  }
+  for (const [index, entity] of body.entities.entries()) {
+    if (typeof entity !== "object" || entity === null || Array.isArray(entity)) {
+      return { error: `entities[${index}] must be an object` };
+    }
+    const candidate = entity as Record<string, unknown>;
+    if (typeof candidate.entityType !== "string" || candidate.entityType.length === 0) {
+      return { error: `entities[${index}].entityType must be a non-empty string` };
+    }
+    if (!Number.isInteger(candidate.schemaVersion)) {
+      return { error: `entities[${index}].schemaVersion must be an integer` };
+    }
   }
   if (!Array.isArray(body.blobManifest) || body.blobManifest.some((sha) => typeof sha !== "string")) {
     return { error: "blobManifest must be an array of strings" };
@@ -46,9 +78,10 @@ function validateBundleBody(
   }
 
   return {
-    hashVersion: body.hashVersion,
+    artifactFormatVersion: body.artifactFormatVersion as number,
+    hashVersion: body.hashVersion as number,
     sourceLabel: body.sourceLabel as string | undefined,
-    entities: body.entities,
+    entities: body.entities as Array<Record<string, unknown>>,
     blobManifest: body.blobManifest as string[],
   };
 }
@@ -78,6 +111,20 @@ export const registerPublishContentBundleCreateRoute: PublishContentRouteRegistr
         if ("error" in validated) {
           res.status(400).json({ error: validated.error });
           return;
+        }
+
+        const catalog = buildPublishContentCatalog(toPublishContentDeps(deps));
+        for (const entity of validated.entities) {
+          const entityType = entity.entityType as string;
+          const handler = catalog.handlerByType.get(entityType);
+          if (handler && entity.schemaVersion !== handler.schemaVersion) {
+            res.status(400).json({
+              error:
+                `unsupported schemaVersion ${String(entity.schemaVersion)} for entity type '${entityType}'; ` +
+                `this instance supports ${handler.schemaVersion}`,
+            });
+            return;
+          }
         }
 
         // The grant's entity-type allowlist, enforced at the door a publishing credential comes
@@ -119,6 +166,7 @@ export const registerPublishContentBundleCreateRoute: PublishContentRouteRegistr
           {
             workspaceId: deps.workspaceId,
             sourcePrincipalId: principal.id,
+            artifactFormatVersion: validated.artifactFormatVersion,
             hashVersion: validated.hashVersion,
             sourceLabel: validated.sourceLabel,
             entities: validated.entities,

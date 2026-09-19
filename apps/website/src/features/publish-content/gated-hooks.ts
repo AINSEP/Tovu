@@ -40,12 +40,8 @@ import type { PublishContentDeps, PackedEntity } from "./type-registry.js";
  * run might make (plan §4 task 7's own instruction); (2) re-derives the report and hands it to
  * {@link PublishContentApplyPort.applyReport}. This file owns (1) and the wiring in (2); it does
  * NOT own what happens inside `applyReport` — that is Task 8's apply loop
- * (`features/publish-content/apply-loop.ts`: per-type ordering, ~200-entity chunks, `executeCommand`
- * + `expectedVersion`, baseline upserts). The default binding this file ships, {@link
- * createNotYetImplementedPublishContentApplyPort}, throws {@link PublishContentApplyNotImplementedError}
- * unconditionally for any composition root that has not yet rebound `publishContentApplyPort` to a
- * real implementation — the same "throw loudly rather than fake a write" discipline
- * `features/post/publish-content.ts`'s own (now-implemented) `apply()` originally used the stub for.
+ * (`features/publish-content/apply-loop.ts`: per-type ordering, `executeCommand` +
+ * `expectedVersion`, baseline upserts). Both composition roots require and bind that real port.
  *
  * **Task 8 addendum (2026-09-18):** the ORIGINAL seam here was too narrow to actually apply
  * anything — `applyReport({report, principalId})` alone gives a real apply port no way to reload the
@@ -102,15 +98,6 @@ export class PublishContentBundleNotFoundError extends Error {
   }
 }
 
-/** Thrown by {@link createNotYetImplementedPublishContentApplyPort} — see this file's header,
- *  "The seam with Task 8". */
-export class PublishContentApplyNotImplementedError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "PublishContentApplyNotImplementedError";
-  }
-}
-
 /**
  * Task 8's seam: applies an already-computed, already-authorized {@link PublishContentReport}. Never
  * called by anything in this file except `executeMutation()`, and never before the restore point is
@@ -139,26 +126,7 @@ export interface PublishContentApplyPort {
      * Absent means "use the port's own", so every existing caller is unchanged.
      */
     authorize?: PublishContentDeps["authorize"];
-  }): Promise<{ changeSetIds: readonly string[] }>;
-}
-
-/**
- * The default `PublishContentApplyPort` binding for BOTH composition roots, until Task 8 lands a
- * real one. Throws unconditionally rather than reporting a fabricated success — see this file's
- * header for why a throw here is the correct, disclosed behavior, not a gap someone forgot to wire.
- *
- * @complexity O(1).
- */
-export function createNotYetImplementedPublishContentApplyPort(): PublishContentApplyPort {
-  return {
-    applyReport: async () => {
-      throw new PublishContentApplyNotImplementedError(
-        "publish-content: applying an import plan is not implemented yet — Task 8 wires the chunked " +
-          "apply loop (per-type ordering, ~200-entity chunks, executeCommand + expectedVersion, baseline " +
-          "upserts) behind this seam (features/publish-content/gated-hooks.ts#PublishContentApplyPort)."
-      );
-    },
-  };
+  }): Promise<{ runId: string; changeSetIds: readonly string[] }>;
 }
 
 export interface BuildPublishContentImportHooksInput {
@@ -193,7 +161,10 @@ export interface BuildPublishContentImportHooksInput {
  */
 export function buildPublishContentImportHooks(
   input: BuildPublishContentImportHooksInput
-): GatedMutationHooks<PublishContentReport, { restorePointId: string; changeSetIds: readonly string[] }> {
+): GatedMutationHooks<
+  PublishContentReport,
+  { restorePointId: string; runId: string; changeSetIds: readonly string[] }
+> {
   /** Re-derives the current `PublishContentReport` from live state — called by BOTH `computePlan()` and
    *  `executeMutation()`, never cached across calls (this file's header). */
   async function buildReport(): Promise<PublishContentReport> {
@@ -206,6 +177,7 @@ export function buildPublishContentImportHooks(
     }
 
     const bundle: PublishContentBundle = {
+      artifactFormatVersion: staged.artifactFormatVersion,
       hashVersion: staged.hashVersion,
       // Never persisted on a staged bundle row (`bundle-staging.ts`'s own disclosed schema
       // deviation) — display-only, and `planImport` treats it as optional. Not a loss of anything
@@ -265,7 +237,7 @@ export function buildPublishContentImportHooks(
       // re-run `computePlan()` and hash-compared it moments ago (CIC U-001-B3), so this is
       // guaranteed consistent with what was just verified, not a second independent judgment call.
       const report = await buildReport();
-      const { changeSetIds } = await input.applyPort.applyReport({
+      const { runId, changeSetIds } = await input.applyPort.applyReport({
         report,
         principalId: input.actorId,
         bundleId: input.bundleId,
@@ -275,7 +247,7 @@ export function buildPublishContentImportHooks(
         // process and this decision is per request.
         ...(input.publishContentDeps.authorize === undefined ? {} : { authorize: input.publishContentDeps.authorize }),
       });
-      return { restorePointId, changeSetIds };
+      return { restorePointId, runId, changeSetIds };
     },
     resolveActorClassIdentity,
   };

@@ -1424,10 +1424,9 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   publishContentBaselineRepo: PublishContentBaselineRepoPort;
   /**
-   * Task 7 of the publish-content (Publish Content) feature — Task 8's seam
-   * (`gated-hooks.ts#PublishContentApplyPort`). Both composition roots bind the SAME
-   * `createNotYetImplementedPublishContentApplyPort()` default (neither has a real apply loop
-   * yet — see that function's own doc for why throwing is the correct, disclosed behavior).
+   * Task 8 of the publish-content (Publish Content) feature — the real apply seam
+   * (`gated-hooks.ts#PublishContentApplyPort`). Both composition roots bind
+   * `createPublishContentApplyPort()`.
    */
   publishContentApplyPort: PublishContentApplyPort;
   /**

@@ -80,6 +80,7 @@ function packedFrom(entityType: "post" | "page", post: PostRecord) {
   return {
     entityType,
     id: post.id,
+    schemaVersion: 1,
     contentHash: contentHash(entityType, toPublishableState(post)),
     hashVersion: 1,
     requiredBlobs: [],
@@ -94,14 +95,14 @@ function packedFrom(entityType: "post" | "page", post: PostRecord) {
 test("contributePostPublish returns data only — entityType/dependsOn are plain values, build is deferred", () => {
   const contributor = contributePostPublish();
   assert.equal(contributor.entityType, "post");
-  assert.deepEqual(contributor.dependsOn, ["media", "term"]);
+  assert.deepEqual(contributor.dependsOn, ["media"]);
   assert.equal(typeof contributor.build, "function");
 });
 
 test("contributePagePublish returns data only, distinguished from post only by entityType", () => {
   const contributor = contributePagePublish();
   assert.equal(contributor.entityType, "page");
-  assert.deepEqual(contributor.dependsOn, ["media", "term"]);
+  assert.deepEqual(contributor.dependsOn, ["media"]);
 });
 
 test("both built handlers declare the resource's own content.write permission", () => {
@@ -214,6 +215,7 @@ test("precheck() allows an entity whose slug is free", async () => {
   const result = await handler.precheck({
     entityType: "post",
     id: "new-post",
+    schemaVersion: 1,
     contentHash: "irrelevant",
     hashVersion: 1,
     requiredBlobs: [],
@@ -228,6 +230,7 @@ test("precheck() allows an entity claiming ITS OWN current slug (updating in pla
   const result = await handler.precheck({
     entityType: "post",
     id: "post-1",
+    schemaVersion: 1,
     contentHash: "irrelevant",
     hashVersion: 1,
     requiredBlobs: [],
@@ -242,6 +245,7 @@ test("precheck() blocks an entity whose slug is held by a DIFFERENT id — never
   const result = await handler.precheck({
     entityType: "post",
     id: "post-2",
+    schemaVersion: 1,
     contentHash: "irrelevant",
     hashVersion: 1,
     requiredBlobs: [],
@@ -255,6 +259,7 @@ test("precheck() blocks an entity with no usable slug rather than throwing", asy
   const result = await handler.precheck({
     entityType: "post",
     id: "post-1",
+    schemaVersion: 1,
     contentHash: "irrelevant",
     hashVersion: 1,
     requiredBlobs: [],
@@ -274,7 +279,12 @@ test("precheck() blocks an entity with no usable slug rather than throwing", asy
 test("apply() throws when changeSets/authorize/outbox are not wired — never silently no-ops", async () => {
   const handler = contributePostPublish().build(makeDeps([]));
   await assert.rejects(
-    () => handler.apply({ entity: { entityType: "post", id: "x", contentHash: "h", hashVersion: 1, requiredBlobs: [], state: {} }, expectedVersion: undefined, principalId: "p1" }),
+    () =>
+      handler.apply({
+        entity: { entityType: "post", id: "x", schemaVersion: 1, contentHash: "h", hashVersion: 1, requiredBlobs: [], state: {} },
+        expectedVersion: undefined,
+        principalId: "p1",
+      }),
     /requires PublishContentDeps.changeSets\/authorize\/outbox/
   );
 });

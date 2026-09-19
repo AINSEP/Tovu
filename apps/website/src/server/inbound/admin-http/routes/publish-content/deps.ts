@@ -55,6 +55,7 @@ export type PublishContentRouteDeps = Pick<
   | "workspaceRepo"
   | "blobStore"
   | "publishContentBundleRepo"
+  | "publishContentRunRepo"
   | "publishContentBaselineRepo"
   | "dbOps"
   | "restorePointsRepo"

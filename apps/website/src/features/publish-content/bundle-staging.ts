@@ -46,6 +46,7 @@ export interface StagedBundleRecord {
    *  Mirrors `publish_content_baselines.peerPrincipalId`'s own rule (plan §1.6 / §5 risk #9): a
    *  self-declared identity is never trusted as a storage key. */
   readonly sourcePrincipalId: string;
+  readonly artifactFormatVersion: number;
   readonly hashVersion: number;
   /** Raw JSON text of the bundle's `entities[]` — decoded and validated by Task 7's `planImport`,
    *  never by this module (this file never inspects an entity's shape). */
@@ -60,6 +61,8 @@ export interface StagedBundleRecord {
 export interface PublishContentBundleRepoPort {
   save(record: StagedBundleRecord): Promise<void>;
   findById(input: { workspaceId: string; id: string }): Promise<StagedBundleRecord | null>;
+  /** Deletes rows whose expiry is strictly before `expiredBefore` and returns the number removed. */
+  deleteExpired(input: { expiredBefore: string }): Promise<number>;
 }
 
 /**
@@ -112,6 +115,7 @@ export function isBundleActive(required: { record: StagedBundleRecord; now: stri
 export interface StageBundleInput {
   readonly workspaceId: string;
   readonly sourcePrincipalId: string;
+  readonly artifactFormatVersion: number;
   readonly hashVersion: number;
   /** Display-only; carried on the export envelope but NOT persisted — see this file's header
    *  "Deviation from the plan's draft schema". Accepted here so a route need not special-case
@@ -152,6 +156,7 @@ export async function stageBundle(
     id: deps.idGen.newId(),
     workspaceId: input.workspaceId,
     sourcePrincipalId: input.sourcePrincipalId,
+    artifactFormatVersion: input.artifactFormatVersion,
     hashVersion: input.hashVersion,
     entitiesJson,
     blobManifestJson,
@@ -160,6 +165,10 @@ export async function stageBundle(
     expiresAt,
   };
 
+  // Sweep before every append. If staging traffic continues, expired metadata cannot grow without
+  // bound; if traffic stops, the table is finite and incurs no further growth. Strictly-before
+  // matches `isBundleActive`'s inclusive boundary (`now === expiresAt` remains usable).
+  await deps.repo.deleteExpired({ expiredBefore: receivedAt });
   await deps.repo.save(record);
   return { bundleId: record.id, expiresAt };
 }
@@ -195,5 +204,16 @@ export class InMemoryPublishContentBundleRepo implements PublishContentBundleRep
     const record = this.recordsById.get(input.id);
     if (!record || record.workspaceId !== input.workspaceId) return null;
     return { ...record };
+  }
+
+  async deleteExpired(input: { expiredBefore: string }): Promise<number> {
+    const cutoff = new Date(input.expiredBefore).getTime();
+    let deleted = 0;
+    for (const [id, record] of this.recordsById) {
+      if (new Date(record.expiresAt).getTime() >= cutoff) continue;
+      this.recordsById.delete(id);
+      deleted += 1;
+    }
+    return deleted;
   }
 }

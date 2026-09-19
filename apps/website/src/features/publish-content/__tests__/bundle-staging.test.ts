@@ -32,7 +32,7 @@ test("stageBundle computes expiresAt as receivedAt + TTL, never from caller inpu
   const repo = new InMemoryPublishContentBundleRepo();
   const receivedAt = "2026-09-18T00:00:00.000Z";
   const { bundleId, expiresAt } = await stageBundle(
-    { workspaceId: "ws-1", sourcePrincipalId: "principal-1", hashVersion: 1, entities: [], blobManifest: [] },
+    { workspaceId: "ws-1", sourcePrincipalId: "principal-1", artifactFormatVersion: 1, hashVersion: 1, entities: [], blobManifest: [] },
     { repo, clock: fakeClock(receivedAt), idGen: fakeIdGen("bundle-1") }
   );
 
@@ -53,6 +53,7 @@ test("stageBundle serializes entities/blobManifest and records sourcePrincipalId
     {
       workspaceId: "ws-1",
       sourcePrincipalId: "principal-1",
+      artifactFormatVersion: 1,
       hashVersion: 1,
       sourceLabel: "peer A",
       entities,
@@ -73,6 +74,7 @@ test("isBundleActive is true exactly at the expiresAt boundary (inclusive), fals
     id: "b-1",
     workspaceId: "ws-1",
     sourcePrincipalId: "principal-1",
+    artifactFormatVersion: 1,
     hashVersion: 1,
     entitiesJson: "[]",
     blobManifestJson: "[]",
@@ -88,7 +90,7 @@ test("loadActiveBundle REFUSES (returns null for) a bundle past its expiresAt â€
   const repo = new InMemoryPublishContentBundleRepo();
   const receivedAt = "2026-09-18T00:00:00.000Z";
   const { bundleId, expiresAt } = await stageBundle(
-    { workspaceId: "ws-1", sourcePrincipalId: "principal-1", hashVersion: 1, entities: [], blobManifest: [] },
+    { workspaceId: "ws-1", sourcePrincipalId: "principal-1", artifactFormatVersion: 1, hashVersion: 1, entities: [], blobManifest: [] },
     { repo, clock: fakeClock(receivedAt), idGen: fakeIdGen("bundle-3"), ttlMs: 1000 }
   );
 
@@ -101,7 +103,7 @@ test("loadActiveBundle returns the record when it has not yet expired", async ()
   const repo = new InMemoryPublishContentBundleRepo();
   const receivedAt = "2026-09-18T00:00:00.000Z";
   const { bundleId } = await stageBundle(
-    { workspaceId: "ws-1", sourcePrincipalId: "principal-1", hashVersion: 1, entities: [], blobManifest: [] },
+    { workspaceId: "ws-1", sourcePrincipalId: "principal-1", artifactFormatVersion: 1, hashVersion: 1, entities: [], blobManifest: [] },
     { repo, clock: fakeClock(receivedAt), idGen: fakeIdGen("bundle-4") }
   );
 
@@ -114,6 +116,33 @@ test("loadActiveBundle returns null for an unknown id (never throws)", async () 
   const repo = new InMemoryPublishContentBundleRepo();
   const result = await loadActiveBundle({ repo, workspaceId: "ws-1", id: "does-not-exist", now: "2026-09-18T00:00:00.000Z" });
   assert.equal(result, null);
+});
+
+test("staging sweeps rows strictly past expiry while preserving the inclusive expiry boundary", async () => {
+  const repo = new InMemoryPublishContentBundleRepo();
+  const receivedAt = "2026-09-18T00:00:00.000Z";
+  const input = {
+    workspaceId: "ws-1",
+    sourcePrincipalId: "principal-1",
+    artifactFormatVersion: 1,
+    hashVersion: 1,
+    entities: [],
+    blobManifest: [],
+  };
+  await stageBundle(input, { repo, clock: fakeClock(receivedAt), idGen: fakeIdGen("old"), ttlMs: 1_000 });
+
+  const exactExpiry = "2026-09-18T00:00:01.000Z";
+  await stageBundle(input, { repo, clock: fakeClock(exactExpiry), idGen: fakeIdGen("boundary") });
+  assert.ok(await repo.findById({ workspaceId: "ws-1", id: "old" }), "a row remains usable exactly at expiresAt");
+
+  await stageBundle(input, {
+    repo,
+    clock: fakeClock("2026-09-18T00:00:01.001Z"),
+    idGen: fakeIdGen("new"),
+  });
+  assert.equal(await repo.findById({ workspaceId: "ws-1", id: "old" }), null);
+  assert.ok(await repo.findById({ workspaceId: "ws-1", id: "boundary" }));
+  assert.ok(await repo.findById({ workspaceId: "ws-1", id: "new" }));
 });
 
 test("computeBundleExpiry is a pure function of receivedAt + ttlMs, no hidden clock read", () => {

@@ -1,4 +1,5 @@
 import { CONTENT_HASH_VERSION } from "./content-hash.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "./artifact-format.js";
 import { buildPublishContentCatalog } from "./type-registry.js";
 import type { PublishContentDeps, PublishContentHandler, PackedEntity } from "./type-registry.js";
 
@@ -74,6 +75,7 @@ export interface BaselineRecord {
  * comparison or trust decision.
  */
 export interface PublishContentBundle {
+  readonly artifactFormatVersion: number;
   readonly hashVersion: number;
   readonly sourceLabel?: string;
   readonly entities: readonly PackedEntity[];
@@ -225,6 +227,17 @@ async function planEntity(
  * `precheck` themselves cost, not by this function's own control flow.
  */
 export async function planImport(bundle: PublishContentBundle, deps: PlanImportDeps): Promise<PublishContentReport> {
+  if (bundle.artifactFormatVersion !== PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION) {
+    return {
+      refused: true,
+      refusalReason:
+        `bundle artifact format version ${bundle.artifactFormatVersion} does not match this instance's ` +
+        `${PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION} — use an exporter/importer pair with a supported format`,
+      applyOrder: [],
+      rows: [],
+    };
+  }
+
   if (bundle.hashVersion !== CONTENT_HASH_VERSION) {
     return {
       refused: true,
@@ -237,6 +250,22 @@ export async function planImport(bundle: PublishContentBundle, deps: PlanImportD
   // Rule 2 (this file's header): read and validate the registry FRESH, inside this call, every call.
   const catalog = buildPublishContentCatalog(deps.publishContentDeps);
   const { handlerByType } = catalog;
+
+  // Entity DTO compatibility is also exact. Refuse before baseline/blob/destination reads so an
+  // operator never receives a partially credible plan for a bundle this importer cannot decode.
+  for (const entity of bundle.entities) {
+    const handler = handlerByType.get(entity.entityType);
+    if (handler && entity.schemaVersion !== handler.schemaVersion) {
+      return {
+        refused: true,
+        refusalReason:
+          `${entity.entityType} '${entity.id}' uses schema version ${entity.schemaVersion}, but this ` +
+          `instance supports version ${handler.schemaVersion} for that type`,
+        applyOrder: [],
+        rows: [],
+      };
+    }
+  }
 
   // Pass 1 — prefetch baselines, refuse the whole run on the first hash-version mismatch found.
   const baselineByKey = new Map<string, BaselineRecord | null>();

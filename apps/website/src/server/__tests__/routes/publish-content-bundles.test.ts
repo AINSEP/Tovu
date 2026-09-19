@@ -6,6 +6,7 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
 import { loadActiveBundle } from "#src/features/publish-content/bundle-staging";
 
 /**
@@ -47,9 +48,20 @@ async function loginAsOwner(baseUrl: string): Promise<string> {
 
 function validBundleBody(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {
   return {
+    artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
     hashVersion: CONTENT_HASH_VERSION,
     sourceLabel: "peer instance",
-    entities: [{ entityType: "post", id: "p-1", contentHash: "abc", hashVersion: CONTENT_HASH_VERSION, requiredBlobs: [], state: {} }],
+    entities: [
+      {
+        entityType: "post",
+        id: "p-1",
+        schemaVersion: 1,
+        contentHash: "abc",
+        hashVersion: CONTENT_HASH_VERSION,
+        requiredBlobs: [],
+        state: {},
+      },
+    ],
     blobManifest: [],
     ...overrides,
   };
@@ -124,6 +136,31 @@ test("POST .../publish-content/bundles rejects a malformed body (wrong shape for
     body: JSON.stringify(validBundleBody({ blobManifest: [123] })),
   });
   assert.equal(badBlobManifest.status, 400);
+});
+
+test("POST .../publish-content/bundles explicitly rejects unknown artifact and entity schema versions", async (t) => {
+  const { server, baseUrl } = await startServer();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const cookie = await loginAsOwner(baseUrl);
+  const url = `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/bundles`;
+  const headers = { "content-type": "application/json", cookie };
+
+  const unknownArtifact = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(validBundleBody({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION + 1 })),
+  });
+  assert.equal(unknownArtifact.status, 400);
+  assert.match(await unknownArtifact.text(), /unsupported artifactFormatVersion 2/);
+
+  const entity = (validBundleBody().entities as Array<Record<string, unknown>>)[0];
+  const unknownSchema = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(validBundleBody({ entities: [{ ...entity, schemaVersion: 2 }] })),
+  });
+  assert.equal(unknownSchema.status, 400);
+  assert.match(await unknownSchema.text(), /unsupported schemaVersion 2 for entity type 'post'/);
 });
 
 test("a staged bundle is retrievable via the real repo wiring, and ignores a caller-supplied expiresAt-like field", async (t) => {

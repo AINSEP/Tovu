@@ -22,6 +22,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
 import {
   registerPublishContentContributor,
   resetPublishContentContributorsForTests,
@@ -62,6 +63,7 @@ function makeFakeHandler(options: {
 }): PublishContentHandler {
   return {
     entityType: options.entityType,
+    schemaVersion: 1,
     permission: "content.write",
     dependsOn: options.dependsOn ?? [],
     pack: async function* () {},
@@ -80,6 +82,7 @@ function fakeContributor(handler: PublishContentHandler): PublishContentContribu
 
 function makeEntity(overrides: Partial<PackedEntity> & { entityType: string; id: string }): PackedEntity {
   return {
+    schemaVersion: 1,
     contentHash: contentHash(overrides.entityType, { title: overrides.id }),
     hashVersion: CONTENT_HASH_VERSION,
     requiredBlobs: [],
@@ -125,7 +128,7 @@ test("created: no destination row for the id", async () => {
   registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination })));
   const before = snapshot(destination);
 
-  const bundle: PublishContentBundle = { hashVersion: CONTENT_HASH_VERSION, entities: [makeEntity({ entityType: "widget", id: "w1" })] };
+  const bundle: PublishContentBundle = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [makeEntity({ entityType: "widget", id: "w1" })] };
   const report = await planImport(bundle, makeDeps({}));
 
   assert.equal(report.refused, false);
@@ -139,7 +142,7 @@ test("unchanged: destination hash equals source hash", async () => {
   const before = snapshot(destination);
 
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "same-hash" });
-  const report = await planImport({ hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({}));
+  const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({}));
 
   assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", outcome: "unchanged", writes: false, reason: null }]);
   assertUnchanged(destination, before, "unchanged");
@@ -154,7 +157,7 @@ test("applied: destination hash differs from source but matches the recorded bas
     [entityKey("widget", "w1"), { hashAtLastSync: "baseline-hash", hashVersion: CONTENT_HASH_VERSION }],
   ]);
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
-  const report = await planImport({ hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({ baselines }));
+  const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({ baselines }));
 
   assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", outcome: "applied", writes: true, reason: null }]);
   assertUnchanged(destination, before, "applied");
@@ -169,7 +172,7 @@ test("conflict: destination hash differs from BOTH source and the recorded basel
     [entityKey("widget", "w1"), { hashAtLastSync: "old-baseline-hash", hashVersion: CONTENT_HASH_VERSION }],
   ]);
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
-  const report = await planImport({ hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({ baselines }));
+  const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({ baselines }));
 
   assert.equal(report.rows.length, 1);
   assert.equal(report.rows[0].outcome, "conflict");
@@ -184,7 +187,7 @@ test("conflict: no baseline exists at all for this peer+entity — never a free 
   const before = snapshot(destination);
 
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "incoming-hash" });
-  const report = await planImport({ hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({}));
+  const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({}));
 
   assert.equal(report.rows[0].outcome, "conflict");
   assert.equal(report.rows[0].writes, false);
@@ -199,7 +202,7 @@ test("blocked: precheck fails (e.g. slug taken) — never caught as a write-time
   const before = snapshot(destination);
 
   const entity = makeEntity({ entityType: "widget", id: "w1" });
-  const report = await planImport({ hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({}));
+  const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({}));
 
   assert.deepEqual(report.rows, [
     { entityType: "widget", entityId: "w1", outcome: "blocked", writes: false, reason: "slug 'x' is already held by a different widget" },
@@ -213,7 +216,7 @@ test("blocked: a required blob is not available on this instance", async () => {
   const before = snapshot(destination);
 
   const entity = makeEntity({ entityType: "widget", id: "w1", requiredBlobs: ["deadbeef"] });
-  const report = await planImport({ hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({ availableBlobs: new Set() }));
+  const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({ availableBlobs: new Set() }));
 
   assert.equal(report.rows[0].outcome, "blocked");
   assert.match(report.rows[0].reason ?? "", /required blob 'deadbeef' is not available/);
@@ -225,7 +228,7 @@ test("NOT blocked when the required blob IS available", async () => {
   registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination })));
 
   const entity = makeEntity({ entityType: "widget", id: "w1", requiredBlobs: ["deadbeef"] });
-  const report = await planImport({ hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({ availableBlobs: new Set(["deadbeef"]) }));
+  const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({ availableBlobs: new Set(["deadbeef"]) }));
 
   assert.equal(report.rows[0].outcome, "created");
 });
@@ -240,7 +243,7 @@ test("forced: a conflict (edited on destination) the operator explicitly selecte
   ]);
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
   const report = await planImport(
-    { hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
     makeDeps({ baselines, forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
   );
 
@@ -256,12 +259,60 @@ test("forced: the 'no baseline at all' conflict variant can also be forced", asy
 
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "incoming-hash" });
   const report = await planImport(
-    { hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
     makeDeps({ forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
   );
 
   assert.equal(report.rows[0].outcome, "forced");
   assert.equal(report.rows[0].writes, true);
+});
+
+test("refused: unknown artifact format version rejects the whole bundle before any catalog or baseline read", async () => {
+  let baselineReads = 0;
+  const report = await planImport(
+    {
+      artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION + 1,
+      hashVersion: CONTENT_HASH_VERSION,
+      entities: [makeEntity({ entityType: "widget", id: "w1" })],
+    },
+    {
+      ...makeDeps({}),
+      getBaseline: async () => {
+        baselineReads += 1;
+        return null;
+      },
+    }
+  );
+
+  assert.equal(report.refused, true);
+  assert.deepEqual(report.rows, []);
+  assert.match(report.refusalReason ?? "", /artifact format version 2/);
+  assert.equal(baselineReads, 0);
+});
+
+test("refused: unknown per-type schema version rejects the whole bundle before baseline reads", async () => {
+  const destination = new Map<string, FakeDestinationRow>();
+  registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination })));
+  let baselineReads = 0;
+  const report = await planImport(
+    {
+      artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+      hashVersion: CONTENT_HASH_VERSION,
+      entities: [makeEntity({ entityType: "widget", id: "w1", schemaVersion: 2 })],
+    },
+    {
+      ...makeDeps({}),
+      getBaseline: async () => {
+        baselineReads += 1;
+        return null;
+      },
+    }
+  );
+
+  assert.equal(report.refused, true);
+  assert.deepEqual(report.rows, []);
+  assert.match(report.refusalReason ?? "", /widget 'w1' uses schema version 2/);
+  assert.equal(baselineReads, 0);
 });
 
 test("refused: bundle.hashVersion mismatch refuses the WHOLE run — no rows, no baseline reads", async () => {
@@ -279,7 +330,7 @@ test("refused: bundle.hashVersion mismatch refuses the WHOLE run — no rows, no
     hasBlob: async () => true,
   };
   const entity = makeEntity({ entityType: "widget", id: "w1" });
-  const report = await planImport({ hashVersion: CONTENT_HASH_VERSION + 1, entities: [entity] }, deps);
+  const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION + 1, entities: [entity] }, deps);
 
   assert.equal(report.refused, true);
   assert.deepEqual(report.rows, []);
@@ -304,7 +355,7 @@ test("refused (adversarial, aggregate): ONE stale baseline hashVersion among sev
     [entityKey("widget", "w3"), { hashAtLastSync: "h3", hashVersion: CONTENT_HASH_VERSION }],
   ]);
   const entities = ["w1", "w2", "w3"].map((id) => makeEntity({ entityType: "widget", id, contentHash: `h${id.slice(1)}` }));
-  const report = await planImport({ hashVersion: CONTENT_HASH_VERSION, entities }, makeDeps({ baselines }));
+  const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities }, makeDeps({ baselines }));
 
   assert.equal(report.refused, true);
   assert.deepEqual(report.rows, [], "no partial rows for w1/w3 even though their own baselines were fine");
@@ -316,7 +367,7 @@ test("blocked: an entity type present in the bundle with NO registered handler o
   // No contributor registered at all for "widget" — resetPublishContentContributorsForTests()
   // ran in beforeEach.
   const entity = makeEntity({ entityType: "widget", id: "w1" });
-  const report = await planImport({ hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({}));
+  const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({}));
 
   assert.equal(report.rows[0].outcome, "blocked");
   assert.match(report.rows[0].reason ?? "", /no registered publish-content handler for entity type 'widget'/);
@@ -351,7 +402,7 @@ test("a single planImport call classifies a mixed batch correctly, each entity i
     makeEntity({ entityType: "widget", id: "blocked-id", contentHash: "irrelevant" }),
   ];
   const report = await planImport(
-    { hashVersion: CONTENT_HASH_VERSION, entities },
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities },
     makeDeps({ baselines, forcedEntityKeys: new Set([entityKey("widget", "forced-id")]) })
   );
 
@@ -379,7 +430,7 @@ test("planImport's applyOrder places a dependency's type before its dependent's,
   );
 
   const entities = [makeEntity({ entityType: "post", id: "p1" }), makeEntity({ entityType: "media", id: "m1" })];
-  const report = await planImport({ hashVersion: CONTENT_HASH_VERSION, entities }, makeDeps({}));
+  const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities }, makeDeps({}));
 
   assert.deepEqual(report.applyOrder, ["media", "post"]);
   assert.deepEqual(report.rows.map((row) => row.entityId), ["m1", "p1"], "rows must follow applyOrder, not bundle order");
@@ -389,11 +440,11 @@ test("a contributor registered AFTER an earlier planImport call is picked up by 
   const destination = new Map<string, FakeDestinationRow>();
   const entity = makeEntity({ entityType: "widget", id: "w1" });
 
-  const first = await planImport({ hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({}));
+  const first = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({}));
   assert.equal(first.rows[0].outcome, "blocked", "no handler registered yet");
 
   registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination })));
-  const second = await planImport({ hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({}));
+  const second = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({}));
   assert.equal(second.rows[0].outcome, "created", "the newly registered contributor must be seen without recreating planImport itself");
 });
 
@@ -429,6 +480,7 @@ test("real post contributor: created + byte-identical destination", async () => 
   const entity: PackedEntity = {
     entityType: "post",
     id: "post-2",
+    schemaVersion: 1,
     contentHash: contentHash("post", newPostState),
     hashVersion: CONTENT_HASH_VERSION,
     requiredBlobs: [],
@@ -439,7 +491,7 @@ test("real post contributor: created + byte-identical destination", async () => 
     getBaseline: async () => null,
     hasBlob: async () => true,
   };
-  const report = await planImport({ hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, deps);
+  const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, deps);
 
   assert.equal(report.rows[0].outcome, "created");
   assert.equal(JSON.stringify(await repo.list({ workspaceId })), before, "real repo must be byte-identical after planImport");
@@ -473,6 +525,7 @@ test("real post contributor: blocked on a genuine slug collision against a DIFFE
   const entity: PackedEntity = {
     entityType: "post",
     id: "post-2",
+    schemaVersion: 1,
     contentHash: contentHash("post", incomingState),
     hashVersion: CONTENT_HASH_VERSION,
     requiredBlobs: [],
@@ -483,7 +536,7 @@ test("real post contributor: blocked on a genuine slug collision against a DIFFE
     getBaseline: async () => null,
     hasBlob: async () => true,
   };
-  const report = await planImport({ hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, deps);
+  const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, deps);
 
   assert.equal(report.rows[0].outcome, "blocked");
   assert.match(report.rows[0].reason ?? "", /already held by a different post \('post-1'\)/);

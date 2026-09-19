@@ -11,6 +11,7 @@ import {
 } from "#src/features/publish-content/type-registry";
 import { installFirstPartyPublishContentTypes } from "#src/server/runtime/composition/publish-content-manifest";
 import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
 import type { PublishContentContributor, PackedEntity } from "#src/features/publish-content/type-registry";
 
 /**
@@ -121,9 +122,10 @@ async function createPage(baseUrl: string, cookie: string, title: string) {
 }
 
 interface ExportBundle {
+  artifactFormatVersion: number;
   hashVersion: number;
   sourceLabel: string;
-  entities: Array<{ entityType: string; id: string; contentHash: string; hashVersion: number; requiredBlobs: string[] }>;
+  entities: Array<{ entityType: string; id: string; schemaVersion: number; contentHash: string; hashVersion: number; requiredBlobs: string[] }>;
   blobManifest: string[];
 }
 
@@ -170,6 +172,7 @@ test("GET .../publish-content/export streams registered post/page entities for a
   assert.equal(status, 200, raw);
   const bundle = JSON.parse(raw) as ExportBundle;
 
+  assert.equal(bundle.artifactFormatVersion, PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION);
   assert.equal(bundle.hashVersion, CONTENT_HASH_VERSION);
   assert.equal(typeof bundle.sourceLabel, "string");
   assert.deepEqual(bundle.blobManifest, []);
@@ -179,6 +182,7 @@ test("GET .../publish-content/export streams registered post/page entities for a
   assert.equal(byId.get(page.id)?.entityType, "page");
   for (const entity of bundle.entities) {
     assert.ok(["post", "page"].includes(entity.entityType), `unexpected entityType in bundle: ${entity.entityType}`);
+    assert.equal(entity.schemaVersion, 1);
     assert.equal(entity.hashVersion, CONTENT_HASH_VERSION);
     assert.equal(typeof entity.contentHash, "string");
   }
@@ -233,6 +237,7 @@ test("GET .../publish-content/export reads the contributor registry FRESH per re
   const canaryEntity: PackedEntity = {
     entityType: "canary",
     id: "canary-1",
+    schemaVersion: 1,
     contentHash: "canary-hash",
     hashVersion: CONTENT_HASH_VERSION,
     requiredBlobs: [],
@@ -243,6 +248,7 @@ test("GET .../publish-content/export reads the contributor registry FRESH per re
     dependsOn: [],
     build: () => ({
       entityType: "canary",
+      schemaVersion: 1,
       permission: "publish_content.read", // trivially satisfied by the caller in this test
       dependsOn: [],
       async *pack() {

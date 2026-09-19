@@ -1,0 +1,1 @@
+ALTER TABLE `publish_content_runs` ADD `items_json` text;

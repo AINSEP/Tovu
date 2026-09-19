@@ -82,7 +82,9 @@ export interface ImportMediaEntityInput {
    * `post`'s content hash); this function computes its own.
    */
   readonly record: MediaRecord;
-  readonly bytes: Uint8Array;
+  /** Bytes supplied by an upload/import caller, or `null` when a publish apply could not load the
+   *  pre-staged blob. This command owns the missing-blob decision as well as byte validation. */
+  readonly bytes: Uint8Array | null;
   /**
    * Attribution for a FRESHLY WRITTEN `asset_blobs` row only — never applied when the blob already
    * exists at the destination (safety property 4 above). Typically the importing operator's
@@ -101,9 +103,11 @@ export interface ImportMediaEntityInput {
  * ORDINARY, expected outcome of importing real-world data (two sources that both picked the same
  * slug, a stale export bundle), not a programming error:
  */
+export type ImportMediaEntityBlockedCode = "missing-blob" | "slug-taken" | "precondition";
+
 export type ImportMediaEntityResult =
   | { readonly status: "imported"; readonly id: string; readonly blobWritten: boolean }
-  | { readonly status: "blocked"; readonly reason: string };
+  | { readonly status: "blocked"; readonly code: ImportMediaEntityBlockedCode; readonly reason: string };
 
 /**
  * Imports one media entity, preserving its source `id`. See this file's header for the full safety
@@ -119,15 +123,24 @@ export async function importMediaEntity(required: {
   const { deps, input } = required;
   const { workspaceId, record, bytes, blobCreatedByPrincipal } = input;
 
+  if (bytes === null) {
+    return {
+      status: "blocked",
+      code: "missing-blob",
+      reason: `required blob '${record.source.sha256}' was never received by this destination`,
+    };
+  }
+
   // Safety property 1 (sha256 shape + match) — checked first, before any repo read even, since a
   // malformed/mismatched claim makes every other check moot.
   if (!isValidSha256Hex(record.source.sha256)) {
-    return { status: "blocked", reason: `media '${record.id}' has a malformed source sha256 '${record.source.sha256}'` };
+    return { status: "blocked", code: "precondition", reason: `malformed source sha256 '${record.source.sha256}'` };
   }
   if (!bytesMatchSha256({ bytes, claimedSha256: record.source.sha256 })) {
     return {
       status: "blocked",
-      reason: `media '${record.id}' bytes do not hash to the claimed sha256 '${record.source.sha256}'`,
+      code: "precondition",
+      reason: `bytes do not hash to the claimed sha256 '${record.source.sha256}'`,
     };
   }
 
@@ -144,6 +157,7 @@ export async function importMediaEntity(required: {
   if (slugHolder && slugHolder.id !== record.id) {
     return {
       status: "blocked",
+      code: "slug-taken",
       reason: `slug '${record.slug}' is already held by a different media ('${slugHolder.id}')`,
     };
   }
@@ -155,7 +169,7 @@ export async function importMediaEntity(required: {
     resolvedSource = resolveWriteOnceSource({ existing: existingById?.source, requestedSha256: record.source.sha256 });
   } catch (error) {
     if (error instanceof MediaSourceImmutableError) {
-      return { status: "blocked", reason: error.message };
+      return { status: "blocked", code: "precondition", reason: error.message };
     }
     throw error;
   }

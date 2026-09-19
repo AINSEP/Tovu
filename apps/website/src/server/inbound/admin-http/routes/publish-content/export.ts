@@ -2,6 +2,7 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
 import { packAuthorizedEntities } from "#src/features/publish-content/export-bundle";
 import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
 
@@ -88,7 +89,8 @@ export const registerPublishContentExportRoute: PublishContentRouteRegistrar = (
 
       res.setHeader("content-type", "application/json");
       res.write(
-        `{"hashVersion":${JSON.stringify(CONTENT_HASH_VERSION)},"sourceLabel":${JSON.stringify(sourceLabel)},"entities":[`
+        `{"artifactFormatVersion":${JSON.stringify(PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION)},` +
+          `"hashVersion":${JSON.stringify(CONTENT_HASH_VERSION)},"sourceLabel":${JSON.stringify(sourceLabel)},"entities":[`
       );
 
       const requiredBlobs = new Set<string>();

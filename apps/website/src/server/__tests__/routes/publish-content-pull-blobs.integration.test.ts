@@ -7,6 +7,7 @@ import test from "node:test";
 
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 
@@ -137,7 +138,13 @@ test("a pull carries blob BYTES from the source instance into the destination's 
   const destDeps = createRouteDeps();
   const client = forwardingPeerClient(
     { baseUrl: source.baseUrl, cookie: sourceCookie },
-    { hashVersion: 1, sourceLabel: "Source Site", entities: [], blobManifest: [sha] }
+    {
+      artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+      hashVersion: 1,
+      sourceLabel: "Source Site",
+      entities: [],
+      blobManifest: [sha],
+    }
   );
   destDeps.publishContentPeerHttpClient = client;
   const dest = await startServer(destDeps);
@@ -209,7 +216,13 @@ test("a pull whose peer serves bytes that do not hash to the requested sha fails
         return {
           status: 200,
           headers: {},
-          bodyText: JSON.stringify({ hashVersion: 1, sourceLabel: "Hostile", entities: [], blobManifest: [victimSha] }),
+          bodyText: JSON.stringify({
+            artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+            hashVersion: 1,
+            sourceLabel: "Hostile",
+            entities: [],
+            blobManifest: [victimSha],
+          }),
         };
       }
       return { status: 200, headers: {}, bodyText: JSON.stringify({ sha256: victimSha, dataBase64: honest.toString("base64") }) };

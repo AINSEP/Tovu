@@ -1,4 +1,5 @@
 import { CONTENT_HASH_VERSION } from "./content-hash.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "./artifact-format.js";
 import { buildPublishContentCatalog, type PackedEntity, type PublishContentDeps } from "./type-registry.js";
 
 /**
@@ -59,6 +60,13 @@ export async function* packAuthorizedEntities(deps: PackAuthorizedEntitiesDeps):
     if (!typeAuth.allowed) continue;
 
     for await (const entity of handler.pack()) {
+      if (entity.entityType !== handler.entityType || entity.schemaVersion !== handler.schemaVersion) {
+        throw new Error(
+          `publish-content handler '${handler.entityType}' packed incompatible entity metadata ` +
+            `(entityType '${entity.entityType}', schema version ${entity.schemaVersion}; expected ` +
+            `'${handler.entityType}' version ${handler.schemaVersion})`
+        );
+      }
       yield entity;
     }
   }
@@ -68,6 +76,7 @@ export async function* packAuthorizedEntities(deps: PackAuthorizedEntitiesDeps):
  *  `POST .../publish-content/bundles` accepts it — one shape, so a push never has to reshape what a
  *  pull would have received. */
 export interface PublishContentExportEnvelope {
+  readonly artifactFormatVersion: number;
   readonly hashVersion: number;
   readonly sourceLabel: string;
   readonly entities: readonly PackedEntity[];
@@ -92,6 +101,7 @@ export async function buildExportBundle(
     for (const sha of entity.requiredBlobs) requiredBlobs.add(sha);
   }
   return {
+    artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
     hashVersion: CONTENT_HASH_VERSION,
     sourceLabel: deps.sourceLabel,
     entities,

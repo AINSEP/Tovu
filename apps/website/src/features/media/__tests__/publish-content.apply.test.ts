@@ -75,6 +75,7 @@ function packedFrom(record: MediaRecord) {
   return {
     entityType: "media",
     id: record.id,
+    schemaVersion: 1,
     contentHash: contentHash("media", { ...record }),
     hashVersion: CONTENT_HASH_VERSION,
     requiredBlobs: [record.source.sha256],

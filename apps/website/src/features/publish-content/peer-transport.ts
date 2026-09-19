@@ -1,6 +1,7 @@
 import { bytesMatchSha256 } from "./blob-staging.js";
 import { peerHostname, peerUrl } from "./peer-url.js";
 import type { PublishContentExportEnvelope } from "./export-bundle.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "./artifact-format.js";
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 import type { ResolvedPeerCredential } from "./peers.js";
 
@@ -276,6 +277,7 @@ export async function pushBundleToPeer(
       method: "POST",
       path: peerRoute(credential, "/bundles"),
       body: {
+        artifactFormatVersion: bundle.artifactFormatVersion,
         hashVersion: bundle.hashVersion,
         sourceLabel: bundle.sourceLabel,
         entities: bundle.entities,
@@ -338,7 +340,7 @@ export async function confirmPeerImport(
 /**
  * Push step 3: redeem the token and run the peer's apply.
  *
- * @returns The peer's execute body verbatim (`{restorePointId, changeSetIds, ...}`) — this driver
+ * @returns The peer's execute body verbatim (`{restorePointId, runId, changeSetIds, ...}`) — this driver
  * never reshapes a destination's own report.
  * @complexity O(1) plus one network round trip (the peer's apply loop dominates wall time).
  */
@@ -385,14 +387,27 @@ export async function pullBundleFromPeer(deps: PeerCallDeps): Promise<PublishCon
     deps.credential.baseUrl
   );
 
-  if (typeof body.hashVersion !== "number" || !Array.isArray(body.entities) || !Array.isArray(body.blobManifest)) {
+  if (
+    typeof body.artifactFormatVersion !== "number" ||
+    typeof body.hashVersion !== "number" ||
+    !Array.isArray(body.entities) ||
+    !Array.isArray(body.blobManifest)
+  ) {
     throw new PublishContentPeerTransportError(
-      `the peer's export was not a publish-content bundle (expected hashVersion, entities and blobManifest)`,
+      `the peer's export was not a publish-content bundle (expected artifactFormatVersion, hashVersion, entities and blobManifest)`,
+      "PEER_RESPONSE_INVALID"
+    );
+  }
+  if (body.artifactFormatVersion !== PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION) {
+    throw new PublishContentPeerTransportError(
+      `the peer exported artifact format version ${String(body.artifactFormatVersion)}, but this instance supports ` +
+        `${PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION}`,
       "PEER_RESPONSE_INVALID"
     );
   }
 
   return {
+    artifactFormatVersion: body.artifactFormatVersion,
     hashVersion: body.hashVersion,
     sourceLabel: typeof body.sourceLabel === "string" ? body.sourceLabel : deps.credential.label,
     entities: body.entities as PublishContentExportEnvelope["entities"],

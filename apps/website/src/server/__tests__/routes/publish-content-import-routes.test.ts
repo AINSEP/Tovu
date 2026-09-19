@@ -106,7 +106,7 @@ test("publish-content import: plan -> confirm -> execute reaches the Task 8 seam
   deps.publishContentApplyPort = {
     applyReport: async ({ report }) => {
       appliedReportRows = report.rows.length;
-      return { changeSetIds: ["fake-change-set-1"] };
+      return { runId: "fake-run-1", changeSetIds: ["fake-change-set-1"] };
     },
   };
 
@@ -118,8 +118,9 @@ test("publish-content import: plan -> confirm -> execute reaches the Task 8 seam
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ bundleId, confirmationToken }),
   });
-  const executed = await expectJson<{ restorePointId: string; changeSetIds: string[] }>(executeRes, 200);
+  const executed = await expectJson<{ restorePointId: string; runId: string; changeSetIds: string[] }>(executeRes, 200);
   assert.ok(executed.restorePointId, "executeMutation must capture and return a restore point id");
+  assert.equal(executed.runId, "fake-run-1");
   assert.deepEqual(executed.changeSetIds, ["fake-change-set-1"]);
   assert.equal(savedRestorePoints.length, 1, "the restore point must be persisted exactly once, before the apply seam runs");
   // >= 1, not === 1: this hermetic composition's default fixture data already seeds some posts
@@ -133,7 +134,7 @@ test("publish-content import: a destination edit between confirm and execute is 
   const { deps, server, baseUrl } = await startServer();
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
   const cookie = await loginAsOwner(baseUrl);
-  deps.publishContentApplyPort = { applyReport: async () => ({ changeSetIds: [] }) };
+  deps.publishContentApplyPort = { applyReport: async () => ({ runId: "fake-run-2", changeSetIds: [] }) };
 
   const { bundleId, postId } = await stagePostBundle(baseUrl, cookie, "Stale plan post");
   const confirmationToken = await planAndConfirm(baseUrl, cookie, bundleId);
@@ -162,7 +163,7 @@ test("publish-content import: replaying an already-redeemed confirmation token i
   const { deps, server, baseUrl } = await startServer();
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
   const cookie = await loginAsOwner(baseUrl);
-  deps.publishContentApplyPort = { applyReport: async () => ({ changeSetIds: [] }) };
+  deps.publishContentApplyPort = { applyReport: async () => ({ runId: "fake-run-3", changeSetIds: [] }) };
 
   const { bundleId } = await stagePostBundle(baseUrl, cookie, "Replay token post");
   const confirmationToken = await planAndConfirm(baseUrl, cookie, bundleId);

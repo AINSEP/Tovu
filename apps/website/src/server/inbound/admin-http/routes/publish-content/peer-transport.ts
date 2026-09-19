@@ -249,6 +249,7 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         {
           workspaceId: deps.workspaceId,
           sourcePrincipalId: principalId,
+          artifactFormatVersion: envelope.artifactFormatVersion,
           hashVersion: envelope.hashVersion,
           sourceLabel: envelope.sourceLabel,
           entities: envelope.entities as unknown[],

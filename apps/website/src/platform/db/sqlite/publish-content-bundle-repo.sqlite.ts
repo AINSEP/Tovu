@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
 
 import type { PublishContentBundleRepoPort, StagedBundleRecord } from "#src/features/publish-content/bundle-staging";
 import { publishContentBundles } from "../schema.js";
@@ -22,6 +22,7 @@ function toRecord(row: Row): StagedBundleRecord {
     id: row.id,
     workspaceId: row.workspaceId,
     sourcePrincipalId: row.sourcePrincipalId,
+    artifactFormatVersion: row.artifactFormatVersion,
     hashVersion: row.hashVersion,
     entitiesJson: row.entitiesJson,
     blobManifestJson: row.blobManifestJson,
@@ -49,5 +50,12 @@ export class SqlitePublishContentBundleRepo implements PublishContentBundleRepoP
       .where(and(eq(publishContentBundles.workspaceId, input.workspaceId), eq(publishContentBundles.id, input.id)))
       .get();
     return row ? toRecord(row) : null;
+  }
+
+  async deleteExpired(input: { expiredBefore: string }): Promise<number> {
+    return this.db
+      .delete(publishContentBundles)
+      .where(lt(publishContentBundles.expiresAt, input.expiredBefore))
+      .run().changes;
   }
 }

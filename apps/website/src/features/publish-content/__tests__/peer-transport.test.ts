@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
 import type { PublishContentExportEnvelope } from "../export-bundle.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
 import {
   confirmPeerImport,
   describePeerEgressRefusal,
@@ -69,6 +70,7 @@ class RefusingHttpClient implements HttpClientPort {
 
 function bundle(overrides: Partial<PublishContentExportEnvelope> = {}): PublishContentExportEnvelope {
   return {
+    artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
     hashVersion: 1,
     sourceLabel: "Local Site",
     entities: [],
@@ -229,7 +231,7 @@ test("a non-JSON peer response is diagnosed as 'is this a Tovu instance', not as
 test("confirm and execute relay to the peer's own gated ceremony", async () => {
   const http = new FakeHttpClient([
     { match: /\/import\/confirm$/, json: { confirmationToken: "tok-1" } },
-    { match: /\/import\/execute$/, json: { restorePointId: "rp-1", changeSetIds: ["cs-1"] } },
+    { match: /\/import\/execute$/, json: { restorePointId: "rp-1", runId: "run-1", changeSetIds: ["cs-1"] } },
   ]);
 
   const confirmed = await confirmPeerImport({ httpClient: http, credential: CREDENTIAL }, { planId: "p1", planHash: "h1" });
@@ -237,7 +239,7 @@ test("confirm and execute relay to the peer's own gated ceremony", async () => {
   assert.deepEqual(JSON.parse(http.calls[0].body ?? "{}"), { planId: "p1", planHash: "h1" });
 
   const executed = await executePeerImport({ httpClient: http, credential: CREDENTIAL }, { bundleId: "b1", confirmationToken: "tok-1" });
-  assert.deepEqual(executed, { restorePointId: "rp-1", changeSetIds: ["cs-1"] });
+  assert.deepEqual(executed, { restorePointId: "rp-1", runId: "run-1", changeSetIds: ["cs-1"] });
 });
 
 test("a peer that confirms without returning a token is a response-shape failure", async () => {
@@ -252,10 +254,17 @@ test("pull returns the peer's envelope, and a non-bundle response is refused rat
   const http = new FakeHttpClient([
     {
       match: /\/export$/,
-      json: { hashVersion: 1, sourceLabel: "Remote Site", entities: [{ entityType: "post", id: "p-1" }], blobManifest: ["d".repeat(64)] },
+      json: {
+        artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+        hashVersion: 1,
+        sourceLabel: "Remote Site",
+        entities: [{ entityType: "post", id: "p-1", schemaVersion: 1 }],
+        blobManifest: ["d".repeat(64)],
+      },
     },
   ]);
   const envelope = await pullBundleFromPeer({ httpClient: http, credential: CREDENTIAL });
+  assert.equal(envelope.artifactFormatVersion, PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION);
   assert.equal(envelope.hashVersion, 1);
   assert.equal(envelope.sourceLabel, "Remote Site");
   assert.equal(envelope.entities.length, 1);
@@ -268,6 +277,20 @@ test("pull returns the peer's envelope, and a non-bundle response is refused rat
       err instanceof PublishContentPeerTransportError &&
       err.code === "PEER_RESPONSE_INVALID" &&
       /was not a publish-content bundle/.test(err.message)
+  );
+
+  const unknownVersion = new FakeHttpClient([
+    {
+      match: /\/export$/,
+      json: { artifactFormatVersion: 2, hashVersion: 1, entities: [], blobManifest: [] },
+    },
+  ]);
+  await assert.rejects(
+    () => pullBundleFromPeer({ httpClient: unknownVersion, credential: CREDENTIAL }),
+    (err: unknown) =>
+      err instanceof PublishContentPeerTransportError &&
+      err.code === "PEER_RESPONSE_INVALID" &&
+      /artifact format version 2/.test(err.message)
   );
 });
 

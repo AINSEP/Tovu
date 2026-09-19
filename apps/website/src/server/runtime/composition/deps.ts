@@ -1655,8 +1655,7 @@ export function createSqliteRouteDeps(
     // above for the same reason); `server/runtime/composition/app.ts`'s hermetic composition uses
     // `InMemoryPublishContentBaselineRepo` instead.
     publishContentBaselineRepo,
-    // Task 8 — the real apply loop (`apply-loop.ts`), replacing the throwing
-    // `createNotYetImplementedPublishContentApplyPort()` default. See `routes/types.ts`'s
+    // Task 8 — the real apply loop (`apply-loop.ts`). See `routes/types.ts`'s
     // `publishContentApplyPort` doc.
     publishContentApplyPort,
     // Task 8 — the apply loop's audit trail. See `routes/types.ts`'s `publishContentRunRepo` doc.

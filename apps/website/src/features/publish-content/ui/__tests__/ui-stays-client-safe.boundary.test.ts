@@ -15,13 +15,12 @@
  *    `node:crypto` and `#src/...` subpath specifiers; admin has neither `@types/node` nor a `#src`
  *    path mapping. One `import type { … } from "../planner.js"` in a file `index.ts` reaches is
  *    enough to break `npx tsc --noEmit` in `apps/admin` — with an error pointing at a website file,
- *    which is a confusing morning for whoever hits it. `planner-contract-check.ts` deliberately sits
- *    OUTSIDE that closure for exactly this reason, and this test is what keeps it there.
+ *    which is a confusing morning for whoever hits it. The one permitted edge leaves the folder
+ *    for `report-contract.ts`, a dependency-free neutral DTO module shared with the HTTP boundary.
  * 2. **No server value imports, anywhere under `ui/`.** Even a file outside the `index.ts` closure
  *    must not pull `node:*`, a repo, `planner.ts` or `baseline-repo.ts` in at runtime: the whole
  *    folder is shipped into a browser bundle by admin's Vite, and Vite resolves by directory, not by
- *    tsconfig `include`. Type-only edges are exempt — they are erased at compile time and are how
- *    `planner-contract-check.ts` does its job.
+ *    tsconfig `include`. The neutral report-contract leaf is the only exception.
  * 3. **No React, not even type-only, and no `.tsx`.** Admin dedupes React across five copies
  *    (`apps/admin/vite.config.ts` `resolve.dedupe`, because each `@jini-ai/*` package bundles its
  *    own); a React dependency declared under `apps/website` would sit outside that dedupe and hand a
@@ -36,6 +35,7 @@ import test from "node:test";
 
 const UI_ROOT = path.resolve(import.meta.dirname, "..");
 const INDEX_FILE = path.join(UI_ROOT, "index.ts");
+const REPORT_CONTRACT_FILE = path.resolve(UI_ROOT, "../report-contract.ts");
 
 /** Matches a whole `import ... from "spec"` statement (value or type), capturing whether the `type`
  *  keyword appears immediately after `import`, and the specifier text — copied verbatim from
@@ -168,7 +168,7 @@ test("no file under features/publish-content/ui/ takes a VALUE import on server 
   );
 });
 
-test("everything reachable from index.ts — type edges included — stays inside features/publish-content/ui/", () => {
+test("everything reachable from index.ts stays in ui/ or the one neutral report-contract leaf", () => {
   const visited = new Set<string>();
   const escapes: string[] = [];
   const queue = [INDEX_FILE];
@@ -179,7 +179,10 @@ test("everything reachable from index.ts — type edges included — stays insid
     visited.add(file);
     for (const edge of edgesOf(file)) {
       const resolved = resolveRelative(file, edge.specifier);
-      if (resolved === null || !resolved.startsWith(`${UI_ROOT}${path.sep}`)) {
+      if (
+        resolved === null ||
+        (!resolved.startsWith(`${UI_ROOT}${path.sep}`) && resolved !== REPORT_CONTRACT_FILE)
+      ) {
         escapes.push(`${relative(file)} -> ${edge.specifier}`);
         continue;
       }
@@ -190,22 +193,24 @@ test("everything reachable from index.ts — type edges included — stays insid
   assert.deepEqual(
     escapes,
     [],
-    "apps/admin's tsconfig includes exactly features/publish-content/ui/index.ts and whatever it reaches. " +
-      "planner.ts transitively imports node:crypto and #src/… specifiers, which apps/admin can resolve neither of — " +
-      `so ANY edge (value or type) out of this closure breaks the admin typecheck. Found: ${escapes.join(", ")}`
+    "apps/admin's tsconfig includes ui/index.ts and whatever it reaches. The neutral report DTO is " +
+      `the only allowed leaf outside ui/. Found: ${escapes.join(", ")}`
   );
   assert.ok(visited.size >= 3, `expected index.ts to reach this folder's modules, walked only ${visited.size}`);
 });
 
-test("planner-contract-check.ts is deliberately OUTSIDE the index.ts closure, and still type-checks the planner", () => {
-  const checkFile = path.join(UI_ROOT, "planner-contract-check.ts");
-  assert.ok(fs.existsSync(checkFile), "planner-contract-check.ts is the only thing stopping ui/contract.ts drifting from planner.ts");
-
-  const edges = edgesOf(checkFile);
-  const plannerEdge = edges.find((edge) => edge.specifier === "../planner.js");
-  assert.ok(plannerEdge, "planner-contract-check.ts must import the planner's own types — that is its entire job");
-  assert.equal(plannerEdge.typeOnly, true, "planner-contract-check.ts's planner edge must stay `import type` — a value edge would bundle node:crypto");
-
-  const reachedFromIndex = edgesOf(INDEX_FILE).some((edge) => resolveRelative(INDEX_FILE, edge.specifier) === checkFile);
-  assert.equal(reachedFromIndex, false, "index.ts must never re-export planner-contract-check.ts — it would drag planner.ts into the admin program");
+test("the shared report contract is a dependency-free client-safe leaf, not a planner mirror", () => {
+  assert.ok(fs.existsSync(REPORT_CONTRACT_FILE));
+  assert.deepEqual(edgesOf(REPORT_CONTRACT_FILE), [], "the neutral DTO must not import server or UI implementation code");
+  const contractFile = path.join(UI_ROOT, "contract.ts");
+  const reportEdge = edgesOf(contractFile).find(
+    (edge) => resolveRelative(contractFile, edge.specifier) === REPORT_CONTRACT_FILE
+  );
+  assert.ok(reportEdge, "ui/contract.ts must consume the shared report DTO instead of redeclaring it");
+  assert.equal(reportEdge.typeOnly, true);
+  assert.equal(
+    fs.existsSync(path.join(UI_ROOT, "planner-contract-check.ts")),
+    false,
+    "the hand-maintained planner/UI assignability checker must stay deleted"
+  );
 });
