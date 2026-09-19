@@ -157,6 +157,29 @@ test("REQ-44 post-host fix: insertWidgetEmbed against a kind:'post' doc host suc
   assert.ok(refs.some((r) => r.sourceEntryId === post.id));
 });
 
+/**
+ * 2026-09-18 post_revisions ledger addition — `writePostHostBody` (`embed-service.ts`) was flagged
+ * as a call site worth checking carefully: it calls `updatePost(...)` from inside `executeCommand`'s
+ * `mutation.execute`, not as a bare top-level call, so it was unclear whether it was a genuine
+ * command-gateway write or a bypass of it. It is the former — this proves the post_revisions ledger
+ * (wired inside `updatePost` itself) covers this sink BY CONSTRUCTION, with no change needed here.
+ */
+test("REQ-44 post-host fix: insertWidgetEmbed against a post host also appends a post_revisions row, proving the ledger covers this executeCommand-wrapped updatePost() call", async () => {
+  const repos = makeSharedRepos();
+  const post = await seedPost(repos);
+  const widgetId = await makeWidgetInstance(repos);
+
+  await insertWidgetEmbed({
+    deps: makeDeps(repos),
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: post.id, baseVersion: post.version, widgetEntryId: widgetId },
+  });
+
+  const revisions = await repos.postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: post.id });
+  assert.equal(revisions.length, 1, "updatePost's revision write must have run even though it was called from inside executeCommand's mutation.execute");
+  assert.equal(revisions[0].op, "update");
+  assert.equal(revisions[0].seq, 2, "seq must equal the post's version after the embed write");
+});
+
 test("REQ-44 post-host fix: insertWidgetEmbed against a kind:'page' doc host succeeds the same way", async () => {
   const repos = makeSharedRepos();
   const page = await seedPost(repos, { kind: "page" });
