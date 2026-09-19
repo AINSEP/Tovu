@@ -119,6 +119,8 @@ import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discov
 import type { PluginPackageFiles } from "../../features/plugin-runtime/package-files.js";
 import type { DeploymentsReadRepoPort, ExportEngine } from "../../features/deployments/index.js";
 import type { ContentTransportBundleRepoPort } from "../../features/content-transport/bundle-staging.js";
+import type { ContentTransportBaselineRepoPort } from "../../features/content-transport/baseline-repo.js";
+import type { ContentTransportApplyPort } from "../../features/content-transport/gated-hooks.js";
 
 /**
  * Slice 1 of the `RouteDeps` god-object decomposition (2026-08-18) — the process-wide clock + id-gen
@@ -1400,6 +1402,23 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * app.ts`'s hermetic `createRouteDeps()` — same rule-of-two every other repo here follows.
    */
   contentTransportBundleRepo: ContentTransportBundleRepoPort;
+  /**
+   * Task 7 of the content-transport (Publish Content) feature (`ADS-memory/reports/
+   * 2026-09-18-publish-feature-implementation-plan.md` §2/§4 task 7) — per-peer sync memory for
+   * `content_transport_baselines` (migration `0066`), read by `gated-hooks.ts`'s `planImport()`
+   * wiring. Real `SqliteContentTransportBaselineRepo` in `server/runtime/composition/deps.ts`'s
+   * `createSqliteRouteDeps()`; `InMemoryContentTransportBaselineRepo` in `server/runtime/
+   * composition/app.ts`'s hermetic `createRouteDeps()` — same rule-of-two every other repo here
+   * follows.
+   */
+  contentTransportBaselineRepo: ContentTransportBaselineRepoPort;
+  /**
+   * Task 7 of the content-transport (Publish Content) feature — Task 8's seam
+   * (`gated-hooks.ts#ContentTransportApplyPort`). Both composition roots bind the SAME
+   * `createNotYetImplementedContentTransportApplyPort()` default (neither has a real apply loop
+   * yet — see that function's own doc for why throwing is the correct, disclosed behavior).
+   */
+  contentTransportApplyPort: ContentTransportApplyPort;
   /**
    * The static-site export engine (`src/platform/export/site-exporter.ts`'s `exportSite`), injected here
    * rather than imported directly by `export-site.ts` or `features/deployments/export-run.ts`

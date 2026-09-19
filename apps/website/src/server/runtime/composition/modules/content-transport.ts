@@ -3,6 +3,7 @@ import { registerContentTransportExportRoute } from "#src/server/inbound/admin-h
 import { registerContentTransportBlobsProbeRoute } from "#src/server/inbound/admin-http/routes/content-transport/blobs-probe";
 import { registerContentTransportBlobPutRoute } from "#src/server/inbound/admin-http/routes/content-transport/blob-put";
 import { registerContentTransportBundleCreateRoute } from "#src/server/inbound/admin-http/routes/content-transport/bundle-create";
+import { registerContentTransportImportRoutes } from "#src/server/inbound/admin-http/routes/content-transport/import";
 import type { ContentTransportRouteDeps } from "#src/server/inbound/admin-http/routes/content-transport/deps";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -35,6 +36,7 @@ export function createContentTransportModule(deps: ContentTransportRouteDeps): S
       registerContentTransportBlobsProbeRoute(app, deps);
       registerContentTransportBlobPutRoute(app, deps);
       registerContentTransportBundleCreateRoute(app, deps);
+      registerContentTransportImportRoutes(app, deps);
     },
   };
 }

@@ -9,6 +9,8 @@ import { registerPageHeadContributor, resetPageHeadRegistry } from "../../inboun
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
 import { InMemoryContentTransportBundleRepo } from "#src/features/content-transport/bundle-staging";
+import { InMemoryContentTransportBaselineRepo } from "#src/features/content-transport/baseline-repo";
+import { createNotYetImplementedContentTransportApplyPort } from "#src/features/content-transport/gated-hooks";
 import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
@@ -770,6 +772,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `server/runtime/composition/deps.ts`'s real `SqliteContentTransportBundleRepo`. See
     // `routes/types.ts`'s `contentTransportBundleRepo` doc.
     contentTransportBundleRepo: new InMemoryContentTransportBundleRepo(),
+    // Task 7 — hermetic double for `server/runtime/composition/deps.ts`'s real
+    // `SqliteContentTransportBaselineRepo`. See `routes/types.ts`'s `contentTransportBaselineRepo` doc.
+    contentTransportBaselineRepo: new InMemoryContentTransportBaselineRepo(),
+    // Task 7 — same default binding as the real composition (`deps.ts`): neither has a real apply
+    // loop yet (Task 8). See `routes/types.ts`'s `contentTransportApplyPort` doc.
+    contentTransportApplyPort: createNotYetImplementedContentTransportApplyPort(),
     // 2026-08-15 — the real export engine, bound here rather than imported inside
     // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
     // `runExportSite` doc for why that indirection is required, not stylistic. NOT resolved lazily

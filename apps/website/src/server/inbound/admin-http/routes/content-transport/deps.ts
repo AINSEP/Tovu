@@ -23,6 +23,12 @@ import type { RouteDeps } from "#src/server/routes/types";
  *   reuses `putIfAbsent` directly rather than building a second dedupe path (plan §4 task 6's own
  *   instruction). `contentTransportBundleRepo` is new (this task): `content_transport_bundles`
  *   (migration `0066`) had no repo/port until now.
+ * - `contentTransportBaselineRepo`/`dbOps`/`restorePointsRepo`/`gatedMutations`/
+ *   `contentTransportApplyPort`: added for Task 7 (the gated `plan`/`confirm`/`execute` import
+ *   ceremony — `import.ts`, `gated-hooks.ts`, `execute-import.ts`). `dbOps`/`restorePointsRepo`/
+ *   `gatedMutations` are the same instance-wide singletons `taxonomy/merge-term.ts`/`database/
+ *   migrate-forward.ts` already read directly off full `RouteDeps` — narrowed here instead of
+ *   widening, per this file's own established pattern.
  */
 export type ContentTransportRouteDeps = Pick<
   RouteDeps,
@@ -36,6 +42,11 @@ export type ContentTransportRouteDeps = Pick<
   | "workspaceRepo"
   | "blobStore"
   | "contentTransportBundleRepo"
+  | "contentTransportBaselineRepo"
+  | "dbOps"
+  | "restorePointsRepo"
+  | "gatedMutations"
+  | "contentTransportApplyPort"
 >;
 
 export type ContentTransportRouteRegistrar = (app: Express, deps: ContentTransportRouteDeps) => void;
