@@ -242,6 +242,22 @@ test("buildServeEnv keeps an operator-set TOVU_SITE_DIR instead of replacing it"
   assert.equal(env.TOVU_SITE_DIR, "/operator/pinned");
 });
 
+// Regression for the 2026-09-19 live blocker: the Publish Content dialog's Connect button reported
+// "No live site is set up yet" for a site that HAD been deployed, because
+// `features/publish-trust`'s committed-config resolution (`fly.toml`, `deploy/publish-trust.json`)
+// fell back to the bare `process.cwd()` — the repo root for a normal `tovu serve`, but own-server
+// mode's cwd is wherever opened Electron, same class of gap as the `TOVU_SITE_DIR` pair above.
+test("buildServeEnv sets TOVU_REPO_ROOT to the repo root", () => {
+  const root = makeTempRepo();
+  const env = buildServeEnv({ repoRoot: root, baseEnv: {} });
+  assert.equal(env.TOVU_REPO_ROOT, root);
+});
+
+test("buildServeEnv keeps an operator-set TOVU_REPO_ROOT instead of replacing it", () => {
+  const env = buildServeEnv({ repoRoot: makeTempRepo(), baseEnv: { TOVU_REPO_ROOT: "/operator/pinned-root" } });
+  assert.equal(env.TOVU_REPO_ROOT, "/operator/pinned-root");
+});
+
 // The three tests below are the regression for the 2026-09-12 live blocker: EVERY assistant turn in
 // the packaged app died ~13ms after starting, with no reply and no error, because the agent daemon
 // `tovu serve` spawns runs each turn in `process.env.TOVU_AGENT_CWD ?? process.cwd()`

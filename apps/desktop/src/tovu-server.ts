@@ -296,7 +296,7 @@ interface BuildServeEnvInput {
 /**
  * Build the child's environment for `tovu serve`.
  *
- * Three deliberate decisions, each of which was a real defect somewhere before it was a line here:
+ * Five deliberate decisions, each of which was a real defect somewhere before it was a line here:
  *
  * - **`ELECTRON_RUN_AS_NODE` is SET, not deleted.** The child command is `process.execPath` — the
  *   Electron binary — run as Node, so this variable is what makes it a Node process at all. Tovu-
@@ -348,11 +348,22 @@ interface BuildServeEnvInput {
  *   `apps/desktop`'s OWN spawned children, since it lives in the env this shell controls, not in the
  *   CLI's own spawn path those two tests exercise directly.
  *
+ * - **`TOVU_REPO_ROOT` is set unless the operator already pinned one.** Same shape of gap as
+ *   `TOVU_SITE_DIR` above, one layer over in `features/publish-trust`: `findCandidateDestination`
+ *   and the provisioning port behind the Publish dialog's Connect button resolve the repo-relative
+ *   committed config they read and write (`fly.toml`, `deploy/publish-trust.json`) against
+ *   `process.cwd()` when this is unset (`resolveCommittedConfigRoot()`'s own doc) — correct for a
+ *   plain `tovu serve` and for the deployed container (`Dockerfile`'s `WORKDIR` IS the repo root),
+ *   wrong for own-server mode. Confirmed live 2026-09-19: with this unset, the dialog reported "no
+ *   live site" for a site that had already been deployed, because the scan looked for
+ *   `apps/desktop/fly.toml` instead of the repo root's.
+ *
  * `PORT`, `TOVU_CONTENT_DB` and `TOVU_DB` are dropped so a variable exported in the developer's
  * shell cannot silently repoint the desktop app's database or port — this shell's `--port` and
  * `<dir>` are the only authority over those.
  *
- * @param input.repoRoot repo root, used to locate `apps/admin/dist`.
+ * @param input.repoRoot repo root, used to locate `apps/admin/dist` and threaded into
+ *   `TOVU_REPO_ROOT` for `features/publish-trust`'s committed-config resolution.
  * @param input.siteDir the site dir this server will boot — threaded into `TOVU_SITE_DIR` via
  *   {@link buildCliEnv} so every code path in the child that resolves its own site independently of
  *   the CLI's `<dir>` argument still agrees with it.
@@ -429,6 +440,19 @@ function buildServeEnv(input: BuildServeEnvInput): NodeJS.ProcessEnv {
   const siteChatDist = path.join(repoRoot, "apps", "site-chat", "dist");
   if (!env.TOVU_SITE_CHAT_DIST && fs.existsSync(siteChatDist)) {
     env.TOVU_SITE_CHAT_DIST = siteChatDist;
+  }
+
+  // **`TOVU_REPO_ROOT` is set unless the operator already pinned one.** Same class of gap as
+  // `TOVU_SITE_DIR` above, one layer over in `features/publish-trust`: `findCandidateDestination`
+  // and the provisioning port that backs the Publish dialog's Connect button resolve their
+  // repo-relative committed config (`fly.toml`, `deploy/publish-trust.json`) against
+  // `process.cwd()` when this is unset (`resolveCommittedConfigRoot()`'s own doc) — correct for a
+  // plain `tovu serve` run from the repo root and for the deployed container, wrong for own-server
+  // mode, whose cwd is wherever opened Electron. Confirmed live 2026-09-19: with this unset, the
+  // dialog reported "no live site" for a site that HAD been deployed, because the scan looked for
+  // `apps/desktop/fly.toml` instead of the real one at the repo root.
+  if (!env.TOVU_REPO_ROOT) {
+    env.TOVU_REPO_ROOT = repoRoot;
   }
 
   // Set LAST and only when the caller resolved a live dev server (`admin-dev-proxy.ts` probes; a

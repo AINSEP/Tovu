@@ -2,6 +2,8 @@
 // Task 9 built-in-role grants (`publish_content.read`/`publish_content.apply` -> admin) before
 // any composition-root code runs — see that module's header for why this must happen here, in the
 // static import graph, rather than inline at call time below.
+import path from "node:path";
+
 import "#src/features/publish-content/permissions";
 import { installFirstPartyPublishContentTypes } from "#src/server/runtime/composition/publish-content-manifest";
 import { registerPublishContentExportRoute } from "#src/server/inbound/admin-http/routes/publish-content/export";
@@ -19,7 +21,7 @@ import {
   createFileProvisioning,
   PUBLISH_TRUST_CONFIG_PATH,
 } from "#src/features/publish-trust/provisioning";
-import { nodeProvisioningFileIo } from "#src/features/publish-trust/provisioning.node-io";
+import { nodeProvisioningFileIo, resolveCommittedConfigRoot } from "#src/features/publish-trust/provisioning.node-io";
 import type { PublishContentRouteDeps } from "#src/server/inbound/admin-http/routes/publish-content/deps";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -51,16 +53,21 @@ export function createPublishContentModule(deps: PublishContentRouteDeps): Serve
   // `publish-trust-grants.ts` composes the destination half at the composition root: the feature
   // owns the merge semantics and stays pure, and only this layer is allowed to touch a disk.
   //
-  // Paths are repo-relative, and therefore resolved against the process's working directory — the
-  // repository root for a normal `tovu serve`. That is deliberate: what is written here is
-  // committed deploy config, so it belongs to the repo rather than to a site directory, and it is
-  // the same resolution the boot-time reader already uses for the same file.
+  // Paths are repo-relative — what is written here is committed deploy config, so it belongs to
+  // the repo rather than to a site directory — and resolved against `resolveCommittedConfigRoot()`,
+  // not the bare process working directory: own-server mode (the desktop shell) runs this module
+  // with its cwd wherever opened Electron, not the repo root, which is exactly the "correct
+  // primitive, unwired/misfed call site" defect class this file's own header warns about. See that
+  // function's own doc for why `process.cwd()` is still its fallback (correct for a plain `tovu
+  // serve` and for the deployed container) rather than `import.meta.dirname` arithmetic.
+  const repoRoot = resolveCommittedConfigRoot();
   const provisioning = createFileProvisioning({
     io: nodeProvisioningFileIo,
     codec: COMMITTED_JSON_CODEC,
-    path: PUBLISH_TRUST_CONFIG_PATH,
+    path: path.join(repoRoot, PUBLISH_TRUST_CONFIG_PATH),
   });
-  const findCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: (relative) => relative });
+  const findCandidate = () =>
+    findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: (relative) => path.join(repoRoot, relative) });
 
   return {
     name: "publish-content",

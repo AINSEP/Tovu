@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 import {
   buildDomainRegistrations,
@@ -33,7 +35,7 @@ import {
   PUBLISH_TRUST_CONFIG_PATH,
   type PublishTrustProvisioningPort,
 } from "../publish-trust/provisioning.js";
-import { nodeProvisioningFileIo } from "../publish-trust/provisioning.node-io.js";
+import { nodeProvisioningFileIo, resolveCommittedConfigRoot } from "../publish-trust/provisioning.node-io.js";
 
 import {
   publishContentAgentToolCatalog,
@@ -140,21 +142,26 @@ export interface PublishContentToolDeps {
 type PublishContentToolAuthorize = Parameters<typeof requireToolPermission>[0]["authorize"];
 
 /** The real committed-config provisioning port — the same three constants
- *  `server/runtime/composition/modules/publish-content.ts` composes for the HTTP route.
+ *  `server/runtime/composition/modules/publish-content.ts` composes for the HTTP route, resolved
+ *  against the same {@link resolveCommittedConfigRoot} so an assistant-tool connect and a dialog
+ *  connect never disagree about which file they wrote.
  *  @complexity O(1). */
 function defaultProvisioning(): PublishTrustProvisioningPort {
   return createFileProvisioning({
     io: nodeProvisioningFileIo,
     codec: COMMITTED_JSON_CODEC,
-    path: PUBLISH_TRUST_CONFIG_PATH,
+    path: path.join(resolveCommittedConfigRoot(), PUBLISH_TRUST_CONFIG_PATH),
   });
 }
 
-/** The real deploy-config scan. Repo-relative, therefore resolved against the process's working
- *  directory — the same resolution the HTTP route's own `findCandidate` uses.
+/** The real deploy-config scan. Repo-relative, therefore resolved against
+ *  {@link resolveCommittedConfigRoot} — the same resolution the HTTP route's own `findCandidate`
+ *  uses, and NOT the bare process working directory (see that function's own doc for why: own-
+ *  server mode's cwd is wherever opened Electron, not the repo root).
  *  @complexity O(1) plus up to four file reads. */
 function defaultFindCandidate(): Promise<string | null> {
-  return findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: (relative) => relative });
+  const repoRoot = resolveCommittedConfigRoot();
+  return findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: (relative) => path.join(repoRoot, relative) });
 }
 
 /**

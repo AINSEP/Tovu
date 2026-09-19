@@ -1,5 +1,8 @@
+import path from "node:path";
+
 import {
   nodeProvisioningFileIo,
+  resolveCommittedConfigRoot,
 } from "#src/features/publish-trust/provisioning.node-io";
 import {
   PUBLISH_TRUST_CONFIG_PATH,
@@ -35,9 +38,11 @@ export type PublishTrustGrantResolver = () => Promise<PublishTrustResolution>;
  * than rejecting: a throw on the authentication path would be a 500 where a 401 belongs, and that
  * is an oracle. The failure is not cached, so a transient error retries on the next call.
  *
- * `PUBLISH_TRUST_CONFIG_PATH` is relative, and therefore resolved against the process's working
- * directory — the repository root for a normal `tovu serve`. That is deliberate: the file is
- * committed deploy config, so it belongs to the repo rather than to a site directory.
+ * `PUBLISH_TRUST_CONFIG_PATH` is relative, and resolved against {@link resolveCommittedConfigRoot}
+ * — `process.cwd()` for a normal `tovu serve` or the deployed container, where it IS the repo root,
+ * but not for the desktop shell, whose own-server-mode cwd is wherever opened Electron. The file is
+ * committed deploy config, so it belongs to the repo rather than to a site directory regardless of
+ * which of those launched this process.
  *
  * @complexity O(1) per call after the first; the first reads one file.
  */
@@ -52,7 +57,8 @@ export function createPublishTrustGrantResolver(
       // `undefined` (unset) and `""` (set but empty) mean different things to `resolvePublishTrust`
       // — the empty value is the provider-console kill switch — so this must not collapse them.
       const envValue = env[PUBLISH_TRUST_ENV_VAR];
-      const fileContents = await nodeProvisioningFileIo.read(PUBLISH_TRUST_CONFIG_PATH);
+      const configPath = path.join(resolveCommittedConfigRoot(env), PUBLISH_TRUST_CONFIG_PATH);
+      const fileContents = await nodeProvisioningFileIo.read(configPath);
       return resolvePublishTrust({ envValue, fileContents });
     })().catch((error: unknown) => {
       cached = null;
