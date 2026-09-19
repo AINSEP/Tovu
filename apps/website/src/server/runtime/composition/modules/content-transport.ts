@@ -1,13 +1,17 @@
 import { installFirstPartyTransportTypes } from "#src/server/runtime/composition/content-transport-manifest";
 import { registerContentTransportExportRoute } from "#src/server/inbound/admin-http/routes/content-transport/export";
+import { registerContentTransportBlobsProbeRoute } from "#src/server/inbound/admin-http/routes/content-transport/blobs-probe";
+import { registerContentTransportBlobPutRoute } from "#src/server/inbound/admin-http/routes/content-transport/blob-put";
+import { registerContentTransportBundleCreateRoute } from "#src/server/inbound/admin-http/routes/content-transport/bundle-create";
 import type { ContentTransportRouteDeps } from "#src/server/inbound/admin-http/routes/content-transport/deps";
 import type { ServerModuleHandle } from "./types.js";
 
 /**
- * @file Task 4 of the content-transport (Publish Content) feature —
- * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §1.1/§4 task 4.
+ * @file Task 4 + Task 6 of the content-transport (Publish Content) feature —
+ * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §1.1/§4 tasks 4 and 6.
  *
- * The `content-transport` server module: today, one route (the export/pull side). This is the
+ * The `content-transport` server module: the export/pull route (Task 4) plus the blob pre-flight
+ * and bundle-staging routes (Task 6: `blobs/probe`, `blobs/:sha`, `bundles`). This is the
  * "real consumer" `content-transport-manifest.ts`'s own header says is the natural place to call
  * `installFirstPartyTransportTypes()` — nothing before this module called it, so `post`/`page` were
  * registered contributors that no code path ever read.
@@ -28,6 +32,9 @@ export function createContentTransportModule(deps: ContentTransportRouteDeps): S
     name: "content-transport",
     registerRoutes: (app) => {
       registerContentTransportExportRoute(app, deps);
+      registerContentTransportBlobsProbeRoute(app, deps);
+      registerContentTransportBlobPutRoute(app, deps);
+      registerContentTransportBundleCreateRoute(app, deps);
     },
   };
 }

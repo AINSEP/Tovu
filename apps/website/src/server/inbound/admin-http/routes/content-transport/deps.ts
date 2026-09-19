@@ -17,10 +17,25 @@ import type { RouteDeps } from "#src/server/routes/types";
  *   route in this composition root uses — see `features/post/content-transport.ts`'s `buildHandler`.
  * - `workspaceRepo`: resolves the export bundle's `sourceLabel` (the workspace's own `name`) —
  *   see `export.ts`'s own doc for why a peer needs a human label, not just the raw workspace id.
+ * - `blobStore`/`contentTransportBundleRepo`: added for Task 6 (blob pre-flight + bundle staging —
+ *   `blobs-probe.ts`/`blob-put.ts`/`bundle-create.ts`). `blobStore` is the same real ADR-027
+ *   `BlobStorePort` every media route already shares (`RouteDeps.blobStore`'s own doc) — Task 6
+ *   reuses `putIfAbsent` directly rather than building a second dedupe path (plan §4 task 6's own
+ *   instruction). `contentTransportBundleRepo` is new (this task): `content_transport_bundles`
+ *   (migration `0066`) had no repo/port until now.
  */
 export type ContentTransportRouteDeps = Pick<
   RouteDeps,
-  "workspaceId" | "authorize" | "clock" | "idGen" | "postRepo" | "pluginBeforeSaveHook" | "outbox" | "workspaceRepo"
+  | "workspaceId"
+  | "authorize"
+  | "clock"
+  | "idGen"
+  | "postRepo"
+  | "pluginBeforeSaveHook"
+  | "outbox"
+  | "workspaceRepo"
+  | "blobStore"
+  | "contentTransportBundleRepo"
 >;
 
 export type ContentTransportRouteRegistrar = (app: Express, deps: ContentTransportRouteDeps) => void;

@@ -118,6 +118,7 @@ import type { PluginActivationRepoPort } from "../../features/plugin-runtime/act
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
 import type { PluginPackageFiles } from "../../features/plugin-runtime/package-files.js";
 import type { DeploymentsReadRepoPort, ExportEngine } from "../../features/deployments/index.js";
+import type { ContentTransportBundleRepoPort } from "../../features/content-transport/bundle-staging.js";
 
 /**
  * Slice 1 of the `RouteDeps` god-object decomposition (2026-08-18) — the process-wide clock + id-gen
@@ -1390,6 +1391,15 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * No write methods on the port yet — see `features/deployments/index.ts`'s header for why.
    */
   deploymentsReadRepo: DeploymentsReadRepoPort;
+  /**
+   * Task 6 of the content-transport (Publish Content) feature (`ADS-memory/reports/
+   * 2026-09-18-publish-feature-implementation-plan.md` §2/§4 task 6) — staged-bundle storage for
+   * `POST .../content-transport/bundles`, backing `content_transport_bundles` (migration `0066`).
+   * Real `SqliteContentTransportBundleRepo` in `server/runtime/composition/deps.ts`'s
+   * `createSqliteRouteDeps()`; `InMemoryContentTransportBundleRepo` in `server/runtime/composition/
+   * app.ts`'s hermetic `createRouteDeps()` — same rule-of-two every other repo here follows.
+   */
+  contentTransportBundleRepo: ContentTransportBundleRepoPort;
   /**
    * The static-site export engine (`src/platform/export/site-exporter.ts`'s `exportSite`), injected here
    * rather than imported directly by `export-site.ts` or `features/deployments/export-run.ts`

@@ -8,6 +8,7 @@ import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDef
 import { registerPageHeadContributor, resetPageHeadRegistry } from "../../inbound/public-http/http/site/page-head.js";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
+import { InMemoryContentTransportBundleRepo } from "#src/features/content-transport/bundle-staging";
 import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
@@ -765,6 +766,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // and overrides this field, the same way other tests override a single `createRouteDeps()`
     // field rather than this composition root taking on fixture-authoring for every case.
     deploymentsReadRepo: new InMemoryDeploymentsReadRepo(),
+    // Task 6 of the content-transport (Publish Content) feature — hermetic double for
+    // `server/runtime/composition/deps.ts`'s real `SqliteContentTransportBundleRepo`. See
+    // `routes/types.ts`'s `contentTransportBundleRepo` doc.
+    contentTransportBundleRepo: new InMemoryContentTransportBundleRepo(),
     // 2026-08-15 — the real export engine, bound here rather than imported inside
     // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
     // `runExportSite` doc for why that indirection is required, not stylistic. NOT resolved lazily
