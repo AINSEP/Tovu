@@ -84,7 +84,7 @@ function packedFrom(post: PostRecord): PackedEntity {
     contentHash: contentHash("post", toPublishableState(post)),
     hashVersion: CONTENT_HASH_VERSION,
     requiredBlobs: [],
-    state: { ...post },
+    state: toPublishableState(post),
   };
 }
 
