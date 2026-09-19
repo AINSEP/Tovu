@@ -173,6 +173,53 @@ export interface BeforeSaveEntryDraft {
  */
 export type BeforeSaveHookPort = (entry: BeforeSaveEntryDraft) => Promise<JsonObject>;
 
+/**
+ * One row `appendRevision` writes to `post_revisions` (`platform/db/schema.ts`, migration
+ * `0064_famous_omega_sentinel.sql`) — the full `PostRecord` snapshot, not the narrower shape
+ * `postUpdateReverter`'s inverse payload captures (`reverters.ts` — that inverse drops
+ * `seoExtJson`, `memberAccessJson`, `bodyHtml`/`bodyFormat`, `kind`, `deletedAt`, a documented,
+ * disclosed gap). This ledger's whole reason to exist is to not repeat that gap, so `stateJson`
+ * below is always the WHOLE `PostRecord` a caller just wrote, never a derived subset.
+ */
+export type PostRevisionOp = "create" | "update" | "delete" | "restore";
+
+/**
+ * `appendRevision`'s write contract. `seq` is `PostRecord.version` AFTER the write this revision
+ * captures — the caller (`createPost`/`updatePost`/`deletePost` below) already has that value in
+ * hand from building the record, so it travels in rather than being independently recomputed by
+ * the repo (one fact, one name — see `schema.ts`'s `postRevisions.seq` doc).
+ */
+export interface PostRevisionInput {
+  postId: UUID;
+  workspaceId: UUID;
+  seq: number;
+  op: PostRevisionOp;
+  stateJson: PostRecord;
+  actorId: string;
+  delegatedByWorkspaceId?: UUID | null;
+  delegatedById?: UUID | null;
+  /** Id of the revision a `"restore"`-op row was restored from. `null`/absent for every other op —
+   *  nothing writes a `"restore"` row yet (out of scope until a restore feature exists). */
+  restoredFrom?: string | null;
+  recordedAt: string;
+}
+
+/** One row read back from `post_revisions` — {@link PostRevisionInput} plus the two fields the
+ *  repo itself computes at write time (`id`, `contentHash`). */
+export interface PostRevisionRecord extends PostRevisionInput {
+  id: string;
+  contentHash: string;
+}
+
+/** {@link PostRepoPort.appendRevision}'s result: the new row's id, and the id of the immediately
+ *  prior revision for the same `(workspaceId, postId)` — `null` when this is the first revision
+ *  ever written for that post (true for every post that predates this feature; additive, no
+ *  backfill). */
+export interface PostRevisionAppendResult {
+  id: string;
+  previousId: string | null;
+}
+
 export interface PostRepoPort {
   findById(required: { workspaceId: UUID; id: UUID }): Promise<PostRecord | null>;
   findBySlug(required: { workspaceId: UUID; slug: string }): Promise<PostRecord | null>;
@@ -288,6 +335,35 @@ export interface PostRepoPort {
    * discarded it or because a real Save/Publish just superseded it.
    */
   clearAutosave(required: { workspaceId: UUID; id: UUID }): Promise<void>;
+  /**
+   * Appends one immutable row to this post's revision ledger (`post_revisions`) — never updates or
+   * deletes an existing row (ADR-008 §items / ADR-022 §4a append-only discipline, the same
+   * discipline `entryRevisions`/`settingRevisions` already follow). See {@link PostRevisionInput}
+   * for the full-snapshot contract this exists to guarantee.
+   *
+   * Never called standalone by `createPost`/`updatePost`/`deletePost` below — each always calls
+   * this from inside a {@link transaction} that also contains the post write itself, so a revision
+   * is never recorded for a write that didn't really land, and a write never lands silently
+   * unaccompanied by its revision.
+   */
+  appendRevision(input: PostRevisionInput): Promise<PostRevisionAppendResult>;
+  /**
+   * Reads back one post's revision ledger, oldest first (ascending `seq`) — the only read surface
+   * over what {@link appendRevision} has written; `post_revisions` has no other consumer yet.
+   */
+  listRevisions(required: { workspaceId: UUID; postId: UUID }): Promise<PostRevisionRecord[]>;
+  /**
+   * Runs `fn` with the post write and its revision-ledger append as one atomic unit — either both
+   * land or neither does. Needed because `createPost`/`updatePost`/`deletePost` each make TWO
+   * separate repo calls (the record write, then {@link appendRevision}); without this, a failure
+   * between them would leave a post write with no matching revision, silently breaking the
+   * ledger's one guarantee (every write has a revision). Mirrors the manual `BEGIN IMMEDIATE`/
+   * `COMMIT`/`ROLLBACK` `transaction()` already implemented by `SqliteSettingsRepo`,
+   * `SqliteMemberConsentRepo`, and `SqliteRedirectRepo` in this codebase — chosen over Drizzle's
+   * own `db.transaction()` wrapper because that wrapper requires a synchronous callback, and `fn`
+   * here awaits other async repo calls.
+   */
+  transaction<T>(fn: () => Promise<T>): Promise<T>;
 }
 
 /** True when a row is in the trash — the single predicate every trash-aware read below applies. */
@@ -313,6 +389,11 @@ export interface CreatePostInput {
   bodyJson?: JsonObject;
   /** Optional caller-supplied status. Defaults to `"draft"` when absent. */
   status?: PostStatus;
+  /** Attribution for the revision this write appends to `post_revisions` (2026-09-18). Optional —
+   *  an omitted value defaults to {@link SYSTEM_ACTOR_ID} rather than being required, so this
+   *  repo's own ~9 direct-unit-test call sites (documented on {@link CreatePostDeps}) keep
+   *  compiling and behaving exactly as before. */
+  actorId?: UUID;
 }
 
 export interface CreatePostDeps {
@@ -385,6 +466,8 @@ export interface UpdatePostInput {
    * things: that one protects a parked draft, this one protects the live document.
    */
   expectedVersion?: number;
+  /** Same optional-with-fallback contract as {@link CreatePostInput.actorId}. */
+  actorId?: UUID;
 }
 
 export interface UpdatePostDeps {
@@ -416,6 +499,8 @@ export interface UpdatePostOptional {}
 export interface DeletePostInput {
   workspaceId: UUID;
   id: UUID;
+  /** Same optional-with-fallback contract as {@link CreatePostInput.actorId}. */
+  actorId?: UUID;
 }
 
 export interface DeletePostDeps {
@@ -466,7 +551,7 @@ export interface DeletePostOptional {}
 export async function deletePost(
   required: DeletePostRequired,
   _optional: DeletePostOptional = {}
-): Promise<{ post: PostRecord }> {
+): Promise<{ post: PostRecord; revisionId: string; previousRevisionId: string | null }> {
   const { deps, input } = required;
   const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
   if (!existing || isTrashed(existing)) {
@@ -475,19 +560,33 @@ export async function deletePost(
 
   const now = deps.clock.nowIso();
   const version = existing.version + 1;
-  await deps.repo.softDelete({
-    workspaceId: input.workspaceId,
-    id: input.id,
-    deletedAt: now,
-    updatedAt: now,
-    version,
-  });
-
   const post: PostRecord = { ...existing, deletedAt: now, updatedAt: now, version };
+
+  // The softDelete write and its revision-ledger append are one atomic unit (see
+  // `PostRepoPort.transaction`'s own doc) — a revision must never be recorded for a trash that
+  // didn't really land, and a trash must never land unaccompanied by its revision.
+  const { id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
+    await deps.repo.softDelete({
+      workspaceId: input.workspaceId,
+      id: input.id,
+      deletedAt: now,
+      updatedAt: now,
+      version,
+    });
+    return deps.repo.appendRevision({
+      postId: post.id,
+      workspaceId: post.workspaceId,
+      seq: post.version,
+      op: "delete",
+      stateJson: post,
+      actorId: input.actorId ?? SYSTEM_ACTOR_ID,
+      recordedAt: post.updatedAt,
+    });
+  });
 
   await emitStatusTransitionEvent(deps.outbox, existing.status, "draft", post);
 
-  return { post };
+  return { post, revisionId, previousRevisionId };
 }
 
 export interface GetPostByIdRequired {
@@ -550,6 +649,11 @@ export class PostVersionConflictError extends PostConflictError {
  * `bodyFormat` correctly).
  */
 export const DEFAULT_BODY_JSON: JsonObject = { type: "doc", content: [] };
+
+/** {@link CreatePostInput.actorId}'s fallback — an omitted actor is attributed to the system
+ *  rather than left blank, so `post_revisions.actor_id NOT NULL` never has a "whose write was
+ *  this" gap. */
+export const SYSTEM_ACTOR_ID = "system";
 
 /**
  * SPEC-005 CIC U-004-B1/F1 — runs the optional `content.entry.beforeSave` hook and resolves to the
@@ -814,7 +918,7 @@ function resolveCreateFields(input: CreatePostInput): ResolvedCreateFields {
 export async function createPost(
   required: CreatePostRequired,
   _optional: CreatePostOptional = {}
-): Promise<{ post: PostRecord }> {
+): Promise<{ post: PostRecord; revisionId: string; previousRevisionId: string | null }> {
   const { deps, input } = required;
   const { title, explicitSlug, bodyJson, status, bodyFormat, bodyHtml } = resolveCreateFields(input);
 
@@ -863,7 +967,21 @@ export async function createPost(
     ...(ext !== undefined ? { ext } : {}),
   };
 
-  await deps.repo.save(post);
+  // The record write and its revision-ledger append are one atomic unit (see
+  // `PostRepoPort.transaction`'s own doc) — a revision must never be recorded for a save that
+  // didn't really land, and a save must never land unaccompanied by its revision.
+  const { id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
+    await deps.repo.save(post);
+    return deps.repo.appendRevision({
+      postId: post.id,
+      workspaceId: post.workspaceId,
+      seq: post.version,
+      op: "create",
+      stateJson: post,
+      actorId: input.actorId ?? SYSTEM_ACTOR_ID,
+      recordedAt: post.updatedAt,
+    });
+  });
   // A brand-new record has no real prior status to read, so "draft" is used as the classifier's
   // baseline (never-published) — matching `classifyStatusTransition`'s own "not published ->
   // published" / "not published -> draft" rows exactly, the latter correctly resolving to `null`
@@ -871,7 +989,7 @@ export async function createPost(
   if (deps.outbox) {
     await emitStatusTransitionEvent(deps.outbox, "draft", post.status, post);
   }
-  return { post };
+  return { post, revisionId, previousRevisionId };
 }
 
 function slugify(title: string): string {
@@ -1046,7 +1164,7 @@ function buildUpdatedPost(
 export async function updatePost(
   required: UpdatePostRequired,
   _optional: UpdatePostOptional = {}
-): Promise<{ post: PostRecord }> {
+): Promise<{ post: PostRecord; revisionId: string; previousRevisionId: string | null }> {
   const { deps, input } = required;
   const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
   // A trashed row is not-found for editing purposes — indistinguishable from a missing id, the same
@@ -1077,10 +1195,26 @@ export async function updatePost(
 
   const post = buildUpdatedPost(existing, input, { title, slug }, ext, deps.clock.nowIso());
 
-  await persistUpdatedPost(deps.repo, post, input.expectedVersion);
+  // The record write and its revision-ledger append are one atomic unit (see
+  // `PostRepoPort.transaction`'s own doc). A conflict rejection from `persistUpdatedPost` (nothing
+  // written) still propagates out of this `transaction()` call correctly — its `catch` rolls back
+  // (a no-op when nothing landed) and rethrows unchanged, so `PostVersionConflictError`/
+  // `PostNotFoundError` reach the caller exactly as they did before this change.
+  const { id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
+    await persistUpdatedPost(deps.repo, post, input.expectedVersion);
+    return deps.repo.appendRevision({
+      postId: post.id,
+      workspaceId: post.workspaceId,
+      seq: post.version,
+      op: "update",
+      stateJson: post,
+      actorId: input.actorId ?? SYSTEM_ACTOR_ID,
+      recordedAt: post.updatedAt,
+    });
+  });
   await emitStatusTransitionEvent(deps.outbox, existing.status, post.status, post);
 
-  return { post };
+  return { post, revisionId, previousRevisionId };
 }
 
 /**

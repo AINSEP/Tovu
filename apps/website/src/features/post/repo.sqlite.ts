@@ -1,7 +1,10 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { createHash, randomUUID } from "node:crypto";
+
+import type Database from "better-sqlite3";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 import type { JsonObject } from "@jini-ai/cms/core";
-import { posts } from "../../platform/db/schema.js";
+import { postRevisions, posts } from "../../platform/db/schema.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import {
@@ -11,6 +14,10 @@ import {
   type PostKind,
   type PostRecord,
   type PostRepoPort,
+  type PostRevisionAppendResult,
+  type PostRevisionInput,
+  type PostRevisionOp,
+  type PostRevisionRecord,
   type PostStatus,
 } from "./post.js";
 import { toPostSearchDocument } from "./search.js";
@@ -322,5 +329,98 @@ export class SqlitePostRepo implements PostRepoPort {
       .set({ autosaveJson: null })
       .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
       .run();
+  }
+
+  /**
+   * See `PostRepoPort.appendRevision`'s own doc for the append-only contract. `previousId` is
+   * looked up BEFORE the insert (the latest existing row for this `(workspaceId, postId)`, by
+   * `seq DESC`) — looking it up after would just find the row this call is about to write.
+   * `contentHash` is computed here, not carried on `PostRevisionInput`, so every caller gets an
+   * identical hashing rule with no chance of a hand-computed hash drifting from the bytes actually
+   * stored.
+   *
+   * @complexity O(1) — one indexed lookup plus one insert.
+   */
+  async appendRevision(input: PostRevisionInput): Promise<PostRevisionAppendResult> {
+    const priorRows = this.db
+      .select({ id: postRevisions.id })
+      .from(postRevisions)
+      .where(and(eq(postRevisions.workspaceId, input.workspaceId), eq(postRevisions.postId, input.postId)))
+      .orderBy(desc(postRevisions.seq))
+      .limit(1)
+      .all();
+    const previousId = priorRows[0]?.id ?? null;
+
+    const id = randomUUID();
+    const stateJsonText = JSON.stringify(input.stateJson);
+    const contentHash = createHash("sha256").update(stateJsonText).digest("hex");
+
+    this.db
+      .insert(postRevisions)
+      .values({
+        id,
+        postId: input.postId,
+        workspaceId: input.workspaceId,
+        seq: input.seq,
+        op: input.op,
+        stateJson: stateJsonText,
+        contentHash,
+        actorId: input.actorId,
+        delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
+        delegatedById: input.delegatedById ?? null,
+        restoredFrom: input.restoredFrom ?? null,
+        recordedAt: input.recordedAt,
+      })
+      .run();
+
+    return { id, previousId };
+  }
+
+  /** See `PostRepoPort.listRevisions`'s own doc — the only read surface over `appendRevision`'s
+   *  writes. Ascending `seq` (oldest first), matching a ledger's natural read order. */
+  async listRevisions(required: { workspaceId: string; postId: string }): Promise<PostRevisionRecord[]> {
+    const rows = this.db
+      .select()
+      .from(postRevisions)
+      .where(and(eq(postRevisions.workspaceId, required.workspaceId), eq(postRevisions.postId, required.postId)))
+      .orderBy(asc(postRevisions.seq))
+      .all();
+    return rows.map((row) => ({
+      id: row.id,
+      postId: row.postId,
+      workspaceId: row.workspaceId,
+      seq: row.seq,
+      op: row.op as PostRevisionOp,
+      stateJson: JSON.parse(row.stateJson) as PostRecord,
+      contentHash: row.contentHash,
+      actorId: row.actorId,
+      delegatedByWorkspaceId: row.delegatedByWorkspaceId,
+      delegatedById: row.delegatedById,
+      restoredFrom: row.restoredFrom,
+      recordedAt: row.recordedAt,
+    }));
+  }
+
+  /**
+   * See `PostRepoPort.transaction`'s own doc for why this exists (two repo calls — the post write,
+   * then `appendRevision` — must land as one unit). Manual `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK`
+   * rather than Drizzle's own `db.transaction()` wrapper, mirroring `SqliteSettingsRepo.transaction`
+   * exactly: that wrapper requires a synchronous callback, and `fn` here awaits other async repo
+   * calls. `$client` (the raw better-sqlite3 handle) exists at runtime on every `drizzle()`-
+   * constructed instance but isn't part of the exported `BetterSQLite3Database` class type
+   * `ContentDb` aliases — a known drizzle-orm typing gap — so the cast below is narrowly scoped to
+   * this one call site, same as every other adapter in this codebase that needs it.
+   */
+  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+    const client = (this.db as unknown as { $client: Database.Database }).$client;
+    client.exec("BEGIN IMMEDIATE");
+    try {
+      const result = await fn();
+      client.exec("COMMIT");
+      return result;
+    } catch (error) {
+      client.exec("ROLLBACK");
+      throw error;
+    }
   }
 }

@@ -1,4 +1,14 @@
-import { isTrashed, type PostAutosaveSnapshot, type PostRecord, type PostRepoPort } from "./post.js";
+import { createHash, randomUUID } from "node:crypto";
+
+import {
+  isTrashed,
+  type PostAutosaveSnapshot,
+  type PostRecord,
+  type PostRepoPort,
+  type PostRevisionAppendResult,
+  type PostRevisionInput,
+  type PostRevisionRecord,
+} from "./post.js";
 
 /**
  * SPEC-005 (T021): `ext` needs no special handling here. Unlike `repo.sqlite.ts` — which has to
@@ -13,6 +23,9 @@ export class InMemoryPostRepo implements PostRepoPort {
    *  `autosave_json` column being a sibling of the row rather than a `PostRecord` field (see
    *  `PostRepoPort.readAutosave`'s doc for why). */
   private autosaves = new Map<string, PostAutosaveSnapshot>();
+  /** This adapter's `post_revisions` stand-in — a plain array mirrors `rows`' own storage choice
+   *  (see `PostRepoPort.appendRevision`'s doc for the append-only contract both adapters share). */
+  private revisions: PostRevisionRecord[] = [];
 
   constructor(initialRows: PostRecord[] = []) {
     this.rows = [...initialRows];
@@ -137,5 +150,65 @@ export class InMemoryPostRepo implements PostRepoPort {
   /** See `PostRepoPort.clearAutosave`'s own doc — unconditional, no version guard. */
   async clearAutosave(required: { workspaceId: string; id: string }): Promise<void> {
     this.autosaves.delete(this.autosaveKey(required.workspaceId, required.id));
+  }
+
+  /** See `PostRepoPort.appendRevision`'s own doc. Mirrors `repo.sqlite.ts`'s adapter exactly:
+   *  `previousId` is the latest existing row for this `(workspaceId, postId)` found BEFORE the new
+   *  row is pushed, and `contentHash` is computed here so both adapters apply the identical rule. */
+  async appendRevision(input: PostRevisionInput): Promise<PostRevisionAppendResult> {
+    const priorForPost = this.revisions.filter(
+      (row) => row.workspaceId === input.workspaceId && row.postId === input.postId
+    );
+    const previousId = priorForPost.length > 0 ? priorForPost[priorForPost.length - 1].id : null;
+
+    const id = randomUUID();
+    const contentHash = createHash("sha256").update(JSON.stringify(input.stateJson)).digest("hex");
+
+    this.revisions.push({
+      id,
+      postId: input.postId,
+      workspaceId: input.workspaceId,
+      seq: input.seq,
+      op: input.op,
+      stateJson: input.stateJson,
+      contentHash,
+      actorId: input.actorId,
+      delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
+      delegatedById: input.delegatedById ?? null,
+      restoredFrom: input.restoredFrom ?? null,
+      recordedAt: input.recordedAt,
+    });
+
+    return { id, previousId };
+  }
+
+  /** See `PostRepoPort.listRevisions`'s own doc — ascending `seq`, matching `repo.sqlite.ts`'s
+   *  `ORDER BY seq ASC`. */
+  async listRevisions(required: { workspaceId: string; postId: string }): Promise<PostRevisionRecord[]> {
+    return this.revisions
+      .filter((row) => row.workspaceId === required.workspaceId && row.postId === required.postId)
+      .slice()
+      .sort((a, b) => a.seq - b.seq);
+  }
+
+  /**
+   * See `PostRepoPort.transaction`'s own doc for why this exists. No real SQL connection backs
+   * this adapter, so "atomic" here means snapshot-and-restore: `rows`/`revisions`/`autosaves` are
+   * captured before `fn` runs, and restored verbatim if it throws — safe because JavaScript has no
+   * real concurrent access to these arrays between the snapshot and the restore (single-threaded,
+   * no I/O yields a competing writer could land in).
+   */
+  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+    const rowsSnapshot = [...this.rows];
+    const revisionsSnapshot = [...this.revisions];
+    const autosavesSnapshot = new Map(this.autosaves);
+    try {
+      return await fn();
+    } catch (error) {
+      this.rows = rowsSnapshot;
+      this.revisions = revisionsSnapshot;
+      this.autosaves = autosavesSnapshot;
+      throw error;
+    }
   }
 }

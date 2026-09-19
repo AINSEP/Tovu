@@ -33,6 +33,12 @@ function makeCounterRepo(inner: PostRepoPort) {
       counter.saveCalls += 1;
       await inner.save(record);
     },
+    // `updatePost` now wraps its save in `deps.repo.transaction(...)` and always calls
+    // `appendRevision` after — both delegate untouched so this fixture keeps testing only what it
+    // names (the beforeSaveHook throw-before-save guarantee), not the revision ledger.
+    appendRevision: (r) => inner.appendRevision(r),
+    listRevisions: (r) => inner.listRevisions(r),
+    transaction: (fn) => inner.transaction(fn),
   };
   return { repo, counter };
 }
