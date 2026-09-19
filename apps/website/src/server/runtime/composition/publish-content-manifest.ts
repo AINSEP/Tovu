@@ -1,3 +1,4 @@
+import { contributeMediaPublish } from "#src/features/media/publish-content";
 import { contributePagePublish, contributePostPublish } from "#src/features/post/publish-content";
 import { registerPublishContentContributor } from "#src/features/publish-content/type-registry";
 
@@ -20,8 +21,17 @@ import { registerPublishContentContributor } from "#src/features/publish-content
  * own composition module (`server/runtime/composition/modules/publish-content.ts`, not yet built)
  * is the natural place to call `installFirstPartyPublishContentTypes()` once there is a real consumer —
  * see `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §1.1/§4 task 4.
+ *
+ * `media` joined `post`/`page` here only once `features/media/publish-content.ts`'s `apply()` was a
+ * real write path rather than Task 12's deliberate throwing stub. Registering a type whose `apply()`
+ * throws would have turned a correct refusal into a live bug — a bundle carrying media would have
+ * planned cleanly and then aborted the whole run mid-apply. The registration and the working
+ * `apply()` therefore land in the same commit, never separately; `__tests__/publish-content-manifest
+ * .test.ts` pins both halves (the registry list AND an entity actually applying through the
+ * registered contributor), so the pair cannot silently come apart again.
  */
 export function installFirstPartyPublishContentTypes(): void {
   registerPublishContentContributor(contributePostPublish());
   registerPublishContentContributor(contributePagePublish());
+  registerPublishContentContributor(contributeMediaPublish());
 }

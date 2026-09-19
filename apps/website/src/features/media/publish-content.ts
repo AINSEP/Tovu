@@ -1,11 +1,19 @@
+import { executeCommand } from "@jini-ai/cms/core";
+import type { JsonObject } from "@jini-ai/cms/core";
+
+import { bytesMatchSha256, isValidSha256Hex } from "#src/features/publish-content/blob-staging";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import type { PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler } from "#src/features/publish-content/type-registry";
 
-import type { MediaRecord } from "./index.js";
+import { importMediaEntity } from "./import-media-entity.js";
+import { computeBlobStorageKey } from "./index.js";
+import type { AssetBlobRepoPort, BlobStorePort, MediaRecord, MediaRepoPort } from "./index.js";
 
 /**
  * @file Task 12 of the publish-content (Publish Content) feature —
- * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 12.
+ * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 12 — plus the
+ * `apply()` wiring Task 12 deliberately deferred to whoever landed the apply loop (Task 8, now
+ * committed as `features/publish-content/apply-loop.ts`).
  *
  * `media`'s publish-content contribution, mirroring `features/post/publish-content.ts`'s
  * `contributePostPublish()`/`contributePagePublish()` exactly: this function returns DATA (a plain
@@ -21,13 +29,104 @@ import type { MediaRecord } from "./index.js";
  * reverse: an embedded image must exist at the destination before the post referencing it applies,
  * so nothing needs to land before media itself.
  *
- * `pack()`/`inspect()`/`precheck()` are real, working read paths (same as post/page's). `apply()` is
- * DELIBERATELY a stub, unlike `importMediaEntity()` itself (`./import-media-entity.ts`, which is the
- * real, fully tested write path this function is built to call) — see `apply()`'s own doc for why.
+ * ## The two decisions Task 12's stub refused to make, and how they were settled
+ *
+ * **1. Where `apply()` gets the entity's raw BYTES.** From the destination's own
+ * {@link BlobStorePort}, addressed by `computeBlobStorageKey({workspaceId, sha256})` — the exact key
+ * Task 6's blob pre-flight PUT route (`routes/publish-content/blob-put.ts`) already wrote them under,
+ * and the exact key `gated-hooks.ts`'s own `hasBlob` probe reads when the planner checks
+ * `PackedEntity.requiredBlobs`. `PackedEntity.state` is JSON-only and never carries a binary payload,
+ * so the bytes cannot travel on the entity itself; re-deriving them from anywhere else would mean a
+ * second, competing source of truth for content-addressed storage. A sha this destination never
+ * received is a REPORTED, non-destructive block ({@link MediaApplyBlockedError} with code
+ * `blocked:missing-blob`) that writes nothing — never a silent skip, and never a partial write that
+ * leaves a media row pointing at bytes that are not there. It is reported twice over: {@link
+ * PublishContentHandler.precheck} below surfaces it as an ordinary `blocked` report row (the channel
+ * `type-registry.ts`'s own `precheck` doc names — "a required blob's absence"), and `apply()` checks
+ * it again itself rather than trusting that a caller ran `precheck` first (the same "don't trust the
+ * caller already checked" discipline `import-media-entity.ts` and `blob-put.ts` both apply).
+ *
+ * **2. Whether `apply()` routes through the same `executeCommand` gateway `post`'s does.** YES, and
+ * this matters MORE for media than for posts, not less. `type-registry.ts`'s own
+ * `PublishContentDeps.changeSets` doc requires it, and media is the type with the weakest independent
+ * safety net: `posts` now has `post_revisions`, but `media` has no revision ledger and `asset_blobs`
+ * has none either, so a write outside change-sets would sit outside the revert path with nothing else
+ * to fall back on. Routing through the gateway gives every media import a `change_sets` row whose
+ * inverse is the verbatim pre-write `MediaRecord` — that inverse IS media's revert path. The
+ * `asset_blobs` half stays safe by construction rather than by ledger: `importMediaEntity` writes a
+ * blob row ONLY when `findByHash` finds none, so the blob side of an import is append-only and an
+ * existing row's attribution is never overwritten (see {@link MediaApplyResult.blobWritten} for how
+ * that is reported).
+ *
+ * ## Two disclosed limitations, both belonging to files outside this feature directory
+ *
+ * - **The optimistic-concurrency guard here is check-then-write, not atomic.** `MediaRepoPort` has no
+ *   `saveIfVersion` (contrast `PostRepoPort`'s, which is what makes `updatePost`'s guard a single
+ *   atomic `UPDATE … WHERE version = ?`), so the freshest possible re-read immediately before the
+ *   write is the strongest guard available without widening the `@jini-ai/cms` port. The window is
+ *   narrower than the apply loop's own `inspect()`-to-`apply()` window, so this strictly improves on
+ *   passing `expectedVersion` through unchecked — but it is not the same guarantee `post` has.
+ * - **`MediaApplyBlockedError`/`MediaApplyConflictError` are not yet downgraded to a per-row
+ *   outcome.** `apply-loop.ts`'s `isKnownApplyRace` only recognizes `PostConflictError`/
+ *   `PostNotFoundError`, so a throw from here currently aborts the run and persists a `failed` run
+ *   row carrying the reason (non-destructive — nothing is written before any throw here — and fully
+ *   recorded, but louder than it should be). That file's own header already anticipates exactly this:
+ *   "a future non-post type either reuses these classes or this catch needs widening when that type
+ *   lands." Widening it is the right follow-up and belongs there, not here; reusing `post`'s error
+ *   classes from `media` would be a false type hierarchy across two unrelated features.
  */
 
 /** Empty by design — see this file's header. */
 const MEDIA_DEPENDS_ON: readonly string[] = [];
+
+/** Machine-readable cause for a refused media apply. One discriminant rather than one error class
+ *  per cause, mirroring `ImportMediaEntityResult`'s own `blocked` shape: every one of these is an
+ *  ORDINARY, expected outcome of importing real-world data, not a programming error. */
+export type MediaApplyBlockedCode = "blocked:missing-blob" | "blocked:slug-taken" | "blocked:precondition";
+
+/**
+ * A media entity that cannot be applied, for a reason that is data, not a fault. Thrown only after
+ * every precondition check and BEFORE any write, so a blocked apply always leaves the destination
+ * exactly as it found it — no blob row, no media row, no change set.
+ */
+export class MediaApplyBlockedError extends Error {
+  readonly code: MediaApplyBlockedCode;
+
+  constructor(code: MediaApplyBlockedCode, message: string) {
+    super(message);
+    this.name = "MediaApplyBlockedError";
+    this.code = code;
+  }
+}
+
+/**
+ * The destination moved on from the `expectedVersion` the apply loop planned against — media's
+ * equivalent of `PostConflictError`, deliberately its own class rather than a reuse of `post`'s (see
+ * this file's header). Thrown before any write.
+ */
+export class MediaApplyConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MediaApplyConflictError";
+  }
+}
+
+/**
+ * What one applied media entity actually did. Structurally a superset of
+ * {@link PublishContentHandler.apply}'s declared `{changeSetId}` return, so the apply loop keeps
+ * compiling unchanged while a caller that cares can read {@link blobWritten}.
+ */
+export interface MediaApplyResult {
+  readonly changeSetId: string;
+  /**
+   * `true` when this import created the `asset_blobs` row (attributed to the importing operator);
+   * `false` when a row for these bytes already existed and was left completely untouched, original
+   * `createdByPrincipal` included. Reuse is NORMAL and expected — two media rows legitimately
+   * dedup onto the same bytes — so it is reported here and in the change set's summary, and is
+   * deliberately NOT a conflict or a warning.
+   */
+  readonly blobWritten: boolean;
+}
 
 /** `MediaRecord` fields {@link contentHash} treats as this entity's real content — every field,
  *  mirroring `features/post/publish-content.ts`'s identical `toHashableState`: `content-hash.ts`'s
@@ -36,6 +135,37 @@ const MEDIA_DEPENDS_ON: readonly string[] = [];
  *  list the way hand-picking a subset could. */
 function toHashableState(media: MediaRecord): Record<string, unknown> {
   return { ...media };
+}
+
+/**
+ * The id of a DIFFERENT media row already holding `slug`, or `null` when the slug is free (or when
+ * this entity has none — `media.slug` is nullable/optional in practice for pre-backfill rows, so an
+ * empty slug has nothing to collide on; contrast `post.slug`, which is `NOT NULL`).
+ *
+ * Shared by {@link PublishContentHandler.precheck} and `apply()` rather than written twice, so the
+ * planner's reported reason and the write path's own last-resort refusal can never disagree about
+ * what counts as a collision.
+ *
+ * @complexity O(1) — one indexed `findBySlug` lookup, or none at all for a slugless entity.
+ */
+async function findSlugConflict(required: {
+  mediaRepo: MediaRepoPort;
+  workspaceId: string;
+  entityId: string;
+  slug: unknown;
+}): Promise<string | null> {
+  if (typeof required.slug !== "string" || required.slug.length === 0) return null;
+  const holder = await required.mediaRepo.findBySlug({ workspaceId: required.workspaceId, slug: required.slug });
+  return holder && holder.id !== required.entityId ? holder.id : null;
+}
+
+/** Whether this destination actually holds the bytes for `sha256` — the same
+ *  `computeBlobStorageKey` + `exists` probe `gated-hooks.ts`'s own `hasBlob` performs for the
+ *  planner, applied here so media's own `precheck`/`apply` never depend on a caller having wired
+ *  that probe correctly.
+ *  @complexity O(1) — one existence check against content-addressed storage. */
+async function hasBlobBytes(required: { blobStore: BlobStorePort; workspaceId: string; sha256: string }): Promise<boolean> {
+  return required.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId: required.workspaceId, sha256: required.sha256 }) });
 }
 
 function buildHandler(deps: PublishContentDeps): PublishContentHandler {
@@ -70,45 +200,220 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
     return { version: found.version, hash: contentHash(entityType, toHashableState(found)) };
   }
 
+  /**
+   * Pure precondition check — never writes. Reports the two conditions that would otherwise only
+   * surface once `apply()` refused: a slug held by a different id, and bytes this destination never
+   * received. Both come back as a human-readable reason the planner turns into a `blocked` report
+   * row (`planner.ts`'s `planEntity`), which is how an operator sees them BEFORE confirming anything.
+   *
+   * The blob check overlaps `planner.ts`'s own `requiredBlobs`/`hasBlob` pass on purpose: that pass
+   * depends on a caller having wired `hasBlob` to the real store, and media is the one type whose
+   * entity IS its blob. Checking here too costs one existence probe and removes the dependency.
+   *
+   * @complexity O(1) — at most one slug lookup and one blob existence probe.
+   */
   async function precheck(entity: PackedEntity): Promise<string | null> {
     if (!deps.mediaRepo) return `media entity '${entity.id}' cannot be prechecked — no mediaRepo wired for this deps bag`;
-    const slug = entity.state.slug;
     // Unlike `post`'s precheck, an absent/empty slug does NOT block here — `media.slug` is
     // nullable/optional in practice (pre-backfill rows genuinely have none), so there is nothing to
     // check for a collision, not an error condition. See `import-media-entity.ts`'s identical
     // reasoning for the real write path.
-    if (typeof slug !== "string" || slug.length === 0) return null;
-    const holder = await deps.mediaRepo.findBySlug({ workspaceId: deps.workspaceId, slug });
-    if (holder && holder.id !== entity.id) {
-      return `slug '${slug}' is already held by a different media ('${holder.id}')`;
+    const holderId = await findSlugConflict({
+      mediaRepo: deps.mediaRepo,
+      workspaceId: deps.workspaceId,
+      entityId: entity.id,
+      slug: entity.state.slug,
+    });
+    if (holderId) return `slug '${String(entity.state.slug)}' is already held by a different media ('${holderId}')`;
+
+    if (deps.blobStore) {
+      for (const sha256 of entity.requiredBlobs) {
+        if (!(await hasBlobBytes({ blobStore: deps.blobStore, workspaceId: deps.workspaceId, sha256 }))) {
+          return `required blob '${sha256}' is not available on this destination`;
+        }
+      }
     }
     return null;
   }
 
-  async function apply(): Promise<{ changeSetId: string }> {
-    // DELIBERATELY NOT WIRED HERE, unlike `importMediaEntity()` itself (fully implemented and
-    // tested — `./import-media-entity.ts`). Two real decisions this stub does NOT make, both
-    // outside Task 12's scope and both belonging to whoever wires the planner/apply-loop (plan §4
-    // tasks 5/7/8, actively in flight this session in `features/publish-content/` — see the
-    // dispatching brief's own warning not to build on that moving target):
-    //  1. Where `apply()` gets the entity's raw BYTES from. `PackedEntity.state` is JSON-only (no
-    //     binary payload) — the real answer is almost certainly "read them back out of
-    //     `blobStore` via `computeBlobStorageKey`, since Task 6's blob-preflight route already
-    //     staged them there before the planner ever reaches an entity that requires them" but
-    //     that is a planner-sequencing guarantee this file has no way to verify on its own.
-    //  2. Whether media's `apply()` should route through the SAME command gateway
-    //     (`executeCommand`) `post`'s own `apply()` doc says every type must (`type-registry.ts`'s
-    //     `PublishContentDeps.changeSets` doc) — `media` has no revision ledger of its own today
-    //     (`uploadMedia`/`updateMediaMetadata` write directly, never through `executeCommand`),
-    //     so forcing one here would be a bigger, un-asked-for design decision, not "the smallest
-    //     compliant fix".
-    // `importMediaEntity()` is the ready-to-call primitive once both are decided — see its own
-    // header for the full safety case it already provides.
-    throw new Error(
-      "publish-content: media.apply() is not wired yet — bytes retrieval + change-set participation " +
-        "are Task 5/7/8's call; importMediaEntity() (features/media/import-media-entity.ts) is the " +
-        "ready, tested write primitive once that's decided."
-    );
+  /**
+   * Applies ONE media entity through the command gateway — see this file's header for both design
+   * decisions this implements and the two disclosed limitations it carries.
+   *
+   * Order inside the gateway matters and is not arbitrary. `executeCommand` runs
+   * `authorize` -> idempotency -> `captureInverse` -> `execute` -> record, so every precondition
+   * check below lives inside `execute()`: an unauthorized caller gets `ForbiddenError` rather than a
+   * "that slug is taken" message that would tell them something about workspace content they are not
+   * allowed to read. `captureInverse`'s read doubles as the freshest pre-write snapshot, so the
+   * version guard reuses it rather than issuing a second query against a slightly older answer.
+   *
+   * Nothing is written before any throw: `importMediaEntity` is the only thing here that writes, it
+   * is reached last, and it re-checks every precondition itself. `bytesMatchSha256` is called before
+   * the bytes ever reach `putIfAbsent` — once here (a storage-integrity check on bytes read back out
+   * of this destination's own content-addressed store) and once again inside `importMediaEntity`
+   * itself, which is the only `putIfAbsent` call site on this path. The hash is imported from
+   * `blob-staging.ts`, never reimplemented; `putIfAbsent` derives a storage key from the CLAIMED sha
+   * and verifies nothing, which is exactly why the check cannot be skipped.
+   *
+   * @complexity O(1) repo/store calls plus one O(n) hash pass over the blob's bytes (`n` = blob
+   * size); the apply LOOP (`apply-loop.ts`) is what iterates a report's rows and calls this per row.
+   * @tradeoffs The bytes are hashed twice (here and inside `importMediaEntity`) — deliberate: it buys
+   * a precise "this destination's own stored blob does not match its key" diagnosis, separate from
+   * "the source sent us something wrong", for a cost that is negligible at this feature's scale.
+   */
+  async function apply(input: {
+    entity: PackedEntity;
+    expectedVersion: number | undefined;
+    principalId: string;
+  }): Promise<MediaApplyResult> {
+    const { changeSets, authorize, outbox, mediaRepo, assetBlobRepo, blobStore } = deps;
+    if (!changeSets || !authorize || !outbox) {
+      throw new Error(
+        `publish-content: ${entityType}.apply() requires PublishContentDeps.changeSets/authorize/` +
+          "outbox — wire them from the real apply-loop composition root " +
+          "(features/publish-content/apply-loop.ts)."
+      );
+    }
+    if (!mediaRepo || !assetBlobRepo || !blobStore) {
+      throw new Error(
+        `publish-content: ${entityType}.apply() requires PublishContentDeps.mediaRepo/assetBlobRepo/` +
+          "blobStore — wire them from the real apply-loop composition root " +
+          "(features/publish-content/apply-loop.ts)."
+      );
+    }
+
+    const workspaceId = deps.workspaceId;
+    const source = input.entity.state as unknown as MediaRecord; // trusted round-trip: this file's own pack() produced it.
+    const sha256 = source.source?.sha256 ?? "";
+
+    // Read once, before the gateway, purely to phrase the change set's own summary accurately — the
+    // AUTHORITATIVE blob decision is `importMediaEntity`'s (it re-reads and only writes when nothing
+    // is there). Under a concurrent import of the identical bytes the two can disagree, which
+    // affects this summary's wording and nothing else; `MediaApplyResult.blobWritten` below always
+    // reports what actually happened.
+    const blobExistedBeforeApply = (await assetBlobRepo.findByHash({ workspaceId, sha256 })) !== null;
+    const summary = blobExistedBeforeApply
+      ? `Import ${entityType} '${input.entity.id}' via publish-content (existing blob ${sha256} reused; attribution preserved)`
+      : `Import ${entityType} '${input.entity.id}' via publish-content (new blob ${sha256})`;
+
+    let priorMedia: MediaRecord | null = null;
+    const { result, changeSetId } = await executeCommand({
+      deps: { clock: deps.clock, idGen: deps.idGen, changeSets, outbox, authorize },
+      command: {
+        workspaceId,
+        // Always the authenticated operator running the import, never an id carried in from the
+        // source system — this is what `executeCommand`'s own `authorize()` checks. `media` has no
+        // author column of its own, so unlike `post` there is no second authorship id to preserve.
+        actor: { id: input.principalId, kind: "user" as const },
+        summary,
+        permission: "content.write",
+      },
+      mutation: {
+        entityType,
+        entityId: input.entity.id,
+        operation: input.expectedVersion === undefined ? "create" : "update",
+        captureInverse: async () => {
+          priorMedia = await mediaRepo.findById({ workspaceId, id: input.entity.id });
+          // `media` has no revision ledger, so this verbatim pre-write record IS the revert path —
+          // see this file's header.
+          return priorMedia ? ({ ...priorMedia } as unknown as JsonObject) : null;
+        },
+        execute: async (): Promise<{ blobWritten: boolean; version: number | null }> => {
+          const existing: MediaRecord | null = priorMedia;
+
+          // Guard 1 — optimistic concurrency. Check-then-write, on the freshest read available (see
+          // this file's header for why `MediaRepoPort` cannot do better today).
+          if (input.expectedVersion === undefined && existing) {
+            throw new MediaApplyConflictError(
+              `${entityType} '${input.entity.id}' changed on the destination during apply: expected no existing row, found version ${existing.version}`
+            );
+          }
+          if (input.expectedVersion !== undefined) {
+            if (!existing) {
+              throw new MediaApplyConflictError(
+                `${entityType} '${input.entity.id}' changed on the destination during apply: expected version ${input.expectedVersion}, but the row is gone`
+              );
+            }
+            if (existing.version !== input.expectedVersion) {
+              throw new MediaApplyConflictError(
+                `${entityType} '${input.entity.id}' changed on the destination during apply: expected version ${input.expectedVersion}, found version ${existing.version}`
+              );
+            }
+          }
+
+          // Guard 2 — a slug held by a DIFFERENT id blocks the whole import: no blob row, no media
+          // row. `media.slug` carries `uniqueIndex("idx_media_workspace_slug")`, a second uniqueness
+          // axis alongside `id`, so this is a real collision and not a cosmetic one.
+          const holderId = await findSlugConflict({ mediaRepo, workspaceId, entityId: input.entity.id, slug: source.slug });
+          if (holderId) {
+            throw new MediaApplyBlockedError(
+              "blocked:slug-taken",
+              `${entityType} '${input.entity.id}' cannot be applied — slug '${source.slug}' is already held by a different media ('${holderId}')`
+            );
+          }
+
+          // Guard 3 — the bytes. A malformed sha is caught before it is ever used to derive a
+          // storage key (wording matched to `import-media-entity.ts`'s own, so an operator sees one
+          // message for one condition regardless of which layer refused).
+          if (!isValidSha256Hex(sha256)) {
+            throw new MediaApplyBlockedError(
+              "blocked:precondition",
+              `${entityType} '${input.entity.id}' has a malformed source sha256 '${sha256}'`
+            );
+          }
+          if (!(await hasBlobBytes({ blobStore, workspaceId, sha256 }))) {
+            throw new MediaApplyBlockedError(
+              "blocked:missing-blob",
+              `${entityType} '${input.entity.id}' cannot be applied — required blob '${sha256}' was never received by this destination`
+            );
+          }
+          const bytes = await blobStore.get({ storageKey: computeBlobStorageKey({ workspaceId, sha256 }) });
+          if (!bytesMatchSha256({ bytes, claimedSha256: sha256 })) {
+            throw new MediaApplyBlockedError(
+              "blocked:precondition",
+              `${entityType} '${input.entity.id}' cannot be applied — this destination's stored blob '${sha256}' does not hash to its own key`
+            );
+          }
+
+          const outcome = await importMediaEntity({
+            deps: { mediaRepo, assetBlobRepo, blobStore, clock: deps.clock, idGen: deps.idGen },
+            input: {
+              workspaceId,
+              record: source,
+              bytes,
+              // A brand-new blob row at this destination has no prior attribution to protect, so it
+              // takes the importing operator's principal. An EXISTING row is never re-stamped —
+              // `importMediaEntity` only reaches `assetBlobRepo.save` when `findByHash` finds
+              // nothing, which is what makes the preserved case safe by construction.
+              blobCreatedByPrincipal: input.principalId,
+            },
+          });
+          if (outcome.status === "blocked") {
+            // Reachable only if a precondition changed under the guards above, or for a cause they
+            // do not model (the write-once `source.sha256` rule). The reason travels verbatim.
+            throw new MediaApplyBlockedError(
+              "blocked:precondition",
+              `${entityType} '${input.entity.id}' cannot be applied — ${outcome.reason}`
+            );
+          }
+          const saved = await mediaRepo.findById({ workspaceId, id: input.entity.id });
+          return { blobWritten: outcome.blobWritten, version: saved?.version ?? null };
+        },
+        captureEntityVersion: (executed) => executed.version,
+        rollback: async () => {
+          // Compensating undo for a change-set record that failed AFTER the write landed. An update
+          // restores the prior record verbatim, `version` included; a create removes the row it just
+          // added. The `asset_blobs` row and its bytes are deliberately left in place: they are
+          // content-addressed and append-only here, another media row may already have deduped onto
+          // them, and an orphan blob is reclaimable by the existing GC whereas a wrongly deleted one
+          // is not.
+          if (priorMedia) await mediaRepo.save(priorMedia);
+          else await mediaRepo.remove({ workspaceId, id: input.entity.id });
+        },
+      },
+    });
+
+    return { changeSetId, blobWritten: result.blobWritten };
   }
 
   return { entityType, permission: "content.write", dependsOn: MEDIA_DEPENDS_ON, pack, inspect, precheck, apply };
@@ -121,7 +426,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
  * in this codebase today).
  *
  * Called from a composition root (`server/runtime/composition/publish-content-manifest.ts`), NOT
- * from within `features/media` itself — see this file's own header.
+ * from within `features/media` itself — see this file's header.
  */
 export function contributeMediaPublish(): PublishContentContributor {
   return { entityType: "media", dependsOn: MEDIA_DEPENDS_ON, build: buildHandler };
