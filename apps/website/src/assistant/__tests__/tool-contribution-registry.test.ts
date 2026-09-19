@@ -190,6 +190,11 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "pages",
     "plugins",
     "post",
+    // 2026-09-19: the three publishing tools â€” "is publishing set up", "set it up", "publish".
+    // A NEW domain rather than an entry in the 25-domain rollout: `features/publish-content` had no
+    // agent-tool surface at all until this, which is the gap that made publishing undiscoverable to
+    // an assistant. See its own `agent-tools.ts` header.
+    "publish-content",
     "recovery",
     "redirects",
     "seo",
