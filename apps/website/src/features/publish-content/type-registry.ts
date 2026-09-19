@@ -25,10 +25,9 @@ import type { AuthorizeFn, ChangeSetRepoPort, ClockPort, OutboxPort } from "@jin
  *    same `register*`/`list*`/`reset*ForTests` trio, same "last registration wins, replacing by key
  *    rather than appending" semantics for accidental double-registration.
  *
- * `listPublishContentContributors()` MUST be called fresh by the planner every run (Task 5+), never
- * captured once and reused — a type registered after that first read must still be picked up on the
- * very next run. The registry mechanics test file (`__tests__/type-registry.test.ts`) pins exactly
- * this property.
+ * `buildPublishContentCatalog()` MUST read the registry fresh every run (Task 5+), never capture a
+ * prior catalog — a type registered after that first read must still be picked up on the next run.
+ * The registry mechanics test file (`__tests__/type-registry.test.ts`) pins this property.
  *
  * ## Why `features/publish-content/` owns this file, not `assistant/`
  *
@@ -51,8 +50,8 @@ import type { AuthorizeFn, ChangeSetRepoPort, ClockPort, OutboxPort } from "@jin
  *    `features/post -> features/publish-content` value edge would reopen the identical risk.
  *    `__tests__/post-no-direct-registry-import.boundary.test.ts` enforces this for `features/post`
  *    specifically.
- * 2. `listPublishContentContributors()` is called AT PUBLISH TIME (inside the planner), never
- *    captured at module load — see the trap above.
+ * 2. `buildPublishContentCatalog()` reads contributors AT PUBLISH TIME, never at module load — see
+ *    the trap above.
  * 3. Never "register on import". Nothing in this file, or in any feature's own
  *    `contribute<Type>Transport()` function, runs merely because that feature's module was imported.
  *    Every registration is an explicit call made by a composition root.
@@ -217,6 +216,75 @@ export interface PublishContentContributor {
   readonly entityType: string;
   readonly dependsOn: readonly string[];
   readonly build: (deps: PublishContentDeps) => PublishContentHandler;
+}
+
+/** A programmer-authored registry configuration that cannot produce a safe apply order. */
+export class PublishContentCatalogConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PublishContentCatalogConfigurationError";
+  }
+}
+
+export interface PublishContentCatalog {
+  readonly handlers: readonly PublishContentHandler[];
+  readonly handlerByType: ReadonlyMap<string, PublishContentHandler>;
+  readonly applyOrder: readonly string[];
+}
+
+/**
+ * Builds the per-operation handler catalog from the registry's current snapshot.
+ *
+ * Ordering declarations are configuration, not best-effort hints. A dependency on an
+ * unregistered type or a dependency cycle makes every possible fallback order unsafe, so this
+ * rejects before any handler is built or any publish-content read/write begins.
+ */
+export function buildPublishContentCatalog(deps: PublishContentDeps): PublishContentCatalog {
+  const snapshot = [...contributors];
+  const originalOrder = snapshot.map((contributor) => contributor.entityType);
+  const known = new Set(originalOrder);
+  const inDegree = new Map<string, number>(originalOrder.map((entityType) => [entityType, 0]));
+  const dependents = new Map<string, string[]>();
+
+  for (const contributor of snapshot) {
+    for (const dependency of new Set(contributor.dependsOn)) {
+      if (!known.has(dependency)) {
+        throw new PublishContentCatalogConfigurationError(
+          `publish-content type '${contributor.entityType}' depends on unregistered type '${dependency}'`
+        );
+      }
+      inDegree.set(contributor.entityType, (inDegree.get(contributor.entityType) ?? 0) + 1);
+      const waiting = dependents.get(dependency) ?? [];
+      waiting.push(contributor.entityType);
+      dependents.set(dependency, waiting);
+    }
+  }
+
+  const applyOrder: string[] = [];
+  const remaining = new Set(originalOrder);
+  while (remaining.size > 0) {
+    const next = originalOrder.find(
+      (entityType) => remaining.has(entityType) && (inDegree.get(entityType) ?? 0) === 0
+    );
+    if (!next) {
+      const cycleMembers = originalOrder.filter((entityType) => remaining.has(entityType));
+      throw new PublishContentCatalogConfigurationError(
+        `publish-content dependency cycle among registered types: ${cycleMembers.join(", ")}`
+      );
+    }
+    applyOrder.push(next);
+    remaining.delete(next);
+    for (const dependent of dependents.get(next) ?? []) {
+      inDegree.set(dependent, (inDegree.get(dependent) ?? 0) - 1);
+    }
+  }
+
+  const handlers = snapshot.map((contributor) => contributor.build(deps));
+  return {
+    handlers,
+    handlerByType: new Map(handlers.map((handler) => [handler.entityType, handler] as const)),
+    applyOrder,
+  };
 }
 
 let contributors: PublishContentContributor[] = [];

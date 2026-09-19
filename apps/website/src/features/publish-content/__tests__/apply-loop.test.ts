@@ -97,6 +97,7 @@ function packedFrom(post: PostRecord): PackedEntity {
  *  consumed from their own counters first. */
 function makeHarness(rows: PostRecord[] = []) {
   resetPublishContentContributorsForTests();
+  registerPublishContentContributor(contributeMediaPublish());
   registerPublishContentContributor(contributePostPublish());
 
   const postRepo = new InMemoryPostRepo(rows);

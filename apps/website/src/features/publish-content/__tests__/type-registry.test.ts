@@ -18,26 +18,29 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildPublishContentCatalog,
   listPublishContentContributors,
+  PublishContentCatalogConfigurationError,
   registerPublishContentContributor,
   resetPublishContentContributorsForTests,
+  type PublishContentDeps,
   type PublishContentContributor,
   type PublishContentHandler,
 } from "../type-registry.js";
 
 /** A trivial contributor for exercising the registry mechanism itself, independent of any real
  *  domain's business logic — mirrors `tool-contribution-registry.test.ts`'s `fakeContributor`. */
-function fakeContributor(entityType: string): PublishContentContributor {
+function fakeContributor(entityType: string, dependsOn: readonly string[] = []): PublishContentContributor {
   const handler: PublishContentHandler = {
     entityType,
     permission: "content.write",
-    dependsOn: [],
+    dependsOn,
     pack: async function* () {},
     inspect: async () => null,
     precheck: async () => null,
     apply: async () => ({ changeSetId: `fake-${entityType}` }),
   };
-  return { entityType, dependsOn: [], build: () => handler };
+  return { entityType, dependsOn, build: () => handler };
 }
 
 test.beforeEach(() => {
@@ -91,4 +94,40 @@ test("resetPublishContentContributorsForTests clears every registration", () => 
   resetPublishContentContributorsForTests();
 
   assert.deepEqual(listPublishContentContributors(), []);
+});
+
+test("buildPublishContentCatalog rejects a dependency on an unregistered type before building handlers", () => {
+  let buildCalls = 0;
+  const contributor = fakeContributor("post", ["media"]);
+  registerPublishContentContributor({ ...contributor, build: (deps) => (buildCalls++, contributor.build(deps)) });
+
+  assert.throws(
+    () => buildPublishContentCatalog({} as PublishContentDeps),
+    (error: unknown) =>
+      error instanceof PublishContentCatalogConfigurationError &&
+      error.message === "publish-content type 'post' depends on unregistered type 'media'"
+  );
+  assert.equal(buildCalls, 0, "invalid ordering must fail before any handler is built");
+});
+
+test("buildPublishContentCatalog rejects dependency cycles instead of inventing an apply order", () => {
+  registerPublishContentContributor(fakeContributor("a", ["b"]));
+  registerPublishContentContributor(fakeContributor("b", ["a"]));
+
+  assert.throws(
+    () => buildPublishContentCatalog({} as PublishContentDeps),
+    (error: unknown) =>
+      error instanceof PublishContentCatalogConfigurationError &&
+      error.message === "publish-content dependency cycle among registered types: a, b"
+  );
+});
+
+test("buildPublishContentCatalog derives deterministic apply order without reordering handlers", () => {
+  registerPublishContentContributor(fakeContributor("post", ["media"]));
+  registerPublishContentContributor(fakeContributor("media"));
+
+  const catalog = buildPublishContentCatalog({} as PublishContentDeps);
+
+  assert.deepEqual(catalog.applyOrder, ["media", "post"]);
+  assert.deepEqual(catalog.handlers.map((handler) => handler.entityType), ["post", "media"]);
 });

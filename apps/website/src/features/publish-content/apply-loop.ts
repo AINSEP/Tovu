@@ -10,7 +10,7 @@ import { PublishContentBundleNotFoundError } from "./gated-hooks.js";
 import type { PublishContentApplyPort } from "./gated-hooks.js";
 import { entityKey } from "./planner.js";
 import type { PublishContentOutcomeRow, PublishContentReport } from "./planner.js";
-import { listPublishContentContributors } from "./type-registry.js";
+import { buildPublishContentCatalog } from "./type-registry.js";
 import type { PublishContentDeps, PublishContentHandler, PackedEntity } from "./type-registry.js";
 
 /**
@@ -403,9 +403,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
       // `PublishContentApplyPort.applyReport`'s own doc.
       const handlerDeps =
         authorize === undefined ? input.publishContentDeps : { ...input.publishContentDeps, authorize };
-      const handlerByType = new Map(
-        listPublishContentContributors().map((contributor) => [contributor.entityType, contributor.build(handlerDeps)] as const)
-      );
+      const { handlerByType } = buildPublishContentCatalog(handlerDeps);
       const ctx: ApplyRowContext = {
         workspaceId: input.workspaceId,
         runId,

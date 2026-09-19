@@ -32,14 +32,13 @@ import type { PostKind, PostRecord } from "./post.js";
 
 /**
  * `post`'s and `page`'s declared prerequisite types (plan §3's own worked example: "post ->
- * [media, term]"). Both share it — a Page's body can embed media/taxonomy terms exactly like a
- * Post's can (same table, same `bodyJson` shape; `PostKind` only changes which admin list surfaces
- * a row — see `post.ts`'s own doc). Neither `media` nor `term` has a contributor registered yet, so
- * today this only documents the intended future ordering; the planner (Task 5+) is expected to
- * treat an unregistered dependency as "nothing to wait for", not a hard failure — that behavior
- * belongs to Task 5, not this file.
+ * [media, term]"). Both share the currently implemented `media` dependency — a Page's body can
+ * embed media exactly like a Post's can (same table, same `bodyJson` shape; `PostKind` only changes
+ * which admin list surfaces a row — see `post.ts`'s own doc). `term` must be added here only when
+ * its real contributor is registered: catalog construction rejects speculative/unregistered
+ * dependencies because no safe apply order exists for them.
  */
-const POST_AND_PAGE_DEPENDS_ON: readonly string[] = ["media", "term"];
+const POST_AND_PAGE_DEPENDS_ON: readonly string[] = ["media"];
 
 /**
  * Every `PostRecord` field, classified by what this transport DOES with it. This map is the single

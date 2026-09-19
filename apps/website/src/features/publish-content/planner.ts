@@ -1,5 +1,5 @@
 import { CONTENT_HASH_VERSION } from "./content-hash.js";
-import { listPublishContentContributors } from "./type-registry.js";
+import { buildPublishContentCatalog } from "./type-registry.js";
 import type { PublishContentDeps, PublishContentHandler, PackedEntity } from "./type-registry.js";
 
 /**
@@ -47,16 +47,15 @@ import type { PublishContentDeps, PublishContentHandler, PackedEntity } from "./
  * computed, so a stale-version baseline on entity #47 of 200 can never leave 46 "valid-looking" rows
  * sitting in the report next to it (the adversarial aggregate case this module's own tests pin).
  * Pass 2 classifies every entity into exactly one outcome, walking types in `dependsOn`-derived
- * apply order (see {@link topologicalSortEntityTypes}) so a caller applying `rows` in this exact
+ * apply order (see `buildPublishContentCatalog`) so a caller applying `rows` in this exact
  * sequence (Task 8) always writes a prerequisite before its dependent.
  *
- * ## Why `listPublishContentContributors()` is called INSIDE `planImport`, every call
+ * ## Why `buildPublishContentCatalog()` is called INSIDE `planImport`, every call
  *
  * Plan §3 rule 2, verbatim: "`listPublishContentContributors()` is called at publish time, inside
- * the planner, never captured at module load." This file is that planner. `planImport` never caches
- * the handler list across calls — a contributor registered between two `planImport` calls in the
- * same process is picked up by the very next one (see this module's own tests: "a contributor
- * registered after an earlier planImport call is picked up by the next one").
+ * the planner, never captured at module load." `buildPublishContentCatalog()` performs that fresh
+ * read and validates the dependency graph before it builds handlers. `planImport` never caches the
+ * catalog across calls — a contributor registered between two calls is picked up by the next one.
  */
 
 /** One entity's recorded sync memory with a specific peer — the read side of
@@ -105,7 +104,8 @@ export interface PublishContentReport {
   readonly refused: boolean;
   readonly refusalReason: string | null;
   /** Entity types in the order Task 8's apply loop must walk them — derived from every currently
-   *  registered handler's `dependsOn` (see {@link topologicalSortEntityTypes}), plus, appended at the
+   *  registered handler's validated `dependsOn` order (see `buildPublishContentCatalog`), plus,
+   *  appended at the
    *  end, any type present in the bundle that has NO registered handler on this instance (always
    *  `blocked`; order among those is bundle-first-seen order, since they carry no `dependsOn` to sort
    *  by). Empty when {@link refused} is `true`. */
@@ -145,61 +145,6 @@ export interface PlanImportDeps {
  *  re-deriving the `${type}:${id}` convention by hand and risking a mismatch. */
 export function entityKey(entityType: string, entityId: string): string {
   return `${entityType}:${entityId}`;
-}
-
-/**
- * Topologically sorts entity types by their own declared `dependsOn` (plan §3 rule 4: "apply order
- * is derived from `dependsOn` at publish time … not hardcoded"). Kahn's algorithm, made
- * deterministic by always picking the earliest-registered ready type rather than an arbitrary one
- * from the ready set, so two runs over the same registrations always produce the same order.
- *
- * A `dependsOn` entry naming a type with NO registered handler is treated as "nothing to wait for",
- * never a hard failure — the Task 2 agent's own left note: `post`/`page` declare
- * `dependsOn: ["media", "term"]` today even though neither has landed a contributor yet.
- *
- * A cycle (A depends on B, B depends on A) never hangs or throws: the remaining, mutually-blocked
- * types are emitted in registration order once no ready type remains. A real cycle is a contributor
- * authoring bug; making it visible in {@link PublishContentReport.applyOrder} rather than crashing the
- * whole planner is the safer default for a read-only planning path.
- *
- * @complexity O(t²) in the number of distinct entity types `t` (the `find` inside the main loop is
- * linear per iteration) — irrelevant at this feature's scale (a handful of content types), and far
- * simpler/more auditable than a heap-based O(t log t) variant would be for the same input size.
- */
-export function topologicalSortEntityTypes(
-  handlers: ReadonlyArray<{ readonly entityType: string; readonly dependsOn: readonly string[] }>
-): string[] {
-  const originalOrder = handlers.map((handler) => handler.entityType);
-  const known = new Set(originalOrder);
-  const inDegree = new Map<string, number>(originalOrder.map((type) => [type, 0]));
-  const dependents = new Map<string, string[]>();
-
-  for (const handler of handlers) {
-    for (const dep of handler.dependsOn) {
-      if (!known.has(dep)) continue; // unregistered dependency — nothing to wait for.
-      inDegree.set(handler.entityType, (inDegree.get(handler.entityType) ?? 0) + 1);
-      const waiting = dependents.get(dep) ?? [];
-      waiting.push(handler.entityType);
-      dependents.set(dep, waiting);
-    }
-  }
-
-  const order: string[] = [];
-  const remaining = new Set(known);
-  while (remaining.size > 0) {
-    const next = originalOrder.find((type) => remaining.has(type) && (inDegree.get(type) ?? 0) === 0);
-    if (!next) {
-      // Cycle detected — emit whatever remains, in original registration order, rather than hanging.
-      for (const type of originalOrder) if (remaining.has(type)) order.push(type);
-      break;
-    }
-    order.push(next);
-    remaining.delete(next);
-    for (const dependent of dependents.get(next) ?? []) {
-      inDegree.set(dependent, (inDegree.get(dependent) ?? 0) - 1);
-    }
-  }
-  return order;
 }
 
 /**
@@ -275,7 +220,7 @@ async function planEntity(
  * refusal semantics.
  *
  * @complexity O(n) handler resolution/reads in `bundle.entities.length` (two passes, each one
- * read-shaped call per entity) plus O(t²) for {@link topologicalSortEntityTypes} over the small
+ * read-shaped call per entity) plus O(t²) for `buildPublishContentCatalog` over the small
  * number of distinct types `t` — dominated by whatever I/O `getBaseline`/`hasBlob`/`inspect`/
  * `precheck` themselves cost, not by this function's own control flow.
  */
@@ -289,9 +234,9 @@ export async function planImport(bundle: PublishContentBundle, deps: PlanImportD
     };
   }
 
-  // Rule 2 (this file's header): read the registry FRESH, inside this call, every call.
-  const handlers = listPublishContentContributors().map((contributor) => contributor.build(deps.publishContentDeps));
-  const handlerByType = new Map(handlers.map((handler) => [handler.entityType, handler] as const));
+  // Rule 2 (this file's header): read and validate the registry FRESH, inside this call, every call.
+  const catalog = buildPublishContentCatalog(deps.publishContentDeps);
+  const { handlerByType } = catalog;
 
   // Pass 1 — prefetch baselines, refuse the whole run on the first hash-version mismatch found.
   const baselineByKey = new Map<string, BaselineRecord | null>();
@@ -321,7 +266,7 @@ export async function planImport(bundle: PublishContentBundle, deps: PlanImportD
     entitiesByType.set(entity.entityType, list);
   }
   const unhandledTypes = [...entitiesByType.keys()].filter((type) => !handlerByType.has(type));
-  const applyOrder = [...topologicalSortEntityTypes(handlers), ...unhandledTypes];
+  const applyOrder = [...catalog.applyOrder, ...unhandledTypes];
 
   const rows: PublishContentOutcomeRow[] = [];
   for (const type of applyOrder) {

@@ -1,5 +1,5 @@
 import { CONTENT_HASH_VERSION } from "./content-hash.js";
-import { listPublishContentContributors, type PackedEntity, type PublishContentDeps } from "./type-registry.js";
+import { buildPublishContentCatalog, type PackedEntity, type PublishContentDeps } from "./type-registry.js";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -39,9 +39,8 @@ export interface PackAuthorizedEntitiesDeps {
 /**
  * Every entity this principal is allowed to export, across every registered type.
  *
- * The registry is read FRESH on every call (`listPublishContentContributors()`), never cached — a
- * contributor registered after an earlier call must be visible to the next one
- * (`type-registry.ts`'s own fresh-read rule).
+ * `buildPublishContentCatalog()` reads and validates the registry FRESH on every call, never caches
+ * it — a contributor registered after an earlier call is visible to the next one.
  *
  * A per-type authorization denial OMITS that type and continues; it is never an error. A principal
  * holding `publish_content.read` but not a given type's own write permission gets a bundle without
@@ -51,8 +50,7 @@ export interface PackAuthorizedEntitiesDeps {
  * `e` the allowed types pack. Memory is O(1) in the corpus: entities are yielded, never collected.
  */
 export async function* packAuthorizedEntities(deps: PackAuthorizedEntitiesDeps): AsyncGenerator<PackedEntity> {
-  for (const contributor of listPublishContentContributors()) {
-    const handler = contributor.build(deps.publishContentDeps);
+  for (const handler of buildPublishContentCatalog(deps.publishContentDeps).handlers) {
     const typeAuth = await deps.authorize({
       principalId: deps.principalId,
       permission: handler.permission,

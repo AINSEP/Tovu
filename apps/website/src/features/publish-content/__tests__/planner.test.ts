@@ -16,7 +16,7 @@
  * `contributePostPublish()` handler (Task 2) plus a real `InMemoryPostRepo`, through the REAL
  * registry (`registerPublishContentContributor`), so this planner is shown to actually compose
  * with Task 2's own contract, not just with a fake built to match it. Section 3 covers
- * `topologicalSortEntityTypes` directly, including the cycle and unregistered-dependency edge cases.
+ * catalog ordering through `planImport`; invalid catalog cases live in `type-registry.test.ts`.
  */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -32,7 +32,6 @@ import {
 import {
   entityKey,
   planImport,
-  topologicalSortEntityTypes,
   type BaselineRecord,
   type PlanImportDeps,
   type PublishContentBundle,
@@ -398,36 +397,6 @@ test("a contributor registered AFTER an earlier planImport call is picked up by 
   assert.equal(second.rows[0].outcome, "created", "the newly registered contributor must be seen without recreating planImport itself");
 });
 
-test("topologicalSortEntityTypes: an unregistered dependsOn entry is 'nothing to wait for'", () => {
-  const order = topologicalSortEntityTypes([{ entityType: "post", dependsOn: ["media", "term"] }]);
-  assert.deepEqual(order, ["post"]);
-});
-
-test("topologicalSortEntityTypes: two independent types keep registration order", () => {
-  const order = topologicalSortEntityTypes([
-    { entityType: "post", dependsOn: [] },
-    { entityType: "page", dependsOn: [] },
-  ]);
-  assert.deepEqual(order, ["post", "page"]);
-});
-
-test("topologicalSortEntityTypes: a real dependency is placed before its dependent", () => {
-  const order = topologicalSortEntityTypes([
-    { entityType: "post", dependsOn: ["media"] },
-    { entityType: "media", dependsOn: [] },
-  ]);
-  assert.deepEqual(order, ["media", "post"]);
-});
-
-test("topologicalSortEntityTypes: a cycle never hangs or throws — emits the remainder deterministically", () => {
-  const order = topologicalSortEntityTypes([
-    { entityType: "a", dependsOn: ["b"] },
-    { entityType: "b", dependsOn: ["a"] },
-  ]);
-  assert.deepEqual(order.sort(), ["a", "b"]);
-  assert.equal(order.length, 2);
-});
-
 // ---------------------------------------------------------------------------
 // 4. End-to-end against the REAL post contributor (Task 2) + a real InMemoryPostRepo
 // ---------------------------------------------------------------------------
@@ -435,6 +404,8 @@ test("topologicalSortEntityTypes: a cycle never hangs or throws — emits the re
 test("real post contributor: created + byte-identical destination", async () => {
   const { InMemoryPostRepo } = await import("../../post/repo.memory.js");
   const { contributePostPublish } = await import("../../post/publish-content.js");
+  const { contributeMediaPublish } = await import("../../media/publish-content.js");
+  registerPublishContentContributor(contributeMediaPublish());
   registerPublishContentContributor(contributePostPublish());
 
   const workspaceId = "11111111-1111-1111-1111-111111111111";
@@ -477,6 +448,8 @@ test("real post contributor: created + byte-identical destination", async () => 
 test("real post contributor: blocked on a genuine slug collision against a DIFFERENT existing post", async () => {
   const { InMemoryPostRepo } = await import("../../post/repo.memory.js");
   const { contributePostPublish } = await import("../../post/publish-content.js");
+  const { contributeMediaPublish } = await import("../../media/publish-content.js");
+  registerPublishContentContributor(contributeMediaPublish());
   registerPublishContentContributor(contributePostPublish());
 
   const workspaceId = "11111111-1111-1111-1111-111111111111";
