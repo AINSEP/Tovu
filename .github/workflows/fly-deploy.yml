@@ -81,16 +81,20 @@ name: Deploy to Fly.io
 # as a number once and was wrong; `git rev-list --left-right --count origin/main...HEAD` answers it
 # in one command and cannot go stale.
 #
-# What a dispatch pins: nothing. It resolves a branch NAME, at dispatch time, to whatever that
-# branch points at, and `actions/checkout` below builds that SHA. On 2026-09-18 that resolved
-# `main` to a week-old commit and shipped it — successfully, changing nothing visible. See
-# ADS-memory/reports/2026-09-18-deploy-ref-gap.md. So read the tip before you dispatch:
-#   gh api repos/<owner>/<repo>/branches/main --jq '.commit.sha, .commit.commit.committer.date'
+# A manual dispatch requires the full SHA the operator expects the selected branch/tag to resolve
+# to. The deploy job fails before checkout unless it exactly matches GitHub's resolved `github.sha`.
+# On 2026-09-18 an unchecked dispatch resolved `main` to a week-old commit and shipped it —
+# successfully, changing nothing visible. See ADS-memory/reports/2026-09-18-deploy-ref-gap.md.
 
 on:
   push:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: "Full commit SHA expected from the selected branch/tag; the deploy fails if it differs"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -117,7 +121,27 @@ jobs:
     needs: jini-published-typecheck
     runs-on: ubuntu-latest
     steps:
+      - name: Verify manual dispatch SHA
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RESOLVED_SHA: ${{ github.sha }}
+        run: |
+          if [[ ! "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error title=Invalid expected SHA::expected_sha must be a full 40-character lowercase commit SHA"
+            exit 1
+          fi
+
+          if [[ "$EXPECTED_SHA" != "$RESOLVED_SHA" ]]; then
+            echo "::error title=Manual deploy SHA mismatch::Selected ref resolved to $RESOLVED_SHA, but the operator expected $EXPECTED_SHA. Nothing was deployed."
+            exit 1
+          fi
+
+          echo "Manual deploy SHA verified: $RESOLVED_SHA"
+
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
 
       - uses: superfly/flyctl-actions/setup-flyctl@v1
 
