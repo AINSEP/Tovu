@@ -13,7 +13,7 @@ import {
   type PublishReportSummary,
 } from "@tovu/publish-content-ui";
 
-import { describeApiError } from "@/lib/api";
+import { describeApiError, type AdminPublishDestinationView } from "@/lib/api";
 
 import type { Translate } from "../../../lib/dictionary-translator";
 import { defaultPublishContentPort } from "./publish-content-dependencies.hooks";
@@ -47,6 +47,17 @@ import type { PublishContentPort } from "./publish-content-port.hooks";
  * gated-hooks.ts`). This half exists so the operator never sees a button that would 409.
  */
 
+/** The empty state's offer to connect — what replaces the old "configure a peer in Settings" dead
+ *  end (`destination.ts`'s header: the connect action lives here, behind Publish, rather than on a
+ *  settings screen the owner has to already know to visit). `message` is the server's own sentence
+ *  (`AdminPublishDestinationView.message`) verbatim, never rewritten here. */
+export interface PublishContentConnectOffer {
+  readonly message: string;
+  /** `null` on a fresh install with nothing deployed yet — the primary button stays disabled until
+   *  there is a candidate to connect to. */
+  readonly candidateUrl: string | null;
+}
+
 /** Everything `PublishContentDialog.tsx` renders. Nothing here is a raw port or a setter — the
  *  component gets finished strings and booleans, not state to interpret. */
 export interface PublishContentConfirmView {
@@ -65,7 +76,10 @@ export interface PublishContentConfirmView {
    *  error, and it gets its own sentence rather than being flattened into one. */
   readonly refusalReason: string | null;
   readonly doneMessage: string | null;
-  readonly noPeersMessage: string | null;
+  /** Set once peers have loaded empty and the destination check has resolved. `null` while peers
+   *  exist, are still loading, or the destination check hasn't resolved yet — see this file's
+   *  connect-offer effect. */
+  readonly connectOffer: PublishContentConnectOffer | null;
 }
 
 const EMPTY_ROWS: readonly PublishReportRow[] = [];
@@ -94,9 +108,20 @@ function messageOf(error: unknown, fallback: string): string {
  * than one interpolated key, because this app's translator is a key lookup with no interpolation
  * (`lib/dictionary-translator.ts`) — the alternative is a key per possible count.
  *
+ * The connect offer takes priority over every phase check below it: while it is present, the same
+ * button IS the connect action (see this file's header note on why one control is reused rather
+ * than adding a second button next to a disabled "Publish").
+ *
  * @complexity O(1).
  */
-function primaryLabelFor(phase: PublishContentPhase, summary: PublishReportSummary | null, t: Translate): string {
+function primaryLabelFor(
+  phase: PublishContentPhase,
+  summary: PublishReportSummary | null,
+  connectOffer: PublishContentConnectOffer | null,
+  connecting: boolean,
+  t: Translate
+): string {
+  if (connectOffer) return connecting ? t("Connecting…") : t("Connect");
   if (phase.kind === "planning") return t("Planning…");
   if (phase.kind === "confirming" || phase.kind === "executing") return t("Publishing…");
   if (phase.kind === "done") return t("Published");
@@ -126,6 +151,14 @@ export function usePublishContentConfirm(props: {
   const [peersLoaded, setPeersLoaded] = useState(false);
   const [selectedPeerId, setSelectedPeerId] = useState<string | null>(null);
   const [peersError, setPeersError] = useState<string | null>(null);
+
+  // The empty state's connect offer — only ever populated when the peer list comes back empty (see
+  // the effect below). `destination` and `destinationError` are mutually exclusive with each other,
+  // same convention as `peers`/`peersError`.
+  const [destination, setDestination] = useState<AdminPublishDestinationView | null>(null);
+  const [destinationLoaded, setDestinationLoaded] = useState(false);
+  const [destinationError, setDestinationError] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -157,6 +190,21 @@ export function usePublishContentConfirm(props: {
         // production peer, and making the operator pick it from a list of one is friction with no
         // decision behind it. With two or more, the dialog asks.
         setSelectedPeerId(loaded.length === 1 ? loaded[0].id : null);
+        // Nothing to publish to yet — check whether this install can offer a one-click connect
+        // instead of failing shut. Sequenced after `listPeers` rather than fired in parallel: the
+        // common case (already connected) never needs this second call at all.
+        if (loaded.length === 0) {
+          try {
+            const view = await port.getDestination();
+            if (cancelled || !live.current) return;
+            setDestination(view);
+          } catch (destinationErr) {
+            if (cancelled || !live.current) return;
+            setDestinationError(messageOf(destinationErr, t("Could not check whether this install can publish yet.")));
+          } finally {
+            if (!cancelled && live.current) setDestinationLoaded(true);
+          }
+        }
       } catch (error) {
         if (cancelled || !live.current) return;
         setPeersError(messageOf(error, t("Could not load publish targets.")));
@@ -173,18 +221,55 @@ export function usePublishContentConfirm(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [port]);
 
-  const requestPlan = useCallback(async () => {
-    if (selectedPeerId === null) return;
-    setPhase({ kind: "planning" });
+  // Takes `peerId` explicitly rather than reading `selectedPeerId` off closure: `onConnect` below
+  // calls this in the same tick it learns the newly-connected peer's id, before that `setState` has
+  // committed, so a closure read here would still see `null`.
+  const requestPlan = useCallback(
+    async (peerId: string) => {
+      setPhase({ kind: "planning" });
+      try {
+        const plan = await port.planPublish({ peerId });
+        if (!live.current) return;
+        setPhase({ kind: "planned", plan });
+      } catch (error) {
+        if (!live.current) return;
+        setPhase({ kind: "failed", message: messageOf(error, t("Could not work out what would be published.")), code: null });
+      }
+    },
+    [port, t]
+  );
+
+  // The connect action behind the empty state — `destination.ts`'s header explains why it lives
+  // here rather than on a settings screen. Success folds the newly connected site straight into
+  // `peers`/`selectedPeerId` and moves on to planning immediately: the operator asked to publish,
+  // not to "connect", so the one extra click stays inside the same flow rather than landing back on
+  // a now-idle dialog they'd have to press Publish on again.
+  const onConnect = useCallback(async () => {
+    if (connecting) return;
+    setConnecting(true);
+    setDestinationError(null);
     try {
-      const plan = await port.planPublish({ peerId: selectedPeerId });
+      const view = await port.connectDestination();
       if (!live.current) return;
-      setPhase({ kind: "planned", plan });
+      if (view.site === null) {
+        // Contract violation, not a user-facing failure mode: `destination.ts`'s `/connect` always
+        // returns a site on success. Guarded rather than assumed so a server regression here shows
+        // up as a sentence instead of a crash.
+        setDestinationError(t("Could not connect."));
+        setConnecting(false);
+        return;
+      }
+      const { site } = view;
+      setPeers([site]);
+      setSelectedPeerId(site.id);
+      setConnecting(false);
+      void requestPlan(site.id);
     } catch (error) {
       if (!live.current) return;
-      setPhase({ kind: "failed", message: messageOf(error, t("Could not work out what would be published.")), code: null });
+      setDestinationError(messageOf(error, t("Could not connect.")));
+      setConnecting(false);
     }
-  }, [port, selectedPeerId, t]);
+  }, [connecting, port, requestPlan, t]);
 
   const confirmPlan = useCallback(async () => {
     if (selectedPeerId === null || phase.kind !== "planned" || !canConfirmPlan(phase)) return;
@@ -237,16 +322,26 @@ export function usePublishContentConfirm(props: {
   const rows = visiblePlan === null ? EMPTY_ROWS : toPublishReportRows(visiblePlan.details);
   const summary = visiblePlan === null ? null : summarizePublishReport(rows);
 
-  const noPeersMessage =
-    peersLoaded && peers.length === 0 && peersError === null
-      ? t("No publish target is configured yet. Add one in Settings first.")
+  // `null` until BOTH the peer list came back empty and the destination check that follows it has
+  // resolved — so the dialog never flashes a stale "add one in Settings" sentence, and never shows
+  // the connect offer a beat before it has anything real to say.
+  const connectOffer: PublishContentConnectOffer | null =
+    peersLoaded && peers.length === 0 && peersError === null && destinationLoaded && destination !== null
+      ? { message: destination.message, candidateUrl: destination.candidateUrl }
       : null;
 
   const canStart = canRequestPlan(phase) && selectedPeerId !== null;
   const onPrimary = useCallback(() => {
-    if (canRequestPlan(phase)) void requestPlan();
-    else void confirmPlan();
-  }, [confirmPlan, phase, requestPlan]);
+    if (connectOffer) {
+      void onConnect();
+      return;
+    }
+    if (canRequestPlan(phase)) {
+      if (selectedPeerId !== null) void requestPlan(selectedPeerId);
+    } else {
+      void confirmPlan();
+    }
+  }, [confirmPlan, connectOffer, onConnect, phase, requestPlan, selectedPeerId]);
 
   return {
     phase,
@@ -255,15 +350,17 @@ export function usePublishContentConfirm(props: {
     onSelectPeer: setSelectedPeerId,
     rows,
     summary,
-    primaryLabel: primaryLabelFor(phase, summary, t),
-    primaryDisabled: !(canStart || canConfirmPlan(phase)),
+    primaryLabel: primaryLabelFor(phase, summary, connectOffer, connecting, t),
+    primaryDisabled: connectOffer
+      ? connecting || connectOffer.candidateUrl === null
+      : !(canStart || canConfirmPlan(phase)),
     onPrimary,
-    errorMessage: peersError ?? (phase.kind === "failed" ? phase.message : null),
+    errorMessage: peersError ?? destinationError ?? (phase.kind === "failed" ? phase.message : null),
     refusalReason: phase.kind === "planned" && phase.plan.details.refused ? phase.plan.details.refusalReason : null,
     doneMessage:
       phase.kind === "done"
         ? `${t("Published")} ${phase.result.changeSetIds.length} ${phase.result.changeSetIds.length === 1 ? t("change") : t("changes")}.`
         : null,
-    noPeersMessage,
+    connectOffer,
   };
 }

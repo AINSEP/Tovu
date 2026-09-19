@@ -18,6 +18,12 @@ function publishContentPeerPath(peerId: string): string {
   return `/workspaces/${WORKSPACE_ID}/publish-content/peers/${encodeURIComponent(peerId)}`;
 }
 
+/** The zero-setup connect action's own path — a workspace-scoped singleton, not peer-scoped, since
+ *  there is nothing to name until it exists (`routes/publish-content/destination.ts`). */
+function publishContentDestinationPath(): string {
+  return `/workspaces/${WORKSPACE_ID}/publish-content/destination`;
+}
+
 export interface AdminUser {
   id: string;
   username: string;
@@ -932,6 +938,23 @@ export interface AdminDeploymentsSnapshot {
   targets: AdminDeploymentTarget[];
   releases: AdminDeploymentRelease[];
   runs: AdminDeploymentRun[];
+}
+
+/** Mirrors `PublishDestinationView` in `src/server/inbound/admin-http/routes/publish-content/
+ *  destination.ts` — the zero-setup connect action's own response shape. Defined here rather than
+ *  re-exported from `@tovu/publish-content-ui` because the destination flow is admin-only: unlike
+ *  the plan/confirm/execute contract, no peer-side code shares this shape. */
+export interface AdminPublishDestinationView {
+  /** `true` once this computer's grant has been written for a site. */
+  connected: boolean;
+  /** The connected site, as the publish list already models it. `null` when there is none. */
+  site: PublishContentPeerSummary | null;
+  /** Read out of the repo's deploy config — what to offer when nothing is connected yet. */
+  candidateUrl: string | null;
+  /** One sentence describing where things stand. */
+  message: string;
+  /** One sentence naming what the owner does next, or `null` when nothing is pending. */
+  nextStep: string | null;
 }
 
 /**
@@ -4015,6 +4038,19 @@ export const api = {
   // else credential-shaped (Task 10 owns the sealing).
   listPublishContentPeers: () =>
     request<{ peers: PublishContentPeerSummary[] }>(`/workspaces/${WORKSPACE_ID}/publish-content/peers`),
+  /** Zero-setup connect — reads whether this install already publishes somewhere, and if not, the
+   *  candidate pre-filled from the repo's own deploy config
+   *  (`routes/publish-content/destination.ts`). Nothing credential-shaped is ever in this response:
+   *  see that route's own header for why. */
+  getPublishDestination: () => request<AdminPublishDestinationView>(publishContentDestinationPath()),
+  /** The one action that turns a fresh install into a connected one — no key is minted, displayed
+   *  or copied. `siteUrl` is optional; omitted, the server falls back to its own candidate, which is
+   *  the only path the Dashboard's empty-state offer uses. */
+  connectPublishDestination: (input: { siteUrl?: string } = {}) =>
+    request<AdminPublishDestinationView>(`${publishContentDestinationPath()}/connect`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
   planPublishContent: ({ peerId }: { peerId: string }) =>
     request<PublishContentPlanResult>(`${publishContentPeerPath(peerId)}/push/plan`, { method: "POST" }),
   confirmPublishContent: (

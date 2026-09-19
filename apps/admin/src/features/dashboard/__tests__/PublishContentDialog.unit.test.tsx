@@ -224,12 +224,68 @@ describe("PublishContentDialog — the rest of the surface", () => {
     expect(screen.queryByText(/Not available yet/)).toBeNull();
   });
 
-  it("cannot plan at all with no peer configured, and says what to do", async () => {
+  it("offers no connect action and stays disabled when nothing is deployed to connect to", async () => {
+    // The fake's default `getDestination()` result (no `destination` override) is the honest-floor
+    // response: a fresh install that has never deployed, so there is no candidate to pre-fill.
     const port = createFakePublishContentPort({ peers: [] });
     renderDialog(port);
 
-    await screen.findByText("No publish target is configured yet. Add one in Settings first.");
+    await screen.findByText("No live site is set up yet. Deploy this site once, then come back here.");
     expect(primaryButton().disabled).toBe(true);
+    expect(primaryButton().textContent).toBe("Connect");
+    expect(port.calls.planPublish).toHaveLength(0);
+    expect(port.calls.connectDestination).toHaveLength(0);
+  });
+
+  it("offers a one-click connect, pre-filled from deploy config, when nothing is configured yet", async () => {
+    const port = createFakePublishContentPort({
+      peers: [],
+      destination: {
+        connected: false,
+        site: null,
+        candidateUrl: "https://tovu.dev",
+        message: "Publish to tovu.dev?",
+        nextStep: null,
+      },
+      report: MIXED_REPORT,
+    });
+    const user = userEvent.setup();
+    renderDialog(port);
+
+    await screen.findByText("Publish to tovu.dev?");
+    expect(primaryButton().disabled).toBe(false);
+    expect(primaryButton().textContent).toBe("Connect");
+
+    await user.click(primaryButton());
+    await waitFor(() => expect(port.calls.connectDestination).toHaveLength(1));
+
+    // Connecting folds straight into planning against the newly connected peer — no second click to
+    // "confirm" the connection itself, and no separate settings screen involved anywhere.
+    await screen.findByRole("table");
+    expect(port.calls.planPublish).toEqual([{ peerId: "peer-connected" }]);
+  });
+
+  it("reports a failed connect without stranding the dialog, and lets the operator retry", async () => {
+    const port = createFakePublishContentPort({
+      peers: [],
+      destination: {
+        connected: false,
+        site: null,
+        candidateUrl: "https://tovu.dev",
+        message: "Publish to tovu.dev?",
+        nextStep: null,
+      },
+      connectError: new Error("could not reach tovu.dev"),
+    });
+    const user = userEvent.setup();
+    renderDialog(port);
+
+    await screen.findByText("Publish to tovu.dev?");
+    await user.click(primaryButton());
+
+    await screen.findByText("could not reach tovu.dev");
+    expect(primaryButton().disabled).toBe(false);
+    expect(primaryButton().textContent).toBe("Connect");
     expect(port.calls.planPublish).toHaveLength(0);
   });
 

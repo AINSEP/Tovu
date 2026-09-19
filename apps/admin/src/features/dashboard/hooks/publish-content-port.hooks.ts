@@ -5,6 +5,8 @@ import type {
   PublishContentPlanResult,
 } from "@tovu/publish-content-ui";
 
+import type { AdminPublishDestinationView } from "@/lib/api";
+
 /**
  * @file What `use-publish-content-confirm.hooks.ts` needs from the outside world, as an interface
  * rather than a direct `lib/api` import.
@@ -30,6 +32,20 @@ import type {
 export interface PublishContentPort {
   /** `publish_content.read`. */
   listPeers(): Promise<{ peers: readonly PublishContentPeerSummary[] }>;
+  /**
+   * `publish_content.apply`. Reads whether this install already has a connected destination, and if
+   * not, the candidate pre-filled from the repo's own deploy config. The dialog calls this only when
+   * {@link listPeers} came back empty — see `use-publish-content-confirm.hooks.ts`'s `connectOffer`
+   * and `destination.ts`'s header for why the empty state offers connecting instead of failing shut.
+   */
+  getDestination(): Promise<AdminPublishDestinationView>;
+  /**
+   * `publish_content.apply`. The one action that turns a fresh install into a connected one — no key
+   * is ever minted, displayed or copied (`ADS-memory/reports/
+   * 2026-09-19-publish-zero-setup-auth-design.md`). `siteUrl` is optional; omitted, the server uses
+   * its own candidate, which is the only path the dialog's connect action takes.
+   */
+  connectDestination(input?: { siteUrl?: string }): Promise<AdminPublishDestinationView>;
   /** `publish_content.read` — pure planning, zero writes (`features/publish-content/planner.ts`). */
   planPublish(input: { peerId: string }): Promise<PublishContentPlanResult>;
   /** `publish_content.apply`. Issues the one token that authorizes an execute. */

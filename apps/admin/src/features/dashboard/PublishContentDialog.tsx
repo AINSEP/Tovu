@@ -38,6 +38,15 @@ import type { PublishContentPort } from "./hooks/publish-content-port.hooks";
  * skip content without the operator noticing, so the interrupting action is still never the one
  * Enter fires by accident, matching every other confirm dialog's own reasoning even though this one
  * isn't destructive.
+ *
+ * ## The empty state is the connect action, not a dead end
+ *
+ * When `view.connectOffer` is set (no peer configured yet), the SAME primary button below becomes
+ * the connect action rather than a second button appearing next to a disabled "Publish" — one
+ * visible control, whatever the dialog's current job is. `view.connectOffer.message` is the
+ * server's own sentence (`routes/publish-content/destination.ts`), rendered verbatim: it already
+ * names the pre-filled candidate site, so this file adds no copy of its own about what connecting
+ * means. See that route's header for why this dialog is where the action lives at all.
  */
 
 /** Maps a row's disposition to the `.status-*` pill `styles.css` already defines, so the table
@@ -111,7 +120,7 @@ export function PublishContentDialog({ onCancel, t, port }: PublishContentDialog
           </p>
         )}
 
-        {view.noPeersMessage && <p className="notice">{view.noPeersMessage}</p>}
+        {view.connectOffer && <p className="notice">{view.connectOffer.message}</p>}
         {view.refusalReason && (
           <p className="notice error" role="alert">
             {view.refusalReason}
@@ -185,7 +194,11 @@ export function PublishContentDialog({ onCancel, t, port }: PublishContentDialog
             onClick={view.onPrimary}
             {...agentHandle("dashboard-publish-content-confirm", {
               role: "button",
-              label: "Review what would be published, then publish it to the live site",
+              // Same control, different job: while `connectOffer` is set this button connects the
+              // pre-filled site instead of reviewing a plan — see this file's header.
+              label: view.connectOffer
+                ? "Connect this site so it can publish, using the pre-filled site address"
+                : "Review what would be published, then publish it to the live site",
             })}
           >
             {view.primaryLabel}
