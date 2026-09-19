@@ -2,11 +2,11 @@ import type { NextFunction, Request, Response } from "express";
 
 import {
   grantAllowsCapability,
-  isGrantActive,
   isPublishTrustRoute,
   type PublishingCapability,
 } from "#src/features/publish-trust/grant";
 import { findGrantForSource, type PublishTrustResolution } from "#src/features/publish-trust/provisioning";
+import { admitPublish, type RevocationRead } from "#src/features/publish-trust/revocations";
 import { publishPrincipalIdFor } from "#src/features/publish-trust/keys";
 import { verifyPublishSession } from "#src/features/publish-trust/session";
 import type { GatewayDeps } from "#src/contracts/core/gated-mutations/gateway";
@@ -38,13 +38,23 @@ import type { KeyringPort } from "#src/features/webhooks/index";
  *    `content.write` (and `grant.ts` refuses a grant naming it *at parse*), so no grant can
  *    express the permission an ordinary content mutation checks.
  *
- * ## Why the grant is re-read on every request
+ * ## Why both stores are re-read on every request
  *
  * The token already carries its capabilities, authenticated by the MAC, so re-reading the grant is
  * not needed to trust them. It is done anyway, and the result INTERSECTED with the token's, so
  * dropping the grant from the destination's config revokes publishing immediately rather than at
  * the end of the current session's lifetime. Revocation that takes effect now is worth one
  * in-memory read per request.
+ *
+ * The DENY store (`revocations.ts`) is read here for the same reason and a sharper one: it is
+ * written by this very process while requests are being admitted against it, so caching it would
+ * mean the owner's disconnect took effect at the next restart rather than at the next request —
+ * which is the entire property that store exists to provide. It costs one small file read per
+ * publishing request, and only on requests that already carry a verified publishing token.
+ *
+ * Which store wins is NOT decided here. Both are handed to `revocations.ts`'s `admitPublish`,
+ * which owns the rule that deny outranks grant and refuses before it looks at the grant at all.
+ * Splitting that ordering across two files is how it drifts.
  */
 
 /** What a resolved publishing credential may do on this request. Attached to `res.locals` and read
@@ -68,6 +78,15 @@ export interface PublishTrustContext {
  *  empty state — closes this gate completely rather than erroring. */
 export type PublishTrustGrantSource = () => Promise<PublishTrustResolution>;
 
+/** Where the destination's DISCONNECTED computers come from.
+ *
+ *  Read-only on purpose: the gate is given `list` alone and never the `PublishTrustRevocationPort`
+ *  that can also `revoke` and `restore`, so no request path can write to the store it is judged
+ *  against. An unreadable store must arrive here as `{ ok: false }` rather than as a thrown error —
+ *  a throw on this path is a 500 where a 401 belongs, and `admitPublish` reads the failure as
+ *  "refuse everyone", which is the safe direction for a list whose job is to say no. */
+export type PublishTrustRevocationSource = () => Promise<RevocationRead>;
+
 /** Everything the gate needs. `targetInstallationId` is this install's OWN derived id — the
  *  audience every token must name — resolved once at composition rather than per request. */
 export interface PublishTrustAuthDeps {
@@ -76,6 +95,7 @@ export interface PublishTrustAuthDeps {
   readonly clock: { nowIso(): string };
   readonly targetInstallationId: Promise<string>;
   readonly grants: PublishTrustGrantSource;
+  readonly revocations: PublishTrustRevocationSource;
 }
 
 /** `Bearer <token>` / `ApiKey <token>`, matching `dev-auth.ts`'s own spelling so the two gates read
@@ -137,6 +157,43 @@ export function publishTrustAuthorizeFor(context: PublishTrustContext): PublishT
   };
 }
 
+/** The site name `admitPublish`'s refusal sentences read back to a person.
+ *
+ *  A placeholder here, and deliberately so: this gate answers EVERY refusal with the same flat 401
+ *  ({@link UNAUTHENTICATED_BODY}), because "disconnected", "expired" and "never connected" must not
+ *  be distinguishable to a caller who is holding a token. So no sentence `admitPublish` builds is
+ *  ever rendered on this path; they exist for the source-side and admin surfaces, which know the
+ *  real site name and are talking to someone entitled to the difference. */
+const REFUSAL_SITE_LABEL = "this site";
+
+/**
+ * The public key the token's generation currently stands for, or `""` when the grant no longer
+ * names that generation.
+ *
+ * A session token carries its GENERATION and never a key — `session.ts` keeps key material out of
+ * the credential on purpose — while `admitPublish` asks about a key. The grant is the only place
+ * the destination holds one, so the generation is resolved against it.
+ *
+ * `""` is a safe "no key": `grant.ts` requires every `publicKeyB64u` to be a non-empty string, so an
+ * empty value can never equal a provisioned key and `admitPublish` refuses it as `superseded-key` —
+ * the state a rotation that bumped the generation leaves an already-minted token in.
+ *
+ * What this does NOT re-prove: when the grant does name the generation, the key matches by
+ * construction, because the key came from the grant. Possession of the matching private half was
+ * proved once, at mint, against this same grant (`challenge.ts`); the question still worth asking
+ * per request is whether the grant names that generation at all.
+ *
+ * @complexity O(n) in the grant's key count, bounded at 4 by `grant.ts`.
+ */
+function acceptedKeyFor(
+  resolution: PublishTrustResolution,
+  sourceInstallationId: string,
+  generation: number
+): string {
+  const grant = findGrantForSource(resolution, sourceInstallationId);
+  return grant?.publicKeys.find((key) => key.generation === generation)?.publicKeyB64u ?? "";
+}
+
 /**
  * Express middleware factory: resolve a publishing session token, or leave the request untouched.
  *
@@ -150,13 +207,17 @@ export function publishTrustAuthorizeFor(context: PublishTrustContext): PublishT
  *   NOT fall through: a publishing credential must never be ambient on a request it cannot
  *   authorize, and letting it continue would leave the outcome to whatever else happened to be on
  *   the request (a colleague's cookie on a shared browser, say).
- * - **A verified token on a publish-trust route, matching an active grant** → the context and a
- *   synthetic principal are attached, and `requireAdminSession` steps aside.
+ * - **A verified token on a publish-trust route, admitted by {@link admitPublish}** → the context
+ *   and a synthetic principal are attached, and `requireAdminSession` steps aside. A token the
+ *   owner has since disconnected is refused here, one request after the click — the token itself
+ *   stays cryptographically valid, and that is exactly why the check cannot live at mint.
  *
  * Nothing here throws on malformed input: `verifyPublishSession` is fail-closed by contract, and a
  * 500 where a 401 belongs would be an oracle for whether a token parsed.
  *
- * @complexity O(1) per request — one header parse, one HKDF, one HMAC, one grant read.
+ * @complexity O(1) per request — one header parse, one HKDF, one HMAC, one in-memory grant read,
+ *   and one small file read for the deny store. Only requests carrying a parseable bearer token
+ *   reach the HKDF; only those carrying a VERIFIED publishing token reach the two store reads.
  */
 export function requirePublishTrust(deps: PublishTrustAuthDeps) {
   return async function requirePublishTrustMiddleware(
@@ -187,13 +248,38 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
       return;
     }
 
-    // Looked up by the source the TOKEN names, so an install that holds grants for several
-    // publishers answers each one from its own grant and never from a neighbour's.
-    const grant = findGrantForSource(await deps.grants(), verified.payload.sourceInstallationId);
-    if (!grant || !isGrantActive(grant, deps.clock.nowIso())) {
+    // Both stores, then ONE question. Everything is looked up by the source the TOKEN names, so an
+    // install that holds grants for several publishers answers each one from its own grant and
+    // never from a neighbour's.
+    //
+    // Neither read throws: the grant resolver reports a failure as an `invalid` resolution, and the
+    // revocation source reports an unreadable file as `ok: false`. Both arrive at `admitPublish` as
+    // "no", so a broken store is a 401 here and never a 500 — a 500 would be an oracle for whether
+    // a token parsed, and for the deny store it would also be a bypass if it were caught wrongly.
+    //
+    // The two reads happen before the decision, but they do not MAKE it: `admitPublish` refuses a
+    // disconnected computer before it consults the grant at all, which is what keeps "disconnect
+    // works even while the grant config is broken" true. Resolving the grant early is inert.
+    const revocations = await deps.revocations();
+    const resolution = await deps.grants();
+
+    const admission = admitPublish({
+      resolution,
+      revocations: revocations.ok ? revocations.revocations : null,
+      sourceInstallationId: verified.payload.sourceInstallationId,
+      publicKeyB64u: acceptedKeyFor(
+        resolution,
+        verified.payload.sourceInstallationId,
+        verified.payload.generation
+      ),
+      siteLabel: REFUSAL_SITE_LABEL,
+      nowIso: deps.clock.nowIso(),
+    });
+    if (!admission.allowed) {
       res.status(401).json(UNAUTHENTICATED_BODY);
       return;
     }
+    const grant = admission.grant;
 
     // Intersection, not the token's own list — see this file's "Why the grant is re-read" note.
     const capabilities = verified.payload.capabilities.filter((capability) =>

@@ -5,6 +5,10 @@ import { registerPublishTrustHandshakeRoutes } from "#src/server/inbound/public-
 import { InMemoryPublishChallengeStore } from "#src/features/publish-trust/challenge";
 import { deriveInstallationId } from "#src/features/publish-trust/keys";
 import { createPublishTrustGrantResolver } from "../publish-trust-grants.js";
+import {
+  createPublishTrustRevocationReader,
+  createPublishTrustRevocations,
+} from "../publish-trust-revocations.js";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -44,6 +48,10 @@ export function createCoreModule(deps: RouteDeps): ServerModuleHandle {
   });
   const challengeStore = new InMemoryPublishChallengeStore(deps.clock);
   const grants = createPublishTrustGrantResolver();
+  // The other half of the admission question. Built once (the path cannot move under a running
+  // process) but READ on every publishing request, because the owner disconnecting a computer has
+  // to bite on the next request rather than the next restart.
+  const revocationStore = createPublishTrustRevocations();
 
   return {
     name: "core",
@@ -81,6 +89,9 @@ export function createCoreModule(deps: RouteDeps): ServerModuleHandle {
         clock: deps.clock,
         targetInstallationId,
         grants,
+        // `list` alone: the gate must never hold a handle that can edit the deny list it is judged
+        // against, and an unreadable list has to reach it as a refusal rather than as a throw.
+        revocations: createPublishTrustRevocationReader(revocationStore),
       }));
       app.use("/api/admin", requireAdminSession(deps));
     },
