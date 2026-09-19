@@ -72,3 +72,25 @@ export function canConfirmPlan(phase: PublishContentPhase): boolean {
   if (phase.plan.details.refused) return false;
   return summarizePublishReport(toPublishReportRows(phase.plan.details)).publishing > 0;
 }
+
+/**
+ * The plan the operator is currently looking at, if any.
+ *
+ * Every phase from `planned` through `executing` renders the same report table — the rows do not
+ * disappear while a confirm or an execute is in flight, which is the whole point of showing them.
+ * `planning` deliberately returns `null`: it has no plan yet, and a caller that assumed otherwise is
+ * the bug this function exists to make impossible.
+ *
+ * @complexity O(1).
+ */
+export function planOnScreen(phase: PublishContentPhase): PublishContentPlanResult | null {
+  switch (phase.kind) {
+    case "planned":
+    case "confirming":
+    case "confirmed":
+    case "executing":
+      return phase.plan;
+    default:
+      return null;
+  }
+}

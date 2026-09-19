@@ -167,11 +167,11 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
       </div>
 
       {isPublishDialogOpen ? (
-        // `onConfirm` is unreachable today — the dialog's own Confirm button is `disabled` until
-        // the publish API exists (see `PublishContentDialog.tsx`'s TODO). Left as a no-op rather
-        // than `closePublishDialog` so wiring the real call in later doesn't inherit a handler
-        // that silently just closes the dialog without publishing anything.
-        <PublishContentDialog onConfirm={() => {}} onCancel={closePublishDialog} t={t} />
+        // No `onConfirm` prop any more: the dialog owns the whole plan -> confirm -> execute
+        // ceremony itself (Task 11), and a confirm handler up here could only ever be a second,
+        // weaker copy of the guard that already decides when a publish may fire. Closing stays the
+        // Dashboard's to own, since it owns `isPublishDialogOpen`.
+        <PublishContentDialog onCancel={closePublishDialog} t={t} />
       ) : null}
 
       <div className="dash-stats">

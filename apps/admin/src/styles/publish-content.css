@@ -1,0 +1,67 @@
+/**
+ * `PublishContentDialog.tsx` — the publish report table and the dialog width it needs.
+ *
+ * Every colour, radius and spacing value below is an existing token from `styles.css`
+ * (`--surface*`, `--border`, `--muted`, `--warning`, `--space-*`, `--text-*`), so the table
+ * inherits light and dark mode from the same place the rest of the app does and this file declares
+ * no palette of its own.
+ *
+ * The width override follows `external-mcp-tool-picker.css`'s precedent for widening the shared
+ * `.settings-dialog` (26rem by default, which is right for a two-sentence confirm and far too narrow
+ * for a four-column report): `width` AND `max-width`, because `.settings-dialog-backdrop` is
+ * `display: grid; place-items: center` and a `max-width` alone leaves the dialog shrink-wrapped to
+ * its text. Applied via `.publish-content-dialog`, which the component only adds once a report
+ * exists — the dialog opens at its normal confirm-dialog width and widens when there is a table to
+ * hold.
+ */
+
+.settings-dialog.publish-content-dialog {
+  width: min(48rem, 92vw);
+  max-width: min(48rem, 92vw);
+}
+
+/* The report can be long (a first publish plans every post, page and media row on the site), so it
+   scrolls inside the dialog rather than growing the dialog past the viewport and stranding the
+   Cancel/Publish buttons below the fold. */
+.publish-content-report {
+  max-height: min(24rem, 45vh);
+  overflow-y: auto;
+  border-radius: var(--r-lg);
+}
+
+/* Entity ids are opaque uuids; a monospace column makes them scannable and stops one long id
+   stretching the column past its share of the table. */
+.publish-content-report td:nth-child(2) {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  word-break: break-all;
+}
+
+/* The reason column carries the only text in this dialog an operator has to actually read — a
+   skipped row's explanation — so it gets the room, and wraps rather than truncating. */
+.publish-content-reason {
+  white-space: normal;
+  max-width: 22rem;
+}
+
+/* A skipped row is the one thing the operator must not scroll past. A left rail in the existing
+   warning token marks it without recolouring the whole row, which would fight the `.status-warning`
+   pill already in its own cell. */
+.publish-content-report tbody tr[data-publish-disposition="skipped"] td:first-child {
+  box-shadow: inset 2px 0 0 var(--warning);
+}
+
+.publish-content-report tbody tr[data-publish-disposition="unchanged"] td {
+  color: var(--muted);
+}
+
+.publish-content-summary {
+  margin: 0;
+  font-size: var(--text-2xs);
+}
+
+.publish-content-target {
+  margin: 0;
+  font-size: var(--text-sm);
+}

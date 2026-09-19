@@ -1,3 +1,10 @@
+import type {
+  PublishContentConfirmResult,
+  PublishContentExecuteResult,
+  PublishContentPeerSummary,
+  PublishContentPlanResult,
+} from "@tovu/publish-content-ui";
+
 import { isPageUnloading } from "./page-lifecycle";
 import { siteUrl } from "./site-url";
 
@@ -3990,4 +3997,37 @@ export const api = {
   /** Full Site tab (`src/server/routes/admin/deployments/list.ts`) — read-only snapshot of the
    *  `deployments` domain's environments/targets/releases/runs. `deployments.read`-gated. */
   getDeployments: () => request<AdminDeploymentsSnapshot>(`/workspaces/${WORKSPACE_ID}/deployments`),
+
+  // Publish Content — the plan/confirm/execute ceremony behind the Dashboard's "Publish Content"
+  // button (`ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 11).
+  // Same 3-endpoint gated-mutation shape as `planMergeTerm`/`planRestore` above; the result types
+  // come from `@tovu/publish-content-ui` so this client and the server's own planner cannot hold
+  // two drifting copies of the report shape.
+  //
+  // Every call names a PEER by id. A raw peer URL or credential is never sent from the browser and
+  // never returned to it — `PublishContentPeerSummary` carries `masked`/`hasCredential` and nothing
+  // else credential-shaped (Task 10 owns the sealing).
+  listPublishContentPeers: () =>
+    request<{ peers: PublishContentPeerSummary[] }>(`/workspaces/${WORKSPACE_ID}/publish-content/peers`),
+  planPublishContent: ({ peerId }: { peerId: string }) =>
+    request<PublishContentPlanResult>(`/workspaces/${WORKSPACE_ID}/publish-content/push/plan`, {
+      method: "POST",
+      body: JSON.stringify({ peerId }),
+    }),
+  confirmPublishContent: (
+    { peerId, planId, planHash }: { peerId: string; planId: string; planHash: string },
+    _options: Record<string, never> = {}
+  ) =>
+    request<PublishContentConfirmResult>(`/workspaces/${WORKSPACE_ID}/publish-content/push/confirm`, {
+      method: "POST",
+      body: JSON.stringify({ peerId, planId, planHash }),
+    }),
+  executePublishContent: (
+    { peerId, confirmationToken }: { peerId: string; confirmationToken: string },
+    _options: Record<string, never> = {}
+  ) =>
+    request<PublishContentExecuteResult>(`/workspaces/${WORKSPACE_ID}/publish-content/push/execute`, {
+      method: "POST",
+      body: JSON.stringify({ peerId, confirmationToken }),
+    }),
 };

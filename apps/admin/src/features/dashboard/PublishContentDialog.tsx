@@ -2,57 +2,69 @@ import { agentHandle } from "@jini-ai/agentic";
 
 import type { Translate } from "../../lib/dictionary-translator";
 import { usePublishContentConfirm } from "./hooks/use-publish-content-confirm.hooks";
+import type { PublishContentPort } from "./hooks/publish-content-port.hooks";
 
 /**
- * @file The "Publish Content" confirm dialog opened from the Dashboard's new header button.
+ * @file The "Publish Content" dialog opened from the Dashboard's header button, and the whole
+ * plan -> report -> confirm -> execute ceremony behind it
+ * (`ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 11).
  *
  * Its job is educational, not just a yes/no gate: the owner's stated worry is operators deploying
  * the site, seeing no change, and not understanding that a deploy ships CODE while this dialog's
  * action ships CONTENT — two different things this app has never distinguished for anyone before.
  * The body copy says that explicitly rather than assuming it's obvious.
  *
- * TODO(publish): there is no publish API yet — `AGENT_PLUGIN_SET_ENABLED`-style backend route,
- * agent tool, none of it exists. Confirm is wired to nothing but is left VISIBLE and disabled
- * (rather than hidden, or the button omitted) so the owner can react to the copy and the flow
- * before any backend work starts. Wire `onConfirm` to the real call once that route exists, and
- * drop the `notice.warning` block below at the same time.
+ * ## The report table is the safety feature, not a progress indicator
+ *
+ * A publish never overwrites something edited on the far side; it reports it and moves on
+ * (`features/publish-content/planner.ts`'s seven outcomes). That promise is only worth anything if
+ * the operator can SEE which entities were skipped and why before committing — so the plan step runs
+ * first, renders one row per entity with its reason, and only then offers a button that writes. A
+ * skipped row carries no control that could publish it: exclusion is by construction, not by an
+ * unchecked box (see `@tovu/publish-content-ui`'s `report-rows.ts` for why there is no per-row
+ * opt-in in v1).
+ *
+ * Every decision this file renders comes from `hooks/use-publish-content-confirm.hooks.ts`, and
+ * every rule the hook applies comes from `@tovu/publish-content-ui` — the same module the server's
+ * own planner semantics are pinned against. This component contains no publish logic at all.
  *
  * Markup, classes (`settings-dialog`/`settings-dialog-backdrop`, `btn-secondary`/`btn-primary`),
  * and behaviour (Escape-to-cancel via the paired hook, Cancel default-focused) mirror
- * `features/plugins/AgentPluginDisableConfirmDialog.tsx` — the most recent precedent for this
- * shape of dialog in this app. Confirm is `.btn-primary` here, not `.btn-danger`: publishing isn't
+ * `features/plugins/AgentPluginDisableConfirmDialog.tsx` — the most recent precedent for this shape
+ * of dialog in this app. Confirm is `.btn-primary` here, not `.btn-danger`: publishing isn't
  * destructive the way removing a plugin or an OAuth connection is, it's the app's one deliberate
  * primary action, so it gets the same burnt-orange fill `.btn-primary` already renders everywhere
- * else (see that class in `styles.css`) rather than borrowing the danger dialog's red. Cancel stays
- * the default-focused control anyway: publishing touches the live site and can skip content
- * without the operator noticing, so the interrupting action is still never the one Enter fires by
- * accident, matching every other confirm dialog's own reasoning even though this one isn't
- * destructive.
+ * else. Cancel stays the default-focused control anyway: publishing touches the live site and can
+ * skip content without the operator noticing, so the interrupting action is still never the one
+ * Enter fires by accident, matching every other confirm dialog's own reasoning even though this one
+ * isn't destructive.
  */
 
+/** Maps a row's disposition to the `.status-*` pill `styles.css` already defines, so the table
+ *  reads the same as every other status column in the app in both themes. */
+const DISPOSITION_PILL_CLASS = {
+  publish: "status status-active",
+  unchanged: "status status-draft",
+  skipped: "status status-warning",
+} as const;
+
 export interface PublishContentDialogProps {
-  onConfirm: () => void;
   onCancel: () => void;
   /** The screen's own bound translator, threaded down rather than resolved again here — same
    *  convention `AgentPluginDisableConfirmDialog` uses for its own `t`. */
   t: Translate;
-  /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
-  usePublishContentConfirmHook?: typeof usePublishContentConfirm;
+  /** Dependency injection seam for tests — see `hooks/publish-content-port.hooks.ts`. */
+  port?: PublishContentPort;
 }
 
-export function PublishContentDialog({
-  onConfirm,
-  onCancel,
-  t,
-  usePublishContentConfirmHook = usePublishContentConfirm,
-}: PublishContentDialogProps) {
-  usePublishContentConfirmHook({ onCancel });
+export function PublishContentDialog({ onCancel, t, port }: PublishContentDialogProps) {
+  const view = usePublishContentConfirm({ onCancel, t, port });
   const titleId = "dashboard-publish-content-confirm-title";
 
   return (
     <div className="settings-dialog-backdrop" onClick={onCancel}>
       <div
-        className="settings-dialog"
+        className={`settings-dialog${view.rows.length > 0 ? " publish-content-dialog" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -70,9 +82,87 @@ export function PublishContentDialog({
             "Anything edited directly on the live site is skipped, not overwritten. You'll see what got skipped afterward.",
           )}
         </p>
-        <p className="notice warning" role="note">
-          {t("Not available yet. Publishing isn't built — this button doesn't send anything.")}
-        </p>
+
+        {view.peers.length > 1 && (
+          <label className="field">
+            <span>{t("Publish to")}</span>
+            <select
+              value={view.selectedPeerId ?? ""}
+              onChange={(e) => view.onSelectPeer(e.target.value)}
+              {...agentHandle("dashboard-publish-content-peer", {
+                // `AgentElementRole` has no `select` member — a `<select>` is a `field` in that
+                // vocabulary, same as every other value-carrying control.
+                role: "field",
+                label: "Which site to publish this content to",
+              })}
+            >
+              <option value="">{t("Choose a site…")}</option>
+              {view.peers.map((peer) => (
+                <option key={peer.id} value={peer.id}>
+                  {peer.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {view.peers.length === 1 && (
+          <p className="muted publish-content-target">
+            {t("Publishing to")} <strong>{view.peers[0].label}</strong>
+          </p>
+        )}
+
+        {view.noPeersMessage && <p className="notice">{view.noPeersMessage}</p>}
+        {view.refusalReason && (
+          <p className="notice error" role="alert">
+            {view.refusalReason}
+          </p>
+        )}
+        {view.errorMessage && (
+          <p className="notice error" role="alert">
+            {view.errorMessage}
+          </p>
+        )}
+        {view.doneMessage && (
+          <p className="notice" role="status">
+            {view.doneMessage}
+          </p>
+        )}
+
+        {view.rows.length > 0 && (
+          <>
+            <div className="table-scroll publish-content-report">
+              <table className="list-table">
+                <thead>
+                  <tr>
+                    <th>{t("Type")}</th>
+                    <th>{t("Entity")}</th>
+                    <th>{t("What happens")}</th>
+                    <th>{t("Why")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {view.rows.map((row) => (
+                    <tr key={row.key} data-entity-id={row.entityId} data-publish-disposition={row.disposition}>
+                      <td>{row.entityType}</td>
+                      <td>{row.entityId}</td>
+                      <td>
+                        <span className={DISPOSITION_PILL_CLASS[row.disposition]}>{row.dispositionLabel}</span>
+                      </td>
+                      <td className="publish-content-reason">{row.reason ?? ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {view.summary && (
+              <p className="muted publish-content-summary">
+                {view.summary.publishing} {t("to publish")} · {view.summary.unchanged} {t("unchanged")} ·{" "}
+                {view.summary.skipped} {t("skipped")}
+              </p>
+            )}
+          </>
+        )}
+
         <span className="editor-actions">
           {/* Cancel is the default-focused control — see this file's header for why, even though
               this dialog isn't destructive. */}
@@ -91,14 +181,14 @@ export function PublishContentDialog({
           <button
             type="button"
             className="btn-primary"
-            disabled
-            onClick={onConfirm}
+            disabled={view.primaryDisabled}
+            onClick={view.onPrimary}
             {...agentHandle("dashboard-publish-content-confirm", {
               role: "button",
-              label: "Publish content to the live site — not available yet",
+              label: "Review what would be published, then publish it to the live site",
             })}
           >
-            {t("Publish Content")}
+            {view.primaryLabel}
           </button>
         </span>
       </div>

@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PublishContentPlanResult, PublishContentReport } from "../contract.js";
-import { canConfirmPlan, canRequestPlan, confirmationTokenFor, type PublishContentPhase } from "../phase.js";
+import { canConfirmPlan, canRequestPlan, confirmationTokenFor, planOnScreen, type PublishContentPhase } from "../phase.js";
 
 const OK_REPORT: PublishContentReport = {
   refused: false,
@@ -80,4 +80,11 @@ test("confirming is only ever reachable from a planned phase", () => {
 test("a plan can be requested from idle or after a failure, never mid-ceremony", () => {
   const plannable = EVERY_PHASE.filter(canRequestPlan).map((phase) => phase.kind);
   assert.deepEqual(plannable, ["idle", "failed"]);
+});
+
+test("the plan on screen survives confirm and execute, and does not exist before one", () => {
+  const withPlan = EVERY_PHASE.filter((phase) => planOnScreen(phase) !== null).map((phase) => phase.kind);
+  assert.deepEqual(withPlan, ["planned", "confirming", "confirmed", "executing"]);
+  assert.equal(planOnScreen({ kind: "planning" }), null);
+  assert.equal(planOnScreen({ kind: "confirmed", plan: PLAN, confirmationToken: "tok-1" }), PLAN);
 });

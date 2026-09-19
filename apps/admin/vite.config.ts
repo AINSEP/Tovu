@@ -142,6 +142,15 @@ export default defineConfig({
       // apiVersion-aware path facts the server route uses — 2026-08-19 architecture audit findings
       // 1 & 2, "one shared resolver, not six independent copies that can drift."
       "@tovu/theme-layout": path.resolve(__dirname, "../website/src/features/theme/theme-layout.ts"),
+      // Third instance of the same cross-runtime pattern, for the Publish Content dialog's report
+      // semantics (`features/publish-content/ui/`). That folder is pure TypeScript with no React and
+      // no `node:*` — enforced by its own boundary test — precisely so this alias can exist: the
+      // admin SPA renders the plan/confirm/execute ceremony from the SAME rules `planner.ts` applies
+      // server-side, rather than a second copy in this package that could silently drift from them.
+      //
+      // Paired with `apps/admin/tsconfig.json`'s `paths` + `include` entries. BOTH are required —
+      // a tsconfig path satisfies the typechecker and resolves nothing at build time.
+      "@tovu/publish-content-ui": path.resolve(__dirname, "../website/src/features/publish-content/ui/index.ts"),
     },
   },
   server: {
