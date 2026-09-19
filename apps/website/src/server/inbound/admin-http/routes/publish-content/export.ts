@@ -2,9 +2,7 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import { packAuthorizedEntities } from "#src/features/publish-content/export-bundle";
-import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
-
-import type { PublishContentRouteRegistrar } from "./deps.js";
+import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
 
 /**
  * @file Task 4 of the publish-content (Publish Content) feature —
@@ -45,27 +43,6 @@ import type { PublishContentRouteRegistrar } from "./deps.js";
  * (`res.write()` per entity) rather than building an array and calling `res.json()` once, so memory
  * use stays bounded by one entity at a time regardless of corpus size.
  */
-
-/** Builds the narrow `PublishContentDeps` bag every registered contributor's `build()` closes
- *  over, from this route's own `PublishContentRouteDeps` slice. Never widened beyond what
- *  `features/post/publish-content.ts`'s `buildHandler` actually reads. */
-function toPublishContentDeps(deps: {
-  workspaceId: string;
-  postRepo: PublishContentDeps["postRepo"];
-  clock: PublishContentDeps["clock"];
-  idGen: PublishContentDeps["idGen"];
-  outbox: PublishContentDeps["outbox"];
-  pluginBeforeSaveHook: PublishContentDeps["beforeSaveHook"];
-}): PublishContentDeps {
-  return {
-    workspaceId: deps.workspaceId,
-    postRepo: deps.postRepo,
-    clock: deps.clock,
-    idGen: deps.idGen,
-    outbox: deps.outbox,
-    beforeSaveHook: deps.pluginBeforeSaveHook,
-  };
-}
 
 export const registerPublishContentExportRoute: PublishContentRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/publish-content/export", async (req, res) => {

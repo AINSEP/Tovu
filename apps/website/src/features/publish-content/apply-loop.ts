@@ -97,6 +97,38 @@ import type { PublishContentDeps, PublishContentHandler, PackedEntity } from "./
  *  this file's header for why it is not a spanning SQL transaction boundary. */
 const DEFAULT_CHUNK_SIZE = 200;
 
+/**
+ * Every port some registered type's `apply()` needs, with the ones a `pack`-only caller may omit
+ * made REQUIRED — the apply bag is the one bag that has to be complete.
+ *
+ * They are optional on {@link PublishContentDeps} because an export/plan caller genuinely has no use
+ * for them, and each type degrades quietly when its own ports are absent. That is right for `pack`
+ * and catastrophic for `apply`: an incomplete bag reaches a handler's `apply()` and throws a bare
+ * `Error`, which `applyOneRow` cannot downgrade to a row outcome, so it aborts the whole run.
+ *
+ * This type exists so that failure is impossible to ship. A composition root that forgets a port
+ * now fails to COMPILE at {@link toPublishContentApplyDeps} instead of failing at run time — which
+ * is what happened when `media` landed: both roots kept building a bag from the three fields `post`
+ * needed, media's `pack()` silently returned nothing, and the type could not travel at all.
+ */
+export type PublishContentApplyDeps = PublishContentDeps &
+  Required<Pick<PublishContentDeps, "outbox" | "changeSets" | "authorize" | "mediaRepo" | "assetBlobRepo" | "blobStore">>;
+
+/**
+ * The composition roots' one way to build {@link createPublishContentApplyPort}'s deps bag.
+ *
+ * Identity in behaviour, load-bearing in TYPE: it is the single place the apply bag's completeness
+ * contract is stated, so `server/runtime/composition/deps.ts` (SQLite) and
+ * `server/runtime/composition/app.ts` (in-memory) cannot drift apart or silently skip a type's
+ * ports. Adding a port to {@link PublishContentApplyDeps} makes every root that has not supplied it
+ * a compile error — the whole point.
+ *
+ * @complexity O(1) — no work; the type checking is the function.
+ */
+export function toPublishContentApplyDeps(required: PublishContentApplyDeps): PublishContentApplyDeps {
+  return required;
+}
+
 export interface CreatePublishContentApplyPortInput {
   readonly workspaceId: string;
   readonly bundleRepo: PublishContentBundleRepoPort;
@@ -104,7 +136,10 @@ export interface CreatePublishContentApplyPortInput {
   readonly runRepo: PublishContentRunRepoPort;
   /** Must include `changeSets`/`authorize` populated — this factory is the one caller responsible
    *  for supplying them (`features/post/publish-content.ts`'s `apply()` throws loudly if they are
-   *  missing when it is actually reached). */
+   *  missing when it is actually reached). Composition roots build this through
+   *  {@link toPublishContentApplyDeps}, which makes the completeness requirement a compile-time one;
+   *  the parameter itself stays the wider {@link PublishContentDeps} so focused apply-loop tests can
+   *  still supply only the ports the type under test actually reads. */
   readonly publishContentDeps: PublishContentDeps;
   readonly clock: ClockPort;
   readonly idGen: IdGeneratorPort;

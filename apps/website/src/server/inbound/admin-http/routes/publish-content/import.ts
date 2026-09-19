@@ -18,9 +18,7 @@ import {
 } from "#src/features/publish-content/gated-hooks";
 import { executePublishContentImport, RestorePointUnavailableError } from "#src/features/publish-content/execute-import";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
-
-import type { PublishContentRouteRegistrar } from "./deps.js";
+import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
 
 /**
  * @file Task 7 of the publish-content (Publish Content) feature —
@@ -50,27 +48,6 @@ function statusFor(err: unknown): { status: number; code: string } {
   // (Task 8's apply loop is not wired yet).
   if (err instanceof PublishContentApplyNotImplementedError) return { status: 501, code: "APPLY_NOT_IMPLEMENTED" };
   return { status: 500, code: "INTERNAL_ERROR" };
-}
-
-/** Builds the narrow `PublishContentDeps` bag every registered contributor's `build()` closes
- *  over — same shape as `export.ts`'s own `toPublishContentDeps` (duplicated locally rather than
- *  imported, matching that file's own non-exported, per-route-file convention). */
-function toPublishContentDeps(deps: {
-  workspaceId: string;
-  postRepo: PublishContentDeps["postRepo"];
-  clock: PublishContentDeps["clock"];
-  idGen: PublishContentDeps["idGen"];
-  outbox: PublishContentDeps["outbox"];
-  pluginBeforeSaveHook: PublishContentDeps["beforeSaveHook"];
-}): PublishContentDeps {
-  return {
-    workspaceId: deps.workspaceId,
-    postRepo: deps.postRepo,
-    clock: deps.clock,
-    idGen: deps.idGen,
-    outbox: deps.outbox,
-    beforeSaveHook: deps.pluginBeforeSaveHook,
-  };
 }
 
 export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = (app: Express, deps) => {

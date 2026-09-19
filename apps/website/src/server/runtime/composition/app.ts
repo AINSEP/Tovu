@@ -12,7 +12,7 @@ import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import { InMemoryPublishContentBaselineRepo } from "#src/features/publish-content/baseline-repo";
 import { InMemoryPublishContentRunRepo } from "#src/features/publish-content/run-repo";
-import { createPublishContentApplyPort } from "#src/features/publish-content/apply-loop";
+import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
 import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
@@ -553,6 +553,13 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // loop's `executeCommand` calls must land in the SAME change-set store every other route/test
   // reads off `RouteDeps.changeSets`.
   const changeSets = new InMemoryChangeSetRepo([], [], outbox);
+  // Hoisted out of the `routeDeps` literal below for the SAME reason as `changeSets` above: the
+  // apply loop's `media.apply()` must write into the very stores the media routes and this file's
+  // own tests read. Constructed twice (once here, once inline below) they would be two disconnected
+  // in-memory stores, and an imported media row would be invisible to everything else.
+  const mediaRepo = new InMemoryMediaRepo([]);
+  const assetBlobRepo = new InMemoryAssetBlobRepo([]);
+  const blobStore = new InMemoryBlobStore();
   const publishContentBundleRepo = new InMemoryPublishContentBundleRepo();
   const publishContentBaselineRepo = new InMemoryPublishContentBaselineRepo();
   const publishContentRunRepo = new InMemoryPublishContentRunRepo();
@@ -564,7 +571,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     bundleRepo: publishContentBundleRepo,
     baselineRepo: publishContentBaselineRepo,
     runRepo: publishContentRunRepo,
-    publishContentDeps: {
+    publishContentDeps: toPublishContentApplyDeps({
       workspaceId: seededWorkspace.id,
       postRepo,
       clock,
@@ -572,7 +579,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       outbox,
       changeSets,
       authorize: identity.authorize,
-    },
+      mediaRepo,
+      assetBlobRepo,
+      blobStore,
+    }),
     clock,
     idGen,
   });
@@ -701,11 +711,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `LocalFsBlobStore` for actual byte durability while keeping rows in-memory too (see that
     // file's comment for why: no SQLite adapter exists yet for this newer library, matching the
     // disclosed precedent the last several admin-section libraries followed).
-    mediaRepo: new InMemoryMediaRepo([]),
-    assetBlobRepo: new InMemoryAssetBlobRepo([]),
+    mediaRepo,
+    assetBlobRepo,
     assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
     mediaContentTypeStore: new InMemoryMediaContentTypeStore(),
-    blobStore: new InMemoryBlobStore(),
+    blobStore,
     // ADR-027 §4 transform registry + rendition generation (new in this task): in-memory registry
     // rows (no SQLite adapter yet, same disclosed precedent as the media repos above) and the
     // deterministic `InMemoryImageTransformer` test double here so hermetic tests never depend on

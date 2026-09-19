@@ -16,11 +16,10 @@ import {
   resolvePeerCredential,
   type ResolvedPeerCredential,
 } from "#src/features/publish-content/peers";
-import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
-import type { PublishContentRouteDeps, PublishContentRouteRegistrar } from "./deps.js";
+import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "./deps.js";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -82,21 +81,6 @@ function respondWithError(res: { status(code: number): { json(body: unknown): vo
   const { status, code } = statusFor(err);
   const message = status === 500 ? "internal error" : err instanceof Error ? err.message : "internal error";
   res.status(status).json({ error: message, code });
-}
-
-/** Builds the narrow `PublishContentDeps` bag every registered contributor's `build()` closes over —
- *  same shape as `export.ts`'s and `import.ts`'s own local copies, following this directory's
- *  established per-route-file convention.
- *  @complexity O(1). */
-function toPublishContentDeps(deps: PublishContentRouteDeps): PublishContentDeps {
-  return {
-    workspaceId: deps.workspaceId,
-    postRepo: deps.postRepo,
-    clock: deps.clock,
-    idGen: deps.idGen,
-    outbox: deps.outbox,
-    beforeSaveHook: deps.pluginBeforeSaveHook,
-  };
 }
 
 /** The per-request transport bag: the guarded client plus the opened credential.

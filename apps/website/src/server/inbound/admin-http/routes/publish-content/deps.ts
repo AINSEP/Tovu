@@ -1,5 +1,6 @@
 import type { Express } from "express";
 
+import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -37,6 +38,10 @@ import type { RouteDeps } from "#src/server/routes/types";
  *   `publishContentPeerHttpClient` is a guarded `HttpClientPort` built from this feature's own
  *   `createPublishContentPeerEgressPolicy()` — never a client any other consumer shares, because it
  *   is the only one whose `devHostAllowlist` is operator-configurable.
+ * - `mediaRepo`/`assetBlobRepo`: added when `media` became a travelling type. Together with
+ *   `blobStore` (already present above for Task 6) they are the three ports
+ *   `features/media/publish-content.ts` reads; see {@link toPublishContentDeps} for why they are
+ *   picked here rather than left to each route file to remember.
  */
 export type PublishContentRouteDeps = Pick<
   RouteDeps,
@@ -59,6 +64,45 @@ export type PublishContentRouteDeps = Pick<
   | "publishContentPeerHttpClient"
   | "siteAssistantSecretSealer"
   | "siteAssistantSecretKeyring"
+  | "mediaRepo"
+  | "assetBlobRepo"
 >;
 
 export type PublishContentRouteRegistrar = (app: Express, deps: PublishContentRouteDeps) => void;
+
+/**
+ * Narrows this module's `RouteDeps` slice to the `PublishContentDeps` bag every registered
+ * contributor's `build()` closes over.
+ *
+ * **One copy, shared by every route file in this directory — deliberately, and the reason is a bug
+ * this replaced.** `export.ts`, `import.ts` and `peer-transport.ts` each used to keep their own
+ * private copy of this six-line function, following the per-route-file convention the rest of the
+ * directory uses for handlers. When `media` became a travelling type, all three copies (plus both
+ * composition roots' apply bags) had to learn three new fields, and none of them did: media packed
+ * nothing, planned as `blocked`, and never reached `apply()`. Nothing failed loudly, because
+ * `features/media/publish-content.ts` degrades silently on an absent `mediaRepo` (`pack()` returns,
+ * `inspect()` returns `null`) — exactly as its own doc says it should for a caller that has no use
+ * for media. A per-file copy makes "every caller learns the new field" a thing someone has to
+ * remember; one function makes it structural, and the next content type gets it for free.
+ *
+ * `mediaRepo`/`assetBlobRepo`/`blobStore` are REQUIRED on `RouteDeps`, so a route file physically
+ * cannot build a bag without them any more — the omission is now a compile error, not a silent skip.
+ *
+ * `beforeSaveHook` is the one renamed field: `RouteDeps` calls it `pluginBeforeSaveHook` (it is the
+ * plugin runtime's hook), `PublishContentDeps` calls it `beforeSaveHook`. Mapped here once.
+ *
+ * @complexity O(1) — a field projection, no I/O.
+ */
+export function toPublishContentDeps(deps: PublishContentRouteDeps): PublishContentDeps {
+  return {
+    workspaceId: deps.workspaceId,
+    postRepo: deps.postRepo,
+    clock: deps.clock,
+    idGen: deps.idGen,
+    outbox: deps.outbox,
+    beforeSaveHook: deps.pluginBeforeSaveHook,
+    mediaRepo: deps.mediaRepo,
+    assetBlobRepo: deps.assetBlobRepo,
+    blobStore: deps.blobStore,
+  };
+}

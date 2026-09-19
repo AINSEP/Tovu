@@ -30,8 +30,9 @@ import type { ServerModuleHandle } from "./types.js";
  * that registry, this one needs no matching RESET here — `registerPublishContentContributor`
  * (Task 2) already replaces by `entityType` key rather than appending, so repeated calls across many
  * `createApp()` invocations never accumulate duplicates, and each registered contributor's `build()`
- * is resolved fresh against the CURRENT request's deps (`export.ts`'s own `toPublishContentDeps`)
- * rather than closing over whichever `createApp()` call happened to register it — so there is no
+ * is resolved fresh against the CURRENT request's deps (`routes/publish-content/deps.ts`'s shared
+ * `toPublishContentDeps`) rather than closing over whichever `createApp()` call happened to
+ * register it — so there is no
  * stale-closure risk for a reset to guard against either.
  */
 export function createPublishContentModule(deps: PublishContentRouteDeps): ServerModuleHandle {

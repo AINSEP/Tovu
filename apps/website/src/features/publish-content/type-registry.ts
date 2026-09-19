@@ -90,8 +90,8 @@ export interface PublishContentDeps {
    * Task 8 (plan §4 task 8) — added when `apply()` finally got a real implementation. Every
    * `pack`/`inspect`/`precheck` caller (Task 4's export route, Task 5/7's planner/gated-hooks) never
    * reads these, so they stay OPTIONAL rather than widening every existing `PublishContentDeps`
-   * builder (`export.ts`/`import.ts`'s own `toPublishContentDeps`) into supplying values it has no
-   * use for — the same "absent behaves like it always did" convention {@link outbox}/
+   * builder (`routes/publish-content/deps.ts`'s shared `toPublishContentDeps`) into supplying values
+   * it has no use for — the same "absent behaves like it always did" convention {@link outbox}/
    * {@link beforeSaveHook} already establish on this interface. Only a real
    * `PublishContentApplyPort` (`features/publish-content/apply-loop.ts`) supplies them, because
    * only `apply()` (never `pack`/`inspect`/`precheck`) needs to route a write through the command
@@ -105,11 +105,18 @@ export interface PublishContentDeps {
    * `page` contributor (this interface's own header, "`PublishContentDeps` — deliberately narrow
    * today, meant to grow", anticipates exactly this). All three arrive together (one type's real
    * deps, not three independently-optional knobs) and stay OPTIONAL for the identical reason
-   * {@link outbox}/{@link beforeSaveHook}/{@link changeSets} already are: every existing
-   * `PublishContentDeps` builder that has no use for media stays unchanged, and
-   * `features/media/publish-content.ts`'s `pack`/`inspect`/`precheck` degrade to "nothing to
-   * report" rather than throwing when absent (see that file's own doc). `apply()` there is not
-   * wired to these yet regardless of whether they are present — see its own doc for why.
+   * {@link outbox}/{@link beforeSaveHook}/{@link changeSets} already are: a `PublishContentDeps`
+   * builder that has no use for media stays unchanged, and `features/media/publish-content.ts`'s
+   * `pack`/`inspect`/`precheck` degrade to "nothing to report" rather than throwing when absent
+   * (see that file's own doc).
+   *
+   * **That silent degradation is exactly why optional is dangerous for the apply path, and why the
+   * callers that matter no longer get a choice.** Media was a registered type with a real `apply()`
+   * for a while before it could actually travel, because every builder omitted these three and
+   * nothing complained. Both the route bag
+   * (`routes/publish-content/deps.ts`'s `toPublishContentDeps`) and the apply bag
+   * (`apply-loop.ts`'s `toPublishContentApplyDeps`) now require them, so the omission is a compile
+   * error at the composition roots while this interface stays permissive for focused callers.
    */
   readonly mediaRepo?: MediaRepoPort;
   readonly assetBlobRepo?: AssetBlobRepoPort;

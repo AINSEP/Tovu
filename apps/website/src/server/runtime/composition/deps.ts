@@ -18,7 +18,7 @@ import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-
 import { SqlitePublishContentPeerRepo } from "#src/platform/db/sqlite/publish-content-peer-repo.sqlite";
 import { SqlitePublishContentBaselineRepo } from "#src/platform/db/sqlite/publish-content-baseline-repo.sqlite";
 import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
-import { createPublishContentApplyPort } from "#src/features/publish-content/apply-loop";
+import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import {
@@ -1336,6 +1336,12 @@ export function createSqliteRouteDeps(
   // instance matches this root's own stated convention). `changeSets` is hoisted for the identical
   // reason as `revertRegistry`'s `postRepo` above.
   const changeSets = new SqliteChangeSetRepo(db);
+  // Hoisted out of the `routeDeps` literal below for the SAME reason as `changeSets` above: the
+  // apply loop's `media.apply()` must read and write through the same adapters every media route
+  // uses. Both are stateless wrappers over the shared `db`, so a second instance would behave
+  // identically — one instance simply matches this root's own stated convention.
+  const mediaRepo = new SqliteMediaRepo(db);
+  const assetBlobRepo = new SqliteAssetBlobRepo(db);
   const publishContentBundleRepo = new SqlitePublishContentBundleRepo(db);
   const publishContentBaselineRepo = new SqlitePublishContentBaselineRepo(db);
   const publishContentRunRepo = new SqlitePublishContentRunRepo(db);
@@ -1347,7 +1353,7 @@ export function createSqliteRouteDeps(
     bundleRepo: publishContentBundleRepo,
     baselineRepo: publishContentBaselineRepo,
     runRepo: publishContentRunRepo,
-    publishContentDeps: {
+    publishContentDeps: toPublishContentApplyDeps({
       workspaceId,
       postRepo,
       clock,
@@ -1355,7 +1361,10 @@ export function createSqliteRouteDeps(
       outbox,
       changeSets,
       authorize: identity.authorize,
-    },
+      mediaRepo,
+      assetBlobRepo,
+      blobStore,
+    }),
     clock,
     idGen,
   });
@@ -1510,8 +1519,8 @@ export function createSqliteRouteDeps(
     // already used the real `LocalFsBlobStore` (unlike `server/app.ts`'s hermetic-test
     // composition) since durable byte database was always the one piece of Media pointless to fake
     // in the actual running server.
-    mediaRepo: new SqliteMediaRepo(db),
-    assetBlobRepo: new SqliteAssetBlobRepo(db),
+    mediaRepo,
+    assetBlobRepo,
     assetRenditionRepo: new SqliteAssetRenditionRepo(db),
     mediaContentTypeStore: new SqliteMediaContentTypeStore(db),
     // 2026-08-12: wiring products into template render data. Plain Drizzle repos over the SAME
