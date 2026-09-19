@@ -1,6 +1,7 @@
 import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
 
 import { PostConflictError, PostNotFoundError } from "../post/post.js";
+import { PublishContentApplyRowError } from "./apply-errors.js";
 import { loadActiveBundle } from "./bundle-staging.js";
 import type { PublishContentBundleRepoPort } from "./bundle-staging.js";
 import type { PublishContentBaselineRepoPort } from "./baseline-repo.js";
@@ -65,12 +66,19 @@ import type { PublishContentDeps, PublishContentHandler, PackedEntity } from "./
  * against the same class of race: a `PostConflictError`/`PostNotFoundError` thrown from inside
  * `handler.apply()` is caught here and ALSO downgrades to `conflict` rather than aborting the run.
  *
- * `post`/`page` are the only registered publish-content types today, and they share one error
- * hierarchy (`PostConflictError` and its `PostVersionConflictError` subclass, `PostNotFoundError`).
- * This loop's conflict-detection is scoped to that hierarchy — a disclosed gap, not a silently wrong
- * generalization: a future non-post type either reuses these classes or this catch needs widening
- * when that type lands, exactly the same "disclosed until a next type needs it" posture
- * `type-registry.ts`'s own `PublishContentDeps` growth note already establishes for deps shape.
+ * This loop's per-row failure handling was originally scoped to `post`'s own error hierarchy
+ * (`PostConflictError` and its `PostVersionConflictError` subclass, `PostNotFoundError`) with a
+ * disclosed note that "a future non-post type either reuses these classes or this catch needs
+ * widening when that type lands". `media` was that type, and the catch was widened rather than
+ * reusing post's classes from an unrelated feature: any type may now raise
+ * `PublishContentApplyRowError` (`apply-errors.ts`) to downgrade ONE row instead of aborting the run,
+ * and a new content type needs no edit here at all. See that file's header for why the base class
+ * lives outside `type-registry.ts` and why post's two classes keep a named special case.
+ *
+ * The two sides are phrased differently on purpose: a `PublishContentApplyRowError`'s message is the
+ * row's `reason` VERBATIM (the type owns its own operator-facing wording), while post's legacy
+ * errors — whose messages are terse and contextless — keep the "changed on the destination during
+ * apply" prefix they have always had.
  *
  * ## Authorship — `principalId` passed to every `handler.apply()` call is ALWAYS the operator
  *
@@ -120,13 +128,31 @@ interface ApplyRowContext {
   readonly clock: ClockPort;
 }
 
-/** True for the two `post`/`page` error classes {@link applyOneRow} treats as "the destination moved
- *  under us, downgrade this row" rather than "the run is broken, abort" — see this file's header for
- *  why the check is scoped to this hierarchy today. `PostVersionConflictError` is covered via its
- *  `extends PostConflictError` (`post.ts:667`), not named separately.
- *  @complexity O(1). */
-function isKnownApplyRace(error: unknown): boolean {
-  return error instanceof PostConflictError || error instanceof PostNotFoundError;
+/**
+ * How {@link applyOneRow} should report a failure raised by `handler.apply()` — the row's downgraded
+ * outcome plus its operator-facing reason — or `null` for a genuine failure that must abort the run.
+ *
+ * Any type may opt one of its own failures into a downgrade by raising
+ * {@link PublishContentApplyRowError}; `post`'s two pre-existing classes keep a named special case
+ * (`PostVersionConflictError` is covered via its `extends PostConflictError`, `post.ts:667`, not
+ * named separately). See this file's header for why the two are phrased differently.
+ *
+ * @complexity O(1).
+ */
+function classifyApplyRowFailure(
+  error: unknown,
+  row: PublishContentOutcomeRow
+): { outcome: "conflict" | "blocked"; reason: string } | null {
+  if (error instanceof PublishContentApplyRowError) {
+    return { outcome: error.rowOutcome, reason: error.message };
+  }
+  if (error instanceof PostConflictError || error instanceof PostNotFoundError) {
+    return {
+      outcome: "conflict",
+      reason: `${row.entityType} '${row.entityId}' changed on the destination during apply: ${error.message}`,
+    };
+  }
+  return null;
 }
 
 /**
@@ -249,14 +275,10 @@ async function applyOneRow(
     });
     return { row, changeSetId };
   } catch (error) {
-    if (isKnownApplyRace(error)) {
+    const downgrade = classifyApplyRowFailure(error, row);
+    if (downgrade) {
       return {
-        row: {
-          ...row,
-          outcome: "conflict",
-          writes: false,
-          reason: `${row.entityType} '${row.entityId}' changed on the destination during apply: ${(error as Error).message}`,
-        },
+        row: { ...row, outcome: downgrade.outcome, writes: false, reason: downgrade.reason },
         changeSetId: null,
       };
     }

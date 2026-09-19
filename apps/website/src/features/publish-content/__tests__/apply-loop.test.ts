@@ -27,6 +27,8 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import type { PostRecord } from "#src/features/post/post";
 import { contributePostPublish } from "#src/features/post/publish-content";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaRepo, computeBlobStorageKey, type MediaRecord } from "#src/features/media/index";
+import { contributeMediaPublish } from "#src/features/media/publish-content";
 
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
 import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
@@ -419,4 +421,149 @@ test("a refused report is persisted as an 'abandoned' run and produces no writes
   assert.deepEqual(result.changeSetIds, []);
   const run = runRepo.findById("run-1");
   assert.equal(run?.phase, "abandoned");
+});
+
+// ---------------------------------------------------------------------------
+// One bad row must not kill the run — the property `apply-errors.ts` exists for.
+//
+// `media` is the first non-`post` type whose `apply()` can refuse ONE entity for a data-shaped
+// reason (a blob this destination never received, a slug held by someone else). Before
+// `PublishContentApplyRowError`, any such refusal failed `isKnownApplyRace` and hit `throw error`,
+// aborting a whole publish over a single missing image. This test constructs that exact race for
+// REAL — deleting the staged bytes from the SAME `InMemoryBlobStore` the apply port reads from,
+// between planning and applying, which is what a blob GC pass landing mid-run would do — rather
+// than mocking a handler to throw.
+// ---------------------------------------------------------------------------
+
+test("a media row blocked at apply time downgrades that ONE row and the rest of the run still applies", async () => {
+  resetPublishContentContributorsForTests();
+  registerPublishContentContributor(contributePostPublish());
+  registerPublishContentContributor(contributeMediaPublish());
+
+  const postRepo = new InMemoryPostRepo([]);
+  const mediaRepo = new InMemoryMediaRepo();
+  const assetBlobRepo = new InMemoryAssetBlobRepo();
+  const blobStore = new InMemoryBlobStore();
+  const clock = makeClock();
+  const outbox = new InMemoryOutbox();
+  const changeSets = new InMemoryChangeSetRepo([], [], outbox);
+  const baselineRepo = new InMemoryPublishContentBaselineRepo();
+  const bundleRepo = new InMemoryPublishContentBundleRepo();
+  const runRepo = new InMemoryPublishContentRunRepo();
+
+  const publishContentDeps: PublishContentDeps = {
+    workspaceId: WORKSPACE_ID,
+    postRepo,
+    clock,
+    idGen: makeCounterIdGen("cs"),
+    outbox,
+    changeSets,
+    authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
+    mediaRepo,
+    assetBlobRepo,
+    blobStore,
+  };
+  const applyPort = createPublishContentApplyPort({
+    workspaceId: WORKSPACE_ID,
+    bundleRepo,
+    baselineRepo,
+    runRepo,
+    publishContentDeps,
+    clock,
+    idGen: makeCounterIdGen("run"),
+  });
+
+  const photoBytes = new TextEncoder().encode("a real imported photo's bytes");
+  const photoSha256 = "86d9075d85c1cce55da0605a557dceaea6c27f18df8702ce86accccce8a41aa9";
+  const mediaRecord: MediaRecord = {
+    id: "vanishing-photo",
+    workspaceId: WORKSPACE_ID,
+    title: "Vanishing Photo",
+    slug: "vanishing-photo",
+    alt: "",
+    caption: "",
+    credit: "",
+    source: { sha256: photoSha256 },
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    version: 1,
+    width: 800,
+    height: 600,
+    cssClass: null,
+    htmlAttributes: null,
+  };
+  const mediaEntity: PackedEntity = {
+    entityType: "media",
+    id: mediaRecord.id,
+    contentHash: contentHash("media", { ...mediaRecord }),
+    hashVersion: CONTENT_HASH_VERSION,
+    requiredBlobs: [photoSha256],
+    state: { ...mediaRecord } as unknown as Record<string, unknown>,
+  };
+  const healthyA = packedFrom(makePost({ id: "healthy-a", title: "Healthy A" }));
+  const healthyC = packedFrom(makePost({ id: "healthy-c", title: "Healthy C" }));
+
+  // The bytes ARE present at plan time — so `media.precheck()` passes and the row plans as a real
+  // writing `created`, which is the only way `apply()` is ever reached.
+  await blobStore.putIfAbsent({ workspaceId: WORKSPACE_ID, sha256: photoSha256, bytes: photoBytes });
+  const entities = [mediaEntity, healthyA, healthyC];
+  const report = await plan(publishContentDeps, baselineRepo, SOURCE_PRINCIPAL_ID, entities);
+  assert.deepEqual(
+    report.rows.map((row) => `${row.entityType}:${row.entityId}=${row.outcome}`),
+    ["media:vanishing-photo=created", "post:healthy-a=created", "post:healthy-c=created"],
+    "all three must plan as writing rows, or this test proves nothing about the apply-time path"
+  );
+  const bundleId = await stage(bundleRepo, clock, entities);
+
+  // The race: the bytes disappear between plan and apply.
+  await blobStore.remove({ storageKey: computeBlobStorageKey({ workspaceId: WORKSPACE_ID, sha256: photoSha256 }) });
+
+  const result = await applyPort.applyReport({
+    report,
+    principalId: OPERATOR_PRINCIPAL_ID,
+    bundleId,
+    restorePointId: "rp-1",
+  });
+
+  const run = runRepo.findById("run-1");
+  assert.equal(run?.phase, "applied", "the run must COMPLETE — one bad row is not a failed run");
+  const finalRows = (JSON.parse(run!.reportJson) as PublishContentReport).rows;
+
+  const mediaRow = finalRows.find((row) => row.entityType === "media");
+  assert.equal(mediaRow?.outcome, "blocked", "a missing blob is `blocked`, never `conflict` — nobody edited anything");
+  assert.equal(mediaRow?.writes, false);
+  assert.equal(
+    mediaRow?.reason,
+    `media 'vanishing-photo' cannot be applied — required blob '${photoSha256}' was never received by this destination`,
+    "the type's own message is the row's reason, verbatim"
+  );
+  assert.doesNotMatch(
+    mediaRow?.reason ?? "",
+    /changed on the destination during apply/,
+    "post's legacy conflict prefix must not be glued onto a message that already reads on its own"
+  );
+
+  // The whole point: the other two entities still landed.
+  assert.deepEqual(
+    finalRows.filter((row) => row.entityType === "post").map((row) => `${row.entityId}=${row.outcome}`),
+    ["healthy-a=created", "healthy-c=created"]
+  );
+  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "healthy-a" }))?.title, "Healthy A");
+  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "healthy-c" }))?.title, "Healthy C");
+  assert.equal(result.changeSetIds.length, 2, "exactly the two healthy posts produced change sets");
+
+  // And the blocked row wrote nothing at all.
+  assert.equal(await mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: "vanishing-photo" }), null);
+  assert.equal(await assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: photoSha256 }), null);
+  assert.equal(
+    await baselineRepo.findOne({
+      workspaceId: WORKSPACE_ID,
+      peerPrincipalId: SOURCE_PRINCIPAL_ID,
+      entityType: "media",
+      entityId: "vanishing-photo",
+    }),
+    null,
+    "a blocked row must never record a baseline — that would tell the NEXT run we agreed on it"
+  );
 });

@@ -1,6 +1,7 @@
 import { executeCommand } from "@jini-ai/cms/core";
 import type { JsonObject } from "@jini-ai/cms/core";
 
+import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { bytesMatchSha256, isValidSha256Hex } from "#src/features/publish-content/blob-staging";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import type { PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler } from "#src/features/publish-content/type-registry";
@@ -58,22 +59,27 @@ import type { AssetBlobRepoPort, BlobStorePort, MediaRecord, MediaRepoPort } fro
  * existing row's attribution is never overwritten (see {@link MediaApplyResult.blobWritten} for how
  * that is reported).
  *
- * ## Two disclosed limitations, both belonging to files outside this feature directory
+ * ## A failure here downgrades ONE row — it never aborts the run
  *
- * - **The optimistic-concurrency guard here is check-then-write, not atomic.** `MediaRepoPort` has no
- *   `saveIfVersion` (contrast `PostRepoPort`'s, which is what makes `updatePost`'s guard a single
- *   atomic `UPDATE … WHERE version = ?`), so the freshest possible re-read immediately before the
- *   write is the strongest guard available without widening the `@jini-ai/cms` port. The window is
- *   narrower than the apply loop's own `inspect()`-to-`apply()` window, so this strictly improves on
- *   passing `expectedVersion` through unchecked — but it is not the same guarantee `post` has.
- * - **`MediaApplyBlockedError`/`MediaApplyConflictError` are not yet downgraded to a per-row
- *   outcome.** `apply-loop.ts`'s `isKnownApplyRace` only recognizes `PostConflictError`/
- *   `PostNotFoundError`, so a throw from here currently aborts the run and persists a `failed` run
- *   row carrying the reason (non-destructive — nothing is written before any throw here — and fully
- *   recorded, but louder than it should be). That file's own header already anticipates exactly this:
- *   "a future non-post type either reuses these classes or this catch needs widening when that type
- *   lands." Widening it is the right follow-up and belongs there, not here; reusing `post`'s error
- *   classes from `media` would be a false type hierarchy across two unrelated features.
+ * Both error classes below extend `PublishContentApplyRowError` (`features/publish-content/
+ * apply-errors.ts`), which is what `apply-loop.ts`'s per-row catch checks. A blocked or conflicted
+ * media entity therefore comes back as that ONE row's `blocked`/`conflict` outcome with this file's
+ * own message as the reason, and every other entity in the run still applies — one missing blob must
+ * never kill a 200-entity publish. A bare `Error` from here would instead reach `apply-loop.ts`'s
+ * `throw error`, abort the whole run and persist a `failed` phase, which is the correct behaviour
+ * ONLY for a genuine fault (a broken repo, a bug) and never for the data-shaped refusals below.
+ *
+ * The invariant that makes those row outcomes honest: nothing is written before either error is
+ * raised. Every check runs before `importMediaEntity` — the only thing on this path that writes.
+ *
+ * ## One disclosed limitation, in a file outside this feature directory
+ *
+ * **The optimistic-concurrency guard here is check-then-write, not atomic.** `MediaRepoPort` has no
+ * `saveIfVersion` (contrast `PostRepoPort`'s, which is what makes `updatePost`'s guard a single
+ * atomic `UPDATE … WHERE version = ?`), so the freshest possible re-read immediately before the
+ * write is the strongest guard available without widening the `@jini-ai/cms` port. The window is
+ * narrower than the apply loop's own `inspect()`-to-`apply()` window, so this strictly improves on
+ * passing `expectedVersion` through unchecked — but it is not the same guarantee `post` has.
  */
 
 /** Empty by design — see this file's header. */
@@ -88,12 +94,17 @@ export type MediaApplyBlockedCode = "blocked:missing-blob" | "blocked:slug-taken
  * A media entity that cannot be applied, for a reason that is data, not a fault. Thrown only after
  * every precondition check and BEFORE any write, so a blocked apply always leaves the destination
  * exactly as it found it — no blob row, no media row, no change set.
+ *
+ * Extends {@link PublishContentApplyRowError} with `rowOutcome: "blocked"`, so `apply-loop.ts`
+ * downgrades THIS ONE report row and the rest of the run continues. One missing blob must never kill
+ * a 200-entity publish. The message is used verbatim as the row's `reason`, which is why it is
+ * phrased as a standalone operator-facing explanation.
  */
-export class MediaApplyBlockedError extends Error {
+export class MediaApplyBlockedError extends PublishContentApplyRowError {
   readonly code: MediaApplyBlockedCode;
 
   constructor(code: MediaApplyBlockedCode, message: string) {
-    super(message);
+    super("blocked", message);
     this.name = "MediaApplyBlockedError";
     this.code = code;
   }
@@ -101,12 +112,13 @@ export class MediaApplyBlockedError extends Error {
 
 /**
  * The destination moved on from the `expectedVersion` the apply loop planned against — media's
- * equivalent of `PostConflictError`, deliberately its own class rather than a reuse of `post`'s (see
- * this file's header). Thrown before any write.
+ * equivalent of `PostConflictError`, deliberately its own class rather than a reuse of `post`'s (a
+ * shared base in `apply-errors.ts` is what the loop actually checks; see that file's header).
+ * `rowOutcome: "conflict"`, so the row downgrades and the run continues. Thrown before any write.
  */
-export class MediaApplyConflictError extends Error {
+export class MediaApplyConflictError extends PublishContentApplyRowError {
   constructor(message: string) {
-    super(message);
+    super("conflict", message);
     this.name = "MediaApplyConflictError";
   }
 }
