@@ -13,6 +13,8 @@ import {
   type PublishReportSummary,
 } from "@tovu/publish-content-ui";
 
+import { describeApiError } from "@/lib/api";
+
 import type { Translate } from "../../../lib/dictionary-translator";
 import { defaultPublishContentPort } from "./publish-content-dependencies.hooks";
 import type { PublishContentPort } from "./publish-content-port.hooks";
@@ -68,8 +70,23 @@ export interface PublishContentConfirmView {
 
 const EMPTY_ROWS: readonly PublishReportRow[] = [];
 
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+/**
+ * Operator-facing copy for a failed call, via the shared `describeApiError` base case rather than a
+ * local `error.message` read (the 2026-08-01 adversarial-UX audit's cross-cutting finding #2: every
+ * screen that rebuilt this chain itself, and every screen whose author forgot, showed a raw
+ * developer string or a blank).
+ *
+ * The verbatim pass-through matters here specifically. A peer whose host resolves to a private
+ * address answers 502 `EGRESS_REFUSED` with a message naming `devHostAllowlist` and the env var to
+ * set — that sentence is the operator's only instruction for fixing it, so it must reach the screen
+ * unrewritten. `request()` throws it as an `ApiError` whose `message` IS `body.error`, and
+ * `describeApiError` returns that untouched; the fallback only covers an empty message or a thrown
+ * non-Error.
+ *
+ * @complexity O(1).
+ */
+function messageOf(error: unknown, fallback: string): string {
+  return describeApiError(error, fallback);
 }
 
 /**
@@ -142,7 +159,7 @@ export function usePublishContentConfirm(props: {
         setSelectedPeerId(loaded.length === 1 ? loaded[0].id : null);
       } catch (error) {
         if (cancelled || !live.current) return;
-        setPeersError(messageOf(error));
+        setPeersError(messageOf(error, t("Could not load publish targets.")));
       } finally {
         if (!cancelled && live.current) setPeersLoaded(true);
       }
@@ -150,6 +167,10 @@ export function usePublishContentConfirm(props: {
     return () => {
       cancelled = true;
     };
+    // `t` is read only for a fallback string and is deliberately NOT a dependency: a caller whose
+    // translator is a fresh closure each render would otherwise refetch the peer list on every
+    // render. The worst case is a fallback sentence in a stale locale.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [port]);
 
   const requestPlan = useCallback(async () => {
@@ -161,9 +182,9 @@ export function usePublishContentConfirm(props: {
       setPhase({ kind: "planned", plan });
     } catch (error) {
       if (!live.current) return;
-      setPhase({ kind: "failed", message: messageOf(error), code: null });
+      setPhase({ kind: "failed", message: messageOf(error, t("Could not work out what would be published.")), code: null });
     }
-  }, [port, selectedPeerId]);
+  }, [port, selectedPeerId, t]);
 
   const confirmPlan = useCallback(async () => {
     if (selectedPeerId === null || phase.kind !== "planned" || !canConfirmPlan(phase)) return;
@@ -179,9 +200,9 @@ export function usePublishContentConfirm(props: {
       setPhase({ kind: "confirmed", plan, confirmationToken });
     } catch (error) {
       if (!live.current) return;
-      setPhase({ kind: "failed", message: messageOf(error), code: null });
+      setPhase({ kind: "failed", message: messageOf(error, t("Could not publish.")), code: null });
     }
-  }, [phase, port, selectedPeerId]);
+  }, [phase, port, selectedPeerId, t]);
 
   // The ONLY call site of `port.executePublish` in this package. Its input is whatever
   // `confirmationTokenFor` returns, which is `null` for every phase but `confirmed`/`executing` —
@@ -204,10 +225,10 @@ export function usePublishContentConfirm(props: {
         setPhase({ kind: "done", result });
       } catch (error) {
         if (!live.current) return;
-        setPhase({ kind: "failed", message: messageOf(error), code: null });
+        setPhase({ kind: "failed", message: messageOf(error, t("Could not publish.")), code: null });
       }
     })();
-  }, [executionToken, phase, port, selectedPeerId]);
+  }, [executionToken, phase, port, selectedPeerId, t]);
 
   // The report stays on screen through confirm and execute — `planOnScreen` owns which phases have
   // one, so this file never has to re-enumerate them (and cannot get `planning`, which has no plan

@@ -244,3 +244,36 @@ describe("PublishContentDialog — the rest of the surface", () => {
     expect(primaryButton().disabled).toBe(false);
   });
 });
+
+describe("PublishContentDialog — a failure's own words reach the operator", () => {
+  it("renders an EGRESS_REFUSED message verbatim, devHostAllowlist instruction and all", async () => {
+    // A peer on a private address answers 502 with this sentence as `body.error`, and `request()`
+    // throws it as an `ApiError` whose message IS that string. It is the operator's ONLY
+    // instruction for fixing the problem, so nothing between here and the screen may rewrite it.
+    const port = createFakePublishContentPort({
+      peers: ONE_PEER,
+      planError: new Error("this peer's host resolves to a private address; add it to devHostAllowlist (TOVU_DEV_HOST_ALLOWLIST) to reach it"),
+    });
+    const user = userEvent.setup();
+    renderDialog(port);
+    await waitFor(() => expect(port.calls.listPeers).toBe(1));
+
+    await user.click(primaryButton());
+    expect(await screen.findByText("this peer's host resolves to a private address; add it to devHostAllowlist (TOVU_DEV_HOST_ALLOWLIST) to reach it")).toBeTruthy();
+  });
+
+  it("falls back to its own copy when the failure carries no message of its own", async () => {
+    // `describeApiError`'s base case: a thrown non-Error has nothing to show, and a blank error
+    // notice reads as a rendering bug rather than a failure.
+    const port = createFakePublishContentPort({ peers: ONE_PEER });
+    port.planPublish = async () => {
+      throw "not an Error at all";
+    };
+    const user = userEvent.setup();
+    renderDialog(port);
+    await waitFor(() => expect(port.calls.listPeers).toBe(1));
+
+    await user.click(primaryButton());
+    expect(await screen.findByText("Could not work out what would be published.")).toBeTruthy();
+  });
+});
