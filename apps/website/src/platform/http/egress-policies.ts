@@ -181,3 +181,70 @@ export const CUSTOM_CREDENTIALS_EGRESS_POLICY: EgressPolicy = {
   maxResponseBytes: 1_000_000,
   maxDecompressedBytes: 1_000_000,
 };
+
+/**
+ * The maximum publish-content bundle a peer may answer a PULL with. Deliberately far above
+ * {@link SINGLE_HOP_HTTPS_EGRESS_POLICY}'s 1 MB: an export envelope is the workspace's whole
+ * transportable corpus in one JSON body (54 live posts ≈ 115 KB of body text locally, per the
+ * feature plan's own measurement), so a 1 MB cap would silently truncate a real site's export into
+ * a body that no longer parses. 64 MiB is the same order as this install's own upload ceiling and
+ * still bounded — a peer cannot stream an unbounded response into this process's memory.
+ */
+export const PUBLISH_CONTENT_PEER_MAX_RESPONSE_BYTES = 64 * 1024 * 1024;
+
+/**
+ * `features/publish-content`'s own policy (2026-09-18, plan §1.6 / §4 task 10) for the outbound
+ * push/pull leg — an authenticated call through a saved peer credential to another Tovu's
+ * publish-content routes. A FOURTH literal rather than a widening of any policy above, following
+ * this file's own rule that a consumer with genuinely different needs authors its own.
+ *
+ * What is unchanged and non-negotiable: `allowedSchemes: ["https"]`. The peer credential travels as
+ * a bearer `Authorization` header on every request, so the scheme is a structural guarantee here,
+ * not merely `peer-url.ts`'s validator opinion — the two agree deliberately, and this one is the
+ * one that cannot be bypassed by a hand-edited database row.
+ *
+ * `maxRedirects: 0`, like {@link SINGLE_HOP_HTTPS_EGRESS_POLICY}: a peer is a Tovu at a URL the
+ * operator typed, and its publish-content routes answer directly. Zero hops also makes
+ * `peer-transport.ts`'s egress diagnosis exact — with no redirect target, the only refusal reachable
+ * for an already-validated peer URL is the private-address one, which is what lets that diagnosis
+ * name `devHostAllowlist` as the cause instead of guessing from the message text.
+ *
+ * ## `devHostAllowlist` and vendor neutrality (plan §0b)
+ *
+ * This is the ONE policy in this file whose allowlist is not a hardcoded `[]`. A legitimate peer may
+ * sit on a private network — Railway and Render give services internal DNS names, AWS puts them in a
+ * VPC, a bare VPS may run two Tovus behind one firewall, and a developer runs a second site on
+ * loopback. The allowlist is an OPERATOR-set env var, `TOVU_PUBLISH_CONTENT_DEV_HOSTS`, read once at
+ * composition time: a plain env var is the one configuration mechanism every one of those platforms
+ * has, so nothing here assumes a platform-specific private-network shape. It stays a named
+ * capability, never consumer code — no request, route, peer row or agent can add a host to it.
+ */
+export function createPublishContentPeerEgressPolicy(devHostAllowlist: readonly string[]): EgressPolicy {
+  return {
+    allowedSchemes: ["https"],
+    denyPrivateAddresses: true,
+    devHostAllowlist,
+    maxRedirects: 0,
+    connectTimeoutMs: 30_000,
+    maxResponseBytes: PUBLISH_CONTENT_PEER_MAX_RESPONSE_BYTES,
+    maxDecompressedBytes: PUBLISH_CONTENT_PEER_MAX_RESPONSE_BYTES,
+  };
+}
+
+/**
+ * Parses `TOVU_PUBLISH_CONTENT_DEV_HOSTS` into {@link createPublishContentPeerEgressPolicy}'s
+ * allowlist. Comma-separated hostnames, whitespace-tolerant, empty entries dropped. IPv6 literals
+ * are written WITHOUT brackets (`fd00::1`), matching what `client.ts` compares against after
+ * stripping them — the same form a human would type.
+ *
+ * @returns An empty list when the variable is unset or blank, which is the safe default: every peer
+ * must then resolve to a public address.
+ * @complexity O(n) in the variable's length.
+ */
+export function parsePublishContentDevHosts(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter((entry) => entry !== "");
+}

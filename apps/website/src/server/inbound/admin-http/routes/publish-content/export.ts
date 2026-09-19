@@ -1,7 +1,7 @@
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
-import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
+import { packAuthorizedEntities } from "#src/features/publish-content/export-bundle";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 
 import type { PublishContentRouteRegistrar } from "./deps.js";
@@ -96,24 +96,21 @@ export const registerPublishContentExportRoute: PublishContentRouteRegistrar = (
 
       const requiredBlobs = new Set<string>();
       let wroteEntity = false;
-      for (const contributor of listPublishContentContributors()) {
-        const handler = contributor.build(publishContentDeps);
-        // Per-type gate (see this file's own header, "Two DIFFERENT permission checks"): a denial
-        // here omits the type from the bundle — it must never turn into a 500 or abort the stream,
-        // since every other already-authorized type still has to reach the response.
-        const typeAuth = await deps.authorize({
-          principalId: principal.id,
-          permission: handler.permission,
-          workspaceId: deps.workspaceId,
-        });
-        if (!typeAuth.allowed) continue;
-
-        for await (const entity of handler.pack()) {
-          if (wroteEntity) res.write(",");
-          res.write(JSON.stringify(entity));
-          wroteEntity = true;
-          for (const sha of entity.requiredBlobs) requiredBlobs.add(sha);
-        }
+      // The registry walk and the per-type gate (see this file's own header, "Two DIFFERENT
+      // permission checks") live in `export-bundle.ts` so Task 10's push driver runs the IDENTICAL
+      // loop rather than a second copy of it. A per-type denial omits that type and continues; it
+      // never turns into a 500 or aborts the stream. This route keeps its own streaming write, which
+      // is the one thing the two callers genuinely do differently.
+      for await (const entity of packAuthorizedEntities({
+        workspaceId: deps.workspaceId,
+        principalId: principal.id,
+        authorize: deps.authorize,
+        publishContentDeps,
+      })) {
+        if (wroteEntity) res.write(",");
+        res.write(JSON.stringify(entity));
+        wroteEntity = true;
+        for (const sha of entity.requiredBlobs) requiredBlobs.add(sha);
       }
 
       res.write(`],"blobManifest":${JSON.stringify(Array.from(requiredBlobs))}}`);

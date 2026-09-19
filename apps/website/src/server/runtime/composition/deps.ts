@@ -15,12 +15,19 @@ import { SqliteDeploymentsReadRepo } from "#src/features/deployments/index";
 import { SqlitePublishCredentialSetRepo } from "#src/platform/db/sqlite/publish-credential-repo.sqlite";
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
 import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-content-bundle-repo.sqlite";
+import { SqlitePublishContentPeerRepo } from "#src/platform/db/sqlite/publish-content-peer-repo.sqlite";
 import { SqlitePublishContentBaselineRepo } from "#src/platform/db/sqlite/publish-content-baseline-repo.sqlite";
 import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
 import { createPublishContentApplyPort } from "#src/features/publish-content/apply-loop";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
-import { CUSTOM_CREDENTIALS_EGRESS_POLICY, MEDIA_IMPORT_EGRESS_POLICY, SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
+import {
+  CUSTOM_CREDENTIALS_EGRESS_POLICY,
+  MEDIA_IMPORT_EGRESS_POLICY,
+  SINGLE_HOP_HTTPS_EGRESS_POLICY,
+  createPublishContentPeerEgressPolicy,
+  parsePublishContentDevHosts,
+} from "#src/platform/http/egress-policies";
 import { createResolvedMailer } from "../boot/resolve-mailer.js";
 import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/source-control-credential-repo.sqlite";
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
@@ -1281,6 +1288,17 @@ export function createSqliteRouteDeps(
   // why fetching an image file cannot use the fixed-method, no-redirect, 1 MB policy above.
   const mediaImportHttpClient = createDefaultHttpClient(MEDIA_IMPORT_EGRESS_POLICY);
 
+  // `features/publish-content`'s outbound push/pull leg needs its own guarded `HttpClientPort` — a
+  // FOURTH instance. It is the only one whose policy is built rather than imported as a literal,
+  // because it is the only one with an operator-configurable `devHostAllowlist`: a legitimate
+  // publish peer may sit on a private network (Railway/Render internal DNS, an AWS VPC, two Tovus
+  // behind one VPS firewall), and `TOVU_PUBLISH_CONTENT_DEV_HOSTS` is the plain env var that says
+  // so on every platform. Unset means "every peer must resolve to a public address", the safe
+  // default. See `createPublishContentPeerEgressPolicy`'s own doc.
+  const publishContentPeerHttpClient = createDefaultHttpClient(
+    createPublishContentPeerEgressPolicy(parsePublishContentDevHosts(process.env.TOVU_PUBLISH_CONTENT_DEV_HOSTS))
+  );
+
   // Composio connectors. The service is built BEFORE the deps object because both the routes and
   // the boot hydration below need the same instance — its provider holds the catalog cache and the
   // OAuth pending-state map, so a second instance would silently not share either.
@@ -1321,6 +1339,9 @@ export function createSqliteRouteDeps(
   const publishContentBundleRepo = new SqlitePublishContentBundleRepo(db);
   const publishContentBaselineRepo = new SqlitePublishContentBaselineRepo(db);
   const publishContentRunRepo = new SqlitePublishContentRunRepo(db);
+  // Task 10 — named remote Tovus, with their API keys sealed at rest under the shared ADR-058
+  // sealer/keyring below. See `routes/types.ts`'s `publishContentPeerRepo` doc.
+  const publishContentPeerRepo = new SqlitePublishContentPeerRepo(db);
   const publishContentApplyPort = createPublishContentApplyPort({
     workspaceId,
     bundleRepo: publishContentBundleRepo,
@@ -1626,6 +1647,10 @@ export function createSqliteRouteDeps(
     publishContentApplyPort,
     // Task 8 — the apply loop's audit trail. See `routes/types.ts`'s `publishContentRunRepo` doc.
     publishContentRunRepo,
+    // Task 10 — peers + the guarded outbound client that dials them. See
+    // `routes/types.ts`'s `publishContentPeerRepo`/`publishContentPeerHttpClient` docs.
+    publishContentPeerRepo,
+    publishContentPeerHttpClient,
     // 2026-08-15 — the real export engine, bound here rather than imported inside
     // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
     // `runExportSite` doc for why that indirection exists (a real circular-load crash it began as a

@@ -9,6 +9,8 @@ import { registerPublishContentBlobsProbeRoute } from "#src/server/inbound/admin
 import { registerPublishContentBlobPutRoute } from "#src/server/inbound/admin-http/routes/publish-content/blob-put";
 import { registerPublishContentBundleCreateRoute } from "#src/server/inbound/admin-http/routes/publish-content/bundle-create";
 import { registerPublishContentImportRoutes } from "#src/server/inbound/admin-http/routes/publish-content/import";
+import { registerPublishContentPeerRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peers";
+import { registerPublishContentPeerTransportRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peer-transport";
 import type { PublishContentRouteDeps } from "#src/server/inbound/admin-http/routes/publish-content/deps";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -42,6 +44,10 @@ export function createPublishContentModule(deps: PublishContentRouteDeps): Serve
       registerPublishContentBlobPutRoute(app, deps);
       registerPublishContentBundleCreateRoute(app, deps);
       registerPublishContentImportRoutes(app, deps);
+      // Task 10: peer CRUD, then the outbound push/pull driver that dials a peer's own copies of
+      // the routes registered above.
+      registerPublishContentPeerRoutes(app, deps);
+      registerPublishContentPeerTransportRoutes(app, deps);
     },
   };
 }

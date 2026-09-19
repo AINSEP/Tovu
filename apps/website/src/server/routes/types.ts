@@ -122,6 +122,7 @@ import type { PublishContentBundleRepoPort } from "../../features/publish-conten
 import type { PublishContentBaselineRepoPort } from "../../features/publish-content/baseline-repo.js";
 import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
 import type { PublishContentRunRepoPort } from "../../features/publish-content/run-repo.js";
+import type { PublishContentPeerRepoPort } from "../../features/publish-content/peers.js";
 
 /**
  * Slice 1 of the `RouteDeps` god-object decomposition (2026-08-18) — the process-wide clock + id-gen
@@ -1427,6 +1428,24 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * directly — same rule-of-two both composition roots follow for every other repo here.
    */
   publishContentRunRepo: PublishContentRunRepoPort;
+  /**
+   * Task 10 of the publish-content (Publish Content) feature (`ADS-memory/reports/
+   * 2026-09-18-publish-feature-implementation-plan.md` §4 task 10) — named remote Tovus this
+   * workspace can push to or pull from (`publish_content_peers`), with their API keys sealed at
+   * rest under the same shared ADR-058 sealer/keyring every other credential table here uses.
+   * Real `SqlitePublishContentPeerRepo` in `server/runtime/composition/deps.ts`'s
+   * `createSqliteRouteDeps()`; `InMemoryPublishContentPeerRepo` in `server/runtime/composition/
+   * app.ts`'s hermetic `createRouteDeps()` — same rule-of-two every other repo here follows.
+   */
+  publishContentPeerRepo: PublishContentPeerRepoPort;
+  /**
+   * Task 10's outbound push/pull leg — a guarded `HttpClientPort` of its own, built from
+   * `createPublishContentPeerEgressPolicy()` rather than any policy an existing consumer uses. See
+   * that factory's own doc for why: it is the only policy in this codebase whose `devHostAllowlist`
+   * is operator-configurable (`TOVU_PUBLISH_CONTENT_DEV_HOSTS`), because a legitimate peer may sit
+   * on a private network on Railway, Render, AWS or a bare VPS.
+   */
+  publishContentPeerHttpClient: HttpClientPort;
   /**
    * The static-site export engine (`src/platform/export/site-exporter.ts`'s `exportSite`), injected here
    * rather than imported directly by `export-site.ts` or `features/deployments/export-run.ts`

@@ -9,6 +9,7 @@ import { registerPageHeadContributor, resetPageHeadRegistry } from "../../inboun
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
 import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
+import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import { InMemoryPublishContentBaselineRepo } from "#src/features/publish-content/baseline-repo";
 import { InMemoryPublishContentRunRepo } from "#src/features/publish-content/run-repo";
 import { createPublishContentApplyPort } from "#src/features/publish-content/apply-loop";
@@ -16,7 +17,12 @@ import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "#src/fea
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { createDefaultHttpClient } from "#src/platform/http/client";
-import { CUSTOM_CREDENTIALS_EGRESS_POLICY, MEDIA_IMPORT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
+import {
+  CUSTOM_CREDENTIALS_EGRESS_POLICY,
+  MEDIA_IMPORT_EGRESS_POLICY,
+  createPublishContentPeerEgressPolicy,
+  parsePublishContentDevHosts,
+} from "#src/platform/http/egress-policies";
 import { InMemorySourceControlCredentialSetRepo } from "#src/features/source-control/index";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/index";
 import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
@@ -550,6 +556,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const publishContentBundleRepo = new InMemoryPublishContentBundleRepo();
   const publishContentBaselineRepo = new InMemoryPublishContentBaselineRepo();
   const publishContentRunRepo = new InMemoryPublishContentRunRepo();
+  // Task 10 — the rule-of-two in-memory peer repo. See `routes/types.ts`'s
+  // `publishContentPeerRepo` doc.
+  const publishContentPeerRepo = new InMemoryPublishContentPeerRepo();
   const publishContentApplyPort = createPublishContentApplyPort({
     workspaceId: seededWorkspace.id,
     bundleRepo: publishContentBundleRepo,
@@ -814,6 +823,13 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     publishContentApplyPort,
     // Task 8 — the apply loop's audit trail. See `routes/types.ts`'s `publishContentRunRepo` doc.
     publishContentRunRepo,
+    // Task 10 — peers + the guarded outbound client that dials them. The client is built from
+    // `createPublishContentPeerEgressPolicy()` with the same operator-set `devHostAllowlist` the
+    // SQLite root reads, so a hermetic app is not accidentally more permissive than a real one.
+    publishContentPeerRepo,
+    publishContentPeerHttpClient: createDefaultHttpClient(
+      createPublishContentPeerEgressPolicy(parsePublishContentDevHosts(process.env.TOVU_PUBLISH_CONTENT_DEV_HOSTS))
+    ),
     // 2026-08-15 — the real export engine, bound here rather than imported inside
     // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
     // `runExportSite` doc for why that indirection is required, not stylistic. NOT resolved lazily

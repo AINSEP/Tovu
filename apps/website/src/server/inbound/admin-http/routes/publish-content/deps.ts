@@ -29,6 +29,14 @@ import type { RouteDeps } from "#src/server/routes/types";
  *   `gatedMutations` are the same instance-wide singletons `taxonomy/merge-term.ts`/`database/
  *   migrate-forward.ts` already read directly off full `RouteDeps` — narrowed here instead of
  *   widening, per this file's own established pattern.
+ * - `publishContentPeerRepo`/`publishContentPeerHttpClient`/`siteAssistantSecretSealer`/
+ *   `siteAssistantSecretKeyring`: added for Task 10 (peers CRUD + the outbound push/pull driver —
+ *   `peers.ts`, `peer-transport.ts`). The sealer/keyring pair is the SHARED ADR-058 pair every
+ *   credential table in this codebase uses, narrowed here rather than widened (same reasoning
+ *   `routes/types.ts`'s own doc records for the two config routes that already read them).
+ *   `publishContentPeerHttpClient` is a guarded `HttpClientPort` built from this feature's own
+ *   `createPublishContentPeerEgressPolicy()` — never a client any other consumer shares, because it
+ *   is the only one whose `devHostAllowlist` is operator-configurable.
  */
 export type PublishContentRouteDeps = Pick<
   RouteDeps,
@@ -47,6 +55,10 @@ export type PublishContentRouteDeps = Pick<
   | "restorePointsRepo"
   | "gatedMutations"
   | "publishContentApplyPort"
+  | "publishContentPeerRepo"
+  | "publishContentPeerHttpClient"
+  | "siteAssistantSecretSealer"
+  | "siteAssistantSecretKeyring"
 >;
 
 export type PublishContentRouteRegistrar = (app: Express, deps: PublishContentRouteDeps) => void;
