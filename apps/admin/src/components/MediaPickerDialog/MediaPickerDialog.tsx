@@ -1,4 +1,5 @@
-import { useId } from "react";
+import { useId, useRef } from "react";
+import { useFocusTrap } from "../../hooks/use-focus-trap.hooks";
 import { agentHandle } from "@jini-ai/agentic";
 import type { AdminMedia } from "../../lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
@@ -61,12 +62,16 @@ export interface MediaPickerDialogProps {
 
 export function MediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentHandle: base, ...props }: MediaPickerDialogProps) {
   const { items, error, select, mediaOriginalUrl, cancelRef } = useDialog(props.onSelect, props.onCancel);
+  // aria-modal promises the background is unavailable; this is what keeps Tab from reaching it.
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(dialogRef);
   const titleId = useId();
   const itemHandles = base && items ? buildAgentListHandles(`${base}-item`, items.map((item) => item.id)) : undefined;
 
   return (
     <div className="settings-dialog-backdrop" onClick={props.onCancel}>
       <div
+        ref={dialogRef}
         className="settings-dialog media-picker-dialog"
         role="dialog"
         aria-modal="true"

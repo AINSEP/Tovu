@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import { tabFromLastFocusableInDialog } from "../../hooks/__tests__/focus-trap.test-helpers";
 import { MediaEditDialog } from "../MediaEditDialog/MediaEditDialog";
 import type { useWiredMediaEditDialog } from "../MediaEditDialog/MediaEditDialog.hooks";
 
@@ -147,5 +148,15 @@ describe("MediaEditDialog — real useWiredMediaEditDialog wiring (no fake)", ()
 
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(onSave).toHaveBeenCalledWith({ alt: "A cat", cssClass: null, htmlAttributes: 'onerror="x"' });
+  });
+});
+
+describe("MediaEditDialog — focus trap", () => {
+  it("keeps Tab inside the dialog: Tab on the last focusable element wraps to the first", async () => {
+    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={() => fakeController()} />);
+    const { event, first } = tabFromLastFocusableInDialog();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
   });
 });

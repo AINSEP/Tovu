@@ -1,4 +1,6 @@
+import { useRef } from "react";
 import { agentHandle, type AgentElementRole } from "@jini-ai/agentic";
+import { useFocusTrap } from "../../hooks/use-focus-trap.hooks";
 import type { AdminWidget, AdminWidgetType } from "../../lib/api";
 import { WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
 import { Select, type SelectOption } from "../Select/Select";
@@ -101,10 +103,14 @@ export function WidgetPickerDialog({ useDialog = useWidgetPickerDialog, agentHan
     submitUseExisting,
     submitCreateNew,
   } = useDialog(props);
+  // aria-modal promises the background is unavailable; this is what keeps Tab from reaching it.
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(dialogRef);
 
   return (
     <div className="settings-dialog-backdrop" onClick={props.onCancel}>
       <div
+        ref={dialogRef}
         className="settings-dialog widget-picker-dialog"
         role="dialog"
         aria-modal="true"

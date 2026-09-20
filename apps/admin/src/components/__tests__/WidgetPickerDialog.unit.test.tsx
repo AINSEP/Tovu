@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { tabFromLastFocusableInDialog } from "../../hooks/__tests__/focus-trap.test-helpers";
 import { WidgetAddControl, WidgetPickerDialog } from "../WidgetPickerDialog/WidgetPickerDialog";
 
 /**
@@ -227,5 +228,16 @@ describe("WidgetAddControl — real flow (unmocked useWidgetAddControl)", () => 
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(onResolved).not.toHaveBeenCalled();
+  });
+});
+
+describe("WidgetPickerDialog — focus trap", () => {
+  it("keeps Tab inside the dialog: Tab on the last focusable element wraps to the first", async () => {
+    render(<WidgetPickerDialog widgetType="text" onUseExisting={vi.fn()} onCreateNew={vi.fn()} onCancel={vi.fn()} />);
+    await screen.findByRole("button", { name: "Use this widget" });
+    const { event, first } = tabFromLastFocusableInDialog();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
   });
 });

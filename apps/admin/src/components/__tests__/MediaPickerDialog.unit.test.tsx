@@ -2,6 +2,7 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { tabFromLastFocusableInDialog } from "../../hooks/__tests__/focus-trap.test-helpers";
 import { api, ApiError, type AdminMedia } from "../../lib/api";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import type { useWiredMediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog.hooks";
@@ -185,6 +186,15 @@ describe("MediaPickerDialog — useDialog injection", () => {
 });
 
 describe("MediaPickerDialog — focus management", () => {
+
+  it("keeps Tab inside the dialog: Tab on the last focusable element wraps to the first", async () => {
+    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [] });
+    render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} />);
+    const { event, first } = tabFromLastFocusableInDialog();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
+  });
   // No dialog/modal wrapper existed at all before this fix (no useEffect, no ref, nothing) — on
   // close, focus fell through to `<body>` instead of returning to whatever control opened the
   // picker (e.g. the Posts/Pages editor's "Insert from Media Library" toolbar button). Real

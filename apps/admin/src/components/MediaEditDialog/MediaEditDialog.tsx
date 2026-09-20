@@ -1,4 +1,5 @@
-import { useId } from "react";
+import { useId, useRef } from "react";
+import { useFocusTrap } from "../../hooks/use-focus-trap.hooks";
 
 import { useWiredMediaEditDialog, type MediaEditDialogValue } from "./MediaEditDialog.hooks";
 
@@ -44,6 +45,9 @@ export function MediaEditDialog({ initial, onSave, onCancel, useDialog = useWire
     onSave,
     onCancel
   );
+  // aria-modal promises the background is unavailable; this is what keeps Tab from reaching it.
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(dialogRef);
   const titleId = useId();
   const altId = useId();
   const cssClassId = useId();
@@ -58,7 +62,7 @@ export function MediaEditDialog({ initial, onSave, onCancel, useDialog = useWire
           onto this plain `<div>` modal (an extra border, a wider max-width, altered padding),
           producing chrome that silently drifts from `MediaPickerDialog`'s clean `.settings-dialog`
           + unique-marker-class pattern this file's header says it mirrors. */}
-      <div className="settings-dialog media-node-edit-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} className="settings-dialog media-node-edit-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(e) => e.stopPropagation()}>
         <h2 id={titleId}>{t("Edit this instance")}</h2>
 
         <div className="field">
