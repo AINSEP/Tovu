@@ -341,6 +341,31 @@ describe("useOtherCredentials — replace: per-store dispatch (writeReplace)", (
     expect(saveMediaProviders).toHaveBeenCalledWith({ cloudinary: { apiKey: "sk-cloud-new" }, grok: {} });
   });
 
+  // Same rebuild as Remove (see the baseUrl/model regression in the remove block below) — and the
+  // replaced provider keeps its OWN baseUrl/model too, since the PUT would otherwise null them.
+  it("media-provider: a Replace carries baseUrl/model through for the target AND every other provider", async () => {
+    const saveMediaProviders = vi.fn((map: AdminMediaProviderMap) => Promise.resolve(map));
+    const port = createFakeOtherCredentialsPort({
+      getMediaProviders: () =>
+        Promise.resolve({
+          cloudinary: { apiKeyConfigured: true, apiKeyTail: "old4", baseUrl: "https://cloud.example", model: "c-1" },
+          grok: { apiKeyConfigured: true, apiKeyTail: "grok", baseUrl: "https://grok.example/v1" },
+        } as AdminMediaProviderMap),
+      saveMediaProviders,
+    });
+    const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const row = findGroup(result.current.groups, "media-provider")!.rows.find((r) => r.itemId === "cloudinary")!;
+    act(() => result.current.setDraftToken(row.key, "sk-cloud-new"));
+
+    await act(() => result.current.replace(findGroup(result.current.groups, "media-provider")!.rows.find((r) => r.itemId === "cloudinary")!));
+
+    expect(saveMediaProviders.mock.calls[0]![0]).toStrictEqual({
+      cloudinary: { apiKey: "sk-cloud-new", baseUrl: "https://cloud.example", model: "c-1" },
+      grok: { baseUrl: "https://grok.example/v1" },
+    });
+  });
+
   it("a rejected write surfaces the exact save-error text and preserves the typed (untrimmed-source) token", async () => {
     const port = createFakeOtherCredentialsPort({
       getSiteAssistantCredential: () => Promise.resolve({ data: { isSet: true, masked: "abcd", provider: "openai", baseUrl: null, model: null, updatedAt: null } }),
@@ -425,6 +450,39 @@ describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all 
     await act(() => result.current.remove(target));
 
     expect(saveMediaProviders).toHaveBeenCalledWith({ grok: {} });
+  });
+
+  // Regression (found while triaging the terra security review, 2026-09-20): the rebuild sent `{}`
+  // for every OTHER provider, and the server writes `baseUrl`/`model` from the submitted entry
+  // (`provider-credential-store.ts`'s `buildProviderUpsertRow` → `trimmedOrNull(entry.baseUrl)`) —
+  // `{}` only preserves the KEY. Removing one provider silently cleared every other provider's base
+  // URL and model. The two tests above use fixtures with neither field, so they could not see it.
+  it("media-provider: removing one provider carries every OTHER provider's baseUrl/model through unchanged", async () => {
+    const saveMediaProviders = vi.fn((map: AdminMediaProviderMap) => Promise.resolve(map));
+    const port = createFakeOtherCredentialsPort({
+      getMediaProviders: () =>
+        Promise.resolve({
+          cloudinary: { apiKeyConfigured: true, apiKeyTail: "old4", baseUrl: "https://cloud.example" },
+          grok: { apiKeyConfigured: true, apiKeyTail: "grok", baseUrl: "https://grok.example/v1", model: "grok-imagine-2" },
+          openai: { apiKeyConfigured: true, apiKeyTail: "oai1", model: "gpt-image-1" },
+          fal: { baseUrl: "https://fal.example" },
+        } as AdminMediaProviderMap),
+      saveMediaProviders,
+    });
+    const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const target = findGroup(result.current.groups, "media-provider")!.rows.find((r) => r.itemId === "cloudinary")!;
+
+    await act(() => result.current.remove(target));
+
+    expect(saveMediaProviders).toHaveBeenCalledTimes(1);
+    // Exact map, key by key: marker fields (`apiKeyConfigured`/`apiKeyTail`) are read-only view
+    // facts and must NOT be echoed back; an absent `apiKey` is what keeps each stored key.
+    expect(saveMediaProviders.mock.calls[0]![0]).toStrictEqual({
+      grok: { baseUrl: "https://grok.example/v1", model: "grok-imagine-2" },
+      openai: { model: "gpt-image-1" },
+      fal: { baseUrl: "https://fal.example" },
+    });
   });
 
   it("composio-connector: disconnectConnector(itemId)", async () => {

@@ -198,19 +198,30 @@ function readStore(port: OtherCredentialsPort, store: OtherCredentialStoreInfo):
 }
 
 /** Builds the full `{apiKey?, baseUrl?, model?}` map to PUT back for a media-provider Replace/Remove
- *  — every OTHER provider's entry is included as `{}` (blank `apiKey` PRESERVES the stored key,
- *  `put-providers.ts`'s own doc), and the target provider carries either its new key (Replace) or is
- *  omitted entirely (Remove, which the caller expresses by passing `nextApiKey: undefined` AND
- *  `remove: true` — see {@link replaceMediaProviderKey}/{@link removeMediaProviderKey}).
- *  @complexity O(p) in this workspace's own (small) configured-provider count. */
+ *  — every OTHER provider's entry is carried through with no `apiKey` (a blank `apiKey` PRESERVES the
+ *  stored key, `put-providers.ts`'s own doc) but WITH its own `baseUrl`/`model`: the server writes
+ *  those two from the submitted entry, not the stored row (`provider-credential-store.ts`'s
+ *  `buildProviderUpsertRow`), so sending `{}` used to null them on every other provider. The target
+ *  provider carries its new key plus its own `baseUrl`/`model` (Replace) or is omitted entirely
+ *  (Remove). @complexity O(p) in this workspace's own (small) configured-provider count. */
 function rebuildMediaProviderMap(current: AdminMediaProviderMap, providerId: string, patch: { apiKey: string } | { remove: true }): AdminMediaProviderMap {
   const next: AdminMediaProviderMap = {};
-  for (const id of Object.keys(current)) {
+  for (const [id, credentials] of Object.entries(current)) {
     if (id === providerId) continue;
-    next[id] = {};
+    next[id] = keptMediaProviderSettings(credentials);
   }
-  if (!("remove" in patch)) next[providerId] = { apiKey: patch.apiKey };
+  if (!("remove" in patch)) next[providerId] = { apiKey: patch.apiKey, ...keptMediaProviderSettings(current[providerId]) };
   return next;
+}
+
+/** The writable, non-secret settings of one provider's GET view — `baseUrl`/`model` when present,
+ *  never the read-only markers (`apiKeyConfigured`/`apiKeyTail`/`source`), which are view facts the
+ *  PUT does not take. @complexity O(1). */
+function keptMediaProviderSettings(credentials: AdminMediaProviderMap[string] | undefined): AdminMediaProviderMap[string] {
+  return {
+    ...(credentials?.baseUrl !== undefined ? { baseUrl: credentials.baseUrl } : {}),
+    ...(credentials?.model !== undefined ? { model: credentials.model } : {}),
+  };
 }
 
 /** Translates a rejected Tier-2 write into the same save-error string Tier 1 uses — no
