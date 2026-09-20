@@ -581,6 +581,112 @@ describe("usePostEditor — save", () => {
     expect(result.current.status).toBe("published");
     expect(result.current.message).toMatch(/^Published/);
   });
+
+  /**
+   * M4 (`ADS-memory/.local-artifacts/terra-admin-review-2026-09-20/plan-content.md`) — Save and
+   * Publish had no `saving`-driven `disabled` at all, unlike `use-page-editor.hooks.ts`'s Pages twin
+   * (`PageEditorController.saving`, `PageEditor.tsx:192`/`:208`). Same deferred-`updatePost` port
+   * shape as the race test just above, manually resolved — never a timer — so each test controls
+   * exactly when a write settles.
+   */
+  function deferredSavePort(initial: AdminPost): { port: PostEditorPort; resolvers: Array<() => void> } {
+    let state = initial;
+    const resolvers: Array<() => void> = [];
+    const port: PostEditorPort = {
+      async getPost() {
+        return { post: state };
+      },
+      async getPresentation() {
+        return {
+          settings: { workspaceId: "fake-ws", activeThemeId: "fake-theme", updatedAt: new Date(0).toISOString() },
+          availableThemes: [],
+          activeThemeTemplates: [],
+          activeThemeStaticPageIds: [],
+        };
+      },
+      updatePost(_target, patch) {
+        return new Promise((resolve) => {
+          resolvers.push(() => {
+            state = { ...state, ...patch, version: state.version + 1 } as AdminPost;
+            resolve({ post: state });
+          });
+        });
+      },
+      async deletePost() {
+        return { post: state };
+      },
+      async listPosts() {
+        return { posts: [] };
+      },
+      async uploadMedia() {
+        throw new Error("not used by this test");
+      },
+      templatePreviewUrl: () => "",
+      async putAutosave() {
+        return { applied: true };
+      },
+      async getAutosave() {
+        return { autosave: null };
+      },
+      async discardAutosave() {
+        return { ok: true };
+      },
+    };
+    return { port, resolvers };
+  }
+
+  it("saving is true while a save is in flight and false once it settles", async () => {
+    const { port, resolvers } = deferredSavePort({ ...POST, status: "draft" });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+
+    expect(result.current.saving).toBe(false);
+
+    let settled = false;
+    act(() => {
+      result.current.save().then(() => {
+        settled = true;
+      });
+    });
+    expect(resolvers).toHaveLength(1);
+    expect(result.current.saving).toBe(true);
+
+    await act(async () => {
+      resolvers[0]();
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(settled).toBe(true));
+
+    expect(result.current.saving).toBe(false);
+  });
+
+  it("an older save settling does not clear saving while a newer save is still in flight", async () => {
+    const { port, resolvers } = deferredSavePort({ ...POST, status: "draft" });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+
+    act(() => {
+      void result.current.save();
+      void result.current.save("published");
+    });
+    expect(resolvers).toHaveLength(2);
+    expect(result.current.saving).toBe(true);
+
+    // The OLDER call (Save, issued first) settles first — its own `finally` must not be the one that
+    // flips `saving` back off, since the newer call (Publish) is still in flight. Today `saving`
+    // does not exist at all, so this is RED until `runSave`'s generation check guards it.
+    await act(async () => {
+      resolvers[0]();
+      await Promise.resolve();
+    });
+    expect(result.current.saving).toBe(true);
+
+    await act(async () => {
+      resolvers[1]();
+      await Promise.resolve();
+    });
+    expect(result.current.saving).toBe(false);
+  });
 });
 
 describe("usePostEditor — delete", () => {

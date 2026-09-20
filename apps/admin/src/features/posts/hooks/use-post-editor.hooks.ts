@@ -179,6 +179,19 @@ export interface PostEditorController extends PostEditorUiController {
   togglePreviewExpanded: () => void;
   message: string | null;
   error: string | null;
+  /**
+   * Whether a Save/Publish request is currently in flight (M4, 2026-09-20) — neither button disabled
+   * on this while a request was in flight, unlike `use-page-editor.hooks.ts`'s identical field on its
+   * Pages twin (`PageEditorController.saving`), which this mirrors exactly: a same-tick Save-then-
+   * Publish (or a double click before either disabled) sent two writes against the same
+   * `expectedVersion`; the first landed, the second's `expectedVersion` was already stale by the time
+   * it reached the server, so the operator saw a conflict banner about their own save. The generation
+   * guard in `runSave` still decides whose RESPONSE wins if a later call is issued anyway (see
+   * `PostEditorController.saveOverwritingConflict`'s sibling `use-post-editor.hooks.unit.test.tsx`
+   * test, "Save then Publish… keeps the later click") — this field only stops the SECOND click from
+   * being issued at all, the cheaper and more common case.
+   */
+  saving: boolean;
   confirmingDelete: boolean;
   setConfirmingDelete: (open: boolean) => void;
   deleting: boolean;
@@ -512,6 +525,10 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // KIND of thing: `error` is a one-line message next to the Save button, this is a state the screen
   // stays in (with its own actions) until the operator resolves it.
   const [saveConflict, setSaveConflict] = useState<PostSaveConflict | null>(null);
+  // Disables Save/Publish while a request is in flight (M4, 2026-09-20) — see
+  // `PostEditorController.saving`'s own doc for the double-write bug this closes. Mirrors
+  // `use-page-editor.hooks.ts`'s identical `saving` state.
+  const [saving, setSaving] = useState(false);
   // TipTap's content lives in the editor's own imperative state, not React state, so nothing here
   // re-renders when the body changes on its own — `onUpdate` below exists solely to force one, so
   // `current.bodyJson` (read fresh via `editor.getJSON()` every render) actually gets re-evaluated
@@ -899,6 +916,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     // doc for why a synchronous ref bump, not `useState`, is what makes two same-tick calls (a
     // double-click, or Save then Publish before either disables) each see the other's claim.
     const generation = settlement.next();
+    setSaving(true);
     setMessage(null);
     setError(null);
     setSaveConflict(null);
@@ -936,6 +954,12 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         return;
       }
       setError(formatSaveErrorMessage(e, statusOverride));
+    } finally {
+      // Same generation check as the two branches above: only the call that is still current should
+      // flip the shared `saving` flag back off, or an older call's own settlement could briefly
+      // re-enable Save/Publish while a newer call is still in flight. Mirrors
+      // `use-page-editor.hooks.ts`'s identical `finally` in `runSave`.
+      if (settlement.isCurrent(generation)) setSaving(false);
     }
   }
 
@@ -1084,6 +1108,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     setStatus,
     message,
     error,
+    saving,
     confirmingDelete,
     setConfirmingDelete,
     deleting,

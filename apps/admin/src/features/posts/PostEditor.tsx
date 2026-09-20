@@ -870,6 +870,7 @@ function PostEditorActions({
   error,
   status,
   setStatus,
+  saving,
   onPublish,
   onSave,
   onDeleteClick,
@@ -879,6 +880,11 @@ function PostEditorActions({
   error: string | null;
   status: "draft" | "published";
   setStatus: (value: "draft" | "published") => void;
+  /** M4 (2026-09-20) — disables Publish and Save while a request is already in flight, so a
+   *  same-tick Save-then-Publish (or a double click) can no longer send two writes against the same
+   *  `expectedVersion`. See `PostEditorController.saving`'s own doc. Deliberately not threaded onto
+   *  Delete, which already gates on `ConfirmDialog`'s own `pending`. */
+  saving: boolean;
   onPublish: () => void;
   onSave: () => void;
   onDeleteClick: () => void;
@@ -918,6 +924,7 @@ function PostEditorActions({
         <button
           type="button"
           onClick={onPublish}
+          disabled={saving}
           {...agentHandle("post-publish", {
             role: "button",
             label:
@@ -933,6 +940,7 @@ function PostEditorActions({
         type="button"
         className={status === "draft" ? "btn-secondary" : undefined}
         onClick={onSave}
+        disabled={saving}
         {...agentHandle("post-save", { role: "button", label: "Save this post's title, slug, status and body" })}
       >
         {t("Save")}
@@ -1363,6 +1371,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     togglePreviewExpanded,
     message,
     error,
+    saving,
     confirmingDelete,
     deleting,
     confirmLeave,
@@ -1513,6 +1522,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         error={error}
         status={status}
         setStatus={setStatus}
+        saving={saving}
         onPublish={onPublish}
         onSave={onSave}
         onDeleteClick={onDeleteClick}

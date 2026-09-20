@@ -208,6 +208,19 @@ describe("Publish", () => {
     await screen.findByRole("button", { name: /^save$/i });
     expect(screen.queryByRole("button", { name: /^publish$/i })).not.toBeInTheDocument();
   });
+
+  /**
+   * M4 — neither button disabled while a save was in flight, unlike the Pages editor's twin. Drives
+   * the DI seam directly (`renderPostEditor`/`postController`) rather than `fetch`, since this is
+   * `PostEditorActions`' own wiring of `saving`, not `usePostEditor`'s internals (those are covered
+   * in `use-post-editor.hooks.unit.test.tsx`).
+   */
+  it("disables Publish and Save while a save is in flight", () => {
+    renderPostEditor({ status: "draft", saving: true });
+
+    expect(screen.getByRole("button", { name: /^publish$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled();
+  });
 });
 
 describe("Delete confirmation", () => {
@@ -829,6 +842,10 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     togglePreviewExpanded: vi.fn(),
     message: null,
     error: null,
+    // M4 (2026-09-20) — `false` by default so every pre-existing test in this file (written before
+    // this field existed) keeps seeing enabled Save/Publish buttons; the dedicated test below
+    // overrides it.
+    saving: false,
     confirmingDelete: false,
     setConfirmingDelete,
     deleting: false,

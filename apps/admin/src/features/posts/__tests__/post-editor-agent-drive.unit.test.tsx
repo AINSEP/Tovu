@@ -74,6 +74,7 @@ function controller(overrides: Partial<PostEditorController> = {}): PostEditorCo
     togglePreviewExpanded: vi.fn(),
     message: null,
     error: null,
+    saving: false,
     confirmingDelete: false,
     setConfirmingDelete,
     deleting: false,
