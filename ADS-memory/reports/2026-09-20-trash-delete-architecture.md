@@ -400,3 +400,25 @@ Not escalated, decided by me and recorded above: index table over per-domain col
 - **Trashed posts keep reserving their slug** for the full retention window (`posts.deleted_at` is deliberately excluded from `posts_workspace_slug_unique`, `schema.ts:94`). A user who deletes a post and immediately recreates it at the same slug hits a conflict. The UI should explain the reservation. Verified in the schema; Codex's report flags the same thing.
 - **The sweeper runs against every workspace in the file.** Correct for a per-site `content.db`, but if a single file ever hosts many workspaces the global `purge_after` index is what keeps the due-scan cheap — do not narrow it to a workspace-scoped index later without re-checking the sweep query plan.
 - **Two features named "trash".** Someone will eventually read §0 too quickly and add production semantics to `trashed_items`. The table doc comment says local; keep it there.
+
+---
+
+## 9b. Two things carried in handoffs long enough to need a durable home (2026-09-20, builder #5)
+
+**`PostRepoPort.softDelete` is production-dead — KEEP it.** Two consecutive builders recommended
+keeping it, and this is the record so a third does not have to re-derive the reasoning. It has
+rule-of-two contract tests; the post delete path now goes through the injected `remove`, which is
+why nothing calls `softDelete` any more. Removing it is a legitimate cleanup, but it belongs in its
+own commit with its own review, not folded into a feature diff where a reviewer reading the Trash
+changes has no reason to look at it. Until then it is dead code with tests, which is a cheap and
+honest state, not a defect.
+
+**A sweep row reporting `version-changed` while its index row still exists can never be purged, and
+the lazy read filter also hides it from the UI.** A row that stands down keeps its lease rather than
+releasing it (releasing means re-claiming it on the very next tick forever, and a full batch of
+stuck rows would starve everything else), so such a row is retried once per lease, indefinitely.
+Combined with the list's `purge_after > now` filter, a row in this state is a hidden entity with no
+route back. It is reachable only if an entity is edited *while trashed*, which no admin path does
+today. Fixing it properly means either re-syncing the snapshot version (which defeats the
+compare-and-delete safety that makes a concurrent restore always win) or surfacing the row in the
+UI. Not fixed; recorded so it is not rediscovered as a surprise.
