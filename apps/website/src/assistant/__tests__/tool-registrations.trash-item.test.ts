@@ -17,7 +17,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 import type { RouteDeps } from "#src/server/routes/types";
 
-import { deriveTrashItemRegistrations, TRASH_ITEM_DELEGATES, TRASH_ITEM_TOOL_ID } from "../trash-item-tool.js";
+import { deriveTrashItemRegistrations, TRASH_ITEM_DELEGATES, TRASH_ITEM_TOOL_ID } from "#src/features/trash/trash-item-tool";
 
 /**
  * @file `trash_item` — one generic "move this to the Trash" tool that is a fifth DOOR onto the four
