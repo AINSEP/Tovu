@@ -106,6 +106,57 @@ describe("useVisitorCredentialForm — hydration", () => {
     expect(result.current.dirty).toBe(false);
   });
 
+  it("hydrates the stored provider, so a model-only settings save keeps an Anthropic credential Anthropic", async () => {
+    vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["claude-sonnet-5"] });
+    vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({
+      data: credential({ isSet: true, masked: "••••ant1", provider: "anthropic", baseUrl: "https://api.anthropic.com", model: "claude-opus-5" }),
+    });
+    const setAssistantSiteCredential = vi
+      .spyOn(api, "setAssistantSiteCredential")
+      .mockResolvedValue({ data: credential({ isSet: true, provider: "anthropic", baseUrl: "https://api.anthropic.com", model: "claude-sonnet-5" }) });
+
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.config).toMatchObject({ protocol: "anthropic", providerId: "anthropic" });
+    expect(result.current.dirty).toBe(false);
+
+    act(() => result.current.editConfig({ ...result.current.config, model: "claude-sonnet-5" }));
+    await act(async () => {
+      await result.current.saveSettings();
+    });
+
+    expect(setAssistantSiteCredential.mock.calls[0][0]).toEqual({
+      provider: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      model: "claude-sonnet-5",
+    });
+  });
+
+  it("hydrates a stored endpoint no preset owns as a custom endpoint under the stored protocol", async () => {
+    vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: [] });
+    vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({
+      data: credential({ isSet: true, masked: "••••oai1", provider: "openai", baseUrl: "https://llm.internal.example/v1", model: "local-7b" }),
+    });
+
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.config).toMatchObject({
+      protocol: "openai",
+      providerId: null,
+      baseUrl: "https://llm.internal.example/v1",
+      model: "local-7b",
+    });
+    expect(result.current.preset).toBeNull();
+  });
+
   it("on failure: stays silent — stored is null, no error surfaces anywhere", async () => {
     vi.spyOn(api, "getAssistantSiteCredential").mockRejectedValue(new Error("network down"));
 

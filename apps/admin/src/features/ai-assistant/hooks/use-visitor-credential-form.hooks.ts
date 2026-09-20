@@ -20,7 +20,13 @@ import {
   storedKeyBlocksProbe,
   storedKeyIsForOtherEndpoint as storedKeyIsForOtherEndpointRule,
 } from "@/lib/stored-credential-endpoint";
-import { configuredPresetIds as configuredPresetIdsRule, describeApiError, hasStoredCredential, isPresetSuppliedEndpoint } from "../rules";
+import {
+  configuredPresetIds as configuredPresetIdsRule,
+  describeApiError,
+  hasStoredCredential,
+  hydrateVisitorCredentialConfig,
+  isPresetSuppliedEndpoint,
+} from "../rules";
 import { defaultVisitorCredentialFormPort } from "./visitor-credential-form-dependencies.hooks";
 import type { VisitorCredentialFormPort } from "./visitor-credential-form-port.hooks";
 
@@ -428,8 +434,9 @@ export function useVisitorCredentialForm({
   // Hydrate from the server once. This is what makes the screen honest across sessions: without it
   // an operator who saved a key last week reopens the tab, sees an empty key field, and reasonably
   // concludes nothing was ever stored. The KEY cannot come back (the route is write-only by design),
-  // so what hydrates is everything else — provider, base URL, model — plus `isSet`/`masked`, which is
-  // what the "A key is stored" line under the field reports.
+  // so what hydrates is everything else — provider, base URL, model (`rules.ts`'s
+  // `hydrateVisitorCredentialConfig`) — plus `isSet`/`masked`, which is what the "A key is stored"
+  // line under the field reports.
   useEffect(() => {
     let cancelled = false;
     apiRef.current
@@ -437,11 +444,7 @@ export function useVisitorCredentialForm({
       .then(({ data }) => {
         if (cancelled) return;
         setStored(data);
-        setConfig((current) => ({
-          ...current,
-          baseUrl: data.baseUrl ?? current.baseUrl,
-          model: data.model ?? current.model,
-        }));
+        setConfig((current) => hydrateVisitorCredentialConfig(current, data));
       })
       // Silent: a failed read must not put an error next to a key field the operator has not touched
       // yet. The consequence is only that the stored-state line stays absent, and the save effect's
