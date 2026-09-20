@@ -305,6 +305,13 @@ export interface PostRepoPort {
    * `updatedAt`/`version` travel with the marker because a trash is a state change like any other:
    * the version must advance so the command gateway's revert guard (`appliers.ts`'s
    * `currentVersion`) can tell a restored row from the trashed one it replaced.
+   *
+   * 2026-09-20: `deletePost` no longer calls this. Trashing now goes through {@link DeletePostDeps}'s
+   * injected `remove`, which stamps the same three columns AND writes the Trash index row inside one
+   * transaction — the two could not be made atomic while they were separate calls. This method
+   * remains the port's narrow marker write (both adapters still implement it identically, and its
+   * rule-of-two contract tests still run) and is what a test harness or an in-memory composition
+   * binds `remove` to; nothing in the serving path reaches it any more.
    */
   softDelete(required: {
     workspaceId: UUID;
@@ -537,6 +544,28 @@ export interface DeletePostInput {
   delegatedById?: UUID | null;
 }
 
+/**
+ * The delete primitive this domain is handed, rather than one it implements.
+ *
+ * Structurally typed ON PURPOSE — this file imports nothing from `features/trash`, and must not.
+ * The composition root binds the real implementation (which stamps the marker AND indexes the item
+ * for the Trash screen, as one transaction) and hands it in already bound to this domain's entity
+ * type, so `deletePost` never learns that a Trash exists. The only thing it knows is that removal
+ * is somebody else's single, atomic write.
+ *
+ * `display` is REQUIRED because the caller already holds the record — it loaded it for its own
+ * not-found check — so the two strings the Trash screen shows come from columns, with no second
+ * read and no payload parse. That is what keeps a post with unparseable `body_json` deletable.
+ */
+export type RemovePostFn = (required: {
+  workspaceId: string;
+  id: string;
+  display: { title: string; subtitle?: string | null };
+  at: string;
+  expectedVersion: number | null;
+  actor: { principalId: string; pluginId?: string | null };
+}) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }>;
+
 export interface DeletePostDeps {
   clock: ClockPort;
   repo: PostRepoPort;
@@ -547,6 +576,8 @@ export interface DeletePostDeps {
    * this reuses `classifyStatusTransition` rather than inventing an `entry.deleted` name.
    */
   outbox: OutboxPort;
+  /** See {@link RemovePostFn}. Replaces this function's former direct `repo.softDelete` call. */
+  remove: RemovePostFn;
 }
 
 export interface DeletePostRequired {
@@ -596,17 +627,25 @@ export async function deletePost(
   const version = existing.version + 1;
   const post: PostRecord = { ...existing, deletedAt: now, updatedAt: now, version };
 
-  // The softDelete write and its revision-ledger append are one atomic unit (see
-  // `PostRepoPort.transaction`'s own doc) — a revision must never be recorded for a trash that
-  // didn't really land, and a trash must never land unaccompanied by its revision.
+  // The removal and its revision-ledger append are one atomic unit (see `PostRepoPort.transaction`'s
+  // own doc) — a revision must never be recorded for a trash that didn't really land, and a trash
+  // must never land unaccompanied by its revision. `deps.remove` joins this transaction rather than
+  // opening its own, so the marker, the Trash index row and the revision are all-or-nothing.
   const { id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
-    await deps.repo.softDelete({
+    const removed = await deps.remove({
       workspaceId: input.workspaceId,
       id: input.id,
-      deletedAt: now,
-      updatedAt: now,
-      version,
+      // From columns the `findById` above already returned — no second read, no payload parse.
+      display: { title: existing.title, subtitle: existing.slug },
+      at: now,
+      expectedVersion: existing.version,
+      actor: { principalId: input.actorId ?? SYSTEM_ACTOR_ID },
     });
+    if (!removed.ok) {
+      // `not-found` can only mean the row was removed between the read above and this write.
+      if (removed.reason === "not-found") throw new PostNotFoundError(`post '${input.id}' was not found`);
+      throw new PostConflictError(`post '${input.id}' changed while it was being deleted`);
+    }
     return deps.repo.appendRevision({
       postId: post.id,
       workspaceId: post.workspaceId,

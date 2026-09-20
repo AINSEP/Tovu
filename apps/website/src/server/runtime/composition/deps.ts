@@ -104,6 +104,7 @@ import { SqliteExternalMcpServerRepo } from "#src/platform/db/sqlite/external-mc
 import { createComposioConnectors } from "#src/platform/connectors/composio-service";
 import {
   LocalFsBlobStore,
+  purgeMedia,
   S3BlobStore,
   SharpImageTransformer,
   type BlobStorePort,
@@ -176,6 +177,21 @@ import {
 } from "#src/features/settings/site-title";
 import { SqliteSiteTitlePreservationStore } from "#src/features/settings/site-title-preservation.sqlite";
 import { SqliteCommentRepo } from "#src/features/comments/repo.sqlite";
+import {
+  bindRemoveEntity,
+  COMMENT_ENTITY_TYPE,
+  createCommentTrashAdapter,
+  createContentDbTransactionRunner,
+  createMediaTrashAdapter,
+  createPostTrashAdapter,
+  createRedirectTrashAdapter,
+  createTrashService,
+  MEDIA_ENTITY_TYPE,
+  POST_ENTITY_TYPE,
+  REDIRECT_ENTITY_TYPE,
+  SqliteTrashRepo,
+  type TrashAdapter,
+} from "#src/features/trash/index";
 import { installCommentsDataModule } from "#src/features/comments/data-module-install";
 import {
   SqliteEntryTermRepo,
@@ -1370,9 +1386,53 @@ export function createSqliteRouteDeps(
     idGen,
   });
 
+  // ---------------------------------------------------------------------------
+  // Local admin Trash (design: ADS-memory/reports/2026-09-20-trash-delete-architecture.md)
+  // ---------------------------------------------------------------------------
+  // A plain Map, built here and resolved on every call. NOT a module-level registry: this
+  // codebase's registries (`ToolRegistry`, routing's `phaseRegistry`) are append-only with no
+  // unregister, so anything that filters at registration time runs exactly once — two real bugs
+  // already came from that. Adding a phase-2 domain means one more `set()` here and no migration.
+  const assetRenditionRepo = new SqliteAssetRenditionRepo(db);
+  const trashAdapters = new Map<string, TrashAdapter>([
+    [POST_ENTITY_TYPE, createPostTrashAdapter(db.$client)],
+    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(db.$client)],
+    [COMMENT_ENTITY_TYPE, createCommentTrashAdapter(db.$client)],
+    [
+      MEDIA_ENTITY_TYPE,
+      createMediaTrashAdapter({
+        client: db.$client,
+        // Media's hard delete is not a row delete: rendition rows hang off it and the blob store
+        // holds bytes. `purgeMedia` owns that ladder, so the adapter delegates rather than
+        // reimplementing it in SQL and silently orphaning bytes.
+        purgeAsset: async ({ workspaceId: ws, entityId }) => {
+          await purgeMedia({
+            deps: { mediaRepo, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, blobStore, clock },
+            input: { workspaceId: ws, id: entityId },
+          });
+        },
+      }),
+    ],
+  ]);
+  const trash = createTrashService({
+    repo: new SqliteTrashRepo(db.$client),
+    adapters: trashAdapters,
+    idGen: { next: () => randomUUID() },
+    // Reentrant: `deletePost` and `tombstoneRedirect` already open their own BEGIN IMMEDIATE around
+    // "marker + revision append", and `remove` is called from inside it.
+    transaction: createContentDbTransactionRunner(db.$client),
+  });
+
   const routeDeps: NewsletterRouteDeps = {
     workspaceId: workspaceId,
     workspaceRepo: new SqliteWorkspaceRepo(db),
+    trash,
+    // Pre-bound per domain. A delete path receives exactly one of these and therefore cannot reach
+    // another domain's entities by passing the wrong string.
+    removePost: bindRemoveEntity(trash, POST_ENTITY_TYPE),
+    removeComment: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
+    removeMedia: bindRemoveEntity(trash, MEDIA_ENTITY_TYPE),
+    removeRedirect: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
     postRepo,
     postSearch: new SqlitePostSearchIndex(db),
     // SPEC-047/ADR-056 — the db handle and clock are closed over here so no route ever holds one;
@@ -1526,7 +1586,7 @@ export function createSqliteRouteDeps(
     // in the actual running server.
     mediaRepo,
     assetBlobRepo,
-    assetRenditionRepo: new SqliteAssetRenditionRepo(db),
+    assetRenditionRepo,
     mediaContentTypeStore: new SqliteMediaContentTypeStore(db),
     // 2026-08-12: wiring products into template render data. Plain Drizzle repos over the SAME
     // `db` every other adapter above already shares — no plugin/`declareDataModule()` bootstrap

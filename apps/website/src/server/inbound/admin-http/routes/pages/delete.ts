@@ -1,6 +1,6 @@
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import { processOutbox } from "#src/contracts/core/events/index";
-import { PostNotFoundError, deletePost, type PostRecord } from "#src/features/post/index";
+import { PostConflictError, PostNotFoundError, deletePost, type PostRecord } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
@@ -67,7 +67,7 @@ export const registerAdminPageDeleteRoute: ContentRouteRegistrar = (app, deps) =
           },
           execute: () =>
             deletePost({
-              deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox },
+              deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, remove: deps.removePost },
               input: { workspaceId: deps.workspaceId, id: pageId, actorId: principal.id },
             }),
           captureEntityVersion: (r) => r.post.version,
@@ -101,6 +101,13 @@ export const registerAdminPageDeleteRoute: ContentRouteRegistrar = (app, deps) =
 
       if (err instanceof PostNotFoundError) {
         res.status(404).json({ error: err.message, code: "ENTRY_NOT_FOUND" });
+        return;
+      }
+
+      // 2026-09-20: `deletePost` can now raise this when the row's version moved between its read
+      // and its write — the same optimistic-concurrency rejection `pages/update.ts` maps onto 409.
+      if (err instanceof PostConflictError) {
+        res.status(409).json({ error: err.message, code: "ENTRY_CONFLICT" });
         return;
       }
 

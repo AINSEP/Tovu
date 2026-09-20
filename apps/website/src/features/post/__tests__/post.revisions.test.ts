@@ -13,6 +13,7 @@ import {
 } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
+import { removeVia } from "./remove-post-double.js";
 
 /**
  * @file Certification of the `post_revisions` ledger writer — `PostRepoPort.appendRevision`/
@@ -264,7 +265,7 @@ for (const adapter of ADAPTERS) {
     });
 
     const { post, revisionId, previousRevisionId } = await deletePost({
-      deps: { repo, clock, outbox: noopOutbox },
+      deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) },
       input: { workspaceId: WS, id: "post-1" },
     });
 
@@ -283,7 +284,7 @@ for (const adapter of ADAPTERS) {
     await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "post-1", title: "Hello" } });
 
     await deletePost({
-      deps: { repo, clock, outbox: noopOutbox },
+      deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) },
       input: { workspaceId: WS, id: "post-1", actorId: "agent-2", delegatedByWorkspaceId: WS, delegatedById: "human-2" },
     });
 
@@ -413,7 +414,7 @@ for (const adapter of ADAPTERS) {
 
     const repo = withThrowingAppendRevision(inner);
     await assert.rejects(
-      () => deletePost({ deps: { repo, clock, outbox: noopOutbox }, input: { workspaceId: WS, id: "post-1" } }),
+      () => deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } }),
       /simulated appendRevision failure/
     );
 

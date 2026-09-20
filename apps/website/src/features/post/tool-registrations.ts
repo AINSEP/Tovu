@@ -107,6 +107,7 @@ import {
   type PostRepoPort,
   type PostStatus,
   type BeforeSaveHookPort,
+  type RemovePostFn,
 } from "./post.js";
 // The SAME boundary `server/inbound/admin-http/routes/posts/update.ts` uses — imported, not copied.
 // The two arms diverged in the first place because only one of them had this logic at all.
@@ -158,6 +159,12 @@ export interface PostToolDeps {
   postRepo: PostRepoPort;
   postSearch: PostSearchPort;
   pluginBeforeSaveHook: BeforeSaveHookPort;
+  /**
+   * The pre-bound removal `content_post_delete` hands `deletePost` — see `post.ts`'s
+   * {@link import("./post.js").RemovePostFn}. Structurally typed, so this file also imports nothing
+   * from `features/trash`; a `RouteDeps` satisfies it by having the field.
+   */
+  removePost: RemovePostFn;
   /**
    * OPTIONAL — `content_duplicate`'s `"post"`/`"page"` resource handlers
    * ({@link duplicatePostOrPage}) are the only consumers in this domain that need it. Kept optional
@@ -879,7 +886,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
             },
             execute: () =>
               deletePost({
-                deps: { repo: routeDeps.postRepo, clock: routeDeps.clock, outbox: routeDeps.outbox },
+                deps: { repo: routeDeps.postRepo, clock: routeDeps.clock, outbox: routeDeps.outbox, remove: routeDeps.removePost },
                 input: {
                   workspaceId: routeDeps.workspaceId,
                   id,

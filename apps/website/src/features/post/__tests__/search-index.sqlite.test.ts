@@ -7,6 +7,7 @@ import { createPost, deletePost, updatePost, type PostRecord } from "../post.js"
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { searchAdminPosts, type PostSearchHit } from "../search.js";
 import { backfillPostSearchIndex, SqlitePostSearchIndex } from "../search-index.sqlite.js";
+import { removeVia } from "./remove-post-double.js";
 
 /**
  * @file Certification of the DURABLE search adapter: the FTS5 index migration 0022 installs, the
@@ -218,7 +219,7 @@ test("an update replaces the indexed text — the old wording stops matching", a
   const post = await h.add({ id: "p1", title: "Pricing and plans", text: "Ten dollars a month." });
 
   await updatePost({
-    deps: { repo: h.repo, clock, outbox: noopOutbox },
+    deps: { repo: h.repo, clock, outbox: noopOutbox, remove: removeVia(h.repo) },
     input: { workspaceId: WS, id: post.id, title: "Sponsorship tiers", slug: "sponsorship", bodyJson: body("Bronze, silver, gold."), status: "published" },
   });
 
@@ -233,7 +234,7 @@ test("a soft-deleted post disappears from search, and a restore brings it back",
   const post = await h.add({ id: "p1", title: "Pricing", text: "Ten dollars." });
   await h.add({ id: "p2", title: "Pricing elsewhere", text: "Also ten dollars." });
 
-  await deletePost({ deps: { repo: h.repo, clock, outbox: noopOutbox }, input: { workspaceId: WS, id: post.id } });
+  await deletePost({ deps: { repo: h.repo, clock, outbox: noopOutbox, remove: removeVia(h.repo) }, input: { workspaceId: WS, id: post.id } });
   assert.deepEqual(ids(await h.find("pricing")), ["p2"], "the trashed row must vanish, the sibling must not");
 
   // Exactly what `core/commands/appliers.ts`'s `postDeleteReverter` does: clear the marker and
@@ -248,7 +249,7 @@ test("a soft-deleted post disappears from search, and a restore brings it back",
 test("a trashed post is excluded without its index row being removed — the filter is on the live row", async () => {
   const h = harness();
   const post = await h.add({ id: "p1", title: "Pricing", text: "Ten dollars." });
-  await deletePost({ deps: { repo: h.repo, clock, outbox: noopOutbox }, input: { workspaceId: WS, id: post.id } });
+  await deletePost({ deps: { repo: h.repo, clock, outbox: noopOutbox, remove: removeVia(h.repo) }, input: { workspaceId: WS, id: post.id } });
 
   const indexed = h.db.$client.prepare("SELECT COUNT(*) AS n FROM post_search_document WHERE post_id = 'p1'").get() as { n: number };
   assert.equal(indexed.n, 1, "the projection is deliberately retained so a restore needs no reindex");

@@ -20,6 +20,7 @@ import {
 } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
+import { removeVia } from "./remove-post-double.js";
 
 /**
  * @file Certification of the soft delete: the `deletePost` domain function, the trash-awareness it
@@ -85,7 +86,7 @@ function seed(overrides: Partial<PostRecord> = {}): PostRecord {
 test("deletePost stamps a trash marker and keeps the row (soft, not hard)", async () => {
   const repo = new InMemoryPostRepo([seed()]);
 
-  const { post } = await deletePost({ deps: { repo, clock, outbox: noopOutbox }, input: { workspaceId: WS, id: "post-1" } });
+  const { post } = await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
   assert.equal(post.deletedAt, "2026-07-30T12:00:00.000Z");
   assert.equal(post.version, 4, "a trash is a state change — the version must advance");
@@ -103,17 +104,17 @@ test("deletePost stamps a trash marker and keeps the row (soft, not hard)", asyn
 test("deletePost rejects an unknown id", async () => {
   const repo = new InMemoryPostRepo([seed()]);
   await assert.rejects(
-    () => deletePost({ deps: { repo, clock, outbox: noopOutbox }, input: { workspaceId: WS, id: "nope" } }),
+    () => deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "nope" } }),
     PostNotFoundError,
   );
 });
 
 test("deletePost rejects an already-trashed row rather than bumping the version a second time", async () => {
   const repo = new InMemoryPostRepo([seed()]);
-  await deletePost({ deps: { repo, clock, outbox: noopOutbox }, input: { workspaceId: WS, id: "post-1" } });
+  await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
   await assert.rejects(
-    () => deletePost({ deps: { repo, clock, outbox: noopOutbox }, input: { workspaceId: WS, id: "post-1" } }),
+    () => deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } }),
     PostNotFoundError,
   );
 
@@ -124,14 +125,14 @@ test("deletePost rejects an already-trashed row rather than bumping the version 
 test("deletePost is workspace-scoped — another workspace's id is not found", async () => {
   const repo = new InMemoryPostRepo([seed()]);
   await assert.rejects(
-    () => deletePost({ deps: { repo, clock, outbox: noopOutbox }, input: { workspaceId: "other-ws", id: "post-1" } }),
+    () => deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: "other-ws", id: "post-1" } }),
     PostNotFoundError,
   );
 });
 
 test("deletePost is kind-blind, exactly like updatePost — the kind guard belongs to the route/tool", async () => {
   const repo = new InMemoryPostRepo([seed({ id: "pg1", kind: "page", slug: "about" })]);
-  const { post } = await deletePost({ deps: { repo, clock, outbox: noopOutbox }, input: { workspaceId: WS, id: "pg1" } });
+  const { post } = await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "pg1" } });
   assert.equal(post.kind, "page");
 });
 
@@ -143,7 +144,7 @@ test("deleting a PUBLISHED row emits entry.unpublished (SEO's sitemap-cache inva
   const repo = new InMemoryPostRepo([seed({ status: "published" })]);
   const { outbox, events } = recordingOutbox();
 
-  await deletePost({ deps: { repo, clock, outbox }, input: { workspaceId: WS, id: "post-1" } });
+  await deletePost({ deps: { repo, clock, outbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
   assert.equal(events.length, 1);
   assert.equal(events[0].name, "entry.unpublished");
@@ -156,7 +157,7 @@ test("deleting a DRAFT row emits nothing — it was never on the public site", a
   const repo = new InMemoryPostRepo([seed({ status: "draft" })]);
   const { outbox, events } = recordingOutbox();
 
-  await deletePost({ deps: { repo, clock, outbox }, input: { workspaceId: WS, id: "post-1" } });
+  await deletePost({ deps: { repo, clock, outbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
   assert.deepEqual(events, []);
 });
@@ -172,8 +173,8 @@ test("a trashed row disappears from listAdminPosts, listAdminPages, and listPubl
     seed({ id: "g1", slug: "g1", kind: "page", status: "published" }),
   ]);
 
-  await deletePost({ deps: { repo, clock, outbox: noopOutbox }, input: { workspaceId: WS, id: "p1" } });
-  await deletePost({ deps: { repo, clock, outbox: noopOutbox }, input: { workspaceId: WS, id: "g1" } });
+  await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "p1" } });
+  await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "g1" } });
 
   const posts = await listAdminPosts({ deps: { repo }, input: { workspaceId: WS } });
   assert.deepEqual(posts.posts.map((p) => p.id), ["p2"]);
@@ -187,7 +188,7 @@ test("a trashed row disappears from listAdminPosts, listAdminPages, and listPubl
 
 test("a trashed row 404s from getAdminPostById, indistinguishably from a missing id", async () => {
   const repo = new InMemoryPostRepo([seed()]);
-  await deletePost({ deps: { repo, clock, outbox: noopOutbox }, input: { workspaceId: WS, id: "post-1" } });
+  await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
   const trashed = await getAdminPostById({ deps: { repo }, input: { workspaceId: WS, id: "post-1" } }).then(
     () => null,
@@ -212,7 +213,7 @@ test("a trashed PUBLISHED row vanishes from the public site (getPublishedPostByS
   const before = await getPublishedPostBySlug({ deps: { repo }, input: { workspaceId: WS, slug: "hello-world" } });
   assert.equal(before.post.id, "post-1");
 
-  await deletePost({ deps: { repo, clock, outbox: noopOutbox }, input: { workspaceId: WS, id: "post-1" } });
+  await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
   await assert.rejects(
     () => getPublishedPostBySlug({ deps: { repo }, input: { workspaceId: WS, slug: "hello-world" } }),
@@ -222,7 +223,7 @@ test("a trashed PUBLISHED row vanishes from the public site (getPublishedPostByS
 
 test("updatePost refuses to edit a trashed row — there is no edit-through-the-trash path", async () => {
   const repo = new InMemoryPostRepo([seed()]);
-  await deletePost({ deps: { repo, clock, outbox: noopOutbox }, input: { workspaceId: WS, id: "post-1" } });
+  await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
   await assert.rejects(
     () =>
@@ -240,7 +241,7 @@ test("updatePost refuses to edit a trashed row — there is no edit-through-the-
 
 test("a trashed row KEEPS its slug: creating a new post with that explicit slug conflicts cleanly", async () => {
   const repo = new InMemoryPostRepo([seed({ slug: "hello-world" })]);
-  await deletePost({ deps: { repo, clock, outbox: noopOutbox }, input: { workspaceId: WS, id: "post-1" } });
+  await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
   // Must be a domain-level PostConflictError, NOT a pass-through that later dies on the SQLite
   // posts_workspace_slug_unique index — that is the whole reason findBySlug stays trash-blind.
@@ -252,7 +253,7 @@ test("a trashed row KEEPS its slug: creating a new post with that explicit slug 
 
 test("a DERIVED slug suffixes past a trashed row's slug instead of colliding with it", async () => {
   const repo = new InMemoryPostRepo([seed({ slug: "hello-world" })]);
-  await deletePost({ deps: { repo, clock, outbox: noopOutbox }, input: { workspaceId: WS, id: "post-1" } });
+  await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
   const { post } = await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new-1", title: "Hello World" } });
   assert.equal(post.slug, "hello-world-2");

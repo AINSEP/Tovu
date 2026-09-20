@@ -13,6 +13,7 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
+import { removeVia } from "./remove-post-double.js";
 
 /**
  * @file Certification of `content_post_delete`'s confirmation gate (ADR-055 Decision 2), which
@@ -62,6 +63,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     outbox,
     bus,
     postRepo,
+    removePost: removeVia(postRepo),
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };

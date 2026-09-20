@@ -5,6 +5,7 @@ import type { ExportReport } from "#src/platform/export/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
+import type { RemoveEntity, TrashPort } from "#src/features/trash/index";
 import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../contracts/core/commands/index.js";
 import type {
@@ -1347,7 +1348,27 @@ export interface PublishTrustRevocationDeps {
   publishTrustRevocations: PublishTrustRevocationPort;
 }
 
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & {
+/**
+ * The local admin Trash (design: `ADS-memory/reports/2026-09-20-trash-delete-architecture.md`).
+ *
+ * `trash` is the whole port, read by the Trash screen's own routes. The four `remove*` fields are
+ * the SAME service pre-bound to one entity type each, and they are what the delete paths receive —
+ * a delete path takes exactly one of them and therefore cannot address another domain's entities by
+ * passing the wrong string. Each performs the marker flip AND the Trash index write as one
+ * transaction; there is deliberately no field here that does only half of it.
+ *
+ * Pre-bound per domain rather than a `removeFor(entityType)` lookup at the call site, because a
+ * lookup puts a typo-able string in every route and defers a wiring mistake to runtime.
+ */
+export interface TrashDeps {
+  trash: TrashPort;
+  removePost: RemoveEntity;
+  removeComment: RemoveEntity;
+  removeMedia: RemoveEntity;
+  removeRedirect: RemoveEntity;
+}
+
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {
   workspaceRepo: WorkspaceRepoPort;
   /**
    * Durable AI chat history, obtained per-principal.
