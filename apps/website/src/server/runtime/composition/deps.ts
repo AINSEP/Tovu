@@ -187,6 +187,7 @@ import {
   createPostTrashAdapter,
   createRedirectTrashAdapter,
   createTrashService,
+  createTrashSweep,
   MEDIA_ENTITY_TYPE,
   POST_ENTITY_TYPE,
   REDIRECT_ENTITY_TYPE,
@@ -1445,6 +1446,9 @@ export function createSqliteRouteDeps(
     removeMedia: bindRemoveEntity(trash, MEDIA_ENTITY_TYPE),
     removeRedirect: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
     forgetRemovedMedia: bindForgetRemovedEntity(trashRepo, MEDIA_ENTITY_TYPE),
+    // The 60-day backstop's one pass. `createServingApp` owns the timer that calls it, so it runs
+    // only in a site-serving process — never in the exporter or the agent daemon.
+    sweepTrash: createTrashSweep({ repo: trashRepo, adapters: trashAdapters, transaction: trashTransaction }),
     postRepo,
     postSearch: new SqlitePostSearchIndex(db),
     // SPEC-047/ADR-056 — the db handle and clock are closed over here so no route ever holds one;

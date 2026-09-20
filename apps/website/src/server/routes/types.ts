@@ -5,7 +5,7 @@ import type { ExportReport } from "#src/platform/export/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
-import type { ForgetRemovedEntity, RemoveEntity, TrashPort } from "#src/features/trash/index";
+import type { ForgetRemovedEntity, RemoveEntity, TrashPort, TrashSweepOnce } from "#src/features/trash/index";
 import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../contracts/core/commands/index.js";
 import type {
@@ -1372,6 +1372,15 @@ export interface TrashDeps {
    * Trash screen, so the index row has to be dropped with it. See {@link ForgetRemovedEntity}.
    */
   forgetRemovedMedia: ForgetRemovedEntity;
+  /**
+   * One pass of the 60-day auto-purge backstop, pre-bound to this composition's repo and adapters.
+   *
+   * A function rather than the repo-plus-adapters the sweep needs, for the same reason the
+   * `remove*` fields are pre-bound: `RouteDeps` is handed to every route, and a route that could
+   * reach `TrashRepoPort` directly could delete an index row without touching the entity.
+   * `server/runtime/composition/serving-app.ts` is the only caller — it owns the timer.
+   */
+  sweepTrash: TrashSweepOnce;
 }
 
 export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {

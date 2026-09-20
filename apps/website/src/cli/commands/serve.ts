@@ -326,9 +326,10 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // routes, so no inbound request can ever reach `getAgentDaemonUrl()` before it has something to
   // return. See this file's own header and `agent-daemon-port.ts`'s for the full contract.
   await ensureAgentDaemonPortResolved();
-  // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer, after
-  // `createApp` has attached every subscriber. Stopped in `shutdown` below.
-  const { app, outboxDrainer } = createServingApp(deps);
+  // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer (after
+  // `createApp` has attached every subscriber) and the Trash auto-purge sweeper. Both are stopped
+  // in `shutdown` below.
+  const { app, outboxDrainer, trashSweeper } = createServingApp(deps);
 
   await new Promise<void>((resolve, reject) => {
     const server = app.listen(port);
@@ -406,8 +407,11 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
       // BR-07: on SIGINT/SIGTERM, stop accepting new connections, let the current request finish,
       // then close the db handle and exit 0.
       const shutdown = (): void => {
-        // First, so no new outbox drain starts while the grace window below runs toward the db close.
+        // First, so no new outbox drain or trash sweep starts while the grace window below runs
+        // toward the db close. A sweep caught mid-batch leaves its rows leased, and the next boot
+        // re-claims them once the lease expires.
         void outboxDrainer.stop();
+        void trashSweeper.stop();
         let exited = false;
         const finish = (): void => {
           if (exited) return;

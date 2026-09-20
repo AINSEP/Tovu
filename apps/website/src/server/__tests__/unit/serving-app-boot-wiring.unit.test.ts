@@ -76,3 +76,17 @@ test("createServingApp is called only by the two site-serving boot paths", () =>
 test("startOutboxDrainer is called only by createServingApp", () => {
   assert.deepEqual(filesCalling(/(?<!function )\bstartOutboxDrainer\(/), ["server/runtime/composition/serving-app.ts"]);
 });
+
+/**
+ * Same "only there" rule for the Trash auto-purge sweeper (2026-09-20), for a sharper reason than
+ * the drainer's: a sweep HARD-DELETES rows. Started in the exporter, in `app.ts`'s eager
+ * module-level app or in the agent daemon, it would permanently delete a site's content from a
+ * process nobody is watching and nobody asked to run.
+ */
+test("startTrashSweeper is called only by createServingApp", () => {
+  assert.deepEqual(filesCalling(/(?<!function )\bstartTrashSweeper\(/), ["server/runtime/composition/serving-app.ts"]);
+});
+
+test("cli/commands/serve.ts stops the trash sweeper on shutdown", () => {
+  assert.ok(readCodeLines("cli/commands/serve.ts").some((line) => /\btrashSweeper\.stop\(\)/.test(line)));
+});

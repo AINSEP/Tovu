@@ -1,12 +1,13 @@
 import type { Express } from "express";
 
 import { startOutboxDrainer, type OutboxDrainer } from "#src/contracts/core/events/index";
+import { startTrashSweeper, type TrashSweeper } from "#src/features/trash/index";
 import type { RouteDeps } from "../../routes/types.js";
 import { createApp } from "./app.js";
 
 /**
- * @file `createApp` plus the site-serving process's background outbox drainer, as one step
- * (2026-09-14).
+ * @file `createApp` plus the site-serving process's background loops — the outbox drainer
+ * (2026-09-14) and the Trash auto-purge sweeper (2026-09-20) — as one step.
  *
  * Callers: the two site-serving boot paths and nothing else. `src/index.ts` serves the dev API and the
  * container image (`Dockerfile` CMD). `cli/commands/serve.ts` is `tovu serve`, which the desktop app
@@ -24,21 +25,32 @@ import { createApp } from "./app.js";
  */
 
 /**
- * Builds the site app and starts its outbox drainer.
+ * Builds the site app and starts its background loops.
  *
- * @param routeDeps the serving process's composed deps; its `outbox`/`bus`/`clock` feed the drainer.
+ * @param routeDeps the serving process's composed deps; its `outbox`/`bus`/`clock` feed the
+ *   drainer, and its pre-bound `sweepTrash` feeds the sweeper.
  * @param optional.outboxDrainIntervalMs idle wait between drains (default: the drainer's own).
- * @returns the Express app and the drainer handle; call `outboxDrainer.stop()` on shutdown.
+ * @param optional.trashSweepIntervalMs idle wait between sweeps (default: the sweeper's own hour).
+ * @returns the Express app and both loop handles; call `stop()` on each at shutdown.
  * @complexity O(1) beyond `createApp`.
  */
 export function createServingApp(
   routeDeps: RouteDeps,
-  optional: { outboxDrainIntervalMs?: number } = {}
-): { app: Express; outboxDrainer: OutboxDrainer } {
+  optional: { outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number } = {}
+): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper } {
   const app = createApp(routeDeps);
   const outboxDrainer = startOutboxDrainer(
     { outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock },
     { intervalMs: optional.outboxDrainIntervalMs }
   );
-  return { app, outboxDrainer };
+  // Unlike the drainer, the sweeper has no ordering dependency on `createApp` — it reads and writes
+  // only `trashed_items` and the domain markers, and publishes nothing onto the bus. It starts here
+  // anyway, and only here, for the other half of the drainer's reason: this is the one process pair
+  // that serves a site. A sweep in the exporter or the agent daemon would hard-delete a site's rows
+  // from a process nobody is watching, on a schedule nobody set.
+  const trashSweeper = startTrashSweeper(
+    { sweep: routeDeps.sweepTrash, clock: routeDeps.clock },
+    { intervalMs: optional.trashSweepIntervalMs }
+  );
+  return { app, outboxDrainer, trashSweeper };
 }

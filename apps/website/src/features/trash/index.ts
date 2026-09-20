@@ -36,6 +36,15 @@ export {
 } from "./write-service.js";
 export type { TrashServiceDeps } from "./write-service.js";
 
+export {
+  createTrashSweep,
+  DEFAULT_TRASH_SWEEP_BATCH_SIZE,
+  DEFAULT_TRASH_SWEEP_INTERVAL_MS,
+  DEFAULT_TRASH_SWEEP_LEASE_MS,
+  startTrashSweeper,
+} from "./sweeper.js";
+export type { TrashSweepDeps, TrashSweeper, TrashSweepOnce, TrashSweepReport } from "./sweeper.js";
+
 export { createContentDbTransactionRunner, SqliteTrashRepo } from "./repo.sqlite.js";
 export { InMemoryTrashRepo } from "./repo.memory.js";
 export { decodeTrashCursor, encodeTrashCursor } from "./cursor.js";
