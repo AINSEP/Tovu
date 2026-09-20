@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
@@ -6,6 +6,7 @@ import type { PublishContentReport } from "@tovu/publish-content-ui";
 
 import { PublishContentDialog } from "../PublishContentDialog";
 import { createFakePublishContentPort } from "../hooks/publish-content-dependencies.hooks";
+import { usePublishContentConfirm } from "../hooks/use-publish-content-confirm.hooks";
 
 /**
  * @file `PublishContentDialog` — plan §4 task 11's two acceptance criteria, asserted against the
@@ -509,5 +510,124 @@ describe("PublishContentDialog — a failure's own words reach the operator", ()
 
     await user.click(primaryButton());
     expect(await screen.findByText("Could not work out what would be published.")).toBeTruthy();
+  });
+});
+
+// terra review 2026-09-20, finding 2 (High). A plan is minted by ONE peer, for the bundle that peer
+// was given. Confirm and execute used to read whatever the picker said at click time, so switching
+// the picker after planning sent the operator's click to a site whose report they never saw — and
+// with a row unchecked, the narrowed re-plan made that a fully self-consistent plan/confirm/execute
+// at the new site, which every server-side check accepts.
+describe("PublishContentDialog — a plan belongs to the site it was made for (terra #2)", () => {
+  const TWO_PEERS = [
+    ONE_PEER[0],
+    {
+      id: "peer-staging",
+      label: "staging.tovu.com",
+      baseUrl: "https://staging.tovu.com",
+      remoteWorkspaceId: "workspace-local",
+      masked: null,
+      hasCredential: true,
+    },
+  ] as const;
+
+  async function planAgainstProduction(port: ReturnType<typeof createFakePublishContentPort>) {
+    const user = userEvent.setup();
+    renderDialog(port);
+    const picker = await screen.findByRole("combobox");
+    await user.selectOptions(picker, "peer-prod");
+    await user.click(primaryButton());
+    await screen.findByRole("table");
+    return { user, picker };
+  }
+
+  it("switching the site after planning takes the other site's report off screen, and the next click plans the new site", async () => {
+    const port = createFakePublishContentPort({ peers: TWO_PEERS, report: SELECTION_REPORT });
+    const { user, picker } = await planAgainstProduction(port);
+
+    await user.click(rowCheckbox(ABOUT_US)!);
+    await user.selectOptions(picker, "peer-staging");
+
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(primaryButton().textContent).toBe("Publish Content");
+
+    await user.click(primaryButton());
+    await screen.findByRole("table");
+    // A full plan of the new site, for the operator to read — not production's selection carried over.
+    expect(port.calls.planPublish).toEqual([{ peerId: "peer-prod" }, { peerId: "peer-staging" }]);
+    expect(port.calls.confirmPublish).toEqual([]);
+    expect(port.calls.executePublish).toEqual([]);
+    // Every row of the new plan starts checked; production's unchecked row does not follow it.
+    expect(rowCheckbox(ABOUT_US)!.checked).toBe(true);
+  });
+
+  it("the site can't be changed while its plan is still being worked out, or once the publish is committed", async () => {
+    const port = createFakePublishContentPort({ peers: TWO_PEERS, report: MIXED_REPORT });
+    let releasePlan: () => void = () => {};
+    const heldPort = {
+      ...port,
+      planPublish: (input: Parameters<typeof port.planPublish>[0]) =>
+        new Promise<Awaited<ReturnType<typeof port.planPublish>>>((resolve, reject) => {
+          releasePlan = () => port.planPublish(input).then(resolve, reject);
+        }),
+      // Recorded by the fake, then held open so the assertions below land during `executing`.
+      executePublish: (input: Parameters<typeof port.executePublish>[0]) => {
+        void port.executePublish(input);
+        return new Promise<never>(() => {});
+      },
+    };
+    const user = userEvent.setup();
+    renderDialog(heldPort as typeof port);
+    const picker = await screen.findByRole("combobox");
+    await user.selectOptions(picker, "peer-prod");
+    expect(picker).toBeEnabled();
+
+    await user.click(primaryButton());
+    expect(primaryButton().textContent).toBe("Planning…");
+    expect(picker).toBeDisabled();
+
+    releasePlan();
+    await screen.findByRole("table");
+    expect(picker).toBeEnabled();
+
+    await user.click(primaryButton());
+    await waitFor(() => expect(port.calls.executePublish).toHaveLength(1));
+    expect(picker).toBeDisabled();
+    expect(port.calls.executePublish[0].peerId).toBe("peer-prod");
+  });
+  it("a plan that answers after the site was changed in the same tick is dropped, never shown against the new site", async () => {
+    const port = createFakePublishContentPort({ peers: TWO_PEERS, report: MIXED_REPORT });
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port }));
+    await waitFor(() => expect(result.current.peers).toHaveLength(2));
+    act(() => result.current.onSelectPeer("peer-prod"));
+
+    // One snapshot, two handlers: the picker's guard still sees the pre-click phase, so only the
+    // plan's own peer check stands between production's answer and a staging-labelled report.
+    const view = result.current;
+    await act(async () => {
+      view.onPrimary();
+      view.onSelectPeer("peer-staging");
+    });
+
+    expect(port.calls.planPublish).toEqual([{ peerId: "peer-prod" }]);
+    expect(result.current.selectedPeerId).toBe("peer-staging");
+    expect(result.current.phase).toEqual({ kind: "idle" });
+    expect(result.current.rows).toEqual([]);
+  });
+
+  it("a plan FAILURE that answers after the site was changed is dropped too — the new site did not fail", async () => {
+    const port = createFakePublishContentPort({ peers: TWO_PEERS, planError: new Error("production is down") });
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port }));
+    await waitFor(() => expect(result.current.peers).toHaveLength(2));
+    act(() => result.current.onSelectPeer("peer-prod"));
+
+    const view = result.current;
+    await act(async () => {
+      view.onPrimary();
+      view.onSelectPeer("peer-staging");
+    });
+
+    expect(result.current.phase).toEqual({ kind: "idle" });
+    expect(result.current.errorMessage).toBeNull();
   });
 });

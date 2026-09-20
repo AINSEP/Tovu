@@ -94,6 +94,7 @@ export function PublishContentDialog({ onCancel, t, port }: PublishContentDialog
             <span>{t("Publish to")}</span>
             <select
               value={view.selectedPeerId ?? ""}
+              disabled={!view.peerSelectionEnabled}
               onChange={(e) => view.onSelectPeer(e.target.value)}
               {...agentHandle("dashboard-publish-content-peer", {
                 // `AgentElementRole` has no `select` member — a `<select>` is a `field` in that

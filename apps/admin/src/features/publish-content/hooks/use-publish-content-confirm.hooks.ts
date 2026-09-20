@@ -66,7 +66,12 @@ export interface PublishContentConfirmView {
   readonly phase: PublishContentPhase;
   readonly peers: readonly PublishContentPeerSummary[];
   readonly selectedPeerId: string | null;
+  /** Choosing a different site discards any plan on screen — a plan belongs to the site that made
+   *  it — and is ignored while {@link peerSelectionEnabled} is `false`. */
   readonly onSelectPeer: (peerId: string) => void;
+  /** `false` while a plan is being worked out and from the moment the operator commits: there the
+   *  site is part of what is already in flight, and changing it could only misdescribe it. */
+  readonly peerSelectionEnabled: boolean;
   readonly rows: readonly PublishReportRow[];
   readonly summary: PublishReportSummary | null;
   /** The keys of the rows this run would publish — every {@link PublishReportRow.selectable} row the
@@ -148,6 +153,17 @@ function primaryLabelFor(
 }
 
 /**
+ * Whether the operator may change which site this dialog publishes to. Only where no request is in
+ * flight and nothing is committed: `idle`, a `planned` report still being reviewed, or `failed`.
+ * `done` is closed for the same reason `canRequestPlan` excludes it — close and reopen to go again.
+ *
+ * @complexity O(1).
+ */
+function peerSelectionOpen(phase: PublishContentPhase): boolean {
+  return phase.kind === "idle" || phase.kind === "planned" || phase.kind === "failed";
+}
+
+/**
  * @param props.onCancel Called when the dialog should close (Escape pressed).
  * @param props.t The screen's own bound translator, threaded down rather than resolved again here.
  * @param props.port Dependency injection seam for tests — see `publish-content-port.hooks.ts`.
@@ -201,6 +217,13 @@ export function usePublishContentConfirm(props: {
     };
   }, []);
 
+  // The site the current phase's plan was requested from — what confirm and execute address, never
+  // the picker's value at click time (terra review 2026-09-20, finding 2). `PublishContentPlanResult`
+  // carries no peer id of its own, so the binding is kept here: set when a plan is requested, cleared
+  // when the operator picks another site. A ref because `requestPlan` compares against it after an
+  // `await`, where a state read would be the stale closure value.
+  const planPeerRef = useRef<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -248,13 +271,15 @@ export function usePublishContentConfirm(props: {
   // committed, so a closure read here would still see `null`.
   const requestPlan = useCallback(
     async (peerId: string) => {
+      planPeerRef.current = peerId;
       setPhase({ kind: "planning" });
       try {
         const plan = await port.planPublish({ peerId });
-        if (!live.current) return;
+        // A plan answering for a site the dialog is no longer pointed at is dropped, not shown.
+        if (!live.current || planPeerRef.current !== peerId) return;
         setPhase({ kind: "planned", plan });
       } catch (error) {
-        if (!live.current) return;
+        if (!live.current || planPeerRef.current !== peerId) return;
         setPhase({ kind: "failed", message: messageOf(error, t("Could not work out what would be published.")), code: null });
       }
     },
@@ -308,7 +333,8 @@ export function usePublishContentConfirm(props: {
    * rows showing rather than confirming a run that would burn a restore point to do nothing.
    */
   const confirmPlan = useCallback(async () => {
-    if (selectedPeerId === null || phase.kind !== "planned" || !canConfirmPlan(phase)) return;
+    const peerId = planPeerRef.current;
+    if (peerId === null || phase.kind !== "planned" || !canConfirmPlan(phase)) return;
     const { plan } = phase;
     const selectable = selectableRowKeys(toPublishReportRows(plan.details));
     const keep = selectable.filter((key) => !deselectedKeys.has(key));
@@ -318,14 +344,14 @@ export function usePublishContentConfirm(props: {
       const confirmed =
         keep.length === selectable.length
           ? plan
-          : await port.planPublish({ peerId: selectedPeerId, selectedEntityKeys: keep });
+          : await port.planPublish({ peerId, selectedEntityKeys: keep });
       if (!live.current) return;
       if (!canConfirmPlan({ kind: "planned", plan: confirmed })) {
         setPhase({ kind: "planned", plan: confirmed });
         return;
       }
       const { confirmationToken } = await port.confirmPublish({
-        peerId: selectedPeerId,
+        peerId,
         planId: confirmed.planId,
         planHash: confirmed.planHash,
       });
@@ -335,14 +361,15 @@ export function usePublishContentConfirm(props: {
       if (!live.current) return;
       setPhase({ kind: "failed", message: messageOf(error, t("Could not publish.")), code: null });
     }
-  }, [deselectedKeys, phase, port, selectedPeerId, t]);
+  }, [deselectedKeys, phase, port, t]);
 
   // The ONLY call site of `port.executePublish` in this package. Its input is whatever
   // `confirmationTokenFor` returns, which is `null` for every phase but `confirmed`/`executing` —
   // see this file's header for why the guard is shaped this way rather than as an inline check.
   const executionToken = confirmationTokenFor(phase);
   useEffect(() => {
-    if (executionToken === null || phase.kind !== "confirmed" || selectedPeerId === null) return;
+    const peerId = planPeerRef.current;
+    if (executionToken === null || phase.kind !== "confirmed" || peerId === null) return;
     const { plan } = phase;
     setPhase({ kind: "executing", plan, confirmationToken: executionToken });
     void (async () => {
@@ -350,7 +377,7 @@ export function usePublishContentConfirm(props: {
         // `plan.bundleId` travels from the plan response into the execute call — the peer refuses a
         // token presented against any bundle but the one it planned.
         const result = await port.executePublish({
-          peerId: selectedPeerId,
+          peerId,
           bundleId: plan.bundleId,
           confirmationToken: executionToken,
         });
@@ -361,7 +388,7 @@ export function usePublishContentConfirm(props: {
         setPhase({ kind: "failed", message: messageOf(error, t("Could not publish.")), code: null });
       }
     })();
-  }, [executionToken, phase, port, selectedPeerId, t]);
+  }, [executionToken, phase, port, t]);
 
   // The report stays on screen through confirm and execute — `planOnScreen` owns which phases have
   // one, so this file never has to re-enumerate them (and cannot get `planning`, which has no plan
@@ -405,6 +432,16 @@ export function usePublishContentConfirm(props: {
     setDeselectedKeys(selectedKeys.size > 0 ? new Set(selectableKeys) : new Set());
   };
 
+  const peerSelectionEnabled = peerSelectionOpen(phase);
+  const onSelectPeer = (peerId: string): void => {
+    if (!peerSelectionEnabled || peerId === selectedPeerId) return;
+    setSelectedPeerId(peerId);
+    // The report on screen, and the rows unchecked in it, describe the site being left.
+    planPeerRef.current = null;
+    setPhase({ kind: "idle" });
+    setDeselectedKeys(new Set());
+  };
+
   const canStart = canRequestPlan(phase) && selectedPeerId !== null;
   const onPrimary = useCallback(() => {
     if (connectOffer) {
@@ -422,7 +459,8 @@ export function usePublishContentConfirm(props: {
     phase,
     peers,
     selectedPeerId,
-    onSelectPeer: setSelectedPeerId,
+    onSelectPeer,
+    peerSelectionEnabled,
     rows,
     summary,
     selectedKeys,
