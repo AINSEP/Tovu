@@ -217,3 +217,57 @@ describe("usePushToTalk — recording lifecycle", () => {
     await waitFor(() => expect(onTranscript).toHaveBeenCalledWith("retry worked"));
   });
 });
+
+/**
+ * Unmounting the composer (closing the assistant, navigating away) runs no pointer handler, so the
+ * hook itself has to let go of the microphone — whether the hold is already recording or still
+ * waiting on the permission prompt.
+ */
+describe("usePushToTalk — unmount releases the microphone", () => {
+  it("unmount while recording stops the capture", async () => {
+    const capture = fakeCapture();
+    const onTranscript = vi.fn();
+    const { result, unmount } = renderHook(() =>
+      usePushToTalk({ onTranscript }, { voicePort: fakePort(), createCapture: () => capture }),
+    );
+    await waitFor(() => expect(result.current.available).toBe(true));
+    act(() => result.current.startHold());
+    await waitFor(() => expect(result.current.indicator.isRecording).toBe(true));
+
+    unmount();
+
+    expect(capture.stopAndTranscribe).toHaveBeenCalledTimes(1);
+    await Promise.resolve();
+    expect(onTranscript).not.toHaveBeenCalled();
+  });
+
+  it("unmount while the permission prompt is still open releases the capture once it resolves", async () => {
+    let grantMic!: () => void;
+    const capture = fakeCapture({
+      start: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            grantMic = resolve;
+          }),
+      ),
+    });
+    const { result, unmount } = renderHook(() =>
+      usePushToTalk({ onTranscript: vi.fn() }, { voicePort: fakePort(), createCapture: () => capture }),
+    );
+    await waitFor(() => expect(result.current.available).toBe(true));
+    act(() => result.current.startHold());
+    expect(capture.start).toHaveBeenCalledTimes(1);
+
+    unmount();
+    // Nothing is live yet, so nothing is stopped yet — stopping a capture that never started would
+    // only transcribe an empty recording.
+    expect(capture.stopAndTranscribe).not.toHaveBeenCalled();
+
+    await act(async () => {
+      grantMic();
+      await Promise.resolve();
+    });
+
+    expect(capture.stopAndTranscribe).toHaveBeenCalledTimes(1);
+  });
+});

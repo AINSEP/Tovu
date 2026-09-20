@@ -114,6 +114,23 @@ describe("PushToTalkMicButton", () => {
     expect(capture.stopAndTranscribe).toHaveBeenCalledTimes(1);
   });
 
+  it("pointercancel stops a recording too — a cancelled pointer (touch scroll, system gesture) never leaves the mic live", async () => {
+    const capture = fakeCapture();
+    render(<PushToTalkMicButton onTranscript={vi.fn()} overrides={{ voicePort: fakePort(), createCapture: () => capture }} />);
+    const button = await screen.findByRole("button", { name: "Hold to talk" });
+
+    await act(async () => {
+      button.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
+    await waitFor(() => expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "true"));
+
+    await act(async () => {
+      screen.getByRole("button").dispatchEvent(new PointerEvent("pointercancel", { bubbles: true }));
+    });
+    await waitFor(() => expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "false"));
+    expect(capture.stopAndTranscribe).toHaveBeenCalledTimes(1);
+  });
+
   // Owner-directed (2026-09-06): a "Disabled for now" tooltip, independent of whether the button is
   // actually functional — see PushToTalkMicButton.tsx's own header for why `disabled`/`aria-label`
   // are deliberately untouched here.

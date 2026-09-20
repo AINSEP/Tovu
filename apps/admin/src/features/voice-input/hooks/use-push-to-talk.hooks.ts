@@ -110,6 +110,24 @@ export function usePushToTalk(options: UsePushToTalkOptions, overrides: UsePushT
    *  different from one that silently vanishes, which just reads as a missing feature. */
   const [availability, setAvailability] = useState<VoiceInputAvailability | null>(null);
   const captureRef = useRef<PushToTalkCapture | null>(null);
+  /** The capture whose microphone is open right now — set once permission is granted into a
+   *  recording, cleared when a hold stops it. What unmount has to release. */
+  const liveCaptureRef = useRef<PushToTalkCapture | null>(null);
+  const unmountedRef = useRef(false);
+
+  // Unmounting (closing the assistant, navigating away) runs no pointer handler, so the microphone
+  // is released here: a recording capture is stopped now, and a capture still waiting on the
+  // permission prompt is stopped by `startHold`'s own `.then` once it resolves (its `setState`
+  // updater never runs after unmount, so the release inside it never would).
+  useEffect(
+    () => () => {
+      unmountedRef.current = true;
+      const live = liveCaptureRef.current;
+      liveCaptureRef.current = null;
+      if (live) void live.stopAndTranscribe().catch(() => {});
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!voicePort) {
@@ -141,6 +159,11 @@ export function usePushToTalk(options: UsePushToTalkOptions, overrides: UsePushT
     capture
       .start()
       .then(() => {
+        if (unmountedRef.current) {
+          void capture.stopAndTranscribe().catch(() => {});
+          return;
+        }
+        liveCaptureRef.current = capture;
         setState((previous) => {
           const next = nextPushToTalkState(previous, { type: "mic-granted" });
           // The hold already ended while this was in flight (`endHold` moved `previous` to
@@ -148,7 +171,10 @@ export function usePushToTalk(options: UsePushToTalkOptions, overrides: UsePushT
           // back `"idle"`, not `"recording"`. Release the microphone right now instead of leaving
           // it live with nothing pointing at it; the result is discarded; there is no hold to
           // transcribe.
-          if (next.status !== "recording") void capture.stopAndTranscribe().catch(() => {});
+          if (next.status !== "recording") {
+            liveCaptureRef.current = null;
+            void capture.stopAndTranscribe().catch(() => {});
+          }
           return next;
         });
       })
@@ -162,6 +188,7 @@ export function usePushToTalk(options: UsePushToTalkOptions, overrides: UsePushT
     if (state.status === "recording") {
       setState((previous) => nextPushToTalkState(previous, { type: "stop" }));
       const capture = captureRef.current;
+      liveCaptureRef.current = null;
       if (!capture) return;
       capture
         .stopAndTranscribe()
