@@ -126,7 +126,22 @@ export type PurgeItemOutcome =
   | "already-gone"
   | "version-changed"
   | "not-found"
-  | "adapter-unavailable";
+  | "adapter-unavailable"
+  | "forbidden";
+
+/**
+ * Decides whether the caller may permanently destroy ONE already-resolved trash row.
+ *
+ * Purge addresses rows by trash row id, and the per-kind permission has to be checked against the
+ * kind the STORED row actually has. A caller that supplied the kind alongside the id could name
+ * `comment` for a post's row and destroy a post holding only `comments.moderate`. So the gate is
+ * handed the row `purgeSelected` looked up, inside the same call that then purges it — which closes
+ * the read-then-act window as well as the escalation.
+ *
+ * Returning `false` (rather than throwing) keeps a denial a per-item outcome: one forbidden row in
+ * a hand-ticked selection must not abort the rows the caller may destroy.
+ */
+export type TrashItemAuthorizer = (item: TrashItem) => Promise<boolean>;
 
 export interface PurgeReport {
   purged: number;
@@ -168,11 +183,18 @@ export interface TrashPort {
     cursor?: string | null;
   }): Promise<TrashPage>;
 
-  /** HUMAN-ONLY. Never exposed as an agent tool — see `tool-registrations.ts`'s registry test. */
+  /**
+   * HUMAN-ONLY. Never exposed as an agent tool — see `tool-registrations.ts`'s registry test.
+   *
+   * `authorizeItem` is REQUIRED, not optional. A permission check a call site may omit is a
+   * permission check some call site eventually omits, and this operation is the one that cannot be
+   * undone. See {@link TrashItemAuthorizer} for why the gate takes the resolved row.
+   */
   purgeSelected(required: {
     workspaceId: string;
     ids: readonly string[];
     actor: TrashActor;
+    authorizeItem: TrashItemAuthorizer;
   }): Promise<PurgeReport>;
 }
 

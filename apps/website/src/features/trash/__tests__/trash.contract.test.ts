@@ -34,6 +34,12 @@ const AT = "2026-09-20T12:00:00.000Z";
 /** Deliberately unparseable — the shape `widgets_trash_instance` chokes on today. */
 const MALFORMED_PAYLOAD = '{"fields":{"ext":{"widgets":{"payload":"{not json"';
 
+/**
+ * `purgeSelected`'s per-row gate is REQUIRED, so every call site has to say something. The tests
+ * that are not about authorization say this, which keeps the gate visible rather than defaulted.
+ */
+const ALLOW_ALL = async () => true;
+
 interface Harness {
   client: Database.Database;
   repo: SqliteTrashRepo;
@@ -144,7 +150,12 @@ test("a trashed_items row whose entity row vanished still lists from its snapsho
   assert.equal(page.items.length, 1, "the list must not read the entity, so it cannot notice it is gone");
   assert.equal(page.items[0]?.displayTitle, "Title post-gone");
 
-  const report = await h.trash.purgeSelected({ workspaceId: WS, ids: [page.items[0]!.id], actor: ACTOR });
+  const report = await h.trash.purgeSelected({
+    workspaceId: WS,
+    ids: [page.items[0]!.id],
+    actor: ACTOR,
+    authorizeItem: ALLOW_ALL,
+  });
   assert.deepEqual(report.results, [{ id: "trash-1", outcome: "already-gone" }]);
   assert.equal((await h.trash.list({ workspaceId: WS, now: AT, limit: 10 })).items.length, 0);
 });
@@ -170,7 +181,7 @@ test("an entity type with no registered adapter still LISTS, and degrades honest
     await h.trash.restore({ workspaceId: WS, entityType: "widget", entityId: "widget-1", at: AT }),
     "adapter-unavailable"
   );
-  assert.deepEqual((await h.trash.purgeSelected({ workspaceId: WS, ids: ["orphan"], actor: ACTOR })).results, [
+  assert.deepEqual((await h.trash.purgeSelected({ workspaceId: WS, ids: ["orphan"], actor: ACTOR, authorizeItem: ALLOW_ALL })).results, [
     { id: "orphan", outcome: "adapter-unavailable" },
   ]);
 });
@@ -290,7 +301,7 @@ test("a restore racing a purge always leaves the item alive — the version move
   // The sweeper has the row in hand at entity_version 2; meanwhile someone edits the post.
   h.client.prepare(`UPDATE posts SET version = version + 1 WHERE id = ?`).run("post-1");
 
-  const report = await h.trash.purgeSelected({ workspaceId: WS, ids: [trashId], actor: ACTOR });
+  const report = await h.trash.purgeSelected({ workspaceId: WS, ids: [trashId], actor: ACTOR, authorizeItem: ALLOW_ALL });
   assert.deepEqual(report.results, [{ id: trashId, outcome: "version-changed" }]);
   assert.equal(report.purged, 0);
   assert.notEqual(h.client.prepare(`SELECT id FROM posts WHERE id = ?`).get("post-1"), undefined, "the post survives");
@@ -313,7 +324,7 @@ test("purgeSelected reports per item — one bad id never aborts the rest of the
     });
   }
 
-  const report = await h.trash.purgeSelected({ workspaceId: WS, ids: ["trash-1", "nope", "trash-2"], actor: ACTOR });
+  const report = await h.trash.purgeSelected({ workspaceId: WS, ids: ["trash-1", "nope", "trash-2"], actor: ACTOR, authorizeItem: ALLOW_ALL });
   assert.deepEqual(report.results, [
     { id: "trash-1", outcome: "purged" },
     { id: "nope", outcome: "not-found" },
@@ -321,6 +332,58 @@ test("purgeSelected reports per item — one bad id never aborts the rest of the
   ]);
   assert.equal(report.purged, 2);
   assert.equal((h.client.prepare(`SELECT count(*) AS n FROM posts`).get() as { n: number }).n, 0);
+});
+
+test("purgeSelected gates every row on the SERVER-SIDE row, and a denial neither purges nor drops the index row", async () => {
+  const h = harness();
+  seedPost(h.client, "post-1", '{"type":"doc"}');
+  seedPost(h.client, "post-2", '{"type":"doc"}');
+  for (const id of ["post-1", "post-2"]) {
+    await h.trash.trash({
+      workspaceId: WS,
+      entityType: POST_ENTITY_TYPE,
+      entityId: id,
+      actor: ACTOR,
+      display: { title: id },
+      at: AT,
+      expectedVersion: 1,
+    });
+  }
+
+  // What the gate is HANDED is the point of the test: the caller names only ids, so if the gate saw
+  // anything the caller supplied, a client could name a kind it may moderate for a row of a kind it
+  // may not, and the check would pass on the wrong permission.
+  const seen: { id: string; entityType: string; entityId: string }[] = [];
+  const report = await h.trash.purgeSelected({
+    workspaceId: WS,
+    ids: ["trash-1", "trash-2"],
+    actor: ACTOR,
+    authorizeItem: async (item) => {
+      seen.push({ id: item.id, entityType: item.entityType, entityId: item.entityId });
+      return item.entityId === "post-2";
+    },
+  });
+
+  assert.deepEqual(seen, [
+    { id: "trash-1", entityType: POST_ENTITY_TYPE, entityId: "post-1" },
+    { id: "trash-2", entityType: POST_ENTITY_TYPE, entityId: "post-2" },
+  ]);
+  assert.deepEqual(report.results, [
+    { id: "trash-1", outcome: "forbidden" },
+    { id: "trash-2", outcome: "purged" },
+  ]);
+  assert.equal(report.purged, 1);
+  assert.notEqual(
+    h.client.prepare(`SELECT id FROM posts WHERE id = ?`).get("post-1"),
+    undefined,
+    "the denied post survives"
+  );
+  const left = await h.trash.list({ workspaceId: WS, now: AT, limit: 10 });
+  assert.deepEqual(
+    left.items.map((item) => item.id),
+    ["trash-1"],
+    "and its index row is left in place, so the Trash still offers it"
+  );
 });
 
 test("purging a post takes its revision ledger and search projection with it", async () => {
@@ -345,7 +408,7 @@ test("purging a post takes its revision ledger and search projection with it", a
     at: AT,
     expectedVersion: 1,
   });
-  const report = await h.trash.purgeSelected({ workspaceId: WS, ids: ["trash-1"], actor: ACTOR });
+  const report = await h.trash.purgeSelected({ workspaceId: WS, ids: ["trash-1"], actor: ACTOR, authorizeItem: ALLOW_ALL });
   assert.equal(report.purged, 1);
 
   assert.equal((h.client.prepare(`SELECT count(*) AS n FROM post_revisions`).get() as { n: number }).n, 0);

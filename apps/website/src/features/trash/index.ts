@@ -18,6 +18,7 @@ export type {
   TrashDisplay,
   TrashEntityType,
   TrashItem,
+  TrashItemAuthorizer,
   TrashMarkerResult,
   TrashPage,
   TrashPort,

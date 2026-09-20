@@ -150,10 +150,14 @@ export function createTrashService(deps: TrashServiceDeps): TrashPort {
      * Permanent deletion of the selected rows. Reachable only from the Trash screen's confirm
      * modal — there is no agent tool for it.
      *
-     * Per item, and per item only: one unavailable adapter or one stale version must not abort the
-     * rest of the selection, so each row gets its own transaction and its own recorded outcome.
+     * Per item, and per item only: one unavailable adapter, one stale version or one row the caller
+     * may not touch must not abort the rest of the selection, so each row gets its own permission
+     * check, its own transaction and its own recorded outcome.
      *
-     * @complexity O(k) transactions for k selected ids.
+     * The gate runs on the row this method looked up, BEFORE the adapter is resolved: a caller who
+     * may not destroy a row must not learn from the outcome whether its domain is still installed.
+     *
+     * @complexity O(k) authorization calls and at most O(k) transactions for k selected ids.
      */
     async purgeSelected(required): Promise<PurgeReport> {
       const rows = await deps.repo.findByIds({ workspaceId: required.workspaceId, ids: required.ids });
@@ -164,6 +168,10 @@ export function createTrashService(deps: TrashServiceDeps): TrashPort {
         const row = byId.get(id);
         if (!row) {
           results.push({ id, outcome: "not-found" });
+          continue;
+        }
+        if (!(await required.authorizeItem(row))) {
+          results.push({ id, outcome: "forbidden" });
           continue;
         }
         const adapter = deps.adapters.get(row.entityType);
