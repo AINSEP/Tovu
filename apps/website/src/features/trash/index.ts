@@ -37,6 +37,16 @@ export {
 export type { TrashServiceDeps } from "./write-service.js";
 
 export {
+  filterVisibleTrashItems,
+  mayActOnEntityType,
+  trashDaysRemaining,
+  trashPermissionFor,
+  TRASH_PERMISSION_BY_ENTITY_TYPE,
+  TRASH_READ_PERMISSION,
+} from "./permissions.js";
+export type { TrashAuthorizeFn } from "./permissions.js";
+
+export {
   createTrashSweep,
   DEFAULT_TRASH_SWEEP_BATCH_SIZE,
   DEFAULT_TRASH_SWEEP_INTERVAL_MS,

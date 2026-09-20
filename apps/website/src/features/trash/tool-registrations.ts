@@ -25,33 +25,20 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
-import { COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
-import { MEDIA_ENTITY_TYPE } from "./adapters/media.js";
-import { POST_ENTITY_TYPE } from "./adapters/post.js";
-import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
 import { getTrashAgentToolCatalog } from "./agent-tools.js";
+import {
+  filterVisibleTrashItems,
+  trashDaysRemaining,
+  trashPermissionFor,
+  TRASH_PERMISSION_BY_ENTITY_TYPE,
+  TRASH_READ_PERMISSION,
+} from "./permissions.js";
 import type { TrashEntityType, TrashItem, TrashPort } from "./ports.js";
 
 const CATALOG_BY_ID = indexCatalogById(getTrashAgentToolCatalog());
 
 const DEFAULT_LIST_LIMIT = 25;
 const MAX_LIST_LIMIT = 100;
-
-/**
- * Per-kind restore gate: **the same permission that kind's own delete tool required.**
- *
- * `content_post_delete` gates on `content.write`, `comments_trash_comment` on `comments.delete`
- * (its restore sibling on `comments.moderate`, which is the one used here — restoring is a
- * moderation action), `media_trash_asset` on `media.delete`, `redirects_tombstone` on
- * `admin.redirects.manage`. A kind absent from this map is not restorable and not listable, which
- * is the conservative default a phase-2 domain should have to opt out of deliberately.
- */
-const RESTORE_PERMISSION_BY_ENTITY_TYPE: ReadonlyMap<TrashEntityType, string> = new Map([
-  [POST_ENTITY_TYPE, "content.write"],
-  [COMMENT_ENTITY_TYPE, "comments.moderate"],
-  [MEDIA_ENTITY_TYPE, "media.delete"],
-  [REDIRECT_ENTITY_TYPE, "admin.redirects.manage"],
-]);
 
 /**
  * The exact slice of the route-deps bag Trash's tool handlers read. Declared structurally rather
@@ -79,22 +66,8 @@ function toTrashToolView(item: TrashItem, now: string) {
     deletedAt: item.trashedAt,
     deletedBy: item.actorPluginId ? `${item.actorPrincipalId} (via ${item.actorPluginId})` : item.actorPrincipalId,
     permanentlyRemovedAfter: item.purgeAfter,
-    daysRemaining: daysBetween(now, item.purgeAfter),
+    daysRemaining: trashDaysRemaining(now, item.purgeAfter),
   };
-}
-
-/**
- * Whole days from `now` until `until`, floored at 0.
- *
- * Floored rather than allowed to go negative because the list already excludes expired rows: a
- * negative number here could only come from a clock skew, and "-3 days remaining" reads as a bug
- * to a model that then has to guess what it means.
- *
- * @complexity O(1).
- */
-function daysBetween(now: string, until: string): number {
-  const ms = new Date(until).getTime() - new Date(now).getTime();
-  return ms <= 0 ? 0 : Math.ceil(ms / (24 * 60 * 60 * 1000));
 }
 
 /**
@@ -120,24 +93,6 @@ export const trashDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSi
  * @complexity O(1) to build.
  */
 export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistration[] {
-  /**
-   * True when `principalId` may restore rows of this kind. Uses `authorize` directly rather than
-   * `requireToolPermission` because the list path must SKIP a row it cannot show, not fail.
-   *
-   * @complexity O(1) per distinct entity type, memoised per call by the caller's own `Map`.
-   */
-  async function mayRestore(principalId: string, entityType: TrashEntityType): Promise<boolean> {
-    const permission = RESTORE_PERMISSION_BY_ENTITY_TYPE.get(entityType);
-    if (!permission) return false;
-    const decision = await routeDeps.authorize({
-      principalId,
-      permission,
-      workspaceId: routeDeps.workspaceId,
-      entityType,
-    });
-    return decision.allowed;
-  }
-
   const handlers: Record<string, ToolHandler> = {
     /**
      * One page of the Trash, filtered to the kinds this principal could restore.
@@ -149,7 +104,7 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
      */
     trash_list_items: async (ctx) => {
       const input = ctx.input === undefined ? {} : requireInputRecord(ctx.input);
-      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "content.read" });
+      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: TRASH_READ_PERMISSION });
 
       const requested = readEntityTypes(input);
       const limit = Math.min(optionalNumber(input, "limit") ?? DEFAULT_LIST_LIMIT, MAX_LIST_LIMIT);
@@ -163,18 +118,8 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
         cursor: optionalString(input, "cursor") ?? null,
       });
 
-      const allowedByType = new Map<TrashEntityType, boolean>();
-      const items: ReturnType<typeof toTrashToolView>[] = [];
-      for (const item of page.items) {
-        let allowed = allowedByType.get(item.entityType);
-        if (allowed === undefined) {
-          allowed = await mayRestore(ctx.principal.id, item.entityType);
-          allowedByType.set(item.entityType, allowed);
-        }
-        if (allowed) items.push(toTrashToolView(item, now));
-      }
-
-      return { items, nextCursor: page.nextCursor };
+      const visible = await filterVisibleTrashItems(routeDeps, { principalId: ctx.principal.id, items: page.items });
+      return { items: visible.map((item) => toTrashToolView(item, now)), nextCursor: page.nextCursor };
     },
 
     /**
@@ -189,11 +134,11 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
       const entityType = requireString(input, "entityType");
       const entityId = requireString(input, "entityId");
 
-      const permission = RESTORE_PERMISSION_BY_ENTITY_TYPE.get(entityType);
+      const permission = trashPermissionFor(entityType);
       if (!permission) {
         throw new Error(
           `trash_restore_item: '${entityType}' is not a kind the Trash can restore. Expected one of: ` +
-            `${[...RESTORE_PERMISSION_BY_ENTITY_TYPE.keys()].join(", ")}.`
+            `${[...TRASH_PERMISSION_BY_ENTITY_TYPE.keys()].join(", ")}.`
         );
       }
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission, entityType, entityId });
