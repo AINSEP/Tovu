@@ -25,6 +25,7 @@ import { Plugins, AgentPlugins } from "../../features/plugins";
 import { FormsList, FormEditor } from "../../features/forms";
 import { Collections, CollectionEntries, CollectionEntryEditor } from "../../features/collections";
 import { Taxonomy } from "../../features/taxonomy";
+import { Trash } from "../../features/trash";
 import { Database } from "../../features/database";
 import { Recovery } from "../../features/recovery";
 import { Deployment } from "../../features/deployment";
@@ -110,7 +111,8 @@ const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?
   // itself is exercised where it actually mounts now: `SettingsUi.unit.test.tsx`'s "Workspace tab".
   { id: "workspace", component: WorkspaceRedirect },
   { id: "notifications", component: Placeholder, extraProps: { sectionId: "notifications" } },
-  { id: "trash", component: Placeholder, extraProps: { sectionId: "trash" } },
+  // Real screen since 2026-09-20 — the `soon` Placeholder is gone.
+  { id: "trash", component: Trash },
   { id: "seo", component: Seo },
   { id: "redirects", component: Redirects },
   { id: "newsletter", component: Placeholder, extraProps: { sectionId: "newsletter" } },

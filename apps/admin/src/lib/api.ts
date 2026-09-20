@@ -1893,6 +1893,59 @@ export interface AdminCommentsQueuePage {
   nextCursor: string | null;
 }
 
+/**
+ * One row of the Trash. Mirrors `routes/trash/list.ts`'s `toAdminTrashResponse`.
+ *
+ * Every field is a SNAPSHOT captured when the thing was deleted, not a read of the thing itself —
+ * which is what lets a row whose payload is corrupt still be listed and still be restored. `title`
+ * can therefore be stale; that is the design, not a bug.
+ */
+export interface AdminTrashItem {
+  /** The trash row's own id. Purge addresses rows by THIS, not by `entityId`. */
+  id: string;
+  entityType: string;
+  entityId: string;
+  title: string;
+  subtitle: string | null;
+  trashedAt: string;
+  purgeAfter: string;
+  /** Whole days until auto-purge, floored at 0. Server-computed, so the clock is the server's. */
+  daysRemaining: number;
+  actorPrincipalId: string;
+  actorPluginId: string | null;
+}
+
+export interface AdminTrashPage {
+  items: AdminTrashItem[];
+  nextCursor: string | null;
+}
+
+/** Per-item outcomes. `forbidden` means the operator lacks THAT ROW'S kind's permission. */
+export type AdminTrashRestoreOutcome =
+  | "restored"
+  | "not-found"
+  | "version-changed"
+  | "adapter-unavailable"
+  | "forbidden";
+
+export type AdminTrashPurgeOutcome =
+  | "purged"
+  | "already-gone"
+  | "version-changed"
+  | "not-found"
+  | "adapter-unavailable"
+  | "forbidden";
+
+export interface AdminTrashRestoreReport {
+  restored: number;
+  results: { entityType: string; entityId: string; outcome: AdminTrashRestoreOutcome }[];
+}
+
+export interface AdminTrashPurgeReport {
+  purged: number;
+  results: { id: string; outcome: AdminTrashPurgeOutcome }[];
+}
+
 /** Mirrors `src/comments/types.ts`'s `CommentsSettings`. */
 export interface CommentsSettings {
   enabled: boolean;
@@ -3583,6 +3636,33 @@ export const api = {
     request<{ data: CommentsSettings }>(`/workspaces/${WORKSPACE_ID}/comments/settings`, {
       method: "PUT",
       body: JSON.stringify(options),
+    }),
+
+  // -------------------------------------------------------------------------
+  // Trash — the cross-domain recycle bin (design:
+  // `ADS-memory/reports/2026-09-20-trash-delete-architecture.md`). Keyset paging like
+  // `listCommentsQueue` above. Restore names items by `{entityType, entityId}` and purge by trash
+  // ROW id — that asymmetry is the server's, and it is deliberate: the purge endpoint resolves each
+  // row's kind itself rather than trusting one the client sent, so it cannot be told that a post is
+  // a comment.
+  // -------------------------------------------------------------------------
+  listTrash: (options: { cursor?: string; limit?: number; entityTypes?: string[] } = {}) => {
+    const params = new URLSearchParams();
+    if (options.cursor) params.set("cursor", options.cursor);
+    if (options.limit) params.set("limit", String(options.limit));
+    if (options.entityTypes?.length) params.set("entityTypes", options.entityTypes.join(","));
+    const qs = params.toString();
+    return request<AdminTrashPage>(`/workspaces/${WORKSPACE_ID}/trash${qs ? `?${qs}` : ""}`);
+  },
+  restoreTrashItems: ({ items }: { items: { entityType: string; entityId: string }[] }) =>
+    request<AdminTrashRestoreReport>(`/workspaces/${WORKSPACE_ID}/trash/restore`, {
+      method: "POST",
+      body: JSON.stringify({ items }),
+    }),
+  purgeTrashItems: ({ ids }: { ids: string[] }) =>
+    request<AdminTrashPurgeReport>(`/workspaces/${WORKSPACE_ID}/trash/purge`, {
+      method: "POST",
+      body: JSON.stringify({ ids }),
     }),
 
   // -------------------------------------------------------------------------
