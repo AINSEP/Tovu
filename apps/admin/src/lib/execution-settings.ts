@@ -477,16 +477,45 @@ function changedLedgerEntries(
  * empty `changed` list here and writes nothing, which is the SAFE no-op this function's silence on
  * `apiKey` is meant to guarantee, not an oversight. Persisting the key is
  * {@link saveAdminExecutionCredential}'s job, called only from an explicit "Save key" action.
+ *
+ * All-or-nothing on failure. Each key is its own ledger row and there is no multi-key write, so a
+ * rejection part-way through would otherwise leave the rows it already wrote in place — a Local CLI
+ * switch writes `localCli.agentId` then `localCli.model`, and a failure between them persists the
+ * new agent with the old agent's model. On a rejection this writes each already-written key back to
+ * its `previous` value (newest first), then rethrows the ORIGINAL error. The rollback is best-effort:
+ * a rollback write that also fails is not reported over the error that caused it.
+ *
+ * @throws Whatever `api.setSetting` rejected with first.
+ * @complexity O(k) sequential writes for k changed keys, plus at most k-1 rollback writes.
  */
 export async function saveExecutionConfig(
   next: ExecutionConfig,
   previous: ExecutionConfig,
 ): Promise<readonly string[]> {
   const changed = changedLedgerEntries(next, previous);
-  for (const { key, valueJson } of changed) {
-    await api.setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: SCOPE, valueJson });
+  const written: string[] = [];
+  try {
+    for (const { key, valueJson } of changed) {
+      await api.setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: SCOPE, valueJson });
+      written.push(key);
+    }
+  } catch (error) {
+    const previousValues = new Map(changedLedgerEntries(previous, next).map((entry) => [entry.key, entry.valueJson]));
+    await restoreLedgerKeys(written, previousValues);
+    throw error;
   }
   return changed.map((entry) => entry.key);
+}
+
+/** {@link saveExecutionConfig}'s rollback: rewrites `keys`, newest first, with their values in
+ *  `previousValues` (built from the reverse diff, which has the same key set as the forward one).
+ *  Never rejects. */
+async function restoreLedgerKeys(keys: readonly string[], previousValues: ReadonlyMap<string, unknown>): Promise<void> {
+  for (const key of [...keys].reverse()) {
+    await api
+      .setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: SCOPE, valueJson: previousValues.get(key) })
+      .catch(() => undefined);
+  }
 }
 
 /**
