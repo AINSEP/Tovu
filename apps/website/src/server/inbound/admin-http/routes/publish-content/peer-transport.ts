@@ -10,6 +10,7 @@ import {
   pushBundleToPeer,
   PublishContentPeerTransportError,
 } from "#src/features/publish-content/peer-transport";
+import { labelPeerPlanRows } from "#src/features/publish-content/report-labels";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import {
   PublishContentPeerCredentialMissingError,
@@ -206,7 +207,10 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         entityCount: bundle.entities.length,
         blobsUploaded: result.blobsUploaded,
         blobsUnavailable: result.blobsUnavailable,
-        ...result.plan,
+        // The peer's plan, with each row named from the bundle we just sent it — a live site
+        // deployed before `entityLabel` existed answers rows with no label, and this side can name
+        // its own content regardless. See `features/publish-content/report-labels.ts`.
+        ...labelPeerPlanRows(result.plan, bundle.entities),
       });
     } catch (err) {
       respondWithError(res, err);
