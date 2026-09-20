@@ -8,6 +8,7 @@ import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDef
 import { registerPageHeadContributor, resetPageHeadRegistry } from "../../inbound/public-http/http/site/page-head.js";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
+import type { RedirectRecord } from "#src/features/redirects/index";
 import {
   bindRemoveEntity,
   COMMENT_ENTITY_TYPE,
@@ -450,8 +451,53 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // inline in the return object) so Recovery's `deepLinkRestorePointLookup` below reads the SAME
   // in-memory rows Database's restore-points routes write into, not a second, disconnected instance.
   const restorePointsRepo = new InMemoryRestorePointsRepo();
+  // Local admin Trash, hermetic half. A plain Map resolved at CALL time, same as `deps.ts`'s —
+  // never a module-level registry. Only `post` is registered because only the post delete path is
+  // wired to `deps.remove` in this composition; an unregistered type fails loudly at the call
+  // rather than silently trashing something that could never be restored.
+  const trashAdapters = new Map<string, TrashAdapter>([
+    [
+      POST_ENTITY_TYPE,
+      createRecordStoreTrashAdapter<PostRecord>({
+        entityType: POST_ENTITY_TYPE,
+        store: postRepo,
+        isHidden: (record) => record.deletedAt !== undefined && record.deletedAt !== null,
+        hidden: (record, at) => ({ ...record, deletedAt: at, updatedAt: at }),
+        shown: (record, at) => ({ ...record, deletedAt: null, updatedAt: at }),
+        // No `hardDelete`: `InMemoryPostRepo` has no row removal, so purge stands down rather than
+        // reporting a removal that did not happen. See `createRecordStoreTrashAdapter`.
+      }),
+    ],
+    [
+      REDIRECT_ENTITY_TYPE,
+      createRecordStoreTrashAdapter<RedirectRecord>({
+        entityType: REDIRECT_ENTITY_TYPE,
+        // `insertRedirect` rather than `save`: this repo's `save` insists on a paired revision, and
+        // the revision for a tombstone is written by `tombstoneRedirect` itself.
+        store: {
+          findById: (required) => redirectRepo.findById(required),
+          save: async (record) => {
+            await redirectRepo.insertRedirect(record);
+          },
+        },
+        isHidden: (record) => record.status === "disabled",
+        hidden: (record, at) => ({ ...record, status: "disabled", updatedAt: at }),
+        shown: (record, at) => ({ ...record, status: "active", updatedAt: at }),
+      }),
+    ],
+  ]);
+  const trash = createTrashService({
+    repo: new InMemoryTrashRepo(),
+    adapters: trashAdapters,
+    idGen: { next: () => randomUUID() },
+    // Nothing here opens a database transaction, so the runner is a pass-through. The atomicity
+    // guarantee this replaces is a SQLite one; an in-memory store has no partial-write window.
+    transaction: (fn) => fn(),
+  });
+
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
+    remove: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
     db: redirectRepo,
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,
@@ -598,33 +644,6 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     }),
     clock,
     idGen,
-  });
-
-  // Local admin Trash, hermetic half. A plain Map resolved at CALL time, same as `deps.ts`'s —
-  // never a module-level registry. Only `post` is registered because only the post delete path is
-  // wired to `deps.remove` in this composition; an unregistered type fails loudly at the call
-  // rather than silently trashing something that could never be restored.
-  const trashAdapters = new Map<string, TrashAdapter>([
-    [
-      POST_ENTITY_TYPE,
-      createRecordStoreTrashAdapter<PostRecord>({
-        entityType: POST_ENTITY_TYPE,
-        store: postRepo,
-        isHidden: (record) => record.deletedAt !== undefined && record.deletedAt !== null,
-        hidden: (record, at) => ({ ...record, deletedAt: at, updatedAt: at }),
-        shown: (record, at) => ({ ...record, deletedAt: null, updatedAt: at }),
-        // No `hardDelete`: `InMemoryPostRepo` has no row removal, so purge stands down rather than
-        // reporting a removal that did not happen. See `createRecordStoreTrashAdapter`.
-      }),
-    ],
-  ]);
-  const trash = createTrashService({
-    repo: new InMemoryTrashRepo(),
-    adapters: trashAdapters,
-    idGen: { next: () => randomUUID() },
-    // Nothing here opens a database transaction, so the runner is a pass-through. The atomicity
-    // guarantee this replaces is a SQLite one; an in-memory store has no partial-write window.
-    transaction: (fn) => fn(),
   });
 
   const routeDeps: NewsletterRouteDeps = {

@@ -1075,8 +1075,46 @@ export function createSqliteRouteDeps(
   const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo(db) });
   const redirectRepo = new SqliteRedirectRepo(db);
   const redirectHitSink = new RedirectHitSinkImpl();
+  // ---------------------------------------------------------------------------
+  // Local admin Trash (design: ADS-memory/reports/2026-09-20-trash-delete-architecture.md)
+  // ---------------------------------------------------------------------------
+  // A plain Map, built here and resolved on every call. NOT a module-level registry: this
+  // codebase's registries (`ToolRegistry`, routing's `phaseRegistry`) are append-only with no
+  // unregister, so anything that filters at registration time runs exactly once — two real bugs
+  // already came from that. Adding a phase-2 domain means one more `set()` here and no migration.
+  const assetRenditionRepo = new SqliteAssetRenditionRepo(db);
+  const trashAdapters = new Map<string, TrashAdapter>([
+    [POST_ENTITY_TYPE, createPostTrashAdapter(db.$client)],
+    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(db.$client)],
+    [COMMENT_ENTITY_TYPE, createCommentTrashAdapter(db.$client)],
+    [
+      MEDIA_ENTITY_TYPE,
+      createMediaTrashAdapter({
+        client: db.$client,
+        // Media's hard delete is not a row delete: rendition rows hang off it and the blob store
+        // holds bytes. `purgeMedia` owns that ladder, so the adapter delegates rather than
+        // reimplementing it in SQL and silently orphaning bytes.
+        purgeAsset: async ({ workspaceId: ws, entityId }) => {
+          await purgeMedia({
+            deps: { mediaRepo, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, blobStore, clock },
+            input: { workspaceId: ws, id: entityId },
+          });
+        },
+      }),
+    ],
+  ]);
+  const trash = createTrashService({
+    repo: new SqliteTrashRepo(db.$client),
+    adapters: trashAdapters,
+    idGen: { next: () => randomUUID() },
+    // Reentrant: `deletePost` and `tombstoneRedirect` already open their own BEGIN IMMEDIATE around
+    // "marker + revision append", and `remove` is called from inside it.
+    transaction: createContentDbTransactionRunner(db.$client),
+  });
+
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
+    remove: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
     db: redirectRepo,
     transaction: (fn) => redirectRepo.transaction(fn),
     matcher: redirectMatcher,
@@ -1384,43 +1422,6 @@ export function createSqliteRouteDeps(
     }),
     clock,
     idGen,
-  });
-
-  // ---------------------------------------------------------------------------
-  // Local admin Trash (design: ADS-memory/reports/2026-09-20-trash-delete-architecture.md)
-  // ---------------------------------------------------------------------------
-  // A plain Map, built here and resolved on every call. NOT a module-level registry: this
-  // codebase's registries (`ToolRegistry`, routing's `phaseRegistry`) are append-only with no
-  // unregister, so anything that filters at registration time runs exactly once — two real bugs
-  // already came from that. Adding a phase-2 domain means one more `set()` here and no migration.
-  const assetRenditionRepo = new SqliteAssetRenditionRepo(db);
-  const trashAdapters = new Map<string, TrashAdapter>([
-    [POST_ENTITY_TYPE, createPostTrashAdapter(db.$client)],
-    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(db.$client)],
-    [COMMENT_ENTITY_TYPE, createCommentTrashAdapter(db.$client)],
-    [
-      MEDIA_ENTITY_TYPE,
-      createMediaTrashAdapter({
-        client: db.$client,
-        // Media's hard delete is not a row delete: rendition rows hang off it and the blob store
-        // holds bytes. `purgeMedia` owns that ladder, so the adapter delegates rather than
-        // reimplementing it in SQL and silently orphaning bytes.
-        purgeAsset: async ({ workspaceId: ws, entityId }) => {
-          await purgeMedia({
-            deps: { mediaRepo, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, blobStore, clock },
-            input: { workspaceId: ws, id: entityId },
-          });
-        },
-      }),
-    ],
-  ]);
-  const trash = createTrashService({
-    repo: new SqliteTrashRepo(db.$client),
-    adapters: trashAdapters,
-    idGen: { next: () => randomUUID() },
-    // Reentrant: `deletePost` and `tombstoneRedirect` already open their own BEGIN IMMEDIATE around
-    // "marker + revision append", and `remove` is called from inside it.
-    transaction: createContentDbTransactionRunner(db.$client),
   });
 
   const routeDeps: NewsletterRouteDeps = {

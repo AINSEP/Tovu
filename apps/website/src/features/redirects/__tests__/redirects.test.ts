@@ -21,6 +21,7 @@ import {
   RedirectValidationError,
 } from "../types.js";
 import type { RedirectStatus } from "../types.js";
+import { removeVia } from "./remove-redirect-double.js";
 
 /**
  * @file T008 — the write chokepoint (`redirects.ts`): validate-before-write
@@ -50,6 +51,7 @@ function makeDeps(opts: { redirectAllowlist?: string[] } = {}): RedirectsWriteDe
   let idTick = 0;
   return {
     repo,
+    remove: removeVia(repo as unknown as Parameters<typeof removeVia>[0]),
     db: repo as unknown as RedirectDbHandle,
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,
@@ -443,6 +445,7 @@ test("AC-08: a failure inside the transaction wrapper leaves neither the record 
   ]);
   const deps: RedirectsWriteDeps = {
     repo,
+    remove: removeVia(repo as unknown as Parameters<typeof removeVia>[0]),
     db: repo as unknown as RedirectDbHandle,
     transaction: async () => {
       throw new Error("simulated mid-transaction failure");
