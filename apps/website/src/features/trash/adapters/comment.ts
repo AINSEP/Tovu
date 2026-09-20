@@ -13,7 +13,10 @@
  */
 import type Database from "better-sqlite3";
 
-import { COMMENTS_PLUGIN_ID } from "../../comments/types.js";
+// The domain's public barrel, not `comments/types.js`: `no-deep-imports:features/comments` makes a
+// deep import an error, and the plugin id is the ONE thing this adapter takes from that domain —
+// re-deriving the table name here instead would put the same string in two files.
+import { COMMENTS_PLUGIN_ID } from "#src/features/comments/index";
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "../ports.js";
 import { compareAndDelete, flipMarker } from "./marker-sql.js";
 
