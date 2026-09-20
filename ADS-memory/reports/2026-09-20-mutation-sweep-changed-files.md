@@ -41,8 +41,9 @@ Tab-separated, no header in the file itself. Columns, in order:
 - Across the 43 `OK` files + the 4 resolved `NO_TEST_FOUND` files + the 1 resolved timeout: **~350
   mutants generated, 55 raw SURVIVED, ~10 INCONCLUSIVE, rest killed.**
 - After the explicit-test-path confirmation pass caught two false positives (blob-put.ts, blob-get.ts
-  — see §5), the corrected survivor count is **~52**, of which **29 are classified** below and **the
-  rest (from 17 small utility files) are confirmed-SURVIVED but NOT yet classified** — see §6.
+  — see §5), the corrected survivor count is **~52, all classified** — 14 files with a full
+  widen-and-rerun confirmation (§6) plus 15 files classified from a cheaper call-site check (§6b, one
+  file's severity not fully traced — see caveat there).
 
 ## 3. Baseline failures — no usable mutation result
 
@@ -162,32 +163,48 @@ used only by other tests, not shipped logic):
   every survivor in both files is inside an in-memory fake repo builder (`throw new Error(\`fake page/post not found\`)`, `options.updateError`/`options.deleteError` injection hooks, `options.posts ?? []`). This is test infrastructure, not application code; a gap here doesn't ship a user-facing bug, it means the fakes' own error-injection paths aren't exercised by anything that currently uses them.
 - `features/pages/lib/theme-page-publish-state.ts:83,84` — `if (pageId === "index"/"404") return {on:true, reason: ...}` special-casing the home/404 pages as always-published. I did not have budget to trace every caller of this function to confirm severity; provisionally load-bearing but untested (if these silently broke, the home or 404 page could show as togglable in the admin UI when it must always be on) — flagging for a second look rather than asserting unreachable/redundant without proof.
 
-## 6b. Confirmed SURVIVED but NOT classified — ran out of budget
+## 6b. Remaining 15 files — classified in a second foreground pass
 
-These files' survivors are real (status `OK`, verdict `SURVIVED` in `logs/*.json`), and for each I did
-a call-site check (who else imports the module) that found no evidence of a missed covering test, but
-I did **not** do the full widen-and-rerun confirmation, and I did **not** read the surrounding code to
-classify. Treat these as "probably confirmed, not classified" rather than fully vetted:
+All confirmed real (status `OK`, `SURVIVED` in `logs/*.json`; each already had a call-site check
+finding no missed test, per §6a). None were re-verified with a full widen-and-rerun (only the ~14
+files in §6 got that); classification is from reading the guard in context.
 
-- `apps/admin/src/lib/chat-attachment-liveness.ts` (2 survivors, widened 1→2 tests, verdict unchecked post-widen)
-- `apps/desktop/src/project-ipc.ts` (1 survivor, widened 1→2, verdict unchecked post-widen)
-- `apps/website/src/contracts/core/commands/revert.ts` (1 survivor, widened 2→3, verdict unchecked post-widen)
-- `apps/website/src/contracts/core/model-facing-tool-errors.ts` (2 survivors, widened 1→2, verdict unchecked post-widen)
-- `apps/website/src/features/agent-plugins/bundled-digests.ts` (6 survivors, NO_WIDER — auto-discovered test confirmed complete, not classified)
-- `apps/website/src/features/origin/configured-origin.ts` (2 survivors, widened 1→2, verdict unchecked post-widen)
-- `apps/website/src/features/publish-content/peer-transport.ts` (3 survivors, widened 2→5, all 3 confirmed still SURVIVED: lines 111 `if (err instanceof PublishContentPeerTransportError) return err;`, 200 `if (typeof value !== "object" || value === null || Array.isArray(value))`, 501 `const maxBlobs = deps.maxBlobs ?? PUBLISH_CONTENT_PULL_MAX_BLOBS;` — not classified)
-- `apps/website/src/features/publish-content/peer-url.ts` (1 survivor)
-- `apps/website/src/features/publish-content/planner.ts` (2 survivors)
-- `apps/website/src/features/publish-content/publish-readiness.ts` (1 survivor — no other importer found, dedicated test only)
-- `apps/website/src/features/publish-content/report-labels.ts` (2 survivors)
-- `apps/website/src/features/publish-content/run-repo.ts` (1 survivor)
-- `apps/website/src/features/publish-content/ui/phase.ts` (1 survivor — no other importer found)
-- `apps/website/src/features/publish-content/ui/report-rows.ts` (1 survivor — no other importer found)
-- `apps/website/src/features/publish-trust/keys.ts` (2 survivors)
-- `apps/website/src/features/publish-trust/provisioning.node-io.ts` (1 survivor)
+**Load-bearing but untested** (all of them — no redundant/unreachable findings in this batch):
 
-**Do not treat the absence of a listed line/guard for these files as "no gap" — it means I did not
-finish looking, not that I looked and found nothing.**
+| File | Line | Guard | Risk if it silently broke |
+|---|---:|---|---|
+| `publish-trust/keys.ts` | 177 | `if (!rawPublicKey \|\| !signature) return false;` | **Highest priority in this batch.** Fail-closed check after base64url-decoding a signature-verification input: if the key or signature failed to decode, refuse rather than verify garbage. It currently fails closed (safe), but nothing proves that — a change that made this fail OPEN would be a live signature-bypass and no test would catch it. |
+| `publish-trust/keys.ts` | 74 | `if (typeof value !== "string" \|\| value === "") return null;` | Input validation before base64url-decoding key/signature material — feeds directly into the line-177 check above. |
+| `publish-content/run-repo.ts` | 123 | `if (record?.workspaceId !== input.workspaceId) return null;` | Cross-workspace isolation check on `findById` — prevents looking up another workspace's run record by id alone. A tenancy boundary with no test proving it holds. |
+| `agent-plugins/bundled-digests.ts` | 125, 126, 189, 248, 251, 275 | ID/shape validation (`SAFE_PLUGIN_ID_PATTERN`, `isPlainObject`, `SHA256_DIGEST_PATTERN`) and early-returns for empty/degenerate input (`bundled.size === 0`, `supersededIds.size === 0`, `digests.size < 2`) while building the plugin-digest supersession map from persisted/seeded data | No test constructs malformed plugin IDs, non-object entries, or degenerate (zero/one-digest) input for this bookkeeping. Six independent guards, same root cause. |
+| `publish-trust/provisioning.node-io.ts` | 61 | `if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;` | Treats "config file missing" as "no config" (returns null) vs. rethrowing any other error. If broken, a fresh install / first boot with no provisioning file yet would throw instead of proceeding. |
+| `publish-content/ui/phase.ts` | 72 | `if (phase.plan.details.refused) return false;` | UI gate: a refused plan must not be confirmable. If silently gone, a refused publish plan could show as confirmable. |
+| `publish-content/ui/report-rows.ts` | 132 | `if (report.refused) return [];` | Same refusal state, the row-rendering side: a refused report should render no rows. Pairs with the phase.ts guard above. |
+| `contracts/core/commands/revert.ts` | 182 | `(await reverter.currentActor?.({...})) ?? null` | `currentActor` is an optional reverter capability; no test exercises a reverter that lacks it, so the `?? null` fallback — required for revert to still work — is unproven. |
+| `contracts/core/model-facing-tool-errors.ts` | 150 | `if (err instanceof ToolInputError) return err;` | Short-circuit to avoid re-classifying an already-correctly-typed error through the rule loop below. No test passes an existing `ToolInputError` through this function. |
+| `origin/configured-origin.ts` | 107 | `if (host === "") return "its host is empty";` | Validation error message for an empty host. |
+| `origin/configured-origin.ts` | 234 | `const mode = optional.mode ?? resolveRuntimeMode;` | DI default — same class as AssistantDock/Providers in §6: `optional.mode` is only ever set by tests, so the real default (`resolveRuntimeMode`) is the untested production path. |
+| `publish-content/peer-url.ts` | 70 | `if (normalizeHost(url.hostname) === "") return "its host is empty";` | Same empty-host validation as configured-origin.ts:107, different call site (peer URL validation vs. configured origin). |
+| `publish-content/planner.ts` | 251 | `deps.forcedEntityKeys?.has(...) ?? false` | "Not forced" default for the sync-conflict override — the common real path, untested. |
+| `publish-content/planner.ts` | 343 | `baselineByKey.get(...) ?? null` | Missing-baseline default (e.g. first sync with a peer). Weaker finding than most here: downstream code must already tolerate both `undefined` and explicit `null`, since no test distinguishes them at this exact line. |
+| `publish-content/publish-readiness.ts` | 88 | `if (labels.length === 1) return labels[0] as string;` | Cosmetic — single-item grammar case in a site-name list ("a" vs. "a and b"). Lowest severity in this batch. |
+| `publish-content/report-labels.ts` | 57 | `if (!isRecord(row)) return row;` | Defensive type-guard on a report row; I did not trace `details.rows`'s type origin to rule out "unreachable" — treating as untested rather than asserting unreachable without proof. |
+| `publish-content/report-labels.ts` | 59 | `String(row.entityType ?? "")` inside a lookup key | Defensive fallback for a possibly-missing field before building a lookup key. |
+| `admin/lib/chat-attachment-liveness.ts` | 129 | `fetchImpl: options.fetchImpl ?? globalThis.fetch.bind(globalThis)` | Same DI-default class as AssistantDock/Providers/configured-origin above — the real `fetch` binding is the untested production path. |
+| `admin/lib/chat-attachment-liveness.ts` | 138 | `if (candidates.length === 0) return [];` | Early return when no attachment matches the ref pattern — untested empty-input case. |
+| `desktop/project-ipc.ts` | 265 | `deps.transitions?.get(row.siteDir) ?? null` | The file's own comment admits this: "absent (every test that is not exercising them) it reads null." Confirmed load-bearing-but-untested by the author's own note. |
+| `publish-content/peer-transport.ts` | 111 | `if (err instanceof PublishContentPeerTransportError) return err;` | Passthrough for an already-typed transport error — same short-circuit pattern as model-facing-tool-errors.ts:150. |
+| `publish-content/peer-transport.ts` | 200 | `if (typeof value !== "object" \|\| value === null \|\| Array.isArray(value))` | Shape validation on a peer response before trusting it as a record. |
+| `publish-content/peer-transport.ts` | 501 | `const maxBlobs = deps.maxBlobs ?? PUBLISH_CONTENT_PULL_MAX_BLOBS;` | DI-default class again — the real cap constant is the untested production path. |
+
+**Not re-traced for severity** (kept from the first pass, still provisional):
+
+- `features/pages/lib/theme-page-publish-state.ts:83,84` — `if (pageId === "index"/"404") return {on:true,...}`. Provisionally load-bearing but untested; I did not trace every caller to rule out a higher-level check already preventing these pageIds from reaching here.
+
+**Do not treat any of the above as fully re-verified against a widened test set** — these 15 files
+got the cheaper "who else imports this module" call-site check (§6a), not the full widen-and-rerun
+that caught the blob-put/blob-get false positives in §5. If a peer review wants the same confidence
+level as §6, that rerun is the next step, using the exact commands in §10.
 
 ## 7. Files clean (every mutant killed, or correctly had none)
 
