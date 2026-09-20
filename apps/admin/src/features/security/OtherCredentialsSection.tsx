@@ -5,7 +5,7 @@ import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { Translate } from "../../lib/dictionary-translator";
 import { otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "./rules";
-import { removeDialogBody, removeDialogTitle } from "./security-i18n";
+import { otherCredentialRemoveDialogBody, removeDialogTitle } from "./security-i18n";
 import type { OtherCredentialGroupState, OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
 import { useOtherCredentialRemoveDialog } from "./OtherCredentialsSection.hooks";
 
@@ -171,9 +171,13 @@ function OtherCredentialPlaceholderRow({ store, t: translate }: { store: OtherCr
 
 /** Configured, but this store does not support inline Replace (`composio-connector`/`external-mcp`
  *  — see `rules.ts`'s `OtherCredentialStoreInfo.supportsReplace` doc for why) — just the value fact,
- *  Remove, and the deep link, no disclosure to expand. */
+ *  Remove, and the deep link, no disclosure to expand. Remove asks first, through the same
+ *  {@link OtherCredentialRemoveDialog} the replaceable row uses: these two stores are the most
+ *  destructive on the page (an External MCP delete loses a sealed OAuth secret for good, a Composio
+ *  disconnect revokes the account at Composio), and this button used to fire on the first click. */
 function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRowState; controller: OtherCredentialsController }) {
   const translate = controller.t;
+  const dialogRef = useRef<HTMLDialogElement>(null);
   return (
     <div className="access-tokens-row access-tokens-row-done">
       <div className="access-tokens-row-summary">
@@ -190,7 +194,7 @@ function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRow
         <button
           type="button"
           className="btn-danger"
-          onClick={() => void controller.remove(row)}
+          onClick={() => dialogRef.current?.showModal()}
           // `aria-label`: a store can hold more than one configured item (this file's own
           // `handleSuffix` doc comment above names `media-provider` as an example), and every row
           // renders unconditionally — no accordion, no menu — so two configured items under the
@@ -207,6 +211,7 @@ function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRow
           </p>
         ) : null}
       </div>
+      <OtherCredentialRemoveDialog ref={dialogRef} row={row} controller={controller} t={translate} />
     </div>
   );
 }
@@ -277,10 +282,11 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
 }
 
 /**
- * Native `<dialog>` confirm, mirroring Tier 1's `RemoveConfirmDialog` exactly — same "Remove from
- * Tovu, never Revoke" load-bearing copy constraint (`rules.ts`'s own header): deleting Tovu's row
- * does not revoke the credential at the provider, and this dialog is the one place that fact gets
- * stated in words. No equivalent "this is the last row for this provider" note: every Tier-2 store
+ * Native `<dialog>` confirm, mirroring Tier 1's `RemoveConfirmDialog` — same "Remove from Tovu,
+ * never Revoke" load-bearing copy constraint (`rules.ts`'s own header) for the four replaceable
+ * stores: deleting Tovu's row does not revoke the credential at the provider, and this dialog is the
+ * one place that fact gets stated in words. The two static-row stores state their own, different
+ * fact instead (`otherCredentialRemoveDialogBody`). No equivalent "this is the last row for this provider" note: every Tier-2 store
  * already caps at one row per item, so removing it is always the only-row case — the sentence would
  * be true on every single Remove and therefore say nothing new.
  *
@@ -301,12 +307,10 @@ const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCr
     return (
       <dialog ref={ref} className="confirm-dialog" aria-labelledby={titleId}>
         <h2 id={titleId}>{removeDialogTitle(locale, row.name)}</h2>
-        {/* `removeDialogBody` now takes a separate vendor-label param (Tier 1's fix for the
-            "Revoke it on GitHub Pages" bug — see `rules.ts`'s `AccessTokenProviderInfo.vendorLabel`
-            doc). Tier 2 stores have no vendor/destination split at all — they're deep links to
-            Tovu's OWN other screens (`screenPath`), never a third-party token console — so passing
-            `purposeLabel` for both params reproduces this row's exact previous copy unchanged. */}
-        <p className="confirm-dialog-body">{removeDialogBody(locale, row.store.purposeLabel, row.store.purposeLabel)}</p>
+        {/* Per-store body — `otherCredentialRemoveDialogBody`'s own doc: the shared "does NOT
+            revoke" sentence is kept for the four replaceable stores and would be false for a
+            Composio disconnect, which DOES revoke at Composio. */}
+        <p className="confirm-dialog-body">{otherCredentialRemoveDialogBody(locale, row.store)}</p>
         <div className="confirm-dialog-actions">
           <button
             type="button"

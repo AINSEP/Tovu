@@ -145,28 +145,83 @@ describe("OtherCredentialsSection — OtherCredentialEntryBody dispatch", () => 
 });
 
 describe("OtherCredentialsSection — OtherCredentialStaticRow", () => {
-  it("Remove calls controller.remove(row) directly, with no confirm dialog", () => {
-    const remove = vi.fn().mockResolvedValue(undefined);
-    const store = otherCredentialStoreInfo("external-mcp");
-    const row = rowFixture(store, { itemId: "local-fs", name: "Local filesystem" });
-    render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("external-mcp", [row])], remove })} query="" />);
+  // Regression (terra security review 2026-09-20, High #1): this row's Remove used to call
+  // `controller.remove(row)` on the first click — the one Tier-2 row with NO confirm, even though its
+  // two stores are the most destructive ones on the page (an External MCP delete loses a sealed OAuth
+  // secret for good; a Composio disconnect revokes the account at Composio). Both stores are covered,
+  // since each is its own route to its own irreversible sink.
+  const STATIC_CASES = [
+    {
+      storeId: "external-mcp",
+      itemId: "local-fs",
+      name: "Local filesystem",
+      body: "This deletes the server and its saved credentials. It can't be undone — you'd have to set it up again, and sign in again if it uses OAuth.",
+    },
+    {
+      storeId: "composio-connector",
+      itemId: "github",
+      name: "GitHub",
+      body: "This disconnects the account and revokes its access at Composio. To use it again, you'd have to connect it and sign in again.",
+    },
+  ] as const;
 
-    // Accessible name is "Remove from Tovu — Local filesystem" (the row's own name), not a bare
-    // "Remove from Tovu" — see `OtherCredentialStaticRow`'s own `aria-label` comment for why: a
-    // store like this one can hold more than one configured item at once.
-    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Local filesystem" }));
-    expect(remove).toHaveBeenCalledWith(row);
-  });
+  for (const { storeId, itemId, name, body } of STATIC_CASES) {
+    it(`${storeId}: Remove opens a confirm dialog and does NOT call controller.remove on the first click`, () => {
+      const remove = vi.fn().mockResolvedValue(undefined);
+      const row = rowFixture(otherCredentialStoreInfo(storeId), { itemId, name });
+      const { container } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture(storeId, [row])], remove })} query="" />);
+
+      // Accessible name is "Remove from Tovu — <row name>", not a bare "Remove from Tovu" — see
+      // `OtherCredentialStaticRow`'s own `aria-label` comment: a store can hold more than one item.
+      fireEvent.click(screen.getByRole("button", { name: `Remove from Tovu — ${name}` }));
+
+      expect(remove).not.toHaveBeenCalled();
+      const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog");
+      expect(dialog).not.toBeNull();
+      expect(dialog!.hasAttribute("open")).toBe(true);
+      expect(within(dialog!).getByRole("heading", { level: 2, hidden: true })).toHaveTextContent(`Remove "${name}" from Tovu?`);
+      expect(dialog!.querySelector(".confirm-dialog-body")).toHaveTextContent(body);
+    });
+
+    it(`${storeId}: Cancel closes the dialog without calling controller.remove`, () => {
+      const remove = vi.fn().mockResolvedValue(undefined);
+      const row = rowFixture(otherCredentialStoreInfo(storeId), { itemId, name });
+      const { container } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture(storeId, [row])], remove })} query="" />);
+
+      fireEvent.click(screen.getByRole("button", { name: `Remove from Tovu — ${name}` }));
+      const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
+      fireEvent.click(within(dialog).getByRole("button", { name: "Cancel", hidden: true }));
+
+      expect(dialog.hasAttribute("open")).toBe(false);
+      expect(remove).not.toHaveBeenCalled();
+    });
+
+    it(`${storeId}: confirming calls controller.remove exactly once, with this row`, () => {
+      const remove = vi.fn().mockResolvedValue(undefined);
+      const row = rowFixture(otherCredentialStoreInfo(storeId), { itemId, name });
+      const { container } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture(storeId, [row])], remove })} query="" />);
+
+      fireEvent.click(screen.getByRole("button", { name: `Remove from Tovu — ${name}` }));
+      const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
+      fireEvent.click(within(dialog).getByRole("button", { name: "Remove from Tovu", hidden: true }));
+
+      expect(remove).toHaveBeenCalledTimes(1);
+      expect(remove).toHaveBeenCalledWith(row);
+      expect(dialog.hasAttribute("open")).toBe(false);
+    });
+  }
 
   it("shows the saved timestamp only when updatedAt is set", () => {
     const store = otherCredentialStoreInfo("external-mcp");
     const withDate = rowFixture(store, { itemId: "a", updatedAt: "2026-08-01T00:00:00.000Z" });
-    const { rerender } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("external-mcp", [withDate])] })} query="" />);
-    expect(screen.getByText(/saved/)).toBeInTheDocument();
+    const { container, rerender } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("external-mcp", [withDate])] })} query="" />);
+    // Scoped to the summary's own meta span — this row now also renders its (closed) Remove dialog,
+    // whose body copy mentions "saved credentials", so an unscoped `/saved/` text query is ambiguous.
+    expect(container.querySelector(".access-tokens-row-summary-meta")).toHaveTextContent(/^saved \S/);
 
     const withoutDate = rowFixture(store, { itemId: "a", updatedAt: null });
     rerender(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("external-mcp", [withoutDate])] })} query="" />);
-    expect(screen.queryByText(/saved/)).not.toBeInTheDocument();
+    expect(container.querySelector(".access-tokens-row-summary-meta")).not.toBeInTheDocument();
   });
 
   it("shows a visible alert with the row's own error text when present", () => {
@@ -194,6 +249,21 @@ describe("OtherCredentialsSection — OtherCredentialReplaceableRow + remove con
     const row = rowFixture(store, { error: "Couldn't save this token: network down" });
     render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("site-assistant", [row])] })} query="" />);
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't save this token: network down");
+  });
+
+  // Pins the four replaceable stores' body copy as it was before the static-row fix gave the other
+  // two stores their own wording — `otherCredentialRemoveDialogBody` must keep routing these through
+  // the shared "does NOT revoke" template unchanged.
+  it("the confirm dialog body for a replaceable store is the shared 'does NOT revoke' copy, unchanged", () => {
+    const store = otherCredentialStoreInfo("media-provider");
+    const row = rowFixture(store, { itemId: "cloudinary", name: "Cloudinary" });
+    const { container } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("media-provider", [row])] })} query="" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Cloudinary" }));
+    const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
+    expect(dialog.querySelector(".confirm-dialog-body")).toHaveTextContent(
+      "This deletes Tovu's saved copy of this Media token. It does NOT revoke the token on Media — it stays valid there until you revoke it yourself."
+    );
   });
 
   it("clicking Remove opens the confirm dialog, and Cancel closes it without calling controller.remove", () => {
