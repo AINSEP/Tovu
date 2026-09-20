@@ -26,18 +26,38 @@ export function themePagePath(pageId: string): string {
   return pageId === "index" ? "/" : `/${pageId}`;
 }
 
-/** Where a theme page row links: the theme studio, opened on that page — never the live site. A
- *  theme page is the THEME's file, and the only thing an operator can actually DO with one from
- *  this screen is edit it in Explore, regardless of whether it is currently published; see
- *  `Pages.tsx`'s own header comment (2026-08-27 owner decision) for the fuller history.
+/** The bare route path — no `/admin` base — for a theme page row's Theme Studio destination. The
+ *  one place `?theme=`/`?page=` are assembled; {@link themeStudioHref} (for an `<a href>`) and
+ *  `ThemePagesTab.tsx`'s row-menu `onEdit` (for `navigate()`) both derive from this SAME function
+ *  rather than each building its own string, because those two call sites need OPPOSITE shapes —
+ *  an anchor's `href` must already carry the base, while `navigate()` (`@jini-ai/admin/browser`)
+ *  applies `adminHref` itself and doubles the base if handed one that already has it — and a bug
+ *  shipped (2026-09-19) from `onEdit` passing `themeStudioHref`'s own prefixed output straight into
+ *  `navigate()`, landing on `/admin/admin/themes/explore?...`, which the router has no match for and
+ *  silently falls back to the Dashboard. Keeping one unprefixed source of truth is what stops the
+ *  two consumers from drifting apart like that again.
  *
  *  `?theme=` and `?page=` rather than a path, matching `Themes.tsx`'s Explore button. Both are
  *  `encodeURIComponent`d: a theme or page id is a filename on disk, and an unescaped `&` or `=` in
  *  one would otherwise forge a third query parameter.
  *
  *  @complexity Time/space: O(1). */
+export function themeStudioRoutePath(themeId: string, pageId: string): string {
+  return `/themes/explore?theme=${encodeURIComponent(themeId)}&page=${encodeURIComponent(pageId)}`;
+}
+
+/** Where a theme page row LINKS (an `<a href>`): the theme studio, opened on that page — never the
+ *  live site. A theme page is the THEME's file, and the only thing an operator can actually DO with
+ *  one from this screen is edit it in Explore, regardless of whether it is currently published; see
+ *  `Pages.tsx`'s own header comment (2026-08-27 owner decision) for the fuller history.
+ *
+ *  Wraps {@link themeStudioRoutePath} in `adminHref()` for the anchor's own href. A caller driving
+ *  the SPA router instead (`navigate()`) must pass {@link themeStudioRoutePath} directly, NOT this —
+ *  see that function's own doc for why.
+ *
+ *  @complexity Time/space: O(1). */
 export function themeStudioHref(themeId: string, pageId: string): string {
-  return adminHref(`/themes/explore?theme=${encodeURIComponent(themeId)}&page=${encodeURIComponent(pageId)}`);
+  return adminHref(themeStudioRoutePath(themeId, pageId));
 }
 
 /** One of the two states a row's publish switch can render — mirrors `ThemeExplore.tsx`'s own

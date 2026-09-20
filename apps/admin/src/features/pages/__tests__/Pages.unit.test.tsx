@@ -6,7 +6,7 @@ import { Pages, pagesListNotice } from "../Pages";
 import { buildPageRowMenuHandleMap } from "../rules";
 import type { PagesController } from "../hooks/use-pages.hooks";
 import type { ThemePageRow, ThemePagesController } from "../hooks/use-theme-pages.hooks";
-import { navigate } from "@/lib/router";
+import { adminHref, navigate } from "@/lib/router";
 import type { AdminPost } from "@/lib/api";
 import { siteUrl } from "@/lib/site-url";
 
@@ -820,6 +820,23 @@ describe("Theme Pages tab", () => {
    * row menu.
    */
   describe("row menu — Edit (Theme Pages)", () => {
+    /**
+     * Asserts the RESOLVED destination, not the raw argument handed to the (mocked) `navigate` —
+     * a bare `toHaveBeenCalledWith("/admin/themes/explore?...")` passed even while `onEdit` handed
+     * `navigate` an ALREADY-`/admin`-prefixed href (2026-09-19 bug), because the mock swallows
+     * `navigate`'s own real behavior of applying `adminHref` to whatever it receives. Running the
+     * captured argument through the REAL `adminHref` (kept real via `importOriginal` at this file's
+     * own top) reproduces that real behavior: a correct unprefixed route path resolves to the single
+     * `/admin/...` URL below, while an already-prefixed one would double into `/admin/admin/...` and
+     * fail this assertion — which is exactly the router-has-no-match-for-that, falls-back-to-
+     * Dashboard bug an operator hit live.
+     */
+    function resolvedEditDestination(): string {
+      const call = vi.mocked(navigate).mock.calls.at(-1);
+      if (!call) throw new Error("navigate was not called");
+      return adminHref(call[0]);
+    }
+
     it("navigates to the same Theme Studio destination as the table's own Page column link", async () => {
       const user = userEvent.setup();
       renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "about" })], activeThemeId: "basic" });
@@ -828,7 +845,7 @@ describe("Theme Pages tab", () => {
       // id rather than "Edit" — no naming collision with this row-menu item (role "menuitem").
       await user.click(screen.getByRole("button", { name: 'Actions for "about"' }));
       await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-      expect(navigate).toHaveBeenCalledWith("/admin/themes/explore?theme=basic&page=about");
+      expect(resolvedEditDestination()).toBe("/admin/themes/explore?theme=basic&page=about");
     });
 
     it("works for a locked row too — index has no `PostRecord` but is still editable in Theme Studio", async () => {
@@ -840,7 +857,7 @@ describe("Theme Pages tab", () => {
       await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
       await user.click(screen.getByRole("button", { name: 'Actions for "index"' }));
       await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-      expect(navigate).toHaveBeenCalledWith("/admin/themes/explore?theme=basic&page=index");
+      expect(resolvedEditDestination()).toBe("/admin/themes/explore?theme=basic&page=index");
     });
 
     it("is listed directly under Details in the menu", async () => {

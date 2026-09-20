@@ -15,6 +15,7 @@ import {
   themePagePublishState,
   themePagePublishTooltip,
   themeStudioHref,
+  themeStudioRoutePath,
   themePagePublicLinkState,
   type ThemePagePublishState,
 } from "./lib/theme-page-publish-state";
@@ -40,8 +41,12 @@ import {
  *    own header. Exactly one modal instance is ever mounted (the `detailPageId` state below), never
  *    one per row. The SAME menu's `Edit` item (2026-08-31, moved out of the modal's own footer per
  *    that file's header, PART 3) navigates straight to Theme Studio — `handlers.onEdit` here is the
- *    one place that calls `navigate(themeStudioHref(...))` for it, matching `rules.ts`'s own
- *    `ThemePageRowMenuHandlers` doc on why that module stays free of navigation itself.
+ *    one place that calls `navigate(themeStudioRoutePath(...))` for it, matching `rules.ts`'s own
+ *    `ThemePageRowMenuHandlers` doc on why that module stays free of navigation itself. **Not**
+ *    `themeStudioHref` — that helper already carries the `/admin` base for the `Page` cell's own
+ *    `<a href>` below, and `navigate()` (`@jini-ai/admin/browser`) applies that same base itself, so
+ *    handing it an already-prefixed href doubled it into `/admin/admin/...` (bug, fixed 2026-09-19;
+ *    see `theme-page-publish-state.ts`'s `themeStudioRoutePath` doc for the fuller history).
  * 3. **PART 1 — the single "URL" column was a real mislabel, originally split in two, since
  *    collapsed back into one (PART 5 below).** It carried the header `"URL"` but its `<a href>` was
  *    always `themeStudioHref` — the theme studio, not the page's own public address. There are
@@ -373,7 +378,7 @@ export function ThemePagesTab({
                 agentHandle={`${rowHandles[index]}-menu`}
                 items={themePageRowMenuItems(
                   row,
-                  { onOpenDetails: setDetailPageId, onEdit: (pageId) => navigate(themeStudioHref(themeId, pageId)) },
+                  { onOpenDetails: setDetailPageId, onEdit: (pageId) => navigate(themeStudioRoutePath(themeId, pageId)) },
                   t
                 )}
               />

@@ -142,7 +142,10 @@ describe("themePageRowMenuItems", () => {
    * directly under Details. Takes the row's bare `pageId` — same shape as `onOpenDetails` — rather
    * than building the Theme Studio href itself, since this module stays free of navigation (this
    * file's own header comment, and `rules.ts`'s `ThemePageRowMenuHandlers` doc); the caller
-   * (`ThemePagesTab.tsx`) is the one place that turns it into `navigate(themeStudioHref(...))`.
+   * (`ThemePagesTab.tsx`) is the one place that turns it into `navigate(themeStudioRoutePath(...))` —
+   * the unprefixed route path `navigate()` expects, NOT `themeStudioHref`'s already-`/admin`-prefixed
+   * form (2026-09-19 double-prefix bug fix; see `theme-page-publish-state.ts`'s `themeStudioRoutePath`
+   * doc for why the two must stay separate).
    */
   it("wires Edit's onSelect to onEdit with the row's own pageId, and only onEdit", () => {
     const onOpenDetails = vi.fn();
