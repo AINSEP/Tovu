@@ -149,7 +149,7 @@ describe("useTrash", () => {
 
     // An agent deletes a post: `content_post_delete` writes an index row and publishes on the bus.
     page = [item()];
-    act(() => publishContentRefresh(TRASH_RESOURCE));
+    act(() => publishContentRefresh([TRASH_RESOURCE]));
 
     await waitFor(() => expect(result.current.items).toEqual([item()]));
   });
@@ -175,7 +175,7 @@ describe("useTrash", () => {
 
     // The 60-day sweeper, or another operator, removed one of them.
     page = [item({ id: "a" })];
-    act(() => publishContentRefresh(TRASH_RESOURCE));
+    act(() => publishContentRefresh([TRASH_RESOURCE]));
 
     await waitFor(() => expect([...result.current.selected]).toEqual(["a"]));
   });
