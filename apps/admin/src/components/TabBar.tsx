@@ -33,6 +33,13 @@ export interface TabBarTab {
   readonly icon?: ReactNode;
   /** Shown next to the label when present (e.g. a theme count per tier). Omit to show none. */
   readonly count?: number;
+  /** Small pill rendered after the label — e.g. "Soon" for a tab whose feature exists but isn't
+   *  live yet. Same visual language as `@jini-ai/admin/react`'s own `Sidebar.tsx` nav `.soon` badge
+   *  (an uppercase, bordered, muted pill), reused here rather than invented fresh so the app has one
+   *  "Soon" look, not two. Unlike {@link disabled}, a tab with `tag` set stays fully clickable —
+   *  built for the Providers page's MCP Server tab, which still opens to an honest status message
+   *  rather than nothing. Omit for a plain, untagged tab. */
+  readonly tag?: string;
   /**
    * Renders this tab greyed out and non-interactive: no `onChange` call, not part of the tab
    * order (native `disabled`), `aria-disabled` set for assistive tech. For scaffolding a future
@@ -128,6 +135,7 @@ function TabBarButton({ tab, active, onChange }: { tab: TabBarTab; active: boole
       ) : null}
       {tab.label}
       {tabDotAccessibleSuffix(tab)}
+      {tab.tag ? <span className="tab-bar-tag">{tab.tag}</span> : null}
       {tab.count !== undefined ? <span className="tab-bar-count">{tab.count}</span> : null}
     </button>
   );

@@ -2568,6 +2568,14 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .tab-bar-item[aria-selected="true"] { color: var(--accent-text); border-bottom-color: var(--accent-text); }
 .tab-bar-count { margin-left: 0.4rem; font-size: var(--text-2xs); color: var(--faint); font-variant-numeric: tabular-nums; }
 .tab-bar-item[aria-selected="true"] .tab-bar-count { color: var(--accent-text); opacity: 0.75; }
+/* `TabBarTab.tag`'s pill — same shape as the admin sidebar's own `.cms-item .soon` badge (uppercase,
+   bordered, muted), just scoped to a tab-bar button instead of a nav row so the app has one "Soon"
+   look rather than two. */
+.tab-bar-tag {
+  margin-left: 0.4rem; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--faint); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px;
+}
+.tab-bar-item[aria-selected="true"] .tab-bar-tag { color: var(--accent-text); opacity: 0.75; }
 /* The "this one has something configured" signifier (`TabBarTab.dot`'s own doc) — a small filled
    circle, not a colored ring or outline, so it reads clearly at 6px. `--ok` (the same green
    `.status-ok` uses) rather than `--primary`: this is a fact about STATE ("connected"), not a

@@ -10,6 +10,12 @@ import { interpolate } from "../../lib/template-i18n";
  * Also covers `rules.ts`'s `integrationRowMenuItems` row-menu labels (Pause/Resume/Delete) — the
  * earlier pass's `.tsx`-only scope left these untranslated (flagged in its handoff report as a
  * follow-up gap); `rules.ts` imports `t` from here directly.
+ *
+ * `Soon` (added 2026-09-19, for the MCP Server tab's new `TabBarTab.tag`) is copied verbatim from
+ * `lib/admin-nav-i18n.ts`'s own `Soon` entries per locale rather than retranslated — same word,
+ * same app, and that file's own translations were already reviewed. `Providers.tsx`'s own header
+ * explains why this feature keeps its own dictionary instead of reading that one directly: it is
+ * scoped to the nav only.
  */
 
 const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
@@ -24,6 +30,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Integraciones",
     "APIs & Webhooks": "API y Webhooks",
     "MCP Server": "Servidor MCP",
+    Soon: "Próximamente",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Cómo otras herramientas se comunican con este sitio: webhooks salientes y la conexión de un cliente MCP.",
@@ -56,6 +63,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Integrasi",
     "APIs & Webhooks": "API & Webhooks",
     "MCP Server": "Server MCP",
+    Soon: "Segera",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Cara alat lain berkomunikasi dengan situs ini — webhook keluar dan menghubungkan klien MCP.",
@@ -88,6 +96,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Integrationen",
     "APIs & Webhooks": "API & Webhooks",
     "MCP Server": "MCP-Server",
+    Soon: "Bald",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Wie andere Tools mit dieser Website kommunizieren – ausgehende Webhooks und die Verbindung eines MCP-Clients.",
@@ -120,6 +129,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "集成",
     "APIs & Webhooks": "API 与 Webhook",
     "MCP Server": "MCP 服务器",
+    Soon: "即将推出",
     "Webhooks": "Webhook",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "其他工具如何与本站通信 — 出站 Webhook，以及连接 MCP 客户端。",
@@ -152,6 +162,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "整合",
     "APIs & Webhooks": "API 與 Webhook",
     "MCP Server": "MCP 伺服器",
+    Soon: "即將推出",
     "Webhooks": "Webhook",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "其他工具如何與本站通訊 — 外送 Webhook，以及連接 MCP 用戶端。",
@@ -184,6 +195,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Integrações",
     "APIs & Webhooks": "API e Webhooks",
     "MCP Server": "Servidor MCP",
+    Soon: "Em breve",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Como outras ferramentas se comunicam com este site — webhooks de saída e a conexão de um cliente MCP.",
@@ -216,6 +228,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Интеграции",
     "APIs & Webhooks": "API и Webhooks",
     "MCP Server": "MCP-сервер",
+    Soon: "Скоро",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Как другие инструменты взаимодействуют с этим сайтом — исходящие вебхуки и подключение MCP-клиента.",
@@ -248,6 +261,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "یکپارچه‌سازی‌ها",
     "APIs & Webhooks": "API و Webhooks",
     "MCP Server": "سرور MCP",
+    Soon: "به‌زودی",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "چگونه ابزارهای دیگر با این سایت ارتباط برقرار می‌کنند — وب‌هوک‌های خروجی و اتصال یک کلاینت MCP.",
@@ -280,6 +294,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "عمليات التكامل",
     "APIs & Webhooks": "API و Webhooks",
     "MCP Server": "خادم MCP",
+    Soon: "قريبًا",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "كيف تتواصل الأدوات الأخرى مع هذا الموقع — الويب هوك الصادرة، وتوصيل عميل MCP.",
@@ -312,6 +327,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "連携",
     "APIs & Webhooks": "APIとWebhook",
     "MCP Server": "MCP サーバー",
+    Soon: "近日公開",
     "Webhooks": "Webhook",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "他のツールがこのサイトとやり取りする方法 — 送信 Webhook と MCP クライアントの接続。",
@@ -344,6 +360,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "통합",
     "APIs & Webhooks": "API 및 Webhook",
     "MCP Server": "MCP 서버",
+    Soon: "준비 중",
     "Webhooks": "Webhook",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "다른 도구가 이 사이트와 통신하는 방법 — 아웃바운드 웹훅과 MCP 클라이언트 연결.",
@@ -376,6 +393,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Integracje",
     "APIs & Webhooks": "API i Webhooks",
     "MCP Server": "Serwer MCP",
+    Soon: "Wkrótce",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Jak inne narzędzia komunikują się z tą witryną — wychodzące webhooki i podłączanie klienta MCP.",
@@ -408,6 +426,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Integrációk",
     "APIs & Webhooks": "API és Webhooks",
     "MCP Server": "MCP-kiszolgáló",
+    Soon: "Hamarosan",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Hogyan kommunikálnak más eszközök ezzel a webhellyel – kimenő webhookok és MCP-kliens csatlakoztatása.",
@@ -440,6 +459,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Intégrations",
     "APIs & Webhooks": "API et Webhooks",
     "MCP Server": "Serveur MCP",
+    Soon: "Bientôt",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Comment d'autres outils communiquent avec ce site — webhooks sortants et connexion d'un client MCP.",
@@ -472,6 +492,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Інтеграції",
     "APIs & Webhooks": "API та Webhooks",
     "MCP Server": "MCP-сервер",
+    Soon: "Скоро",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Як інші інструменти взаємодіють із цим сайтом — вихідні вебхуки та підключення MCP-клієнта.",
@@ -504,6 +525,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Entegrasyonlar",
     "APIs & Webhooks": "API ve Webhooks",
     "MCP Server": "MCP Sunucusu",
+    Soon: "Yakında",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Diğer araçlar bu siteyle nasıl konuşur — giden webhook'lar ve bir MCP istemcisi bağlama.",
@@ -536,6 +558,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "การผสานการทำงาน",
     "APIs & Webhooks": "API และ Webhook",
     "MCP Server": "เซิร์ฟเวอร์ MCP",
+    Soon: "เร็วๆ นี้",
     "Webhooks": "Webhook",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "เครื่องมืออื่นสื่อสารกับไซต์นี้อย่างไร — เว็บฮุคขาออก และการเชื่อมต่อไคลเอ็นต์ MCP",
@@ -568,6 +591,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Integrazioni",
     "APIs & Webhooks": "API e Webhooks",
     "MCP Server": "Server MCP",
+    Soon: "Presto",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Come altri strumenti comunicano con questo sito: webhook in uscita e connessione di un client MCP.",
@@ -600,6 +624,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "इंटीग्रेशन",
     "APIs & Webhooks": "API और वेबहुक",
     "MCP Server": "MCP सर्वर",
+    Soon: "जल्द आ रहा है",
     "Webhooks": "वेबहुक",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "अन्य टूल इस साइट से कैसे बात करते हैं — आउटबाउंड वेबहुक, और MCP क्लाइंट कनेक्ट करना।",
@@ -632,6 +657,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "انٹیگریشنز",
     "APIs & Webhooks": "API اور ویب ہکس",
     "MCP Server": "MCP سرور",
+    Soon: "جلد آ رہا ہے",
     "Webhooks": "ویب ہکس",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "دوسرے ٹولز اس سائٹ سے کیسے بات کرتے ہیں — آؤٹ باؤنڈ ویب ہکس، اور MCP کلائنٹ کو جوڑنا۔",
@@ -664,6 +690,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "ইন্টিগ্রেশন",
     "APIs & Webhooks": "API ও ওয়েবহুক",
     "MCP Server": "MCP সার্ভার",
+    Soon: "শীঘ্রই আসছে",
     "Webhooks": "ওয়েবহুক",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "অন্যান্য টুল কীভাবে এই সাইটের সঙ্গে যোগাযোগ করে — আউটবাউন্ড ওয়েবহুক, এবং একটি MCP ক্লায়েন্ট সংযুক্ত করা।",

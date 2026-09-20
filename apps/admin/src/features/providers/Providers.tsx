@@ -1,4 +1,4 @@
-import { ConnectorsBrowser, I18nProvider, IntegrationsTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
+import { ConnectorsBrowser, I18nProvider, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
 
@@ -15,6 +15,7 @@ import { useWiredIntegrations } from "../integrations/hooks/use-integrations.hoo
 import { t as tIntegrations } from "../integrations/integrations-i18n";
 import { t } from "./providers-i18n";
 import { useProviders } from "./hooks/use-providers.hooks";
+import { McpServerSoonPanel } from "./McpServerSoonPanel";
 
 /**
  * @file The Integrations page (`/admin/providers`) — every outside connection this install has,
@@ -59,7 +60,7 @@ import { useProviders } from "./hooks/use-providers.hooks";
  *
  * ## The `I18nProvider` below is load-bearing, not decoration
  *
- * `ExternalMcpSettingsPanel`, `ConnectorsBrowser` and `IntegrationsTab` all resolve their own copy
+ * `ExternalMcpSettingsPanel`, `ConnectorsBrowser` and `McpServerSoonPanel` all resolve their own copy
  * through `@jini-ai/ui`'s `useT()`, which reads `I18nContext` from an ANCESTOR. On the Settings page
  * that ancestor was `SettingsUi`'s own `<I18nProvider>`; on the old `/admin/integrations` page it was
  * `DeveloperApi.tsx`'s own copy of this same provider. Mounting these components here WITHOUT one
@@ -76,7 +77,7 @@ import { useProviders } from "./hooks/use-providers.hooks";
  * misinform assistive tech about the rest of the admin shell.
  *
  * `data-theme="light"` on this file's own page root (below) covers every tab body mounted under it,
- * including the MCP Server tab's `IntegrationsTab` — `DeveloperApi.tsx` needed its OWN nested
+ * including the MCP Server tab's `McpServerSoonPanel` — `DeveloperApi.tsx` needed its OWN nested
  * `data-theme="light"` wrapper around that one tab specifically because its page root had none; this
  * page's root already sets it for the whole screen, so that per-tab wrapper does not need to be
  * carried over.
@@ -183,10 +184,14 @@ export function Providers(props: ProvidersProps) {
     {
       // Absorbed from `DeveloperApi.tsx`'s own `mcp-server` tab (2026-09-10, second pass) — same id,
       // same label source (`integrations-i18n.tsx`'s own `t`, reused rather than re-translated), same
-      // icon, same body (`IntegrationsTab`). Only the address and its position in a four-tab row
-      // changed.
+      // icon. Body swapped 2026-09-19 from `IntegrationsTab` to `McpServerSoonPanel` — see the render
+      // block below.
       id: "mcp-server",
       label: tIntegrations(locale, "MCP Server"),
+      // Not wired to a real McpIntegrationsPort yet (see the render block below) — the tag says so
+      // from the tab strip itself, before an operator clicks in. Tab stays fully clickable; see
+      // `TabBarTab.tag`'s own doc for why this isn't `disabled` instead.
+      tag: tIntegrations(locale, "Soon"),
       icon: (
         <TabIcon>
           <path d="M4 6.5h10M4 11.5h10" />
@@ -195,7 +200,7 @@ export function Providers(props: ProvidersProps) {
         </TabIcon>
       ),
       handle: "providers-tab-mcp-server",
-      handleLabel: "Switch to the MCP Server tab — connect an MCP client to this Tovu install",
+      handleLabel: "Switch to the MCP Server tab — connect an MCP client to this Tovu install (soon)",
     },
     {
       // Absorbed from `DeveloperApi.tsx`'s own `webhooks` tab — see the `mcp-server` tab above for
@@ -301,14 +306,16 @@ export function Providers(props: ProvidersProps) {
         ) : null}
 
         {activeTabId === "mcp-server" ? (
-          // Verbatim from `DeveloperApi.tsx`'s own "MCP Server" tab, itself verbatim from the
-          // Settings page's old `mcp` tab before that — same `IntegrationsTab` component, same
-          // `serverName`, same `agentHandle`. Its own subtitle still says plainly that it is showing
-          // sample output rather than a live server: `IntegrationsTab` defaults to an in-memory fake
-          // port, and wiring a real `McpIntegrationsPort` to Tovu's daemon remains its own piece of
-          // work. Moving it (twice, now) did not make it more real, and this file does not imply it
-          // did.
-          <IntegrationsTab serverName="tovu" agentHandle="settings-mcp-server" />
+          // Was `<IntegrationsTab serverName="tovu" agentHandle="settings-mcp-server" />`, verbatim
+          // from `DeveloperApi.tsx`'s own "MCP Server" tab before this page absorbed it. Found
+          // 2026-09-19: with no `port` prop, `IntegrationsTab` falls back to
+          // `createFakeMcpIntegrationsPort()`, whose demo install command
+          // (`{command: "node", args: ["/path/to/cli.js", "mcp"]}`) rendered as real, copyable text —
+          // on every install, not just this dev one. Swapped for `McpServerSoonPanel` (own file, own
+          // header for the full reasoning) until a real `McpIntegrationsPort` is wired — see
+          // `development/todos.md`'s "make the MCP Server real" item. Restoring the real tab later is
+          // a one-line swap back to `IntegrationsTab` with a live `port`.
+          <McpServerSoonPanel />
         ) : null}
 
         {activeTabId === "webhooks" ? (
