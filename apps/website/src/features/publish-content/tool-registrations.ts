@@ -25,6 +25,7 @@ import {
 } from "../../contracts/core/tool-surface-exchanges.js";
 import {
   connectDestination,
+  disconnectDestination,
   findCandidateDestination,
   PublishTrustConnectError,
 } from "../publish-trust/connect.js";
@@ -44,6 +45,7 @@ import {
   PUBLISH_CONTENT_STATUS_TOOL_ID,
   type AgentToolDefinition,
 } from "./agent-tools.js";
+import { connectAndRecordDestination } from "./connect-destination.js";
 import { resolvePublishDestinationCredential } from "./destination-credential.js";
 import { buildExportBundle } from "./export-bundle.js";
 import {
@@ -54,7 +56,6 @@ import {
 } from "./peer-transport.js";
 import { normalizePeerBaseUrl } from "./peer-url.js";
 import {
-  saveConnectedDestination,
   selectConnectedDestination,
   PublishContentPeerCredentialMissingError,
   PublishContentPeerNotFoundError,
@@ -309,31 +310,28 @@ export function buildPublishContentRegistrations(
       }
 
       try {
-        const connected = await connectDestination(
+        const trustDeps = {
+          httpClient: routeDeps.publishContentPeerHttpClient,
+          keyring: routeDeps.siteAssistantSecretKeyring,
+          provisioning,
+          clock: routeDeps.clock,
+          workspaceId: routeDeps.workspaceId,
+        };
+        const { site, grant } = await connectAndRecordDestination(
           {
-            httpClient: routeDeps.publishContentPeerHttpClient,
-            keyring: routeDeps.siteAssistantSecretKeyring,
-            provisioning,
+            repo: routeDeps.publishContentPeerRepo,
             clock: routeDeps.clock,
-            workspaceId: routeDeps.workspaceId,
+            idGen: routeDeps.idGen,
+            connectGrant: (connectInput) => connectDestination(trustDeps, connectInput),
+            reverseGrant: () => disconnectDestination(trustDeps),
           },
-          { baseUrl: normalized.baseUrl, entityTypes }
-        );
-
-        const site = await saveConnectedDestination(
-          { repo: routeDeps.publishContentPeerRepo, clock: routeDeps.clock, idGen: routeDeps.idGen },
-          {
-            workspaceId: routeDeps.workspaceId,
-            label: siteLabelFor(connected.baseUrl),
-            baseUrl: connected.baseUrl,
-            remoteWorkspaceId: connected.identity.workspaceId,
-          }
+          { workspaceId: routeDeps.workspaceId, baseUrl: normalized.baseUrl, entityTypes }
         );
 
         return {
           connected: true,
           message: `This computer publishes to ${site.label}.`,
-          nextStep: plainSentence(connected.nextStep, "Put this site online once more for the change to take effect."),
+          nextStep: plainSentence(grant.nextStep, "Put this site online once more for the change to take effect."),
         };
       } catch (err) {
         if (err instanceof PublishTrustHandshakeError) {
