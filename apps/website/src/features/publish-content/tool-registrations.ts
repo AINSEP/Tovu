@@ -55,6 +55,7 @@ import {
 import { normalizePeerBaseUrl } from "./peer-url.js";
 import {
   saveConnectedDestination,
+  selectConnectedDestination,
   PublishContentPeerCredentialMissingError,
   PublishContentPeerNotFoundError,
   PublishContentPeerSecretStoreUnconfiguredError,
@@ -216,7 +217,7 @@ export function plainSentence(text: string, fallback: string): string {
  *  the one a person will have meant.
  *  @complexity O(n) in the workspace's destination count. */
 function chooseDestination(rows: readonly PublishContentPeerRecord[]): PublishContentPeerRecord | null {
-  const connected = rows.find((row) => row.sealed === null);
+  const connected = selectConnectedDestination(rows);
   if (connected) return connected;
   return rows.length === 1 ? (rows[0] as PublishContentPeerRecord) : null;
 }
@@ -228,7 +229,7 @@ async function readReadiness(
   findCandidate: () => Promise<string | null>
 ): Promise<{ readiness: PublishReadiness; rows: readonly PublishContentPeerRecord[] }> {
   const rows = await deps.publishContentPeerRepo.listByWorkspace({ workspaceId: deps.workspaceId });
-  const connected = rows.find((row) => row.sealed === null) ?? null;
+  const connected = selectConnectedDestination(rows);
   const readiness = describePublishReadiness({
     connectedSiteLabel: connected ? connected.label : null,
     otherSiteLabels: rows.filter((row) => row.sealed !== null).map((row) => row.label),

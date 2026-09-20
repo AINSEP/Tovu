@@ -4,6 +4,7 @@ import { normalizePeerBaseUrl } from "#src/features/publish-content/peer-url";
 import {
   removeConnectedDestination,
   saveConnectedDestination,
+  selectConnectedDestination,
   type PublishContentPeerSummary,
 } from "#src/features/publish-content/peers";
 import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
@@ -90,7 +91,7 @@ function siteLabelFor(baseUrl: string): string {
  */
 async function connectedSite(deps: PublishContentRouteDeps): Promise<PublishContentPeerSummary | null> {
   const rows = await deps.publishContentPeerRepo.listByWorkspace({ workspaceId: deps.workspaceId });
-  const match = rows.find((row) => row.sealed === null);
+  const match = selectConnectedDestination(rows);
   return match
     ? {
         id: match.id,

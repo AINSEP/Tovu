@@ -515,9 +515,52 @@ export class InMemoryPublishContentPeerRepo implements PublishContentPeerRepoPor
  * site falls back to the full address, so connecting can never fail on a name the owner never chose
  * and would have to go and edit.
  *
+ * **At most one connected row per workspace.** Connecting to a different address moves the
+ * connection — the previous connected row is removed, not left beside the new one. This is not a
+ * policy choice; it is what the authorisation layer already does. `publish-trust/connect.ts` writes
+ * the grant through `provisioning.connect`, which merges by source installation id and so
+ * "replaces this computer's own entry" on every connect, and `disconnectDestination` takes no
+ * address because there is only ever one entry to remove. A second `sealed: null` row is therefore
+ * not a second connection; it is a row describing an authorisation that no longer exists, and every
+ * reader used to take whichever such row the repository listed first (sol review 2026-09-20, High
+ * finding 4: the operator is shown "connected", and Publish silently targets the stale site).
+ *
  * @returns The read model, which by construction can carry no credential-shaped field.
- * @complexity O(n) in the workspace's peer count (one list scan), plus one write.
+ * @complexity O(n) in the workspace's peer count (one list scan), plus one write and at most one
+ * delete per superseded connection (at most one in practice, since this rule keeps it at one).
  */
+/**
+ * The one destination this install is CONNECTED to, or `null`.
+ *
+ * The single definition of "which connected row do we mean", so the three readers that ask —
+ * `routes/publish-content/destination.ts`'s view, and `publish-content/tool-registrations.ts`'s
+ * readiness and publish handlers — cannot drift apart or answer differently for the same rows.
+ *
+ * {@link saveConnectedDestination} keeps at most one connected row per workspace, so in practice
+ * there is nothing to choose between. The tie-break exists for rows written before that rule
+ * (sol review 2026-09-20, High finding 4, where every reader took whichever row the repository
+ * happened to list first): this install holds exactly ONE grant, `provisioning.connect` replaces it
+ * on every connect, so the only row that grant can possibly authorise is the most recently written
+ * one. Picking by repository order could return a connection that no longer exists and publish
+ * someone's content to the wrong site.
+ *
+ * A peer with a sealed key is deliberately NOT a candidate: it is a destination the owner
+ * configured by hand, not a connection, and `destination.ts` must not report one as "connected"
+ * with `hasCredential: false`.
+ *
+ * @complexity O(n) in the workspace's peer count.
+ */
+export function selectConnectedDestination(
+  rows: readonly PublishContentPeerRecord[]
+): PublishContentPeerRecord | null {
+  let chosen: PublishContentPeerRecord | null = null;
+  for (const row of rows) {
+    if (row.sealed !== null) continue;
+    if (chosen === null || row.updatedAt > chosen.updatedAt) chosen = row;
+  }
+  return chosen;
+}
+
 export async function saveConnectedDestination(
   deps: PublishContentPeerReadDeps & { clock: { nowIso(): string }; idGen: { newId(): string } },
   input: { workspaceId: string; label: string; baseUrl: string; remoteWorkspaceId: string }
@@ -527,8 +570,17 @@ export async function saveConnectedDestination(
   const existing = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
   const match = existing.find((row) => row.baseUrl === baseUrl) ?? null;
 
+  // Connecting to a different site MOVES the connection; it does not add a second one. See this
+  // function's doc comment for why a second connected row cannot describe anything real. Only
+  // `sealed === null` rows are superseded — a peer the owner configured by hand with a pasted key
+  // is untouched, exactly as `removeConnectedDestination` refuses to delete one.
+  const superseded = existing.filter((row) => row.sealed === null && row.baseUrl !== baseUrl);
+  const supersededIds = new Set(superseded.map((row) => row.id));
+
   const wanted = requireBoundedField(input.label, "label");
-  const takenByAnother = existing.some((row) => row.label === wanted && row.id !== match?.id);
+  const takenByAnother = existing.some(
+    (row) => row.label === wanted && row.id !== match?.id && !supersededIds.has(row.id)
+  );
   const label = takenByAnother ? baseUrl : wanted;
 
   const now = deps.clock.nowIso();
@@ -546,6 +598,13 @@ export async function saveConnectedDestination(
     createdAt: match?.createdAt ?? now,
     updatedAt: now,
   };
+
+  // Superseded rows go BEFORE the new one lands, deliberately. The grant has already been rewritten
+  // for the new site by the time this runs, so if the write below fails the two possible end states
+  // are "no connected row" (the owner is told to connect again — `connect.ts` makes clicking it
+  // again explicitly safe) and "the stale row plus the new one", which is the state this whole rule
+  // exists to prevent. Being briefly disconnected is truthful; publishing to the wrong site is not.
+  for (const row of superseded) await deps.repo.delete({ workspaceId: input.workspaceId, id: row.id });
 
   if (match) await deps.repo.update(record);
   else await deps.repo.insert(record);
