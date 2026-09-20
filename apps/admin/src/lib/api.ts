@@ -3265,7 +3265,9 @@ export const api = {
   // `request()`: both `200` (ready) and `503` (not ready) are ordinary, meaningful bodies here, not
   // error cases to throw on — the whole point of this call is telling the two apart after a restart.
   getAssistantDaemonReadyz: async (): Promise<{ ready: boolean; assistantDaemonKnownFailed?: true }> => {
-    const res = await fetch("/readyz", { credentials: "same-origin" });
+    // Raw response, but through the same bounded fetch as `request()`: a bare `fetch` here queued
+    // forever once long-lived SSE connections had used up the origin's connection budget.
+    const res = await fetchOrThrowUnreachable("/readyz", { credentials: "same-origin" });
     // `/readyz` (`server/routes/ops/health.ts`'s `registerReadyzRoute`) always answers JSON, on both
     // its `200` and `503` branches — so a non-JSON response here means something ELSE answered
     // instead of the real route: a dev-server proxy gap (fixed 2026-08-17 in `vite.config.ts`, but
