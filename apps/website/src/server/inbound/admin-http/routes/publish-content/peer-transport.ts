@@ -1,7 +1,7 @@
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { stageBundle } from "#src/features/publish-content/bundle-staging";
-import { buildExportBundle } from "#src/features/publish-content/export-bundle";
+import { buildExportBundle, selectBundleEntities } from "#src/features/publish-content/export-bundle";
 import {
   confirmPeerImport,
   executePeerImport,
@@ -112,6 +112,29 @@ async function openPeer(deps: PublishContentRouteDeps, peerId: string): Promise<
   return { credential, httpClient: deps.publishContentPeerHttpClient };
 }
 
+/** Distinguishes "the body carried a malformed selection" (a 400) from "the body carried none"
+ *  (`null`, publish everything) — two outcomes a bare `null` return could not tell apart. */
+const INVALID_SELECTION = Symbol("invalid-selection");
+
+/**
+ * Reads `push/plan`'s optional per-row selection: the `entityKey` strings
+ * (`planner.ts`'s `${entityType}:${entityId}`) the operator left checked in the dialog.
+ *
+ * Absent means "publish everything", which is what every caller before the checkbox column sent and
+ * what the dialog still sends when nothing was unchecked — the common path stays a bodyless POST.
+ * An empty ARRAY is a real, different answer ("the operator unchecked everything") and is honoured
+ * as such: it stages an empty bundle and plans to zero rows rather than quietly publishing the lot.
+ *
+ * @complexity O(n) in the submitted key count.
+ */
+function readSelectedEntityKeys(body: unknown): readonly string[] | null | typeof INVALID_SELECTION {
+  const raw = (body ?? {}) as Record<string, unknown>;
+  if (raw.selectedEntityKeys === undefined || raw.selectedEntityKeys === null) return null;
+  if (!Array.isArray(raw.selectedEntityKeys)) return INVALID_SELECTION;
+  if (!raw.selectedEntityKeys.every((key): key is string => typeof key === "string")) return INVALID_SELECTION;
+  return raw.selectedEntityKeys;
+}
+
 export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegistrar = (app, deps) => {
   const base = "/api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId";
 
@@ -137,15 +160,26 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       const principalId = await guard(req, res);
       if (principalId === null) return;
 
+      const selectedEntityKeys = readSelectedEntityKeys(req.body);
+      if (selectedEntityKeys === INVALID_SELECTION) {
+        res.status(400).json({ error: "'selectedEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
+        return;
+      }
+
       const peer = await openPeer(deps, String(req.params.peerId ?? ""));
       const workspace = await deps.workspaceRepo.findById(deps.workspaceId);
-      const bundle = await buildExportBundle({
+      const fullBundle = await buildExportBundle({
         workspaceId: deps.workspaceId,
         principalId,
         authorize: deps.authorize,
         publishContentDeps: toPublishContentDeps(deps),
         sourceLabel: workspace?.name ?? deps.workspaceId,
       });
+      // A selection narrows what is STAGED, before the peer plans it — so a deselected entity is
+      // never uploaded, never planned and never applied, rather than being filtered out by some
+      // later step that could forget. See `export-bundle.ts`'s `selectBundleEntities`.
+      const bundle =
+        selectedEntityKeys === null ? fullBundle : selectBundleEntities(fullBundle, new Set(selectedEntityKeys));
 
       const result = await pushBundleToPeer(
         {

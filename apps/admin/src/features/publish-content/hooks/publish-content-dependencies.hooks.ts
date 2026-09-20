@@ -71,7 +71,7 @@ export interface FakePublishContentPortCalls {
   readonly listPeers: number;
   readonly getDestination: number;
   readonly connectDestination: Array<{ siteUrl?: string }>;
-  readonly planPublish: Array<{ peerId: string }>;
+  readonly planPublish: Array<{ peerId: string; selectedEntityKeys?: readonly string[] }>;
   readonly confirmPublish: Array<{ peerId: string; planId: string; planHash: string }>;
   readonly executePublish: Array<{ peerId: string; bundleId: string; confirmationToken: string }>;
 }
@@ -128,11 +128,25 @@ export function createFakePublishContentPort(
     async planPublish(input): Promise<PublishContentPlanResult> {
       calls.planPublish.push(input);
       if (options.planError) throw options.planError;
+      const report = options.report ?? { refused: false, refusalReason: null, applyOrder: [], rows: [] };
+      if (input.selectedEntityKeys === undefined) {
+        return {
+          planId: options.planId ?? "fake-plan",
+          planHash: options.planHash ?? "fake-plan-hash",
+          bundleId: options.bundleId ?? "fake-bundle",
+          details: report,
+        };
+      }
+      // A narrowed push stages a DIFFERENT bundle and therefore gets a different plan back — the
+      // real route returns a fresh `bundleId` from `pushBundleToPeer` every call, and the peer plans
+      // only what it was actually given (`export-bundle.ts`'s `selectBundleEntities`). Modelled here
+      // so a test can tell the two plans apart and prove which one execute redeemed.
+      const selected = new Set(input.selectedEntityKeys);
       return {
-        planId: options.planId ?? "fake-plan",
-        planHash: options.planHash ?? "fake-plan-hash",
-        bundleId: options.bundleId ?? "fake-bundle",
-        details: options.report ?? { refused: false, refusalReason: null, applyOrder: [], rows: [] },
+        planId: `${options.planId ?? "fake-plan"}-narrowed`,
+        planHash: `${options.planHash ?? "fake-plan-hash"}-narrowed`,
+        bundleId: `${options.bundleId ?? "fake-bundle"}-narrowed`,
+        details: { ...report, rows: report.rows.filter((row) => selected.has(`${row.entityType}:${row.entityId}`)) },
       };
     },
     async confirmPublish(input): Promise<PublishContentConfirmResult> {
@@ -143,7 +157,7 @@ export function createFakePublishContentPort(
     async executePublish(input): Promise<PublishContentExecuteResult> {
       calls.executePublish.push(input);
       if (options.executeError) throw options.executeError;
-      return options.executeResult ?? { restorePointId: "fake-restore-point", changeSetIds: ["fake-change-set"] };
+      return options.executeResult ?? { restorePointId: "fake-restore-point", runId: "fake-run", changeSetIds: ["fake-change-set"] };
     },
   };
 }

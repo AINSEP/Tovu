@@ -90,6 +90,10 @@ export type PublishContentOutcomeKind = "created" | "unchanged" | "applied" | "c
 export interface PublishContentOutcomeRow {
   readonly entityType: string;
   readonly entityId: string;
+  /** What a human calls this entity — see {@link entityDisplayLabel}. `null` when the packed state
+   *  carries nothing human-readable, which is the ONLY case a caller may fall back to showing an id
+   *  for. Never load-bearing: nothing compares, keys or authorizes on this field. */
+  readonly entityLabel: string | null;
   readonly outcome: PublishContentOutcomeKind;
   readonly writes: boolean;
   /** Human-readable explanation for `conflict`/`blocked`/`forced` (why it was a conflict before being
@@ -149,6 +153,37 @@ export function entityKey(entityType: string, entityId: string): string {
   return `${entityType}:${entityId}`;
 }
 
+/** The packed-state fields a human identifier may live under, most identifying first. `slug` leads
+ *  because every type that has one guarantees it unique per workspace and derives it from the
+ *  operator's own words (`post.slug` is `NOT NULL`; `MediaRecord.slug` is derived from `title` at
+ *  upload and unique per `(workspaceId, slug)`), so it is the one value that is both readable AND
+ *  addresses exactly one row. `title`/`name`/`filename` follow for a type that has no slug yet. */
+const HUMAN_IDENTIFIER_FIELDS = ["slug", "title", "name", "filename"] as const;
+
+/**
+ * What to call one packed entity on screen, or `null` when its state carries nothing readable.
+ *
+ * Derived HERE, in the planner, rather than looked up by whatever renders the report: the report
+ * travels to an admin client that holds no content of its own (and, for a push, to an operator
+ * looking at a REMOTE instance's plan of the LOCAL site's entities), so the only place both the id
+ * and the entity's own fields exist together is this pass. A UI-side lookup would have to re-fetch
+ * every row's entity from an instance that may not have it.
+ *
+ * Reads well-known field names off `state` rather than asking the handler, because `PackedEntity.
+ * state` is a `Record<string, unknown>` by contract and every registered type already names its
+ * human key one of the four below. A type whose key is none of them gets `null` and its caller
+ * shows a short id — degraded, never wrong.
+ *
+ * @complexity O(1) — at most four property reads, no allocation on the miss path.
+ */
+export function entityDisplayLabel(state: Record<string, unknown>): string | null {
+  for (const field of HUMAN_IDENTIFIER_FIELDS) {
+    const value = state[field];
+    if (typeof value === "string" && value.trim().length > 0) return value;
+  }
+  return null;
+}
+
 /**
  * Classifies exactly one entity — the per-row half of {@link planImport}'s pass 2. Never called for
  * an entity whose baseline already failed the {@link CONTENT_HASH_VERSION} check (pass 1 refuses the
@@ -169,7 +204,11 @@ async function planEntity(
   baseline: BaselineRecord | null,
   deps: PlanImportDeps
 ): Promise<PublishContentOutcomeRow> {
-  const identity = { entityType: entity.entityType, entityId: entity.id };
+  const identity = {
+    entityType: entity.entityType,
+    entityId: entity.id,
+    entityLabel: entityDisplayLabel(entity.state),
+  };
 
   if (!handler) {
     return {

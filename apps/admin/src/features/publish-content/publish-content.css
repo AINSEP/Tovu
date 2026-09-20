@@ -8,7 +8,7 @@
  *
  * The width override follows `external-mcp-tool-picker.css`'s precedent for widening the shared
  * `.settings-dialog` (26rem by default, which is right for a two-sentence confirm and far too narrow
- * for a four-column report): `width` AND `max-width`, because `.settings-dialog-backdrop` is
+ * for a five-column report): `width` AND `max-width`, because `.settings-dialog-backdrop` is
  * `display: grid; place-items: center` and a `max-width` alone leaves the dialog shrink-wrapped to
  * its text. Applied via `.publish-content-dialog`, which the component only adds once a report
  * exists — the dialog opens at its normal confirm-dialog width and widens when there is a table to
@@ -18,28 +18,63 @@
 .settings-dialog.publish-content-dialog {
   width: min(48rem, 92vw);
   max-width: min(48rem, 92vw);
+  /* The dialog itself is capped, not just the table inside it. Without this the modal grew to its
+     content's height and filled a laptop window edge to edge (owner, 2026-09-19); `.settings-dialog`
+     is already `display: flex; flex-direction: column`, so a cap here is all the scrolling region
+     below needs to become the one thing that gives. */
+  max-height: min(42rem, 84vh);
 }
 
 /* The report can be long (a first publish plans every post, page and media row on the site), so it
    scrolls inside the dialog rather than growing the dialog past the viewport and stranding the
    Cancel/Publish buttons below the fold. */
 .publish-content-report {
-  /* 30rem clears a ~8-row report outright, which is the common shape; at 24rem a 7-row plan was cut
-     mid-row with nothing to say it scrolled, which reads as a rendering bug rather than an
-     affordance. Longer reports still cap and scroll — and there a partial row at the edge is a true
-     signal that more follows. */
+  /* The ONLY region in this dialog that scrolls. `flex: 1 1 auto` lets it take whatever the capped
+     dialog has left after the heading, the two lines of copy and the button row; `min-height: 0` is
+     what actually permits it to shrink below its content (a flex item's default `min-height: auto`
+     refuses to, which is exactly how an "overflow: auto" child ends up pushing its parent past the
+     viewport instead of scrolling). `max-height` stays as a floor-independent cap for the case where
+     the dialog is NOT height-constrained — a short plan in a tall window keeps its old shape. */
+  flex: 1 1 auto;
+  min-height: 6rem;
   max-height: min(30rem, 52vh);
   overflow-y: auto;
   border-radius: var(--r-lg);
 }
 
-/* Entity ids are opaque uuids; a monospace column makes them scannable and stops one long id
-   stretching the column past its share of the table. */
+/* The type column is a short word ('post', 'media') and should not claim a share of the row. */
 .publish-content-report td:nth-child(2) {
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: var(--text-2xs);
   color: var(--muted);
-  word-break: break-all;
+  white-space: nowrap;
+}
+
+/* The entity column now carries a slug or a title, not a uuid — monospace and `break-all` were
+   there to make an opaque id scannable and would only make readable words harder to read. The width
+   cap stops one long slug from taking the reason column's room. */
+.publish-content-report td:nth-child(3) {
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The checkbox column: as narrow as the control, centred, and never a click target wider than it
+   looks. */
+.publish-content-report .publish-content-select {
+  width: 2.25rem;
+  padding-right: 0;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.publish-content-report .publish-content-select input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.publish-content-report .publish-content-select input:disabled {
+  cursor: default;
 }
 
 /* The reason column carries the only text in this dialog an operator has to actually read — a

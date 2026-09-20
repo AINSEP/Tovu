@@ -20,9 +20,15 @@ import type { PublishContentPort } from "./hooks/publish-content-port.hooks";
  * (`features/publish-content/planner.ts`'s seven outcomes). That promise is only worth anything if
  * the operator can SEE which entities were skipped and why before committing — so the plan step runs
  * first, renders one row per entity with its reason, and only then offers a button that writes. A
- * skipped row carries no control that could publish it: exclusion is by construction, not by an
- * unchecked box (see `@tovu/publish-content-ui`'s `report-rows.ts` for why there is no per-row
- * opt-in in v1).
+ * skipped row carries no control that could publish it — not even a disabled checkbox: exclusion is
+ * by construction, not by an unchecked box.
+ *
+ * Rows the run WOULD write are checked by default and can be unchecked (owner-directed, 2026-09-19).
+ * That stays consistent with the paragraph above rather than contradicting it: unchecking is how an
+ * operator publishes LESS, never more, and it is honoured by re-planning against a bundle narrowed to
+ * the checked rows (see `hooks/use-publish-content-confirm.hooks.ts`'s `confirmPlan`), so a
+ * deselected entity never reaches the live site at all. `@tovu/publish-content-ui`'s `report-rows.ts`
+ * owns which rows may carry a checkbox; this file only renders the answer.
  *
  * Every decision this file renders comes from `hooks/use-publish-content-confirm.hooks.ts`, and
  * every rule the hook applies comes from `@tovu/publish-content-ui` — the same module the server's
@@ -80,17 +86,8 @@ export function PublishContentDialog({ onCancel, t, port }: PublishContentDialog
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id={titleId}>{t("Publish Content")}</h2>
-        <p>{t("This sends your posts, pages, and media to the live site.")}</p>
-        <p>
-          {t(
-            "Deploying and publishing are different things. Deploy ships code. Publish ships content. Deploying doesn't update your content — that's why the site looked unchanged.",
-          )}
-        </p>
-        <p>
-          {t(
-            "Anything edited directly on the live site is skipped, not overwritten. You'll see what got skipped afterward.",
-          )}
-        </p>
+        <p>{t("Sends your posts, pages and media to the live site. Deploy ships code; publish ships content.")}</p>
+        <p>{t("Anything edited on the live site is skipped, never overwritten.")}</p>
 
         {view.peers.length > 1 && (
           <label className="field">
@@ -143,6 +140,24 @@ export function PublishContentDialog({ onCancel, t, port }: PublishContentDialog
               <table className="list-table">
                 <thead>
                   <tr>
+                    <th className="publish-content-select">
+                      <input
+                        type="checkbox"
+                        checked={view.allSelected}
+                        // React has no `indeterminate` prop — the partial state is a DOM property
+                        // only, so it is set on the node itself every render.
+                        ref={(node) => {
+                          if (node) node.indeterminate = view.someSelected;
+                        }}
+                        disabled={!view.selectionEnabled || view.rows.every((row) => !row.selectable)}
+                        onChange={view.onToggleAll}
+                        aria-label={t("Publish every item that can be published")}
+                        {...agentHandle("dashboard-publish-content-select-all", {
+                          role: "field",
+                          label: "Check or uncheck every publishable row at once",
+                        })}
+                      />
+                    </th>
                     <th>{t("Type")}</th>
                     <th>{t("Entity")}</th>
                     <th>{t("What happens")}</th>
@@ -152,8 +167,29 @@ export function PublishContentDialog({ onCancel, t, port }: PublishContentDialog
                 <tbody>
                   {view.rows.map((row) => (
                     <tr key={row.key} data-entity-id={row.entityId} data-publish-disposition={row.disposition}>
+                      <td className="publish-content-select">
+                        {/* A row the run would not write carries NO control at all, not a disabled
+                            one: plan §4 task 11's property is that nothing in this dialog can move a
+                            skipped row into the set that gets published. */}
+                        {row.selectable && (
+                          <input
+                            type="checkbox"
+                            checked={view.selectedKeys.has(row.key)}
+                            disabled={!view.selectionEnabled}
+                            onChange={() => view.onToggleRow(row.key)}
+                            // No `agentHandle` here: a handle must be lowercase words joined by
+                            // hyphens, and a row key is an entity id. The row's own
+                            // `data-entity-id` is the stable address instead — an agent (or a test)
+                            // finds the row, then the one checkbox inside it.
+                            data-publish-row-select=""
+                            aria-label={`${t("Publish")} ${row.entityType} ${row.entityLabel}`}
+                          />
+                        )}
+                      </td>
                       <td>{row.entityType}</td>
-                      <td>{row.entityId}</td>
+                      {/* The id stays reachable as a tooltip — it is what a support conversation
+                          needs — but it is never what the column reads as. */}
+                      <td title={row.entityId}>{row.entityLabel}</td>
                       <td>
                         <span className={DISPOSITION_PILL_CLASS[row.disposition]}>{row.dispositionLabel}</span>
                       </td>

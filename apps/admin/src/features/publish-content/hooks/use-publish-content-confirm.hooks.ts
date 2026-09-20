@@ -4,7 +4,9 @@ import {
   canConfirmPlan,
   canRequestPlan,
   confirmationTokenFor,
+  countSelectedPublishing,
   planOnScreen,
+  selectableRowKeys,
   summarizePublishReport,
   toPublishReportRows,
   type PublishContentPeerSummary,
@@ -67,6 +69,19 @@ export interface PublishContentConfirmView {
   readonly onSelectPeer: (peerId: string) => void;
   readonly rows: readonly PublishReportRow[];
   readonly summary: PublishReportSummary | null;
+  /** The keys of the rows this run would publish — every {@link PublishReportRow.selectable} row the
+   *  operator has not unchecked. Rows that are not selectable are never in here. */
+  readonly selectedKeys: ReadonlySet<string>;
+  readonly onToggleRow: (key: string) => void;
+  /** Checks every selectable row, or unchecks every one of them when any is currently checked. */
+  readonly onToggleAll: () => void;
+  /** `false` once the operator has committed (confirming/executing/done) — the report stays on
+   *  screen through those phases, but its checkboxes stop being an offer at that point. */
+  readonly selectionEnabled: boolean;
+  /** Header-checkbox state. `someSelected` is the indeterminate case and is never true at the same
+   *  time as `allSelected`. */
+  readonly allSelected: boolean;
+  readonly someSelected: boolean;
   readonly primaryLabel: string;
   readonly primaryDisabled: boolean;
   readonly onPrimary: () => void;
@@ -116,7 +131,7 @@ function messageOf(error: unknown, fallback: string): string {
  */
 function primaryLabelFor(
   phase: PublishContentPhase,
-  summary: PublishReportSummary | null,
+  selectedPublishing: number,
   connectOffer: PublishContentConnectOffer | null,
   connecting: boolean,
   t: Translate
@@ -126,9 +141,10 @@ function primaryLabelFor(
   if (phase.kind === "confirming" || phase.kind === "executing") return t("Publishing…");
   if (phase.kind === "done") return t("Published");
   if (phase.kind !== "planned") return t("Publish Content");
-  const publishing = summary?.publishing ?? 0;
-  if (publishing === 0) return t("Nothing to publish");
-  return `${t("Publish")} ${publishing} ${publishing === 1 ? t("item") : t("items")}`;
+  // The SELECTED count, not the plan's own: the button must promise what this click will actually
+  // do. A plan of 59 writable rows with 56 unchecked says "Publish 3 items".
+  if (selectedPublishing === 0) return t("Nothing to publish");
+  return `${t("Publish")} ${selectedPublishing} ${selectedPublishing === 1 ? t("item") : t("items")}`;
 }
 
 /**
@@ -159,6 +175,12 @@ export function usePublishContentConfirm(props: {
   const [destinationLoaded, setDestinationLoaded] = useState(false);
   const [destinationError, setDestinationError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+
+  // Stored as what the operator UNCHECKED, not as what is checked. "All checked by default" is then
+  // the empty set rather than a value that has to be seeded from the plan the moment it arrives —
+  // there is no effect to forget, no window where the rows render before the seeding lands, and a
+  // re-plan's new rows arrive checked without anything having to re-seed them.
+  const [deselectedKeys, setDeselectedKeys] = useState<ReadonlySet<string>>(() => new Set());
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -271,23 +293,49 @@ export function usePublishContentConfirm(props: {
     }
   }, [connecting, port, requestPlan, t]);
 
+  /**
+   * Confirms the plan on screen — and, when the operator unchecked rows, RE-PLANS first against a
+   * bundle narrowed to what is still checked, then confirms THAT plan.
+   *
+   * The re-plan is what makes a deselection real. A confirmation token is bound to one plan hash, and
+   * the destination applies the bundle it planned — so the only way to publish a subset is to give
+   * the destination that subset to plan in the first place (`export-bundle.ts`'s
+   * `selectBundleEntities`, via `push/plan`'s `selectedEntityKeys`). The alternative, carrying a
+   * selection into execute for the apply loop to honour, would put the operator's exclusion behind a
+   * flag a destination running an older build would silently ignore and publish everything anyway.
+   *
+   * A narrowed re-plan that turns out to write nothing lands back on `planned` with the narrowed
+   * rows showing rather than confirming a run that would burn a restore point to do nothing.
+   */
   const confirmPlan = useCallback(async () => {
     if (selectedPeerId === null || phase.kind !== "planned" || !canConfirmPlan(phase)) return;
     const { plan } = phase;
+    const selectable = selectableRowKeys(toPublishReportRows(plan.details));
+    const keep = selectable.filter((key) => !deselectedKeys.has(key));
+    if (keep.length === 0) return;
     setPhase({ kind: "confirming", plan });
     try {
+      const confirmed =
+        keep.length === selectable.length
+          ? plan
+          : await port.planPublish({ peerId: selectedPeerId, selectedEntityKeys: keep });
+      if (!live.current) return;
+      if (!canConfirmPlan({ kind: "planned", plan: confirmed })) {
+        setPhase({ kind: "planned", plan: confirmed });
+        return;
+      }
       const { confirmationToken } = await port.confirmPublish({
         peerId: selectedPeerId,
-        planId: plan.planId,
-        planHash: plan.planHash,
+        planId: confirmed.planId,
+        planHash: confirmed.planHash,
       });
       if (!live.current) return;
-      setPhase({ kind: "confirmed", plan, confirmationToken });
+      setPhase({ kind: "confirmed", plan: confirmed, confirmationToken });
     } catch (error) {
       if (!live.current) return;
       setPhase({ kind: "failed", message: messageOf(error, t("Could not publish.")), code: null });
     }
-  }, [phase, port, selectedPeerId, t]);
+  }, [deselectedKeys, phase, port, selectedPeerId, t]);
 
   // The ONLY call site of `port.executePublish` in this package. Its input is whatever
   // `confirmationTokenFor` returns, which is `null` for every phase but `confirmed`/`executing` —
@@ -322,6 +370,14 @@ export function usePublishContentConfirm(props: {
   const rows = visiblePlan === null ? EMPTY_ROWS : toPublishReportRows(visiblePlan.details);
   const summary = visiblePlan === null ? null : summarizePublishReport(rows);
 
+  // Derived every render rather than stored: `deselectedKeys` is the only state, so these can never
+  // disagree with it or with the rows currently on screen.
+  const selectableKeys = selectableRowKeys(rows);
+  const selectedKeys: ReadonlySet<string> = new Set(selectableKeys.filter((key) => !deselectedKeys.has(key)));
+  const selectedPublishing = countSelectedPublishing(rows, selectedKeys);
+  const allSelected = selectableKeys.length > 0 && selectedKeys.size === selectableKeys.length;
+  const someSelected = selectedKeys.size > 0 && !allSelected;
+
   // `null` until BOTH the peer list came back empty and the destination check that follows it has
   // resolved — so the dialog never flashes a stale "add one in Settings" sentence, and never shows
   // the connect offer a beat before it has anything real to say.
@@ -329,6 +385,25 @@ export function usePublishContentConfirm(props: {
     peersLoaded && peers.length === 0 && peersError === null && destinationLoaded && destination !== null
       ? { message: destination.message, candidateUrl: destination.candidateUrl }
       : null;
+
+  // Checkboxes are an offer, and the offer closes the moment the operator commits: `planned` is the
+  // only phase where changing the selection could still change what gets published.
+  const selectionEnabled = phase.kind === "planned";
+
+  const onToggleRow = (key: string): void => {
+    setDeselectedKeys((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  // "Any checked -> uncheck everything", so the header is an escape hatch from a big plan rather
+  // than a toggle whose meaning flips at an invisible halfway point.
+  const onToggleAll = (): void => {
+    setDeselectedKeys(selectedKeys.size > 0 ? new Set(selectableKeys) : new Set());
+  };
 
   const canStart = canRequestPlan(phase) && selectedPeerId !== null;
   const onPrimary = useCallback(() => {
@@ -350,10 +425,20 @@ export function usePublishContentConfirm(props: {
     onSelectPeer: setSelectedPeerId,
     rows,
     summary,
-    primaryLabel: primaryLabelFor(phase, summary, connectOffer, connecting, t),
+    selectedKeys,
+    onToggleRow,
+    onToggleAll,
+    selectionEnabled,
+    allSelected,
+    someSelected,
+    primaryLabel: primaryLabelFor(phase, selectedPublishing, connectOffer, connecting, t),
     primaryDisabled: connectOffer
       ? connecting || connectOffer.candidateUrl === null
-      : !(canStart || canConfirmPlan(phase)),
+      : // `selectedPublishing` is ANDed with the plan-level rule, never a replacement for it: a plan
+        // that may not be confirmed at all stays disabled whatever is checked, and a confirmable
+        // plan with everything unchecked is disabled too — the button never promises a run that
+        // would write nothing.
+        !(canStart || (canConfirmPlan(phase) && selectedPublishing > 0)),
     onPrimary,
     errorMessage: peersError ?? destinationError ?? (phase.kind === "failed" ? phase.message : null),
     refusalReason: phase.kind === "planned" && phase.plan.details.refused ? phase.plan.details.refusalReason : null,

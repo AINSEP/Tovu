@@ -11,7 +11,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PublishContentOutcomeRow, PublishContentReport } from "../contract.js";
-import { publishRowDisposition, summarizePublishReport, toPublishReportRows } from "../report-rows.js";
+import { entityKey } from "../../planner.js";
+import {
+  countSelectedPublishing,
+  publishRowDisposition,
+  selectableRowKeys,
+  summarizePublishReport,
+  toPublishReportRows,
+} from "../report-rows.js";
 
 function row(over: Partial<PublishContentOutcomeRow> & { outcome: PublishContentOutcomeRow["outcome"] }): PublishContentOutcomeRow {
   return {
@@ -88,4 +95,67 @@ test("a refused report produces no rows at all", () => {
     rows: [],
   });
   assert.deepEqual(rows, []);
+});
+
+// ---------------------------------------------------------------------------
+// The entity column, and which rows may carry a checkbox (owner-directed, 2026-09-19)
+// ---------------------------------------------------------------------------
+
+test("a row renders its own human label rather than its id", () => {
+  const [shaped] = toPublishReportRows(
+    report([row({ outcome: "created", entityId: "d4bf2a26-2ed2-4143-b3ae-78404ca1b36b", entityLabel: "spring-sale" })])
+  );
+
+  assert.equal(shaped.entityLabel, "spring-sale");
+  assert.equal(shaped.entityId, "d4bf2a26-2ed2-4143-b3ae-78404ca1b36b", "the id itself is still carried, just not what is displayed");
+});
+
+test("a row with no label falls back to a short id, never the whole uuid", () => {
+  const uuid = "d4bf2a26-2ed2-4143-b3ae-78404ca1b36b";
+  for (const missing of [null, undefined, "   "]) {
+    const [shaped] = toPublishReportRows(report([row({ outcome: "created", entityId: uuid, entityLabel: missing })]));
+    assert.equal(shaped.entityLabel, "d4bf2a26", `entityLabel ${JSON.stringify(missing)} must degrade to a short id`);
+    assert.notEqual(shaped.entityLabel, uuid);
+  }
+});
+
+test("only a row the run would write is selectable", () => {
+  const rows = toPublishReportRows(
+    report([
+      row({ outcome: "created", entityId: "a" }),
+      row({ outcome: "applied", entityId: "b" }),
+      row({ outcome: "forced", entityId: "c", reason: "operator accepted the conflict" }),
+      row({ outcome: "unchanged", entityId: "d" }),
+      row({ outcome: "conflict", entityId: "e", reason: "edited on the live site" }),
+      row({ outcome: "blocked", entityId: "f", reason: "slug taken" }),
+    ])
+  );
+
+  assert.deepEqual(
+    rows.map((r) => [r.entityId, r.selectable]),
+    [["a", true], ["b", true], ["c", true], ["d", false], ["e", false], ["f", false]]
+  );
+  assert.deepEqual(selectableRowKeys(rows), ["post:a", "post:b", "post:c"]);
+});
+
+test("selectable row keys are byte-identical to the planner's own entity keys", () => {
+  const rows = toPublishReportRows(report([row({ outcome: "created", entityType: "media", entityId: "m-1" })]));
+  assert.deepEqual(selectableRowKeys(rows), [entityKey("media", "m-1")]);
+});
+
+test("the button's count is the intersection of the selection and what is selectable", () => {
+  const rows = toPublishReportRows(
+    report([
+      row({ outcome: "created", entityId: "a" }),
+      row({ outcome: "applied", entityId: "b" }),
+      row({ outcome: "conflict", entityId: "c", reason: "edited on the live site" }),
+    ])
+  );
+
+  assert.equal(countSelectedPublishing(rows, new Set(["post:a", "post:b"])), 2);
+  assert.equal(countSelectedPublishing(rows, new Set(["post:a"])), 1);
+  assert.equal(countSelectedPublishing(rows, new Set()), 0);
+  // A key naming a row that cannot be published, or no row at all, must never inflate the promise
+  // the primary button makes out loud.
+  assert.equal(countSelectedPublishing(rows, new Set(["post:c", "post:gone"])), 0);
 });

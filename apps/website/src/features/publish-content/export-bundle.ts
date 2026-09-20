@@ -1,5 +1,6 @@
 import { CONTENT_HASH_VERSION } from "./content-hash.js";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "./artifact-format.js";
+import { entityKey } from "./planner.js";
 import { buildPublishContentCatalog, type PackedEntity, type PublishContentDeps } from "./type-registry.js";
 
 /**
@@ -82,6 +83,36 @@ export interface PublishContentExportEnvelope {
   readonly entities: readonly PackedEntity[];
   /** De-duplicated union of every packed entity's `requiredBlobs`, in first-seen order. */
   readonly blobManifest: readonly string[];
+}
+
+/**
+ * Narrows an already-built envelope to the entities the operator actually chose, by
+ * `planner.ts`'s own {@link entityKey} string.
+ *
+ * This is where "deselect a row" becomes real, and it is deliberately HERE rather than at apply
+ * time: the destination never receives a deselected entity at all, so no downstream code path —
+ * not the peer's planner, not its apply loop, not a peer running an older build that has never
+ * heard of a selection — has to remember to skip it. Exclusion by construction, the same property
+ * `ui/report-rows.ts`'s header states for a skipped row.
+ *
+ * `blobManifest` is recomputed from the surviving entities rather than carried over, so a push of
+ * two selected posts does not upload the bytes of forty deselected images.
+ *
+ * An empty `selectedKeys` set returns an EMPTY bundle, not the whole corpus: "the operator selected
+ * nothing" and "the operator expressed no preference" are different states, and the caller (never
+ * this function) is what decides which one it has — `push/plan` only calls this when a selection
+ * was actually sent.
+ *
+ * @complexity O(e) time in the envelope's entity count, O(e) space for the narrowed copy.
+ */
+export function selectBundleEntities(
+  envelope: PublishContentExportEnvelope,
+  selectedKeys: ReadonlySet<string>
+): PublishContentExportEnvelope {
+  const entities = envelope.entities.filter((entity) => selectedKeys.has(entityKey(entity.entityType, entity.id)));
+  const requiredBlobs = new Set<string>();
+  for (const entity of entities) for (const sha of entity.requiredBlobs) requiredBlobs.add(sha);
+  return { ...envelope, entities, blobManifest: Array.from(requiredBlobs) };
 }
 
 /**

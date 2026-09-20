@@ -4051,8 +4051,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  planPublishContent: ({ peerId }: { peerId: string }) =>
-    request<PublishContentPlanResult>(`${publishContentPeerPath(peerId)}/push/plan`, { method: "POST" }),
+  /** `selectedEntityKeys` (the report rows' own `entityType:entityId` keys) narrows the bundle this
+   *  push stages on the peer BEFORE it plans — omitted means "everything", which is what an
+   *  untouched dialog sends. See `features/publish-content/export-bundle.ts`'s `selectBundleEntities`
+   *  for why a selection is applied at stage time rather than carried into execute. */
+  planPublishContent: ({ peerId, selectedEntityKeys }: { peerId: string; selectedEntityKeys?: readonly string[] }) =>
+    request<PublishContentPlanResult>(`${publishContentPeerPath(peerId)}/push/plan`, {
+      method: "POST",
+      ...(selectedEntityKeys === undefined ? {} : { body: JSON.stringify({ selectedEntityKeys }) }),
+    }),
   confirmPublishContent: (
     { peerId, planId, planHash }: { peerId: string; planId: string; planHash: string },
     _options: Record<string, never> = {}

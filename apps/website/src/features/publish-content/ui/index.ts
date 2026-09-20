@@ -31,7 +31,13 @@ export type {
 } from "./contract.js";
 
 export type { PublishReportRow, PublishReportSummary, PublishRowDisposition } from "./report-rows.js";
-export { publishRowDisposition, summarizePublishReport, toPublishReportRows } from "./report-rows.js";
+export {
+  countSelectedPublishing,
+  publishRowDisposition,
+  selectableRowKeys,
+  summarizePublishReport,
+  toPublishReportRows,
+} from "./report-rows.js";
 
 export type { PublishContentPhase } from "./phase.js";
 export { canConfirmPlan, canRequestPlan, confirmationTokenFor, planOnScreen } from "./phase.js";

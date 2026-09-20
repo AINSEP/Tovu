@@ -53,6 +53,31 @@ const MIXED_REPORT: PublishContentReport = {
   ],
 };
 
+/**
+ * A plan with more than one publishable row, so "some are checked" is a state that can exist at all
+ * — `MIXED_REPORT` above has exactly one and is deliberately left untouched, since the assertions
+ * around it are about the conflict row rather than about selection.
+ *
+ * `media-no-label` carries no `entityLabel` on purpose: it is the older-peer / unnamed-entity case,
+ * and it proves the entity column falls back to a SHORT id rather than the full uuid.
+ */
+const SELECTION_REPORT: PublishContentReport = {
+  refused: false,
+  refusalReason: null,
+  applyOrder: ["media", "post"],
+  rows: [
+    { entityType: "post", entityId: "11111111-aaaa-4aaa-8aaa-111111111111", entityLabel: "hello-world", outcome: "created", writes: true, reason: null },
+    { entityType: "post", entityId: "22222222-bbbb-4bbb-8bbb-222222222222", entityLabel: "about-us", outcome: "applied", writes: true, reason: null },
+    { entityType: "media", entityId: "33333333-cccc-4ccc-8ccc-333333333333", outcome: "created", writes: true, reason: null },
+    { entityType: "media", entityId: "44444444-dddd-4ddd-8ddd-444444444444", entityLabel: "logo-png", outcome: "unchanged", writes: false, reason: null },
+    { entityType: "post", entityId: "55555555-eeee-4eee-8eee-555555555555", entityLabel: "edited-there", outcome: "conflict", writes: false, reason: CONFLICT_REASON },
+  ],
+};
+
+const HELLO_WORLD = "11111111-aaaa-4aaa-8aaa-111111111111";
+const ABOUT_US = "22222222-bbbb-4bbb-8bbb-222222222222";
+const UNNAMED_MEDIA = "33333333-cccc-4ccc-8ccc-333333333333";
+
 function renderDialog(port: ReturnType<typeof createFakePublishContentPort>) {
   return render(<PublishContentDialog onCancel={() => {}} t={t} port={port} />);
 }
@@ -68,6 +93,18 @@ function reportRow(entityId: string): HTMLElement {
   const row = document.querySelector(`tr[data-entity-id="${entityId}"]`);
   if (!row) throw new Error(`no report row for "${entityId}"`);
   return row as HTMLElement;
+}
+
+/** The one checkbox inside a report row, or `null` when that row offers none. */
+function rowCheckbox(entityId: string): HTMLInputElement | null {
+  return reportRow(entityId).querySelector("input[type=checkbox]");
+}
+
+/** The header's check-everything control. */
+function headerCheckbox(): HTMLInputElement {
+  const box = document.querySelector("thead input[type=checkbox]");
+  if (!box) throw new Error("the report table has no header checkbox");
+  return box as HTMLInputElement;
 }
 
 async function planFrom(port: ReturnType<typeof createFakePublishContentPort>) {
@@ -160,7 +197,7 @@ describe("PublishContentDialog — execute is gated on a confirmed plan", () => 
       report: MIXED_REPORT,
       bundleId: "bundle-from-plan",
       confirmationToken: "tok-from-server",
-      executeResult: { restorePointId: "rp-9", changeSetIds: ["cs-1", "cs-2"] },
+      executeResult: { restorePointId: "rp-9", runId: "run-9", changeSetIds: ["cs-1", "cs-2"] },
     });
     const user = await planFrom(port);
 
@@ -298,6 +335,147 @@ describe("PublishContentDialog — the rest of the surface", () => {
     await user.click(primaryButton());
     await screen.findByText("PLAN_STALE");
     expect(primaryButton().disabled).toBe(false);
+  });
+});
+
+describe("PublishContentDialog — the entity column names entities, never uuids", () => {
+  it("shows the entity's own slug, keeping the id reachable as a tooltip", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    await planFrom(port);
+
+    const cell = reportRow(HELLO_WORLD).querySelectorAll("td")[2];
+    expect(cell.textContent).toBe("hello-world");
+    expect(cell.getAttribute("title")).toBe(HELLO_WORLD);
+    // The regression this column exists to close: the full uuid was the visible text.
+    expect(cell.textContent).not.toBe(HELLO_WORLD);
+  });
+
+  it("falls back to a short id, never the whole uuid, for an entity with no human name", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    await planFrom(port);
+
+    const cell = reportRow(UNNAMED_MEDIA).querySelectorAll("td")[2];
+    expect(cell.textContent).toBe("33333333");
+  });
+});
+
+describe("PublishContentDialog — per-row selection", () => {
+  it("checks every publishable row by default, and offers no control on the rows it would not write", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    await planFrom(port);
+
+    expect(rowCheckbox(HELLO_WORLD)?.checked).toBe(true);
+    expect(rowCheckbox(ABOUT_US)?.checked).toBe(true);
+    expect(rowCheckbox(UNNAMED_MEDIA)?.checked).toBe(true);
+    // Not a disabled checkbox — no checkbox at all, for both non-writing dispositions.
+    expect(rowCheckbox("44444444-dddd-4ddd-8ddd-444444444444")).toBeNull();
+    expect(rowCheckbox("55555555-eeee-4eee-8eee-555555555555")).toBeNull();
+    expect(headerCheckbox().checked).toBe(true);
+    expect(headerCheckbox().indeterminate).toBe(false);
+  });
+
+  it("follows the selection in the count the button commits to", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    const user = await planFrom(port);
+    expect(primaryButton().textContent).toBe("Publish 3 items");
+
+    await user.click(rowCheckbox(ABOUT_US)!);
+    expect(primaryButton().textContent).toBe("Publish 2 items");
+
+    await user.click(rowCheckbox(UNNAMED_MEDIA)!);
+    expect(primaryButton().textContent).toBe("Publish 1 item");
+  });
+
+  it("puts the header checkbox in the indeterminate state while only some rows are checked", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    const user = await planFrom(port);
+
+    await user.click(rowCheckbox(ABOUT_US)!);
+    expect(headerCheckbox().checked).toBe(false);
+    expect(headerCheckbox().indeterminate).toBe(true);
+  });
+
+  it("clears and restores the whole selection from the header checkbox", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    const user = await planFrom(port);
+
+    await user.click(headerCheckbox());
+    expect(rowCheckbox(HELLO_WORLD)?.checked).toBe(false);
+    expect(rowCheckbox(ABOUT_US)?.checked).toBe(false);
+    expect(primaryButton().textContent).toBe("Nothing to publish");
+    expect(primaryButton().disabled).toBe(true);
+
+    await user.click(headerCheckbox());
+    expect(rowCheckbox(HELLO_WORLD)?.checked).toBe(true);
+    expect(primaryButton().textContent).toBe("Publish 3 items");
+    expect(primaryButton().disabled).toBe(false);
+  });
+
+  it("publishes nothing at all while every row is unchecked", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    const user = await planFrom(port);
+
+    await user.click(headerCheckbox());
+    await user.click(primaryButton());
+
+    expect(port.calls.planPublish).toHaveLength(1);
+    expect(port.calls.confirmPublish).toHaveLength(0);
+    expect(port.calls.executePublish).toHaveLength(0);
+  });
+});
+
+describe("PublishContentDialog — a deselected row never reaches the destination", () => {
+  it("re-plans against only the checked rows, then confirms and executes THAT plan", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    const user = await planFrom(port);
+
+    await user.click(rowCheckbox(ABOUT_US)!);
+    await user.click(primaryButton());
+    await waitFor(() => expect(port.calls.executePublish).toHaveLength(1));
+
+    // The narrowed plan names exactly the rows left checked — the deselected entity is not in the
+    // bundle the destination is given to plan, so there is no later step that has to skip it.
+    expect(port.calls.planPublish).toEqual([
+      { peerId: "peer-prod" },
+      { peerId: "peer-prod", selectedEntityKeys: [`post:${HELLO_WORLD}`, `media:${UNNAMED_MEDIA}`] },
+    ]);
+    expect(port.calls.planPublish[1].selectedEntityKeys).not.toContain(`post:${ABOUT_US}`);
+
+    // Confirm and execute redeem the SECOND plan, not the one the operator first saw.
+    expect(port.calls.confirmPublish).toEqual([
+      { peerId: "peer-prod", planId: "fake-plan-narrowed", planHash: "fake-plan-hash-narrowed" },
+    ]);
+    expect(port.calls.executePublish).toEqual([
+      { peerId: "peer-prod", bundleId: "fake-bundle-narrowed", confirmationToken: "fake-token" },
+    ]);
+  });
+
+  it("drops the deselected row from the table it publishes, and stops offering checkboxes once committed", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    // Execute is held open so the assertions below land during the `executing` phase — the window
+    // where the report is still on screen and the operator has already committed. Once execute
+    // resolves the dialog is `done` and the table is gone, which asserts nothing about selection.
+    port.executePublish = () => new Promise(() => {});
+    const user = await planFrom(port);
+
+    await user.click(rowCheckbox(ABOUT_US)!);
+    await user.click(primaryButton());
+    await waitFor(() => expect(primaryButton().textContent).toBe("Publishing…"));
+
+    expect(document.querySelector(`tr[data-entity-id="${ABOUT_US}"]`)).toBeNull();
+    expect(rowCheckbox(HELLO_WORLD)?.disabled).toBe(true);
+    expect(headerCheckbox().disabled).toBe(true);
+  });
+
+  it("re-plans nothing when the operator left every row checked", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    const user = await planFrom(port);
+
+    await user.click(primaryButton());
+    await waitFor(() => expect(port.calls.executePublish).toHaveLength(1));
+
+    expect(port.calls.planPublish).toEqual([{ peerId: "peer-prod" }]);
+    expect(port.calls.confirmPublish).toEqual([{ peerId: "peer-prod", planId: "fake-plan", planHash: "fake-plan-hash" }]);
   });
 });
 

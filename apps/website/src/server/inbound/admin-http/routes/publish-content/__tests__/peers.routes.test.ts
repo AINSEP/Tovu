@@ -274,3 +274,36 @@ test("push/confirm and push/execute validate their bodies before opening the pee
     assert.equal(((await res.json()) as { code: string }).code, "VALIDATION_ERROR");
   }
 });
+
+test("push/plan refuses a malformed selectedEntityKeys with a 400 code, before it opens the peer", async (t) => {
+  // The per-row selection (owner-directed, 2026-09-19) narrows the bundle this route stages on the
+  // destination. It is validated at the boundary like every other body field here: a bad selection
+  // is a client error with a code, never a 500 and never a silently ignored parameter that would
+  // publish everything.
+  const { app } = buildApp();
+  const server = await startTestServer(app, t);
+
+  for (const selectedEntityKeys of [["post:p1", 7], "post:p1", { "post:p1": true }]) {
+    const res = await fetch(`${server}${BASE}/peer-1/push/plan`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ selectedEntityKeys }),
+    });
+    assert.equal(res.status, 400, `${JSON.stringify(selectedEntityKeys)} must be refused`);
+    assert.deepEqual(await res.json(), {
+      error: "'selectedEntityKeys' must be an array of strings",
+      code: "VALIDATION_ERROR",
+    });
+  }
+});
+
+test("push/plan treats an absent selection as 'everything', not as an empty one", async (t) => {
+  // A bodyless plan is what an untouched dialog sends and what every caller sent before the
+  // checkbox column existed; it must not be read as "the operator selected nothing". Asserted by
+  // getting PAST validation — the request then fails on the peer, which does not exist here.
+  const { app } = buildApp();
+  const server = await startTestServer(app, t);
+
+  const res = await fetch(`${server}${BASE}/peer-1/push/plan`, { method: "POST" });
+  assert.notEqual(res.status, 400, "a plan with no selection must not be rejected as malformed");
+});

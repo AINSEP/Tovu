@@ -46,8 +46,15 @@ export interface PublishContentPort {
    * its own candidate, which is the only path the dialog's connect action takes.
    */
   connectDestination(input?: { siteUrl?: string }): Promise<AdminPublishDestinationView>;
-  /** `publish_content.read` — pure planning, zero writes (`features/publish-content/planner.ts`). */
-  planPublish(input: { peerId: string }): Promise<PublishContentPlanResult>;
+  /**
+   * `publish_content.read` — pure planning, zero writes (`features/publish-content/planner.ts`).
+   *
+   * `selectedEntityKeys` is how a deselected row stops being published: it narrows the bundle the
+   * destination is given to plan, so an excluded entity is never staged there at all. Omitted means
+   * "everything", which is the first plan the dialog always asks for; a second, narrowed plan is
+   * requested only when the operator actually unchecked something.
+   */
+  planPublish(input: { peerId: string; selectedEntityKeys?: readonly string[] }): Promise<PublishContentPlanResult>;
   /** `publish_content.apply`. Issues the one token that authorizes an execute. */
   confirmPublish(input: { peerId: string; planId: string; planHash: string }): Promise<PublishContentConfirmResult>;
   /**

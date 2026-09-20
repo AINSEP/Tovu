@@ -17,6 +17,16 @@ export type PublishContentOutcomeKindDto =
 export interface PublishContentOutcomeRowDto {
   readonly entityType: string;
   readonly entityId: string;
+  /**
+   * The entity's human identifier (`planner.ts`'s `entityDisplayLabel`) — a slug, a title — so a
+   * client can name the row instead of printing a uuid at the operator.
+   *
+   * OPTIONAL on the wire, unlike on the planner's own row, precisely because this report can arrive
+   * from ANOTHER instance: a peer built before this field existed answers a plan without it, and
+   * that response must still render. A reader treats absent exactly like `null` (show a short id),
+   * never as a reason to reject the report.
+   */
+  readonly entityLabel?: string | null;
   readonly outcome: PublishContentOutcomeKindDto;
   readonly writes: boolean;
   readonly reason: string | null;

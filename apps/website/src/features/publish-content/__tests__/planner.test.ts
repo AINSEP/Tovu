@@ -31,6 +31,7 @@ import {
   type PackedEntity,
 } from "../type-registry.js";
 import {
+  entityDisplayLabel,
   entityKey,
   planImport,
   type BaselineRecord,
@@ -132,7 +133,7 @@ test("created: no destination row for the id", async () => {
   const report = await planImport(bundle, makeDeps({}));
 
   assert.equal(report.refused, false);
-  assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", outcome: "created", writes: true, reason: null }]);
+  assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", entityLabel: "w1", outcome: "created", writes: true, reason: null }]);
   assertUnchanged(destination, before, "created");
 });
 
@@ -144,7 +145,7 @@ test("unchanged: destination hash equals source hash", async () => {
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "same-hash" });
   const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({}));
 
-  assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", outcome: "unchanged", writes: false, reason: null }]);
+  assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", entityLabel: "w1", outcome: "unchanged", writes: false, reason: null }]);
   assertUnchanged(destination, before, "unchanged");
 });
 
@@ -159,7 +160,7 @@ test("applied: destination hash differs from source but matches the recorded bas
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
   const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({ baselines }));
 
-  assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", outcome: "applied", writes: true, reason: null }]);
+  assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", entityLabel: "w1", outcome: "applied", writes: true, reason: null }]);
   assertUnchanged(destination, before, "applied");
 });
 
@@ -205,7 +206,7 @@ test("blocked: precheck fails (e.g. slug taken) — never caught as a write-time
   const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({}));
 
   assert.deepEqual(report.rows, [
-    { entityType: "widget", entityId: "w1", outcome: "blocked", writes: false, reason: "slug 'x' is already held by a different widget" },
+    { entityType: "widget", entityId: "w1", entityLabel: "w1", outcome: "blocked", writes: false, reason: "slug 'x' is already held by a different widget" },
   ]);
   assertUnchanged(destination, before, "blocked (precheck)");
 });
@@ -549,4 +550,52 @@ test("real post contributor: blocked on a genuine slug collision against a DIFFE
 
 test("entityKey joins entityType and id with a stable separator", () => {
   assert.equal(entityKey("post", "abc"), "post:abc");
+});
+
+// ---------------------------------------------------------------------------
+// 4. The human identifier a report row is named by (owner-directed, 2026-09-19)
+// ---------------------------------------------------------------------------
+
+test("entityDisplayLabel prefers the slug, then the title, then name/filename", () => {
+  assert.equal(entityDisplayLabel({ slug: "spring-sale", title: "Spring Sale", name: "n", filename: "f.png" }), "spring-sale");
+  assert.equal(entityDisplayLabel({ title: "Spring Sale", name: "n" }), "Spring Sale");
+  assert.equal(entityDisplayLabel({ name: "n", filename: "f.png" }), "n");
+  assert.equal(entityDisplayLabel({ filename: "f.png" }), "f.png");
+});
+
+test("entityDisplayLabel returns null rather than an unusable label", () => {
+  assert.equal(entityDisplayLabel({}), null, "no candidate field at all");
+  assert.equal(entityDisplayLabel({ slug: "" }), null, "an empty slug is not a label");
+  assert.equal(entityDisplayLabel({ slug: "   " }), null, "a whitespace-only slug is not a label");
+  assert.equal(entityDisplayLabel({ slug: 42, title: "Fallback" }), "Fallback", "a non-string slug is skipped, not coerced");
+  assert.equal(entityDisplayLabel({ slug: null }), null);
+});
+
+test("every planned row carries the label its own packed state named it, whatever the outcome", async () => {
+  // Both a writing outcome and a non-writing one: the entity column must be readable for a row the
+  // operator is being asked to skip just as much as for one they are being asked to publish.
+  const destination = new Map<string, FakeDestinationRow>([["m2", { version: 1, hash: "same" }]]);
+  registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination })));
+
+  const report = await planImport(
+    {
+      artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+      hashVersion: CONTENT_HASH_VERSION,
+      entities: [
+        makeEntity({ entityType: "widget", id: "m1", state: { slug: "spring-sale", title: "Spring Sale" } }),
+        makeEntity({ entityType: "widget", id: "m2", contentHash: "same", state: { title: "Already There" } }),
+        makeEntity({ entityType: "widget", id: "m3", state: { caption: "no identifier here" } }),
+      ],
+    },
+    makeDeps({})
+  );
+
+  assert.deepEqual(
+    report.rows.map((row) => [row.entityId, row.outcome, row.entityLabel]),
+    [
+      ["m1", "created", "spring-sale"],
+      ["m2", "unchanged", "Already There"],
+      ["m3", "created", null],
+    ]
+  );
 });

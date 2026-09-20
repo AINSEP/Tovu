@@ -13,6 +13,7 @@ test("the HTTP report mapper preserves every client-visible field and creates a 
       {
         entityType: "post",
         entityId: "post-1",
+        entityLabel: "a-post-slug",
         outcome: "forced",
         writes: true,
         reason: "operator accepted the destination conflict",
@@ -20,6 +21,7 @@ test("the HTTP report mapper preserves every client-visible field and creates a 
       {
         entityType: "media",
         entityId: "media-1",
+        entityLabel: null,
         outcome: "blocked",
         writes: false,
         reason: "required blob is absent",
