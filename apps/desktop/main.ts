@@ -113,7 +113,7 @@ import { createSiteTransitions } from "./src/site-transitions.ts";
 import { createShutdownTracker } from "./src/shutdown-tracker.ts";
 import { routeQuitSignals } from "./src/quit-signals.ts";
 import { decideBeforeQuit } from "./src/quit-drain-gate.ts";
-import { applyGuestWebPreferences } from "./src/webview-guest-policy.ts";
+import { admitGuestSource, applyGuestWebPreferences } from "./src/webview-guest-policy.ts";
 import { installAppWindowNavigationPolicy, isSameOrigin } from "./src/window-navigation-policy.ts";
 import { createSelftestTracker } from "./src/selftest-tracker.ts";
 import { registerSpeechIpc } from "./src/speech/speech-ipc.ts";
@@ -554,8 +554,10 @@ function openSitesHomeWindow(): BrowserWindow | null {
   // The guest gets the shell's OWN speech preload, not none (D-10) — see
   // `webview-guest-policy.ts` for why assigning is strictly stronger than the `delete` this
   // replaced, and for the symptom it fixes: the embedded admin telling the operator that voice
-  // input needs the desktop app, from inside the desktop app.
-  window.webContents.on("will-attach-webview", (_event, webPreferences) => {
+  // input needs the desktop app, from inside the desktop app. That grant is only safe on a supervised
+  // site's origin, so a guest pointed anywhere else is refused before it attaches.
+  window.webContents.on("will-attach-webview", (event, webPreferences, params) => {
+    if (!admitGuestSource(event, params, { isAllowedSource: isSupervisedGuestUrl })) return;
     applyGuestWebPreferences(webPreferences, { preloadPath: SPEECH_PRELOAD_PATH });
   });
 
@@ -964,7 +966,8 @@ async function openSiteServer(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
 /**
  * Whether `raw` points at a site this launch is currently supervising through the sites home UI's
  * embedded tabs — the boundary {@link registerGuestNavigationPolicy} enforces before ever handing a
- * guest-requested url to the operator's own browser. Scoped to `openSites`' own live ports rather
+ * guest-requested url to the operator's own browser, and the allowlist for where a guest may start
+ * (`will-attach-webview`) or be redirected (`will-redirect`). Scoped to `openSites`' own live ports rather
  * than a separate registry, since `openSites` already IS this shell's registry of what is running.
  *
  * @complexity O(n) in currently open sites.
