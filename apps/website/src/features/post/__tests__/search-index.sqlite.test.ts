@@ -256,6 +256,18 @@ test("a trashed post is excluded without its index row being removed — the fil
   assert.deepEqual(await h.find("pricing"), [], "and yet the post must not be returned");
 });
 
+test("a HARD-deleted post takes its projection with it — nothing is left pointing at a row that is gone", async () => {
+  const h = harness();
+  await h.add({ id: "p1", title: "Pricing", text: "Ten dollars." });
+  await h.add({ id: "p2", title: "Pricing addendum", text: "Also ten dollars." });
+
+  await h.repo.hardDelete({ workspaceId: WS, id: "p1" });
+
+  const orphan = h.db.$client.prepare("SELECT COUNT(*) AS n FROM post_search_document WHERE post_id = 'p1'").get() as { n: number };
+  assert.equal(orphan.n, 0, "the opposite of a trash: there is no row left to restore, so the projection must go too");
+  assert.deepEqual(ids(await h.find("pricing")), ["p2"], "the surviving post is still findable");
+});
+
 test("re-saving the same post does not duplicate it in the results", async () => {
   const h = harness();
   const post = await h.add({ id: "p1", title: "Pricing", text: "Ten dollars." });

@@ -319,4 +319,71 @@ for (const adapter of ADAPTERS) {
     assert.ok(row);
     assert.equal(isTrashed(row), false);
   });
+
+  // -------------------------------------------------------------------------
+  // 6. PostRepoPort.hardDelete — row REMOVAL, the same contract on both adapters
+  // -------------------------------------------------------------------------
+
+  test(`${adapter.name}: hardDelete removes the row, its revision ledger and its parked autosave`, async () => {
+    const repo = adapter.make();
+    await repo.save(seed());
+    await repo.appendRevision({
+      postId: "post-1",
+      workspaceId: WS,
+      seq: 3,
+      op: "create",
+      stateJson: seed(),
+      actorId: "actor-1",
+      delegatedByWorkspaceId: null,
+      delegatedById: null,
+      recordedAt: "2026-04-06T00:00:00.000Z",
+    });
+    await repo.writeAutosave({
+      workspaceId: WS,
+      id: "post-1",
+      snapshot: { baseVersion: 3, savedAt: "2026-04-06T00:00:00.000Z", bodyJson: { type: "doc", content: [] } },
+    });
+
+    await repo.hardDelete({ workspaceId: WS, id: "post-1" });
+
+    assert.equal(await repo.findById({ workspaceId: WS, id: "post-1" }), null, "the row itself must be gone");
+    assert.deepEqual(await repo.list({ workspaceId: WS }), [], "and gone from every listing");
+    assert.equal(
+      await repo.findBySlug({ workspaceId: WS, slug: "hello-world" }),
+      null,
+      "unlike softDelete, a hard delete releases the slug — nothing is reserving it any more"
+    );
+    assert.deepEqual(
+      await repo.listRevisions({ workspaceId: WS, postId: "post-1" }),
+      [],
+      "the ledger holds a full copy of every version, so retaining it would keep the content alive"
+    );
+    assert.equal(
+      await repo.readAutosave({ workspaceId: WS, id: "post-1" }),
+      null,
+      "a parked draft is content too, and it must not outlive the row it belongs to"
+    );
+  });
+
+  test(`${adapter.name}: hardDelete on an unknown id is a no-op, not a throw`, async () => {
+    const repo = adapter.make();
+    await repo.save(seed());
+
+    await repo.hardDelete({ workspaceId: WS, id: "does-not-exist" });
+
+    const untouched = await repo.findById({ workspaceId: WS, id: "post-1" });
+    assert.equal(untouched?.version, 3, "an unrelated row must be untouched");
+  });
+
+  test(`${adapter.name}: hardDelete is workspace-scoped`, async () => {
+    const repo = adapter.make();
+    await repo.save(seed({ id: "shared-id", workspaceId: WS }));
+
+    await repo.hardDelete({ workspaceId: "other-ws", id: "shared-id" });
+
+    assert.ok(
+      await repo.findById({ workspaceId: WS, id: "shared-id" }),
+      "another workspace's hardDelete must not reach this row"
+    );
+  });
 }

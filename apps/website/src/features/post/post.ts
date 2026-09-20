@@ -321,6 +321,31 @@ export interface PostRepoPort {
     version: number;
   }): Promise<void>;
   /**
+   * Physically REMOVES one row, with the revision ledger and the parked autosave that belong to it.
+   * The opposite of {@link softDelete} in every respect: nothing survives, nothing can be restored,
+   * and the slug is released.
+   *
+   * Two callers, both of which need removal rather than a marker and neither of which is an
+   * ordinary content delete:
+   *
+   *  - **the compensation for a failed CREATE.** A create has no pre-image, so the only correct
+   *    undo is for the row never to have existed. Trashing it instead (what this path did before
+   *    this method existed) leaves a row a user can find and restore, recording a creation that the
+   *    system decided had not happened.
+   *  - **the Trash purge**, once retention has expired or a user asks for permanent deletion. The
+   *    ledger goes with the row deliberately, and for the same reason the durable purge already
+   *    cascades it: `post_revisions` holds a full copy of every version, so keeping it would make
+   *    "permanently deleted" false.
+   *
+   * A no-op for an unknown id or another workspace's row — like {@link softDelete}, and unlike a
+   * throw, because both callers race a concurrent removal and "already gone" is the outcome they
+   * both want.
+   *
+   * NOT reachable from any ordinary delete path: `deletePost` trashes, and the Trash screen's
+   * restore depends on the row still being there. See {@link PostRecord.deletedAt}.
+   */
+  hardDelete(required: { workspaceId: UUID; id: UUID }): Promise<void>;
+  /**
    * Reads the standing-draft autosave snapshot for one row, or `null` when none is parked — the
    * common case, and also what a caller gets after {@link clearAutosave} or once a
    * {@link writeAutosave} call has been rejected as stale (see that method's own doc). Deliberately

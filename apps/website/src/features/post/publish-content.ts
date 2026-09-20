@@ -390,22 +390,17 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
             });
             return;
           }
-          // A create has no pre-image, and `PostRepoPort` exposes no hard delete (every content
-          // delete in Tovu is soft — see `PostRecord.deletedAt`'s own doc), so the strongest
-          // available undo is to trash the row this import just added. That is deliberately not a
-          // no-op: leaving it would publish live content at the destination with no change-set
-          // record to revert it by, which is the worse of the two failure modes. A trashed row is
-          // invisible to every public read and restorable if the failure turns out to be transient.
+          // A create has no pre-image, so the correct undo is for the row never to have existed:
+          // `PostRepoPort.hardDelete` removes it outright, with the revision the create appended
+          // and the slug it reserved. Until 2026-09-20 the port had no row removal and this trashed
+          // the row instead, which was the wrong shape twice over — it recorded a creation the
+          // system had just decided did not happen, left it sitting in the Trash for a user to
+          // "restore", and kept its slug reserved against the retry of the very import that failed.
+          // The one thing it must not become is a no-op: leaving the row live would publish content
+          // at the destination with no change-set record to revert it by.
           const orphan = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: input.entity.id });
           if (!orphan) return;
-          const trashedAt = deps.clock.nowIso();
-          await deps.postRepo.softDelete({
-            workspaceId: deps.workspaceId,
-            id: input.entity.id,
-            deletedAt: trashedAt,
-            updatedAt: trashedAt,
-            version: orphan.version + 1,
-          });
+          await deps.postRepo.hardDelete({ workspaceId: deps.workspaceId, id: input.entity.id });
         },
       },
     });

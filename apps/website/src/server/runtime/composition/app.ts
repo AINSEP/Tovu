@@ -475,8 +475,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         isHidden: (record) => record.deletedAt !== undefined && record.deletedAt !== null,
         hidden: (record, at) => ({ ...record, deletedAt: at, updatedAt: at }),
         shown: (record, at) => ({ ...record, deletedAt: null, updatedAt: at }),
-        // No `hardDelete`: `InMemoryPostRepo` has no row removal, so purge stands down rather than
-        // reporting a removal that did not happen. See `createRecordStoreTrashAdapter`.
+        // 2026-09-20: `PostRepoPort.hardDelete` now exists on both adapters, so this purges for
+        // real. The former stand-down ("`InMemoryPostRepo` has no row removal") was honest but left
+        // an expired post un-purgeable in this composition — the sweeper released the lease and
+        // retried the same row on every pass, forever. Same cascade the durable adapter performs:
+        // `hardDelete` takes the revision ledger and the parked autosave with the row.
+        hardDelete: (required) => postRepo.hardDelete(required),
       }),
     ],
     [

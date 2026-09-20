@@ -128,6 +128,25 @@ export class InMemoryPostRepo implements PostRepoPort {
     };
   }
 
+  /**
+   * See `PostRepoPort.hardDelete`'s own doc. Splices the row out of `rows` AND drops its revisions
+   * and its parked autosave — the three places this adapter keeps a post's content. Dropping only
+   * the row would leave `listRevisions` serving full copies of every version of something the
+   * caller was told is permanently gone, which is exactly what the SQLite adapter's cascade exists
+   * to prevent; both adapters must behave identically here.
+   *
+   * @complexity O(n + r) over the rows and revisions this adapter holds.
+   */
+  async hardDelete(required: { workspaceId: string; id: string }): Promise<void> {
+    this.rows = this.rows.filter(
+      (row) => !(row.workspaceId === required.workspaceId && row.id === required.id)
+    );
+    this.revisions = this.revisions.filter(
+      (revision) => !(revision.workspaceId === required.workspaceId && revision.postId === required.id)
+    );
+    this.autosaves.delete(this.autosaveKey(required.workspaceId, required.id));
+  }
+
   /** See `PostRepoPort.readAutosave`'s own doc. */
   async readAutosave(required: { workspaceId: string; id: string }): Promise<PostAutosaveSnapshot | null> {
     return this.autosaves.get(this.autosaveKey(required.workspaceId, required.id)) ?? null;
