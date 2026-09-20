@@ -39,11 +39,13 @@ import type { RedirectDbHandle } from "#src/features/redirects/ports.internal";
 import { InMemoryRedirectRepo } from "#src/features/redirects/repo.memory";
 import type { RedirectsWriteDeps } from "#src/features/redirects/redirects";
 import { createRedirect } from "#src/features/redirects/redirects";
+import { removeVia } from "#src/features/redirects/__tests__/remove-redirect-double";
 import { buildRedirectsRegistrations, type RedirectsToolDeps } from "#src/features/redirects/tool-registrations";
 
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/repo.memory";
 import { createSubscription } from "#src/features/webhooks/subscriptions";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "#src/features/webhooks/tool-registrations";
+import { commentTrashDoubles } from "#src/features/comments/__tests__/comment-trash-doubles";
 
 /**
  * @file Route-level allowlist proof for the five sibling tools of `media_trash_asset` in the same
@@ -106,7 +108,7 @@ async function setupComments(surfaceExchanges: SurfaceExchangeStore): ReturnType
   const clock = { nowIso: () => NOW };
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
-  const commentWriteService = createCommentWriteService({ repo: commentRepo, outbox: { enqueue: async () => {} }, hooks: createCommentHookRegistry(), clock, idGen });
+  const commentWriteService = createCommentWriteService({ repo: commentRepo, outbox: { enqueue: async () => {} }, hooks: createCommentHookRegistry(), clock, idGen, ...commentTrashDoubles() });
   const deps = {
     workspaceId,
     clock,
@@ -244,6 +246,7 @@ async function setupRedirects(surfaceExchanges: SurfaceExchangeStore): ReturnTyp
   let idTick = 0;
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
+    remove: removeVia(redirectRepo),
     db: redirectRepo as unknown as RedirectDbHandle,
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,

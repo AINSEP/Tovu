@@ -8,6 +8,7 @@ import { InMemoryCommentRepo } from "../repo.memory.js";
 import { HeuristicSpamCheck } from "../spam.heuristic.js";
 import type { CommentSubmission, SpamVerdict } from "../types.js";
 import type { SpamCheckPort } from "../ports.js";
+import { commentTrashDoubles } from "./comment-trash-doubles.js";
 
 /**
  * @file Regression test for the composition seam that used to hardcode `HeuristicSpamCheck`
@@ -62,6 +63,7 @@ test("createCommentsModule uses the injected spamCheck, not a hardcoded Heuristi
     clock: { nowIso: () => "2026-08-29T00:00:00.000Z" },
     idGen: { newId: () => "comment-1" },
     spamCheck: spyingSpamCheck,
+    ...commentTrashDoubles(),
   });
 
   const result = await commentsModule.ingressPolicy.submit(makeSubmission());
@@ -81,6 +83,7 @@ test("BUG REGRESSION: a draft entry (never published) rejects a public comment a
     clock: { nowIso: () => "2026-08-29T00:00:00.000Z" },
     idGen: { newId: () => "comment-1" },
     spamCheck: new HeuristicSpamCheck(),
+    ...commentTrashDoubles(),
   });
 
   const result = await commentsModule.ingressPolicy.submit(makeSubmission());
@@ -99,6 +102,7 @@ test("BUG REGRESSION: an unpublished (retracted) entry rejects a public comment 
     clock: { nowIso: () => "2026-08-29T00:00:00.000Z" },
     idGen: { newId: () => "comment-1" },
     spamCheck: new HeuristicSpamCheck(),
+    ...commentTrashDoubles(),
   });
 
   const result = await commentsModule.ingressPolicy.submit(makeSubmission());
@@ -114,6 +118,7 @@ test("a published entry with no closeAfterDays cap still accepts a public commen
     clock: { nowIso: () => "2026-08-29T00:00:00.000Z" },
     idGen: { newId: () => "comment-1" },
     spamCheck: new HeuristicSpamCheck(),
+    ...commentTrashDoubles(),
   });
 
   const result = await commentsModule.ingressPolicy.submit(makeSubmission());

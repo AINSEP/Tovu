@@ -1103,13 +1103,16 @@ export function createSqliteRouteDeps(
       }),
     ],
   ]);
+  const trashRepo = new SqliteTrashRepo(db.$client);
+  // Reentrant: `deletePost` and `tombstoneRedirect` already open their own BEGIN IMMEDIATE around
+  // "marker + revision append", and `remove` is called from inside it. Named (not inlined) because
+  // the comments moderation service needs the SAME runner to wrap its own two writes.
+  const trashTransaction = createContentDbTransactionRunner(db.$client);
   const trash = createTrashService({
-    repo: new SqliteTrashRepo(db.$client),
+    repo: trashRepo,
     adapters: trashAdapters,
     idGen: { next: () => randomUUID() },
-    // Reentrant: `deletePost` and `tombstoneRedirect` already open their own BEGIN IMMEDIATE around
-    // "marker + revision append", and `remove` is called from inside it.
-    transaction: createContentDbTransactionRunner(db.$client),
+    transaction: trashTransaction,
   });
 
   const redirectsWriteDeps: RedirectsWriteDeps = {
@@ -1213,6 +1216,12 @@ export function createSqliteRouteDeps(
     idGen,
     spamCheck: new HeuristicSpamCheck(),
     settingsRepo,
+    // Local admin Trash. A comment's "deleted" marker is one value of its moderation status, so the
+    // index has to follow both directions of that transition — see `syncRemovalIndex`.
+    remove: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
+    forgetRemoved: ({ workspaceId: ws, id }) =>
+      trashRepo.deleteByEntity({ workspaceId: ws, entityType: COMMENT_ENTITY_TYPE, entityId: id }),
+    runInTransaction: trashTransaction,
   });
 
   // Hoisted above `newsletterKeyring` (moved up from its original position further below, where a

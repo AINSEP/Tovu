@@ -25,6 +25,20 @@ export class InMemoryCommentRepo implements CommentRepoPort {
     return this.comments.find((c) => c.workspaceId === required.workspaceId && c.id === required.id) ?? null;
   }
 
+  /**
+   * Direct upsert of one row. NOT on {@link CommentRepoPort} — the durable half flips its marker
+   * with column SQL and needs no such method. This exists so the hermetic composition root can
+   * drive a record-store `TrashAdapter` over this double (`server/runtime/composition/app.ts`), the
+   * same way the in-memory redirect repo's `insertRedirect` is used there.
+   *
+   * @complexity O(n) over the held rows.
+   */
+  async save(record: CommentRecord): Promise<void> {
+    const index = this.comments.findIndex((c) => c.workspaceId === record.workspaceId && c.id === record.id);
+    if (index === -1) this.comments.push(record);
+    else this.comments[index] = record;
+  }
+
   async listThreadForEntry(required: {
     workspaceId: string;
     entryId: string;

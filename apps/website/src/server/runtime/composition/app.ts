@@ -165,6 +165,7 @@ import {
   preserveLegacySiteTitles,
 } from "#src/features/settings/site-title";
 import { InMemoryCommentRepo } from "#src/features/comments/repo.memory";
+import type { CommentRecord } from "#src/features/comments/index";
 import { registerCommentsSubmitRoute } from "../../inbound/public-http/routes/site/comments-submit.js";
 import {
   InMemoryEntryTermRepo,
@@ -452,9 +453,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // in-memory rows Database's restore-points routes write into, not a second, disconnected instance.
   const restorePointsRepo = new InMemoryRestorePointsRepo();
   // Local admin Trash, hermetic half. A plain Map resolved at CALL time, same as `deps.ts`'s —
-  // never a module-level registry. Only `post` is registered because only the post delete path is
-  // wired to `deps.remove` in this composition; an unregistered type fails loudly at the call
-  // rather than silently trashing something that could never be restored.
+  // never a module-level registry. Every domain whose delete path is wired to `deps.remove` in this
+  // composition must be registered here; an unregistered type fails loudly at the call rather than
+  // silently trashing something that could never be restored.
+  const commentRepo = new InMemoryCommentRepo();
   const trashAdapters = new Map<string, TrashAdapter>([
     [
       POST_ENTITY_TYPE,
@@ -485,9 +487,28 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         shown: (record, at) => ({ ...record, status: "active", updatedAt: at }),
       }),
     ],
+    [
+      COMMENT_ENTITY_TYPE,
+      createRecordStoreTrashAdapter<CommentRecord>({
+        entityType: COMMENT_ENTITY_TYPE,
+        // `save` is this double's direct-write seam (not on `CommentRepoPort`) — the moderation
+        // write-service has already flipped the status by the time `remove` runs, so `hide` is a
+        // no-op here and only `unhide` (a Trash-screen restore) actually writes.
+        store: commentRepo,
+        isHidden: (record) => record.status === "trash",
+        hidden: (record, at) => ({ ...record, status: "trash", updatedAt: at }),
+        // Back to moderation, not to the prior status: the original is recorded nowhere the
+        // no-parse rule lets an adapter read, and of the two guesses this is the one that cannot
+        // republish spam onto a public page.
+        shown: (record, at) => ({ ...record, status: "pending", updatedAt: at }),
+        // No `hardDelete`: `InMemoryCommentRepo.purge` needs a moderator, an action and a note this
+        // adapter does not have, so purge stands down rather than claiming a removal.
+      }),
+    ],
   ]);
+  const trashRepo = new InMemoryTrashRepo();
   const trash = createTrashService({
-    repo: new InMemoryTrashRepo(),
+    repo: trashRepo,
     adapters: trashAdapters,
     idGen: { next: () => randomUUID() },
     // Nothing here opens a database transaction, so the runner is a pass-through. The atomicity
@@ -540,13 +561,18 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     formDefinitionRepo,
   });
   const commentsModule = createCommentsModule({
-    commentRepo: new InMemoryCommentRepo(),
+    commentRepo,
     entryRepo,
     outbox,
     clock,
     idGen,
     spamCheck: new HeuristicSpamCheck(),
     settingsRepo,
+    remove: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
+    forgetRemoved: ({ workspaceId: ws, id }) =>
+      trashRepo.deleteByEntity({ workspaceId: ws, entityType: COMMENT_ENTITY_TYPE, entityId: id }),
+    // Nothing in this composition opens a database transaction; see `createTrashService` above.
+    runInTransaction: (fn) => fn(),
   });
 
   // SPEC-011 (Newsletter) Stage 5 wiring — hoisted so `newsletterSubscriberDirectory` below reads
