@@ -3280,3 +3280,70 @@ export const publishContentPeers = sqliteTable(
   },
   (table) => [uniqueIndex("publish_content_peers_workspace_label_unique").on(table.workspaceId, table.label)]
 );
+
+/**
+ * The cross-domain recycle bin index (ADR-043 §6's disable → tombstone → retention-window cleanup
+ * ladder, generalised): ONE row per trashed entity, in ANY domain, keyed by identity rather than by
+ * a foreign key.
+ *
+ * The row IS the trash marker. Restore deletes this row; the domain's own hide/unhide marker
+ * (`posts.deleted_at`, `media.status`, `redirects.status`, `comments.status`, …) moves in the same
+ * transaction, but THIS table — not that marker — is what the Trash screen reads.
+ *
+ * Why an index table instead of a `purge_after` column on each domain table:
+ *
+ * - **Listing must never re-read the entity.** `display_title`/`display_subtitle` are a SNAPSHOT
+ *   captured at trash time from columns the caller already held. That is the load-bearing property:
+ *   `widgets_trash_instance` today cannot touch two broken production rows because it parses
+ *   `fields_json` → rebuilds → re-parses (`features/widgets/entry-payload.ts` throws at three points
+ *   in `readPayloadString` plus `JSON.parse`), so it fails precisely on the rows most needing
+ *   removal. A row whose payload no parser can read still lists here, and still restores.
+ * - **No foreign keys to entity tables, deliberately.** The four phase-1 domains live in three
+ *   different table-creation mechanisms: `posts`/`media`/`redirects` are `sqliteTable` declarations
+ *   here, `comments` is a raw-SQL plugin dataModule table that is not in this schema at all, and
+ *   `entries` rows are written by `@jini-ai/cms`. An FK could not span them. `entity_type` is an
+ *   open vocabulary validated at the port, NOT a CHECK constraint, so a phase-2 domain needs an
+ *   adapter and no migration.
+ * - The `workspaces` FK IS real and cascades — a deleted workspace's trash has no meaning left.
+ *
+ * `purge_lease_owner`/`purge_lease_expires_at` carry the sweeper's row-level claim lease, the same
+ * at-least-once shape `contracts/core/events/outbox-drainer.ts` uses on outbox rows, so the 60-day
+ * sweep needs no scheduler-state table and no cron. `entity_version` is the compare-and-delete
+ * guard: a purge that finds a different version stands down, so a concurrent restore always wins.
+ */
+export const trashedItems = sqliteTable(
+  "trashed_items",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** Domain discriminator: `post`, `comment`, `media`, `redirect`, … Resolved to an adapter at
+     *  CALL time, never at registration time — this codebase's module registries are append-only
+     *  with no unregister, so a filter applied at registration runs exactly once. */
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id").notNull(),
+    trashedAt: text("trashed_at").notNull(),
+    /** `trashed_at` + the retention window, stamped from this instance's clock at trash time —
+     *  never carried in from a peer. Both the sweeper and the Trash list's lazy filter read it. */
+    purgeAfter: text("purge_after").notNull(),
+    actorPrincipalId: text("actor_principal_id").notNull(),
+    actorPluginId: text("actor_plugin_id"),
+    /** Snapshot, from columns only. Backfill writes `COALESCE(NULLIF(title,''), id)` so this is
+     *  never empty and the list needs no null branch. */
+    displayTitle: text("display_title").notNull(),
+    /** Second snapshot line: slug for posts/media, `from_pattern` for redirects, a body excerpt for
+     *  comments. Nullable — a domain with no meaningful subtitle omits it. */
+    displaySubtitle: text("display_subtitle"),
+    /** The entity's `version` at trash time; `null` for a domain that has none. */
+    entityVersion: integer("entity_version"),
+    purgeLeaseOwner: text("purge_lease_owner"),
+    purgeLeaseExpiresAt: text("purge_lease_expires_at"),
+  },
+  (table) => [
+    uniqueIndex("trashed_items_identity_unique").on(table.workspaceId, table.entityType, table.entityId),
+    /** Global, NOT workspace-scoped: the sweeper claims due rows across every workspace in the file. */
+    index("idx_trashed_items_purge_after").on(table.purgeAfter),
+    index("idx_trashed_items_workspace_trashed_at").on(table.workspaceId, table.trashedAt),
+  ]
+);

@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 90
+ * Tables: 91
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -1349,6 +1349,27 @@ export const transformDefinitions = pgTable("transform_registry", {
   createdAt: text("created_at").notNull(),
 }, (t) => [
     uniqueIndex("idx_transform_registry_lookup").on(t.workspaceId, t.name, t.version),
+  ]);
+
+export const trashedItems = pgTable("trashed_items", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  entityType: text("entity_type").notNull(),
+  entityId: text("entity_id").notNull(),
+  trashedAt: text("trashed_at").notNull(),
+  purgeAfter: text("purge_after").notNull(),
+  actorPrincipalId: text("actor_principal_id").notNull(),
+  actorPluginId: text("actor_plugin_id"),
+  displayTitle: text("display_title").notNull(),
+  displaySubtitle: text("display_subtitle"),
+  entityVersion: bigint("entity_version", { mode: "number" }),
+  purgeLeaseOwner: text("purge_lease_owner"),
+  purgeLeaseExpiresAt: text("purge_lease_expires_at"),
+}, (t) => [
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
+    uniqueIndex("trashed_items_identity_unique").on(t.workspaceId, t.entityType, t.entityId),
+    index("idx_trashed_items_purge_after").on(t.purgeAfter),
+    index("idx_trashed_items_workspace_trashed_at").on(t.workspaceId, t.trashedAt),
   ]);
 
 export const vendorCredentialSets = pgTable("vendor_credential_sets", {
