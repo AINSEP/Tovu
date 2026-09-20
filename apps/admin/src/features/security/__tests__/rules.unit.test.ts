@@ -27,6 +27,7 @@ import {
   customCredentialNameTaken,
   customCredentialReadyToSave,
   customCredentialReplaceReadyToSave,
+  accessTokenExistingRowReadyToSave,
   envNamesFact,
   invalidAdditionalHostsEntries,
   isValidHttpUrl,
@@ -678,6 +679,19 @@ describe("customCredentialReplaceReadyToSave (2026-09-01 owner-reported bug: use
   it("treats an undefined saved username the same as an empty one (a row that never had one)", () => {
     expect(customCredentialReplaceReadyToSave(blankCustomRowFields({ name: "name.com", username: "" }), "name.com", undefined)).toBe(false);
     expect(customCredentialReplaceReadyToSave(blankCustomRowFields({ name: "name.com", username: "new-user" }), "name.com", undefined)).toBe(true);
+  });
+});
+
+describe("accessTokenExistingRowReadyToSave — the Replace form's gate, picked by row kind (terra review 2026-09-20 #3)", () => {
+  it("a custom row uses the custom gate: a username-only change is ready", () => {
+    expect(accessTokenExistingRowReadyToSave(blankCustomRowFields({ name: "name.com", username: "new-user" }), { kind: "custom", name: "name.com", username: "old-user" })).toBe(true);
+    expect(accessTokenExistingRowReadyToSave(blankCustomRowFields({ name: "name.com", username: "old-user" }), { kind: "custom", name: "name.com", username: "old-user" })).toBe(false);
+  });
+
+  it("a catalog row keeps the catalog gate: a username with no token and no rename is NOT ready", () => {
+    const fields: AccessTokenFormFields = { ref: { kind: "source-control", providerId: "bitbucket" }, name: "Team", token: "", accountId: "", username: "bb-user" };
+    expect(accessTokenExistingRowReadyToSave(fields, { kind: "source-control", name: "Team", username: undefined })).toBe(false);
+    expect(accessTokenExistingRowReadyToSave({ ...fields, name: "Team 2" }, { kind: "source-control", name: "Team", username: undefined })).toBe(true);
   });
 });
 

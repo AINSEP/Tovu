@@ -340,6 +340,53 @@ describe("AccessTokensTab — ExistingTokenFields: Save/Remove and error renderi
     expect(replaceToken).toHaveBeenCalledWith(target.row);
   });
 
+  // Regression (terra security review 2026-09-20, Medium #3): the view gated Save with the CATALOG
+  // rule (`accessTokenReplaceReadyToSave` — name or token only) for every row kind, while the
+  // controller routes a custom row through `customCredentialReplaceReadyToSave`, which exists to
+  // let a username-only fix save. So the one edit that rule was written for could never be sent.
+  it("enables Save for a custom credential when ONLY its username changed, and Save calls replaceToken", () => {
+    const replaceToken = vi.fn().mockResolvedValue(undefined);
+    const target = rowState({
+      row: row({ kind: "custom", providerId: "custom-1", id: "custom-1", name: "fly.io deploy", username: "old-user" }),
+      name: "fly.io deploy",
+      username: "new-user",
+    });
+    renderTab({ groups: [groupFor("custom", "custom-1", [target])], replaceToken });
+
+    const saveButton = screen.getByRole("button", { name: "Save — fly.io deploy" });
+    expect(saveButton).not.toBeDisabled();
+    fireEvent.click(saveButton);
+    expect(replaceToken).toHaveBeenCalledWith(target.row);
+  });
+
+  it("enables Save for a custom credential whose saved username was CLEARED (blank draft, no token)", () => {
+    const target = rowState({
+      row: row({ kind: "custom", providerId: "custom-1", id: "custom-1", name: "fly.io deploy", username: "old-user" }),
+      name: "fly.io deploy",
+      username: "",
+    });
+    renderTab({ groups: [groupFor("custom", "custom-1", [target])] });
+    expect(screen.getByRole("button", { name: "Save — fly.io deploy" })).not.toBeDisabled();
+  });
+
+  it("keeps Save disabled for a custom credential when nothing changed (same name, same username, no token)", () => {
+    const target = rowState({
+      row: row({ kind: "custom", providerId: "custom-1", id: "custom-1", name: "fly.io deploy", username: "old-user" }),
+      name: "fly.io deploy",
+      username: "old-user",
+    });
+    renderTab({ groups: [groupFor("custom", "custom-1", [target])] });
+    expect(screen.getByRole("button", { name: "Save — fly.io deploy" })).toBeDisabled();
+  });
+
+  // The catalog rule must stay as it was: its own doc forbids a bare-username Save for a catalog
+  // provider (Bitbucket's username only travels with a fresh token).
+  it("keeps Save disabled for a Bitbucket row when ONLY the username field has text (catalog rule unchanged)", () => {
+    const target = rowState({ row: row({ kind: "source-control", providerId: "bitbucket", id: "bb-1", name: "Team" }), name: "Team", username: "bb-user" });
+    renderTab({ groups: [groupFor("source-control", "bitbucket", [target])] });
+    expect(screen.getByRole("button", { name: "Save — Team" })).toBeDisabled();
+  });
+
   it("shows 'Saving…' and disables Save while a save is in flight", () => {
     const target = rowState({ row: row(), token: "ghp_new", saving: true });
     renderTab({ groups: [groupFor("publish", "netlify", [target])] });

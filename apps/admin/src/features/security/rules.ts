@@ -708,6 +708,17 @@ export function customCredentialReplaceReadyToSave(fields: AccessTokenFormFields
   return nameChanged || usernameChanged;
 }
 
+/** The Save-readiness gate for a SAVED row's Replace form, picked by row kind — the same split
+ *  `use-access-tokens.hooks.ts`'s `replaceToken` makes before writing: a custom row uses
+ *  {@link customCredentialReplaceReadyToSave} (a username-only change is a real edit), every catalog
+ *  row keeps {@link accessTokenReplaceReadyToSave}. `ExistingTokenFields` used to call the catalog
+ *  gate for every row, so a custom row's username-only fix left Save disabled even though the
+ *  controller would have sent it. @complexity O(1). */
+export function accessTokenExistingRowReadyToSave(fields: AccessTokenFormFields, row: Pick<AccessTokenRow, "kind" | "name" | "username">): boolean {
+  if (row.kind === "custom") return customCredentialReplaceReadyToSave(fields, row.name, row.username);
+  return accessTokenReplaceReadyToSave(fields, row.name);
+}
+
 /** Builds the wire connection input for a custom-provider create/update call — just
  *  `{token, username?}`, no provider dispatch (this table has none — see `types.ts`'s own header on
  *  the server side). `username` is omitted entirely when blank, never sent as `""` (mirrors every

@@ -9,7 +9,7 @@ import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle } from "./
 import {
   ACCESS_TOKEN_CATEGORIES,
   accessTokenProviderMatchesQuery,
-  accessTokenReplaceReadyToSave,
+  accessTokenExistingRowReadyToSave,
   accessTokenRowProviderInfo,
   accessTokenRowReadyToSave,
   invalidAdditionalHostsEntries,
@@ -547,7 +547,7 @@ function ExistingTokenFields({
     accountId: state.accountId,
     username: state.username,
   };
-  const readyToSave = accessTokenReplaceReadyToSave(fields, state.row.name);
+  const readyToSave = accessTokenExistingRowReadyToSave(fields, state.row);
   return (
     <>
       <TokenInputFields
