@@ -204,20 +204,38 @@ export function useWidgetAddControl(
     setPickerTypeRaw(next);
   }
 
+  // Creating and placing are two separate writes with nothing binding them, so each gets its own
+  // catch: a placement failure after a successful create must not be reported as "failed to create"
+  // (the widget exists), and must name the way back to it — "Use existing" re-fetches on open, so
+  // the created widget is listed there. `error` renders beside the dialog, not inside it
+  // (`WidgetAddControl`), so it stays visible after the close. Never rejects: the dialog's submit
+  // handlers discard these promises.
   async function handleCreateNew(title: string, config: Record<string, unknown>) {
     if (!pickerType) return;
+    let widgetId: string;
     try {
       const { widget } = await port.createWidget({ widgetType: pickerType, title, config });
-      setPickerType(null);
-      await props.onResolved(widget.id);
+      widgetId = widget.id;
     } catch (e) {
       setError(describeApiError(e, "failed to create widget"));
+      return;
+    }
+    setPickerType(null);
+    try {
+      await props.onResolved(widgetId);
+    } catch (e) {
+      const detail = describeApiError(e, "failed to place widget");
+      setError(`Widget "${title}" was created but not placed (${detail}). Choose it under Use existing to try again.`);
     }
   }
 
   async function handleUseExisting(widgetInstanceId: string) {
     setPickerType(null);
-    await props.onResolved(widgetInstanceId);
+    try {
+      await props.onResolved(widgetInstanceId);
+    } catch (e) {
+      setError(describeApiError(e, "failed to place widget"));
+    }
   }
 
   return { pickerType, setPickerType, selectedType, setSelectedType, error, handleCreateNew, handleUseExisting };

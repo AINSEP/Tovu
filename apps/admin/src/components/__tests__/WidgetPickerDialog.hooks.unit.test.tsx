@@ -335,4 +335,34 @@ describe("useExistingInstances / useWidgetPickerDialog / useWidgetAddControl —
     expect(result.current.pickerType).toBe("text");
     expect(props.onResolved).not.toHaveBeenCalled();
   });
+
+  it("a placement failure after a successful create says the widget WAS created and where to find it, not that creation failed", async () => {
+    const port = createFakeWidgetPickerPort();
+    const props = { triggerLabel: "+ Add widget", onResolved: vi.fn(async () => { throw new Error("region write failed"); }) };
+    const { result } = renderHook(() => useWidgetAddControl(props, { port }));
+    act(() => result.current.setPickerType("text"));
+
+    await act(async () => {
+      await result.current.handleCreateNew("Hero", { body: "" });
+    });
+
+    expect(port.widgets.map((w) => w.title)).toEqual(["Hero"]);
+    expect(result.current.error).toBe(
+      'Widget "Hero" was created but not placed (region write failed). Choose it under Use existing to try again.',
+    );
+  });
+
+  it("handleUseExisting reports a placement failure instead of rejecting into a caller that discards the promise", async () => {
+    const port = createFakeWidgetPickerPort();
+    const props = { triggerLabel: "+ Add widget", onResolved: vi.fn(async () => { throw new Error("region write failed"); }) };
+    const { result } = renderHook(() => useWidgetAddControl(props, { port }));
+    act(() => result.current.setPickerType("text"));
+
+    await act(async () => {
+      await expect(result.current.handleUseExisting("w1")).resolves.toBeUndefined();
+    });
+
+    expect(props.onResolved).toHaveBeenCalledWith("w1");
+    expect(result.current.error).toBe("region write failed");
+  });
 });
