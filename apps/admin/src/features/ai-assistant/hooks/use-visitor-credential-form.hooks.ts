@@ -503,16 +503,33 @@ export function useVisitorCredentialForm({
   // (moved WITH the functions in the complexity-pass extraction, not summarised here).
   const hasStoredKey = hasStoredCredential(stored);
 
+  // One chain for both Save buttons, which can be enabled at the same time. The server builds every
+  // write from the row it reads first (`site-credential-store.ts`'s `setSiteAssistantCredential`:
+  // read → seal → upsert the whole merged record), so a key PUT and a settings PUT in flight together
+  // each merge over the same old row and the later upsert reverts the other's field. Chained, the
+  // second PUT reads what the first wrote. Tab-local — two tabs still race; closing that needs a
+  // server-side check. Same shape as `use-other-credentials.hooks.ts`'s `serialized`.
+  const writeChainRef = useRef<Promise<void>>(Promise.resolve());
+  function serialized(task: () => Promise<void>): Promise<void> {
+    const next = writeChainRef.current.then(task);
+    // Both tasks catch their own failures, so `next` never rejects today; the `catch` keeps a future
+    // throwing task from wedging every later save behind a rejected link.
+    writeChainRef.current = next.catch(() => undefined);
+    return next;
+  }
+
   function saveKey() {
-    return saveVisitorKey({ api: apiRef.current, config, writers: { setSaveState, setStored, setConfig } });
+    return serialized(() => saveVisitorKey({ api: apiRef.current, config, writers: { setSaveState, setStored, setConfig } }));
   }
 
   function saveSettings() {
-    return saveVisitorSettings({
-      api: apiRef.current,
-      config,
-      writers: { setSettingsSaveState, setStored, setDirty },
-    });
+    return serialized(() =>
+      saveVisitorSettings({
+        api: apiRef.current,
+        config,
+        writers: { setSettingsSaveState, setStored, setDirty },
+      }),
+    );
   }
 
   // `isPresetSuppliedEndpoint` (in `../rules.ts`) is the SECURITY GATE for the debounced discovery

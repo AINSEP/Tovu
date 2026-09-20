@@ -816,3 +816,82 @@ describe("useVisitorCredentialForm — the two buttons write disjoint patches", 
     expect(result.current.saveState).toEqual({ status: "idle" });
   });
 });
+
+/**
+ * Save key and Save settings are both enabled at once (a key typed AND a settings edit made), and
+ * the server builds each write from the row it READ first (`setSiteAssistantCredential`: find →
+ * seal → upsert the whole merged record). Two PUTs in flight together each merge over the same old
+ * row, so whichever upserts last reverts the other's field — while both answer 200.
+ */
+describe("useVisitorCredentialForm — Save key and Save settings pressed back to back", () => {
+  interface ServerRow {
+    provider: string;
+    baseUrl: string;
+    model: string;
+    apiKey: string;
+  }
+
+  /** A port with the server's read-then-upsert shape: each PUT snapshots the row when it ARRIVES
+   *  and writes `{ ...snapshot, ...patch }` only when the test releases it. */
+  function readMergeUpsertServer(initial: ServerRow) {
+    let row = { ...initial };
+    const pending: Array<() => void> = [];
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const port: VisitorCredentialFormPort = {
+      getAssistantSiteCredential: async () => ({ data: credential({ baseUrl: row.baseUrl, model: row.model }) }),
+      setAssistantSiteCredential: (patch) => {
+        const snapshot = { ...row };
+        inFlight += 1;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        return new Promise((resolve) => {
+          pending.push(() => {
+            row = { ...snapshot, ...(patch as Partial<ServerRow>) };
+            inFlight -= 1;
+            resolve({ data: credential({ isSet: true, masked: "••••-new", provider: row.provider, baseUrl: row.baseUrl, model: row.model }) });
+          });
+        });
+      },
+    };
+    return { port, pending, row: () => row, maxInFlight: () => maxInFlight };
+  }
+
+  it("the second write starts only after the first settles, so the stored row keeps BOTH the new key and the new model", async () => {
+    vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["new-model"] });
+    const server = readMergeUpsertServer({
+      provider: "google",
+      baseUrl: "https://generativelanguage.googleapis.com",
+      model: "old-model",
+      apiKey: "sk-old",
+    });
+    const { result } = renderHook(() => useVisitorCredentialForm({ port: server.port }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    act(() => result.current.editConfig({ ...result.current.config, apiKey: "sk-new", model: "new-model" }));
+
+    await act(async () => {
+      let settled = false;
+      const both = Promise.all([result.current.saveKey(), result.current.saveSettings()]).then(() => {
+        settled = true;
+      });
+      // Release the NEWEST pending write each round — the settings PUT finishing before the slower
+      // key PUT (which also has to seal) is exactly the order that reverts the model.
+      for (let round = 0; round < 20 && !settled; round += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        server.pending.pop()?.();
+      }
+      await both;
+    });
+
+    expect(server.row()).toEqual({
+      provider: "google",
+      baseUrl: "https://generativelanguage.googleapis.com",
+      model: "new-model",
+      apiKey: "sk-new",
+    });
+    expect(server.maxInFlight()).toBe(1);
+    expect(result.current.saveState).toMatchObject({ status: "saved" });
+    expect(result.current.settingsSaveState).toMatchObject({ status: "saved" });
+  });
+});
