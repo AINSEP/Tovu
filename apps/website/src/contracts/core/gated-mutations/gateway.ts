@@ -25,7 +25,9 @@ import {
  *   3. actor-class redemption rule (REQ-13, U-001-B2/ORD3) — FORBIDDEN/ACTOR_CLASS_MISMATCH wins
  *      over a simultaneously-stale plan (AC-38).
  *   4. plan re-derivation / hash comparison (U-001-B3) — PLAN_STALE.
- *   5. atomic token redemption, then the domain mutation (INV-03 exactly-once).
+ *   5. atomic token redemption, then the domain mutation (INV-03 exactly-once) — which is handed
+ *      step 4's verified plan, so the plan decision stays where this sequence puts it and cannot be
+ *      retaken after redemption (see `GatedMutationHooks.executeMutation`).
  *
  * How it relates to the project:
  * `hooks.executeMutation()` is where a feature (e.g. `features/database`'s migrate-forward) opens
@@ -62,8 +64,24 @@ export interface GatedMutationHooks<TDetails, TResult> {
   scopeKind?: "workspace" | "instance";
   /** Recomputes the plan; `execute()` compares its `planHash` against the redeemed token's. */
   computePlan(): Promise<{ planHash: string; details: TDetails }>;
-  /** The actual domain mutation. Runs only after every gate in `execute()`'s check-sequence passes. */
-  executeMutation(): Promise<TResult>;
+  /**
+   * The actual domain mutation. Runs only after every gate in `execute()`'s check-sequence passes.
+   *
+   * `verified` is the plan step 4 just re-derived and hash-matched against the confirmed token —
+   * i.e. the plan the operator actually approved. A mutation that needs to know WHAT to apply must
+   * use this and must not call `computePlan()`/its own planner again: step 4 and any later
+   * re-derivation are separated by the token redemption and by whatever the mutation itself does
+   * first (publish-content captures a whole-workspace restore point there), and this gateway takes
+   * no operation lock, so a second derivation can legitimately disagree with the verified one. That
+   * gap is a confirm-then-apply integrity hole — the operator authorises one write set and receives
+   * another — and passing the verified plan down is what closes it (sol review 2026-09-20,
+   * High finding 1).
+   *
+   * A mutation with nothing to re-derive simply ignores the argument; a zero-parameter
+   * implementation still satisfies this signature, so every hooks object written before this
+   * parameter existed is unchanged.
+   */
+  executeMutation(verified: { planHash: string; details: TDetails }): Promise<TResult>;
   /**
    * Resolves the identity `execute()`'s actor-class rule (REQ-13) compares the token's
    * `confirmerPrincipalId` against: the caller's own id for `kind='user'`; the agent's CURRENT
@@ -284,8 +302,10 @@ export async function execute<TResult>(
     );
   }
 
-  // 4. plan re-derivation / hash comparison — U-001-B3.
-  const { planHash } = await hooks.computePlan();
+  // 4. plan re-derivation / hash comparison — U-001-B3. `details` is kept, not discarded: it is
+  // the plan the operator confirmed, and step 5 hands it to the mutation so the mutation never has
+  // to (and never may) re-derive a second one of its own. See `executeMutation`'s doc comment.
+  const { planHash, details } = await hooks.computePlan();
   if (planHash !== record.planHash) {
     throw new PlanStaleError(
       `the plan backing this confirmation has changed since it was confirmed; re-plan and re-confirm`
@@ -300,5 +320,5 @@ export async function execute<TResult>(
     throw new TokenAlreadyRedeemedError(`confirmation token has already been redeemed`);
   }
 
-  return hooks.executeMutation();
+  return hooks.executeMutation({ planHash, details });
 }

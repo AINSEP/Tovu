@@ -37,7 +37,9 @@ import type { PublishContentDeps, PackedEntity } from "./type-registry.js";
  *
  * `executeMutation()` does exactly two things: (1) captures a restore point via
  * `DbOpsPort.captureRestorePoint` and persists it through `restorePointsRepo`, BEFORE any write this
- * run might make (plan §4 task 7's own instruction); (2) re-derives the report and hands it to
+ * run might make (plan §4 task 7's own instruction); (2) hands the report `gateway.execute()`
+ * verified against the confirmed token — passed in as `verified.details`, never re-derived here
+ * (sol review 2026-09-20, High finding 1) — to
  * {@link PublishContentApplyPort.applyReport}. This file owns (1) and the wiring in (2); it does
  * NOT own what happens inside `applyReport` — that is Task 8's apply loop
  * (`features/publish-content/apply-loop.ts`: per-type ordering, `executeCommand` +
@@ -165,8 +167,10 @@ export function buildPublishContentImportHooks(
   PublishContentReport,
   { restorePointId: string; runId: string; changeSetIds: readonly string[] }
 > {
-  /** Re-derives the current `PublishContentReport` from live state — called by BOTH `computePlan()` and
-   *  `executeMutation()`, never cached across calls (this file's header). */
+  /** Re-derives the current `PublishContentReport` from live state, never cached across calls (this
+   *  file's header). `computePlan()` is its ONLY caller: `executeMutation()` deliberately does not
+   *  call it, because a second derivation is a second, unverified judgment call — see that
+   *  function's own comment. */
   async function buildReport(): Promise<PublishContentReport> {
     const now = input.clock.nowIso();
     const staged = await loadActiveBundle({ repo: input.bundleRepo, workspaceId: input.workspaceId, id: input.bundleId, now });
@@ -214,7 +218,7 @@ export function buildPublishContentImportHooks(
       const report = await buildReport();
       return { planHash: planHashOf(report), details: report };
     },
-    executeMutation: async () => {
+    executeMutation: async (verified) => {
       // Restore point captured BEFORE any write this run might make (plan §4 task 7's own
       // instruction), mirroring `buildMigrateForwardHooks`'s identical ordering. The
       // `costClass: 'unavailable'` refusal itself lives in `execute-import.ts`, called by the
@@ -232,11 +236,20 @@ export function buildPublishContentImportHooks(
         watermarkAtCapture: captured.watermarkAtCapture,
       });
 
-      // Re-derived fresh rather than threaded through from computePlan() — there is no memoized
-      // value to reuse (this file's header), and `gateway.execute()` has already independently
-      // re-run `computePlan()` and hash-compared it moments ago (CIC U-001-B3), so this is
-      // guaranteed consistent with what was just verified, not a second independent judgment call.
-      const report = await buildReport();
+      // The report `gateway.execute()` step 4 just re-derived and hash-matched against the
+      // confirmed token — NOT a fresh `buildReport()` call.
+      //
+      // This used to re-derive, on the claim that `gateway.execute()` having hash-compared
+      // "moments ago" made a second derivation "guaranteed consistent". That claim was false
+      // (sol review 2026-09-20, High finding 1). `buildReport()` reads live state on every call
+      // (this file's header) and the two derivations are separated by the token redemption plus
+      // this function's own restore-point capture, which is a whole-workspace snapshot —
+      // `execute-import.ts` classes its cost `cheap | expensive | unavailable`, so a slow one is a
+      // supported state, not a pathology. That same file (line 14) records that this ceremony
+      // deliberately takes no cross-domain operation lock. Nothing held the destination still, so a
+      // row the operator confirmed as `conflict` (no write) could re-derive as `applied` (a write)
+      // and be applied unseen: the operator authorises one write set and gets another.
+      const report = verified.details;
       const { runId, changeSetIds } = await input.applyPort.applyReport({
         report,
         principalId: input.actorId,
