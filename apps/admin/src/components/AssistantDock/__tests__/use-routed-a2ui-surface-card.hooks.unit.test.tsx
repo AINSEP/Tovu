@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -116,6 +116,37 @@ describe("useRoutedA2uiSurfaceCard.handleAgentAction", () => {
     const { result } = renderHook(() => useRoutedA2uiSurfaceCard({ ...baseProps }));
 
     expect(() => result.current.handleAgentAction("run-1", { ok: true })).not.toThrow();
+  });
+});
+
+// One turn's event stream can open several surfaces (a failed render retried under a new
+// surfaceId), and dismissing is per drawn surface. A single sticky boolean hid every later surface
+// of the same turn once the first was dismissed — the same mistake `hasError` was already fixed for.
+describe("useRoutedA2uiSurfaceCard dismiss", () => {
+  const base = { name: "a2ui", runStreaming: false, runSucceeded: true, runId: "run-1" };
+  const first = [{ createSurface: { surfaceId: "s1" } }];
+
+  it("dismissing one surface does not hide a NEW surface the same turn opens afterwards", () => {
+    const { result, rerender } = renderHook((props) => useRoutedA2uiSurfaceCard(props), {
+      initialProps: { ...base, events: first as unknown[] },
+    });
+
+    act(() => result.current.setDismissed(true));
+    expect(result.current.dismissed).toBe(true);
+
+    rerender({ ...base, events: [...first, { createSurface: { surfaceId: "s2" } }] });
+    expect(result.current.dismissed).toBe(false);
+  });
+
+  it("a dismissed surface stays dismissed while further events for that same surface arrive", () => {
+    const { result, rerender } = renderHook((props) => useRoutedA2uiSurfaceCard(props), {
+      initialProps: { ...base, events: first as unknown[] },
+    });
+
+    act(() => result.current.setDismissed(true));
+    rerender({ ...base, events: [...first, { updateComponents: { surfaceId: "s1" } }] });
+
+    expect(result.current.dismissed).toBe(true);
   });
 });
 

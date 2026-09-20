@@ -87,7 +87,7 @@ export function getServerRenderTargetSnapshot(): null {
  *   `onAgentAction` are read here; everything else passes straight through to `A2uiSurfaceCard`
  *   untouched.
  * @returns `target` (the registered Playground DOM node to portal into, or `null` to render
- *   inline), `dismissed`/`setDismissed` (whether this instance's own portal was dismissed),
+ *   inline), `dismissed`/`setDismissed` (whether the CURRENT surface's portal was dismissed),
  *   `hasError` (whether the CURRENT surface — not any past one — just refused), and
  *   `handleAgentAction` (wraps `props.onAgentAction` to also watch for that refusal).
  * @example
@@ -104,10 +104,10 @@ export function useRoutedA2uiSurfaceCard(props: A2uiSurfaceCardProps) {
     getPlaygroundRenderTarget,
     getServerRenderTargetSnapshot,
   );
-  // Not written back to the render-target bus: this hook instance already corresponds 1:1 to one
-  // drawn surface (one ext-event group), so hiding its own portal is enough — nothing else needs
-  // to know.
-  const [dismissed, setDismissed] = useState(false);
+  // Keyed by surfaceId, like `refusedSurfaceId` below and for the same reason: one ext-event group
+  // can open several surfaces, so a single boolean hid every later surface of the turn once the
+  // first was dismissed. Not written back to the render-target bus — hiding this portal is enough.
+  const [dismissedFor, setDismissedFor] = useState<{ surfaceId: string | undefined } | null>(null);
   const [refusedSurfaceId, setRefusedSurfaceId] = useState<string | null>(null);
   // Dedupes the relay across the portal<->inline remount `hasError` flipping causes (reprocessing
   // `events` from scratch would otherwise deliver the same error into the exchange twice — see the
@@ -128,6 +128,8 @@ export function useRoutedA2uiSurfaceCard(props: A2uiSurfaceCardProps) {
   // `latestSurfaceIdIn`) means a fresh surface with a fresh id is never held back by an old one's
   // failure.
   const hasError = refusedSurfaceId !== null && refusedSurfaceId === currentSurfaceId;
+  const dismissed = dismissedFor !== null && dismissedFor.surfaceId === currentSurfaceId;
+  const setDismissed = (value: boolean) => setDismissedFor(value ? { surfaceId: currentSurfaceId } : null);
 
   const handleAgentAction: A2uiSurfaceCardProps["onAgentAction"] = (runId, message) => {
     if (isErrorMessage(message)) {
