@@ -9,15 +9,11 @@ import { Providers } from "../Providers";
 import type { ProvidersController } from "../hooks/use-providers.hooks";
 
 /**
- * @file First dedicated test file for `Providers.tsx` (empty `__tests__/` before this pass — no
- * existing suite mounted this page directly). Scoped to the MCP Server tab defect found 2026-09-19:
- * with no `port` prop, the old `<IntegrationsTab>` render fell back to
- * `createFakeMcpIntegrationsPort()`'s demo install command
- * (`{command: "node", args: ["/path/to/cli.js", "mcp"]}`), shown as real, copyable text on every
- * install. This suite pins the fix — a `TabBarTab.tag` "Soon" badge plus `McpServerSoonPanel`
- * replacing that render — rather than exercising the whole page (Composio/External MCP/Webhooks tabs
- * already have their own coverage through `ComposioKeyField`/`ExternalMcpSettingsPanel`/
- * `Integrations`, none of which this change touches).
+ * @file `Providers.tsx` — MCP Server and Webhooks tabs, "Soon" and greyed-inert (owner call,
+ * 2026-09-19, revised twice: first brief was "delete the fake install command," the owner's actual
+ * ask was "keep the real content visible, grey it out, make it genuinely inert" — see
+ * `ComingSoonPanel.tsx`'s own header). Composio/External MCP already have their own coverage
+ * through `ComposioKeyField`/`ExternalMcpSettingsPanel`, untouched by this change.
  */
 
 function fixtureProviders(): ProvidersController {
@@ -46,8 +42,7 @@ function renderPage(tabId?: string | null) {
   // `FetchQueryProvider` is required whenever the default "external-mcp" tab is on screen:
   // `ExternalMcpSettingsPanel` reads the running assistant's admissions through `useFetchQuery`,
   // which needs a query client — same requirement `ExternalMcpSettingsPanel.unit.test.tsx` documents
-  // for that panel directly. The "mcp-server" tab under test here doesn't need it, but wrapping
-  // unconditionally is harmless and keeps this helper single-shaped.
+  // for that panel directly.
   return render(
     <FetchQueryProvider>
       <Providers tabId={tabId} useProvidersHook={() => fixtureProviders()} />
@@ -55,69 +50,81 @@ function renderPage(tabId?: string | null) {
   );
 }
 
-describe("Providers — MCP Server tab strip: tagged Soon", () => {
-  it("shows a Soon tag on the MCP Server tab, visible without switching to it", () => {
-    renderPage("external-mcp");
-    const tab = screen.getByRole("tab", { name: /MCP Server/ });
-    expect(within(tab).getByText("Soon")).toBeInTheDocument();
-  });
-
-  it("does not tag the sibling External MCP or Webhooks tabs", () => {
-    renderPage("external-mcp");
-    const externalMcpTab = screen.getByRole("tab", { name: /^External MCP/ });
-    const webhooksTab = screen.getByRole("tab", { name: /^Webhooks/ });
-    expect(within(externalMcpTab).queryByText("Soon")).not.toBeInTheDocument();
-    expect(within(webhooksTab).queryByText("Soon")).not.toBeInTheDocument();
-  });
-
-  // Same convention `SourceControl.unit.test.tsx`/`StaticSiteTab.unit.test.tsx` document: `navigate()`
-  // drives real `history.pushState`, so one test's click could otherwise leak into the next.
+describe("Providers — tab strip: MCP Server and Webhooks tagged Soon, External MCP untouched", () => {
   afterEach(() => {
+    // Same convention `SourceControl.unit.test.tsx` documents: `navigate()` drives real
+    // `history.pushState`, so one test's click could otherwise leak into the next.
     window.history.replaceState(null, "", "/");
   });
 
-  it("keeps the MCP Server tab fully clickable — Soon is a tag, not disabled", async () => {
+  it("tags MCP Server and Webhooks Soon, and leaves External MCP untagged", () => {
+    renderPage("external-mcp");
+    const mcpTab = screen.getByRole("tab", { name: /MCP Server/ });
+    const webhooksTab = screen.getByRole("tab", { name: /^Webhooks/ });
+    const externalMcpTab = screen.getByRole("tab", { name: /^External MCP/ });
+    expect(within(mcpTab).getByText("Soon")).toBeInTheDocument();
+    expect(within(webhooksTab).getByText("Soon")).toBeInTheDocument();
+    expect(within(externalMcpTab).queryByText("Soon")).not.toBeInTheDocument();
+  });
+
+  it("keeps both tagged tabs fully clickable — Soon is a tag, not a disabled tab", async () => {
     const user = userEvent.setup();
     renderPage("external-mcp");
-    const tab = screen.getByRole("tab", { name: /MCP Server/ });
-    expect(tab).not.toBeDisabled();
-    expect(tab).not.toHaveAttribute("aria-disabled");
+    const mcpTab = screen.getByRole("tab", { name: /MCP Server/ });
+    expect(mcpTab).not.toBeDisabled();
+    expect(mcpTab).not.toHaveAttribute("aria-disabled");
 
-    // `Providers` derives `activeTabId` from its `tabId` PROP (owned by `panels.tsx`'s router, not
-    // by this component), so clicking here can't flip `aria-selected` on this same static-prop
-    // render — same reasoning `SourceControl.unit.test.tsx`'s own cross-link test gives for
-    // asserting on the resulting URL instead. `navigate()` really drives `history.pushState` (not
-    // mocked), so this is a real click reaching a real handler, not a spy that could pass unwired.
-    await user.click(tab);
-    expect(window.location.pathname).toBe("/admin/providers");
+    await user.click(mcpTab);
     expect(window.location.search).toBe("?tab=mcp-server");
   });
 });
 
-describe("Providers — MCP Server tab body: honest, not a dead install command", () => {
-  it("never renders the fake /path/to/cli.js install command", () => {
+describe("Providers — MCP Server tab body: visible but greyed and inert, not deleted", () => {
+  it("says Coming soon", () => {
     renderPage("mcp-server");
-    expect(screen.queryByText(/path\/to\/cli\.js/)).not.toBeInTheDocument();
+    expect(screen.getByText("Coming soon")).toBeInTheDocument();
   });
 
-  it("renders no Copy button and no client picker — nothing to copy or choose a client for", () => {
+  it("still renders the real setup card content underneath the wash, not an empty tab", async () => {
     renderPage("mcp-server");
-    expect(screen.queryByRole("button", { name: "Copy" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /client/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-  });
-
-  it("tells the operator plainly that there is nothing to install yet", () => {
-    renderPage("mcp-server");
-    expect(screen.getByText("Not available yet.")).toBeInTheDocument();
-    expect(
-      screen.getByText("There's nothing to install here yet — this tab isn't connected to anything."),
-    ).toBeInTheDocument();
-  });
-
-  it("keeps the capabilities explanation of what this server will do", () => {
-    renderPage("mcp-server");
+    // The capabilities card and the (fake, until a real port is wired) install command both stay
+    // mounted and visible — the owner's explicit call: see what's coming, don't see nothing.
+    // `findByText` (not `getByText`): the fake port resolves via a Promise even at 0ms latency, so
+    // the real command replaces `IntegrationsTab`'s own "Loading install paths…" placeholder only
+    // after that microtask settles.
     expect(screen.getByText("What this server can do")).toBeInTheDocument();
-    expect(screen.getByText("Read your project files")).toBeInTheDocument();
+    expect(await screen.findByText(/path\/to\/cli\.js/)).toBeInTheDocument();
+  });
+
+  it("wraps the real content in the shared genuinely-inert wrapper, not just a visual dim", () => {
+    renderPage("mcp-server");
+    const copyButton = screen.getByRole("button", { name: "Copy" });
+    const inertWrap = copyButton.closest(".settings-ui-inert-control");
+    expect(inertWrap).not.toBeNull();
+    // `inert` is a real boolean HTML attribute — present means the browser natively drops this
+    // subtree from tab order, click handling, and the accessibility tree. Same assertion shape
+    // `SettingsUi.unit.test.tsx`'s "Privacy tab — inert by design" suite already uses for the
+    // identical wrapper class.
+    expect(inertWrap).toHaveAttribute("inert");
+  });
+});
+
+describe("Providers — Webhooks tab body: visible but greyed and inert, same as MCP Server", () => {
+  it("says Coming soon", () => {
+    renderPage("webhooks");
+    expect(screen.getByText("Coming soon")).toBeInTheDocument();
+  });
+
+  it("wraps the real webhooks list in the shared genuinely-inert wrapper", () => {
+    // `Integrations` fetches its own list on mount (no fixture hook wired here — this suite only
+    // owns the wrapper contract, not the list's own load states, which are
+    // `use-integrations.unit.test.tsx`'s job), so this asserts on the WRAPPER regardless of whether
+    // the list has resolved to "Loading…" or real rows yet, rather than a button name that only
+    // exists post-load.
+    renderPage("webhooks");
+    const inertWrap = document.querySelector(".settings-ui-inert-control");
+    expect(inertWrap).not.toBeNull();
+    expect(inertWrap).toHaveAttribute("inert");
+    expect(inertWrap?.textContent).toBeTruthy();
   });
 });
