@@ -1126,7 +1126,9 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
       // path (which wraps the daemon specifically) to intercept there — the toggle only ever
       // diverts the Local CLI branch below.
       if (options.getAgUiEnabled?.()) {
-        return startAgUiRun(input, handlers);
+        // `historyForTranscript` here rather than inside `startAgUiRun`: that module importing this
+        // one would be a cycle, and this is its only caller. Same rule as the BYOK and Local CLI paths.
+        return startAgUiRun({ ...input, history: historyForTranscript(input.history as ChatMessage[]) }, handlers);
       }
 
       // Local CLI path below. `resolveLocalCliPrompt`'s own doc has the full contract for why an

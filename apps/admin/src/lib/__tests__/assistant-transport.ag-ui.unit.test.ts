@@ -631,6 +631,28 @@ describe("createTovuAssistantTransport — AG-UI toggle dispatch", () => {
     expect(url).toBe(AG_UI_RUN_PATH);
   });
 
+  // Same rule the BYOK and Local CLI paths already apply (`historyForTranscript`): partial output
+  // from a run that failed is visible to the user but is not the agent's answer, so it must not be
+  // resent to the model as one — it would ground the next turn in an action that never completed.
+  test("an assistant turn whose run did not succeed is not resent as history, even when it has content", async () => {
+    const stream = streamFromChunks([frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r" })]);
+    fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const transport = createTovuAssistantTransport({ getAgUiEnabled: () => true });
+    const history: ChatMessage[] = [
+      { id: "1", role: "user", content: "update the page" },
+      { id: "2", role: "assistant", content: "I updated the page", runStatus: "failed" },
+      { id: "3", role: "assistant", content: "Done earlier", runStatus: "succeeded" },
+      { id: "4", role: "user", content: "did it work?" },
+    ];
+
+    await transport.startRun({ history, signal: new AbortController().signal }, handlers());
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { messages: Array<{ id: string }> };
+    expect(body.messages.map((message) => message.id)).toEqual(["1", "3", "4"]);
+  });
+
   test("getAgUiEnabled false (or absent) falls through to the Local CLI path unchanged", async () => {
     fetchMock = vi.fn(async () => new Response(JSON.stringify({ run: { id: "daemon-run-1" } }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
