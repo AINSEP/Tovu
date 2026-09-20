@@ -63,6 +63,16 @@ function seed(overrides: Partial<PostRecord> = {}): PostRecord {
   };
 }
 
+/**
+ * The Trash-index forget every post reverter now requires. Records its calls so a test can assert
+ * that undoing a delete also drops the index row the delete wrote — `InMemoryPostRepo` holds no
+ * index of its own, so the call itself is the observable.
+ */
+function recordingForget(): { forgetRemoved: (r: { workspaceId: string; id: string }) => Promise<void>; calls: Array<{ workspaceId: string; id: string }> } {
+  const calls: Array<{ workspaceId: string; id: string }> = [];
+  return { calls, forgetRemoved: async (required) => void calls.push(required) };
+}
+
 const deleteItem: ChangeSetItemRecord = {
   entityId: "post-1",
   inversePayload: { deletedAt: null },
@@ -70,7 +80,7 @@ const deleteItem: ChangeSetItemRecord = {
 
 test("the registry routes ('post','delete') and ('post','update') to two distinct reverters", () => {
   const { outbox } = recordingOutbox();
-  const deps: PostReverterDeps = { postRepo: new InMemoryPostRepo(), clock, outbox };
+  const deps: PostReverterDeps = { postRepo: new InMemoryPostRepo(), clock, outbox, ...recordingForget() };
   const registry = createPostRevertRegistry(deps);
   const deleteReverter = registry.resolve("post", "delete");
   const updateReverter = registry.resolve("post", "update");
@@ -84,7 +94,8 @@ test("applyInverse clears the trash marker, restoring the row losslessly", async
   const { outbox } = recordingOutbox();
   await deletePost({ deps: { repo: postRepo, clock, outbox, remove: removeVia(postRepo) }, input: { workspaceId: WS, id: "post-1" } });
 
-  const { delete: deleteReverter } = createPostReverters({ postRepo, clock, outbox });
+  const { forgetRemoved, calls: forgotten } = recordingForget();
+  const { delete: deleteReverter } = createPostReverters({ postRepo, clock, outbox, forgetRemoved });
   await deleteReverter.applyInverse({ workspaceId: WS, item: deleteItem });
 
   const restored = await postRepo.findById({ workspaceId: WS, id: "post-1" });
@@ -96,6 +107,11 @@ test("applyInverse clears the trash marker, restoring the row losslessly", async
   assert.equal(restored.status, "published");
   assert.equal(restored.version, 5, "INV-04: the restore bumps the version, never restores the old number");
   assert.equal(restored.updatedAt, "2026-07-30T12:00:00.000Z");
+  assert.deepEqual(
+    forgotten,
+    [{ workspaceId: WS, id: "post-1" }],
+    "the Trash index row the delete wrote must be dropped with the marker, or the Trash lists a live post"
+  );
 });
 
 test("restoring a PUBLISHED row re-emits entry.published — symmetric to the delete's entry.unpublished", async () => {
@@ -105,7 +121,8 @@ test("restoring a PUBLISHED row re-emits entry.published — symmetric to the de
   await deletePost({ deps: { repo: postRepo, clock, outbox, remove: removeVia(postRepo) }, input: { workspaceId: WS, id: "post-1" } });
   assert.deepEqual(events.map((e) => e.name), ["entry.unpublished"]);
 
-  const { delete: deleteReverter } = createPostReverters({ postRepo, clock, outbox });
+  const { forgetRemoved, calls: forgotten } = recordingForget();
+  const { delete: deleteReverter } = createPostReverters({ postRepo, clock, outbox, forgetRemoved });
   await deleteReverter.applyInverse({ workspaceId: WS, item: deleteItem });
 
   assert.deepEqual(
@@ -121,7 +138,8 @@ test("restoring a DRAFT row emits nothing — it never re-entered the public sit
   const { outbox, events } = recordingOutbox();
 
   await deletePost({ deps: { repo: postRepo, clock, outbox, remove: removeVia(postRepo) }, input: { workspaceId: WS, id: "post-1" } });
-  const { delete: deleteReverter } = createPostReverters({ postRepo, clock, outbox });
+  const { forgetRemoved, calls: forgotten } = recordingForget();
+  const { delete: deleteReverter } = createPostReverters({ postRepo, clock, outbox, forgetRemoved });
   await deleteReverter.applyInverse({ workspaceId: WS, item: deleteItem });
 
   assert.deepEqual(events, []);
@@ -132,7 +150,8 @@ test("currentVersion reads the trashed row's version — the revert guard must s
   const { outbox } = recordingOutbox();
   await deletePost({ deps: { repo: postRepo, clock, outbox, remove: removeVia(postRepo) }, input: { workspaceId: WS, id: "post-1" } });
 
-  const { delete: deleteReverter } = createPostReverters({ postRepo, clock, outbox });
+  const { forgetRemoved, calls: forgotten } = recordingForget();
+  const { delete: deleteReverter } = createPostReverters({ postRepo, clock, outbox, forgetRemoved });
   assert.equal(await deleteReverter.currentVersion({ workspaceId: WS, entityId: "post-1" }), 4);
   assert.equal(await deleteReverter.currentVersion({ workspaceId: WS, entityId: "gone" }), null);
 });
@@ -140,7 +159,8 @@ test("currentVersion reads the trashed row's version — the revert guard must s
 test("applyInverse on a row that no longer exists throws rather than silently succeeding", async () => {
   const postRepo = new InMemoryPostRepo();
   const { outbox } = recordingOutbox();
-  const { delete: deleteReverter } = createPostReverters({ postRepo, clock, outbox });
+  const { forgetRemoved, calls: forgotten } = recordingForget();
+  const { delete: deleteReverter } = createPostReverters({ postRepo, clock, outbox, forgetRemoved });
 
   await assert.rejects(
     () => deleteReverter.applyInverse({ workspaceId: WS, item: deleteItem }),

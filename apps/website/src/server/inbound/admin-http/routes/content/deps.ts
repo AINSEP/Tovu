@@ -74,6 +74,9 @@ export type ContentRouteDeps = Pick<
   /** `posts/delete.ts` + `pages/delete.ts` — the injected, pre-bound removal these routes hand
    *  `deletePost` in place of the `postRepo.softDelete` call it used to make itself. */
   | "removePost"
+  /** The other half of an undone delete: every `rollback` in this module that restores a post
+   *  through `restorePostForward` must also drop the Trash index row `removePost` wrote. */
+  | "forgetRemovedPost"
   | "pluginBeforeSaveHook"
   | "pagesHtmlStore"
   | "changeSets"

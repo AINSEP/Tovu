@@ -1373,6 +1373,15 @@ export interface TrashDeps {
    */
   forgetRemovedMedia: ForgetRemovedEntity;
   /**
+   * Posts need it for a different reason than media: nothing removes a post row outside the Trash
+   * screen, but two paths UNDO a delete after its transaction has already committed — the command
+   * gateway's `rollback` (the change-set record failed to persist) and `post/delete`'s
+   * `EntityReverter` (an operator reverting the recorded change set). Either one that clears the
+   * marker without this leaves a live, published post listed in the Trash and selectable for
+   * permanent deletion. See {@link ForgetRemovedEntity}.
+   */
+  forgetRemovedPost: ForgetRemovedEntity;
+  /**
    * One pass of the 60-day auto-purge backstop, pre-bound to this composition's repo and adapters.
    *
    * A function rather than the repo-plus-adapters the sweep needs, for the same reason the

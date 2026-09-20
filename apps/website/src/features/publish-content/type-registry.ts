@@ -1,4 +1,4 @@
-import type { BeforeSaveHookPort, PostRepoPort } from "#src/features/post/post";
+import type { BeforeSaveHookPort, ForgetRemovedPostFn, PostRepoPort } from "#src/features/post/post";
 import type { AssetBlobRepoPort, BlobStorePort, MediaRepoPort } from "#src/features/media/index";
 import type { AuthorizeFn, ChangeSetRepoPort, ClockPort, OutboxPort } from "@jini-ai/cms/core";
 
@@ -117,6 +117,13 @@ export interface PublishContentDeps {
    * (`apply-loop.ts`'s `toPublishContentApplyDeps`) now require them, so the omission is a compile
    * error at the composition roots while this interface stays permissive for focused callers.
    */
+  /**
+   * The post domain's Trash-index forget, needed only by `apply()`'s rollback path — the same
+   * OPTIONAL-here/required-at-the-builders posture {@link changeSets}/{@link authorize} carry, and
+   * for the same reason: `pack`/`inspect`/`precheck` never compensate anything. `apply()` guards on
+   * it explicitly (`features/post/publish-content.ts`) rather than degrading silently.
+   */
+  readonly forgetRemovedPost?: ForgetRemovedPostFn;
   readonly mediaRepo?: MediaRepoPort;
   readonly assetBlobRepo?: AssetBlobRepoPort;
   readonly blobStore?: BlobStorePort;

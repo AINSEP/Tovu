@@ -108,6 +108,7 @@ import {
   type PostRepoPort,
   type PostStatus,
   type BeforeSaveHookPort,
+  type ForgetRemovedPostFn,
   type RemovePostFn,
 } from "./post.js";
 // The SAME boundary `server/inbound/admin-http/routes/posts/update.ts` uses — imported, not copied.
@@ -166,6 +167,13 @@ export interface PostToolDeps {
    * from `features/trash`; a `RouteDeps` satisfies it by having the field.
    */
   removePost: RemovePostFn;
+  /**
+   * The undo half of {@link removePost}: both rollbacks in this file restore a post through
+   * `restorePostForward`, and an undone delete must drop the Trash index row the removal wrote.
+   * Structurally typed for the same reason — see `post.ts`'s
+   * {@link import("./post.js").ForgetRemovedPostFn}.
+   */
+  forgetRemovedPost: ForgetRemovedPostFn;
   /**
    * OPTIONAL — `content_duplicate`'s `"post"`/`"page"` resource handlers
    * ({@link duplicatePostOrPage}) are the only consumers in this domain that need it. Kept optional
@@ -754,7 +762,12 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
             rollback: async () => {
               if (!priorPost) return;
               await restorePostForward({
-                deps: { repo: routeDeps.postRepo, clock: routeDeps.clock, outbox: routeDeps.outbox },
+                deps: {
+                  repo: routeDeps.postRepo,
+                  clock: routeDeps.clock,
+                  outbox: routeDeps.outbox,
+                  forgetRemoved: routeDeps.forgetRemovedPost,
+                },
                 input: {
                   prior: priorPost,
                   actorId: ctx.principal.id,
@@ -911,7 +924,12 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
             rollback: async () => {
               if (!priorPost) return;
               await restorePostForward({
-                deps: { repo: routeDeps.postRepo, clock: routeDeps.clock, outbox: routeDeps.outbox },
+                deps: {
+                  repo: routeDeps.postRepo,
+                  clock: routeDeps.clock,
+                  outbox: routeDeps.outbox,
+                  forgetRemoved: routeDeps.forgetRemovedPost,
+                },
                 input: {
                   prior: priorPost,
                   actorId: ctx.principal.id,

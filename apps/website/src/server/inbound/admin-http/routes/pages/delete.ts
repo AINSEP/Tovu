@@ -79,10 +79,15 @@ export const registerAdminPageDeleteRoute: ContentRouteRegistrar = (app, deps) =
           captureEntityVersion: (r) => r.post.version,
           rollback: async () => {
             if (!priorPost) return;
-            // See `posts/delete.ts`'s identical note: the Trash index row `deletePost` wrote through
-            // the injected `remove` port has no restore counterpart and stays uncompensated.
+            // See `posts/delete.ts`'s identical note: `forgetRemoved` drops the Trash index row
+            // `deletePost` wrote, inside the same transaction as the restore.
             await restorePostForward({
-              deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox },
+              deps: {
+                repo: deps.postRepo,
+                clock: deps.clock,
+                outbox: deps.outbox,
+                forgetRemoved: deps.forgetRemovedPost,
+              },
               input: { prior: priorPost, actorId: principal.id },
             });
           },

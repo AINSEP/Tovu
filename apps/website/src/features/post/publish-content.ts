@@ -323,11 +323,11 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
     principalId: string;
     idempotencyKey: string;
   }): Promise<{ changeSetId: string }> {
-    const { changeSets, authorize, outbox } = deps;
-    if (!changeSets || !authorize || !outbox) {
+    const { changeSets, authorize, outbox, forgetRemovedPost } = deps;
+    if (!changeSets || !authorize || !outbox || !forgetRemovedPost) {
       throw new Error(
         `publish-content: ${entityType}.apply() requires PublishContentDeps.changeSets/authorize/` +
-          "outbox — wire them from the real apply-loop composition root " +
+          "outbox/forgetRemovedPost — wire them from the real apply-loop composition root " +
           "(features/publish-content/apply-loop.ts)."
       );
     }
@@ -385,7 +385,7 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
           // "forward" rather than the verbatim restore `command.ts:82` asks for.
           if (priorPost) {
             await restorePostForward({
-              deps: { repo: deps.postRepo, clock: deps.clock, outbox },
+              deps: { repo: deps.postRepo, clock: deps.clock, outbox, forgetRemoved: forgetRemovedPost },
               input: { prior: priorPost, actorId: input.principalId },
             });
             return;

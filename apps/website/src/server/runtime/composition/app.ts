@@ -681,6 +681,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       outbox,
       changeSets,
       authorize: identity.authorize,
+      forgetRemovedPost: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
       mediaRepo,
       assetBlobRepo,
       blobStore,
@@ -697,6 +698,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     removeMedia: bindRemoveEntity(trash, MEDIA_ENTITY_TYPE),
     removeRedirect: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
     forgetRemovedMedia: bindForgetRemovedEntity(trashRepo, MEDIA_ENTITY_TYPE),
+    forgetRemovedPost: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
     // Present so this root satisfies `TrashDeps`, and harmless: `createApp` never starts the
     // timer (`createServingApp` does), and the hermetic media/comment adapters have no
     // `hardDelete`, so a pass here would stand down rather than claim a removal.
@@ -779,7 +781,14 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // Pre-loaded with the post-domain reverters, closed over the SAME postRepo/clock/outbox
     // instances this root threads through everything else (ADR-018 C-005/C-006; 2026-08-13
     // features-post-deep-import-trace.md Job 2 — see `features/post/reverters.ts`'s header).
-    revertRegistry: createPostRevertRegistry({ postRepo, clock, outbox }),
+    revertRegistry: createPostRevertRegistry({
+      postRepo,
+      clock,
+      outbox,
+      // `post/delete`'s reverter clears the trash marker; without this the index row it was written
+      // with outlives it and the Trash lists a post that is live again.
+      forgetRemoved: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
+    }),
     themes: discoverAllBuiltInThemes({ dir: builtInThemesDir(), source: "built-in" }),
     themesDir: builtInThemesDir(),
     siteBinding: describeSiteBinding(),

@@ -43,6 +43,20 @@ function recordingOutbox(): OutboxPort & { events: DomainEvent[] } {
   };
 }
 
+/**
+ * `RestorePostForwardDeps.forgetRemoved` — the Trash-index drop the undo of a trash performs. Both
+ * adapters here hold no index of their own, so the recorded call IS the observable; the end-to-end
+ * proof against a real `trashed_items` table lives in
+ * `features/trash/__tests__/post-delete-undo-index.test.ts`.
+ */
+function recordingForget(): {
+  forgetRemoved: (required: { workspaceId: string; id: string }) => Promise<void>;
+  calls: Array<{ workspaceId: string; id: string }>;
+} {
+  const calls: Array<{ workspaceId: string; id: string }> = [];
+  return { calls, forgetRemoved: async (required) => void calls.push(required) };
+}
+
 const ADAPTERS: Array<{ name: string; make: () => PostRepoPort }> = [
   { name: "InMemoryPostRepo", make: () => new InMemoryPostRepo() },
   { name: "SqlitePostRepo", make: () => new SqlitePostRepo(openContentDb(":memory:")) },
@@ -64,6 +78,7 @@ for (const adapter of ADAPTERS) {
   test(`${adapter.name}: restores the prior state as a NEW version, with a "restore" revision naming what it came from`, async () => {
     const repo = adapter.make();
     const outbox = recordingOutbox();
+    const { forgetRemoved, calls: forgotten } = recordingForget();
     const prior = await seedPublishedPost(repo, outbox);
 
     await updatePost({
@@ -78,7 +93,7 @@ for (const adapter of ADAPTERS) {
       },
     });
 
-    const restored = await restorePostForward({ deps: { repo, clock, outbox }, input: { prior } });
+    const restored = await restorePostForward({ deps: { repo, clock, outbox, forgetRemoved }, input: { prior } });
     assert.ok(restored, "a landed write must be compensable");
 
     // The deviation: NOT `prior.version`. The ghost revision already occupies that seq and
@@ -89,6 +104,7 @@ for (const adapter of ADAPTERS) {
 
     const current = await repo.findById({ workspaceId: WS, id: prior.id });
     assert.deepEqual(current, restored.post, "the row must be exactly what the compensation reports");
+    assert.deepEqual(forgotten, [], "undoing an UPDATE must not touch a Trash index row it never wrote");
 
     const revisions = await repo.listRevisions({ workspaceId: WS, postId: prior.id });
     assert.deepEqual(
@@ -112,6 +128,7 @@ for (const adapter of ADAPTERS) {
   test(`${adapter.name}: announces the compensating status transition the undo really is`, async () => {
     const repo = adapter.make();
     const outbox = recordingOutbox();
+    const { forgetRemoved, calls: forgotten } = recordingForget();
     const prior = await seedPublishedPost(repo, outbox);
 
     await updatePost({
@@ -120,7 +137,7 @@ for (const adapter of ADAPTERS) {
     });
     outbox.events.length = 0;
 
-    await restorePostForward({ deps: { repo, clock, outbox }, input: { prior } });
+    await restorePostForward({ deps: { repo, clock, outbox, forgetRemoved }, input: { prior } });
 
     assert.deepEqual(
       outbox.events.map((event) => event.name),
@@ -137,6 +154,7 @@ for (const adapter of ADAPTERS) {
   test(`${adapter.name}: undoing a trash clears the marker and re-announces the row as published`, async () => {
     const repo = adapter.make();
     const outbox = recordingOutbox();
+    const { forgetRemoved, calls: forgotten } = recordingForget();
     const prior = await seedPublishedPost(repo, outbox);
 
     await deletePost({
@@ -145,7 +163,7 @@ for (const adapter of ADAPTERS) {
     });
     outbox.events.length = 0;
 
-    const restored = await restorePostForward({ deps: { repo, clock, outbox }, input: { prior } });
+    const restored = await restorePostForward({ deps: { repo, clock, outbox, forgetRemoved }, input: { prior } });
     assert.ok(restored);
     assert.equal(restored.post.deletedAt ?? null, null, "the trash marker must be cleared");
     assert.deepEqual(
@@ -153,16 +171,22 @@ for (const adapter of ADAPTERS) {
       ["entry.published"],
       "a trashed row is not public whatever its stored status says, so undoing the trash republishes it"
     );
+    assert.deepEqual(
+      forgotten,
+      [{ workspaceId: WS, id: prior.id }],
+      "the index row the trash wrote must go with the marker, or the Trash lists a live post"
+    );
   });
 
   test(`${adapter.name}: stands down when the write never landed`, async () => {
     const repo = adapter.make();
     const outbox = recordingOutbox();
+    const { forgetRemoved, calls: forgotten } = recordingForget();
     const prior = await seedPublishedPost(repo, outbox);
     outbox.events.length = 0;
 
     assert.equal(
-      await restorePostForward({ deps: { repo, clock, outbox }, input: { prior } }),
+      await restorePostForward({ deps: { repo, clock, outbox, forgetRemoved }, input: { prior } }),
       null,
       "nothing advanced the row, so there is nothing to compensate"
     );
@@ -174,13 +198,14 @@ for (const adapter of ADAPTERS) {
   test(`${adapter.name}: stands down when the row no longer exists`, async () => {
     const repo = adapter.make();
     const outbox = recordingOutbox();
+    const { forgetRemoved, calls: forgotten } = recordingForget();
     const prior = await seedPublishedPost(repo, outbox);
 
     const vanished: PostRepoPort = Object.assign(Object.create(Object.getPrototypeOf(repo) as object), repo, {
       findById: async () => null,
     });
     assert.equal(
-      await restorePostForward({ deps: { repo: vanished, clock, outbox }, input: { prior } }),
+      await restorePostForward({ deps: { repo: vanished, clock, outbox, forgetRemoved }, input: { prior } }),
       null,
       "a row that has since been removed must not be resurrected by a compensation"
     );
@@ -189,6 +214,7 @@ for (const adapter of ADAPTERS) {
   test(`${adapter.name}: stands down rather than clobber a writer that landed after the compensation was assembled`, async () => {
     const repo = adapter.make();
     const outbox = recordingOutbox();
+    const { forgetRemoved, calls: forgotten } = recordingForget();
     const prior = await seedPublishedPost(repo, outbox);
 
     await updatePost({
@@ -215,7 +241,7 @@ for (const adapter of ADAPTERS) {
     });
 
     assert.equal(
-      await restorePostForward({ deps: { repo: raced, clock, outbox }, input: { prior } }),
+      await restorePostForward({ deps: { repo: raced, clock, outbox, forgetRemoved }, input: { prior } }),
       null,
       "a rejected conditional write must stand down, not force the restore"
     );

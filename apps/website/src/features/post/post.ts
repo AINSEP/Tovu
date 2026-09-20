@@ -1312,8 +1312,28 @@ function publicFacingStatus(post: PostRecord): PostStatus {
   return isTrashed(post) ? "draft" : post.status;
 }
 
+/**
+ * Drops whatever index row some other owner wrote when this post's removal was recorded.
+ *
+ * Structurally typed and injected, exactly like {@link RemovePostFn}, so this domain still imports
+ * nothing from the module that owns that index. A no-op for an entity that was never indexed, so a
+ * caller that cannot tell never has to decide.
+ */
+export type ForgetRemovedPostFn = (required: { workspaceId: string; id: string }) => Promise<void>;
+
 export interface RestorePostForwardRequired {
-  deps: { repo: PostRepoPort; clock: ClockPort; outbox: OutboxPort };
+  deps: {
+    repo: PostRepoPort;
+    clock: ClockPort;
+    outbox: OutboxPort;
+    /**
+     * REQUIRED, not optional, and required at EVERY call site including the ones that only ever
+     * undo an update: an optional dependency is how a compensation ends up wired at three call
+     * sites out of four. Whether it actually fires is decided here, from the two records, not by
+     * the caller remembering which kind of write it is undoing.
+     */
+    forgetRemoved: ForgetRemovedPostFn;
+  };
   input: {
     /** The exact pre-`execute` record, as the mutation's own `captureInverse` read it. */
     prior: PostRecord;
@@ -1365,13 +1385,25 @@ export interface RestorePostForwardOptional {}
  * Callers must pass the record their `captureInverse` captured, never a freshly re-read one: a
  * re-read row is the post-`execute` state, so restoring it restores nothing.
  *
+ * ## Undoing a trash also forgets its index row
+ *
+ * `deletePost` writes the trash marker AND an index row through {@link DeletePostDeps.remove}, as
+ * one transaction. Clearing the marker here without dropping that row leaves a live, published post
+ * listed for permanent deletion by whatever screen reads the index — so when (and only when) the
+ * write being undone was a trash, {@link ForgetRemovedPostFn} runs inside the same transaction as
+ * the restore. This is a compensation rather than a prevention because the failure it answers is
+ * the change-set insert failing AFTER the delete transaction committed; enrolling that insert in
+ * the delete's transaction would remove the need for this function entirely (see the deviation note
+ * above), and is the strictly better fix whenever the gateway gains a transactional path.
+ *
  * @returns the restored record and its revision id, or `null` when there is nothing to compensate:
  * the row has since been removed, the write never landed (`current.version <= prior.version`), or
  * another writer moved the row on while this compensation was being assembled. Clobbering that
  * writer would itself be an unrecorded mutation — the exact failure INV-01 exists to prevent — so
  * this stands down instead of forcing the write.
  * @complexity O(r) over one post's revision ledger (a single `listRevisions` read, to name the
- * revision being restored from), plus one conditional row write and one append. Failure path only.
+ * revision being restored from), plus one conditional row write, one append, and — only when the
+ * undone write was a trash — one index-row delete. Failure path only.
  */
 export async function restorePostForward(
   required: RestorePostForwardRequired,
@@ -1384,6 +1416,10 @@ export async function restorePostForward(
   if (!current || current.version <= prior.version) return null;
 
   const restored: PostRecord = { ...prior, updatedAt: deps.clock.nowIso(), version: current.version + 1 };
+  // The write being undone was a trash exactly when the row is trashed NOW and was not before.
+  // Read from the two records rather than taken from the caller, so an update rollback cannot
+  // forget an index row that a trash it knows nothing about legitimately owns.
+  const undoesATrash = isTrashed(current) && !isTrashed(prior);
 
   // `restoredFrom` is what makes a `"restore"` row auditable — without it the ledger says an undo
   // happened but not back to what. The ledger reads oldest-first, so the state being restored is
@@ -1409,6 +1445,10 @@ export async function restorePostForward(
       restoredFrom,
       recordedAt: restored.updatedAt,
     });
+    // Inside the transaction, not after it: on SQLite both writes run on the one connection this
+    // transaction already opened, so the marker and the index row move together or not at all. A
+    // compensation that can itself half-fail is not a compensation.
+    if (undoesATrash) await deps.forgetRemoved({ workspaceId: restored.workspaceId, id: restored.id });
     return appended.id;
   });
   if (revisionId === null) return null;

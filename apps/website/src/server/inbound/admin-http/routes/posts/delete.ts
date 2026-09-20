@@ -123,11 +123,17 @@ export const registerAdminPostDeleteRoute: ContentRouteRegistrar = (app, deps) =
           captureEntityVersion: (r) => r.post.version,
           rollback: async () => {
             if (!priorPost) return;
-            // Compensates the POST row and its revision ledger only. `deletePost` also wrote a Trash
-            // index row through the injected `remove` port, which exposes no restore counterpart —
-            // that half was already uncompensated before this change and still is.
+            // Compensates the post row, its revision ledger AND the Trash index row `deletePost`
+            // wrote through the injected `remove` port — `forgetRemoved` drops that row inside the
+            // same transaction as the restore, so an undone delete cannot leave a live post listed
+            // in the Trash. See `restorePostForward`'s own doc.
             await restorePostForward({
-              deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox },
+              deps: {
+                repo: deps.postRepo,
+                clock: deps.clock,
+                outbox: deps.outbox,
+                forgetRemoved: deps.forgetRemovedPost,
+              },
               input: { prior: priorPost, actorId: principal.id },
             });
           },

@@ -194,7 +194,12 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = (app, deps) =
             rollback: async () => {
               if (!priorPost) return;
               await restorePostForward({
-                deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox },
+                deps: {
+                  repo: deps.postRepo,
+                  clock: deps.clock,
+                  outbox: deps.outbox,
+                  forgetRemoved: deps.forgetRemovedPost,
+                },
                 input: { prior: priorPost, actorId: principal.id },
               });
             },

@@ -105,7 +105,12 @@ export function publishContentItemIdempotencyKey(input: {
  * needed, media's `pack()` silently returned nothing, and the type could not travel at all.
  */
 export type PublishContentApplyDeps = PublishContentDeps &
-  Required<Pick<PublishContentDeps, "outbox" | "changeSets" | "authorize" | "mediaRepo" | "assetBlobRepo" | "blobStore">>;
+  Required<
+    Pick<
+      PublishContentDeps,
+      "outbox" | "changeSets" | "authorize" | "forgetRemovedPost" | "mediaRepo" | "assetBlobRepo" | "blobStore"
+    >
+  >;
 
 /**
  * The composition roots' one way to build {@link createPublishContentApplyPort}'s deps bag.
