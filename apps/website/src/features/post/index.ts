@@ -11,6 +11,7 @@ export {
   listAdminPosts,
   listPublishedPosts,
   listPublishedPostPreviews,
+  restorePostForward,
   updatePost,
   DEFAULT_BODY_JSON,
   MAX_SLUG_LENGTH,

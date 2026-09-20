@@ -1,6 +1,12 @@
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import { processOutbox } from "#src/contracts/core/events/index";
-import { PostConflictError, PostNotFoundError, deletePost, type PostRecord } from "#src/features/post/index";
+import {
+  PostConflictError,
+  PostNotFoundError,
+  deletePost,
+  restorePostForward,
+  type PostRecord,
+} from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
@@ -72,7 +78,13 @@ export const registerAdminPageDeleteRoute: ContentRouteRegistrar = (app, deps) =
             }),
           captureEntityVersion: (r) => r.post.version,
           rollback: async () => {
-            if (priorPost) await deps.postRepo.save(priorPost);
+            if (!priorPost) return;
+            // See `posts/delete.ts`'s identical note: the Trash index row `deletePost` wrote through
+            // the injected `remove` port has no restore counterpart and stays uncompensated.
+            await restorePostForward({
+              deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox },
+              input: { prior: priorPost, actorId: principal.id },
+            });
           },
         },
       });

@@ -36,6 +36,7 @@ import {
 } from "../entries/index.js";
 import {
   isTrashed,
+  restorePostForward,
   updatePost,
   PostNotFoundError,
   PostVersionConflictError,
@@ -373,7 +374,17 @@ async function writePostHostBody(
           }),
         captureEntityVersion: (r) => r.post.version,
         rollback: async () => {
-          if (priorPost) await deps.postRepo.save(priorPost);
+          if (!priorPost) return;
+          await restorePostForward({
+            deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox },
+            input: {
+              prior: priorPost,
+              actorId: actor.principalId,
+              // Mirrors the forward write's own delegatedBy* convention just above.
+              delegatedByWorkspaceId: actor.kind === "user" ? undefined : workspaceId,
+              delegatedById: actor.kind === "user" ? undefined : actor.principalId,
+            },
+          });
         },
       },
     });

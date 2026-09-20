@@ -3,7 +3,7 @@ import { executeCommand } from "@jini-ai/cms/core";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import type { PublishContentContributor, PublishContentDeps, PublishContentHandler, PackedEntity } from "#src/features/publish-content/type-registry";
 
-import { importPostEntity, isTrashed } from "./post.js";
+import { importPostEntity, isTrashed, restorePostForward } from "./post.js";
 import type { PostKind, PostRecord } from "./post.js";
 
 /**
@@ -380,10 +380,14 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
           }),
         captureEntityVersion: (result) => result.post.version,
         rollback: async () => {
-          // Compensating undo for a change-set record that failed AFTER the write landed. An update
-          // restores the prior record verbatim, `version` included.
+          // Compensating undo for a change-set record that failed AFTER the write landed. An
+          // update restores the prior record forward — see `restorePostForward`'s own doc for why
+          // "forward" rather than the verbatim restore `command.ts:82` asks for.
           if (priorPost) {
-            await deps.postRepo.save(priorPost);
+            await restorePostForward({
+              deps: { repo: deps.postRepo, clock: deps.clock, outbox },
+              input: { prior: priorPost, actorId: input.principalId },
+            });
             return;
           }
           // A create has no pre-image, and `PostRepoPort` exposes no hard delete (every content

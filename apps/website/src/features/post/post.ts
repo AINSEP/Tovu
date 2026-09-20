@@ -1306,6 +1306,123 @@ export async function updatePost(
   return { post, revisionId, previousRevisionId };
 }
 
+/** A trashed row is "not public" whatever its stored `status` still says — the same framing
+ *  {@link deletePost} applies when it classifies a trash as a move to `"draft"`. @complexity O(1). */
+function publicFacingStatus(post: PostRecord): PostStatus {
+  return isTrashed(post) ? "draft" : post.status;
+}
+
+export interface RestorePostForwardRequired {
+  deps: { repo: PostRepoPort; clock: ClockPort; outbox: OutboxPort };
+  input: {
+    /** The exact pre-`execute` record, as the mutation's own `captureInverse` read it. */
+    prior: PostRecord;
+    actorId?: string;
+    delegatedByWorkspaceId?: UUID | null;
+    delegatedById?: UUID | null;
+  };
+}
+
+export interface RestorePostForwardOptional {}
+
+/**
+ * The compensating undo every `CommandMutation.rollback` over a post calls — one definition of
+ * "put this post back" for the command gateway's unit-of-work guarantee (SPEC-001
+ * REQ-01 / EC-08 / AC-17, INV-01: no mutation survives without a change-set record).
+ *
+ * Restores the prior state as a NEW version instead of rewriting the row in place, pairs that write
+ * with its own `"restore"` revision inside one {@link PostRepoPort.transaction} — the same atomic
+ * pairing `createPost`/`updatePost`/`deletePost` use — and then announces the status transition the
+ * undo actually is, so a subscriber that already saw the undone write's event is told the truth
+ * rather than left believing it.
+ *
+ * ## Deliberate deviation from `@jini-ai/cms` `core/commands/command.ts:77-86`
+ *
+ * That contract (line 81, the clause the 2026-09-20 peer review cites as `command.ts:82`) requires
+ * `rollback` to restore "the entity to its exact pre-`execute` state (verbatim, **including
+ * `version`**)". This function does not: the restored row carries
+ * `current.version + 1`, so an undo moves the version FORWARD.
+ *
+ * Why this path departs from it: the forward write is not a row write. `updatePost`, `deletePost`
+ * and `importPostEntity` each write the row and append an immutable `post_revisions` row as one
+ * transaction, and {@link PostRepoPort.appendRevision} is append-only by contract — the revision
+ * the undone write appended cannot be removed. A verbatim restore therefore puts `version` back
+ * onto a `seq` that ghost revision already occupies, and `post_revisions` carries only
+ * `idx_post_revisions_workspace_post` (`platform/db/schema.ts`) — an INDEX, not a unique constraint
+ * — so the next real write silently appends a SECOND row at that same `seq` rather than erroring.
+ * The ledger would then record two different states under one sequence number with nothing to tell
+ * a reader which one the row ever actually held. Restoring forward keeps every `seq` mapped to
+ * exactly one state, and makes the undo a recorded event instead of an erasure.
+ * (sol peer review 2026-09-20, High finding 3; recorded in
+ * `ADS-memory/reports/2026-09-20-post-rollback-forward-restore.md`.)
+ *
+ * What would have to change to remove the deviation: the transactional path `command.ts:82-83`
+ * already anticipates — "On the SQLite adapter (RT-004) a real transaction replaces this and `rollback`
+ * becomes a no-op" — enrolling the feature write, its revision AND the change-set insert in ONE
+ * transaction. With that in place nothing is ever appended that needs undoing, and this function
+ * plus all of its call sites can be deleted outright rather than reconciled.
+ *
+ * Callers must pass the record their `captureInverse` captured, never a freshly re-read one: a
+ * re-read row is the post-`execute` state, so restoring it restores nothing.
+ *
+ * @returns the restored record and its revision id, or `null` when there is nothing to compensate:
+ * the row has since been removed, the write never landed (`current.version <= prior.version`), or
+ * another writer moved the row on while this compensation was being assembled. Clobbering that
+ * writer would itself be an unrecorded mutation — the exact failure INV-01 exists to prevent — so
+ * this stands down instead of forcing the write.
+ * @complexity O(r) over one post's revision ledger (a single `listRevisions` read, to name the
+ * revision being restored from), plus one conditional row write and one append. Failure path only.
+ */
+export async function restorePostForward(
+  required: RestorePostForwardRequired,
+  _optional: RestorePostForwardOptional = {}
+): Promise<{ post: PostRecord; revisionId: string } | null> {
+  const { deps, input } = required;
+  const { prior } = input;
+
+  const current = await deps.repo.findById({ workspaceId: prior.workspaceId, id: prior.id });
+  if (!current || current.version <= prior.version) return null;
+
+  const restored: PostRecord = { ...prior, updatedAt: deps.clock.nowIso(), version: current.version + 1 };
+
+  // `restoredFrom` is what makes a `"restore"` row auditable — without it the ledger says an undo
+  // happened but not back to what. The ledger reads oldest-first, so the state being restored is
+  // the LAST row at the prior version (a pre-fix rollback may have left more than one there).
+  const ledger = await deps.repo.listRevisions({ workspaceId: prior.workspaceId, postId: prior.id });
+  const restoredFrom = [...ledger].reverse().find((row) => row.seq === prior.version)?.id ?? null;
+
+  const revisionId = await deps.repo.transaction(async () => {
+    // Conditional on the version this compensation was assembled against, not unconditional: a
+    // writer that landed in between owns the row now, and overwriting it would replace one
+    // unrecorded mutation with another.
+    const { applied } = await deps.repo.saveIfVersion({ record: restored, ifVersion: current.version });
+    if (!applied) return null;
+    const appended = await deps.repo.appendRevision({
+      postId: restored.id,
+      workspaceId: restored.workspaceId,
+      seq: restored.version,
+      op: "restore",
+      stateJson: restored,
+      actorId: input.actorId ?? SYSTEM_ACTOR_ID,
+      delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
+      delegatedById: input.delegatedById ?? null,
+      restoredFrom,
+      recordedAt: restored.updatedAt,
+    });
+    return appended.id;
+  });
+  if (revisionId === null) return null;
+
+  await emitStatusTransitionEvent(
+    deps.outbox,
+    publicFacingStatus(current),
+    publicFacingStatus(restored),
+    restored
+  );
+
+  return { post: restored, revisionId };
+}
+
 /**
  * ADR-PIPE-008 Decision §5 / INV-010 — the 4-row status-transition table,
  * certified in isolation by `post.transition-events.test.ts` (T004) before

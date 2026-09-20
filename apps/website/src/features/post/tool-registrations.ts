@@ -102,6 +102,7 @@ import {
   PostNotFoundError,
   PostValidationError,
   PostVersionConflictError,
+  restorePostForward,
   type PostKind,
   type PostRecord,
   type PostRepoPort,
@@ -751,7 +752,17 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
               }),
             captureEntityVersion: (r) => r.post.version,
             rollback: async () => {
-              if (priorPost) await routeDeps.postRepo.save(priorPost);
+              if (!priorPost) return;
+              await restorePostForward({
+                deps: { repo: routeDeps.postRepo, clock: routeDeps.clock, outbox: routeDeps.outbox },
+                input: {
+                  prior: priorPost,
+                  actorId: ctx.principal.id,
+                  // Same delegatedBy* attribution the forward write above records.
+                  delegatedByWorkspaceId: routeDeps.workspaceId,
+                  delegatedById: ctx.principal.id,
+                },
+              });
             },
           },
         });
@@ -898,7 +909,17 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
               }),
             captureEntityVersion: (r) => r.post.version,
             rollback: async () => {
-              if (priorPost) await routeDeps.postRepo.save(priorPost);
+              if (!priorPost) return;
+              await restorePostForward({
+                deps: { repo: routeDeps.postRepo, clock: routeDeps.clock, outbox: routeDeps.outbox },
+                input: {
+                  prior: priorPost,
+                  actorId: ctx.principal.id,
+                  // Same delegatedBy* attribution the forward write above records.
+                  delegatedByWorkspaceId: routeDeps.workspaceId,
+                  delegatedById: ctx.principal.id,
+                },
+              });
             },
           },
         });
