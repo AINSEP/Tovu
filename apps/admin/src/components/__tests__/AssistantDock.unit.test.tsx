@@ -537,12 +537,14 @@ describe("AssistantDock useAttachmentUploader injection", () => {
 });
 
 describe("AssistantDock useAttachmentValidator injection", () => {
-  it("keeps ChatPane's validateAttachments prop inert while the registry package is 0.3.7", () => {
+  it("wires ChatPane's validateAttachments prop off the injected fake, not the real liveness prober", () => {
     const fakeValidator = vi.fn();
 
     render(<AssistantDock useChats={() => fakeChats()} useAttachmentValidator={() => fakeValidator} />);
 
-    expect(chatPaneSpy.mock.lastCall?.[0]).not.toHaveProperty("validateAttachments");
+    // Without this prop `@jini-ai/chat` restores a persisted draft's TEXT only and silently discards
+    // its attachment references — it will not hand back a reference no host vouched for.
+    expect(chatPaneSpy).toHaveBeenCalledWith(expect.objectContaining({ validateAttachments: fakeValidator }));
   });
 });
 
