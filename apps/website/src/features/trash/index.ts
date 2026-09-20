@@ -1,0 +1,40 @@
+/**
+ * @file Public surface of the local admin Trash feature (phase 1 — Posts, Comments, Media,
+ * Redirects). Design of record: `ADS-memory/reports/2026-09-20-trash-delete-architecture.md`.
+ *
+ * Domains deliberately do NOT import from here. They receive a pre-bound `RemoveEntity` through
+ * their own dependency object, so nothing in `post.ts`, `redirects.ts`, the comments write-service
+ * or the media route knows a Trash exists.
+ */
+export { TRASH_RETENTION_DAYS } from "./ports.js";
+export type {
+  PurgeItemOutcome,
+  PurgeReport,
+  RemoveEntity,
+  RestoreOutcome,
+  TrashActor,
+  TrashAdapter,
+  TrashDisplay,
+  TrashEntityType,
+  TrashItem,
+  TrashMarkerResult,
+  TrashPage,
+  TrashPort,
+  TrashPurgeOutcome,
+  TrashRepoPort,
+  TrashSweepClaim,
+  TransactionRunner,
+} from "./ports.js";
+
+export { bindRemoveEntity, computePurgeAfter, createTrashService, TrashAdapterMissingError } from "./write-service.js";
+export type { TrashServiceDeps } from "./write-service.js";
+
+export { createContentDbTransactionRunner, SqliteTrashRepo } from "./repo.sqlite.js";
+export { InMemoryTrashRepo } from "./repo.memory.js";
+export { decodeTrashCursor, encodeTrashCursor } from "./cursor.js";
+
+export { createPostTrashAdapter, POST_ENTITY_TYPE } from "./adapters/post.js";
+export { createCommentTrashAdapter, COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
+export { createMediaTrashAdapter, MEDIA_ENTITY_TYPE } from "./adapters/media.js";
+export type { MediaTrashAdapterDeps } from "./adapters/media.js";
+export { createRedirectTrashAdapter, REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
