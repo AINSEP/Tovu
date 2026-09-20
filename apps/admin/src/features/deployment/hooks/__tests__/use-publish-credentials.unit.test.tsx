@@ -316,6 +316,50 @@ describe("usePublishCredentials — save, provider not yet connected (create)", 
   });
 });
 
+describe("usePublishCredentials — save, duplicate submit (terra #5's sibling)", () => {
+  it("a second save() for the same row while the first is in flight sends nothing — no second create to collide on its label", async () => {
+    const created: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-cf", providerId: "cloudflare-pages" };
+    const createCredential = vi.fn().mockResolvedValue(created);
+    const port = createFakePublishCredentialsPort({ createCredential });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+    act(() => result.current.setToken("cloudflare-pages", "cf_tok"));
+    act(() => result.current.setAccountId("cloudflare-pages", "acct-1"));
+
+    let firstCall!: Promise<void>;
+    let secondCall!: Promise<void>;
+    act(() => {
+      firstCall = result.current.save("cloudflare-pages");
+      secondCall = result.current.save("cloudflare-pages");
+    });
+    await act(async () => {
+      await firstCall;
+      await secondCall;
+    });
+
+    expect(createCredential).toHaveBeenCalledTimes(1);
+    const row = result.current.rows!.find((r) => r.providerId === "cloudflare-pages")!;
+    expect(row.saved?.id).toBe("cred-cf");
+    expect(row.error).toBeNull();
+  });
+
+  it("guards per row — saving one provider does not block saving another", async () => {
+    const createCredential = vi.fn((input: { connection: { providerId: string } }) =>
+      Promise.resolve({ ...GH_CREDENTIAL, id: `cred-${input.connection.providerId}`, providerId: input.connection.providerId } as AdminPublishCredentialSummary),
+    );
+    const port = createFakePublishCredentialsPort({ createCredential });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+    act(() => result.current.setToken("vercel", "v_tok"));
+    act(() => result.current.setToken("netlify", "n_tok"));
+
+    await act(async () => {
+      await Promise.all([result.current.save("vercel"), result.current.save("netlify")]);
+    });
+    expect(createCredential).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("usePublishCredentials — save, provider already connected (update)", () => {
   it("PUTs to the existing DEFAULT row's id, sending only `connection` — never a label or isDefault", async () => {
     let sentId: string | undefined;

@@ -264,6 +264,9 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
   // `use-static-publish.hooks.ts`'s `publishingRef` documents: two calls in one tick both read the
   // same stale state, and two racing promotions would leave the default to whichever PUT lands last.
   const selectingRef = useRef(new Set<AdminPublishCredentialProviderId>());
+  // Same synchronous per-row guard for `save` — a doubled create collides on the fixed row label
+  // (terra review 2026-09-20, finding 5's sibling).
+  const savingRef = useRef(new Set<AdminPublishCredentialProviderId>());
 
   function setToken(providerId: AdminPublishCredentialProviderId, value: string) {
     setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], token: value } }));
@@ -276,7 +279,8 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
   async function save(providerId: AdminPublishCredentialProviderId) {
     const formState = formStates[providerId];
     const fields: PublishCredentialFormFields = { providerId, token: formState.token, accountId: formState.accountId };
-    if (!publishCredentialRowReadyToSave(fields)) return;
+    if (!publishCredentialRowReadyToSave(fields) || savingRef.current.has(providerId)) return;
+    savingRef.current.add(providerId);
 
     const existing = defaultCredentialForProvider(credentials ?? [], providerId);
     setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], saving: true, error: null } }));
@@ -295,6 +299,8 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
         ...prev,
         [providerId]: { ...prev[providerId], saving: false, error: publishCredentialSubmitErrorMessage(err, t, locale) },
       }));
+    } finally {
+      savingRef.current.delete(providerId);
     }
   }
 

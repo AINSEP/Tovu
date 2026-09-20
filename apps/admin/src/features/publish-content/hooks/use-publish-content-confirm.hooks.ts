@@ -465,17 +465,23 @@ export function usePublishContentConfirm(props: {
   };
 
   const canStart = canRequestPlan(phase) && selectedPeerId !== null;
-  const onPrimary = useCallback(() => {
-    if (connectOffer) {
-      void onConnect();
-      return;
-    }
-    if (canRequestPlan(phase)) {
-      if (selectedPeerId !== null) void requestPlan(selectedPeerId);
-    } else {
-      void confirmPlan();
-    }
+  const runPrimary = useCallback((): Promise<void> => {
+    if (connectOffer) return onConnect();
+    if (!canRequestPlan(phase)) return confirmPlan();
+    return selectedPeerId === null ? Promise.resolve() : requestPlan(selectedPeerId);
   }, [confirmPlan, connectOffer, onConnect, phase, requestPlan, selectedPeerId]);
+
+  // Synchronous duplicate-submit guard (terra review 2026-09-20, finding 5's sibling). The button's
+  // `disabled` is render-time phase; two calls in one tick both see `planned`, and each confirmed
+  // phase would fire its own execute at the live site. Held until the step's own request settles.
+  const primaryInFlightRef = useRef(false);
+  const onPrimary = useCallback(() => {
+    if (primaryInFlightRef.current) return;
+    primaryInFlightRef.current = true;
+    void runPrimary().finally(() => {
+      primaryInFlightRef.current = false;
+    });
+  }, [runPrimary]);
 
   return {
     phase,

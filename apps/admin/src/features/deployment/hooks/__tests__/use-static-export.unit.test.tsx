@@ -183,6 +183,54 @@ describe("useStaticExport — trigger", () => {
   });
 });
 
+// terra review 2026-09-20, finding 5. `use-static-publish.hooks.ts`'s `publishingRef` (C4) exists for
+// exactly this: two calls in one tick both read the same render's `triggering: false`, so the
+// button's render-time `disabled` can't stop the second. A "clean" export doubled up is two jobs
+// racing to wipe and rewrite the same output directory.
+describe("useStaticExport — duplicate submit (terra #5)", () => {
+  it("a second trigger() while the first is still in flight sends no second POST and leaves no false error", async () => {
+    const runningRun: AdminExportRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
+    const triggerSiteExport = vi.fn().mockResolvedValue(runningRun);
+    const port = createFakeStaticExportPort(IDLE_RUN, { triggerSiteExport });
+    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+    act(() => result.current.setClean(true));
+
+    let firstCall!: Promise<void>;
+    let secondCall!: Promise<void>;
+    act(() => {
+      firstCall = result.current.trigger();
+      secondCall = result.current.trigger();
+    });
+    await act(async () => {
+      await firstCall;
+      await secondCall;
+    });
+
+    expect(triggerSiteExport).toHaveBeenCalledTimes(1);
+    expect(result.current.run).toEqual(runningRun);
+    expect(result.current.triggerError).toBeNull();
+  });
+
+  it("releases the guard once a trigger settles — a later, separate trigger() sends its own POST, even after a failure", async () => {
+    const runningRun: AdminExportRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
+    const triggerSiteExport = vi.fn().mockRejectedValueOnce(new Error("disk full")).mockResolvedValueOnce(runningRun);
+    const port = createFakeStaticExportPort(IDLE_RUN, { triggerSiteExport });
+    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    await act(async () => {
+      await result.current.trigger();
+    });
+    await act(async () => {
+      await result.current.trigger();
+    });
+
+    expect(triggerSiteExport).toHaveBeenCalledTimes(2);
+    expect(result.current.run).toEqual(runningRun);
+  });
+});
+
 describe("useStaticExport — poll loop", () => {
   it("polls the status route while running and stops once the run settles", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });

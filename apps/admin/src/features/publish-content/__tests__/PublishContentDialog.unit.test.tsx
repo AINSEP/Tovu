@@ -713,3 +713,59 @@ describe("PublishContentDialog — a committed publish can't be closed out from 
     expect(await tryEveryWayToClose(user, onCancel)).toBe(3);
   });
 });
+
+// terra review 2026-09-20, finding 5's sibling. The primary button is disabled from render-time
+// phase, which two calls in one tick (an agent's scripted double click, say) both read as
+// `planned` — so both confirmed, and each confirmed phase fired its own execute at the live site.
+describe("PublishContentDialog — the primary action can't be doubled in one tick (terra #5)", () => {
+  it("two confirms from the same render send one confirm and one execute", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port }));
+    await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
+    await act(async () => {
+      result.current.onPrimary();
+    });
+    await waitFor(() => expect(result.current.phase.kind).toBe("planned"));
+
+    const view = result.current;
+    await act(async () => {
+      view.onPrimary();
+      view.onPrimary();
+    });
+    await waitFor(() => expect(result.current.phase.kind).toBe("done"));
+
+    expect(port.calls.confirmPublish).toHaveLength(1);
+    expect(port.calls.executePublish).toHaveLength(1);
+  });
+
+  it("two plan requests from the same render send one plan", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port }));
+    await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
+
+    const view = result.current;
+    await act(async () => {
+      view.onPrimary();
+      view.onPrimary();
+    });
+    await waitFor(() => expect(result.current.phase.kind).toBe("planned"));
+    expect(port.calls.planPublish).toHaveLength(1);
+  });
+
+  it("two connects from the same render send one connect", async () => {
+    const port = createFakePublishContentPort({
+      peers: [],
+      destination: { connected: false, site: null, candidateUrl: "https://tovu.com", message: "Connect tovu.com?", nextStep: null },
+    });
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port }));
+    await waitFor(() => expect(result.current.connectOffer).not.toBeNull());
+
+    const view = result.current;
+    await act(async () => {
+      view.onPrimary();
+      view.onPrimary();
+    });
+    await waitFor(() => expect(result.current.phase.kind).toBe("planned"));
+    expect(port.calls.connectDestination).toHaveLength(1);
+  });
+});
