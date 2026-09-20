@@ -9,6 +9,7 @@ import { agentPluginSearchAgentToolCatalog, agentPluginUninstallAgentToolCatalog
 import { contentDuplicationAgentToolCatalog } from "../../features/content-duplication/agent-tools.js";
 import { publishContentAgentToolCatalog } from "../../features/publish-content/agent-tools.js";
 import { getTrashAgentToolCatalog } from "../../features/trash/agent-tools.js";
+import { getTrashItemAgentToolCatalog } from "../../features/trash/trash-item-tool.js";
 import { getFsFilesAgentToolCatalog } from "../../features/fs-files/agent-tools.js";
 import { supabaseConnectAgentToolCatalog } from "../../features/supabase-connect/agent-tools.js";
 import { externalMcpAgentToolCatalog } from "../../features/external-mcp/agent-tools.js";
@@ -257,6 +258,12 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // The catalog has exactly two entries and must never grow a purge tool; see
   // `features/trash/__tests__/tool-registrations.purge-ban.test.ts`.
   trash: getTrashAgentToolCatalog() as unknown as AgentToolDefinition[],
+  // 2026-09-20: `trash-item` — `trash_item`, built by a post-processing pass in
+  // `buildAssistantToolRegistrations` (it reuses the four delete tools' built handlers), so it is in
+  // neither `listToolContributors()` nor `DOMAIN_SLICES` and the completeness test above cannot
+  // derive it. Hand-maintained like the `DOMAIN_SLICES`-only entries. Kept apart from `trash` on
+  // purpose: the purge-ban test proves that catalog holds exactly two tools.
+  "trash-item": getTrashItemAgentToolCatalog() as unknown as AgentToolDefinition[],
 };
 
 /** Flattened view of {@link CATALOGS_BY_DOMAIN} for the per-tool-id lookups below — every catalog

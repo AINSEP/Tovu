@@ -213,7 +213,7 @@ import type { IdentityToolDeps } from "../features/identity/tool-registrations.j
 import type { IntegrationsToolDeps } from "../features/webhooks/tool-registrations.js";
 import type { MediaToolDeps, MediaTrashToolDeps } from "../features/media/tool-registrations.js";
 import type { TrashToolDeps } from "../features/trash/tool-registrations.js";
-import { deriveTrashItemRegistrations, type TrashItemToolDeps } from "../features/trash/index.js";
+import { deriveTrashItemRegistrations, trashItemDerivedRisk, type TrashItemToolDeps } from "../features/trash/index.js";
 import type { MediaGenerationToolDeps } from "../features/media-generation/tool-registrations.js";
 import type { MediaImportToolDeps } from "../features/media-import/tool-registrations.js";
 import type { MembersToolDeps } from "../features/members/tool-registrations.js";
@@ -594,6 +594,20 @@ function allToolContributors(): readonly DomainSlice[] {
 }
 
 /**
+ * Risk classifications for tools built by a post-processing pass in
+ * {@link buildAssistantToolRegistrations} rather than by a domain slice, so
+ * {@link allToolContributors} never sees them.
+ *
+ * `trash_item` is a tool of its own (a new id, a new schema, its own `deletes-durable-state`
+ * declaration), so it is classified here and cross-checked like any other wired tool. The
+ * `content_read.*` cards are deliberately absent: each is a relabel of member tools whose risk was
+ * already checked under their original ids (see `content-read-tool.ts`).
+ */
+const POST_PROCESSING_RISK: readonly { domain: string; risk: DerivedRiskByToolId }[] = [
+  { domain: "trash-item", risk: trashItemDerivedRisk },
+];
+
+/**
  * Every domain's risk classification folded into one map, refusing any id two domains both wire.
  *
  * Computed fresh per call (see {@link allToolContributors}) rather than once at module load — a
@@ -607,7 +621,7 @@ function allToolContributors(): readonly DomainSlice[] {
  * to force.
  */
 function derivedRiskByToolId(): DerivedRiskByToolId {
-  return mergeDerivedRiskMaps(allToolContributors());
+  return mergeDerivedRiskMaps([...allToolContributors(), ...POST_PROCESSING_RISK]);
 }
 
 /**

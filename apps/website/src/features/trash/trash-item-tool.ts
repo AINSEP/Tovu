@@ -46,6 +46,7 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
+  type WirableToolDefinition,
 } from "@jini-ai/cms/core";
 // `ToolInputError` so a refusal reaches the model with its message intact rather than as a redacted
 // 500 — see `features/comments/tool-registrations.ts`'s identical import.
@@ -79,8 +80,8 @@ export interface TrashItemToolDeps {
  * `permission` is that tool's declared gate, checked HERE before any read, so a principal who could
  * not call the delegate learns nothing about whether the row exists and never has a dialog raised
  * for them. The delegate checks again itself (the same redundant-but-harmless pre-check
- * `media_trash_asset`'s wrapper makes). `__tests__/trash-item-tool.test.ts` pins every entry to its
- * delegate's own catalog declaration.
+ * `media_trash_asset`'s wrapper makes). `assistant/__tests__/tool-registrations.trash-item.test.ts`
+ * pins every entry to its delegate's own catalog declaration.
  */
 export interface TrashItemDelegate {
   readonly entityType: TrashEntityType;
@@ -149,45 +150,70 @@ export const TRASH_ITEM_DELEGATES: ReadonlyMap<TrashEntityType, TrashItemDelegat
   ],
 ]);
 
-/** @complexity O(k) in the reachable kinds. */
-function buildTrashItemCatalog(reachableKinds: readonly TrashEntityType[]) {
-  return indexCatalogById([
-    {
-      name: TRASH_ITEM_TOOL_ID,
-      description:
-        "Moves one post or page, comment, media asset or redirect rule to the Trash, named by entityType and entityId. " +
-        "HUMAN-GATED: this shows the SAME confirmation dialog that kind's own delete tool shows and WAITS for the human's " +
-        "answer — there is no second call to make. It runs that tool's own permission check and writes through that tool's own " +
-        "path, so the result is identical to calling content_post_delete, comments_trash_comment, media_trash_asset or " +
-        "redirects_tombstone directly. Returns { entityType, entityId, via, outcome }: `via` names the tool whose gates ran and " +
-        "`outcome` is exactly that tool's result (it says whether the human confirmed, cancelled, or let the dialog expire). " +
-        "Rejected, with nothing changed, when entityType is not a kind the Trash can hold or no such item of that kind exists. " +
-        "Anything trashed can be brought back with trash_restore_item. There is deliberately NO tool for deleting something " +
-        "permanently: that is done by a human, from the Trash screen.",
-      // The strongest of the four delegates' declarations (`content_post_delete`'s), because this tool
-      // can reach every one of them.
-      sideEffects: "deletes-durable-state",
-      // The floor only, like `trash_restore_item`: the real gate is the delegate's own permission,
-      // pre-checked at the handler per kind.
-      authorization: { permission: "content.read" },
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["entityType", "entityId"],
-        properties: {
-          entityType: {
-            type: "string",
-            enum: [...reachableKinds],
-            description: "Which kind of thing to trash.",
-          },
-          entityId: { type: "string", minLength: 1, description: "That thing's own id." },
+/**
+ * `trash_item`'s catalog entry, with `entityType`'s enum limited to `reachableKinds`.
+ *
+ * The one source of the entry: {@link getTrashItemAgentToolCatalog} (the declared side the assistant
+ * contract tests compare against) and {@link deriveTrashItemRegistrations} (the published descriptor)
+ * both build it here, so the two cannot drift apart.
+ *
+ * @complexity O(k) in the reachable kinds.
+ */
+function trashItemToolDefinition(reachableKinds: readonly TrashEntityType[]): WirableToolDefinition {
+  return {
+    name: TRASH_ITEM_TOOL_ID,
+    description:
+      "Moves one post or page, comment, media asset or redirect rule to the Trash, named by entityType and entityId. " +
+      "HUMAN-GATED: this shows the SAME confirmation dialog that kind's own delete tool shows and WAITS for the human's " +
+      "answer — there is no second call to make. It runs that tool's own permission check and writes through that tool's own " +
+      "path, so the result is identical to calling content_post_delete, comments_trash_comment, media_trash_asset or " +
+      "redirects_tombstone directly. Returns { entityType, entityId, via, outcome }: `via` names the tool whose gates ran and " +
+      "`outcome` is exactly that tool's result (it says whether the human confirmed, cancelled, or let the dialog expire). " +
+      "Rejected, with nothing changed, when entityType is not a kind the Trash can hold or no such item of that kind exists. " +
+      "Anything trashed can be brought back with trash_restore_item. There is deliberately NO tool for deleting something " +
+      "permanently: that is done by a human, from the Trash screen.",
+    // The strongest of the four delegates' declarations (`content_post_delete`'s), because this tool
+    // can reach every one of them.
+    sideEffects: "deletes-durable-state",
+    // The floor only, like `trash_restore_item`: the real gate is the delegate's own permission,
+    // pre-checked at the handler per kind.
+    authorization: { permission: "content.read" },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["entityType", "entityId"],
+      properties: {
+        entityType: {
+          type: "string",
+          enum: [...reachableKinds],
+          description: "Which kind of thing to trash.",
         },
+        entityId: { type: "string", minLength: 1, description: "That thing's own id." },
       },
     },
-  ]);
+  };
 }
 
-const TRASH_ITEM_DERIVED_RISK: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+/**
+ * `trash_item`'s declared catalog: one entry, every kind in {@link TRASH_ITEM_DELEGATES}.
+ *
+ * Deliberately NOT part of `getTrashAgentToolCatalog()`. That catalog is proven to hold exactly two
+ * tools by `__tests__/tool-registrations.purge-ban.test.ts`, and this tool is built by a
+ * post-processing pass, not by the trash contributor.
+ *
+ * @complexity O(k) in the delegate kinds.
+ */
+export function getTrashItemAgentToolCatalog(): readonly WirableToolDefinition[] {
+  return [trashItemToolDefinition([...TRASH_ITEM_DELEGATES.keys()])];
+}
+
+/**
+ * The wiring layer's own classification of `trash_item`, separate from its catalog entry's
+ * `sideEffects`. Exported so `assistant/tool-registrations.ts` can fold it into the assistant-wide
+ * risk map as well: without that, the whole-surface cross-check (`assertRiskMetadataIsWirable`) would
+ * treat this wired tool as unclassified.
+ */
+export const trashItemDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // Routes into `content_post_delete` (`deletes-durable-state`) among others; see the catalog entry.
   [TRASH_ITEM_TOOL_ID, "deletes-durable-state"],
 ]);
@@ -207,8 +233,9 @@ const TRASH_ITEM_DERIVED_RISK: DerivedRiskByToolId = new Map<string, AgentToolSi
  * the schema and out of the refusal's "Expected one of". Deliberately not a throw: many compositions
  * (and most tests) build a catalog without every domain, and failing the whole assistant catalog
  * because one domain is absent would take every other tool down with it. What stops a real
- * composition from silently losing a kind is `__tests__/trash-item-tool.test.ts`, which requires all
- * four in the production catalog.
+ * composition from silently losing a kind is
+ * `assistant/__tests__/tool-registrations.trash-item.test.ts`, which requires all four in the
+ * production catalog.
  */
 export function deriveTrashItemRegistrations(
   required: { registrations: readonly ToolRegistration[]; routeDeps: TrashItemToolDeps },
@@ -264,8 +291,8 @@ export function deriveTrashItemRegistrations(
   return buildDomainRegistrations({
     domain: "trash-item",
     catalogModule: "trash/trash-item-tool.ts",
-    catalog: buildTrashItemCatalog([...handlerByEntityType.keys()]),
+    catalog: indexCatalogById([trashItemToolDefinition([...handlerByEntityType.keys()])]),
     handlers,
-    derivedRisk: TRASH_ITEM_DERIVED_RISK,
+    derivedRisk: trashItemDerivedRisk,
   });
 }
