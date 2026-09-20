@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, type PresentationSettings } from "@/lib/api";
 import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";
 import { useThemes, useWiredThemes } from "../hooks/use-themes.hooks";
+import { t as translateThemes } from "../themes-i18n";
 
 /**
  * @file `useThemes` driven against the injected `ThemesPort`, no `fetch` stub and no `api` spy.
@@ -563,6 +564,42 @@ describe("useThemes — loadMarketplace", () => {
     });
 
     expect(result.current.error).toBe("failed to load the marketplace");
+  });
+});
+
+/**
+ * The download SUCCEEDED and the re-read of the installed list failed. Both used to share one try,
+ * so the screen said the download failed — and a retry installed a second, suffixed copy.
+ */
+describe("useThemes — a failed re-read after a successful download", () => {
+  it("reports the install as done and the read failure as its own error", async () => {
+    const port = createFakeThemesPort({ availableThemeIds: ["basic"] });
+    const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
+    await waitFor(() => expect(result.current.themes).toEqual(["basic"]));
+    const download = vi.spyOn(port, "downloadMarketplaceTheme");
+    port.getPresentation = () => Promise.reject(new Error("presentation read failed"));
+
+    await act(async () => {
+      await result.current.download!("alpha");
+    });
+
+    expect(download).toHaveBeenCalledTimes(1);
+    expect(result.current.rescanNotice).toBe("Installed “alpha”.");
+    expect(result.current.error).toBe("presentation read failed");
+    expect(result.current.downloading).toBeNull();
+  });
+
+  it("a non-Error read failure falls back to a translated key of its own, not the download's", async () => {
+    const port = createFakeThemesPort({ availableThemeIds: ["basic"] });
+    const { result } = renderHook(() => useThemes({ port, t: (k) => translateThemes("es", k) }));
+    await waitFor(() => expect(result.current.themes).toEqual(["basic"]));
+    port.getPresentation = () => Promise.reject("nope");
+
+    await act(async () => {
+      await result.current.download!("alpha");
+    });
+
+    expect(result.current.error).toBe("No se pudo actualizar la lista de temas");
   });
 });
 

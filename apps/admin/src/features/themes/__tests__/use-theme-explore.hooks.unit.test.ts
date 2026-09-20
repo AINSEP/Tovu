@@ -1880,6 +1880,80 @@ describe("useThemeExplore — modified state after Copy and Rename", () => {
   });
 });
 
+/**
+ * A mutation that SUCCEEDED followed by a detail re-read that failed. Delete, Copy and Rename used to
+ * run both inside one try, so the read's failure landed in the mutation's own catch and the screen
+ * said the mutation failed — while the file was already deleted, copied or renamed. A retry then
+ * deleted a missing file, made a second copy, or renamed a path that no longer exists. Save and
+ * Reset already report the re-read as its own error (`refreshModifiedState`); these pin the other
+ * three to the same contract.
+ */
+describe("useThemeExplore — a failed re-read after a successful Delete, Copy or Rename", () => {
+  const FILES = [
+    { path: "pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true },
+    { path: "pages/about.html", group: "page" as const, readable: true, editable: true, resettable: true },
+    { path: "css/a.css", group: "style" as const, readable: true, editable: true, resettable: true },
+  ];
+  const CONTENTS = { "pages/index.html": "<h1>Home</h1>", "pages/about.html": "<h1>About</h1>", "css/a.css": "body{}" };
+
+  /** Loads normally, then every later detail read fails — the re-read after the mutation. */
+  async function renderWithFailingReread() {
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const hook = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(hook.result.current.files.length).toBe(3));
+    port.getThemeDetail = () => Promise.reject(new Error("detail read failed"));
+    return { port, result: hook.result };
+  }
+
+  it("Delete: the dialog closes, the notice says Deleted, the file leaves the list, and the read failure is its own error", async () => {
+    const { port, result } = await renderWithFailingReread();
+    const deleteSpy = vi.spyOn(port, "deleteThemeFile");
+    act(() => result.current.select("pages/about.html"));
+    await waitFor(() => expect(result.current.selected).toBe("pages/about.html"));
+    act(() => result.current.openDeleteConfirm("pages/about.html"));
+
+    await act(async () => {
+      await result.current.confirmDelete();
+    });
+
+    expect(deleteSpy).toHaveBeenCalledTimes(1);
+    expect(result.current.deleteTarget).toBeNull();
+    expect(result.current.deleting).toBe(false);
+    expect(result.current.notice).toBe("Deleted pages/about.html");
+    expect(result.current.error).toBe("detail read failed");
+    expect(result.current.files.map((f) => f.path)).toEqual(["pages/index.html", "css/a.css"]);
+    expect(result.current.selected).toBe("pages/index.html");
+  });
+
+  it("Copy: the notice says Copied and the read failure is its own error", async () => {
+    const { port, result } = await renderWithFailingReread();
+    const copySpy = vi.spyOn(port, "copyThemeFile");
+
+    await act(async () => {
+      await result.current.copyFile("css/a.css");
+    });
+
+    expect(copySpy).toHaveBeenCalledTimes(1);
+    expect(result.current.notice).toBe("Copied to css/a-1.css");
+    expect(result.current.error).toBe("detail read failed");
+    expect(result.current.copyingPath).toBeNull();
+  });
+
+  it("Rename: the notice says Renamed and the read failure is its own error", async () => {
+    const { result } = await renderWithFailingReread();
+    act(() => result.current.startRename("css/a.css"));
+    act(() => result.current.setRenameDraft("b.css"));
+
+    await act(async () => {
+      result.current.commitRename();
+    });
+
+    await waitFor(() => expect(result.current.renaming).toBe(false));
+    expect(result.current.notice).toBe("Renamed to css/b.css");
+    expect(result.current.error).toBe("detail read failed");
+  });
+});
+
 describe("useThemeExplore — performRename failure and the non-selected-file ternary", () => {
   const FILES = [
     { path: "pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true },

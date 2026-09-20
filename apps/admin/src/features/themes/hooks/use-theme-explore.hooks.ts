@@ -729,6 +729,27 @@ async function fetchThemeExploreState(
   };
 }
 
+/**
+ * {@link fetchThemeExploreState} for the re-read after a mutation that already SUCCEEDED (Delete, Copy,
+ * Rename). A failed read comes back as its own message instead of throwing into the mutation's own
+ * catch: the file is already deleted, copied or renamed, and a screen that called that a failure
+ * invited a retry that deletes a missing file, makes a second copy, or renames a path that no longer
+ * exists. Same contract `refreshModifiedState` gives Save and Reset.
+ *
+ * @complexity Time/space: O(f) in the theme's file count (the one detail read it wraps).
+ */
+async function refetchAfterMutation(
+  themeId: string,
+  port: ThemeExplorePort,
+  t: Translate
+): Promise<({ ok: true } & Awaited<ReturnType<typeof fetchThemeExploreState>>) | { ok: false; message: string }> {
+  try {
+    return { ok: true, ...(await fetchThemeExploreState(themeId, port)) };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : t("failed to refresh file list") };
+  }
+}
+
 export interface ThemeExploreDependencies {
   port: ThemeExplorePort;
   t: Translate;
@@ -1196,12 +1217,20 @@ export function useThemeExplore(
       setError(null);
       try {
         const r = await port.renameThemeFile(themeId, sourcePath, name);
-        const { detail: nextDetail, files: nextFiles } = await fetchThemeExploreState(themeId, port);
+        const refetched = await refetchAfterMutation(themeId, port, tRef.current);
         // Superseded by a newer rename call started after this one — that later call owns
         // `detail`/`files`/`selected`/`notice` now, and applying this stale result would let
         // whichever rename happens to settle LAST win regardless of which file was actually
         // renamed last. See `renameSettlement`'s doc comment above.
         if (!renameSettlement.isCurrent(generation)) return;
+        // The rename is done whatever the re-read says — see `refetchAfterMutation`.
+        setNotice(translateWith(tRef.current, "Renamed to {file}", "file", r.path));
+        setPreviewNonce((n) => n + 1);
+        if (!refetched.ok) {
+          setError(refetched.message);
+          return;
+        }
+        const { detail: nextDetail, files: nextFiles } = refetched;
         setDetail(nextDetail);
         setFiles(nextFiles);
         // Functional: the operator may have opened another file while this rename was in flight, and
@@ -1212,8 +1241,6 @@ export function useThemeExplore(
         setSelected((current) => renamedPath(current, sourcePath, r.path));
         setLoadedFile((current) => loadedFileAfterRename(current, { themeId, from: sourcePath, to: r.path, renamed }));
         setPendingSelection(null);
-        setNotice(translateWith(tRef.current, "Renamed to {file}", "file", r.path));
-        setPreviewNonce((n) => n + 1);
       } catch (e) {
         if (!renameSettlement.isCurrent(generation)) return;
         setError(renameErrorMessage(e, name, tRef.current));
@@ -1305,12 +1332,18 @@ export function useThemeExplore(
       setError(null);
       try {
         const r = await port.copyThemeFile(themeId, path);
-        const { detail: nextDetail, files: nextFiles } = await fetchThemeExploreState(themeId, port);
-        setDetail(nextDetail);
-        setFiles(nextFiles);
+        // The copy is done whatever the re-read says — see `refetchAfterMutation`. Selecting the new
+        // file waits for a list that has it.
+        setNotice(translateWith(tRef.current, "Copied to {file}", "file", r.path));
+        const refetched = await refetchAfterMutation(themeId, port, tRef.current);
+        if (!refetched.ok) {
+          setError(refetched.message);
+          return;
+        }
+        setDetail(refetched.detail);
+        setFiles(refetched.files);
         setSelected(r.path);
         setPendingSelection(null);
-        setNotice(translateWith(tRef.current, "Copied to {file}", "file", r.path));
       } catch (e) {
         setError(e instanceof Error ? e.message : tRef.current("failed to copy file"));
       } finally {
@@ -1361,19 +1394,24 @@ export function useThemeExplore(
     setError(null);
     try {
       await port.deleteThemeFile(themeId, path);
-      const { detail: nextDetail, files: nextFiles } = await fetchThemeExploreState(themeId, port);
-      setDetail(nextDetail);
-      setFiles(nextFiles);
-      setSelected((current) => (current === path ? defaultSelectedPath(nextFiles, nextDetail.apiVersion) : current));
+      // The file is gone from here on, whatever the re-read says — see `refetchAfterMutation`. The
+      // dialog closes and the notice says so; a failed re-read drops the file from the list locally
+      // (the one change a delete makes to it) and is reported as its own error.
+      setDeleteTarget(null);
       setPendingSelection(null);
       setNotice(translateWith(tRef.current, "Deleted {file}", "file", path));
-      setDeleteTarget(null);
+      const refetched = await refetchAfterMutation(themeId, port, tRef.current);
+      const next = refetched.ok ? refetched : { detail, files: files.filter((f) => f.path !== path) };
+      if (refetched.ok) setDetail(refetched.detail);
+      else setError(refetched.message);
+      setFiles(next.files);
+      setSelected((current) => (current === path ? defaultSelectedPath(next.files, next.detail?.apiVersion) : current));
     } catch (e) {
       setError(e instanceof Error ? e.message : tRef.current("failed to delete file"));
     } finally {
       setDeleting(false);
     }
-  }, [themeId, deleteTarget, port]);
+  }, [themeId, deleteTarget, port, detail, files]);
 
   /**
    * Select a file, and mirror it into the address bar for shareability — `?page=<label>` for an

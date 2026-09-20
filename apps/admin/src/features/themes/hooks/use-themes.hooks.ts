@@ -198,20 +198,24 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     setRescanNotice(null);
     try {
       const r = await port.downloadMarketplaceTheme(themeId);
-      const fresh = await port.getPresentation();
+      const refreshed = await refetchPresentation(port, t);
       // Same stale-settlement guard as `activate` above — see `activateSettlement`'s doc comment
       // for why every branch (not just this success path) has to check before writing state.
       if (!downloadSettlement.isCurrent(generation)) return;
+      // The theme is installed whatever the re-read says — calling that a failure invited a retry
+      // that installs a second, suffixed copy. Report the install, and the read as its own error.
+      if (!refreshed.ok) {
+        setRescanNotice(installedNotice(r, themeId));
+        setError(refreshed.message);
+        return;
+      }
+      const { fresh } = refreshed;
       setSettings(fresh.settings);
       setThemes(fresh.availableThemeIds);
       setThemeTiers(Object.fromEntries(fresh.availableThemes.map((t) => [t.id, t.tier])));
       await loadMarketplace();
       if (!downloadSettlement.isCurrent(generation)) return;
-      setRescanNotice(
-        r.suffixed
-          ? `Installed as “${r.id}” — “${themeId}” was already taken, so it was renamed.`
-          : `Installed “${r.id}”.`
-      );
+      setRescanNotice(installedNotice(r, themeId));
     } catch (e) {
       if (!downloadSettlement.isCurrent(generation)) return;
       setError(e instanceof Error ? e.message : "failed to download theme");
@@ -262,6 +266,31 @@ export function useWiredThemes(): ThemesController {
  * looking at. "No changes" is stated explicitly rather than left blank — silence after pressing a
  * button reads as a broken button.
  */
+/**
+ * {@link ThemesPort.getPresentation} for the re-read after a download that already SUCCEEDED — a
+ * failed read comes back as its own message instead of throwing into the download's own catch.
+ *
+ * @complexity Time/space: O(n) in the installed theme count (the one read it wraps).
+ */
+async function refetchPresentation(
+  port: ThemesPort,
+  t: Translate
+): Promise<{ ok: true; fresh: Awaited<ReturnType<ThemesPort["getPresentation"]>> } | { ok: false; message: string }> {
+  try {
+    return { ok: true, fresh: await port.getPresentation() };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : t("failed to refresh the theme list") };
+  }
+}
+
+/** The download notice — which id the theme was installed under, and why when it is not the one asked for.
+ *  @complexity Time/space: O(1). */
+function installedNotice(result: { id: string; suffixed: boolean }, requestedId: string): string {
+  return result.suffixed
+    ? `Installed as “${result.id}” — “${requestedId}” was already taken, so it was renamed.`
+    : `Installed “${result.id}”.`;
+}
+
 function describeRescan(result: {
   added: string[];
   removed: string[];
