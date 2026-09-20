@@ -1015,6 +1015,16 @@ function registerGuestNavigationPolicy(): void {
       event.preventDefault();
       openExternally(url);
     });
+
+    // A server-side 30x never fires `will-navigate`, and a site's redirect rules may name another
+    // origin. Judged against the supervised sites rather than `getURL()`, which a redirect during
+    // the guest's FIRST load has nothing committed to compare against. Main frame only: a subframe
+    // never runs the preload. Nothing is handed to the OS browser: `openExternally` only ever opens
+    // a supervised url, and a supervised url is allowed here.
+    contents.on("will-redirect", (details) => {
+      if (!details.isMainFrame || isSupervisedGuestUrl(details.url)) return;
+      details.preventDefault();
+    });
   });
 }
 

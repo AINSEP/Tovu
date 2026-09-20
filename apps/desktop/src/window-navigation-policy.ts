@@ -36,10 +36,17 @@ interface NavigationEvent {
   preventDefault(): void;
 }
 
+/** The part of a `will-redirect` event this policy uses — Electron's own `details` object. */
+interface RedirectEvent extends NavigationEvent {
+  url: string;
+  isMainFrame: boolean;
+}
+
 /** The slice of Electron's `WebContents` this policy registers on. */
 interface NavigableContents {
   setWindowOpenHandler(handler: (details: WindowOpenDetails) => WindowOpenResponse): void;
   on(event: "will-navigate", listener: (event: NavigationEvent, url: string) => void): unknown;
+  on(event: "will-redirect", listener: (details: RedirectEvent) => void): unknown;
 }
 
 /** {@link installAppWindowNavigationPolicy}'s options. */
@@ -91,7 +98,8 @@ function isExternalBrowserUrl(raw: string): boolean {
 }
 
 /**
- * Register the popup handler and the `will-navigate` listener on a `createWindow` window.
+ * Register the popup handler and the `will-navigate` and `will-redirect` listeners on a
+ * `createWindow` window.
  *
  * Same origin as `appOrigin`: allowed in the app — the admin opening its own routes, the site's own
  * pages. Anything else: kept out of the window, and handed to the OS browser only when it is an
@@ -99,6 +107,10 @@ function isExternalBrowserUrl(raw: string): boolean {
  *
  * Navigation is checked against `appOrigin`, the origin the window was CREATED for, not against
  * wherever it currently is — so there is no second origin a navigation could be judged relative to.
+ * `will-redirect` is the half `will-navigate` misses: a server-side 30x never fires `will-navigate`,
+ * and a site's own redirect rules may name another origin. Only a MAIN-frame redirect is checked —
+ * a subframe never runs the preload, and an embed redirecting across origins is not this window's
+ * boundary.
  *
  * @param contents the window's `webContents`, or a stand-in with the same two methods.
  * @param options see {@link AppWindowPolicyOptions}.
@@ -119,6 +131,12 @@ function installAppWindowNavigationPolicy(contents: NavigableContents, options: 
     if (isSameOrigin(url, options.appOrigin)) return;
     event.preventDefault();
     handOff(url);
+  });
+
+  contents.on("will-redirect", (details) => {
+    if (!details.isMainFrame || isSameOrigin(details.url, options.appOrigin)) return;
+    details.preventDefault();
+    handOff(details.url);
   });
 }
 

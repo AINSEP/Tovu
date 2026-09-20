@@ -26,13 +26,15 @@ const APP_ORIGIN = "http://127.0.0.1:4567";
 function installOnFake() {
   let openHandler: ((details: { url: string }) => WindowOpenResponse) | undefined;
   let navigateListener: ((event: { preventDefault(): void }, url: string) => void) | undefined;
+  let redirectListener: ((details: { url: string; isMainFrame: boolean; preventDefault(): void }) => void) | undefined;
   const opened: string[] = [];
   const contents: NavigableContents = {
     setWindowOpenHandler(handler) {
       openHandler = handler;
     },
     on(event, listener) {
-      if (event === "will-navigate") navigateListener = listener;
+      if (event === "will-navigate") navigateListener = listener as typeof navigateListener;
+      if (event === "will-redirect") redirectListener = listener as typeof redirectListener;
       return contents;
     },
   };
@@ -49,6 +51,13 @@ function installOnFake() {
       assert.ok(navigateListener, "expected a will-navigate listener to be registered");
       let prevented = false;
       navigateListener({ preventDefault: () => (prevented = true) }, url);
+      return prevented;
+    },
+    /** @returns whether the redirect's navigation was prevented. */
+    redirect(url: string, isMainFrame: boolean): boolean {
+      assert.ok(redirectListener, "expected a will-redirect listener to be registered");
+      let prevented = false;
+      redirectListener({ url, isMainFrame, preventDefault: () => (prevented = true) });
       return prevented;
     },
   };
@@ -126,6 +135,26 @@ test("in-window same-origin navigation is left alone — the admin has to keep w
   assert.deepEqual(fake.opened, []);
 });
 
+test("a main-frame server redirect to another origin is prevented and handed to the OS browser", () => {
+  // `will-navigate` does not fire for a 30x, and a site's own redirect rules may name an absolute,
+  // allowlisted origin (`apps/website/src/features/redirects`). Without this, a same-origin click
+  // that redirects lands a foreign origin in this window, preload and all.
+  const fake = installOnFake();
+  assert.equal(fake.redirect("https://partner.example/landing", true), true);
+  assert.equal(fake.redirect("http://127.0.0.1:4567@evil.example/admin", true), true);
+  assert.equal(fake.redirect("smb://evil.example/share", true), true);
+  assert.deepEqual(fake.opened, ["https://partner.example/landing", "http://127.0.0.1:4567@evil.example/admin"]);
+});
+
+test("a same-origin main-frame redirect, and any subframe redirect, is left alone", () => {
+  // A subframe never runs the preload (no `nodeIntegrationInSubFrames`), so an embed that redirects
+  // across origins is the page's business, not this boundary's.
+  const fake = installOnFake();
+  assert.equal(fake.redirect("http://127.0.0.1:4567/admin/login", true), false);
+  assert.equal(fake.redirect("https://video.example/embed/123", false), false);
+  assert.deepEqual(fake.opened, []);
+});
+
 test("isSameOrigin compares parsed origins, and an opaque or unparseable origin never matches", () => {
   assert.equal(isSameOrigin("http://127.0.0.1:4567/admin", "http://127.0.0.1:4567"), true);
   assert.equal(isSameOrigin("http://127.0.0.1:4567/admin", "http://127.0.0.1:4567/other/"), true);
@@ -165,4 +194,13 @@ test("the webview guest's will-navigate uses the same origin primitive, not a se
   const guestPolicy = source.slice(source.indexOf("function registerGuestNavigationPolicy("), source.indexOf("async function adoptAndOpenSite("));
   assert.match(guestPolicy, /will-navigate[\s\S]{0,200}?isSameOrigin\(url, contents\.getURL\(\)\)/);
   assert.doesNotMatch(guestPolicy, /new URL\(/, "the guest policy must not carry its own origin parse");
+});
+
+test("the webview guest refuses a main-frame redirect to anything but a supervised site", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+  const guestPolicy = source.slice(source.indexOf("function registerGuestNavigationPolicy("), source.indexOf("async function adoptAndOpenSite("));
+  assert.match(
+    guestPolicy,
+    /on\("will-redirect", \(details\) => \{\s*if \(!details\.isMainFrame \|\| isSupervisedGuestUrl\(details\.url\)\) return;\s*details\.preventDefault\(\);/,
+  );
 });
