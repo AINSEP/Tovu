@@ -47,10 +47,10 @@
  *     R>G>B sense but reading as a neutral dark grey rather than cream, and it is not adjacent to
  *     a pure-white admin surface the way the light panel is. Nothing was reported there and
  *     nothing is changed there.
- *   - The MODAL `SettingsDialogShell` ("Open as dialog") is untouched. It portals out of
- *     `.settings-ui-section`, so this selector cannot reach it — which is correct rather than
- *     incidental: a dialog floating over its own dimmed backdrop is the exact case Jini's warm
- *     paper tokens were chosen for. Only the inline page is re-skinned.
+ *   - There is no MODAL `SettingsDialogShell` left to consider: the "Open as dialog" button that
+ *     used to open one, and the modal render itself, were removed 2026-09-19 (owner's call — the
+ *     overlay was never wanted). Only the inline page ever mounts now, and it is the one being
+ *     re-skinned here.
  */
 .settings-ui-section[data-theme="light"] {
   --jini-bg-panel: var(--surface);
@@ -154,8 +154,9 @@
  * gutter the ring on any control at the column's left edge would lose its outer half. The
  * content still starts at x=100.
  *
- * The chrome (save status + "Open as dialog") moves from 24px inside the vanished panel edge to
- * the column's own top-right corner, where every other screen's `.page-actions` sit. */
+ * The chrome (just the save status now — the "Open as dialog" button that used to sit beside it
+ * was removed 2026-09-19) moves from 24px inside the vanished panel edge to the column's own
+ * top-right corner, where every other screen's `.page-actions` sit. */
 .settings-ui-section.settings-page > .jini-tabbed-dialog--inline {
   background: transparent;
   border: none;

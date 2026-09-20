@@ -1175,9 +1175,10 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
 
 /* Button hierarchy — the global bare `button` rule below is the filled primary CTA (correct for
    one action per screen, e.g. "New Post"/"Upload"). These variants give secondary/destructive
-   actions the same restraint Settings' outline "Open as dialog" pill has, instead of every button
-   on the page reading as equally urgent (today: New Post, Upload, Save, Cancel, Edit, and Trash
-   are all rendered identically). */
+   actions the same restraint Settings' outline `.settings-ui-dialog-btn` pill has (Composio's
+   "Save"/"Clear" key-field buttons, `ComposioKeyField.tsx`), instead of every button on the page
+   reading as equally urgent (today: New Post, Upload, Save, Cancel, Edit, and Trash are all
+   rendered identically). */
 .btn-secondary { background: var(--surface); color: var(--fg-2); border: 1px solid var(--border-strong); }
 .btn-secondary:hover { background: var(--surface-2); opacity: 1; }
 .btn-ghost { background: transparent; color: var(--fg-2); border: 1px solid transparent; }
@@ -3927,9 +3928,13 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
  * would also mean a `dist` rebuild before Tovu saw it). Delete this block to
  * go back to the sidebar.
  *
- * Scoped to `--inline` — the "Open as dialog" modal keeps its sidebar. That
- * surface is 1040px of dedicated width with no admin chrome competing for it,
- * so it never had the problem this solves.
+ * Scoped to `--inline`: this screen's own admin-page constraint (a sidebar
+ * already one column deep before the panel even starts) is what this block
+ * solves, and `--inline` is the only presentation this screen mounts — the
+ * modal `SettingsDialogShell` this used to also be scoped against (1040px of
+ * dedicated width, no admin chrome competing for it, so it never had this
+ * problem) was removed 2026-09-19 along with the "Open as dialog" button
+ * that opened it.
  *
  * Semantics are deliberately unchanged: still an `<aside>` of `aria-pressed`
  * buttons, not an ARIA tablist. Painting a nav to look like tabs is not the
