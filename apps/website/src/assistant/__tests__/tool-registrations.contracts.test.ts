@@ -7,6 +7,8 @@ import { createToolExecutor } from "@jini-ai/daemon";
 import { adminScreenLinkAgentToolCatalog } from "../admin-screen-link-tool.js";
 import { agentPluginSearchAgentToolCatalog, agentPluginUninstallAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { contentDuplicationAgentToolCatalog } from "../../features/content-duplication/agent-tools.js";
+import { publishContentAgentToolCatalog } from "../../features/publish-content/agent-tools.js";
+import { getTrashAgentToolCatalog } from "../../features/trash/agent-tools.js";
 import { getFsFilesAgentToolCatalog } from "../../features/fs-files/agent-tools.js";
 import { supabaseConnectAgentToolCatalog } from "../../features/supabase-connect/agent-tools.js";
 import { externalMcpAgentToolCatalog } from "../../features/external-mcp/agent-tools.js";
@@ -246,6 +248,15 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // And again: `supabase-connect` (SPEC-052 M2, d0666279) wired via `contributeSupabaseConnectTools()`
   // with no entry here — surfaced the moment the `fs-files` entry above let the loop get past it.
   "supabase-connect": supabaseConnectAgentToolCatalog as unknown as AgentToolDefinition[],
+  // Same class again: `publish-content` was wired via `contributePublishContentTools()` with no
+  // entry here, so the completeness test above and every per-tool lookup that reached
+  // `publish_content_status` went red. Found already failing at HEAD while adding `trash` below.
+  "publish-content": publishContentAgentToolCatalog as unknown as AgentToolDefinition[],
+  // 2026-09-20: `trash` — `trash_list_items` and `trash_restore_item`, wired via
+  // `contributeTrashTools()`. Added with the contributor rather than after this test caught it.
+  // The catalog has exactly two entries and must never grow a purge tool; see
+  // `features/trash/__tests__/tool-registrations.purge-ban.test.ts`.
+  trash: getTrashAgentToolCatalog() as unknown as AgentToolDefinition[],
 };
 
 /** Flattened view of {@link CATALOGS_BY_DOMAIN} for the per-tool-id lookups below — every catalog

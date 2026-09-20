@@ -38,6 +38,7 @@ import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-re
 import { contributeSiteInspectionTools } from "#src/features/site-inspection/index";
 import { contributeSitesTools } from "#src/features/sites/index";
 import { contributeSourceControlTools } from "#src/features/source-control/tool-registrations";
+import { contributeTrashTools } from "#src/features/trash/tool-registrations";
 import { contributeSupabaseConnectTools } from "#src/features/supabase-connect/tool-registrations";
 import { contributeStaticPublishTools } from "#src/features/deployments/publish-agent-tools";
 import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations";
@@ -306,6 +307,10 @@ export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeSupabaseConnectTools());
   registerToolContributor(contributeTaxonomyTools());
   registerToolContributor(contributeThemesTools());
+  // Trash: `trash_list_items` and `trash_restore_item` ONLY. There is no purge tool and there must
+  // never be one — `features/trash/__tests__/tool-registrations.purge-ban.test.ts` walks every
+  // registration this function installs and fails if any handler can reach `purgeSelected`.
+  registerToolContributor(contributeTrashTools());
   registerToolContributor(contributeWidgetsTools());
   registerToolContributor(contributeWorkspaceTools());
 

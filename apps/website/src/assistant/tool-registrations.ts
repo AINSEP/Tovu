@@ -212,6 +212,7 @@ import type { FormsToolDeps } from "../features/forms/tool-registrations.js";
 import type { IdentityToolDeps } from "../features/identity/tool-registrations.js";
 import type { IntegrationsToolDeps } from "../features/webhooks/tool-registrations.js";
 import type { MediaToolDeps, MediaTrashToolDeps } from "../features/media/tool-registrations.js";
+import type { TrashToolDeps } from "../features/trash/tool-registrations.js";
 import type { MediaGenerationToolDeps } from "../features/media-generation/tool-registrations.js";
 import type { MediaImportToolDeps } from "../features/media-import/tool-registrations.js";
 import type { MembersToolDeps } from "../features/members/tool-registrations.js";
@@ -281,7 +282,8 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   SiteEvidenceToolDeps &
   WidgetsToolDeps &
   ExternalMcpReauthToolDeps &
-  ExternalMcpToolDeps;
+  ExternalMcpToolDeps &
+  TrashToolDeps;
 
 /**
  * One wired domain: its builder and the risk classification its own wiring file maintains.
