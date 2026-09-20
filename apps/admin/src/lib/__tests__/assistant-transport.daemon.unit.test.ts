@@ -734,4 +734,23 @@ describe("stopRun — daemon path", () => {
       expect.objectContaining({ method: "POST", body: JSON.stringify({ runId: "run-1" }) }),
     );
   });
+
+  // `fetch` resolves on any HTTP status, so a refused cancel used to resolve `stopRun` exactly like
+  // a successful one while the run kept going. `@jini-ai/chat`'s `useRunStream` observes and logs a
+  // `stopRun` rejection, so rejecting is safe and is the only way the failure is visible at all.
+  test("rejects with the status and server detail when the cancel endpoint refuses", async () => {
+    fetchMock = vi.fn(async () => new Response("run not cancellable", { status: 500 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const transport = createTovuAssistantTransport();
+
+    await expect(transport.stopRun("run-1")).rejects.toThrow("cancelling agent run failed (500): run not cancellable");
+  });
+
+  test("rejects with the bare status when the refusal carries no body", async () => {
+    fetchMock = vi.fn(async () => new Response(null, { status: 403 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const transport = createTovuAssistantTransport();
+
+    await expect(transport.stopRun("run-1")).rejects.toThrow(/^cancelling agent run failed \(403\)$/);
+  });
 });

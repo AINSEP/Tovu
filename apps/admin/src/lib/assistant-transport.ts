@@ -1196,12 +1196,18 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
       if (isAgUiRunId(runId)) {
         return stopAgUiRun(runId);
       }
-      await fetch(`${RUNS_URL}/${encodeURIComponent(runId)}/cancel`, {
+      const response = await fetch(`${RUNS_URL}/${encodeURIComponent(runId)}/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
         body: JSON.stringify({ runId }),
       });
+      // `fetch` resolves on any status: without this a refused cancel (401/403/500) resolved exactly
+      // like a successful one while the run kept executing. `useRunStream` logs a rejection here.
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        throw new Error(`cancelling agent run failed (${response.status})${detail ? `: ${detail.slice(0, 300)}` : ""}`);
+      }
     },
   };
 }
