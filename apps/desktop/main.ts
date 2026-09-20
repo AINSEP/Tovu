@@ -114,6 +114,7 @@ import { createShutdownTracker } from "./src/shutdown-tracker.ts";
 import { routeQuitSignals } from "./src/quit-signals.ts";
 import { decideBeforeQuit } from "./src/quit-drain-gate.ts";
 import { applyGuestWebPreferences } from "./src/webview-guest-policy.ts";
+import { installAppWindowNavigationPolicy, isSameOrigin } from "./src/window-navigation-policy.ts";
 import { createSelftestTracker } from "./src/selftest-tracker.ts";
 import { registerSpeechIpc } from "./src/speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "./src/find-in-page-ipc.ts";
@@ -459,12 +460,11 @@ function createWindow(url: string, title?: string, partition?: string): BrowserW
   window.on("page-title-updated", (event) => event.preventDefault());
 
   // Anything that navigates away from the app's own origin belongs in the OS browser — a
-  // "view site ↗" link must not replace the admin shell inside the app window.
-  const origin = new URL(url).origin;
-  window.webContents.setWindowOpenHandler(({ url: target }) => {
-    if (target.startsWith(origin)) return { action: "allow" };
-    void shell.openExternal(target);
-    return { action: "deny" };
+  // "view site ↗" link must not replace the admin shell inside the app window, and nothing but this
+  // origin may run with the speech preload. See `window-navigation-policy.ts`.
+  installAppWindowNavigationPolicy(window.webContents, {
+    appOrigin: new URL(url).origin,
+    openExternal: (target) => void shell.openExternal(target),
   });
 
   void window.loadURL(url);
@@ -1011,15 +1011,7 @@ function registerGuestNavigationPolicy(): void {
     });
 
     contents.on("will-navigate", (event, url) => {
-      let target;
-      let current;
-      try {
-        target = new URL(url).origin;
-        current = new URL(contents.getURL()).origin;
-      } catch {
-        return;
-      }
-      if (target === current) return;
+      if (isSameOrigin(url, contents.getURL())) return;
       event.preventDefault();
       openExternally(url);
     });
