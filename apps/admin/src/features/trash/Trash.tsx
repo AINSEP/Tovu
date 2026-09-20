@@ -35,7 +35,7 @@ function SelectAllHeader(props: { locale: string; allSelected: boolean; disabled
           label: t(props.locale, "Select every item shown"),
         })}
       />
-      <span className="sr-only">{t(props.locale, "Select every item shown")}</span>
+      <span className="visually-hidden">{t(props.locale, "Select every item shown")}</span>
     </label>
   );
 }
@@ -73,7 +73,7 @@ function trashColumns(props: {
               label: interpolate(t(props.locale, 'Select "{title}"'), { title: item.title }),
             })}
           />
-          <span className="sr-only">{interpolate(t(props.locale, 'Select "{title}"'), { title: item.title })}</span>
+          <span className="visually-hidden">{interpolate(t(props.locale, 'Select "{title}"'), { title: item.title })}</span>
         </label>
       ),
     },
