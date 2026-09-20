@@ -265,11 +265,29 @@ export function useOtherCredentials(
     }
   }, []);
 
+  // One chain for every Tier-2 write from this controller: a media-provider write is GET map →
+  // rebuild → PUT the WHOLE map, so two writes in flight at once would both rebuild from the same
+  // snapshot and the second PUT would re-create whatever the first one removed. Chaining makes each
+  // write read the map only after the previous write (and its refetch) settled. Tab-local by nature
+  // — two browser sessions still race; closing that needs a server-side concurrency check.
+  const writeChainRef = useRef<Promise<void>>(Promise.resolve());
+  function serialized(task: () => Promise<void>): Promise<void> {
+    const next = writeChainRef.current.then(task);
+    // `replace`/`remove` catch their own failures, so `next` never rejects today; the `catch` keeps a
+    // future throwing task from wedging every later write behind a rejected link.
+    writeChainRef.current = next.catch(() => undefined);
+    return next;
+  }
+
   function setDraftToken(key: string, value: string): void {
     setDrafts((prev) => ({ ...prev, [key]: { token: value, saving: prev[key]?.saving ?? false, error: prev[key]?.error ?? null } }));
   }
 
-  async function replace(row: OtherCredentialRowState): Promise<void> {
+  function replace(row: OtherCredentialRowState): Promise<void> {
+    return serialized(() => replaceNow(row));
+  }
+
+  async function replaceNow(row: OtherCredentialRowState): Promise<void> {
     const draft = drafts[row.key];
     const token = draft?.token.trim() ?? "";
     if (token === "" || !row.store.supportsReplace) return;
@@ -283,7 +301,11 @@ export function useOtherCredentials(
     }
   }
 
-  async function remove(row: OtherCredentialRowState): Promise<void> {
+  function remove(row: OtherCredentialRowState): Promise<void> {
+    return serialized(() => removeNow(row));
+  }
+
+  async function removeNow(row: OtherCredentialRowState): Promise<void> {
     try {
       await writeRemove(port, row.store.id, row.itemId);
       await refetchOne(port, row.store, setStoreStates);

@@ -534,6 +534,80 @@ describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all 
   });
 });
 
+// Regression (terra security review 2026-09-20, #2 — the in-tab half; the cross-session half needs a
+// server-side concurrency token and is out of this hook's reach). A media-provider write is GET map →
+// rebuild → PUT whole map. Two removes started back to back both read the SAME map, so the second PUT
+// is built from a snapshot that still contains the provider the first one deleted.
+describe("useOtherCredentials — Tier-2 writes from one tab are serialized", () => {
+  /** A fake `/media/providers` with the real server's whole-map semantics
+   *  (`provider-credential-store.ts`): an absent provider is hard-deleted; a present entry with no
+   *  `apiKey` keeps the key stored at write time, or has none if the row no longer exists. Each PUT
+   *  lands only when the test releases it, so both removes can be put in flight before either
+   *  write applies. */
+  function fakeMediaServer(initial: AdminMediaProviderMap) {
+    let state: AdminMediaProviderMap = { ...initial };
+    const releases: Array<() => void> = [];
+    const putBodies: AdminMediaProviderMap[] = [];
+    return {
+      state: () => state,
+      putBodies,
+      releaseNext: () => releases.shift()?.(),
+      pendingPuts: () => releases.length,
+      getMediaProviders: () => Promise.resolve(structuredClone(state)),
+      saveMediaProviders: (map: AdminMediaProviderMap) => {
+        putBodies.push(structuredClone(map));
+        return new Promise<AdminMediaProviderMap>((resolve) => {
+          releases.push(() => {
+            const next: AdminMediaProviderMap = {};
+            for (const [id, entry] of Object.entries(map)) {
+              const stored = state[id];
+              next[id] = entry.apiKey ? { apiKeyConfigured: true, apiKeyTail: entry.apiKey.slice(-4) } : stored?.apiKeyConfigured ? { apiKeyConfigured: true, apiKeyTail: stored.apiKeyTail! } : {};
+            }
+            state = next;
+            resolve(structuredClone(state));
+          });
+        });
+      },
+    };
+  }
+
+  it("a second media-provider remove reads the map only AFTER the first one's write landed", async () => {
+    const server = fakeMediaServer({
+      cloudinary: { apiKeyConfigured: true, apiKeyTail: "c111" },
+      grok: { apiKeyConfigured: true, apiKeyTail: "g222" },
+    });
+    const port = createFakeOtherCredentialsPort({ getMediaProviders: server.getMediaProviders, saveMediaProviders: server.saveMediaProviders });
+    const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const rows = findGroup(result.current.groups, "media-provider")!.rows;
+    const cloudinary = rows.find((r) => r.itemId === "cloudinary")!;
+    const grok = rows.find((r) => r.itemId === "grok")!;
+
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.remove(cloudinary);
+      second = result.current.remove(grok);
+    });
+    await waitFor(() => expect(server.pendingPuts()).toBe(1));
+    // Only ONE write may be in flight — the second remove must not have read or written yet.
+    expect(server.putBodies).toStrictEqual([{ grok: {} }]);
+
+    server.releaseNext();
+    await waitFor(() => expect(server.pendingPuts()).toBe(1));
+    server.releaseNext();
+    await act(async () => {
+      await first;
+      await second;
+    });
+
+    // Built from the post-first-write map, so it no longer names cloudinary. Unserialized, this body
+    // was `{ cloudinary: {} }`, which re-created cloudinary as an empty, key-less row.
+    expect(server.putBodies).toStrictEqual([{ grok: {} }, {}]);
+    expect(server.state()).toStrictEqual({});
+  });
+});
+
 describe("useWiredOtherCredentials", () => {
   it("wires the real port and locale — reads settle through the mocked lib/api", async () => {
     getAssistantSiteCredential.mockResolvedValue({ data: { isSet: true, masked: "wire", provider: "openai", baseUrl: null, model: null, updatedAt: null } });
