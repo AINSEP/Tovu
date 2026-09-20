@@ -467,6 +467,28 @@ export function pageSaveSuccessMessage(t: (locale: string, key: string) => strin
     : t(locale, "Saved title, slug, and status. This page's body uses the document editor and can't be edited here yet.");
 }
 
+/** The exact English copy {@link pagePartialSaveMessage} wraps in `t()` — also the dictionary key
+ *  added to `page-editor-i18n.ts`'s `PAGE_EDITOR_DICT` for every locale, matching this app's "the key
+ *  IS the source string" convention. Kept as a separate constant (rather than inlined in the template
+ *  literal below) so the two stay textually identical by construction. */
+const PAGE_PARTIAL_SAVE_COPY =
+  "Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry.";
+
+/**
+ * The banner `usePageEditor` shows when a Page's metadata write landed but its body write then
+ * failed (H1, 2026-09-20) — see `use-page-editor.hooks.ts`'s `PageBodyWriteError` and `writePage` for
+ * why the two writes can now part ways instead of one opaque failure. Appends the underlying reason
+ * in parentheses, the same "state what happened, then why" shape {@link pageVersionConflictMessage}
+ * already uses, falling back to the generic "failed to save page" copy for a non-`Error` rejection —
+ * the same fallback `applySaveFailure`'s own generic branch already uses for that case.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function pagePartialSaveMessage(t: (locale: string, key: string) => string, locale: string, reason: unknown): string {
+  const why = reason instanceof Error && reason.message ? reason.message : t(locale, "failed to save page");
+  return `${t(locale, PAGE_PARTIAL_SAVE_COPY)} (${why})`;
+}
+
 /**
  * Which surface the editor's main pane shows, as a discriminated value rather than a chain of
  * nested ternaries inside `PageEditor.tsx`'s JSX (2026-09-06 complexity-ceiling pass — that chain

@@ -19,6 +19,7 @@ import {
   pageEditableHtml,
   pageEditorSurface,
   pageLivePreviewPath,
+  pagePartialSaveMessage,
   pagePreviewFormTarget,
   pagePublicPath,
   pageRefreshMayHaveUnsavedEdits,
@@ -543,6 +544,28 @@ describe("pageAutosaveStaleBasisMessage", () => {
     } });
 
     expect(message).not.toMatch(/restore|recover|saved locally|in your browser/i);
+  });
+});
+
+/** H1's own message — see `use-page-editor.hooks.ts`'s `PageBodyWriteError`/`applySaveFailure` for
+ *  when this fires: the metadata write landed but the body write then failed. */
+describe("pagePartialSaveMessage", () => {
+  const t = (locale: string, key: string) => `${locale}:${key}`;
+
+  it("names what saved, what did not, and appends the underlying reason", () => {
+    const message = pagePartialSaveMessage(t, "en", new Error("boom"));
+
+    expect(message).toBe(
+      "en:Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry. (boom)"
+    );
+  });
+
+  it("falls back to the generic failure copy for a non-Error rejection", () => {
+    const message = pagePartialSaveMessage(t, "en", "not an Error");
+
+    expect(message).toBe(
+      "en:Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry. (en:failed to save page)"
+    );
   });
 });
 

@@ -21,6 +21,7 @@ import {
   pageAcceptsHtmlBody,
   pageDirtyGuardBaseline,
   pageEditableHtml,
+  pagePartialSaveMessage,
   pagePreviewFormTarget,
   pageSaveSuccessMessage,
   PAGES_RESOURCE,
@@ -443,24 +444,85 @@ async function writePage(
 ): Promise<AdminPost> {
   const { post: updated } = await port.updatePost({ id: pageId }, plan.updatePostPayload);
   if (!plan.canSaveHtml) return updated;
-  const { post: withBody } = await port.updatePageHtml(pageId, html);
-  return withBody;
+  try {
+    const { post: withBody } = await port.updatePageHtml(pageId, html);
+    return withBody;
+  } catch (e) {
+    // The metadata write above already landed — losing that fact here is exactly the partial-success
+    // bug this wraps against (H1, 2026-09-20). See `PageBodyWriteError`'s own doc and
+    // `applySaveFailure`'s handling of it.
+    throw new PageBodyWriteError(updated, e);
+  }
+}
+
+/** Thrown by {@link writePage} when the metadata write landed but the body write then failed. Carries
+ *  `savedRow` — the metadata write's own response, the only successful outcome to have happened by
+ *  the time this is thrown — so `applySaveFailure` can apply it without a second round-trip, and
+ *  `reason`, whatever the body write itself threw, for the message shown to the operator. */
+class PageBodyWriteError extends Error {
+  constructor(
+    readonly savedRow: AdminPost,
+    readonly reason: unknown,
+  ) {
+    super("page body write failed after its metadata write already landed");
+  }
+}
+
+/** `applySaveFailure`'s own "apply what already succeeded" step for a {@link PageBodyWriteError} —
+ *  the metadata write's response, applied EXCEPT `setSavedHtml`, so the body stays dirty and the next
+ *  Save (or the operator noticing the banner) retries writing it rather than the editor quietly
+ *  treating an unsaved body as saved. Deliberately narrower than {@link applySavedPage}: no
+ *  `setMessage` (the caller shows the partial-failure text instead, via `pagePartialSaveMessage`) and
+ *  no `nextStatus` override (the metadata write already wrote whatever status this attempt asked
+ *  for, since it is what succeeded). */
+function applyPartialSave(
+  updated: AdminPost,
+  form: { templateChoice: string | null },
+  setters: {
+    setPage: (page: AdminPost) => void;
+    setSlug: (slug: string) => void;
+    setStatus: (status: "draft" | "published") => void;
+    setSavedTemplateChoice: (value: string | null) => void;
+  },
+): void {
+  setters.setPage(updated);
+  setters.setSlug(updated.slug);
+  setters.setStatus(updated.status);
+  setters.setSavedTemplateChoice(form.templateChoice);
 }
 
 /** `runSave`'s own catch arm, named out of its body for the same complexity-ceiling reason
  *  {@link applySavedPage} above documents.
  *
- *  The version conflict is NOT folded into the generic error line. The two need opposite reactions
- *  from the operator (a slug collision or a network blip: fix it and press Save again; this:
- *  pressing Save again replaces somebody's page), and the whole point of the route's distinct `code`
- *  is that the client no longer has to guess which it got — see `readPageVersionConflict`. */
+ *  A {@link PageBodyWriteError} is handled FIRST and separately from the version conflict below: it
+ *  is not a rejected save at all but a partial one, so it gets `applyPartialSave` plus
+ *  `pagePartialSaveMessage` rather than either the conflict banner or the generic error line — see
+ *  H1's own writeup (`ADS-memory/.local-artifacts/terra-admin-review-2026-09-20/plan-content.md`).
+ *
+ *  The version conflict is NOT folded into the generic error line either. The two need opposite
+ *  reactions from the operator (a slug collision or a network blip: fix it and press Save again;
+ *  this: pressing Save again replaces somebody's page), and the whole point of the route's distinct
+ *  `code` is that the client no longer has to guess which it got — see `readPageVersionConflict`. */
 function applySaveFailure(
   e: unknown,
   attemptedStatus: "draft" | "published" | undefined,
-  setters: { setSaveConflict: (value: PageSaveConflict) => void; setError: (value: string) => void },
+  form: { templateChoice: string | null },
+  setters: {
+    setPage: (page: AdminPost) => void;
+    setSlug: (slug: string) => void;
+    setStatus: (status: "draft" | "published") => void;
+    setSavedTemplateChoice: (value: string | null) => void;
+    setSaveConflict: (value: PageSaveConflict) => void;
+    setError: (value: string) => void;
+  },
   t: (locale: string, key: string) => string,
   locale: string,
 ): void {
+  if (e instanceof PageBodyWriteError) {
+    applyPartialSave(e.savedRow, form, setters);
+    setters.setError(pagePartialSaveMessage(t, locale, e.reason));
+    return;
+  }
   const conflict = readPageVersionConflict(e, attemptedStatus);
   if (conflict) {
     setters.setSaveConflict(conflict);
@@ -763,7 +825,14 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         void autosave.clearStandingDraft();
       } catch (e) {
         if (!settlement.isCurrent(generation)) return;
-        applySaveFailure(e, nextStatus, { setSaveConflict, setError }, t, locale);
+        applySaveFailure(
+          e,
+          nextStatus,
+          { templateChoice },
+          { setPage, setSlug, setStatus, setSavedTemplateChoice, setSaveConflict, setError },
+          t,
+          locale,
+        );
       } finally {
         // Same generation check as the two branches above: only the call that is still current
         // should flip the shared `saving` flag back off, or an older call's own settlement could
