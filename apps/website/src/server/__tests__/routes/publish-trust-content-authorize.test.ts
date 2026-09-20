@@ -12,7 +12,7 @@ import { withPublishTrustContentAuthorize } from "#src/server/inbound/admin-http
  * retain the type narrowing at this call site.
  */
 
-type Authorize = (params: { permission: string }) => Promise<{ allowed: boolean; reason: string }>;
+type Authorize = (params: { permission: string; entityType?: string }) => Promise<{ allowed: boolean; reason: string }>;
 
 function publishingResponse(entityTypes: readonly string[]) {
   return {
@@ -37,20 +37,20 @@ test("a publishing grant authorizes only the registered entity types it names", 
     publishingResponse(["post"]) as never,
     deps,
     new Map([
-      ["content.post.write", "post"],
-      ["content.media.write", "media"],
+      ["post", "content.post.write"],
+      ["media", "content.media.write"],
     ])
   ).authorize;
 
   assert.ok(authorize, "publishing context must replace the ordinary authorization function");
 
-  const refused = await authorize({ permission: "content.media.write" });
+  const refused = await authorize({ permission: "content.media.write", entityType: "media" });
   assert.deepEqual(refused, {
     allowed: false,
     reason: "this publishing grant does not cover 'media'",
   });
 
-  const allowed = await authorize({ permission: "content.post.write" });
+  const allowed = await authorize({ permission: "content.post.write", entityType: "post" });
   assert.deepEqual(allowed, {
     allowed: true,
     reason: "granted by the publishing grant for 'post'",
