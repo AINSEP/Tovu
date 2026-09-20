@@ -112,6 +112,50 @@
   margin-top: var(--space-5);
 }
 
+/* `FormSubmissionDetail` (`FormEditor.tsx`) — the back button, the submission table, and the
+   Delete button are plain flex/block siblings with no gap of their own, so they rendered flush
+   against each other (owner: "pad the buttons"). Same `flex-direction: column` + `gap` idiom
+   `.field-group` above already uses for vertical rhythm between siblings, rather than one-off
+   margins on the two buttons. Deliberately no `align-items: flex-start` on the container itself:
+   `.table-scroll`'s own child `<table class="list-table">` sizes itself via `width: 100%` against
+   its parent, so shrinking the flex item to fit-content here would collapse the table. Instead
+   the two direct-child `<button>`s opt out individually — same fix shape as
+   `.widget-config-fields > button` above, for the identical stretch-by-default class of bug. */
+.form-submission-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.form-submission-detail > button {
+  align-self: flex-start;
+}
+
+/* `.list-table` (`styles.css`) sets no `width` on `th`/`td`, so this table falls back to the
+   browser's default AUTO layout: each column's share of the table's width comes out of the
+   browser's own content-based distribution, weighted toward whichever column's content wants
+   the most room. Here that's always the `<td>` — SOURCE IP/FULL_NAME/EMAIL/MESSAGE values,
+   especially a free-text message, routinely want far more width than a five-word label ever
+   does — so the `<th>` column is squeezed down near its own min-content width on any
+   ordinarily-proportioned admin viewport, not just a narrow one. Measured live on production
+   (`/admin/forms/contact-us/submissions`, sidebar expanded, no dock, 1107px viewport): the
+   layout gave the `th` column 111px (79px of content after this table's `--space-4` padding),
+   while "Submitted at" needs 83px unwrapped — 4px short, which is exactly the "SUBMITTED AT"
+   two-line wrap the owner saw, not a one-off caused by a smaller window or the AI Assistant
+   dock. "Submitted at" is the one label long enough to lose that race; "Source IP"/"Full_name"/
+   "Email"/"Message" all stay under 79px unwrapped at the same measurement and never wrapped in
+   either screenshot. `white-space: nowrap` fixes the min-content width itself instead of
+   guessing a column percentage (the `.form-fields-table` rule above owns that approach for its
+   own all-input table): the layout can no longer shrink this column below one line, and
+   `.table-scroll`'s existing `overflow-x: auto` is still there to scroll the rest of the row on
+   a genuinely narrow viewport, same fallback `.form-fields-table`'s own comment documents.
+   Scoped to `.form-submission-detail` rather than bare `.list-table th`: roughly a dozen other
+   `.list-table` call sites in this app hold ordinary list/data rows where a wrapping header is
+   either impossible (short one-word headers) or an acceptable, unreviewed tradeoff today —
+   forcing `nowrap` on all of them is a different, unrequested change. */
+.form-submission-detail .list-table th {
+  white-space: nowrap;
+}
+
 /* `.field-row`'s own definition lives in `styles.css` (off-limits to this dispatch) as a plain
    grid with no `align-items` set, so its default is `stretch`. Stretch is invisible as long as
    every cell's label is one line (true for every OTHER `.field-row` caller today — `FormEditor.tsx`

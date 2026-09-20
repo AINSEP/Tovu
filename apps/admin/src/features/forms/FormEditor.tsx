@@ -502,7 +502,12 @@ function FormSubmissionDetail({
   if (!submission) return <div className="notice">Loading submission…</div>;
 
   return (
-    <div>
+    // `form-submission-detail` (`styles/forms.css`) — the back button, table, and Delete button
+    // were flush siblings with no gap between them (owner: "pad the buttons"), so the back
+    // button sat right on top of the table and Delete sat right underneath it. Same
+    // flex-column-plus-gap idiom `.field-group` already uses elsewhere for vertical rhythm,
+    // rather than one-off margins on each button.
+    <div className="form-submission-detail">
       <button
         type="button"
         className="btn-secondary"
@@ -959,26 +964,33 @@ export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor
 
   return (
     <div className="page">
+      {/* `page-header-split` (the same modifier `PageEditorHeader`/`PostEditor` use on the shared
+          `.page-header`, `styles.css`) — back link alone at the far left, title block centred.
+          Forms has no Save/Delete group living in this header (that's inside the fields card
+          below), so the header's third rail just stays empty, same as the editors' post-move
+          state. */}
       <div
-        className="page-header"
+        className="page-header page-header-split"
         {...agentHandle("form-editor-header", {
           role: "region",
           label: "Form editor header — title and the Back to forms link",
         })}
       >
-        <FormEditorHeaderText isNew={isNew} name={name} t={t} />
-        <div className="page-actions">
+        <div className="page-header-lead">
           {/* Plain `<a className="btn-secondary">`, not a `<button>` nested inside an `<a>`
               (invalid HTML, undefined activation behaviour) — same `a.btn-*` mechanism
-              `Dashboard.tsx`'s "View site ↗" already uses. */}
+              `Dashboard.tsx`'s "View site ↗" already uses. Arrow sits outside `t()`, matching
+              `FormSubmissionDetail`'s own `&larr; {t("Back to submissions")}` below — the glyph
+              is not part of the translated string, so no locale block needs to change. */}
           <a
             className="btn-secondary"
             href="/admin/forms"
             {...agentHandle("form-editor-back", { role: "link", label: "Back to the list of all forms" })}
           >
-            {t("Back to forms")}
+            &larr; {t("Back to forms")}
           </a>
         </div>
+        <FormEditorHeaderText isNew={isNew} name={name} t={t} />
       </div>
       {error ? <div className="notice error">{error}</div> : null}
 
