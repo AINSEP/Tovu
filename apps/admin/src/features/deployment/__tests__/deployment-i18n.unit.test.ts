@@ -14,6 +14,7 @@ import {
   publishCredentialsLoadErrorMessage,
   publishCredentialSaveErrorMessage,
   publishCredentialVerifyErrorMessage,
+  publishCredentialSelectErrorMessage,
 } from "../deployment-i18n";
 
 /**
@@ -51,6 +52,11 @@ const CASES: Array<{ name: string; fn: (locale: string, error: string) => string
   { name: "publishCredentialsLoadErrorMessage", fn: publishCredentialsLoadErrorMessage, en: "Could not load publish credentials ({error})." },
   { name: "publishCredentialSaveErrorMessage", fn: publishCredentialSaveErrorMessage, en: "Could not save this token ({error})." },
   { name: "publishCredentialVerifyErrorMessage", fn: publishCredentialVerifyErrorMessage, en: "Could not verify this token ({error})." },
+  {
+    name: "publishCredentialSelectErrorMessage",
+    fn: publishCredentialSelectErrorMessage,
+    en: "Could not switch the publishing token ({error}). Publishing still uses the one shown.",
+  },
 ];
 
 describe("deployment-i18n error-message templates — unsupported-locale fallback", () => {

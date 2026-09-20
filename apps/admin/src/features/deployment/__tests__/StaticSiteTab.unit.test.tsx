@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -9,6 +9,9 @@ import type { DeploymentOverviewController } from "../hooks/use-deployment-overv
 import type { PublishCredentialRowState, PublishCredentialsController } from "../hooks/use-publish-credentials.hooks";
 import type { AdminPublishCredentialProviderId, AdminPublishCredentialSummary } from "@/lib/api";
 import { PUBLISH_CLI_TOOLS, PUBLISH_CREDENTIAL_PROVIDERS, STATIC_HOSTS, STATIC_SITE_CAPABILITIES } from "../rules";
+import { usePublishCredentials } from "../hooks/use-publish-credentials.hooks";
+import { createFakePublishCredentialsPort } from "../hooks/publish-credentials-dependencies.hooks";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 
 /**
  * @file `StaticSiteTab` — driven through its three `useStaticExportHook`/`useStaticPublishHook`/
@@ -108,6 +111,8 @@ function credentialRowFixture(providerId: AdminPublishCredentialProviderId, over
     verifying: false,
     verification: undefined,
     verifyError: null,
+    selectingCredentialId: null,
+    selectError: null,
     ...overrides,
   };
 }
@@ -131,6 +136,7 @@ function credentialsControllerFixture(overrides: CredentialsControllerFixtureOve
     rows: finalRows,
     executionMode: "self-hosted-cli",
     loadError: null,
+    credentialChangePending: false,
     setToken: vi.fn(),
     setAccountId: vi.fn(),
     save: vi.fn().mockResolvedValue(undefined),
@@ -1387,6 +1393,81 @@ describe("StaticSiteTab — the 'which saved token publishes' picker (owner's or
     const picker = screen.getByLabelText(/which saved token publishes/i);
     await user.selectOptions(picker, "cred-2");
     expect(selectCredential).toHaveBeenCalledWith("github-pages", "cred-2");
+  });
+});
+
+// terra review 2026-09-20, finding 1 (Critical) — the real credentials hook against a fake port,
+// not a fixture: the defect is the two controllers failing to talk to each other, which a fixture
+// with a hand-set flag would hide. The server publishes with whichever row is default when the
+// publish POST lands, so a Publish click inside the promotion window goes to the OLD account.
+describe("StaticSiteTab — Publish waits for a credential switch to land (terra #1)", () => {
+  const PRIMARY: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-1", label: "primary" };
+  const BACKUP: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "backup", isDefault: false };
+
+  function renderWithRealCredentials(updateCredential: () => Promise<AdminPublishCredentialSummary>, publish: () => Promise<void>) {
+    let listCalls = 0;
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => {
+        listCalls += 1;
+        const credentials = listCalls === 1 ? [PRIMARY, BACKUP] : [{ ...PRIMARY, isDefault: false }, { ...BACKUP, isDefault: true }];
+        return Promise.resolve({ credentials, executionMode: "self-hosted-cli" });
+      },
+      updateCredential,
+    });
+    return render(
+      <FetchQueryProvider>
+        <StaticSiteTab
+          useStaticExportHook={() => exportControllerFixture()}
+          useStaticPublishHook={() => publishControllerFixture({ owner: "octo", repo: "demo-repo", projectName: "deploy", publish })}
+          useDeploymentOverviewHook={() => overviewControllerFixture()}
+          usePublishCredentialsHook={() => usePublishCredentials(port, fakeT, "en")}
+        />
+      </FetchQueryProvider>,
+    );
+  }
+
+  it("a Publish click while the chosen token is still being promoted sends nothing; Publish re-enables once it lands", async () => {
+    const user = userEvent.setup();
+    const publish = vi.fn().mockResolvedValue(undefined);
+    let resolveUpdate: (value: AdminPublishCredentialSummary) => void = () => {};
+    renderWithRealCredentials(
+      () =>
+        new Promise((resolve) => {
+          resolveUpdate = resolve;
+        }),
+      publish,
+    );
+
+    const picker = (await screen.findByLabelText(/which saved token publishes/i)) as HTMLSelectElement;
+    expect(screen.getByRole("button", { name: "Publish" })).toBeEnabled();
+    await user.selectOptions(picker, "cred-2");
+    await user.click(screen.getByRole("button", { name: "Publish" }));
+
+    expect(publish).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Publish" })).toBeDisabled();
+    // The picker shows the pick being made, and cannot start a second, racing promotion.
+    expect(picker.value).toBe("cred-2");
+    expect(picker).toBeDisabled();
+
+    await act(async () => {
+      resolveUpdate({ ...BACKUP, isDefault: true });
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Publish" })).toBeEnabled());
+    expect(picker.value).toBe("cred-2");
+  });
+
+  it("a promotion the server refused says so in the row, and the picker goes back to the token that still publishes", async () => {
+    const user = userEvent.setup();
+    renderWithRealCredentials(() => Promise.reject(new Error("network down")), vi.fn().mockResolvedValue(undefined));
+
+    const picker = (await screen.findByLabelText(/which saved token publishes/i)) as HTMLSelectElement;
+    await user.selectOptions(picker, "cred-2");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not switch the publishing token (network down). Publishing still uses the one shown.",
+    );
+    expect(picker.value).toBe("cred-1");
+    expect(screen.getByRole("button", { name: "Publish" })).toBeEnabled();
   });
 });
 

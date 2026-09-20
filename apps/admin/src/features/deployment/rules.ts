@@ -433,6 +433,25 @@ export function defaultCredentialForProvider(
 }
 
 /**
+ * The saved-credential list as it stands once the server has confirmed `promoted` as its provider's
+ * default: that row replaced by the server's own summary, every OTHER row for the same provider
+ * un-defaulted (the store's "`isDefault: true` always wins" rule), other providers untouched. Applied
+ * only after the write has resolved — never optimistically — so it restates what the server did
+ * rather than guessing ahead of it.
+ * @complexity O(n) in this workspace's total saved-credential count.
+ */
+export function withPromotedDefault(
+  credentials: readonly AdminPublishCredentialSummary[],
+  promoted: AdminPublishCredentialSummary
+): AdminPublishCredentialSummary[] {
+  return credentials.map((credential) => {
+    if (credential.id === promoted.id) return promoted;
+    if (credential.providerId !== promoted.providerId) return credential;
+    return { ...credential, isDefault: false };
+  });
+}
+
+/**
  * Whether one provider's credential row has enough typed to save. There is no add-vs-edit mode and
  * no label to check anymore (2026-08-15 redesign — see {@link PUBLISH_CREDENTIAL_ROW_LABEL}'s doc):
  * "connected" vs. "not connected" is read directly off {@link AdminPublishCredentialSummary}

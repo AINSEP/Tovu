@@ -720,7 +720,12 @@ function GettingItOnlineCard({
         <PublishCredentialsSection controller={credentialsController} selectedProviderId={selectedTarget.id} t={translate} />
         <ManageAccessTokensLink t={translate} />
 
-        <StaticPublishForm target={selectedTarget.id} controller={publishController} t={translate} />
+        <StaticPublishForm
+          target={selectedTarget.id}
+          controller={publishController}
+          credentialChangePending={credentialsController.credentialChangePending}
+          t={translate}
+        />
       </div>
     </div>
   );
@@ -1226,7 +1231,8 @@ function CredentialTokenPicker({
       </label>
       <select
         id={fieldId}
-        value={row.saved?.id ?? ""}
+        value={row.selectingCredentialId ?? row.saved?.id ?? ""}
+        disabled={row.selectingCredentialId !== null}
         onChange={(e) => void controller.selectCredential(row.providerId, e.target.value)}
         {...agentHandle(fieldId, {
           role: "field",
@@ -1243,6 +1249,11 @@ function CredentialTokenPicker({
         {translate("This workspace has more than one saved")} <span translate="no">{info.label}</span>{" "}
         {translate("token. Pick which one Tovu publishes with.")}
       </p>
+      {row.selectError ? (
+        <p className="save-error" role="alert">
+          {row.selectError}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -1385,12 +1396,16 @@ function PublishPreviewAction({
 function PublishTriggerAction({
   canPublish,
   busy,
+  credentialChangePending,
   runTone,
   controller,
   t: translate,
 }: {
   canPublish: boolean;
   busy: boolean;
+  /** Disables Publish (without relabelling it "Publishing…") while a token switch or replacement is
+   *  still in flight — the server would otherwise publish with the token being replaced. */
+  credentialChangePending: boolean;
   runTone: string;
   controller: StaticPublishController;
   t: Translate;
@@ -1400,7 +1415,7 @@ function PublishTriggerAction({
       <span className={`status status-${runTone}`}>{translate(publishRunStatusLabelKey(controller.run))}</span>
       <button
         type="button"
-        disabled={!canPublish || busy}
+        disabled={!canPublish || busy || credentialChangePending}
         onClick={() => void controller.publish()}
         {...agentHandle("deployment-static-site-publish-trigger", { role: "button", label: "Publish the current site export to this target right now — live on the public internet immediately" })}
       >
@@ -1438,10 +1453,13 @@ function PublishTriggerAction({
 function StaticPublishForm({
   target,
   controller,
+  credentialChangePending,
   t: translate,
 }: {
   target: AdminStaticPublishTargetId;
   controller: StaticPublishController;
+  /** {@link PublishCredentialsController.credentialChangePending} — see that field's doc. */
+  credentialChangePending: boolean;
   t: Translate;
 }) {
   const canPreview = staticPublishFormReadyForPreview(target, { owner: controller.owner, repo: controller.repo });
@@ -1501,7 +1519,14 @@ function StaticPublishForm({
       </div>
 
       <PublishPreviewAction canPreview={canPreview} controller={controller} t={translate} />
-      <PublishTriggerAction canPublish={canPublish} busy={busy} runTone={runTone} controller={controller} t={translate} />
+      <PublishTriggerAction
+        canPublish={canPublish}
+        busy={busy}
+        credentialChangePending={credentialChangePending}
+        runTone={runTone}
+        controller={controller}
+        t={translate}
+      />
     </div>
   );
 }

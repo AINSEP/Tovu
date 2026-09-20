@@ -2009,3 +2009,15 @@ const PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE: Record<string, string> = {
 export function publishCredentialVerifyErrorMessage(locale: string, error: string): string {
   return interpolate(PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE[locale] ?? PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE.en, { error });
 }
+
+/** The "which saved token publishes" picker's failed-switch banner — same shape as
+ *  {@link PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE}. Its second sentence is the point: a refused
+ *  promotion leaves the server publishing with the token it had, and the picker goes back to showing
+ *  that one, so the operator is told the two still agree rather than left to wonder which is live. */
+const PUBLISH_CREDENTIAL_SELECT_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Could not switch the publishing token ({error}). Publishing still uses the one shown.",
+};
+
+export function publishCredentialSelectErrorMessage(locale: string, error: string): string {
+  return interpolate(PUBLISH_CREDENTIAL_SELECT_ERROR_TEMPLATE[locale] ?? PUBLISH_CREDENTIAL_SELECT_ERROR_TEMPLATE.en, { error });
+}

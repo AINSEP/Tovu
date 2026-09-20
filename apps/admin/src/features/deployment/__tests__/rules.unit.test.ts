@@ -14,6 +14,7 @@ import {
   credentialsForProvider,
   daemonStatusLabelKey,
   defaultCredentialForProvider,
+  withPromotedDefault,
   deploymentEnvVarNoteKey,
   exportRunStatusLabelKey,
   isEnvVarRowUnsafe,
@@ -413,6 +414,31 @@ describe("credentialsForProvider", () => {
   it("returns an empty array when this workspace has no credential for the provider — never throws", () => {
     expect(credentialsForProvider([], "netlify")).toEqual([]);
     expect(credentialsForProvider([credential({ providerId: "github-pages" })], "netlify")).toEqual([]);
+  });
+});
+
+describe("withPromotedDefault", () => {
+  function credential(overrides: Partial<AdminPublishCredentialSummary> = {}): AdminPublishCredentialSummary {
+    return {
+      id: "cred-1",
+      providerId: "github-pages",
+      label: PUBLISH_CREDENTIAL_ROW_LABEL,
+      configured: true,
+      isDefault: false,
+      createdAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: "2026-08-01T00:00:00.000Z",
+      accountLabel: null,
+      ...overrides,
+    };
+  }
+
+  it("swaps in the server's summary, un-defaults the same provider's other rows, and leaves other providers alone", () => {
+    const oldDefault = credential({ id: "gh-a", isDefault: true });
+    const chosen = credential({ id: "gh-b" });
+    const vercel = credential({ id: "v-1", providerId: "vercel", isDefault: true });
+    const promoted = { ...chosen, isDefault: true, updatedAt: "2026-09-20T00:00:00.000Z" };
+
+    expect(withPromotedDefault([oldDefault, chosen, vercel], promoted)).toEqual([{ ...oldDefault, isDefault: false }, promoted, vercel]);
   });
 });
 
