@@ -213,6 +213,7 @@ import type { IdentityToolDeps } from "../features/identity/tool-registrations.j
 import type { IntegrationsToolDeps } from "../features/webhooks/tool-registrations.js";
 import type { MediaToolDeps, MediaTrashToolDeps } from "../features/media/tool-registrations.js";
 import type { TrashToolDeps } from "../features/trash/tool-registrations.js";
+import { deriveTrashItemRegistrations, type TrashItemToolDeps } from "../features/trash/index.js";
 import type { MediaGenerationToolDeps } from "../features/media-generation/tool-registrations.js";
 import type { MediaImportToolDeps } from "../features/media-import/tool-registrations.js";
 import type { MembersToolDeps } from "../features/members/tool-registrations.js";
@@ -283,7 +284,8 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   WidgetsToolDeps &
   ExternalMcpReauthToolDeps &
   ExternalMcpToolDeps &
-  TrashToolDeps;
+  TrashToolDeps &
+  TrashItemToolDeps;
 
 /**
  * One wired domain: its builder and the risk classification its own wiring file maintains.
@@ -706,6 +708,21 @@ export function buildAssistantToolRegistrations(
       ownerByToolId.set(registration.descriptor.id, slice.domain);
       registrations.push(registration);
     }
+  }
+
+  // `trash_item` (2026-09-20) — see `features/trash/trash-item-tool.ts`'s header. A post-processing
+  // pass for the same reason `content_read` below is one: it reuses the four per-domain delete tools'
+  // ALREADY-BUILT handlers, so it can only be built once every contributor above has run. Pushed
+  // before the collapse's early return so both of this function's shapes include it.
+  for (const registration of deriveTrashItemRegistrations({ registrations, routeDeps: enrichedRouteDeps })) {
+    const owner = ownerByToolId.get(registration.descriptor.id);
+    if (owner) {
+      throw new Error(
+        `tool-registrations.ts: '${registration.descriptor.id}' is registered by both the ${owner} domain and trash_item's post-processing pass — one tool id must resolve to exactly one handler`,
+      );
+    }
+    ownerByToolId.set(registration.descriptor.id, "trash-item");
+    registrations.push(registration);
   }
 
   // `content_read` collapse (2026-09-08, ADS-memory/reports/2026-09-08-parent-tool-read-eval.md,

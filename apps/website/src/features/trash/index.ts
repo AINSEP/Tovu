@@ -60,6 +60,9 @@ export { createContentDbTransactionRunner, SqliteTrashRepo } from "./repo.sqlite
 export { InMemoryTrashRepo } from "./repo.memory.js";
 export { decodeTrashCursor, encodeTrashCursor } from "./cursor.js";
 
+export { deriveTrashItemRegistrations, TRASH_ITEM_DELEGATES, TRASH_ITEM_TOOL_ID } from "./trash-item-tool.js";
+export type { TrashItemDelegate, TrashItemToolDeps } from "./trash-item-tool.js";
+
 export { createPostTrashAdapter, POST_ENTITY_TYPE } from "./adapters/post.js";
 export { createCommentTrashAdapter, COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
 export { createMediaTrashAdapter, MEDIA_ENTITY_TYPE } from "./adapters/media.js";

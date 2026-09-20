@@ -707,6 +707,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // timer (`createServingApp` does), and the hermetic media/comment adapters have no
     // `hardDelete`, so a pass here would stand down rather than claim a removal.
     sweepTrash: createTrashSweep({ repo: trashRepo, adapters: trashAdapters, transaction: (fn) => fn() }),
+    isTrashableEntityType: (entityType) => trashAdapters.has(entityType),
     // The hermetic half of the real SQLite deny store. `core.ts` still narrows this to `list`
     // before giving it to the request gate, so tests retain the same least-authority boundary.
     publishTrustRevocations: createInMemoryRevocations(),

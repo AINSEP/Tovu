@@ -15,16 +15,16 @@ import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
  * and fails the build if any handler can reach it. A tool omitted from a catalog cannot be called;
  * a prompt asking a model not to call one can be argued with.
  *
- * **There is also no `trash_item` tool, and that is not an oversight either.** Moving something to
- * the Trash is already agent-callable, once per domain, through the tool that domain owns:
- * `content_post_delete`, `comments_trash_comment`, `media_trash_asset`, `redirects_tombstone`.
- * Every one of those carries its own permission and its own human confirmation dialog, and since
- * stage 1 every one of them writes the Trash index as part of the same transaction. A generic
- * `trash_item(entityType, entityId)` would be a fifth path to the same four writes that skipped all
- * four of those gates, and it would take the entity type as a model-supplied string — the exact
- * typo-able lookup `RouteDeps`'s four pre-bound `remove*` fields exist to avoid.
+ * **`trash_item` is not in this catalog, on purpose.** Moving something to the Trash is agent-callable
+ * once per domain, through the tool that domain owns: `content_post_delete`, `comments_trash_comment`,
+ * `media_trash_asset`, `redirects_tombstone`. Each carries its own permission and its own human
+ * confirmation dialog, and each writes the Trash index in the same transaction as its marker. This
+ * catalog first declined a generic `trash_item(entityType, entityId)` because, built here, it would
+ * have been a fifth path to those writes that skipped all four gates. The owner asked for it anyway
+ * (2026-09-20), so it lives in `trash-item-tool.ts` as a post-processing pass that routes INTO those
+ * four tools' own built handlers, and never writes anything itself. Read that file's header.
  *
- * What is left is the half no domain owns: reading the Trash, and undoing a delete from it.
+ * What this catalog owns is the half no domain owns: reading the Trash, and undoing a delete from it.
  */
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";

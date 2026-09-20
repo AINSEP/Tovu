@@ -310,6 +310,8 @@ export function installFirstPartyToolContributors(): void {
   // Trash: `trash_list_items` and `trash_restore_item` ONLY. There is no purge tool and there must
   // never be one — `features/trash/__tests__/tool-registrations.purge-ban.test.ts` walks every
   // registration this function installs and fails if any handler can reach `purgeSelected`.
+  // (`trash_item` is not a contributor: `buildAssistantToolRegistrations` derives it afterwards from
+  // the four per-domain delete tools — see `features/trash/trash-item-tool.ts`.)
   registerToolContributor(contributeTrashTools());
   registerToolContributor(contributeWidgetsTools());
   registerToolContributor(contributeWorkspaceTools());

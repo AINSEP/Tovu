@@ -1390,6 +1390,15 @@ export interface TrashDeps {
    * `server/runtime/composition/serving-app.ts` is the only caller — it owns the timer.
    */
   sweepTrash: TrashSweepOnce;
+  /**
+   * Whether this composition registered a Trash adapter for `entityType`: a read of the live adapter
+   * map, on every call, never a list captured once. `trash_item` checks it before it touches
+   * anything, so a model-supplied kind the Trash cannot hold is refused rather than trusted.
+   *
+   * A predicate rather than the map: the adapters carry `purge`, and nothing handed to every route
+   * may reach a hard delete.
+   */
+  isTrashableEntityType: (entityType: string) => boolean;
 }
 
 export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {

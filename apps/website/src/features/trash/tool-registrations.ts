@@ -1,8 +1,8 @@
 /**
  * @file Trash's agent-tool wiring: `trash_list_items` and `trash_restore_item`, and nothing else.
  *
- * Read `agent-tools.ts`'s header first — it carries the two deliberate absences (no purge tool, no
- * generic trash tool) and why each is an absence rather than an oversight.
+ * Read `agent-tools.ts`'s header first — it carries the deliberate absence of a purge tool, and why
+ * `trash_item` is built in `trash-item-tool.ts` rather than here.
  *
  * Authorization shape: `TrashService` takes no `authorize` dependency at all, so, like Redirects,
  * this is the layer that gates (ADR-021 §2's single evaluator, located at the handler). The

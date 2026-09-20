@@ -1451,6 +1451,8 @@ export function createSqliteRouteDeps(
     // The 60-day backstop's one pass. `createServingApp` owns the timer that calls it, so it runs
     // only in a site-serving process — never in the exporter or the agent daemon.
     sweepTrash: createTrashSweep({ repo: trashRepo, adapters: trashAdapters, transaction: trashTransaction }),
+    // Read on every call; see `TrashDeps.isTrashableEntityType`.
+    isTrashableEntityType: (entityType) => trashAdapters.has(entityType),
     postRepo,
     postSearch: new SqlitePostSearchIndex(db),
     // SPEC-047/ADR-056 — the db handle and clock are closed over here so no route ever holds one;
