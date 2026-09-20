@@ -11,16 +11,23 @@
  * `project-provisioner.ts:617-871` (~255 lines) cluster (`isProcessAlive`, `isProjectSidecar`,
  * `terminateOrphan`, `reconcile`), reproduced at the size this shell actually needs.
  *
- * **Storage shape, decided and justified (not inherited from `site-dir-store.ts`'s MRU file):**
- * still a flat JSON file in `userData`, for the exact reason `site-dir-store.ts`'s own header gives
- * for its MRU list — one Electron main process, no concurrent writers, no query beyond "read the
- * whole list", so `better-sqlite3` plus its `electron-rebuild` postinstall step would buy nothing at
- * this scale (a handful of rows) that a flat file doesn't already give for free. What DOES change
- * from that file's shape: `recentSiteDirs` is a list of bare path strings (an MRU of folders); this
- * file's rows carry exactly what reconciliation needs to prove identity before killing anything —
- * `{siteDir, port, workspaceId, pid, updatedAt}` — the same fields Tovu-Runner's own
- * `RunnerProjectRow` carries (`last_pid`, `installDir`, `port`), just persisted as JSON instead of a
- * sqlite table. A bare path could never support the identity check below; a row can.
+ * **Storage shape: one JSON file PER APP INSTANCE, each with exactly one writer (2026-09-20).**
+ * `userData/site-processes/<electron pid>-<nonce>.json`. It used to be one shared `open-sites.json`,
+ * justified by `site-dir-store.ts`'s "one Electron main process, no concurrent writers" — a premise
+ * that was never true here: nothing stops two instances running at once (the owner runs several on
+ * purpose, and ruled out a single-instance lock), and every write was an unlocked read-modify-write
+ * of the whole file. Two instances therefore lost each other's rows, and boot-time reconciliation —
+ * whose read-to-write gap spans every orphan's SIGTERM grace window — wiped any row a sibling recorded
+ * in the meantime. Splitting the file removes that race by construction instead of guarding it: an
+ * instance only ever rewrites its OWN file, and another instance's file is only ever deleted once its
+ * owner pid is gone (the nonce means a recycled pid can never name a dead instance's file as its own).
+ * Every write is temp-file + `fsync` + `rename`, so a reader sees the old file or the new one, never
+ * half of one — and an unreadable file is reported as unreadable, never read as an empty list (see
+ * {@link readRegistryFile}). Still flat JSON rather than `better-sqlite3`: a handful of rows, no query
+ * beyond "read them all". Each row carries exactly what reconciliation needs to prove identity before
+ * killing anything — `{siteDir, port, workspaceId, pid, updatedAt}`, the same fields Tovu-Runner's own
+ * `RunnerProjectRow` carries (`last_pid`, `installDir`, `port`). A bare path could never support the
+ * identity check below; a row can.
  *
  * **Identity proof before killing**, ported as a SHAPE, not literal code: Tovu-Runner's
  * `isProjectSidecar` (`project-provisioner.ts:701-716`) proves a recovered pid is still the row's own
@@ -42,9 +49,25 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
 
-const REGISTRY_FILE_NAME = "open-sites.json";
+/** The directory inside `userData` holding one registry file per running app instance. */
+const REGISTRY_DIR_NAME = "site-processes";
+
+/** The single shared file every build before 2026-09-20 wrote, next to {@link REGISTRY_DIR_NAME}.
+ *  Still READ — reconciliation must reap a crashed older build's orphans, and the delete guard must
+ *  see a still-running older build's sites — but never rewritten: older builds are its writers, and
+ *  writing a file this build does not own is the race this layout removes. The one exception is an
+ *  unreadable copy, moved aside at boot (see {@link reconcileLegacyFile}). */
+const LEGACY_REGISTRY_FILE_NAME = "open-sites.json";
+
+/** `<owner pid>-<nonce>.json`. Temp (`.tmp`) and quarantined (`.corrupt-<ms>`) files never match. */
+const INSTANCE_FILE_PATTERN = /^(\d+)-[0-9a-f]+\.json$/;
+
+/** This process's own file stem. The nonce keeps a pid the OS recycled from a crashed instance from
+ *  ever adopting that instance's file as its own. */
+const OWN_INSTANCE_ID = `${process.pid}-${randomBytes(4).toString("hex")}`;
 
 /** SIGTERM-to-SIGKILL window for a reconciled orphan — matches `tovu-server.ts`'s own
  *  `DEFAULT_STOP_GRACE_MS`, the same grace `serve.ts`'s BR-07 drain gets when this app spawned the
@@ -61,12 +84,29 @@ interface SiteProcessRow {
   updatedAt: number;
 }
 
-/** The registry file's whole shape. */
-interface SiteProcessRegistry {
+/**
+ * What {@link readRegistryFile} found in one file. `unreadable` is deliberately its own state and
+ * never folded into an empty list: an empty list is a valid registry, while an unreadable file (torn,
+ * not JSON, not our shape, or an I/O error) holds rows nobody can know. Folding the two together is
+ * how a torn file used to be read as `[]` and the next write persisted that, dropping every row.
+ */
+type RegistryFileRead = { state: "ok"; sites: SiteProcessRow[] } | { state: "missing" } | { state: "unreadable" };
+
+/** {@link readRegistry}'s answer across every instance's file plus the legacy one. */
+interface RegistrySnapshot {
   sites: SiteProcessRow[];
+  /** Paths that exist but could not be read — their rows are UNKNOWN, not absent. */
+  unreadable: string[];
 }
 
-/** A raw parsed row, before {@link readRegistry} checks which fields are actually usable. */
+/** One instance's file, as {@link listInstanceFiles} found it. */
+interface InstanceFile {
+  filePath: string;
+  instanceId: string;
+  ownerPid: number;
+}
+
+/** A raw parsed row, before {@link readRegistryFile} checks which fields are actually usable. */
 interface RawSiteProcessRow {
   siteDir?: unknown;
   pid?: unknown;
@@ -84,37 +124,87 @@ interface ServeIdentityRow {
   pid: number;
 }
 
-/** @returns the registry file's path inside Electron's per-user `userData` directory. */
-function registryFilePath(userDataDir: string): string {
-  return path.join(userDataDir, REGISTRY_FILE_NAME);
+/** @returns the registry DIRECTORY inside Electron's per-user `userData` directory — the value every
+ *  `registryDir` parameter below takes. */
+function registryDirPath(userDataDir: string): string {
+  return path.join(userDataDir, REGISTRY_DIR_NAME);
+}
+
+/** @returns where pre-2026-09-20 builds kept their single shared file: beside `registryDir`. */
+function legacyRegistryFilePath(registryDir: string): string {
+  return path.join(path.dirname(registryDir), LEGACY_REGISTRY_FILE_NAME);
+}
+
+/** @returns one instance's own file inside `registryDir` — this process's unless a test names another. */
+function instanceFilePath(registryDir: string, instanceId: string = OWN_INSTANCE_ID): string {
+  return path.join(registryDir, `${instanceId}.json`);
+}
+
+/** Whether a parsed row has the two fields every reader keys on. Other fields are trusted as written.
+ *  @complexity O(1). */
+function isUsableRow(row: unknown): boolean {
+  return typeof row === "object" && row !== null && typeof (row as RawSiteProcessRow).siteDir === "string" && typeof (row as RawSiteProcessRow).pid === "number";
 }
 
 /**
- * Forgiving read, mirroring `site-dir-store.ts`'s `readDesktopState` — a corrupt or missing cache
- * must not block launch; it just means nothing is reconciled this boot.
+ * Read ONE registry file. Malformed ROWS inside a well-formed file are dropped (they cannot be
+ * reconciled or matched anyway); a malformed FILE is `unreadable`, never an empty list — see
+ * {@link RegistryFileRead}. Launch is still never blocked: callers decide what unreadable means.
  * @complexity O(n) in file size.
  */
-function readRegistry(registryPath: string): SiteProcessRegistry {
+function readRegistryFile(filePath: string): RegistryFileRead {
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(fs.readFileSync(registryPath, "utf8")) as { sites?: unknown };
-    const sites: unknown[] = Array.isArray(parsed?.sites) ? parsed.sites : [];
-    return {
-      // Kept as one expression (not restructured into a block body, and the predicate cast to the
-      // array result rather than the callback's own return type) to match the pre-batch shape
-      // token-for-token once types are stripped — every `as` here is pure type syntax, erased
-      // entirely, leaving plain `row.siteDir`/`row.pid` reads and a bare `.filter(...)` call exactly
-      // as before. A `row is SiteProcessRow` predicate on the callback itself would force its return
-      // to be exactly `boolean`, which `row && ...` on an `unknown` row is not.
-      sites: sites.filter((row) => row && typeof (row as RawSiteProcessRow).siteDir === "string" && typeof (row as RawSiteProcessRow).pid === "number") as SiteProcessRow[]
-    };
-  } catch {
-    return { sites: [] };
+    parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ENOENT" ? { state: "missing" } : { state: "unreadable" };
   }
+  const sites = (parsed as { sites?: unknown } | null)?.sites;
+  if (!Array.isArray(sites)) return { state: "unreadable" };
+  return { state: "ok", sites: sites.filter(isUsableRow) as SiteProcessRow[] };
+}
+
+/**
+ * Every instance file in `registryDir`. A missing directory is simply "no instance has written yet".
+ * @returns the files, or `null` when the directory exists but cannot be listed — its rows are
+ *   unknown, which each caller must treat as such rather than as "none".
+ * @complexity O(n) in directory entries.
+ */
+function listInstanceFiles(registryDir: string): InstanceFile[] | null {
+  let names: string[];
+  try {
+    names = fs.readdirSync(registryDir);
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ENOENT" ? [] : null;
+  }
+  return names.flatMap((name) => {
+    const match = INSTANCE_FILE_PATTERN.exec(name);
+    return match ? [{ filePath: path.join(registryDir, name), instanceId: name.slice(0, -".json".length), ownerPid: Number(match[1]) }] : [];
+  });
+}
+
+/**
+ * Every row any instance has recorded — each instance's own file plus the legacy shared file — for
+ * readers that must see sibling instances (the delete guard's `liveForeignServers`).
+ *
+ * A file that vanishes between the listing and the read was deleted by a booting instance because
+ * its owner is gone, so it is correctly skipped. An unreadable one is listed in `unreadable` instead.
+ * @complexity O(total file size) across every instance file.
+ */
+function readRegistry(registryDir: string): RegistrySnapshot {
+  const files = listInstanceFiles(registryDir);
+  const snapshot: RegistrySnapshot = { sites: [], unreadable: files === null ? [registryDir] : [] };
+  for (const filePath of [...(files ?? []).map((file) => file.filePath), legacyRegistryFilePath(registryDir)]) {
+    const read = readRegistryFile(filePath);
+    if (read.state === "ok") snapshot.sites.push(...read.sites);
+    else if (read.state === "unreadable") snapshot.unreadable.push(filePath);
+  }
+  return snapshot;
 }
 
 /**
  * A row as {@link writeRegistry} accepts it — every field `unknown`, so a test proving
- * {@link readRegistry}'s own filtering can write deliberately malformed rows (a missing `siteDir`, a
+ * {@link readRegistryFile}'s own filtering can write deliberately malformed rows (a missing `siteDir`, a
  * non-numeric `pid`) straight through this same function rather than reaching for a second, raw
  * `fs.writeFileSync` just for that.
  */
@@ -131,46 +221,106 @@ interface WritableSiteProcessRegistry {
   sites: WritableSiteProcessRow[];
 }
 
-/** @complexity O(n) in row count. */
-function writeRegistry(registryPath: string, state: WritableSiteProcessRegistry): void {
-  fs.mkdirSync(path.dirname(registryPath), { recursive: true });
-  fs.writeFileSync(registryPath, JSON.stringify(state, null, 2));
+/**
+ * Atomically replace one registry file: write a sibling temp file, `fsync` it, then `rename` it over
+ * the target. `rename` within one directory is atomic, so a reader — or the next boot after a crash
+ * at ANY point in here — sees either the complete old file or the complete new one, never a torn one.
+ *
+ * The temp name is fixed per target because every file has exactly one writer (its own instance), and
+ * that writer is synchronous. A crash can leave the `.tmp` behind; the next write truncates it, and
+ * {@link reconcileInstanceFile} removes a dead owner's.
+ * @complexity O(n) in row count.
+ */
+function writeRegistry(filePath: string, state: WritableSiteProcessRegistry): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const tempPath = `${filePath}.tmp`;
+  const fd = fs.openSync(tempPath, "w");
+  try {
+    fs.writeFileSync(fd, JSON.stringify(state, null, 2));
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
+  fs.renameSync(tempPath, filePath);
+}
+
+/**
+ * Move an unreadable registry file aside to `<file>.corrupt-<ms>` — preserved for inspection, never
+ * overwritten or deleted — and say so on stderr, since any rows it held can no longer be reconciled.
+ *
+ * @returns whether the path is now clear to write. `true` also when the file is already gone (a
+ *   concurrently booting instance moved it first). `false` when it could not be moved: the caller
+ *   must then leave it alone rather than write over it.
+ * @complexity O(1); one rename.
+ */
+function quarantineUnreadableFile(filePath: string): boolean {
+  const asidePath = `${filePath}.corrupt-${Date.now()}`;
+  try {
+    fs.renameSync(filePath, asidePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return true;
+    console.error(`tovu desktop: site-process registry file ${filePath} is unreadable and could not be moved aside (${String(error)}). Left untouched; nothing was written over it.`);
+    return false;
+  }
+  console.error(`tovu desktop: site-process registry file ${filePath} was unreadable (torn or corrupt). Moved it aside to ${asidePath}; site processes it listed cannot be reconciled automatically.`);
+  return true;
+}
+
+/**
+ * This instance's own rows, for a read-modify-write of its own file.
+ *
+ * An unreadable own file is moved aside and the write proceeds from empty, rather than refusing the
+ * write: the caller is recording a child it has just spawned or just stopped, and refusing would leave
+ * that child with no crash-recovery row (or a stale one) — the very thing the registry exists to
+ * prevent — while throwing from `startSiteBackend` would strand a started server with no handle.
+ * The unreadable bytes survive aside either way. With atomic writes this takes outside damage.
+ *
+ * @returns the rows, or `null` when the unreadable file could not be moved aside: do not write.
+ * @complexity O(n) in file size.
+ */
+function readOwnRowsForUpdate(filePath: string): SiteProcessRow[] | null {
+  const read = readRegistryFile(filePath);
+  if (read.state === "ok") return read.sites;
+  if (read.state === "missing") return [];
+  return quarantineUnreadableFile(filePath) ? [] : null;
 }
 
 /** {@link recordSiteOpened}'s own options. */
 interface RecordSiteOpenedOptions {
   isLiveRow?: (row: SiteProcessRow) => boolean;
+  /** Test seam: whose file to update. Defaults to this process's own. */
+  instanceId?: string;
 }
 
 /**
- * Record one open site's row — called once `startTovuServer` has actually resolved, so a row is
- * never written for a spawn attempt that failed.
+ * Record one open site's row in THIS instance's own file — called once `startTovuServer` has actually
+ * resolved, so a row is never written for a spawn attempt that failed.
  *
- * **Refuse-not-replace, and that is the D-07 fix.** This used to drop every existing row with the
- * same `siteDir` unconditionally. `isOrphanedProcess`'s own doc already established that two
- * Electron instances can run at once (there is no `requestSingleInstanceLock`), and
- * {@link reconcileOrphans} was taught to RETAIN a live sibling's row — but the write path was left
- * on the old rule, so instance B opening a site instance A already has open erased A's row. A's
- * child was then supervised only by A's in-memory map: hard-kill A and nothing on disk named that
- * process, so no later boot could ever reconcile it. The reap arm was fixed and the record arm was
- * not; this is the sibling.
+ * **Refuse-not-replace (D-07).** This used to drop every existing row with the same `siteDir`
+ * unconditionally, which — back when every instance shared one file — let instance B opening a site
+ * instance A had open erase A's row. Since 2026-09-20 a sibling's rows live in the sibling's own
+ * file, so this can no longer touch them at all. The rule still matters inside one instance: a
+ * window's `closed` handler drops its `openSites` entry before that child's `stop()` has finished
+ * draining, so the same site can be reopened while its previous child is still alive, and that
+ * child's row must survive until its own `recordSiteClosed`, or a hard kill mid-drain strands it.
  *
  * A row is only displaced once it is PROVEN dead — the same identity proof
  * ({@link isServeProcessForSite}) reconciliation makes before it kills anything, so a pid the OS
  * recycled to something unrelated never counts as "still live" and rows cannot accumulate. Two rows
- * for one `siteDir` therefore mean exactly what they say: two `tovu serve` children really are
- * running over that site's `content.db`. That is its own problem (two sqlite writers), but recording
- * it truthfully is strictly better than recording one of them and losing the other.
+ * for one `siteDir` in this file therefore mean exactly what they say: this instance really has two
+ * `tovu serve` children over that site, the old one still stopping.
  *
  * @param options.isLiveRow test seam — the "is this row's process still its own live `tovu serve`"
  *   predicate. Defaults to {@link isLiveServeRow}, which really asks the OS.
  * @complexity O(n) in row count, times one `ps` call per same-`siteDir` row (in practice zero or one).
  */
-function recordSiteOpened(registryPath: string, row: SiteProcessRow, options: RecordSiteOpenedOptions = {}): void {
+function recordSiteOpened(registryDir: string, row: SiteProcessRow, options: RecordSiteOpenedOptions = {}): void {
   const isLiveRow = options.isLiveRow ?? isLiveServeRow;
-  const { sites } = readRegistry(registryPath);
+  const filePath = instanceFilePath(registryDir, options.instanceId);
+  const sites = readOwnRowsForUpdate(filePath);
+  if (sites === null) return;
   const retained = sites.filter((existing) => existing.siteDir !== row.siteDir || isLiveRow(existing));
-  writeRegistry(registryPath, { sites: [row, ...retained] });
+  writeRegistry(filePath, { sites: [row, ...retained] });
 }
 
 /**
@@ -186,26 +336,30 @@ function isLiveServeRow(row: ServeIdentityRow): boolean {
 /** {@link recordSiteClosed}'s own options. */
 interface RecordSiteClosedOptions {
   pid?: number;
+  /** Test seam: whose file to update. Defaults to this process's own. */
+  instanceId?: string;
 }
 
 /**
- * Drop a site's row — called once its `tovu serve` child has been asked to stop deliberately (a
- * window closed, or the whole app quit cleanly), so an ordinary shutdown is never mistaken for a
- * crash and reconciled against on the next launch.
+ * Drop a site's row from THIS instance's own file — called once its `tovu serve` child has been asked
+ * to stop deliberately (a window closed, or the whole app quit cleanly), so an ordinary shutdown is
+ * never mistaken for a crash and reconciled against on the next launch.
  *
  * @param options.pid drop only the row carrying this pid. Every caller that HAS a pid passes it,
  *   and they all do — this is only ever called about a child the caller is holding a handle to.
- *   It matters because {@link recordSiteOpened} can now legitimately leave two rows for one
- *   `siteDir` (a live sibling instance's, plus this one): closing by `siteDir` alone would wipe the
- *   sibling's row too and reintroduce D-07 from the close side. Omitting it keeps the original
- *   drop-every-row-for-this-site behaviour, so a future caller that genuinely means "forget this
- *   site entirely" still has that, and no existing call site changed meaning silently.
+ *   It matters because {@link recordSiteOpened} can legitimately leave two rows for one `siteDir` in
+ *   this file (a still-stopping child plus its replacement): closing by `siteDir` alone would wipe the
+ *   other one too. Omitting it keeps the original drop-every-row-for-this-site behaviour, so a future
+ *   caller that genuinely means "forget this site entirely" still has that, and no existing call site
+ *   changed meaning silently.
  * @complexity O(n) in row count.
  */
-function recordSiteClosed(registryPath: string, siteDir: string, options: RecordSiteClosedOptions = {}): void {
-  const { sites } = readRegistry(registryPath);
+function recordSiteClosed(registryDir: string, siteDir: string, options: RecordSiteClosedOptions = {}): void {
+  const filePath = instanceFilePath(registryDir, options.instanceId);
+  const sites = readOwnRowsForUpdate(filePath);
+  if (sites === null) return;
   const isDoomed = (existing: SiteProcessRow) => existing.siteDir === siteDir && (options.pid === undefined || existing.pid === options.pid);
-  writeRegistry(registryPath, { sites: sites.filter((existing) => !isDoomed(existing)) });
+  writeRegistry(filePath, { sites: sites.filter((existing) => !isDoomed(existing)) });
 }
 
 /**
@@ -341,40 +495,99 @@ async function terminateOrphan(row: ServeIdentityRow, graceMs: number = DEFAULT_
  * will ever call that child's own `stop()` again, and a plain SIGTERM here still gives it the same
  * BR-07 graceful drain `serve.ts` runs for any other shutdown signal.
  *
- * Returns holding only the rows belonging to a LIVE SIBLING instance ({@link isOrphanedProcess}).
- * Everything else is removed — reconciled or found already gone — so a later boot never re-processes
- * the same entry twice. **This is a deliberate change from the previous "always zero rows on
- * return"**: wiping a sibling's rows would leave its children unreapable if IT were later hard
- * killed, converting a protected process into a permanent leak. Two instances writing this flat file
- * can still race (there is no lock, and never was), but a racing write now loses at most a row the
- * sibling can rewrite, instead of every row unconditionally.
+ * Reads every OTHER instance's file (this process has written none yet at boot) plus the legacy
+ * shared file, and REWRITES NONE of them. That is the 2026-09-20 fix: this used to rewrite the one
+ * shared file with only the rows it kept, AFTER awaiting every orphan's SIGTERM grace window, so any
+ * row a live sibling recorded during those seconds was silently dropped. Now:
+ * - every row gets the same per-row proof as before, so a live sibling's child ({@link isOrphanedProcess})
+ *   is never killed, whichever file names it;
+ * - a file is deleted only once its OWNER pid is gone, since nothing will ever write it again —
+ *   which also stops a later boot re-processing its rows. A live owner's file is left byte-for-byte
+ *   as its owner wrote it; that owner drops its own rows as it closes sites;
+ * - a pid the OS recycled keeps a dead owner's file around (fails toward keeping it), but its
+ *   orphans are still reaped, because the parentage proof is per row, not per file.
  *
+ * @param options.instanceId test seam: whose file counts as this process's own and is skipped.
  * @returns the rows that were found to be live orphans and terminated — for logging/reporting only.
- * @complexity O(n) in persisted row count; each row's own cost is `terminateOrphan`'s bounded poll.
+ * @complexity O(n) in persisted row count across all files; each row's own cost is
+ *   `terminateOrphan`'s bounded poll.
  */
-async function reconcileOrphans(registryPath: string): Promise<SiteProcessRow[]> {
-  const { sites } = readRegistry(registryPath);
+async function reconcileOrphans(registryDir: string, options: { instanceId?: string } = {}): Promise<SiteProcessRow[]> {
+  const ownInstanceId = options.instanceId ?? OWN_INSTANCE_ID;
+  const files = listInstanceFiles(registryDir);
+  if (files === null) console.error(`tovu desktop: could not list ${registryDir}; orphans recorded there are not reconciled this boot.`);
+
   const reconciled: SiteProcessRow[] = [];
-  const stillSupervised: SiteProcessRow[] = [];
-
-  for (const row of sites) {
-    if (!isProcessAlive(row.pid)) continue;
-    if (!isServeProcessForSite(readProcessCommand(row.pid) ?? "", row)) continue;
-    if (!isOrphanedProcess(row.pid)) {
-      stillSupervised.push(row);
-      continue;
-    }
-    reconciled.push(row);
-    await terminateOrphan(row);
+  for (const file of files ?? []) {
+    if (file.instanceId === ownInstanceId) continue;
+    reconciled.push(...(await reconcileInstanceFile(file)));
   }
-
-  writeRegistry(registryPath, { sites: stillSupervised });
+  reconciled.push(...(await reconcileLegacyFile(legacyRegistryFilePath(registryDir))));
   return reconciled;
 }
 
+/**
+ * Terminate every row in `sites` that is still its own `tovu serve` AND a proven orphan. Rows whose
+ * process is gone, recycled, or still parented by a live sibling instance are left alone.
+ * @returns the rows terminated.
+ * @complexity O(n) in `sites`; each orphan's cost is `terminateOrphan`'s bounded poll.
+ */
+async function reconcileRows(sites: SiteProcessRow[]): Promise<SiteProcessRow[]> {
+  const reconciled: SiteProcessRow[] = [];
+  for (const row of sites) {
+    if (!isProcessAlive(row.pid)) continue;
+    if (!isServeProcessForSite(readProcessCommand(row.pid) ?? "", row)) continue;
+    if (!isOrphanedProcess(row.pid)) continue;
+    reconciled.push(row);
+    await terminateOrphan(row);
+  }
+  return reconciled;
+}
+
+/**
+ * {@link reconcileOrphans} for one other instance's file. Deleted (with any `.tmp` a crash left) only
+ * when its owner pid is gone; an unreadable one is moved aside under the same condition, and
+ * otherwise left for its live owner, whose next write moves it aside itself.
+ * @complexity see {@link reconcileRows}.
+ */
+async function reconcileInstanceFile(file: InstanceFile): Promise<SiteProcessRow[]> {
+  const ownerGone = !isProcessAlive(file.ownerPid);
+  const read = readRegistryFile(file.filePath);
+  if (read.state === "unreadable") {
+    if (ownerGone) quarantineUnreadableFile(file.filePath);
+    else console.error(`tovu desktop: site-process registry file ${file.filePath} is unreadable; its owner (pid ${file.ownerPid}) is still running, so it is left untouched.`);
+    return [];
+  }
+  const reconciled = read.state === "ok" ? await reconcileRows(read.sites) : [];
+  if (ownerGone) {
+    fs.rmSync(file.filePath, { force: true });
+    fs.rmSync(`${file.filePath}.tmp`, { force: true });
+  }
+  return reconciled;
+}
+
+/**
+ * {@link reconcileOrphans} for the pre-2026-09-20 shared file: its orphans are reaped, the file itself
+ * is never rewritten (see {@link LEGACY_REGISTRY_FILE_NAME}). An unreadable one — a torn write by an
+ * older build — is moved aside so its bytes survive and it stops tripping readers.
+ * @complexity see {@link reconcileRows}.
+ */
+async function reconcileLegacyFile(legacyPath: string): Promise<SiteProcessRow[]> {
+  const read = readRegistryFile(legacyPath);
+  if (read.state === "unreadable") {
+    quarantineUnreadableFile(legacyPath);
+    return [];
+  }
+  return read.state === "ok" ? reconcileRows(read.sites) : [];
+}
+
 export {
-  REGISTRY_FILE_NAME,
-  registryFilePath,
+  REGISTRY_DIR_NAME,
+  LEGACY_REGISTRY_FILE_NAME,
+  registryDirPath,
+  legacyRegistryFilePath,
+  instanceFilePath,
+  readRegistryFile,
   readRegistry,
   writeRegistry,
   recordSiteOpened,

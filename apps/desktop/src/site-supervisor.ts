@@ -69,8 +69,8 @@ interface SiteSupervisor<E extends SiteEntry> {
  * @param deps
  * @param deps.onUnexpectedExit called once per site whose child dies without a {@link delete} first.
  *   Receives the entry that was holding it, because the caller needs its `server.pid` to drop the
- *   right crash-safety row — `site-process-registry.ts` can hold a live sibling instance's row for the
- *   same site dir, and closing by site dir alone would take that one too (D-07).
+ *   right crash-safety row — this instance's own registry file can also hold a still-draining earlier
+ *   child's row for the same site dir, and closing by site dir alone would take that one too (D-07).
  *   Injected rather than reaching for `site-process-registry.ts` directly so this module needs no
  *   `registryPath`, no filesystem, and no knowledge of what the caller does about it — `main.ts`
  *   drops the crash-safety row and logs; a test just records the call.

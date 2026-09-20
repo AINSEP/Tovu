@@ -429,26 +429,41 @@ function foreignServerMessage(siteDir: string, foreign: Array<{ pid: number }>):
 }
 
 /**
+ * The exact operator-facing refusal when a crash-safety registry file cannot be read, so whether a
+ * second copy of this app has the site open is unknown.
+ *
+ * @complexity O(n) in unreadable path count.
+ */
+function unreadableRegistryMessage(unreadable: string[]): string {
+  return `Could not read ${unreadable.join(", ")}, so Tovu cannot tell whether another copy of Tovu still has this site open. Nothing was deleted. Restart Tovu and try again.`;
+}
+
+/**
  * Crash-safety rows naming a LIVE `tovu serve` for `siteDir` that belongs to some process OTHER
  * than the one this instance is holding — i.e. a second copy of this app with the same site open.
  *
  * `openSites` cannot answer this: it is this process's own in-memory map, so a sibling instance's
  * child is invisible to it. The on-disk registry is the only thing that sees both, and it is
- * already written to see them — `recordSiteOpened`'s "refuse-not-replace" rule (D-07) exists
- * precisely so a sibling's row survives this instance opening the same site.
+ * already written to see them — each instance records only into its own file there, so a sibling's
+ * row survives this instance opening the same site.
  *
  * `isLiveServeRow` is the registry's own identity proof (pid alive AND its live argv still names
  * this site dir and port), so a pid the OS recycled to something unrelated can never make this
  * refuse. Stale rows therefore cannot wedge a delete.
+ *
+ * An UNREADABLE registry file throws instead: its rows are unknown, and reading it as "no rows" is
+ * exactly how this guard used to wave an erase through a torn sibling file. It does not wedge for
+ * long — the next boot moves a dead instance's unreadable file aside, and a live one's own next
+ * write does the same (`site-process-registry.ts`'s `quarantineUnreadableFile`).
  *
  * @param ownPid this instance's own child's pid, excluded — its row is not foreign.
  * @complexity O(n) in registry rows, times one `ps` call per row matching `siteDir` (in practice
  *   zero or one).
  */
 function liveForeignServers(deps: Pick<ProjectIpcDeps, "readRegistry" | "registryPath" | "isLiveServeRow">, siteDir: string, ownPid: number | undefined): RegistryRow[] {
-  return deps
-    .readRegistry(deps.registryPath)
-    .sites.filter((row) => row.siteDir === siteDir && row.pid !== ownPid && deps.isLiveServeRow(row));
+  const registry = deps.readRegistry(deps.registryPath);
+  if (registry.unreadable.length > 0) throw new Error(unreadableRegistryMessage(registry.unreadable));
+  return registry.sites.filter((row) => row.siteDir === siteDir && row.pid !== ownPid && deps.isLiveServeRow(row));
 }
 
 /**
@@ -526,7 +541,7 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
   if (openEntry !== undefined) {
     await openEntry.server.stop!(); // an entry with no `.stop` never reaches this line in practice — `OpenSiteEntry.server.stop` is optional only because other, non-delete tests build entries that omit it
     deps.openSites.delete(id);
-    // By pid: `recordSiteOpened` can leave a live sibling instance's row for this same site dir,
+    // By pid: `recordSiteOpened` can leave a still-draining earlier child's row for this same site dir,
     // and a close by site dir alone would drop that one too (D-07).
     deps.recordSiteClosed(deps.registryPath, id, { pid: openEntry.server.pid });
     // A sites-home-opened (embedded-tab) entry has no `window` at all — see `openSiteServer` in
@@ -849,8 +864,8 @@ function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDir
  *   own-server-mode entries do.
  * @param deps.serializer per-site-dir operation serializer (`keyed-serializer.ts`).
  * @param deps.projectsPath `tracked-sites.ts`'s tracked-project JSON file.
- * @param deps.registryPath crash-safety registry file (`site-process-registry.ts`), for
- *   `recordSiteClosed` on a delete of a running project.
+ * @param deps.registryPath crash-safety registry directory (`site-process-registry.ts`), for
+ *   `recordSiteClosed` on a delete of a running project and `readRegistry` in its guard.
  * @param deps.repoRoot Tovu repo root.
  * @param deps.statePath `site-dir-store.ts`'s MRU file, for `adoptSiteDir`.
  * @param deps.cliMode `"source"` or `"compiled"` — see `tovu-server.ts`.
@@ -935,7 +950,7 @@ interface ProjectIpcDeps<TCtx = unknown> {
    */
   transitions?: SiteTransitionsLike;
   recordSiteClosed: (registryPath: string, siteDir: string, options?: { pid?: number }) => void;
-  readRegistry: (registryPath: string) => { sites: RegistryRow[] };
+  readRegistry: (registryPath: string) => { sites: RegistryRow[]; unreadable: string[] };
   isLiveServeRow: (row: RegistryRow) => boolean;
   siteScanRoots: string[];
   recentSiteDirs: () => string[];
@@ -945,6 +960,7 @@ interface ProjectIpcDeps<TCtx = unknown> {
 export {
   SITE_IPC_CHANNELS,
   foreignServerMessage,
+  unreadableRegistryMessage,
   buildSiteRecord,
   handleList,
   handleAddSite,

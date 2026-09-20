@@ -63,7 +63,7 @@ interface DesktopRoots {
  *
  * Electron's default `userData` is `<appData>/<package.json name>`, and the packaged `package.json`
  * is the same file dev runs, so without an explicit answer a packaged build shares the dev app's
- * `tovu-desktop` folder — its projects list, open-sites registry and MRU. The dev answer is that
+ * `tovu-desktop` folder — its projects list, site-process registry and MRU. The dev answer is that
  * same default, now stated rather than inherited, so existing dev data keeps working.
  *
  * @param input

@@ -5,7 +5,7 @@
  * Electron does not persist `BrowserWindow` geometry on its own — every launch starts at whatever
  * fixed size the constructor names unless something writes it down and reads it back. This is that
  * something: a JSON file in `userData` (same convention as `site-dir-store.ts`'s
- * `desktop-state.json` and `site-process-registry.ts`'s own file, both resolved the same way from
+ * `desktop-state.json` and `site-process-registry.ts`'s `site-processes/` files, both resolved the same way from
  * `app.getPath("userData")`), plus {@link resolveWindowBounds} — the one place that decides whether
  * a remembered rectangle is still worth trusting.
  *

@@ -106,7 +106,7 @@ import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen 
 import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "./src/tovu-server.ts";
 import { resolveAdminDevProxyUrl } from "./src/admin-dev-proxy.ts";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "./src/site-dir-store.ts";
-import { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-process-registry.ts";
+import { registryDirPath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-process-registry.ts";
 import { createKeyedSerializer } from "./src/keyed-serializer.ts";
 import { createSiteSupervisor } from "./src/site-supervisor.ts";
 import { createSiteTransitions } from "./src/site-transitions.ts";
@@ -313,8 +313,9 @@ const openSites = createSiteSupervisor<OpenSite>({
   onUnexpectedExit: (siteDir, exit, entry) => {
     // The row exists to let the NEXT launch reap a child this process left running. This one is
     // already gone, so the row is now a lie that `reconcileOrphans` would spend a `ps` call on.
-    // Narrowed by pid: a live sibling instance may hold its own row for this same site (D-07).
-    recordSiteClosed(registryFilePath(app.getPath("userData")), siteDir, { pid: entry.server.pid });
+    // Narrowed by pid: this instance's own file can also hold a still-draining earlier child's row
+    // for this same site (D-07).
+    recordSiteClosed(registryDirPath(app.getPath("userData")), siteDir, { pid: entry.server.pid });
     console.warn(`tovu desktop: ${siteDir}'s server exited on its own (code ${exit.code ?? "none"}, signal ${exit.signal ?? "none"}). Its tab will show as stopped; Start will spawn a fresh one.`);
   },
 });
@@ -1277,8 +1278,8 @@ function applyDockIcon(): void {
  * mode — which spawns nothing and records nothing — can only ever find rows a previous own-server or
  * sites-home launch left behind, exactly the rows that should be reaped. It cannot touch a CONCURRENT
  * instance's children: `reconcileOrphans` proves a row's process has actually been reparented to
- * launchd before terminating it, and retains the rows of any still-supervised sibling (see
- * `site-process-registry.ts`'s `isOrphanedProcess`).
+ * launchd before terminating it (see `site-process-registry.ts`'s `isOrphanedProcess`), and never
+ * rewrites a live sibling's registry file — each instance writes only its own.
  *
  * @complexity O(n) in persisted row count; each row's own cost is `terminateOrphan`'s bounded poll,
  *   so a launch can be delayed by up to that grace window per genuine orphan.
@@ -1306,7 +1307,7 @@ async function bootOwnServerMode(): Promise<void> {
   const ctx: SiteOpenCtx = {
     cliMode: resolveCliMode(),
     statePath: stateFilePath(app.getPath("userData")),
-    registryPath: registryFilePath(app.getPath("userData")),
+    registryPath: registryDirPath(app.getPath("userData")),
   };
 
   refreshAppMenu(ctx);
@@ -1371,7 +1372,7 @@ app
     // first open goes through `openSiteServer`) but used to read none back, so a hard kill leaked
     // every open site's `tovu serve` forever. See `reconcileOrphansOnBoot`'s own doc for why running
     // it for all three modes is correct and why it cannot reap a live sibling instance's children.
-    await reconcileOrphansOnBoot(registryFilePath(app.getPath("userData")));
+    await reconcileOrphansOnBoot(registryDirPath(app.getPath("userData")));
 
     // Checked before every other mode: the sites home UI supersedes both attach and own-server, and it
     // spawns no `tovu serve` of its own at boot — only when a project tab is first opened, through
@@ -1381,7 +1382,7 @@ app
       const sitesCtx = {
         cliMode: resolveCliMode(),
         statePath: stateFilePath(app.getPath("userData")),
-        registryPath: registryFilePath(app.getPath("userData")),
+        registryPath: registryDirPath(app.getPath("userData")),
         projectsPath: sitesFilePath(app.getPath("userData")),
       };
       // Once, before the seed reads the file: a registry written before removals were RECORDED
