@@ -13,6 +13,7 @@
  */
 import { TRASH_RETENTION_DAYS } from "./ports.js";
 import type {
+  ForgetRemovedEntity,
   PurgeItemOutcome,
   PurgeReport,
   RemoveEntity,
@@ -200,6 +201,20 @@ export function createTrashService(deps: TrashServiceDeps): TrashPort {
  *
  * @complexity O(1).
  */
+/**
+ * Pre-binds an index-row drop to one `entityType`, producing the function a domain receives as
+ * `deps.forgetRemoved` (see {@link ForgetRemovedEntity} for when a domain needs one).
+ *
+ * Binds against the repo rather than the service on purpose: there is no marker to move here, and
+ * routing it through `TrashPort` would put a method on that port which does half of a `trash`.
+ *
+ * @complexity O(1).
+ */
+export function bindForgetRemovedEntity(repo: TrashRepoPort, entityType: TrashEntityType): ForgetRemovedEntity {
+  return (required) =>
+    repo.deleteByEntity({ workspaceId: required.workspaceId, entityType, entityId: required.id });
+}
+
 export function bindRemoveEntity(trash: TrashPort, entityType: TrashEntityType): RemoveEntity {
   return (required) =>
     trash.trash({

@@ -10,7 +10,13 @@ import {
   type SurfaceExchangeStore,
 } from "../../../contracts/core/tool-surface-exchanges.js";
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo } from "../index.js";
-import { buildMediaRegistrationsForTovu, type MediaPublicUrlDeps, type MediaToolDeps } from "../tool-registrations.js";
+import { makeRemoveMediaDouble, type RecordedMediaRemoval } from "./remove-media-double.js";
+import {
+  buildMediaRegistrationsForTovu,
+  type MediaPublicUrlDeps,
+  type MediaToolDeps,
+  type MediaTrashToolDeps,
+} from "../tool-registrations.js";
 
 /**
  * @file Certification of `media_trash_asset`'s confirmation gate — the sixth and last tool migrated
@@ -41,17 +47,23 @@ const TRASH_TOOL_ID = "media_trash_asset";
 
 const ONE_PIXEL_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
-function makeDeps(options: { allow?: boolean; mediaRepo?: InMemoryMediaRepo } = {}): MediaToolDeps & MediaPublicUrlDeps {
+function makeDeps(options: { allow?: boolean; mediaRepo?: InMemoryMediaRepo } = {}): MediaToolDeps &
+  MediaPublicUrlDeps &
+  MediaTrashToolDeps & { removed: RecordedMediaRemoval[] } {
   let counter = 0;
   const authorize =
     options.allow === false
       ? async () => ({ allowed: false, reason: "insufficient_permission" as const })
       : async () => ({ allowed: true, reason: "matched" as const });
+  const mediaRepo = options.mediaRepo ?? new InMemoryMediaRepo();
+  const { removeMedia, removed } = makeRemoveMediaDouble(mediaRepo);
   return {
     workspaceId: WORKSPACE_ID,
     clock: { nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
-    mediaRepo: options.mediaRepo ?? new InMemoryMediaRepo(),
+    mediaRepo,
+    removeMedia,
+    removed,
     assetBlobRepo: new InMemoryAssetBlobRepo(),
     assetRenditionRepo: new InMemoryAssetRenditionRepo(),
     blobStore: new InMemoryBlobStore(),
@@ -59,7 +71,7 @@ function makeDeps(options: { allow?: boolean; mediaRepo?: InMemoryMediaRepo } = 
   };
 }
 
-function buildRegistrations(deps: MediaToolDeps & MediaPublicUrlDeps, surfaceExchanges: SurfaceExchangeStore): Map<string, ToolRegistration> {
+function buildRegistrations(deps: MediaToolDeps & MediaPublicUrlDeps & MediaTrashToolDeps, surfaceExchanges: SurfaceExchangeStore): Map<string, ToolRegistration> {
   return new Map(buildMediaRegistrationsForTovu(deps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
 }
 
@@ -179,6 +191,31 @@ test("confirm: the human's click trashes the asset and the SAME call reports it 
 
   const row = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: asset.id });
   assert.equal(row?.status, "trashed", "the underlying row must actually reflect the trash");
+});
+
+/**
+ * The agent path reaches `trashMedia` through Jini's own handler, so wiring only the HTTP route
+ * leaves this one indexing nothing — an asset an agent deleted would never appear in the Trash.
+ * This asserts the confirmation gate calls the removal seam itself, and that the snapshot it passes
+ * comes from a read taken AFTER the human confirmed, not from the stale one the dialog was built
+ * from.
+ */
+test("confirm: the trash goes through the injected removeMedia, with a post-confirmation snapshot", async () => {
+  const deps = makeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const asset = await seedMediaAsset(deps, surfaceExchanges);
+  const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
+
+  const { exchangeId, pending } = await raiseDialog(trashTool, asset.id);
+  surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  await pending;
+
+  assert.equal(deps.removed.length, 1, "the agent trash path never reached removeMedia — it is unwired");
+  assert.equal(deps.removed[0].id, asset.id);
+  assert.equal(deps.removed[0].display.title, asset.title);
+  assert.equal(deps.removed[0].display.subtitle, asset.slug);
+  const current = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: asset.id });
+  assert.equal(deps.removed[0].expectedVersion, (current?.version ?? 0) - 1, "the CAS must use the version read at confirm time");
 });
 
 test("cancel: nothing is trashed, and the SAME call reports the cancellation", async () => {

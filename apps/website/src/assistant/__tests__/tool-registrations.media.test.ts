@@ -36,6 +36,7 @@ import { resetToolContributorsForTests } from "../tool-contribution-registry.js"
 import { contributeMediaTools } from "../../features/media/tool-registrations.js";
 import { registerToolContributor } from "../tool-contribution-registry.js";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import { makeRemoveMediaDouble } from "#src/features/media/__tests__/remove-media-double";
 
 // Media moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, retried after `widgets`'s own conversion had merged — see
@@ -95,6 +96,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     blobStore,
     mediaContentTypeStore,
     transformDefinitionRepo,
+    removeMedia: makeRemoveMediaDouble(mediaRepo).removeMedia,
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };

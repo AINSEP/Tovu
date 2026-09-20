@@ -192,6 +192,20 @@ export type RemoveEntity = (required: {
   actor: TrashActor;
 }) => Promise<TrashMarkerResult>;
 
+/**
+ * The function a domain's delete path receives to DROP an index row.
+ *
+ * Needed by any domain that can leave the trashable state by a route other than a Trash-screen
+ * restore or purge: a comment approved back out of `trash` by ordinary moderation, a media asset
+ * hard-purged from the admin delete rung. Without it the index row outlives the condition it
+ * records, and the Trash screen offers a Restore or a permanent delete for something that is either
+ * live again or already gone.
+ *
+ * NOT a half of {@link TrashPort.trash}. It writes no marker and hides nothing — it only forgets a
+ * removal that some other owner has already undone or completed.
+ */
+export type ForgetRemovedEntity = (required: { workspaceId: string; id: string }) => Promise<void>;
+
 /** A claimed batch of due rows, handed to the sweeper. */
 export interface TrashSweepClaim {
   id: string;

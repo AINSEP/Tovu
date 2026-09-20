@@ -180,6 +180,7 @@ import { SqliteCommentRepo } from "#src/features/comments/repo.sqlite";
 import {
   bindRemoveEntity,
   COMMENT_ENTITY_TYPE,
+  bindForgetRemovedEntity,
   createCommentTrashAdapter,
   createContentDbTransactionRunner,
   createMediaTrashAdapter,
@@ -1443,6 +1444,7 @@ export function createSqliteRouteDeps(
     removeComment: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
     removeMedia: bindRemoveEntity(trash, MEDIA_ENTITY_TYPE),
     removeRedirect: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
+    forgetRemovedMedia: bindForgetRemovedEntity(trashRepo, MEDIA_ENTITY_TYPE),
     postRepo,
     postSearch: new SqlitePostSearchIndex(db),
     // SPEC-047/ADR-056 — the db handle and clock are closed over here so no route ever holds one;

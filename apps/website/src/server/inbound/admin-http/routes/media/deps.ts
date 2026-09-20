@@ -26,7 +26,9 @@ import type { ClockDeps, MediaDeps, RouteDeps } from "#src/server/routes/types";
  * - Any `RouteDeps` object (both `server/app.ts`'s and `server/deps.ts`'s) structurally satisfies
  *   this type already — no composition-root change needed to adopt it.
  */
-export type MediaRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize"> & ClockDeps & MediaDeps;
+export type MediaRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "removeMedia" | "forgetRemovedMedia"> &
+  ClockDeps &
+  MediaDeps;
 
 export type MediaRouteRegistrar = (app: Express, deps: MediaRouteDeps) => void;
 

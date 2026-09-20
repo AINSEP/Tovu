@@ -12,6 +12,7 @@ import type { RedirectRecord } from "#src/features/redirects/index";
 import {
   bindRemoveEntity,
   COMMENT_ENTITY_TYPE,
+  bindForgetRemovedEntity,
   createRecordStoreTrashAdapter,
   createTrashService,
   InMemoryTrashRepo,
@@ -111,6 +112,7 @@ import {
   InMemoryImageTransformer,
   InMemoryMediaContentTypeStore,
   InMemoryMediaRepo,
+  type MediaRecord,
   InMemoryTransformDefinitionRepo,
 } from "#src/features/media/index";
 import { createInMemoryIdentityRouteDeps } from "#src/features/identity/wiring";
@@ -457,6 +459,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // composition must be registered here; an unregistered type fails loudly at the call rather than
   // silently trashing something that could never be restored.
   const commentRepo = new InMemoryCommentRepo();
+  // Hoisted here (from beside `changeSets` further down) for TWO reasons now: the apply loop's
+  // `media.apply()` must write into the very stores the media routes and this file's own tests
+  // read — constructed twice they would be two disconnected in-memory stores — and the media
+  // `TrashAdapter` just below needs the same instance.
+  const mediaRepo = new InMemoryMediaRepo([]);
   const trashAdapters = new Map<string, TrashAdapter>([
     [
       POST_ENTITY_TYPE,
@@ -503,6 +510,19 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         shown: (record, at) => ({ ...record, status: "pending", updatedAt: at }),
         // No `hardDelete`: `InMemoryCommentRepo.purge` needs a moderator, an action and a note this
         // adapter does not have, so purge stands down rather than claiming a removal.
+      }),
+    ],
+    [
+      MEDIA_ENTITY_TYPE,
+      createRecordStoreTrashAdapter<MediaRecord>({
+        entityType: MEDIA_ENTITY_TYPE,
+        store: mediaRepo,
+        isHidden: (record) => record.status === "trashed",
+        hidden: (record, at) => ({ ...record, status: "trashed", updatedAt: at }),
+        shown: (record, at) => ({ ...record, status: "active", updatedAt: at }),
+        // No `hardDelete`: a media purge is not a row delete — rendition rows hang off it and the
+        // blob store holds bytes, a ladder `purgeMedia` owns. Reimplementing it here would orphan
+        // bytes, so purge stands down instead.
       }),
     ],
   ]);
@@ -638,11 +658,6 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // loop's `executeCommand` calls must land in the SAME change-set store every other route/test
   // reads off `RouteDeps.changeSets`.
   const changeSets = new InMemoryChangeSetRepo([], [], outbox);
-  // Hoisted out of the `routeDeps` literal below for the SAME reason as `changeSets` above: the
-  // apply loop's `media.apply()` must write into the very stores the media routes and this file's
-  // own tests read. Constructed twice (once here, once inline below) they would be two disconnected
-  // in-memory stores, and an imported media row would be invisible to everything else.
-  const mediaRepo = new InMemoryMediaRepo([]);
   const assetBlobRepo = new InMemoryAssetBlobRepo([]);
   const blobStore = new InMemoryBlobStore();
   const publishContentBundleRepo = new InMemoryPublishContentBundleRepo();
@@ -679,6 +694,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     removeComment: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
     removeMedia: bindRemoveEntity(trash, MEDIA_ENTITY_TYPE),
     removeRedirect: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
+    forgetRemovedMedia: bindForgetRemovedEntity(trashRepo, MEDIA_ENTITY_TYPE),
     // The hermetic half of the real SQLite deny store. `core.ts` still narrows this to `list`
     // before giving it to the request gate, so tests retain the same least-authority boundary.
     publishTrustRevocations: createInMemoryRevocations(),

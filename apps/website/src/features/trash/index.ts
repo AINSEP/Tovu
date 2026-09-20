@@ -8,6 +8,7 @@
  */
 export { TRASH_RETENTION_DAYS } from "./ports.js";
 export type {
+  ForgetRemovedEntity,
   PurgeItemOutcome,
   PurgeReport,
   RemoveEntity,
@@ -26,7 +27,13 @@ export type {
   TransactionRunner,
 } from "./ports.js";
 
-export { bindRemoveEntity, computePurgeAfter, createTrashService, TrashAdapterMissingError } from "./write-service.js";
+export {
+  bindForgetRemovedEntity,
+  bindRemoveEntity,
+  computePurgeAfter,
+  createTrashService,
+  TrashAdapterMissingError,
+} from "./write-service.js";
 export type { TrashServiceDeps } from "./write-service.js";
 
 export { createContentDbTransactionRunner, SqliteTrashRepo } from "./repo.sqlite.js";

@@ -5,7 +5,7 @@ import type { ExportReport } from "#src/platform/export/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
-import type { RemoveEntity, TrashPort } from "#src/features/trash/index";
+import type { ForgetRemovedEntity, RemoveEntity, TrashPort } from "#src/features/trash/index";
 import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../contracts/core/commands/index.js";
 import type {
@@ -1366,6 +1366,12 @@ export interface TrashDeps {
   removeComment: RemoveEntity;
   removeMedia: RemoveEntity;
   removeRedirect: RemoveEntity;
+  /**
+   * Media alone needs this pair: its ladder has a HUMAN hard-purge rung of its own
+   * (`routes/media/delete.ts`, gated by `media.delete.force`) that removes the row outside the
+   * Trash screen, so the index row has to be dropped with it. See {@link ForgetRemovedEntity}.
+   */
+  forgetRemovedMedia: ForgetRemovedEntity;
 }
 
 export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {

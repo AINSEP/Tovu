@@ -39,6 +39,11 @@ export const registerAdminMediaDeleteRoute: MediaRouteRegistrar = (app, deps) =>
         },
         input: { workspaceId: deps.workspaceId, id: String(req.params.mediaId ?? "") },
       });
+      // The bytes are gone for good, so the Trash index row has to go with them — otherwise the
+      // Trash screen keeps offering a Restore for an asset that no longer exists.
+      if (purged) {
+        await deps.forgetRemovedMedia({ workspaceId: deps.workspaceId, id: String(req.params.mediaId ?? "") });
+      }
       res.json({ purged });
     } catch (err) {
       if (err instanceof MediaStillReferencedError) {
