@@ -216,6 +216,7 @@ import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "#
 import { createPendingAuthorizationStore } from "#src/platform/oauth/index";
 import { createMediaModule } from "./modules/media.js";
 import { createTaxonomyModule } from "./modules/taxonomy.js";
+import { createTrashModule } from "./modules/trash.js";
 import { createContentModule } from "./modules/content.js";
 import { createPublishContentModule } from "./modules/publish-content.js";
 import { createMembersModule } from "./modules/members.js";
@@ -1438,6 +1439,12 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // moved up here since its only real constraint, "before `/:slug`", still holds — see
   // `modules/media.ts`'s file header for the full disclosure).
   mountRoutes(app, createMediaModule(routeDeps));
+  // The local admin Trash screen's 3 routes (design:
+  // `ADS-memory/reports/2026-09-20-trash-delete-architecture.md`). Registered next to `media`
+  // because Media is one of the four kinds it lists, but it is a platform surface, not a media one:
+  // it spans Posts, Comments, Media and Redirects. No ordering constraint — every path is under
+  // `/api/admin/v1/workspaces/:workspaceId/trash` and none is a catch-all.
+  mountRoutes(app, createTrashModule(routeDeps));
   // The `connectors` server module — Composio-backed third-party accounts behind the admin's
   // Settings → Connectors tab. Registered next to `integrations-admin` above because the two share
   // the `admin.integrations.manage` permission, but they own different subsystems (outbound

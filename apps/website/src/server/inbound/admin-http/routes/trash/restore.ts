@@ -1,4 +1,4 @@
-import { mayActOnEntityType } from "#src/features/trash/index";
+import { mayActOnEntityType, TRASH_READ_PERMISSION } from "#src/features/trash/index";
 import type { RestoreOutcome } from "#src/features/trash/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { MAX_TRASH_SELECTION, type TrashRouteRegistrar } from "./deps.js";
@@ -24,6 +24,23 @@ export const registerAdminTrashRestoreRoute: TrashRouteRegistrar = (app, deps) =
 
     try {
       const principal = getAuthedPrincipal(res);
+      // The same entry gate `list.ts` and `purge.ts` apply, for the same reason: the Trash is one
+      // surface, and three routes on it disagreeing about who is allowed onto it is how one of them
+      // later gets widened alone. Per-item checks below still decide what actually moves.
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: TRASH_READ_PERMISSION,
+        workspaceId: deps.workspaceId,
+      });
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for '${TRASH_READ_PERMISSION}' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: TRASH_READ_PERMISSION, reason: authResult.reason },
+        });
+        return;
+      }
+
       const items = readItems(req.body);
       if (!items) {
         res.status(400).json({
