@@ -68,8 +68,6 @@ import { areAnySlicesLoading, firstLoadError } from "../rules";
  */
 
 export interface SettingsUiController {
-  modalOpen: boolean;
-  setModalOpen: (open: boolean) => void;
   /** Which segment of the inert-wrapped `MemorySettingsPanel` mount is showing. Local view state
    *  only — nothing here persists, matching every other prop that tab's `inert` control feeds. */
   memoryTopTab: MemoryTopTab;
@@ -96,7 +94,6 @@ export interface SettingsUiController {
  * O(n) in slice count (fixed at 6). Space: O(1) — no caller-controlled collections.
  */
 export function useSettingsUi(): SettingsUiController {
-  const [modalOpen, setModalOpen] = useState(false);
   // Same option, same reasoning as `features/ai-assistant/hooks/use-admin-execution-mode.hooks.ts`
   // — this is the SECOND mount of `ExecutionTab` over the same `core.execution` ledger and the same
   // stored credential, and the two must not drift in their port options.
@@ -179,8 +176,6 @@ export function useSettingsUi(): SettingsUiController {
   );
 
   return {
-    modalOpen,
-    setModalOpen,
     memoryTopTab,
     setMemoryTopTab,
 

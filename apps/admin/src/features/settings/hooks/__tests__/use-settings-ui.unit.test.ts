@@ -17,15 +17,6 @@ import { useSettingsUi } from "../use-settings-ui.hooks";
  */
 
 describe("useSettingsUi — local view state", () => {
-  it("modalOpen starts false and setModalOpen updates it", () => {
-    const { result } = renderHook(() => useSettingsUi());
-    expect(result.current.modalOpen).toBe(false);
-
-    act(() => result.current.setModalOpen(true));
-
-    expect(result.current.modalOpen).toBe(true);
-  });
-
   it("memoryTopTab starts at 'memories' and setMemoryTopTab updates it", () => {
     const { result } = renderHook(() => useSettingsUi());
     expect(result.current.memoryTopTab).toBe("memories");
@@ -48,7 +39,7 @@ describe("useSettingsUi — once-per-mount ports stay referentially stable acros
     const { result, rerender } = renderHook(() => useSettingsUi());
     const { port, skillsPort } = result.current;
 
-    act(() => result.current.setModalOpen(true));
+    act(() => result.current.setMemoryTopTab("how"));
     rerender();
 
     expect(result.current.port).toBe(port);

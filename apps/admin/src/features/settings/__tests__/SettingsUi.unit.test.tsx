@@ -65,8 +65,6 @@ function makeSlice<T>(value: T): SettingsSlice<T> {
 
 function baseController(overrides: Partial<SettingsUiController> = {}): SettingsUiController {
   return {
-    modalOpen: false,
-    setModalOpen: vi.fn(),
     memoryTopTab: "memories",
     setMemoryTopTab: vi.fn(),
 
@@ -419,27 +417,18 @@ describe("save status pill", () => {
   });
 });
 
-describe("Open as dialog", () => {
-  it("page mode renders one inline shell and no modal until requested", () => {
+describe("no modal-overlay affordance", () => {
+  // The "Open as dialog" button and the second, modal `SettingsDialogShell` render it opened
+  // used to live here — removed 2026-09-19 (owner's call: the overlay was never wanted, only
+  // the inline page is). This replaces the old "Open as dialog" describe block's three tests,
+  // which asserted the button existed and opened a modal; it now asserts neither exists.
+  it("renders only the inline shell — no 'Open as dialog' button and no modal backdrop", () => {
     render(<SettingsUi useSettingsUiHook={() => baseController()} />);
+    expect(screen.queryByRole("button", { name: "Open as dialog" })).not.toBeInTheDocument();
     expect(screen.queryByTestId("settings-dialog-backdrop")).not.toBeInTheDocument();
-  });
-
-  it("clicking Open as dialog asks the controller to open the modal", async () => {
-    const user = userEvent.setup();
-    const controller = baseController();
-    render(<SettingsUi useSettingsUiHook={() => controller} />);
-
-    await user.click(screen.getByRole("button", { name: "Open as dialog" }));
-    expect(controller.setModalOpen).toHaveBeenCalledWith(true);
-  });
-
-  it("renders the modal shell (with a Close button) once modalOpen is true", () => {
-    render(<SettingsUi useSettingsUiHook={() => baseController({ modalOpen: true })} />);
-    expect(screen.getByTestId("settings-dialog-backdrop")).toBeInTheDocument();
-    // Two shells are mounted at once in modal mode (inline page + modal), so there are two
-    // matching sidebar nav buttons — scope to the modal's own dialog to avoid ambiguity.
-    expect(screen.getAllByTestId("settings-dialog-nav-execution").length).toBe(2);
+    // Exactly one shell mounted (the inline page) — this was 2 (inline + modal) whenever the
+    // removed modal was open.
+    expect(screen.getAllByTestId("settings-dialog-nav-execution").length).toBe(1);
   });
 });
 

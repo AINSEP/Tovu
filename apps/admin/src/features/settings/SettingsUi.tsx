@@ -87,10 +87,13 @@
  * `<h1>` the way `ExternalMcpSettingsPanel.tsx`'s own `showTitle` does for the same class of problem
  * on the Providers screen.
  *
- * Both render modes are exercised here on purpose. `SettingsDialogShell`
- * treats `onClose` as the modal/inline switch (omit it and the shell renders
- * inline with no close affordance), so the page view and the modal view are
- * the same component with one prop different.
+ * This screen mounts `SettingsDialogShell` exactly once, inline (`onClose`
+ * omitted — `SettingsDialogShell` treats that prop as its modal/inline
+ * switch, and omitting it renders inline with no close affordance). A second,
+ * modal mount used to sit beside it, opened by an "Open as dialog" button in
+ * this page's own chrome; the owner never wanted that overlay, so it and the
+ * button that opened it were removed 2026-09-19 (`s.modalOpen`/
+ * `s.setModalOpen` went with them — see `use-settings-ui.hooks.ts`'s header).
  *
  * State, effects, and API/port setup live in `hooks/use-settings-ui.hooks.ts` (the six
  * `useSettingsSlice` mounts, the fake ports/dependencies, and the merged save status) and
@@ -122,7 +125,6 @@ import {
   type SettingsDialogTab,
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
-import { agentHandle } from "@jini-ai/agentic";
 import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS, type AppearanceConfig } from "../../lib/settings-tabs";
 import { navigate } from "../../lib/router";
 import { Workspace } from "../workspace";
@@ -745,6 +747,12 @@ export function SettingsUi(props: SettingsUiProps) {
    * in a banner above it, so the page is exactly what it looks like: the admin
    * sidebar, the settings sidebar, and the panel — no third strip of header
    * competing with the shell's own title.
+   *
+   * This used to also carry an "Open as dialog" button that mounted a second,
+   * modal `SettingsDialogShell` over this same page (removed 2026-09-19 —
+   * owner's call: the modal overlay was never wanted, only the inline page
+   * is). `s.modalOpen`/`s.setModalOpen` went with it — see
+   * `use-settings-ui.hooks.ts`'s header.
    */
   const saveStatus = (
     <span
@@ -753,22 +761,6 @@ export function SettingsUi(props: SettingsUiProps) {
     >
       {describeSaveStatus(s.save)}
     </span>
-  );
-
-  /** Page chrome carries the "open as dialog" affordance; the dialog itself
-   *  obviously must not offer to open itself, so it gets the status alone. */
-  const pageChrome = (
-    <>
-      {saveStatus}
-      <button
-        type="button"
-        className="settings-ui-dialog-btn"
-        onClick={() => s.setModalOpen(true)}
-        {...agentHandle("settings-open-as-dialog", { role: "button", label: "Open Settings as a dialog overlay" })}
-      >
-        {t("Open as dialog")}
-      </button>
-    </>
   );
 
   /*
@@ -792,7 +784,8 @@ export function SettingsUi(props: SettingsUiProps) {
    * CONSEQUENCE, stated rather than hidden: the "Dialog appearance" tab's
    * Dark and System options still SAVE (`s.appearance.onChange` is untouched
    * and the value round-trips to the store) but no longer change anything on
-   * this page or in the "Open as dialog" overlay. What to do with those two
+   * this page (the modal overlay they used to also affect is gone — see the
+   * "Top-right chrome" comment above `saveStatus`). What to do with those two
    * options — disable, remove, or hold for an admin-wide dark mode — is the
    * owner's separate decision; nothing here pre-empts it.
    */
@@ -832,26 +825,19 @@ export function SettingsUi(props: SettingsUiProps) {
           </p>
         ) : null}
 
-        {/* Page mode: `presentation="inline"` renders the shell in the admin's own
-            content column — two sidebars (admin, then settings) and the panel. */}
+        {/* Inline is the only render mode now: two sidebars (admin, then
+            settings) and the panel, in the admin's own content column. The
+            modal render this page used to also mount on `s.modalOpen` is
+            gone — see the "Top-right chrome" comment above `saveStatus`. */}
         <SettingsDialogShell
           tabs={tabs}
           presentation="inline"
           className="jini-tabbed-dialog--inline"
           fullscreenEnabled={false}
-          chromeExtra={pageChrome}
+          chromeExtra={saveStatus}
           activeTabId={requestedTabId}
           onActiveTabIdChange={handleTabChange}
         />
-
-        {/* Modal mode: same component, same tabs, one different prop. */}
-        {s.modalOpen ? (
-          <SettingsDialogShell
-            tabs={tabs}
-            onClose={() => s.setModalOpen(false)}
-            chromeExtra={saveStatus}
-          />
-        ) : null}
       </div>
     </I18nProvider>
   );
