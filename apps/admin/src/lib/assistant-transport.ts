@@ -676,7 +676,11 @@ export async function consumeByokStream(
       ctx.finish();
       return;
     }
+    // Error THEN finish, same order and same reason as `subscribeToRun`'s `end` listener: reporting
+    // alone left the turn unsettled (no `onDone`, so the events collected before the failure were
+    // never persisted), and finishing first would record the dead run as succeeded.
     ctx.handlers.onError(error instanceof Error ? error : new Error(String(error)));
+    ctx.finish();
   }
 }
 

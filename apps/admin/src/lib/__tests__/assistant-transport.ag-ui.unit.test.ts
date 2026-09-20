@@ -499,6 +499,46 @@ describe("startAgUiRun — SSE frame streaming end to end", () => {
     expect(h.events).toEqual([{ kind: "text", text: "still here" }]);
   });
 
+  test("a transport failure after the run started reports the error AND still hands onDone the events collected before it", async () => {
+    const encoder = new TextEncoder();
+    const opening = [
+      frame({ type: EventType.RUN_STARTED, threadId: "t", runId: "r" }),
+      frame({ type: EventType.TEXT_MESSAGE_START, messageId: "m1", role: "assistant" }),
+      frame({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: "m1", delta: "partial" }),
+    ].join("");
+    // A hand-held reader, not a real erroring ReadableStream: `@ag-ui/client`'s teardown calls
+    // `reader.cancel()` and rethrows anything but an AbortError, so a real errored stream's
+    // rejecting `cancel()` leaks an unhandled rejection from inside the package (a package defect,
+    // independent of the behavior asserted here). A resolving `cancel()` keeps this test about ours.
+    let reads = 0;
+    const reader = {
+      read: async () => {
+        reads += 1;
+        if (reads === 1) return { done: false, value: encoder.encode(opening) };
+        throw new Error("connection reset");
+      },
+      cancel: async () => undefined,
+      releaseLock() {},
+    };
+    const fakeResponse = {
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "text/event-stream" }),
+      body: { getReader: () => reader },
+    } as unknown as Response;
+    fetchMock = vi.fn(async () => fakeResponse);
+    vi.stubGlobal("fetch", fetchMock);
+    const h = handlers();
+
+    await startAgUiRun({ history: HISTORY, signal: new AbortController().signal }, h);
+    await flushMicrotasks();
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    expect(h.errors.map((e) => e.message)).toEqual(["connection reset"]);
+    expect(h.done).toEqual([{ kind: "text", text: "partial" }]);
+  });
+
   // --- ADR-059 Decision 6: the named, load-bearing interruption-sequence regression ------------
 
   test("interruption sequence: text -> tool_use -> tool_result -> text again renders as two distinct text segments end to end", async () => {
