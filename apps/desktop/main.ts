@@ -114,7 +114,7 @@ import { createShutdownTracker } from "./src/shutdown-tracker.ts";
 import { routeQuitSignals } from "./src/quit-signals.ts";
 import { decideBeforeQuit } from "./src/quit-drain-gate.ts";
 import { admitGuestSource, applyGuestWebPreferences } from "./src/webview-guest-policy.ts";
-import { installAppWindowNavigationPolicy, isSameOrigin } from "./src/window-navigation-policy.ts";
+import { installAppWindowNavigationPolicy, isSameOrigin, isShellPageUrl } from "./src/window-navigation-policy.ts";
 import { createSelftestTracker } from "./src/selftest-tracker.ts";
 import { registerSpeechIpc } from "./src/speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "./src/find-in-page-ipc.ts";
@@ -127,7 +127,7 @@ import { readPreviewVersion, readPreviewDataUrl, writePreview, deletePreview, sw
 import { registerSiteIpcHandlers, rescanSites } from "./src/project-ipc.ts";
 import { addSitePointer } from "./src/add-site-pointer.ts";
 import { registerSitesMcpServer, writeSitesMcpLauncher } from "./src/sites-mcp-registration.ts";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveDesktopRoots } from "./src/packaged-paths.ts";
 import { sitesHomeMenuTemplate } from "./src/site-history-menu.ts";
 import { windowBoundsFilePath, readWindowBounds, writeWindowBounds, resolveWindowBounds } from "./src/window-bounds-store.ts";
@@ -984,6 +984,22 @@ function isSupervisedGuestUrl(raw: string): boolean {
 }
 
 /**
+ * Whether `raw` is a page this shell serves — the speech channels' sender check. A supervised site
+ * (own-server windows and sites-home tabs are both `http://127.0.0.1:<port>`), attach mode's one
+ * origin, or the sites home renderer, whose own preload exposes `tovuVoice` too (`preload.mts`).
+ * Read at call time, so a site opened after boot is admitted from its first call.
+ *
+ * @complexity O(n) in currently open sites.
+ */
+function isShellPage(raw: string): boolean {
+  return isShellPageUrl(raw, {
+    isSupervisedSite: isSupervisedGuestUrl,
+    attachUrl: process.env.TOVU_DESKTOP_URL?.trim(),
+    rendererFileUrl: pathToFileURL(SITES_RENDERER_PATH).href,
+  });
+}
+
+/**
  * Answers navigation/window-open requests an embedded project's `<webview>` guest makes — the same
  * two-part boundary Tovu-Runner's own `registerGuestNavigationPolicy` enforces
  * (`Tovu-Runner/src/main/main.ts`): a same-origin navigation (the site steering itself — a login
@@ -1330,7 +1346,7 @@ app
     // call (fired from the preload the instant the page mounts) never races an unregistered
     // channel — see `SPEECH_PRELOAD_PATH`'s own doc for why this and the preload path are both
     // needed for `window.tovuVoice` to exist at all.
-    registerSpeechIpc({ ipcMain });
+    registerSpeechIpc({ ipcMain, isTrustedSender: isShellPage });
     // General, not sites-home-only: registered here for the same reason `registerSpeechIpc` is —
     // resolves its target from `event.sender` at call time, so it needs no per-window setup and is
     // harmless to register even for a boot mode whose window never calls it (no preload exposes

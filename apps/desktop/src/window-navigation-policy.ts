@@ -140,5 +140,45 @@ function installAppWindowNavigationPolicy(contents: NavigableContents, options: 
   });
 }
 
-export { isSameOrigin, isExternalBrowserUrl, installAppWindowNavigationPolicy };
-export type { NavigableContents, AppWindowPolicyOptions, WindowOpenResponse };
+/** The pages this shell itself serves — {@link isShellPageUrl}'s second argument. */
+interface ShellPages {
+  /** Whether a url is a site this launch supervises — `main.ts`'s `isSupervisedGuestUrl`. */
+  isSupervisedSite: (url: string) => boolean;
+  /** Attach mode's one url (`TOVU_DESKTOP_URL`); absent or empty in every other mode. */
+  attachUrl?: string;
+  /** The sites home renderer's `index.html`, as a `file:` url. */
+  rendererFileUrl: string;
+}
+
+/**
+ * `raw` without its query and fragment, or `null` when it does not parse.
+ * @complexity O(n) in the URL's length.
+ */
+function withoutQueryOrHash(raw: string): string | null {
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  url.search = "";
+  url.hash = "";
+  return url.href;
+}
+
+/**
+ * Whether `raw` is a page this shell serves: a supervised site, attach mode's origin (compared as a
+ * parsed origin, like everything else here), or the sites home renderer's own file (compared whole,
+ * host and path, since `file:` origins are opaque). The sender check for IPC that should only answer
+ * this app's own pages. Never throws.
+ * @complexity O(n) in the URL's length, beyond `isSupervisedSite`'s own cost.
+ */
+function isShellPageUrl(raw: string, pages: ShellPages): boolean {
+  if (pages.isSupervisedSite(raw)) return true;
+  if (pages.attachUrl && isSameOrigin(raw, pages.attachUrl)) return true;
+  const page = withoutQueryOrHash(raw);
+  return page !== null && page === withoutQueryOrHash(pages.rendererFileUrl);
+}
+
+export { isSameOrigin, isExternalBrowserUrl, installAppWindowNavigationPolicy, isShellPageUrl };
+export type { NavigableContents, AppWindowPolicyOptions, WindowOpenResponse, ShellPages };

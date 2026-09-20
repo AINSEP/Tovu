@@ -14,7 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { installAppWindowNavigationPolicy, isExternalBrowserUrl, isSameOrigin } from "./window-navigation-policy.ts";
+import { installAppWindowNavigationPolicy, isExternalBrowserUrl, isSameOrigin, isShellPageUrl } from "./window-navigation-policy.ts";
 import type { NavigableContents, WindowOpenResponse } from "./window-navigation-policy.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -202,5 +202,50 @@ test("the webview guest refuses a main-frame redirect to anything but a supervis
   assert.match(
     guestPolicy,
     /on\("will-redirect", \(details\) => \{\s*if \(!details\.isMainFrame \|\| isSupervisedGuestUrl\(details\.url\)\) return;\s*details\.preventDefault\(\);/,
+  );
+});
+
+const RENDERER = "file:///Applications/Tovu.app/Contents/Resources/app/dist/renderer/index.html";
+const pages = (overrides: { attachUrl?: string } = {}) => ({
+  isSupervisedSite: (url: string) => url.startsWith("http://127.0.0.1:4567/"), // the fake's own shortcut; the real one is isSupervisedGuestUrl
+  rendererFileUrl: RENDERER,
+  ...overrides,
+});
+
+test("isShellPageUrl admits a supervised site's pages", () => {
+  assert.equal(isShellPageUrl("http://127.0.0.1:4567/admin/", pages()), true);
+  assert.equal(isShellPageUrl("http://127.0.0.1:4568/admin/", pages()), false);
+});
+
+test("isShellPageUrl admits attach mode's origin by parsed origin, and nothing when there is no attach url", () => {
+  const attach = pages({ attachUrl: "http://localhost:5173" });
+  assert.equal(isShellPageUrl("http://localhost:5173/admin/pages", attach), true);
+  assert.equal(isShellPageUrl("http://localhost:5173@evil.example/admin/", attach), false);
+  assert.equal(isShellPageUrl("http://localhost:51730/admin/", attach), false);
+  assert.equal(isShellPageUrl("http://localhost:5173/admin/", pages()), false);
+  assert.equal(isShellPageUrl("http://localhost:5173/admin/", pages({ attachUrl: "" })), false);
+});
+
+test("isShellPageUrl admits the sites home renderer's own file, whatever its hash or query, and no other file", () => {
+  assert.equal(isShellPageUrl(RENDERER, pages()), true);
+  assert.equal(isShellPageUrl(`${RENDERER}#/projects`, pages()), true);
+  assert.equal(isShellPageUrl(`${RENDERER}?tab=1`, pages()), true);
+  assert.equal(isShellPageUrl("file:///tmp/index.html", pages()), false);
+  assert.equal(isShellPageUrl("file://evil-host/Applications/Tovu.app/Contents/Resources/app/dist/renderer/index.html", pages()), false);
+});
+
+test("isShellPageUrl refuses foreign pages and garbage without throwing", () => {
+  for (const raw of ["https://evil.example/admin/", "javascript:alert(1)", "data:text/html,x", "about:blank", "", "not a url"]) {
+    assert.equal(isShellPageUrl(raw, pages({ attachUrl: "http://localhost:5173" })), false, raw);
+  }
+});
+
+test("main.ts registers the speech channels with the shell-page sender check", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+  assert.match(source, /registerSpeechIpc\(\{ ipcMain, isTrustedSender: isShellPage \}\)/);
+  const shellPage = source.slice(source.indexOf("function isShellPage("), source.indexOf("function registerGuestNavigationPolicy("));
+  assert.match(
+    shellPage,
+    /isShellPageUrl\(raw, \{\s*isSupervisedSite: isSupervisedGuestUrl,\s*attachUrl: process\.env\.TOVU_DESKTOP_URL\?\.trim\(\),\s*rendererFileUrl: pathToFileURL\(SITES_RENDERER_PATH\)\.href,\s*\}\)/,
   );
 });

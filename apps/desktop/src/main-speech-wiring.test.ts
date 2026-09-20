@@ -38,7 +38,9 @@ test("main.ts calls registerSpeechIpc with the real ipcMain before attach mode's
     registerCallIndex < attachBranchIndex,
     "registerSpeechIpc must run before attach mode's window can load, or an early isAvailable() call races an unregistered channel",
   );
-  assert.match(source, /registerSpeechIpc\(\s*\{\s*ipcMain\s*\}\s*\)/);
+  // The real ipcMain, the shell-page sender check, and no injected `port` — a port here would
+  // replace the real recognizer. `window-navigation-policy.test.ts` pins what `isShellPage` checks.
+  assert.match(source, /registerSpeechIpc\(\s*\{\s*ipcMain,\s*isTrustedSender: isShellPage\s*\}\s*\)/);
 });
 
 test("createWindow's webPreferences names a preload script", () => {
