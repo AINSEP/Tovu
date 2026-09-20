@@ -77,7 +77,7 @@ export function PublishContentDialog({ onCancel, t, port }: PublishContentDialog
   const titleId = "dashboard-publish-content-confirm-title";
 
   return (
-    <div className="settings-dialog-backdrop" onClick={onCancel}>
+    <div className="settings-dialog-backdrop" onClick={view.onDismiss}>
       <div
         className={`settings-dialog${view.rows.length > 0 ? " publish-content-dialog" : ""}`}
         role="dialog"
@@ -216,7 +216,8 @@ export function PublishContentDialog({ onCancel, t, port }: PublishContentDialog
             type="button"
             className="btn-secondary"
             autoFocus
-            onClick={onCancel}
+            disabled={!view.dismissible}
+            onClick={view.onDismiss}
             {...agentHandle("dashboard-publish-content-cancel", {
               role: "button",
               label: "Close this dialog without publishing",

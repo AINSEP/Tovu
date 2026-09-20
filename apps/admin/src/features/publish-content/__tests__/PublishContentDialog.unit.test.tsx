@@ -1,6 +1,6 @@
 import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { PublishContentReport } from "@tovu/publish-content-ui";
 
@@ -629,5 +629,87 @@ describe("PublishContentDialog — a plan belongs to the site it was made for (t
 
     expect(result.current.phase).toEqual({ kind: "idle" });
     expect(result.current.errorMessage).toBeNull();
+  });
+});
+
+// terra review 2026-09-20, finding 3 (High). Once confirm is sent, the publish is the live site's to
+// finish — there is no abort. Closing the dialog then cancelled nothing, and because every post-await
+// update is dropped once unmounted, the operator never learned whether it published, failed, or
+// what restore point it made. The three close paths are Escape, the backdrop and Cancel.
+describe("PublishContentDialog — a committed publish can't be closed out from under its result (terra #3)", () => {
+  function backdrop(): HTMLElement {
+    const node = document.querySelector(".settings-dialog-backdrop");
+    if (!node) throw new Error("the publish dialog has no backdrop");
+    return node as HTMLElement;
+  }
+
+  function cancelButton(): HTMLButtonElement {
+    return screen.getByRole("button", { name: "Cancel" }) as HTMLButtonElement;
+  }
+
+  /** Tries all three close paths, returning how many of them reached `onCancel`. */
+  async function tryEveryWayToClose(user: ReturnType<typeof userEvent.setup>, onCancel: ReturnType<typeof vi.fn>): Promise<number> {
+    const before = onCancel.mock.calls.length;
+    await user.keyboard("{Escape}");
+    await user.click(backdrop());
+    if (!cancelButton().disabled) await user.click(cancelButton());
+    return onCancel.mock.calls.length - before;
+  }
+
+  it("still closes every way while nothing is committed — before planning and with a plan on screen", async () => {
+    const onCancel = vi.fn();
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
+    const user = userEvent.setup();
+    render(<PublishContentDialog onCancel={onCancel} t={t} port={port} />);
+    await waitFor(() => expect(port.calls.listPeers).toBe(1));
+
+    expect(await tryEveryWayToClose(user, onCancel)).toBe(3);
+    await user.click(primaryButton());
+    await screen.findByRole("table");
+    expect(await tryEveryWayToClose(user, onCancel)).toBe(3);
+  });
+
+  it("refuses every close path while confirming and executing, then reports the outcome and closes normally", async () => {
+    const onCancel = vi.fn();
+    const port = createFakePublishContentPort({
+      peers: ONE_PEER,
+      report: MIXED_REPORT,
+      executeResult: { restorePointId: "rp-9", runId: "run-9", changeSetIds: ["cs-1", "cs-2"] },
+    });
+    let releaseConfirm: () => void = () => {};
+    let releaseExecute: () => void = () => {};
+    let executeStarted = false;
+    const heldPort = {
+      ...port,
+      confirmPublish: (input: Parameters<typeof port.confirmPublish>[0]) =>
+        new Promise<Awaited<ReturnType<typeof port.confirmPublish>>>((resolve, reject) => {
+          releaseConfirm = () => port.confirmPublish(input).then(resolve, reject);
+        }),
+      executePublish: (input: Parameters<typeof port.executePublish>[0]) =>
+        new Promise<Awaited<ReturnType<typeof port.executePublish>>>((resolve, reject) => {
+          executeStarted = true;
+          releaseExecute = () => port.executePublish(input).then(resolve, reject);
+        }),
+    };
+    const user = userEvent.setup();
+    render(<PublishContentDialog onCancel={onCancel} t={t} port={heldPort as typeof port} />);
+    await waitFor(() => expect(port.calls.listPeers).toBe(1));
+    await user.click(primaryButton());
+    await screen.findByRole("table");
+
+    await user.click(primaryButton());
+    expect(primaryButton().textContent).toBe("Publishing…");
+    expect(await tryEveryWayToClose(user, onCancel)).toBe(0);
+    expect(cancelButton()).toBeDisabled();
+
+    await act(async () => releaseConfirm());
+    await waitFor(() => expect(executeStarted).toBe(true));
+    expect(await tryEveryWayToClose(user, onCancel)).toBe(0);
+    expect(cancelButton()).toBeDisabled();
+
+    await act(async () => releaseExecute());
+    expect(await screen.findByText("Published 2 changes.")).toBeTruthy();
+    expect(cancelButton()).toBeEnabled();
+    expect(await tryEveryWayToClose(user, onCancel)).toBe(3);
   });
 });

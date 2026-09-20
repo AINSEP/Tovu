@@ -72,6 +72,12 @@ export interface PublishContentConfirmView {
   /** `false` while a plan is being worked out and from the moment the operator commits: there the
    *  site is part of what is already in flight, and changing it could only misdescribe it. */
   readonly peerSelectionEnabled: boolean;
+  /** `false` from confirm until the publish has an outcome on screen. The run cannot be aborted
+   *  once confirm is sent, so closing then would cancel nothing and only hide whether it worked. */
+  readonly dismissible: boolean;
+  /** Closes the dialog — the one handler behind Cancel and the backdrop. A no-op while
+   *  {@link dismissible} is `false`; Escape follows the same rule. */
+  readonly onDismiss: () => void;
   readonly rows: readonly PublishReportRow[];
   readonly summary: PublishReportSummary | null;
   /** The keys of the rows this run would publish — every {@link PublishReportRow.selectable} row the
@@ -164,7 +170,19 @@ function peerSelectionOpen(phase: PublishContentPhase): boolean {
 }
 
 /**
- * @param props.onCancel Called when the dialog should close (Escape pressed).
+ * Whether a publish has been committed and has no outcome yet: confirm is on its way or answered,
+ * or execute is running. From here the live site finishes the run whatever this dialog does (terra
+ * review 2026-09-20, finding 3), so the dialog stays open until it can say how that went.
+ *
+ * @complexity O(1).
+ */
+function publishInFlight(phase: PublishContentPhase): boolean {
+  return phase.kind === "confirming" || phase.kind === "confirmed" || phase.kind === "executing";
+}
+
+/**
+ * @param props.onCancel Called when the dialog should close (Escape, Cancel, the backdrop) — never
+ *   while a committed publish has no outcome yet; see `publishInFlight`.
  * @param props.t The screen's own bound translator, threaded down rather than resolved again here.
  * @param props.port Dependency injection seam for tests — see `publish-content-port.hooks.ts`.
  * @complexity Time: O(n) per re-render in the plan's row count (row shaping + the summary counts);
@@ -198,14 +216,18 @@ export function usePublishContentConfirm(props: {
   // re-plan's new rows arrive checked without anything having to re-seed them.
   const [deselectedKeys, setDeselectedKeys] = useState<ReadonlySet<string>>(() => new Set());
 
+  const dismissible = !publishInFlight(phase);
+  const onDismiss = (): void => {
+    if (dismissible) onCancel();
+  };
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape" && dismissible) onCancel();
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onCancel]);
+  }, [onCancel, dismissible]);
 
   // `live` guards every `setState` that follows an `await`: the dialog is unmounted by its own
   // Cancel button and by Escape, either of which can land while a plan or a publish is in flight.
@@ -461,6 +483,8 @@ export function usePublishContentConfirm(props: {
     selectedPeerId,
     onSelectPeer,
     peerSelectionEnabled,
+    dismissible,
+    onDismiss,
     rows,
     summary,
     selectedKeys,
