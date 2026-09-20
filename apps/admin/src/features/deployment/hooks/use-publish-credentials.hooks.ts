@@ -201,6 +201,19 @@ function blankRowFormState(): RowFormState {
   return { token: "", accountId: "", saving: false, error: null, verifying: false, verification: undefined, verifyError: null };
 }
 
+/**
+ * A row's form state once its save has succeeded: blank, as before — unless the operator edited the
+ * draft while the request was in flight (the inputs stay editable; only Save disables). That newer
+ * draft was never sent, so it is kept whole rather than blanked into a "Connected" row that implies
+ * it was saved (terra review 2026-09-20, finding 4's sibling). Kept whole, not per field, so a
+ * two-field provider's draft stays savable as one piece.
+ * @complexity O(1).
+ */
+function rowFormStateAfterSave(current: RowFormState, sent: Pick<PublishCredentialFormFields, "token" | "accountId">): RowFormState {
+  const editedMeanwhile = current.token !== sent.token || current.accountId !== sent.accountId;
+  return editedMeanwhile ? { ...blankRowFormState(), token: current.token, accountId: current.accountId } : blankRowFormState();
+}
+
 function initialRowFormStates(): Record<AdminPublishCredentialProviderId, RowFormState> {
   const entries = PUBLISH_CREDENTIAL_PROVIDERS.map((provider) => [provider.id, blankRowFormState()] as const);
   return Object.fromEntries(entries) as Record<AdminPublishCredentialProviderId, RowFormState>;
@@ -276,7 +289,7 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
         const base = prev ?? [];
         return existing ? base.map((current) => (current.id === result.id ? result : current)) : [...base, result];
       });
-      setFormStates((prev) => ({ ...prev, [providerId]: blankRowFormState() }));
+      setFormStates((prev) => ({ ...prev, [providerId]: rowFormStateAfterSave(prev[providerId], fields) }));
     } catch (err) {
       setFormStates((prev) => ({
         ...prev,

@@ -213,10 +213,14 @@ export function useDockerfileSource(
     // A fresh attempt deserves a fresh judgment, not a conflict banner left over from a previous
     // one — see this file's header.
     setSaveConflict(null);
+    const sent = draft;
     try {
-      const updated = await saveMutation.mutate({ contents: draft, ifMatch: snapshot.etag });
+      const updated = await saveMutation.mutate({ contents: sent, ifMatch: snapshot.etag });
       setSnapshot(updated);
-      setDraft(updated.contents ?? "");
+      // The response describes what was SENT. An edit typed while the PUT was in flight is newer than
+      // both, so the buffer adopts the server's copy only if it still holds exactly what was sent
+      // (terra review 2026-09-20, finding 4) — otherwise it stays, dirty against the new snapshot.
+      setDraft((current) => (current === sent ? (updated.contents ?? "") : current));
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
     } catch (err) {

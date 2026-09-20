@@ -284,6 +284,36 @@ describe("usePublishCredentials — save, provider not yet connected (create)", 
     expect(row.accountId).toBe("");
     expect(row.saving).toBe(false);
   });
+
+  // terra review 2026-09-20, finding 4's sibling: the token inputs stay editable while a save is in
+  // flight (only Save disables), so a success must not blank a token typed after the click — the
+  // operator would read "Connected" and believe the NEW token was the one saved.
+  it("keeps a token typed while the save was in flight, and clears only what was actually sent", async () => {
+    const created: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-cf", providerId: "cloudflare-pages" };
+    let resolveCreate!: (value: AdminPublishCredentialSummary) => void;
+    const port = createFakePublishCredentialsPort({ createCredential: () => new Promise((resolve) => (resolveCreate = resolve)) });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    act(() => result.current.setToken("cloudflare-pages", "cf_first"));
+    act(() => result.current.setAccountId("cloudflare-pages", "acct-1"));
+    let savePromise!: Promise<void>;
+    act(() => {
+      savePromise = result.current.save("cloudflare-pages");
+    });
+    act(() => result.current.setToken("cloudflare-pages", "cf_second"));
+    await act(async () => {
+      resolveCreate(created);
+      await savePromise;
+    });
+
+    const row = result.current.rows!.find((r) => r.providerId === "cloudflare-pages")!;
+    expect(row.saved?.id).toBe("cred-cf");
+    expect(row.token).toBe("cf_second");
+    expect(row.accountId).toBe("acct-1");
+    expect(row.saving).toBe(false);
+    expect(row.error).toBeNull();
+  });
 });
 
 describe("usePublishCredentials — save, provider already connected (update)", () => {

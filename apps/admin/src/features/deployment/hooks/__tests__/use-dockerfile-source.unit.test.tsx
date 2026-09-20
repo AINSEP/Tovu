@@ -165,6 +165,54 @@ describe("useDockerfileSource — save", () => {
     expect(result.current.saving).toBe(false);
   });
 
+  // terra review 2026-09-20, finding 4. The response describes what was SENT; an edit typed after
+  // the click is newer than both, and replacing the buffer with the response silently erased it.
+  it("keeps an edit typed while the save was in flight — the response replaces only a draft that still matches what was sent", async () => {
+    let resolveWrite!: (value: { exists: boolean; contents: string; etag: string }) => void;
+    const port = createFakeDockerfileSourcePort(
+      { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
+      { setDockerfileSource: () => new Promise((resolve) => (resolveWrite = resolve)) },
+    );
+    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
+
+    act(() => result.current.setDraft("FROM node:22\nA\n"));
+    let savePromise!: Promise<void>;
+    act(() => {
+      savePromise = result.current.save();
+    });
+    await waitFor(() => expect(result.current.saving).toBe(true));
+    act(() => result.current.setDraft("FROM node:22\nA\nB\n"));
+
+    await act(async () => {
+      resolveWrite({ exists: true, contents: "FROM node:22\nA\n", etag: '"after-a"' });
+      await savePromise;
+    });
+
+    expect(result.current.draft).toBe("FROM node:22\nA\nB\n");
+    // The server now holds A, under a new etag — the next save must send B against THAT, and B is
+    // still an unsaved change.
+    expect(result.current.snapshot).toEqual({ exists: true, contents: "FROM node:22\nA\n", etag: '"after-a"' });
+    expect(result.current.isDirty).toBe(true);
+  });
+
+  it("still adopts the server's copy when nothing was typed during the save — e.g. a normalized trailing newline", async () => {
+    const port = createFakeDockerfileSourcePort(
+      { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
+      { setDockerfileSource: (contents) => Promise.resolve({ exists: true, contents: `${contents}\n`, etag: '"normalized"' }) },
+    );
+    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
+
+    act(() => result.current.setDraft("FROM node:22\nA"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.draft).toBe("FROM node:22\nA\n");
+    expect(result.current.isDirty).toBe(false);
+  });
+
   it("defaults draft to '' rather than null when a successful write echoes back null contents", async () => {
     const port = createFakeDockerfileSourcePort(
       { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
