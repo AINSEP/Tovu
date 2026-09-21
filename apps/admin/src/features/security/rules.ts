@@ -103,10 +103,12 @@ export interface AccessTokenCategoryInfo {
 /**
  * The filter row's fixed order — `All` first and default (owner's own list, 2026-08-16 ruling:
  * "All / Source control / Hosting / Media / AI / Ops"). Split from the seven Tier 1 providers'
- * `purposeLabel` ("Publishing"/"Source Control"), which is a per-provider DISAMBIGUATOR shown next to
+ * `purposeLabel` ("Hosting"/"Source Control"), which is a per-provider DISAMBIGUATOR shown next to
  * a name, not a filter bucket — `github-pages` and `vercel` share the `"hosting"` category here even
  * though only `github-pages` needed a purpose subtitle to tell it apart from source-control's own
- * `github`.
+ * `github`. `purposeLabel` used to read "Publishing" for the four hosting providers — the owner's
+ * 2026-09-21 ruling collapsed it onto the same word as this filter chip's own label, so a hosting
+ * row's subtitle and the category chip that filters it always agree.
  */
 export const ACCESS_TOKEN_CATEGORIES: readonly AccessTokenCategoryInfo[] = [
   { id: "all", label: "All" },
@@ -233,7 +235,7 @@ export const ACCESS_TOKEN_PROVIDERS: readonly AccessTokenProviderInfo[] = [
       providerId: provider.id,
       label: provider.label,
       vendorLabel: vendorLabelFor(provider.id, provider.label),
-      purposeLabel: "Publishing",
+      purposeLabel: "Hosting",
       category: "hosting",
       tokenPageUrl: provider.tokenPageUrl,
       scopeGuidanceKey: provider.scopeGuidanceKey,
@@ -434,7 +436,7 @@ export function buildCustomCredentialRows(raws: readonly RawCustomCredentialSumm
 }
 
 /** Whether `row` should show under an active search `query` — matches the provider's brand label
- *  ("GitHub", "Cloudflare Pages"), its purpose subtitle ("Publishing", "Source Control"), and the
+ *  ("GitHub", "Cloudflare Pages"), its purpose subtitle ("Hosting", "Source Control"), and the
  *  row's own display name ("Production", "30-day test token"). Case-insensitive, whitespace-trimmed;
  *  an empty query matches everything (the "no filter active" state).
  *  @complexity O(1) per row — three substring checks against already-short strings. */
@@ -549,6 +551,56 @@ export function buildAccessTokenConnectionInput(fields: AccessTokenFormFields): 
  *  @complexity O(n) in this workspace's total saved-credential count (small). */
 export function accessTokenRowsForProvider(rows: readonly AccessTokenRow[], ref: AccessTokenProviderRef): AccessTokenRow[] {
   return rows.filter((row) => row.kind === ref.kind && row.providerId === ref.providerId);
+}
+
+/** The minimal shape {@link sortAccessTokenGroups} needs from a provider group — a structural
+ *  subset of `AccessTokenProviderGroupState` (`use-access-tokens.hooks.ts`) so this pure sort has
+ *  no dependency on that hook's own types (this file's own convention: `rules.ts` is never imported
+ *  BY the reverse direction — see this file's header). `rows` is read only for its `.length` (is
+ *  there at least one saved token for this group), never its contents. */
+export interface AccessTokenGroupSortInput {
+  readonly info: Pick<AccessTokenProviderInfo, "category" | "label">;
+  readonly rows: readonly unknown[];
+}
+
+/**
+ * The Secrets page's provider-group order — owner's 2026-09-21 ruling. Two tiers: every group with
+ * at least one saved row (`rows.length > 0`) first, every "Not connected" group after. Within each
+ * tier, grouped by category in the SAME order the filter chips render ({@link ACCESS_TOKEN_CATEGORIES},
+ * minus `"all"`, which is the chip row's own "show everything" option and never a row's real
+ * category — see {@link AccessTokenRowCategoryId}'s own doc), then alphabetical by the provider's
+ * own `label`, locale-aware and case-insensitive (`toLocaleLowerCase()` before `localeCompare()` —
+ * same "read like a human alphabetizing a shelf" convention `media/rules.ts`'s `sortMediaByOrder`
+ * already uses for its own `"alphabetical"` order).
+ *
+ * A provider moving from zero saved rows to one (a Save that just succeeded) needs no special case
+ * here: {@link AccessTokenGroupSortInput.rows}'s own length IS the tier a caller feeds in on every
+ * render (`use-access-tokens.hooks.ts`'s `groups` is rebuilt from scratch whenever the underlying
+ * row list changes), so a provider crossing that boundary simply sorts into the other tier the next
+ * time this runs. Applies equally whether `groups` is the full catalog (`"All"` chip), narrowed to
+ * one category (a single chip active), or narrowed by an active search query — this function only
+ * ever reads each entry's own category/label/saved-count, never the set's size or the active
+ * filter, so a smaller or single-category input sorts by the identical rule.
+ *
+ * Returns a NEW array — never mutates `groups` (same "caller's own array survives" contract
+ * `sortMediaByOrder` documents for the identical reason: a caller may still need the unsorted list).
+ *
+ * @complexity Time O(n log n) in the group count (small — one entry per catalog provider plus one
+ * per saved custom credential), space O(n) for the shallow copy.
+ */
+export function sortAccessTokenGroups<T extends AccessTokenGroupSortInput>(groups: readonly T[]): T[] {
+  const categoryRank = new Map<AccessTokenRowCategoryId, number>(
+    ACCESS_TOKEN_CATEGORIES.filter((c) => c.id !== "all").map((c, index) => [c.id as AccessTokenRowCategoryId, index])
+  );
+  const sorted = [...groups];
+  sorted.sort((a, b) => {
+    const savedDiff = Number(b.rows.length > 0) - Number(a.rows.length > 0);
+    if (savedDiff !== 0) return savedDiff;
+    const categoryDiff = (categoryRank.get(a.info.category) ?? 0) - (categoryRank.get(b.info.category) ?? 0);
+    if (categoryDiff !== 0) return categoryDiff;
+    return a.info.label.trim().toLocaleLowerCase().localeCompare(b.info.label.trim().toLocaleLowerCase());
+  });
+  return sorted;
 }
 
 /** Builds an update patch's non-secret/secret halves independently — split out of the hook's own

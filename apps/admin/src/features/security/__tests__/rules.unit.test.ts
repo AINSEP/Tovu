@@ -37,9 +37,12 @@ import {
   otherCredentialMatchesQuery,
   otherCredentialStoreInfo,
   providerGroupHandleLabel,
+  sortAccessTokenGroups,
   tokenRowHandleLabel,
   type AccessTokenFormFields,
+  type AccessTokenGroupSortInput,
   type AccessTokenRow,
+  type AccessTokenRowCategoryId,
   type CustomCredentialFormFields,
   type RawCredentialSummary,
   type RawCustomCredentialSummary,
@@ -87,7 +90,7 @@ describe("ACCESS_TOKEN_PROVIDERS", () => {
     expect(githubPages.label).toBe("GitHub Pages");
     expect(github.label).toBe("GitHub");
     expect(githubPages.purposeLabel).not.toBe(github.purposeLabel);
-    expect(githubPages.purposeLabel).toBe("Publishing");
+    expect(githubPages.purposeLabel).toBe("Hosting");
     expect(github.purposeLabel).toBe("Source Control");
   });
 
@@ -267,6 +270,78 @@ describe("accessTokenRowsForProvider", () => {
   });
 });
 
+describe("sortAccessTokenGroups", () => {
+  /** A minimal {@link AccessTokenGroupSortInput} — `savedCount` stands in for `rows.length` (the
+   *  function only ever reads its length, never its contents). */
+  function group(label: string, category: AccessTokenRowCategoryId, savedCount: number): AccessTokenGroupSortInput & { label: string } {
+    return { info: { category, label }, rows: Array.from({ length: savedCount }), label };
+  }
+  function labelsOf(groups: readonly (AccessTokenGroupSortInput & { label: string })[]): string[] {
+    return sortAccessTokenGroups(groups).map((g) => g.label);
+  }
+
+  it("puts every group with at least one saved row before every group with none, regardless of input order", () => {
+    const groups = [group("Netlify", "hosting", 0), group("GitHub", "source-control", 1), group("Vercel", "hosting", 0), group("GitLab", "source-control", 1)];
+    const result = sortAccessTokenGroups(groups);
+    expect(result.slice(0, 2).every((g) => g.rows.length > 0)).toBe(true);
+    expect(result.slice(2).every((g) => g.rows.length === 0)).toBe(true);
+  });
+
+  it("orders the saved tier by category in the same order as the filter chips: source control, hosting, media, ai, ops, general", () => {
+    const groups = [
+      group("Cloudinary", "media", 1),
+      group("OpenAI", "ai", 1),
+      group("GitHub", "source-control", 1),
+      group("Composio", "ops", 1),
+      group("Custom Co", "general", 1),
+      group("Vercel", "hosting", 1),
+    ];
+    expect(labelsOf(groups)).toEqual(["GitHub", "Vercel", "Cloudinary", "OpenAI", "Composio", "Custom Co"]);
+  });
+
+  it("orders the unsaved tier by the same category order, independently of the saved tier", () => {
+    const groups = [group("Vercel", "hosting", 0), group("GitHub", "source-control", 1), group("Bitbucket", "source-control", 0)];
+    // Saved tier (GitHub) first; within the unsaved tier, source control (Bitbucket) still outranks
+    // hosting (Vercel) by category order, unaffected by GitHub already having moved to the other tier.
+    expect(labelsOf(groups)).toEqual(["GitHub", "Bitbucket", "Vercel"]);
+  });
+
+  it("sorts alphabetically by label within the same tier and category, locale-aware/case-insensitive", () => {
+    const groups = [group("netlify", "hosting", 0), group("Cloudflare Pages", "hosting", 0), group("Vercel", "hosting", 0), group("GitHub Pages", "hosting", 0)];
+    expect(labelsOf(groups)).toEqual(["Cloudflare Pages", "GitHub Pages", "netlify", "Vercel"]);
+  });
+
+  it("a provider moving from zero saved rows to one moves it into the saved tier on the next call", () => {
+    const unsaved = [group("Vercel", "hosting", 0), group("GitHub", "source-control", 1)];
+    expect(labelsOf(unsaved)).toEqual(["GitHub", "Vercel"]);
+    const nowSaved = [group("Vercel", "hosting", 1), group("GitHub", "source-control", 1)];
+    // Alphabetical within the same (saved, hosting-vs-source-control) categories: GitHub's category
+    // (source control) still ranks before Vercel's (hosting) — the tier move alone should not also
+    // reorder categories.
+    expect(labelsOf(nowSaved)).toEqual(["GitHub", "Vercel"]);
+  });
+
+  it("a filtered/searched subset (fewer groups, possibly one category only) still sorts by the same rule", () => {
+    // Simulates the "Hosting" chip or an active search query narrowing `groups` before it reaches
+    // this function — every entry shares one category, so only the saved-tier/alphabetical rules
+    // are left to apply.
+    const groups = [group("Vercel", "hosting", 0), group("GitHub Pages", "hosting", 1), group("Cloudflare Pages", "hosting", 0)];
+    expect(labelsOf(groups)).toEqual(["GitHub Pages", "Cloudflare Pages", "Vercel"]);
+  });
+
+  it("custom providers follow the same category-based rule as catalog providers", () => {
+    const groups = [group("My Custom API", "general", 0), group("Vercel", "hosting", 0), group("Another Custom", "general", 1)];
+    expect(labelsOf(groups)).toEqual(["Another Custom", "Vercel", "My Custom API"]);
+  });
+
+  it("does not mutate the input array", () => {
+    const groups = [group("Vercel", "hosting", 0), group("GitHub", "source-control", 1)];
+    const original = [...groups];
+    sortAccessTokenGroups(groups);
+    expect(groups).toEqual(original);
+  });
+});
+
 describe("accessTokenRowMatchesQuery / accessTokenProviderMatchesQuery", () => {
   const info = accessTokenProviderInfo({ kind: "publish", providerId: "github-pages" });
   const row = buildAccessTokenRows("publish", [rawSummary({ label: "Production" })])[0]!;
@@ -282,9 +357,9 @@ describe("accessTokenRowMatchesQuery / accessTokenProviderMatchesQuery", () => {
   });
 
   it("matches on the purpose subtitle — the two-store GitHub disambiguator", () => {
-    expect(accessTokenRowMatchesQuery(row, info, "publishing")).toBe(true);
+    expect(accessTokenRowMatchesQuery(row, info, "hosting")).toBe(true);
     const sourceControlInfo = accessTokenProviderInfo({ kind: "source-control", providerId: "github" });
-    expect(accessTokenProviderMatchesQuery(sourceControlInfo, "publishing")).toBe(false);
+    expect(accessTokenProviderMatchesQuery(sourceControlInfo, "hosting")).toBe(false);
   });
 
   it("matches on the row's own display name", () => {

@@ -57,7 +57,7 @@ import { useRemoveConfirmDialog, useAddCustomCredentialDialog } from "./AccessTo
  *
  * ## Search
  *
- * Matches a provider's/store's brand label, its purpose subtitle ("Publishing"/"Source Control"/
+ * Matches a provider's/store's brand label, its purpose subtitle ("Hosting"/"Source Control"/
  * "AI"/… — the disambiguation `rules.ts`'s header calls "the two-store GitHub trap" for Tier 1, and
  * the same subtitle Tier 2 rows carry next to their own name), and a saved item's own name. A group
  * renders when EITHER its own info matches the query OR it has at least one matching saved row — so

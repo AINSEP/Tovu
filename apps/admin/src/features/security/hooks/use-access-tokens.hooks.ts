@@ -45,6 +45,7 @@ import {
   customCredentialNameTaken,
   customCredentialReadyToSave,
   customCredentialReplaceReadyToSave,
+  sortAccessTokenGroups,
   type AccessTokenCategoryId,
   type AccessTokenFormFields,
   type AccessTokenKind,
@@ -216,8 +217,10 @@ export interface AccessTokenCustomAddFormState {
 }
 
 export interface AccessTokensController {
-  /** One entry per {@link ACCESS_TOKEN_PROVIDERS} provider, in that fixed order — `undefined` until
-   *  BOTH stores' first load resolves. Unlike `PublishCredentialsController.rows`, a provider's own
+  /** One entry per {@link ACCESS_TOKEN_PROVIDERS} provider plus one per saved custom credential,
+   *  ordered by `rules.ts`'s `sortAccessTokenGroups` (saved-before-unsaved, then category-chip
+   *  order, then alphabetical by label — the owner's 2026-09-21 ruling) — `undefined` until BOTH
+   *  stores' first load resolves. Unlike `PublishCredentialsController.rows`, a provider's own
    *  `rows` array here can hold more than one saved connection. */
   groups: readonly AccessTokenProviderGroupState[] | undefined;
   loadError: string | null;
@@ -691,7 +694,11 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
         addForm: addFormState(addForms[addFormKey(info)]),
       };
     });
-    return [...catalogGroups, ...customGroups];
+    // Saved-before-unsaved, then category-chip order, then alphabetical by label — the owner's
+    // 2026-09-21 ordering ruling (`rules.ts`'s `sortAccessTokenGroups` doc). Applied to the
+    // already-category-and-query-filtered list above, so it holds for the "All" chip, any single
+    // category chip, and an active search query alike.
+    return sortAccessTokenGroups([...catalogGroups, ...customGroups]);
   }, [rows, existingDrafts, existingBusy, addForms, query, category, customGroups]);
 
   const totalCount = rows?.length ?? 0;
