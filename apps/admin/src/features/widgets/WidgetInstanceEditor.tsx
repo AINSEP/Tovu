@@ -1,4 +1,5 @@
 import { WidgetConfigFields } from "../../components/WidgetConfigFields/WidgetConfigFields";
+import { t as sharedComponentsT } from "../../components/shared-components-i18n";
 import { agentHandle } from "@jini-ai/agentic";
 import { isKnownWidgetType, widgetTypeLabel } from "./rules";
 import { useWiredWidgetInstanceEditor } from "./hooks/use-widget-instance-editor.hooks";
@@ -122,6 +123,14 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
   // type for the JSX below rather than asserting it with `!`.
   if (!widgetType) return null;
 
+  // `WidgetConfigFields`'s own copy lives in `shared-components-i18n.ts`, a DIFFERENT dictionary
+  // from this screen's own `t` (bound to `widgets-i18n.ts`'s `WIDGETS_DICT` — see the hook import
+  // above) — reusing `t` here would look "Text"/"Menu"/etc. up in the wrong dictionary and silently
+  // render the English fallback in every non-English locale. Bound off the same `locale` this
+  // screen already resolves, mirroring `WidgetPickerDialog.hooks.tsx`'s `t = (key) =>
+  // sharedComponentsT(locale, key)` shape exactly.
+  const sharedT: Translate = (key) => sharedComponentsT(locale, key);
+
   return (
     <div className="page">
       <div className="page-header">
@@ -171,7 +180,13 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
       <p className="muted-cell">{t("Type:")} {widgetTypeLabel(widgetType, locale)}</p>
 
       <div className="widget-config-form">
-        <WidgetConfigFields widgetType={widgetType} config={config} onChange={setConfig} agentHandle="widget-instance-config" />
+        <WidgetConfigFields
+          widgetType={widgetType}
+          config={config}
+          onChange={setConfig}
+          agentHandle="widget-instance-config"
+          t={sharedT}
+        />
         {fieldErrors.map((fe, i) => (
           <p key={i} className="save-error" role="alert">
             {fe.field}: {fe.reason}

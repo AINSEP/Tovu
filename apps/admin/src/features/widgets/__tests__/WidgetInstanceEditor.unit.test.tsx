@@ -68,6 +68,44 @@ describe("a known widget type on /widgets/new", () => {
   });
 });
 
+describe("WidgetConfigFields wiring (Batch D2 i18n — components/shared-components-i18n.ts)", () => {
+  it("threads a Spanish locale into the nested WidgetConfigFields via a SECOND t bound to shared-components-i18n, not this screen's own widgets-i18n t", () => {
+    // This screen's own `t` (from `use-widget-instance-editor.hooks.ts`) is bound to
+    // `widgets-i18n.ts`'s `WIDGETS_DICT` — a DIFFERENT dictionary from `WidgetConfigFields`'s own
+    // `shared-components-i18n.ts`. Left as an untranslated passthrough here on purpose: this test
+    // only needs to prove `locale` reaches `WidgetInstanceEditor.tsx`'s own `sharedT` (built off
+    // `shared-components-i18n.ts`'s real, exported `t`), not that every string on the page is
+    // Spanish. "Texto" below is that real dictionary's actual `es` value for `WidgetConfigFields`'s
+    // "Text" key (`SHARED_COMPONENTS_DICT.es.Text`) — not a fake stand-in string — so this fails if
+    // `WidgetInstanceEditor.tsx` ever stops building `sharedT` or passes the wrong `locale` into it.
+    function useFakeEditor() {
+      return {
+        isNew: true,
+        widget: null,
+        whereUsed: { count: 0, references: [] },
+        title: "",
+        setTitle: vi.fn(),
+        config: {},
+        setConfig: vi.fn(),
+        message: null,
+        error: null,
+        fieldErrors: [],
+        loading: false,
+        saving: false,
+        widgetType: "text" as const,
+        save: vi.fn(),
+        t: (key: string) => key,
+        locale: "es",
+      };
+    }
+
+    render(<WidgetInstanceEditor widgetId={null} widgetType="text" useWidgetInstanceEditorHook={useFakeEditor} />);
+
+    expect(screen.getByLabelText("Texto")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Text")).not.toBeInTheDocument();
+  });
+});
+
 // Direct tests for the pure decision function pulled out of `WidgetInstanceEditor` in the
 // complexity pass (cyc 14/cog 11 -> 9/7) — the four early-exit states are now one top-level
 // function, testable without mounting the component or its hook.

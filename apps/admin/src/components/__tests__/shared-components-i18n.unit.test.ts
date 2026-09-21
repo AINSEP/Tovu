@@ -11,9 +11,11 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * locales" (the exact regression `media-i18n.unit.test.ts` guards against) fails here instead of
  * silently rendering English to every other locale.
  *
- * This commit's call sites: `Select.tsx` and `WidgetPickerDialog.tsx`/`WidgetPickerDialog.hooks.tsx`
- * (incl. `useWidgetAddControl`). Later Batch D2 commits extend `CALL_SITE_KEYS` as they wire
- * `WidgetConfigFields`, `MediaPickerDialog`, and `EmbedInsertControl`.
+ * Call sites so far: `Select.tsx` and `WidgetPickerDialog.tsx`/`WidgetPickerDialog.hooks.tsx`
+ * (incl. `useWidgetAddControl`), plus this commit's `WidgetConfigFields.tsx` (all five per-type
+ * sub-forms, wired at both of its callers — `WidgetPickerDialog.tsx`'s "create new" form and
+ * `WidgetInstanceEditor.tsx`). Later Batch D2 commits extend `CALL_SITE_KEYS` as they wire
+ * `MediaPickerDialog` and `EmbedInsertControl`.
  */
 describe("SHARED_COMPONENTS_DICT: cross-locale key parity", () => {
   const locales = Object.keys(SHARED_COMPONENTS_DICT);
@@ -78,6 +80,27 @@ describe("SHARED_COMPONENTS_DICT: cross-locale key parity", () => {
     "failed to create widget",
     "failed to place widget",
     'Widget "{title}" was created but not placed ({detail}). Choose it under Use existing to try again.',
+    // WidgetConfigFields.tsx (all five per-type sub-forms)
+    "Text",
+    "Social links",
+    "Link {n}",
+    "Platform",
+    "e.g. GitHub",
+    "URL",
+    "https://…",
+    "Remove",
+    "Add link",
+    "Max items",
+    "Category term id (optional)",
+    "failed to load menus",
+    "Loading menus…",
+    "Menu",
+    "Choose a menu…",
+    "failed to load forms",
+    "Loading forms…",
+    "Form",
+    "Choose a form…",
+    "Success message (optional)",
   ];
 
   it("covers every copy string this commit's wired call sites call t() with, in every locale", () => {

@@ -1,5 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
 import type { AdminFormDefinition, AdminMenu, AdminWidgetType } from "../../lib/api";
+import type { Translate } from "../../lib/dictionary-translator";
+import { interpolate } from "../../lib/template-i18n";
 import { useFetchedOptions, useSocialLinksConfig } from "./WidgetConfigFields.hooks";
 import { defaultWidgetConfigFieldsPort } from "./widget-config-fields-dependencies.hooks";
 
@@ -70,10 +72,11 @@ function TextConfigFields(props: {
   config: Record<string, unknown>;
   onChange: (config: Record<string, unknown>) => void;
   agentHandle?: string;
+  t: Translate;
 }) {
   return (
     <div className="widget-config-fields">
-      <label htmlFor="widget-field-body">Text</label>
+      <label htmlFor="widget-field-body">{props.t("Text")}</label>
       <textarea
         id="widget-field-body"
         rows={6}
@@ -90,30 +93,32 @@ function SocialLinksConfigFields(props: {
   config: Record<string, unknown>;
   onChange: (config: Record<string, unknown>) => void;
   agentHandle?: string;
+  t: Translate;
 }) {
   const { links, updateLink, removeLink, addLink } = useSocialLinksConfig(props.config, props.onChange);
   const base = props.agentHandle;
+  const { t } = props;
 
   return (
     <div className="widget-config-fields">
-      <p>Social links</p>
+      <p>{t("Social links")}</p>
       {links.map((link, i) => (
         <fieldset key={i} className="widget-config-social-link-row">
-          <legend>Link {i + 1}</legend>
-          <label htmlFor={`widget-social-platform-${i}`}>Platform</label>
+          <legend>{interpolate(t("Link {n}"), { n: i + 1 })}</legend>
+          <label htmlFor={`widget-social-platform-${i}`}>{t("Platform")}</label>
           <input
             id={`widget-social-platform-${i}`}
             value={link.platform}
             onChange={(e) => updateLink(i, { platform: e.target.value })}
-            placeholder="e.g. GitHub"
+            placeholder={t("e.g. GitHub")}
             {...(base ? agentHandle(`${base}-link-${i}-platform`, { role: "field", label: `Link ${i + 1} platform` }) : {})}
           />
-          <label htmlFor={`widget-social-url-${i}`}>URL</label>
+          <label htmlFor={`widget-social-url-${i}`}>{t("URL")}</label>
           <input
             id={`widget-social-url-${i}`}
             value={link.url}
             onChange={(e) => updateLink(i, { url: e.target.value })}
-            placeholder="https://…"
+            placeholder={t("https://…")}
             {...(base ? agentHandle(`${base}-link-${i}-url`, { role: "field", label: `Link ${i + 1} URL` }) : {})}
           />
           <button
@@ -121,7 +126,7 @@ function SocialLinksConfigFields(props: {
             onClick={() => removeLink(i)}
             {...(base ? agentHandle(`${base}-link-${i}-remove`, { role: "button", label: `Remove link ${i + 1}` }) : {})}
           >
-            Remove
+            {t("Remove")}
           </button>
         </fieldset>
       ))}
@@ -131,7 +136,7 @@ function SocialLinksConfigFields(props: {
         disabled={links.length >= 20}
         {...(base ? agentHandle(`${base}-add`, { role: "button", label: "Add a social link" }) : {})}
       >
-        Add link
+        {t("Add link")}
       </button>
     </div>
   );
@@ -142,12 +147,14 @@ function RecentEntriesConfigFields(props: {
   config: Record<string, unknown>;
   onChange: (config: Record<string, unknown>) => void;
   agentHandle?: string;
+  t: Translate;
 }) {
   const maxItems = typeof props.config.maxItems === "number" ? props.config.maxItems : 5;
   const base = props.agentHandle;
+  const { t } = props;
   return (
     <div className="widget-config-fields">
-      <label htmlFor="widget-field-maxItems">Max items</label>
+      <label htmlFor="widget-field-maxItems">{t("Max items")}</label>
       <input
         id="widget-field-maxItems"
         type="number"
@@ -159,7 +166,7 @@ function RecentEntriesConfigFields(props: {
         {...(base ? agentHandle(`${base}-max-items`, { role: "field", label: "Max items" }) : {})}
       />
       {/* REQ-32/EC-03: a documented soft reference — plain text input, no taxonomy-term picker exists yet in this admin app. */}
-      <label htmlFor="widget-field-categoryTermId">Category term id (optional)</label>
+      <label htmlFor="widget-field-categoryTermId">{t("Category term id (optional)")}</label>
       <input
         id="widget-field-categoryTermId"
         value={textValue(props.config, "categoryTermId")}
@@ -181,23 +188,25 @@ interface FetchedOptionsSeam {
  * `Seo.tsx`'s `EntryPicker` exactly. */
 function MenuConfigFields({
   useFetchedOptions: useOptions = useFetchedOptions,
+  t,
   ...props
 }: {
   config: Record<string, unknown>;
   onChange: (config: Record<string, unknown>) => void;
   agentHandle?: string;
+  t: Translate;
 } & FetchedOptionsSeam) {
   const { items: menus, error } = useOptions<AdminMenu>(
     () => defaultWidgetConfigFieldsPort.listMenus().then((r) => r.menus),
-    "failed to load menus",
+    t("failed to load menus"),
   );
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!menus) return <div className="notice">Loading menus…</div>;
+  if (!menus) return <div className="notice">{t("Loading menus…")}</div>;
 
   return (
     <div className="widget-config-fields">
-      <label htmlFor="widget-field-menuRef">Menu</label>
+      <label htmlFor="widget-field-menuRef">{t("Menu")}</label>
       <select
         id="widget-field-menuRef"
         value={textValue(props.config, "menuRef")}
@@ -209,7 +218,7 @@ function MenuConfigFields({
             })
           : {})}
       >
-        <option value="">Choose a menu…</option>
+        <option value="">{t("Choose a menu…")}</option>
         {menus.map((menu) => (
           <option key={menu.id} value={menu.id}>
             {menu.title} ({menu.status})
@@ -225,23 +234,25 @@ function MenuConfigFields({
  * shouldn't be surprised later by the disabled-form placeholder render). */
 function ContactFormConfigFields({
   useFetchedOptions: useOptions = useFetchedOptions,
+  t,
   ...props
 }: {
   config: Record<string, unknown>;
   onChange: (config: Record<string, unknown>) => void;
   agentHandle?: string;
+  t: Translate;
 } & FetchedOptionsSeam) {
   const { items: forms, error } = useOptions<AdminFormDefinition>(
     () => defaultWidgetConfigFieldsPort.listForms().then((r) => r.data),
-    "failed to load forms"
+    t("failed to load forms")
   );
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!forms) return <div className="notice">Loading forms…</div>;
+  if (!forms) return <div className="notice">{t("Loading forms…")}</div>;
 
   return (
     <div className="widget-config-fields">
-      <label htmlFor="widget-field-formDefinitionId">Form</label>
+      <label htmlFor="widget-field-formDefinitionId">{t("Form")}</label>
       <select
         id="widget-field-formDefinitionId"
         value={textValue(props.config, "formDefinitionId")}
@@ -253,14 +264,14 @@ function ContactFormConfigFields({
             })
           : {})}
       >
-        <option value="">Choose a form…</option>
+        <option value="">{t("Choose a form…")}</option>
         {forms.map((form) => (
           <option key={form.id} value={form.id}>
             {form.name} — {form.status}
           </option>
         ))}
       </select>
-      <label htmlFor="widget-field-successMessage">Success message (optional)</label>
+      <label htmlFor="widget-field-successMessage">{t("Success message (optional)")}</label>
       <input
         id="widget-field-successMessage"
         value={textValue(props.config, "successMessage")}
@@ -282,15 +293,25 @@ export function WidgetConfigFields(
      *  field list. Forwarded as-is to whichever of the five sub-forms below is active; omit to
      *  leave every field untagged. */
     agentHandle?: string;
+    /** Translates this component's own per-type static copy (field labels/placeholders, the
+     *  `menu`/`contact-form` sub-forms' loading/error/empty-option text) —
+     *  `components/shared-components-i18n.ts`'s dictionary. Same optional-with-passthrough-default
+     *  convention as `Select.tsx`'s `t` prop: `WidgetConfigFields` has no hook of its own to resolve
+     *  a locale from (see this file's header), so its callers bind one — `WidgetPickerDialog.tsx`
+     *  reuses its own dialog `t`, `WidgetInstanceEditor.tsx` builds a second `t` off this same
+     *  dictionary since its own `t` is bound to `widgets-i18n.ts` instead. Omit (or a test) and every
+     *  sub-form renders the English source strings unchanged. */
+    t?: Translate;
   } & FetchedOptionsSeam
 ) {
+  const { t = (key: string) => key } = props;
   switch (props.widgetType) {
     case "text":
-      return <TextConfigFields config={props.config} onChange={props.onChange} agentHandle={props.agentHandle} />;
+      return <TextConfigFields config={props.config} onChange={props.onChange} agentHandle={props.agentHandle} t={t} />;
     case "social-links":
-      return <SocialLinksConfigFields config={props.config} onChange={props.onChange} agentHandle={props.agentHandle} />;
+      return <SocialLinksConfigFields config={props.config} onChange={props.onChange} agentHandle={props.agentHandle} t={t} />;
     case "recent-entries":
-      return <RecentEntriesConfigFields config={props.config} onChange={props.onChange} agentHandle={props.agentHandle} />;
+      return <RecentEntriesConfigFields config={props.config} onChange={props.onChange} agentHandle={props.agentHandle} t={t} />;
     case "menu":
       return (
         <MenuConfigFields
@@ -298,6 +319,7 @@ export function WidgetConfigFields(
           onChange={props.onChange}
           agentHandle={props.agentHandle}
           useFetchedOptions={props.useFetchedOptions}
+          t={t}
         />
       );
     case "contact-form":
@@ -307,6 +329,7 @@ export function WidgetConfigFields(
           onChange={props.onChange}
           agentHandle={props.agentHandle}
           useFetchedOptions={props.useFetchedOptions}
+          t={t}
         />
       );
     default:

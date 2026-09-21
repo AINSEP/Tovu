@@ -182,6 +182,53 @@ describe("WidgetPickerDialog dialog-hook injection", () => {
     await user.click(screen.getByRole("button", { name: "Create and place" }));
     expect(submitCreateNew).toHaveBeenCalledOnce();
   });
+
+  it("passes its own t down into the nested WidgetConfigFields — the same translator, not a second one", () => {
+    // The dialog's own copy ("Create new") and the nested config form's copy ("Text", `widgetType:
+    // "text"`'s only field) must come from the SAME `t` this fake returns — proves `WidgetConfigFields
+    // t={t}` (Batch D2's second WidgetConfigFields commit) actually forwards the controller's
+    // translator rather than leaving `WidgetConfigFields` on its own passthrough default.
+    const DICT: Record<string, string> = { "Create new": "Crear-FAKE", Text: "Texto-FAKE" };
+    const t = (key: string) => DICT[key] ?? key;
+    function useFakeDialog() {
+      return {
+        instances: [],
+        loadError: null,
+        selectedExistingId: "",
+        setSelectedExistingId: vi.fn(),
+        newTitle: "",
+        setNewTitle: vi.fn(),
+        newConfig: {},
+        setNewConfig: vi.fn(),
+        error: null,
+        titleId: "fake-title-id-2",
+        existingSelectId: "fake-existing-select-id-2",
+        newTitleInputId: "fake-title-input-id-2",
+        newTitleInputRef: { current: null },
+        typeLabel: "Fake Type",
+        hasExisting: false,
+        submitUseExisting: vi.fn((e: React.FormEvent) => e.preventDefault()),
+        submitCreateNew: vi.fn((e: React.FormEvent) => e.preventDefault()),
+        t,
+        locale: "es",
+      };
+    }
+
+    render(
+      <WidgetPickerDialog
+        widgetType="text"
+        onUseExisting={vi.fn()}
+        onCreateNew={vi.fn()}
+        onCancel={vi.fn()}
+        useDialog={useFakeDialog}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: "Crear-FAKE" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Texto-FAKE")).toBeInTheDocument();
+    expect(screen.queryByText("Create new")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Text")).not.toBeInTheDocument();
+  });
 });
 
 describe("WidgetAddControl add-control-hook injection", () => {

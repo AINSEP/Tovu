@@ -173,6 +173,7 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
               config={newConfig}
               onChange={setNewConfig}
               agentHandle={subHandle(base, "new-config")}
+              t={t}
             />
             <button type="submit" {...handleSpread(base, "new-submit", { role: "button", label: "Create and place this widget" })}>
               {t("Create and place")}
