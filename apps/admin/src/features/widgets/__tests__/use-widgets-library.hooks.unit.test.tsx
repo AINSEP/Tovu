@@ -141,13 +141,20 @@ describe("useWidgetsLibrary — concurrent purge-attempt race safety", () => {
     const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.widgets).not.toBeNull());
 
-    // Operator clicks "Delete permanently" on A, then immediately on B — nothing disables either
-    // button before the first attempt's 409 (if any) comes back.
+    // Operator clicks "Delete permanently" on A (opens the confirm, no request yet), confirms it,
+    // then immediately does the same on B — nothing disables either row before the first attempt's
+    // 409 (if any) comes back.
     act(() => {
       void result.current.trashOrPurge(WIDGET_A);
     });
     act(() => {
+      void result.current.confirmPurge();
+    });
+    act(() => {
       void result.current.trashOrPurge(WIDGET_B);
+    });
+    act(() => {
+      void result.current.confirmPurge();
     });
     await waitFor(() => expect(port.purgeWidget).toHaveBeenCalledTimes(2));
 
@@ -166,9 +173,106 @@ describe("useWidgetsLibrary — concurrent purge-attempt race safety", () => {
     await act(async () => {
       deferred.wA!.reject(referenced("post-for-a"));
     });
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await waitFor(() => expect(result.current.pendingForcePurge?.widget.id).toBe(WIDGET_B.id));
 
     // The dialog must still be showing B — the operator's actual last click — not A's late 409.
     expect(result.current.pendingForcePurge?.widget.id).toBe(WIDGET_B.id);
+  });
+});
+
+/**
+ * #2 fix (2026-09-20): "Delete permanently" on a trashed widget used to purge immediately on
+ * click — `trashOrPurge` called `purge()` directly, and the only dialog that existed
+ * (`pendingForcePurge`) opened solely from a `WIDGETS_REFERENCED` 409. An unreferenced widget had
+ * NO confirmation at all before its irreversible purge. `trashOrPurge` on a trashed widget now
+ * opens `pendingPurge` and returns — `confirmPurge`/`cancelPurge` drive the actual request.
+ */
+describe("useWidgetsLibrary — permanent delete asks first", () => {
+  const TRASHED: AdminWidget = { ...WIDGET, id: "w-trashed", slug: "trashed", title: "Trashed widget", status: "trash" };
+
+  it("trashOrPurge on a trashed widget opens the confirm and sends nothing until confirmed", async () => {
+    const port = createFakeWidgetsPort({ widgets: [TRASHED] });
+    port.purgeWidget = vi.fn(port.purgeWidget);
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.trashOrPurge(TRASHED);
+    });
+    expect(port.purgeWidget).not.toHaveBeenCalled();
+    expect(result.current.pendingPurge?.id).toBe(TRASHED.id);
+
+    await act(async () => {
+      await result.current.confirmPurge();
+    });
+    expect(port.purgeWidget).toHaveBeenCalledWith({ id: TRASHED.id }, { force: false });
+    expect(result.current.pendingPurge).toBeNull();
+    await waitFor(() => expect(result.current.widgets).toEqual([]));
+  });
+
+  it("cancelPurge closes the confirm with no request", async () => {
+    const port = createFakeWidgetsPort({ widgets: [TRASHED] });
+    port.purgeWidget = vi.fn(port.purgeWidget);
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.trashOrPurge(TRASHED);
+    });
+    expect(result.current.pendingPurge?.id).toBe(TRASHED.id);
+
+    act(() => result.current.cancelPurge());
+    expect(result.current.pendingPurge).toBeNull();
+    expect(port.purgeWidget).not.toHaveBeenCalled();
+  });
+
+  it("a WIDGETS_REFERENCED 409 after confirming swaps the first dialog for 'Still in use' in one step", async () => {
+    const port = createFakeWidgetsPort({
+      widgets: [TRASHED],
+      onPurge: (_id, options) => {
+        if (!options.force) {
+          throw new ApiError("still referenced", 409, "WIDGETS_REFERENCED", {
+            details: { referencingLocations: [{ kind: "post", entryId: "p1" }] },
+          });
+        }
+      },
+    });
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.trashOrPurge(TRASHED);
+    });
+    await act(async () => {
+      await result.current.confirmPurge();
+    });
+
+    expect(result.current.pendingPurge).toBeNull();
+    expect(result.current.pendingForcePurge?.widget.id).toBe(TRASHED.id);
+  });
+
+  it("purging is true only while the confirmed purge is in flight", async () => {
+    let resolvePurge: ((r: { purged: true }) => void) | undefined;
+    const port = createFakeWidgetsPort({ widgets: [TRASHED] });
+    port.purgeWidget = vi.fn(() => new Promise((resolve) => (resolvePurge = resolve)));
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.trashOrPurge(TRASHED);
+    });
+    expect(result.current.purging).toBe(false);
+
+    let confirmPromise!: Promise<void>;
+    act(() => {
+      confirmPromise = result.current.confirmPurge();
+    });
+    expect(result.current.purging).toBe(true);
+
+    await act(async () => {
+      resolvePurge?.({ purged: true });
+      await confirmPromise;
+    });
+    expect(result.current.purging).toBe(false);
   });
 });

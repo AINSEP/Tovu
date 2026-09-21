@@ -13,7 +13,9 @@ import { useWiredWidgetsLibrary } from "./hooks/use-widgets-library.hooks";
  *
  * State, the fetch, and the trash/purge/force-purge escalation live in
  * `hooks/use-widgets-library.hooks.ts`; the shared type-label and referencing-locations
- * derivations live in `rules.ts`.
+ * derivations live in `rules.ts`. "Delete permanently" on a trashed widget always confirms first
+ * (`pendingPurge`/`ConfirmDialog` below) before the trash/purge/force-purge escalation runs — a
+ * referenced widget gets TWO confirmations: this generic one, then "Still in use".
  */
 export interface WidgetsLibraryProps {
   /**
@@ -64,6 +66,10 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
     cancelForcePurge,
     forcePurging,
     confirmForcePurge,
+    pendingPurge,
+    purging,
+    confirmPurge,
+    cancelPurge,
     trashOrPurge,
     t,
     locale,
@@ -175,6 +181,23 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
             ),
           },
         ]}
+      />
+      <ConfirmDialog
+        open={pendingPurge !== null}
+        agentHandle="widgets-purge"
+        title={t("Delete permanently?")}
+        body={
+          pendingPurge ? (
+            <p>
+              {t("Permanently delete")} &quot;{pendingPurge.title}&quot;? {t("This cannot be undone.")}
+            </p>
+          ) : null
+        }
+        confirmLabel={t("Delete permanently")}
+        destructive
+        pending={purging}
+        onConfirm={confirmPurge}
+        onCancel={cancelPurge}
       />
       <ConfirmDialog
         open={pendingForcePurge !== null}

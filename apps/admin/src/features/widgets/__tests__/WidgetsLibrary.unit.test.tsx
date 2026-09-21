@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -70,6 +70,9 @@ it("opens ConfirmDialog with the referencing locations on a WIDGETS_REFERENCED 4
   const deleteButton = await screen.findByRole("button", { name: /delete permanently/i });
   await user.click(deleteButton);
 
+  const purgeDialog = await screen.findByRole("dialog", { name: "Delete permanently?" });
+  await user.click(within(purgeDialog).getByRole("button", { name: "Delete permanently" }));
+
   expect(confirmSpy).not.toHaveBeenCalled();
   expect(await screen.findByText(/still used in: post \(p1\)/i)).toBeInTheDocument();
   expect(screen.getByText(/permanently delete anyway\? this cannot be undone\./i)).toBeInTheDocument();
@@ -81,14 +84,15 @@ it("opens ConfirmDialog with the referencing locations on a WIDGETS_REFERENCED 4
     .mockResolvedValueOnce(jsonResponse({ widget: { ...WIDGET, status: "purged" } }))
     .mockResolvedValueOnce(jsonResponse({ widgets: [] }));
 
-  await user.click(screen.getByRole("button", { name: /^permanently delete$/i }));
+  const stillInUseDialog = screen.getByRole("dialog", { name: "Still in use" });
+  await user.click(within(stillInUseDialog).getByRole("button", { name: /^permanently delete$/i }));
 
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
   const forceCall = fetchMock.mock.calls[2];
   expect(String(forceCall[0])).toContain("force=true");
 });
 
-it("never opens the dialog when the first purge attempt succeeds outright", async () => {
+it("never opens 'Still in use' when the confirmed purge succeeds outright", async () => {
   const user = userEvent.setup();
   fetchMock
     .mockResolvedValueOnce(jsonResponse({ widgets: [WIDGET] }))
@@ -98,9 +102,49 @@ it("never opens the dialog when the first purge attempt succeeds outright", asyn
   render(<WidgetsLibrary />);
 
   await user.click(await screen.findByRole("button", { name: /delete permanently/i }));
+  const purgeDialog = await screen.findByRole("dialog", { name: "Delete permanently?" });
+  await user.click(within(purgeDialog).getByRole("button", { name: "Delete permanently" }));
 
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
   expect(screen.queryByText(/still used in/i)).not.toBeInTheDocument();
+});
+
+it("Delete permanently on a trashed widget opens a confirm dialog and sends no purge until confirmed", async () => {
+  const user = userEvent.setup();
+  fetchMock.mockResolvedValueOnce(jsonResponse({ widgets: [WIDGET] }));
+
+  render(<WidgetsLibrary />);
+
+  await user.click(await screen.findByRole("button", { name: /delete permanently/i }));
+
+  // Only the initial list GET has fired — no purge request yet.
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  const dialog = await screen.findByRole("dialog", { name: "Delete permanently?" });
+  expect(within(dialog).getByText('Permanently delete "Hero banner"? This cannot be undone.')).toBeInTheDocument();
+
+  fetchMock
+    .mockResolvedValueOnce(jsonResponse({ widget: { ...WIDGET, status: "purged" } }))
+    .mockResolvedValueOnce(jsonResponse({ widgets: [] }));
+
+  await user.click(within(dialog).getByRole("button", { name: "Delete permanently" }));
+
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+  const purgeCall = fetchMock.mock.calls[1];
+  expect(String(purgeCall[0])).not.toContain("force=true");
+});
+
+it("Cancel on the permanent-delete confirm sends no request", async () => {
+  const user = userEvent.setup();
+  fetchMock.mockResolvedValueOnce(jsonResponse({ widgets: [WIDGET] }));
+
+  render(<WidgetsLibrary />);
+
+  await user.click(await screen.findByRole("button", { name: /delete permanently/i }));
+  const dialog = await screen.findByRole("dialog", { name: "Delete permanently?" });
+  await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Delete permanently?" })).not.toBeInTheDocument());
+  expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 
 it("drops a purged row from the list once the reload comes back (server still includes purged rows under includeInactive)", async () => {
@@ -118,6 +162,8 @@ it("drops a purged row from the list once the reload comes back (server still in
   render(<WidgetsLibrary />);
 
   await user.click(await screen.findByRole("button", { name: /delete permanently/i }));
+  const dialog = await screen.findByRole("dialog", { name: "Delete permanently?" });
+  await user.click(within(dialog).getByRole("button", { name: "Delete permanently" }));
 
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
   await waitFor(() => expect(screen.queryByText("Hero banner")).not.toBeInTheDocument());

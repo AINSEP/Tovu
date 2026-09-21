@@ -66,6 +66,16 @@ export interface WidgetsLibraryController {
   cancelForcePurge: () => void;
   forcePurging: boolean;
   confirmForcePurge: () => Promise<void>;
+  /** The widget a "Delete permanently" click is asking to confirm — `null` when that first-stage
+   *  dialog is closed. Set by `trashOrPurge` on a trashed widget instead of purging immediately, so
+   *  no network call happens before the operator confirms (standing rule: permanent deletion always
+   *  goes through a confirm modal). */
+  pendingPurge: AdminWidget | null;
+  /** True only while the CONFIRMED purge for {@link pendingPurge} is in flight — same
+   *  `pendingX !== null && xId === pendingX.id` shape `use-media.hooks.ts` uses. */
+  purging: boolean;
+  confirmPurge: () => Promise<void>;
+  cancelPurge: () => void;
   trashOrPurge: (widget: AdminWidget) => Promise<void>;
   /** Bound translator — `WidgetsLibrary.tsx`'s only source of UI copy; see this file's own header. */
   t: Translate;
@@ -89,6 +99,14 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
   // unconditionally below (see its own doc comment on why); this is what drives its `open` prop.
   const [pendingForcePurge, setPendingForcePurge] = useState<{ widget: AdminWidget; summary: string } | null>(null);
   const [forcePurging, setForcePurging] = useState(false);
+  // First-stage "Delete permanently" confirm (#2 fix, 2026-09-20) — `trashOrPurge` on a trashed
+  // widget used to call `purge()` immediately on click, with no confirmation at all; the ONLY
+  // dialog that existed was `pendingForcePurge`'s escalation, which opens solely from a
+  // `WIDGETS_REFERENCED` 409 (i.e. only for a widget still in use). An unreferenced widget went
+  // straight from click to an irreversible purge. `pendingPurge`/`purgingId` mirror
+  // `use-media.hooks.ts`'s `pendingPurge`/`rowSavingId` shape exactly.
+  const [pendingPurge, setPendingPurge] = useState<AdminWidget | null>(null);
+  const [purgingId, setPurgingId] = useState<string | null>(null);
   // Monotonic per-call id (extracted into `useSettlementGeneration` 2026-09-06, same shape as
   // `use-theme-explore.hooks.ts`'s own `renameSettlement`): nothing disables a row's delete button
   // during a widget's FIRST purge attempt (`force: false`, before any dialog is showing), so the
@@ -146,6 +164,9 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
         if (!purgeSettlement.isCurrent(generation)) return;
         const locations = (e.body?.details as { referencingLocations?: Array<{ kind: string; entryId: string }> } | undefined)?.referencingLocations ?? [];
         const summary = describeReferencingLocations(locations);
+        // Close the first-stage confirm (if it's still naming THIS widget) in the same render that
+        // opens "Still in use", so the two dialogs never stack.
+        setPendingPurge((c) => (c?.id === widget.id ? null : c));
         setPendingForcePurge({ widget, summary });
         return;
       }
@@ -172,6 +193,9 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
     }
   }
 
+  /** An active widget trashes immediately (reversible, ADR-047 §7 — unconditional, never gated). A
+   *  trashed widget's "Delete permanently" no longer purges on click: it opens the confirm dialog
+   *  and returns, so no network call happens until {@link confirmPurge}. */
   async function trashOrPurge(widget: AdminWidget) {
     setError(null);
     try {
@@ -180,10 +204,27 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
         load();
         return;
       }
-      await purge(widget);
+      setPendingPurge(widget);
+      return;
     } catch (e) {
       setError(describeApiError(e, translate(locale, "delete failed")));
     }
+  }
+
+  async function confirmPurge() {
+    if (!pendingPurge) return;
+    const widget = pendingPurge;
+    setPurgingId(widget.id);
+    try {
+      await purge(widget);
+    } finally {
+      setPurgingId((current) => (current === widget.id ? null : current));
+      setPendingPurge((current) => (current?.id === widget.id ? null : current));
+    }
+  }
+
+  function cancelPurge() {
+    setPendingPurge(null);
   }
 
   function cancelForcePurge() {
@@ -200,6 +241,10 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
     cancelForcePurge,
     forcePurging,
     confirmForcePurge,
+    pendingPurge,
+    purging: pendingPurge !== null && purgingId === pendingPurge.id,
+    confirmPurge,
+    cancelPurge,
     trashOrPurge,
     t,
     locale,
