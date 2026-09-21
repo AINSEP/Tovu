@@ -278,8 +278,8 @@ export function useAdminExecutionCredential(
   // 200. Chained, each write reads what the one before it actually wrote. Tab-local only: two tabs,
   // or the Settings and AI Assistant mounts in two different browser windows, can still race — that
   // needs a server-side concurrency check (see the plan's "Needs owner decision" section). Same
-  // shape as `use-visitor-credential-form.hooks.ts`'s `writeChainRef` (`8ac256353`) and
-  // `use-other-credentials.hooks.ts`'s `serialized`.
+  // shared lane `use-visitor-credential-form.hooks.ts` (`8ac256353`) and
+  // `use-other-credentials.hooks.ts` queue their own credential writes through.
   const writes = useSerialWrites();
 
   // Guards `setStored` against an out-of-order read: the mount GET, the post-save refresh GET, and
