@@ -14,7 +14,7 @@ import { t as tCapability } from "../settings/settings-capabilities-i18n";
 import { Integrations } from "../integrations/Integrations";
 import { useWiredIntegrations } from "../integrations/hooks/use-integrations.hooks";
 import { t as tIntegrations } from "../integrations/integrations-i18n";
-import { t } from "./providers-i18n";
+import { composioGateCopy, t } from "./providers-i18n";
 import { useProviders } from "./hooks/use-providers.hooks";
 
 /**
@@ -278,9 +278,7 @@ export function Providers(props: ProvidersProps) {
               dependencies={connectorsDependencies}
               catalogRefreshKey={p.composio.catalogRefreshKey}
               gate={{
-                title: "Add your Composio API key to continue",
-                body: "Paste your key above to load available integrations.",
-                ctaLabel: "Get API Key",
+                ...composioGateCopy(locale),
                 ctaHref: "https://app.composio.dev",
               }}
               agentHandle="settings-connectors"
