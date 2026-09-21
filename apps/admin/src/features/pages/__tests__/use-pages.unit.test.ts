@@ -288,6 +288,51 @@ describe("removePage", () => {
   });
 });
 
+/**
+ * Sink of the review's H4 finding — mirrors `use-posts.unit.test.ts`'s identical test. `disablePage`
+ * and `removePage` share one `rowSavingId` field, and `disablePage`'s `finally` clears it
+ * unconditionally, so an unrelated row's Disable settling can wipe a DIFFERENT row's in-flight
+ * Delete lock, making its `ConfirmDialog` read as settled while the delete is still on the wire.
+ */
+describe("rowSavingId — shared between Disable and Delete", () => {
+  it("an unrelated Disable settling does not unlock a different row's in-flight Delete confirm", async () => {
+    const OTHER_PAGE = { ...PAGE, id: "pg-other", title: "Other" };
+    const port = createFakePagesPort({ pages: [PAGE, OTHER_PAGE] });
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    await waitFor(() => expect(result.current.pages).not.toBeNull());
+
+    let resolveDisable!: (v: { post: typeof PAGE }) => void;
+    vi.spyOn(port, "updatePost").mockImplementationOnce(() => new Promise((resolve) => (resolveDisable = resolve)));
+    let resolveDelete!: (v: { post: typeof PAGE }) => void;
+    vi.spyOn(port, "deletePage").mockImplementationOnce(() => new Promise((resolve) => (resolveDelete = resolve)));
+
+    act(() => {
+      void result.current.disablePage(PAGE);
+    });
+    await waitFor(() => expect(result.current.rowSavingId).toBe(PAGE.id));
+
+    act(() => result.current.setPendingDelete(OTHER_PAGE));
+    act(() => {
+      void result.current.removePage();
+    });
+    await waitFor(() => expect(result.current.rowSavingId).toBe(OTHER_PAGE.id));
+
+    await act(async () => {
+      resolveDisable({ post: { ...PAGE, status: "draft", version: PAGE.version + 1 } });
+      await Promise.resolve();
+    });
+
+    // The unrelated Disable settling must not unlock a DIFFERENT row's in-flight Delete confirm.
+    expect(result.current.rowSavingId).toBe(OTHER_PAGE.id);
+
+    await act(async () => {
+      resolveDelete({ post: OTHER_PAGE });
+      await Promise.resolve();
+    });
+    expect(result.current.rowSavingId).toBeNull();
+  });
+});
+
 describe("injected port (useWiredX conversion coverage)", () => {
   it("loads pages through the injected port and navigates on create, without touching fetch", async () => {
     vi.stubGlobal("fetch", fetchMock);

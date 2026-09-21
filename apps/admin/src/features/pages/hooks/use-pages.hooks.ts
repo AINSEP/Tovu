@@ -184,7 +184,12 @@ export function usePages(deps: PagesDependencies): PagesController {
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to disable page");
     } finally {
-      setRowSavingId(null);
+      // Only clear THIS row's lock — `rowSavingId` is shared with `removePage`'s delete-in-flight
+      // lock (2026-09-20, S4b hardening; mirrors `use-posts.hooks.ts`'s identical fix). An
+      // unconditional `setRowSavingId(null)` here would wipe a DIFFERENT row's delete lock if that
+      // row's `ConfirmDialog` confirm landed while this Disable was still in flight, making the
+      // dialog read as settled (dismissable, re-confirmable) while the delete is still on the wire.
+      setRowSavingId((cur) => (cur === page.id ? null : cur));
     }
   }
 
@@ -219,7 +224,9 @@ export function usePages(deps: PagesDependencies): PagesController {
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to delete page");
     } finally {
-      setRowSavingId(null);
+      // Symmetric guard to `disablePage`'s — see its comment. Keeps this correct regardless of
+      // which of the two in-flight actions settles first.
+      setRowSavingId((cur) => (cur === page.id ? null : cur));
       setPendingDelete(null);
     }
   }
