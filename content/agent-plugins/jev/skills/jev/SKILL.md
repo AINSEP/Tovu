@@ -15,11 +15,15 @@ script, a separate service — that calls Jev itself, over plain HTTP or the Jav
 operator asks "can you check with Jev right now," the honest answer is no, not yet; what you can do
 is write the code that will.
 
-**The API key goes in `JEV_API_KEY`, never in chat.** Whoever sets up the integration puts the key
-in an environment variable (`JEV_API_KEY` is what TypeSafe's own SDKs and this skill assume) or a
-secret store, the same way any other API credential belongs in this codebase. Never ask for it in
-chat, never paste one into code you write, and never echo one back if a user pastes it anyway — tell
-them to treat it as compromised and rotate it at TypeSafe's dashboard (`console.typesafe.ai/keys`).
+**The API key goes in `TYPESAFE_API_KEY`, never in chat.** That's the env var TypeSafe's own SDKs
+read by default — use it for anything that relies on the official SDK's zero-arg constructor. (Some
+local dev setups export the same value under a different name, e.g. `JEV_API_KEY`; that's a
+machine-local alias, not a documented TypeSafe or Tovu convention — don't assume it's read anywhere
+the SDK itself doesn't look for it.) Whoever sets up the integration puts the key in an environment
+variable or a secret store, the same way any other API credential belongs in this codebase. Never
+ask for it in chat, never paste one into code you write, and never echo one back if a user pastes it
+anyway — tell them to treat it as compromised and rotate it at TypeSafe's dashboard
+(`console.typesafe.ai/keys`).
 
 ---
 
@@ -95,7 +99,7 @@ a Noul batched into one call):
 
 ```json
 // POST https://api.typesafe.ai/v1/systemone
-// Authorization: Bearer <JEV_API_KEY>
+// Authorization: Bearer <TYPESAFE_API_KEY>
 // Content-Type: application/json
 {
   "state": "Hi, I've been trying to connect my Stripe account for 3 days and the integration keeps failing. I'm losing sales. Please help ASAP.",
@@ -231,7 +235,7 @@ table):
 
 ```http
 POST https://api.typesafe.ai/v1/systemone
-Authorization: Bearer <JEV_API_KEY>
+Authorization: Bearer <TYPESAFE_API_KEY>
 Content-Type: application/json
 ```
 
@@ -249,7 +253,7 @@ npm install @typesafe-ai/sdk
 ```ts
 import { choice, score, noul, TypeSafeClient } from "@typesafe-ai/sdk";
 
-const client = new TypeSafeClient(); // reads JEV_API_KEY... see the caveat below
+const client = new TypeSafeClient(); // reads TYPESAFE_API_KEY from the environment
 
 const response = await client.systemOne({
   state: { document: "I was charged twice. Please fix this ASAP." },
@@ -261,17 +265,19 @@ const response = await client.systemOne({
 console.log(response.answers.category.choice);
 ```
 
-**Caveat, stated plainly:** TypeSafe's own docs read the env var as `TYPESAFE_API_KEY` for the
-zero-arg `new TypeSafeClient()` form. This skill's key convention is `JEV_API_KEY` for anything
-Tovu-side (matching this plugin's name); when wiring the official SDK's default constructor, either
-set both env vars to the same value, or pass the key explicitly to the client config instead of
-relying on the zero-arg form. Don't guess at other constructor options — the two JS SDK doc pages in
-scope for this skill only demonstrate the zero-arg constructor and a `choice()` call; deeper client
-config (timeouts, retries, base URL, the full error-class hierarchy) exists in the SDK's TypeScript
-types but is not written up on a docs page this skill's research covered. Read the installed
-package's own `.d.ts` files or its source before relying on any config field not shown here, rather
-than inventing one. See [references/javascript-sdk.md](references/javascript-sdk.md) for everything
-that *is* confirmed, marked clearly against what is not.
+**Only `choice()` has a documented example.** The two JS SDK doc pages in scope for this skill show
+the zero-arg constructor and one `choice()` call — that's it. `score()` and `noul()` exist (the API
+reference index confirms the function names and their matching `ScoreQuestion`/`NoulQuestion`/
+`ScoreResponse`/`NoulResponse` types), and by analogy with `choice(instructions, criteria)` and the
+HTTP API's Score/Noul shapes they almost certainly take the same `(instructions, criteria)` form —
+but no runnable example confirms that, so don't present it as settled. Same for deeper client config
+(timeouts, retries, base URL override, the full error-class hierarchy): the interfaces exist in the
+API index by name, but their fields aren't written up on a docs page this skill's research covered.
+Read the installed package's own `.d.ts` files or its source before relying on any of this, rather
+than inventing a field or a call shape. See
+[references/javascript-sdk.md](references/javascript-sdk.md) for everything that *is* confirmed,
+marked clearly against what is not. If you need a `score`/`noul` call confirmed today, use the HTTP
+API shape above (confirmed live) or check the SDK's own source instead of guessing.
 
 ## Cookbooks
 

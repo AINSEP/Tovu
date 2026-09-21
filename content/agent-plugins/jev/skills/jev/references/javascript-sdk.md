@@ -27,10 +27,9 @@ import { choice, TypeSafeClient } from "@typesafe-ai/sdk";
 const client = new TypeSafeClient();
 ```
 
-- The zero-arg constructor reads the API key from `TYPESAFE_API_KEY` in the environment. (This
-  skill's own convention elsewhere is `JEV_API_KEY` — see the caveat in `SKILL.md`'s "Calling Jev"
-  section; set both, or pass the key explicitly, rather than assuming one env var name covers both
-  conventions.)
+- The zero-arg constructor reads the API key from `TYPESAFE_API_KEY` in the environment. That is the
+  name to set for anything using the SDK's default constructor — a machine-local alias like
+  `JEV_API_KEY` (sometimes used in local dev setups) is not read by the SDK itself.
 
 **Request call shape** (only `choice` is demonstrated with a runnable example on the two in-scope
 pages):
