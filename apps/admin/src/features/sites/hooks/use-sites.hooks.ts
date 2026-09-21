@@ -4,6 +4,7 @@ import { describeApiError, type AdminSiteActivation, type AdminSiteListEntry, ty
 import { useFetchMutation, useFetchQuery, useInvalidate, type QueryStatus } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useSerialWrites } from "@/hooks/use-serial-writes.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 import { t as defaultT } from "../sites-i18n";
@@ -134,7 +135,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
   // flight at once could leave it on the earlier choice while `activateSettlement` shows the later
   // one. The row buttons already disable while one is pending; this closes the same-tick second call
   // the hook itself would otherwise accept. Tab-local — two tabs still race; that needs a server check.
-  const activateChainRef = useRef<Promise<void>>(Promise.resolve());
+  const writes = useSerialWrites();
 
   const nameErrorKey = siteNameErrorKey(createName);
 
@@ -183,8 +184,8 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
       createMutation.reset();
       setActivatingName(name);
       setActivation(null);
-      // Never rejects (`.catch` below), so one failed activation cannot wedge the chain.
-      activateChainRef.current = activateChainRef.current.then(() =>
+      // Never rejects (`.catch` below), so one failed activation cannot wedge the lane.
+      void writes.run(() =>
         activateMutation
           .mutate(name)
           .then((result) => {
@@ -201,7 +202,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
           }),
       );
     },
-    [activateMutation, createMutation, activateSettlement],
+    [activateMutation, createMutation, activateSettlement, writes],
   );
 
   const view = readSnapshot(list.data);
