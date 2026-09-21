@@ -6,7 +6,8 @@
  */
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
-const THEMES_DICT: Record<string, Record<string, string>> = {
+/** Exported only so `__tests__/themes-i18n.unit.test.ts` can check whole-dictionary key parity. */
+export const THEMES_DICT: Record<string, Record<string, string>> = {
   es: {
     "Close preview": "Cerrar vista previa",
     "{id} theme preview": "Vista previa del tema {id}",
