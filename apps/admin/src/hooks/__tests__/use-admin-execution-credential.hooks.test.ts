@@ -466,6 +466,88 @@ describe("injected port — useAdminExecutionCredential with no lib/api mock", (
  * one thing, and these two cases are the contract for that: what each patch MUST carry, and — more
  * importantly — what it must NOT.
  */
+/**
+ * S1 (plan-components.md, 2026-09-20): `saveKey`'s post-await `onByokChange({ ...byok, apiKey: "" })`
+ * closed over `byok` as it stood at the moment the button was PRESSED, so a provider chip click, a
+ * model edit, or a newly typed key made while the save was in flight was reverted to the click-time
+ * config when the response landed — and the ledger slice then autosaved that revert.
+ */
+describe("saveKey — edits made while the save is in flight survive", () => {
+  it("a model change made mid-flight is preserved when the field still holds the saved key", async () => {
+    let releaseSave: ((view: AdminExecutionCredential) => void) | null = null;
+    const port: AdminExecutionCredentialPort = {
+      async loadAdminExecutionCredential() {
+        return { isSet: false, masked: null, protocol: "anthropic", providerId: null, baseUrl: null, model: null, maxTokens: null, updatedAt: null };
+      },
+      saveAdminExecutionCredential() {
+        return new Promise<AdminExecutionCredential>((resolve) => {
+          releaseSave = resolve;
+        });
+      },
+    };
+    const onByokChange = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ byok: b, onByokChange }, port),
+      { initialProps: { b: byok({ apiKey: "sk-a1b2c3", model: "m1" }) } },
+    );
+    await waitFor(() => expect(result.current.stored).not.toBeNull());
+
+    act(() => {
+      void result.current.saveKey();
+    });
+    // `saveKey` queues onto the write lane rather than calling the port synchronously (F1), so wait
+    // for the queued task to actually reach the port before rerendering — otherwise the rerender
+    // below would race the task's own start instead of landing mid-flight.
+    await waitFor(() => expect(releaseSave).not.toBeNull());
+    // The operator switches the model while the save is still in flight. The field still holds
+    // exactly the key that was sent.
+    rerender({ b: byok({ apiKey: "sk-a1b2c3", model: "m2" }) });
+
+    await act(async () => {
+      releaseSave!({ isSet: true, masked: "••••b2c3", protocol: "anthropic", providerId: "anthropic", baseUrl: null, model: "m2", maxTokens: null, updatedAt: new Date(0).toISOString() });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.saveState.status).toBe("saved"));
+
+    expect(onByokChange).toHaveBeenLastCalledWith(expect.objectContaining({ model: "m2", apiKey: "" }));
+  });
+
+  it("does not clear the field when the operator typed a different key while the save was in flight", async () => {
+    let releaseSave: ((view: AdminExecutionCredential) => void) | null = null;
+    const port: AdminExecutionCredentialPort = {
+      async loadAdminExecutionCredential() {
+        return { isSet: false, masked: null, protocol: "anthropic", providerId: null, baseUrl: null, model: null, maxTokens: null, updatedAt: null };
+      },
+      saveAdminExecutionCredential() {
+        return new Promise<AdminExecutionCredential>((resolve) => {
+          releaseSave = resolve;
+        });
+      },
+    };
+    const onByokChange = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ byok: b, onByokChange }, port),
+      { initialProps: { b: byok({ apiKey: "sk-a1b2c3" }) } },
+    );
+    await waitFor(() => expect(result.current.stored).not.toBeNull());
+
+    act(() => {
+      void result.current.saveKey();
+    });
+    await waitFor(() => expect(releaseSave).not.toBeNull());
+    // The operator starts typing a NEW key before the first save lands.
+    rerender({ b: byok({ apiKey: "sk-b2c3d4" }) });
+
+    await act(async () => {
+      releaseSave!({ isSet: true, masked: "••••b2c3", protocol: "anthropic", providerId: "anthropic", baseUrl: null, model: "claude-sonnet-4-5", maxTokens: null, updatedAt: new Date(0).toISOString() });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.saveState.status).toBe("saved"));
+
+    expect(onByokChange).not.toHaveBeenCalled();
+  });
+});
+
 describe("useAdminExecutionCredential — the two buttons write disjoint patches", () => {
   it("saveKey sends apiKey and NOTHING else — no protocol, providerId, baseUrl, model or maxTokens", async () => {
     setAdminExecutionCredential.mockResolvedValue({ data: setView({ masked: "••••abcd" }) });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ByokConfig } from "@jini-ai/ui";
 
 import { ApiError, type AdminExecutionCredential, type AdminExecutionCredentialPatch, describeApiError as describeApiErrorDefault } from "../lib/api";
@@ -261,6 +261,15 @@ export function useAdminExecutionCredential(
   const [legacyKey, setLegacyKey] = useState<string | null>(null);
   const [legacyDismissed, setLegacyDismissed] = useState(false);
 
+  // The operator's latest `byok`/`onByokChange`, read back by `saveKey` AFTER its await — never the
+  // `byok` its own closure captured at button-press time. Without this, a provider chip click, a
+  // model edit, or a newly typed key made while a key save was in flight was reverted to the
+  // click-time config the instant the response landed, and the ledger slice then autosaved that
+  // revert (S1). Assigning a ref during render is the same idiom `use-visitor-credential-
+  // form.hooks.ts`'s `apiRef` uses for the identical reason.
+  const inputRef = useRef<UseAdminExecutionCredentialInput>({ byok, onByokChange });
+  inputRef.current = { byok, onByokChange };
+
   // The server rebuilds every write from the row it read when the request arrived
   // (`execution-credential-store.ts`'s `setExecutionCredential`: read -> seal -> upsert the WHOLE
   // merged record), so a key save, a settings save and a migration in flight together each merge
@@ -339,8 +348,15 @@ export function useAdminExecutionCredential(
         // Tells every other mounted copy of this credential (the other settings screen, the dock) to
         // re-read — see this file's "Cross-mount staleness" doc above.
         publishSettingsRefresh([EXECUTION_NAMESPACE]);
-        // Clear the field once the key is safely stored — see this file's `onByokChange` doc.
-        onByokChange({ ...byok, apiKey: "" });
+        // Clear the field once the key is safely stored — see this file's `onByokChange` doc. Reads
+        // the LATEST input, not the `byok`/`onByokChange` this closure captured at button-press time
+        // (S1 above), and only actually clears when the field still holds exactly the key that was
+        // just saved — otherwise the operator has since typed something new, and clearing it would
+        // discard that unsaved edit instead of the key this save actually persisted.
+        const latestInput = inputRef.current;
+        if (latestInput.byok.apiKey.trim() === apiKey) {
+          latestInput.onByokChange({ ...latestInput.byok, apiKey: "" });
+        }
       } catch (error) {
         setSaveState({ status: "error", message: describeAdminExecutionCredentialError(error, "failed to save the key") });
       }
