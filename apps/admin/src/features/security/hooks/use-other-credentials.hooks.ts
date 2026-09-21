@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { describeApiError, type AdminMediaProviderMap } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useSerialWrites } from "@/hooks/use-serial-writes.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 import { t as defaultT, accessTokensLoadErrorMessage, accessTokenSaveErrorMessage } from "../security-i18n";
 import {
@@ -265,26 +266,19 @@ export function useOtherCredentials(
     }
   }, []);
 
-  // One chain for every Tier-2 write from this controller: a media-provider write is GET map →
+  // One lane for every Tier-2 write from this controller: a media-provider write is GET map →
   // rebuild → PUT the WHOLE map, so two writes in flight at once would both rebuild from the same
-  // snapshot and the second PUT would re-create whatever the first one removed. Chaining makes each
-  // write read the map only after the previous write (and its refetch) settled. Tab-local by nature
-  // — two browser sessions still race; closing that needs a server-side concurrency check.
-  const writeChainRef = useRef<Promise<void>>(Promise.resolve());
-  function serialized(task: () => Promise<void>): Promise<void> {
-    const next = writeChainRef.current.then(task);
-    // `replace`/`remove` catch their own failures, so `next` never rejects today; the `catch` keeps a
-    // future throwing task from wedging every later write behind a rejected link.
-    writeChainRef.current = next.catch(() => undefined);
-    return next;
-  }
+  // snapshot and the second PUT would re-create whatever the first one removed. The shared lane makes
+  // each write read the map only after the previous write (and its refetch) settled. Tab-local by
+  // nature — two browser sessions still race; closing that needs a server-side concurrency check.
+  const writes = useSerialWrites();
 
   function setDraftToken(key: string, value: string): void {
     setDrafts((prev) => ({ ...prev, [key]: { token: value, saving: prev[key]?.saving ?? false, error: prev[key]?.error ?? null } }));
   }
 
   function replace(row: OtherCredentialRowState): Promise<void> {
-    return serialized(() => replaceNow(row));
+    return writes.run(() => replaceNow(row));
   }
 
   async function replaceNow(row: OtherCredentialRowState): Promise<void> {
@@ -302,7 +296,7 @@ export function useOtherCredentials(
   }
 
   function remove(row: OtherCredentialRowState): Promise<void> {
-    return serialized(() => removeNow(row));
+    return writes.run(() => removeNow(row));
   }
 
   async function removeNow(row: OtherCredentialRowState): Promise<void> {
