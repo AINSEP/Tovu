@@ -215,7 +215,7 @@ export function useUsers(deps: UsersDependencies): UsersController {
   const users = list.data?.users ?? null;
   const roles = list.data?.roles ?? null;
   const policies = list.data?.policies ?? null;
-  const error = list.error ? describeApiError(list.error, t(locale, "failed to load users")) : null;
+  const error = list.error ? describeApiError(list.error, t(locale, "failed to load users"), locale) : null;
 
   const [formOpen, setFormOpen] = useState(false);
   const [username, setUsername] = useState("");
@@ -286,7 +286,7 @@ export function useUsers(deps: UsersDependencies): UsersController {
       setEmail("");
       setPassword("");
       setFormOpen(false);
-    }, (e) => describeApiError(e, t(locale, "failed to create user")));
+    }, (e) => describeApiError(e, t(locale, "failed to create user"), locale));
   }
 
   function toggleExpanded(user: AdminIdentityUser) {
@@ -307,7 +307,7 @@ export function useUsers(deps: UsersDependencies): UsersController {
       () => setPendingRoleId(""),
       setGrantSaving,
       setGrantError,
-      (e) => describeApiError(e, t(locale, "failed to assign role")),
+      (e) => describeApiError(e, t(locale, "failed to assign role"), locale),
     );
   }
 
@@ -320,7 +320,7 @@ export function useUsers(deps: UsersDependencies): UsersController {
       () => setPendingPolicyId(""),
       setGrantSaving,
       setGrantError,
-      (e) => describeApiError(e, t(locale, "failed to attach policy")),
+      (e) => describeApiError(e, t(locale, "failed to attach policy"), locale),
     );
   }
 
@@ -335,7 +335,7 @@ export function useUsers(deps: UsersDependencies): UsersController {
     try {
       await updateEmailMutation.mutate({ principalId, email: editEmail });
     } catch (e) {
-      setGrantError(describeApiError(e, t(locale, "failed to update email")));
+      setGrantError(describeApiError(e, t(locale, "failed to update email"), locale));
     }
   }
   const emailSaving = updateEmailMutation.status === "pending";
@@ -361,7 +361,7 @@ export function useUsers(deps: UsersDependencies): UsersController {
       setNotice(passwordResetNotice(locale, resetPasswordFor.username));
       setResetPasswordFor(null);
       setNewPassword("");
-    }, (e) => describeApiError(e, t(locale, "failed to reset password")));
+    }, (e) => describeApiError(e, t(locale, "failed to reset password"), locale));
   }
 
   /** `setToggleSavingId`'s `finally` reset (2026-09-05 fix, same bug class as
@@ -376,7 +376,7 @@ export function useUsers(deps: UsersDependencies): UsersController {
     try {
       await toggleStatusMutation.mutate(user);
     } catch (e) {
-      setToggleError(describeApiError(e, t(locale, "failed to change status")));
+      setToggleError(describeApiError(e, t(locale, "failed to change status"), locale));
     } finally {
       setToggleSavingId((current) => (current === user.principalId ? null : current));
     }

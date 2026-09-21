@@ -76,7 +76,7 @@ export function useWorkspace({ port }: WorkspaceDependencies): WorkspaceControll
         setName(r.workspace.name);
         setSlug(r.workspace.slug);
       })
-      .catch((e) => setError(describeApiError(e, t(locale, "failed to load workspace"))));
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load workspace"), locale)));
   }
 
   useEffect(() => {
@@ -94,7 +94,7 @@ export function useWorkspace({ port }: WorkspaceDependencies): WorkspaceControll
       setWorkspace(updated);
       setSaved(true);
     } catch (e) {
-      setSaveError(describeApiError(e, t(locale, "failed to save workspace")));
+      setSaveError(describeApiError(e, t(locale, "failed to save workspace"), locale));
     } finally {
       setSaving(false);
     }

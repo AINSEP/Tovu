@@ -26,7 +26,9 @@ export const KEYS = {
  *  flat lookup rather than sequential branches — this is what actually lowered the function's
  *  cognitive score (11 -> under the ceiling): the codes are a closed set of *literal string* keys,
  *  not a discriminated union, so there is no TypeScript exhaustiveness to lose by using a table
- *  (contrast `translateRunAgentPayload`'s `switch`, which stays a `switch` for exactly that reason). */
+ *  (contrast `translateRunAgentPayload`'s `switch`, which stays a `switch` for exactly that reason).
+ *  Values are the English source strings — `t()`'s own keys — not yet localized; `describeApiError`
+ *  below is what translates them. */
 const STATIC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   GRANT_EXCEEDS_ISSUER: "You cannot grant a permission you do not hold.",
   FORBIDDEN: "You do not have permission to do that.",
@@ -40,12 +42,17 @@ const STATIC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
  *  `Workspace.tsx`'s "slug already taken" for the same code (audit cross-cutting finding #2 —
  *  deliberately not unified into one table). `VALIDATION_ERROR` stays a dedicated branch rather than
  *  joining the table above: its message comes from the error itself (`e.message`), not a fixed
- *  string, so it isn't a value a plain lookup can hold. */
-export function describeApiError(e: unknown, fallback: string): string {
+ *  string, so it isn't a value a plain lookup can hold.
+ *
+ *  `locale` (C4 fix, 2026-09-20): every branch here used to return its English literal directly,
+ *  leaking English into every non-`en` locale regardless of the caller's own translated fallback —
+ *  the fallback was already threaded through `t()` at each call site, but these overrides were not.
+ *  Each literal is now also a key into `users-i18n.ts`'s `USERS_DICT`. */
+export function describeApiError(e: unknown, fallback: string, locale: string): string {
   if (e instanceof ApiError) {
-    if (e.code === "VALIDATION_ERROR") return e.message || "Please correct the highlighted fields.";
+    if (e.code === "VALIDATION_ERROR") return e.message || t(locale, "Please correct the highlighted fields.");
     const staticMessage = e.code ? STATIC_ERROR_MESSAGES[e.code] : undefined;
-    if (staticMessage) return staticMessage;
+    if (staticMessage) return t(locale, staticMessage);
   }
   return describeApiErrorDefault(e, fallback);
 }

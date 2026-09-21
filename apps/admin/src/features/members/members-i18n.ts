@@ -8,6 +8,8 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const MEMBERS_DICT: Record<string, Record<string, string>> = {
   es: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "No tienes permiso para hacer eso.",
     People: "Personas",
     Members: "Miembros",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -38,6 +40,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "no se pudieron cargar los miembros",
   },
   id: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Anda tidak memiliki izin untuk melakukan itu.",
     People: "Orang",
     Members: "Anggota",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -65,6 +69,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "gagal memuat anggota",
   },
   de: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Sie haben keine Berechtigung dafür.",
     People: "Personen",
     Members: "Mitglieder",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -92,6 +98,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "Mitglieder konnten nicht geladen werden",
   },
   "zh-CN": {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "您没有执行此操作的权限。",
     People: "人员",
     Members: "会员",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -119,6 +127,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "加载会员失败",
   },
   "zh-TW": {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "您沒有執行此操作的權限。",
     People: "人員",
     Members: "會員",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -146,6 +156,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "載入會員失敗",
   },
   "pt-BR": {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Você não tem permissão para fazer isso.",
     People: "Pessoas",
     Members: "Membros",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -173,6 +185,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "não foi possível carregar os membros",
   },
   ru: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "У вас нет прав для этого действия.",
     People: "Люди",
     Members: "Участники",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -200,6 +214,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "не удалось загрузить участников",
   },
   fa: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "شما مجوز انجام این کار را ندارید.",
     People: "افراد",
     Members: "اعضا",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -227,6 +243,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "بارگذاری اعضا ناموفق بود",
   },
   ar: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "ليس لديك إذن للقيام بذلك.",
     People: "الأشخاص",
     Members: "الأعضاء",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -254,6 +272,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "تعذّر تحميل الأعضاء",
   },
   ja: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "この操作を行う権限がありません。",
     People: "アカウント",
     Members: "メンバー",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -281,6 +301,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "メンバーの読み込みに失敗しました",
   },
   ko: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "이 작업을 수행할 권한이 없습니다.",
     People: "계정",
     Members: "회원",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -308,6 +330,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "회원을 불러오지 못했습니다",
   },
   pl: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Nie masz uprawnień, aby to zrobić.",
     People: "Osoby",
     Members: "Członkowie",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -335,6 +359,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "nie udało się wczytać członków",
   },
   hu: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Nincs jogosultsága ehhez a művelethez.",
     People: "Személyek",
     Members: "Tagok",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -362,6 +388,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "a tagok betöltése sikertelen",
   },
   fr: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Vous n'avez pas la permission de faire cela.",
     People: "Personnes",
     Members: "Membres",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -389,6 +417,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "échec du chargement des membres",
   },
   uk: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "У вас немає прав для цієї дії.",
     People: "Люди",
     Members: "Учасники",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -416,6 +446,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "не вдалося завантажити учасників",
   },
   tr: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Bunu yapmak için izniniz yok.",
     People: "Kişiler",
     Members: "Üyeler",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -443,6 +475,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "üyeler yüklenemedi",
   },
   th: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "คุณไม่มีสิทธิ์ทำสิ่งนี้",
     People: "บุคคล",
     Members: "สมาชิก",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -470,6 +504,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "โหลดสมาชิกไม่สำเร็จ",
   },
   it: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Non hai il permesso di farlo.",
     People: "Persone",
     Members: "Membri",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -497,6 +533,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "impossibile caricare i membri",
   },
   hi: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "आपके पास ऐसा करने की अनुमति नहीं है।",
     People: "लोग",
     Members: "सदस्य",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -524,6 +562,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "सदस्य लोड करना विफल रहा",
   },
   ur: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "آپ کو یہ کرنے کی اجازت نہیں ہے۔",
     People: "افراد",
     Members: "اراکین",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":
@@ -551,6 +591,8 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "failed to load members": "اراکین لوڈ کرنا ناکام ہوا",
   },
   bn: {
+    // rules.ts's describeApiError FORBIDDEN override (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "আপনার এটি করার অনুমতি নেই।",
     People: "ব্যক্তি",
     Members: "সদস্য",
     "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.":

@@ -139,7 +139,7 @@ export function useMembers({ port }: MembersDependencies): MembersController {
       setMembers((current) => (current ? current.map((m) => (m.id === member.id ? result.member : m)) : current));
       patchRowState(member.id, { disabling: false, notice: t(locale, "Member disabled.") });
     } catch (e) {
-      patchRowState(member.id, { disabling: false, error: describeApiError(e, t(locale, "Failed to disable member.")) });
+      patchRowState(member.id, { disabling: false, error: describeApiError(e, t(locale, "Failed to disable member."), locale) });
     }
   }
 
@@ -150,7 +150,7 @@ export function useMembers({ port }: MembersDependencies): MembersController {
       await port.requestMemberMagicLink({ email: member.email });
       patchRowState(member.id, { resending: false, notice: t(locale, "Sign-in link sent.") });
     } catch (e) {
-      patchRowState(member.id, { resending: false, error: describeApiError(e, t(locale, "Failed to send sign-in link.")) });
+      patchRowState(member.id, { resending: false, error: describeApiError(e, t(locale, "Failed to send sign-in link."), locale) });
     }
   }
 
@@ -177,7 +177,7 @@ export function useMembers({ port }: MembersDependencies): MembersController {
       const result = await port.getMember(member.id);
       setDetailById((current) => ({ ...current, [member.id]: result.member }));
     } catch (e) {
-      setDetailError(describeApiError(e, t(locale, "Failed to load member detail.")));
+      setDetailError(describeApiError(e, t(locale, "Failed to load member detail."), locale));
     } finally {
       setDetailLoadingId(null);
     }

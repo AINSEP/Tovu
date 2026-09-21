@@ -8,6 +8,12 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const ROLES_DICT: Record<string, Record<string, string>> = {
   es: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "No tienes permiso para hacer eso.",
+    "It is still in use — remove that assignment/attachment first.": "Todavía está en uso; primero quita esa asignación o adjunto.",
+    "That permission is not recognized.": "Ese permiso no se reconoce.",
+    "You cannot grant a permission you do not hold.": "No puedes otorgar un permiso que no posees.",
+    "Please correct the highlighted fields.": "Corrige los campos resaltados.",
   People: "Personas",
   "Roles & Permissions": "Roles y permisos",
   "Loading roles & permissions…": "Cargando roles y permisos…",
@@ -67,6 +73,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "no se pudo agregar el permiso",
   },
   id: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Anda tidak memiliki izin untuk melakukan itu.",
+    "It is still in use — remove that assignment/attachment first.": "Masih digunakan — hapus dulu penetapan/lampiran tersebut.",
+    "That permission is not recognized.": "Izin itu tidak dikenali.",
+    "You cannot grant a permission you do not hold.": "Anda tidak dapat memberikan izin yang tidak Anda miliki.",
+    "Please correct the highlighted fields.": "Perbaiki kolom yang ditandai.",
   People: "Orang",
   "Roles & Permissions": "Peran & Izin",
   "Loading roles & permissions…": "Memuat peran & izin…",
@@ -120,6 +132,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "gagal menambahkan izin",
   },
   de: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Sie haben keine Berechtigung dafür.",
+    "It is still in use — remove that assignment/attachment first.": "Wird noch verwendet – entfernen Sie zuerst diese Zuweisung/Zuordnung.",
+    "That permission is not recognized.": "Diese Berechtigung wird nicht erkannt.",
+    "You cannot grant a permission you do not hold.": "Sie können keine Berechtigung erteilen, die Sie selbst nicht besitzen.",
+    "Please correct the highlighted fields.": "Bitte korrigieren Sie die markierten Felder.",
   People: "Personen",
   "Roles & Permissions": "Rollen & Berechtigungen",
   "Loading roles & permissions…": "Rollen & Berechtigungen werden geladen…",
@@ -173,6 +191,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "Berechtigung konnte nicht hinzugefügt werden",
   },
   "zh-CN": {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "您没有执行此操作的权限。",
+    "It is still in use — remove that assignment/attachment first.": "仍在使用中——请先移除该分配/关联。",
+    "That permission is not recognized.": "无法识别该权限。",
+    "You cannot grant a permission you do not hold.": "您不能授予您自己都不具备的权限。",
+    "Please correct the highlighted fields.": "请更正高亮显示的字段。",
   People: "人员",
   "Roles & Permissions": "角色与权限",
   "Loading roles & permissions…": "正在加载角色与权限…",
@@ -226,6 +250,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "添加权限失败",
   },
   "zh-TW": {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "您沒有執行此操作的權限。",
+    "It is still in use — remove that assignment/attachment first.": "仍在使用中——請先移除該指派/關聯。",
+    "That permission is not recognized.": "無法識別該權限。",
+    "You cannot grant a permission you do not hold.": "您不能授予您自己都不具備的權限。",
+    "Please correct the highlighted fields.": "請更正醒目提示的欄位。",
   People: "人員",
   "Roles & Permissions": "角色與權限",
   "Loading roles & permissions…": "正在載入角色與權限…",
@@ -279,6 +309,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "新增權限失敗",
   },
   "pt-BR": {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Você não tem permissão para fazer isso.",
+    "It is still in use — remove that assignment/attachment first.": "Ainda está em uso — remova essa atribuição/vínculo primeiro.",
+    "That permission is not recognized.": "Essa permissão não é reconhecida.",
+    "You cannot grant a permission you do not hold.": "Você não pode conceder uma permissão que você mesmo não possui.",
+    "Please correct the highlighted fields.": "Corrija os campos destacados.",
   People: "Pessoas",
   "Roles & Permissions": "Funções e permissões",
   "Loading roles & permissions…": "Carregando funções e permissões…",
@@ -332,6 +368,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "não foi possível adicionar a permissão",
   },
   ru: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "У вас нет прав для этого действия.",
+    "It is still in use — remove that assignment/attachment first.": "Всё ещё используется — сначала удалите это назначение/привязку.",
+    "That permission is not recognized.": "Это право не распознано.",
+    "You cannot grant a permission you do not hold.": "Вы не можете предоставить право, которого у вас самих нет.",
+    "Please correct the highlighted fields.": "Исправьте выделенные поля.",
   People: "Люди",
   "Roles & Permissions": "Роли и разрешения",
   "Loading roles & permissions…": "Загрузка ролей и разрешений…",
@@ -385,6 +427,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "не удалось добавить разрешение",
   },
   fa: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "شما مجوز انجام این کار را ندارید.",
+    "It is still in use — remove that assignment/attachment first.": "هنوز در حال استفاده است — ابتدا آن تخصیص/پیوست را حذف کنید.",
+    "That permission is not recognized.": "آن مجوز شناسایی نشد.",
+    "You cannot grant a permission you do not hold.": "شما نمی‌توانید مجوزی را که خودتان ندارید، اعطا کنید.",
+    "Please correct the highlighted fields.": "لطفاً فیلدهای برجسته‌شده را اصلاح کنید.",
   People: "افراد",
   "Roles & Permissions": "نقش‌ها و مجوزها",
   "Loading roles & permissions…": "در حال بارگذاری نقش‌ها و مجوزها…",
@@ -438,6 +486,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "افزودن مجوز ناموفق بود",
   },
   ar: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "ليس لديك إذن للقيام بذلك.",
+    "It is still in use — remove that assignment/attachment first.": "لا يزال قيد الاستخدام — أزل هذا التعيين/الإرفاق أولاً.",
+    "That permission is not recognized.": "هذا الإذن غير معروف.",
+    "You cannot grant a permission you do not hold.": "لا يمكنك منح إذن لا تملكه أنت نفسك.",
+    "Please correct the highlighted fields.": "يرجى تصحيح الحقول المميزة.",
   People: "الأشخاص",
   "Roles & Permissions": "الأدوار والأذونات",
   "Loading roles & permissions…": "جارٍ تحميل الأدوار والأذونات…",
@@ -491,6 +545,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "تعذّرت إضافة الإذن",
   },
   ja: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "この操作を行う権限がありません。",
+    "It is still in use — remove that assignment/attachment first.": "まだ使用中です。先にその割り当て/アタッチを削除してください。",
+    "That permission is not recognized.": "その権限は認識されません。",
+    "You cannot grant a permission you do not hold.": "自分が持っていない権限を付与することはできません。",
+    "Please correct the highlighted fields.": "強調表示されている項目を修正してください。",
   People: "アカウント",
   "Roles & Permissions": "ロールと権限",
   "Loading roles & permissions…": "ロールと権限を読み込み中…",
@@ -544,6 +604,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "権限の追加に失敗しました",
   },
   ko: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "이 작업을 수행할 권한이 없습니다.",
+    "It is still in use — remove that assignment/attachment first.": "아직 사용 중입니다 — 먼저 해당 할당/연결을 제거하세요.",
+    "That permission is not recognized.": "해당 권한을 인식할 수 없습니다.",
+    "You cannot grant a permission you do not hold.": "본인이 가지고 있지 않은 권한은 부여할 수 없습니다.",
+    "Please correct the highlighted fields.": "강조 표시된 항목을 수정해 주세요.",
   People: "계정",
   "Roles & Permissions": "역할 및 권한",
   "Loading roles & permissions…": "역할 및 권한을 불러오는 중…",
@@ -597,6 +663,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "권한을 추가하지 못했습니다",
   },
   pl: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Nie masz uprawnień, aby to zrobić.",
+    "It is still in use — remove that assignment/attachment first.": "Nadal jest używane — najpierw usuń to przypisanie/powiązanie.",
+    "That permission is not recognized.": "To uprawnienie nie jest rozpoznawane.",
+    "You cannot grant a permission you do not hold.": "Nie możesz nadać uprawnienia, którego sam nie posiadasz.",
+    "Please correct the highlighted fields.": "Popraw zaznaczone pola.",
   People: "Osoby",
   "Roles & Permissions": "Role i uprawnienia",
   "Loading roles & permissions…": "Wczytywanie ról i uprawnień…",
@@ -650,6 +722,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "nie udało się dodać uprawnienia",
   },
   hu: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Nincs jogosultsága ehhez a művelethez.",
+    "It is still in use — remove that assignment/attachment first.": "Még használatban van – először távolítsa el a hozzárendelést/csatolást.",
+    "That permission is not recognized.": "Ez a jogosultság nem ismerhető fel.",
+    "You cannot grant a permission you do not hold.": "Nem adhat olyan jogosultságot, amellyel Ön maga nem rendelkezik.",
+    "Please correct the highlighted fields.": "Javítsa a kiemelt mezőket.",
   People: "Személyek",
   "Roles & Permissions": "Szerepkörök és jogosultságok",
   "Loading roles & permissions…": "Szerepkörök és jogosultságok betöltése…",
@@ -703,6 +781,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "a jogosultság hozzáadása sikertelen",
   },
   fr: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Vous n'avez pas la permission de faire cela.",
+    "It is still in use — remove that assignment/attachment first.": "Toujours utilisé : supprimez d'abord cette attribution/association.",
+    "That permission is not recognized.": "Cette permission n'est pas reconnue.",
+    "You cannot grant a permission you do not hold.": "Vous ne pouvez pas accorder une permission que vous ne possédez pas vous-même.",
+    "Please correct the highlighted fields.": "Veuillez corriger les champs mis en évidence.",
   People: "Personnes",
   "Roles & Permissions": "Rôles et autorisations",
   "Loading roles & permissions…": "Chargement des rôles et autorisations…",
@@ -756,6 +840,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "échec de l'ajout de l'autorisation",
   },
   uk: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "У вас немає прав для цієї дії.",
+    "It is still in use — remove that assignment/attachment first.": "Все ще використовується — спочатку видаліть це призначення/прив'язку.",
+    "That permission is not recognized.": "Це право не розпізнано.",
+    "You cannot grant a permission you do not hold.": "Ви не можете надати право, якого немає у вас самих.",
+    "Please correct the highlighted fields.": "Виправте виділені поля.",
   People: "Люди",
   "Roles & Permissions": "Ролі й дозволи",
   "Loading roles & permissions…": "Завантаження ролей і дозволів…",
@@ -809,6 +899,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "не вдалося додати дозвіл",
   },
   tr: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Bunu yapmak için izniniz yok.",
+    "It is still in use — remove that assignment/attachment first.": "Hâlâ kullanımda — önce bu atamayı/eklentiyi kaldırın.",
+    "That permission is not recognized.": "Bu izin tanınmıyor.",
+    "You cannot grant a permission you do not hold.": "Kendinizde bulunmayan bir izni veremezsiniz.",
+    "Please correct the highlighted fields.": "Lütfen vurgulanan alanları düzeltin.",
   People: "Kişiler",
   "Roles & Permissions": "Roller ve İzinler",
   "Loading roles & permissions…": "Roller ve izinler yükleniyor…",
@@ -862,6 +958,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "izin eklenemedi",
   },
   th: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "คุณไม่มีสิทธิ์ทำสิ่งนี้",
+    "It is still in use — remove that assignment/attachment first.": "ยังคงถูกใช้งานอยู่ — โปรดลบการกำหนด/การแนบนั้นก่อน",
+    "That permission is not recognized.": "ไม่รู้จักสิทธิ์นั้น",
+    "You cannot grant a permission you do not hold.": "คุณไม่สามารถให้สิทธิ์ที่คุณเองไม่มีได้",
+    "Please correct the highlighted fields.": "โปรดแก้ไขช่องที่ไฮไลต์",
   People: "บุคคล",
   "Roles & Permissions": "บทบาทและสิทธิ์",
   "Loading roles & permissions…": "กำลังโหลดบทบาทและสิทธิ์…",
@@ -915,6 +1017,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "เพิ่มสิทธิ์ไม่สำเร็จ",
   },
   it: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Non hai il permesso di farlo.",
+    "It is still in use — remove that assignment/attachment first.": "È ancora in uso: rimuovi prima quell'assegnazione/collegamento.",
+    "That permission is not recognized.": "Questo permesso non è riconosciuto.",
+    "You cannot grant a permission you do not hold.": "Non puoi concedere un permesso che tu stesso non possiedi.",
+    "Please correct the highlighted fields.": "Correggi i campi evidenziati.",
   People: "Persone",
   "Roles & Permissions": "Ruoli e autorizzazioni",
   "Loading roles & permissions…": "Caricamento ruoli e autorizzazioni…",
@@ -968,6 +1076,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "impossibile aggiungere l'autorizzazione",
   },
   hi: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "आपके पास ऐसा करने की अनुमति नहीं है।",
+    "It is still in use — remove that assignment/attachment first.": "यह अभी भी उपयोग में है — पहले वह असाइनमेंट/अटैचमेंट हटाएं।",
+    "That permission is not recognized.": "वह अनुमति पहचानी नहीं गई।",
+    "You cannot grant a permission you do not hold.": "आप वह अनुमति प्रदान नहीं कर सकते जो आपके पास स्वयं नहीं है।",
+    "Please correct the highlighted fields.": "कृपया हाइलाइट किए गए फ़ील्ड ठीक करें।",
   People: "लोग",
   "Roles & Permissions": "भूमिकाएँ और अनुमतियाँ",
   "Loading roles & permissions…": "भूमिकाएँ और अनुमतियाँ लोड हो रही हैं…",
@@ -1021,6 +1135,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "अनुमति नहीं जोड़ी जा सकी",
   },
   ur: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "آپ کو یہ کرنے کی اجازت نہیں ہے۔",
+    "It is still in use — remove that assignment/attachment first.": "یہ ابھی بھی زیرِ استعمال ہے — پہلے وہ تفویض/اٹیچمنٹ ہٹائیں۔",
+    "That permission is not recognized.": "وہ اجازت پہچانی نہیں گئی۔",
+    "You cannot grant a permission you do not hold.": "آپ وہ اجازت نہیں دے سکتے جو خود آپ کے پاس نہیں ہے۔",
+    "Please correct the highlighted fields.": "براہ کرم نمایاں کردہ خانوں کو درست کریں۔",
   People: "افراد",
   "Roles & Permissions": "کردار اور اجازتیں",
   "Loading roles & permissions…": "کردار اور اجازتیں لوڈ ہو رہی ہیں…",
@@ -1074,6 +1194,12 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "اجازت شامل نہیں ہو سکی",
   },
   bn: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "আপনার এটি করার অনুমতি নেই।",
+    "It is still in use — remove that assignment/attachment first.": "এটি এখনও ব্যবহৃত হচ্ছে — প্রথমে সেই অ্যাসাইনমেন্ট/সংযুক্তি সরান।",
+    "That permission is not recognized.": "সেই অনুমতিটি শনাক্ত করা যায়নি।",
+    "You cannot grant a permission you do not hold.": "আপনার নিজের কাছে নেই এমন অনুমতি আপনি দিতে পারবেন না।",
+    "Please correct the highlighted fields.": "অনুগ্রহ করে হাইলাইট করা ফিল্ডগুলো সংশোধন করুন।",
   People: "ব্যক্তি",
   "Roles & Permissions": "ভূমিকা ও অনুমতি",
   "Loading roles & permissions…": "ভূমিকা ও অনুমতি লোড হচ্ছে…",

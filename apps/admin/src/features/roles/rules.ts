@@ -29,7 +29,8 @@ export const KEYS = {
 
 /** Same flat-lookup shape as `users/rules.ts`'s `describeApiError` (see its comment for why a
  *  table doesn't lose exhaustiveness here) — a closed set of literal `code` strings, not a
- *  discriminated union. */
+ *  discriminated union. Values are English source strings — `t()`'s own keys — not yet localized;
+ *  `describeApiError` below is what translates them. */
 const STATIC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   FORBIDDEN: "You do not have permission to do that.",
   RESOURCE_CONFLICT: "It is still in use — remove that assignment/attachment first.",
@@ -44,13 +45,17 @@ const STATIC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
  *  `VALIDATION_ERROR` stays its own branch — its message comes from `e.message`, not a fixed
  *  string a lookup table can hold.
  *
+ *  `locale` (C4 fix, 2026-09-20): every branch here used to return its English literal directly,
+ *  leaking English into every non-`en` locale — see `users/rules.ts`'s identical fix for the full
+ *  reasoning. Each literal is now also a key into `roles-i18n.ts`'s `ROLES_DICT`.
+ *
  * @complexity Time/space: O(1) — a fixed set of code checks, no iteration.
  */
-export function describeApiError(e: unknown, fallback: string): string {
+export function describeApiError(e: unknown, fallback: string, locale: string): string {
   if (e instanceof ApiError) {
-    if (e.code === "VALIDATION_ERROR") return e.message || "Please correct the highlighted fields.";
+    if (e.code === "VALIDATION_ERROR") return e.message || t(locale, "Please correct the highlighted fields.");
     const staticMessage = e.code ? STATIC_ERROR_MESSAGES[e.code] : undefined;
-    if (staticMessage) return staticMessage;
+    if (staticMessage) return t(locale, staticMessage);
   }
   return describeApiErrorDefault(e, fallback);
 }
