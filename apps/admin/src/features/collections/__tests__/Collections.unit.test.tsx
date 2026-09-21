@@ -399,6 +399,17 @@ describe("NewContentTypeDialog", () => {
     expect(dlg.cancel).toHaveBeenCalledTimes(1);
   });
 
+  // M3's focus trap only works if Collections.tsx actually attaches the hook's ref to this
+  // dialog's own role="dialog" root. The hook tests render their own harness markup, so dropping
+  // `ref={dialogRef}` here left every test green (verified 2026-09-20) while the trap silently
+  // did nothing in the real dialog.
+  it("attaches the hook's dialogRef to the dialog root, so useFocusTrap has an element to trap in (M3)", () => {
+    const dlg = newDialogController();
+    newDialogRef.current = dlg;
+    renderCollections({ showNewDialog: true });
+    expect(dlg.dialogRef.current).toBe(screen.getByRole("dialog"));
+  });
+
   it("clicking the backdrop calls the dialog's own cancel, but clicking inside the dialog does not", async () => {
     const user = userEvent.setup();
     const dlg = newDialogController();
@@ -528,6 +539,14 @@ describe("EditFieldsDialog", () => {
     expect(dlg.cancel).toHaveBeenCalledTimes(1);
   });
 
+  /** Same wiring check as NewContentTypeDialog's own — see its comment. */
+  it("attaches the hook's dialogRef to the dialog root, so useFocusTrap has an element to trap in (M3)", () => {
+    const dlg = editDialogController();
+    editDialogRef.current = dlg;
+    renderCollections({ editingFieldsFor: TYPE });
+    expect(dlg.dialogRef.current).toBe(screen.getByRole("dialog"));
+  });
+
   // The sibling NewContentTypeDialog describe has had this case since 7cd19b4a7; this dialog's
   // backdrop did not, so `onClick={cancel}` here could be reverted to the raw `onCancel` prop with
   // every test still green — the dismiss-while-saving guard would be gone on one of the two
@@ -598,6 +617,14 @@ describe("LifecycleConfirmDialog", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(c.setPendingLifecycle).toHaveBeenCalledWith(null);
     expect(c.runLifecycle).not.toHaveBeenCalled();
+  });
+
+  /** Same wiring check as NewContentTypeDialog's own — see its comment. */
+  it("attaches the hook's dialogRef to the dialog root, so useFocusTrap has an element to trap in (M3)", () => {
+    const dlg = lifecycleDialogController();
+    lifecycleDialogRef.current = dlg;
+    renderCollections({ pendingLifecycle: { op: "deprecate", contentType: TYPE } });
+    expect(dlg.dialogRef.current).toBe(screen.getByRole("dialog"));
   });
 
   it("autoFocus reflects the hook's autoFocusCancel — cancel focused for tombstone", () => {
