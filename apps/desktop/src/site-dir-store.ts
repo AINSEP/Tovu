@@ -26,11 +26,20 @@ import type { SpawnOptions } from "node:child_process";
 import type { Readable } from "node:stream";
 
 import { buildCliSpawnPlan, buildCliEnv, parseCliErrorLine } from "./tovu-server.ts";
+import { readJsonFile, quarantineUnreadableFile, withFileLock, writeJsonFileAtomic } from "./durable-json-file.ts";
+import type { QuarantineNotice } from "./durable-json-file.ts";
 
 /** Matches Runner's own quick-pick list length — an affordance, not a full history. */
 const MAX_RECENT_SITE_DIRS = 10;
 
 const STATE_FILE_NAME = "desktop-state.json";
+
+/** How a damaged MRU file is announced on stderr — see {@link rememberSiteDir} for why starting the
+ *  list over is the right answer for this file and the wrong one for `tracked-sites.ts`'. */
+const RECENT_SITES_QUARANTINE_NOTICE: QuarantineNotice = {
+  label: "recent-sites list",
+  consequence: "the recently opened sites it listed are only in that copy now.",
+};
 
 /**
  * Every Tovu site dir has both. `read-site-dir.ts:81-86` refuses a dir missing either one
@@ -78,41 +87,80 @@ interface DesktopState {
   recentSiteDirs: string[];
 }
 
+/** {@link readRecentSiteDirs}' answer: the list, plus whether the file it came from is damaged. */
+interface RecentSiteDirsRead extends DesktopState {
+  damaged: boolean;
+}
+
 /**
  * Read the persisted state, treating any unreadable or malformed file as "no state yet".
  *
  * Deliberately forgiving: this file holds a convenience list, and refusing to launch because a
- * cache got truncated would trade a real failure for a cosmetic one.
+ * cache got truncated would trade a real failure for a cosmetic one. Unlike
+ * `tracked-sites.ts`, nothing here is salvaged out of a damaged file: every dir this list holds is
+ * either already a tracked project or one folder-pick away, so recovering the cache would buy back
+ * the ordering of a menu, not anything the operator made.
  *
  * @complexity O(n) in file size.
  */
 function readDesktopState(statePath: string): DesktopState {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(statePath, "utf8")) as { recentSiteDirs?: unknown };
-    const recent = Array.isArray(parsed?.recentSiteDirs) ? parsed.recentSiteDirs : [];
-    return { recentSiteDirs: recent.filter((entry): entry is string => typeof entry === "string") };
-  } catch {
-    return { recentSiteDirs: [] };
-  }
+  const { recentSiteDirs } = readRecentSiteDirs(statePath);
+  return { recentSiteDirs };
 }
 
-/** @complexity O(n) in the MRU length. */
+/**
+ * {@link readDesktopState} plus the one fact a WRITER also needs: whether the file it is about to
+ * replace is damaged, and therefore must be moved aside rather than written over.
+ *
+ * @complexity O(n) in file size.
+ */
+function readRecentSiteDirs(statePath: string): RecentSiteDirsRead {
+  const read = readJsonFile(statePath);
+  if (read.state === "missing") return { recentSiteDirs: [], damaged: false };
+  const recent = (read.state === "ok" ? read.value : null) as { recentSiteDirs?: unknown } | null;
+  if (!Array.isArray(recent?.recentSiteDirs)) return { recentSiteDirs: [], damaged: true };
+  return { recentSiteDirs: recent.recentSiteDirs.filter((entry): entry is string => typeof entry === "string"), damaged: false };
+}
+
+/**
+ * Replace the persisted state, atomically — a crash partway through leaves the previous file whole
+ * rather than a torn one that the next launch would read as an empty list and then persist as that
+ * (`durable-json-file.ts`, and `tracked-sites.ts`'s header for the full shape of that bug).
+ *
+ * A whole-value replace, so it takes no lock of its own; a caller that first READS this file holds
+ * the lock across both halves — see {@link rememberSiteDir}, the only one there is.
+ * @complexity O(n) in the MRU length.
+ */
 function writeDesktopState(statePath: string, state: DesktopState): void {
-  fs.mkdirSync(path.dirname(statePath), { recursive: true });
-  fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
+  writeJsonFileAtomic(statePath, state);
 }
 
 /**
  * Move `dir` to the front of the MRU list, de-duplicated and capped.
  *
- * @returns the new list, most-recent first.
- * @complexity O(n) in the MRU length.
+ * Runs inside the cross-process lock for this file, because several instances can be opening sites
+ * at once (the owner runs them on purpose) and two unlocked read-modify-writes lose whichever list
+ * was read before the other was written. One list shared by every window is the point of it: "Open
+ * Recent" should show what the operator opened, in whichever window they opened it.
+ *
+ * A damaged file is moved aside first, and the list starts over from this one dir — the policy that
+ * fits a cache, and deliberately NOT `tracked-sites.ts`'s, which recovers what it can because its
+ * file is the operator's own work. If it cannot be moved aside, nothing is written over it and the
+ * dir is simply not remembered: this runs after a site has already been created or opened, and
+ * failing that whole operation over an unwritable cache would be the cosmetic failure taking down
+ * the real one.
+ *
+ * @returns the new list, most-recent first — what was persisted, or what would have been.
+ * @complexity O(n) in the MRU length, plus the lock wait.
  */
 function rememberSiteDir(statePath: string, dir: string): string[] {
-  const previous = readDesktopState(statePath).recentSiteDirs;
-  const recentSiteDirs = [dir, ...previous.filter((entry) => entry !== dir)].slice(0, MAX_RECENT_SITE_DIRS);
-  writeDesktopState(statePath, { recentSiteDirs });
-  return recentSiteDirs;
+  return withFileLock(statePath, () => {
+    const previous = readRecentSiteDirs(statePath);
+    const recentSiteDirs = [dir, ...previous.recentSiteDirs.filter((entry) => entry !== dir)].slice(0, MAX_RECENT_SITE_DIRS);
+    if (previous.damaged && !quarantineUnreadableFile(statePath, RECENT_SITES_QUARANTINE_NOTICE)) return recentSiteDirs;
+    writeDesktopState(statePath, { recentSiteDirs });
+    return recentSiteDirs;
+  });
 }
 
 /**

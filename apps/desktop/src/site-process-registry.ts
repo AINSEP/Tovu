@@ -23,7 +23,10 @@
  * owner pid is gone (the nonce means a recycled pid can never name a dead instance's file as its own).
  * Every write is temp-file + `fsync` + `rename`, so a reader sees the old file or the new one, never
  * half of one — and an unreadable file is reported as unreadable, never read as an empty list (see
- * {@link readRegistryFile}). Still flat JSON rather than `better-sqlite3`: a handful of rows, no query
+ * {@link readRegistryFile}). Those two mechanisms, and moving an unreadable file aside rather than
+ * writing over it, now live in `durable-json-file.ts`: the same bug was found in `tracked-sites.ts`
+ * and `site-dir-store.ts` the same day, and a second and third copy of this code here is how the
+ * three would drift. Still flat JSON rather than `better-sqlite3`: a handful of rows, no query
  * beyond "read them all". Each row carries exactly what reconciliation needs to prove identity before
  * killing anything — `{siteDir, port, workspaceId, pid, updatedAt}`, the same fields Tovu-Runner's own
  * `RunnerProjectRow` carries (`last_pid`, `installDir`, `port`). A bare path could never support the
@@ -52,6 +55,9 @@ import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
 
+import { readJsonFile, writeJsonFileAtomic, tempPathFor, quarantineUnreadableFile } from "./durable-json-file.ts";
+import type { QuarantineNotice } from "./durable-json-file.ts";
+
 /** The directory inside `userData` holding one registry file per running app instance. */
 const REGISTRY_DIR_NAME = "site-processes";
 
@@ -62,7 +68,7 @@ const REGISTRY_DIR_NAME = "site-processes";
  *  unreadable copy, moved aside at boot (see {@link reconcileLegacyFile}). */
 const LEGACY_REGISTRY_FILE_NAME = "open-sites.json";
 
-/** `<owner pid>-<nonce>.json`. Temp (`.tmp`) and quarantined (`.corrupt-<ms>`) files never match. */
+/** `<owner pid>-<nonce>.json`. Temp (`.<pid>.tmp`) and quarantined (`.corrupt-<ms>`) files never match. */
 const INSTANCE_FILE_PATTERN = /^(\d+)-[0-9a-f]+\.json$/;
 
 /** This process's own file stem. The nonce keeps a pid the OS recycled from a crashed instance from
@@ -153,13 +159,9 @@ function isUsableRow(row: unknown): boolean {
  * @complexity O(n) in file size.
  */
 function readRegistryFile(filePath: string): RegistryFileRead {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === "ENOENT" ? { state: "missing" } : { state: "unreadable" };
-  }
-  const sites = (parsed as { sites?: unknown } | null)?.sites;
+  const read = readJsonFile(filePath);
+  if (read.state !== "ok") return read.state === "missing" ? { state: "missing" } : { state: "unreadable" };
+  const sites = (read.value as { sites?: unknown } | null)?.sites;
   if (!Array.isArray(sites)) return { state: "unreadable" };
   return { state: "ok", sites: sites.filter(isUsableRow) as SiteProcessRow[] };
 }
@@ -222,48 +224,26 @@ interface WritableSiteProcessRegistry {
 }
 
 /**
- * Atomically replace one registry file: write a sibling temp file, `fsync` it, then `rename` it over
- * the target. `rename` within one directory is atomic, so a reader — or the next boot after a crash
- * at ANY point in here — sees either the complete old file or the complete new one, never a torn one.
+ * How a quarantined registry file is announced. The mechanism — and the message's shape — is shared
+ * with every other durable store in this app (`durable-json-file.ts`); only these two sentences are
+ * the registry's own.
+ */
+const REGISTRY_QUARANTINE_NOTICE: QuarantineNotice = {
+  label: "site-process registry file",
+  consequence: "site processes it listed cannot be reconciled automatically.",
+};
+
+/**
+ * Atomically replace one registry file. The mechanism (temp file, `fsync`, `rename`) is
+ * `durable-json-file.ts`'s {@link writeJsonFileAtomic} — this is the registry-typed doorway to it,
+ * kept so every caller and test still names the registry rather than a generic writer.
  *
- * The temp name is fixed per target because every file has exactly one writer (its own instance), and
- * that writer is synchronous. A crash can leave the `.tmp` behind; the next write truncates it, and
+ * A crash can leave a `.tmp` behind; the next write by that pid truncates it, and
  * {@link reconcileInstanceFile} removes a dead owner's.
  * @complexity O(n) in row count.
  */
 function writeRegistry(filePath: string, state: WritableSiteProcessRegistry): void {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  const tempPath = `${filePath}.tmp`;
-  const fd = fs.openSync(tempPath, "w");
-  try {
-    fs.writeFileSync(fd, JSON.stringify(state, null, 2));
-    fs.fsyncSync(fd);
-  } finally {
-    fs.closeSync(fd);
-  }
-  fs.renameSync(tempPath, filePath);
-}
-
-/**
- * Move an unreadable registry file aside to `<file>.corrupt-<ms>` — preserved for inspection, never
- * overwritten or deleted — and say so on stderr, since any rows it held can no longer be reconciled.
- *
- * @returns whether the path is now clear to write. `true` also when the file is already gone (a
- *   concurrently booting instance moved it first). `false` when it could not be moved: the caller
- *   must then leave it alone rather than write over it.
- * @complexity O(1); one rename.
- */
-function quarantineUnreadableFile(filePath: string): boolean {
-  const asidePath = `${filePath}.corrupt-${Date.now()}`;
-  try {
-    fs.renameSync(filePath, asidePath);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return true;
-    console.error(`tovu desktop: site-process registry file ${filePath} is unreadable and could not be moved aside (${String(error)}). Left untouched; nothing was written over it.`);
-    return false;
-  }
-  console.error(`tovu desktop: site-process registry file ${filePath} was unreadable (torn or corrupt). Moved it aside to ${asidePath}; site processes it listed cannot be reconciled automatically.`);
-  return true;
+  writeJsonFileAtomic(filePath, state);
 }
 
 /**
@@ -282,7 +262,7 @@ function readOwnRowsForUpdate(filePath: string): SiteProcessRow[] | null {
   const read = readRegistryFile(filePath);
   if (read.state === "ok") return read.sites;
   if (read.state === "missing") return [];
-  return quarantineUnreadableFile(filePath) ? [] : null;
+  return quarantineUnreadableFile(filePath, REGISTRY_QUARANTINE_NOTICE) ? [] : null;
 }
 
 /** {@link recordSiteOpened}'s own options. */
@@ -545,7 +525,7 @@ async function reconcileRows(sites: SiteProcessRow[]): Promise<SiteProcessRow[]>
 }
 
 /**
- * {@link reconcileOrphans} for one other instance's file. Deleted (with any `.tmp` a crash left) only
+ * {@link reconcileOrphans} for one other instance's file. Deleted (with any temp file a crash left) only
  * when its owner pid is gone; an unreadable one is moved aside under the same condition, and
  * otherwise left for its live owner, whose next write moves it aside itself.
  * @complexity see {@link reconcileRows}.
@@ -554,14 +534,14 @@ async function reconcileInstanceFile(file: InstanceFile): Promise<SiteProcessRow
   const ownerGone = !isProcessAlive(file.ownerPid);
   const read = readRegistryFile(file.filePath);
   if (read.state === "unreadable") {
-    if (ownerGone) quarantineUnreadableFile(file.filePath);
+    if (ownerGone) quarantineUnreadableFile(file.filePath, REGISTRY_QUARANTINE_NOTICE);
     else console.error(`tovu desktop: site-process registry file ${file.filePath} is unreadable; its owner (pid ${file.ownerPid}) is still running, so it is left untouched.`);
     return [];
   }
   const reconciled = read.state === "ok" ? await reconcileRows(read.sites) : [];
   if (ownerGone) {
     fs.rmSync(file.filePath, { force: true });
-    fs.rmSync(`${file.filePath}.tmp`, { force: true });
+    fs.rmSync(tempPathFor(file.filePath, file.ownerPid), { force: true });
   }
   return reconciled;
 }
@@ -575,7 +555,7 @@ async function reconcileInstanceFile(file: InstanceFile): Promise<SiteProcessRow
 async function reconcileLegacyFile(legacyPath: string): Promise<SiteProcessRow[]> {
   const read = readRegistryFile(legacyPath);
   if (read.state === "unreadable") {
-    quarantineUnreadableFile(legacyPath);
+    quarantineUnreadableFile(legacyPath, REGISTRY_QUARANTINE_NOTICE);
     return [];
   }
   return read.state === "ok" ? reconcileRows(read.sites) : [];

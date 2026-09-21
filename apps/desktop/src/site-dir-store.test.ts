@@ -514,3 +514,91 @@ test("resolveDevFallback reports an unreadable candidate as rejected rather than
   assert.equal(resolved.rejected!.kind, "unreadable");
   assert.equal(resolved.rejected!.dir, notADirectory);
 });
+
+// ---------------------------------------------------------------------------------------------
+// A damaged recent-sites file (2026-09-20). A convenience cache, so it may start over — but never
+// by silently writing over the damaged bytes, and never by failing the open that is remembering.
+// ---------------------------------------------------------------------------------------------
+
+/** Every `<file>.corrupt-<ms>` beside `filePath`, by full path. */
+function asideCopies(filePath: string): string[] {
+  const dir = path.dirname(filePath);
+  return fs.readdirSync(dir).filter((name) => name.startsWith(`${path.basename(filePath)}.corrupt-`)).map((name) => path.join(dir, name));
+}
+
+/** A recent-sites file cut off partway through its write. */
+function writeTornState(statePath: string): string {
+  const torn = JSON.stringify({ recentSiteDirs: ["/sites/a", "/sites/b"] }, null, 2).slice(0, 30);
+  fs.mkdirSync(path.dirname(statePath), { recursive: true });
+  fs.writeFileSync(statePath, torn);
+  return torn;
+}
+
+test("rememberSiteDir over a torn recent-sites file moves the damaged bytes aside instead of silently writing over them", (t) => {
+  const statePath = tempStatePath();
+  const torn = writeTornState(statePath);
+  const errors = t.mock.method(console, "error", () => {});
+
+  assert.deepEqual(rememberSiteDir(statePath, "/sites/new"), ["/sites/new"]);
+  t.mock.restoreAll();
+
+  const aside = asideCopies(statePath);
+  assert.equal(aside.length, 1);
+  assert.equal(fs.readFileSync(aside[0]!, "utf8"), torn, "the damaged bytes survive, byte for byte");
+  assert.deepEqual(readDesktopState(statePath), { recentSiteDirs: ["/sites/new"] });
+  assert.deepEqual(errors.mock.calls.map((call) => call.arguments[0]), [
+    `tovu desktop: recent-sites list ${statePath} was unreadable (torn or corrupt). Moved it aside to ${aside[0]}; the recently opened sites it listed are only in that copy now.`,
+  ]);
+});
+
+test("a torn recent-sites file that cannot be moved aside is left untouched, and remembering still does not throw", (t) => {
+  const statePath = tempStatePath();
+  const torn = writeTornState(statePath);
+  const errors = t.mock.method(console, "error", () => {});
+  t.mock.method(fs, "renameSync", () => {
+    throw Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" });
+  });
+
+  assert.deepEqual(rememberSiteDir(statePath, "/sites/new"), ["/sites/new"]);
+  t.mock.restoreAll();
+
+  assert.equal(fs.readFileSync(statePath, "utf8"), torn);
+  assert.deepEqual(fs.readdirSync(path.dirname(statePath)), [path.basename(statePath)], "no temp file, no aside copy, no lock left behind");
+  assert.deepEqual(errors.mock.calls.map((call) => call.arguments[0]), [
+    `tovu desktop: recent-sites list ${statePath} is unreadable and could not be moved aside (Error: EACCES: permission denied). Left untouched; nothing was written over it.`,
+  ]);
+});
+
+test("a recent-sites write that dies partway leaves the previous file whole", (t) => {
+  const statePath = tempStatePath();
+  rememberSiteDir(statePath, "/sites/a");
+  const before = fs.readFileSync(statePath, "utf8");
+  const realWrite = fs.writeFileSync;
+  const crash = t.mock.method(fs, "writeFileSync", (target: fs.PathOrFileDescriptor, data: string) => {
+    realWrite(target, data.slice(0, 10));
+    throw new Error("simulated crash mid-write");
+  });
+
+  assert.throws(() => rememberSiteDir(statePath, "/sites/b"), /simulated crash mid-write/);
+  crash.mock.restore();
+
+  assert.equal(crash.mock.callCount(), 1);
+  assert.equal(fs.readFileSync(statePath, "utf8"), before);
+  assert.deepEqual(readDesktopState(statePath), { recentSiteDirs: ["/sites/a"] });
+});
+
+test("a crash between the recent-sites temp write and the rename leaves the previous file whole", (t) => {
+  const statePath = tempStatePath();
+  rememberSiteDir(statePath, "/sites/a");
+  const before = fs.readFileSync(statePath, "utf8");
+  const crash = t.mock.method(fs, "renameSync", () => {
+    throw new Error("simulated crash before rename");
+  });
+
+  assert.throws(() => rememberSiteDir(statePath, "/sites/b"), /simulated crash before rename/);
+  crash.mock.restore();
+
+  assert.equal(crash.mock.callCount(), 1);
+  assert.equal(fs.readFileSync(statePath, "utf8"), before);
+  assert.deepEqual(readDesktopState(statePath), { recentSiteDirs: ["/sites/a"] });
+});

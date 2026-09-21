@@ -419,3 +419,180 @@ test("seedDevFallbackSite declines an unreadable fallback instead of aborting bo
   assert.equal(seeded, false);
   assert.deepEqual(readTrackedSites(projectsPath), []);
 });
+
+// ---------------------------------------------------------------------------------------------
+// A damaged projects file (2026-09-20). This file is USER DATA — every card on the Projects screen —
+// so a torn or corrupt copy must never be read as "nothing tracked" and then persisted as that.
+// ---------------------------------------------------------------------------------------------
+
+/** What a well-formed projects file held before it was damaged. */
+const INTACT_PROJECTS = {
+  projects: [
+    { siteDir: "/sites/a", createdAt: "2026-01-01T00:00:00.000Z", origin: "created", siteId: "site-a" },
+    { siteDir: "/sites/b", createdAt: "2026-01-02T00:00:00.000Z", origin: "adopted" },
+  ],
+  dismissed: ["/sites/gone"],
+};
+
+/** {@link INTACT_PROJECTS} as this module writes it, cut off just after its last dismissal — what a
+ *  crash partway through the write used to leave behind. */
+function tornProjectsText(): string {
+  const whole = JSON.stringify(INTACT_PROJECTS, null, 2);
+  return whole.slice(0, whole.indexOf('"/sites/gone"') + '"/sites/gone"'.length);
+}
+
+/** Both rows of {@link INTACT_PROJECTS} as a damaged file yields them: provenance dropped, so they
+ *  read `adopted` — a recovered row can never authorize erasing a directory. */
+const SALVAGED_ROWS = [
+  { siteDir: "/sites/a", createdAt: "2026-01-01T00:00:00.000Z", origin: "adopted" },
+  { siteDir: "/sites/b", createdAt: "2026-01-02T00:00:00.000Z", origin: "adopted" },
+];
+
+/** Every `<file>.corrupt-<ms>` beside `filePath`, by full path. */
+function asideCopies(filePath: string): string[] {
+  const dir = path.dirname(filePath);
+  return fs.readdirSync(dir).filter((name) => name.startsWith(`${path.basename(filePath)}.corrupt-`)).map((name) => path.join(dir, name));
+}
+
+function projectsQuarantineMessage(filePath: string, asidePath: string): string {
+  return `tovu desktop: projects list ${filePath} was unreadable (torn or corrupt). Moved it aside to ${asidePath}; every project that could still be read from it was kept, and anything past the damage is only in that copy.`;
+}
+
+test("a torn projects file is not wiped by the next write: every project still readable in it is kept, and the damaged bytes are moved aside", (t) => {
+  const file = sitesFilePath(tempDir());
+  const torn = tornProjectsText();
+  fs.writeFileSync(file, torn);
+  const errors = t.mock.method(console, "error", () => {});
+
+  const rows = trackSite(file, "/sites/new");
+  t.mock.restoreAll();
+
+  const added = rows.find((row) => row.siteDir === "/sites/new")!;
+  assert.deepEqual(readTrackedSites(file), [...SALVAGED_ROWS, { siteDir: "/sites/new", createdAt: added.createdAt, origin: "adopted" }]);
+  assert.deepEqual(readDismissedSites(file), ["/sites/gone"], "a removal recorded before the damage stays recorded");
+  const aside = asideCopies(file);
+  assert.equal(aside.length, 1);
+  assert.equal(fs.readFileSync(aside[0]!, "utf8"), torn, "the damaged bytes survive, byte for byte");
+  assert.deepEqual(errors.mock.calls.map((call) => call.arguments[0]), [projectsQuarantineMessage(file, aside[0]!)]);
+});
+
+test("before anything is written, readers already show what a torn projects file still holds — and reading changes nothing on disk", () => {
+  const file = sitesFilePath(tempDir());
+  const torn = tornProjectsText();
+  fs.writeFileSync(file, torn);
+
+  assert.deepEqual(readTrackedSites(file), SALVAGED_ROWS);
+  assert.deepEqual(readDismissedSites(file), ["/sites/gone"]);
+  assert.equal(isSiteDirKnown(file, "/sites/gone"), true);
+  assert.equal(fs.readFileSync(file, "utf8"), torn);
+  assert.deepEqual(asideCopies(file), []);
+});
+
+test("a projects file torn inside a row keeps every row that ended before the tear", (t) => {
+  const file = sitesFilePath(tempDir());
+  const whole = JSON.stringify(INTACT_PROJECTS, null, 2);
+  fs.writeFileSync(file, whole.slice(0, whole.indexOf('"2026-01-02')));
+  t.mock.method(console, "error", () => {});
+
+  trackSite(file, "/sites/new");
+
+  // `/sites/b` lost its `createdAt` to the tear, so it is not a usable row; the dismissals came after
+  // the tear entirely. Both survive only in the moved-aside copy.
+  assert.deepEqual(readTrackedSites(file).map((row) => row.siteDir), ["/sites/a", "/sites/new"]);
+  assert.deepEqual(readDismissedSites(file), []);
+  assert.equal(asideCopies(file).length, 1);
+});
+
+test("valid JSON that is not a projects list is moved aside too, not overwritten", (t) => {
+  const file = sitesFilePath(tempDir());
+  const wrongShape = JSON.stringify({ projects: "oops", dismissed: ["/sites/gone"] });
+  fs.writeFileSync(file, wrongShape);
+  t.mock.method(console, "error", () => {});
+
+  trackSite(file, "/sites/new");
+
+  assert.deepEqual(readTrackedSites(file).map((row) => row.siteDir), ["/sites/new"]);
+  assert.deepEqual(readDismissedSites(file), ["/sites/gone"]);
+  assert.deepEqual(asideCopies(file).map((aside) => fs.readFileSync(aside, "utf8")), [wrongShape]);
+});
+
+test("a change that changes nothing leaves a torn projects file exactly as it is", () => {
+  const file = sitesFilePath(tempDir());
+  const torn = tornProjectsText();
+  fs.writeFileSync(file, torn);
+
+  trackSite(file, "/sites/a");
+  assert.deepEqual(migrateLegacyDismissals(file, "/sites/dev"), [], "a damaged file is not a legacy file to migrate");
+
+  assert.equal(fs.readFileSync(file, "utf8"), torn);
+  assert.deepEqual(asideCopies(file), []);
+});
+
+test("a torn projects file that cannot be moved aside is never written over, and the change is refused out loud", (t) => {
+  const file = sitesFilePath(tempDir());
+  const torn = tornProjectsText();
+  fs.writeFileSync(file, torn);
+  const errors = t.mock.method(console, "error", () => {});
+  t.mock.method(fs, "renameSync", () => {
+    throw Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" });
+  });
+
+  assert.throws(() => trackSite(file, "/sites/new"), {
+    message: `The projects list ${file} is damaged and could not be moved aside, so this change was not saved. Nothing was written over it.`,
+  });
+  t.mock.restoreAll();
+
+  assert.equal(fs.readFileSync(file, "utf8"), torn);
+  assert.deepEqual(fs.readdirSync(path.dirname(file)), [path.basename(file)], "no temp file, no aside copy, no lock left behind");
+  assert.deepEqual(errors.mock.calls.map((call) => call.arguments[0]), [
+    `tovu desktop: projects list ${file} is unreadable and could not be moved aside (Error: EACCES: permission denied). Left untouched; nothing was written over it.`,
+  ]);
+});
+
+test("a projects write that dies partway leaves the previous file whole", (t) => {
+  const file = sitesFilePath(tempDir());
+  trackSite(file, "/sites/a");
+  const before = fs.readFileSync(file, "utf8");
+  const realWrite = fs.writeFileSync;
+  const crash = t.mock.method(fs, "writeFileSync", (target: fs.PathOrFileDescriptor, data: string) => {
+    realWrite(target, data.slice(0, 10));
+    throw new Error("simulated crash mid-write");
+  });
+
+  assert.throws(() => trackSite(file, "/sites/b"), /simulated crash mid-write/);
+  crash.mock.restore();
+
+  assert.equal(crash.mock.callCount(), 1);
+  assert.equal(fs.readFileSync(file, "utf8"), before);
+  assert.deepEqual(readTrackedSites(file).map((row) => row.siteDir), ["/sites/a"]);
+});
+
+test("a crash between the projects temp write and the rename leaves the previous file whole", (t) => {
+  const file = sitesFilePath(tempDir());
+  trackSite(file, "/sites/a");
+  const before = fs.readFileSync(file, "utf8");
+  const crash = t.mock.method(fs, "renameSync", () => {
+    throw new Error("simulated crash before rename");
+  });
+
+  assert.throws(() => trackSite(file, "/sites/b"), /simulated crash before rename/);
+  crash.mock.restore();
+
+  assert.equal(crash.mock.callCount(), 1);
+  assert.equal(fs.readFileSync(file, "utf8"), before);
+  assert.deepEqual(readTrackedSites(file).map((row) => row.siteDir), ["/sites/a"]);
+});
+
+test("adoptDiscoveredSites checks and adds every discovery inside ONE write, so a removal cannot slip between the check and the add", (t) => {
+  const file = sitesFilePath(tempDir());
+  untrackSite(file, "/sites/dismissed");
+  const renames = t.mock.method(fs, "renameSync");
+
+  const adopted = adoptDiscoveredSites(file, ["/sites/one", "/sites/dismissed", "/sites/two", "/sites/one"]);
+  t.mock.restoreAll();
+
+  assert.deepEqual(adopted, ["/sites/one", "/sites/two"]);
+  assert.equal(renames.mock.callCount(), 1);
+  assert.deepEqual(readTrackedSites(file).map((row) => row.siteDir), ["/sites/one", "/sites/two"]);
+  assert.deepEqual(readDismissedSites(file), ["/sites/dismissed"]);
+});

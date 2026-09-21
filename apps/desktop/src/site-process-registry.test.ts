@@ -16,6 +16,7 @@ import { spawn, execFileSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 
 import { registryDirPath, legacyRegistryFilePath, instanceFilePath, readRegistryFile, readRegistry, writeRegistry, recordSiteOpened, recordSiteClosed, isProcessAlive, readProcessCommand, readProcessParentPid, isOrphanedProcess, isServeProcessForSite, terminateOrphan, reconcileOrphans } from "./site-process-registry.ts";
+import { tempPathFor } from "./durable-json-file.ts";
 
 /** A fresh registry DIRECTORY, not yet created — exactly as a first launch finds `userData`. */
 function tempRegistryDir(): string {
@@ -106,7 +107,7 @@ test("readRegistry unions every instance's file and the legacy file, ignoring te
   writeRegistry(instanceFilePath(registryDir), { sites: [own] });
   writeRegistry(instanceFilePath(registryDir, "77777-0badf00d"), { sites: [sibling] });
   writeRegistry(legacyRegistryFilePath(registryDir), { sites: [legacy] });
-  fs.writeFileSync(`${instanceFilePath(registryDir, "77777-0badf00d")}.tmp`, "{ half a wri");
+  fs.writeFileSync(tempPathFor(instanceFilePath(registryDir, "77777-0badf00d"), 77777), "{ half a wri");
   fs.writeFileSync(`${instanceFilePath(registryDir, "88888-0badf00d")}.corrupt-1`, "garbage");
 
   const { sites, unreadable } = readRegistry(registryDir);
@@ -205,7 +206,7 @@ test("reconcileOrphans terminates a live, identity-confirmed orphan and deletes 
   const pid = await spawnOrphanedServeChild(siteDir, port);
   const crashed = await deadInstanceId();
   recordSiteOpened(registryDir, { siteDir, port, workspaceId: "w5", pid, updatedAt: Date.now() }, { instanceId: crashed });
-  fs.writeFileSync(`${instanceFilePath(registryDir, crashed)}.tmp`, "{ a crash left this");
+  fs.writeFileSync(tempPathFor(instanceFilePath(registryDir, crashed), Number(crashed.split("-")[0])), "{ a crash left this");
 
   const reconciled = await reconcileOrphans(registryDir);
 
@@ -510,7 +511,7 @@ test("a crash between the temp write and the rename leaves the previous file who
 
   assert.equal(crash.mock.callCount(), 1);
   assert.equal(fs.readFileSync(filePath, "utf8"), before);
-  assert.deepEqual(JSON.parse(fs.readFileSync(`${filePath}.tmp`, "utf8")), { sites: [ROW_A, ROW_B] }, "the complete new state was fsynced to the temp file, not the real one");
+  assert.deepEqual(JSON.parse(fs.readFileSync(tempPathFor(filePath), "utf8")), { sites: [ROW_A, ROW_B] }, "the complete new state was fsynced to the temp file, not the real one");
   assert.deepEqual(readRegistry(registryDir), { sites: [ROW_A], unreadable: [] });
 });
 
