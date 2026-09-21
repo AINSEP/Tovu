@@ -19,16 +19,25 @@ import { t } from "./database-i18n";
  * filter form's own inputs) separate from the `appliedFilters` state this key is built from, so
  * typing into a filter field does not itself trigger a reload — only `applyFilters` committing the
  * draft into `appliedFilters` does, matching the pre-migration `applyFilters`'s explicit
- * `load(true)` call. `useFetchMutation`'s `no invalidates` case: this feature also has
- * `use-migrate-forward-section.hooks.ts`'s plan/confirm/execute ceremony, which has no read of its
- * own to cache (no `KEYS` entry needed for it) — see that hook's own doc comment.
+ * `load(true)` call. `use-migrate-forward-section.hooks.ts`'s plan/confirm/execute ceremony has no
+ * read of its own to cache (no `KEYS` entry needed for the ceremony's own state), but its `execute`
+ * step IS a write that changes two reads OTHER sections own — the drift banner's `schemaState` and
+ * the Timeline's ledger — so it invalidates `KEYS.schemaState` and `KEYS.timelineAll` on success (see
+ * that hook's own doc comment, and the 2026-09-20 platform-review fix for the bug this closes: the
+ * banner and Timeline used to go stale after a migration with nothing to re-read them).
  */
+const TIMELINE_ROOT: QueryKey = ["database", "timeline"];
+
 export const KEYS = {
   schemaState: ["database", "schema-state"] as QueryKey,
   restorePoints: ["database", "restore-points"] as QueryKey,
+  /** Prefix of every `timeline(filters)` key below — TanStack invalidation matches by prefix
+   *  (`lib/fetch-query/types.ts`'s `QueryKey` doc), so invalidating this one key refreshes whichever
+   *  filter set the Timeline currently has cached. Must stay a prefix of `timeline(filters)`'s
+   *  return value if that shape ever changes. */
+  timelineAll: TIMELINE_ROOT,
   timeline: (filters: { kind: string; outcome: string; fromDate: string; toDate: string }): QueryKey => [
-    "database",
-    "timeline",
+    ...TIMELINE_ROOT,
     filters.kind,
     filters.outcome,
     filters.fromDate,
