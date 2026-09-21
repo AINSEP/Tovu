@@ -1,5 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
-import { useComposioKeyField } from "./hooks/use-composio-key-field.hooks";
+import { splitOnPlaceholders } from "../../lib/template-i18n";
+import type { Translate } from "../../lib/dictionary-translator";
+import { useWiredComposioKeyField } from "./hooks/use-composio-key-field.hooks";
 import type { ComposioConfigController } from "./hooks/use-composio-config.hooks";
 
 /**
@@ -20,39 +22,52 @@ import type { ComposioConfigController } from "./hooks/use-composio-config.hooks
 export interface ComposioKeyFieldProps {
   composio: ComposioConfigController;
   /** Injectable seam for the draft-input state. Defaults to the real
-   *  {@link useComposioKeyField}; a test can pass a fake here to exercise `ComposioKeyField`'s
-   *  rendering with a fixed draft/configured/busy state. */
-  useKeyField?: typeof useComposioKeyField;
+   *  {@link useWiredComposioKeyField}; a test can pass a fake here to exercise `ComposioKeyField`'s
+   *  rendering with a fixed draft/configured/busy/`t` state. */
+  useKeyField?: typeof useWiredComposioKeyField;
 }
 
 /**
- * Resolves `useKeyField` to the real hook when a caller passes none — same `??`-avoidance idiom
- * `MenuEditor.tsx`'s `orEmpty`/`AssistantDock.tsx`'s/`App.tsx`'s resolver groups use (2026-08-14,
- * DI migration sweep's complexity follow-up): ESLint's cyclomatic-complexity rule counts a default
- * parameter value inside a function's OWN body as one of that function's own branches — a call out
- * to a separately-scoped resolver does not.
+ * Resolves `useKeyField` to the real wired hook when a caller passes none — same `??`-avoidance
+ * idiom `MenuEditor.tsx`'s `orEmpty`/`AssistantDock.tsx`'s/`App.tsx`'s resolver groups use
+ * (2026-08-14, DI migration sweep's complexity follow-up): ESLint's cyclomatic-complexity rule
+ * counts a default parameter value inside a function's OWN body as one of that function's own
+ * branches — a call out to a separately-scoped resolver does not.
  */
-function resolveKeyFieldHook(override: typeof useComposioKeyField | undefined): typeof useComposioKeyField {
-  return override ?? useComposioKeyField;
+function resolveKeyFieldHook(override: typeof useWiredComposioKeyField | undefined): typeof useWiredComposioKeyField {
+  return override ?? useWiredComposioKeyField;
+}
+
+/** The configured-state help sentence, with the saved key's tail as a real `<code>` node —
+ *  `splitOnPlaceholders` keeps it a genuine inline element rather than baking it into translated
+ *  text, the same technique `ThemeExplore.tsx` already uses for an inline `<code>` node inside
+ *  translated copy. Split out purely so `ComposioKeyField` itself doesn't also carry this call's
+ *  own three-piece destructure. @complexity O(1). */
+function ComposioKeyConfiguredHelp({ t, tail }: { t: Translate; tail: string }) {
+  const [before, after] = splitOnPlaceholders(t("A key ending in {tail} is saved. Paste a new one to replace it."), ["{tail}"]);
+  return (
+    <>
+      {before}
+      <code>{tail}</code>
+      {after}
+    </>
+  );
 }
 
 export function ComposioKeyField({ composio, useKeyField: useKeyFieldProp }: ComposioKeyFieldProps) {
   const useKeyField = resolveKeyFieldHook(useKeyFieldProp);
-  const { draft, setDraft, configured, busy, placeholder, onSave } = useKeyField(composio);
+  const { draft, setDraft, configured, busy, placeholder, onSave, t } = useKeyField(composio);
 
   return (
     <div className="composio-key-field">
       <label className="composio-key-label" htmlFor="composio-api-key">
-        Composio API key
+        {t("Composio API key")}
       </label>
       <p className="composio-key-help">
         {configured ? (
-          <>
-            A key ending in <code>{composio.config?.apiKeyTail}</code> is saved. Paste a new one to
-            replace it.
-          </>
+          <ComposioKeyConfiguredHelp t={t} tail={composio.config?.apiKeyTail ?? ""} />
         ) : (
-          <>Save a Composio API key to load the live connector catalog and connect accounts.</>
+          <>{t("Save a Composio API key to load the live connector catalog and connect accounts.")}</>
         )}
       </p>
       <div className="composio-key-row">
@@ -70,7 +85,7 @@ export function ComposioKeyField({ composio, useKeyField: useKeyFieldProp }: Com
           type="password"
           autoComplete="new-password"
           spellCheck={false}
-          placeholder={placeholder}
+          placeholder={t(placeholder)}
           value={draft}
           disabled={busy}
           onChange={(event) => setDraft(event.target.value)}
@@ -86,7 +101,7 @@ export function ComposioKeyField({ composio, useKeyField: useKeyFieldProp }: Com
           onClick={() => void onSave()}
           {...agentHandle("settings-composio-key-save", { role: "button", label: "Save the Composio API key" })}
         >
-          {busy ? "Saving…" : "Save"}
+          {busy ? t("Saving…") : t("Save")}
         </button>
         {configured ? (
           <button
@@ -96,7 +111,7 @@ export function ComposioKeyField({ composio, useKeyField: useKeyFieldProp }: Com
             onClick={() => void composio.clear()}
             {...agentHandle("settings-composio-key-clear", { role: "button", label: "Clear the saved Composio API key" })}
           >
-            Clear
+            {t("Clear")}
           </button>
         ) : null}
       </div>

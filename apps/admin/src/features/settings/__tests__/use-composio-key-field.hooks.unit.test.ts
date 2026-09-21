@@ -4,6 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 import { useComposioKeyField } from "../hooks/use-composio-key-field.hooks";
 import type { ComposioConfigController } from "../hooks/use-composio-config.hooks";
 
+/** Identity translator — these tests exercise the draft/save state `useComposioKeyField` derives
+ *  from `composio`, not translated copy (that's `composio-i18n.unit.test.ts`'s job), so `t` only
+ *  needs to satisfy the signature. */
+const fakeT = (key: string): string => key;
+
 /**
  * @file `useComposioKeyField` — the draft-input state extracted out of `ComposioKeyField.tsx`.
  * Pins the hook's own contract against a hand-built `ComposioConfigController` fixture (there is no
@@ -28,30 +33,30 @@ function makeController(overrides: Partial<ComposioConfigController> = {}): Comp
 
 describe("useComposioKeyField", () => {
   it("starts with an empty draft", () => {
-    const { result } = renderHook(() => useComposioKeyField(makeController()));
+    const { result } = renderHook(() => useComposioKeyField(makeController(), fakeT));
     expect(result.current.draft).toBe("");
   });
 
   it("configured mirrors composio.config.configured", () => {
     const { result: unconfigured } = renderHook(() =>
-      useComposioKeyField(makeController({ config: { configured: false, apiKeyTail: "" } })),
+      useComposioKeyField(makeController({ config: { configured: false, apiKeyTail: "" } }), fakeT),
     );
     expect(unconfigured.current.configured).toBe(false);
 
     const { result: configured } = renderHook(() =>
-      useComposioKeyField(makeController({ config: { configured: true, apiKeyTail: "abcd" } })),
+      useComposioKeyField(makeController({ config: { configured: true, apiKeyTail: "abcd" } }), fakeT),
     );
     expect(configured.current.configured).toBe(true);
   });
 
   it("busy is true only while saveState is saving", () => {
-    const { result } = renderHook(() => useComposioKeyField(makeController({ saveState: "saving" })));
+    const { result } = renderHook(() => useComposioKeyField(makeController({ saveState: "saving" }), fakeT));
     expect(result.current.busy).toBe(true);
   });
 
   it("onSave is a no-op on a blank or whitespace-only draft", async () => {
     const save = vi.fn().mockResolvedValue(undefined);
-    const { result } = renderHook(() => useComposioKeyField(makeController({ save })));
+    const { result } = renderHook(() => useComposioKeyField(makeController({ save }), fakeT));
 
     act(() => result.current.setDraft("   "));
     await act(async () => {
@@ -63,7 +68,7 @@ describe("useComposioKeyField", () => {
 
   it("onSave trims the draft, calls composio.save, and clears the draft on success", async () => {
     const save = vi.fn().mockResolvedValue(undefined);
-    const { result } = renderHook(() => useComposioKeyField(makeController({ save })));
+    const { result } = renderHook(() => useComposioKeyField(makeController({ save }), fakeT));
 
     act(() => result.current.setDraft("  comp_secret  "));
     await act(async () => {
@@ -82,7 +87,7 @@ describe("useComposioKeyField", () => {
           resolvers.push(resolve);
         }),
     );
-    const { result } = renderHook(() => useComposioKeyField(makeController({ save })));
+    const { result } = renderHook(() => useComposioKeyField(makeController({ save }), fakeT));
 
     act(() => result.current.setDraft("comp_secret"));
     // Both calls synchronous, in the SAME tick — a real double-click can land before React
@@ -105,7 +110,7 @@ describe("useComposioKeyField", () => {
 
   it("allows a later onSave once the in-flight one has settled", async () => {
     const save = vi.fn().mockResolvedValue(undefined);
-    const { result } = renderHook(() => useComposioKeyField(makeController({ save })));
+    const { result } = renderHook(() => useComposioKeyField(makeController({ save }), fakeT));
 
     act(() => result.current.setDraft("comp_first"));
     await act(async () => {
@@ -130,7 +135,7 @@ describe("useComposioKeyField", () => {
     // and this line never runs — a real gap between the comment and the code, reported rather
     // than silently "fixed" here (behavior must not change in this pass).
     const save = vi.fn().mockRejectedValue(new Error("network down"));
-    const { result } = renderHook(() => useComposioKeyField(makeController({ save })));
+    const { result } = renderHook(() => useComposioKeyField(makeController({ save }), fakeT));
 
     act(() => result.current.setDraft("comp_secret"));
     await expect(

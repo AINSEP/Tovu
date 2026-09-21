@@ -1,5 +1,8 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import type { Translate } from "@/lib/dictionary-translator";
+import { t as composioT } from "../composio-i18n";
 import type { ComposioConfigController } from "./use-composio-config.hooks";
 
 /**
@@ -37,6 +40,11 @@ export interface ComposioKeyFieldController {
    *  that does reject would skip the clear entirely (pre-existing behavior, carried over unchanged
    *  from the pre-extraction component). */
   onSave: () => Promise<void>;
+  /** This field's own bound translator (`composio-i18n.ts`) — threaded down rather than resolved a
+   *  second time in `ComposioKeyField.tsx`, matching every other `use<Feature>.hooks.ts`/
+   *  `<Feature>.tsx` split in this app (`use-access-tokens.hooks.ts`, `use-redirects.hooks.ts`, …).
+   *  Security finding #6 (Low, 2026-09-20 terra review): this field had no translator at all. */
+  t: Translate;
 }
 
 /**
@@ -44,11 +52,15 @@ export interface ComposioKeyFieldController {
  * injected `composio` controller.
  *
  * @param composio - The already-wired Composio config controller (save/clear/config/saveState).
- * @returns `draft`/`setDraft`, `configured`, `busy`, and `onSave`.
+ * @param t - This field's own bound translator — injected rather than resolved here, the same
+ *   `useX(deps, t, locale)` shape `use-access-tokens.hooks.ts`/`use-redirects.hooks.ts` already use,
+ *   so a test can pass a trivial fake instead of needing a real locale fetch. {@link
+ *   useWiredComposioKeyField} is the zero-locale-argument pair that binds the real one.
+ * @returns `draft`/`setDraft`, `configured`, `busy`, `onSave`, and `t`.
  * @complexity Time/space: O(1) — one derived boolean pair plus the save round trip `composio.save`
  *   itself already accounts for.
  */
-export function useComposioKeyField(composio: ComposioConfigController): ComposioKeyFieldController {
+export function useComposioKeyField(composio: ComposioConfigController, t: Translate): ComposioKeyFieldController {
   const [draft, setDraft] = useState("");
   const configured = composio.config?.configured ?? false;
   const busy = composio.saveState === "saving";
@@ -75,5 +87,18 @@ export function useComposioKeyField(composio: ComposioConfigController): Composi
     }
   }
 
-  return { draft, setDraft, configured, busy, placeholder, onSave };
+  return { draft, setDraft, configured, busy, placeholder, onSave, t };
+}
+
+/**
+ * The zero-locale-argument pair every screen actually mounts — binds the real locale (`useAdminLocale()`,
+ * called here and ONLY here, matching `use-redirects.hooks.ts`'s identical `useWiredRedirects` split)
+ * and delegates to {@link useComposioKeyField}. `ComposioKeyField.tsx`'s `useKeyField` prop defaults
+ * to this, not to the bare hook, so its one-argument `useKeyField(composio)` call site needs no change.
+ * @complexity O(1) plus `useAdminLocale`'s own cost.
+ */
+export function useWiredComposioKeyField(composio: ComposioConfigController): ComposioKeyFieldController {
+  const locale = useAdminLocale();
+  const t = useCallback((key: string): string => composioT(locale, key), [locale]);
+  return useComposioKeyField(composio, t);
 }

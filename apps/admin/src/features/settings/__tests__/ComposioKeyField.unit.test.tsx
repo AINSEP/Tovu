@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ComposioKeyField } from "../ComposioKeyField";
 import type { ComposioKeyFieldController } from "../hooks/use-composio-key-field.hooks";
 import type { ComposioConfigController } from "../hooks/use-composio-config.hooks";
+import { t as composioT } from "../composio-i18n";
 
 /**
  * @file `ComposioKeyField` — first test file for this component (0% before this pass). Covers both
@@ -82,7 +83,7 @@ describe("ComposioKeyField key-field-hook injection", () => {
     // something the real hook could never produce, so this only passes if the render used the
     // fake.
     function useFakeKeyField(): ComposioKeyFieldController {
-      return { draft: "prefilled", setDraft: vi.fn(), configured: true, busy: true, placeholder: "Replace saved key", onSave: vi.fn() };
+      return { draft: "prefilled", setDraft: vi.fn(), configured: true, busy: true, placeholder: "Replace saved key", onSave: vi.fn(), t: (key: string) => key };
     }
 
     render(<ComposioKeyField composio={makeComposio()} useKeyField={useFakeKeyField} />);
@@ -90,5 +91,32 @@ describe("ComposioKeyField key-field-hook injection", () => {
     expect(screen.getByLabelText("Composio API key")).toHaveValue("prefilled");
     expect(screen.getByLabelText("Composio API key")).toBeDisabled();
     expect(screen.getByRole("button", { name: "Saving…" })).toBeInTheDocument();
+  });
+});
+
+// Security finding #6 (Low, 2026-09-20 terra review): this field was English-only, hardcoded, with
+// no t() call anywhere — the label, help text, placeholder, and Clear button all render straight off
+// `t`, so a locale where the fallback-to-English chain does NOT apply proves the wiring is real
+// rather than every string happening to equal its own dictionary miss.
+describe("ComposioKeyField — translated copy (security finding #6)", () => {
+  function useSpanishKeyField(): ComposioKeyFieldController {
+    return {
+      draft: "",
+      setDraft: vi.fn(),
+      configured: true,
+      busy: false,
+      placeholder: "Replace saved key",
+      onSave: vi.fn(),
+      t: (key: string) => composioT("es", key),
+    };
+  }
+
+  it("renders the label, configured help (with the tail as a real <code> node), and Clear in Spanish", () => {
+    render(<ComposioKeyField composio={makeComposio({ config: { configured: true, apiKeyTail: "wxyz" } })} useKeyField={useSpanishKeyField} />);
+
+    expect(screen.getByText("Clave de API de Composio")).toBeInTheDocument();
+    const help = screen.getByText(/Hay guardada una clave/);
+    expect(help.querySelector("code")).toHaveTextContent("wxyz");
+    expect(screen.getByRole("button", { name: "Borrar" })).toBeInTheDocument();
   });
 });
