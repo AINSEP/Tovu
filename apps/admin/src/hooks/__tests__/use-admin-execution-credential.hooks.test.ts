@@ -1,8 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ByokConfig } from "@jini-ai/ui";
-import type { AdminExecutionCredential } from "../../lib/api";
+import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "../../lib/api";
 import { resetSettingsRefreshBus } from "../../lib/settings-refresh-bus";
+import type { AdminExecutionCredentialPort } from "../admin-execution-credential-port.hooks";
 
 /**
  * @file Covers the four owner-required behaviors for the admin's own BYOK credential UI (Bug 7),
@@ -664,5 +665,185 @@ describe("useAdminExecutionCredential — provider switch while the key is store
 
     // Once it loads, the verdict arrives, and `ExecutionTab` drops whatever that first probe returns.
     await waitFor(() => expect(result.current.canDiscoverModels).toBe(false));
+  });
+});
+
+/**
+ * Finding F1 (plan-components.md, 2026-09-20): the server rebuilds every credential write from the
+ * row it read when the request arrived (`execution-credential-store.ts`'s `setExecutionCredential`:
+ * read -> seal -> upsert the WHOLE merged record), so two of `saveKey`/`saveSettings`/
+ * `migrateLegacyKey` in flight together can each merge over the same stale row and the later upsert
+ * reverts the other's fields — both still answer 200. This fake server models exactly that shape,
+ * so the test proves the actual data loss, not just an ordering of mock calls.
+ */
+function readMergeUpsertServer(initial: {
+  protocol: string;
+  providerId: string;
+  baseUrl: string;
+  model: string;
+  apiKey: string;
+}): {
+  port: AdminExecutionCredentialPort;
+  /** Releaser functions for saves currently in flight, in arrival order. A test drains this to
+   *  control exactly when each save's read-merge-upsert actually lands. */
+  pending: Array<() => void>;
+  row: () => Record<string, unknown>;
+  /** The largest number of saves this fake ever had in flight at once — `1` proves the writes were
+   *  serialized; `2`+ proves they raced. */
+  maxInFlight: () => number;
+} {
+  let row: Record<string, unknown> = { ...initial };
+  let inFlight = 0;
+  let maxInFlightSeen = 0;
+  const pending: Array<() => void> = [];
+
+  function toView(): AdminExecutionCredential {
+    return {
+      isSet: Boolean(row.apiKey),
+      masked: row.apiKey ? `••••${String(row.apiKey).slice(-4)}` : null,
+      protocol: row.protocol as string,
+      providerId: (row.providerId as string | null) ?? null,
+      baseUrl: (row.baseUrl as string | null) ?? null,
+      model: (row.model as string | null) ?? null,
+      maxTokens: (row.maxTokens as number | undefined) ?? null,
+      updatedAt: new Date(0).toISOString(),
+    };
+  }
+
+  const port: AdminExecutionCredentialPort = {
+    async loadAdminExecutionCredential() {
+      return toView();
+    },
+    saveAdminExecutionCredential(patch: AdminExecutionCredentialPatch) {
+      // The "read" half, captured the instant the request ARRIVES — a real server's read happens
+      // before this promise ever resolves, not when some later caller happens to release it.
+      const snapshot = { ...row };
+      inFlight += 1;
+      maxInFlightSeen = Math.max(maxInFlightSeen, inFlight);
+      return new Promise<AdminExecutionCredential>((resolve) => {
+        pending.push(() => {
+          // The "seal + upsert" half: the WHOLE merged record, built from the snapshot taken on
+          // arrival — exactly the bug's root cause, not from whatever `row` holds at release time.
+          row = { ...snapshot, ...patch };
+          inFlight -= 1;
+          resolve(toView());
+        });
+      });
+    },
+  };
+
+  return { port, pending, row: () => ({ ...row }), maxInFlight: () => maxInFlightSeen };
+}
+
+describe("useAdminExecutionCredential — the three writes to the one credential row run one at a time", () => {
+  it("a Save settings pressed while a migration is in flight keeps the migrated key AND the new model", async () => {
+    window.localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ apiKey: "sk-legacy" }));
+    const server = readMergeUpsertServer({
+      protocol: "anthropic",
+      providerId: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      model: "model-a",
+      apiKey: "",
+    });
+    const { result, rerender } = renderHook(
+      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ byok: b, onByokChange: vi.fn() }, server.port),
+      { initialProps: { b: byok({ model: "model-a" }) } },
+    );
+    await waitFor(() => expect(result.current.legacyKey).toBe("sk-legacy"));
+
+    act(() => {
+      void result.current.migrateLegacyKey();
+    });
+    rerender({ b: byok({ protocol: "openai", providerId: "openai", baseUrl: "https://api.openai.com", model: "model-b" }) });
+    act(() => {
+      void result.current.saveSettings();
+    });
+
+    // Release exactly twice, newest arrival first — with today's unserialized writes both are
+    // already pending and this drains settings before migrate; with the fix, only one is ever
+    // pending at a time and this simply drains them in the order they actually arrive.
+    for (let i = 0; i < 2; i += 1) {
+      await waitFor(() => expect(server.pending.length).toBeGreaterThan(0));
+      server.pending.pop()!();
+    }
+
+    await waitFor(() => expect(result.current.settingsSaveState.status).toBe("saved"));
+
+    expect(server.row()).toEqual({
+      apiKey: "sk-legacy",
+      protocol: "openai",
+      providerId: "openai",
+      baseUrl: "https://api.openai.com",
+      model: "model-b",
+    });
+    expect(server.maxInFlight()).toBe(1);
+  });
+
+  it("Save key and Save settings pressed back to back keep both", async () => {
+    const server = readMergeUpsertServer({
+      protocol: "anthropic",
+      providerId: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      model: "model-a",
+      apiKey: "",
+    });
+    const { result, rerender } = renderHook(
+      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ byok: b, onByokChange: vi.fn() }, server.port),
+      { initialProps: { b: byok({ apiKey: "sk-new-key", model: "model-a" }) } },
+    );
+    await waitFor(() => expect(result.current.stored).not.toBeNull());
+
+    act(() => {
+      void result.current.saveKey();
+    });
+    rerender({ b: byok({ apiKey: "sk-new-key", model: "model-b" }) });
+    act(() => {
+      void result.current.saveSettings();
+    });
+
+    for (let i = 0; i < 2; i += 1) {
+      await waitFor(() => expect(server.pending.length).toBeGreaterThan(0));
+      server.pending.pop()!();
+    }
+
+    await waitFor(() => expect(result.current.settingsSaveState.status).toBe("saved"));
+
+    expect(server.row()).toEqual({
+      apiKey: "sk-new-key",
+      protocol: "anthropic",
+      providerId: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      model: "model-b",
+    });
+    expect(server.maxInFlight()).toBe(1);
+  });
+
+  it("a rejected write does not wedge the chain — the next queued write still runs", async () => {
+    let callCount = 0;
+    const port: AdminExecutionCredentialPort = {
+      async loadAdminExecutionCredential() {
+        return { isSet: false, masked: null, protocol: "anthropic", providerId: null, baseUrl: null, model: null, maxTokens: null, updatedAt: null };
+      },
+      async saveAdminExecutionCredential() {
+        callCount += 1;
+        if (callCount === 1) throw new FakeApiError("boom", 500);
+        return { isSet: true, masked: "••••bcde", protocol: "anthropic", providerId: "anthropic", baseUrl: null, model: "model-b", maxTokens: null, updatedAt: new Date(0).toISOString() };
+      },
+    };
+    const { result } = renderHook(() =>
+      useAdminExecutionCredential({ byok: byok({ apiKey: "sk-abcde" }), onByokChange: vi.fn() }, port),
+    );
+    await waitFor(() => expect(result.current.stored).not.toBeNull());
+
+    act(() => {
+      void result.current.saveKey(); // this one rejects
+    });
+    act(() => {
+      void result.current.saveSettings(); // must still run once the rejected one settles
+    });
+
+    await waitFor(() => expect(result.current.settingsSaveState.status).toBe("saved"));
+    expect(result.current.saveState.status).toBe("error");
+    expect(callCount).toBe(2);
   });
 });

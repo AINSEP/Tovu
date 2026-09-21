@@ -18,6 +18,7 @@ import {
 } from "../lib/stored-credential-endpoint";
 import { defaultAdminExecutionCredentialPort } from "./admin-execution-credential-dependencies.hooks";
 import type { AdminExecutionCredentialPort } from "./admin-execution-credential-port.hooks";
+import { useSerialWrites } from "./use-serial-writes.hooks";
 
 /**
  * @file State for the admin's own BYOK credential — the "Save key" and "Save settings" controls and
@@ -260,6 +261,17 @@ export function useAdminExecutionCredential(
   const [legacyKey, setLegacyKey] = useState<string | null>(null);
   const [legacyDismissed, setLegacyDismissed] = useState(false);
 
+  // The server rebuilds every write from the row it read when the request arrived
+  // (`execution-credential-store.ts`'s `setExecutionCredential`: read -> seal -> upsert the WHOLE
+  // merged record), so a key save, a settings save and a migration in flight together each merge
+  // over the same stale row and the later upsert reverts the other's fields — both still answer
+  // 200. Chained, each write reads what the one before it actually wrote. Tab-local only: two tabs,
+  // or the Settings and AI Assistant mounts in two different browser windows, can still race — that
+  // needs a server-side concurrency check (see the plan's "Needs owner decision" section). Same
+  // shape as `use-visitor-credential-form.hooks.ts`'s `writeChainRef` (`8ac256353`) and
+  // `use-other-credentials.hooks.ts`'s `serialized`.
+  const writes = useSerialWrites();
+
   // Hydrate the stored view, on mount AND whenever another mount (or `AssistantDock`'s own separate
   // copy) publishes a change to this same server row — see this file's "Cross-mount staleness" doc
   // above. Silent on failure, same posture `use-visitor-credential-form.hooks.ts` takes for its own
@@ -304,83 +316,93 @@ export function useAdminExecutionCredential(
     setLegacyKey(stored.isSet ? null : readLegacyLocalCredential());
   }, [stored]);
 
-  async function saveKey(): Promise<void> {
+  function saveKey(): Promise<void> {
     const apiKey = byok.apiKey.trim();
     // The BUTTON's rule, applied again here so a blank field cannot reach the server even through a
     // direct call. Deliberately NOT `hasUsableAdminKey`: a stored key makes the credential usable,
     // not the empty field writable. See `hasTypedAdminKey`'s own doc for the bug that distinction fixes.
-    if (!hasTypedAdminKey(apiKey)) return; // nothing typed — there is no key to write
+    // OUTSIDE the write chain on purpose: a no-op call must never queue a link that would only hold
+    // up the migrate/settings writes behind it for nothing.
+    if (!hasTypedAdminKey(apiKey)) return Promise.resolve(); // nothing typed — there is no key to write
+    // Set synchronously, at call time, so a press queued behind another write shows "Saving…"
+    // immediately rather than sitting at "idle" until its turn on the chain arrives.
     setSaveState({ status: "saving" });
-    try {
-      // The key ALONE. Every other field is `saveSettings`'s, and building the patch from one
-      // literal (rather than spreading `byok` and deleting) is what makes that readable at a glance
-      // — there is no branch here that could let another field through.
-      const patch: AdminExecutionCredentialPatch = { apiKey };
-      const view = await port.saveAdminExecutionCredential(patch);
-      setStored(view);
-      setSaveState({ status: "saved" });
-      // Tells every other mounted copy of this credential (the other settings screen, the dock) to
-      // re-read — see this file's "Cross-mount staleness" doc above.
-      publishSettingsRefresh([EXECUTION_NAMESPACE]);
-      // Clear the field once the key is safely stored — see this file's `onByokChange` doc.
-      onByokChange({ ...byok, apiKey: "" });
-    } catch (error) {
-      setSaveState({ status: "error", message: describeAdminExecutionCredentialError(error, "failed to save the key") });
-    }
+    return writes.run(async () => {
+      try {
+        // The key ALONE. Every other field is `saveSettings`'s, and building the patch from one
+        // literal (rather than spreading `byok` and deleting) is what makes that readable at a glance
+        // — there is no branch here that could let another field through.
+        const patch: AdminExecutionCredentialPatch = { apiKey };
+        const view = await port.saveAdminExecutionCredential(patch);
+        setStored(view);
+        setSaveState({ status: "saved" });
+        // Tells every other mounted copy of this credential (the other settings screen, the dock) to
+        // re-read — see this file's "Cross-mount staleness" doc above.
+        publishSettingsRefresh([EXECUTION_NAMESPACE]);
+        // Clear the field once the key is safely stored — see this file's `onByokChange` doc.
+        onByokChange({ ...byok, apiKey: "" });
+      } catch (error) {
+        setSaveState({ status: "error", message: describeAdminExecutionCredentialError(error, "failed to save the key") });
+      }
+    });
   }
 
-  async function saveSettings(): Promise<void> {
+  function saveSettings(): Promise<void> {
     setSettingsSaveState({ status: "saving" });
-    try {
-      // No `apiKey` key at all, under any condition — see this controller's `saveSettings` doc. The
-      // field's contents are not consulted here, so there is no state of the form in which this
-      // patch can grow one.
-      const patch: AdminExecutionCredentialPatch = {
-        protocol: byok.protocol,
-        providerId: byok.providerId,
-        baseUrl: byok.baseUrl,
-        model: byok.model,
-        ...(byok.maxTokens !== undefined ? { maxTokens: byok.maxTokens } : {}),
-      };
-      const view = await port.saveAdminExecutionCredential(patch);
-      setStored(view);
-      setSettingsSaveState({ status: "saved" });
-      publishSettingsRefresh([EXECUTION_NAMESPACE]);
-    } catch (error) {
-      setSettingsSaveState({
-        status: "error",
-        message: describeAdminExecutionCredentialError(error, "failed to save the settings"),
-      });
-    }
+    return writes.run(async () => {
+      try {
+        // No `apiKey` key at all, under any condition — see this controller's `saveSettings` doc. The
+        // field's contents are not consulted here, so there is no state of the form in which this
+        // patch can grow one.
+        const patch: AdminExecutionCredentialPatch = {
+          protocol: byok.protocol,
+          providerId: byok.providerId,
+          baseUrl: byok.baseUrl,
+          model: byok.model,
+          ...(byok.maxTokens !== undefined ? { maxTokens: byok.maxTokens } : {}),
+        };
+        const view = await port.saveAdminExecutionCredential(patch);
+        setStored(view);
+        setSettingsSaveState({ status: "saved" });
+        publishSettingsRefresh([EXECUTION_NAMESPACE]);
+      } catch (error) {
+        setSettingsSaveState({
+          status: "error",
+          message: describeAdminExecutionCredentialError(error, "failed to save the settings"),
+        });
+      }
+    });
   }
 
-  async function migrateLegacyKey(): Promise<void> {
-    if (!legacyKey) return;
+  function migrateLegacyKey(): Promise<void> {
+    if (!legacyKey) return Promise.resolve();
     setSaveState({ status: "saving" });
-    try {
-      const patch: AdminExecutionCredentialPatch = {
-        apiKey: legacyKey,
-        protocol: byok.protocol,
-        providerId: byok.providerId,
-        baseUrl: byok.baseUrl,
-        model: byok.model,
-        ...(byok.maxTokens !== undefined ? { maxTokens: byok.maxTokens } : {}),
-      };
-      const view = await port.saveAdminExecutionCredential(patch);
-      // Clear the local copy ONLY after the PUT above has actually resolved successfully — the
-      // design's explicit ordering requirement (§6: "only after that PUT succeeds does the code
-      // clear the localStorage entry"). A throw above skips every line from here down, so a failed
-      // migration leaves both the local key AND `legacyKey` state untouched — the prompt stays up
-      // and the admin can retry or decline.
-      clearLegacyLocalCredential();
-      setStored(view);
-      setLegacyKey(null);
-      setSaveState({ status: "saved" });
-      // Same cross-mount notification `saveKey` above sends — a migration is a write to the same row.
-      publishSettingsRefresh([EXECUTION_NAMESPACE]);
-    } catch (error) {
-      setSaveState({ status: "error", message: describeAdminExecutionCredentialError(error, "failed to save the migrated key") });
-    }
+    return writes.run(async () => {
+      try {
+        const patch: AdminExecutionCredentialPatch = {
+          apiKey: legacyKey,
+          protocol: byok.protocol,
+          providerId: byok.providerId,
+          baseUrl: byok.baseUrl,
+          model: byok.model,
+          ...(byok.maxTokens !== undefined ? { maxTokens: byok.maxTokens } : {}),
+        };
+        const view = await port.saveAdminExecutionCredential(patch);
+        // Clear the local copy ONLY after the PUT above has actually resolved successfully — the
+        // design's explicit ordering requirement (§6: "only after that PUT succeeds does the code
+        // clear the localStorage entry"). A throw above skips every line from here down, so a failed
+        // migration leaves both the local key AND `legacyKey` state untouched — the prompt stays up
+        // and the admin can retry or decline.
+        clearLegacyLocalCredential();
+        setStored(view);
+        setLegacyKey(null);
+        setSaveState({ status: "saved" });
+        // Same cross-mount notification `saveKey` above sends — a migration is a write to the same row.
+        publishSettingsRefresh([EXECUTION_NAMESPACE]);
+      } catch (error) {
+        setSaveState({ status: "error", message: describeAdminExecutionCredentialError(error, "failed to save the migrated key") });
+      }
+    });
   }
 
   function dismissLegacyPrompt(): void {
