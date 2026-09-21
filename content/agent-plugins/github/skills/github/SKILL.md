@@ -1,6 +1,6 @@
 ---
 name: github
-description: Work against a GitHub repository through this workspace's own saved credentials — write and update files in one atomic commit, dispatch and follow a GitHub Actions run, read a failed run's logs, commit the site's rendered static export — with no git, no gh CLI, and no token ever passing through the assistant. Encodes the rules generic GitHub knowledge gets wrong here: a 204 dispatch means queued and never deployed, a workflow only fires on the branch its own trigger names, a repository secret is always the human's step, a 403 on an org-wide listing is a normal app-scoped-token boundary rather than a broken credential, and editing an existing file means diffing the MODIFIED files and not only the added and deleted ones.
+description: Work against a GitHub repository through this workspace's own saved credentials — write and update files in one atomic commit, dispatch and follow a GitHub Actions run, read a failed run's logs, commit the site's rendered static export, back up the site itself to a private repository — with no git, no gh CLI, and no token ever passing through the assistant. Encodes the rules generic GitHub knowledge gets wrong here: a 204 dispatch means queued and never deployed, a workflow only fires on the branch its own trigger names, a repository secret is always the human's step, a 403 on an org-wide listing is a normal app-scoped-token boundary rather than a broken credential, and editing an existing file means diffing the MODIFIED files and not only the added and deleted ones.
 ---
 
 # GitHub, through Tovu
@@ -32,6 +32,9 @@ Two more exist for a narrower job — `source_control_get_capabilities` and
 `source_control_execute_commit` — and they are **not** general-purpose repo writes. See
 `references/source-control.md` before you reach for either; the distinction between them and
 `custom_credential_write_files` is the single easiest thing to get wrong in this document.
+
+And two back up the site itself — `site_backup_plan`, then `site_backup_push` — into a private
+repository. See `references/site-backup.md`.
 
 There is no `git`, no `gh`, and no shell path. **Never shell out to `curl`, `wget`, or `git` to
 talk to GitHub.** A raw shell request bypasses the saved-credential store entirely and either
@@ -176,6 +179,7 @@ Answer one question first: **is this app source, or is it the site's rendered ou
 | Add or update named files — a config file, a workflow, a script, a Dockerfile | `custom_credential_write_files` |
 | Read anything at all from GitHub | `custom_credential_make_request` (`GET`) |
 | Start a workflow, or follow a run | `custom_credential_make_request` — see `references/actions.md` |
+| Back up the **site itself** (database, media, themes, plugins, settings) into a private repo | `site_backup_plan`, then `site_backup_push` — see `references/site-backup.md` |
 | Publish the **site's rendered static export** into a repo | `source_control_execute_commit` — see `references/source-control.md` |
 
 Conflating the last row with the rest wastes real work. `source_control_execute_commit` runs a
@@ -211,3 +215,6 @@ either tool for the first time in a task.
 - `references/source-control.md` — `source_control_execute_commit` versus
   `custom_credential_write_files`: two different credential stores, two different jobs, and the
   app-source-versus-rendered-export distinction.
+- `references/site-backup.md` — backing up the site itself: plan then push, private repositories
+  only, what the dialog shows, the limits, every code and what to tell the human, and why a refused
+  push is planned again rather than forced.

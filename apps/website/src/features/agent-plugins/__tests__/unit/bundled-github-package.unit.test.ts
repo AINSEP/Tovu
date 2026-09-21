@@ -87,6 +87,7 @@ test("the package packs through the real installer's own packer, every reference
     "skills/github/references/repo-files.md",
     "skills/github/references/auth-and-tokens.md",
     "skills/github/references/source-control.md",
+    "skills/github/references/site-backup.md",
   ]) {
     assert.ok(packed.files.includes(reference), `${reference} must survive packing — the assistant reads it off disk`);
   }
@@ -96,7 +97,7 @@ test("the package packs through the real installer's own packer, every reference
 
 test("SKILL.md points at every reference file, and every reference file is pointed at", async () => {
   const references = (await readdir(path.join(SKILL_DIR, "references"))).sort();
-  assert.deepEqual(references, ["actions.md", "auth-and-tokens.md", "repo-files.md", "source-control.md"]);
+  assert.deepEqual(references, ["actions.md", "auth-and-tokens.md", "repo-files.md", "site-backup.md", "source-control.md"]);
 
   const skill = await readSkill();
   for (const reference of references) {
@@ -221,6 +222,42 @@ test("SKILL.md distinguishes pushing app source from committing a rendered stati
   assert.match(sourceControl, /filesDeleted/);
   assert.match(sourceControl, /Source Control page/);
   assert.match(sourceControl, /Access Tokens/);
+});
+
+test("site-backup.md: a site backup is plan-then-push, private-only, and never forced", async () => {
+  const skill = await readSkill();
+  const backup = await readReference("site-backup.md");
+
+  // The three-way choice is the thing a model gets wrong: a backup of the site itself is neither
+  // the rendered export nor a handful of named files.
+  assert.match(skill, /site_backup_plan/);
+  for (const tool of ["site_backup_plan", "site_backup_push", "source_control_execute_commit", "custom_credential_write_files"]) {
+    assert.ok(backup.includes(tool), `site-backup.md must name ${tool} — the choice between them is the reason it exists`);
+  }
+
+  // The database holds user data, so a public or internal repository is refused, not warned about.
+  assert.match(backup, /REPOSITORY_NOT_PRIVATE/);
+  assert.match(backup, /private/i);
+
+  // A missing credential and an undecryptable one are different fixes; the second starts with the
+  // Site Token, and swapping the GitHub token would not help.
+  assert.match(backup, /CREDENTIAL_NOT_FOUND/);
+  assert.match(backup, /CREDENTIAL_UNREADABLE/);
+  assert.match(backup, /Site Token/);
+  assert.match(backup, /npm run dev/);
+  assert.match(backup, /npm run desktop/);
+
+  // Every "the world moved since the plan" outcome is answered by planning again, never by force.
+  for (const code of ["PLAN_EXPIRED", "PLAN_STALE", "DIVERGED_BRANCH", "LIMIT_EXCEEDED"]) {
+    assert.ok(backup.includes(code), `site-backup.md must say what to do on ${code}`);
+  }
+  assert.match(backup, /plan again|re-plan/i);
+  assert.match(backup, /never force/i);
+
+  // The limits, as numbers: a model that does not know them promises backups that cannot happen.
+  assert.match(backup, /100 MiB/);
+  assert.match(backup, /1 GiB/);
+  assert.match(backup, /3000 files/);
 });
 
 test("SKILL.md forbids shelling out to git/curl for GitHub, and never invents a tool", async () => {
