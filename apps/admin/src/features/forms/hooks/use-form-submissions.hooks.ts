@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { describeApiError, type AdminFormSubmission } from "@/lib/api";
 import { useFetchQuery, useInvalidate } from "@/lib/fetch-query";
+import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { KEYS } from "../rules";
 import { defaultFormSubmissionsPort } from "./form-submissions-dependencies.hooks";
 import type { FormSubmissionsPort } from "./form-submissions-port.hooks";
@@ -33,9 +34,14 @@ import type { FormSubmissionsPort } from "./form-submissions-port.hooks";
  * that doc's own Skip precedent (`useSettingsContainer`, see this migration's dispatch brief) warns
  * against faking — so accumulated pages stay local `useState`, fetched directly through `port`
  * (bypassing the cache, since an appended page is not a cacheable "the current state of X", it's an
- * accumulating view built by this one screen). `formIdRef` guards that accumulation against the
- * SAME class of race the base query gets for free: a `loadMore` in flight when `formId` changes
- * must not append the wrong form's rows once it resolves.
+ * accumulating view built by this one screen). `pageSettlement` (`useSettlementGeneration`) guards
+ * that accumulation against the SAME class of race the base query gets for free: a `loadMore` in
+ * flight when `formId` changes, or when a first-page refetch (e.g. a delete's invalidate) resets
+ * the list, must not append its page once it resolves — see `resetMorePages` below, which mints a
+ * fresh generation on every reset so any older in-flight page fetch is superseded. A synchronous
+ * `loadingMoreRef` lock, checked before minting a generation, covers the other half: two `loadMore`
+ * calls issued in the SAME tick (a double click) must send only one request
+ * (2026-09-20, `plan-content2.md` #3/#5/S2).
  *
  * The audit's second, more serious finding at this file — `selectedId` surviving a `formId` change
  * untouched, so a delete could fire against a submission id belonging to the PREVIOUS form while its
@@ -55,6 +61,9 @@ export interface FormSubmissionsController {
   /** Re-fetches. Passing a cursor appends to `submissions`; omitting it replaces the list from the
    *  start (used after a submission is deleted, so the list reflects the removal). */
   load: (cursor?: string) => void;
+  /** True while a "Load more" page fetch is in flight — drives the button's `disabled` and
+   *  "Loading…" label in `FormEditor.tsx`. */
+  loadingMore: boolean;
 }
 
 export function useFormSubmissions(props: { formId: string }, port: FormSubmissionsPort): FormSubmissionsController {
@@ -68,41 +77,66 @@ export function useFormSubmissions(props: { formId: string }, port: FormSubmissi
   const [moreCursor, setMoreCursor] = useState<string | null>(null);
   const [moreError, setMoreError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  // Guards `loadMore` against the same class of race `useFetchQuery` closes for the first page: an
-  // append in flight when `formId` changes must not land on the new form's screen once it resolves.
-  const formIdRef = useRef(props.formId);
+  // The "latest call wins" guard for accumulated pages — see the file header. `loadingMoreRef` is
+  // the synchronous half (blocks a same-tick double `loadMore`); `pageSettlement` is the async half
+  // (a superseded fetch's response must not land once a reset or a form switch has moved on).
+  const loadingMoreRef = useRef(false);
+  const pageSettlement = useSettlementGeneration();
 
-  // One effect, not two: `formIdRef`'s update and the state reset below both need to fire exactly
-  // on a `formId` change, and merging them means `props.formId` is genuinely read in the body (the
-  // `formIdRef.current` assignment), which is also what satisfies the lint rule that would
-  // otherwise flag a dependency array entry never referenced inside the effect.
-  //
-  // The reset itself fixes the audit's data-loss finding at this file: `selectedId` used to
-  // survive a `formId` change untouched, so a delete could fire against a submission id belonging
-  // to the PREVIOUS form while its stale rows were still on screen. Also drops accumulated "more"
-  // pages, which belong to the previous form's cursor walk.
-  useEffect(() => {
-    formIdRef.current = props.formId;
-    setSelectedId(null);
+  // Supersedes any in-flight "Load more" fetch and clears the accumulated pages/cursor/error back
+  // to "just the first page" — called wherever the previous code did a bare `setMorePages([])`, so
+  // there is one reset path instead of three ad hoc ones.
+  const resetMorePages = useCallback(() => {
+    pageSettlement.next();
+    loadingMoreRef.current = false;
+    setLoadingMore(false);
     setMorePages([]);
-    setMoreCursor(null);
-  }, [props.formId]);
+    setMoreError(null);
+  }, [pageSettlement]);
 
+  // One effect, not two: the identity reset below fixes the audit's data-loss finding at this
+  // file — `selectedId` used to survive a `formId` change untouched, so a delete could fire
+  // against a submission id belonging to the PREVIOUS form while its stale rows were still on
+  // screen. `resetMorePages()` drops accumulated "more" pages, which belong to the previous form's
+  // cursor walk, and supersedes any of that form's `loadMore` still in flight.
   useEffect(() => {
+    setSelectedId(null);
+    resetMorePages();
+    setMoreCursor(null);
+  }, [props.formId, resetMorePages]);
+
+  // S2 fix: a refetched first page (e.g. S5's delete invalidating the list) must drop the "more"
+  // pages it used to leave stale — they are always a continuation of the CURRENT first page, not
+  // whichever first page was on screen when they were fetched. `resetMorePages()` also supersedes
+  // any `loadMore` already in flight when the refetch lands, so its page can't append afterward.
+  useEffect(() => {
+    resetMorePages();
     setMoreCursor(firstPage.data?.nextCursor ?? null);
-  }, [firstPage.data]);
+  }, [firstPage.data, resetMorePages]);
 
   async function loadMore(cursor: string) {
-    const formIdAtCall = props.formId;
+    if (loadingMoreRef.current) return; // #3: a same-tick double click sends only one request
+    loadingMoreRef.current = true;
+    const generation = pageSettlement.next();
+    setLoadingMore(true);
+    setMoreError(null); // #5: a retry clears the previous failure
     try {
-      const r = await port.listFormSubmissions({ formId: formIdAtCall }, { cursor });
-      if (formIdAtCall !== formIdRef.current) return; // stale — formId changed while this was in flight
+      const r = await port.listFormSubmissions({ formId: props.formId }, { cursor });
+      if (!pageSettlement.isCurrent(generation)) return; // superseded by a reset or a form switch
       setMorePages((prev) => [...prev, ...r.data]);
       setMoreCursor(r.nextCursor);
     } catch (e) {
-      if (formIdAtCall !== formIdRef.current) return;
+      if (!pageSettlement.isCurrent(generation)) return;
       setMoreError(e instanceof Error ? e.message : "failed to load submissions");
+    } finally {
+      // A superseded call's lock was already released by `resetMorePages`; only the still-current
+      // call releases it here.
+      if (pageSettlement.isCurrent(generation)) {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      }
     }
   }
 
@@ -114,14 +148,14 @@ export function useFormSubmissions(props: { formId: string }, port: FormSubmissi
       void loadMore(cursor);
       return;
     }
-    setMorePages([]);
+    resetMorePages();
     invalidate(KEYS.submissionsList(props.formId));
   }
 
   const submissions = firstPage.data ? [...firstPage.data.data, ...morePages] : null;
   const error = moreError ?? (firstPage.error ? describeApiError(firstPage.error, "failed to load submissions") : null);
 
-  return { submissions, nextCursor: moreCursor, error, selectedId, setSelectedId, load };
+  return { submissions, nextCursor: moreCursor, error, selectedId, setSelectedId, load, loadingMore };
 }
 
 /**

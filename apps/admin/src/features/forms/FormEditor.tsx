@@ -573,7 +573,7 @@ export interface FormSubmissionsProps {
 }
 
 function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissions, t }: FormSubmissionsProps) {
-  const { submissions, nextCursor, error, selectedId, setSelectedId, load } = useFormSubmissionsHook({ formId });
+  const { submissions, nextCursor, error, selectedId, setSelectedId, load, loadingMore } = useFormSubmissionsHook({ formId });
 
   if (selectedId) {
     return (
@@ -638,13 +638,14 @@ function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissi
         <button
           type="button"
           className="btn-secondary"
+          disabled={loadingMore}
           onClick={() => load(nextCursor)}
           {...agentHandle("form-submissions-load-more", {
             role: "button",
             label: "Load the next page of submissions",
           })}
         >
-          {t("Load more")}
+          {loadingMore ? t("Loading…") : t("Load more")}
         </button>
       ) : null}
     </div>

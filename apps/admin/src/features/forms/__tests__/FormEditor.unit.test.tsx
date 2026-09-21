@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -370,5 +370,71 @@ describe("form submission delete — confirm modal (S5 fix, 2026-09-20)", () => 
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
     const dialog = await screen.findByRole("dialog", { name: "Delete permanently?" });
     expect(within(dialog).getByText("This cannot be undone.")).toBeInTheDocument();
+  });
+});
+
+/**
+ * #3/#5/S2 (`ADS-memory/.local-artifacts/terra-admin-review-2026-09-20/plan-content2.md`) — the
+ * button-visible half of `use-form-submissions.hooks.ts`'s paging fix. `use-form-submissions
+ * .unit.test.tsx` covers the hook's request-serialization/staleness behavior directly; this test
+ * only pins the button's `disabled`/label reaction to `loadingMore`.
+ *
+ * `useFormSubmissionsHook` (the DI seam `FormSubmissions` accepts) isn't reachable from here —
+ * `FormEditor.tsx` mounts `<FormSubmissions formId={formId} t={t} />` with no seam of its own to
+ * forward one through, unlike `useFormEditorHook` on `FormEditor` itself. So this drives the real
+ * wired hook through a deferred `fetch`, the same idiom every other test in this file already
+ * uses, rather than stubbing the hook.
+ */
+describe("form submissions — Load more paging (2026-09-20)", () => {
+  function activeForm() {
+    return {
+      id: "f1",
+      name: "Contact",
+      slug: "contact",
+      status: "active",
+      fields: [],
+      notify: { enabled: false, recipients: [] },
+    };
+  }
+
+  function submissionFixture(id: string) {
+    return {
+      id,
+      formDefinitionId: "f1",
+      workspaceId: "ws1",
+      data: { email: "a@example.com" },
+      sourceIp: "127.0.0.1",
+      submittedAt: "2026-08-01T00:00:00.000Z",
+    };
+  }
+
+  it("disables Load more and shows Loading… while a page is in flight", async () => {
+    const user = userEvent.setup();
+    let resolveSecondPage: (() => void) | undefined;
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: activeForm() })) // form load
+      .mockResolvedValueOnce(jsonResponse({ data: [submissionFixture("s1")], nextCursor: "c2" })) // submissions list, page 1
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            // Manually resolved, never a timer — same deferred idiom as `use-form-submissions
+            // .unit.test.tsx`'s `createControlledPort`.
+            resolveSecondPage = () => resolve(jsonResponse({ data: [submissionFixture("s2")], nextCursor: "c3" }));
+          }),
+      );
+
+    renderScreen(<FormEditor formId="f1" tab="submissions" />);
+
+    const loadMoreButton = await screen.findByRole("button", { name: /^load more$/i });
+    expect(loadMoreButton).not.toBeDisabled();
+
+    await user.click(loadMoreButton);
+
+    const loadingButton = await screen.findByRole("button", { name: /^loading…$/i });
+    expect(loadingButton).toBeDisabled();
+
+    resolveSecondPage?.();
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /^load more$/i })).not.toBeDisabled());
   });
 });
