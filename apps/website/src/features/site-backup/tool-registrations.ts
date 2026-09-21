@@ -30,8 +30,9 @@ import {
   CustomCredentialValidationError,
   listCustomCredentials,
   resolveCustomCredentialByLabel,
-} from "../custom-credentials/store.js";
-import type { CustomCredentialSetRepoPort, CustomProviderConnectionInput } from "../custom-credentials/types.js";
+  type CustomCredentialSetRepoPort,
+  type CustomProviderConnectionInput,
+} from "../custom-credentials/index.js";
 import { normalizeWriteFilePath, validateBranch, validateCommitMessage, validateOwner, validateRepo } from "../custom-credentials/write-files-validation.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
 import { inspectRootKeyMaterial } from "../webhooks/keyring.env.js";
