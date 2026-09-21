@@ -6,9 +6,9 @@ import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
 import { TabBar } from "../../components/TabBar";
 import { roleMenuItems, policyMenuItems } from "./rules";
-import { useWiredRoles } from "./hooks/use-roles.hooks";
+import { useWiredRoles, type PendingPermissionRemove } from "./hooks/use-roles.hooks";
 import { goToRolesTab, resolveRolesTabId, resolveRolesTabs, type RolesTabId } from "./Roles.hooks";
-import { rolesDescriptionParts, roleDeleteBodyParts, policyDeleteBodyParts } from "./roles-i18n";
+import { rolesDescriptionParts, roleDeleteBodyParts, policyDeleteBodyParts, permissionRemoveBodyParts } from "./roles-i18n";
 
 /**
  * @file "Roles & Permissions" screen (SPEC-006 + 0.6.0 CRUD-completion amendment) — the
@@ -32,7 +32,8 @@ import { rolesDescriptionParts, roleDeleteBodyParts, policyDeleteBodyParts } fro
  * unused) + recreate — a dead end for a referenced policy, which INV-09 refuses to delete.
  * `REMOVE_POLICY_PERMISSION` closes that. The same inline panel that adds a permission now also
  * lists the policy's current ones and offers each a Remove; listing them at all is new too, since
- * `AdminPolicy` carries no permissions field and nothing previously exposed a row id.
+ * `AdminPolicy` carries no permissions field and nothing previously exposed a row id. (2026-09-20,
+ * C1): each Remove now asks first, via a shell `ConfirmDialog`, before the write goes through.
  *
  * Complexity-ceiling pass (2026-08-06): `Roles` and its policy-row map closure both scored over
  * the ceiling (18/10 and 13/13 — one over-sized "Policies" table section reported as two separate
@@ -258,7 +259,9 @@ export interface PolicyPermissionController {
   rows: AdminPolicyPermission[];
   loading: boolean;
   removingId: string | null;
-  remove: (policyId: string, policyPermissionId: string) => Promise<void>;
+  /** Stages a removal for confirmation (C1) rather than removing directly — no UI path can reach
+   *  the unconfirmed write once this replaces a direct `remove` callback on the component contract. */
+  requestRemove: (target: PendingPermissionRemove) => void;
 }
 
 export interface PolicyRowProps {
@@ -365,7 +368,7 @@ function PolicyPermissionList({ policyId, permission, t }: PolicyPermissionListP
             type="button"
             disabled={permission.removingId === row.id}
             aria-label={`${t("Remove permission")} ${row.permission}`}
-            onClick={() => permission.remove(policyId, row.id)}
+            onClick={() => permission.requestRemove({ policyId, row })}
             {...agentHandle(removeHandles[index]!, { role: "button", label: `Remove the "${row.permission}" permission from this policy` })}
           >
             {permission.removingId === row.id ? t("Removing…") : t("Remove")}
@@ -636,6 +639,54 @@ function PolicyDeleteDialog({ pendingPolicyDelete, setPendingPolicyDelete, rowSa
   );
 }
 
+interface PermissionRemoveDialogProps {
+  pendingPermissionRemove: PendingPermissionRemove | null;
+  setPendingPermissionRemove: (target: PendingPermissionRemove | null) => void;
+  removingPermissionId: string | null;
+  onConfirmRemovePermission: () => Promise<void>;
+  t: (key: string) => string;
+  locale: string;
+}
+
+/** The permission-remove confirm dialog (C1) — same "own the whole sentence per locale" shape as
+ *  {@link RoleDeleteDialog}/{@link PolicyDeleteDialog}, `tone="warning"` rather than `destructive`
+ *  because the action is reversible (an owner can re-add the permission), matching Users' Disable.
+ *  See `use-roles.hooks.ts`'s `pendingPermissionRemove` doc comment for the lockout analysis this
+ *  dialog exists to cover. */
+function PermissionRemoveDialog({
+  pendingPermissionRemove,
+  setPendingPermissionRemove,
+  removingPermissionId,
+  onConfirmRemovePermission,
+  t,
+  locale,
+}: PermissionRemoveDialogProps) {
+  const { prefix, suffix } = permissionRemoveBodyParts(locale);
+  const pending = pendingPermissionRemove;
+  return (
+    <ConfirmDialog
+      open={pending !== null}
+      agentHandle="roles-remove-permission"
+      title={t("Remove permission?")}
+      body={
+        pending ? (
+          <p>
+            {prefix}
+            <code>{pending.row.permission}</code>
+            {pending.row.resourceType ? ` (${pending.row.resourceType})` : ""}
+            {suffix}
+          </p>
+        ) : null
+      }
+      confirmLabel={t("Remove")}
+      tone="warning"
+      pending={pending !== null && removingPermissionId === pending.row.id}
+      onConfirm={onConfirmRemovePermission}
+      onCancel={() => setPendingPermissionRemove(null)}
+    />
+  );
+}
+
 /**
  * The "Roles" tab panel — `RolesSection` with the five controller fields it needs, assembled here
  * rather than in `Roles`'s own JSX.
@@ -712,7 +763,7 @@ function PoliciesTab({ controller }: { controller: RolesController }) {
         rows: c.permissionRows,
         loading: c.permissionsLoading,
         removingId: c.removingPermissionId,
-        remove: c.onRemovePermission,
+        requestRemove: c.setPendingPermissionRemove,
       }}
       t={c.t}
       locale={c.locale}
@@ -749,6 +800,10 @@ export function Roles({ tabId, useRolesHook = useWiredRoles }: RolesProps = {}) 
     pendingPolicyDelete,
     setPendingPolicyDelete,
     onDeletePolicy,
+    pendingPermissionRemove,
+    setPendingPermissionRemove,
+    removingPermissionId,
+    onConfirmRemovePermission,
     t,
     locale,
   } = controller;
@@ -802,6 +857,14 @@ export function Roles({ tabId, useRolesHook = useWiredRoles }: RolesProps = {}) 
         t={t}
         locale={locale}
         onDeletePolicy={onDeletePolicy}
+      />
+      <PermissionRemoveDialog
+        pendingPermissionRemove={pendingPermissionRemove}
+        setPendingPermissionRemove={setPendingPermissionRemove}
+        removingPermissionId={removingPermissionId}
+        onConfirmRemovePermission={onConfirmRemovePermission}
+        t={t}
+        locale={locale}
       />
     </div>
   );

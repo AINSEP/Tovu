@@ -56,6 +56,13 @@ import type { RolesPort } from "./roles-port.hooks";
  * render by design — there is no `useEffect([port])` in this file for `port` to be listed in wrongly.
  */
 
+/** The permission row a Roles-screen "Remove" click is asking to confirm before it becomes a
+ *  durable write — see {@link RolesController.pendingPermissionRemove}'s doc comment. */
+export interface PendingPermissionRemove {
+  policyId: string;
+  row: AdminPolicyPermission;
+}
+
 export interface RolesController {
   roles: AdminRole[] | null;
   policies: AdminPolicy[] | null;
@@ -113,6 +120,17 @@ export interface RolesController {
    *  page-wide spinner (same reasoning as `rowSavingId`). */
   removingPermissionId: string | null;
   onRemovePermission: (policyId: string, policyPermissionId: string) => Promise<void>;
+
+  /** The permission row a Remove click is asking to confirm — `null` when the dialog is closed.
+   *  Same "ConfirmDialog stays mounted, this drives its `open` prop" shape as `pendingRoleDelete`/
+   *  `pendingPolicyDelete` above. Removing a permission from a policy that is currently attached to
+   *  someone changes their live authority immediately, and there is no undo route open to anyone
+   *  but an owner — see this file's header note on OQ-10/C1 for the lockout analysis that ruled a
+   *  server-side guard unnecessary here (INV-06 + INV-08 already prevent a workspace lockout); this
+   *  dialog exists for the one risk that IS reachable, a one-click self-demotion. */
+  pendingPermissionRemove: PendingPermissionRemove | null;
+  setPendingPermissionRemove: (target: PendingPermissionRemove | null) => void;
+  onConfirmRemovePermission: () => Promise<void>;
 
   /** The role a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
    *  closed. `ConfirmDialog` stays mounted unconditionally below (see its own doc comment on why);
@@ -242,6 +260,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
   // are independent operations with their own copy, not because anything shares data between them.
   const [pendingRoleDelete, setPendingRoleDelete] = useState<AdminRole | null>(null);
   const [pendingPolicyDelete, setPendingPolicyDelete] = useState<AdminPolicy | null>(null);
+  const [pendingPermissionRemove, setPendingPermissionRemove] = useState<PendingPermissionRemove | null>(null);
 
   const createRoleMutation = useFetchMutation({
     run: (name: string) => port.createRole(name),
@@ -435,7 +454,26 @@ export function useRoles(deps: RolesDependencies): RolesController {
     } catch (e) {
       setRowError(describeApiError(e, t(locale, "failed to remove permission")));
     } finally {
-      setRemovingPermissionId(null);
+      // Keyed functional update (same fix class as `runRowDelete`'s `setRowSavingId` above):
+      // nothing gates starting a removal on a SECOND row while this one is still in flight, so an
+      // unconditional reset would clear a still-in-flight newer removal's own busy indicator.
+      setRemovingPermissionId((current) => (current === policyPermissionId ? null : current));
+    }
+  }
+
+  /** C1 — the Remove button no longer calls {@link onRemovePermission} directly; it stages the
+   *  target row here and a shell `ConfirmDialog` calls this to actually remove it. Clears the
+   *  pending selection in `finally` regardless of outcome (a failure surfaces through `rowError`,
+   *  same as every other row action), keyed on the row's own id so a stale confirm settling after
+   *  the operator has already opened a DIFFERENT row's confirmation does not dismiss it — same
+   *  guard shape as `onDeleteRole`/`onDeletePolicy`'s `clearPending`. */
+  async function onConfirmRemovePermission() {
+    if (!pendingPermissionRemove) return;
+    const target = pendingPermissionRemove;
+    try {
+      await onRemovePermission(target.policyId, target.row.id);
+    } finally {
+      setPendingPermissionRemove((current) => (current?.row.id === target.row.id ? null : current));
     }
   }
 
@@ -528,6 +566,10 @@ export function useRoles(deps: RolesDependencies): RolesController {
     permissionsLoading,
     removingPermissionId,
     onRemovePermission,
+
+    pendingPermissionRemove,
+    setPendingPermissionRemove,
+    onConfirmRemovePermission,
 
     pendingRoleDelete,
     setPendingRoleDelete,

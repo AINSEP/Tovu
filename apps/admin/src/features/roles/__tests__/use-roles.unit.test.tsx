@@ -528,6 +528,139 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  describe("pendingPermissionRemove / onConfirmRemovePermission (C1)", () => {
+    it("setPendingPermissionRemove opens the confirmation without touching the port", async () => {
+      const port = createFakeRolesPort({
+        roles: [ROLE],
+        policies: [POLICY],
+        initialPolicyPermissions: [PERMISSION_ROW],
+      });
+      const removeSpy = vi.spyOn(port, "removePolicyPermission");
+      const { result } = renderHook(() => useRoles({ port }), { wrapper });
+      await waitFor(() => expect(result.current.roles).not.toBeNull());
+
+      act(() => result.current.setPendingPermissionRemove({ policyId: POLICY.id, row: PERMISSION_ROW }));
+
+      expect(result.current.pendingPermissionRemove).toEqual({ policyId: POLICY.id, row: PERMISSION_ROW });
+      expect(removeSpy).not.toHaveBeenCalled();
+      expect(port.policyPermissions).toEqual([PERMISSION_ROW]);
+    });
+
+    it("onConfirmRemovePermission removes the pending row, refreshes the list, and closes the confirmation", async () => {
+      const other = { ...PERMISSION_ROW, id: "pp-2", permission: "content.read" };
+      const port = createFakeRolesPort({
+        roles: [ROLE],
+        policies: [POLICY],
+        initialPolicyPermissions: [PERMISSION_ROW, other],
+      });
+      const { result } = renderHook(() => useRoles({ port }), { wrapper });
+      await waitFor(() => expect(result.current.roles).not.toBeNull());
+      await act(async () => result.current.togglePermissionForm(POLICY.id));
+      await waitFor(() => expect(result.current.permissionRows).toHaveLength(2));
+
+      act(() => result.current.setPendingPermissionRemove({ policyId: POLICY.id, row: PERMISSION_ROW }));
+      await act(async () => {
+        await result.current.onConfirmRemovePermission();
+      });
+
+      expect(port.policyPermissions).toEqual([other]);
+      expect(result.current.permissionRows).toEqual([other]);
+      expect(result.current.pendingPermissionRemove).toBeNull();
+      expect(result.current.removingPermissionId).toBeNull();
+    });
+
+    it("is a no-op with nothing pending", async () => {
+      const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY], initialPolicyPermissions: [PERMISSION_ROW] });
+      const removeSpy = vi.spyOn(port, "removePolicyPermission");
+      const { result } = renderHook(() => useRoles({ port }), { wrapper });
+      await waitFor(() => expect(result.current.roles).not.toBeNull());
+
+      await act(async () => {
+        await result.current.onConfirmRemovePermission();
+      });
+
+      expect(removeSpy).not.toHaveBeenCalled();
+    });
+
+    it("a failed confirmed removal closes the confirmation and surfaces the exact error, keeping the row", async () => {
+      const port = createFakeRolesPort({
+        roles: [ROLE],
+        policies: [POLICY],
+        initialPolicyPermissions: [PERMISSION_ROW],
+        removePermissionError: new Error("boom"),
+      });
+      const { result } = renderHook(() => useRoles({ port }), { wrapper });
+      await waitFor(() => expect(result.current.roles).not.toBeNull());
+      await act(async () => result.current.togglePermissionForm(POLICY.id));
+      await waitFor(() => expect(result.current.permissionRows).toHaveLength(1));
+
+      act(() => result.current.setPendingPermissionRemove({ policyId: POLICY.id, row: PERMISSION_ROW }));
+      await act(async () => {
+        await result.current.onConfirmRemovePermission();
+      });
+
+      expect(result.current.rowError).toBe("boom");
+      expect(result.current.pendingPermissionRemove).toBeNull();
+      expect(port.policyPermissions).toEqual([PERMISSION_ROW]);
+    });
+
+    it("a removal settling while a second removal is in flight must not clear the second row's busy state", async () => {
+      const other = { ...PERMISSION_ROW, id: "pp-2", permission: "content.read" };
+      const port = createFakeRolesPort({
+        roles: [ROLE],
+        policies: [POLICY],
+        initialPolicyPermissions: [PERMISSION_ROW, other],
+      });
+      // Both calls are deferred, and resolved in a controlled order below, so the FIRST-issued
+      // removal can be made to settle WHILE the second one is still in flight.
+      const releasers: Array<() => void> = [];
+      const realRemove = port.removePolicyPermission.bind(port);
+      port.removePolicyPermission = vi.fn((input: { policyId: string; policyPermissionId: string }) => {
+        return new Promise<void>((resolve) => {
+          releasers.push(() => resolve(realRemove(input)));
+        });
+      });
+
+      const { result } = renderHook(() => useRoles({ port }), { wrapper });
+      await waitFor(() => expect(result.current.roles).not.toBeNull());
+      await act(async () => result.current.togglePermissionForm(POLICY.id));
+      await waitFor(() => expect(result.current.permissionRows).toHaveLength(2));
+
+      let p1!: Promise<void>;
+      act(() => {
+        p1 = result.current.onRemovePermission(POLICY.id, PERMISSION_ROW.id);
+      });
+      expect(result.current.removingPermissionId).toBe(PERMISSION_ROW.id);
+      // `useFetchMutation`'s `mutate` reaches the port call a microtask later than this synchronous
+      // `act` — same reason the file's other "settling while a second call is already in flight"
+      // tests (e.g. `onSaveRole`) `waitFor` the mock call count before triggering the second call.
+      await waitFor(() => expect(port.removePolicyPermission).toHaveBeenCalledTimes(1));
+
+      let p2!: Promise<void>;
+      act(() => {
+        p2 = result.current.onRemovePermission(POLICY.id, other.id);
+      });
+      expect(result.current.removingPermissionId).toBe(other.id);
+      await waitFor(() => expect(port.removePolicyPermission).toHaveBeenCalledTimes(2));
+
+      // Release ONLY the first (PERMISSION_ROW) removal — the second (other) stays in flight.
+      releasers[0]!();
+      await act(async () => {
+        await p1;
+      });
+
+      // The FIRST removal's settle must not have cleared the SECOND, still-in-flight row's busy id.
+      // **Fails today** against the unconditional `setRemovingPermissionId(null)`.
+      expect(result.current.removingPermissionId).toBe(other.id);
+
+      releasers[1]!();
+      await act(async () => {
+        await p2;
+      });
+      expect(result.current.removingPermissionId).toBeNull();
+    });
+  });
+
   // `loadPermissions` (shared by `togglePermissionForm`/`onWritePermission`/`onRemovePermission`) had
   // no guard against a second, DIFFERENT policy's load starting before the first settled — network
   // completion order does not have to match start order. Same bug class `use-sites.hooks.ts`'s

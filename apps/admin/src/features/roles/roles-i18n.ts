@@ -40,6 +40,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "Quitar",
   "Removing…": "Quitando…",
   "Remove permission": "Quitar permiso",
+  "Remove permission?": "¿Quitar permiso?",
   "failed to load permissions": "no se pudieron cargar los permisos",
   "failed to remove permission": "no se pudo quitar el permiso",
 
@@ -98,6 +99,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "Hapus",
   "Removing…": "Menghapus…",
   "Remove permission": "Hapus izin",
+  "Remove permission?": "Hapus izin?",
   "failed to load permissions": "gagal memuat izin",
   "failed to remove permission": "gagal menghapus izin",
 
@@ -150,6 +152,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "Entfernen",
   "Removing…": "Wird entfernt…",
   "Remove permission": "Berechtigung entfernen",
+  "Remove permission?": "Berechtigung entfernen?",
   "failed to load permissions": "Berechtigungen konnten nicht geladen werden",
   "failed to remove permission": "Berechtigung konnte nicht entfernt werden",
 
@@ -202,6 +205,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "移除",
   "Removing…": "正在移除…",
   "Remove permission": "移除权限",
+  "Remove permission?": "移除权限？",
   "failed to load permissions": "加载权限失败",
   "failed to remove permission": "移除权限失败",
 
@@ -254,6 +258,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "移除",
   "Removing…": "正在移除…",
   "Remove permission": "移除權限",
+  "Remove permission?": "移除權限？",
   "failed to load permissions": "載入權限失敗",
   "failed to remove permission": "移除權限失敗",
 
@@ -306,6 +311,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "Remover",
   "Removing…": "Removendo…",
   "Remove permission": "Remover permissão",
+  "Remove permission?": "Remover permissão?",
   "failed to load permissions": "falha ao carregar as permissões",
   "failed to remove permission": "falha ao remover a permissão",
 
@@ -358,6 +364,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "Удалить",
   "Removing…": "Удаление…",
   "Remove permission": "Удалить разрешение",
+  "Remove permission?": "Удалить разрешение?",
   "failed to load permissions": "не удалось загрузить разрешения",
   "failed to remove permission": "не удалось удалить разрешение",
 
@@ -410,6 +417,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "حذف",
   "Removing…": "در حال حذف…",
   "Remove permission": "حذف مجوز",
+  "Remove permission?": "مجوز حذف شود؟",
   "failed to load permissions": "بارگذاری مجوزها ناموفق بود",
   "failed to remove permission": "حذف مجوز ناموفق بود",
 
@@ -462,6 +470,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "إزالة",
   "Removing…": "جارٍ الإزالة…",
   "Remove permission": "إزالة الإذن",
+  "Remove permission?": "هل تريد إزالة الإذن؟",
   "failed to load permissions": "فشل تحميل الأذونات",
   "failed to remove permission": "فشلت إزالة الإذن",
 
@@ -514,6 +523,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "削除",
   "Removing…": "削除中…",
   "Remove permission": "権限を削除",
+  "Remove permission?": "権限を削除しますか？",
   "failed to load permissions": "権限の読み込みに失敗しました",
   "failed to remove permission": "権限の削除に失敗しました",
 
@@ -566,6 +576,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "제거",
   "Removing…": "제거 중…",
   "Remove permission": "권한 제거",
+  "Remove permission?": "권한을 제거하시겠습니까?",
   "failed to load permissions": "권한을 불러오지 못했습니다",
   "failed to remove permission": "권한을 제거하지 못했습니다",
 
@@ -618,6 +629,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "Usuń",
   "Removing…": "Usuwanie…",
   "Remove permission": "Usuń uprawnienie",
+  "Remove permission?": "Usunąć uprawnienie?",
   "failed to load permissions": "nie udało się wczytać uprawnień",
   "failed to remove permission": "nie udało się usunąć uprawnienia",
 
@@ -670,6 +682,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "Eltávolítás",
   "Removing…": "Eltávolítás…",
   "Remove permission": "Jogosultság eltávolítása",
+  "Remove permission?": "Eltávolítod a jogosultságot?",
   "failed to load permissions": "a jogosultságok betöltése sikertelen",
   "failed to remove permission": "a jogosultság eltávolítása sikertelen",
 
@@ -722,6 +735,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "Retirer",
   "Removing…": "Retrait…",
   "Remove permission": "Retirer l'autorisation",
+  "Remove permission?": "Retirer l'autorisation ?",
   "failed to load permissions": "échec du chargement des autorisations",
   "failed to remove permission": "échec du retrait de l'autorisation",
 
@@ -774,6 +788,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "Вилучити",
   "Removing…": "Вилучення…",
   "Remove permission": "Вилучити дозвіл",
+  "Remove permission?": "Вилучити дозвіл?",
   "failed to load permissions": "не вдалося завантажити дозволи",
   "failed to remove permission": "не вдалося вилучити дозвіл",
 
@@ -826,6 +841,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "Kaldır",
   "Removing…": "Kaldırılıyor…",
   "Remove permission": "İzni kaldır",
+  "Remove permission?": "İzin kaldırılsın mı?",
   "failed to load permissions": "izinler yüklenemedi",
   "failed to remove permission": "izin kaldırılamadı",
 
@@ -878,6 +894,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "นำออก",
   "Removing…": "กำลังนำออก…",
   "Remove permission": "นำสิทธิ์ออก",
+  "Remove permission?": "นำสิทธิ์ออกหรือไม่?",
   "failed to load permissions": "โหลดสิทธิ์ไม่สำเร็จ",
   "failed to remove permission": "นำสิทธิ์ออกไม่สำเร็จ",
 
@@ -930,6 +947,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "Rimuovi",
   "Removing…": "Rimozione…",
   "Remove permission": "Rimuovi autorizzazione",
+  "Remove permission?": "Rimuovere l'autorizzazione?",
   "failed to load permissions": "caricamento delle autorizzazioni non riuscito",
   "failed to remove permission": "rimozione dell'autorizzazione non riuscita",
 
@@ -982,6 +1000,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "हटाएँ",
   "Removing…": "हटाया जा रहा है…",
   "Remove permission": "अनुमति हटाएँ",
+  "Remove permission?": "अनुमति हटाएं?",
   "failed to load permissions": "अनुमतियाँ लोड नहीं हो सकीं",
   "failed to remove permission": "अनुमति हटाई नहीं जा सकी",
 
@@ -1034,6 +1053,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "ہٹائیں",
   "Removing…": "ہٹایا جا رہا ہے…",
   "Remove permission": "اجازت ہٹائیں",
+  "Remove permission?": "اجازت ہٹائیں؟",
   "failed to load permissions": "اجازتیں لوڈ نہیں ہو سکیں",
   "failed to remove permission": "اجازت نہیں ہٹائی جا سکی",
 
@@ -1086,6 +1106,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   Remove: "সরান",
   "Removing…": "সরানো হচ্ছে…",
   "Remove permission": "অনুমতি সরান",
+  "Remove permission?": "অনুমতি সরাবেন?",
   "failed to load permissions": "অনুমতি লোড করা যায়নি",
   "failed to remove permission": "অনুমতি সরানো যায়নি",
 
@@ -1311,4 +1332,38 @@ const POLICY_DELETE_BODY_PARTS: Record<string, { prefix: string; suffix: string 
 
 export function policyDeleteBodyParts(locale: string): { prefix: string; suffix: string } {
   return POLICY_DELETE_BODY_PARTS[locale] ?? POLICY_DELETE_BODY_PARTS.en;
+}
+
+/** Same "own the whole sentence per locale" shape as {@link roleDeleteBodyParts}/
+ *  {@link policyDeleteBodyParts} (C1) — the permission string sits between the quotes, and the
+ *  sentence continues past the closing quote to name the consequence ("Anyone with this policy
+ *  loses it."), which a fixed English word order concatenated onto a translated prefix would not
+ *  reliably place for every locale. */
+const PERMISSION_REMOVE_BODY_PARTS: Record<string, { prefix: string; suffix: string }> = {
+  en: { prefix: 'Remove "', suffix: '" from this policy? Anyone with this policy loses it.' },
+  es: { prefix: '¿Quitar el permiso "', suffix: '" de esta política? Cualquiera que tenga esta política lo perderá.' },
+  id: { prefix: 'Hapus izin "', suffix: '" dari kebijakan ini? Semua orang yang memiliki kebijakan ini akan kehilangannya.' },
+  de: { prefix: 'Die Berechtigung „', suffix: '“ aus dieser Richtlinie entfernen? Jeder, der diese Richtlinie hat, verliert sie.' },
+  "zh-CN": { prefix: '从此策略中移除权限"', suffix: '"？拥有此策略的所有人都会失去该权限。' },
+  "zh-TW": { prefix: '從此政策中移除權限「', suffix: '」？擁有此政策的所有人都會失去該權限。' },
+  "pt-BR": { prefix: 'Remover a permissão "', suffix: '" desta política? Todos que têm essa política a perderão.' },
+  ru: { prefix: 'Удалить разрешение «', suffix: '» из этой политики? Все, у кого есть эта политика, потеряют его.' },
+  fa: { prefix: 'مجوز «', suffix: '» از این خط‌مشی حذف شود؟ هرکسی که این خط‌مشی را دارد آن را از دست می‌دهد.' },
+  ar: { prefix: 'إزالة الإذن "', suffix: '" من هذه السياسة؟ سيفقده كل من يملك هذه السياسة.' },
+  ja: { prefix: 'このポリシーから権限「', suffix: '」を削除しますか？このポリシーを持つすべてのユーザーがこの権限を失います。' },
+  ko: { prefix: '이 정책에서 "', suffix: '" 권한을 제거하시겠습니까? 이 정책을 가진 모든 사용자가 이 권한을 잃습니다.' },
+  pl: { prefix: 'Usunąć uprawnienie „', suffix: '” z tej zasady? Każdy, kto ma tę zasadę, je straci.' },
+  hu: { prefix: 'Eltávolítod a(z) „', suffix: '” jogosultságot ebből a szabályzatból? Mindenki elveszíti, akinek ez a szabályzata van.' },
+  fr: { prefix: "Retirer l'autorisation « ", suffix: ' » de cette politique ? Toute personne disposant de cette politique la perdra.' },
+  uk: { prefix: 'Вилучити дозвіл «', suffix: '» із цієї політики? Усі, хто має цю політику, втратять його.' },
+  tr: { prefix: '"', suffix: '" izni bu politikadan kaldırılsın mı? Bu politikaya sahip herkes bu izni kaybeder.' },
+  th: { prefix: 'นำสิทธิ์ "', suffix: '" ออกจากนโยบายนี้หรือไม่? ทุกคนที่มีนโยบายนี้จะสูญเสียสิทธิ์นี้' },
+  it: { prefix: "Rimuovere l'autorizzazione \"", suffix: '" da questo criterio? Chiunque abbia questo criterio la perderà.' },
+  hi: { prefix: 'इस नीति से अनुमति "', suffix: '" हटाएं? इस नीति वाला हर व्यक्ति इसे खो देगा।' },
+  ur: { prefix: 'اس پالیسی سے اجازت "', suffix: '" ہٹائیں؟ اس پالیسی کا حامل ہر شخص اسے کھو دے گا۔' },
+  bn: { prefix: 'এই নীতি থেকে "', suffix: '" অনুমতি সরাবেন? এই নীতি থাকা প্রত্যেকে এটি হারাবে।' },
+};
+
+export function permissionRemoveBodyParts(locale: string): { prefix: string; suffix: string } {
+  return PERMISSION_REMOVE_BODY_PARTS[locale] ?? PERMISSION_REMOVE_BODY_PARTS.en;
 }

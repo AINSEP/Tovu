@@ -1,8 +1,9 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminPolicy, AdminRole } from "@/lib/api";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import {
   PolicyRow,
   Roles,
@@ -12,7 +13,8 @@ import {
   type RoleCreateFormController,
   type RoleRowController,
 } from "../Roles";
-import type { RolesController } from "../hooks/use-roles.hooks";
+import { useRoles, type RolesController } from "../hooks/use-roles.hooks";
+import { createFakeRolesPort } from "../hooks/roles-dependencies.hooks";
 import { t as realT } from "../roles-i18n";
 
 /**
@@ -39,6 +41,17 @@ const CUSTOM_POLICY: AdminPolicy = {
   name: "Custom Policy",
   isBuiltin: false,
   isFrozen: false,
+};
+
+// OQ-10 / C1 — hoisted to file scope (was local to "section/row controller seam") so the
+// permission-remove confirmation tests can use it too.
+const PERMISSION_ROW = {
+  id: "pp-1",
+  workspaceId: "w1",
+  policyId: CUSTOM_POLICY.id,
+  permission: "content.write",
+  resourceType: null,
+  constraintJson: null,
 };
 
 function baseController(overrides: Partial<RolesController> = {}): RolesController {
@@ -91,6 +104,10 @@ function baseController(overrides: Partial<RolesController> = {}): RolesControll
     permissionsLoading: false,
     removingPermissionId: null,
     onRemovePermission: vi.fn(),
+
+    pendingPermissionRemove: null,
+    setPendingPermissionRemove: vi.fn(),
+    onConfirmRemovePermission: vi.fn(),
 
     pendingRoleDelete: null,
     setPendingRoleDelete: vi.fn(),
@@ -331,6 +348,113 @@ describe("delete confirmation dialogs", () => {
   });
 });
 
+/** `PermissionRemoveDialog`'s body wraps the permission string in its own `<code>` element, so RTL's
+ *  default `getByText` (which only reads an element's OWN direct text-node children, not a
+ *  descendant's) never matches the full sentence — only the enclosing `<p>`'s `textContent` (which
+ *  DOES concatenate descendants) does. Scoped to `<p>` so it can't also match an ancestor. */
+function getPermissionRemoveDialogBody(fullText: string): HTMLElement {
+  return screen.getByText((_, element) => element?.tagName.toLowerCase() === "p" && element.textContent === fullText);
+}
+
+const PERMISSION_REMOVE_BODY_TEXT = 'Remove "content.write" from this policy? Anyone with this policy loses it.';
+
+describe("permission-remove confirmation dialog (C1)", () => {
+  it("opens naming the permission when pendingPermissionRemove is set", () => {
+    renderRoles({ pendingPermissionRemove: { policyId: CUSTOM_POLICY.id, row: PERMISSION_ROW } }, POLICIES_TAB);
+    expect(getPermissionRemoveDialogBody(PERMISSION_REMOVE_BODY_TEXT)).toBeInTheDocument();
+  });
+
+  it("stays closed when nothing is pending", () => {
+    renderRoles({}, POLICIES_TAB);
+    expect(screen.queryByText((_, element) => element?.textContent === PERMISSION_REMOVE_BODY_TEXT)).not.toBeInTheDocument();
+  });
+
+  it("wires Confirm/Cancel to onConfirmRemovePermission/setPendingPermissionRemove(null)", async () => {
+    const user = userEvent.setup();
+    const controller = renderRoles(
+      { pendingPermissionRemove: { policyId: CUSTOM_POLICY.id, row: PERMISSION_ROW } },
+      POLICIES_TAB,
+    );
+    const dialog = getPermissionRemoveDialogBody(PERMISSION_REMOVE_BODY_TEXT).closest("dialog") as HTMLElement;
+
+    await user.click(within(dialog).getByRole("button", { name: /^cancel$/i }));
+    expect(controller.setPendingPermissionRemove).toHaveBeenCalledWith(null);
+    expect(controller.onConfirmRemovePermission).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole("button", { name: /^remove$/i }));
+    expect(controller.onConfirmRemovePermission).toHaveBeenCalled();
+  });
+});
+
+/**
+ * The bug the stubbed-hook suites above cannot see (memory `green_tests_whose_assertion_tolerates_
+ * bug.md` #2): a controller built by hand already has `requestRemove` staging a confirmation, so
+ * none of the tests above ever drove the REAL hook's Remove button through to a durable write. This
+ * describe renders `Roles` against the real `useRoles` hook (via the injectable `useRolesHook` seam)
+ * composed with `createFakeRolesPort`, so the fake port's own state is the ground truth for whether
+ * a click actually removed anything.
+ */
+describe("permission removal is confirmed first (real hook, fake port)", () => {
+  function wrapper({ children }: { children: React.ReactNode }) {
+    return <FetchQueryProvider>{children}</FetchQueryProvider>;
+  }
+
+  function jsonResponse(body: unknown, status = 200): Response {
+    return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+  }
+
+  beforeEach(() => {
+    // `useRoles` also calls `useAdminLocale()` (real `fetch`) — routed to a fixed default-locale
+    // response, same interceptor `use-roles.unit.test.tsx`'s `beforeEach` uses.
+    vi.stubGlobal("fetch", (url: string) => {
+      if (String(url).includes("/settings/effective") && String(url).includes("namespace=core.language")) {
+        return Promise.resolve(jsonResponse({ data: [] }));
+      }
+      return Promise.reject(new Error(`unexpected fetch: ${String(url)}`));
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("clicking Remove asks first and leaves the permission in place until confirmed", async () => {
+    const user = userEvent.setup();
+    const port = createFakeRolesPort({
+      roles: [CUSTOM_ROLE],
+      policies: [CUSTOM_POLICY],
+      initialPolicyPermissions: [PERMISSION_ROW],
+    });
+    render(
+      <FetchQueryProvider>
+        <Roles tabId={POLICIES_TAB} useRolesHook={() => useRoles({ port })} />
+      </FetchQueryProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Custom Policy")).toBeInTheDocument());
+
+    // Open the panel through the real row menu, same as an operator would.
+    await user.click(screen.getByRole("button", { name: 'Actions for policy "Custom Policy"' }));
+    await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Add permission" }));
+    await waitFor(() => expect(screen.getByText("content.write")).toBeInTheDocument());
+
+    // First click asks — it must NOT have removed anything yet.
+    await user.click(screen.getByRole("button", { name: "Remove permission content.write" }));
+    expect(port.policyPermissions).toEqual([PERMISSION_ROW]);
+    const dialog = getPermissionRemoveDialogBody(PERMISSION_REMOVE_BODY_TEXT).closest("dialog") as HTMLElement;
+    expect(dialog).toHaveAttribute("open");
+
+    // Cancel leaves the permission in place.
+    await user.click(within(dialog).getByRole("button", { name: /^cancel$/i }));
+    expect(port.policyPermissions).toEqual([PERMISSION_ROW]);
+
+    // Remove, then confirm — now it is actually gone.
+    await user.click(screen.getByRole("button", { name: "Remove permission content.write" }));
+    await user.click(within(dialog).getByRole("button", { name: /^remove$/i }));
+    await waitFor(() => expect(port.policyPermissions).toEqual([]));
+  });
+});
+
 describe("create forms", () => {
   it("disables 'Create role' while roleName is empty or a create is already saving", () => {
     renderRoles({ roleName: "" });
@@ -403,7 +527,7 @@ describe("section/row controller seam", () => {
       rows: [],
       loading: false,
       removingId: null,
-      remove: vi.fn(),
+      requestRemove: vi.fn(),
       ...overrides,
     };
   }
@@ -449,14 +573,6 @@ describe("section/row controller seam", () => {
   });
 
   // OQ-10 — the open panel lists what the policy already holds, each row removable.
-  const PERMISSION_ROW = {
-    id: "pp-1",
-    workspaceId: "w1",
-    policyId: CUSTOM_POLICY.id,
-    permission: "content.write",
-    resourceType: null,
-    constraintJson: null,
-  };
 
   function renderOpenPermissionPanel(permission: PolicyPermissionController) {
     render(
@@ -468,13 +584,13 @@ describe("section/row controller seam", () => {
     );
   }
 
-  it("lists the policy's current permissions and routes each Remove through the controller", async () => {
+  it("routes each Remove to a confirmation request, never straight to removal", async () => {
     const permission = policyPermission({ openForPolicyId: CUSTOM_POLICY.id, rows: [PERMISSION_ROW] });
     renderOpenPermissionPanel(permission);
 
     expect(screen.getByText("content.write")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Remove permission content.write" }));
-    expect(permission.remove).toHaveBeenCalledWith(CUSTOM_POLICY.id, PERMISSION_ROW.id);
+    expect(permission.requestRemove).toHaveBeenCalledWith({ policyId: CUSTOM_POLICY.id, row: PERMISSION_ROW });
   });
 
   it("shows the empty state when the policy holds no permissions", () => {
