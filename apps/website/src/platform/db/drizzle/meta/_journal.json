@@ -505,6 +505,13 @@
       "when": 1799841600004,
       "tag": "0071_form_definitions_trash",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "6",
+      "when": 1799841600005,
+      "tag": "0072_entries_submissions_trashed_items_trash",
+      "breakpoints": true
     }
   ]
 }

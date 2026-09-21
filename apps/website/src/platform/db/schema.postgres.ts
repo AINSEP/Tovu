@@ -448,6 +448,7 @@ export const entries = pgTable("entries", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
   version: bigint("version", { mode: "number" }).notNull(),
+  deletedAt: text("deleted_at"),
 }, (t) => [
     uniqueIndex("entries_workspace_type_slug_unique").on(t.workspaceId, t.type, t.slug),
     index("idx_entries_workspace").on(t.workspaceId, t.type),
@@ -559,6 +560,8 @@ export const formSubmissions = pgTable("form_submissions", {
   dataJson: text("data_json").notNull(),
   sourceIp: text("source_ip").notNull(),
   submittedAt: text("submitted_at").notNull(),
+  deletedAt: text("deleted_at"),
+  version: bigint("version", { mode: "number" }).notNull().default(1),
 }, (t) => [
     foreignKey({ columns: [t.formDefinitionId], foreignColumns: [formDefinitions.id] }).onDelete("restrict"),
     index("idx_form_submissions_definition").on(t.formDefinitionId, t.submittedAt),
@@ -1365,6 +1368,7 @@ export const trashedItems = pgTable("trashed_items", {
   displayTitle: text("display_title").notNull(),
   displaySubtitle: text("display_subtitle"),
   entityVersion: bigint("entity_version", { mode: "number" }),
+  priorMarker: text("prior_marker"),
   purgeLeaseOwner: text("purge_lease_owner"),
   purgeLeaseExpiresAt: text("purge_lease_expires_at"),
 }, (t) => [

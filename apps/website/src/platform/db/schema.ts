@@ -545,6 +545,14 @@ export const formSubmissions = sqliteTable(
     dataJson: text("data_json").notNull(),
     sourceIp: text("source_ip").notNull(),
     submittedAt: text("submitted_at").notNull(),
+    /** Trash marker (migration 0072), mirroring `formDefinitions.deletedAt` above. Nullable and
+     *  additive — every pre-existing row backfills to live (`NULL`). Not yet read by any query
+     *  (that lands with the `form_submission` registry entry); the column exists now so G1's
+     *  migration is the only one this feature needs. */
+    deletedAt: text("deleted_at"),
+    /** Optimistic-concurrency counter for the same future registry entry. Additive with
+     *  `DEFAULT 1`, so the already-running old build's inserts still satisfy `NOT NULL`. */
+    version: integer("version").notNull().default(1),
   },
   (table) => [
     index("idx_form_submissions_definition").on(table.formDefinitionId, table.submittedAt),
@@ -1147,6 +1155,9 @@ export const entries = sqliteTable(
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
     version: integer("version").notNull(),
+    /** Trash marker (migration 0072) for the `widget` registry entry (G2) — a widget is an `entries`
+     *  row with `type='widget'`. Nullable and additive; not yet read by any query in this batch. */
+    deletedAt: text("deleted_at"),
   },
   (table) => [
     uniqueIndex("entries_workspace_type_slug_unique").on(table.workspaceId, table.type, table.slug),
@@ -3355,6 +3366,13 @@ export const trashedItems = sqliteTable(
     displaySubtitle: text("display_subtitle"),
     /** The entity's `version` at trash time; `null` for a domain that has none. */
     entityVersion: integer("entity_version"),
+    /** The status-marker value the entity carried immediately before it was trashed (migration
+     *  0072), e.g. a `draft` menu's status before its marker flipped to `trash`. `null` for
+     *  timestamp-marker entities (there is no prior status to restore) and for every row trashed
+     *  before this column existed. `TrashService.trash` writes it; `restore` reads it back and
+     *  passes it to the adapter's `unhide` so a status-marker entity is restored to what it was,
+     *  not to a fixed fallback. */
+    priorMarker: text("prior_marker"),
     purgeLeaseOwner: text("purge_lease_owner"),
     purgeLeaseExpiresAt: text("purge_lease_expires_at"),
   },
