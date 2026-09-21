@@ -144,6 +144,18 @@ export interface MenuEditorController {
   moveAt: (path: number[], direction: -1 | 1) => void;
   addRootItem: () => void;
   save: () => Promise<void>;
+  /**
+   * Whether a Save request is currently in flight (S4a, 2026-09-20) — the button had no `disabled`
+   * at all, unlike Pages/Posts' twin `saving` field (`PageEditorController.saving`,
+   * `PostEditorController.saving` from the same pass, `use-post-editor.hooks.ts` M4). A double click
+   * sent two `updateMenuTree` calls carrying the same `expectedVersion`; the first landed, the
+   * second's basis was already stale, so the operator saw an error line next to "Saved". Unlike
+   * Pages/Posts, this screen has no "later click wins" intent to preserve (Menus has one action, not
+   * a Save-vs-Publish race), so `save()` itself drops a same-tick re-entry via a synchronous
+   * `useRef` guard rather than letting a second write reach the port at all — see `save()`'s own
+   * comment.
+   */
+  saving: boolean;
   /** Bound translator — `MenuEditor.tsx`'s only source of UI copy; see this file's own header. */
   t: Translate;
 }
@@ -223,6 +235,15 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
   const activeMenuIdRef = useRef(menuId);
   activeMenuIdRef.current = menuId;
 
+  // Same-tick re-entry guard for `save()` (S4a, 2026-09-20) — see `MenuEditorController.saving`'s
+  // own doc for the double-write bug this closes. A plain `useRef`, not `useSettlementGeneration`
+  // (Pages/Posts' primitive): this screen has only one write action, so there is no "later click
+  // wins" outcome to preserve — the second same-tick call should simply not happen at all. Checked
+  // synchronously at the top of `save()`, before anything else runs, so two calls issued in the same
+  // tick (a double click) both observe the first one's claim.
+  const savingRef = useRef(false);
+  const [saving, setSaving] = useState(false);
+
   function changeAt(path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) {
     setItems((prev) => mapAtPath(prev, path, fn));
   }
@@ -240,6 +261,12 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
   }
 
   async function save() {
+    // Drop a same-tick duplicate outright — see `savingRef`'s own comment above and
+    // `MenuEditorController.saving`'s doc for why this screen prefers "the second click never
+    // happens" over Pages/Posts' "let the later one win".
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
     const savingForMenuId = menuId;
     setMessage(null);
     setError(null);
@@ -264,6 +291,12 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
     } catch (e) {
       if (activeMenuIdRef.current !== savingForMenuId) return;
       setError(e instanceof Error ? e.message : "save failed");
+    } finally {
+      // Unconditional, unlike the `activeMenuIdRef` checks above: this flag tracks whether THIS
+      // save cycle is still on the wire, not whether its result still belongs to the menu on
+      // screen, so it always clears when the request settles, whichever menu that request was for.
+      savingRef.current = false;
+      setSaving(false);
     }
   }
 
@@ -285,6 +318,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
     moveAt,
     addRootItem,
     save,
+    saving,
     t,
   };
 }

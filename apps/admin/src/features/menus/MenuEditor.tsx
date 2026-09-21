@@ -351,6 +351,7 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
     moveAt,
     addRootItem,
     save,
+    saving,
     t,
   } = useMenuEditorHook(menuId);
 
@@ -382,7 +383,9 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
           </a>
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? <span className="save-error">{error}</span> : null}
-          <button onClick={save}>{t("Save")}</button>
+          <button onClick={save} disabled={saving}>
+            {t("Save")}
+          </button>
         </div>
       </div>
       {/* Audit finding: placeholder-only, no `<label>` — same fix as `PostEditor.tsx`'s title/slug

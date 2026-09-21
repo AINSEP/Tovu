@@ -397,6 +397,7 @@ describe("injected hook seam (useMenuEditorHook)", () => {
       moveAt: vi.fn(),
       addRootItem: vi.fn(),
       save: vi.fn(async () => {}),
+      saving: false,
       t: (key) => key,
     };
     const useMenuEditorHook = vi.fn(() => controller);
