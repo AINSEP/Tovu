@@ -422,7 +422,7 @@ describe("theme card preview", () => {
     render(<Themes useThemesHook={() => baseController({ t })} />);
     const card = screen.getByText("signal").closest(".theme-card") as HTMLElement;
     await user.click(within(card).getByRole("button", { name: "Expand preview for signal" }));
-    const dialog = card.querySelector("dialog.image-preview-modal")!;
+    const dialog = card.querySelector("dialog.image-preview-modal") as HTMLElement;
 
     expect(within(dialog).getByRole("button", { name: "[es] Close preview" })).toBeInTheDocument();
     expect(dialog.querySelector("img")).toHaveAttribute("alt", "[es] signal vista previa");
