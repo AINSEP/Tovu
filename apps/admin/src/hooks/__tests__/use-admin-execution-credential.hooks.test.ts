@@ -811,6 +811,39 @@ describe("useAdminExecutionCredential — stored: an older read never overwrites
 
     expect(result.current.stored?.isSet).toBe(true);
   });
+
+  it("a save that FAILS does not strand a slower read that was already in flight", async () => {
+    // A failed write learned nothing about the row, so it must not supersede a read that is still
+    // coming back with the row's real state — otherwise `stored` stays at its pre-load value (here
+    // `null`: no key, no migration prompt) until some unrelated refresh happens to run.
+    const loads: Array<{ resolve: (view: AdminExecutionCredential) => void }> = [];
+    const port: AdminExecutionCredentialPort = {
+      loadAdminExecutionCredential() {
+        return new Promise<AdminExecutionCredential>((resolve) => {
+          loads.push({ resolve });
+        });
+      },
+      async saveAdminExecutionCredential() {
+        throw new FakeApiError("boom", 500);
+      },
+    };
+    const { result } = renderHook(() =>
+      useAdminExecutionCredential({ byok: byok({ apiKey: "sk-new" }), onByokChange: vi.fn() }, port),
+    );
+    await waitFor(() => expect(loads.length).toBe(1)); // the mount GET, left pending
+
+    await act(async () => {
+      await result.current.saveKey();
+    });
+    expect(result.current.saveState.status).toBe("error");
+
+    await act(async () => {
+      loads[0]!.resolve(setView({ masked: "••••live" }));
+      await Promise.resolve();
+    });
+
+    expect(result.current.stored).toEqual(setView({ masked: "••••live" }));
+  });
 });
 
 /**

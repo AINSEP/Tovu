@@ -291,6 +291,18 @@ export function useAdminExecutionCredential(
   // happen, so none of those are stale just because a later call also started.
   const storedSettlement = useSettlementGeneration();
 
+  // A write's own response is the freshest view of the row this mount has at the instant it lands,
+  // so it mints its generation THEN — after the await, and only on success — superseding any read
+  // still in flight, and installs unconditionally. Minting before the PUT instead let a FAILED
+  // write (which learned nothing about the row) strand a slower read that was still coming back:
+  // `stored` then stayed at its pre-load value until some unrelated refresh ran. Unlike
+  // `useSerialWrites`' own "mint before `run`" rule, this generation orders RESPONSES by arrival,
+  // not button presses by intent — nothing here is a "which click owns the UI" decision.
+  function installWrittenView(view: AdminExecutionCredential): void {
+    storedSettlement.next();
+    setStored(view);
+  }
+
   // Hydrate the stored view, on mount AND whenever another mount (or `AssistantDock`'s own separate
   // copy) publishes a change to this same server row — see this file's "Cross-mount staleness" doc
   // above. Silent on failure, same posture `use-visitor-credential-form.hooks.ts` takes for its own
@@ -353,9 +365,8 @@ export function useAdminExecutionCredential(
         // literal (rather than spreading `byok` and deleting) is what makes that readable at a glance
         // — there is no branch here that could let another field through.
         const patch: AdminExecutionCredentialPatch = { apiKey };
-        const generation = storedSettlement.next();
         const view = await port.saveAdminExecutionCredential(patch);
-        if (storedSettlement.isCurrent(generation)) setStored(view);
+        installWrittenView(view);
         setSaveState({ status: "saved" });
         // Tells every other mounted copy of this credential (the other settings screen, the dock) to
         // re-read — see this file's "Cross-mount staleness" doc above.
@@ -389,9 +400,8 @@ export function useAdminExecutionCredential(
           model: byok.model,
           ...(byok.maxTokens !== undefined ? { maxTokens: byok.maxTokens } : {}),
         };
-        const generation = storedSettlement.next();
         const view = await port.saveAdminExecutionCredential(patch);
-        if (storedSettlement.isCurrent(generation)) setStored(view);
+        installWrittenView(view);
         setSettingsSaveState({ status: "saved" });
         publishSettingsRefresh([EXECUTION_NAMESPACE]);
       } catch (error) {
@@ -416,7 +426,6 @@ export function useAdminExecutionCredential(
           model: byok.model,
           ...(byok.maxTokens !== undefined ? { maxTokens: byok.maxTokens } : {}),
         };
-        const generation = storedSettlement.next();
         const view = await port.saveAdminExecutionCredential(patch);
         // Clear the local copy ONLY after the PUT above has actually resolved successfully — the
         // design's explicit ordering requirement (§6: "only after that PUT succeeds does the code
@@ -424,7 +433,7 @@ export function useAdminExecutionCredential(
         // migration leaves both the local key AND `legacyKey` state untouched — the prompt stays up
         // and the admin can retry or decline.
         clearLegacyLocalCredential();
-        if (storedSettlement.isCurrent(generation)) setStored(view);
+        installWrittenView(view);
         setLegacyKey(null);
         setSaveState({ status: "saved" });
         // Same cross-mount notification `saveKey` above sends — a migration is a write to the same row.
