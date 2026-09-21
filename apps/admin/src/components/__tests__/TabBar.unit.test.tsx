@@ -156,3 +156,129 @@ describe("TabBar — agent handles", () => {
     expect(screen.getByRole("tablist", { name: "My tabs" })).not.toHaveAttribute(AGENT_ELEMENT);
   });
 });
+
+describe("TabBar — keyboard (WAI-ARIA tabs)", () => {
+  const THREE_TABS: readonly TabBarTab[] = [
+    { id: "a", label: "Tab A" },
+    { id: "b", label: "Tab B" },
+    { id: "c", label: "Tab C" },
+  ];
+
+  it("moves focus and calls onChange to the next tab on ArrowRight", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<TabBar tabs={THREE_TABS} activeId="a" onChange={onChange} ariaLabel="My tabs" />);
+
+    screen.getByRole("tab", { name: "Tab A" }).focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(onChange).toHaveBeenCalledWith("b");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Tab B" }));
+  });
+
+  it("moves focus to the previous tab on ArrowLeft", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<TabBar tabs={THREE_TABS} activeId="b" onChange={onChange} ariaLabel="My tabs" />);
+
+    screen.getByRole("tab", { name: "Tab B" }).focus();
+    await user.keyboard("{ArrowLeft}");
+
+    expect(onChange).toHaveBeenCalledWith("a");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Tab A" }));
+  });
+
+  it("wraps from the last tab to the first on ArrowRight", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<TabBar tabs={THREE_TABS} activeId="c" onChange={onChange} ariaLabel="My tabs" />);
+
+    screen.getByRole("tab", { name: "Tab C" }).focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(onChange).toHaveBeenCalledWith("a");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Tab A" }));
+  });
+
+  it("wraps from the first tab to the last on ArrowLeft", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<TabBar tabs={THREE_TABS} activeId="a" onChange={onChange} ariaLabel="My tabs" />);
+
+    screen.getByRole("tab", { name: "Tab A" }).focus();
+    await user.keyboard("{ArrowLeft}");
+
+    expect(onChange).toHaveBeenCalledWith("c");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Tab C" }));
+  });
+
+  it("moves focus to the first tab on Home and the last tab on End", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<TabBar tabs={THREE_TABS} activeId="b" onChange={onChange} ariaLabel="My tabs" />);
+
+    screen.getByRole("tab", { name: "Tab B" }).focus();
+    await user.keyboard("{Home}");
+    expect(onChange).toHaveBeenLastCalledWith("a");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Tab A" }));
+
+    screen.getByRole("tab", { name: "Tab A" }).focus();
+    await user.keyboard("{End}");
+    expect(onChange).toHaveBeenLastCalledWith("c");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Tab C" }));
+  });
+
+  it("skips a disabled tab when moving with ArrowRight", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const tabs: TabBarTab[] = [
+      { id: "a", label: "Tab A" },
+      { id: "b", label: "Tab B", disabled: true },
+      { id: "c", label: "Tab C" },
+    ];
+    render(<TabBar tabs={tabs} activeId="a" onChange={onChange} ariaLabel="My tabs" />);
+
+    screen.getByRole("tab", { name: "Tab A" }).focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(onChange).toHaveBeenCalledWith("c");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Tab C" }));
+  });
+
+  it("moves to the first enabled tab on ArrowRight when activeId matches no tab", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<TabBar tabs={THREE_TABS} activeId="does-not-exist" onChange={onChange} ariaLabel="My tabs" />);
+
+    screen.getByRole("tab", { name: "Tab A" }).focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(onChange).toHaveBeenCalledWith("a");
+  });
+
+  it("ignores keys other than ArrowLeft/ArrowRight/Home/End", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<TabBar tabs={THREE_TABS} activeId="a" onChange={onChange} ariaLabel="My tabs" />);
+
+    screen.getByRole("tab", { name: "Tab A" }).focus();
+    await user.keyboard("{ArrowDown}");
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("gives the active tab a roving tabindex of 0 and every other tab -1", () => {
+    render(<TabBar tabs={THREE_TABS} activeId="a" onChange={vi.fn()} ariaLabel="My tabs" />);
+
+    expect(screen.getByRole("tab", { name: "Tab A" })).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("tab", { name: "Tab B" })).toHaveAttribute("tabindex", "-1");
+    expect(screen.getByRole("tab", { name: "Tab C" })).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("gives the first enabled tab tabindex 0 when activeId matches no tab", () => {
+    render(<TabBar tabs={THREE_TABS} activeId="does-not-exist" onChange={vi.fn()} ariaLabel="My tabs" />);
+
+    expect(screen.getByRole("tab", { name: "Tab A" })).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("tab", { name: "Tab B" })).toHaveAttribute("tabindex", "-1");
+  });
+});
