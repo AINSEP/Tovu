@@ -124,6 +124,9 @@ export {
 export type { MediaContentTypeStorePort } from "./content-type-store.js";
 export { InMemoryMediaContentTypeStore } from "./content-type-store.js";
 
+export type { VersionedMediaRepoPort } from "./versioned-media-repo.js";
+export { InMemoryVersionedMediaRepo } from "./versioned-media-repo.js";
+
 export type {
   MediaProviderCredentialRepoPort,
   MediaProviderCredentialResolveDeps,

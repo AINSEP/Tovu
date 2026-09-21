@@ -64,8 +64,8 @@ import type {
   BlobStorePort,
   ImageTransformerPort,
   MediaContentTypeStorePort,
-  MediaRepoPort,
   TransformDefinitionRepoPort,
+  VersionedMediaRepoPort,
 } from "../../features/media/index.js";
 // Composition-root-only boot effect, deliberately imported straight from its own file rather than
 // through the `features/media` barrel — same precedent `deps.ts` already follows for
@@ -212,7 +212,7 @@ export interface MediaDeps {
    * `assetRenditionRepo` are the two core-owned sidecars ADR-027 §2 specifies;
    * `blobStore` is the one real ADR-027 §1 `BlobStorePort`.
    */
-  mediaRepo: MediaRepoPort;
+  mediaRepo: VersionedMediaRepoPort;
   assetBlobRepo: AssetBlobRepoPort;
   assetRenditionRepo: AssetRenditionRepoPort;
   blobStore: BlobStorePort;

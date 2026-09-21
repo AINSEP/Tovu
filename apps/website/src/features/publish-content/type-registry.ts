@@ -1,5 +1,5 @@
 import type { BeforeSaveHookPort, ForgetRemovedPostFn, PostRepoPort } from "#src/features/post/post";
-import type { AssetBlobRepoPort, BlobStorePort, MediaRepoPort } from "#src/features/media/index";
+import type { AssetBlobRepoPort, BlobStorePort, VersionedMediaRepoPort } from "#src/features/media/index";
 import type { AuthorizeFn, ChangeSetRepoPort, ClockPort, OutboxPort } from "@jini-ai/cms/core";
 
 /**
@@ -124,7 +124,7 @@ export interface PublishContentDeps {
    * it explicitly (`features/post/publish-content.ts`) rather than degrading silently.
    */
   readonly forgetRemovedPost?: ForgetRemovedPostFn;
-  readonly mediaRepo?: MediaRepoPort;
+  readonly mediaRepo?: VersionedMediaRepoPort;
   readonly assetBlobRepo?: AssetBlobRepoPort;
   readonly blobStore?: BlobStorePort;
 }

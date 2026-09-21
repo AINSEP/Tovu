@@ -112,7 +112,7 @@ import {
   InMemoryBlobStore,
   InMemoryImageTransformer,
   InMemoryMediaContentTypeStore,
-  InMemoryMediaRepo,
+  InMemoryVersionedMediaRepo,
   type MediaRecord,
   InMemoryTransformDefinitionRepo,
 } from "#src/features/media/index";
@@ -465,7 +465,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // `media.apply()` must write into the very stores the media routes and this file's own tests
   // read — constructed twice they would be two disconnected in-memory stores — and the media
   // `TrashAdapter` just below needs the same instance.
-  const mediaRepo = new InMemoryMediaRepo([]);
+  const mediaRepo = new InMemoryVersionedMediaRepo([]);
   const trashAdapters = new Map<string, TrashAdapter>([
     [
       POST_ENTITY_TYPE,

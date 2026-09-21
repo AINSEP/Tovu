@@ -15,7 +15,7 @@ import test from "node:test";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaRepo, type MediaRecord } from "#src/features/media/index";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import {
   listPublishContentContributors,
@@ -72,7 +72,7 @@ test("the registered media contributor's apply() is a real write path, not a thr
     htmlAttributes: null,
   };
 
-  const mediaRepo = new InMemoryMediaRepo();
+  const mediaRepo = new InMemoryVersionedMediaRepo();
   const blobStore = new InMemoryBlobStore();
   await blobStore.putIfAbsent({ workspaceId, sha256, bytes });
   const outbox = new InMemoryOutbox();

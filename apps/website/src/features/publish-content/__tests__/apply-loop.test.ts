@@ -27,7 +27,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import type { PostRecord } from "#src/features/post/post";
 import { contributePostPublish, toPublishableState } from "#src/features/post/publish-content";
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaRepo, computeBlobStorageKey, type MediaRecord } from "#src/features/media/index";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo, computeBlobStorageKey, type MediaRecord } from "#src/features/media/index";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
@@ -551,7 +551,7 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
   registerPublishContentContributor(contributeMediaPublish());
 
   const postRepo = new InMemoryPostRepo([]);
-  const mediaRepo = new InMemoryMediaRepo();
+  const mediaRepo = new InMemoryVersionedMediaRepo();
   const assetBlobRepo = new InMemoryAssetBlobRepo();
   const blobStore = new InMemoryBlobStore();
   const clock = makeClock();
