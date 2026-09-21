@@ -381,6 +381,10 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   source_control_get_capabilities: "git source control connected ready can I commit repository credentials setup github gitlab bitbucket",
   source_control_execute_commit: "push code git repository export to repo commit changes github",
 
+  // --- site backup ------------------------------------------------------------------------------------------
+  site_backup_plan: "backup back up save copy snapshot archive keep safe my site database content github repository private repo",
+  site_backup_push: "backup back up save copy snapshot archive site database github repository confirm push",
+
   // --- site inspection / evidence -----------------------------------------------------------------------
   site_get_profile: "site overview summary snapshot everything about the site inventory status",
   // 2026-09-15 — the owner asked for this tool as "describe_site_capabilities"; the id follows

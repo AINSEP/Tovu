@@ -34,6 +34,7 @@ import { contributeNewsletterTools } from "#src/features/newsletter/tool-registr
 import { contributeRedirectsTools } from "#src/features/redirects/tool-registrations";
 import { contributeSeoTools } from "#src/features/seo/tool-registrations";
 import { contributeSettingsTools } from "#src/features/settings/tool-registrations";
+import { contributeSiteBackupTools } from "#src/features/site-backup/tool-registrations";
 import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-registrations";
 import { contributeSiteInspectionTools } from "#src/features/site-inspection/index";
 import { contributeSitesTools } from "#src/features/sites/index";
@@ -298,6 +299,9 @@ export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeRedirectsTools());
   registerToolContributor(contributeSeoTools());
   registerToolContributor(contributeSettingsTools());
+  // Site backup (2026-09-21): `site_backup_plan` (read-only) and `site_backup_push`, which holds its
+  // own call open for the human's confirm before one commit lands in a private GitHub repository.
+  registerToolContributor(contributeSiteBackupTools());
   registerToolContributor(contributeSiteEvidenceTools());
   registerToolContributor(contributeSiteInspectionTools());
   registerToolContributor(contributeSitesTools());

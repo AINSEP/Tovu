@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
@@ -12,6 +12,9 @@ import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
 import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import { SqliteDeploymentsReadRepo } from "#src/features/deployments/index";
+import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
+import { resolveSkillLayout } from "#src/features/skills/layout";
+import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import { SqlitePublishCredentialSetRepo } from "#src/platform/db/sqlite/publish-credential-repo.sqlite";
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
 import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-content-bundle-repo.sqlite";
@@ -614,6 +617,36 @@ function resolveSiteBindingOverride(overrides?: Partial<CreateSqliteRouteDepsOve
 }
 
 /**
+ * `RouteDeps.siteBackupSources`: the directories `site_backup_plan` reads, taken from the SAME
+ * resolved values this root serves the site from, so a backup never walks a different folder than
+ * the one in use. Media is `null` under `TOVU_MEDIA_BLOB_STORE=s3`: the bytes then live in object
+ * storage, and the backup says so instead of copying an unused local folder.
+ *
+ * @complexity O(1) — env reads and one small `package.json` read.
+ */
+function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; themesDir: string }): SiteBackupSources {
+  return {
+    siteDir: input.siteDir,
+    mediaUploadsDir: process.env.TOVU_MEDIA_BLOB_STORE === "s3" ? null : input.uploadsDir,
+    themesDir: input.themesDir,
+    agentPluginsDir: resolveAgentPluginLayout().root,
+    skillsDir: resolveSkillLayout().root,
+    tovuVersion: readTovuVersion(),
+  };
+}
+
+/** The product's own `package.json` version, stamped into a site backup's manifest. A missing or
+ *  unreadable file costs only the stamp, never the boot. */
+function readTovuVersion(): string {
+  try {
+    const parsed = JSON.parse(readFileSync(join(resolveProductRoot(), "package.json"), "utf8")) as { version?: unknown };
+    return typeof parsed.version === "string" ? parsed.version : "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+/**
  * SPEC-050 (NC-2 = B, REQ-13): the served site's display name, `config.json` `name` in the directory
  * holding `dbPath`, read at each render that needs it so a rename shows with no restart. Every boot
  * path keeps `content.db` in its site directory (`tovu serve`/`tovu export` pass `<dir>/content.db`;
@@ -1003,7 +1036,8 @@ export function createSqliteRouteDeps(
   // caller needs to gate on it — `hydrateBlobStoreFromSeed`'s own per-key gate makes every run after
   // the first an all-`skipped` no-op. It calls `blobStore.putIfAbsent()` — one atomic call per key
   // now, not a separate `exists()`/`put()` pair (see that file's header for the race that closes).
-  const blobStore = resolveBlobStore(overrides?.uploadsDir ?? mediaUploadsDir());
+  const resolvedUploadsDir = overrides?.uploadsDir ?? mediaUploadsDir();
+  const blobStore = resolveBlobStore(resolvedUploadsDir);
   const blobHydrationReady = hydrateBlobStoreFromSeed({
     seedUploadsDir: builtInSeedUploadsDir(),
     blobStore,
@@ -1549,6 +1583,7 @@ export function createSqliteRouteDeps(
     // the same cheap, side-effect-free env/path lookup, not a second filesystem walk.
     packageThemesDir: builtInThemesDir(),
     siteBinding: resolvedSiteBinding,
+    siteBackupSources: resolveSiteBackupSources({ siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir, themesDir: resolvedThemesDir }),
     outbox,
     bus,
     // Env-driven — off (the real no-op port) unless the operator has set

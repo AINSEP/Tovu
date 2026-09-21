@@ -187,6 +187,7 @@ import {
   updateVendorCredential,
 } from "../features/vendor-credentials/index.js";
 import type { SourceControlToolDeps } from "../features/source-control/tool-registrations.js";
+import type { SiteBackupToolDeps } from "../features/site-backup/tool-registrations.js";
 import type { PluginsToolDeps } from "../features/plugin-runtime/tool-registrations.js";
 import type { AgentPluginSearchToolDeps, AgentPluginUninstallToolDeps } from "../features/agent-plugins/tool-registrations.js";
 import type { PostToolDeps } from "../features/post/tool-registrations.js";
@@ -263,6 +264,7 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   PagesToolDeps &
   RecoveryToolDeps &
   SettingsToolDeps &
+  SiteBackupToolDeps &
   SiteInspectionToolDeps &
   SitesToolDeps &
   TaxonomyToolDeps &

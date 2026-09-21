@@ -224,6 +224,12 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // above describes: the dialog would render correctly naming every path it would write, and every
   // submission would 403 with TOOL_NOT_ALLOWLISTED, unusable in production from the day it shipped.
   "custom_credential_write_files",
+  // 2026-09-21 — `site_backup_push` (`features/site-backup/tool-registrations.ts`) holds up the same
+  // held-open exchange: it parks on the human's Back up/Cancel click
+  // (`features/site-backup/confirmation-ui.ts`) before committing the site's database and files to
+  // a private GitHub repository. Every call is gated. Without this entry both buttons would 403
+  // with TOOL_NOT_ALLOWLISTED, the same gap `custom_credential_write_files` above describes.
+  "site_backup_push",
 ]);
 
 /**

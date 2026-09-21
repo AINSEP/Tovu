@@ -4,6 +4,7 @@ import type { SiteProduct } from "../inbound/public-http/http/site/render.js";
 import type { ExportReport } from "#src/platform/export/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 import type { SiteBinding } from "#src/platform/site-dir/index";
+import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
 import type { ForgetRemovedEntity, RemoveEntity, TrashPort, TrashSweepOnce } from "#src/features/trash/index";
 import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
@@ -1569,6 +1570,16 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * falls back to `describeSiteBinding()`, an unchanged default.
    */
   siteBinding: SiteBinding;
+  /**
+   * Where `features/site-backup`'s `site_backup_plan` reads this site's files from: the site folder
+   * (`siteBinding.dir`), and the SAME uploads, themes, agent-plugins and skills roots this process
+   * serves them from, plus the Tovu version stamped into the backup's manifest. Resolved once by
+   * `server/runtime/composition/deps.ts`'s `createSqliteRouteDeps()`.
+   *
+   * Optional because the in-memory `server/app.ts` runtime has no site folder on disk; both
+   * site-backup tools then answer `UNAVAILABLE` instead of backing up nothing.
+   */
+  siteBackupSources?: SiteBackupSources;
   /**
    * `TOVU_ADMIN_ASSISTANT` off switch, read ONCE at boot (`admin-assistant-enabled.ts`'s
    * `isAdminAssistantEnabled()`) by both composition roots — `server/app.ts`'s `createRouteDeps()`
