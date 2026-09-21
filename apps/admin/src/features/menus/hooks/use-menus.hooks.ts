@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { type AdminMenu } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { t as translate } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
@@ -50,11 +51,23 @@ export function useMenus({ port, t }: MenusDependencies): MenusController {
   const [pendingForceDelete, setPendingForceDelete] = useState<AdminMenu | null>(null);
   const [forceDeleting, setForceDeleting] = useState(false);
 
+  // Latest-wins for `load()`: the mount read and each trash/purge re-read can be in flight together
+  // with no ordering guarantee. Without it, trashing A then B lets A's older read settle last and
+  // put B back to `active`. Same guard `use-widgets-library.hooks.ts` uses for the same shape.
+  const loadSettlement = useSettlementGeneration();
+
   function load() {
+    const generation = loadSettlement.next();
     port
       .listMenus()
-      .then((r) => setMenus(r.menus))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load menus"));
+      .then((r) => {
+        if (!loadSettlement.isCurrent(generation)) return;
+        setMenus(r.menus);
+      })
+      .catch((e) => {
+        if (!loadSettlement.isCurrent(generation)) return;
+        setError(e instanceof Error ? e.message : "failed to load menus");
+      });
   }
 
   useEffect(load, [port]);

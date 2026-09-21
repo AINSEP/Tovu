@@ -65,3 +65,74 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
     expect(result.current.menus).toBeNull();
   });
 });
+
+/**
+ * a3-review-6 (2026-09-21), sink of c77af7f1e: `load()` had no latest-wins guard, the same shape
+ * `use-widgets-library.hooks.ts` just fixed. Trashing menu A, then menu B, fires two independent
+ * re-reads; if A's older read settles last, B renders `active` again although the server trashed it.
+ */
+describe("useMenus — overlapping list reads keep the newest", () => {
+  const MENU_A: AdminMenu = { ...MENU, id: "mA", slug: "a", title: "A" };
+  const MENU_B: AdminMenu = { ...MENU, id: "mB", slug: "b", title: "B" };
+  type ListResult = { menus: AdminMenu[] };
+
+  function holdReadsAfterMount(port: ReturnType<typeof createFakeMenusPort>) {
+    const releases: Array<{ resolve: (r: ListResult) => void; reject: (e: unknown) => void }> = [];
+    let callCount = 0;
+    port.listMenus = vi.fn(() => {
+      callCount += 1;
+      // The mount read settles immediately; every read after it is held until the test releases it.
+      if (callCount === 1) return Promise.resolve({ menus: [MENU_A, MENU_B] });
+      return new Promise<ListResult>((resolve, reject) => {
+        releases[callCount] = { resolve, reject };
+      });
+    });
+    return releases;
+  }
+
+  async function trashAThenB(result: { current: ReturnType<typeof useMenus> }, releases: unknown[]) {
+    act(() => {
+      void result.current.trashOrPurge(MENU_A);
+    });
+    await waitFor(() => expect(releases[2]).toBeDefined());
+    act(() => {
+      void result.current.trashOrPurge(MENU_B);
+    });
+    await waitFor(() => expect(releases[3]).toBeDefined());
+  }
+
+  it("an older list read settling after a newer one does not overwrite it", async () => {
+    const port = createFakeMenusPort({ menus: [MENU_A, MENU_B] });
+    const releases = holdReadsAfterMount(port);
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+    await waitFor(() => expect(result.current.menus).toHaveLength(2));
+    await trashAThenB(result, releases);
+
+    await act(async () => {
+      releases[3]!.resolve({ menus: [{ ...MENU_A, status: "trash" }, { ...MENU_B, status: "trash" }] });
+    });
+    await act(async () => {
+      releases[2]!.resolve({ menus: [{ ...MENU_A, status: "trash" }, MENU_B] });
+    });
+
+    expect(result.current.menus?.map((m) => m.status)).toEqual(["trash", "trash"]);
+  });
+
+  it("an older list read failing after a newer one succeeded shows no load error", async () => {
+    const port = createFakeMenusPort({ menus: [MENU_A, MENU_B] });
+    const releases = holdReadsAfterMount(port);
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+    await waitFor(() => expect(result.current.menus).toHaveLength(2));
+    await trashAThenB(result, releases);
+
+    await act(async () => {
+      releases[3]!.resolve({ menus: [{ ...MENU_A, status: "trash" }, { ...MENU_B, status: "trash" }] });
+    });
+    await act(async () => {
+      releases[2]!.reject(new Error("stale read failed"));
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.menus?.map((m) => m.status)).toEqual(["trash", "trash"]);
+  });
+});
