@@ -369,4 +369,57 @@ describe("X1: reload() generation guard", () => {
 
     await waitFor(() => expect(result.current.plugins).toEqual([aOn, bOn]));
   });
+
+  // The `.catch` arm's own generation guard (3b16b07d5). The test above only proves the `.then` arm:
+  // with the `.catch` guard removed, every test in this file still passed, and an older reload that
+  // FAILED after a newer one had already succeeded put its error banner over a list that is current.
+  it("an older reload that fails after a newer one succeeded does not raise its error", async () => {
+    const pluginA: AdminPlugin = { id: "p1", name: "A", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] };
+    const pluginB: AdminPlugin = { id: "p2", name: "B", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] };
+    const port = createFakePluginsPort({ plugins: [pluginA, pluginB] });
+
+    let listCall = 0;
+    let rejectD1!: (reason: Error) => void;
+    let resolveD2!: (v: { plugins: AdminPlugin[] }) => void;
+    const d1 = new Promise<{ plugins: AdminPlugin[] }>((_resolve, reject) => (rejectD1 = reject));
+    const d2 = new Promise<{ plugins: AdminPlugin[] }>((resolve) => (resolveD2 = resolve));
+    port.listPlugins = () => {
+      listCall += 1;
+      if (listCall === 1) return Promise.resolve({ plugins: [pluginA, pluginB] }); // initial mount load
+      if (listCall === 2) return d1; // A's post-toggle reload
+      return d2; // B's post-toggle reload
+    };
+
+    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.plugins).toHaveLength(2));
+
+    act(() => {
+      void result.current.onToggleEnabled(pluginA);
+    });
+    await waitFor(() => expect(listCall).toBe(2));
+    act(() => {
+      void result.current.onToggleEnabled(pluginB);
+    });
+    await waitFor(() => expect(listCall).toBe(3));
+
+    const aOn = { ...pluginA, enabled: true };
+    const bOn = { ...pluginB, enabled: true };
+
+    // The NEWER reload (B's, d2) succeeds first...
+    await act(async () => {
+      resolveD2({ plugins: [aOn, bOn] });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.plugins).toEqual([aOn, bOn]));
+
+    // ...then the OLDER reload (A's, d1) fails. Flushed through several microtasks so its `.catch`
+    // handler has certainly run before the assertion below.
+    await act(async () => {
+      rejectD1(new Error("stale reload failed"));
+      for (let i = 0; i < 5; i += 1) await Promise.resolve();
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.plugins).toEqual([aOn, bOn]);
+  });
 });
