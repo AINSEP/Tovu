@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Plugins } from "../Plugins";
 import type { PluginsController } from "../hooks/use-plugins.hooks";
+import type { AdminPlugin } from "@/lib/api";
 
 /**
  * @file `Plugins` screen — SPEC-005 REQ-12..18, AC-18..26, EC-11 (ui.spec.md), rebuilt onto the
@@ -570,7 +571,7 @@ describe("Accessibility (React Component Testing Policy)", () => {
  * this is a component-rendering fact ("what does the screen show for THIS controller state"), not a
  * `usePlugins` load/toggle behavior, which stays in `use-plugins.hooks.unit.test.ts`.
  */
-const WORD_COUNT_PLUGIN = { id: "word-count", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [] };
+const WORD_COUNT_PLUGIN: AdminPlugin = { id: "word-count", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [] };
 
 function fakePluginsController(overrides: Partial<PluginsController> = {}): PluginsController {
   return {
