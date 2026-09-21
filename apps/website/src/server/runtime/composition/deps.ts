@@ -1712,6 +1712,7 @@ export function createSqliteRouteDeps(
     // `server/app.ts`'s hermetic-test composition's identical construction.
     formDefinitionRepo,
     formSubmissionRepo: new SqliteFormSubmissionRepo(db),
+    removeFormSubmission: bindRemoveEntity(trash, "form_submission"),
     formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
     // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,
     // just above it so the two process-lifetime rate limiters stay visually paired.

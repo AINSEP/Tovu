@@ -19,8 +19,9 @@
  * `taxonomy` need `hiddenWithParent`/`blockers`/`afterChange`, none of which G1 wires — see the
  * handoff's "notes for G2" for why those fields are deliberately not on {@link TrashEntry} yet).
  */
-import type { AnyColumn, SQL, Table } from "drizzle-orm";
+import { eq, type AnyColumn, type SQL, type Table } from "drizzle-orm";
 
+import type { TrashDbJoin } from "./db-port.js";
 import type { TrashEntityType } from "./ports.js";
 
 /**
@@ -36,10 +37,12 @@ export type TrashMarkerSpec =
   | { kind: "status"; column: AnyColumn; trashed: string; restoreFallback: string };
 
 /** Column-only snapshot for a Trash row's two display lines (SEE `TrashDisplay` in `ports.ts`).
- *  Joins (a submission's form name, a term's taxonomy name) are a G3/G4 extension. */
+ *  `join` reaches ONE parent row for a column that is not on the entry's own table (a submission's
+ *  form name) — an inner join, so it is only for parents a foreign key guarantees. */
 export interface TrashDisplaySpec {
   title: AnyColumn;
   subtitle?: AnyColumn;
+  join?: TrashDbJoin;
 }
 
 /** A child table to delete, in order, before the parent row itself — e.g. a form's submissions. */
@@ -90,7 +93,12 @@ export interface TrashRegistrySchema {
     version: AnyColumn;
   };
   formSubmissions: Table & {
+    id: AnyColumn;
+    workspaceId: AnyColumn;
     formDefinitionId: AnyColumn;
+    submittedAt: AnyColumn;
+    deletedAt: AnyColumn;
+    version: AnyColumn;
   };
 }
 
@@ -100,7 +108,7 @@ export interface TrashRegistrySchema {
  * the returned `Map` is never mutated after this returns, so "resolved at call time" here means
  * "read fresh from the Map on every lookup", not "rebuilt every call".
  *
- * @complexity O(1) — one entry today.
+ * @complexity O(1) — a fixed handful of entries.
  */
 export function buildTrashRegistry<TSchema extends TrashRegistrySchema>(required: { schema: TSchema }): TrashRegistry {
   const { schema } = required;
@@ -119,6 +127,30 @@ export function buildTrashRegistry<TSchema extends TrashRegistrySchema>(required
         versionColumn: schema.formDefinitions.version,
         display: { title: schema.formDefinitions.name, subtitle: schema.formDefinitions.slug },
         purgeFirst: [{ table: schema.formSubmissions, parentIdColumn: schema.formSubmissions.formDefinitionId }],
+      },
+    ],
+    [
+      "form_submission",
+      {
+        entityType: "form_submission",
+        label: "Form submission",
+        permission: "admin.forms.submissions.delete",
+        table: schema.formSubmissions,
+        idColumn: schema.formSubmissions.id,
+        workspaceColumn: schema.formSubmissions.workspaceId,
+        marker: { kind: "timestamp", column: schema.formSubmissions.deletedAt },
+        versionColumn: schema.formSubmissions.version,
+        // The form's name and when it was sent — never `data_json`: the Trash list is not a place
+        // to show a visitor's data. `form_submissions.form_definition_id` is a real FK, so the
+        // inner join always finds the form (trashed or not).
+        display: {
+          title: schema.formDefinitions.name,
+          subtitle: schema.formSubmissions.submittedAt,
+          join: {
+            table: schema.formDefinitions,
+            on: eq(schema.formDefinitions.id, schema.formSubmissions.formDefinitionId),
+          },
+        },
       },
     ],
   ]);

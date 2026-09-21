@@ -129,17 +129,34 @@ export class InMemoryFormDefinitionRepo implements FormDefinitionRepoPort {
   }
 }
 
-export class InMemoryFormSubmissionRepo implements FormSubmissionRepoPort {
-  private readonly rows = new Map<UUID, FormSubmissionRecord>();
+/** A stored submission: the port's record plus the two Trash columns only the Trash touches. */
+export interface StoredFormSubmission extends FormSubmissionRecord {
+  deletedAt: string | null;
+  version: number;
+}
 
+function cloneSubmission(row: StoredFormSubmission): StoredFormSubmission {
+  return { ...row, data: { ...row.data } };
+}
+
+/** The port's view of a stored row: the Trash columns stay inside this adapter. */
+function toSubmissionRecord(row: StoredFormSubmission): FormSubmissionRecord {
+  const { deletedAt: _deletedAt, version: _version, ...record } = row;
+  return { ...record, data: { ...record.data } };
+}
+
+export class InMemoryFormSubmissionRepo implements FormSubmissionRepoPort {
+  private readonly rows = new Map<UUID, StoredFormSubmission>();
+
+  /** Trash-aware, like `repo.sqlite.ts`: a trashed submission reads as missing. */
   async findById(required: { workspaceId: UUID; id: UUID }): Promise<FormSubmissionRecord | null> {
     const row = this.rows.get(required.id);
-    if (!row || row.workspaceId !== required.workspaceId) return null;
-    return { ...row, data: { ...row.data } };
+    if (!row || row.workspaceId !== required.workspaceId || row.deletedAt !== null) return null;
+    return toSubmissionRecord(row);
   }
 
   async create(record: FormSubmissionRecord): Promise<void> {
-    this.rows.set(record.id, { ...record, data: { ...record.data } });
+    this.rows.set(record.id, { ...record, data: { ...record.data }, deletedAt: null, version: 1 });
   }
 
   async listByDefinition(required: {
@@ -150,7 +167,10 @@ export class InMemoryFormSubmissionRepo implements FormSubmissionRepoPort {
   }): Promise<FormSubmissionPage> {
     const all = [...this.rows.values()]
       .filter(
-        (row) => row.workspaceId === required.workspaceId && row.formDefinitionId === required.formDefinitionId
+        (row) =>
+          row.workspaceId === required.workspaceId &&
+          row.formDefinitionId === required.formDefinitionId &&
+          row.deletedAt === null
       )
       // Newest-first (behavior.spec.md §2.1): submittedAt desc, id desc tie-break.
       .sort((a, b) => {
@@ -165,10 +185,24 @@ export class InMemoryFormSubmissionRepo implements FormSubmissionRepoPort {
     const nextCursor =
       startIndex + required.limit < all.length ? page[page.length - 1]?.id ?? null : null;
 
-    return { items: page.map((row) => ({ ...row, data: { ...row.data } })), nextCursor };
+    return { items: page.map(toSubmissionRecord), nextCursor };
   }
 
-  async delete(required: { workspaceId: UUID; id: UUID }): Promise<void> {
+  /** Trash-BLIND — memory-only, NOT part of `FormSubmissionRepoPort`. The hermetic composition's
+   *  record-store `TrashAdapter` reads and writes the marker through these three, the way the real
+   *  adapter reads columns without going through the trash-aware port reads. */
+  async findAnyById(required: { workspaceId: UUID; id: UUID }): Promise<StoredFormSubmission | null> {
+    const row = this.rows.get(required.id);
+    return row && row.workspaceId === required.workspaceId ? cloneSubmission(row) : null;
+  }
+
+  /** Trash-BLIND write — see `findAnyById`. */
+  async save(record: StoredFormSubmission): Promise<void> {
+    this.rows.set(record.id, cloneSubmission(record));
+  }
+
+  /** Trash-BLIND purge — see `findAnyById`. */
+  async hardDelete(required: { workspaceId: UUID; id: UUID }): Promise<void> {
     const row = this.rows.get(required.id);
     if (row && row.workspaceId === required.workspaceId) {
       this.rows.delete(required.id);

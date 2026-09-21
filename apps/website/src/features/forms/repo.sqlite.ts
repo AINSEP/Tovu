@@ -183,7 +183,11 @@ export class SqliteFormSubmissionRepo implements FormSubmissionRepoPort {
     return findOneBy(
       this.db,
       formSubmissions,
-      [eq(formSubmissions.workspaceId, required.workspaceId), eq(formSubmissions.id, required.id)],
+      [
+        eq(formSubmissions.workspaceId, required.workspaceId),
+        eq(formSubmissions.id, required.id),
+        isNull(formSubmissions.deletedAt),
+      ],
       toSubmissionRecord
     );
   }
@@ -224,7 +228,8 @@ export class SqliteFormSubmissionRepo implements FormSubmissionRepoPort {
 
     const baseCondition = and(
       eq(formSubmissions.workspaceId, required.workspaceId),
-      eq(formSubmissions.formDefinitionId, required.formDefinitionId)
+      eq(formSubmissions.formDefinitionId, required.formDefinitionId),
+      isNull(formSubmissions.deletedAt)
     );
 
     // Newest-first (submittedAt desc, id desc tie-break, behavior.spec.md §2.1). Cursor resumes
@@ -253,12 +258,5 @@ export class SqliteFormSubmissionRepo implements FormSubmissionRepoPort {
     const nextCursor = hasMore ? page[page.length - 1]?.id ?? null : null;
 
     return { items: page.map(toSubmissionRecord), nextCursor };
-  }
-
-  async delete(required: { workspaceId: UUID; id: UUID }): Promise<void> {
-    this.db
-      .delete(formSubmissions)
-      .where(and(eq(formSubmissions.workspaceId, required.workspaceId), eq(formSubmissions.id, required.id)))
-      .run();
   }
 }

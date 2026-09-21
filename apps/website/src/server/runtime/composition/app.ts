@@ -133,7 +133,11 @@ import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsle
 import { toSendPipelineDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { createNewsletterModule } from "./modules/newsletter.js";
 import type { NewsletterPublicRouteDeps } from "../../inbound/public-http/routes/site/newsletter-deps.js";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/features/forms/repo.memory";
+import {
+  InMemoryFormDefinitionRepo,
+  InMemoryFormSubmissionRepo,
+  type StoredFormSubmission,
+} from "#src/features/forms/repo.memory";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
 import {
@@ -466,6 +470,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // read — constructed twice they would be two disconnected in-memory stores — and the media
   // `TrashAdapter` just below needs the same instance.
   const mediaRepo = new InMemoryVersionedMediaRepo([]);
+  // Hoisted for the same reason: the `form_submission` `TrashAdapter` below must flip the marker on
+  // the very store the Forms routes read.
+  const formSubmissionRepo = new InMemoryFormSubmissionRepo();
   const trashAdapters = new Map<string, TrashAdapter>([
     [
       POST_ENTITY_TYPE,
@@ -529,6 +536,21 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         // No `hardDelete`: a media purge is not a row delete — rendition rows hang off it and the
         // blob store holds bytes, a ladder `purgeMedia` owns. Reimplementing it here would orphan
         // bytes, so purge stands down instead.
+      }),
+    ],
+    [
+      "form_submission",
+      createRecordStoreTrashAdapter<StoredFormSubmission>({
+        entityType: "form_submission",
+        // The repo's trash-blind, memory-only seam — its port reads hide a trashed submission.
+        store: {
+          findById: (required) => formSubmissionRepo.findAnyById(required),
+          save: (record) => formSubmissionRepo.save(record),
+        },
+        isHidden: (record) => record.deletedAt !== null,
+        hidden: (record, at) => ({ ...record, deletedAt: at }),
+        shown: (record) => ({ ...record, deletedAt: null }),
+        hardDelete: (required) => formSubmissionRepo.hardDelete(required),
       }),
     ],
   ]);
@@ -894,7 +916,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // process-lifetime `FORMS_SUBMIT_PROFILE` counter store (constructed once here, not
     // per-request) so its fixed-window counts persist across requests within one `createApp()`.
     formDefinitionRepo,
-    formSubmissionRepo: new InMemoryFormSubmissionRepo(),
+    formSubmissionRepo,
+    removeFormSubmission: bindRemoveEntity(trash, "form_submission"),
     formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
     // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,
     // matching `server/deps.ts`'s real composition's identical construction.

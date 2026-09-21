@@ -25,6 +25,12 @@ export type TrashDbRow<TSelection extends Record<string, AnyColumn>> = {
   [K in keyof TSelection]: TSelection[K]["_"]["data"];
 };
 
+/** One inner join: `table` joined `on` a condition over both tables' columns. */
+export interface TrashDbJoin {
+  table: Table;
+  on: SQL;
+}
+
 export interface TrashDb {
   /**
    * Runs `run` inside one write transaction, reentrant with whatever transaction is already open on
@@ -38,6 +44,8 @@ export interface TrashDb {
     table: Table;
     columns: TSelection;
     where: SQL;
+    /** One inner join, for a display column that lives on a parent row (a submission's form name). */
+    join?: TrashDbJoin;
   }): Promise<TrashDbRow<TSelection> | null>;
 
   /** @returns the number of rows the `UPDATE` matched — never the row itself (see file header). */

@@ -199,3 +199,38 @@ test("purge removes the form and every one of its submissions", async () => {
   assert.equal(submissionRowCount(h, "f1"), 0);
   assert.equal(submissionRowCount(h, "f2"), 1, "another form's submissions are untouched");
 });
+
+test("a form_submission moved to the Trash shows the form's name and the time, never the data, and leaves the Forms list", async () => {
+  const h = harness();
+  seedFormWithSubmissions(h, "f1", 2);
+  h.db.$client.prepare(`UPDATE form_submissions SET data_json = '{"email":"ada@example.com"}'`).run();
+
+  const outcome = await moveToTrash(
+    { workspaceId: WS, entityType: "form_submission", entityId: "f1-sub-0", actor: ACTOR },
+    {
+      registry: h.registry,
+      trash: h.trash,
+      db: createSqliteTrashDb({ db: h.db }),
+      authorize: async (params) =>
+        params.permission === "admin.forms.submissions.delete"
+          ? { allowed: true, reason: "matched" }
+          : { allowed: false, reason: `missing ${params.permission}` },
+      clock: { nowIso: () => AT },
+    }
+  );
+  assert.deepEqual(outcome, { ok: true, version: 2 });
+
+  const page = await h.trash.list({ workspaceId: WS, now: AT, limit: 50 });
+  const item = page.items.find((row) => row.entityId === "f1-sub-0");
+  assert.equal(item?.entityType, "form_submission");
+  assert.equal(item?.displayTitle, "Form f1");
+  assert.equal(item?.displaySubtitle, AT);
+  assert.ok(!JSON.stringify(page.items).includes("ada@example.com"));
+
+  const listed = await h.submissions.listByDefinition({ workspaceId: WS, formDefinitionId: "f1", limit: 10 });
+  assert.deepEqual(
+    listed.items.map((row) => row.id),
+    ["f1-sub-1"]
+  );
+  assert.equal(await h.submissions.findById({ workspaceId: WS, id: "f1-sub-0" }), null);
+});

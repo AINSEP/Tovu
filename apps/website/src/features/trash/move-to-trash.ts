@@ -87,6 +87,7 @@ export async function moveToTrash(
   const row = (await deps.db.selectOne({
     table: entry.table,
     columns,
+    join: entry.display.join,
     where: and(
       eq(entry.workspaceColumn, required.workspaceId),
       eq(entry.idColumn, required.entityId),

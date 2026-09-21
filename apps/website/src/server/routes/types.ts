@@ -82,7 +82,7 @@ import type {
 import type { HydrateBlobStoreFromSeedResult } from "../../features/media/hydrate-blob-store-from-seed.js";
 import type { OriginRegistryPort } from "../../features/origin/index.js";
 import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../../features/redirects/index.js";
-import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../features/forms/index.js";
+import type { FormDefinitionRepoPort, FormSubmissionRepoPort, RemoveFormSubmissionFn } from "../../features/forms/index.js";
 import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "../../features/comments/index.js";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { LedgerReadPort } from "../../features/database/timeline.js";
@@ -826,6 +826,8 @@ export interface WebhooksDeps {
 export interface FormsDeps {
   formDefinitionRepo: FormDefinitionRepoPort;
   formSubmissionRepo: FormSubmissionRepoPort;
+  /** Moves a submission to the Trash — `bindRemoveEntity(trash, "form_submission")` at composition. */
+  removeFormSubmission: RemoveFormSubmissionFn;
 }
 
 /**

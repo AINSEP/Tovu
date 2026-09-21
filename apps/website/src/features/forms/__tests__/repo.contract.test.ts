@@ -173,7 +173,12 @@ function runDefinitionContractSuite(adapterName: string, makeHarness: () => Defi
  */
 function runSubmissionContractSuite(
   adapterName: string,
-  makeRepos: () => { submissionRepo: FormSubmissionRepoPort; definitionRepo: FormDefinitionRepoPort }
+  makeRepos: () => {
+    submissionRepo: FormSubmissionRepoPort;
+    definitionRepo: FormDefinitionRepoPort;
+    /** Marks a submission trashed the way the Trash's own adapter does — outside the port. */
+    trashRow: (id: string) => Promise<void>;
+  }
 ) {
   async function makeSeededRepo(): Promise<FormSubmissionRepoPort> {
     const { submissionRepo, definitionRepo } = makeRepos();
@@ -232,12 +237,16 @@ function runSubmissionContractSuite(
     assert.equal(page.nextCursor, null);
   });
 
-  test(`[${adapterName}] delete permanently removes a submission (REQ-14)`, async () => {
-    const repo = await makeSeededRepo();
-    await repo.create(makeSubmission());
-    await repo.delete({ workspaceId: WORKSPACE_ID, id: "sub-1" });
-    const found = await repo.findById({ workspaceId: WORKSPACE_ID, id: "sub-1" });
-    assert.equal(found, null);
+  test(`[${adapterName}] a trashed submission is hidden from findById and listByDefinition`, async () => {
+    const { submissionRepo: repo, definitionRepo, trashRow } = makeRepos();
+    await definitionRepo.create(makeDefinition());
+    await repo.create(makeSubmission({ id: "sub-1", submittedAt: "2026-07-13T00:00:00.000Z" }));
+    await repo.create(makeSubmission({ id: "sub-2", submittedAt: "2026-07-13T00:01:00.000Z" }));
+    await trashRow("sub-1");
+
+    assert.equal(await repo.findById({ workspaceId: WORKSPACE_ID, id: "sub-1" }), null);
+    const page = await repo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 });
+    assert.deepEqual(page.items.map((i) => i.id), ["sub-2"]);
   });
 
   test(`[${adapterName}] a submission from another workspace is isolated`, async () => {
@@ -259,10 +268,17 @@ runDefinitionContractSuite("InMemoryFormDefinitionRepo", () => {
     },
   };
 });
-runSubmissionContractSuite("InMemoryFormSubmissionRepo", () => ({
-  submissionRepo: new InMemoryFormSubmissionRepo(),
-  definitionRepo: new InMemoryFormDefinitionRepo(),
-}));
+runSubmissionContractSuite("InMemoryFormSubmissionRepo", () => {
+  const submissionRepo = new InMemoryFormSubmissionRepo();
+  return {
+    submissionRepo,
+    definitionRepo: new InMemoryFormDefinitionRepo(),
+    trashRow: async (id: string) => {
+      const existing = await submissionRepo.findAnyById({ workspaceId: WORKSPACE_ID, id });
+      if (existing) await submissionRepo.save({ ...existing, deletedAt: NOW });
+    },
+  };
+});
 
 runDefinitionContractSuite("SqliteFormDefinitionRepo", () => {
   const db = openContentDb(":memory:");
@@ -281,5 +297,8 @@ runSubmissionContractSuite("SqliteFormSubmissionRepo", () => {
   return {
     submissionRepo: new SqliteFormSubmissionRepo(db),
     definitionRepo: new SqliteFormDefinitionRepo(db),
+    trashRow: async (id: string) => {
+      db.$client.prepare(`UPDATE form_submissions SET deleted_at = ? WHERE id = ?`).run(NOW, id);
+    },
   };
 });

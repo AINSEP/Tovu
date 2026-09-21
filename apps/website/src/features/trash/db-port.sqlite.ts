@@ -14,7 +14,7 @@ import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { createContentDbTransactionRunner } from "./repo.sqlite.js";
-import type { TrashDb, TrashDbAssignment, TrashDbRow } from "./db-port.js";
+import type { TrashDb, TrashDbAssignment, TrashDbJoin, TrashDbRow } from "./db-port.js";
 
 /**
  * @param required.db the Drizzle handle over `content.db` (its `$client` backs the transaction
@@ -37,17 +37,15 @@ export function createSqliteTrashDb(required: { db: ContentDb }): TrashDb {
       table: Table;
       columns: TSelection;
       where: SQL;
+      join?: TrashDbJoin;
     }): Promise<TrashDbRow<TSelection> | null> {
       // `select.columns` is typed `Record<string, AnyColumn>` at the dialect-neutral port boundary
       // (`db-port.ts`); Drizzle's better-sqlite3 `.select()` wants its own narrower `SQLiteColumn`
       // selection shape. The cast is safe: every column that reaches here came from a `sqliteTable`
       // declaration in `schema.ts` (the only schema module wired up today), so it already IS one.
-      const rows = db
-        .select(select.columns as unknown as Record<string, SQLiteColumn>)
-        .from(select.table as SQLiteTable)
-        .where(select.where)
-        .limit(1)
-        .all() as Array<TrashDbRow<TSelection>>;
+      const from = db.select(select.columns as unknown as Record<string, SQLiteColumn>).from(select.table as SQLiteTable);
+      const joined = select.join ? from.innerJoin(select.join.table as SQLiteTable, select.join.on) : from;
+      const rows = joined.where(select.where).limit(1).all() as Array<TrashDbRow<TSelection>>;
       return rows[0] ?? null;
     },
 

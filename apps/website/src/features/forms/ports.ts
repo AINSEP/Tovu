@@ -6,8 +6,8 @@ import type { FormDefinitionRecord, FormSubmissionPage, FormSubmissionRecord } f
  *
  * Purpose:
  * Dependency-inversion seam (ADR-006 rule-of-two) for the two Forms-owned tables. Two ports, not
- * one — definitions and submissions have distinct lifecycles: `FormSubmissionRepoPort` exposes
- * `delete` (REQ-14 — a single submission supports permanent delete on its own, outside the Trash).
+ * one — definitions and submissions have distinct lifecycles. Both go to the Trash (owner ruling
+ * 2026-09-21); neither port has a delete method.
  *
  * Owner ruling 2026-09-21 ("forms should be deleted like all the other stuff") superseded the
  * original INV-08 "a form definition is never permanently deleted" — see the `form` entry in `features/trash/
@@ -72,6 +72,20 @@ export interface FormSubmissionRepoPort {
     limit: number;
     cursor?: string | null;
   }): Promise<FormSubmissionPage>;
-  /** Permanent delete (REQ-14) — the one asymmetry vs. `FormDefinitionRepoPort`. */
-  delete(required: { workspaceId: UUID; id: UUID }): Promise<void>;
+  // No delete method: a submission goes to the Trash through `deleteFormSubmission`'s injected
+  // `remove`, and only a Trash purge removes it for good. Reads here hide a trashed submission.
 }
+
+/**
+ * The function `deleteFormSubmission` receives to move a submission to the Trash, bound to the
+ * `"form_submission"` type at the composition root. Structurally typed on purpose: this feature
+ * imports nothing from `features/trash`.
+ */
+export type RemoveFormSubmissionFn = (required: {
+  workspaceId: UUID;
+  id: UUID;
+  display: { title: string; subtitle?: string | null };
+  at: string;
+  expectedVersion: number | null;
+  actor: { principalId: string; pluginId?: string | null };
+}) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }>;
