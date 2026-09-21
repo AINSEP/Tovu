@@ -53,7 +53,25 @@ describe("useFormSubmissionDetail — injected port", () => {
     expect(networkMock).not.toHaveBeenCalled();
   });
 
-  it("the two-click delete removes through the port and calls onDeleted only on the second click", async () => {
+  it("requestDelete opens the confirm and deletes nothing", async () => {
+    const port = createFakeFormSubmissionsPort({ submissions: [submissionFixture()] });
+    port.deleteFormSubmission = vi.fn(port.deleteFormSubmission);
+    const onDeleted = vi.fn();
+    const { result } = renderHook(() => useFormSubmissionDetail({ formId: "f1", submissionId: "s1", onDeleted }, port), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.submission).not.toBeNull());
+
+    act(() => {
+      result.current.requestDelete();
+    });
+
+    expect(result.current.confirmOpen).toBe(true);
+    expect(port.deleteFormSubmission).not.toHaveBeenCalled();
+    expect(onDeleted).not.toHaveBeenCalled();
+  });
+
+  it("confirmDelete deletes, calls onDeleted and closes", async () => {
     const port = createFakeFormSubmissionsPort({ submissions: [submissionFixture()] });
     const onDeleted = vi.fn();
     const { result } = renderHook(() => useFormSubmissionDetail({ formId: "f1", submissionId: "s1", onDeleted }, port), {
@@ -62,15 +80,39 @@ describe("useFormSubmissionDetail — injected port", () => {
     await waitFor(() => expect(result.current.submission).not.toBeNull());
 
     act(() => {
-      result.current.handleDelete();
+      result.current.requestDelete();
     });
-    expect(result.current.confirming).toBe(true);
-    expect(onDeleted).not.toHaveBeenCalled();
+    expect(result.current.confirmOpen).toBe(true);
 
     await act(async () => {
-      await result.current.handleDelete();
+      await result.current.confirmDelete();
     });
 
     expect(onDeleted).toHaveBeenCalledTimes(1);
+    expect(result.current.confirmOpen).toBe(false);
+    expect(port.submissions).toEqual([]);
+  });
+
+  it("cancelDelete closes with no request", async () => {
+    const port = createFakeFormSubmissionsPort({ submissions: [submissionFixture()] });
+    port.deleteFormSubmission = vi.fn(port.deleteFormSubmission);
+    const onDeleted = vi.fn();
+    const { result } = renderHook(() => useFormSubmissionDetail({ formId: "f1", submissionId: "s1", onDeleted }, port), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.submission).not.toBeNull());
+
+    act(() => {
+      result.current.requestDelete();
+    });
+    expect(result.current.confirmOpen).toBe(true);
+
+    act(() => {
+      result.current.cancelDelete();
+    });
+
+    expect(result.current.confirmOpen).toBe(false);
+    expect(port.deleteFormSubmission).not.toHaveBeenCalled();
+    expect(onDeleted).not.toHaveBeenCalled();
   });
 });

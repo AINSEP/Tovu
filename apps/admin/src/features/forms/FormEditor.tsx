@@ -1,4 +1,4 @@
-import { DataTable } from "@jini-ai/admin/react";
+import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { SeeMore } from "../../components/SeeMore/SeeMore";
 import "../../styles/form-field-attrs.css";
@@ -492,7 +492,7 @@ function FormSubmissionDetail({
   useFormSubmissionDetailHook = useWiredFormSubmissionDetail,
   t,
 }: FormSubmissionDetailProps) {
-  const { submission, error, confirming, deleting, handleDelete } = useFormSubmissionDetailHook({
+  const { submission, error, confirmOpen, deleting, requestDelete, cancelDelete, confirmDelete } = useFormSubmissionDetailHook({
     formId,
     submissionId,
     onDeleted,
@@ -541,14 +541,25 @@ function FormSubmissionDetail({
         type="button"
         className="btn-danger"
         disabled={deleting}
-        onClick={handleDelete}
+        onClick={requestDelete}
         {...agentHandle("form-submission-delete", {
           role: "button",
-          label: "Delete this submission permanently. Asks for confirmation before deleting.",
+          label: "Delete this submission permanently. Opens a confirmation dialog first.",
         })}
       >
-        {confirming ? t("Confirm delete") : t("Delete submission")}
+        {t("Delete submission")}
       </button>
+      <ConfirmDialog
+        open={confirmOpen}
+        agentHandle="form-submission-delete-confirm"
+        title={t("Delete permanently?")}
+        body={<p>{t("This cannot be undone.")}</p>}
+        confirmLabel={t("Delete permanently")}
+        destructive
+        pending={deleting}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+      />
     </div>
   );
 }

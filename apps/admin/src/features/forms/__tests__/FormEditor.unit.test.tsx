@@ -326,3 +326,49 @@ describe("existing form — tab strip, status toggle, submissions panel", () => 
     expect(body.status).toBe("disabled");
   });
 });
+
+describe("form submission delete — confirm modal (S5 fix, 2026-09-20)", () => {
+  function activeForm() {
+    return {
+      id: "f1",
+      name: "Contact",
+      slug: "contact",
+      status: "active",
+      fields: [],
+      notify: { enabled: false, recipients: [] },
+    };
+  }
+
+  function submissionFixture() {
+    return {
+      id: "s1",
+      formDefinitionId: "f1",
+      workspaceId: "ws1",
+      data: { email: "a@example.com" },
+      sourceIp: "127.0.0.1",
+      submittedAt: "2026-08-01T00:00:00.000Z",
+    };
+  }
+
+  it("Delete submission opens a confirm dialog; a double-click alone never deletes", async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: activeForm() })) // form load
+      .mockResolvedValueOnce(jsonResponse({ data: [submissionFixture()], nextCursor: null })) // submissions list
+      .mockResolvedValueOnce(jsonResponse({ data: submissionFixture() })); // submission detail
+
+    renderScreen(<FormEditor formId="f1" tab="submissions" />);
+
+    await user.click(await screen.findByRole("button", { name: /view/i }));
+    const deleteButton = await screen.findByRole("button", { name: /^delete submission$/i });
+
+    // A real double-click, same as an operator clicking twice in a hurry — the old inline
+    // two-click confirm deleted outright on the second click.
+    await user.click(deleteButton);
+    await user.click(deleteButton);
+
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
+    const dialog = await screen.findByRole("dialog", { name: "Delete permanently?" });
+    expect(within(dialog).getByText("This cannot be undone.")).toBeInTheDocument();
+  });
+});
