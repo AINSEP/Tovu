@@ -18,9 +18,13 @@
  * converted `contribute<Domain>Tools()` genuinely needs that type to declare its own return value —
  * this is a runtime-construction boundary, not a "knows-about" one. Heuristic: an import is treated
  * as type-only only when the ENTIRE statement is `import type {...} from "..."` — the one shape all
- * 27 converted contributors use. `src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts` is
- * exempted by name: it value-imports MCP-federation-preset symbols from the same barrel, a different,
- * deliberately-kept seam (see `assistant/index.ts`'s own "E — External MCP Federation" section).
+ * 27 converted contributors use. `EXEMPT_FILES` (below) lists by name every file that value-imports
+ * from the same deliberately-kept seam (see `assistant/index.ts`'s own "E — External MCP Federation"
+ * section) instead of calling `registerToolContributor` — as of 2026-09-20:
+ * `src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts`,
+ * `src/features/agent-plugins/federate-mcp.ts`,
+ * `src/features/supabase-connect/tool-registrations.ts`, and
+ * `src/features/external-mcp/tool-registrations.ts`.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -33,7 +37,27 @@ const ASSISTANT_ROOT = path.join(REPO_ROOT, "apps", "website", "src", "assistant
 
 const GUARDED_TOP_LEVEL_DIRS = ["analytics", "features", "identity", "media", "navigation", "origin", "seo", "widgets"];
 
-const EXEMPT_FILES = new Set([path.join(REPO_ROOT, "apps", "website", "src", "features", "plugins", "supabase-mcp", "supabase-mcp-plugin.ts")]);
+const EXEMPT_FILES = new Set([
+  path.join(REPO_ROOT, "apps", "website", "src", "features", "plugins", "supabase-mcp", "supabase-mcp-plugin.ts"),
+  // Added 2026-09-20: both value-import CRUD functions (not `registerToolContributor`) from
+  // `assistant/index.ts`'s own "E — External MCP Federation (registry)" section, which its header
+  // comment calls "the designed extension point, not a leak; kept exposed here on purpose rather
+  // than chased to 0" and explicitly credits by name.
+  // `federate-mcp.ts` added 2026-09-10 (feaf69d08, "wire auto-admitted plugin MCP servers into the
+  // external-MCP store") — confirmed via `assistant/index.ts`'s own comment naming this file.
+  path.join(REPO_ROOT, "apps", "website", "src", "features", "agent-plugins", "federate-mcp.ts"),
+  // `supabase-connect/tool-registrations.ts` added 2026-09-13 (d06662795, SPEC-052 M2) — confirmed
+  // via `assistant/index.ts`'s own comment naming this file.
+  path.join(REPO_ROOT, "apps", "website", "src", "features", "supabase-connect", "tool-registrations.ts"),
+  // `external-mcp/tool-registrations.ts` has the identical shape and was already exempt in practice —
+  // it only surfaced once `stripComments`'s block/line-comment ordering bug (fixed 2026-09-20) was
+  // corrected. Its own header comment (added 2026-09-07, lines ~24-34) documents this exact seam and
+  // says it "Verified empirically (not assumed)" against this same boundary family and that the
+  // value-import "adds no new violation"; it never calls `registerToolContributor` (only
+  // `server/runtime/composition/tool-catalog-manifest.ts` may) and exports the required
+  // `contributeExternalMcpTools(): ToolContributor` return-based registration shape.
+  path.join(REPO_ROOT, "apps", "website", "src", "features", "external-mcp", "tool-registrations.ts"),
+]);
 
 const SKIP_DIR_NAMES = new Set(["node_modules", "dist", "build", "coverage", "__tests__"]);
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
@@ -55,7 +79,23 @@ const IMPORT_STATEMENT_PATTERN = /\bimport\s+(type\s+)?(?:[^;]*?)\bfrom\s*(["'])
  * comment stripper is not needed — this only has to be accurate enough to find `import`/`from`
  * keywords, not to reproduce the file. */
 function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+  // A single alternation, scanned once left-to-right, so precedence at each position is decided by
+  // which comment style actually starts there — not by which `.replace()` call happens to run first.
+  // Two separate passes (block comments, then line comments) is unsound: a `//` line comment whose
+  // prose contains a literal `/**` substring (e.g. discussing the glob `features/**`) gets
+  // misread by the block-comment pass as a REAL block-comment opener, before the line-comment pass
+  // ever gets a chance to consume that line — the lazy `[\s\S]*?\*\/` then swallows everything up to
+  // the next unrelated `*/` (a real JSDoc closer further down), silently deleting real code and
+  // import statements from the scan. Confirmed live: `features/external-mcp/tool-registrations.ts`
+  // has exactly this shape at its own header comment.
+  //
+  // With one alternation, at a `//` position the first alternative (`\/\*...`) fails immediately
+  // (the second character is `/`, not `*`), so the engine falls through to the line-comment
+  // alternative and consumes only that line — the `/**`-look-alike text inside it is swallowed by
+  // the already-matched line comment and never independently re-scanned as a block-comment start.
+  // At a genuine `/*` position the first alternative wins and its lazy `*/` search still works
+  // correctly across any `//` the comment body happens to contain (e.g. a URL).
+  return source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, " ");
 }
 
 function collectProductionFiles(dir: string, out: string[]): void {
