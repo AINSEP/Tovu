@@ -40,7 +40,7 @@ export interface MediaEditDialogProps {
 }
 
 export function MediaEditDialog({ initial, onSave, onCancel, useDialog = useWiredMediaEditDialog }: MediaEditDialogProps) {
-  const { alt, cssClass, htmlAttributes, setAlt, setCssClass, setHtmlAttributes, htmlAttributesError, save, t } = useDialog(
+  const { alt, cssClass, htmlAttributes, setAlt, setCssClass, setHtmlAttributes, htmlAttributesError, save, t, altRef } = useDialog(
     initial,
     onSave,
     onCancel
@@ -69,7 +69,7 @@ export function MediaEditDialog({ initial, onSave, onCancel, useDialog = useWire
           <label className="field-label" htmlFor={altId}>
             {t("Alt text (optional)")}
           </label>
-          <input id={altId} value={alt} onChange={(e) => setAlt(e.target.value)} />
+          <input ref={altRef} id={altId} value={alt} onChange={(e) => setAlt(e.target.value)} />
         </div>
 
         <div className="field">

@@ -27,6 +27,7 @@ function fakeController(overrides: Partial<ReturnType<typeof useWiredMediaEditDi
     htmlAttributesError: null,
     save: vi.fn(),
     t: (key) => key,
+    altRef: { current: null },
     ...overrides,
   };
 }
@@ -158,5 +159,22 @@ describe("MediaEditDialog — focus trap", () => {
 
     expect(event.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(first);
+  });
+});
+
+describe("MediaEditDialog — focus moves in on open and returns to the opener on close", () => {
+  it("moves focus onto the Alt field when the dialog mounts, and restores the opener's focus on unmount", () => {
+    const opener = document.createElement("button");
+    opener.textContent = "Edit";
+    document.body.appendChild(opener);
+    opener.focus();
+    expect(document.activeElement).toBe(opener);
+
+    const { unmount } = render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} />);
+    expect(document.activeElement).toBe(screen.getByLabelText("Alt text (optional)"));
+
+    unmount();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
   });
 });
