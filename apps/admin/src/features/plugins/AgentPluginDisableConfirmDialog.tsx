@@ -64,13 +64,14 @@ export function AgentPluginDisableConfirmDialog({
   t,
   useAgentPluginDisableConfirmHook = useAgentPluginDisableConfirm,
 }: AgentPluginDisableConfirmDialogProps) {
-  const { copy } = useAgentPluginDisableConfirmHook({ name, variant, onCancel });
+  const { copy, dialogRef } = useAgentPluginDisableConfirmHook({ name, variant, onCancel });
   const titleId = `${agentHandleBase}-${variant}-confirm-title`;
   const confirmWord = variant === "remove" ? "Remove" : "Disable";
 
   return (
     <div className="settings-dialog-backdrop" onClick={onCancel}>
       <div
+        ref={dialogRef}
         className="settings-dialog"
         role="dialog"
         aria-modal="true"

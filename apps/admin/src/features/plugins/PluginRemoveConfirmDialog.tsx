@@ -44,12 +44,13 @@ export function PluginRemoveConfirmDialog({
   t,
   usePluginRemoveConfirmHook = usePluginRemoveConfirm,
 }: PluginRemoveConfirmDialogProps) {
-  const { copy } = usePluginRemoveConfirmHook({ name, onCancel });
+  const { copy, dialogRef } = usePluginRemoveConfirmHook({ name, onCancel });
   const titleId = `${agentHandleBase}-remove-confirm-title`;
 
   return (
     <div className="settings-dialog-backdrop" onClick={onCancel}>
       <div
+        ref={dialogRef}
         className="settings-dialog"
         role="dialog"
         aria-modal="true"
