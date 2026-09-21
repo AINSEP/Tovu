@@ -154,6 +154,10 @@ describe("WidgetPickerDialog dialog-hook injection", () => {
         // Identity passthrough — the component now destructures `t` off the controller (Batch D2's
         // i18n wiring); a fake that omits it would throw on the first `t(...)` call.
         t: (key: string) => key,
+        // `useDialog` is typed as `typeof useWiredWidgetPickerDialog`, whose return always includes
+        // `locale` (even though this component doesn't destructure it itself) — a fake missing it
+        // fails structural typing, caught by `tsc`, not by any runtime assertion here.
+        locale: "en",
       };
     }
 
