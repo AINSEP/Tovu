@@ -12,15 +12,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import { ForbiddenError } from "@jini-ai/cms/core";
 import { membersAgentToolCatalog, type AgentToolDefinition } from "../../features/members/agent-tools.js";
 import {
   InMemoryMagicLinkTokenRepo,
   InMemoryMemberRepo,
   InMemoryMemberSessionRepo,
-  MemberNotFoundError,
   type MemberRecord,
 } from "../../features/members/index.js";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -212,7 +210,17 @@ test("members_list: authorize() is called with 'member.manage', no entityId", as
 
 test("members_list: a denied caller is refused and gets no rows back", async () => {
   const { deps } = fakeRouteDeps({ allow: false, seed: [seedMember()] });
-  await assert.rejects(() => wired("content_read.member", deps).handler(executionContext({})), ForbiddenError);
+  // ec0845db7 (2026-09-16) wraps every Members handler with `withModelFacingErrors` so the model sees
+  // the real reason instead of a redacted `INTERNAL_ERROR`; the raw `ForbiddenError` is reclassified
+  // into a `ToolInputError` with a `MEMBERS_FORBIDDEN:` prefix.
+  await assert.rejects(
+    () => wired("content_read.member", deps).handler(executionContext({})),
+    (error: unknown) => {
+      assert.ok(error instanceof ToolInputError);
+      assert.match((error as Error).message, /^MEMBERS_FORBIDDEN: /);
+      return true;
+    },
+  );
 });
 
 test("members_get_by_id: authorize() is called with entityId set to the requested member", async () => {
@@ -221,9 +229,18 @@ test("members_get_by_id: authorize() is called with entityId set to the requeste
   assert.equal(authorizeCalls[0].entityId, "member-1");
 });
 
-test("members_get_by_id: an unknown member id throws MemberNotFoundError, not a silent null", async () => {
+test("members_get_by_id: an unknown member id throws ToolInputError('MEMBERS_NOT_FOUND: ...'), not a silent null", async () => {
   const { deps } = fakeRouteDeps();
-  await assert.rejects(() => wired("content_read.member", deps).handler(executionContext({ memberId: "nope" })), MemberNotFoundError);
+  // ec0845db7 (2026-09-16) reclassifies the raw `MemberNotFoundError` into a `ToolInputError` with a
+  // `MEMBERS_NOT_FOUND:` prefix so the model sees the real reason.
+  await assert.rejects(
+    () => wired("content_read.member", deps).handler(executionContext({ memberId: "nope" })),
+    (error: unknown) => {
+      assert.ok(error instanceof ToolInputError);
+      assert.match((error as Error).message, /^MEMBERS_NOT_FOUND: member 'nope' was not found/);
+      return true;
+    },
+  );
 });
 
 test("members_get_by_id: a member WITH name and emailVerifiedAt set surfaces both fields in the tool view", async () => {
@@ -253,10 +270,13 @@ test("members_list: afterId and limit are threaded through from tool input when 
 
 test("members_disable: a denied caller is refused and the member is left unchanged", async () => {
   const { deps, memberRepo } = fakeRouteDeps({ allow: false, seed: [seedMember()] });
+  // ec0845db7 (2026-09-16) reclassifies the raw `ForbiddenError` into a `ToolInputError` with a
+  // `MEMBERS_FORBIDDEN:` prefix; the permission name still appears in the message.
   await assert.rejects(
     () => wired("members_disable", deps).handler(executionContext({ memberId: "member-1" })),
     (error: unknown) => {
-      assert.ok(error instanceof ForbiddenError);
+      assert.ok(error instanceof ToolInputError);
+      assert.match((error as Error).message, /^MEMBERS_FORBIDDEN: /);
       assert.match((error as Error).message, /member\.manage/);
       return true;
     },
