@@ -9,11 +9,17 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 export const MENUS_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Build navigation menus for your theme's header and footer.":
+      "Crea menús de navegación para el encabezado y el pie de página de tu tema.",
+    Advanced: "Avanzado",
+    "CSS class": "Clase CSS",
+    Icon: "Icono",
+    Description: "Descripción",
+    "Link rel": "Atributo rel del enlace",
+    "Open in new tab": "Abrir en una pestaña nueva",
     // Menus.tsx
     Content: "Contenido",
     Menus: "Menús",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "Crea menús de navegación y asígnalos a las ubicaciones de menú de tu tema.",
     "Add New": "Agregar nuevo",
     "No menus yet.": "Aún no hay menús.",
     "Create your first menu to get started.": "Crea tu primer menú para comenzar.",
@@ -45,10 +51,16 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Agregar elemento",
   },
   id: {
+    "Build navigation menus for your theme's header and footer.":
+      "Buat menu navigasi untuk header dan footer tema Anda.",
+    Advanced: "Lanjutan",
+    "CSS class": "Kelas CSS",
+    Icon: "Ikon",
+    Description: "Deskripsi",
+    "Link rel": "Atribut rel tautan",
+    "Open in new tab": "Buka di tab baru",
     Content: "Konten",
     Menus: "Menu",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "Buat menu navigasi dan tetapkan ke lokasi menu tema Anda.",
     "Add New": "Tambah Baru",
     "No menus yet.": "Belum ada menu.",
     "Create your first menu to get started.": "Buat menu pertama Anda untuk memulai.",
@@ -72,10 +84,16 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Tambah item",
   },
   de: {
+    "Build navigation menus for your theme's header and footer.":
+      "Erstellen Sie Navigationsmenüs für Kopf- und Fußzeile Ihres Themes.",
+    Advanced: "Erweitert",
+    "CSS class": "CSS-Klasse",
+    Icon: "Symbol",
+    Description: "Beschreibung",
+    "Link rel": "Link-rel-Attribut",
+    "Open in new tab": "In neuem Tab öffnen",
     Content: "Inhalt",
     Menus: "Menüs",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "Erstellen Sie Navigationsmenüs und weisen Sie sie den Menüpositionen Ihres Themes zu.",
     "Add New": "Neu hinzufügen",
     "No menus yet.": "Noch keine Menüs.",
     "Create your first menu to get started.": "Erstellen Sie Ihr erstes Menü, um loszulegen.",
@@ -100,10 +118,15 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Element hinzufügen",
   },
   "zh-CN": {
+    "Build navigation menus for your theme's header and footer.": "为主题的页眉和页脚创建导航菜单。",
+    Advanced: "高级",
+    "CSS class": "CSS 类",
+    Icon: "图标",
+    Description: "描述",
+    "Link rel": "链接 rel 属性",
+    "Open in new tab": "在新标签页中打开",
     Content: "内容",
     Menus: "菜单",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "创建导航菜单并将其分配到主题的菜单位置。",
     "Add New": "新建",
     "No menus yet.": "暂无菜单。",
     "Create your first menu to get started.": "创建您的第一个菜单以开始使用。",
@@ -126,10 +149,15 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ 添加项目",
   },
   "zh-TW": {
+    "Build navigation menus for your theme's header and footer.": "為主題的頁首和頁尾建立導覽選單。",
+    Advanced: "進階",
+    "CSS class": "CSS 類別",
+    Icon: "圖示",
+    Description: "說明",
+    "Link rel": "連結 rel 屬性",
+    "Open in new tab": "在新分頁中開啟",
     Content: "內容",
     Menus: "選單",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "建立導覽選單,並將其指派到主題的選單位置。",
     "Add New": "新增",
     "No menus yet.": "尚無選單。",
     "Create your first menu to get started.": "建立您的第一個選單以開始使用。",
@@ -152,10 +180,16 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ 新增項目",
   },
   "pt-BR": {
+    "Build navigation menus for your theme's header and footer.":
+      "Crie menus de navegação para o cabeçalho e o rodapé do seu tema.",
+    Advanced: "Avançado",
+    "CSS class": "Classe CSS",
+    Icon: "Ícone",
+    Description: "Descrição",
+    "Link rel": "Atributo rel do link",
+    "Open in new tab": "Abrir em nova aba",
     Content: "Conteúdo",
     Menus: "Menus",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "Crie menus de navegação e atribua-os às localizações de menu do seu tema.",
     "Add New": "Adicionar novo",
     "No menus yet.": "Ainda não há menus.",
     "Create your first menu to get started.": "Crie seu primeiro menu para começar.",
@@ -179,10 +213,16 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Adicionar item",
   },
   ru: {
+    "Build navigation menus for your theme's header and footer.":
+      "Создавайте меню навигации для шапки и подвала вашей темы.",
+    Advanced: "Дополнительно",
+    "CSS class": "CSS-класс",
+    Icon: "Значок",
+    Description: "Описание",
+    "Link rel": "Атрибут rel ссылки",
+    "Open in new tab": "Открывать в новой вкладке",
     Content: "Контент",
     Menus: "Меню",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "Создавайте меню навигации и назначайте их местам размещения меню темы.",
     "Add New": "Добавить",
     "No menus yet.": "Пока нет меню.",
     "Create your first menu to get started.": "Создайте своё первое меню, чтобы начать.",
@@ -207,10 +247,15 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Добавить пункт",
   },
   fa: {
+    "Build navigation menus for your theme's header and footer.": "برای سرصفحه و پاورقی قالب خود منوهای پیمایش بسازید.",
+    Advanced: "پیشرفته",
+    "CSS class": "کلاس CSS",
+    Icon: "نماد",
+    Description: "توضیحات",
+    "Link rel": "ویژگی rel پیوند",
+    "Open in new tab": "باز کردن در زبانه‌ی جدید",
     Content: "محتوا",
     Menus: "منوها",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "منوهای پیمایش بسازید و آن‌ها را به مکان‌های منوی قالب خود اختصاص دهید.",
     "Add New": "افزودن جدید",
     "No menus yet.": "هنوز منویی وجود ندارد.",
     "Create your first menu to get started.": "اولین منوی خود را بسازید تا شروع کنید.",
@@ -234,10 +279,15 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ افزودن مورد",
   },
   ar: {
+    "Build navigation menus for your theme's header and footer.": "أنشئ قوائم تنقّل لرأس قالبك وتذييله.",
+    Advanced: "متقدم",
+    "CSS class": "فئة CSS",
+    Icon: "أيقونة",
+    Description: "الوصف",
+    "Link rel": "سمة rel للرابط",
+    "Open in new tab": "فتح في علامة تبويب جديدة",
     Content: "المحتوى",
     Menus: "القوائم",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "أنشئ قوائم تنقّل وخصّصها لمواضع القوائم في قالبك.",
     "Add New": "إضافة جديد",
     "No menus yet.": "لا توجد قوائم بعد.",
     "Create your first menu to get started.": "أنشئ أول قائمة لديك للبدء.",
@@ -261,10 +311,15 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ إضافة عنصر",
   },
   ja: {
+    "Build navigation menus for your theme's header and footer.": "テーマのヘッダーとフッター用のナビゲーションメニューを作成します。",
+    Advanced: "詳細設定",
+    "CSS class": "CSS クラス",
+    Icon: "アイコン",
+    Description: "説明",
+    "Link rel": "リンクの rel 属性",
+    "Open in new tab": "新しいタブで開く",
     Content: "コンテンツ",
     Menus: "メニュー",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "ナビゲーションメニューを作成し、テーマのメニュー位置に割り当てます。",
     "Add New": "新規追加",
     "No menus yet.": "メニューはまだありません。",
     "Create your first menu to get started.": "最初のメニューを作成して始めましょう。",
@@ -288,10 +343,15 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ 項目を追加",
   },
   ko: {
+    "Build navigation menus for your theme's header and footer.": "테마의 헤더와 푸터에 사용할 탐색 메뉴를 만드세요.",
+    Advanced: "고급",
+    "CSS class": "CSS 클래스",
+    Icon: "아이콘",
+    Description: "설명",
+    "Link rel": "링크 rel 속성",
+    "Open in new tab": "새 탭에서 열기",
     Content: "콘텐츠",
     Menus: "메뉴",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "탐색 메뉴를 만들고 테마의 메뉴 위치에 할당하세요.",
     "Add New": "새로 추가",
     "No menus yet.": "아직 메뉴가 없습니다.",
     "Create your first menu to get started.": "첫 번째 메뉴를 만들어 시작하세요.",
@@ -315,10 +375,16 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ 항목 추가",
   },
   pl: {
+    "Build navigation menus for your theme's header and footer.":
+      "Twórz menu nawigacyjne dla nagłówka i stopki motywu.",
+    Advanced: "Zaawansowane",
+    "CSS class": "Klasa CSS",
+    Icon: "Ikona",
+    Description: "Opis",
+    "Link rel": "Atrybut rel linku",
+    "Open in new tab": "Otwórz w nowej karcie",
     Content: "Treść",
     Menus: "Menu",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "Twórz menu nawigacyjne i przypisuj je do lokalizacji menu w motywie.",
     "Add New": "Dodaj nowe",
     "No menus yet.": "Brak menu.",
     "Create your first menu to get started.": "Utwórz swoje pierwsze menu, aby zacząć.",
@@ -343,10 +409,16 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Dodaj pozycję",
   },
   hu: {
+    "Build navigation menus for your theme's header and footer.":
+      "Hozzon létre navigációs menüket a téma fejlécéhez és láblécéhez.",
+    Advanced: "Speciális",
+    "CSS class": "CSS-osztály",
+    Icon: "Ikon",
+    Description: "Leírás",
+    "Link rel": "A hivatkozás rel attribútuma",
+    "Open in new tab": "Megnyitás új lapon",
     Content: "Tartalom",
     Menus: "Menük",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "Hozzon létre navigációs menüket, és rendelje hozzá őket a téma menühelyeihez.",
     "Add New": "Új hozzáadása",
     "No menus yet.": "Még nincs menü.",
     "Create your first menu to get started.": "Hozza létre az első menüjét a kezdéshez.",
@@ -371,10 +443,16 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Elem hozzáadása",
   },
   fr: {
+    "Build navigation menus for your theme's header and footer.":
+      "Créez des menus de navigation pour l’en-tête et le pied de page de votre thème.",
+    Advanced: "Avancé",
+    "CSS class": "Classe CSS",
+    Icon: "Icône",
+    Description: "Description",
+    "Link rel": "Attribut rel du lien",
+    "Open in new tab": "Ouvrir dans un nouvel onglet",
     Content: "Contenu",
     Menus: "Menus",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "Créez des menus de navigation et affectez-les aux emplacements de menu de votre thème.",
     "Add New": "Ajouter",
     "No menus yet.": "Aucun menu pour le moment.",
     "Create your first menu to get started.": "Créez votre premier menu pour commencer.",
@@ -398,10 +476,16 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Ajouter un élément",
   },
   uk: {
+    "Build navigation menus for your theme's header and footer.":
+      "Створюйте навігаційні меню для шапки та підвалу вашої теми.",
+    Advanced: "Додатково",
+    "CSS class": "CSS-клас",
+    Icon: "Значок",
+    Description: "Опис",
+    "Link rel": "Атрибут rel посилання",
+    "Open in new tab": "Відкривати в новій вкладці",
     Content: "Вміст",
     Menus: "Меню",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "Створюйте навігаційні меню та призначайте їх місцям розміщення меню теми.",
     "Add New": "Додати",
     "No menus yet.": "Поки немає меню.",
     "Create your first menu to get started.": "Створіть своє перше меню, щоб почати.",
@@ -426,10 +510,16 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Додати пункт",
   },
   tr: {
+    "Build navigation menus for your theme's header and footer.":
+      "Temanızın üst ve alt bilgi alanları için gezinme menüleri oluşturun.",
+    Advanced: "Gelişmiş",
+    "CSS class": "CSS sınıfı",
+    Icon: "Simge",
+    Description: "Açıklama",
+    "Link rel": "Bağlantı rel özniteliği",
+    "Open in new tab": "Yeni sekmede aç",
     Content: "İçerik",
     Menus: "Menüler",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "Gezinme menüleri oluşturun ve bunları temanızın menü konumlarına atayın.",
     "Add New": "Yeni ekle",
     "No menus yet.": "Henüz menü yok.",
     "Create your first menu to get started.": "Başlamak için ilk menünüzü oluşturun.",
@@ -454,10 +544,15 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Öğe ekle",
   },
   th: {
+    "Build navigation menus for your theme's header and footer.": "สร้างเมนูนำทางสำหรับส่วนหัวและส่วนท้ายของธีมของคุณ",
+    Advanced: "ขั้นสูง",
+    "CSS class": "คลาส CSS",
+    Icon: "ไอคอน",
+    Description: "คำอธิบาย",
+    "Link rel": "แอตทริบิวต์ rel ของลิงก์",
+    "Open in new tab": "เปิดในแท็บใหม่",
     Content: "เนื้อหา",
     Menus: "เมนู",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "สร้างเมนูนำทางและกำหนดให้กับตำแหน่งเมนูของธีมของคุณ",
     "Add New": "เพิ่มใหม่",
     "No menus yet.": "ยังไม่มีเมนู",
     "Create your first menu to get started.": "สร้างเมนูแรกของคุณเพื่อเริ่มต้นใช้งาน",
@@ -481,10 +576,16 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ เพิ่มรายการ",
   },
   it: {
+    "Build navigation menus for your theme's header and footer.":
+      "Crea menu di navigazione per l’intestazione e il piè di pagina del tuo tema.",
+    Advanced: "Avanzate",
+    "CSS class": "Classe CSS",
+    Icon: "Icona",
+    Description: "Descrizione",
+    "Link rel": "Attributo rel del link",
+    "Open in new tab": "Apri in una nuova scheda",
     Content: "Contenuto",
     Menus: "Menu",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "Crea menu di navigazione e assegnali alle posizioni menu del tuo tema.",
     "Add New": "Aggiungi nuovo",
     "No menus yet.": "Ancora nessun menu.",
     "Create your first menu to get started.": "Crea il tuo primo menu per iniziare.",
@@ -508,10 +609,16 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Aggiungi voce",
   },
   hi: {
+    "Build navigation menus for your theme's header and footer.":
+      "अपने थीम के हेडर और फ़ुटर के लिए नेविगेशन मेनू बनाएं।",
+    Advanced: "उन्नत",
+    "CSS class": "CSS क्लास",
+    Icon: "आइकन",
+    Description: "विवरण",
+    "Link rel": "लिंक rel एट्रिब्यूट",
+    "Open in new tab": "नए टैब में खोलें",
     Content: "सामग्री",
     Menus: "मेनू",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "नेविगेशन मेनू बनाएं और उन्हें अपने थीम के मेनू स्थानों पर असाइन करें।",
     "Add New": "नया जोड़ें",
     "No menus yet.": "अभी तक कोई मेनू नहीं है।",
     "Create your first menu to get started.": "शुरू करने के लिए अपना पहला मेनू बनाएं।",
@@ -542,10 +649,16 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ आइटम जोड़ें",
   },
   ur: {
+    "Build navigation menus for your theme's header and footer.":
+      "اپنے تھیم کے ہیڈر اور فوٹر کے لیے نیویگیشن مینوز بنائیں۔",
+    Advanced: "اعلیٰ ترتیبات",
+    "CSS class": "CSS کلاس",
+    Icon: "آئیکن",
+    Description: "تفصیل",
+    "Link rel": "لنک rel ایٹریبیوٹ",
+    "Open in new tab": "نئے ٹیب میں کھولیں",
     Content: "مواد",
     Menus: "مینوز",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "نیویگیشن مینوز بنائیں اور انہیں اپنے تھیم کی مینو لوکیشنز پر تفویض کریں۔",
     "Add New": "نیا شامل کریں",
     "No menus yet.": "ابھی تک کوئی مینو نہیں ہے۔",
     "Create your first menu to get started.": "شروع کرنے کے لیے اپنا پہلا مینو بنائیں۔",
@@ -576,10 +689,16 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ آئٹم شامل کریں",
   },
   bn: {
+    "Build navigation menus for your theme's header and footer.":
+      "আপনার থিমের হেডার ও ফুটারের জন্য নেভিগেশন মেনু তৈরি করুন।",
+    Advanced: "উন্নত",
+    "CSS class": "CSS ক্লাস",
+    Icon: "আইকন",
+    Description: "বিবরণ",
+    "Link rel": "লিংক rel অ্যাট্রিবিউট",
+    "Open in new tab": "নতুন ট্যাবে খুলুন",
     Content: "কন্টেন্ট",
     Menus: "মেনু",
-    "Build navigation menus and assign them to your theme's menu locations.":
-      "নেভিগেশন মেনু তৈরি করুন এবং সেগুলো আপনার থিমের মেনু অবস্থানে বরাদ্দ করুন।",
     "Add New": "নতুন যোগ করুন",
     "No menus yet.": "এখনও কোনো মেনু নেই।",
     "Create your first menu to get started.": "শুরু করতে আপনার প্রথম মেনু তৈরি করুন।",

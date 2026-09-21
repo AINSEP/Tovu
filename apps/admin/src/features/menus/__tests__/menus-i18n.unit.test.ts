@@ -67,3 +67,40 @@ describe("MENUS_DICT: t() falls back to COMMON_I18N", () => {
     expect(t("de", "Save")).toBe(COMMON_I18N.de.Save);
   });
 });
+
+/**
+ * Keys `Menus.tsx`/`MenuEditor.tsx` render that the parity checks above cannot see, because they were
+ * missing from EVERY locale block (a key absent everywhere is not "partially present"):
+ * - the page description, whose English was edited in place by a4637b788 ("…and assign them to
+ *   your theme's menu locations." became "…for your theme's header and footer."), orphaning all 21
+ *   translations under the old key;
+ * - the item editor's "Advanced" fields from 92494e7c0, which never got translations at all.
+ */
+describe("MENUS_DICT: copy the menus screens actually render", () => {
+  const RENDERED_KEYS = [
+    "Build navigation menus for your theme's header and footer.",
+    "Advanced",
+    "CSS class",
+    "Icon",
+    "Description",
+    "Link rel",
+    "Open in new tab",
+  ];
+  const LOCALES = [
+    "ar", "bn", "de", "es", "fa", "fr", "hi", "hu", "id", "it",
+    "ja", "ko", "pl", "pt-BR", "ru", "th", "tr", "uk", "ur", "zh-CN", "zh-TW",
+  ];
+
+  // Presence, not `t(locale, key) !== key`: fr "Description" is legitimately the same word.
+  it.each(LOCALES)("carries every rendered key in %s", (locale) => {
+    const untranslated = RENDERED_KEYS.filter(
+      (key) => MENUS_DICT[locale]?.[key] === undefined && COMMON_I18N[locale]?.[key] === undefined,
+    );
+    expect(untranslated).toEqual([]);
+  });
+
+  it("no longer carries the orphaned pre-a4637b788 description key", () => {
+    const orphan = "Build navigation menus and assign them to your theme's menu locations.";
+    expect(Object.keys(MENUS_DICT).filter((locale) => orphan in MENUS_DICT[locale])).toEqual([]);
+  });
+});
