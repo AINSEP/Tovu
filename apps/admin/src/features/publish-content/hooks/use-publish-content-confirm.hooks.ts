@@ -308,8 +308,15 @@ export function usePublishContentConfirm(props: {
   // Takes `peerId` explicitly rather than reading `selectedPeerId` off closure: `onConnect` below
   // calls this in the same tick it learns the newly-connected peer's id, before that `setState` has
   // committed, so a closure read here would still see `null`.
+  //
+  // Guards with `isChosenPeerId` itself rather than trusting every caller to check first (a3-review-4
+  // handoff, 2026-09-21): `onConnect` calls this with whatever `site.id` `connectDestination` answers,
+  // with no check of its own — a contract violation there would otherwise reach
+  // `port.planPublish({ peerId: "" })` unguarded. This is the one function every network call in this
+  // hook goes through, so the guard belongs here, not repeated (and possibly forgotten) at each caller.
   const requestPlan = useCallback(
     async (peerId: string) => {
+      if (!isChosenPeerId(peerId)) return;
       planPeerRef.current = peerId;
       setPhase({ kind: "planning" });
       try {

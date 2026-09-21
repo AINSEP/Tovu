@@ -683,6 +683,40 @@ describe("PublishContentDialog — the blank 'Choose a site…' option is not a 
     expect(port.calls.planPublish).toHaveLength(0);
     expect(result.current.phase).toEqual({ kind: "idle" });
   });
+
+  // a3-review-4 handoff, 2026-09-21: f1c9e5213 guarded the four READS of a peer id (canStart,
+  // runPrimary's ternary, confirmPlan, the execute effect), but never `requestPlan` itself. `onConnect`
+  // calls `requestPlan(site.id)` with no `isChosenPeerId` check of its own — a contract violation in
+  // `connectDestination`'s response (it should never answer with an empty site id) would still reach
+  // `planPublish({ peerId: "" })` because nothing between `onConnect` and the port stops it. This is the
+  // "correct primitive, unwired call site" shape: `isChosenPeerId` exists, but `requestPlan`, the one
+  // function every network call in this hook goes through, does not use it on itself.
+  it("requestPlan refuses an empty peer id itself — even from onConnect, the one caller with no guard of its own", async () => {
+    const port = createFakePublishContentPort({
+      peers: [],
+      destination: { connected: false, site: null, candidateUrl: "https://tovu.dev", message: "Publish to tovu.dev?", nextStep: null },
+      // A contract-violating connect response: a site with an empty id. Nothing upstream of
+      // `requestPlan` checks this before calling it.
+      connectResult: {
+        connected: true,
+        site: { id: "", label: "tovu.dev", baseUrl: "https://tovu.dev", remoteWorkspaceId: "workspace-local", masked: null, hasCredential: false },
+        candidateUrl: null,
+        message: "This computer publishes to tovu.dev.",
+        nextStep: null,
+      },
+    });
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port }));
+    await waitFor(() => expect(result.current.connectOffer).not.toBeNull());
+
+    await act(async () => {
+      result.current.onPrimary();
+    });
+
+    // Fails today: onConnect's `void requestPlan(site.id)` has nothing stopping it, so
+    // `port.planPublish` is called with `{ peerId: "" }` and the phase moves to `planned`.
+    expect(port.calls.planPublish).toHaveLength(0);
+    expect(result.current.phase).toEqual({ kind: "idle" });
+  });
 });
 
 // terra review 2026-09-20, finding 3 (High). Once confirm is sent, the publish is the live site's to
