@@ -42,7 +42,16 @@ interface Harness {
 
 function harness(optional: { items?: TrashItem[]; granted?: readonly string[]; outcome?: RestoreOutcome } = {}): Harness {
   const items = optional.items ?? [item({ id: "r1", entityType: "post", entityId: "post-1" })];
-  const granted = new Set(optional.granted ?? ["content.read", "content.write", "comments.moderate", "media.delete", "admin.redirects.manage"]);
+  const granted = new Set(
+    optional.granted ?? [
+      "content.read",
+      "content.write",
+      "comments.moderate",
+      "media.delete",
+      "admin.redirects.manage",
+      "admin.forms.manage",
+    ]
+  );
   const restoreCalls: { entityType: string; entityId: string }[] = [];
   const authorizeCalls: { permission: string; entityType?: string }[] = [];
 
@@ -148,6 +157,7 @@ test("the permission checked per kind is the one that kind's own delete tool req
     ["comment", "comments.moderate"],
     ["media", "media.delete"],
     ["redirect", "admin.redirects.manage"],
+    ["form", "admin.forms.manage"],
   ] as const) {
     const h = harness();
     await restore(h, { entityType, entityId: "e-1" });

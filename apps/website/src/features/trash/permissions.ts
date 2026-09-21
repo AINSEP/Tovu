@@ -1,8 +1,8 @@
 /**
  * @file Who may see, restore and permanently remove which kind of trashed thing.
  *
- * The Trash is the only surface in the product that lists four unrelated domains side by side, so a
- * single `trash.read`/`trash.manage` pair would be a way around four separate permissions at once:
+ * The Trash is the only surface in the product that lists five unrelated domains side by side, so a
+ * single `trash.read`/`trash.manage` pair would be a way around five separate permissions at once:
  * a principal trusted only to moderate comments would read the titles of every deleted post, and
  * could permanently destroy them. Instead **every row is gated by the permission that row's own
  * kind already required to be deleted**, resolved per row, in one place that both the agent tools
@@ -10,6 +10,7 @@
  * map.
  */
 import { COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
+import { FORM_ENTITY_TYPE } from "./adapters/form.js";
 import { MEDIA_ENTITY_TYPE } from "./adapters/media.js";
 import { POST_ENTITY_TYPE } from "./adapters/post.js";
 import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
@@ -23,7 +24,8 @@ export const TRASH_READ_PERMISSION = "content.read";
  *
  * `content_post_delete` and `posts/delete.ts` gate on `content.write` (this codebase grants no
  * `content.delete` anywhere); comments moderation on `comments.moderate`; `media/trash.ts` on
- * `media.delete`; `redirects_tombstone` on `admin.redirects.manage`.
+ * `media.delete`; `redirects_tombstone` on `admin.redirects.manage`; `forms_trash_definition` (and
+ * create/update/status) on `admin.forms.manage`.
  *
  * A kind absent from this map is neither listable nor restorable nor purgeable. That is the
  * conservative default on purpose: a phase-2 domain has to opt in here deliberately, rather than
@@ -34,6 +36,7 @@ export const TRASH_PERMISSION_BY_ENTITY_TYPE: ReadonlyMap<TrashEntityType, strin
   [COMMENT_ENTITY_TYPE, "comments.moderate"],
   [MEDIA_ENTITY_TYPE, "media.delete"],
   [REDIRECT_ENTITY_TYPE, "admin.redirects.manage"],
+  [FORM_ENTITY_TYPE, "admin.forms.manage"],
 ]);
 
 /**
@@ -62,7 +65,7 @@ export type TrashAuthorizeFn = (params: {
  *
  * @returns the permission that was checked and the decision. The permission is returned so a
  *          denial can name it — a 403 saying only "forbidden" tells an operator nothing about
- *          which of four roles they are missing.
+ *          which of five roles they are missing.
  * @complexity O(1) beyond the injected `authorize` call.
  */
 export async function mayActOnEntityType(
@@ -91,7 +94,7 @@ export async function mayActOnEntityType(
  * keyset, whereas shrinking the query would make the cursor skip rows the caller IS allowed to see
  * if their permissions changed mid-scan.
  *
- * @complexity O(n) rows and at most one `authorize` call per DISTINCT kind on the page (four).
+ * @complexity O(n) rows and at most one `authorize` call per DISTINCT kind on the page (five).
  */
 export async function filterVisibleTrashItems(
   deps: { authorize: TrashAuthorizeFn; workspaceId: string },

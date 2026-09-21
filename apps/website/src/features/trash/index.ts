@@ -73,5 +73,6 @@ export { createCommentTrashAdapter, COMMENT_ENTITY_TYPE } from "./adapters/comme
 export { createMediaTrashAdapter, MEDIA_ENTITY_TYPE } from "./adapters/media.js";
 export type { MediaTrashAdapterDeps } from "./adapters/media.js";
 export { createRedirectTrashAdapter, REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
+export { createFormTrashAdapter, FORM_ENTITY_TYPE } from "./adapters/form.js";
 export { createRecordStoreTrashAdapter } from "./adapters/record-store.js";
 export type { RecordStoreTrashAdapterDeps, TrashRecordStore } from "./adapters/record-store.js";
