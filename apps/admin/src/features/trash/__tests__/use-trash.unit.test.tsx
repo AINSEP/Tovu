@@ -1,12 +1,13 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminTrashItem } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import type { AdminTrashItem, AdminTrashPage } from "@/lib/api";
+import { FetchQueryProvider, useInvalidate } from "@/lib/fetch-query";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";
 import { useTrash } from "../hooks/use-trash.hooks";
-import { TRASH_RESOURCE } from "../rules";
+import type { TrashPort } from "../hooks/trash-port.hooks";
+import { KEYS, TRASH_RESOURCE } from "../rules";
 
 /**
  * @file `useTrash` — the Trash screen's whole state, against an injected port.
@@ -186,5 +187,176 @@ describe("useTrash", () => {
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.items).toBeNull();
+  });
+});
+
+/**
+ * Load more paging (2026-09-21): same family of bugs already fixed in forms'
+ * `use-form-submissions.hooks.ts` (`45f58ea16`) and comments' `use-comment-queue.hooks.ts`
+ * (`c51d43854`) — `loadMore` had no in-flight guard, and a refetched first page (this screen's own
+ * `reloadAfterAction`, or a background `useContentRefreshSubscription` refresh) kept the stale
+ * accumulated "more" pages instead of dropping them, so a `loadMore` still in flight when the
+ * refetch landed could append its page on top of the fresh page 1.
+ *
+ * `createControlledPort`'s cursorless calls resolve with whatever `setFirstPage` last set
+ * (defaulting to page 1 with `nextCursor: "c2"`); cursor calls never resolve on their own — each
+ * pushes a `{ resolve, reject }` pair onto `cursorCalls` for a test to settle manually, same
+ * deferred idiom as `use-comment-queue.unit.test.tsx`'s `createControlledQueuePort`.
+ */
+describe("useTrash — Load more paging (2026-09-21)", () => {
+  interface ControlledPort {
+    port: TrashPort;
+    cursorCalls: Array<{ resolve: (v: AdminTrashPage) => void; reject: (e: Error) => void }>;
+    setFirstPage: (items: AdminTrashItem[], nextCursor: string | null) => void;
+  }
+
+  function createControlledPort(): ControlledPort {
+    let firstPageResult: AdminTrashPage = { items: [item()], nextCursor: "c2" };
+    const cursorCalls: ControlledPort["cursorCalls"] = [];
+    const port: TrashPort = {
+      listTrash: vi.fn((options: { cursor?: string }) => {
+        if (options.cursor) {
+          return new Promise<AdminTrashPage>((resolve, reject) => {
+            cursorCalls.push({ resolve, reject });
+          });
+        }
+        return Promise.resolve(firstPageResult);
+      }),
+      async restoreTrashItems() {
+        throw new Error("not used by this test");
+      },
+      async purgeTrashItems() {
+        throw new Error("not used by this test");
+      },
+    };
+    return {
+      port,
+      cursorCalls,
+      setFirstPage(items, nextCursor) {
+        firstPageResult = { items, nextCursor };
+      },
+    };
+  }
+
+  it("two loadMore calls in the same tick send one request and append the page once", async () => {
+    const { port, cursorCalls } = createControlledPort();
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.nextCursor).toBe("c2"));
+
+    act(() => {
+      void result.current.loadMore();
+      void result.current.loadMore();
+    });
+
+    // 1 first-page call (on mount) + 1 loadMore call — the second same-tick call must be dropped
+    // by the in-flight guard. Without the `loadingMoreRef` guard this is 3.
+    expect(port.listTrash).toHaveBeenCalledTimes(2);
+    expect(cursorCalls).toHaveLength(1);
+
+    await act(async () => {
+      cursorCalls[0].resolve({ items: [item({ id: "page2" })], nextCursor: null });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(result.current.items?.map((i) => i.id)).toEqual(["trash-1", "page2"]));
+  });
+
+  it("a reload drops a stale Load more page instead of appending it onto the fresh page 1", async () => {
+    const { port, cursorCalls, setFirstPage } = createControlledPort();
+    const { result } = renderHook(() => ({ trash: useTrash({ port, locale: "en" }), invalidate: useInvalidate() }), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.trash.nextCursor).toBe("c2"));
+
+    act(() => {
+      void result.current.trash.loadMore();
+    });
+    await waitFor(() => expect(cursorCalls).toHaveLength(1));
+
+    // The reload lands (e.g. `reloadAfterAction` after a restore/purge, or a background
+    // content-refresh) while the loadMore above is still in flight.
+    setFirstPage([item({ id: "fresh" })], null);
+    act(() => result.current.invalidate(KEYS.listRoot));
+    await waitFor(() => expect(result.current.trash.items?.map((i) => i.id)).toEqual(["fresh"]));
+
+    // The stale loadMore finally resolves.
+    await act(async () => {
+      cursorCalls[0].resolve({ items: [item({ id: "stale" })], nextCursor: null });
+      await Promise.resolve();
+    });
+
+    // Must contain only the fresh page — the stale page must not have appended.
+    expect(result.current.trash.items?.map((i) => i.id)).toEqual(["fresh"]);
+  });
+
+  it("a stale loadMore's failure after a reload is not surfaced as an error", async () => {
+    const { port, cursorCalls, setFirstPage } = createControlledPort();
+    const { result } = renderHook(() => ({ trash: useTrash({ port, locale: "en" }), invalidate: useInvalidate() }), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.trash.nextCursor).toBe("c2"));
+
+    act(() => {
+      void result.current.trash.loadMore();
+    });
+    await waitFor(() => expect(cursorCalls).toHaveLength(1));
+
+    setFirstPage([item({ id: "fresh" })], null);
+    act(() => result.current.invalidate(KEYS.listRoot));
+    await waitFor(() => expect(result.current.trash.items?.map((i) => i.id)).toEqual(["fresh"]));
+
+    await act(async () => {
+      cursorCalls[0].reject(new Error("stale network error"));
+      await Promise.resolve();
+    });
+
+    expect(result.current.trash.error).toBeNull();
+  });
+
+  it("a stale loadMore settling after a reload does not release a newer call's in-flight lock", async () => {
+    const { port, cursorCalls, setFirstPage } = createControlledPort();
+    const { result } = renderHook(() => ({ trash: useTrash({ port, locale: "en" }), invalidate: useInvalidate() }), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.trash.nextCursor).toBe("c2"));
+
+    act(() => {
+      void result.current.trash.loadMore(); // call 1, cursor c2
+    });
+    await waitFor(() => expect(cursorCalls).toHaveLength(1));
+
+    // The reload lands, releasing call 1's lock and superseding its generation.
+    setFirstPage([item({ id: "fresh" })], "c3");
+    act(() => result.current.invalidate(KEYS.listRoot));
+    await waitFor(() => expect(result.current.trash.items?.map((i) => i.id)).toEqual(["fresh"]));
+    expect(result.current.trash.nextCursor).toBe("c3");
+    expect(result.current.trash.loadingMore).toBe(false);
+
+    act(() => {
+      void result.current.trash.loadMore(); // call 2, cursor c3 — owns the lock now
+    });
+    await waitFor(() => expect(cursorCalls).toHaveLength(2));
+    expect(result.current.trash.loadingMore).toBe(true);
+
+    // Call 1's stale response finally arrives. It must not release call 2's lock.
+    await act(async () => {
+      cursorCalls[0].resolve({ items: [item({ id: "stale" })], nextCursor: null });
+      await Promise.resolve();
+    });
+    expect(result.current.trash.loadingMore).toBe(true);
+
+    // A third loadMore attempt must be blocked — the lock still belongs to call 2, still pending.
+    act(() => {
+      void result.current.trash.loadMore();
+    });
+    expect(cursorCalls).toHaveLength(2);
+
+    await act(async () => {
+      cursorCalls[1].resolve({ items: [item({ id: "page2" })], nextCursor: null });
+      await Promise.resolve();
+    });
+
+    expect(result.current.trash.items?.map((i) => i.id)).toEqual(["fresh", "page2"]);
+    expect(result.current.trash.loadingMore).toBe(false);
   });
 });
