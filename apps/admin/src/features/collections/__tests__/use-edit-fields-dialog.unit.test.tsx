@@ -1,8 +1,9 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminContentType } from "@/lib/api";
 import { FetchQueryProvider } from "@/lib/fetch-query";
+import { tabFromLastFocusableInDialog } from "@/hooks/__tests__/focus-trap.test-helpers";
 import { createFakeEditFieldsDialogPort } from "../hooks/edit-fields-dialog-dependencies.hooks";
 import { useEditFieldsDialog, useWiredEditFieldsDialog } from "../hooks/use-edit-fields-dialog.hooks";
 import type { EditFieldsDialogPort } from "../hooks/edit-fields-dialog-port.hooks";
@@ -171,6 +172,29 @@ describe("Escape-to-cancel", () => {
     const { onCancel } = mount();
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("focus trap (M3)", () => {
+  it("Tab from the dialog's last focusable element wraps to the first instead of leaving", () => {
+    function Harness() {
+      const { dialogRef } = useEditFieldsDialog({ contentType: TYPE, onSaved: vi.fn(), onCancel: vi.fn() }, createFakeEditFieldsDialogPort());
+      return (
+        <>
+          <button type="button">page behind</button>
+          <form ref={dialogRef} role="dialog" aria-modal="true">
+            <button type="button">first</button>
+            <button type="button">last</button>
+          </form>
+        </>
+      );
+    }
+    render(<Harness />, { wrapper });
+
+    const { event, first } = tabFromLastFocusableInDialog();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
   });
 });
 

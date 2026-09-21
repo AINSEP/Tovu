@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type RefObject } from "react";
 
 import { type AdminContentType } from "@/lib/api";
 import { useFetchMutation } from "@/lib/fetch-query";
@@ -14,6 +14,7 @@ import {
   type DraftField,
 } from "../rules";
 import { useEscapeToCancel } from "./use-escape-to-cancel.hooks";
+import { useFocusTrap } from "@/hooks/use-focus-trap.hooks";
 import { defaultEditFieldsDialogPort } from "./edit-fields-dialog-dependencies.hooks";
 import type { EditFieldsDialogPort } from "./edit-fields-dialog-port.hooks";
 
@@ -53,6 +54,8 @@ export interface EditFieldsDialogController {
    * `updateContentTypeFields` is in flight, so those dismiss paths can't unmount the dialog out
    * from under its own pending write (H4). */
   cancel: () => void;
+  /** Attach to the dialog's own `role="dialog"` root so `useFocusTrap` (M3) can find it. */
+  dialogRef: RefObject<HTMLFormElement | null>;
 }
 
 export function useEditFieldsDialog(
@@ -66,6 +69,7 @@ export function useEditFieldsDialog(
   const [fields, setFields] = useState<DraftField[]>(() => draftFieldsFromContentType(props.contentType.fields));
   const [validationError, setValidationError] = useState<string | null>(null);
   const inFlightRef = useRef(false);
+  const dialogRef = useRef<HTMLFormElement | null>(null);
 
   function cancel() {
     if (inFlightRef.current) return;
@@ -73,6 +77,7 @@ export function useEditFieldsDialog(
   }
 
   useEscapeToCancel(cancel);
+  useFocusTrap(dialogRef);
 
   const updateFieldsMutation = useFetchMutation({
     run: (input: { key: string; fields: ReturnType<typeof stripDraftFieldRowIds>; expectedVersion: number }) =>
@@ -120,7 +125,7 @@ export function useEditFieldsDialog(
   const saving = updateFieldsMutation.status === "pending";
   const error = validationError ?? (updateFieldsMutation.error ? describeEditFieldsError(updateFieldsMutation.error) : null);
 
-  return { fields, updateField, removeField, addField, error, saving, submit, cancel };
+  return { fields, updateField, removeField, addField, error, saving, submit, cancel, dialogRef };
 }
 
 /**

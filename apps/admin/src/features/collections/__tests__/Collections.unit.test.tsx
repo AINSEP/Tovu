@@ -111,6 +111,7 @@ function newDialogController(overrides: Partial<NewContentTypeDialogController> 
     saving: false,
     submit: vi.fn((e: React.FormEvent) => e.preventDefault()),
     cancel: vi.fn(),
+    dialogRef: { current: null },
     ...overrides,
   };
 }
@@ -125,6 +126,7 @@ function editDialogController(overrides: Partial<EditFieldsDialogController> = {
     saving: false,
     submit: vi.fn((e: React.FormEvent) => e.preventDefault()),
     cancel: vi.fn(),
+    dialogRef: { current: null },
     ...overrides,
   };
 }
@@ -133,6 +135,7 @@ function lifecycleDialogController(overrides: Partial<LifecycleConfirmDialogCont
   return {
     copy: { title: "Deprecate content type", body: "Existing entries stay readable; no new entries can be created." },
     autoFocusCancel: false,
+    dialogRef: { current: null },
     ...overrides,
   };
 }

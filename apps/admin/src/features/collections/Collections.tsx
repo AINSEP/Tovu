@@ -155,7 +155,7 @@ function NewContentTypeDialog({
   useNewContentTypeDialogHook = useWiredNewContentTypeDialog,
   t,
 }: NewContentTypeDialogProps) {
-  const { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit, cancel } =
+  const { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit, cancel, dialogRef } =
     useNewContentTypeDialogHook({ onCreated, onCancel });
   const fieldHandles = buildAgentListHandles(
     "new-content-type-field",
@@ -165,6 +165,7 @@ function NewContentTypeDialog({
   return (
     <div className="settings-dialog-backdrop" onClick={cancel}>
       <form
+        ref={dialogRef}
         className="settings-dialog collections-type-dialog"
         role="dialog"
         aria-modal="true"
@@ -280,7 +281,7 @@ function EditFieldsDialog({
   useEditFieldsDialogHook = useWiredEditFieldsDialog,
   t,
 }: EditFieldsDialogProps) {
-  const { fields, updateField, removeField, addField, error, saving, submit, cancel } = useEditFieldsDialogHook({
+  const { fields, updateField, removeField, addField, error, saving, submit, cancel, dialogRef } = useEditFieldsDialogHook({
     contentType,
     onSaved,
     onCancel,
@@ -293,6 +294,7 @@ function EditFieldsDialog({
   return (
     <div className="settings-dialog-backdrop" onClick={cancel}>
       <form
+        ref={dialogRef}
         className="settings-dialog collections-type-dialog"
         role="dialog"
         aria-modal="true"
@@ -383,11 +385,12 @@ function LifecycleConfirmDialog({
   useLifecycleConfirmDialogHook = useLifecycleConfirmDialog,
   t,
 }: LifecycleConfirmDialogProps) {
-  const { copy, autoFocusCancel } = useLifecycleConfirmDialogHook({ op, onCancel });
+  const { copy, autoFocusCancel, dialogRef } = useLifecycleConfirmDialogHook({ op, onCancel });
 
   return (
     <div className="settings-dialog-backdrop" onClick={onCancel}>
       <div
+        ref={dialogRef}
         className="settings-dialog"
         role="dialog"
         aria-modal="true"
