@@ -121,6 +121,26 @@ test("triggerPublish merges a vercel config's own fields the same way", async ()
   expect(body()).toEqual({ target: "vercel", teamId: "team-1", projectName: "my-site" });
 });
 
+// terra review 2026-09-20, finding 1 (Critical) — the publish must name the connection the operator
+// chose. Without it the server picks whichever saved row is default when the POST lands, so a
+// publish fired inside a "make this one the default" window goes to the PREVIOUS account.
+test("triggerPublish sends the chosen credential's id so the server publishes with THAT connection", async () => {
+  const { body } = stubFetchCapturing();
+  await api.triggerPublish({
+    config: { target: "github-pages", owner: "acme", repo: "site" },
+    projectName: "my-site",
+    credentialId: "cred-chosen",
+  });
+  expect(body()).toEqual({ target: "github-pages", owner: "acme", repo: "site", projectName: "my-site", credentialId: "cred-chosen" });
+});
+
+test("triggerPublish omits credentialId entirely when there is no chosen connection — never sends an explicit undefined", async () => {
+  const { body } = stubFetchCapturing();
+  await api.triggerPublish({ config: { target: "vercel" }, projectName: "my-site" });
+  expect(body()).toEqual({ target: "vercel", projectName: "my-site" });
+  expect(Object.keys(body() as object)).not.toContain("credentialId");
+});
+
 test("getPublishStatus is a bare GET at /system/publish, distinct from triggerPublish's POST to the same URL", async () => {
   const { calls } = stubFetchCapturing();
   await api.getPublishStatus();

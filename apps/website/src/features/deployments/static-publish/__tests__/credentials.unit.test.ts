@@ -460,3 +460,162 @@ test("composePublishCredentialSource: self-hosted-cli mode still never falls bac
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "s3-compatible" });
   assert.equal(result.ok, false);
 });
+
+// --- credentialId: the publish is bound to the connection the OPERATOR chose ---------------------
+// terra review 2026-09-20, finding 1 (Critical). The server used to pick the credential itself by
+// `{workspaceId, target}`, so whichever row happened to be `is_default` when the publish POST landed
+// is the one that published — select B, click Publish inside the promotion window, and the site went
+// to A's account. `resolve()` now takes the chosen connection's id and publishes with THAT row or
+// refuses. A client-supplied id is UNTRUSTED: the workspace scoping below is the whole point.
+
+test("credentialId: resolves the NAMED connection, not the provider's current default, when the two differ", async () => {
+  const writeDeps = makeWriteDeps();
+  const chosen = await createPublishCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "Chosen",
+    connection: { providerId: "vercel", token: "chosen-token" },
+  });
+  await createPublishCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "Default",
+    connection: { providerId: "vercel", token: "default-token" },
+    isDefault: true,
+  });
+
+  const source = createDbPublishCredentialSource(writeDeps);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "vercel", credentialId: chosen.id });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  assert.equal(result.token, "chosen-token", "the publish must use the connection the request named, never the row that is default right now");
+});
+
+test("credentialId: another workspace's credential id is REFUSED — never resolved, never leaked", async () => {
+  const writeDeps = makeWriteDeps();
+  const theirs = await createPublishCredential(writeDeps, {
+    workspaceId: OTHER_WORKSPACE,
+    label: "Theirs",
+    connection: { providerId: "vercel", token: "other-workspace-token" },
+  });
+  await createPublishCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "Mine",
+    connection: { providerId: "vercel", token: "my-token" },
+    isDefault: true,
+  });
+
+  const source = createDbPublishCredentialSource(writeDeps);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "vercel", credentialId: theirs.id });
+  assert.equal(result.ok, false, "a credential id belonging to another workspace must never publish");
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(
+    result.reason,
+    "the selected publish credential is not available in this workspace — reload the Static Site tab and choose a connection again"
+  );
+  assert.doesNotMatch(JSON.stringify(result), /other-workspace-token/, "never leak the other workspace's secret");
+  assert.doesNotMatch(JSON.stringify(result), /my-token/, "and never quietly fall back to this workspace's own default");
+});
+
+test("credentialId: a nonexistent id is refused with the SAME message as another workspace's id — no existence oracle", async () => {
+  const writeDeps = makeWriteDeps();
+  await createPublishCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "Mine",
+    connection: { providerId: "vercel", token: "my-token" },
+    isDefault: true,
+  });
+
+  const source = createDbPublishCredentialSource(writeDeps);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "vercel", credentialId: "cred-does-not-exist" });
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(
+    result.reason,
+    "the selected publish credential is not available in this workspace — reload the Static Site tab and choose a connection again"
+  );
+  assert.doesNotMatch(result.reason, /cred-does-not-exist/, "never echo caller-supplied input back into an error message");
+});
+
+test("credentialId: a credential saved for a DIFFERENT provider than the publish target is refused", async () => {
+  const writeDeps = makeWriteDeps();
+  const vercelCred = await createPublishCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "Vercel",
+    connection: { providerId: "vercel", token: "vercel-token" },
+  });
+  await createPublishCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "GitHub",
+    connection: { providerId: "github-pages", token: "github-token" },
+    isDefault: true,
+  });
+
+  const source = createDbPublishCredentialSource(writeDeps);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "github-pages", credentialId: vercelCred.id });
+  assert.equal(result.ok, false, "a vercel connection must never publish a github-pages target");
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(result.reason, "the selected publish credential is saved for 'vercel', not 'github-pages' — choose a 'github-pages' connection");
+  assert.doesNotMatch(JSON.stringify(result), /vercel-token|github-token/, "a refused publish resolves no secret at all");
+});
+
+test("credentialId: the id-bound path carries cloudflare-pages' accountId, exactly like the default path", async () => {
+  const writeDeps = makeWriteDeps();
+  const cred = await createPublishCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "CF",
+    connection: { providerId: "cloudflare-pages", token: "cf-token", accountId: "acct-77" },
+  });
+
+  const source = createDbPublishCredentialSource(writeDeps);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "cloudflare-pages", credentialId: cred.id });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  assert.equal(result.token, "cf-token");
+  assert.equal(result.accountId, "acct-77");
+});
+
+test("credentialId: self-hosted-cli NEVER falls back to the env token when the named credential does not resolve", async () => {
+  const writeDeps = makeWriteDeps();
+  const source = composePublishCredentialSource({
+    workspaceId: WORKSPACE,
+    executionMode: "self-hosted-cli",
+    dbDeps: writeDeps,
+    env: { VERCEL_TOKEN: "from-env-must-never-appear" } as NodeJS.ProcessEnv,
+  });
+
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "vercel", credentialId: "cred-does-not-exist" });
+  assert.equal(result.ok, false, "a silent fallback to the env token is exactly the bug this binding exists to close");
+  if (result.ok) throw new Error("unreachable");
+  assert.doesNotMatch(JSON.stringify(result), /from-env-must-never-appear/);
+  assert.equal(
+    result.reason,
+    "the selected publish credential is not available in this workspace — reload the Static Site tab and choose a connection again"
+  );
+});
+
+test("credentialId: the env source itself refuses an id-bound resolve — env vars are not saved connections", async () => {
+  const source = createEnvPublishCredentialSource(WORKSPACE, { VERCEL_TOKEN: "from-env-must-never-appear" } as NodeJS.ProcessEnv);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "vercel", credentialId: "cred-1" });
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(
+    result.reason,
+    "a saved connection was chosen for this publish, but this install resolves 'vercel' credentials from server environment variables, which have no saved connections to choose from"
+  );
+  assert.doesNotMatch(JSON.stringify(result), /from-env-must-never-appear/);
+});
+
+test("credentialId: omitting it is unchanged — the provider's default still resolves (every non-admin caller stays on this path)", async () => {
+  const writeDeps = makeWriteDeps();
+  await createPublishCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "Default",
+    connection: { providerId: "vercel", token: "default-token" },
+    isDefault: true,
+  });
+
+  const source = createDbPublishCredentialSource(writeDeps);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "vercel" });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  assert.equal(result.token, "default-token");
+});

@@ -1471,6 +1471,34 @@ describe("StaticSiteTab — Publish waits for a credential switch to land (terra
   });
 });
 
+// terra review 2026-09-20, finding 1 (Critical), server half: the publish POST carried no credential
+// id, so the server published with whichever saved row was default when it landed. Disabling Publish
+// during a promotion closes the window in THIS screen only; naming the chosen connection in the
+// request is what binds the publish for every caller. This is the sink — a `triggerPublish` that
+// accepts an id and a Publish button that never sends one would be the same bug, unfixed.
+describe("StaticSiteTab — Publish names the connection the operator is looking at (terra #1)", () => {
+  it("passes the selected provider's saved credential id to publish()", async () => {
+    const user = userEvent.setup();
+    const publish = vi.fn().mockResolvedValue(undefined);
+    renderTab({
+      publishController: { target: "github-pages", owner: "octo", repo: "demo-repo", projectName: "my-site", publish },
+      credentialsController: { rowOverrides: { "github-pages": { saved: { ...GH_CREDENTIAL, id: "cred-2", label: "backup" } } } },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Publish" }));
+    expect(publish).toHaveBeenCalledWith({ credentialId: "cred-2" });
+  });
+
+  it("passes no credential id when this provider has no saved connection — an env-var install has none to name", async () => {
+    const user = userEvent.setup();
+    const publish = vi.fn().mockResolvedValue(undefined);
+    renderTab({ publishController: { target: "vercel", projectName: "my-site", publish } });
+
+    await user.click(screen.getByRole("button", { name: "Publish" }));
+    expect(publish).toHaveBeenCalledWith({});
+  });
+});
+
 // The owner's own words, verbatim: "a button 'create access token' that takes them back to the
 // access token tab on the security page." `ManageAccessTokensLink` in `StaticSiteTab.tsx` — one
 // real `navigate()` call (`lib/router.ts`), not a mock, matching how `Deployment.unit.test.tsx`

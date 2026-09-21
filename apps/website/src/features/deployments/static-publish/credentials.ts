@@ -1,8 +1,8 @@
 import type { UUID } from "@jini-ai/cms/core";
 
 import type { SecretSealerPort } from "../../webhooks/index.js";
-import { resolveDefaultForPublish } from "../publish-credentials/store.js";
-import type { PublishCredentialSetRepoPort } from "../publish-credentials/types.js";
+import { resolveDefaultForPublish, resolveForPublish } from "../publish-credentials/store.js";
+import type { PublishConnectionInput, PublishCredentialSetRepoPort } from "../publish-credentials/types.js";
 import type { PublishExecutionMode } from "../publish-credentials/execution-mode.js";
 import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js";
 
@@ -86,6 +86,30 @@ const S3_COMPATIBLE_NO_ENV_FALLBACK_REASON =
  *  credential, not the publish config, for the DB-backed source too. */
 export const CLOUDFLARE_ACCOUNT_ID_ENV_VAR = "CLOUDFLARE_ACCOUNT_ID";
 
+/**
+ * The ONE refusal text every "the chosen connection cannot be used" path shares (terra review
+ * 2026-09-20, finding 1). Deliberately IDENTICAL for a credential id that does not exist and for one
+ * that belongs to another workspace: `PublishCredentialSetRepoPort.findById` is workspace-scoped, so
+ * both are the same `null` here, and keeping one message means a caller cannot use this endpoint to
+ * learn whether some other workspace's id exists. Never echoes the caller-supplied id back — the
+ * operator's next step is to reload and pick again, not to read their own input.
+ */
+const CHOSEN_CREDENTIAL_UNAVAILABLE_REASON =
+  "the selected publish credential is not available in this workspace — reload the Static Site tab and choose a connection again";
+
+/** Refusal text for a saved connection that exists in this workspace but is saved for a DIFFERENT
+ *  provider than the publish target. Both values are safe to name: `providerId` comes from the row
+ *  itself and `target` from an already-validated closed union, and neither is a secret. */
+function chosenCredentialWrongProviderReason(providerId: StaticPublishTargetId, target: StaticPublishTargetId): string {
+  return `the selected publish credential is saved for '${providerId}', not '${target}' — choose a '${target}' connection`;
+}
+
+/** Refusal text for an id-bound resolve against the env-var source — see `readCredential`'s own
+ *  branch for why an env var can never be the connection the operator picked. */
+function chosenConnectionUnavailableFromEnvReason(target: StaticPublishTargetId): string {
+  return `a saved connection was chosen for this publish, but this install resolves '${target}' credentials from server environment variables, which have no saved connections to choose from`;
+}
+
 type EnvCredentialResult = { readonly token: string; readonly accountId?: string } | { readonly reason: string };
 
 /**
@@ -118,7 +142,13 @@ export function createEnvPublishCredentialSource(workspaceId: UUID, env: NodeJS.
     return { reason };
   }
 
-  function readCredential(target: StaticPublishTargetId, requestedWorkspaceId: UUID): EnvCredentialResult {
+  function readCredential(target: StaticPublishTargetId, requestedWorkspaceId: UUID, credentialId?: UUID): EnvCredentialResult {
+    // An env var is not a saved connection: it has no id, so it can never BE the row the operator
+    // picked. Refusing (rather than ignoring the id and serving the env token anyway) is the whole
+    // point of the binding — terra review 2026-09-20, finding 1. See this file's header.
+    if (credentialId !== undefined) {
+      return { reason: chosenConnectionUnavailableFromEnvReason(target) };
+    }
     if (requestedWorkspaceId !== workspaceId) {
       return {
         reason: `this credential source is bound to workspace '${workspaceId}' and refuses to resolve a token for workspace '${requestedWorkspaceId}'`,
@@ -146,7 +176,7 @@ export function createEnvPublishCredentialSource(workspaceId: UUID, env: NodeJS.
 
   return {
     async resolve(input) {
-      const result = readCredential(input.target, input.workspaceId);
+      const result = readCredential(input.target, input.workspaceId, input.credentialId);
       return "token" in result ? { ok: true, token: result.token, ...(result.accountId !== undefined ? { accountId: result.accountId } : {}) } : { ok: false, reason: result.reason };
     },
     // Never exposes the token/accountId — same env-var presence/blankness/workspace-match check
@@ -158,6 +188,40 @@ export function createEnvPublishCredentialSource(workspaceId: UUID, env: NodeJS.
       return "token" in result ? { configured: true } : { configured: false, reason: result.reason };
     },
   };
+}
+
+/**
+ * Projects a decrypted connection onto {@link PublishCredentialSource.resolve}'s success shape — the
+ * one place that mapping lives, shared by the default-row lookup and the operator's chosen-row
+ * lookup so the two can never drift into projecting a credential differently.
+ *
+ * `accountId` only exists on the cloudflare-pages branch of `PublishConnectionInput` — see
+ * `static-publish/types.ts`'s `CloudflarePagesPublishConfig` doc for why it flows through here rather
+ * than living on the publish config. s3-compatible has NO `token` field on its own connection variant
+ * (it authenticates with an access-key/secret-key pair, not a bearer token —
+ * `publish-credentials/types.ts`'s `S3CompatibleConnectionInput` doc): `secretAccessKey` fills
+ * `token`'s "the value that authenticates this request" role instead (see `PublishCredentialSource`'s
+ * own doc on this reuse), and the other five fields ride along as that interface's optional s3-only
+ * fields.
+ *
+ * @complexity O(1) — field reads only, no I/O.
+ */
+function projectConnectionForPublish(connection: PublishConnectionInput): Extract<Awaited<ReturnType<PublishCredentialSource["resolve"]>>, { ok: true }> {
+  if (connection.providerId === "s3-compatible") {
+    return {
+      ok: true,
+      token: connection.secretAccessKey,
+      accessKeyId: connection.accessKeyId,
+      bucket: connection.bucket,
+      region: connection.region,
+      publicUrl: connection.publicUrl,
+      ...(connection.endpoint !== undefined ? { endpoint: connection.endpoint } : {}),
+    };
+  }
+  if (connection.providerId === "cloudflare-pages") {
+    return { ok: true, token: connection.token, accountId: connection.accountId };
+  }
+  return { ok: true, token: connection.token };
 }
 
 export interface DbPublishCredentialSourceDeps {
@@ -178,36 +242,40 @@ export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceD
   const notConfiguredReason = (target: StaticPublishTargetId) =>
     `no default '${target}' credential is saved for this workspace yet — add one in the Static Site tab`;
 
+  /**
+   * Resolves the ONE saved connection the operator chose, or refuses — never the provider's default
+   * (terra review 2026-09-20, finding 1). `credentialId` is UNTRUSTED (an HTTP body field), so both
+   * checks below are load-bearing: `resolveForPublish` reads through the workspace-scoped
+   * `findById`, so another workspace's id is a `null` here and can never decrypt, and the row's own
+   * `providerId` must match the target this publish is actually going to.
+   *
+   * @complexity O(1) — one repo read plus, only on a full match, one decrypt (`resolveForPublish`).
+   */
+  async function resolveChosenCredential(
+    input: { workspaceId: UUID; target: StaticPublishTargetId; credentialId: UUID }
+  ): Promise<Awaited<ReturnType<PublishCredentialSource["resolve"]>>> {
+    const resolved = await resolveForPublish(deps, { workspaceId: input.workspaceId, id: input.credentialId });
+    if (!resolved) {
+      return { ok: false, reason: CHOSEN_CREDENTIAL_UNAVAILABLE_REASON };
+    }
+    if (resolved.providerId !== input.target) {
+      return { ok: false, reason: chosenCredentialWrongProviderReason(resolved.providerId, input.target) };
+    }
+    return projectConnectionForPublish(resolved.connection);
+  }
+
   return {
     async resolve(input) {
+      // The chosen-connection path and the default path produce the SAME success shape (both end in
+      // `projectConnectionForPublish`) — only WHICH row is read differs.
+      if (input.credentialId !== undefined) {
+        return resolveChosenCredential({ workspaceId: input.workspaceId, target: input.target, credentialId: input.credentialId });
+      }
       const resolved = await resolveDefaultForPublish(deps, { workspaceId: input.workspaceId, providerId: input.target });
       if (!resolved) {
         return { ok: false, reason: notConfiguredReason(input.target) };
       }
-      // `accountId` only exists on the cloudflare-pages branch of `PublishConnectionInput` — see
-      // `static-publish/types.ts`'s `CloudflarePagesPublishConfig` doc for why it flows through here
-      // rather than living on the publish config.
-      const accountId = resolved.connection.providerId === "cloudflare-pages" ? resolved.connection.accountId : undefined;
-
-      // s3-compatible has NO `token` field on its own connection variant (it authenticates with an
-      // access-key/secret-key pair, not a bearer token — `publish-credentials/types.ts`'s
-      // `S3CompatibleConnectionInput` doc) — `secretAccessKey` fills `token`'s "the value that
-      // authenticates this request" role instead (see `PublishCredentialSource`'s own doc on this
-      // reuse), and the other five fields ride along as this interface's own optional s3-only fields.
-      if (resolved.connection.providerId === "s3-compatible") {
-        const s3 = resolved.connection;
-        return {
-          ok: true,
-          token: s3.secretAccessKey,
-          accessKeyId: s3.accessKeyId,
-          bucket: s3.bucket,
-          region: s3.region,
-          publicUrl: s3.publicUrl,
-          ...(s3.endpoint !== undefined ? { endpoint: s3.endpoint } : {}),
-        };
-      }
-
-      return { ok: true, token: resolved.connection.token, ...(accountId !== undefined ? { accountId } : {}) };
+      return projectConnectionForPublish(resolved.connection);
     },
     async isConfigured(input) {
       const record = await deps.repo.findDefaultByProvider({ workspaceId: input.workspaceId, providerId: input.target });
@@ -250,6 +318,11 @@ export function composePublishCredentialSource(input: ComposePublishCredentialSo
     async resolve(req) {
       const fromDb = await dbSource.resolve(req);
       if (fromDb.ok) return fromDb;
+      // A publish BOUND to a chosen saved connection never falls through to the env var (terra
+      // review 2026-09-20, finding 1): the operator picked a specific account, and quietly
+      // publishing with a different credential because that one did not resolve is the exact
+      // failure this binding exists to prevent. The DB source's own refusal is the answer.
+      if (req.credentialId !== undefined) return fromDb;
       return envSource.resolve(req);
     },
     async isConfigured(req) {

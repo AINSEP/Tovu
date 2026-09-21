@@ -834,3 +834,73 @@ test("publishStaticSite: a partial outcome with no statusMessage falls back to t
   if (result.ok !== "partial") throw new Error("unreachable");
   assert.equal(result.message, "Published to vercel, but the public URL is not confirmed reachable yet (status: link-delayed).");
 });
+
+// ---- credentialId: the chosen connection reaches the credential source verbatim ----------------
+// terra review 2026-09-20, finding 1 (Critical). `publishStaticSite` used to hand `resolve()` only
+// `{workspaceId, target}`, so the source picked the credential itself — whichever row was default
+// when the publish landed. The chosen connection's id now rides on the input and is passed through
+// unchanged; the SOURCE is what validates it (see `credentials.unit.test.ts`).
+
+test("publishStaticSite: the input's credentialId reaches credentialSource.resolve() unchanged", async () => {
+  const deps: RouteDeps = testRouteDeps();
+  const seen: { value: unknown } = { value: null };
+
+  const result = await publishStaticSite(
+    {
+      credentialSource: {
+        async resolve(input) {
+          seen.value = input;
+          return { ok: false, reason: "refused for this test" };
+        },
+        async isConfigured() {
+          return { configured: false, reason: "refused for this test" };
+        },
+      },
+      buildTarget: () => {
+        throw new Error("buildTarget must not be called when no credential was resolved");
+      },
+    },
+    {
+      workspaceId: deps.workspaceId,
+      publishOutputRootDir: deps.publishOutputRootDir,
+      idGen: deps.idGen,
+      exportSiteBound: deps.exportSiteBound,
+      config: { target: "github-pages", owner: "octo", repo: "demo" },
+      projectName: "demo",
+      credentialId: "cred-chosen-by-the-operator",
+    }
+  );
+
+  assert.deepEqual(seen.value, { workspaceId: deps.workspaceId, target: "github-pages", credentialId: "cred-chosen-by-the-operator" });
+  assert.equal(result.ok, false);
+});
+
+test("publishStaticSite: with no credentialId on the input, resolve() is called with no credentialId key at all (the default-lookup path every other caller stays on)", async () => {
+  const deps: RouteDeps = testRouteDeps();
+  const seen: { value: Record<string, unknown> | null } = { value: null };
+
+  await publishStaticSite(
+    {
+      credentialSource: {
+        async resolve(input) {
+          seen.value = input as unknown as Record<string, unknown>;
+          return { ok: false, reason: "refused for this test" };
+        },
+        async isConfigured() {
+          return { configured: false, reason: "refused for this test" };
+        },
+      },
+    },
+    {
+      workspaceId: deps.workspaceId,
+      publishOutputRootDir: deps.publishOutputRootDir,
+      idGen: deps.idGen,
+      exportSiteBound: deps.exportSiteBound,
+      config: { target: "vercel" },
+      projectName: "demo",
+    }
+  );
+
+  assert.deepEqual(seen.value, { workspaceId: deps.workspaceId, target: "vercel" });
+  assert.equal("credentialId" in (seen.value ?? {}), false, "an absent choice must never travel as an explicit undefined");
+});

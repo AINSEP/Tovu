@@ -3934,11 +3934,24 @@ export const api = {
     return request<AdminStaticPublishPreview>(`/workspaces/${WORKSPACE_ID}/system/publish/preview?${query.toString()}`);
   },
   /** Starts a new publish to `config.target`. `409` (surfaced as a thrown error) if one is already
-   *  running — this instance runs at most one publish at a time, independent of a plain export. */
-  triggerPublish: (input: { config: AdminStaticPublishConfig; projectName: string }) =>
+   *  running — this instance runs at most one publish at a time, independent of a plain export.
+   *
+   *  `credentialId` names the saved connection the operator chose, and BINDS the publish to it
+   *  (terra review 2026-09-20, finding 1 — Critical): without it the server resolved whichever row
+   *  was `is_default` when the POST landed, so picking connection B and clicking Publish while B's
+   *  promotion was still in flight published the site to A's account. The server validates the id
+   *  against this workspace and this target and REFUSES on a mismatch — it never falls back to the
+   *  default (`static-publish/credentials.ts`). Omitted entirely (never sent as an explicit
+   *  `undefined`) when this provider has no saved connection — an install publishing from server
+   *  env vars has no connection ids at all, and that caller keeps the default lookup. */
+  triggerPublish: (input: { config: AdminStaticPublishConfig; projectName: string; credentialId?: string }) =>
     request<AdminPublishRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/publish`, {
       method: "POST",
-      body: JSON.stringify({ ...input.config, projectName: input.projectName }),
+      body: JSON.stringify({
+        ...input.config,
+        projectName: input.projectName,
+        ...(input.credentialId !== undefined ? { credentialId: input.credentialId } : {}),
+      }),
     }),
   /** The current/most recent publish run's status — poll this after `triggerPublish` until `status`
    *  is no longer `"running"`. */

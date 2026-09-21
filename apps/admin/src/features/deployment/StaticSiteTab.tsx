@@ -724,6 +724,7 @@ function GettingItOnlineCard({
           target={selectedTarget.id}
           controller={publishController}
           credentialChangePending={credentialsController.credentialChangePending}
+          chosenCredentialId={chosenCredentialIdForTarget(credentialsController, selectedTarget.id)}
           t={translate}
         />
       </div>
@@ -1397,6 +1398,7 @@ function PublishTriggerAction({
   canPublish,
   busy,
   credentialChangePending,
+  chosenCredentialId,
   runTone,
   controller,
   t: translate,
@@ -1406,6 +1408,9 @@ function PublishTriggerAction({
   /** Disables Publish (without relabelling it "Publishing…") while a token switch or replacement is
    *  still in flight — the server would otherwise publish with the token being replaced. */
   credentialChangePending: boolean;
+  /** {@link chosenCredentialIdForTarget}'s result — sent with the publish so the SERVER uses this
+   *  exact connection rather than resolving its own default. */
+  chosenCredentialId: string | undefined;
   runTone: string;
   controller: StaticPublishController;
   t: Translate;
@@ -1416,7 +1421,7 @@ function PublishTriggerAction({
       <button
         type="button"
         disabled={!canPublish || busy || credentialChangePending}
-        onClick={() => void controller.publish()}
+        onClick={() => void controller.publish(chosenCredentialId !== undefined ? { credentialId: chosenCredentialId } : {})}
         {...agentHandle("deployment-static-site-publish-trigger", { role: "button", label: "Publish the current site export to this target right now — live on the public internet immediately" })}
       >
         {busy ? translate("Publishing…") : translate("Publish")}
@@ -1450,16 +1455,34 @@ function PublishTriggerAction({
  *  ONLY the fields the current target uses (see `use-static-publish.hooks.ts`'s header for why the
  *  hook still keeps all five target fields in state at once) — a GitHub Pages selection never shows
  *  a `teamId` field, and vice versa; Netlify and Cloudflare Pages show neither. */
+/** The saved connection this provider's row is currently showing as the one that publishes — the
+ *  id the Publish request must NAME, so the server publishes with that account instead of resolving
+ *  whichever row is default when the POST lands (terra review 2026-09-20, finding 1). `undefined`
+ *  when this provider has no saved connection: an install publishing from server env vars has no
+ *  connection ids at all, and that caller keeps the server's default lookup.
+ *
+ *  Reads `saved` and not `selectingCredentialId`: a pick still in flight is not yet the connection
+ *  that publishes, and Publish is disabled for that whole window anyway
+ *  ({@link PublishCredentialsController.credentialChangePending}).
+ *
+ *  @complexity O(providers) — a four-element scan. */
+function chosenCredentialIdForTarget(controller: PublishCredentialsController, target: AdminStaticPublishTargetId): string | undefined {
+  return controller.rows?.find((row) => row.providerId === target)?.saved?.id;
+}
+
 function StaticPublishForm({
   target,
   controller,
   credentialChangePending,
+  chosenCredentialId,
   t: translate,
 }: {
   target: AdminStaticPublishTargetId;
   controller: StaticPublishController;
   /** {@link PublishCredentialsController.credentialChangePending} — see that field's doc. */
   credentialChangePending: boolean;
+  /** {@link chosenCredentialIdForTarget}'s result for this target — see that function's own doc. */
+  chosenCredentialId: string | undefined;
   t: Translate;
 }) {
   const canPreview = staticPublishFormReadyForPreview(target, { owner: controller.owner, repo: controller.repo });
@@ -1523,6 +1546,7 @@ function StaticPublishForm({
         canPublish={canPublish}
         busy={busy}
         credentialChangePending={credentialChangePending}
+        chosenCredentialId={chosenCredentialId}
         runTone={runTone}
         controller={controller}
         t={translate}
