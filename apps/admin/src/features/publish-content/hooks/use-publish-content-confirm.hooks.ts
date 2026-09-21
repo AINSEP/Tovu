@@ -181,6 +181,23 @@ function publishInFlight(phase: PublishContentPhase): boolean {
 }
 
 /**
+ * Whether `peerId` is an actually-chosen site, as opposed to the picker's blank placeholder
+ * (`PublishContentDialog.tsx`'s `<option value="">`, which fires `onSelectPeer("")`) or nothing
+ * chosen at all. Every guard downstream of a peer id — the start gate, the confirm gate, and the
+ * execute effect's gate — reads this rather than a bare `!== null`, so an empty string can never slip
+ * through one of them into a `planPublish`/`confirmPublish`/`executePublish` call with an empty
+ * `:peerId` segment (a confusing 404, since Express can't route an empty path segment, instead of the
+ * button simply staying disabled — plan-server.md's BLOCKED-CLAIMED finding, 2026-09-20).
+ * `onSelectPeer` below also normalizes `""` to `null` in {@link selectedPeerId} itself, so this
+ * belongs to defense in depth for anything that reads {@link planPeerRef} after an `await`, not the
+ * only thing standing between the picker and the network.
+ * @complexity O(1).
+ */
+function isChosenPeerId(peerId: string | null): peerId is string {
+  return peerId !== null && peerId !== "";
+}
+
+/**
  * @param props.onCancel Called when the dialog should close (Escape, Cancel, the backdrop) — never
  *   while a committed publish has no outcome yet; see `publishInFlight`.
  * @param props.t The screen's own bound translator, threaded down rather than resolved again here.
@@ -356,7 +373,7 @@ export function usePublishContentConfirm(props: {
    */
   const confirmPlan = useCallback(async () => {
     const peerId = planPeerRef.current;
-    if (peerId === null || phase.kind !== "planned" || !canConfirmPlan(phase)) return;
+    if (!isChosenPeerId(peerId) || phase.kind !== "planned" || !canConfirmPlan(phase)) return;
     const { plan } = phase;
     const selectable = selectableRowKeys(toPublishReportRows(plan.details));
     const keep = selectable.filter((key) => !deselectedKeys.has(key));
@@ -391,7 +408,7 @@ export function usePublishContentConfirm(props: {
   const executionToken = confirmationTokenFor(phase);
   useEffect(() => {
     const peerId = planPeerRef.current;
-    if (executionToken === null || phase.kind !== "confirmed" || peerId === null) return;
+    if (executionToken === null || phase.kind !== "confirmed" || !isChosenPeerId(peerId)) return;
     const { plan } = phase;
     setPhase({ kind: "executing", plan, confirmationToken: executionToken });
     void (async () => {
@@ -456,19 +473,25 @@ export function usePublishContentConfirm(props: {
 
   const peerSelectionEnabled = peerSelectionOpen(phase);
   const onSelectPeer = (peerId: string): void => {
-    if (!peerSelectionEnabled || peerId === selectedPeerId) return;
-    setSelectedPeerId(peerId);
+    // The picker's blank "Choose a site…" option fires this with `""` (its `value`) — normalized to
+    // `null` here so `selectedPeerId` can never hold it, the same "nothing chosen" state a fresh
+    // dialog starts in. This is the fix, not just a defense: every downstream guard reads
+    // `selectedPeerId`/`planPeerRef` off THIS state, so keeping it out from the start is what makes
+    // `isChosenPeerId`'s other call sites redundant-but-safe rather than load-bearing on their own.
+    const normalized = peerId === "" ? null : peerId;
+    if (!peerSelectionEnabled || normalized === selectedPeerId) return;
+    setSelectedPeerId(normalized);
     // The report on screen, and the rows unchecked in it, describe the site being left.
     planPeerRef.current = null;
     setPhase({ kind: "idle" });
     setDeselectedKeys(new Set());
   };
 
-  const canStart = canRequestPlan(phase) && selectedPeerId !== null;
+  const canStart = canRequestPlan(phase) && isChosenPeerId(selectedPeerId);
   const runPrimary = useCallback((): Promise<void> => {
     if (connectOffer) return onConnect();
     if (!canRequestPlan(phase)) return confirmPlan();
-    return selectedPeerId === null ? Promise.resolve() : requestPlan(selectedPeerId);
+    return isChosenPeerId(selectedPeerId) ? requestPlan(selectedPeerId) : Promise.resolve();
   }, [confirmPlan, connectOffer, onConnect, phase, requestPlan, selectedPeerId]);
 
   // Synchronous duplicate-submit guard (terra review 2026-09-20, finding 5's sibling). The button's

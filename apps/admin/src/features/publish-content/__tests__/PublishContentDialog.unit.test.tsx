@@ -632,6 +632,59 @@ describe("PublishContentDialog — a plan belongs to the site it was made for (t
   });
 });
 
+// plan-server.md BLOCKED-CLAIMED residual of terra #2: the picker's blank "Choose a site…" option
+// stores `value=""` (`PublishContentDialog.tsx`'s own `<option value="">`), and `canStart` used to
+// check only `!== null` — so the primary button stayed enabled and a click sent
+// `planPublish({peerId: ""})`, which 404s at the server (Express's `:peerId` segment can't match an
+// empty one) instead of the button simply staying disabled.
+describe("PublishContentDialog — the blank 'Choose a site…' option is not a chosen site (plan-server.md BLOCKED-CLAIMED)", () => {
+  const TWO_PEERS = [
+    ONE_PEER[0],
+    {
+      id: "peer-staging",
+      label: "staging.tovu.com",
+      baseUrl: "https://staging.tovu.com",
+      remoteWorkspaceId: "workspace-local",
+      masked: null,
+      hasCredential: true,
+    },
+  ] as const;
+
+  it("choosing the blank option disables Publish and sends no plan request", async () => {
+    const user = userEvent.setup();
+    const port = createFakePublishContentPort({ peers: TWO_PEERS, report: SELECTION_REPORT });
+    renderDialog(port);
+    const picker = await screen.findByRole("combobox");
+
+    await user.selectOptions(picker, "peer-prod");
+    expect(primaryButton()).toBeEnabled();
+
+    await user.selectOptions(picker, "");
+    expect(primaryButton()).toBeDisabled();
+
+    await user.click(primaryButton());
+    expect(port.calls.planPublish).toHaveLength(0);
+  });
+
+  it("the hook's own guards refuse an empty peer id even if a caller bypasses the disabled button", async () => {
+    const port = createFakePublishContentPort({ peers: TWO_PEERS, report: SELECTION_REPORT });
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port }));
+    await waitFor(() => expect(result.current.peers).toHaveLength(2));
+
+    act(() => result.current.onSelectPeer(""));
+
+    expect(result.current.selectedPeerId).toBeNull();
+    expect(result.current.primaryDisabled).toBe(true);
+
+    await act(async () => {
+      result.current.onPrimary();
+    });
+
+    expect(port.calls.planPublish).toHaveLength(0);
+    expect(result.current.phase).toEqual({ kind: "idle" });
+  });
+});
+
 // terra review 2026-09-20, finding 3 (High). Once confirm is sent, the publish is the live site's to
 // finish — there is no abort. Closing the dialog then cancelled nothing, and because every post-await
 // update is dropped once unmounted, the operator never learned whether it published, failed, or
