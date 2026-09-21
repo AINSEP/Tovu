@@ -184,11 +184,14 @@ import {
   bindRemoveEntity,
   COMMENT_ENTITY_TYPE,
   bindForgetRemovedEntity,
+  buildTrashRegistry,
   createCommentTrashAdapter,
   createContentDbTransactionRunner,
   createMediaTrashAdapter,
   createPostTrashAdapter,
   createRedirectTrashAdapter,
+  createSqliteTrashDb,
+  createTableTrashAdapter,
   createTrashService,
   createTrashSweep,
   MEDIA_ENTITY_TYPE,
@@ -197,6 +200,7 @@ import {
   SqliteTrashRepo,
   type TrashAdapter,
 } from "#src/features/trash/index";
+import { formDefinitions, formSubmissions } from "#src/platform/db/schema";
 import { installCommentsDataModule } from "#src/features/comments/data-module-install";
 import {
   SqliteEntryTermRepo,
@@ -1119,6 +1123,12 @@ export function createSqliteRouteDeps(
   // unregister, so anything that filters at registration time runs exactly once — two real bugs
   // already came from that. Adding a phase-2 domain means one more `set()` here and no migration.
   const assetRenditionRepo = new SqliteAssetRenditionRepo(db);
+  // `TRASHABLE` (plan §1/§4) — built once here from the live `schema.ts` tables. `form` is the only
+  // entry today; adding `menu`/`term`/`taxonomy`/`form_submission`/`widget` (G2-G4) needs no edit
+  // below this line, only a new `registry.ts` `Map` entry — the adapter map beneath already loops
+  // over every registered entry generically.
+  const trashRegistry = buildTrashRegistry({ schema: { formDefinitions, formSubmissions } });
+  const sqliteTrashDb = createSqliteTrashDb({ db });
   const trashAdapters = new Map<string, TrashAdapter>([
     [POST_ENTITY_TYPE, createPostTrashAdapter(db.$client)],
     [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(db.$client)],
@@ -1138,6 +1148,12 @@ export function createSqliteRouteDeps(
         },
       }),
     ],
+    // One generic adapter per `TRASHABLE` entry (`form` today) — `createTableTrashAdapter` is
+    // written once and driven entirely by each entry's own registration, so this line never changes
+    // as G2-G4 add more entries.
+    ...[...trashRegistry.values()].map(
+      (entry) => [entry.entityType, createTableTrashAdapter({ entry, db: sqliteTrashDb })] as const
+    ),
   ]);
   const trashRepo = new SqliteTrashRepo(db.$client);
   // Reentrant: `deletePost` and `tombstoneRedirect` already open their own BEGIN IMMEDIATE around
@@ -1487,6 +1503,10 @@ export function createSqliteRouteDeps(
     sweepTrash: createTrashSweep({ repo: trashRepo, adapters: trashAdapters, transaction: trashTransaction }),
     // Read on every call; see `TrashDeps.isTrashableEntityType`.
     isTrashableEntityType: (entityType) => trashAdapters.has(entityType),
+    // `TrashDeps.registry`/`db` — read by `moveToTrash` (`POST .../trash/items`) and by
+    // `permissions.ts`'s registry-based permission lookup, both via this same `routeDeps` object.
+    registry: trashRegistry,
+    db: sqliteTrashDb,
     postRepo,
     postSearch: new SqlitePostSearchIndex(db),
     // SPEC-047/ADR-056 — the db handle and clock are closed over here so no route ever holds one;

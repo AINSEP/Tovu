@@ -37,6 +37,19 @@ export {
 } from "./write-service.js";
 export type { TrashChangeEvent, TrashServiceDeps } from "./write-service.js";
 
+export { moveToTrash } from "./move-to-trash.js";
+export type { MoveToTrashOutcome } from "./move-to-trash.js";
+
+export { buildTrashRegistry } from "./registry.js";
+export type { TrashEntry, TrashRegistry, TrashRegistrySchema } from "./registry.js";
+
+export { createSqliteTrashDb } from "./db-port.sqlite.js";
+export type { TrashDb, TrashDbAssignment, TrashDbRow } from "./db-port.js";
+
+export { createTableTrashAdapter } from "./table-adapter.js";
+
+export { isTrashedRecord, notTrashed } from "./not-trashed.js";
+
 export {
   filterVisibleTrashItems,
   mayActOnEntityType,
@@ -73,6 +86,5 @@ export { createCommentTrashAdapter, COMMENT_ENTITY_TYPE } from "./adapters/comme
 export { createMediaTrashAdapter, MEDIA_ENTITY_TYPE } from "./adapters/media.js";
 export type { MediaTrashAdapterDeps } from "./adapters/media.js";
 export { createRedirectTrashAdapter, REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
-export { createFormTrashAdapter, FORM_ENTITY_TYPE } from "./adapters/form.js";
 export { createRecordStoreTrashAdapter } from "./adapters/record-store.js";
 export type { RecordStoreTrashAdapterDeps, TrashRecordStore } from "./adapters/record-store.js";

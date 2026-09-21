@@ -1,54 +1,63 @@
 /**
  * @file Who may see, restore and permanently remove which kind of trashed thing.
  *
- * The Trash is the only surface in the product that lists five unrelated domains side by side, so a
- * single `trash.read`/`trash.manage` pair would be a way around five separate permissions at once:
- * a principal trusted only to moderate comments would read the titles of every deleted post, and
+ * The Trash is the only surface in the product that lists several unrelated domains side by side,
+ * so a single `trash.read`/`trash.manage` pair would be a way around every one of them at once: a
+ * principal trusted only to moderate comments would read the titles of every deleted post, and
  * could permanently destroy them. Instead **every row is gated by the permission that row's own
  * kind already required to be deleted**, resolved per row, in one place that both the agent tools
  * and the admin HTTP routes read — the two surfaces cannot drift apart because there is only one
- * map.
+ * lookup.
+ *
+ * Two sources feed that lookup, per `ADS-memory/.local-artifacts/handoffs/2026-09-21-t8f-trash-more-plan.md`
+ * §1/§4:
+ *  - {@link TRASH_PERMISSION_BY_ENTITY_TYPE} — the bespoke kinds (post/comment/media/redirect), whose
+ *    adapters predate `TRASHABLE` and are not expected to move into it soon (§2's "stay on raw SQL
+ *    for now"). A fixed, hand-maintained map is the right shape for a fixed, small set.
+ *  - `TRASHABLE` itself (`registry.ts`) — every kind registered there already carries its own
+ *    `permission` field, so a phase-2 kind (`form` today; `menu`/`term`/`taxonomy`/`form_submission`/
+ *    `widget` later) needs no second entry here. `trashPermissionFor` is the merge point.
  */
 import { COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
-import { FORM_ENTITY_TYPE } from "./adapters/form.js";
 import { MEDIA_ENTITY_TYPE } from "./adapters/media.js";
 import { POST_ENTITY_TYPE } from "./adapters/post.js";
 import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
 import type { TrashEntityType, TrashItem } from "./ports.js";
+import type { TrashRegistry } from "./registry.js";
 
 /** The entry gate on the Trash surface itself. Every row is then filtered again, per kind. */
 export const TRASH_READ_PERMISSION = "content.read";
 
 /**
- * Per-kind gate: **the same permission that kind's own delete path required.**
+ * The BESPOKE kinds' gate: **the same permission that kind's own delete path required.**
  *
  * `content_post_delete` and `posts/delete.ts` gate on `content.write` (this codebase grants no
  * `content.delete` anywhere); comments moderation on `comments.moderate`; `media/trash.ts` on
- * `media.delete`; `redirects_tombstone` on `admin.redirects.manage`; `forms_trash_definition` (and
- * create/update/status) on `admin.forms.manage`.
+ * `media.delete`; `redirects_tombstone` on `admin.redirects.manage`.
  *
- * A kind absent from this map is neither listable nor restorable nor purgeable. That is the
- * conservative default on purpose: a phase-2 domain has to opt in here deliberately, rather than
- * inheriting whatever the Trash happened to grant.
+ * A kind absent from BOTH this map and `TRASHABLE` is neither listable nor restorable nor
+ * purgeable. That is the conservative default on purpose: a phase-2 domain has to opt in
+ * deliberately, rather than inheriting whatever the Trash happened to grant.
  */
 export const TRASH_PERMISSION_BY_ENTITY_TYPE: ReadonlyMap<TrashEntityType, string> = new Map([
   [POST_ENTITY_TYPE, "content.write"],
   [COMMENT_ENTITY_TYPE, "comments.moderate"],
   [MEDIA_ENTITY_TYPE, "media.delete"],
   [REDIRECT_ENTITY_TYPE, "admin.redirects.manage"],
-  [FORM_ENTITY_TYPE, "admin.forms.manage"],
 ]);
 
 /**
  * The permission a kind needs, or `null` when the Trash does not own that kind.
  *
- * Exists so a caller that is going to check the permission ANYWAY (through its own evaluator) can
- * resolve the name without a second authorization round-trip — the single-evaluator rule.
+ * Checks the bespoke map first, then `TRASHABLE` — a kind cannot be registered in both, but if it
+ * ever were, the bespoke, hand-reviewed entry should win. Exists so a caller that is going to check
+ * the permission ANYWAY (through its own evaluator) can resolve the name without a second
+ * authorization round-trip — the single-evaluator rule.
  *
  * @complexity O(1).
  */
-export function trashPermissionFor(entityType: TrashEntityType): string | null {
-  return TRASH_PERMISSION_BY_ENTITY_TYPE.get(entityType) ?? null;
+export function trashPermissionFor(entityType: TrashEntityType, deps: { registry: TrashRegistry }): string | null {
+  return TRASH_PERMISSION_BY_ENTITY_TYPE.get(entityType) ?? deps.registry.get(entityType)?.permission ?? null;
 }
 
 /** The non-throwing authorization seam both surfaces already hold. */
@@ -69,10 +78,10 @@ export type TrashAuthorizeFn = (params: {
  * @complexity O(1) beyond the injected `authorize` call.
  */
 export async function mayActOnEntityType(
-  deps: { authorize: TrashAuthorizeFn; workspaceId: string },
+  deps: { authorize: TrashAuthorizeFn; workspaceId: string; registry: TrashRegistry },
   required: { principalId: string; entityType: TrashEntityType; entityId?: string }
 ): Promise<{ permission: string | null; allowed: boolean; reason: string }> {
-  const permission = trashPermissionFor(required.entityType);
+  const permission = trashPermissionFor(required.entityType, deps);
   if (!permission) {
     return { permission: null, allowed: false, reason: `'${required.entityType}' is not a kind the Trash owns` };
   }
@@ -97,7 +106,7 @@ export async function mayActOnEntityType(
  * @complexity O(n) rows and at most one `authorize` call per DISTINCT kind on the page (five).
  */
 export async function filterVisibleTrashItems(
-  deps: { authorize: TrashAuthorizeFn; workspaceId: string },
+  deps: { authorize: TrashAuthorizeFn; workspaceId: string; registry: TrashRegistry },
   required: { principalId: string; items: readonly TrashItem[] }
 ): Promise<TrashItem[]> {
   const decidedByType = new Map<TrashEntityType, boolean>();

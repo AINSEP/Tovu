@@ -34,6 +34,7 @@ import {
   TRASH_READ_PERMISSION,
 } from "./permissions.js";
 import type { TrashEntityType, TrashItem, TrashPort } from "./ports.js";
+import type { TrashRegistry } from "./registry.js";
 
 const CATALOG_BY_ID = indexCatalogById(getTrashAgentToolCatalog());
 
@@ -53,6 +54,9 @@ export interface TrashToolDeps {
   workspaceId: string;
   trash: TrashPort;
   clock: { nowIso(): string };
+  /** `TRASHABLE`, so `trash_restore_item` can resolve a phase-2 kind's permission the same way the
+   *  admin HTTP routes do — see `permissions.ts`'s `trashPermissionFor`. */
+  registry: TrashRegistry;
 }
 
 /** Model-facing row. Drops `workspaceId` (every call is already scoped to one) and the trash row's
@@ -134,11 +138,11 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
       const entityType = requireString(input, "entityType");
       const entityId = requireString(input, "entityId");
 
-      const permission = trashPermissionFor(entityType);
+      const permission = trashPermissionFor(entityType, routeDeps);
       if (!permission) {
         throw new Error(
           `trash_restore_item: '${entityType}' is not a kind the Trash can restore. Expected one of: ` +
-            `${[...TRASH_PERMISSION_BY_ENTITY_TYPE.keys()].join(", ")}.`
+            `${[...TRASH_PERMISSION_BY_ENTITY_TYPE.keys(), ...routeDeps.registry.keys()].join(", ")}.`
         );
       }
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission, entityType, entityId });

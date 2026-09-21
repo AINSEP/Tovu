@@ -86,6 +86,9 @@ function trashToolDeps() {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     clock: { nowIso: () => NOW },
     trash: trashPortThatRefusesToPurge(),
+    // Empty: this file proves the purge ban, not registry-derived permission resolution — no case
+    // here needs a phase-2 kind resolved.
+    registry: new Map(),
   };
 }
 

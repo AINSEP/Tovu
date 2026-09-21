@@ -5,9 +5,12 @@ import express from "express";
 import type Database from "better-sqlite3";
 
 import {
+  buildTrashRegistry,
   createContentDbTransactionRunner,
   createPostTrashAdapter,
   createRedirectTrashAdapter,
+  createSqliteTrashDb,
+  createTableTrashAdapter,
   createTrashService,
   POST_ENTITY_TYPE,
   REDIRECT_ENTITY_TYPE,
@@ -15,6 +18,7 @@ import {
   type TrashAdapter,
   type TrashPort,
 } from "#src/features/trash/index";
+import { formDefinitions, formSubmissions } from "#src/platform/db/schema";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
 import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "./helpers/http-test-server.js";
@@ -53,7 +57,7 @@ const AT = "2026-09-20T12:00:00.000Z";
 // ---------------------------------------------------------------------------
 // 1. The sink audit — the real app
 
-test("createApp() actually mounts all three trash routes", async (t) => {
+test("createApp() actually mounts all four trash routes, including the generic move-to-trash one", async (t) => {
   const deps: RouteDeps = { ...createRouteDeps() };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const root = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/trash`;
@@ -83,6 +87,19 @@ test("createApp() actually mounts all three trash routes", async (t) => {
     purged: 0,
     results: [{ id: "no-such-row", outcome: "not-found" }],
   });
+
+  // This hermetic (in-memory) composition registers no `TRASHABLE` entry at all (no Drizzle-backed
+  // `content.db` for `createTableTrashAdapter` to run against — see `createRouteDeps`'s own
+  // `registry: new Map()` comment in `app.ts`), so every type here reads as unknown. The not-found/
+  // forbidden/success outcomes are proven below, against real SQLite trash rows, where `form` IS
+  // registered.
+  const itemsUnknownRes = await fetch(`${root}/items`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ type: "form", id: "no-such-form" }),
+  });
+  assert.equal(itemsUnknownRes.status, 404);
+  assert.equal((await itemsUnknownRes.json() as { code: string }).code, "TRASH_UNKNOWN_TYPE");
 });
 
 test("the trash routes answer 404 for a workspace that is not this site's", async (t) => {
@@ -101,6 +118,11 @@ test("the trash routes answer 404 for a workspace that is not this site's", asyn
       method: "POST",
       headers: { "content-type": "application/json", cookie },
       body: JSON.stringify({ ids: ["x"] }),
+    }),
+    await fetch(`${root}/items`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ type: "form", id: "x" }),
     }),
   ]) {
     assert.equal(res.status, 404);
@@ -132,9 +154,16 @@ function buildTrashHarness(): TrashHarness {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(base.workspaceId, "ws", "ws", "2026-01-01T00:00:00.000Z");
 
+  const registry = buildTrashRegistry({ schema: { formDefinitions, formSubmissions } });
+  const sqliteTrashDb = createSqliteTrashDb({ db });
   const adapters = new Map<string, TrashAdapter>([
     [POST_ENTITY_TYPE, createPostTrashAdapter(client)],
     [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(client)],
+    // `moveToTrash` (`POST .../trash/items`) is exercised through the `form` entry — the one
+    // registry-derived kind G1c registers.
+    ...[...registry.values()].map(
+      (entry) => [entry.entityType, createTableTrashAdapter({ entry, db: sqliteTrashDb })] as const
+    ),
   ]);
   let seq = 0;
   const trash = createTrashService({
@@ -149,6 +178,8 @@ function buildTrashHarness(): TrashHarness {
     authorize: base.authorize,
     clock: base.clock,
     trash,
+    registry,
+    db: sqliteTrashDb,
   };
 
   const app = express();
@@ -234,6 +265,17 @@ function seedPost(client: Database.Database, workspaceId: string, id: string): v
        VALUES (?, ?, ?, ?, 'published', '{"type":"doc"}', ?, ?, 1)`
     )
     .run(id, workspaceId, `slug-${id}`, `Title ${id}`, AT, AT);
+}
+
+/** @complexity O(1). */
+function seedForm(client: Database.Database, workspaceId: string, id: string): void {
+  client
+    .prepare(
+      `INSERT INTO form_definitions
+         (id, workspace_id, name, slug, fields_json, notify_json, status, created_at, updated_at, deleted_at, version)
+       VALUES (?, ?, ?, ?, '{"fields":[]}', '{"enabled":false,"recipients":[]}', 'active', ?, ?, NULL, 1)`
+    )
+    .run(id, workspaceId, `Form ${id}`, `slug-${id}`, AT, AT);
 }
 
 /** @complexity O(1). */
@@ -354,6 +396,51 @@ test("restore: one forbidden item in a mixed selection does not abort the rest",
     (h.client.prepare(`SELECT status FROM redirects WHERE id = ?`).get("redirect-1") as { status: string }).status,
     "active"
   );
+});
+
+test("items: forbidden without the kind's own permission; 200 with it; a second call reads not-found (already trashed)", async (t) => {
+  const h = buildTrashHarness();
+  seedForm(h.client, h.deps.workspaceId, "form-1");
+  const baseUrl = await startTestServer(h.app, t);
+  const root = `${baseUrl}/api/admin/v1/workspaces/${h.deps.workspaceId}/trash/items`;
+
+  const forbiddenCookie = await loginWithPermissions(h.deps, baseUrl, ["content.read"]);
+  const forbiddenRes = await fetch(root, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: forbiddenCookie },
+    body: JSON.stringify({ type: "form", id: "form-1" }),
+  });
+  assert.equal(forbiddenRes.status, 403);
+  const forbiddenBody = (await forbiddenRes.json()) as { code: string; details: { permission: string } };
+  assert.equal(forbiddenBody.code, "FORBIDDEN");
+  assert.equal(forbiddenBody.details.permission, "admin.forms.manage");
+  assert.equal(
+    (h.client.prepare(`SELECT deleted_at FROM form_definitions WHERE id = ?`).get("form-1") as { deleted_at: string | null }).deleted_at,
+    null,
+    "a forbidden call must never trash the row"
+  );
+
+  const okCookie = await loginWithPermissions(h.deps, baseUrl, ["admin.forms.manage"]);
+  const okRes = await fetch(root, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: okCookie },
+    body: JSON.stringify({ type: "form", id: "form-1" }),
+  });
+  assert.equal(okRes.status, 200);
+  assert.deepEqual(await okRes.json(), { ok: true, version: 2 });
+  assert.notEqual(
+    (h.client.prepare(`SELECT deleted_at FROM form_definitions WHERE id = ?`).get("form-1") as { deleted_at: string | null }).deleted_at,
+    null
+  );
+
+  // Already trashed by the call above -> reads as not-found, per `moveToTrash`'s own contract.
+  const againRes = await fetch(root, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: okCookie },
+    body: JSON.stringify({ type: "form", id: "form-1" }),
+  });
+  assert.equal(againRes.status, 404);
+  assert.equal(((await againRes.json()) as { code: string }).code, "NOT_FOUND");
 });
 
 test("every trash route names the permission it wanted when the session holds no grants at all", async (t) => {

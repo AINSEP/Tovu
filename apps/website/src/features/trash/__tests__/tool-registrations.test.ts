@@ -3,8 +3,16 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
+import { formDefinitions, formSubmissions } from "#src/platform/db/schema";
+
+import { buildTrashRegistry } from "../registry.js";
 import { buildTrashRegistrations } from "../tool-registrations.js";
 import type { PurgeReport, RestoreOutcome, TrashItem, TrashPort } from "../ports.js";
+
+/** The real `form` entry (registry-derived permission), same source `deps.ts` composes from —
+ *  needed because "form" -> "admin.forms.manage" is one of this file's pinned pairings, and that
+ *  pairing now comes from `TRASHABLE`, not the bespoke `TRASH_PERMISSION_BY_ENTITY_TYPE` map. */
+const REGISTRY = buildTrashRegistry({ schema: { formDefinitions, formSubmissions } });
 
 /**
  * @file What the two trash tools actually do, and — the part that matters — **what they refuse to
@@ -81,6 +89,9 @@ function harness(optional: { items?: TrashItem[]; granted?: readonly string[]; o
         ? { allowed: true, reason: "matched" }
         : { allowed: false, reason: `missing ${params.permission}` };
     },
+    // "form" -> "admin.forms.manage" is now registry-derived (`TRASHABLE`), not in the bespoke
+    // `TRASH_PERMISSION_BY_ENTITY_TYPE` map — see `REGISTRY`'s own doc above.
+    registry: REGISTRY,
   });
 
   return { byId: new Map(registrations.map((r) => [r.descriptor.id, r])), restoreCalls, authorizeCalls };

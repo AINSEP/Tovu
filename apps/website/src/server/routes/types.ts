@@ -6,7 +6,14 @@ import type { ObservabilityPort } from "#src/platform/observability/index";
 import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
-import type { ForgetRemovedEntity, RemoveEntity, TrashPort, TrashSweepOnce } from "#src/features/trash/index";
+import type {
+  ForgetRemovedEntity,
+  RemoveEntity,
+  TrashDb,
+  TrashPort,
+  TrashRegistry,
+  TrashSweepOnce,
+} from "#src/features/trash/index";
 import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../contracts/core/commands/index.js";
 import type {
@@ -1400,6 +1407,18 @@ export interface TrashDeps {
    * may reach a hard delete.
    */
   isTrashableEntityType: (entityType: string) => boolean;
+  /**
+   * `TRASHABLE`, built once at composition from the live schema module (`registry.ts`). Read by
+   * `moveToTrash` (the generic `POST .../trash/items` route) and by `permissions.ts`'s
+   * `trashPermissionFor`/`mayActOnEntityType`/`filterVisibleTrashItems`, which `list.ts`/`restore.ts`/
+   * `purge.ts` already call with this same deps object — one field serves both concerns. Named to
+   * match `TrashRouteDeps.registry` exactly, since `RouteDeps` is passed there unchanged.
+   */
+  registry: TrashRegistry;
+  /** The dialect-neutral DB port `moveToTrash` reads the entity's live display/version through —
+   *  same instance `deps.ts` used to build every registry-derived `TrashAdapter`. Named to match
+   *  `TrashRouteDeps.db`. */
+  db: TrashDb;
 }
 
 export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {

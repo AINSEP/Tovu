@@ -3,24 +3,31 @@ import test from "node:test";
 import type Database from "better-sqlite3";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { formDefinitions, formSubmissions } from "#src/platform/db/schema";
 
-import { createFormTrashAdapter, FORM_ENTITY_TYPE } from "../adapters/form.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
+import { createSqliteTrashDb } from "../db-port.sqlite.js";
+import { buildTrashRegistry } from "../registry.js";
+import { createTableTrashAdapter } from "../table-adapter.js";
 import { createTrashService } from "../write-service.js";
 import type { TrashAdapter, TrashPort } from "../ports.js";
 
 /**
- * @file `createFormTrashAdapter` against real SQLite (Batch B1, plan §B).
+ * @file The `form` `TRASHABLE` entry against real SQLite (originally Batch B1, plan §B; rewritten
+ * for G1c against `createTableTrashAdapter` — plan §3's "Delete the file; keep `form-adapter.test.ts`
+ * and point it at the entry"). `adapters/form.ts` (`createFormTrashAdapter`) is deleted; every case
+ * below that it proved is reproduced here through the ONE generic adapter, driven by the registry.
  *
- * The two clauses this file exists to prove, on top of `trash.contract.test.ts`'s generic clauses:
+ * The two clauses this file exists to prove, on top of `trash.contract.test.ts`'s generic clauses and
+ * `table-adapter.test.ts`'s own `form`-entry coverage:
  *
  *  - **column-only, same as every other adapter** — a form whose `fields_json` is unparseable is
  *    still trashable and restorable, byte-identical (decision 1, mirrors `post.ts`).
  *  - **purge order is submissions-then-definition, and only while trashed** — `form_submissions`
  *    has a real `ON DELETE restrict` FK (`content-db.ts` runs with `foreign_keys = ON`), so a purge
  *    that deleted the definition first would throw; and a purge must never fire on a row this
- *    adapter's own `deleted_at IS NULL` check says is still live, even at a matching version
- *    (decision 6's "extra guard").
+ *    adapter's own live-marker check says is still live, even at a matching version (decision 6's
+ *    "extra guard").
  */
 
 const WS = "workspace-1";
@@ -40,7 +47,9 @@ function harness(): Harness {
   client
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
-  return { client, adapter: createFormTrashAdapter(client) };
+  const registry = buildTrashRegistry({ schema: { formDefinitions, formSubmissions } });
+  const adapter = createTableTrashAdapter({ entry: registry.get("form")!, db: createSqliteTrashDb({ db }) });
+  return { client, adapter };
 }
 
 function seedForm(
@@ -196,7 +205,7 @@ test("through createTrashService: trash lists the form snapshot, and restore lea
   seedSubmission(h.client, "sub-2", "form-1");
 
   const repo = new SqliteTrashRepo(h.client);
-  const adapters = new Map<string, TrashAdapter>([[FORM_ENTITY_TYPE, h.adapter]]);
+  const adapters = new Map<string, TrashAdapter>([["form", h.adapter]]);
   let seq = 0;
   const trash: TrashPort = createTrashService({
     repo,
@@ -207,7 +216,7 @@ test("through createTrashService: trash lists the form snapshot, and restore lea
 
   const trashed = await trash.trash({
     workspaceId: WS,
-    entityType: FORM_ENTITY_TYPE,
+    entityType: "form",
     entityId: "form-1",
     actor: { principalId: "principal-1" },
     display: { title: "Form form-1", subtitle: "slug-form-1" },
@@ -220,7 +229,7 @@ test("through createTrashService: trash lists the form snapshot, and restore lea
   assert.deepEqual(page.items[0]!, {
     id: "trash-1",
     workspaceId: WS,
-    entityType: FORM_ENTITY_TYPE,
+    entityType: "form",
     entityId: "form-1",
     trashedAt: AT,
     purgeAfter: page.items[0]!.purgeAfter,
@@ -232,7 +241,7 @@ test("through createTrashService: trash lists the form snapshot, and restore lea
     priorMarker: null,
   });
 
-  const restored = await trash.restore({ workspaceId: WS, entityType: FORM_ENTITY_TYPE, entityId: "form-1", at: AT });
+  const restored = await trash.restore({ workspaceId: WS, entityType: "form", entityId: "form-1", at: AT });
   assert.equal(restored, "restored");
   assert.equal(readRow(h.client, "form-1")!.deleted_at, null);
   assert.equal(submissionCount(h.client, "form-1"), 2, "restore must not touch submissions");

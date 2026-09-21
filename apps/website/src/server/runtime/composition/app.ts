@@ -697,6 +697,23 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const routeDeps: NewsletterRouteDeps = {
     workspaceId: seededWorkspace.id,
     trash,
+    // This hermetic (in-memory) root has no Drizzle-backed `content.db` for `createTableTrashAdapter`
+    // to run against, so it registers no `TRASHABLE` entries (`registry` empty) rather than a second,
+    // divergent `TrashDb` implementation over in-memory record stores. `db` is a stub that must never
+    // actually run: with an empty registry, `moveToTrash` always returns before reading `deps.db`.
+    registry: new Map(),
+    db: {
+      transaction: ({ run }) => run(),
+      selectOne: () => {
+        throw new Error("trash: this hermetic composition registers no TRASHABLE entries — db must never be called");
+      },
+      updateWhere: () => {
+        throw new Error("trash: this hermetic composition registers no TRASHABLE entries — db must never be called");
+      },
+      deleteWhere: () => {
+        throw new Error("trash: this hermetic composition registers no TRASHABLE entries — db must never be called");
+      },
+    },
     removePost: bindRemoveEntity(trash, POST_ENTITY_TYPE),
     removeComment: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
     removeMedia: bindRemoveEntity(trash, MEDIA_ENTITY_TYPE),
