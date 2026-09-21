@@ -15,6 +15,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 export const WIDGETS_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Widget type to create": "Tipo de widget a crear",
     Content: "Contenido",
     // rules.ts's widgetTypeLabel — WIDGET_TYPE_OPTIONS's five known v1 type names.
     Text: "Texto",
@@ -94,6 +95,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "no se pudo vincular",
   },
   id: {
+    "Widget type to create": "Jenis widget yang akan dibuat",
     Content: "Konten",
     Text: "Teks",
     "Social Links": "Tautan Sosial",
@@ -157,6 +159,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "gagal mengikat",
   },
   de: {
+    "Widget type to create": "Zu erstellender Widget-Typ",
     Content: "Inhalt",
     Text: "Text",
     "Social Links": "Soziale Links",
@@ -221,6 +224,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "Binden fehlgeschlagen",
   },
   "zh-CN": {
+    "Widget type to create": "要创建的小组件类型",
     Content: "内容",
     Text: "文本",
     "Social Links": "社交链接",
@@ -281,6 +285,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "绑定失败",
   },
   "zh-TW": {
+    "Widget type to create": "要建立的小工具類型",
     Content: "內容",
     Text: "文字",
     "Social Links": "社群連結",
@@ -341,6 +346,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "繫結失敗",
   },
   "pt-BR": {
+    "Widget type to create": "Tipo de widget a criar",
     Content: "Conteúdo",
     Text: "Texto",
     "Social Links": "Links Sociais",
@@ -405,6 +411,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "falha ao vincular",
   },
   ru: {
+    "Widget type to create": "Тип создаваемого виджета",
     Content: "Контент",
     Text: "Текст",
     "Social Links": "Социальные ссылки",
@@ -468,6 +475,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "не удалось привязать",
   },
   fa: {
+    "Widget type to create": "نوع ابزارکی که ساخته می‌شود",
     Content: "محتوا",
     Text: "متن",
     "Social Links": "لینک‌های اجتماعی",
@@ -531,6 +539,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "اتصال ناموفق بود",
   },
   ar: {
+    "Widget type to create": "نوع الودجة المراد إنشاؤها",
     Content: "المحتوى",
     Text: "نص",
     "Social Links": "روابط التواصل الاجتماعي",
@@ -593,6 +602,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "تعذّر الربط",
   },
   ja: {
+    "Widget type to create": "作成するウィジェットの種類",
     Content: "コンテンツ",
     Text: "テキスト",
     "Social Links": "ソーシャルリンク",
@@ -655,6 +665,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "バインドに失敗しました",
   },
   ko: {
+    "Widget type to create": "만들 위젯 유형",
     Content: "콘텐츠",
     Text: "텍스트",
     "Social Links": "소셜 링크",
@@ -717,6 +728,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "바인딩하지 못했습니다",
   },
   pl: {
+    "Widget type to create": "Typ widżetu do utworzenia",
     Content: "Treść",
     Text: "Tekst",
     "Social Links": "Linki społecznościowe",
@@ -780,6 +792,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "powiązanie nie powiodło się",
   },
   hu: {
+    "Widget type to create": "Létrehozandó modul típusa",
     Content: "Tartalom",
     Text: "Szöveg",
     "Social Links": "Közösségimédia-linkek",
@@ -843,6 +856,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "a hozzákötés sikertelen",
   },
   fr: {
+    "Widget type to create": "Type de widget à créer",
     Content: "Contenu",
     Text: "Texte",
     "Social Links": "Liens sociaux",
@@ -906,6 +920,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "échec de la liaison",
   },
   uk: {
+    "Widget type to create": "Тип віджета для створення",
     Content: "Вміст",
     Text: "Текст",
     "Social Links": "Соціальні посилання",
@@ -969,6 +984,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "не вдалося прив'язати",
   },
   tr: {
+    "Widget type to create": "Oluşturulacak widget türü",
     Content: "İçerik",
     Text: "Metin",
     "Social Links": "Sosyal Bağlantılar",
@@ -1032,6 +1048,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "bağlama başarısız oldu",
   },
   th: {
+    "Widget type to create": "ประเภทวิดเจ็ตที่จะสร้าง",
     Content: "เนื้อหา",
     Text: "ข้อความ",
     "Social Links": "ลิงก์โซเชียล",
@@ -1094,6 +1111,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "เชื่อมโยงไม่สำเร็จ",
   },
   it: {
+    "Widget type to create": "Tipo di widget da creare",
     Content: "Contenuto",
     Text: "Testo",
     "Social Links": "Link social",
@@ -1158,6 +1176,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "collegamento non riuscito",
   },
   hi: {
+    "Widget type to create": "बनाए जाने वाले विजेट का प्रकार",
     Content: "कंटेंट",
     Text: "टेक्स्ट",
     "Social Links": "सोशल लिंक",
@@ -1221,6 +1240,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "बाइंड विफल रहा",
   },
   ur: {
+    "Widget type to create": "بنائے جانے والے ویجٹ کی قسم",
     Content: "کنٹینٹ",
     Text: "ٹیکسٹ",
     "Social Links": "سوشل لنکس",
@@ -1284,6 +1304,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "باندھنا ناکام رہا",
   },
   bn: {
+    "Widget type to create": "যে ধরনের উইজেট তৈরি করবেন",
     Content: "কন্টেন্ট",
     Text: "টেক্সট",
     "Social Links": "সোশ্যাল লিংক",

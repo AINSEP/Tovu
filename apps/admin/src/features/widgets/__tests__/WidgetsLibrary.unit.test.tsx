@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { WidgetsLibrary, WidgetsLibraryNotices } from "../WidgetsLibrary";
+import { widgetTypeLabel } from "../rules";
 
 /**
  * @file `WidgetsLibrary` — pins the MSG-03 confirm-dialog swap for the force-purge escalation: a
@@ -179,6 +180,33 @@ it("keeps trash rows visible — only purged is filtered", async () => {
 
   expect(await screen.findByText("Hero banner")).toBeInTheDocument();
   expect(screen.queryByText("Purged one")).not.toBeInTheDocument();
+});
+
+// The create-type <select> rendered `WIDGET_TYPE_OPTIONS`' raw English labels and an English
+// aria-label in every locale, even though the table's own Type column right below it already went
+// through `widgetTypeLabel` — the one sink on this screen the S-I18N sweep's translator swap never
+// reached, since the label never passed through `t` at all.
+it("labels the create-type select and its options in the admin's locale", async () => {
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input.toString();
+    if (url.includes("/settings/effective")) {
+      return Promise.resolve(jsonResponse({ data: [{ key: "locale", value: "es" }] }));
+    }
+    return fetchMock(input, init);
+  });
+  fetchMock.mockResolvedValueOnce(jsonResponse({ widgets: [] }));
+
+  render(<WidgetsLibrary />);
+
+  const select = await screen.findByRole("combobox", { name: "Tipo de widget a crear" });
+  expect(within(select).getAllByRole("option").map((o) => o.textContent)).toEqual([
+    "Texto",
+    "Enlaces sociales",
+    "Entradas recientes",
+    "Menú",
+    "Formulario de contacto",
+  ]);
+  expect(widgetTypeLabel("social-links", "es")).toBe("Enlaces sociales");
 });
 
 // Direct coverage of the two notices extracted out of `WidgetsLibrary`'s own render body under the

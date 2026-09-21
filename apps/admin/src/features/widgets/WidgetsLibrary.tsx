@@ -107,12 +107,12 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
           <select
             value={createType}
             onChange={(e) => setCreateType(e.target.value as AdminWidgetType)}
-            aria-label="Widget type to create"
+            aria-label={t("Widget type to create")}
             {...agentHandle("widgets-create-type", { role: "field", label: "Widget type to create" })}
           >
             {WIDGET_TYPE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
-                {o.label}
+                {widgetTypeLabel(o.value, locale)}
               </option>
             ))}
           </select>
