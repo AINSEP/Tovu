@@ -258,7 +258,14 @@ export type SiteSectionAvailability = "unknown" | "available" | "unavailable";
  * @complexity O(1) plus one server round trip per session.
  */
 export function useSiteSectionAvailability(user: AdminUser | null): SiteSectionAvailability {
-  const [availability, setAvailability] = useState<SiteSectionAvailability>("unknown");
+  // Keyed to the SESSION OBJECT that asked, not a bare flag — an answer belongs to the `user` that
+  // was current when its read settled. Logout, a 401, and a new login each set a NEW `user`
+  // reference (`useAdminSession`; nothing re-creates the same one mid-session), so the derived
+  // return below reads `unknown` for every one of those until that session's own read settles.
+  // Without this, `setAvailability` alone survived logout/401 (both are just `setUser(null)`, with
+  // no reload) and kept painting the PREVIOUS session's answer — including into the first frame of
+  // whoever logs in next, before their own request has even started.
+  const [answer, setAnswer] = useState<{ user: AdminUser; value: "available" | "unavailable" } | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -266,18 +273,18 @@ export function useSiteSectionAvailability(user: AdminUser | null): SiteSectionA
     api
       .listSites()
       .then((snapshot) => {
-        if (!cancelled) setAvailability(snapshot.switchingEnabled === true ? "available" : "unavailable");
+        if (!cancelled) setAnswer({ user, value: snapshot.switchingEnabled === true ? "available" : "unavailable" });
       })
       .catch(() => {
         // Fails closed — see this function's own doc comment.
-        if (!cancelled) setAvailability("unavailable");
+        if (!cancelled) setAnswer({ user, value: "unavailable" });
       });
     return () => {
       cancelled = true;
     };
   }, [user]);
 
-  return availability;
+  return answer !== null && answer.user === user ? answer.value : "unknown";
 }
 
 /** {@link withoutSiteSection}'s predicate, hoisted out of the `.filter` call so the id comparison is
