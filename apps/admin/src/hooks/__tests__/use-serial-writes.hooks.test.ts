@@ -96,6 +96,38 @@ describe("useSerialWrites — ordering", () => {
   });
 });
 
+describe("useSerialWrites — a finished task never frees a lane a later task still holds", () => {
+  it("a task queued after an earlier one settled, while a later one is still running, waits for that later one", async () => {
+    const { result } = renderHook(() => useSerialWrites());
+    const started: string[] = [];
+    const b = deferred<void>();
+
+    const pA = result.current.run(async () => {
+      started.push("A");
+    });
+    const pB = result.current.run(() => {
+      started.push("B");
+      return b.promise;
+    });
+    await pA;
+    await flushMicrotasks();
+    expect(started).toEqual(["A", "B"]);
+
+    // A has settled and B is still running. A's cleanup must not drop the lane B now owns —
+    // otherwise C would start on an idle lane, concurrently with B.
+    const pC = result.current.run(async () => {
+      started.push("C");
+    });
+    await flushMicrotasks();
+    expect(started).toEqual(["A", "B"]);
+
+    b.resolve();
+    await pB;
+    await pC;
+    expect(started).toEqual(["A", "B", "C"]);
+  });
+});
+
 describe("useSerialWrites — own value", () => {
   it("resolves run with its own task's value, not an earlier queued task's", async () => {
     const { result } = renderHook(() => useSerialWrites());
