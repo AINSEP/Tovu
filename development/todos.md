@@ -285,6 +285,38 @@ repo already manufactured an unnecessary redesign once.
 
 ---
 
+## Third-party embeds (Calendly-class): capability gaps (owner call, 2026-09-21)
+
+Owner: *"we should have the ability to have widgets like Calendly."* This means the platform gap, NOT a Calendly
+feature. Don't build a vendor-specific widget. Verified 2026-09-21 by a read-only recon, with file:line spot-checked:
+
+- **Works today:** paste a vendor's embed snippet into an html-format Page in the admin HTML editor. Page HTML is stored
+  unsanitized by design (`server/inbound/admin-http/routes/pages/update-html.ts:127-133`, `pages.edit_html` = admin and owner
+  only), and public pages send no CSP.
+- **Gap 1: no widget can hold a third-party embed.** `WidgetTypeKey` is a closed union of 5
+  (`features/widgets/types.ts:63`). `text` escapes its body, and no kind emits a script or iframe. Needed: ONE generic
+  embed widget type (a vendor snippet or URL, rendered through a host allowlist the way the YouTube node is at
+  `render.ts:1394-1408`), not one type per vendor.
+- **Gap 2: plugins can't add widget types or renderers.** Resolvers and renderers are closed maps
+  (`features/widgets/resolvers/index.ts:56`, `render.ts:2485`, `resolver-service.ts:1074`). The only plugin-runtime hook
+  is `content.entry.beforeSave`, and `features/widgets/registry.ts:5-12` defers plugin widget types to ADR-024 Tier-2/3.
+- **Gap 3: the assistant won't place vendor embeds.** Its page-writing instructions ban `<script src>`
+  (`features/pages/agent-tools.ts:61`), so "add my Calendly" fails in chat even though pasting works.
+- **Gap 4: markers don't resolve everywhere.** A static theme's standalone pages, the static-tier home page and the
+  404 page go through `renderStaticPage` (`pages.ts:1193-1198`, `render.ts:3121`, `pages.ts:1357`).
+- **If a public CSP is ever added,** it must allowlist each embed host (for Calendly: `assets.calendly.com` in
+  script-src and `calendly.com` in frame-src).
+- **Vendor side, for later:** Calendly runs an official hosted MCP at `https://mcp.calendly.com` (OAuth 2.1 + PKCE +
+  dynamic client registration; scopes `mcp:scheduling:read`/`write`; https://developer.calendly.com/calendly-mcp-server).
+  A Calendly agent plugin would likely be just an `mcp.json` entry with `tovuAuthMode: "oauth"` plus a skill, like
+  `content/agent-plugins/supabase` (unverified; their docs don't state the transport, and Tovu supports streamable-http
+  only).
+- **Side findings, unfixed:**
+  - `features/theme/validation/markup.ts:24` `KNOWN_EMBED_TYPES` omits `post-previews`.
+  - `update-html.ts:131` says the authoring preview is a sandboxed `srcdoc`, but the preview iframes at
+    `apps/admin/src/features/pages/PageEditor.tsx:1208,1228` have no `sandbox` attribute. It's unverified whether script in
+    the preview runs with the admin origin.
+
 ## Open remainder — SPEC-005 (plugins) + SPEC-006 (identity/authorization) gates
 
 Both went through the full formal pipeline; what is left is gates and later phases, not the original
