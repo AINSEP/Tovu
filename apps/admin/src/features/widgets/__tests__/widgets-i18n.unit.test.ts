@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { COMMON_I18N } from "@/lib/i18n-common";
-import { WIDGETS_DICT } from "../widgets-i18n";
+import { WIDGETS_DICT, t } from "../widgets-i18n";
 
 /**
  * @file `WIDGETS_DICT` cross-locale coverage, mirroring `trash/__tests__/trash-i18n.unit.test.ts`'s
@@ -74,5 +74,23 @@ describe("WIDGETS_DICT: cross-locale key parity", () => {
     for (const locale of locales) {
       expect(WIDGETS_DICT[locale][key], `${locale} is missing ${JSON.stringify(key)}`).toBeTruthy();
     }
+  });
+});
+
+/**
+ * Regression for the confirm BUTTON rendering English in 20 of 21 locales (S-I18N fallback fix).
+ * `t("Delete permanently")` is `es`-only in `WIDGETS_DICT`; `"Save"` is absent from every locale
+ * but `es`. Both are `COMMON_I18N` keys in all 21 locales, so `t` must fall through to
+ * `COMMON_I18N` instead of returning the raw English key.
+ */
+describe("WIDGETS_DICT: t() falls back to COMMON_I18N", () => {
+  it("translates 'Delete permanently' in German even though WIDGETS_DICT.de never carries it", () => {
+    expect(WIDGETS_DICT.de["Delete permanently"]).toBeUndefined();
+    expect(t("de", "Delete permanently")).toBe(COMMON_I18N.de["Delete permanently"]);
+  });
+
+  it("translates 'Save' in German even though WIDGETS_DICT.de never carries it", () => {
+    expect(WIDGETS_DICT.de.Save).toBeUndefined();
+    expect(t("de", "Save")).toBe(COMMON_I18N.de.Save);
   });
 });

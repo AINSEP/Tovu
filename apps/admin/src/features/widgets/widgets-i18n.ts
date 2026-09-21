@@ -1,8 +1,8 @@
 /**
  * @file Spanish dictionary for the four widget screens: `WidgetRegions.tsx` (region list),
  * `WidgetsLibrary.tsx` (widget list), `WidgetRegionEditor.tsx` (per-region placement list), and
- * `WidgetInstanceEditor.tsx` (create/edit one widget). Same `DICT[locale]?.[key] ?? key` shape
- * `SettingsUi.tsx`'s own `const t` uses.
+ * `WidgetInstanceEditor.tsx` (create/edit one widget). `t()` falls back to `COMMON_I18N` via
+ * `createDictionaryTranslator`, same as `trash-i18n.ts`.
  *
  * Also covers `rules.ts`'s `widgetTypeLabel` — the five v1 widget type display names
  * ("Text"/"Social Links"/"Recent Entries"/"Menu"/"Contact Form", read off `WIDGET_TYPE_OPTIONS` in
@@ -10,8 +10,9 @@
  * (shared with the config-form dispatch, out of this pass's scope) — `widgetTypeLabel` resolves
  * the English label first, then looks up its Spanish translation here by that resolved text, same
  * "translate the resolved display string" shape `lib/admin-nav-i18n.ts`'s `translateAdminNavLabel`
- * uses.
  */
+import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+
 export const WIDGETS_DICT: Record<string, Record<string, string>> = {
   es: {
     Content: "Contenido",
@@ -1347,11 +1348,9 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-/** Same two-step fallback every other `t()` in this app uses: translated value, else the English
- *  source string itself — never a raw dictionary-miss placeholder. Exported so the feature's
+/** `WIDGETS_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via `createDictionaryTranslator`
+ *  (same fallback `trash-i18n.ts` uses) — a shared word this dict doesn't carry for a locale still
+ *  renders translated instead of falling straight to English. Exported so the feature's
  *  `.hooks.ts` files (which have no JSX and build their own `t` closure the way the `.tsx` screens
- *  in this feature do) can call it directly instead of duplicating the
- *  `WIDGETS_DICT[locale]?.[key] ?? key` lookup. */
-export function t(locale: string, key: string): string {
-  return WIDGETS_DICT[locale]?.[key] ?? key;
-}
+ *  in this feature do) can call it directly instead of duplicating the lookup. */
+export const t = createDictionaryTranslator(WIDGETS_DICT);

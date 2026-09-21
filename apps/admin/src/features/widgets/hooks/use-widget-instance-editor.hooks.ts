@@ -5,7 +5,7 @@ import { navigate as realNavigate } from "@/lib/router";
 import { defaultWidgetConfig } from "@/components/WidgetConfigFields/WidgetConfigFields";
 import { resolveEditorWidgetType, resolveWidgetSaveError } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
+import { t as translate } from "../widgets-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
 import { defaultWidgetsPort } from "./widgets-dependencies.hooks";
 import type { WidgetsPort } from "./widgets-port.hooks";
@@ -225,6 +225,6 @@ export function useWidgetInstanceEditor(
  */
 export function useWiredWidgetInstanceEditor(props: WidgetInstanceEditorHookProps): WidgetInstanceEditorController {
   const locale = useAdminLocale();
-  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useWidgetInstanceEditor(props, { port: defaultWidgetsPort, locale, navigate: realNavigate, t });
 }

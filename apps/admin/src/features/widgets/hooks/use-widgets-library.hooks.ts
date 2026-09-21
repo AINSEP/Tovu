@@ -5,7 +5,7 @@ import { WIDGETS_LIBRARY_RESOURCE, describeReferencingLocations } from "../rules
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
-import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
+import { t as translate } from "../widgets-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
 import { defaultWidgetsPort } from "./widgets-dependencies.hooks";
 import type { WidgetsPort } from "./widgets-port.hooks";
@@ -261,6 +261,6 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
  */
 export function useWiredWidgetsLibrary(): WidgetsLibraryController {
   const locale = useAdminLocale();
-  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useWidgetsLibrary({ port: defaultWidgetsPort, locale, t });
 }
