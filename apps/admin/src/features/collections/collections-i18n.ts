@@ -9,6 +9,7 @@
  * English puts it.
  */
 import { interpolate, pickPlural } from "../../lib/template-i18n";
+import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -1117,14 +1118,13 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-/** Same two-step fallback every other `t()` in this app uses: translated value, else the English
- *  source string itself — never a raw dictionary-miss placeholder. Exported so the feature's
- *  `.hooks.ts` files (which have no JSX and build their own `t` closure the way the `.tsx` screens
- *  in this feature do) can call it directly instead of duplicating the
- *  `COLLECTIONS_DICT[locale]?.[key] ?? key` lookup. */
-export function t(locale: string, key: string): string {
-  return COLLECTIONS_DICT[locale]?.[key] ?? key;
-}
+/** `COLLECTIONS_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via
+ *  `createDictionaryTranslator` (same fallback `trash-i18n.ts` uses) — a shared word this dict
+ *  doesn't carry for a locale still renders translated instead of falling straight to English.
+ *  Exported so the feature's `.hooks.ts` files (which have no JSX and build their own `t` closure
+ *  the way the `.tsx` screens in this feature do) can call it directly instead of duplicating the
+ *  lookup. */
+export const t = createDictionaryTranslator(COLLECTIONS_DICT);
 
 const LIFECYCLE_VERB: Record<string, Record<"deprecate" | "reactivate" | "tombstone", string>> = {
   en: { deprecate: "deprecate", reactivate: "reactivate", tombstone: "tombstone" },

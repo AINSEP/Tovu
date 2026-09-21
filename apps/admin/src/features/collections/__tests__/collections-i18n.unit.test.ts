@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { COMMON_I18N } from "@/lib/i18n-common";
-import { COLLECTIONS_DICT } from "../collections-i18n";
+import { COLLECTIONS_DICT, t } from "../collections-i18n";
 
 /**
  * @file `COLLECTIONS_DICT` cross-locale coverage — same idiom and same two deliberate differences
@@ -54,5 +54,23 @@ describe("COLLECTIONS_DICT: cross-locale key parity", () => {
     for (const locale of locales) {
       expect(COLLECTIONS_DICT[locale]["Fix the invalid JSON before saving."], `${locale} is missing it`).toBeTruthy();
     }
+  });
+});
+
+/**
+ * Regression for basic words (Save, Cancel, …) rendering English in 20 of 21 locales (S-I18N
+ * fallback fix). `COLLECTIONS_DICT.de` carries neither "Save" nor "Cancel" — both are
+ * `COMMON_I18N` keys in all 21 locales, so `t` must fall through to `COMMON_I18N` instead of
+ * returning the raw English key.
+ */
+describe("COLLECTIONS_DICT: t() falls back to COMMON_I18N", () => {
+  it("translates 'Save' in German even though COLLECTIONS_DICT.de never carries it", () => {
+    expect(COLLECTIONS_DICT.de.Save).toBeUndefined();
+    expect(t("de", "Save")).toBe(COMMON_I18N.de.Save);
+  });
+
+  it("translates 'Cancel' in German even though COLLECTIONS_DICT.de never carries it", () => {
+    expect(COLLECTIONS_DICT.de.Cancel).toBeUndefined();
+    expect(t("de", "Cancel")).toBe(COMMON_I18N.de.Cancel);
   });
 });

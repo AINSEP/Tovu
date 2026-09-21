@@ -2,7 +2,7 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import { ApiError, describeApiError, type AdminContentType, type ContentTypeFieldDef } from "../../lib/api";
 import type { QueryKey } from "../../lib/fetch-query";
-import { COLLECTIONS_DICT } from "./collections-i18n";
+import { t as translate } from "./collections-i18n";
 
 /**
  * @file Pure logic for the `collections` feature (top-level Collections screen only — see
@@ -259,7 +259,7 @@ export function contentTypeMenuItems(
   handlers: ContentTypeRowMenuHandlers,
   locale: string,
 ): RowMenuItem[] {
-  const t = (key: string): string => COLLECTIONS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   const items: RowMenuItem[] = [
     { key: "edit-fields", label: t("Edit fields"), onSelect: () => handlers.onEditFields(contentType) },
   ];

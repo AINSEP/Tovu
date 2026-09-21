@@ -12,7 +12,7 @@ import { KEYS, visibleEntryEditorError } from "../rules";
 import { WidgetEmbed } from "@/lib/widget-embed-extension";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { COLLECTIONS_DICT, entryLifecycleFailureMessage, t as translate } from "../collections-i18n";
+import { entryLifecycleFailureMessage, t as translate } from "../collections-i18n";
 import { defaultCollectionEntryEditorPort } from "./collection-entry-editor-dependencies.hooks";
 import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.hooks";
 
@@ -370,6 +370,6 @@ export function useWiredCollectionEntryEditor(props: {
   entryId: string | null;
 }): CollectionEntryEditorController {
   const locale = useAdminLocale();
-  const t = (key: string): string => COLLECTIONS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useCollectionEntryEditor(props, { port: defaultCollectionEntryEditorPort, navigate: defaultNavigate, locale, t });
 }

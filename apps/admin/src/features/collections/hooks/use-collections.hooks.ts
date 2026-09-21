@@ -4,7 +4,7 @@ import { describeApiError, type AdminContentType } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { KEYS, type LifecycleConfirmOp } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { COLLECTIONS_DICT, lifecycleFailureMessage, t as translate } from "../collections-i18n";
+import { lifecycleFailureMessage, t as translate } from "../collections-i18n";
 import { defaultCollectionsPort } from "./collections-dependencies.hooks";
 import type { CollectionsPort } from "./collections-port.hooks";
 
@@ -137,6 +137,6 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
  */
 export function useWiredCollections(): CollectionsController {
   const locale = useAdminLocale();
-  const t = (key: string): string => COLLECTIONS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useCollections({ port: defaultCollectionsPort, locale, t });
 }
