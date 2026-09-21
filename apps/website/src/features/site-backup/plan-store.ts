@@ -38,6 +38,9 @@ export interface SiteBackupPlanContent {
   readonly totalBytes: number;
   readonly site: { readonly name: string; readonly folderName: string };
   readonly schema: { readonly index: number; readonly tag: string };
+  readonly tovuVersion: string;
+  /** When the plan (and its database snapshot) was made — the manifest's `createdAt`. */
+  readonly createdAt: string;
 }
 
 export interface SiteBackupPlan extends SiteBackupPlanContent {

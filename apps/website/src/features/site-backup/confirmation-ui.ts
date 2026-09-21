@@ -54,7 +54,7 @@ function scopeSummary(plan: SiteBackupPlan): string {
 export function buildConfirmationSurface(spec: { plan: SiteBackupPlan; exchangeId: string }): UIResource {
   const { plan, exchangeId } = spec;
   const repoName = `${plan.owner}/${plan.repo}`;
-  const fileCount = plan.files.length + (plan.database ? 1 : 0) + 1;
+  const fileCount = plan.files.length + (plan.database ? 1 : 0);
   const notes = SITE_BACKUP_SCOPES.flatMap((scope) => (plan.scopeNotes[scope] ? [plan.scopeNotes[scope]] : []));
 
   const details = [
@@ -63,7 +63,7 @@ export function buildConfirmationSurface(spec: { plan: SiteBackupPlan; exchangeI
     { label: "Branch", value: plan.repository.branch },
     { label: "Folder", value: plan.repository.folderExists ? `${plan.folder}/ (replaced: its current contents are removed)` : `${plan.folder}/ (created)` },
     { label: "Scopes", value: scopeSummary(plan) },
-    { label: "Files", value: `${fileCount} files, ${formatByteSize(plan.totalBytes)}` },
+    { label: "Files", value: `${fileCount} files, ${formatByteSize(plan.totalBytes)}, plus the tovu-backup.json manifest` },
     { label: "Database", value: plan.database ? `${formatByteSize(plan.database.bytes.length)} snapshot` : "not included" },
     ...(plan.skipped.length > 0 ? [{ label: "Left out", value: plan.skipped.map((entry) => `${entry.path}: ${entry.reason}`).join("\n") }] : []),
     ...(notes.length > 0 ? [{ label: "Notes", value: notes.join("\n") }] : []),

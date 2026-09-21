@@ -23,6 +23,8 @@ const CONTENT: SiteBackupPlanContent = {
   totalBytes: 2,
   site: { name: "Demo", folderName: "demo" },
   schema: { index: 1, tag: "0001_x" },
+  tovuVersion: "0.1.0",
+  createdAt: "2026-09-21T00:00:00.000Z",
 };
 
 function makeStore(overrides: { maxPlans?: number } = {}): { store: SiteBackupPlanStore; clock: { ms: number } } {
