@@ -69,6 +69,58 @@ describe("useWidgetsLibrary — injected port (no fetch stub)", () => {
   });
 });
 
+/**
+ * S1 (plan-content2.md, 2026-09-20; terra review triage): `load()` has no latest-wins guard, unlike
+ * its siblings `use-widget-regions.hooks.ts` and `use-widget-region-editor.hooks.ts`, which both
+ * guard exactly this. Trashing widget A, then widget B, fires two independent re-reads — if A's
+ * settles LAST, B renders as `active` again even though the server already trashed it.
+ */
+describe("useWidgetsLibrary — overlapping list reads keep the newest", () => {
+  const WIDGET_A: AdminWidget = { ...WIDGET, id: "wA", slug: "a", title: "A", status: "active" };
+  const WIDGET_B: AdminWidget = { ...WIDGET, id: "wB", slug: "b", title: "B", status: "active" };
+
+  it("an older list read settling after a newer one does not overwrite it", async () => {
+    const port = createFakeWidgetsPort({ widgets: [WIDGET_A, WIDGET_B] });
+    type ListResult = { widgets: AdminWidget[]; skippedCount?: number };
+    const releases: Array<(r: ListResult) => void> = [];
+    let callCount = 0;
+    port.listWidgets = vi.fn(() => {
+      callCount += 1;
+      // The mount read settles immediately; every read after it is held until the test releases it.
+      if (callCount === 1) return Promise.resolve({ widgets: [WIDGET_A, WIDGET_B], skippedCount: 0 });
+      return new Promise<ListResult>((resolve) => {
+        releases[callCount] = resolve;
+      });
+    });
+
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).toHaveLength(2));
+
+    // Trash A, then trash B — each fires its own `load()` re-read once its `trashWidget` write settles.
+    act(() => {
+      void result.current.trashOrPurge(WIDGET_A);
+    });
+    await waitFor(() => expect(releases[2]).toBeDefined());
+
+    act(() => {
+      void result.current.trashOrPurge(WIDGET_B);
+    });
+    await waitFor(() => expect(releases[3]).toBeDefined());
+
+    // The NEWER read (B's, triggered last) settles FIRST...
+    await act(async () => {
+      releases[3]!({ widgets: [{ ...WIDGET_A, status: "trash" }, { ...WIDGET_B, status: "trash" }], skippedCount: 0 });
+    });
+    // ...then the STALE, older read (A's) settles after it.
+    await act(async () => {
+      releases[2]!({ widgets: [{ ...WIDGET_A, status: "trash" }, WIDGET_B], skippedCount: 0 });
+    });
+
+    // Fails today: the stale read wins because it settled last, so B reverts to "active".
+    await waitFor(() => expect(result.current.widgets?.find((w) => w.id === WIDGET_B.id)?.status).toBe("trash"));
+  });
+});
+
 describe("useWidgetsLibrary — content refresh bus", () => {
   afterEach(() => resetContentRefreshBus());
 

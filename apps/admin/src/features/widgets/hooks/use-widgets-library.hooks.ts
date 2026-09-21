@@ -116,11 +116,21 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
   // `port.purgeWidget` with THAT widget's id, so the bug is not just cosmetic: it force-purges the
   // WRONG widget.
   const purgeSettlement = useSettlementGeneration();
+  // Latest-wins guard for `load()` (S1, plan-content2.md 2026-09-20): trash/purge/force-purge each
+  // trigger their own re-read with no ordering guarantee between them (a mount read, the refresh
+  // bus, and up to three write-triggered reads can all be in flight together). Without this, trash A
+  // then trash B racing two `load()` calls lets whichever settles LAST win — if A's stale read
+  // answers after B's, B renders `active` again even though the server already trashed it. Its
+  // siblings `use-widget-regions.hooks.ts` and `use-widget-region-editor.hooks.ts` guard the same
+  // shape; kept as a separate instance from `purgeSettlement`, which tracks a different call.
+  const loadSettlement = useSettlementGeneration();
 
   const load = useCallback(() => {
+    const generation = loadSettlement.next();
     port
       .listWidgets({ includeInactive: true })
       .then((r) => {
+        if (!loadSettlement.isCurrent(generation)) return;
         // `includeInactive: true` deliberately asks the server for both `trash` and `purged` rows
         // (see `src/server/routes/admin/widgets/list.ts`), because `purgeWidgetInstance` never
         // hard-deletes — ADR-047 Amendment 4: "never deleted, only active⇄disabled" — it only
@@ -131,7 +141,10 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
         setWidgets(r.widgets.filter((w) => w.status !== "purged"));
         setSkippedCount(r.skippedCount ?? 0);
       })
-      .catch((e) => setError(describeApiError(e, translate(locale, "failed to load widgets"))));
+      .catch((e) => {
+        if (!loadSettlement.isCurrent(generation)) return;
+        setError(describeApiError(e, translate(locale, "failed to load widgets")));
+      });
     // `port` is added — see `use-page-editor.hooks.ts`'s identical note: a function-scoped value
     // ESLint's exhaustive-deps rule can see, referentially stable in production, so this changes
     // nothing about when this callback's identity changes.
