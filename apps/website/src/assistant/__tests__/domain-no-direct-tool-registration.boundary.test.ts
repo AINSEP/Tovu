@@ -18,13 +18,20 @@
  * converted `contribute<Domain>Tools()` genuinely needs that type to declare its own return value —
  * this is a runtime-construction boundary, not a "knows-about" one. Heuristic: an import is treated
  * as type-only only when the ENTIRE statement is `import type {...} from "..."` — the one shape all
- * 27 converted contributors use. `EXEMPT_FILES` (below) lists by name every file that value-imports
- * from the same deliberately-kept seam (see `assistant/index.ts`'s own "E — External MCP Federation"
- * section) instead of calling `registerToolContributor` — as of 2026-09-20:
+ * 27 converted contributors use.
+ *
+ * `EXEMPT_FILE_SYMBOLS` (below) is a PER-SYMBOL allowlist, not a whole-file one (2026-09-21; a
+ * whole-file exemption would silently allow a future `registerToolContributor` import in any of
+ * these files without this test ever going red). It maps each of the four files that value-import
+ * from the same deliberately-kept seam (see `assistant/index.ts`'s own "E — External MCP
+ * Federation" section) instead of calling `registerToolContributor`, to exactly the named symbols
+ * that file imports today — as of 2026-09-20/21:
  * `src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts`,
  * `src/features/agent-plugins/federate-mcp.ts`,
  * `src/features/supabase-connect/tool-registrations.ts`, and
- * `src/features/external-mcp/tool-registrations.ts`.
+ * `src/features/external-mcp/tool-registrations.ts`. A value-import of any OTHER symbol from
+ * `#src/assistant/index` by one of these files — `registerToolContributor` above all — is not
+ * covered by its allowlist and fails the test, the same as it would for any non-exempt file.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -37,33 +44,76 @@ const ASSISTANT_ROOT = path.join(REPO_ROOT, "apps", "website", "src", "assistant
 
 const GUARDED_TOP_LEVEL_DIRS = ["analytics", "features", "identity", "media", "navigation", "origin", "seo", "widgets"];
 
-const EXEMPT_FILES = new Set([
-  path.join(REPO_ROOT, "apps", "website", "src", "features", "plugins", "supabase-mcp", "supabase-mcp-plugin.ts"),
-  // Added 2026-09-20: both value-import CRUD functions (not `registerToolContributor`) from
-  // `assistant/index.ts`'s own "E — External MCP Federation (registry)" section, which its header
-  // comment calls "the designed extension point, not a leak; kept exposed here on purpose rather
-  // than chased to 0" and explicitly credits by name.
-  // `federate-mcp.ts` added 2026-09-10 (feaf69d08, "wire auto-admitted plugin MCP servers into the
-  // external-MCP store") — confirmed via `assistant/index.ts`'s own comment naming this file.
-  path.join(REPO_ROOT, "apps", "website", "src", "features", "agent-plugins", "federate-mcp.ts"),
-  // `supabase-connect/tool-registrations.ts` added 2026-09-13 (d06662795, SPEC-052 M2) — confirmed
-  // via `assistant/index.ts`'s own comment naming this file.
-  path.join(REPO_ROOT, "apps", "website", "src", "features", "supabase-connect", "tool-registrations.ts"),
-  // `external-mcp/tool-registrations.ts` has the identical shape and was already exempt in practice —
-  // it only surfaced once `stripComments`'s block/line-comment ordering bug (fixed 2026-09-20) was
-  // corrected. Its own header comment (added 2026-09-07, lines ~24-34) documents this exact seam and
-  // says it "Verified empirically (not assumed)" against this same boundary family and that the
-  // value-import "adds no new violation"; it never calls `registerToolContributor` (only
-  // `server/runtime/composition/tool-catalog-manifest.ts` may) and exports the required
-  // `contributeExternalMcpTools(): ToolContributor` return-based registration shape.
-  path.join(REPO_ROOT, "apps", "website", "src", "features", "external-mcp", "tool-registrations.ts"),
+/** Per-file allowlist of the exact named symbols a file may value-import from
+ *  `#src/assistant/index` — every other symbol (`registerToolContributor` above all) still fails
+ *  the test for these files, same as for any non-exempt file. Each set is exactly what that file
+ *  imports today; growing it back out to a real production need is a deliberate, reviewable edit
+ *  here, not something a future rename or a copy-pasted import can slip past silently. */
+const EXEMPT_FILE_SYMBOLS = new Map<string, Set<string>>([
+  [
+    path.join(REPO_ROOT, "apps", "website", "src", "features", "plugins", "supabase-mcp", "supabase-mcp-plugin.ts"),
+    // Added 2026-09-20: value-imports the federated-connection config readers and the preset
+    // registrar (not `registerToolContributor`) from `assistant/index.ts`'s own "E — External MCP
+    // Federation (registry)" section, which its header comment calls "the designed extension point,
+    // not a leak; kept exposed here on purpose rather than chased to 0" and explicitly credits by
+    // name.
+    new Set([
+      "FEDERATED_CONNECTION_DEFAULTS",
+      "isFederationEnabled",
+      "parseAllowedToolNames",
+      "positiveIntOrDefault",
+      "registerFederatedMcpPreset",
+    ]),
+  ],
+  [
+    // Added 2026-09-10 (feaf69d08, "wire auto-admitted plugin MCP servers into the external-MCP
+    // store") — confirmed via `assistant/index.ts`'s own comment naming this file. Imports only the
+    // one function it calls to save a plugin's declared remote MCP server into the store.
+    path.join(REPO_ROOT, "apps", "website", "src", "features", "agent-plugins", "federate-mcp.ts"),
+    new Set(["saveExternalMcpServer"]),
+  ],
+  [
+    // Added 2026-09-13 (d06662795, SPEC-052 M2) — confirmed via `assistant/index.ts`'s own comment
+    // naming this file. Imports the External MCP CRUD/OAuth-status surface its own tool handlers
+    // call directly, same seam `server/inbound/admin-http/routes/external-mcp/{put,probe}.ts` use.
+    path.join(REPO_ROOT, "apps", "website", "src", "features", "supabase-connect", "tool-registrations.ts"),
+    new Set([
+      "buildScopedSupabaseMcpUrl",
+      "ExternalMcpSecretStoreUnconfiguredError",
+      "ExternalMcpValidationError",
+      "isSupabaseMcpUrl",
+      "openExternalMcpOAuthPayload",
+      "resolveExternalMcpAuthMode",
+      "resolveExternalMcpOAuthStatus",
+      "saveExternalMcpServer",
+      "SUPABASE_MCP_URL",
+    ]),
+  ],
+  [
+    // Has the identical shape and was already exempt in practice — it only surfaced once
+    // `stripComments`'s block/line-comment ordering bug (fixed 2026-09-20) was corrected. Its own
+    // header comment (added 2026-09-07, lines ~24-34) documents this exact seam and says it
+    // "Verified empirically (not assumed)" against this same boundary family and that the
+    // value-import "adds no new violation"; it never calls `registerToolContributor` (only
+    // `server/runtime/composition/tool-catalog-manifest.ts` may) and exports the required
+    // `contributeExternalMcpTools(): ToolContributor` return-based registration shape.
+    path.join(REPO_ROOT, "apps", "website", "src", "features", "external-mcp", "tool-registrations.ts"),
+    new Set([
+      "ExternalMcpSecretStoreUnconfiguredError",
+      "ExternalMcpValidationError",
+      "listExternalMcpServerViews",
+      "readEnabledExternalMcpConfigs",
+      "saveExternalMcpServer",
+    ]),
+  ],
 ]);
 
 const SKIP_DIR_NAMES = new Set(["node_modules", "dist", "build", "coverage", "__tests__"]);
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
 
 /** Matches a whole `import ... from "spec"` statement (value or type), capturing whether the
- * `type` keyword appears immediately after `import`, and the specifier text. Run only against
+ * `type` keyword appears immediately after `import`, the import clause text (the `{...}`/default/
+ * namespace binding between `import [type]` and `from`), and the specifier text. Run only against
  * comment-stripped source (see `stripComments`) — otherwise prose like "a `import type` ... `from`
  * ..." inside a doc comment can serve as a decoy: the lazy gap between `import` and `from` has no
  * semicolon to stop at, so it can span from a comment's mention of "import"/"from" all the way down
@@ -71,7 +121,30 @@ const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
  * status. Confirmed live against this repo: `features/workspace/tool-registrations.ts` and
  * `navigation/tool-registrations.ts` both discuss "import type"/"from" in prose directly above their
  * own real `import type { ToolContributor } from "#src/assistant/index";` line. */
-const IMPORT_STATEMENT_PATTERN = /\bimport\s+(type\s+)?(?:[^;]*?)\bfrom\s*(["'])([^"']+)\2/g;
+const IMPORT_STATEMENT_PATTERN = /\bimport\s+(type\s+)?([^;]*?)\bfrom\s*(["'])([^"']+)\3/g;
+
+/**
+ * The exported names a `{...}` named-import clause pulls in as VALUES — i.e. excluding any
+ * per-specifier `type X` entry within an otherwise-mixed clause (the statement-level `import type`
+ * case is already filtered out by the caller before this runs). Returns `null` for a clause with no
+ * `{...}` at all (a default or namespace import, e.g. `import ns from "..."` or `import * as ns from
+ * "..."`) — `EXEMPT_FILE_SYMBOLS` cannot verify a per-symbol allowlist against a binding that does
+ * not name its symbols, so the caller must treat that shape as unverifiable rather than silently
+ * trusting it.
+ *
+ * @complexity O(n) in the clause's length.
+ */
+function namedValueImports(clause: string): string[] | null {
+  const braceMatch = clause.match(/{([^}]*)}/);
+  if (!braceMatch) return null;
+  const names: string[] = [];
+  for (const rawEntry of braceMatch[1].split(",")) {
+    const entry = rawEntry.trim();
+    if (!entry || /^type\s+/.test(entry)) continue; // per-specifier `type X` — not a value import
+    names.push(entry.split(/\s+as\s+/)[0].trim()); // the EXPORTED name, not a local `as` alias
+  }
+  return names;
+}
 
 /** Strips line comments and block comments so `IMPORT_STATEMENT_PATTERN`'s lazy gap can never latch onto
  * prose text discussing import syntax. Comment markers inside a string literal are rare enough in
@@ -133,15 +206,32 @@ test("no production file under src/{analytics,features,identity,media,navigation
 
   const offenders: string[] = [];
   for (const file of files) {
-    if (EXEMPT_FILES.has(file)) continue;
+    const allowedSymbols = EXEMPT_FILE_SYMBOLS.get(file);
     const source = stripComments(fs.readFileSync(file, "utf8"));
     for (const match of source.matchAll(IMPORT_STATEMENT_PATTERN)) {
       const isTypeOnly = match[1] !== undefined;
-      const specifier = match[3];
+      const clause = match[2];
+      const specifier = match[4];
       if (isTypeOnly) continue;
-      if (resolvesToAssistant(file, specifier)) {
-        offenders.push(`${path.relative(REPO_ROOT, file)} value-imports "${specifier}"`);
+      if (!resolvesToAssistant(file, specifier)) continue;
+
+      if (allowedSymbols) {
+        const valueNames = namedValueImports(clause);
+        // A named `{...}` clause whose every imported symbol is on THIS file's own allowlist is
+        // fine; anything else (an unlisted symbol, or a clause shape the allowlist cannot verify
+        // per-symbol, e.g. a default/namespace import) still counts as an offense below.
+        if (valueNames !== null && valueNames.every((name) => allowedSymbols.has(name))) continue;
+        const disallowed = valueNames?.filter((name) => !allowedSymbols.has(name)) ?? null;
+        offenders.push(
+          `${path.relative(REPO_ROOT, file)} value-imports "${specifier}"` +
+            (disallowed && disallowed.length > 0
+              ? ` — symbol(s) not in this file's allowlist: ${disallowed.join(", ")}`
+              : " — clause shape not verifiable per-symbol"),
+        );
+        continue;
       }
+
+      offenders.push(`${path.relative(REPO_ROOT, file)} value-imports "${specifier}"`);
     }
   }
 
