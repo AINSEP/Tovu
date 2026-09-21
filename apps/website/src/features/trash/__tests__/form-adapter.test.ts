@@ -3,7 +3,7 @@ import test from "node:test";
 import type Database from "better-sqlite3";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { formDefinitions, formSubmissions } from "#src/platform/db/schema";
+import * as schema from "#src/platform/db/schema";
 
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createSqliteTrashDb } from "../db-port.sqlite.js";
@@ -47,7 +47,7 @@ function harness(): Harness {
   client
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
-  const registry = buildTrashRegistry({ schema: { formDefinitions, formSubmissions } });
+  const registry = buildTrashRegistry({ schema });
   const adapter = createTableTrashAdapter({ entry: registry.get("form")!, db: createSqliteTrashDb({ db }) });
   return { client, adapter };
 }

@@ -18,7 +18,7 @@ import {
   type TrashAdapter,
   type TrashPort,
 } from "#src/features/trash/index";
-import { formDefinitions, formSubmissions } from "#src/platform/db/schema";
+import * as schema from "#src/platform/db/schema";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
 import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "./helpers/http-test-server.js";
@@ -154,7 +154,7 @@ function buildTrashHarness(): TrashHarness {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(base.workspaceId, "ws", "ws", "2026-01-01T00:00:00.000Z");
 
-  const registry = buildTrashRegistry({ schema: { formDefinitions, formSubmissions } });
+  const registry = buildTrashRegistry({ schema });
   const sqliteTrashDb = createSqliteTrashDb({ db });
   const adapters = new Map<string, TrashAdapter>([
     [POST_ENTITY_TYPE, createPostTrashAdapter(client)],

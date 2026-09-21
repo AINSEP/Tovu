@@ -36,7 +36,7 @@ import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/cms/co
 import type { ContentTypeRepoPort } from "../content-types/index.js";
 import type { EntryListPort, EntryRepoPort } from "../entries/index.js";
 import type { BeforeSaveHookPort, ForgetRemovedPostFn, PostRepoPort } from "../post/index.js";
-import type { WidgetRegionBindingRepoPort } from "./ports.js";
+import type { RemoveWidgetFn, WidgetRegionBindingRepoPort } from "./ports.js";
 
 /** The exact slice of a route/tool layer's own deps bag this domain's write-path needs. */
 export interface WidgetsRouteDeps {
@@ -56,6 +56,8 @@ export interface WidgetsRouteDeps {
   forgetRemovedPost: ForgetRemovedPostFn;
   changeSets: ChangeSetRepoPort;
   pluginBeforeSaveHook: BeforeSaveHookPort;
+  /** Moves a widget to the Trash — `bindRemoveEntity(trash, "widget")` at composition. */
+  removeWidget: RemoveWidgetFn;
 }
 
 /** Shared dependency bag for `write-service.ts`/`embed-service.ts` calls — every one of them takes this identical shape. */
@@ -72,6 +74,7 @@ export function buildWidgetsDeps(routeDeps: WidgetsRouteDeps) {
     ids: routeDeps.idGen,
     authorize: routeDeps.authorize,
     outbox: routeDeps.outbox,
+    remove: routeDeps.removeWidget,
   };
 }
 

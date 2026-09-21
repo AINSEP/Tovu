@@ -104,8 +104,8 @@ export const widgetsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   ["widgets_create_instance", "mutates-durable-state"],
   // -> updateWidgetInstance (write-service.ts): updateEntry + entry_refs extraction.
   ["widgets_update_instance", "mutates-durable-state"],
-  // -> trashWidgetInstance (write-service.ts): updateEntry, status flip only. Never a purge:
-  //    purgeWidgetInstance is deliberately not exposed (see widgets/agent-tools.ts's file header).
+  // -> trashWidgetInstance (write-service.ts): moves it to the Trash (restorable). Never a purge:
+  //    a permanent delete exists only as the Trash screen's purge.
   ["widgets_trash_instance", "mutates-durable-state"],
   // -> bindWidgetArea (region-area-service.ts): createEntry (maybe) + bindingRepo.upsert.
   ["widgets_bind_region", "mutates-durable-state"],
@@ -388,9 +388,8 @@ export function buildWidgetsRegistrations(
      * gates on `widgets.read` (via `getWidgetInstance`), deferring `widgets.delete` to the confirmed
      * write — same split `content_post_delete` uses for `content.read`/`content.write`.
      * `trashWidgetInstance` re-reads the row and derives `expectedVersion` from that fresh read
-     * INSIDE itself, right before writing, so no separate staleness re-check is needed here the way
-     * `content_post_delete`'s own handler needs one — a row that moved while the dialog was open is
-     * simply the version `trashWidgetInstance` writes against.
+     * INSIDE itself, right before moving it to the Trash, so no separate staleness re-check is
+     * needed here the way `content_post_delete`'s own handler needs one.
      */
     widgets_trash_instance: async (ctx) => {
       const widgetInstanceId = requireString(requireInputRecord(ctx.input), "widgetInstanceId");
@@ -435,11 +434,13 @@ export function buildWidgetsRegistrations(
           };
         }
 
-        const { instance: trashed } = await trashWidgetInstance({
+        const { version } = await trashWidgetInstance({
           deps: buildWidgetsDeps(routeDeps),
           input: { workspaceId: routeDeps.workspaceId, actor: { principalId: ctx.principal.id }, widgetInstanceId },
         });
-        return { trashed: true, cancelled: false, instance: toWidgetInstanceToolView(trashed) };
+        // The row itself is unchanged apart from its Trash marker; `status: "trash"` tells the model
+        // where it went (it can be restored from the Trash).
+        return { trashed: true, cancelled: false, instance: toWidgetInstanceToolView({ ...instance, status: "trash", version: version ?? instance.version }) };
       } finally {
         ctx.signal.removeEventListener("abort", closeOnAbort);
       }

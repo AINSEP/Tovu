@@ -91,6 +91,8 @@ export async function moveToTrash(
     where: and(
       eq(entry.workspaceColumn, required.workspaceId),
       eq(entry.idColumn, required.entityId),
+      // A shared table's other kinds (a collection row in `entries`) read as not-found here too.
+      entry.scope,
       notTrashed({ entityType: required.entityType }, { registry: deps.registry })
     )!,
   })) as EntitySnapshotRow | null;

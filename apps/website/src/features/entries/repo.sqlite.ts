@@ -1,9 +1,10 @@
 import type Database from "better-sqlite3";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 import { entries, entryRevisions } from "../../platform/db/schema.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
+import { EntrySlugConflictError } from "./index.js";
 import type {
   EntryListPort,
   EntryRecord,
@@ -21,7 +22,18 @@ import type {
  * Architectural role:
  * Infrastructure adapter. ADR-042 item 1: `findBySlug`/`findById` reuse `repo-helpers.ts`'s
  * `findOneBy` rather than hand-rolling the lookup shape.
+ *
+ * Trash: a row with `deleted_at` set is in the Trash (only widgets get there today). Every read here
+ * hides it, so every widget reader — region placements, embeds, the admin list — treats a trashed
+ * widget as missing (the REQ-28 placeholder). `save` never writes `deleted_at` and never touches a
+ * trashed row; only the Trash moves a row in or out.
  */
+
+/** A row that is not in the Trash. */
+const LIVE = isNull(entries.deletedAt);
+
+/** SQLite's own text for the `entries_workspace_type_slug_unique` index. */
+const SLUG_UNIQUE_VIOLATION = "UNIQUE constraint failed: entries.workspace_id, entries.type, entries.slug";
 
 function toRecord(row: typeof entries.$inferSelect): EntryRecord {
   return {
@@ -47,21 +59,22 @@ export class SqliteEntryRepo implements EntryRepoPort, EntryListPort {
     return findOneBy(
       this.db,
       entries,
-      [eq(entries.workspaceId, params.workspaceId), eq(entries.type, params.type), eq(entries.slug, params.slug)],
+      [eq(entries.workspaceId, params.workspaceId), eq(entries.type, params.type), eq(entries.slug, params.slug), LIVE],
       toRecord
     );
   }
 
   async findById(params: { workspaceId: string; id: string }): Promise<EntryRecord | null> {
-    return findOneBy(this.db, entries, [eq(entries.workspaceId, params.workspaceId), eq(entries.id, params.id)], toRecord);
+    return findOneBy(this.db, entries, [eq(entries.workspaceId, params.workspaceId), eq(entries.id, params.id), LIVE], toRecord);
   }
 
   /**
    * Upserts an `entries` row by id — full-replace semantics, matching `InMemoryEntryRepo.save`'s
-   * `Map.set` behavior exactly.
+   * `Map.set` behavior exactly. A trashed row is left as it is (a stale save cannot bring it back).
    *
+   * @throws EntrySlugConflictError when a trashed row holds the slug: the reads above hide it, so the
+   *         chokepoint's own slug check could not see it.
    * @complexity O(1).
-   * @overallScore 100
    */
   async save(row: EntryRecord): Promise<void> {
     const values = {
@@ -78,7 +91,16 @@ export class SqliteEntryRepo implements EntryRepoPort, EntryListPort {
       updatedAt: row.updatedAt,
       version: row.version,
     };
-    this.db.insert(entries).values(values).onConflictDoUpdate({ target: entries.id, set: values }).run();
+    try {
+      this.db.insert(entries).values(values).onConflictDoUpdate({ target: entries.id, set: values, setWhere: LIVE }).run();
+    } catch (error) {
+      if (error instanceof Error && error.message.includes(SLUG_UNIQUE_VIOLATION)) {
+        throw new EntrySlugConflictError(
+          `an entry with slug '${row.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug`
+        );
+      }
+      throw error;
+    }
   }
 
   async appendRevision(revision: EntryRevisionInput): Promise<void> {
@@ -105,7 +127,7 @@ export class SqliteEntryRepo implements EntryRepoPort, EntryListPort {
     orderDirection?: "asc" | "desc";
     limit?: number;
   }): Promise<EntryRecord[]> {
-    const conditions = [eq(entries.workspaceId, params.workspaceId)];
+    const conditions = [eq(entries.workspaceId, params.workspaceId), LIVE];
     if (params.type) conditions.push(eq(entries.type, params.type));
     if (params.status) conditions.push(eq(entries.status, params.status));
 
@@ -120,9 +142,12 @@ export class SqliteEntryRepo implements EntryRepoPort, EntryListPort {
     return rows.map(toRecord);
   }
 
-  /** Manual `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` — mirrors `SqliteContentTypeRepo.transaction`. */
+  /** Manual `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` — mirrors `SqliteContentTypeRepo.transaction`.
+   *  Joins a transaction already open on this connection (the widget adoption runs an entry update
+   *  and its Trash move as one). */
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
     const client = (this.db as unknown as { $client: Database.Database }).$client;
+    if (client.inTransaction) return fn();
     client.exec("BEGIN IMMEDIATE");
     try {
       const result = await fn();

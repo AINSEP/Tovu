@@ -6,7 +6,8 @@ import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type To
 import { PRE_AUTHORIZED } from "../authorize-helper.js";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import { InMemoryEntryRepo } from "#src/features/entries/index";
+import type { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
+import { memoryWidgetTrash } from "./support/memory-widget-trash.js";
 import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { InMemoryWidgetRegionBindingRepo } from "../repo.memory.js";
@@ -30,15 +31,17 @@ const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-08-20T00:00:00.000Z";
 const TRASH_TOOL_ID = "widgets_trash_instance";
 
-function makeDeps(options: { allow?: boolean; entryRepo?: InMemoryEntryRepo } = {}): WidgetsToolDeps {
+function makeDeps(options: { allow?: boolean; entryRepo?: TrashAwareInMemoryEntryRepo } = {}): WidgetsToolDeps {
   let counter = 0;
+  const trash = memoryWidgetTrash(options.entryRepo);
   const authorize = options.allow === false ? (async () => ({ allowed: false, reason: "insufficient_permission" as const })) : PRE_AUTHORIZED;
   return {
     workspaceId: WORKSPACE_ID,
     clock: { nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
-    entryRepo: options.entryRepo ?? new InMemoryEntryRepo(),
+    entryRepo: trash.entryRepo,
+    removeWidget: trash.remove,
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
@@ -173,7 +176,7 @@ test("confirm: the human's click trashes the widget instance and the SAME call r
   assert.equal(result.instance.status, "trash");
 
   const row = await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id });
-  assert.ok(row, "trashing a widget instance is a status flip, not a delete — the row must still exist");
+  assert.equal(row, null, "a trashed widget is in the Trash — entries reads no longer return it");
 });
 
 test("cancel: nothing is trashed, and the SAME call reports the cancellation", async () => {
@@ -241,7 +244,7 @@ test("with no emitSurface, the trash is refused outright — there is no fallbac
 test("widgets.read is checked before any dialog is raised, and a denied principal never sees one", async () => {
   const seedDeps = makeDeps();
   const instance = await seedWidgetInstance(seedDeps);
-  const deps = makeDeps({ allow: false, entryRepo: seedDeps.entryRepo });
+  const deps = makeDeps({ allow: false, entryRepo: seedDeps.entryRepo as TrashAwareInMemoryEntryRepo });
   const surfaceExchanges = createSurfaceExchangeStore();
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 

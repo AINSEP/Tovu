@@ -153,7 +153,7 @@ import {
 import { registerSlugChangeCapture } from "#src/platform/routing/index";
 import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemoryMigrationRunsRepo, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "#src/features/database/repo.memory";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
-import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { TrashAwareInMemoryEntryRepo, type TrashableEntryRecord } from "#src/features/entries/trash-aware-memory-repo";
 import { InMemoryWidgetRegionBindingRepo } from "#src/features/widgets/repo.memory";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
@@ -473,6 +473,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // Hoisted for the same reason: the `form_submission` `TrashAdapter` below must flip the marker on
   // the very store the Forms routes read.
   const formSubmissionRepo = new InMemoryFormSubmissionRepo();
+  // ADR-031/ADR-023 (SPEC-033) — hoisted so the Comments module's `entryLookup` reads the SAME
+  // in-memory entries the rest of the hermetic composition writes into (mirrors
+  // `restorePointsRepo`'s identical hoisting rationale above) — and so the `widget` `TrashAdapter`
+  // below flips the marker on the very store the widget routes read.
+  const entryRepo = new TrashAwareInMemoryEntryRepo();
   const trashAdapters = new Map<string, TrashAdapter>([
     [
       POST_ENTITY_TYPE,
@@ -553,6 +558,21 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         hardDelete: (required) => formSubmissionRepo.hardDelete(required),
       }),
     ],
+    [
+      "widget",
+      createRecordStoreTrashAdapter<TrashableEntryRecord>({
+        entityType: "widget",
+        // The repo's trash-blind seam — its port reads hide a trashed entry. No `hardDelete`: a purge
+        // here stands down, same as the hermetic media/comment adapters.
+        store: {
+          findById: (required) => entryRepo.findAnyById(required),
+          save: (record) => entryRepo.saveAny(record),
+        },
+        isHidden: (record) => record.deletedAt !== null,
+        hidden: (record, at) => ({ ...record, deletedAt: at }),
+        shown: (record) => ({ ...record, deletedAt: null }),
+      }),
+    ],
   ]);
   const trashRepo = new InMemoryTrashRepo();
   const trash = createTrashService({
@@ -588,10 +608,6 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   );
   void registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink });
 
-  // ADR-031/ADR-023 (SPEC-033) — hoisted so the Comments module's `entryLookup` reads the SAME
-  // in-memory entries the rest of the hermetic composition writes into (mirrors
-  // `restorePointsRepo`'s identical hoisting rationale above).
-  const entryRepo = new InMemoryEntryRepo();
   // SPEC-043/ADR-047 (widgets) — hoisted alongside `entryRepo` for the same reason: both the admin
   // `widgets` routes and the public site-render path (`routes/site/pages.ts` → `resolvePageWidgets`,
   // W-004) must see the SAME binding/ref-index state, not two independent in-memory instances.
@@ -740,6 +756,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     removeComment: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
     removeMedia: bindRemoveEntity(trash, MEDIA_ENTITY_TYPE),
     removeRedirect: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
+    removeWidget: bindRemoveEntity(trash, "widget"),
     forgetRemovedMedia: bindForgetRemovedEntity(trashRepo, MEDIA_ENTITY_TYPE),
     forgetRemovedPost: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
     // Present so this root satisfies `TrashDeps`, and harmless: `createApp` never starts the

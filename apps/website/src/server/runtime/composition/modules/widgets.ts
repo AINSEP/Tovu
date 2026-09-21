@@ -5,7 +5,6 @@ import { registerAdminWidgetEmbedRemoveRoute } from "#src/server/inbound/admin-h
 import { registerAdminWidgetEmbedReorderRoute } from "#src/server/inbound/admin-http/routes/widgets/embed-reorder";
 import { registerAdminWidgetGetRoute } from "#src/server/inbound/admin-http/routes/widgets/get-by-id";
 import { registerAdminWidgetListRoute } from "#src/server/inbound/admin-http/routes/widgets/list";
-import { registerAdminWidgetPurgeRoute } from "#src/server/inbound/admin-http/routes/widgets/purge";
 import { registerAdminWidgetRegionBindRoute } from "#src/server/inbound/admin-http/routes/widgets/region-bind";
 import { registerAdminWidgetRegionGetRoute } from "#src/server/inbound/admin-http/routes/widgets/region-get";
 import { registerAdminWidgetRegionMutatePlacementsRoute } from "#src/server/inbound/admin-http/routes/widgets/region-mutate-placements";
@@ -45,7 +44,6 @@ export function createWidgetsModule(deps: RouteDeps): ServerModuleHandle {
       registerAdminWidgetCreateRoute(app, deps);
       registerAdminWidgetUpdateRoute(app, deps);
       registerAdminWidgetTrashRoute(app, deps);
-      registerAdminWidgetPurgeRoute(app, deps);
       registerAdminWidgetEmbedInsertRoute(app, deps);
       registerAdminWidgetEmbedRemoveRoute(app, deps);
       registerAdminWidgetEmbedReorderRoute(app, deps);

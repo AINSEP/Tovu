@@ -20,17 +20,9 @@
  * catalog's own exclusion below independently arrives at the same boundary.
  *
  * Deliberate absences (the point of a catalog, not an oversight):
- * - There is NO `widgets_purge_instance`. `purgeWidgetInstance` sets a widget instance's status to
- *   `purged` — a TERMINAL transition with no restore path anywhere in this codebase (unlike `trash`,
- *   which is at least conceptually reversible). Even its non-`force` variant retracts the instance's
- *   own outgoing `entry_refs` as a side effect (see that function's doc comment: "purge is the
- *   permanent step... a config field that used to reference something should stop counting as a
- *   live reference"), which is a durable, cross-domain side effect a trash never performs. Its
- *   `force:true` variant additionally bypasses the REQ-42 still-referenced guard entirely and is
- *   gated behind the separate, narrower `widgets.delete.force` permission — the same escalation
- *   tier split `media.delete`/`media.delete.force` and `admin.menus.delete`/`.delete.force` use.
- *   ADR-047 §5's own hand-designed AI tool surface (see above) independently ships no purge/delete
- *   tool either — treated here as confirming precedent, not a rule this catalog blindly copies.
+ * - There is NO `widgets_purge_instance`. A permanent delete exists only as the Trash screen's purge
+ *   (a human action); the old `purgeWidgetInstance` rung was retired with the generic Trash
+ *   (2026-09-21).
  * - There is NO widget-type "delete"/"unregister" tool. `widgets/registry.ts`'s
  *   `WIDGET_TYPE_REGISTRATIONS` is core-declared, static data with no admin HTTP surface at all —
  *   wrapping it would invent capability beyond what the human admin UI exposes.
@@ -229,7 +221,7 @@ export const widgetsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "widgets_trash_instance",
     description:
-      "Trashes a widget instance — a soft, revisioned status flip. UNCONDITIONAL: never blocked by references, even if " +
+      "Moves a widget instance to the Trash, where it can be restored for 60 days. UNCONDITIONAL: never blocked by references, even if " +
       "the instance is currently placed somewhere (every referencing placement degrades to a placeholder at render " +
       "time rather than this call being rejected). This is the only delete-adjacent tool in this catalog — there is no " +
       "purge/force-delete tool (see this file's header for why).",

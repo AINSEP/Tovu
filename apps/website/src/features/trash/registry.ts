@@ -13,11 +13,10 @@
  * {@link TrashRegistrySchema} is satisfied by either module without this file importing either
  * driver's table types.
  *
- * G1 registers only `form` (B1's `form_definitions.deleted_at`/`version`, migration 0071). `menu`,
- * `term`, `taxonomy`, `form_submission` and `widget` are the plan's G2-G4 entries — adding them needs
- * no change to this file's shape, only new `Map` entries (`widget` also needs `scope`, `term`/
- * `taxonomy` need `hiddenWithParent`/`blockers`/`afterChange`, none of which G1 wires — see the
- * handoff's "notes for G2" for why those fields are deliberately not on {@link TrashEntry} yet).
+ * Registered today: `form`, `form_submission`, `widget` (an `entries` row scoped to
+ * `type = 'widget'`). The plan's remaining entries (`menu`, `term`, `taxonomy`) are new `Map`
+ * entries here, plus whatever optional field (`blockers`, `hiddenWithParent`) the first entry that
+ * needs one adds to {@link TrashEntry}.
  */
 import { eq, type AnyColumn, type SQL, type Table } from "drizzle-orm";
 
@@ -53,10 +52,8 @@ export interface TrashCascadeSpec {
 }
 
 /**
- * One domain's registration. Fields left out here on purpose (per the file header): `hiddenWithParent`,
- * `blockers`, `afterChange`. Every field that IS here is exercised by the `form` entry or is a
- * one-line addition `createTableTrashAdapter` already reads (`scope`) — see the plan's entry table
- * (§4) for the full eventual shape.
+ * One domain's registration. Optional fields are added when the first entry needs one, never ahead
+ * of it — see the plan's entry table (§4) for the full eventual shape.
  */
 export interface TrashEntry {
   readonly entityType: TrashEntityType;
@@ -67,7 +64,7 @@ export interface TrashEntry {
   readonly idColumn: AnyColumn;
   readonly workspaceColumn: AnyColumn;
   /** A fixed predicate ANDed into every query this entry's adapter runs — e.g. `type = 'widget'`
-   *  against the shared `entries` table (G2). No G1 entry needs one. */
+   *  against the shared `entries` table. */
   readonly scope?: SQL;
   readonly marker: TrashMarkerSpec;
   /** Optimistic-concurrency column. `undefined` for a domain with no version column (none in G1). */
@@ -100,6 +97,17 @@ export interface TrashRegistrySchema {
     deletedAt: AnyColumn;
     version: AnyColumn;
   };
+  entries: Table & {
+    id: AnyColumn;
+    workspaceId: AnyColumn;
+    type: AnyColumn;
+    title: AnyColumn;
+    slug: AnyColumn;
+    deletedAt: AnyColumn;
+    version: AnyColumn;
+  };
+  entryRefs: Table & { sourceEntryId: AnyColumn };
+  entryRevisions: Table & { entryId: AnyColumn };
 }
 
 /**
@@ -151,6 +159,31 @@ export function buildTrashRegistry<TSchema extends TrashRegistrySchema>(required
             on: eq(schema.formDefinitions.id, schema.formSubmissions.formDefinitionId),
           },
         },
+      },
+    ],
+    [
+      "widget",
+      {
+        entityType: "widget",
+        label: "Widget",
+        permission: "widgets.delete",
+        table: schema.entries,
+        idColumn: schema.entries.id,
+        workspaceColumn: schema.entries.workspaceId,
+        // `entries` holds every entry type; only widgets go to the Trash this way, so a collection
+        // entry's id can never be hidden or purged through this entry.
+        scope: eq(schema.entries.type, "widget"),
+        // `deleted_at`, not `entries.status` (typed `draft|published|unpublished`) and not the
+        // widget payload's own status (changing that needs a parse, which fails on corrupt rows).
+        marker: { kind: "timestamp", column: schema.entries.deletedAt },
+        versionColumn: schema.entries.version,
+        display: { title: schema.entries.title, subtitle: schema.entries.slug },
+        // Its own outgoing refs (e.g. a menu widget's `menuRef`) and its revisions. Refs OTHER
+        // entries hold to it (a region placement, an embed) stay and render as dangling (REQ-43).
+        purgeFirst: [
+          { table: schema.entryRefs, parentIdColumn: schema.entryRefs.sourceEntryId },
+          { table: schema.entryRevisions, parentIdColumn: schema.entryRevisions.entryId },
+        ],
       },
     ],
   ]);

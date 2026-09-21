@@ -1361,7 +1361,7 @@ export interface PublishTrustRevocationDeps {
 /**
  * The local admin Trash (design: `ADS-memory/reports/2026-09-20-trash-delete-architecture.md`).
  *
- * `trash` is the whole port, read by the Trash screen's own routes. The four `remove*` fields are
+ * `trash` is the whole port, read by the Trash screen's own routes. The `remove*` fields are
  * the SAME service pre-bound to one entity type each, and they are what the delete paths receive —
  * a delete path takes exactly one of them and therefore cannot address another domain's entities by
  * passing the wrong string. Each performs the marker flip AND the Trash index write as one
@@ -1376,6 +1376,7 @@ export interface TrashDeps {
   removeComment: RemoveEntity;
   removeMedia: RemoveEntity;
   removeRedirect: RemoveEntity;
+  removeWidget: RemoveEntity;
   /**
    * Media alone needs this pair: its ladder has a HUMAN hard-purge rung of its own
    * (`routes/media/delete.ts`, gated by `media.delete.force`) that removes the row outside the

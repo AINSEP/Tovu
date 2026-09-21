@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import { formDefinitions, formSubmissions } from "#src/platform/db/schema";
+import * as schema from "#src/platform/db/schema";
 
 import { createSqliteTrashDb } from "../db-port.sqlite.js";
 import { moveToTrash } from "../move-to-trash.js";
@@ -38,7 +38,7 @@ function harness(): Harness {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
-  const registry = buildTrashRegistry({ schema: { formDefinitions, formSubmissions } });
+  const registry = buildTrashRegistry({ schema });
   const trashDb = createSqliteTrashDb({ db });
   const adapters = new Map<string, TrashAdapter>(
     [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { formDefinitions, formSubmissions } from "#src/platform/db/schema";
+import * as schema from "#src/platform/db/schema";
 
 import { buildTrashRegistry } from "../registry.js";
 import { buildTrashRegistrations } from "../tool-registrations.js";
@@ -12,7 +12,7 @@ import type { PurgeReport, RestoreOutcome, TrashItem, TrashPort } from "../ports
 /** The real `form` entry (registry-derived permission), same source `deps.ts` composes from —
  *  needed because "form" -> "admin.forms.manage" is one of this file's pinned pairings, and that
  *  pairing now comes from `TRASHABLE`, not the bespoke `TRASH_PERMISSION_BY_ENTITY_TYPE` map. */
-const REGISTRY = buildTrashRegistry({ schema: { formDefinitions, formSubmissions } });
+const REGISTRY = buildTrashRegistry({ schema });
 
 /**
  * @file What the two trash tools actually do, and — the part that matters — **what they refuse to
