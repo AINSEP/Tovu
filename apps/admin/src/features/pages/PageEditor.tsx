@@ -2,6 +2,7 @@ import type { RefObject } from "react";
 import { ConfirmDialog, InteractiveHtmlEditor } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBar.hooks";
 import { siteUrl } from "../../lib/site-url";
 import type {
   StandingDraftAutosaveSnapshot,
@@ -65,6 +66,13 @@ const VIEWS: ReadonlyArray<{ key: PageEditorView; label: string }> = [
   { key: "interactive", label: "Interactive" },
   { key: "preview", label: "Preview" },
 ];
+
+/** {@link VIEWS} carrying the `id` that `TabBar.hooks.tsx`'s WAI-ARIA tabs helpers key on, so this
+ *  hand-rolled `role="tablist"` row gets the same arrow/Home/End keys and roving tab stop `TabBar`
+ *  has (a35ce9f12) without becoming a `<TabBar>`: the `.segmented` pill row is a different visual
+ *  control, only the keyboard contract is shared. Spread, not rebuilt, so nothing in the JSX below
+ *  has to change which field it reads. */
+const VIEW_TABS = VIEWS.map((entry) => ({ ...entry, id: entry.key }));
 
 /**
  * The editor header — the back link on the left and the kicker/title/description block, and since
@@ -633,6 +641,9 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     dismissExternalChange,
     contentRevision,
   } = usePageEditorHook(routeSlug);
+  // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
+  // lint even though this one holds no state of its own.
+  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard(VIEW_TABS, view, (id) => setView(id as PageEditorView));
 
   if (error && !page) return <div className="notice error">{error}</div>;
   if (!page) return <div className="notice">Loading editor…</div>;
@@ -701,14 +712,15 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
       </div>
 
       <div className="page-editor-toolbar">
-        <div className="segmented" role="tablist" aria-label="Editor view">
-          {VIEWS.map((entry) => (
+        <div className="segmented" role="tablist" aria-label="Editor view" onKeyDown={onViewTabsKeyDown}>
+          {VIEW_TABS.map((entry) => (
             <button
               key={entry.key}
               type="button"
               role="tab"
               aria-selected={view === entry.key}
               className={view === entry.key ? "is-active" : undefined}
+              tabIndex={resolveTabBarTabIndex(VIEW_TABS, view, entry)}
               onClick={() => setView(entry.key)}
               {...agentHandle(`page-view-${entry.key}`, { role: "button", label: `Switch to the ${entry.label} view` })}
             >

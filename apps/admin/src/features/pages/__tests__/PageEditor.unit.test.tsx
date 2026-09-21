@@ -476,6 +476,42 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     expect(ctrl.setView).toHaveBeenCalledWith("interactive");
   });
 
+  /** This `.segmented` row is hand-rolled `role="tablist"`/`role="tab"` markup, not a `<TabBar>`,
+   *  so a35ce9f12's keyboard fix did not reach it: a keyboard user had to Tab through all three
+   *  view buttons instead of arrowing between them, and every one of them was its own tab stop. */
+  it("ArrowRight moves to the next view tab and takes focus with it", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderEditor({ view: "html" });
+
+    screen.getByRole("tab", { name: "HTML" }).focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(ctrl.setView).toHaveBeenCalledWith("interactive");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Interactive" }));
+  });
+
+  it("End moves to the last view tab and Home back to the first", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderEditor({ view: "html" });
+
+    screen.getByRole("tab", { name: "HTML" }).focus();
+    await user.keyboard("{End}");
+    expect(ctrl.setView).toHaveBeenLastCalledWith("preview");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Preview" }));
+
+    await user.keyboard("{Home}");
+    expect(ctrl.setView).toHaveBeenLastCalledWith("html");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "HTML" }));
+  });
+
+  it("keeps one roving tab stop: only the active view tab is in the native Tab order", () => {
+    renderEditor({ view: "preview" });
+
+    expect(screen.getByRole("tab", { name: "Preview" })).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("tab", { name: "HTML" })).toHaveAttribute("tabindex", "-1");
+    expect(screen.getByRole("tab", { name: "Interactive" })).toHaveAttribute("tabindex", "-1");
+  });
+
   it("renders the rendered preview (not a textarea) in preview view", () => {
     renderEditor({ view: "preview" });
     expect(screen.getByTitle("Page preview")).toBeInTheDocument();
