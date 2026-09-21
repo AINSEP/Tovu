@@ -204,6 +204,53 @@ describe("removePost", () => {
   });
 });
 
+/**
+ * Sink of the review's H4 finding (dialogs closable mid-write): `disablePost` and `removePost`
+ * share one `rowSavingId` field, and `disablePost`'s `finally` clears it unconditionally. A
+ * Disable on one row settling while a DIFFERENT row's Delete confirm is still in flight wipes
+ * that row's lock, making its `ConfirmDialog` (`pending={rowSavingId === pendingDelete.id}` in
+ * `Posts.tsx`) read as settled — dismissable and re-confirmable — while the delete is still on
+ * the wire.
+ */
+describe("rowSavingId — shared between Disable and Delete", () => {
+  it("an unrelated Disable settling does not unlock a different row's in-flight Delete confirm", async () => {
+    const OTHER_POST = { ...POST, id: "p-other", title: "Other" };
+    const port = createFakePostsListPort({ posts: [POST, OTHER_POST] });
+    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    await waitFor(() => expect(result.current.posts).not.toBeNull());
+
+    let resolveDisable!: (v: { post: AdminPost }) => void;
+    vi.spyOn(port, "updatePost").mockImplementationOnce(() => new Promise((resolve) => (resolveDisable = resolve)));
+    let resolveDelete!: (v: { post: AdminPost }) => void;
+    vi.spyOn(port, "deletePost").mockImplementationOnce(() => new Promise((resolve) => (resolveDelete = resolve)));
+
+    act(() => {
+      void result.current.disablePost(POST);
+    });
+    await waitFor(() => expect(result.current.rowSavingId).toBe(POST.id));
+
+    act(() => result.current.setPendingDelete(OTHER_POST));
+    act(() => {
+      void result.current.removePost();
+    });
+    await waitFor(() => expect(result.current.rowSavingId).toBe(OTHER_POST.id));
+
+    await act(async () => {
+      resolveDisable({ post: { ...POST, status: "draft", version: POST.version + 1 } });
+      await Promise.resolve();
+    });
+
+    // The unrelated Disable settling must not unlock a DIFFERENT row's in-flight Delete confirm.
+    expect(result.current.rowSavingId).toBe(OTHER_POST.id);
+
+    await act(async () => {
+      resolveDelete({ post: OTHER_POST });
+      await Promise.resolve();
+    });
+    expect(result.current.rowSavingId).toBeNull();
+  });
+});
+
 describe("injected port (useWiredX conversion coverage)", () => {
   it("loads posts through the injected port and navigates on create, without touching fetch", async () => {
     const port = createFakePostsListPort({ posts: [POST] });

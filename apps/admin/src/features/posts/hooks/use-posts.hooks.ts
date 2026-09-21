@@ -175,7 +175,12 @@ export function usePosts(deps: PostsListDependencies): PostsController {
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to disable post");
     } finally {
-      setRowSavingId(null);
+      // Only clear THIS row's lock — `rowSavingId` is shared with `removePost`'s delete-in-flight
+      // lock (2026-09-20, S4b hardening). An unconditional `setRowSavingId(null)` here would wipe a
+      // DIFFERENT row's delete lock if that row's `ConfirmDialog` confirm landed while this Disable
+      // was still in flight, making the dialog read as settled (dismissable, re-confirmable) while
+      // the delete is still on the wire.
+      setRowSavingId((cur) => (cur === post.id ? null : cur));
     }
   }
 
@@ -206,7 +211,9 @@ export function usePosts(deps: PostsListDependencies): PostsController {
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to delete post");
     } finally {
-      setRowSavingId(null);
+      // Symmetric guard to `disablePost`'s — see its comment. Keeps this correct regardless of
+      // which of the two in-flight actions settles first.
+      setRowSavingId((cur) => (cur === post.id ? null : cur));
       setPendingDelete(null);
     }
   }
