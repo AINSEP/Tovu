@@ -1,6 +1,6 @@
 import { ApiError, describeApiError, type AdminWidget, type AdminWidgetPlacement, type AdminWidgetType } from "../../lib/api";
 import { WIDGET_TYPE_OPTIONS } from "../../components/WidgetConfigFields/WidgetConfigFields";
-import { WIDGETS_DICT, t as translate } from "./widgets-i18n";
+import { t as translate } from "./widgets-i18n";
 
 /**
  * @file Pure logic shared by the four `widgets` feature screens (`WidgetsLibrary`,
@@ -45,7 +45,7 @@ const KNOWN_WIDGET_TYPES = new Set<string>(WIDGET_TYPE_OPTIONS.map((o) => o.valu
  */
 export function widgetTypeLabel(widgetType: string, locale: string): string {
   const rawLabel = WIDGET_TYPE_OPTIONS.find((o) => o.value === widgetType)?.label ?? widgetType;
-  return WIDGETS_DICT[locale]?.[rawLabel] ?? rawLabel;
+  return translate(locale, rawLabel);
 }
 
 /** Whether `widgetType` is one of the five closed v1 types — see {@link KNOWN_WIDGET_TYPES}'s own

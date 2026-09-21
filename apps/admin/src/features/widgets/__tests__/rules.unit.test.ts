@@ -34,6 +34,20 @@ describe("widgetTypeLabel", () => {
   it("falls back to the raw stored value for an unknown type in Spanish too", () => {
     expect(widgetTypeLabel("some-legacy-type", "es")).toBe("some-legacy-type");
   });
+
+  /**
+   * S-I18N fallback fix, sibling defect the earlier widgets pass (75844acca) missed:
+   * `widgetTypeLabel` did `WIDGETS_DICT[locale]?.[rawLabel] ?? rawLabel` inline instead of calling
+   * the module's own `t`/`translate` (which falls through to `COMMON_I18N`). No live v1 widget
+   * type label collides with a `COMMON_I18N` word, but the same unknown-type fallback path this
+   * describe block already covers above is reachable with any raw stored string — including one
+   * that happens to match a `COMMON_I18N` key, such as a pre-v1 legacy widget type literally named
+   * "Title". `WIDGETS_DICT.de` never carries "Title" (only the `es` superset block does), so before
+   * this fix German rendered the bare English word here too.
+   */
+  it("falls back to COMMON_I18N for an unknown type whose raw value matches a shared word", () => {
+    expect(widgetTypeLabel("Title", "de")).toBe("Titel");
+  });
 });
 
 describe("isKnownWidgetType", () => {
