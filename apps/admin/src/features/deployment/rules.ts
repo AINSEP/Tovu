@@ -438,12 +438,19 @@ export function defaultCredentialForProvider(
  * un-defaulted (the store's "`isDefault: true` always wins" rule), other providers untouched. Applied
  * only after the write has resolved — never optimistically — so it restates what the server did
  * rather than guessing ahead of it.
- * @complexity O(n) in this workspace's total saved-credential count.
+ *
+ * Generic over any credential-summary shape carrying `id`/`providerId`/`isDefault` — both
+ * `AdminPublishCredentialSummary` and `AdminSourceControlCredentialSummary` satisfy it field-for-
+ * field, so the Security page's Access Tokens tab (`security/hooks/use-access-tokens.hooks.ts`'s
+ * `makeDefault`) reuses this verbatim rather than reimplementing the same "promotion confirmed, list
+ * stays honest even if the follow-up reconcile refetch fails" fix this hook already needed (terra
+ * review 2026-09-20).
+ * @complexity O(n) in the credential list's own length.
  */
-export function withPromotedDefault(
-  credentials: readonly AdminPublishCredentialSummary[],
-  promoted: AdminPublishCredentialSummary
-): AdminPublishCredentialSummary[] {
+export function withPromotedDefault<T extends { id: string; providerId: string; isDefault: boolean }>(
+  credentials: readonly T[],
+  promoted: T
+): T[] {
   return credentials.map((credential) => {
     if (credential.id === promoted.id) return promoted;
     if (credential.providerId !== promoted.providerId) return credential;

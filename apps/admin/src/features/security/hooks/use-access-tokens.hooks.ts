@@ -14,6 +14,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
+import { withPromotedDefault } from "../../deployment/rules";
 import {
   t as defaultT,
   accessTokenDuplicateNameMessage,
@@ -585,13 +586,41 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     }
   }
 
+  /** Splices the server-confirmed promotion into the right store's local state, via
+   *  `deployment/rules.ts`'s `withPromotedDefault` — the `makeDefault` counterpart of
+   *  {@link mergeCredential}. Reused rather than reimplemented (terra review 2026-09-20): the old
+   *  `makeDefault` treated the write AND the reconcile refetch below as one unit inside a single
+   *  try/catch, so a refetch that failed on its own (a real, separate network call) reported the
+   *  WHOLE promotion as failed and left the pre-promotion list on screen, even though the server had
+   *  already confirmed it. `custom` rows never reach `makeDefault` (`AccessTokensTab.tsx`'s
+   *  `TokenRowDefaultIndicator` never renders a "Make default" control for a singleton custom group),
+   *  so only the two branches `refetchStore` itself already handles are needed here.
+   *  @complexity O(1) dispatch; O(n) inside `withPromotedDefault`. */
+  function applyPromotedDefault(kind: AccessTokenKind, result: AdminPublishCredentialSummary | AdminSourceControlCredentialSummary): void {
+    if (kind === "publish") setPublishCredentials((prev) => withPromotedDefault(prev ?? [], result as AdminPublishCredentialSummary));
+    else setSourceControlCredentials((prev) => withPromotedDefault(prev ?? [], result as AdminSourceControlCredentialSummary));
+  }
+
+  /** Best-effort re-read after a promotion the server already confirmed — same shape and reasoning as
+   *  `use-publish-credentials.hooks.ts`'s `reconcileCredentials`: a failure here is swallowed because
+   *  {@link applyPromotedDefault} already applied the server's own confirmed response, so surfacing an
+   *  error would falsely tell the operator the promotion itself failed. */
+  async function reconcileStore(kind: AccessTokenKind): Promise<void> {
+    try {
+      await refetchStore(kind);
+    } catch {
+      // See this function's doc — the confirmed local promotion (applyPromotedDefault) stands.
+    }
+  }
+
   /** Same error-handling fix as {@link removeToken}'s own doc, for the "Make default" action. */
   async function makeDefault(row: AccessTokenRow): Promise<void> {
     if (row.isDefault) return;
     setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: true, error: null } }));
     try {
-      await writeCredential(port, row.kind, { type: "update", id: row.id }, { isDefault: true });
-      await refetchStore(row.kind);
+      const result = await writeCredential(port, row.kind, { type: "update", id: row.id }, { isDefault: true });
+      applyPromotedDefault(row.kind, result);
+      await reconcileStore(row.kind);
       setExistingBusy((prev) => ({ ...prev, [row.id]: IDLE }));
     } catch (err) {
       setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenActionErrorMessage(err, t, locale, accessTokenMakeDefaultErrorMessage) } }));
