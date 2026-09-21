@@ -477,8 +477,11 @@ async function duplicateFormDefinition(
     (await deriveAvailableFormSlug(
       { name },
       {
+        // `isSlugTaken`, not `findBySlug` — trash-blind, so a trashed form's slug is correctly
+        // reported as taken instead of offered to the copy and then colliding on the DB unique
+        // index (decision 3, ADS-memory/reports/2026-09-21-t8f-trash-forms-plan.md §B).
         isTaken: async (candidate) =>
-          (await routeDeps.formDefinitionRepo.findBySlug({ workspaceId: routeDeps.workspaceId, slug: candidate })) !== null,
+          routeDeps.formDefinitionRepo.isSlugTaken({ workspaceId: routeDeps.workspaceId, slug: candidate }),
       }
     ));
 

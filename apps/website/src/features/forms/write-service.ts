@@ -160,6 +160,9 @@ export async function createFormDefinition(
           status: "active",
           createdAt: now,
           updatedAt: now,
+          // Optimistic-concurrency counter the Trash's compare-and-set flips (`types.ts`'s doc on
+          // `FormDefinitionRecord.version`). Every new definition starts at 1, same as `PostRecord`.
+          version: 1,
         };
         await deps.repo.create(definition);
         return { definition };

@@ -1,4 +1,4 @@
-import { and, desc, eq, lt, or } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
 import { formDefinitions, formSubmissions } from "../../platform/db/schema.js";
@@ -39,9 +39,12 @@ function toDefinitionRecord(row: FormDefinitionRow): FormDefinitionRecord {
     status: row.status as FormDefinitionStatus,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    version: row.version,
   };
 }
 
+/** Includes `version` for `create`'s INSERT; `update()` strips it back out before writing — see
+ *  that method's own doc for why the Trash's compare-and-set is the only thing allowed to move it. */
 function toDefinitionRow(record: FormDefinitionRecord) {
   return {
     id: record.id,
@@ -53,6 +56,7 @@ function toDefinitionRow(record: FormDefinitionRecord) {
     status: record.status,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
+    version: record.version,
   };
 }
 
@@ -77,29 +81,40 @@ function isUniqueConstraintViolation(err: unknown): boolean {
 export class SqliteFormDefinitionRepo implements FormDefinitionRepoPort {
   constructor(private readonly db: ContentDb) {}
 
+  /** Trash-aware: `isNull(deletedAt)` excludes a trashed row (`ports.ts`'s fail-closed-reads doc). */
   async findById(required: { workspaceId: UUID; id: UUID }): Promise<FormDefinitionRecord | null> {
     return findOneBy(
       this.db,
       formDefinitions,
-      [eq(formDefinitions.workspaceId, required.workspaceId), eq(formDefinitions.id, required.id)],
+      [
+        eq(formDefinitions.workspaceId, required.workspaceId),
+        eq(formDefinitions.id, required.id),
+        isNull(formDefinitions.deletedAt),
+      ],
       toDefinitionRecord
     );
   }
 
+  /** Trash-aware: `isNull(deletedAt)` excludes a trashed row (`ports.ts`'s fail-closed-reads doc). */
   async findBySlug(required: { workspaceId: UUID; slug: string }): Promise<FormDefinitionRecord | null> {
     return findOneBy(
       this.db,
       formDefinitions,
-      [eq(formDefinitions.workspaceId, required.workspaceId), eq(formDefinitions.slug, required.slug)],
+      [
+        eq(formDefinitions.workspaceId, required.workspaceId),
+        eq(formDefinitions.slug, required.slug),
+        isNull(formDefinitions.deletedAt),
+      ],
       toDefinitionRecord
     );
   }
 
+  /** Trash-aware: `isNull(deletedAt)` excludes a trashed row (`ports.ts`'s fail-closed-reads doc). */
   async list(required: { workspaceId: UUID }): Promise<FormDefinitionRecord[]> {
     const rows = this.db
       .select()
       .from(formDefinitions)
-      .where(eq(formDefinitions.workspaceId, required.workspaceId))
+      .where(and(eq(formDefinitions.workspaceId, required.workspaceId), isNull(formDefinitions.deletedAt)))
       .all();
     return rows.map(toDefinitionRecord);
   }
@@ -109,18 +124,63 @@ export class SqliteFormDefinitionRepo implements FormDefinitionRepoPort {
       this.db.insert(formDefinitions).values(toDefinitionRow(record)).run();
     } catch (err) {
       if (isUniqueConstraintViolation(err)) {
-        throw new FormSlugConflictError(`a form with slug '${record.slug}' already exists`, record.slug);
+        // Trash-blind, deliberately: the unique index has no `WHERE deleted_at IS NULL` clause, so
+        // a trashed row's slug is still "taken" — the conflict is real either way, only the
+        // remedy differs, which is why the message names it.
+        const conflicting = this.db
+          .select({ deletedAt: formDefinitions.deletedAt })
+          .from(formDefinitions)
+          .where(and(eq(formDefinitions.workspaceId, record.workspaceId), eq(formDefinitions.slug, record.slug)))
+          .all()[0];
+        const message =
+          conflicting && conflicting.deletedAt !== null
+            ? `a form with slug '${record.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug`
+            : `a form with slug '${record.slug}' already exists`;
+        throw new FormSlugConflictError(message, record.slug);
       }
       throw err;
     }
   }
 
+  /**
+   * Update-only path for a LIVE row. `version`/`deletedAt` are deliberately excluded from the SET
+   * list (only the Trash's compare-and-set may move `version`), and `isNull(deletedAt)` in the
+   * WHERE means the UPDATE simply matches zero rows if the record has since been trashed — the same
+   * class of fix as the post `forgetRemoved` bug (8bb80c1d8): a stale in-hand copy can never clear
+   * a marker it never knew was set.
+   */
   async update(record: FormDefinitionRecord): Promise<void> {
-    const row = toDefinitionRow(record);
+    const { version: _version, ...row } = toDefinitionRow(record);
     this.db
       .update(formDefinitions)
       .set(row)
-      .where(and(eq(formDefinitions.workspaceId, record.workspaceId), eq(formDefinitions.id, record.id)))
+      .where(
+        and(
+          eq(formDefinitions.workspaceId, record.workspaceId),
+          eq(formDefinitions.id, record.id),
+          isNull(formDefinitions.deletedAt)
+        )
+      )
+      .run();
+  }
+
+  /** Trash-BLIND — see `ports.ts`'s doc for why this is the one deliberate exception. */
+  async isSlugTaken(required: { workspaceId: UUID; slug: string }): Promise<boolean> {
+    const rows = this.db
+      .select({ id: formDefinitions.id })
+      .from(formDefinitions)
+      .where(and(eq(formDefinitions.workspaceId, required.workspaceId), eq(formDefinitions.slug, required.slug)))
+      .limit(1)
+      .all();
+    return rows.length > 0;
+  }
+
+  /** Trash-BLIND write — see `ports.ts`'s doc for why this exists only for the delete rollback. */
+  async clearTrashMarker(required: { workspaceId: UUID; id: UUID; at: string }): Promise<void> {
+    this.db
+      .update(formDefinitions)
+      .set({ deletedAt: null, updatedAt: required.at, version: sql`${formDefinitions.version} + 1` })
+      .where(and(eq(formDefinitions.workspaceId, required.workspaceId), eq(formDefinitions.id, required.id)))
       .run();
   }
 }

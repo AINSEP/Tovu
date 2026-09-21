@@ -6,28 +6,82 @@ import type { FormDefinitionRecord, FormSubmissionPage, FormSubmissionRecord } f
  *
  * Purpose:
  * Dependency-inversion seam (ADR-006 rule-of-two) for the two Forms-owned tables. Two ports, not
- * one — definitions and submissions have distinct lifecycles (INV-08): `FormDefinitionRepoPort`
- * structurally exposes no delete method (a form definition is never permanently deleted, only
- * `active` ⇄ `disabled`); `FormSubmissionRepoPort` does expose `delete` (REQ-14 — a submission
- * supports permanent delete, unlike its definition).
+ * one — definitions and submissions have distinct lifecycles: `FormSubmissionRepoPort` exposes
+ * `delete` (REQ-14 — a single submission supports permanent delete on its own, outside the Trash).
+ *
+ * Owner ruling 2026-09-21 ("forms should be deleted like all the other stuff") superseded the
+ * original INV-08 "a form definition is never permanently deleted" — see `features/trash/adapters/
+ * form.ts`. `FormDefinitionRepoPort` still exposes structurally NO `delete` method: the new
+ * invariant is that a definition is removed permanently only through a Trash purge (a human on the
+ * Trash screen, or the 60-day sweeper), never through this port. Reads here are **trash-aware and
+ * fail-closed**: `findById`/`findBySlug`/`list` exclude a trashed row, deliberately unlike posts
+ * (whose repo stays trash-blind and filters in domain functions) — forms has roughly ten direct
+ * consumers (public submit, the widget resolver, admin routes, agent tools, notify, content
+ * duplication) and a consumer that forgot to filter would keep accepting submissions for a trashed
+ * form. Filtering at the repo means a forgetful caller gets the safe answer, "not found", instead.
  *
  * Interfaces and types only — no feature logic.
  */
 export interface FormDefinitionRepoPort {
+  /** Trash-aware: never returns a row with `deleted_at` set. */
   findById(required: { workspaceId: UUID; id: UUID }): Promise<FormDefinitionRecord | null>;
+  /** Trash-aware: never returns a row with `deleted_at` set. */
   findBySlug(required: { workspaceId: UUID; slug: string }): Promise<FormDefinitionRecord | null>;
+  /** Trash-aware: never lists a row with `deleted_at` set. */
   list(required: { workspaceId: UUID }): Promise<FormDefinitionRecord[]>;
   /**
    * Insert-only path. Callers (write-service.ts) must translate a unique-constraint violation on
    * `(workspaceId, slug)` into `FormSlugConflictError` (behavior.spec.md §6.1 — the DB unique
-   * index is the actual tie-break mechanism, not app-level logic).
+   * index is the actual tie-break mechanism, not app-level logic). The conflicting row may itself
+   * be trashed (the unique index has no `WHERE deleted_at IS NULL` clause — a trashed form keeps
+   * its slug so restore is lossless), in which case the message names the Trash as the way out.
    */
   create(record: FormDefinitionRecord): Promise<void>;
-  /** Update-only path for an existing row (create/update are deliberately distinct methods — no upsert — since `create` must surface a genuine slug-uniqueness race distinctly from an update). */
+  /**
+   * Update-only path for an existing LIVE row (create/update are deliberately distinct methods —
+   * no upsert — since `create` must surface a genuine slug-uniqueness race distinctly from an
+   * update). Trash-aware and fail-closed the other direction too: an update can never revive a
+   * trashed row — it silently affects zero rows if the record has since been trashed, the same way
+   * a stale in-hand copy silently loses a concurrent edit elsewhere. The Trash's own `unhide` is the
+   * only path back to live.
+   */
   update(record: FormDefinitionRecord): Promise<void>;
-  // Deliberately NO delete method — INV-08 is enforced structurally by this port's shape, not by
-  // convention (a real Tier-1-shaped seam an implementor cannot accidentally violate).
+  /**
+   * Trash-BLIND — the one deliberate exception to this port's fail-closed reads. `true` for a slug
+   * that is taken by a live OR a trashed row in the workspace, matching what the DB unique index
+   * itself would reject. Its only production caller is `content_duplicate`'s slug derivation
+   * (`tool-registrations.ts`), which must not offer a trashed form's slug as available only to have
+   * the subsequent `create()` collide.
+   */
+  isSlugTaken(required: { workspaceId: UUID; slug: string }): Promise<boolean>;
+  /**
+   * Trash-BLIND write. Clears `deleted_at` and bumps `version`, regardless of whether the row is
+   * currently trashed. The ONLY caller is the delete command-gateway's own rollback (mirroring
+   * `posts/delete.ts`'s `forgetRemoved` + marker-clear pair) — never a general "un-trash" API; the
+   * Trash screen's restore goes through `TrashPort.restore`, not through this port at all.
+   */
+  clearTrashMarker(required: { workspaceId: UUID; id: UUID; at: string }): Promise<void>;
+  // Deliberately NO delete method — the new INV-08 is enforced structurally by this port's shape:
+  // a form definition can be removed only by a Trash purge, never through this port.
 }
+
+/**
+ * The function `trashFormDefinition` receives through its own dependency object, pre-bound to the
+ * `"form"` entity type at the composition root. Structurally typed ON PURPOSE — this file imports
+ * nothing from `features/trash`, and must not (mirrors `features/post/post.ts`'s `RemovePostFn`).
+ */
+export type RemoveFormFn = (required: {
+  workspaceId: UUID;
+  id: UUID;
+  display: { title: string; subtitle?: string | null };
+  at: string;
+  expectedVersion: number | null;
+  actor: { principalId: string; pluginId?: string | null };
+}) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }>;
+
+/** Drops a Trash index row without touching the marker — the delete command-gateway's rollback
+ *  pairs this with `FormDefinitionRepoPort.clearTrashMarker` (mirrors `ForgetRemovedPostFn`). */
+export type ForgetRemovedFormFn = (required: { workspaceId: UUID; id: UUID }) => Promise<void>;
 
 export interface FormSubmissionRepoPort {
   findById(required: { workspaceId: UUID; id: UUID }): Promise<FormSubmissionRecord | null>;

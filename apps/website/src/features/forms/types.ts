@@ -52,6 +52,12 @@ export interface FormDefinitionRecord {
   status: FormDefinitionStatus;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Optimistic-concurrency counter the Trash's compare-and-set flips (`features/trash/adapters/
+   * form.ts`). Not exposed as an admin-editable field — every constructor of a record (tests,
+   * `createFormDefinition`, fixtures) must set it, same as `PostRecord.version`.
+   */
+  version: number;
 }
 
 export interface FormSubmissionRecord {
