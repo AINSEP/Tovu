@@ -392,6 +392,34 @@ describe("useFolderDrop — last drop wins across overlapping drops", () => {
 
     await waitFor(() => expect(result.current.notice).toMatchObject({ kind: "confirmation", path: "/Users/x/b" }));
     expect(setCustomRoot.mock.calls.at(-1)).toEqual(["/Users/x/b"]);
+    // `a` was superseded before its turn on the chain came up, so it never read and never wrote —
+    // the server only ever saw `b`. Pins the mint-BEFORE-`run` rule too: minted inside the queued
+    // task, `a` would still be "current" when it started, and would read and write `/Users/x/a`.
+    expect(getCustomRoot).toHaveBeenCalledTimes(1);
+    expect(setCustomRoot.mock.calls).toEqual([["/Users/x/b"]]);
+  });
+
+  it("a drop superseded while its own read is in flight never issues its write", async () => {
+    const composerHandle = fakeComposerHandle();
+    const { a, b, port } = twoFolderDrops();
+    const readA = deferred<{ path: string | null }>();
+    const getCustomRoot = vi.fn().mockReturnValueOnce(readA.promise).mockResolvedValue({ path: null });
+    const setCustomRoot = vi.fn(async (p: string) => ({ path: p }));
+    const { result } = renderHook(() =>
+      useFolderDrop({ composerHandle }, { getPort: () => port, setCustomRoot, getCustomRoot, autoDismissMs: 60_000 }),
+    );
+
+    act(() => result.current.handleDropCapture(fakeDropEvent(a.dataTransfer)));
+    await waitFor(() => expect(getCustomRoot).toHaveBeenCalledTimes(1));
+
+    // `b` lands while `a`'s read is still parked; then `a`'s read settles.
+    act(() => result.current.handleDropCapture(fakeDropEvent(b.dataTransfer)));
+    readA.resolve({ path: null });
+
+    await waitFor(() =>
+      expect(result.current.notice).toEqual({ kind: "confirmation", path: "/Users/x/b", replacedPreviousPath: null }),
+    );
+    expect(setCustomRoot.mock.calls).toEqual([["/Users/x/b"]]);
   });
 
   it("does not issue a newer drop's write until the older write has settled", async () => {
@@ -425,15 +453,26 @@ describe("useFolderDrop — last drop wins across overlapping drops", () => {
   it("an older drop's failure never replaces the newer drop's confirmation", async () => {
     const composerHandle = fakeComposerHandle();
     const { a, b, port } = twoFolderDrops();
-    const getCustomRoot = vi.fn().mockResolvedValue({ path: null });
+    // `b`'s own read is parked, so the moment between `a`'s failure and `b`'s confirmation spans a
+    // render — a superseded error that leaked through would be on screen for that whole wait.
+    const readB = deferred<{ path: string | null }>();
+    const getCustomRoot = vi.fn().mockResolvedValueOnce({ path: null }).mockReturnValueOnce(readB.promise);
     const sA = deferred<{ path: string }>();
     const setCustomRoot = vi
       .fn()
       .mockReturnValueOnce(sA.promise)
       .mockResolvedValueOnce({ path: "/Users/x/b" });
-    const { result } = renderHook(() =>
-      useFolderDrop({ composerHandle }, { getPort: () => port, setCustomRoot, getCustomRoot, autoDismissMs: 60_000 }),
-    );
+    // Every notice any render ever showed — a superseded drop's error must never appear, not even
+    // briefly before the newer drop's confirmation replaces it.
+    const shown: Array<{ kind: string; path: string } | null> = [];
+    const { result } = renderHook(() => {
+      const controller = useFolderDrop(
+        { composerHandle },
+        { getPort: () => port, setCustomRoot, getCustomRoot, autoDismissMs: 60_000 },
+      );
+      shown.push(controller.notice);
+      return controller;
+    });
 
     act(() => result.current.handleDropCapture(fakeDropEvent(a.dataTransfer)));
     await waitFor(() => expect(setCustomRoot).toHaveBeenCalledTimes(1));
@@ -442,9 +481,13 @@ describe("useFolderDrop — last drop wins across overlapping drops", () => {
     await flushMicrotasks();
 
     sA.reject(new ApiError("'/Users/x/a' does not exist", 400, "INVALID_PATH", { error: "'/Users/x/a' does not exist" }));
+    await waitFor(() => expect(getCustomRoot).toHaveBeenCalledTimes(2));
+    await flushMicrotasks();
+    readB.resolve({ path: null });
 
     await waitFor(() => expect(result.current.notice).toMatchObject({ kind: "confirmation", path: "/Users/x/b" }));
     await flushMicrotasks();
     expect(result.current.notice).toMatchObject({ kind: "confirmation", path: "/Users/x/b" });
+    expect(shown.filter((n) => n !== null).map((n) => `${n!.kind} ${n!.path}`)).not.toContain("error /Users/x/a");
   });
 });
