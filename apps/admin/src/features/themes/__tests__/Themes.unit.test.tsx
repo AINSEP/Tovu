@@ -414,6 +414,19 @@ describe("theme card preview", () => {
     fireEvent.error(card.querySelector("img") as HTMLImageElement); // png -> failed
     expect(card.querySelector(".theme-card-preview-trigger")).not.toBeInTheDocument();
   });
+
+  it("translates the expanded preview's close button and alt text through the screen's own t, not raw English", async () => {
+    const user = userEvent.setup();
+    const t = (key: string) =>
+      key === "Close preview" ? "[es] Close preview" : key === "{id} theme preview" ? "[es] {id} vista previa" : key;
+    render(<Themes useThemesHook={() => baseController({ t })} />);
+    const card = screen.getByText("signal").closest(".theme-card") as HTMLElement;
+    await user.click(within(card).getByRole("button", { name: "Expand preview for signal" }));
+    const dialog = card.querySelector("dialog.image-preview-modal")!;
+
+    expect(within(dialog).getByRole("button", { name: "[es] Close preview" })).toBeInTheDocument();
+    expect(dialog.querySelector("img")).toHaveAttribute("alt", "[es] signal vista previa");
+  });
 });
 
 describe("rescan toast", () => {

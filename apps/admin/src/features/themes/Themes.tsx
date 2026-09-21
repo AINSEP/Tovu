@@ -10,7 +10,7 @@ import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { ImagePreviewModal } from "../../components/ImagePreviewModal";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import type { Translate } from "../../lib/dictionary-translator";
-import { splitOnPlaceholders } from "../../lib/template-i18n";
+import { interpolate, splitOnPlaceholders } from "../../lib/template-i18n";
 import { useWiredThemes, type ThemesController, type MarketplaceItem } from "./hooks/use-themes.hooks";
 import {
   isActiveTheme,
@@ -88,7 +88,7 @@ type PreviewStage = "jpg" | "png" | "failed";
  *
  * @complexity Time/space: O(1) — one `<img>`, one three-state fallback stage, one modal-open boolean.
  */
-function ThemeCardPreview({ themeId, agentHandleBase }: { themeId: string; agentHandleBase: string }) {
+function ThemeCardPreview({ themeId, agentHandleBase, t }: { themeId: string; agentHandleBase: string; t: Translate }) {
   // STAYS LOCAL — deliberately not moved into `use-themes.hooks.ts`'s controller (owner-ratified,
   // 2026-08-14 DI migration sweep). Interactive DOM chrome, not async/API state: no I/O, and
   // `Themes.unit.test.tsx` asserts it through REAL DOM behavior (the jpg→png→placeholder `<img>`
@@ -132,8 +132,9 @@ function ThemeCardPreview({ themeId, agentHandleBase }: { themeId: string; agent
           <ImagePreviewModal
             open={expanded}
             src={src}
-            alt={`${themeId} theme preview`}
+            alt={interpolate(t("{id} theme preview"), { id: themeId })}
             onClose={() => setExpanded(false)}
+            closeLabel={t("Close preview")}
           />
         </>
       )}
@@ -421,7 +422,7 @@ function ThemeGrid({
         const handleBase = cardHandles[index]!;
         return (
           <div key={themeId} className={`theme-card theme-${themeId}${active ? " active" : ""}`}>
-            <ThemeCardPreview themeId={themeId} agentHandleBase={handleBase} />
+            <ThemeCardPreview themeId={themeId} agentHandleBase={handleBase} t={t} />
             <h3>{themeId}</h3>
             <p>{t(THEME_BLURBS[themeId] ?? "")}</p>
             {/* Activate stays left, Explore is pushed right. Explore takes the app's existing

@@ -8,6 +8,8 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const THEMES_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Close preview": "Cerrar vista previa",
+    "{id} theme preview": "Vista previa del tema {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Renombrar {file} a {name} cambia su URL pública. Cualquier enlace directo existente tendrá que actualizarse.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -159,6 +161,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "No se pudo actualizar la lista de temas",
   },
   id: {
+    "Close preview": "Tutup pratinjau",
+    "{id} theme preview": "Pratinjau tema {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Mengganti nama {file} menjadi {name} akan mengubah URL publiknya. Tautan langsung yang sudah ada perlu diperbarui.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -310,6 +314,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "Gagal menyegarkan daftar tema",
   },
   de: {
+    "Close preview": "Vorschau schließen",
+    "{id} theme preview": "Vorschau des Themas {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Das Umbenennen von {file} in {name} ändert dessen öffentliche URL. Bereits bestehende direkte Links darauf müssen aktualisiert werden.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -904,6 +910,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "Não foi possível atualizar a lista de temas",
   },
   ru: {
+    "Close preview": "Закрыть предпросмотр",
+    "{id} theme preview": "Предпросмотр темы {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Переименование {file} в {name} изменяет её публичный URL. Все уже существующие прямые ссылки на неё нужно будет обновить.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -1055,6 +1063,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "Не удалось обновить список тем",
   },
   fa: {
+    "Close preview": "بستن پیش‌نمایش",
+    "{id} theme preview": "پیش‌نمایش پوسته {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "تغییر نام {file} به {name} نشانی اینترنتی عمومی آن را تغییر می‌دهد. هر پیوند مستقیمی که از قبل به آن اشاره می‌کند باید به‌روزرسانی شود.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -1206,6 +1216,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "به‌روزرسانی فهرست پوسته‌ها ناموفق بود",
   },
   ar: {
+    "Close preview": "إغلاق المعاينة",
+    "{id} theme preview": "معاينة قالب {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "إعادة تسمية {file} إلى {name} تغيّر عنوان URL العام الخاص به. أي روابط مباشرة موجودة بالفعل تحتاج إلى تحديث.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -1357,6 +1369,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "تعذّر تحديث قائمة القوالب",
   },
   ja: {
+    "Close preview": "プレビューを閉じる",
+    "{id} theme preview": "{id}テーマのプレビュー",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file} を {name} に変更すると、公開URLが変わります。すでにそこへ直接リンクしているものは更新が必要です。",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -1507,6 +1521,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "テーマ一覧を更新できませんでした",
   },
   ko: {
+    "Close preview": "미리보기 닫기",
+    "{id} theme preview": "{id} 테마 미리보기",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file}을 {name}으로 이름을 바꾸면 공개 URL이 변경됩니다. 이미 직접 연결된 링크는 업데이트해야 합니다.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -1657,6 +1673,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "테마 목록을 새로 고치지 못했습니다",
   },
   pl: {
+    "Close preview": "Zamknij podgląd",
+    "{id} theme preview": "Podgląd motywu {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Zmiana nazwy {file} na {name} zmienia jego publiczny adres URL. Wszelkie istniejące bezpośrednie linki do niego trzeba będzie zaktualizować.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -1808,6 +1826,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "Nie udało się odświeżyć listy motywów",
   },
   hu: {
+    "Close preview": "Előnézet bezárása",
+    "{id} theme preview": "{id} téma előnézete",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "A {file} átnevezése {name} névre megváltoztatja a nyilvános URL-jét. Minden meglévő közvetlen hivatkozást frissíteni kell rá.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -1959,6 +1979,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "Nem sikerült frissíteni a témák listáját",
   },
   fr: {
+    "Close preview": "Fermer l'aperçu",
+    "{id} theme preview": "Aperçu du thème {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Renommer {file} en {name} change son URL publique. Tout lien direct existant devra être mis à jour.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -2110,6 +2132,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "Impossible d'actualiser la liste des thèmes",
   },
   uk: {
+    "Close preview": "Закрити перегляд",
+    "{id} theme preview": "Перегляд теми {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Перейменування {file} на {name} змінює її публічну URL-адресу. Усі наявні прямі посилання на неї доведеться оновити.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -2261,6 +2285,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "Не вдалося оновити список тем",
   },
   tr: {
+    "Close preview": "Önizlemeyi kapat",
+    "{id} theme preview": "{id} teması önizlemesi",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file} adını {name} olarak değiştirmek, genel URL'sini değiştirir. Ona doğrudan bağlantı veren her şeyin güncellenmesi gerekir.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -2412,6 +2438,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "Tema listesi yenilenemedi",
   },
   th: {
+    "Close preview": "ปิดตัวอย่าง",
+    "{id} theme preview": "ตัวอย่างธีม {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "การเปลี่ยนชื่อ {file} เป็น {name} จะเปลี่ยน URL สาธารณะของมัน ลิงก์โดยตรงที่มีอยู่แล้วจะต้องอัปเดต",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -2562,6 +2590,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "รีเฟรชรายการธีมไม่สำเร็จ",
   },
   it: {
+    "Close preview": "Chiudi anteprima",
+    "{id} theme preview": "Anteprima del tema {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Rinominare {file} in {name} cambia il suo URL pubblico. Qualsiasi link diretto già esistente dovrà essere aggiornato.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -2713,6 +2743,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "Impossibile aggiornare l'elenco dei temi",
   },
   hi: {
+    "Close preview": "पूर्वावलोकन बंद करें",
+    "{id} theme preview": "{id} थीम पूर्वावलोकन",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file} का नाम {name} रखने से इसका सार्वजनिक URL बदल जाता है। इससे पहले से सीधे जुड़े किसी भी लिंक को अपडेट करना होगा।",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -2864,6 +2896,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "थीम सूची रीफ़्रेश नहीं हो सकी",
   },
   ur: {
+    "Close preview": "پیش نظارہ بند کریں",
+    "{id} theme preview": "{id} تھیم کا پیش نظارہ",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file} کا نام {name} رکھنے سے اس کا عوامی URL تبدیل ہو جاتا ہے۔ اس سے پہلے سے جڑے ہوئے کسی بھی براہ راست لنک کو اپ ڈیٹ کرنا ہوگا۔",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -3015,6 +3049,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "تھیمز کی فہرست ریفریش نہیں ہو سکی",
   },
   bn: {
+    "Close preview": "প্রিভিউ বন্ধ করুন",
+    "{id} theme preview": "{id} থিমের প্রিভিউ",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file}-এর নাম {name} করলে এর পাবলিক URL পরিবর্তিত হবে। এর সাথে ইতিমধ্যে সরাসরি লিঙ্ক করা যেকোনো কিছু আপডেট করতে হবে।",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
