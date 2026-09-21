@@ -4,6 +4,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { Toast } from "@jini-ai/ui";
 
 import { InfoTip } from "../../components/InfoTip";
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBar.hooks";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
 import type { Translate } from "../../lib/dictionary-translator";
@@ -123,6 +124,12 @@ const VIEWS: ReadonlyArray<{ key: ThemeExploreView; label: string }> = [
   { key: "preview", label: "Preview" },
   { key: "html", label: "HTML" },
 ];
+
+/** {@link VIEWS} carrying the `id` that `TabBar.hooks.tsx`'s WAI-ARIA tabs helpers key on, so this
+ *  hand-rolled `role="tablist"` row gets the same arrow/Home/End keys and roving tab stop `TabBar`
+ *  has (a35ce9f12) without becoming a `<TabBar>` — same treatment `PageEditor.tsx`'s identical
+ *  `.segmented` view row takes. `label` is the untranslated key; only `id` is read here. */
+const VIEW_TABS = VIEWS.map((entry) => ({ ...entry, id: entry.key }));
 
 /** Same three widths `PageEditor.tsx`'s own preview offers — see `PAGE_PREVIEW_WIDTHS`'s doc for why
  *  a fixed rendered width, not the pane's real width, is the point. */
@@ -1253,6 +1260,9 @@ export function ThemeExplore({
     handleFullscreenCancel,
     handleFullscreenBackdropClick,
   } = useThemeExploreFullscreen();
+  // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
+  // lint even though this one holds no state of its own.
+  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard(VIEW_TABS, view, (id) => setView(id as ThemeExploreView));
 
   if (error && !detail) return <div className="notice error">{error}</div>;
   if (!detail) return <div className="notice">{t("Loading theme…")}</div>;
@@ -1354,14 +1364,15 @@ export function ThemeExplore({
         <div className="theme-explore-main">
           <div className="page-editor-toolbar">
             <div className="theme-explore-toolbar-start">
-              <div className="segmented" role="tablist" aria-label={t("Editor view")}>
-                {VIEWS.map((entry) => (
+              <div className="segmented" role="tablist" aria-label={t("Editor view")} onKeyDown={onViewTabsKeyDown}>
+                {VIEW_TABS.map((entry) => (
                   <button
                     key={entry.key}
                     type="button"
                     role="tab"
                     aria-selected={view === entry.key}
                     className={view === entry.key ? "is-active" : undefined}
+                    tabIndex={resolveTabBarTabIndex(VIEW_TABS, view, entry)}
                     onClick={() => setView(entry.key)}
                   >
                     {t(entry.label)}

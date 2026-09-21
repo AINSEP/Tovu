@@ -1231,6 +1231,42 @@ describe("Preview/HTML view tabs", () => {
 
     expect(setView).toHaveBeenCalledWith("preview");
   });
+
+  /** Hand-rolled `.segmented` tablist markup, so a35ce9f12's `TabBar` keyboard fix never reached
+   *  it: no arrow keys, and both buttons were separate native tab stops. */
+  it("ArrowRight moves to the next view tab and takes focus with it", async () => {
+    const user = userEvent.setup();
+    const setView = vi.fn();
+    renderExplore({ setView });
+
+    screen.getByRole("tab", { name: "Preview" }).focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(setView).toHaveBeenCalledWith("html");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "HTML" }));
+  });
+
+  it("End moves to the last view tab and Home back to the first", async () => {
+    const user = userEvent.setup();
+    const setView = vi.fn();
+    renderExplore({ setView });
+
+    screen.getByRole("tab", { name: "Preview" }).focus();
+    await user.keyboard("{End}");
+    expect(setView).toHaveBeenLastCalledWith("html");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "HTML" }));
+
+    await user.keyboard("{Home}");
+    expect(setView).toHaveBeenLastCalledWith("preview");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Preview" }));
+  });
+
+  it("keeps one roving tab stop: only the active view tab is in the native Tab order", () => {
+    renderExplore({ view: "html" });
+
+    expect(screen.getByRole("tab", { name: "HTML" })).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("tab", { name: "Preview" })).toHaveAttribute("tabindex", "-1");
+  });
 });
 
 describe("reset confirm dialog — confirming actually resets", () => {
