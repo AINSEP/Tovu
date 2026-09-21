@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { COMMON_I18N } from "@/lib/i18n-common";
-import { FORMS_DICT } from "../forms-i18n";
+import { FORMS_DICT, t } from "../forms-i18n";
 
 /**
  * @file `FORMS_DICT` cross-locale coverage — same idiom and same two deliberate differences from
@@ -58,5 +58,23 @@ describe("FORMS_DICT: cross-locale key parity", () => {
     for (const locale of locales) {
       expect(FORMS_DICT[locale][key], `${locale} is missing ${JSON.stringify(key)}`).toBeTruthy();
     }
+  });
+});
+
+/**
+ * Regression for the confirm BUTTON rendering English in every locale (S-I18N fallback fix).
+ * `FORMS_DICT` carries neither "Delete permanently" nor "Save" in any locale, but both are
+ * `COMMON_I18N` keys in all 21, so `forms-i18n.ts` needs an exported, fallback-aware `t` (it had
+ * none before this fix — both hooks built their own no-fallback lookup inline).
+ */
+describe("FORMS_DICT: t() falls back to COMMON_I18N", () => {
+  it("translates 'Delete permanently' in German even though FORMS_DICT.de never carries it", () => {
+    expect(FORMS_DICT.de["Delete permanently"]).toBeUndefined();
+    expect(t("de", "Delete permanently")).toBe(COMMON_I18N.de["Delete permanently"]);
+  });
+
+  it("translates 'Save' in German even though FORMS_DICT.de never carries it", () => {
+    expect(FORMS_DICT.de.Save).toBeUndefined();
+    expect(t("de", "Save")).toBe(COMMON_I18N.de.Save);
   });
 });

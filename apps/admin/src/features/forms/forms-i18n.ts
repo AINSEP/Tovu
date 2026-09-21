@@ -7,6 +7,8 @@
  * classes / HTML attribute allowlist copy) — mixed prose-and-`<code>` content, lower priority than
  * this pass's field labels/buttons/headers, left English for a follow-up pass.
  */
+import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+
 export const FORMS_DICT: Record<string, Record<string, string>> = {
   es: {
     Content: "Contenido",
@@ -991,3 +993,10 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Back to forms": "ফর্মে ফিরে যান",
   },
 };
+
+/** `FORMS_DICT` had no exported `t` at all before this fix — both `use-form-editor.hooks.ts` and
+ *  `use-forms-list.hooks.ts` built their own no-fallback `FORMS_DICT[locale]?.[key] ?? key` inline,
+ *  which is why the delete-confirm BUTTON ("Delete permanently", absent from `FORMS_DICT` in every
+ *  locale) rendered English everywhere. `createDictionaryTranslator` falls through to `COMMON_I18N`
+ *  before the raw English key, same as `trash-i18n.ts`. */
+export const t = createDictionaryTranslator(FORMS_DICT);

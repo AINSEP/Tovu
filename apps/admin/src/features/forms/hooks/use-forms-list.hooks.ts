@@ -4,7 +4,7 @@ import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-quer
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { FORMS_LIST_RESOURCE, KEYS, formsListError } from "../rules";
-import { FORMS_DICT } from "../forms-i18n";
+import { t as translate } from "../forms-i18n";
 import { defaultFormsPort } from "./forms-dependencies.hooks";
 import type { FormsPort } from "./forms-port.hooks";
 
@@ -111,6 +111,6 @@ export function useFormsList(deps: { port: FormsPort; t: (key: string) => string
  */
 export function useWiredFormsList(): FormsListController {
   const locale = useAdminLocale();
-  const t = (key: string): string => FORMS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useFormsList({ port: defaultFormsPort, t });
 }

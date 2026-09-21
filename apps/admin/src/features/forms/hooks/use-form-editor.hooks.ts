@@ -5,7 +5,7 @@ import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { FORM_TABS, KEYS, blankField, existingFieldIdsOf, nextTabIndex, parseRecipients, visibleFormEditorError } from "../rules";
-import { FORMS_DICT } from "../forms-i18n";
+import { t as translate } from "../forms-i18n";
 import { defaultFormsPort } from "./forms-dependencies.hooks";
 import type { FormsPort } from "./forms-port.hooks";
 
@@ -273,6 +273,6 @@ export function useFormEditor(
  */
 export function useWiredFormEditor(props: { formId: string; tab: "fields" | "submissions" }): FormEditorController {
   const locale = useAdminLocale();
-  const t = (key: string): string => FORMS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useFormEditor(props, { port: defaultFormsPort, navigate: defaultNavigate, t });
 }
