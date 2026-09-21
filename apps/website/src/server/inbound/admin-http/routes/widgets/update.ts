@@ -17,6 +17,10 @@ export const registerAdminWidgetUpdateRoute: RouteRegistrar = (app, deps) => {
       res.status(400).json({ error: "baseVersion is required", code: "VALIDATION_ERROR" });
       return;
     }
+    if (body.title !== undefined && typeof body.title !== "string") {
+      res.status(400).json({ error: "title must be a string", code: "VALIDATION_ERROR" });
+      return;
+    }
 
     try {
       const principal = getAuthedPrincipal(res);
@@ -27,6 +31,7 @@ export const registerAdminWidgetUpdateRoute: RouteRegistrar = (app, deps) => {
           actor: { principalId: principal.id },
           widgetInstanceId: String(req.params.id),
           baseVersion: body.baseVersion,
+          title: body.title,
           config: typeof body.config === "object" && body.config !== null ? body.config : {},
         },
       });

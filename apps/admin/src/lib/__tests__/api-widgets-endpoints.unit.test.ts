@@ -109,6 +109,22 @@ test("widgetsToolPlace POSTs the input verbatim as the body to /widgets/tools/pl
   expect(body()).toEqual(input);
 });
 
+test("updateWidget forwards an edited title in the PUT body", async () => {
+  const { calls, body } = stubFetchCapturing();
+  await api.updateWidget({ id: "w1", baseVersion: 2, title: "Autumn Hero", config: { body: "edited" } });
+  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/widgets/w1`);
+  expect(calls[0].init?.method).toBe("PUT");
+  expect(body()).toEqual({ baseVersion: 2, config: { body: "edited" }, title: "Autumn Hero" });
+});
+
+test("updateWidget omits title from the body entirely when the caller doesn't pass one", async () => {
+  const { body } = stubFetchCapturing();
+  await api.updateWidget({ id: "w1", baseVersion: 2, config: { body: "edited" } });
+  const sent = body() as Record<string, unknown>;
+  expect(Object.prototype.hasOwnProperty.call(sent, "title")).toBe(false);
+  expect(sent).toEqual({ baseVersion: 2, config: { body: "edited" } });
+});
+
 test("widgetsToolCreate POSTs the input verbatim as the body to /widgets/tools/create", async () => {
   const { calls, body } = stubFetchCapturing();
   const input = {

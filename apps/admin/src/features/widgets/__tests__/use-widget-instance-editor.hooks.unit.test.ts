@@ -220,7 +220,7 @@ describe("save — update (existing widget)", () => {
     return view;
   }
 
-  it("calls api.updateWidget with id/baseVersion/config, updates widget+config, and sets a version message", async () => {
+  it("calls api.updateWidget with id/baseVersion/title/config, updates widget+config, and sets a version message", async () => {
     const view = await mountLoaded();
     const updateWidget = vi.spyOn(api, "updateWidget").mockResolvedValue({ widget: { ...EXISTING_WIDGET, version: 3, config: { body: "edited" } } });
     act(() => view.result.current.setConfig({ body: "edited" }));
@@ -229,11 +229,26 @@ describe("save — update (existing widget)", () => {
       await view.result.current.save();
     });
 
-    expect(updateWidget).toHaveBeenCalledWith({ id: "w1", baseVersion: 2, config: { body: "edited" } });
+    expect(updateWidget).toHaveBeenCalledWith({ id: "w1", baseVersion: 2, title: "Hero banner", config: { body: "edited" } });
     expect(view.result.current.widget?.version).toBe(3);
     expect(view.result.current.config).toEqual({ body: "edited" });
     expect(view.result.current.message).toBe("Saved · version 3");
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("sends an edited title with the update and shows the saved title", async () => {
+    const view = await mountLoaded();
+    const updateWidget = vi
+      .spyOn(api, "updateWidget")
+      .mockResolvedValue({ widget: { ...EXISTING_WIDGET, title: "Autumn Hero", version: 3 } });
+    act(() => view.result.current.setTitle("Autumn Hero"));
+
+    await act(async () => {
+      await view.result.current.save();
+    });
+
+    expect(updateWidget).toHaveBeenCalledWith({ id: "w1", baseVersion: 2, title: "Autumn Hero", config: { body: "hello" } });
+    expect(view.result.current.title).toBe("Autumn Hero");
   });
 
   it("maps a WIDGETS_VERSION_CONFLICT ApiError to STALE_VERSION_MESSAGE", async () => {

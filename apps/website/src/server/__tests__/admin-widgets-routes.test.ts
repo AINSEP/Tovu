@@ -122,6 +122,46 @@ test("admin widgets routes: create -> list -> get -> update -> trash -> blocked 
   assert.equal(purged.purged, true);
 });
 
+test("admin widgets routes: PUT with a title renames the widget; omitting it keeps the title; a non-string title is 400", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const createRes = await fetch(`${baseUrl}${BASE}/widgets`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetType: "text", title: "Footer note", config: { body: "hello" } }),
+  });
+  assert.equal(createRes.status, 201, await createRes.clone().text());
+  const { widget: created } = (await createRes.json()) as { widget: { id: string } };
+
+  const renameRes = await fetch(`${baseUrl}${BASE}/widgets/${created.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: 1, title: "Autumn note", config: { body: "hello" } }),
+  });
+  assert.equal(renameRes.status, 200, await renameRes.clone().text());
+  const renamed = (await renameRes.json()) as { widget: { title: string; version: number } };
+  assert.equal(renamed.widget.title, "Autumn note", "the PUT title must persist as the widget's new title");
+
+  const keepRes = await fetch(`${baseUrl}${BASE}/widgets/${created.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: renamed.widget.version, config: { body: "hello again" } }),
+  });
+  assert.equal(keepRes.status, 200, await keepRes.clone().text());
+  const kept = (await keepRes.json()) as { widget: { title: string } };
+  assert.equal(kept.widget.title, "Autumn note", "omitting title on a PUT must keep the current title");
+
+  const badTitleRes = await fetch(`${baseUrl}${BASE}/widgets/${created.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: 3, title: 5, config: { body: "hello" } }),
+  });
+  assert.equal(badTitleRes.status, 400, await badTitleRes.clone().text());
+  const badTitleBody = (await badTitleRes.json()) as { code: string };
+  assert.equal(badTitleBody.code, "VALIDATION_ERROR");
+});
+
 test("admin widgets routes: invalid config is rejected 400, nothing created; unregistered type is rejected 400", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

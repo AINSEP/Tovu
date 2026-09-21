@@ -3692,12 +3692,12 @@ export const api = {
       body: JSON.stringify({ ...input, ...options }),
     }),
   updateWidget: (
-    { id, baseVersion, config }: { id: string; baseVersion: number; config: Record<string, unknown> },
+    { id, baseVersion, config, title }: { id: string; baseVersion: number; config: Record<string, unknown>; title?: string },
     _options: Record<string, never> = {}
   ) =>
     request<{ widget: AdminWidget }>(`/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}`, {
       method: "PUT",
-      body: JSON.stringify({ baseVersion, config }),
+      body: JSON.stringify({ baseVersion, config, ...(title === undefined ? {} : { title }) }),
     }),
   trashWidget: (id: string) =>
     request<{ widget: AdminWidget }>(`/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}/trash`, { method: "POST" }),

@@ -179,9 +179,10 @@ export function useWidgetInstanceEditor(
         return;
       }
       if (!widget) return;
-      const { widget: saved } = await port.updateWidget({ id: widget.id, baseVersion: widget.version, config });
+      const { widget: saved } = await port.updateWidget({ id: widget.id, baseVersion: widget.version, title, config });
       if (activeEntityRef.current !== savingForEntity) return;
       setWidget(saved);
+      setTitle(saved.title);
       setConfig(saved.config);
       setMessage(`Saved · version ${saved.version}`);
     } catch (e) {

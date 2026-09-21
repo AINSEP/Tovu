@@ -26,7 +26,8 @@ export interface WidgetsPort {
    *  spy distinguishes them) — narrowing here, not widening the wrapper, is what keeps the port a
    *  true callee-rename with zero behavior change. */
   createWidget(input: { widgetType: AdminWidgetType; title: string; config: Record<string, unknown> }): Promise<{ widget: AdminWidget }>;
-  updateWidget(target: { id: string; baseVersion: number; config: Record<string, unknown> }): Promise<{ widget: AdminWidget }>;
+  /** `title` is optional (SPEC-043 ui.spec §4.3): omitted keeps the widget's current title. */
+  updateWidget(target: { id: string; baseVersion: number; config: Record<string, unknown>; title?: string }): Promise<{ widget: AdminWidget }>;
   trashWidget(id: string): Promise<{ widget: AdminWidget }>;
   purgeWidget(target: { id: string }, options?: { force?: boolean }): Promise<{ purged: true }>;
 }

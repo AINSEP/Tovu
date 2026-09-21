@@ -192,6 +192,11 @@ export interface UpdateWidgetInstanceInput {
   readonly widgetInstanceId: UUID;
   readonly baseVersion: number;
   readonly config: Record<string, unknown>;
+  /** Optional (SPEC-043 ui.spec §4.3): omitted keeps the current title, forwarded to
+   *  `updateEntry`'s own `title` field (`input.title ?? current.title`) the same way create's
+   *  `title` reaches the entry row — never folded into `fieldsJson`, which only carries
+   *  widget-domain payload (`widgetType`/`config`/`status`). */
+  readonly title?: string;
 }
 
 export interface UpdateWidgetInstanceRequired {
@@ -242,6 +247,7 @@ export async function updateWidgetInstance(required: UpdateWidgetInstanceRequire
         actorId: input.actor.principalId,
         workspaceId: input.workspaceId,
         id: input.widgetInstanceId,
+        title: input.title,
         fieldsJson: buildWidgetInstanceFieldsJson({ widgetType: currentPayload.widgetType, config: input.config, status: currentPayload.status }),
         expectedVersion: input.baseVersion,
         owner: WIDGET_FIELD_NAMESPACE,

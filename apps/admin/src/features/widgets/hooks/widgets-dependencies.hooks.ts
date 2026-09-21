@@ -72,10 +72,10 @@ export function createFakeWidgetsPort(options: FakeWidgetsPortOptions = {}): Wid
       return { widget: created };
     },
 
-    async updateWidget({ id, config }) {
+    async updateWidget({ id, config, title }) {
       const index = widgets.findIndex((w) => w.id === id);
       if (index < 0) throw new Error(`fake widget not found: ${id}`);
-      const updated: AdminWidget = { ...widgets[index]!, config, version: widgets[index]!.version + 1 };
+      const updated: AdminWidget = { ...widgets[index]!, config, title: title ?? widgets[index]!.title, version: widgets[index]!.version + 1 };
       widgets[index] = updated;
       return { widget: updated };
     },
