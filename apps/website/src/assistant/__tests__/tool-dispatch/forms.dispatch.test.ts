@@ -6,6 +6,14 @@ import { createToolExecutor } from "@jini-ai/daemon";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildAssistantToolRegistrations } from "../../tool-registrations.js";
+import { installFirstPartyToolContributors } from "../../../server/runtime/composition/tool-catalog-manifest.js";
+
+// Forms moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
+// tool-contribution registry (2026-08-17, Stage 2), then self-registration on import was removed
+// entirely (2026-08-27, "invert AI-tool contribution registration") — nothing puts forms tools into
+// the registry now unless something explicitly installs them first, mirroring what the real
+// composition roots do via `installFirstPartyToolContributors()`.
+installFirstPartyToolContributors();
 
 /**
  * @file Canary: proves `forms_create_definition` -> `forms_set_definition_status` actually work

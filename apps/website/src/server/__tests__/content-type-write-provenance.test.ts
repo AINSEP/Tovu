@@ -11,6 +11,14 @@ import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/d
 import { createContentTypesModule } from "../runtime/composition/modules/content-types.js";
 import type { RouteDeps } from "../routes/types.js";
 import { startTestServer } from "./helpers/http-test-server.js";
+import { installFirstPartyToolContributors } from "../runtime/composition/tool-catalog-manifest.js";
+
+// content-types moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
+// tool-contribution registry (2026-08-17, Stage 2), then self-registration on import was removed
+// entirely (2026-08-27, "invert AI-tool contribution registration") — nothing puts content-types
+// tools into the registry now unless something explicitly installs them first, mirroring what the
+// real composition roots do via `installFirstPartyToolContributors()`.
+installFirstPartyToolContributors();
 
 /**
  * @file Audit-trail provenance on the `content_types` write chokepoint (ADR-022 §1/§4's
