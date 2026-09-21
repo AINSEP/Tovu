@@ -4,6 +4,7 @@ import { describeApiError, type AdminComment, type CommentModerationAction, type
 import { useFetchQuery, useInvalidate } from "@/lib/fetch-query";
 import { COMMENTS_QUEUE_RESOURCE, KEYS, describeModerationError, emptyRowState, type RowActionState } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t } from "../comments-i18n";
 import { defaultCommentQueuePort } from "./comment-queue-dependencies.hooks";
@@ -33,8 +34,13 @@ import type { CommentQueuePort } from "./comment-queue-port.hooks";
  * `forms/hooks/use-form-submissions.hooks.ts` keeps its own cursor-appended pages local (see that
  * file's own doc comment: `lib/fetch-query/types.ts`'s `QueryKey` doc binds one hook to one FIXED
  * key, and a cursor-appended page list is exactly the shape that doc's Skip precedent warns
- * against faking) — `statusRef` guards that local accumulation against the same class of race the
- * base query gets for free.
+ * against faking) — `pageSettlement` (`useSettlementGeneration`, same primitive and shape as
+ * `use-form-submissions.hooks.ts`'s own `pageSettlement`) guards that local accumulation against
+ * the same class of race the base query gets for free: a `loadMore` in flight when `status`
+ * changes, or when a content-refresh refetches page 1, must not append its page once it resolves —
+ * see `resetMorePages` below, which mints a fresh generation on every reset so an older in-flight
+ * page fetch is superseded. A synchronous `loadingMoreRef` lock, checked before minting a
+ * generation, covers a same-tick double `loadMore` (2026-09-20, `plan-content2.md` S3).
  *
  * Per-row moderation state (`rowState`, `pendingPurge`) stays local `useState`, per this
  * migration's own dispatch brief: `comments` has per-row action state, and a single shared
@@ -105,20 +111,43 @@ export function useCommentQueue(deps: CommentQueueDependencies): CommentQueueCon
   // others (Approve/Spam/Trash/Restore) were never gated by anything and still aren't.
   const [pendingPurge, setPendingPurge] = useState<AdminComment | null>(null);
 
-  // Guards `loadMore` against the same class of race `useFetchQuery` closes for page 1: an append
-  // in flight when `status` changes must not land under the new filter once it resolves. Also
-  // resets the accumulated pages/row state that belonged to the PREVIOUS filter.
-  const statusRef = useRef(status);
-  useEffect(() => {
-    statusRef.current = status;
-    setMorePages([]);
-    setRowState({});
-    setMoreError(null);
-  }, [status]);
+  // The "latest call wins" guard for accumulated pages — see the file header. `loadingMoreRef` is
+  // the synchronous half (blocks a same-tick double `loadMore`); `pageSettlement` is the async half
+  // (a superseded fetch's response must not land once a reset or a status switch has moved on).
+  const loadingMoreRef = useRef(false);
+  const pageSettlement = useSettlementGeneration();
 
+  // Supersedes any in-flight "Load more" fetch and clears the accumulated pages/cursor/error back
+  // to "just the first page" — called wherever the previous code did a bare `setMorePages([])`, so
+  // there is one reset path instead of several ad hoc ones. Does NOT touch `rowState`: that belongs
+  // to the status effect below, which still resets it directly (unrelated to page accumulation).
+  const resetMorePages = useCallback(() => {
+    pageSettlement.next();
+    loadingMoreRef.current = false;
+    setLoadingMore(false);
+    setMorePages([]);
+    setMoreError(null);
+  }, [pageSettlement]);
+
+  // Resets the accumulated pages/row state that belonged to the PREVIOUS filter, and supersedes
+  // any of that filter's `loadMore` still in flight — including releasing its `loadingMore` lock,
+  // which the old `statusAtCall !== statusRef.current` finally-check never did (a `loadMore`
+  // in flight when `status` changed left `loadingMore` stuck true forever, since neither its
+  // success nor its error branch's guard matched once the filter moved on).
   useEffect(() => {
+    resetMorePages();
+    setRowState({});
+  }, [status, resetMorePages]);
+
+  // A refetched first page (e.g. a content-refresh landing an assistant's moderation action) must
+  // drop the "more" pages it used to leave stale — they are always a continuation of the CURRENT
+  // first page, not whichever first page was on screen when they were fetched. `resetMorePages()`
+  // also supersedes any `loadMore` already in flight when the refetch lands, so its page can't
+  // append afterward.
+  useEffect(() => {
+    resetMorePages();
     setMoreCursor(firstPage.data?.nextCursor ?? null);
-  }, [firstPage.data]);
+  }, [firstPage.data, resetMorePages]);
 
   function stateFor(id: string): RowActionState {
     return rowState[id] ?? emptyRowState();
@@ -130,18 +159,27 @@ export function useCommentQueue(deps: CommentQueueDependencies): CommentQueueCon
 
   async function loadMore() {
     if (!moreCursor) return;
+    if (loadingMoreRef.current) return; // a same-tick double click sends only one request
+    loadingMoreRef.current = true;
+    const generation = pageSettlement.next();
     const statusAtCall = status;
     setLoadingMore(true);
+    setMoreError(null); // a retry clears the previous failure
     try {
       const r = await port.listCommentsQueue({ status: statusAtCall, cursor: moreCursor });
-      if (statusAtCall !== statusRef.current) return; // stale — status filter changed while this was in flight
+      if (!pageSettlement.isCurrent(generation)) return; // superseded by a reset or a status switch
       setMorePages((prev) => [...prev, ...r.items]);
       setMoreCursor(r.nextCursor);
     } catch (e) {
-      if (statusAtCall !== statusRef.current) return;
+      if (!pageSettlement.isCurrent(generation)) return;
       setMoreError(describeApiError(e, t(locale, "failed to load the moderation queue")));
     } finally {
-      if (statusAtCall === statusRef.current) setLoadingMore(false);
+      // A superseded call's lock was already released by `resetMorePages`; only the still-current
+      // call releases it here.
+      if (pageSettlement.isCurrent(generation)) {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      }
     }
   }
 
@@ -154,7 +192,7 @@ export function useCommentQueue(deps: CommentQueueDependencies): CommentQueueCon
    * cached a prior visit to reveal it. Also drops the current filter's accumulated "more" pages,
    * which belonged to the pre-action list. */
   function reloadAfterAction() {
-    setMorePages([]);
+    resetMorePages();
     invalidate(KEYS.queueRoot);
   }
 
