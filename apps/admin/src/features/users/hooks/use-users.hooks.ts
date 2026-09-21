@@ -181,9 +181,15 @@ async function runGrantMutation(
     await mutate();
     if (toggleGenerationRef.current === generationAtStart) onSuccess();
   } catch (e) {
-    setGrantError(describeError(e));
+    // Same generation check as the success branch above (C8, plan-access.md §8, N3): a stale
+    // failure must not paint onto a DIFFERENT user's panel the operator has since opened.
+    if (toggleGenerationRef.current === generationAtStart) setGrantError(describeError(e));
   } finally {
-    setGrantSaving(false);
+    // Guarded the same way — a stale call's `finally` must not clear a NEWER call's own saving
+    // flag. `toggleExpanded` resets `grantSaving` itself when it bumps the generation, so a panel
+    // switch still leaves the new panel un-stuck even though this skip means THIS call no longer
+    // clears it.
+    if (toggleGenerationRef.current === generationAtStart) setGrantSaving(false);
   }
 }
 
@@ -291,6 +297,10 @@ export function useUsers(deps: UsersDependencies): UsersController {
 
   function toggleExpanded(user: AdminIdentityUser) {
     setGrantError(null);
+    // A still-in-flight grant for the panel being LEFT can no longer clear this itself
+    // (`runGrantMutation`'s `finally` now skips a stale call's own generation) — reset it here so
+    // the newly opened panel never inherits a stuck "saving" indicator from the old one.
+    setGrantSaving(false);
     setPendingRoleId("");
     setPendingPolicyId("");
     setEditEmail(user.email ?? "");

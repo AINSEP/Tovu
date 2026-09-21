@@ -624,4 +624,36 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
     expect(result.current.confirmingDisable).toEqual(USER_B);
   });
+
+  // C8 (plan-access.md §8, N3, terra review triage 2026-09-20): `runGrantMutation`'s success path is
+  // guarded by `toggleGenerationRef`, but its `catch` (`setGrantError`) and `finally`
+  // (`setGrantSaving(false)`) are not — same bug shape as the stale-success test above, one step
+  // earlier in the same function. A stale FAILURE for A must not paint onto B's now-open panel.
+  it("onAssignRole: a stale failure settling after the operator switched panels must not show on the new panel", async () => {
+    let rejectA!: (e: unknown) => void;
+    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    port.assignRole = vi.fn(() => new Promise<{ assignment: unknown }>((_resolve, reject) => { rejectA = reject; }));
+
+    const { result } = renderHook(() => useUsers({ port }), { wrapper });
+    await waitFor(() => expect(result.current.users).not.toBeNull());
+
+    act(() => result.current.toggleExpanded(USER_A));
+    act(() => result.current.setPendingRoleId(ROLE.id));
+    let p!: Promise<void>;
+    act(() => {
+      p = result.current.onAssignRole(USER_A.principalId);
+    });
+    await waitFor(() => expect(port.assignRole).toHaveBeenCalledTimes(1));
+
+    // Before A's assign settles, the operator switches to B's panel.
+    act(() => result.current.toggleExpanded(USER_B));
+
+    rejectA(new Error("boom-A"));
+    await act(async () => {
+      await p;
+    });
+
+    // Fails today: A's unguarded catch/finally set grantError to "boom-A" on B's open panel.
+    expect(result.current.grantError).toBeNull();
+  });
 });
