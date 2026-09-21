@@ -1,5 +1,6 @@
 import { bytesMatchSha256, isValidSha256Hex } from "#src/features/publish-content/blob-staging";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
+import { decodeStrictBase64 } from "#src/contracts/core/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
@@ -28,17 +29,16 @@ import type { PublishContentRouteRegistrar } from "./deps.js";
  */
 
 /** Decodes base64 upload bytes, or `null` if `dataBase64` is missing, not a string, or not valid
- *  base64 — mirrors `routes/media/upload.ts`'s own `decodeUploadBytes`.
+ *  base64 — mirrors `routes/media/upload.ts`'s own `decodeUploadBytes`. Delegates the actual
+ *  decode to {@link decodeStrictBase64}: `Buffer.from(x, "base64")` alone never throws (it skips
+ *  characters outside the alphabet instead of refusing them), so a bare try/catch around it can
+ *  never fire — see that function's own header.
  *  @complexity O(n) in the encoded payload length. */
 function decodeBlobBytes(rawBody: unknown): Uint8Array | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const dataBase64 = body.dataBase64;
   if (typeof dataBase64 !== "string" || !dataBase64) return null;
-  try {
-    return new Uint8Array(Buffer.from(dataBase64, "base64"));
-  } catch {
-    return null;
-  }
+  return decodeStrictBase64(dataBase64);
 }
 
 export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = (app, deps) => {

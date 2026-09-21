@@ -6,6 +6,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
+import { computeBlobStorageKey } from "#src/features/media/index";
 
 /**
  * @file Task 6 of the publish-content (Publish Content) feature —
@@ -48,6 +49,10 @@ async function loginAsOwner(baseUrl: string): Promise<string> {
 
 function sha256Of(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
+}
+
+function sha256OfBytes(bytes: Buffer): string {
+  return createHash("sha256").update(bytes).digest("hex");
 }
 
 test("PUT .../blobs/:sha 404s when the URL workspace does not match this composition's own workspace", async (t) => {
@@ -136,6 +141,34 @@ test("PUT .../blobs/:sha REFUSES bytes that do not hash to the claimed sha256 (s
   assert.equal(probe.status, 200, probeRaw);
   const probeBody = JSON.parse(probeRaw) as { missing: string[] };
   assert.deepEqual(probeBody.missing, [realSha]);
+});
+
+test("PUT .../blobs/:sha 400s on malformed base64 even when the claimed sha is what a lenient decoder would produce", async (t) => {
+  const { deps, server, baseUrl } = await startServer();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const cookie = await loginAsOwner(baseUrl);
+
+  for (const malformed of ["!!!!", "Zm9v$", "Zm9", "Zm9v\nYmFy"]) {
+    const lenientBytes = Buffer.from(malformed, "base64");
+    const claimedSha = sha256OfBytes(lenientBytes);
+
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/blobs/${claimedSha}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ dataBase64: malformed }),
+    });
+    const raw = await res.text();
+    assert.equal(res.status, 400, `expected 400 for ${JSON.stringify(malformed)}, got ${res.status}: ${raw}`);
+    assert.deepEqual(JSON.parse(raw), { error: "dataBase64 is required and must be valid base64" });
+
+    const storageKey = computeBlobStorageKey({ workspaceId: WORKSPACE, sha256: claimedSha });
+    assert.equal(
+      await deps.blobStore.exists({ storageKey }),
+      false,
+      `blob store must not hold a write under the claimed sha for ${JSON.stringify(malformed)}`,
+    );
+  }
 });
 
 test("PUT .../blobs/:sha 400s on a malformed sha param (not lowercase 64-hex)", async (t) => {

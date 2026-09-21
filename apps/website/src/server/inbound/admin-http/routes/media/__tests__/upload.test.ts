@@ -102,6 +102,22 @@ test("upload: credit omitted leaves it as empty string (unchanged default)", asy
   assert.equal(json.media.credit, "");
 });
 
+test("upload: dataBase64 with a character outside the alphabet is rejected with 400, not decoded leniently into an asset", async (t) => {
+  const { mediaRepo } = createRouteDeps();
+  const app = buildApp({ mediaRepo });
+  const corrupted = `${ONE_PIXEL_PNG_BASE64.slice(0, 8)}$${ONE_PIXEL_PNG_BASE64.slice(8)}`;
+  const { status, json } = await upload(t, app, {
+    filename: "pixel.png",
+    contentType: "image/png",
+    dataBase64: corrupted,
+  });
+  assert.equal(status, 400);
+  assert.deepEqual(json, { error: "dataBase64 is not valid base64" });
+
+  const listed = await mediaRepo.list({ workspaceId: WORKSPACE_ID });
+  assert.deepEqual(listed, [], "a rejected upload must not create a media row");
+});
+
 test("upload: a normal alt string value is stored trimmed", async (t) => {
   const app = buildApp();
   const { status, json } = await upload(t, app, {
