@@ -91,10 +91,11 @@ describe("findNavGroupLabel", () => {
 
   it("falls back to 'Overview' for an id present in no nav group at all", () => {
     // Exercises the loop-exhausted fallback directly against this exported pure function's own
-    // contract. Both of `findNavGroupLabel`'s real callers (`Placeholder`, `PlaceholderTabs`) only
-    // ever pass an id already confirmed to exist via `getNav()`, so this path is not reachable
-    // through either of them today — but the function itself is general-purpose and exported, and
-    // its own "no match found" behavior is part of what it promises callers.
+    // contract. `findNavGroupLabel`'s one real caller (`Placeholder`; the other, `PlaceholderTabs`,
+    // was deleted 2026-09-21 as dead code) only ever passes an id already confirmed to exist via
+    // `getNav()`, so this path is not reachable through it today — but the function itself is
+    // general-purpose and exported, and its own "no match found" behavior is part of what it
+    // promises callers.
     expect(findNavGroupLabel("no-such-section-anywhere")).toBe("Overview");
   });
 });

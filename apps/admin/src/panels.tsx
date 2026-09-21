@@ -3,7 +3,6 @@ import type { AdminPanel } from "@jini-ai/admin/core";
 import { Themes, ThemeExplore } from "./features/themes";
 import { Dashboard } from "./features/dashboard";
 import { Placeholder } from "./components/Placeholder";
-import { PlaceholderTabs } from "./components/PlaceholderTabs";
 import { PostEditor, Posts } from "./features/posts";
 import { PageEditor, Pages } from "./features/pages";
 import { Members } from "./features/members";
