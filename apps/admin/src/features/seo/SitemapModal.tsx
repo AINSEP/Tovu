@@ -1,8 +1,9 @@
 import { agentHandle } from "@jini-ai/agentic";
-import { useId } from "react";
+import { useId, useRef } from "react";
 
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { siteUrl } from "../../lib/site-url";
+import { useFocusTrap } from "../../hooks/use-focus-trap.hooks";
 import { actionLabel } from "./rules";
 import { useWiredSitemapModal, type SitemapModalController } from "./hooks/use-sitemap-modal.hooks";
 import { useSitemapModalRegenerate } from "./SitemapModal.hooks";
@@ -17,15 +18,17 @@ import { t } from "./seo-i18n";
  * directly, not guessed), so a column for them would only ever show blank.
  *
  * Same `.settings-dialog-backdrop`/`.settings-dialog` chrome as `MediaPickerDialog.tsx` (backdrop
- * click + Escape both cancel, `role="dialog"`/`aria-modal`/`aria-labelledby`) — not
- * `ThemePageDetailsModal.tsx`'s native `<dialog>` (that file's own header ties its `showModal()`/
- * `close()` lifecycle to being permanently mounted with a toggled `open` prop; this modal, like
- * `MediaPickerDialog`, is only ever mounted while actually open, so the simpler div-backdrop shape
- * fits without adopting a lifecycle this component doesn't need). `.sitemap-modal` widens the
- * shared `.settings-dialog` to ~900px the same way `.widget-picker-dialog`/`.media-picker-dialog`
- * do for their own callers (`styles.css`); `.sitemap-modal-body` is the one scrolling region
- * between the fixed header and the fixed footer, same `flex: 1 1 auto; min-height: 0;
- * overflow-y: auto` shape those two already established.
+ * click + Escape both cancel, `role="dialog"`/`aria-modal`/`aria-labelledby`, plus a `useFocusTrap`
+ * over the dialog `ref` — same call shape `MediaPickerDialog.tsx` uses, added 2026-09-20: the
+ * `aria-modal="true"` attribute promises assistive tech that the page behind is unavailable, but
+ * nothing kept Tab from walking out onto it) — not `ThemePageDetailsModal.tsx`'s native `<dialog>`
+ * (that file's own header ties its `showModal()`/`close()` lifecycle to being permanently mounted
+ * with a toggled `open` prop; this modal, like `MediaPickerDialog`, is only ever mounted while
+ * actually open, so the simpler div-backdrop shape fits without adopting a lifecycle this component
+ * doesn't need). `.sitemap-modal` widens the shared `.settings-dialog` to ~900px the same way
+ * `.widget-picker-dialog`/`.media-picker-dialog` do for their own callers (`styles.css`);
+ * `.sitemap-modal-body` is the one scrolling region between the fixed header and the fixed footer,
+ * same `flex: 1 1 auto; min-height: 0; overflow-y: auto` shape those two already established.
  *
  * State (fetch, parse, filter, view toggle, Escape-to-close) lives in `hooks/use-sitemap-modal
  * .hooks.ts`; this file is markup only — the one bit of sequencing that belongs to neither that
@@ -217,10 +220,15 @@ export function SitemapModal({
   const titleId = useId();
   const modal = useModal({ enabled: sitemapEnabled, onClose });
   const { handleRegenerate } = useSitemapModalRegenerate(onRegenerate, modal.refetch);
+  // aria-modal promises the background is unavailable; this is what keeps Tab from reaching it —
+  // same call shape as `MediaPickerDialog.tsx`'s own `dialogRef`/`useFocusTrap` pair.
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(dialogRef);
 
   return (
     <div className="settings-dialog-backdrop" onClick={onClose}>
       <div
+        ref={dialogRef}
         className="settings-dialog sitemap-modal"
         role="dialog"
         aria-modal="true"
