@@ -103,12 +103,16 @@ export interface AccessTokenCategoryInfo {
 /**
  * The filter row's fixed order — `All` first and default (owner's own list, 2026-08-16 ruling:
  * "All / Source control / Hosting / Media / AI / Ops"). Split from the seven Tier 1 providers'
- * `purposeLabel` ("Hosting"/"Source Control"), which is a per-provider DISAMBIGUATOR shown next to
+ * `purposeLabel` ("Hosting"/"Source control"), which is a per-provider DISAMBIGUATOR shown next to
  * a name, not a filter bucket — `github-pages` and `vercel` share the `"hosting"` category here even
  * though only `github-pages` needed a purpose subtitle to tell it apart from source-control's own
- * `github`. `purposeLabel` used to read "Publishing" for the four hosting providers — the owner's
- * 2026-09-21 ruling collapsed it onto the same word as this filter chip's own label, so a hosting
- * row's subtitle and the category chip that filters it always agree.
+ * `github`. `purposeLabel` used to read "Publishing" for the four hosting providers, and "Source
+ * Control" (title case) for the three source-control providers — the owner's 2026-09-21 ruling
+ * collapsed BOTH onto the exact same string as this filter chip's own label ("Hosting"/"Source
+ * control"), so a row's subtitle and the category chip that filters it always agree, letter for
+ * letter (round 2 of that same ruling caught the source-control half: a custom row's `purposeLabel`
+ * already read this table's own "Source control" via {@link accessTokenCategoryLabel}, so only the
+ * three hardcoded catalog entries below were still out of step).
  */
 export const ACCESS_TOKEN_CATEGORIES: readonly AccessTokenCategoryInfo[] = [
   { id: "all", label: "All" },
@@ -248,7 +252,7 @@ export const ACCESS_TOKEN_PROVIDERS: readonly AccessTokenProviderInfo[] = [
       providerId: provider.id,
       label: provider.label,
       vendorLabel: vendorLabelFor(provider.id, provider.label),
-      purposeLabel: "Source Control",
+      purposeLabel: "Source control",
       category: "source-control",
       tokenPageUrl: provider.tokenPageUrl,
       scopeGuidanceKey: provider.scopeGuidanceKey,
@@ -436,7 +440,7 @@ export function buildCustomCredentialRows(raws: readonly RawCustomCredentialSumm
 }
 
 /** Whether `row` should show under an active search `query` — matches the provider's brand label
- *  ("GitHub", "Cloudflare Pages"), its purpose subtitle ("Hosting", "Source Control"), and the
+ *  ("GitHub", "Cloudflare Pages"), its purpose subtitle ("Hosting", "Source control"), and the
  *  row's own display name ("Production", "30-day test token"). Case-insensitive, whitespace-trimmed;
  *  an empty query matches everything (the "no filter active" state).
  *  @complexity O(1) per row — three substring checks against already-short strings. */

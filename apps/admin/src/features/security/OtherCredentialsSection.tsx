@@ -4,9 +4,9 @@ import { agentHandle } from "@jini-ai/agentic";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { Translate } from "../../lib/dictionary-translator";
-import { otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "./rules";
+import type { OtherCredentialStoreInfo } from "./rules";
 import { otherCredentialRemoveDialogBody, removeDialogTitle } from "./security-i18n";
-import type { OtherCredentialGroupState, OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
+import type { OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
 import { useOtherCredentialRemoveDialog } from "./OtherCredentialsSection.hooks";
 
 /**
@@ -24,9 +24,16 @@ import { useOtherCredentialRemoveDialog } from "./OtherCredentialsSection.hooks"
 const HANDLE_SAFE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /**
- * @file Tier 2 of the Access Tokens list — the six single-row/per-item credential stores
- * (`rules.ts`'s `OTHER_CREDENTIAL_STORES`), rendered as top-level entries in the SAME list Tier 1's
- * `AccessTokensTab.tsx` renders, per the 2026-08-16 owner ruling ("one list, not two surfaces").
+ * @file Tier 2 of the Access Tokens list — {@link OtherCredentialEntry}, the one top-level entry
+ * component for the six single-row/per-item credential stores (`rules.ts`'s
+ * `OTHER_CREDENTIAL_STORES`), rendered inline in the SAME merged, sorted list Tier 1's provider
+ * groups render in, per the 2026-08-16 owner ruling ("one list, not two surfaces") and the
+ * 2026-09-21 round-2 ruling that made it one TRUE ordered list rather than "Tier 1 sorted, Tier 2
+ * always appended after". `AccessTokensTab.hooks.tsx`'s `useMergedSecretsOrder` owns the visibility
+ * check and the per-store explosion into individual entries that this file used to own itself
+ * (`OtherCredentialsSection`/`MaybeOtherCredentialGroup`/`OtherCredentialGroup`, deleted this pass —
+ * see that hook's own doc for where the identical logic now lives); `AccessTokensTab.tsx` renders
+ * this component directly, one call per merged entry.
  *
  * ## Why a Tier-2 "entry" has no separate parent heading the way a Tier-1 provider group does
  *
@@ -40,42 +47,6 @@ const HANDLE_SAFE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
  * top-level entry, heading and all. {@link OtherCredentialEntry} is that entry; it structurally
  * mirrors `ProviderGroup` (one heading, one row) with exactly zero or one row inside, never more.
  */
-
-/** One store's zero-or-more configured items, each rendered as its own top-level entry — a store
- *  with NO configured items still renders once, as a single placeholder entry named after the store
- *  itself (mirrors Tier 1's always-visible-even-when-not-connected provider row). */
-export function OtherCredentialsSection({ controller, query }: { controller: OtherCredentialsController; query: string }) {
-  if (controller.groups === undefined) return null;
-  return (
-    <>
-      {controller.groups.map((group) => (
-        <MaybeOtherCredentialGroup key={group.store.id} group={group} controller={controller} query={query} />
-      ))}
-    </>
-  );
-}
-
-/** Renders {@link OtherCredentialGroup} only when this store is a search match — mirrors Tier 1's
- *  `MaybeProviderGroup` exactly (store-info match OR at least one already-filtered row present). */
-function MaybeOtherCredentialGroup({ group, controller, query }: { group: OtherCredentialGroupState; controller: OtherCredentialsController; query: string }) {
-  const visible = otherCredentialMatchesQuery(group.store, undefined, query) || group.rows.length > 0;
-  if (!visible) return null;
-  return <OtherCredentialGroup group={group} controller={controller} />;
-}
-
-/** One store's rendered entries — every configured row gets its own entry; an unconfigured store
- *  renders exactly one placeholder entry instead, never zero (a store is always findable by name,
- *  same "always-visible provider" convention Tier 1 uses). */
-function OtherCredentialGroup({ group, controller }: { group: OtherCredentialGroupState; controller: OtherCredentialsController }) {
-  if (group.rows.length === 0) return <OtherCredentialEntry store={group.store} row={undefined} controller={controller} />;
-  return (
-    <>
-      {group.rows.map((row) => (
-        <OtherCredentialEntry key={row.key} store={group.store} row={row} controller={controller} />
-      ))}
-    </>
-  );
-}
 
 function entryHandleLabel(name: string, purposeLabel: string, configured: boolean): string {
   return configured ? `${name} — ${purposeLabel}, configured` : `${name} — ${purposeLabel}, not configured`;
@@ -104,8 +75,10 @@ function safeAgentHandle(handle: string, options: Parameters<typeof agentHandle>
 }
 
 /** One top-level Tier-2 entry — see this file's header for why this has no separate parent heading
- *  the way a Tier-1 `ProviderGroup` does. `row` is `undefined` for the not-configured placeholder. */
-function OtherCredentialEntry({ store, row, controller }: { store: OtherCredentialStoreInfo; row: OtherCredentialRowState | undefined; controller: OtherCredentialsController }) {
+ *  the way a Tier-1 `ProviderGroup` does. `row` is `undefined` for the not-configured placeholder.
+ *  Exported (2026-09-21 round 2): `AccessTokensTab.tsx` now mounts this directly, one call per
+ *  `useMergedSecretsOrder` entry, in place of the deleted `OtherCredentialsSection` wrapper. */
+export function OtherCredentialEntry({ store, row, controller }: { store: OtherCredentialStoreInfo; row: OtherCredentialRowState | undefined; controller: OtherCredentialsController }) {
   const translate = controller.t;
   const name = row?.name ?? store.label;
   return (

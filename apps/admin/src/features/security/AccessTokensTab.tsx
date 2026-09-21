@@ -9,7 +9,6 @@ import type { Translate } from "../../lib/dictionary-translator";
 import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle } from "./security-i18n";
 import {
   ACCESS_TOKEN_CATEGORIES,
-  accessTokenProviderMatchesQuery,
   accessTokenExistingRowReadyToSave,
   accessTokenRowProviderInfo,
   accessTokenRowReadyToSave,
@@ -33,8 +32,8 @@ import type {
 } from "./hooks/use-access-tokens.hooks";
 import { useWiredOtherCredentials } from "./hooks/use-other-credentials.hooks";
 import type { OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
-import { OtherCredentialsSection } from "./OtherCredentialsSection";
-import { useRemoveConfirmDialog, useAddCustomCredentialDialog } from "./AccessTokensTab.hooks";
+import { OtherCredentialEntry } from "./OtherCredentialsSection";
+import { useRemoveConfirmDialog, useAddCustomCredentialDialog, useMergedSecretsOrder } from "./AccessTokensTab.hooks";
 
 /**
  * @file The Access Tokens tab — `Security.tsx`'s one tab and this feature's actual content. One
@@ -57,7 +56,7 @@ import { useRemoveConfirmDialog, useAddCustomCredentialDialog } from "./AccessTo
  *
  * ## Search
  *
- * Matches a provider's/store's brand label, its purpose subtitle ("Hosting"/"Source Control"/
+ * Matches a provider's/store's brand label, its purpose subtitle ("Hosting"/"Source control"/
  * "AI"/… — the disambiguation `rules.ts`'s header calls "the two-store GitHub trap" for Tier 1, and
  * the same subtitle Tier 2 rows carry next to their own name), and a saved item's own name. A group
  * renders when EITHER its own info matches the query OR it has at least one matching saved row — so
@@ -120,9 +119,15 @@ export function AccessTokensTab(props: AccessTokensTabProps) {
  *  gate, same reasoning `SourceControlCredentialsList` documents in `ProvidersTab.tsx`. Waits for
  *  BOTH tiers' first load: rendering Tier 1's list before Tier 2 has resolved would put the category
  *  filter and the row list on screen a beat before Tier 2's own rows could ever appear under it,
- *  which reads as those rows being silently absent rather than still loading. */
+ *  which reads as those rows being silently absent rather than still loading.
+ *
+ * `useMergedSecretsOrder` (a hook) is called unconditionally, ahead of every early return below —
+ * Rules of Hooks — even though its result is only rendered once the loading/error gates pass; it
+ * tolerates either controller's `groups` still being `undefined` internally (`AccessTokensTab.hooks.tsx`'s
+ * own doc), so calling it early costs nothing. */
 function AccessTokensBody({ controller, otherController }: { controller: AccessTokensController; otherController: OtherCredentialsController }) {
   const addCustomDialogRef = useRef<HTMLDialogElement>(null);
+  const merged = useMergedSecretsOrder(controller, otherController, controller.query);
   if (controller.loadError) {
     return (
       <p className="notice error" role="status" {...agentHandle("security-access-tokens-load-error", { role: "status", label: "Shows the error when saved access tokens could not be loaded" })}>
@@ -145,10 +150,13 @@ function AccessTokensBody({ controller, otherController }: { controller: AccessT
       <AccessTokensSearch controller={controller} otherController={otherController} />
       <AccessTokensCategoryFilter controller={controller} onAddCustomProvider={() => addCustomDialogRef.current?.showModal()} />
       <div className="access-tokens-tier">
-        {controller.groups.map((group) => (
-          <MaybeProviderGroup key={`${group.info.kind}:${group.info.providerId}`} group={group} controller={controller} query={controller.query} />
-        ))}
-        <OtherCredentialsSection controller={otherController} query={controller.query} />
+        {merged.map((entry) =>
+          entry.kind === "provider" ? (
+            <ProviderGroup key={entry.key} group={entry.group} controller={controller} />
+          ) : (
+            <OtherCredentialEntry key={entry.key} store={entry.store} row={entry.row} controller={otherController} />
+          )
+        )}
       </div>
       <AddCustomCredentialDialog ref={addCustomDialogRef} controller={controller} t={controller.t} />
     </>
@@ -204,16 +212,6 @@ function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { contr
       </button>
     </div>
   );
-}
-
-/** Renders {@link ProviderGroup} only when this group is a search match — a provider's OWN
- *  info matching (found by name even with zero saved rows) OR at least one already-filtered row
- *  present (`use-access-tokens.hooks.ts` already filters `group.rows` by the query). Split out purely
- *  for the complexity gate. */
-function MaybeProviderGroup({ group, controller, query }: { group: AccessTokenProviderGroupState; controller: AccessTokensController; query: string }) {
-  const visible = accessTokenProviderMatchesQuery(group.info, query) || group.rows.length > 0;
-  if (!visible) return null;
-  return <ProviderGroup group={group} controller={controller} />;
 }
 
 /** The search box and its own match-count line — counts are the SUM of both tiers'

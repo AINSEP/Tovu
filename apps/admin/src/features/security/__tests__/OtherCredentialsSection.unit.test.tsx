@@ -1,16 +1,21 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { OtherCredentialsSection } from "../OtherCredentialsSection";
-import type { OtherCredentialGroupState, OtherCredentialRowState, OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
-import { OTHER_CREDENTIAL_STORES, otherCredentialStoreInfo, type OtherCredentialStoreInfo } from "../rules";
+import { OtherCredentialEntry } from "../OtherCredentialsSection";
+import type { OtherCredentialRowState, OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
+import { otherCredentialStoreInfo, type OtherCredentialStoreInfo } from "../rules";
 
 /**
- * @file `OtherCredentialsSection` — Tier 2 of the Access Tokens list. Driven directly off a
- * hand-built `OtherCredentialsController`/`OtherCredentialGroupState` fixture (same convention
- * `AccessTokensTab.unit.test.tsx`'s `makeOtherCredentials` establishes) rather than through
- * `useOtherCredentials` — that hook's own read/write behavior is `use-other-credentials.unit.test.tsx`'s
- * job, this file only proves the render/dispatch logic per row state.
+ * @file `OtherCredentialEntry` — Tier 2's one top-level row component (`AccessTokensTab.hooks.tsx`'s
+ * `useMergedSecretsOrder` now owns the per-store visibility check and multi-item explosion this file
+ * used to drive through the now-deleted `OtherCredentialsSection`/`MaybeOtherCredentialGroup`/
+ * `OtherCredentialGroup` wrapper layers — those three behaviors moved to
+ * `AccessTokensTab.hooks.unit.test.tsx` instead, since that hook is where the logic now lives; see
+ * this repo's `2026-09-21-tovu-94-secrets-order-2.md` handoff). This file drives `OtherCredentialEntry`
+ * directly off hand-built `store`/`row` props (same convention `AccessTokensTab.credential-flows.unit
+ * .test.tsx`'s own per-component fixtures use) rather than through `useOtherCredentials` — that
+ * hook's own read/write behavior is `use-other-credentials.unit.test.tsx`'s job, this file only
+ * proves the render/dispatch logic per row state.
  *
  * jsdom (29.1.1, this repo's pinned version) does not implement `HTMLDialogElement.prototype
  * .showModal`/`.close` at all — real browsers all do, so this is a test-environment gap, not a
@@ -59,66 +64,35 @@ function rowFixture(store: OtherCredentialStoreInfo, overrides: Partial<OtherCre
   };
 }
 
-function groupFixture(storeId: OtherCredentialStoreInfo["id"], rows: OtherCredentialRowState[] = []): OtherCredentialGroupState {
-  return { store: otherCredentialStoreInfo(storeId), rows };
-}
-
-describe("OtherCredentialsSection — top level", () => {
-  it("renders nothing while groups is undefined (still loading)", () => {
-    const { container } = render(<OtherCredentialsSection controller={makeController({ groups: undefined })} query="" />);
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it("renders one entry per store once groups resolves", () => {
-    render(<OtherCredentialsSection controller={makeController({ groups: OTHER_CREDENTIAL_STORES.map((s) => groupFixture(s.id)) })} query="" />);
-    // Every store renders at least its placeholder heading — six stores, six headings.
-    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(OTHER_CREDENTIAL_STORES.length);
-  });
-});
-
-describe("OtherCredentialsSection — MaybeOtherCredentialGroup: query visibility", () => {
-  it("hides a store with zero rows whose own label/purpose does not match the query", () => {
-    render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("site-assistant")] })} query="zzz-no-match" />);
-    expect(screen.queryByText("Site assistant model key")).not.toBeInTheDocument();
-  });
-
-  it("still shows a store with zero rows when the query matches its own label", () => {
-    render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("site-assistant")] })} query="site assistant" />);
-    expect(screen.getByText("Site assistant model key")).toBeInTheDocument();
-  });
-
-  it("shows a store whose rows already matched the query upstream, even if the store's own label does not", () => {
-    const store = otherCredentialStoreInfo("media-provider");
-    const row = rowFixture(store, { itemId: "cloudinary", name: "Cloudinary" });
-    render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("media-provider", [row])] })} query="cloudinary" />);
-    expect(screen.getByText("Cloudinary")).toBeInTheDocument();
-  });
-});
-
-describe("OtherCredentialsSection — OtherCredentialGroup: placeholder vs configured rows", () => {
-  it("renders exactly one 'Not configured' placeholder entry for a store with zero items", () => {
-    render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("site-assistant")] })} query="" />);
+describe("OtherCredentialEntry — placeholder vs configured", () => {
+  it("renders the 'Not configured' placeholder and its deep link when row is undefined", () => {
+    const store = otherCredentialStoreInfo("site-assistant");
+    render(<OtherCredentialEntry store={store} row={undefined} controller={makeController()} />);
     expect(screen.getByText("Not configured")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Manage on AI Assistant/ })).toBeInTheDocument();
   });
 
-  it("renders one entry per configured item for a multi-item store, never a placeholder alongside them", () => {
+  it("renders a configured item under its own item name, not the store's generic label", () => {
     const store = otherCredentialStoreInfo("media-provider");
-    const rows = [rowFixture(store, { itemId: "cloudinary", name: "Cloudinary" }), rowFixture(store, { itemId: "grok", name: "xAI Grok" })];
-    render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("media-provider", rows)] })} query="" />);
+    const row = rowFixture(store, { itemId: "cloudinary", name: "Cloudinary" });
+    render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />);
     expect(screen.getByText("Cloudinary")).toBeInTheDocument();
-    expect(screen.getByText("xAI Grok")).toBeInTheDocument();
     expect(screen.queryByText("Not configured")).not.toBeInTheDocument();
   });
 
   // Regression: `OtherCredentialStaticRow`/`OtherCredentialReplaceableRow` render unconditionally
   // (no accordion, no menu — unlike Tier 1's `TokenRow`), so a multi-item store's Remove buttons are
-  // ALWAYS simultaneously in the DOM, not just when a reader happens to open two rows at once.
-  // Before `row.name` was appended, both read identically ("Remove from Tovu").
-  it("gives each configured item's Remove button a DISTINCT accessible name for a multi-item store", () => {
+  // ALWAYS simultaneously in the DOM once `useMergedSecretsOrder` mounts one `OtherCredentialEntry`
+  // per configured item. Before `row.name` was appended, both read identically ("Remove from Tovu").
+  it("gives two entries for the same store DISTINCT Remove-button accessible names, by row name", () => {
     const store = otherCredentialStoreInfo("media-provider");
     const rows = [rowFixture(store, { itemId: "cloudinary", name: "Cloudinary" }), rowFixture(store, { itemId: "grok", name: "xAI Grok" })];
-    render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("media-provider", rows)] })} query="" />);
+    render(
+      <>
+        <OtherCredentialEntry store={store} row={rows[0]} controller={makeController()} />
+        <OtherCredentialEntry store={store} row={rows[1]} controller={makeController()} />
+      </>
+    );
 
     expect(screen.getByRole("button", { name: "Remove from Tovu — Cloudinary" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remove from Tovu — xAI Grok" })).toBeInTheDocument();
@@ -126,11 +100,11 @@ describe("OtherCredentialsSection — OtherCredentialGroup: placeholder vs confi
   });
 });
 
-describe("OtherCredentialsSection — OtherCredentialEntryBody dispatch", () => {
+describe("OtherCredentialEntryBody dispatch", () => {
   it("a store that supports Replace renders the disabled masked-value field (OtherCredentialReplaceableRow)", () => {
     const store = otherCredentialStoreInfo("site-assistant"); // supportsReplace: true
     const row = rowFixture(store, { valueFact: "••••live" });
-    render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("site-assistant", [row])] })} query="" />);
+    render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />);
     expect(screen.getByLabelText("Access token")).toHaveValue("••••live");
     expect(screen.getByLabelText("Access token")).toBeDisabled();
   });
@@ -138,13 +112,13 @@ describe("OtherCredentialsSection — OtherCredentialEntryBody dispatch", () => 
   it("a store that does NOT support Replace renders just the value fact and a direct Remove (OtherCredentialStaticRow)", () => {
     const store = otherCredentialStoreInfo("composio-connector"); // supportsReplace: false
     const row = rowFixture(store, { valueFact: "Connected as: me@example.com" });
-    render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("composio-connector", [row])] })} query="" />);
+    render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />);
     expect(screen.getByText("Connected as: me@example.com")).toBeInTheDocument();
     expect(screen.queryByLabelText("Access token")).not.toBeInTheDocument();
   });
 });
 
-describe("OtherCredentialsSection — OtherCredentialStaticRow", () => {
+describe("OtherCredentialStaticRow", () => {
   // Regression (terra security review 2026-09-20, High #1): this row's Remove used to call
   // `controller.remove(row)` on the first click — the one Tier-2 row with NO confirm, even though its
   // two stores are the most destructive ones on the page (an External MCP delete loses a sealed OAuth
@@ -168,8 +142,9 @@ describe("OtherCredentialsSection — OtherCredentialStaticRow", () => {
   for (const { storeId, itemId, name, body } of STATIC_CASES) {
     it(`${storeId}: Remove opens a confirm dialog and does NOT call controller.remove on the first click`, () => {
       const remove = vi.fn().mockResolvedValue(undefined);
-      const row = rowFixture(otherCredentialStoreInfo(storeId), { itemId, name });
-      const { container } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture(storeId, [row])], remove })} query="" />);
+      const store = otherCredentialStoreInfo(storeId);
+      const row = rowFixture(store, { itemId, name });
+      const { container } = render(<OtherCredentialEntry store={store} row={row} controller={makeController({ remove })} />);
 
       // Accessible name is "Remove from Tovu — <row name>", not a bare "Remove from Tovu" — see
       // `OtherCredentialStaticRow`'s own `aria-label` comment: a store can hold more than one item.
@@ -185,8 +160,9 @@ describe("OtherCredentialsSection — OtherCredentialStaticRow", () => {
 
     it(`${storeId}: Cancel closes the dialog without calling controller.remove`, () => {
       const remove = vi.fn().mockResolvedValue(undefined);
-      const row = rowFixture(otherCredentialStoreInfo(storeId), { itemId, name });
-      const { container } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture(storeId, [row])], remove })} query="" />);
+      const store = otherCredentialStoreInfo(storeId);
+      const row = rowFixture(store, { itemId, name });
+      const { container } = render(<OtherCredentialEntry store={store} row={row} controller={makeController({ remove })} />);
 
       fireEvent.click(screen.getByRole("button", { name: `Remove from Tovu — ${name}` }));
       const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
@@ -198,8 +174,9 @@ describe("OtherCredentialsSection — OtherCredentialStaticRow", () => {
 
     it(`${storeId}: confirming calls controller.remove exactly once, with this row`, () => {
       const remove = vi.fn().mockResolvedValue(undefined);
-      const row = rowFixture(otherCredentialStoreInfo(storeId), { itemId, name });
-      const { container } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture(storeId, [row])], remove })} query="" />);
+      const store = otherCredentialStoreInfo(storeId);
+      const row = rowFixture(store, { itemId, name });
+      const { container } = render(<OtherCredentialEntry store={store} row={row} controller={makeController({ remove })} />);
 
       fireEvent.click(screen.getByRole("button", { name: `Remove from Tovu — ${name}` }));
       const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
@@ -214,40 +191,40 @@ describe("OtherCredentialsSection — OtherCredentialStaticRow", () => {
   it("shows the saved timestamp only when updatedAt is set", () => {
     const store = otherCredentialStoreInfo("external-mcp");
     const withDate = rowFixture(store, { itemId: "a", updatedAt: "2026-08-01T00:00:00.000Z" });
-    const { container, rerender } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("external-mcp", [withDate])] })} query="" />);
+    const { container, rerender } = render(<OtherCredentialEntry store={store} row={withDate} controller={makeController()} />);
     // Scoped to the summary's own meta span — this row now also renders its (closed) Remove dialog,
     // whose body copy mentions "saved credentials", so an unscoped `/saved/` text query is ambiguous.
     expect(container.querySelector(".access-tokens-row-summary-meta")).toHaveTextContent(/^saved \S/);
 
     const withoutDate = rowFixture(store, { itemId: "a", updatedAt: null });
-    rerender(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("external-mcp", [withoutDate])] })} query="" />);
+    rerender(<OtherCredentialEntry store={store} row={withoutDate} controller={makeController()} />);
     expect(container.querySelector(".access-tokens-row-summary-meta")).not.toBeInTheDocument();
   });
 
   it("shows a visible alert with the row's own error text when present", () => {
     const store = otherCredentialStoreInfo("external-mcp");
     const row = rowFixture(store, { error: "Couldn't save this token: network down" });
-    render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("external-mcp", [row])] })} query="" />);
+    render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't save this token: network down");
   });
 });
 
-describe("OtherCredentialsSection — OtherCredentialReplaceableRow + remove confirm dialog", () => {
+describe("OtherCredentialReplaceableRow + remove confirm dialog", () => {
   it("shows the saved timestamp in the field label only when updatedAt is set", () => {
     const store = otherCredentialStoreInfo("site-assistant");
     const withDate = rowFixture(store, { updatedAt: "2026-08-01T00:00:00.000Z" });
-    const { container, rerender } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("site-assistant", [withDate])] })} query="" />);
+    const { container, rerender } = render(<OtherCredentialEntry store={store} row={withDate} controller={makeController()} />);
     expect(container.querySelector(".access-tokens-field-label-meta")).toHaveTextContent(/saved/);
 
     const withoutDate = rowFixture(store, { updatedAt: null });
-    rerender(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("site-assistant", [withoutDate])] })} query="" />);
+    rerender(<OtherCredentialEntry store={store} row={withoutDate} controller={makeController()} />);
     expect(container.querySelector(".access-tokens-field-label-meta")).not.toBeInTheDocument();
   });
 
   it("shows a visible alert with the row's own error text when present", () => {
     const store = otherCredentialStoreInfo("site-assistant");
     const row = rowFixture(store, { error: "Couldn't save this token: network down" });
-    render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("site-assistant", [row])] })} query="" />);
+    render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't save this token: network down");
   });
 
@@ -257,7 +234,7 @@ describe("OtherCredentialsSection — OtherCredentialReplaceableRow + remove con
   it("the confirm dialog body for a replaceable store is the shared 'does NOT revoke' copy, unchanged", () => {
     const store = otherCredentialStoreInfo("media-provider");
     const row = rowFixture(store, { itemId: "cloudinary", name: "Cloudinary" });
-    const { container } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("media-provider", [row])] })} query="" />);
+    const { container } = render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Cloudinary" }));
     const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
@@ -270,7 +247,7 @@ describe("OtherCredentialsSection — OtherCredentialReplaceableRow + remove con
     const remove = vi.fn().mockResolvedValue(undefined);
     const store = otherCredentialStoreInfo("site-assistant");
     const row = rowFixture(store, { name: "Site assistant model key" });
-    const { container } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("site-assistant", [row])], remove })} query="" />);
+    const { container } = render(<OtherCredentialEntry store={store} row={row} controller={makeController({ remove })} />);
 
     // Only the row's own trigger button is accessible before the dialog opens — the closed
     // `<dialog>`'s identically-labeled confirm button is accessibility-hidden (no `open` attribute),
@@ -289,7 +266,7 @@ describe("OtherCredentialsSection — OtherCredentialReplaceableRow + remove con
     const remove = vi.fn().mockResolvedValue(undefined);
     const store = otherCredentialStoreInfo("site-assistant");
     const row = rowFixture(store, { name: "Site assistant model key" });
-    const { container } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("site-assistant", [row])], remove })} query="" />);
+    const { container } = render(<OtherCredentialEntry store={store} row={row} controller={makeController({ remove })} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Site assistant model key" }));
     const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
@@ -308,7 +285,7 @@ describe("OtherCredentialsSection — OtherCredentialReplaceableRow + remove con
   it("the confirm dialog's accessible name comes from aria-labelledby pointing at its own <h2>", () => {
     const store = otherCredentialStoreInfo("site-assistant");
     const row = rowFixture(store, { name: "Site assistant model key" });
-    const { container } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("site-assistant", [row])] })} query="" />);
+    const { container } = render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Site assistant model key" }));
     const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
@@ -320,11 +297,11 @@ describe("OtherCredentialsSection — OtherCredentialReplaceableRow + remove con
   });
 });
 
-describe("OtherCredentialsSection — agentHandle id safety (unsafe item ids never crash the row)", () => {
+describe("OtherCredentialEntry — agentHandle id safety (unsafe item ids never crash the row)", () => {
   it("renders a media-provider/composio-connector row whose raw item id is not handle-safe (contains an underscore), without throwing", () => {
     const store = otherCredentialStoreInfo("composio-connector");
     const row = rowFixture(store, { itemId: "google_calendar", name: "Google Calendar" });
-    expect(() => render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("composio-connector", [row])] })} query="" />)).not.toThrow();
+    expect(() => render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />)).not.toThrow();
     expect(screen.getByText("Google Calendar")).toBeInTheDocument();
   });
 });

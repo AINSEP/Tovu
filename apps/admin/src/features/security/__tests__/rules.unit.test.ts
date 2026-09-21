@@ -91,7 +91,10 @@ describe("ACCESS_TOKEN_PROVIDERS", () => {
     expect(github.label).toBe("GitHub");
     expect(githubPages.purposeLabel).not.toBe(github.purposeLabel);
     expect(githubPages.purposeLabel).toBe("Hosting");
-    expect(github.purposeLabel).toBe("Source Control");
+    // "Source control" (sentence case), not "Source Control" — 2026-09-21 round 2: this must read
+    // identically to the "Source control" filter chip's own label (`ACCESS_TOKEN_CATEGORIES`), the
+    // same letter-for-letter agreement round 1 already gave the "Hosting" pair above.
+    expect(github.purposeLabel).toBe("Source control");
   });
 
   it("carries cloudflare-pages' accountId requirement and bitbucket's username requirement through unchanged", () => {
