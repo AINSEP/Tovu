@@ -37,7 +37,14 @@ const EXISTING_WIDGET = {
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
-  fetchMock = vi.fn().mockResolvedValue(jsonResponse({ widgets: [EXISTING_WIDGET] }));
+  // A fresh `Response` per call, not one shared instance — `WidgetPickerDialog` now also mounts
+  // `useAdminLocale()` (Batch D2 i18n wiring), which fires its own `fetch()` alongside
+  // `useExistingInstances`'s. `mockResolvedValue` would hand both calls the exact same `Response`
+  // object; a `Response` body can only be read once (`.json()` throws "body stream already read"
+  // on the second read), so whichever call's `.json()` ran second used to silently degrade to
+  // `lib/api.ts`'s `UNPARSEABLE_BODY` sentinel — `instances` never resolved, `hasExisting` stayed
+  // false, and every test below that expects the "Existing Text widgets" combobox failed.
+  fetchMock = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse({ widgets: [EXISTING_WIDGET] })));
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -144,6 +151,9 @@ describe("WidgetPickerDialog dialog-hook injection", () => {
         hasExisting: false,
         submitUseExisting: vi.fn((e: React.FormEvent) => e.preventDefault()),
         submitCreateNew,
+        // Identity passthrough — the component now destructures `t` off the controller (Batch D2's
+        // i18n wiring); a fake that omits it would throw on the first `t(...)` call.
+        t: (key: string) => key,
       };
     }
 
@@ -184,6 +194,10 @@ describe("WidgetAddControl add-control-hook injection", () => {
         error: "fake add-control error",
         handleCreateNew: vi.fn(),
         handleUseExisting: vi.fn(),
+        // Same passthrough note as `useFakeDialog` above — `WidgetAddControl` also reads `t`/`locale`
+        // off its controller now.
+        t: (key: string) => key,
+        locale: "en",
       };
     }
 
