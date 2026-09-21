@@ -251,6 +251,23 @@ describe("save — update (existing widget)", () => {
     expect(view.result.current.title).toBe("Autumn Hero");
   });
 
+  /** The sibling test above sends the same title the server echoes back, so it stays green even if
+   *  `save()` never reseeds the field from the response — deleting `setTitle(saved.title)` survives
+   *  it. This one makes the two values DIFFER: the server returns the title it actually stored, and
+   *  the field has to show that, not the operator's draft, or the next save sends a stale
+   *  `baseVersion`-matched title that silently disagrees with the row. */
+  it("shows the title the server stored, not the draft, when the two differ", async () => {
+    const view = await mountLoaded();
+    vi.spyOn(api, "updateWidget").mockResolvedValue({ widget: { ...EXISTING_WIDGET, title: "Autumn Hero", version: 3 } });
+    act(() => view.result.current.setTitle("  Autumn Hero  "));
+
+    await act(async () => {
+      await view.result.current.save();
+    });
+
+    expect(view.result.current.title).toBe("Autumn Hero");
+  });
+
   it("maps a WIDGETS_VERSION_CONFLICT ApiError to STALE_VERSION_MESSAGE", async () => {
     const view = await mountLoaded();
     vi.spyOn(api, "updateWidget").mockRejectedValue(new ApiError("stale", 409, "WIDGETS_VERSION_CONFLICT"));
