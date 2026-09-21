@@ -11,7 +11,7 @@ import {
   type DeleteBlockedState,
 } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { TAXONOMY_DICT, t as translate } from "../taxonomy-i18n";
+import { t as translate } from "../taxonomy-i18n";
 import { defaultTaxonomyPort } from "./taxonomy-dependencies.hooks";
 import type { TaxonomyPort } from "./taxonomy-port.hooks";
 
@@ -276,6 +276,6 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
  */
 export function useWiredTaxonomy(): TaxonomyController {
   const locale = useAdminLocale();
-  const t = (key: string): string => TAXONOMY_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useTaxonomy(defaultTaxonomyPort, locale, t);
 }

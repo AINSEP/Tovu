@@ -5,8 +5,11 @@
  *
  * `{placeholder}` templates are resolved with a plain `.replace()` at the call site — see
  * `collections-i18n.ts`'s own header for why (the interpolated value's position in the Spanish
- * sentence doesn't always match English).
+ * sentence doesn't always match English). `t()` falls back to `COMMON_I18N` via
+ * `createDictionaryTranslator`, same as `trash-i18n.ts`.
  */
+import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+
 export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
   es: {
     Content: "Contenido",
@@ -1071,11 +1074,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-/** Same two-step fallback every other `t()` in this app uses: translated value, else the English
- *  source string itself — never a raw dictionary-miss placeholder. Exported so the feature's
- *  `.hooks.ts` files (which have no JSX and build their own `t` closure the way `Taxonomy.tsx`
- *  does) can call it directly instead of duplicating the `TAXONOMY_DICT[locale]?.[key] ?? key`
- *  lookup. */
-export function t(locale: string, key: string): string {
-  return TAXONOMY_DICT[locale]?.[key] ?? key;
-}
+/** `TAXONOMY_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via
+ *  `createDictionaryTranslator` (same fallback `trash-i18n.ts` uses) — a shared word this dict
+ *  doesn't carry for a locale still renders translated instead of falling straight to English.
+ *  Exported so the feature's `.hooks.ts` files (which have no JSX and build their own `t` closure
+ *  the way `Taxonomy.tsx` does) can call it directly instead of duplicating the lookup. */
+export const t = createDictionaryTranslator(TAXONOMY_DICT);
