@@ -155,7 +155,7 @@ function NewContentTypeDialog({
   useNewContentTypeDialogHook = useWiredNewContentTypeDialog,
   t,
 }: NewContentTypeDialogProps) {
-  const { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit } =
+  const { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit, cancel } =
     useNewContentTypeDialogHook({ onCreated, onCancel });
   const fieldHandles = buildAgentListHandles(
     "new-content-type-field",
@@ -163,7 +163,7 @@ function NewContentTypeDialog({
   );
 
   return (
-    <div className="settings-dialog-backdrop" onClick={onCancel}>
+    <div className="settings-dialog-backdrop" onClick={cancel}>
       <form
         className="settings-dialog collections-type-dialog"
         role="dialog"
@@ -247,7 +247,8 @@ function NewContentTypeDialog({
           <button
             type="button"
             className="btn-secondary"
-            onClick={onCancel}
+            onClick={cancel}
+            disabled={saving}
             {...agentHandle("new-content-type-cancel", { role: "button", label: "Close this dialog without creating a content type" })}
           >
             {t("Cancel")}
@@ -279,7 +280,7 @@ function EditFieldsDialog({
   useEditFieldsDialogHook = useWiredEditFieldsDialog,
   t,
 }: EditFieldsDialogProps) {
-  const { fields, updateField, removeField, addField, error, saving, submit } = useEditFieldsDialogHook({
+  const { fields, updateField, removeField, addField, error, saving, submit, cancel } = useEditFieldsDialogHook({
     contentType,
     onSaved,
     onCancel,
@@ -290,7 +291,7 @@ function EditFieldsDialog({
   );
 
   return (
-    <div className="settings-dialog-backdrop" onClick={onCancel}>
+    <div className="settings-dialog-backdrop" onClick={cancel}>
       <form
         className="settings-dialog collections-type-dialog"
         role="dialog"
@@ -347,7 +348,8 @@ function EditFieldsDialog({
           <button
             type="button"
             className="btn-secondary"
-            onClick={onCancel}
+            onClick={cancel}
+            disabled={saving}
             {...agentHandle("edit-fields-cancel", { role: "button", label: "Close this dialog without saving field changes" })}
           >
             {t("Cancel")}

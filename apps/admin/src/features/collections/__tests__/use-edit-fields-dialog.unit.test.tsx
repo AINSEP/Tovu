@@ -5,6 +5,7 @@ import type { AdminContentType } from "@/lib/api";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeEditFieldsDialogPort } from "../hooks/edit-fields-dialog-dependencies.hooks";
 import { useEditFieldsDialog, useWiredEditFieldsDialog } from "../hooks/use-edit-fields-dialog.hooks";
+import type { EditFieldsDialogPort } from "../hooks/edit-fields-dialog-port.hooks";
 
 /**
  * @file `useEditFieldsDialog` — `EditFieldsDialog`'s own state and submit action (SPEC-037 REQ-05).
@@ -28,6 +29,15 @@ function wrapper({ children }: { children: React.ReactNode }) {
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+}
+
+/** A manually-resolved promise, for race tests — never a timer (WRITER-RULES). */
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
 }
 
 const TYPE: AdminContentType = {
@@ -159,6 +169,32 @@ describe("submit — failure", () => {
 describe("Escape-to-cancel", () => {
   it("calls onCancel when Escape is pressed while mounted", () => {
     const { onCancel } = mount();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("cancel — in-flight guard (H4)", () => {
+  it("Escape while the update request is in flight does not dismiss the dialog", async () => {
+    const onCancel = vi.fn();
+    const onSaved = vi.fn();
+    const updated = deferred<{ contentType: AdminContentType }>();
+    const port: EditFieldsDialogPort = { updateContentTypeFields: () => updated.promise };
+    const { result } = renderHook(() => useEditFieldsDialog({ contentType: TYPE, onSaved, onCancel }, port), {
+      wrapper,
+    });
+
+    act(() => {
+      void result.current.submit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+    });
+    await waitFor(() => expect(result.current.saving).toBe(true));
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(onCancel).not.toHaveBeenCalled();
+
+    updated.resolve({ contentType: TYPE });
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });

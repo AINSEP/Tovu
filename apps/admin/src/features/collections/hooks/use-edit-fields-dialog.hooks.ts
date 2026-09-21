@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { type AdminContentType } from "@/lib/api";
 import { useFetchMutation } from "@/lib/fetch-query";
@@ -49,6 +49,10 @@ export interface EditFieldsDialogController {
   error: string | null;
   saving: boolean;
   submit: (e: React.FormEvent) => void;
+  /** Backdrop/Cancel/Escape all route here instead of `props.onCancel` directly — a no-op while
+   * `updateContentTypeFields` is in flight, so those dismiss paths can't unmount the dialog out
+   * from under its own pending write (H4). */
+  cancel: () => void;
 }
 
 export function useEditFieldsDialog(
@@ -61,8 +65,14 @@ export function useEditFieldsDialog(
 ): EditFieldsDialogController {
   const [fields, setFields] = useState<DraftField[]>(() => draftFieldsFromContentType(props.contentType.fields));
   const [validationError, setValidationError] = useState<string | null>(null);
+  const inFlightRef = useRef(false);
 
-  useEscapeToCancel(props.onCancel);
+  function cancel() {
+    if (inFlightRef.current) return;
+    props.onCancel();
+  }
+
+  useEscapeToCancel(cancel);
 
   const updateFieldsMutation = useFetchMutation({
     run: (input: { key: string; fields: ReturnType<typeof stripDraftFieldRowIds>; expectedVersion: number }) =>
@@ -92,6 +102,7 @@ export function useEditFieldsDialog(
       return;
     }
 
+    inFlightRef.current = true;
     try {
       await updateFieldsMutation.mutate({
         key: props.contentType.key,
@@ -101,13 +112,15 @@ export function useEditFieldsDialog(
       props.onSaved();
     } catch {
       // already surfaced through updateFieldsMutation.error -> error below
+    } finally {
+      inFlightRef.current = false;
     }
   }
 
   const saving = updateFieldsMutation.status === "pending";
   const error = validationError ?? (updateFieldsMutation.error ? describeEditFieldsError(updateFieldsMutation.error) : null);
 
-  return { fields, updateField, removeField, addField, error, saving, submit };
+  return { fields, updateField, removeField, addField, error, saving, submit, cancel };
 }
 
 /**

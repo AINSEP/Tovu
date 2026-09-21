@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { describeApiError } from "@/lib/api";
 import { useFetchMutation } from "@/lib/fetch-query";
@@ -52,6 +52,10 @@ export interface NewContentTypeDialogController {
   error: string | null;
   saving: boolean;
   submit: (e: React.FormEvent) => void;
+  /** Backdrop/Cancel/Escape all route here instead of `props.onCancel` directly — a no-op while
+   * `createContentType` is in flight, so those dismiss paths can't unmount the dialog out from
+   * under its own pending write (H4). */
+  cancel: () => void;
 }
 
 export interface NewContentTypeDialogDependencies {
@@ -71,8 +75,14 @@ export function useNewContentTypeDialog(
   const [key, setKey] = useState("");
   const [fields, setFields] = useState<DraftField[]>([emptyField()]);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const inFlightRef = useRef(false);
 
-  useEscapeToCancel(props.onCancel);
+  function cancel() {
+    if (inFlightRef.current) return;
+    props.onCancel();
+  }
+
+  useEscapeToCancel(cancel);
 
   const createMutation = useFetchMutation({
     run: (input: { key: string; label: string; fields: ReturnType<typeof stripDraftFieldRowIds> }) =>
@@ -102,6 +112,7 @@ export function useNewContentTypeDialog(
       return;
     }
 
+    inFlightRef.current = true;
     try {
       await createMutation.mutate({
         key: key.trim(),
@@ -111,13 +122,15 @@ export function useNewContentTypeDialog(
       props.onCreated();
     } catch {
       // already surfaced through createMutation.error -> error below
+    } finally {
+      inFlightRef.current = false;
     }
   }
 
   const saving = createMutation.status === "pending";
   const error = validationError ?? (createMutation.error ? describeApiError(createMutation.error, t(locale, "Failed to create content type")) : null);
 
-  return { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit };
+  return { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit, cancel };
 }
 
 /**
