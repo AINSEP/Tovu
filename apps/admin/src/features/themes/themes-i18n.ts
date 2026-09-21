@@ -467,6 +467,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "Designliste konnte nicht aktualisiert werden",
   },
   "zh-CN": {
+    "Close preview": "关闭预览",
+    "{id} theme preview": "{id} 主题预览",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "将 {file} 重命名为 {name} 会更改其公开网址。任何已直接链接到它的地方都需要更新。",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -611,6 +613,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "刷新主题列表失败",
   },
   "zh-TW": {
+    "Close preview": "關閉預覽",
+    "{id} theme preview": "{id} 佈景主題預覽",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "將 {file} 重新命名為 {name} 會變更其公開網址。任何已直接連結到它的地方都需要更新。",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -759,6 +763,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to refresh the theme list": "重新整理佈景主題清單失敗",
   },
   "pt-BR": {
+    "Close preview": "Fechar visualização",
+    "{id} theme preview": "Visualização do tema {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Renomear {file} para {name} muda sua URL pública. Qualquer link direto já existente precisará ser atualizado.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
