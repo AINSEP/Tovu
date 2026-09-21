@@ -10,8 +10,8 @@ import type { FormDefinitionRecord, FormSubmissionPage, FormSubmissionRecord } f
  * `delete` (REQ-14 — a single submission supports permanent delete on its own, outside the Trash).
  *
  * Owner ruling 2026-09-21 ("forms should be deleted like all the other stuff") superseded the
- * original INV-08 "a form definition is never permanently deleted" — see `features/trash/adapters/
- * form.ts`. `FormDefinitionRepoPort` still exposes structurally NO `delete` method: the new
+ * original INV-08 "a form definition is never permanently deleted" — see the `form` entry in `features/trash/
+ * registry.ts`. `FormDefinitionRepoPort` still exposes structurally NO `delete` method: the new
  * invariant is that a definition is removed permanently only through a Trash purge (a human on the
  * Trash screen, or the 60-day sweeper), never through this port. Reads here are **trash-aware and
  * fail-closed**: `findById`/`findBySlug`/`list` exclude a trashed row, deliberately unlike posts
@@ -54,34 +54,9 @@ export interface FormDefinitionRepoPort {
    * the subsequent `create()` collide.
    */
   isSlugTaken(required: { workspaceId: UUID; slug: string }): Promise<boolean>;
-  /**
-   * Trash-BLIND write. Clears `deleted_at` and bumps `version`, regardless of whether the row is
-   * currently trashed. The ONLY caller is the delete command-gateway's own rollback (mirroring
-   * `posts/delete.ts`'s `forgetRemoved` + marker-clear pair) — never a general "un-trash" API; the
-   * Trash screen's restore goes through `TrashPort.restore`, not through this port at all.
-   */
-  clearTrashMarker(required: { workspaceId: UUID; id: UUID; at: string }): Promise<void>;
   // Deliberately NO delete method — the new INV-08 is enforced structurally by this port's shape:
   // a form definition can be removed only by a Trash purge, never through this port.
 }
-
-/**
- * The function `trashFormDefinition` receives through its own dependency object, pre-bound to the
- * `"form"` entity type at the composition root. Structurally typed ON PURPOSE — this file imports
- * nothing from `features/trash`, and must not (mirrors `features/post/post.ts`'s `RemovePostFn`).
- */
-export type RemoveFormFn = (required: {
-  workspaceId: UUID;
-  id: UUID;
-  display: { title: string; subtitle?: string | null };
-  at: string;
-  expectedVersion: number | null;
-  actor: { principalId: string; pluginId?: string | null };
-}) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }>;
-
-/** Drops a Trash index row without touching the marker — the delete command-gateway's rollback
- *  pairs this with `FormDefinitionRepoPort.clearTrashMarker` (mirrors `ForgetRemovedPostFn`). */
-export type ForgetRemovedFormFn = (required: { workspaceId: UUID; id: UUID }) => Promise<void>;
 
 export interface FormSubmissionRepoPort {
   findById(required: { workspaceId: UUID; id: UUID }): Promise<FormSubmissionRecord | null>;

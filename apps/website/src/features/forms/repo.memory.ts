@@ -102,13 +102,6 @@ export class InMemoryFormDefinitionRepo implements FormDefinitionRepoPort {
     return false;
   }
 
-  /** Trash-BLIND write — see `ports.ts`'s doc for why this exists only for the delete rollback. */
-  async clearTrashMarker(required: { workspaceId: UUID; id: UUID; at: string }): Promise<void> {
-    const existing = this.rows.get(required.id);
-    if (!existing || existing.workspaceId !== required.workspaceId) return;
-    this.rows.set(required.id, { ...existing, deletedAt: null, updatedAt: required.at, version: existing.version + 1 });
-  }
-
   /**
    * Trash-BLIND — memory-only, NOT part of `FormDefinitionRepoPort`. The hermetic composition's
    * `createRecordStoreTrashAdapter` reads through this to flip `deletedAt` directly, the same way

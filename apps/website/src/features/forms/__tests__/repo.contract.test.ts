@@ -163,18 +163,6 @@ function runDefinitionContractSuite(adapterName: string, makeHarness: () => Defi
       "update() must not clear deleted_at — the row must still read as trashed"
     );
   });
-
-  test(`[${adapterName}] clearTrashMarker restores visibility and bumps version`, async () => {
-    const { repo, trashRow } = makeHarness();
-    await repo.create(makeDefinition());
-    await trashRow("def-1");
-    assert.equal(await repo.findById({ workspaceId: WORKSPACE_ID, id: "def-1" }), null);
-
-    await repo.clearTrashMarker({ workspaceId: WORKSPACE_ID, id: "def-1", at: NOW });
-    const restored = await repo.findById({ workspaceId: WORKSPACE_ID, id: "def-1" });
-    assert.ok(restored, "clearTrashMarker must make the row visible again");
-    assert.equal(restored!.version, 2, "clearTrashMarker must bump the version");
-  });
 }
 
 /**

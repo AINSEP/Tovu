@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, or } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
 import { formDefinitions, formSubmissions } from "../../platform/db/schema.js";
@@ -173,15 +173,6 @@ export class SqliteFormDefinitionRepo implements FormDefinitionRepoPort {
       .limit(1)
       .all();
     return rows.length > 0;
-  }
-
-  /** Trash-BLIND write — see `ports.ts`'s doc for why this exists only for the delete rollback. */
-  async clearTrashMarker(required: { workspaceId: UUID; id: UUID; at: string }): Promise<void> {
-    this.db
-      .update(formDefinitions)
-      .set({ deletedAt: null, updatedAt: required.at, version: sql`${formDefinitions.version} + 1` })
-      .where(and(eq(formDefinitions.workspaceId, required.workspaceId), eq(formDefinitions.id, required.id)))
-      .run();
   }
 }
 
