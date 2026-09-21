@@ -78,21 +78,21 @@ export interface ValidatedWriteFilesInput {
   readonly files: readonly NormalizedWriteFile[];
 }
 
-function validateOwner(value: unknown): string {
+export function validateOwner(value: unknown): string {
   if (typeof value !== "string" || !OWNER_PATTERN.test(value)) {
     throw new CustomCredentialValidationError(`invalid GitHub owner '${typeof value === "string" ? value.slice(0, 60) : String(value)}'`);
   }
   return value;
 }
 
-function validateRepo(value: unknown): string {
+export function validateRepo(value: unknown): string {
   if (typeof value !== "string" || !REPO_PATTERN.test(value) || value === "." || value === "..") {
     throw new CustomCredentialValidationError(`invalid GitHub repo '${typeof value === "string" ? value.slice(0, 100) : String(value)}'`);
   }
   return value;
 }
 
-function validateBranch(value: unknown): string {
+export function validateBranch(value: unknown): string {
   if (typeof value !== "string" || !BRANCH_PATTERN.test(value)) {
     throw new CustomCredentialValidationError(`invalid branch name '${typeof value === "string" ? value.slice(0, 60) : String(value)}'`);
   }
@@ -106,7 +106,7 @@ function validateBranch(value: unknown): string {
   return value;
 }
 
-function validateCommitMessage(value: unknown): string {
+export function validateCommitMessage(value: unknown): string {
   if (typeof value !== "string" || value.trim() === "" || value.length > MAX_COMMIT_MESSAGE_LENGTH) {
     throw new CustomCredentialValidationError(`commitMessage must be 1-${MAX_COMMIT_MESSAGE_LENGTH} characters`);
   }
