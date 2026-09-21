@@ -16,7 +16,7 @@
   "dependencies": {
     "@ag-ui/client": "^0.0.58",
     "@ag-ui/core": "^0.0.58",
-    "@jini-ai/admin": "^0.3.7",
+    "@jini-ai/admin": "^0.3.9",
     "@jini-ai/agent-runtime": "^0.3.6",
     "@jini-ai/agentic": "^0.3.6",
     "@jini-ai/chat": "^0.3.8",
