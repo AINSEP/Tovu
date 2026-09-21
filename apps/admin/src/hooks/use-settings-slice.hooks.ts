@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
+import { useSettlementGeneration } from "./use-settlement-generation.hooks";
 
 /**
  * @file One settings-dialog tab's load/edit/debounced-save lifecycle,
@@ -202,6 +203,15 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
   const [value, setValue] = useState<T | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ status: "idle" });
+
+  /** Guards `refresh`'s own `setValue`/`persisted`/`latest` write against a second background
+   *  refresh started after it: `canAcceptRefresh`'s `commitsUnchanged` check cannot tell two
+   *  refreshes apart when no save happens between them (both sample the same `commits.current`),
+   *  so without this an older refresh call that happens to SETTLE last could still land over a
+   *  newer one's result (S2, plan-components.md 2026-09-20; two rapid SSE frames from another
+   *  tab's writes is the trigger). Same guard `use-admin-execution-credential.hooks.ts`'s `refresh`
+   *  and `use-admin-locale.hooks.ts`'s `fetchLocale` already use for the identical shape. */
+  const refreshSettlement = useSettlementGeneration();
 
   /** `load`/`save` are usually inline arrows at the call site, so a new
    *  identity arrives on every render. Holding them in a ref keeps the effect
@@ -430,6 +440,7 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
       return;
     }
     const seenCommits = commits.current;
+    const generation = refreshSettlement.next();
     let loaded: T;
     try {
       loaded = await io.current.load();
@@ -437,6 +448,7 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
       return;
     }
     if (
+      !refreshSettlement.isCurrent(generation) ||
       !canAcceptRefresh({
         timerPending: timer.current !== null,
         hasUnsavedEdits: hasUnsavedEdits.current,

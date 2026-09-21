@@ -260,6 +260,53 @@ describe("useSettingsSlice external refresh", () => {
     expect(load).toHaveBeenCalledTimes(1);
   });
 
+  it("an older background refresh does not land over a newer one, even when it settles last (S2, plan-components.md 2026-09-20)", async () => {
+    // Two direct refresh() calls, neither via the bus, so both are in flight before either
+    // resolves — `canAcceptRefresh`'s `commitsUnchanged` check cannot tell them apart on its own
+    // since no save happens between them; only settlement (mint order) can.
+    let stored = "en";
+    let loadCount = 0;
+    const releases: Array<(value: string) => void> = [];
+    const load = vi.fn(async () => {
+      loadCount += 1;
+      if (loadCount === 1) return stored; // the mount load resolves immediately
+      const value = stored;
+      return new Promise<string>((resolve) => releases.push(() => resolve(value)));
+    });
+
+    const { result } = renderHook(() =>
+      useSettingsSlice<string>({ load, save: async () => [], defaultValue: "en" }),
+    );
+    await waitFor(() => expect(result.current.value).toBe("en"));
+
+    stored = "older-refresh";
+    let olderRefresh!: Promise<void>;
+    act(() => {
+      olderRefresh = result.current.refresh(); // call #1
+    });
+    await waitFor(() => expect(releases.length).toBe(1));
+
+    stored = "newer-refresh";
+    let newerRefresh!: Promise<void>;
+    act(() => {
+      newerRefresh = result.current.refresh(); // call #2, the newer of the two
+    });
+    await waitFor(() => expect(releases.length).toBe(2));
+
+    // The NEWER call's load settles first.
+    await act(async () => {
+      releases[1]!();
+      await newerRefresh;
+    });
+    // The OLDER call's load settles last — it must not win just because it resolved after.
+    await act(async () => {
+      releases[0]!();
+      await olderRefresh;
+    });
+
+    expect(result.current.value).toBe("newer-refresh");
+  });
+
   it("resumes accepting refreshes once the operator's edit is saved", async () => {
     vi.useFakeTimers();
     let stored = "en";
