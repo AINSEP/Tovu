@@ -1,8 +1,13 @@
 /**
  * @file Spanish dictionary for the `/admin/ai-assistant` screen (`AiAssistant.tsx`) — the page
  * header, both tabs' own copy (visitor switch + credential form, admin switch + execution mode),
- * and the roadmap tab. Same `DICT[locale]?.[key] ?? key` shape every other `*-i18n.ts` file in this
- * app uses.
+ * and the roadmap tab. `t()` falls back to `COMMON_I18N` via `createDictionaryTranslator`, same as
+ * `trash-i18n.ts`.
+ *
+ * Known separate gap, NOT fixed by that fallback (see `__tests__/ai-assistant-i18n.unit.test.ts`'s
+ * own header): the "Restart assistant" local-CLI controls' 9 keys landed in `es` only and are not
+ * `COMMON_I18N` words, so they still render English in the other 20 locales. Translation-completeness
+ * work, out of scope for this fix.
  *
  * "Protocols" / "Gateways" / "Configured" / "Not configured" / "Save" / "Saving…" duplicate values
  * `@jini-ai/ui`'s own `SETTINGS_DIALOG_DICTIONARIES.es` already carries (`AiAssistant.tsx`'s
@@ -22,6 +27,8 @@
  * press a control the screen no longer has is the same class of defect as a confirmation for a write
  * that never happened.
  */
+import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+
 export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
   es: {
     // Page header
@@ -1476,3 +1483,9 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "বাস্তবায়িত হয়নি",
   },
 };
+
+/** `AI_ASSISTANT_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via
+ *  `createDictionaryTranslator` (same fallback `trash-i18n.ts` uses) — a shared word this dict
+ *  doesn't carry for a locale still renders translated instead of falling straight to English.
+ *  Exported so `AiAssistant.tsx` can call it directly instead of duplicating the lookup. */
+export const t = createDictionaryTranslator(AI_ASSISTANT_DICT);
