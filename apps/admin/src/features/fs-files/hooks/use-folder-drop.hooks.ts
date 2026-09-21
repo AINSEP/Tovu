@@ -5,6 +5,8 @@ import { useFolderPathDropCapture } from "@jini-ai/ui";
 
 import { api, ApiError } from "../../../lib/api";
 import { getFolderDropPort, type FolderDropPort } from "../folder-drop-port";
+import { useSerialWrites } from "@/hooks/use-serial-writes.hooks";
+import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 
 /**
  * @file SPEC-053: wires a dropped folder in the admin chat composer (`AssistantDock`) to (a) the
@@ -30,10 +32,24 @@ import { getFolderDropPort, type FolderDropPort } from "../folder-drop-port";
  * covers this case and "last" is the only choice consistent with §1.2's own tie-break for the
  * sequential case.
  *
+ * **"Last folder wins" now holds across OVERLAPPING drops, not just sequential ones.** Each drop's
+ * `applyCustomRoot` call used to run its own independent read-then-write, so a slow read or a slow
+ * write for an older drop could resolve after a newer drop and overwrite it — the server, and the
+ * notice shown to the operator, could disagree about which drop was actually last (2026-09-20 fix).
+ * `applyCustomRoot` now mints a `useSettlementGeneration` generation synchronously, before any
+ * `await`, and runs its read/write through a `useSerialWrites` chain that keeps writes in strict
+ * drop order. A drop superseded before its own read starts skips the read entirely; one superseded
+ * mid-read never issues its write; one superseded mid-write still completes (the in-flight PUT is
+ * not cancelled) but its notice — confirmation or error — is suppressed. The newer drop then runs
+ * on an uncontested chain and its own confirmation names the older path as replaced.
+ *
  * **Reading the previous root before overwriting it** (`applyCustomRoot`'s `getCustomRoot()` call)
  * is purely cosmetic — it only feeds `FolderDropConfirmation`'s `replacedPreviousPath` wording
  * (`ui.spec.md` §2.1). Its failure is swallowed on purpose: REQ-02's actual set call is unaffected
- * either way, so a flaky read never blocks the feature this hook exists to deliver.
+ * either way, so a flaky read never blocks the feature this hook exists to deliver. Because it now
+ * runs inside the same generation-guarded chain, `replacedPreviousPath` reflects the root as it
+ * stood after the PRIOR drop's write actually settled, not merely whatever was on the server when
+ * this drop started.
  */
 
 /** Mirrors `errors.spec.md`'s `FolderDropError.reason` enum exactly. */
@@ -152,30 +168,50 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
     }, autoDismissMs);
   }, [autoDismissMs]);
 
+  // See this file's "Last folder wins now holds across OVERLAPPING drops" doc above. `settlement`
+  // tells a superseded drop's read/write/notice apart from the newest one; `writes` keeps every
+  // drop's read-then-write in strict drop order so a newer drop's PUT never races an older one's.
+  const settlement = useSettlementGeneration();
+  const writes = useSerialWrites();
+
   const applyCustomRoot = useCallback(
-    async (path: string) => {
+    (path: string): Promise<void> => {
       lastAttemptedPath.current = path;
-      let previousPath: string | null = null;
-      try {
-        previousPath = (await getCustomRoot()).path;
-      } catch {
-        // Best-effort only — see this module's own doc on why a failed read never blocks REQ-02.
-      }
-      try {
-        await setCustomRoot(path);
-        if (!mountedRef.current) return;
-        setNotice({
-          kind: "confirmation",
-          path,
-          replacedPreviousPath: previousPath !== null && previousPath !== path ? previousPath : null,
-        });
-        scheduleAutoDismiss();
-      } catch (err) {
-        if (!mountedRef.current) return;
-        setNotice({ kind: "error", path, reason: reasonForCustomRootError(err) });
-      }
+      // Minted HERE, synchronously, before this drop even joins the write chain — not inside the
+      // queued task below. Two drops handled in the same tick must each see the other's claim before
+      // either one's chained task starts running, so the later drop's mint always outranks the
+      // earlier one by the time the chain gets to it.
+      const generation = settlement.next();
+      return writes.run(async () => {
+        // A newer drop was minted behind this one before this task got its turn on the chain — skip
+        // the read, the write and the notice entirely; this drop has nothing left to contribute.
+        if (!settlement.isCurrent(generation)) return;
+        let previousPath: string | null = null;
+        try {
+          previousPath = (await getCustomRoot()).path;
+        } catch {
+          // Best-effort only — see this module's own doc on why a failed read never blocks REQ-02.
+        }
+        // A newer drop arrived while this one was reading — never issue this drop's write over it.
+        if (!settlement.isCurrent(generation)) return;
+        try {
+          await setCustomRoot(path);
+          if (!mountedRef.current || !settlement.isCurrent(generation)) return;
+          setNotice({
+            kind: "confirmation",
+            path,
+            replacedPreviousPath: previousPath !== null && previousPath !== path ? previousPath : null,
+          });
+          scheduleAutoDismiss();
+        } catch (err) {
+          // The write itself is not cancelled — it already reached the server — but a superseded
+          // drop's failure must not replace whatever the newer drop already confirmed.
+          if (!mountedRef.current || !settlement.isCurrent(generation)) return;
+          setNotice({ kind: "error", path, reason: reasonForCustomRootError(err) });
+        }
+      });
     },
-    [getCustomRoot, setCustomRoot, scheduleAutoDismiss],
+    [getCustomRoot, setCustomRoot, scheduleAutoDismiss, settlement, writes],
   );
 
   const handleDropCapture = useFolderPathDropCapture({
