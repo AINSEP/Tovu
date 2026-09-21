@@ -5,7 +5,7 @@ import { navigate as defaultNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
-import { PAGES_DICT } from "../pages-i18n";
+import { t as translate } from "../pages-i18n";
 import { buildPageRowMenuHandleMap, PAGES_RESOURCE } from "../rules";
 import { defaultPagesPort } from "./pages-dependencies.hooks";
 import type { PagesPort } from "./pages-port.hooks";
@@ -256,6 +256,6 @@ export function usePages(deps: PagesDependencies): PagesController {
  */
 export function useWiredPages(): PagesController {
   const locale = useAdminLocale();
-  const t = (key: string): string => PAGES_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return usePages({ port: defaultPagesPort, navigate: defaultNavigate, t, locale });
 }

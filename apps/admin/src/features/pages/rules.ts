@@ -11,7 +11,7 @@ import type {
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
 import { formatRelativeMinutesAgo } from "../../lib/format-timestamp";
-import { PAGES_DICT } from "./pages-i18n";
+import { t as translate } from "./pages-i18n";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 import type { PageEditorView } from "./hooks/use-page-editor.hooks";
 import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
@@ -133,7 +133,7 @@ export interface PageRowMenuHandlers {
  * @overallScore 100
  */
 export function pageRowMenuItems(page: AdminPost, handlers: PageRowMenuHandlers, locale: string): RowMenuItem[] {
-  const t = (key: string): string => PAGES_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   const items: RowMenuItem[] = [{ key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit(page) }];
   if (page.status === "published") {
     items.push({ key: "disable", label: t("Disable"), onSelect: () => handlers.onDisable(page) });

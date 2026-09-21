@@ -3,13 +3,22 @@
  * deliberately out of scope — see the admin translation dispatch notes — so its strings aren't
  * here.
  *
- * Same `DICT[locale]?.[key] ?? key` shape `SettingsUi.tsx`'s own `const t` uses, keyed one level
- * deeper by locale so a second locale is a second top-level entry rather than a second file.
+ * Keyed one level deeper by locale so a second locale is a second top-level entry rather than a
+ * second file. `t()` falls back to `COMMON_I18N` via `createDictionaryTranslator`, same as
+ * `trash-i18n.ts`.
  *
  * Also covers `rules.ts`'s `pageRowMenuItems` row-menu labels (Edit/Disable/Delete), reusing
  * `features/posts/posts-i18n.ts`'s exact vocabulary for the same three words since `pageRowMenuItems`
  * mirrors `postRowMenuItems` verbatim.
+ *
+ * `Move` is deliberately the empty string in `ja`, `ko`, `tr`, `hi`, `ur`, and `bn` — same reason
+ * `posts-i18n.ts`'s header documents for its own identical key: the confirm dialog composes
+ * `{t("Move")} "{title}" {t("to trash? It will disappear…")}`, and all six of those locales already
+ * embed the verb in the trailing fragment right after the quoted title. Not a missing-translation
+ * bug — `pages-i18n.unit.test.ts`'s non-empty-value check excludes this one key for this reason.
  */
+import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+
 export const PAGES_DICT: Record<string, Record<string, string>> = {
   es: {
     "My Pages": "Mis páginas",
@@ -1020,3 +1029,9 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} খুলুন",
   },
 };
+
+/** `PAGES_DICT` had no exported `t` at all before this fix — `rules.ts`'s `pageRowMenuItems` and
+ *  `use-pages.hooks.ts` each built their own no-fallback `PAGES_DICT[locale]?.[key] ?? key` closure
+ *  inline. `createDictionaryTranslator` falls through to `COMMON_I18N` before the raw English key,
+ *  same as `trash-i18n.ts`. */
+export const t = createDictionaryTranslator(PAGES_DICT);
