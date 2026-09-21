@@ -2,7 +2,7 @@ import { ApiError, type AdminMedia } from "../../lib/api";
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { QueryKey } from "../../lib/fetch-query";
 import type { MediaContentTabId } from "./hooks/use-media-tabs.hooks";
-import { MEDIA_DICT } from "./media-i18n";
+import { t as translate } from "./media-i18n";
 
 /**
  * @file Pure logic for the `media` feature — everything that computes a value rather than
@@ -269,13 +269,13 @@ export function parseMediaHtmlAttributes(text: string): ParsedMediaHtmlAttribute
 
 /** Formats a {@link MediaHtmlAttributeError} into the specific, visible message the edit form
  *  shows — always names the rejected attribute or fragment (owner requirement). Same
- *  `MEDIA_DICT[locale]?.[key] ?? key` + `.replace("{placeholder}", ...)` idiom
+ *  `media-i18n.ts`'s `t` (COMMON_I18N-falling-back) + `.replace("{placeholder}", ...)` idiom
  *  `ThemePageDetailsModal.tsx`'s collision warning already uses for an interpolated value.
  *
  * @complexity O(1).
  */
 export function describeMediaHtmlAttributeError(error: MediaHtmlAttributeError, locale: string): string {
-  const t = (key: string): string => MEDIA_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   const ATTRIBUTE_PLACEHOLDER = "{attribute}";
   if (error.reason === "event-handler") {
     return t("Event handler attributes like '{attribute}' are not allowed.").replace(ATTRIBUTE_PLACEHOLDER, error.attribute);
@@ -496,7 +496,7 @@ export function mediaRowMenuItems(
   handlers: MediaRowMenuHandlers,
   locale: string,
 ): RowMenuItem[] {
-  const t = (key: string): string => MEDIA_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   const items: RowMenuItem[] = [
     {
       key: "edit",

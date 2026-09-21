@@ -5,7 +5,7 @@ import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-quer
 import { KEYS, MEDIA_RESOURCE, findEditingItem, readFileAsBase64, visibleMediaError, type MediaOrderBy } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { MEDIA_DICT, t as translate } from "../media-i18n";
+import { t as translate } from "../media-i18n";
 import { defaultMediaPort } from "./media-dependencies.hooks";
 import type { MediaPort } from "./media-port.hooks";
 
@@ -263,6 +263,6 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
  */
 export function useWiredMedia(): MediaController {
   const locale = useAdminLocale();
-  const t = (key: string): string => MEDIA_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useMedia({ port: defaultMediaPort, locale, t });
 }

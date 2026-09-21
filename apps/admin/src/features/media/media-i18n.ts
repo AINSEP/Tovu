@@ -11,7 +11,11 @@
  * `"Media providers"` below is an unused leftover from before the tab was renamed "External
  * Providers" (2026-09-10) — kept rather than deleted (harmless, reversible), same policy
  * `providers-i18n.ts`'s own header documents for its own unused leftovers from the same rename.
+ *
+ * `t()` falls back to `COMMON_I18N` via `createDictionaryTranslator`, same as `trash-i18n.ts`.
  */
+import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+
 export const MEDIA_DICT: Record<string, Record<string, string>> = {
   es: {
     Content: "Contenido",
@@ -1457,10 +1461,9 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-/** Same two-step fallback every other `t()` in this app uses: translated value, else the English
- *  source string itself — never a raw dictionary-miss placeholder. Exported so the feature's
- *  `.hooks.ts` files (which have no JSX and build their own `t` closure the way `Media.tsx` does)
- *  can call it directly instead of duplicating the `MEDIA_DICT[locale]?.[key] ?? key` lookup. */
-export function t(locale: string, key: string): string {
-  return MEDIA_DICT[locale]?.[key] ?? key;
-}
+/** `MEDIA_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via `createDictionaryTranslator`
+ *  (same fallback `trash-i18n.ts` uses) — a shared word this dict doesn't carry for a locale still
+ *  renders translated instead of falling straight to English. Exported so the feature's
+ *  `.hooks.ts`/`rules.ts` files (which have no JSX and build their own `t` closure the way
+ *  `Media.tsx` does) can call it directly instead of duplicating the lookup. */
+export const t = createDictionaryTranslator(MEDIA_DICT);
