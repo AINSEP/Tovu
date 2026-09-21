@@ -1553,6 +1553,37 @@ describe("save() when the body write fails after the metadata write landed", () 
     expect(deps.port.updatePageHtmlCalls).toEqual(["<p>mine</p>"]);
     expect(result.current.message).toBe("en:Saved");
   });
+
+  /**
+   * The other side of the same branch. H1 re-pointed the suite's only exercise of
+   * `applySaveFailure`'s GENERIC arm ("a save failure surfaces the injected t()'s message…", which
+   * fails `updatePageHtml`) at the new partial-save arm, leaving the generic arm with no test at
+   * all. Restored here against the write that genuinely cannot be partial: when the METADATA write
+   * is what fails, nothing landed, so the operator must see the raw failure — never the
+   * "Title, slug and status saved…" banner, and never an advanced version basis.
+   */
+  it("a metadata-write failure is still the plain error, with no partial-save banner and no version advance", async () => {
+    const deps = conflictDeps(HTML_PAGE);
+    deps.port.updatePost = async () => {
+      throw new Error("boom");
+    };
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => {
+      result.current.setTitle("Renamed");
+      result.current.setHtml("<p>mine</p>");
+    });
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.error).toBe("boom");
+    expect(result.current.saveConflict).toBeNull();
+    // Nothing landed: the basis must stay where it was, and the body write never fired.
+    expect(result.current.page?.version).toBe(HTML_PAGE.version);
+    expect(deps.port.updatePageHtmlCalls).toEqual([]);
+  });
 });
 
 describe("usePageEditor — pending-html preview debounce (2026-09-09)", () => {
