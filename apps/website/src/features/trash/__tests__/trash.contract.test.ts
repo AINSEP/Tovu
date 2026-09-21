@@ -174,6 +174,7 @@ test("an entity type with no registered adapter still LISTS, and degrades honest
     displayTitle: "A widget",
     displaySubtitle: null,
     entityVersion: 4,
+    priorMarker: null,
   });
 
   assert.equal((await h.trash.list({ workspaceId: WS, now: AT, limit: 10 })).items.length, 1);

@@ -28,6 +28,16 @@ import type {
   TransactionRunner,
 } from "./ports.js";
 
+/** What {@link TrashServiceDeps.onChanged} receives. One event per state change — a no-op outcome
+ *  (`not-found`, `version-changed`, `already-gone`, `forbidden`, `adapter-unavailable`) never fires
+ *  it, because nothing changed. */
+export interface TrashChangeEvent {
+  workspaceId: string;
+  entityType: TrashEntityType;
+  entityId: string;
+  change: "trash" | "restore" | "purge";
+}
+
 export interface TrashServiceDeps {
   repo: TrashRepoPort;
   /**
@@ -38,6 +48,33 @@ export interface TrashServiceDeps {
   adapters: ReadonlyMap<TrashEntityType, TrashAdapter>;
   idGen: { next(): string };
   transaction: TransactionRunner;
+  /**
+   * Fires once, INSIDE the same transaction, after every trash/restore/purge that actually changed
+   * something. Composition wires this to the SPEC-016 recovery watermark and a `trash.item_changed`
+   * outbox event; per-type side effects (a menu/taxonomy revision + event) are a separate concern,
+   * not this hook's job.
+   *
+   * A failure inside it — a thrown error or a rejected promise — is logged and swallowed: the state
+   * change already committed and MUST NOT be undone because a side effect failed to fire. See
+   * {@link notifyChanged}.
+   */
+  onChanged?: (event: TrashChangeEvent) => void | Promise<void>;
+}
+
+/**
+ * Calls `deps.onChanged`, if present, and never lets it throw. See
+ * {@link TrashServiceDeps.onChanged} for why a failure here must not propagate.
+ *
+ * @complexity O(1) beyond the hook itself.
+ */
+async function notifyChanged(deps: TrashServiceDeps, event: TrashChangeEvent): Promise<void> {
+  if (!deps.onChanged) return;
+  try {
+    await deps.onChanged(event);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error);
+  }
 }
 
 /** Thrown when a domain's delete path is wired to an `entityType` with no adapter. A composition
@@ -107,8 +144,15 @@ export function createTrashService(deps: TrashServiceDeps): TrashPort {
           displayTitle: required.display.title,
           displaySubtitle: required.display.subtitle ?? null,
           entityVersion: marker.version,
+          priorMarker: marker.priorMarker ?? null,
         };
         await deps.repo.insert(row);
+        await notifyChanged(deps, {
+          workspaceId: required.workspaceId,
+          entityType: required.entityType,
+          entityId: required.entityId,
+          change: "trash",
+        });
         return marker;
       });
     },
@@ -134,9 +178,16 @@ export function createTrashService(deps: TrashServiceDeps): TrashPort {
           entityId: required.entityId,
           at: required.at,
           expectedVersion: row.entityVersion,
+          priorMarker: row.priorMarker,
         });
         if (!marker.ok) return marker.reason === "not-found" ? "not-found" : "version-changed";
         await deps.repo.deleteById({ workspaceId: required.workspaceId, id: row.id });
+        await notifyChanged(deps, {
+          workspaceId: required.workspaceId,
+          entityType: required.entityType,
+          entityId: required.entityId,
+          change: "restore",
+        });
         return "restored";
       });
     },
@@ -189,6 +240,16 @@ export function createTrashService(deps: TrashServiceDeps): TrashPort {
           // so the safe outcome (the item survives) is what a race produces.
           if (result === "purged" || result === "already-gone") {
             await deps.repo.deleteById({ workspaceId: row.workspaceId, id: row.id });
+          }
+          // `already-gone` means the row was already gone before this call — nothing changed here,
+          // so the hook does not fire for it, same as every other no-op outcome.
+          if (result === "purged") {
+            await notifyChanged(deps, {
+              workspaceId: row.workspaceId,
+              entityType: row.entityType,
+              entityId: row.entityId,
+              change: "purge",
+            });
           }
           return result;
         });

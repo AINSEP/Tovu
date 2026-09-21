@@ -35,7 +35,7 @@ export {
   createTrashService,
   TrashAdapterMissingError,
 } from "./write-service.js";
-export type { TrashServiceDeps } from "./write-service.js";
+export type { TrashChangeEvent, TrashServiceDeps } from "./write-service.js";
 
 export {
   filterVisibleTrashItems,

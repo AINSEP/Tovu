@@ -229,6 +229,7 @@ test("through createTrashService: trash lists the form snapshot, and restore lea
     displayTitle: "Form form-1",
     displaySubtitle: "slug-form-1",
     entityVersion: 2,
+    priorMarker: null,
   });
 
   const restored = await trash.restore({ workspaceId: WS, entityType: FORM_ENTITY_TYPE, entityId: "form-1", at: AT });

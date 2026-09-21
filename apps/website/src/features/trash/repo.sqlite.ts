@@ -28,6 +28,7 @@ interface TrashRow {
   display_title: string;
   display_subtitle: string | null;
   entity_version: number | null;
+  prior_marker: string | null;
 }
 
 /** @complexity O(1). */
@@ -44,11 +45,12 @@ function toItem(row: TrashRow): TrashItem {
     displayTitle: row.display_title,
     displaySubtitle: row.display_subtitle,
     entityVersion: row.entity_version,
+    priorMarker: row.prior_marker,
   };
 }
 
 const SELECT_COLUMNS =
-  "id, workspace_id, entity_type, entity_id, trashed_at, purge_after, actor_principal_id, actor_plugin_id, display_title, display_subtitle, entity_version";
+  "id, workspace_id, entity_type, entity_id, trashed_at, purge_after, actor_principal_id, actor_plugin_id, display_title, display_subtitle, entity_version, prior_marker";
 
 export class SqliteTrashRepo implements TrashRepoPort {
   constructor(private readonly client: Database.Database) {}
@@ -64,8 +66,9 @@ export class SqliteTrashRepo implements TrashRepoPort {
       .prepare(
         `INSERT OR IGNORE INTO trashed_items
            (id, workspace_id, entity_type, entity_id, trashed_at, purge_after,
-            actor_principal_id, actor_plugin_id, display_title, display_subtitle, entity_version)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            actor_principal_id, actor_plugin_id, display_title, display_subtitle, entity_version,
+            prior_marker)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         row.id,
@@ -78,7 +81,11 @@ export class SqliteTrashRepo implements TrashRepoPort {
         row.actorPluginId,
         row.displayTitle,
         row.displaySubtitle,
-        row.entityVersion
+        row.entityVersion,
+        // better-sqlite3 throws on an `undefined` bind param (unlike `null`). `priorMarker` is a
+        // required field on `TrashItem`, but a hand-built literal in a test can still omit the key
+        // — default it here rather than trust every call site set it explicitly.
+        row.priorMarker ?? null
       );
   }
 

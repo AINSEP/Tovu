@@ -50,9 +50,17 @@ export interface TrashActor {
  * `trashed_items.entity_version` and what the sweeper's compare-and-delete later checks, so a
  * restore (which bumps the version again) always wins a race against a purge. `null` for a domain
  * with no version column.
+ *
+ * `priorMarker` is OPTIONAL and additive (migration 0072): a status-marker adapter (`menu`, `term`,
+ * `taxonomy`) reports the status the row carried immediately before `hide` flipped it to `trash`, so
+ * `restore` can put it back exactly rather than to a fixed fallback. A caller that omits the key
+ * entirely (every adapter today) keeps the exact `{ ok: true, version }` shape — do not set this to
+ * `undefined`; leave the key out. `trash.contract.test.ts`'s pinned `assert.deepEqual(trashed, {
+ * ok: true, version: 2 })` depends on that: Node's `assert.deepEqual` treats an extra own-enumerable
+ * property, even one valued `undefined`, as a mismatch.
  */
 export type TrashMarkerResult =
-  | { ok: true; version: number | null }
+  | { ok: true; version: number | null; priorMarker?: string | null }
   | { ok: false; reason: "not-found" | "version-changed" };
 
 /** Outcome of a physical row removal. */
@@ -83,12 +91,20 @@ export interface TrashAdapter {
     expectedVersion: number | null;
   }): Promise<TrashMarkerResult>;
 
-  /** Move it back. Same no-parse rule as {@link TrashAdapter.hide}. */
+  /**
+   * Move it back. Same no-parse rule as {@link TrashAdapter.hide}.
+   *
+   * `priorMarker` (migration 0072) is what {@link TrashItem.priorMarker} stored at trash time —
+   * additive and optional, so every adapter's existing signature stays structurally compatible. A
+   * status-marker adapter restores to `priorMarker ?? restoreFallback`; a timestamp-marker adapter
+   * (every adapter today) ignores it, since clearing the marker column needs no prior value.
+   */
   unhide(required: {
     workspaceId: string;
     entityId: string;
     at: string;
     expectedVersion: number | null;
+    priorMarker?: string | null;
   }): Promise<TrashMarkerResult>;
 
   /** Physically remove the row. Compare-and-delete on `expectedVersion`. */
@@ -112,6 +128,11 @@ export interface TrashItem {
   displayTitle: string;
   displaySubtitle: string | null;
   entityVersion: number | null;
+  /** The status-marker value the entity carried immediately before `trash` flipped it (migration
+   *  0072) — required and nullable, same pattern as {@link TrashItem.entityVersion}: `null` for a
+   *  timestamp-marker entity (there is nothing to restore to) and for every row trashed before this
+   *  column existed. Written by {@link TrashPort.trash}, read back by {@link TrashPort.restore}. */
+  priorMarker: string | null;
 }
 
 export interface TrashPage {

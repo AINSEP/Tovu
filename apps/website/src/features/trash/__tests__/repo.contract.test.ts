@@ -31,6 +31,7 @@ function item(overrides: Partial<TrashItem> & Pick<TrashItem, "id" | "entityId">
     displayTitle: "A post",
     displaySubtitle: "a-post",
     entityVersion: 3,
+    priorMarker: null,
     ...overrides,
   };
 }
