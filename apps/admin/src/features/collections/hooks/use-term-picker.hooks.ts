@@ -66,11 +66,17 @@ export function useTermPicker(
   async function assign() {
     if (selected.size === 0) return;
     setMessage(null);
-    const assignedCount = selected.size;
+    const submitted = [...selected];
     try {
-      await assignMutation.mutate({ contentType: props.contentType, contentId: props.contentId, termIds: [...selected] });
-      setMessage(assignedTermsMessage(locale, assignedCount));
-      setSelected(new Set());
+      await assignMutation.mutate({ contentType: props.contentType, contentId: props.contentId, termIds: submitted });
+      setMessage(assignedTermsMessage(locale, submitted.length));
+      // Only drop the ids that were actually part of this request — a checkbox ticked while the
+      // request was in flight is a separate, not-yet-submitted selection and must survive (M1).
+      setSelected((current) => {
+        const next = new Set(current);
+        for (const id of submitted) next.delete(id);
+        return next;
+      });
     } catch {
       // already surfaced through assignMutation.error -> error below
     }

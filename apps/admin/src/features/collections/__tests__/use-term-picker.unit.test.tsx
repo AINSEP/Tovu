@@ -1,9 +1,10 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeTermPickerPort } from "../hooks/term-picker-dependencies.hooks";
 import { useTermPicker, useWiredTermPicker } from "../hooks/use-term-picker.hooks";
+import type { TermPickerPort } from "../hooks/term-picker-port.hooks";
 
 /**
  * @file `useTermPicker` — `TermPicker`'s own selection state and `assignTerms` action.
@@ -25,6 +26,15 @@ function wrapper({ children }: { children: React.ReactNode }) {
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+}
+
+/** A manually-resolved promise, for race tests — never a timer (WRITER-RULES). */
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
 }
 
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
@@ -175,6 +185,34 @@ describe("assign", () => {
     });
 
     expect(result.current.error).toBe("term not found");
+  });
+
+  it("a term checked while Assign is in flight stays checked (M1)", async () => {
+    const assignCalls: Array<{ contentType: string; contentId: string; termIds: string[] }> = [];
+    const inFlight = deferred<void>();
+    const port: TermPickerPort = {
+      assignTerms: (input) => {
+        assignCalls.push(input);
+        return inFlight.promise;
+      },
+    };
+    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), {
+      wrapper,
+    });
+
+    act(() => result.current.toggle("a"));
+    act(() => {
+      void result.current.assign();
+    });
+    await waitFor(() => expect(result.current.saving).toBe(true));
+
+    act(() => result.current.toggle("b"));
+
+    inFlight.resolve();
+    await waitFor(() => expect(result.current.saving).toBe(false));
+
+    expect([...result.current.selected]).toEqual(["b"]);
+    expect(assignCalls).toEqual([{ contentType: "recipe", contentId: "e1", termIds: ["a"] }]);
   });
 
   it("clears a prior error/message when re-invoked", async () => {
