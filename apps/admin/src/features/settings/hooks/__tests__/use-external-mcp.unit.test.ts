@@ -376,6 +376,43 @@ describe("useExternalMcp — updateSource", () => {
     expect(secondBody.enabled).toBe(false);
     expect(secondBody.command).toBe("newcmd");
   });
+
+  it("an update for a DIFFERENT id is not held behind a still-pending update for another id", async () => {
+    // Different ids are independent rows with no shared merge base, so each gets its own lane — a
+    // slow save of one server must not delay a save of another.
+    listExternalMcpServers.mockResolvedValue({
+      servers: [server({ serverId: "alpha" }), server({ serverId: "beta" })],
+    });
+    let releaseAlpha!: () => void;
+    saveExternalMcpServer.mockImplementation((id: string) => {
+      if (id === "alpha") {
+        return new Promise((resolve) => {
+          releaseAlpha = () => resolve({ server: server({ serverId: "alpha", enabled: false }), restartRequired: true });
+        });
+      }
+      return Promise.resolve({ server: server({ serverId: id, enabled: false }), restartRequired: true });
+    });
+    const { result } = renderHook(() => useExternalMcp());
+    await result.current.dependencies.port.fetchSources();
+
+    let alpha!: Promise<unknown>;
+    let beta!: Promise<unknown>;
+    act(() => {
+      alpha = result.current.dependencies.port.updateSource!("alpha", { enabled: false });
+      beta = result.current.dependencies.port.updateSource!("beta", { enabled: false });
+    });
+
+    // beta reaches the server, and settles, while alpha's save is still parked.
+    await waitFor(() => expect(saveExternalMcpServer.mock.calls.map(([id]) => id)).toEqual(["alpha", "beta"]));
+    await act(async () => {
+      await expect(beta).resolves.toMatchObject({ id: "beta", enabled: false });
+    });
+
+    await act(async () => {
+      releaseAlpha();
+      await expect(alpha).resolves.toMatchObject({ id: "alpha", enabled: false });
+    });
+  });
 });
 
 describe("useExternalMcp — addSource rejects a malformed OAuth identity before calling the API", () => {
