@@ -913,6 +913,41 @@ describe("Edit/Preview toolbar", () => {
     expect(ctrl.setView).toHaveBeenCalledWith("edit");
   });
 
+  /** This `.segmented` row is hand-rolled `role="tablist"`/`role="tab"` markup, not a `<TabBar>`,
+   *  same shape as `PageEditor.tsx`'s own view row (3da7686cc) — no `onKeyDown` on the tablist and
+   *  both buttons sat in the native Tab order. */
+  it("ArrowRight moves to the next view tab and takes focus with it", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ view: "edit" });
+
+    screen.getByRole("tab", { name: "Editor" }).focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(ctrl.setView).toHaveBeenCalledWith("preview");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Preview" }));
+  });
+
+  it("End moves to the last view tab and Home back to the first", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ view: "edit" });
+
+    screen.getByRole("tab", { name: "Editor" }).focus();
+    await user.keyboard("{End}");
+    expect(ctrl.setView).toHaveBeenLastCalledWith("preview");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Preview" }));
+
+    await user.keyboard("{Home}");
+    expect(ctrl.setView).toHaveBeenLastCalledWith("edit");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Editor" }));
+  });
+
+  it("keeps one roving tab stop: only the active view tab is in the native Tab order", () => {
+    renderPostEditor({ view: "preview" });
+
+    expect(screen.getByRole("tab", { name: "Preview" })).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("tab", { name: "Editor" })).toHaveAttribute("tabindex", "-1");
+  });
+
   it("renders the Tiptap body editor, not the preview iframe, in edit view", () => {
     renderPostEditor({ view: "edit" });
     expect(document.querySelector('[data-agent-element="post-body"]')).toBeInTheDocument();

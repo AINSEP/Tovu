@@ -6,6 +6,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 
 import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedInsertControl";
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBar.hooks";
 import type { AdminPost, ThemeTier } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { siteUrl } from "../../lib/site-url";
@@ -61,6 +62,13 @@ const VIEWS: ReadonlyArray<{ key: PostEditorView; label: string; handle: string;
   { key: "edit", label: "Editor", handle: "post-view-edit", agentLabel: "Switch to the rich-text editor for this post" },
   { key: "preview", label: "Preview", handle: "post-view-preview", agentLabel: "Switch to a rendered preview of how this post looks on the site" },
 ];
+
+/** {@link VIEWS} carrying the `id` that `TabBar.hooks.tsx`'s WAI-ARIA tabs helpers key on, so this
+ *  hand-rolled `role="tablist"` row gets the same arrow/Home/End keys and roving tab stop `TabBar`
+ *  and the Page editor's own view row have (a35ce9f12, 3da7686cc) without becoming a `<TabBar>`:
+ *  the `.segmented` pill row is a different visual control, only the keyboard contract is shared.
+ *  Spread, not rebuilt, so nothing in the JSX below has to change which field it reads. */
+const VIEW_TABS = VIEWS.map((entry) => ({ ...entry, id: entry.key }));
 
 /**
  * Per-field probes for `Toolbar`'s `useEditorState` selector below. Each probe takes a
@@ -1398,6 +1406,9 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     dismissSaveConflict,
     autosaveStaleBasis,
   } = usePostEditorHook(postId);
+  // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
+  // lint even though this one holds no state of its own.
+  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard(VIEW_TABS, view, (id) => setView(id as PostEditorView));
 
   if (error && !post) return <div className="notice error">{error}</div>;
   if (!post) return <div className="notice">Loading editor…</div>;
@@ -1482,14 +1493,15 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
           MARKUP location changed; where its options/value come from is untouched (a concurrent
           agent owns that wiring). */}
       <div className="page-editor-toolbar">
-        <div className="segmented" role="tablist" aria-label="Editor view">
-          {VIEWS.map((entry) => (
+        <div className="segmented" role="tablist" aria-label="Editor view" onKeyDown={onViewTabsKeyDown}>
+          {VIEW_TABS.map((entry) => (
             <button
               key={entry.key}
               type="button"
               role="tab"
               aria-selected={view === entry.key}
               className={view === entry.key ? "is-active" : undefined}
+              tabIndex={resolveTabBarTabIndex(VIEW_TABS, view, entry)}
               onClick={() => setView(entry.key)}
               {...agentHandle(entry.handle, { role: "button", label: entry.agentLabel })}
             >
