@@ -1,6 +1,7 @@
 import { forwardRef, useRef } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBar.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { pickPlural } from "../../lib/template-i18n";
@@ -165,11 +166,18 @@ function AccessTokensBody({ controller, otherController }: { controller: AccessT
  *  function would otherwise exceed. */
 function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { controller: AccessTokensController; onAddCustomProvider: () => void }) {
   const translate = controller.t;
+  // Reuses `TabBar.hooks.tsx`'s WAI-ARIA tabs keyboard helpers rather than reimplementing them —
+  // `ACCESS_TOKEN_CATEGORIES`'s `{ id, label }` shape structurally satisfies `TabBarTab`, and none
+  // of these categories are ever disabled. `[role="tab"]` scoping already skips the non-tab
+  // "+ Add custom provider" button below (this file's own header on why that button stays out of
+  // the tablist's tab order).
+  const { onKeyDown } = useTabBarKeyboard(ACCESS_TOKEN_CATEGORIES, controller.category, (id) => controller.setCategory(id as AccessTokenCategoryId));
   return (
     <div
       className="access-tokens-category-filter"
       role="tablist"
       aria-label={translate("Filter by category")}
+      onKeyDown={onKeyDown}
       {...agentHandle("security-access-tokens-category-filter", { role: "region", label: "Filter the credential list by category" })}
     >
       {ACCESS_TOKEN_CATEGORIES.map((c) => (
@@ -179,6 +187,7 @@ function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { contr
           role="tab"
           className="access-tokens-category-filter-item"
           aria-selected={controller.category === c.id}
+          tabIndex={resolveTabBarTabIndex(ACCESS_TOKEN_CATEGORIES, controller.category, c)}
           onClick={() => controller.setCategory(c.id as AccessTokenCategoryId)}
           {...agentHandle(`security-access-tokens-category-${c.id}`, { role: "button", label: `Filter the credential list to ${c.label}` })}
         >
