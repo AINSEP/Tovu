@@ -119,6 +119,45 @@ describe("useWidgetsLibrary — overlapping list reads keep the newest", () => {
     // Fails today: the stale read wins because it settled last, so B reverts to "active".
     await waitFor(() => expect(result.current.widgets?.find((w) => w.id === WIDGET_B.id)?.status).toBe("trash"));
   });
+
+  // a3-review-6 (2026-09-21): the test above only pins the `.then` guard. Removing the `.catch` guard
+  // left this whole file green, so a stale read that FAILS late gets its own test.
+  it("an older list read failing after a newer one succeeded shows no load error", async () => {
+    const port = createFakeWidgetsPort({ widgets: [WIDGET_A, WIDGET_B] });
+    type ListResult = { widgets: AdminWidget[]; skippedCount?: number };
+    const releases: Array<{ resolve: (r: ListResult) => void; reject: (e: unknown) => void }> = [];
+    let callCount = 0;
+    port.listWidgets = vi.fn(() => {
+      callCount += 1;
+      if (callCount === 1) return Promise.resolve({ widgets: [WIDGET_A, WIDGET_B], skippedCount: 0 });
+      return new Promise<ListResult>((resolve, reject) => {
+        releases[callCount] = { resolve, reject };
+      });
+    });
+
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).toHaveLength(2));
+
+    act(() => {
+      void result.current.trashOrPurge(WIDGET_A);
+    });
+    await waitFor(() => expect(releases[2]).toBeDefined());
+    act(() => {
+      void result.current.trashOrPurge(WIDGET_B);
+    });
+    await waitFor(() => expect(releases[3]).toBeDefined());
+
+    // The newer read succeeds first, then the older one fails.
+    await act(async () => {
+      releases[3]!.resolve({ widgets: [{ ...WIDGET_A, status: "trash" }, { ...WIDGET_B, status: "trash" }], skippedCount: 0 });
+    });
+    await act(async () => {
+      releases[2]!.reject(new Error("stale read failed"));
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.widgets?.map((w) => w.status)).toEqual(["trash", "trash"]);
+  });
 });
 
 describe("useWidgetsLibrary — content refresh bus", () => {
