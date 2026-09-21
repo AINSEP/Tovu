@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, ApiError, type AdminMedia } from "../../lib/api";
 import { createFakeMediaPickerPort } from "../MediaPickerDialog/media-picker-dependencies.hooks";
@@ -36,6 +36,14 @@ function media(overrides: Partial<AdminMedia> = {}): AdminMedia {
     ...overrides,
   };
 }
+
+beforeEach(() => {
+  // `useWiredMediaPickerDialog` now also mounts `useAdminLocale()` (Batch D2 i18n wiring), which
+  // reads `api.getSettingsEffective` — stub it to no rows so it resolves to `DEFAULT_LOCALE` ("en")
+  // without a real network call. `useWiredMediaPickerItems` does not call `useAdminLocale()` at all
+  // (its `locale` param stays defaulted), so this stub is a no-op for those tests.
+  vi.spyOn(api, "getSettingsEffective").mockResolvedValue({ data: [] });
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -118,6 +126,46 @@ describe("useMediaPickerDialog", () => {
     unmount();
     act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
     expect(onCancel).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Real-dictionary proof (Batch D2 i18n wiring) — asserts a genuine `shared-components-i18n.ts`
+ * translated value, not a stub string, the way `WidgetInstanceEditor.unit.test.tsx` does for its
+ * own `sharedT`. `MediaPickerDialog.unit.test.tsx`'s "translated copy (t injection)" block already
+ * proves the JSX reads `t`/`error` off the controller with FAKE strings; this proves `deps.locale`
+ * genuinely threads through to the real dictionary rather than being silently ignored.
+ */
+describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dictionary)", () => {
+  it("useMediaPickerDialog's t resolves against the real Spanish dictionary when given deps.locale", () => {
+    const port = createFakeMediaPickerPort({ media: [] });
+    const { result } = renderHook(() => useMediaPickerDialog(vi.fn(), vi.fn(), { port, locale: "es" }));
+
+    expect(result.current.locale).toBe("es");
+    expect(result.current.t("Choose an image")).toBe("Elegir una imagen");
+    // English fallback stays untouched — a key this dictionary carries no "en" block for still
+    // renders as the literal source string (dictionary-translator.ts's own fallback chain).
+    expect(result.current.t("Choose an image") === "Choose an image").toBe(false);
+  });
+
+  it("useMediaPickerDialog defaults locale/t to English when deps.locale is omitted", () => {
+    const port = createFakeMediaPickerPort({ media: [] });
+    const { result } = renderHook(() => useMediaPickerDialog(vi.fn(), vi.fn(), { port }));
+
+    expect(result.current.locale).toBe("en");
+    expect(result.current.t("Choose an image")).toBe("Choose an image");
+  });
+
+  it("useMediaPickerItems translates its describeApiError fallback against the real Spanish dictionary", async () => {
+    // Empty-message ApiError — describeApiError's ApiError branch only falls back to the given
+    // default when `e.message` is falsy (see WidgetPickerDialog.hooks.unit.test.tsx's identical
+    // "falls back to the given default" case for `useExistingInstances`).
+    const port = createFakeMediaPickerPort();
+    port.listMedia = () => Promise.reject(new ApiError("", 500));
+    const { result } = renderHook(() => useMediaPickerItems(port, "es"));
+
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    expect(result.current.error).toBe("no se pudo cargar el contenido multimedia");
   });
 });
 

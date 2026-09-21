@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { describeApiError, type AdminMedia } from "../../lib/api";
+import { DEFAULT_LOCALE } from "../../hooks/admin-locale-dependencies.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import type { Translate } from "../../lib/dictionary-translator";
+import { t as sharedComponentsT } from "../shared-components-i18n";
 import { defaultMediaPickerPort } from "./media-picker-dependencies.hooks";
 import type { MediaPickerPort } from "./media-picker-port.hooks";
 
@@ -31,18 +35,25 @@ import type { MediaPickerPort } from "./media-picker-port.hooks";
  * shape (`null` while loading, a describable `error` string on failure).
  *
  * @param port - Injected `MediaPickerPort` — see `media-picker-port.hooks.ts`.
+ * @param locale - Translates the `describeApiError` fallback via `shared-components-i18n.ts`'s `t`.
+ *   Defaults to `DEFAULT_LOCALE` ("en"), which renders the same English fallback as before this
+ *   parameter existed — mirrors `useExistingInstances`'s identical `locale` parameter in
+ *   `WidgetPickerDialog.hooks.tsx`.
  * @returns `items` (`null` while the fetch is in flight, otherwise the loaded, active-only list)
  *   and `error` (a describable failure message, or `null`).
  */
-export function useMediaPickerItems(port: MediaPickerPort) {
+export function useMediaPickerItems(port: MediaPickerPort, locale: string = DEFAULT_LOCALE) {
   const [items, setItems] = useState<AdminMedia[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     port
       .listMedia()
       .then((r) => setItems(r.media.filter((m) => m.status === "active")))
-      .catch((e) => setError(describeApiError(e, "failed to load media")));
-  }, [port]);
+      .catch((e) => setError(describeApiError(e, sharedComponentsT(locale, "failed to load media"))));
+    // `locale` is added below for the same reason `useExistingInstances`'s does — see that hook's
+    // identical eslint-disable note in `WidgetPickerDialog.hooks.tsx`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [port, locale]);
   return { items, error };
 }
 
@@ -70,6 +81,12 @@ export interface MediaPickerDialogController {
    *  comment. Always present regardless of loading/error/empty/populated state, same reasoning
    *  `useMediaLightbox`'s `closeRef` gives for its own always-available focus target. */
   cancelRef: RefObject<HTMLButtonElement | null>;
+  /** Bound to `deps.locale` (or `DEFAULT_LOCALE`) via `shared-components-i18n.ts`'s `t` — see this
+   *  file's header for why it's resolved here rather than at each call site. */
+  t: Translate;
+  /** The locale `t` above is bound to — same parity reasoning as `WidgetPickerDialogController`'s
+   *  own `locale` field. */
+  locale: string;
 }
 
 /**
@@ -85,16 +102,21 @@ export interface MediaPickerDialogController {
  *
  * @param onSelect - Called with the chosen item when a thumbnail is clicked.
  * @param onCancel - Called on Escape, backdrop click, or the Cancel button.
- * @param deps - Injected dependencies; `deps.port` is the {@link MediaPickerPort} this dialog reads
- *   its media list and thumbnail URLs through.
+ * @param deps - Injected `{ port?; locale? }` — both optional/defaulted, mirroring
+ *   `useWidgetPickerDialog`'s identical shape in `WidgetPickerDialog.hooks.tsx`. `port` defaults to
+ *   {@link defaultMediaPickerPort} and `locale` to `DEFAULT_LOCALE`, so every existing call site
+ *   that still passes only `{ port: fakePort }` keeps compiling and behaving unchanged.
  * @returns The dialog's full render-time contract — see {@link MediaPickerDialogController}.
  */
 export function useMediaPickerDialog(
   onSelect: (item: AdminMedia) => void,
   onCancel: () => void,
-  deps: { port: MediaPickerPort }
+  deps: { port?: MediaPickerPort; locale?: string }
 ): MediaPickerDialogController {
-  const { items, error } = useMediaPickerItems(deps.port);
+  const port = deps.port ?? defaultMediaPickerPort;
+  const locale = deps.locale ?? DEFAULT_LOCALE;
+  const t: Translate = (key) => sharedComponentsT(locale, key);
+  const { items, error } = useMediaPickerItems(port, locale);
   const cancelRef = useRef<HTMLButtonElement | null>(null);
   // Captured at mount, before focus moves onto Cancel below — the element that had focus then is,
   // by construction, whatever opened this dialog (e.g. the Posts/Pages editor's "Insert from Media
@@ -122,11 +144,13 @@ export function useMediaPickerDialog(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onCancel]);
 
-  return { items, error, select: onSelect, mediaOriginalUrl: deps.port.mediaOriginalUrl, cancelRef };
+  return { items, error, select: onSelect, mediaOriginalUrl: port.mediaOriginalUrl, cancelRef, t, locale };
 }
 
 /**
- * Binds the real `/api/.../media` client — see `media-picker-dependencies.hooks.ts`.
+ * Binds the real `/api/.../media` client and resolves `locale` via `useAdminLocale()` — see
+ * `media-picker-dependencies.hooks.ts` and `WidgetPickerDialog.hooks.tsx`'s
+ * `useWiredWidgetPickerDialog` for the identical wired/unwired reasoning.
  *
  * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
  * `MediaPickerDialog.tsx` composes this and a test composes {@link useMediaPickerDialog} with
@@ -137,5 +161,6 @@ export function useMediaPickerDialog(
  * @returns The dialog's full render-time contract — see {@link MediaPickerDialogController}.
  */
 export function useWiredMediaPickerDialog(onSelect: (item: AdminMedia) => void, onCancel: () => void): MediaPickerDialogController {
-  return useMediaPickerDialog(onSelect, onCancel, { port: defaultMediaPickerPort });
+  const locale = useAdminLocale();
+  return useMediaPickerDialog(onSelect, onCancel, { port: defaultMediaPickerPort, locale });
 }

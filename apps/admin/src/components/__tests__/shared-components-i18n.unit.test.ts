@@ -101,6 +101,12 @@ describe("SHARED_COMPONENTS_DICT: cross-locale key parity", () => {
     "Form",
     "Choose a form…",
     "Success message (optional)",
+    // MediaPickerDialog.tsx / MediaPickerDialog.hooks.tsx
+    "Choose an image",
+    "Loading media…",
+    "failed to load media",
+    "No media uploaded yet. Upload an asset from the {link} screen first.",
+    "Media",
   ];
 
   it("covers every copy string this commit's wired call sites call t() with, in every locale", () => {

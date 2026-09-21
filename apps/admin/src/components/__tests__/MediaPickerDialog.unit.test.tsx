@@ -1,11 +1,11 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { tabFromLastFocusableInDialog } from "../../hooks/__tests__/focus-trap.test-helpers";
 import { api, ApiError, type AdminMedia } from "../../lib/api";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
-import type { useWiredMediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog.hooks";
+import type { MediaPickerDialogController, useWiredMediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog.hooks";
 
 /**
  * @file First test file for `MediaPickerDialog` (0% before this refactor pass — no test file
@@ -42,6 +42,17 @@ function mediaItem(overrides: Partial<AdminMedia> = {}): AdminMedia {
     ...overrides,
   };
 }
+
+beforeEach(() => {
+  // `useWiredMediaPickerDialog` now also mounts `useAdminLocale()` (Batch D2 i18n wiring), which
+  // reads `api.getSettingsEffective` (via `loadLanguage()`/`loadNamespaceValues`) — stub it to no
+  // rows so it resolves to `DEFAULT_LOCALE` ("en") without a real network call, keeping every
+  // existing test's literal-English assertions below unchanged. Unlike `WidgetPickerDialog.unit
+  // .test.tsx`'s sibling fix, this file mocks at the `api` method level (matching `api.listMedia`'s
+  // own mocking here), not global `fetch` — `getSettingsEffective` is its own `api` method, so no
+  // shared-`Response`-body race is possible.
+  vi.spyOn(api, "getSettingsEffective").mockResolvedValue({ data: [] });
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -172,6 +183,11 @@ describe("MediaPickerDialog — useDialog injection", () => {
       // below.
       mediaOriginalUrl: (id) => `fake://media-picker-original/${id}`,
       cancelRef: { current: null },
+      // Identity passthrough — the component now destructures `t` off the controller (Batch D2's
+      // i18n wiring); a fake that omits it would throw on the first `t(...)` call. Same note as
+      // `WidgetPickerDialog.unit.test.tsx`'s `useFakeDialog`.
+      t: (key) => key,
+      locale: "en",
     });
 
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} useDialog={fakeUseDialog} />);
@@ -182,6 +198,66 @@ describe("MediaPickerDialog — useDialog injection", () => {
     expect(img).toHaveAttribute("src", "fake://media-picker-original/fake-1");
     expect(listMedia).not.toHaveBeenCalled();
     expect(mediaOriginalUrlSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("MediaPickerDialog — translated copy (t injection)", () => {
+  // Fake `t`s mapping to distinct non-English strings, not the real dictionary — proves the JSX
+  // reads `useDialog(...)`'s own `t`, not a hardcoded English literal. Same reasoning
+  // `WidgetConfigFields.unit.test.tsx`'s and `WidgetPickerDialog.unit.test.tsx`'s own
+  // "translated copy" fakes use; the real-dictionary proof (a genuine non-English value) lives in
+  // `MediaPickerDialog.hooks.unit.test.tsx` instead, matching `WidgetInstanceEditor.unit.test.tsx`'s
+  // split between the two.
+  const FAKE_DICT: Record<string, string> = {
+    "Choose an image": "Elegir-FAKE",
+    "Loading media…": "Cargando-FAKE",
+    "No media uploaded yet. Upload an asset from the {link} screen first.": "Antes-FAKE {link} despues-FAKE",
+    Media: "Multimedia-FAKE",
+    Cancel: "Cancelar-FAKE",
+  };
+  const fakeT = (key: string) => FAKE_DICT[key] ?? key;
+
+  function fakeDialog(overrides: Partial<MediaPickerDialogController>): typeof useWiredMediaPickerDialog {
+    return (onSelect) => ({
+      items: null,
+      error: null,
+      select: onSelect,
+      mediaOriginalUrl: (id) => `fake://${id}`,
+      cancelRef: { current: null },
+      t: fakeT,
+      locale: "es",
+      ...overrides,
+    });
+  }
+
+  it("renders the translated title heading and Cancel button", () => {
+    render(
+      <MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} useDialog={fakeDialog({ items: [] })} />
+    );
+    expect(screen.getByRole("heading", { name: "Elegir-FAKE" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancelar-FAKE" })).toBeInTheDocument();
+    // The untranslated English literals must be gone, not just absent from the assertions above.
+    expect(screen.queryByText("Choose an image")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  });
+
+  it("renders translated loading copy while items is null", () => {
+    render(
+      <MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} useDialog={fakeDialog({ items: null })} />
+    );
+    expect(screen.getByText("Cargando-FAKE")).toBeInTheDocument();
+    expect(screen.queryByText("Loading media…")).not.toBeInTheDocument();
+  });
+
+  it("renders the translated empty-state template split around a real <a> link, with translated link text", () => {
+    render(
+      <MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} useDialog={fakeDialog({ items: [] })} />
+    );
+    // Both text segments around the {link} token must survive splitOnPlaceholders untranslated-loss.
+    expect(screen.getByText(/Antes-FAKE/)).toBeInTheDocument();
+    expect(screen.getByText(/despues-FAKE/)).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: "Multimedia-FAKE" });
+    expect(link).toHaveAttribute("href", "/admin/media");
   });
 });
 
