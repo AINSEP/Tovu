@@ -506,6 +506,32 @@ feature. Don't build a vendor-specific widget. Verified 2026-09-21 by a read-onl
     `apps/admin/src/features/pages/PageEditor.tsx:1208,1228` have no `sandbox` attribute. It's unverified whether script in
     the preview runs with the admin origin.
 
+## Raw-HTML authoring for forms, menus, widgets — way + admin UI (owner call, 2026-09-21)
+
+Owner: *"do we have in the todo to have a way and the ui to build raw html forms, menus, widgets, etc? i dont wanna
+do it now so having a todo for it is best."* Verified 2026-09-21 by a read-only recon, file:line spot-checked. This is
+about authoring your OWN markup for these three block types — the "Third-party embeds" section above (Calendly-class)
+is about embedding someone else's vendor snippet; related but a different gap.
+
+- **Works today:** raw HTML authoring exists for exactly one type — html-format Pages, via the admin HTML editor
+  (`server/inbound/admin-http/routes/pages/update-html.ts:127-133`, `pages.edit_html`, admin/owner only, stored
+  unsanitized by design).
+- **Gap — Forms:** `FieldType` is a closed 4-value union (`text`/`email`/`textarea`/`checkbox`,
+  `features/forms/types.ts:18`); no raw-HTML field or raw-HTML form body. A form is embedded on a page as a WIDGET
+  (`{"type":"widget","id":"<contact-form widget entry id>"}`, `resolver-service.ts:1070-1072`), so `src/forms/` itself
+  is untouched by this ask. Open question: if the form's markup is hand-written, how does it still route submissions
+  through the existing Forms backend (`submit-service.ts`) without the structured `FieldDescriptor` list generating
+  the field names/`action`?
+- **Gap — Menus:** `AdminMenuItem` is a structured tree (link/label/target/children, edited via `MenuEditor.tsx`); no
+  raw-HTML item kind. Menus render through their own reserved marker type, deliberately excluded from the generic
+  resolver map and handled separately by `injectMenuEmbeds` (`features/theme/static-render.ts:355,642`) — a raw-HTML
+  menu would need a new authoring/render path, not just a new resolver registration.
+- **Gap — Widgets:** already tracked above (Gap 1) — `WidgetTypeKey` closed union of 5 (`features/widgets/types.ts:63`),
+  no kind emits raw/script HTML. The generic embed widget type proposed there would likely cover this ask too.
+- **Same trust question as Pages:** any raw-HTML surface here would be admin/owner-only and unsanitized by design,
+  same posture as `update-html.ts` today — not a new security decision, just inheriting the existing one.
+- **Not now — owner deferred 2026-09-21.**
+
 ## Open remainder — SPEC-005 (plugins) + SPEC-006 (identity/authorization) gates
 
 Both went through the full formal pipeline; what is left is gates and later phases, not the original
