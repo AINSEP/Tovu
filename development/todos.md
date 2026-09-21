@@ -532,6 +532,22 @@ is about embedding someone else's vendor snippet; related but a different gap.
   same posture as `update-html.ts` today — not a new security decision, just inheriting the existing one.
 - **Not now — owner deferred 2026-09-21.**
 
+**Follow-up asks, same day, still deferred:**
+- **One config shape for every embeddable block.** Owner's sketch: `data-embed-config={type="form|widget|menu"
+  render="json|html" ...other args}`. `data-embed-config` holding JSON is already the single live marker
+  (`contracts/core/embeds/marker.ts:20-23`, `type` + `id`), so what's new is a `render: "json" | "html"` key plus
+  per-type extra args. The sketch's `type="form"` conflicts with the 2026-08-31 decision above (`form` removed,
+  forms stay `{"type":"widget","id":"<contact-form widget entry id>"}`) — open, not resolved here.
+- **Preserve authored inner children** (`<div data-embed-config='...'><p>text</p></div>` — owner expected the `<p>`
+  inside the rendered output). Today it doesn't: `withInnerContentFinal` (`marker.ts:344-347`) rebuilds
+  `<tag attrs-minus-marker>{resolved}</tag>`, discarding the authored inner; it currently survives only as the
+  fallback when resolution returns `undefined` (`substituteMarkers`, `marker.ts:358-361`). Wrapper handling varies
+  per type: `post`/`content` keep their wrapper (`WRAPPER_PRESERVING_EMBED_TYPES`, `html-embeds.ts:338`), `media`
+  has its own branch, `widget` only when the author attributed it (`withElementKeptIfAttributed`, `marker.ts:496`),
+  menus via `static-render.ts`'s `withInnerContent`; a bare widget marker still whole-element replaces. Open:
+  where authored children go relative to resolved output; how that interacts with the fallback-on-missing reuse
+  of the same children; the `<form>`-in-`<form>` / bare-`<li>`-needs-`<ul>` nesting hazards (`html-embeds.ts:322-336`).
+
 ## Open remainder — SPEC-005 (plugins) + SPEC-006 (identity/authorization) gates
 
 Both went through the full formal pipeline; what is left is gates and later phases, not the original
