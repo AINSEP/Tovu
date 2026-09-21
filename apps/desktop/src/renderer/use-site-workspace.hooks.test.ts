@@ -276,7 +276,7 @@ test('the recovery panel retry always remounts, and a remount changes the <webvi
 });
 
 // ---------------------------------------------------------------------------------------------
-// The View admin / View site toggle after history crosses between the two
+// The Admin / Site toggle after history crosses between the two
 // ---------------------------------------------------------------------------------------------
 
 test('surfaceOfUrl reads the admin from its path and everything else as the site', () => {
