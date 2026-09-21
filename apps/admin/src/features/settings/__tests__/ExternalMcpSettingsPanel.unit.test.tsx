@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
+import { tabFromLastFocusableInDialog } from "@/hooks/__tests__/focus-trap.test-helpers";
 
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
 
@@ -242,5 +243,33 @@ describe("ExternalMcpSettingsPanel — Remove asks for confirmation before delet
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getAllByTestId("source-config-item-card")).toHaveLength(1);
+  });
+});
+
+describe("ExternalMcpSettingsPanel — the Remove-confirm and Tools dialogs trap Tab", () => {
+  it("ExternalMcpRemoveConfirmDialog keeps Tab inside the dialog: Tab on the last focusable element wraps to the first", async () => {
+    const user = userEvent.setup();
+    renderPanelWithSources([HIGGSFIELD]);
+    await screen.findAllByTestId("source-config-item-card");
+
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    const { event, first } = tabFromLastFocusableInDialog();
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
+  });
+
+  it("ExternalMcpToolsModal keeps Tab inside the dialog: Tab on the last focusable element wraps to the first", async () => {
+    const user = userEvent.setup();
+    renderPanelWithSources([HIGGSFIELD]);
+    await screen.findAllByTestId("source-config-item-card");
+
+    await user.click(screen.getByRole("button", { name: /Open tool permissions/ }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    const { event, first } = tabFromLastFocusableInDialog();
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
   });
 });
