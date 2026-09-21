@@ -5,6 +5,7 @@ import {
   readStandingDraftLocalBackup,
   writeStandingDraftLocalBackup,
 } from "../lib/standing-draft-local-backup";
+import { useSerialWrites } from "./use-serial-writes.hooks";
 
 /**
  * @file Standing-draft autosave (2026-09-06 dispatch, owner's own words: "even if they haven't
@@ -177,8 +178,8 @@ export function useStandingDraftAutosave(deps: {
   const backupEntryIdRef = useRef<string | null>(null);
   // Every network op (each autosave PUT, and the eventual discard) is appended here, never fired
   // standalone — this IS the ordering guarantee `clearStandingDraft`'s own doc describes. Caught
-  // internally (see `enqueue`) so one failed request can never permanently wedge the chain.
-  const chainRef = useRef<Promise<void>>(Promise.resolve());
+  // internally (see `enqueue`) so one failed request can never permanently wedge the lane.
+  const writes = useSerialWrites();
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firstPendingAtRef = useRef<number | null>(null);
   // The newest draft handed to `scheduleAutosave` that has NOT yet been written — what a flush
@@ -269,16 +270,14 @@ export function useStandingDraftAutosave(deps: {
   }, [enabled, entryId, port]);
 
   const enqueue = useCallback(
-    (op: () => Promise<void>): Promise<void> => {
-      chainRef.current = chainRef.current.then(op).catch((err: unknown) => {
+    (op: () => Promise<void>): Promise<void> =>
+      writes.run(op).catch((err: unknown) => {
         // eslint-disable-next-line no-console -- best-effort background persistence; surfaced to
         // the console rather than the operator, who has nothing actionable to do about one dropped
         // autosave tick, and rather than thrown, which would wedge every later tick on this chain.
         console.error("standing-draft autosave: request failed", err);
-      });
-      return chainRef.current;
-    },
-    []
+      }),
+    [writes]
   );
 
   /** The one place `putAutosave` is called. Its `{ applied }` answer is acted on here rather than
