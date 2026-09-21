@@ -2,9 +2,8 @@
 
 Everything below is quoted or directly restated from `docs.typesafe.ai`'s `introduction.md`,
 `primitives.md`, `primitives/choice.md`, `primitives/score.md`, `primitives/noul.md`,
-`primitives/advanced.md`, `api.md`, and `models.md` (crawled 2026-09-21; live-checked with one real
-`POST /v1/systemone` call the same day, which returned exactly this shape). Read the live docs if
-anything here looks out of date — TypeSafe ships new model versions on its own schedule.
+`primitives/advanced.md`, `api.md`, and `models.md` (crawled 2026-09-21). Read the live docs if
+anything here looks out of date. TypeSafe ships new model versions on its own schedule.
 
 ## Endpoint
 
@@ -69,8 +68,9 @@ Every question shares this shape: an id (your key, not sent to the model), `type
 
 - `criteria` is a **required** map: option name → description. A description of `null` is valid when
   the option name is self-explanatory (e.g. `{"calm": null, "frustrated": null, "angry": null}`).
-- **Maximum 255 options.** Add a description to each; extra options cost only a few tokens each.
-  Add an `other` / `none of the above` option when the list might not cover every input.
+- **Maximum 255 options.** Each option adds only a few tokens, so give the full list of teams,
+  categories, or products rather than a shortlist. Add an `other` / `none of the above` option when
+  the list might not cover every input.
 - Answer: `{ "type": "choice", "choice": "<winning option>", "confidence": <0-1>, "probabilities": { "<option>": <0-1>, ... } }` — `probabilities` sums to 1 across every option; `choice` is the
   highest-probability option; `confidence` is derived from how peaked/flat that distribution is.
 
@@ -178,7 +178,7 @@ an alias.**
 like `jev-1.13.0` are always accepted by the `model` field whether or not they're listed there.
 
 **Customization:** Jev is not fine-tuned or LoRA-adapted per customer — the same weights serve every
-account. It's trained with RLCD (reinforcement learning from calibrated decisions — see TypeSafe's
+account. It's trained with RLCD (reinforcement learning for calibrated decisions — see TypeSafe's
 "AI primer" for how this differs from optimizing for generated text). Customization happens entirely
 through how you shape the request: `state` content, `instructions`/`criteria` wording, and how you
 decompose and recombine questions in code — not through any per-account training.

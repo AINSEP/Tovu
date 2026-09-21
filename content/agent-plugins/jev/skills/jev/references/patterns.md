@@ -22,16 +22,23 @@ All five are asked upfront; the ones that don't apply to a given ticket are simp
 Routing logic then reads whichever answers matter:
 
 ```python
-if bug_severity.score > 1.5 and bug_repro.noul > 0.6:
-    escalate_to_engineering(ticket)  # high severity + reproducible
-if refund.noul > 0.7:
-    flag_likely_refund(ticket)
+if category.choice == "bug_report":
+    if bug_severity.score > 1.5 and bug_repro.noul > 0.6:
+        escalate_to_engineering(ticket)  # high severity + reproducible
+elif category.choice == "billing":
+    if refund.noul > 0.7:
+        flag_likely_refund(ticket)
+# ...other categories...
 if frustration.score > 1.5:
     flag_for_priority_response(ticket)  # regardless of category
 ```
 
-**Why:** cost and speed — a separate request per speculative question would multiply both; one
-request with several answers, most of which get discarded, is nearly the cost of the smallest one.
+The category answer decides which speculative answers get read. A bug-report ticket's `refund`
+answer is never consulted.
+
+**Why:** cost and speed. A separate request per question would resend the state each time and add
+round trips. In one request, the extra questions cost only their own tokens and barely change
+latency.
 
 ## Confidence-gated routing
 

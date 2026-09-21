@@ -7,23 +7,21 @@ description: Design and write code that calls Jev, TypeSafe's System One model �
 
 ## The one thing to say before anything else
 
-**This plugin has no MCP server.** `mcp.json` declares `"mcpServers": {}` on purpose — Jev has no
-official MCP server, and the unofficial community ones are local-only and out of scope here. There
+**This plugin has no MCP server.** `mcp.json` declares `"mcpServers": {}` on purpose. Jev has no
+official MCP server, and TypeSafe's docs index lists no MCP integration. There
 is no `mcp__jev__*` tool, and enabling this plugin does not let the assistant call the Jev API
 during a chat turn. What this skill is for: **helping design and write code** — a Tovu feature, a
 script, a separate service — that calls Jev itself, over plain HTTP or the JavaScript SDK. If an
 operator asks "can you check with Jev right now," the honest answer is no, not yet; what you can do
 is write the code that will.
 
-**The API key goes in `TYPESAFE_API_KEY`, never in chat.** That's the env var TypeSafe's own SDKs
-read by default — use it for anything that relies on the official SDK's zero-arg constructor. (Some
-local dev setups export the same value under a different name, e.g. `JEV_API_KEY`; that's a
-machine-local alias, not a documented TypeSafe or Tovu convention — don't assume it's read anywhere
-the SDK itself doesn't look for it.) Whoever sets up the integration puts the key in an environment
-variable or a secret store, the same way any other API credential belongs in this codebase. Never
-ask for it in chat, never paste one into code you write, and never echo one back if a user pastes it
-anyway — tell them to treat it as compromised and rotate it at TypeSafe's dashboard
-(`console.typesafe.ai/keys`).
+**The API key goes in `TYPESAFE_API_KEY`, never in chat.** That's the env var TypeSafe's SDKs read
+by default. The JS SDK also accepts an explicit `new TypeSafeClient({ apiKey })`, and that value takes
+precedence over the env var, so a key loaded from a secret store works too. Whoever sets up the
+integration puts the key in the environment or a secret store, the same way any other API credential
+belongs in this codebase. Never ask for it in chat, never paste one into code you write, and never
+echo one back if a user pastes it anyway. Tell them to treat it as compromised and rotate it at
+TypeSafe's dashboard (`console.typesafe.ai/keys`).
 
 ---
 
@@ -134,7 +132,7 @@ a Noul batched into one call):
 ```
 
 Note the request sent `model: "jev-latest"` (an alias) and the response reports the concrete
-resolved version, `"jev-1.13.0"` — see [Models, cost, and limits](#models-cost-and-limits).
+resolved version, `"jev-1.13.0"`. See [Cost, latency, and limits](#cost-latency-and-limits).
 
 **Batch, don't chain.** Put every question a workflow might need — including ones that only matter
 for some inputs — into one request (the "speculative fan-out" pattern below); evaluating them is
@@ -161,9 +159,9 @@ constants in one place in your code so they're easy to review — see
 [references/patterns.md](references/patterns.md) for the confidence-gated-routing pattern with a
 worked example.
 
-If you only need the single best option, take the answer with the highest `confidence` or
-`probabilities` value rather than comparing against a fixed threshold — a threshold is for deciding
-*whether to act*, not for picking among options.
+If you only need the single best option, read the Choice answer's `choice` field, which is already
+the highest-probability option. Don't compare it against a fixed threshold. A threshold decides
+*whether to act*, not which option wins. For your own statistic, use `probabilities`.
 
 ## Patterns
 
@@ -216,8 +214,8 @@ table):
   `jev-latest`). The response's `model` field always reports the resolved versioned id — pin that id
   instead of an alias once you've tuned confidence thresholds against it, since an alias can move
   answers out from under you when TypeSafe ships a new release.
-- **Pricing:** $42 per billion input tokens ($0.042 / million). **Output tokens are free** — there is
-  nothing to generate, so nothing to bill for.
+- **Pricing:** $42 per billion input tokens ($0.042 / million). **Output tokens are free**. `usage`
+  still reports `output_tokens`, but only input tokens are billed.
 - **Latency:** the only figure TypeSafe states directly is "most queries complete in about 100 ms."
   TypeSafe's own cookbooks measured 111–114 ms for a multi-question batched call, consistent with
   that figure.
@@ -259,25 +257,25 @@ const response = await client.systemOne({
   state: { document: "I was charged twice. Please fix this ASAP." },
   questions: {
     category: choice("What is this ticket about?", { billing: null, technical: null, other: null }),
+    frustration: score("How frustrated the customer appears", [
+      "Calm, just stating facts",
+      "Frustrated but civil",
+      "Very angry, strong language",
+    ]),
+    billing: noul("Is this about billing?"),
   },
 });
 
-console.log(response.answers.category.choice);
+console.log(response.answers.category.choice, response.answers.frustration.score, response.answers.billing.noul);
 ```
 
-**Only `choice()` has a documented example.** The two JS SDK doc pages in scope for this skill show
-the zero-arg constructor and one `choice()` call — that's it. `score()` and `noul()` exist (the API
-reference index confirms the function names and their matching `ScoreQuestion`/`NoulQuestion`/
-`ScoreResponse`/`NoulResponse` types), and by analogy with `choice(instructions, criteria)` and the
-HTTP API's Score/Noul shapes they almost certainly take the same `(instructions, criteria)` form —
-but no runnable example confirms that, so don't present it as settled. Same for deeper client config
-(timeouts, retries, base URL override, the full error-class hierarchy): the interfaces exist in the
-API index by name, but their fields aren't written up on a docs page this skill's research covered.
-Read the installed package's own `.d.ts` files or its source before relying on any of this, rather
-than inventing a field or a call shape. See
-[references/javascript-sdk.md](references/javascript-sdk.md) for everything that *is* confirmed,
-marked clearly against what is not. If you need a `score`/`noul` call confirmed today, use the HTTP
-API shape above (confirmed live) or check the SDK's own source instead of guessing.
+The helpers are documented on the SDK reference pages as `choice(instructions, criteria)`,
+`score(instructions, criteria)` (an ordered array, at least two levels) and
+`noul(instructions?, criteria?)` (optional `{ true, false }`). `model` is optional on `systemOne()`.
+It falls back to the client's default model, which is `jev-latest` unless configured. Retries are
+on by default. Config options, retry defaults, error classes, and the one browser-safety flag are in
+[references/javascript-sdk.md](references/javascript-sdk.md). Check it before you invent an option
+name.
 
 ## Cookbooks
 
@@ -297,8 +295,8 @@ workflow that looks similar; it often shows a better decomposition than a first-
 - [references/patterns.md](references/patterns.md) — the four named patterns with worked examples.
 - [references/jaggedness.md](references/jaggedness.md) — all 9 known jev-1.13 failure modes with
   mitigations. Read this before designing a new question.
-- [references/javascript-sdk.md](references/javascript-sdk.md) — what's confirmed about the JS SDK,
-  and what is explicitly not (with a pointer to where to find it instead of guessing).
+- [references/javascript-sdk.md](references/javascript-sdk.md): JS SDK client config and env vars,
+  question helpers, retry defaults, and error classes, each checked against the SDK reference pages.
 - [references/cookbooks.md](references/cookbooks.md) — digests of all 18 published cookbooks.
 - TypeSafe's own docs are the live source of truth and move faster than this skill:
   [docs.typesafe.ai](https://docs.typesafe.ai) (append `.md` to any page path for raw Markdown;

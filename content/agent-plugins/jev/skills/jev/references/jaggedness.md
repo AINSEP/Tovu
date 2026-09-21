@@ -106,8 +106,7 @@ of structural invariants a person might assume hold:
   probabilities: {yes: 0.01, no: 0.99}, confidence: 0.97}` for the logically equivalent Choice
   framing of the same input. Neither is simply derivable from the other.
 - A Noul and its logical negation are not guaranteed to sum to 1 — a documented example has
-  `refund_requested: 0.72` and `not_a_refund_request: 0.47` for the same message (sum 1.19, not
-  1.0). There are several reasons `P(noul)` and `1 - P(not noul)` may diverge; don't rely on the
+  `refund: 0.72` and `not_refund: 0.47` for the same message (sum 1.19, not 1.0). There are several reasons `P(noul)` and `1 - P(not noul)` may diverge; don't rely on the
   identity holding.
 
 **Do instead:** don't rely on structural/arithmetic invariance between separate questions. Don't

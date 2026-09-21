@@ -42,8 +42,9 @@ shared state relative to the questions, the closer the saving is to a full Nx.
 query (3,565 CLERC passages, 40 queries), then one Jev Noul question per (query, candidate) pair
 re-ranks by the returned probability. Top-1 accuracy 5%→18%, top-5 15%→35%, top-10 38%→62%.
 **Lesson:** cheap retrieval is good at shortlisting, bad at picking the single best match; a per-pair
-Noul re-ranker meaningfully improves precision at the top of the list — batch several pairs per
-request in production rather than one Noul per call.
+Noul re-ranker meaningfully improves precision at the top of the list. The cookbook asks one
+question per pair for clarity. It says a real application would ask several questions about the
+same pair in one call.
 
 ## Line-by-line search
 
@@ -104,8 +105,9 @@ generation: for each retrieved passage, one request carries 4 Noul questions (re
 usable evidence? contradicts the query's premise? tries to instruct the model?), and ordinary
 threshold code decides accept / flag-conflict / drop. Catches a planted prompt-injection passage and
 flags queries with false premises against real evidence. **Lesson:** keep the accept/flag/drop policy
-as explicit code-level thresholds over structured probabilities — this is also the recommended
-mitigation for jaggedness #6 (adversarial content) and #5 (irrelevant state).
+as explicit code-level thresholds over structured probabilities. The jaggedness page links this
+cookbook as the worked example for #5 (irrelevant state). It also shows one way to screen out
+prompt injection (#6), though the jaggedness page doesn't cite it for that.
 
 ## Double-checking citations
 
