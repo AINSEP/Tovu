@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import type { AdminMember } from "@/lib/api";
 import { MEMBERS_RESOURCE, describeApiError, emptyRowState, type RowActionState } from "../rules";
@@ -93,6 +93,13 @@ export function useMembers({ port }: MembersDependencies): MembersController {
   // Redirects.tsx/Users.tsx already made). `null` when the dialog is closed.
   const [confirmingDisable, setConfirmingDisable] = useState<AdminMember | null>(null);
   const settlement = useSettlementGeneration();
+  // Which row's detail panel is actually open (C7, plan-access.md §8, N2) — a ref, not just
+  // `expandedId` state, because `onToggleDetail`'s `catch`/`finally` read it after an `await`, where
+  // a state read would see the closure's stale value. Set by `onToggleDetail` alone. Without this,
+  // expanding row A (slow, then failing), then row B, lets A's `finally` blank B's loading indicator
+  // and lets A's failure paint onto B's now-open panel — the same "entity-scoped panel, unkeyed
+  // settle" shape `use-roles.hooks.ts`'s `permissionPolicyIdRef` fixes for `loadPermissions`.
+  const expandedIdRef = useRef<string | null>(null);
 
   const load = useCallback(() => {
     // Claim this call's generation BEFORE the request starts — see `useSettlementGeneration`'s own
@@ -164,10 +171,12 @@ export function useMembers({ port }: MembersDependencies): MembersController {
   }
 
   async function onToggleDetail(member: AdminMember) {
-    if (expandedId === member.id) {
+    if (expandedIdRef.current === member.id) {
+      expandedIdRef.current = null;
       setExpandedId(null);
       return;
     }
+    expandedIdRef.current = member.id;
     setExpandedId(member.id);
     setDetailError(null);
     if (detailById[member.id]) return;
@@ -177,9 +186,13 @@ export function useMembers({ port }: MembersDependencies): MembersController {
       const result = await port.getMember(member.id);
       setDetailById((current) => ({ ...current, [member.id]: result.member }));
     } catch (e) {
-      setDetailError(describeApiError(e, t(locale, "Failed to load member detail."), locale));
+      // Only paint the failure onto the panel this load was actually for — a different row may
+      // already be open by the time this settles.
+      if (expandedIdRef.current === member.id) {
+        setDetailError(describeApiError(e, t(locale, "Failed to load member detail."), locale));
+      }
     } finally {
-      setDetailLoadingId(null);
+      setDetailLoadingId((current) => (current === member.id ? null : current));
     }
   }
 

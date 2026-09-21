@@ -155,3 +155,46 @@ describe("useMembers — content refresh bus", () => {
     expect(result.current.members).toEqual([disabled]);
   });
 });
+
+/**
+ * C7 (plan-access.md §8, N2, terra review triage 2026-09-20): `onToggleDetail`'s `catch`/`finally`
+ * settle `detailError`/`detailLoadingId` with no key — expanding row A (slow, then failing), then
+ * row B, lets A's `finally` blank B's "Loading detail…" indicator and lets A's failure paint onto
+ * B's now-open panel (`Members.tsx` renders `detailError` unkeyed too). Same bug shape as C2
+ * (`use-roles.hooks.ts`'s `loadPermissions` callers).
+ */
+describe("useMembers — a slow row's detail settle does not blank or error another row's panel (C7)", () => {
+  it("rejecting a slow-loading row's detail after a different row was expanded leaves the new row's panel alone", async () => {
+    vi.stubGlobal("fetch", stubFetchWithLocale("en"));
+    const MEMBER_A: AdminMember = { ...MEMBER, id: "mA" };
+    const MEMBER_B: AdminMember = { ...MEMBER, id: "mB", email: "bob@example.com" };
+    const port = createFakeMembersPort({ members: [MEMBER_A, MEMBER_B] });
+
+    let rejectA!: (e: unknown) => void;
+    vi.spyOn(port, "getMember")
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => (rejectA = reject)))
+      // B's load is left pending — this finding is about A's LATE settle, not B's own outcome.
+      .mockImplementationOnce(() => new Promise<{ member: AdminMember }>(() => {}));
+
+    const { result } = renderHook(() => useMembers({ port }));
+    await waitFor(() => expect(result.current.members).toEqual([MEMBER_A, MEMBER_B]));
+
+    let pA!: Promise<void>;
+    act(() => {
+      pA = result.current.onToggleDetail(MEMBER_A);
+    });
+    act(() => {
+      void result.current.onToggleDetail(MEMBER_B);
+    });
+
+    rejectA(new Error("boom-A"));
+    await act(async () => {
+      await pA;
+    });
+
+    // Fails today: A's unconditional catch/finally paint onto B's open panel — detailError gets
+    // A's message, and detailLoadingId is blanked to null instead of staying B.id.
+    expect(result.current.detailError).toBeNull();
+    expect(result.current.detailLoadingId).toBe(MEMBER_B.id);
+  });
+});
