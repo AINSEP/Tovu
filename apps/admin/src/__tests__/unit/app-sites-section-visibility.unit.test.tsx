@@ -3,7 +3,12 @@ import { cleanup, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
-import { resolveSiteSectionRouteGate, useSiteSectionAvailability, withoutSiteSection } from "../../App.hooks";
+import {
+  resolveSiteSectionRouteGate,
+  useSiteSectionAvailability,
+  withoutSiteSection,
+  type SiteSectionAvailability,
+} from "../../App.hooks";
 import { FetchQueryProvider } from "../../lib/fetch-query";
 import { api, ApiError, type AdminUser } from "../../lib/api";
 
@@ -221,9 +226,10 @@ describe("useSiteSectionAvailability", () => {
       .mockResolvedValueOnce(sitesSnapshot(true))
       .mockReturnValueOnce(second.promise);
 
-    const { result, rerender } = renderHook(({ user }: { user: AdminUser | null }) => useSiteSectionAvailability(user), {
-      initialProps: { user: alice },
-    });
+    const { result, rerender } = renderHook<SiteSectionAvailability, { user: AdminUser | null }>(
+      ({ user }) => useSiteSectionAvailability(user),
+      { initialProps: { user: alice } },
+    );
 
     await waitFor(() => expect(result.current).toBe("available"));
 
