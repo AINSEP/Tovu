@@ -751,6 +751,69 @@ describe("useAdminExecutionCredential — provider switch while the key is store
 });
 
 /**
+ * F2 (plan-components.md, 2026-09-20): nothing orders the reads. A slow mount GET that resolves
+ * after a save, or after the post-save refresh, overwrote the newer `stored` — the UI then said "no
+ * key" for a key that actually is stored.
+ */
+describe("useAdminExecutionCredential — stored: an older read never overwrites a newer one", () => {
+  it("a slow initial GET that resolves after a save still does not clobber the save's fresher view", async () => {
+    const loads: Array<{ resolve: (view: AdminExecutionCredential) => void }> = [];
+    const port: AdminExecutionCredentialPort = {
+      loadAdminExecutionCredential() {
+        return new Promise<AdminExecutionCredential>((resolve) => {
+          loads.push({ resolve });
+        });
+      },
+      async saveAdminExecutionCredential() {
+        return {
+          isSet: true,
+          masked: "••••live",
+          protocol: "anthropic",
+          providerId: "anthropic",
+          baseUrl: null,
+          model: "claude-sonnet-4-5",
+          maxTokens: null,
+          updatedAt: new Date(0).toISOString(),
+        };
+      },
+    };
+    const { result } = renderHook(() =>
+      useAdminExecutionCredential({ byok: byok({ apiKey: "sk-new" }), onByokChange: vi.fn() }, port),
+    );
+    // The mount GET (load #1) is left pending on purpose.
+    await waitFor(() => expect(loads.length).toBe(1));
+
+    // The save publishes a refresh, which starts load #2 — also left pending.
+    await act(async () => {
+      await result.current.saveKey();
+    });
+    await waitFor(() => expect(loads.length).toBe(2));
+
+    // The NEWER read (load #2, started by the save's own refresh) settles first.
+    loads[1]!.resolve({
+      isSet: true,
+      masked: "••••live",
+      protocol: "anthropic",
+      providerId: "anthropic",
+      baseUrl: null,
+      model: "claude-sonnet-4-5",
+      maxTokens: null,
+      updatedAt: new Date(0).toISOString(),
+    });
+    await waitFor(() => expect(result.current.stored?.isSet).toBe(true));
+
+    // The OLDER read (load #1, the original mount GET) settles last, reporting stale "nothing
+    // stored" — it must not win just because it happened to resolve last.
+    await act(async () => {
+      loads[0]!.resolve({ isSet: false, masked: null, protocol: "anthropic", providerId: null, baseUrl: null, model: null, maxTokens: null, updatedAt: null });
+      await Promise.resolve();
+    });
+
+    expect(result.current.stored?.isSet).toBe(true);
+  });
+});
+
+/**
  * Finding F1 (plan-components.md, 2026-09-20): the server rebuilds every credential write from the
  * row it read when the request arrived (`execution-credential-store.ts`'s `setExecutionCredential`:
  * read -> seal -> upsert the WHOLE merged record), so two of `saveKey`/`saveSettings`/

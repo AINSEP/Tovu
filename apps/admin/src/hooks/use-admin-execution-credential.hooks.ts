@@ -19,6 +19,7 @@ import {
 import { defaultAdminExecutionCredentialPort } from "./admin-execution-credential-dependencies.hooks";
 import type { AdminExecutionCredentialPort } from "./admin-execution-credential-port.hooks";
 import { useSerialWrites } from "./use-serial-writes.hooks";
+import { useSettlementGeneration } from "./use-settlement-generation.hooks";
 
 /**
  * @file State for the admin's own BYOK credential — the "Save key" and "Save settings" controls and
@@ -281,6 +282,15 @@ export function useAdminExecutionCredential(
   // `use-other-credentials.hooks.ts`'s `serialized`.
   const writes = useSerialWrites();
 
+  // Guards `setStored` against an out-of-order read: the mount GET, the post-save refresh GET, and
+  // each write's own response are all independent round trips with no ordering between them. A slow
+  // mount GET that resolves after a save (or after the save's own refresh) must not overwrite the
+  // fresher view those already installed — see F2 in plan-components.md (2026-09-20). Only `setStored`
+  // is guarded; `setSaveState`/`setSettingsSaveState`, `clearLegacyLocalCredential`, `setLegacyKey`
+  // and `publishSettingsRefresh` all belong to the button that called them and the write really did
+  // happen, so none of those are stale just because a later call also started.
+  const storedSettlement = useSettlementGeneration();
+
   // Hydrate the stored view, on mount AND whenever another mount (or `AssistantDock`'s own separate
   // copy) publishes a change to this same server row — see this file's "Cross-mount staleness" doc
   // above. Silent on failure, same posture `use-visitor-credential-form.hooks.ts` takes for its own
@@ -290,10 +300,11 @@ export function useAdminExecutionCredential(
   useEffect(() => {
     let cancelled = false;
     const refresh = () => {
+      const generation = storedSettlement.next();
       port
         .loadAdminExecutionCredential()
         .then((view) => {
-          if (!cancelled) setStored(view);
+          if (!cancelled && storedSettlement.isCurrent(generation)) setStored(view);
         })
         .catch(() => undefined);
     };
@@ -342,8 +353,9 @@ export function useAdminExecutionCredential(
         // literal (rather than spreading `byok` and deleting) is what makes that readable at a glance
         // — there is no branch here that could let another field through.
         const patch: AdminExecutionCredentialPatch = { apiKey };
+        const generation = storedSettlement.next();
         const view = await port.saveAdminExecutionCredential(patch);
-        setStored(view);
+        if (storedSettlement.isCurrent(generation)) setStored(view);
         setSaveState({ status: "saved" });
         // Tells every other mounted copy of this credential (the other settings screen, the dock) to
         // re-read — see this file's "Cross-mount staleness" doc above.
@@ -377,8 +389,9 @@ export function useAdminExecutionCredential(
           model: byok.model,
           ...(byok.maxTokens !== undefined ? { maxTokens: byok.maxTokens } : {}),
         };
+        const generation = storedSettlement.next();
         const view = await port.saveAdminExecutionCredential(patch);
-        setStored(view);
+        if (storedSettlement.isCurrent(generation)) setStored(view);
         setSettingsSaveState({ status: "saved" });
         publishSettingsRefresh([EXECUTION_NAMESPACE]);
       } catch (error) {
@@ -403,6 +416,7 @@ export function useAdminExecutionCredential(
           model: byok.model,
           ...(byok.maxTokens !== undefined ? { maxTokens: byok.maxTokens } : {}),
         };
+        const generation = storedSettlement.next();
         const view = await port.saveAdminExecutionCredential(patch);
         // Clear the local copy ONLY after the PUT above has actually resolved successfully — the
         // design's explicit ordering requirement (§6: "only after that PUT succeeds does the code
@@ -410,7 +424,7 @@ export function useAdminExecutionCredential(
         // migration leaves both the local key AND `legacyKey` state untouched — the prompt stays up
         // and the admin can retry or decline.
         clearLegacyLocalCredential();
-        setStored(view);
+        if (storedSettlement.isCurrent(generation)) setStored(view);
         setLegacyKey(null);
         setSaveState({ status: "saved" });
         // Same cross-mount notification `saveKey` above sends — a migration is a write to the same row.
