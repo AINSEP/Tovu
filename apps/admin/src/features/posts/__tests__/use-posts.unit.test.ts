@@ -249,6 +249,49 @@ describe("rowSavingId — shared between Disable and Delete", () => {
     });
     expect(result.current.rowSavingId).toBeNull();
   });
+
+  /**
+   * The reverse order, which the test above cannot reach: there the Delete is the LAST to settle,
+   * so `removePost`'s own guard is satisfied either way and unguarding it changes nothing (verified
+   * by mutation — that arm survived with the test above green). Here the Delete settles FIRST while
+   * a Disable on a different row is still outstanding, which is the only case `removePost`'s
+   * `finally` guard exists for.
+   */
+  it("a Delete settling first does not unlock a different row's in-flight Disable", async () => {
+    const OTHER_POST = { ...POST, id: "p-other", title: "Other" };
+    const port = createFakePostsListPort({ posts: [POST, OTHER_POST] });
+    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    await waitFor(() => expect(result.current.posts).not.toBeNull());
+
+    let resolveDelete!: (v: { post: AdminPost }) => void;
+    vi.spyOn(port, "deletePost").mockImplementationOnce(() => new Promise((resolve) => (resolveDelete = resolve)));
+    let resolveDisable!: (v: { post: AdminPost }) => void;
+    vi.spyOn(port, "updatePost").mockImplementationOnce(() => new Promise((resolve) => (resolveDisable = resolve)));
+
+    act(() => result.current.setPendingDelete(OTHER_POST));
+    act(() => {
+      void result.current.removePost();
+    });
+    await waitFor(() => expect(result.current.rowSavingId).toBe(OTHER_POST.id));
+
+    act(() => {
+      void result.current.disablePost(POST);
+    });
+    await waitFor(() => expect(result.current.rowSavingId).toBe(POST.id));
+
+    await act(async () => {
+      resolveDelete({ post: OTHER_POST });
+      await Promise.resolve();
+    });
+
+    expect(result.current.rowSavingId).toBe(POST.id);
+
+    await act(async () => {
+      resolveDisable({ post: { ...POST, status: "draft", version: POST.version + 1 } });
+      await Promise.resolve();
+    });
+    expect(result.current.rowSavingId).toBeNull();
+  });
 });
 
 describe("injected port (useWiredX conversion coverage)", () => {

@@ -331,6 +331,48 @@ describe("rowSavingId — shared between Disable and Delete", () => {
     });
     expect(result.current.rowSavingId).toBeNull();
   });
+
+  /**
+   * The reverse order, mirroring `use-posts.unit.test.ts`'s twin: above, the Delete is the LAST to
+   * settle, so `removePage`'s own guard is satisfied either way and unguarding it changes nothing.
+   * Here the Delete settles FIRST while a Disable on a different row is still outstanding — the
+   * only case that guard exists for.
+   */
+  it("a Delete settling first does not unlock a different row's in-flight Disable", async () => {
+    const OTHER_PAGE = { ...PAGE, id: "pg-other", title: "Other" };
+    const port = createFakePagesPort({ pages: [PAGE, OTHER_PAGE] });
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    await waitFor(() => expect(result.current.pages).not.toBeNull());
+
+    let resolveDelete!: (v: { post: typeof PAGE }) => void;
+    vi.spyOn(port, "deletePage").mockImplementationOnce(() => new Promise((resolve) => (resolveDelete = resolve)));
+    let resolveDisable!: (v: { post: typeof PAGE }) => void;
+    vi.spyOn(port, "updatePost").mockImplementationOnce(() => new Promise((resolve) => (resolveDisable = resolve)));
+
+    act(() => result.current.setPendingDelete(OTHER_PAGE));
+    act(() => {
+      void result.current.removePage();
+    });
+    await waitFor(() => expect(result.current.rowSavingId).toBe(OTHER_PAGE.id));
+
+    act(() => {
+      void result.current.disablePage(PAGE);
+    });
+    await waitFor(() => expect(result.current.rowSavingId).toBe(PAGE.id));
+
+    await act(async () => {
+      resolveDelete({ post: OTHER_PAGE });
+      await Promise.resolve();
+    });
+
+    expect(result.current.rowSavingId).toBe(PAGE.id);
+
+    await act(async () => {
+      resolveDisable({ post: { ...PAGE, status: "draft", version: PAGE.version + 1 } });
+      await Promise.resolve();
+    });
+    expect(result.current.rowSavingId).toBeNull();
+  });
 });
 
 describe("injected port (useWiredX conversion coverage)", () => {

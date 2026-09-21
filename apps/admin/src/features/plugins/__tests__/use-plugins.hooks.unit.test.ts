@@ -235,4 +235,50 @@ describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
     });
     expect(result.current.rowSavingId).toBeNull();
   });
+
+  /** The reverse order, so BOTH `finally` guards are proven rather than just the one that happens to
+   *  settle first above (verified by mutation: unguarding `onToggleEnabled`'s arm survived the test
+   *  above, and dies on this one). */
+  it("a toggle settling first does not unlock a different row's still-outstanding removal", async () => {
+    const port = createFakePluginsPort({
+      plugins: [
+        { id: "p1", name: "Removable", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] },
+        { id: "p2", name: "Togglable", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [] },
+      ],
+    });
+    let resolveToggle!: () => void;
+    const realSetEnabled = port.setPluginEnabled.bind(port);
+    port.setPluginEnabled = (id, patch) => new Promise((resolve) => (resolveToggle = () => resolve(realSetEnabled(id, patch))));
+    let resolveUninstall!: () => void;
+    const realUninstall = port.uninstallPlugin.bind(port);
+    port.uninstallPlugin = (id: string) => new Promise((resolve) => (resolveUninstall = () => resolve(realUninstall(id))));
+
+    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.plugins).toHaveLength(2));
+
+    let toggleCall!: Promise<void>;
+    act(() => {
+      toggleCall = result.current.onToggleEnabled(result.current.plugins![1]!);
+    });
+    await waitFor(() => expect(result.current.rowSavingId).toBe("p2"));
+
+    let removeCall!: Promise<void>;
+    act(() => {
+      removeCall = result.current.onRemovePlugin(result.current.plugins![0]!);
+    });
+    await waitFor(() => expect(result.current.rowSavingId).toBe("p1"));
+
+    await act(async () => {
+      resolveToggle();
+      await toggleCall;
+    });
+
+    expect(result.current.rowSavingId).toBe("p1");
+
+    await act(async () => {
+      resolveUninstall();
+      await removeCall;
+    });
+    expect(result.current.rowSavingId).toBeNull();
+  });
 });
