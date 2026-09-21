@@ -100,6 +100,9 @@ export function useMembers({ port }: MembersDependencies): MembersController {
   // and lets A's failure paint onto B's now-open panel — the same "entity-scoped panel, unkeyed
   // settle" shape `use-roles.hooks.ts`'s `permissionPolicyIdRef` fixes for `loadPermissions`.
   const expandedIdRef = useRef<string | null>(null);
+  // Latest-wins for `onToggleDetail`'s detail loads, a separate instance from `settlement` (which
+  // tracks `load()`'s list reads).
+  const detailSettlement = useSettlementGeneration();
 
   const load = useCallback(() => {
     // Claim this call's generation BEFORE the request starts — see `useSettlementGeneration`'s own
@@ -182,17 +185,22 @@ export function useMembers({ port }: MembersDependencies): MembersController {
     if (detailById[member.id]) return;
 
     setDetailLoadingId(member.id);
+    // Claimed before the `await`, so a later detail load (another row's, or this same row's after
+    // a close and reopen) supersedes this one. The row-id key alone cannot tell two loads of the
+    // SAME row apart.
+    const generation = detailSettlement.next();
     try {
       const result = await port.getMember(member.id);
       setDetailById((current) => ({ ...current, [member.id]: result.member }));
     } catch (e) {
       // Only paint the failure onto the panel this load was actually for — a different row may
-      // already be open by the time this settles.
-      if (expandedIdRef.current === member.id) {
+      // already be open by the time this settles, or a newer load of this row may be running.
+      if (detailSettlement.isCurrent(generation) && expandedIdRef.current === member.id) {
         setDetailError(describeApiError(e, t(locale, "Failed to load member detail."), locale));
       }
     } finally {
-      setDetailLoadingId((current) => (current === member.id ? null : current));
+      // A superseded load leaves the spinner to the load that superseded it.
+      if (detailSettlement.isCurrent(generation)) setDetailLoadingId(null);
     }
   }
 
