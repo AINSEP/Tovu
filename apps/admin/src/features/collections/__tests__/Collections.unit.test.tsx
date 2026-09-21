@@ -528,6 +528,21 @@ describe("EditFieldsDialog", () => {
     expect(dlg.cancel).toHaveBeenCalledTimes(1);
   });
 
+  // The sibling NewContentTypeDialog describe has had this case since 7cd19b4a7; this dialog's
+  // backdrop did not, so `onClick={cancel}` here could be reverted to the raw `onCancel` prop with
+  // every test still green — the dismiss-while-saving guard would be gone on one of the two
+  // dialogs only (verified 2026-09-20: that exact mutant survived the whole file).
+  it("clicking the backdrop calls the dialog's own cancel, but clicking inside the dialog does not", async () => {
+    const user = userEvent.setup();
+    const dlg = editDialogController();
+    editDialogRef.current = dlg;
+    renderCollections({ editingFieldsFor: TYPE });
+    await user.click(screen.getByRole("dialog"));
+    expect(dlg.cancel).not.toHaveBeenCalled();
+    await user.click(document.querySelector(".settings-dialog-backdrop")!);
+    expect(dlg.cancel).toHaveBeenCalledTimes(1);
+  });
+
   it("Cancel is disabled while saving, so a click can't reach the dialog's cancel (H4)", async () => {
     const user = userEvent.setup();
     const dlg = editDialogController({ saving: true });
