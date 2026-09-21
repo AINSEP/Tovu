@@ -545,6 +545,8 @@ export const formDefinitions = pgTable("form_definitions", {
   status: text("status").notNull().default("active"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+  deletedAt: text("deleted_at"),
+  version: bigint("version", { mode: "number" }).notNull().default(1),
 }, (t) => [
     uniqueIndex("form_definitions_workspace_slug_unique").on(t.workspaceId, t.slug),
     index("idx_form_definitions_workspace").on(t.workspaceId),

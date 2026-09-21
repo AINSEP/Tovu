@@ -505,6 +505,18 @@ export const formDefinitions = sqliteTable(
     status: text("status").notNull().default("active"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
+    /**
+     * Owner ruling 2026-09-21 ("forms should be deleted like all the other stuff") supersedes the
+     * original INV-08 "never deleted" carve-out — see `ADS-memory/reports/2026-09-20-trash-delete-
+     * architecture.md` and `features/trash/adapters/form.ts`. The posts model, not a `status` value:
+     * `status` (`active`/`disabled`) has meaning to the user and must survive a restore unchanged.
+     * Nullable and additive — every pre-existing row backfills to live (`NULL`).
+     */
+    deletedAt: text("deleted_at"),
+    /** Optimistic-concurrency counter the Trash's compare-and-set flips (`marker-sql.ts`). Additive
+     *  with `DEFAULT 1`, so the already-running old build's inserts (which do not know this column)
+     *  still satisfy `NOT NULL`. */
+    version: integer("version").notNull().default(1),
   },
   (table) => [
     uniqueIndex("form_definitions_workspace_slug_unique").on(table.workspaceId, table.slug),
@@ -513,8 +525,14 @@ export const formDefinitions = sqliteTable(
 );
 
 /**
- * `form_submissions` (state.spec.md §1.2) — immutable except for permanent delete (REQ-14, INV-08
- * carve-out). FK to `form_definitions.id` per the ADR's Module Boundaries.
+ * `form_submissions` (state.spec.md §1.2) — immutable except for permanent delete (REQ-14). FK to
+ * `form_definitions.id` per the ADR's Module Boundaries.
+ *
+ * Owner ruling 2026-09-21 superseded the original INV-08 ("a form definition is never permanently
+ * deleted"): a definition is now removed permanently only by a Trash purge (a human on the Trash
+ * screen, or the 60-day sweeper), which removes its submissions with it in the same transaction —
+ * see `features/trash/adapters/form.ts`. This table's own REQ-14 carve-out (a single submission can
+ * still be hard-deleted on its own, outside the Trash) is unchanged.
  */
 export const formSubmissions = sqliteTable(
   "form_submissions",
