@@ -1,10 +1,12 @@
 /**
- * @file Spanish dictionary for `Menus.tsx` (list) and `MenuEditor.tsx` (tree editor). Same
- * `DICT[locale]?.[key] ?? key` shape `SettingsUi.tsx`'s own `const t` uses.
+ * @file Spanish dictionary for `Menus.tsx` (list) and `MenuEditor.tsx` (tree editor). `t()` falls
+ * back to `COMMON_I18N` via `createDictionaryTranslator`, same as `trash-i18n.ts`.
  *
  * Out of scope: the native `window.confirm()` prompt `ItemRow`'s Remove button opens for an item
  * with descendants — a browser-chrome dialog, not this app's own styled `ConfirmDialog` surface.
  */
+import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+
 export const MENUS_DICT: Record<string, Record<string, string>> = {
   es: {
     // Menus.tsx
@@ -608,3 +610,11 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ আইটেম যোগ করুন",
   },
 };
+
+/** `MENUS_DICT` had no exported `t` at all before this fix — `use-menus.hooks.ts` and
+ *  `use-menu-editor.hooks.ts` each built their own no-fallback `MENUS_DICT[locale]?.[key] ?? key`
+ *  closure inline, which is why the "Permanently delete menu?" confirm BUTTON ("Delete permanently",
+ *  absent from `MENUS_DICT` in 17 of 21 locales) rendered English almost everywhere.
+ *  `createDictionaryTranslator` falls through to `COMMON_I18N` before the raw English key, same as
+ *  `trash-i18n.ts`. */
+export const t = createDictionaryTranslator(MENUS_DICT);

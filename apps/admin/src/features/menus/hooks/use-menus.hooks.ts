@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { type AdminMenu } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { MENUS_DICT } from "../menus-i18n";
+import { t as translate } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
@@ -114,6 +114,6 @@ export function useMenus({ port, t }: MenusDependencies): MenusController {
  */
 export function useWiredMenus(): MenusController {
   const locale = useAdminLocale();
-  const t = (key: string): string => MENUS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useMenus({ port: defaultMenusPort, t });
 }

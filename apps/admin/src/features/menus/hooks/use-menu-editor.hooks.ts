@@ -3,7 +3,7 @@ import { type AdminMenu, type AdminMenuItem } from "@/lib/api";
 import { navigate as realNavigate } from "@/lib/router";
 import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { MENUS_DICT } from "../menus-i18n";
+import { t as translate } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
@@ -333,6 +333,6 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
  */
 export function useWiredMenuEditor(menuId: string | null): MenuEditorController {
   const locale = useAdminLocale();
-  const t = (key: string): string => MENUS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useMenuEditor(menuId, { port: defaultMenusPort, navigate: realNavigate, t });
 }
