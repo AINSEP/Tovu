@@ -22,32 +22,12 @@ describe("AI_ASSISTANT_DICT: cross-locale key parity", () => {
     expect(locales.slice().sort()).toEqual(EXPECTED_LOCALES.slice().sort());
   });
 
-  /**
-   * Measured, not asserted-away: the 2026-09-?? "Restart assistant" local-CLI controls
-   * (`AiAssistant.tsx`'s restart button + status copy) landed in `es` only — the other 20 locales
-   * never got these 9 keys at all, and none of the 9 are `COMMON_I18N` words (they're feature-specific
-   * sentences, not shared UI chrome), so the COMMON_I18N fallback this fix adds cannot rescue them.
-   * That is a translation-completeness gap, a different bug from the one this fix addresses (see this
-   * file's own header for the flagged-but-out-of-scope note) — excluded here by name so the general
-   * parity check stays meaningful for every other key.
-   */
-  const UNRESCUABLE_ES_ONLY_KEYS = [
-    "Local CLI process",
-    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.",
-    "Restart assistant",
-    "Restarting…",
-    "Restart accepted. This does not confirm the process is healthy yet — check the status below.",
-    "Restart refused: {reason}",
-    "Checking status…",
-    "Known failed — the last attempt to start it did not succeed.",
-    "No known failure right now.",
-    "Check status",
-  ];
-  it("every partially-present key is one COMMON_I18N carries in all 21 locales, except the documented es-only restart-status keys", () => {
+  /** The "Restart assistant" local-CLI controls' 10 keys once shipped in `es` only and were excluded
+   *  here by name; they are now translated in all 21 locales, so no key is exempt from this check. */
+  it("every partially-present key is one COMMON_I18N carries in all 21 locales", () => {
     const allKeys = new Set(locales.flatMap((locale) => Object.keys(AI_ASSISTANT_DICT[locale])));
     const unrescuable: string[] = [];
     for (const key of allKeys) {
-      if (UNRESCUABLE_ES_ONLY_KEYS.includes(key)) continue;
       const missingIn = locales.filter((locale) => AI_ASSISTANT_DICT[locale][key] === undefined);
       if (missingIn.length === 0) continue;
       if (locales.every((locale) => COMMON_I18N[locale]?.[key] !== undefined)) continue;

@@ -4,10 +4,8 @@
  * and the roadmap tab. `t()` falls back to `COMMON_I18N` via `createDictionaryTranslator`, same as
  * `trash-i18n.ts`.
  *
- * Known separate gap, NOT fixed by that fallback (see `__tests__/ai-assistant-i18n.unit.test.ts`'s
- * own header): the "Restart assistant" local-CLI controls' 9 keys landed in `es` only and are not
- * `COMMON_I18N` words, so they still render English in the other 20 locales. Translation-completeness
- * work, out of scope for this fix.
+ * The "Restart assistant" local-CLI controls' 10 keys first landed in `es` only (they are not
+ * `COMMON_I18N` words, so the fallback could not rescue them); they now ship in all 21 locales.
  *
  * "Protocols" / "Gateways" / "Configured" / "Not configured" / "Save" / "Saving…" duplicate values
  * `@jini-ai/ui`'s own `SETTINGS_DIALOG_DICTIONARIES.es` already carries (`AiAssistant.tsx`'s
@@ -131,6 +129,20 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "No implementado",
   },
   id: {
+    // Admin tab — daemon restart
+    "Local CLI process": "Proses CLI lokal",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "Mode CLI Lokal di atas berjalan sebagai prosesnya sendiri di server. Tovu sudah mencobanya ulang secara otomatis setelah crash — gunakan ini hanya jika Anda tidak ingin menunggu.",
+    "Restart assistant": "Mulai ulang asisten",
+    "Restarting…": "Memulai ulang…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "Mulai ulang diterima. Ini belum memastikan prosesnya sehat — periksa status di bawah.",
+    "Restart refused: {reason}": "Mulai ulang ditolak: {reason}",
+    "Checking status…": "Memeriksa status…",
+    "Known failed — the last attempt to start it did not succeed.":
+      "Diketahui gagal — upaya terakhir untuk memulainya tidak berhasil.",
+    "No known failure right now.": "Tidak ada kegagalan yang diketahui saat ini.",
+    "Check status": "Periksa status",
     "Turn the visitor-facing assistant on or off for your public site.":
       "Aktifkan atau nonaktifkan asisten yang menghadap pengunjung untuk situs publik Anda.",
     "Loading AI assistant settings…": "Memuat pengaturan asisten AI…",
@@ -200,6 +212,20 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Belum diterapkan",
   },
   de: {
+    // Admin tab — daemon restart
+    "Local CLI process": "Lokaler CLI-Prozess",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "Der obige Modus „Lokale CLI“ läuft als eigener Prozess auf dem Server. Tovu startet ihn nach einem Absturz bereits automatisch neu — verwenden Sie dies nur, wenn Sie nicht darauf warten möchten.",
+    "Restart assistant": "Assistent neu starten",
+    "Restarting…": "Wird neu gestartet…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "Neustart angenommen. Das bestätigt noch nicht, dass der Prozess fehlerfrei läuft — prüfen Sie den Status unten.",
+    "Restart refused: {reason}": "Neustart abgelehnt: {reason}",
+    "Checking status…": "Status wird geprüft…",
+    "Known failed — the last attempt to start it did not succeed.":
+      "Bekannter Fehler — der letzte Startversuch war nicht erfolgreich.",
+    "No known failure right now.": "Derzeit kein bekannter Fehler.",
+    "Check status": "Status prüfen",
     "Turn the visitor-facing assistant on or off for your public site.":
       "Aktivieren oder deaktivieren Sie den besucherseitigen Assistenten für Ihre öffentliche Website.",
     "Loading AI assistant settings…": "KI-Assistent-Einstellungen werden geladen…",
@@ -269,6 +295,19 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Nicht implementiert",
   },
   "zh-CN": {
+    // Admin tab — daemon restart
+    "Local CLI process": "本地 CLI 进程",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "上面的“本地 CLI”模式在服务器上作为独立进程运行。它崩溃后 Tovu 已会自动重试——仅在您不想等待时才使用此项。",
+    "Restart assistant": "重启助手",
+    "Restarting…": "正在重启…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "已接受重启。这还不能确认进程已正常运行——请查看下方状态。",
+    "Restart refused: {reason}": "重启被拒绝：{reason}",
+    "Checking status…": "正在检查状态…",
+    "Known failed — the last attempt to start it did not succeed.": "已知失败——上次启动尝试未成功。",
+    "No known failure right now.": "目前没有已知故障。",
+    "Check status": "检查状态",
     "Turn the visitor-facing assistant on or off for your public site.":
       "为您的公开网站开启或关闭面向访客的助手。",
     "Loading AI assistant settings…": "正在加载 AI 助手设置…",
@@ -334,6 +373,19 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "尚未实现",
   },
   "zh-TW": {
+    // Admin tab — daemon restart
+    "Local CLI process": "本機 CLI 程序",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "上方的「本機 CLI」模式在伺服器上以獨立程序執行。它當機後 Tovu 已會自動重試——僅在您不想等待時才使用此項。",
+    "Restart assistant": "重新啟動助理",
+    "Restarting…": "正在重新啟動…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "已接受重新啟動。這還無法確認程序已正常運作——請查看下方狀態。",
+    "Restart refused: {reason}": "重新啟動遭拒：{reason}",
+    "Checking status…": "正在檢查狀態…",
+    "Known failed — the last attempt to start it did not succeed.": "已知失敗——上次啟動嘗試未成功。",
+    "No known failure right now.": "目前沒有已知故障。",
+    "Check status": "檢查狀態",
     "Turn the visitor-facing assistant on or off for your public site.":
       "為您的公開網站開啟或關閉面向訪客的助理。",
     "Loading AI assistant settings…": "正在載入 AI 助理設定…",
@@ -399,6 +451,20 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "尚未實作",
   },
   "pt-BR": {
+    // Admin tab — daemon restart
+    "Local CLI process": "Processo da CLI local",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "O modo CLI local acima é executado como um processo próprio no servidor. A Tovu já tenta reiniciá-lo automaticamente após uma falha — use isto apenas se você não quiser esperar por isso.",
+    "Restart assistant": "Reiniciar assistente",
+    "Restarting…": "Reiniciando…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "Reinício aceito. Isso ainda não confirma que o processo está íntegro — verifique o status abaixo.",
+    "Restart refused: {reason}": "Reinício recusado: {reason}",
+    "Checking status…": "Verificando status…",
+    "Known failed — the last attempt to start it did not succeed.":
+      "Falha conhecida — a última tentativa de iniciá-lo não teve sucesso.",
+    "No known failure right now.": "Nenhuma falha conhecida no momento.",
+    "Check status": "Verificar status",
     "Turn the visitor-facing assistant on or off for your public site.":
       "Ative ou desative o assistente voltado para visitantes no seu site público.",
     "Loading AI assistant settings…": "Carregando as configurações do assistente de IA…",
@@ -468,6 +534,20 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Não implementado",
   },
   ru: {
+    // Admin tab — daemon restart
+    "Local CLI process": "Процесс локального CLI",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "Режим «Локальный CLI» выше работает как отдельный процесс на сервере. После сбоя Tovu уже автоматически перезапускает его — используйте это, только если не хотите ждать.",
+    "Restart assistant": "Перезапустить ассистента",
+    "Restarting…": "Перезапуск…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "Перезапуск принят. Это ещё не подтверждает, что процесс работает исправно, — проверьте статус ниже.",
+    "Restart refused: {reason}": "Перезапуск отклонён: {reason}",
+    "Checking status…": "Проверка статуса…",
+    "Known failed — the last attempt to start it did not succeed.":
+      "Известный сбой — последняя попытка запуска не удалась.",
+    "No known failure right now.": "Сейчас известных сбоев нет.",
+    "Check status": "Проверить статус",
     "Turn the visitor-facing assistant on or off for your public site.":
       "Включите или отключите ассистента для посетителей на вашем публичном сайте.",
     "Loading AI assistant settings…": "Загрузка настроек ИИ-ассистента…",
@@ -537,6 +617,20 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Не реализовано",
   },
   fa: {
+    // Admin tab — daemon restart
+    "Local CLI process": "فرایند CLI محلی",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "حالت CLI محلیِ بالا به‌صورت فرایندی جداگانه روی سرور اجرا می‌شود. Tovu پس از هر خرابی خودش به‌طور خودکار دوباره آن را امتحان می‌کند — فقط اگر نمی‌خواهید منتظر آن بمانید از این استفاده کنید.",
+    "Restart assistant": "راه‌اندازی مجدد دستیار",
+    "Restarting…": "در حال راه‌اندازی مجدد…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "راه‌اندازی مجدد پذیرفته شد. این هنوز سالم بودن فرایند را تأیید نمی‌کند — وضعیت را در پایین بررسی کنید.",
+    "Restart refused: {reason}": "راه‌اندازی مجدد رد شد: {reason}",
+    "Checking status…": "در حال بررسی وضعیت…",
+    "Known failed — the last attempt to start it did not succeed.":
+      "خرابی شناخته‌شده — آخرین تلاش برای راه‌اندازی آن موفق نبود.",
+    "No known failure right now.": "در حال حاضر خرابی شناخته‌شده‌ای وجود ندارد.",
+    "Check status": "بررسی وضعیت",
     "Turn the visitor-facing assistant on or off for your public site.":
       "دستیار روبه‌روی بازدیدکننده را برای سایت عمومی خود روشن یا خاموش کنید.",
     "Loading AI assistant settings…": "در حال بارگذاری تنظیمات دستیار هوش مصنوعی…",
@@ -605,6 +699,19 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "پیاده‌سازی نشده",
   },
   ar: {
+    // Admin tab — daemon restart
+    "Local CLI process": "عملية CLI المحلية",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "يعمل وضع CLI المحلي أعلاه كعملية مستقلة على الخادم. يعيد Tovu محاولة تشغيله تلقائيًا بعد أي تعطل — استخدم هذا فقط إذا كنت لا تريد الانتظار.",
+    "Restart assistant": "إعادة تشغيل المساعد",
+    "Restarting…": "جارٍ إعادة التشغيل…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "تم قبول إعادة التشغيل. هذا لا يؤكد بعد أن العملية تعمل بشكل سليم — تحقق من الحالة أدناه.",
+    "Restart refused: {reason}": "رُفضت إعادة التشغيل: {reason}",
+    "Checking status…": "جارٍ التحقق من الحالة…",
+    "Known failed — the last attempt to start it did not succeed.": "فشل معروف — لم تنجح آخر محاولة لتشغيله.",
+    "No known failure right now.": "لا يوجد فشل معروف حاليًا.",
+    "Check status": "التحقق من الحالة",
     "Turn the visitor-facing assistant on or off for your public site.":
       "فعّل أو عطّل المساعد الموجّه للزوار في موقعك العام.",
     "Loading AI assistant settings…": "جارٍ تحميل إعدادات مساعد الذكاء الاصطناعي…",
@@ -673,6 +780,19 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "غير منفَّذ",
   },
   ja: {
+    // Admin tab — daemon restart
+    "Local CLI process": "ローカル CLI プロセス",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "上の「ローカル CLI」モードは、サーバー上で独立したプロセスとして実行されます。クラッシュ後は Tovu が自動的に再試行するため、それを待ちたくない場合にのみ使用してください。",
+    "Restart assistant": "アシスタントを再起動",
+    "Restarting…": "再起動中…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "再起動を受け付けました。まだプロセスが正常であることは確認されていません。下のステータスを確認してください。",
+    "Restart refused: {reason}": "再起動が拒否されました: {reason}",
+    "Checking status…": "ステータスを確認中…",
+    "Known failed — the last attempt to start it did not succeed.": "既知の失敗 — 前回の起動は成功しませんでした。",
+    "No known failure right now.": "現在、既知の失敗はありません。",
+    "Check status": "ステータスを確認",
     "Turn the visitor-facing assistant on or off for your public site.":
       "公開サイトで訪問者向けアシスタントのオン・オフを切り替えます。",
     "Loading AI assistant settings…": "AIアシスタントの設定を読み込み中…",
@@ -740,6 +860,19 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "未実装",
   },
   ko: {
+    // Admin tab — daemon restart
+    "Local CLI process": "로컬 CLI 프로세스",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "위의 로컬 CLI 모드는 서버에서 별도의 프로세스로 실행됩니다. 충돌 후에는 Tovu가 이미 자동으로 다시 시도하므로, 기다리고 싶지 않을 때만 사용하세요.",
+    "Restart assistant": "어시스턴트 다시 시작",
+    "Restarting…": "다시 시작하는 중…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "다시 시작 요청이 수락되었습니다. 아직 프로세스가 정상인지 확인된 것은 아닙니다. 아래 상태를 확인하세요.",
+    "Restart refused: {reason}": "다시 시작 거부됨: {reason}",
+    "Checking status…": "상태 확인 중…",
+    "Known failed — the last attempt to start it did not succeed.": "알려진 실패 — 마지막 시작 시도가 성공하지 못했습니다.",
+    "No known failure right now.": "현재 알려진 실패가 없습니다.",
+    "Check status": "상태 확인",
     "Turn the visitor-facing assistant on or off for your public site.":
       "공개 사이트에서 방문자용 어시스턴트를 켜거나 끕니다.",
     "Loading AI assistant settings…": "AI 어시스턴트 설정을 불러오는 중…",
@@ -807,6 +940,20 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "구현되지 않음",
   },
   pl: {
+    // Admin tab — daemon restart
+    "Local CLI process": "Proces lokalnego CLI",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "Powyższy tryb lokalnego CLI działa na serwerze jako osobny proces. Po awarii Tovu już automatycznie ponawia jego uruchomienie — użyj tego tylko wtedy, gdy nie chcesz na to czekać.",
+    "Restart assistant": "Uruchom ponownie asystenta",
+    "Restarting…": "Ponowne uruchamianie…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "Ponowne uruchomienie przyjęte. To jeszcze nie potwierdza, że proces działa poprawnie — sprawdź stan poniżej.",
+    "Restart refused: {reason}": "Odmowa ponownego uruchomienia: {reason}",
+    "Checking status…": "Sprawdzanie stanu…",
+    "Known failed — the last attempt to start it did not succeed.":
+      "Znana awaria — ostatnia próba uruchomienia nie powiodła się.",
+    "No known failure right now.": "Obecnie brak znanych awarii.",
+    "Check status": "Sprawdź stan",
     "Turn the visitor-facing assistant on or off for your public site.":
       "Włącz lub wyłącz asystenta widocznego dla odwiedzających na Twojej publicznej witrynie.",
     "Loading AI assistant settings…": "Wczytywanie ustawień asystenta AI…",
@@ -874,6 +1021,20 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Niewdrożone",
   },
   hu: {
+    // Admin tab — daemon restart
+    "Local CLI process": "Helyi CLI-folyamat",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "A fenti Helyi CLI mód külön folyamatként fut a szerveren. Összeomlás után a Tovu már automatikusan újrapróbálja — csak akkor használja ezt, ha nem szeretne erre várni.",
+    "Restart assistant": "Asszisztens újraindítása",
+    "Restarting…": "Újraindítás…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "Az újraindítás elfogadva. Ez még nem igazolja, hogy a folyamat rendben működik — ellenőrizze lent az állapotot.",
+    "Restart refused: {reason}": "Újraindítás elutasítva: {reason}",
+    "Checking status…": "Állapot ellenőrzése…",
+    "Known failed — the last attempt to start it did not succeed.":
+      "Ismert hiba — az utolsó indítási kísérlet nem sikerült.",
+    "No known failure right now.": "Jelenleg nincs ismert hiba.",
+    "Check status": "Állapot ellenőrzése",
     "Turn the visitor-facing assistant on or off for your public site.":
       "Kapcsolja be vagy ki a látogatók felé megjelenő asszisztenst a nyilvános webhelyén.",
     "Loading AI assistant settings…": "AI asszisztens beállításainak betöltése…",
@@ -941,6 +1102,20 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Nincs megvalósítva",
   },
   fr: {
+    // Admin tab — daemon restart
+    "Local CLI process": "Processus CLI local",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "Le mode CLI local ci-dessus s’exécute comme un processus distinct sur le serveur. Tovu le relance déjà automatiquement après un plantage — n’utilisez ceci que si vous ne voulez pas attendre.",
+    "Restart assistant": "Redémarrer l’assistant",
+    "Restarting…": "Redémarrage…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "Redémarrage accepté. Cela ne confirme pas encore que le processus fonctionne correctement — vérifiez l’état ci-dessous.",
+    "Restart refused: {reason}": "Redémarrage refusé : {reason}",
+    "Checking status…": "Vérification de l’état…",
+    "Known failed — the last attempt to start it did not succeed.":
+      "Échec connu — la dernière tentative de démarrage n’a pas abouti.",
+    "No known failure right now.": "Aucun échec connu pour le moment.",
+    "Check status": "Vérifier l’état",
     "Turn the visitor-facing assistant on or off for your public site.":
       "Activez ou désactivez l'assistant destiné aux visiteurs sur votre site public.",
     "Loading AI assistant settings…": "Chargement des paramètres de l'assistant IA…",
@@ -1008,6 +1183,19 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Non implémenté",
   },
   uk: {
+    // Admin tab — daemon restart
+    "Local CLI process": "Процес локального CLI",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "Режим «Локальний CLI» вище працює як окремий процес на сервері. Після збою Tovu вже автоматично повторює спробу — використовуйте це, лише якщо не хочете чекати.",
+    "Restart assistant": "Перезапустити асистента",
+    "Restarting…": "Перезапуск…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "Перезапуск прийнято. Це ще не підтверджує, що процес працює справно, — перевірте статус нижче.",
+    "Restart refused: {reason}": "Перезапуск відхилено: {reason}",
+    "Checking status…": "Перевірка статусу…",
+    "Known failed — the last attempt to start it did not succeed.": "Відомий збій — остання спроба запуску не вдалася.",
+    "No known failure right now.": "Наразі відомих збоїв немає.",
+    "Check status": "Перевірити статус",
     "Turn the visitor-facing assistant on or off for your public site.":
       "Увімкніть або вимкніть асистента для відвідувачів на вашому публічному сайті.",
     "Loading AI assistant settings…": "Завантаження налаштувань ШІ-асистента…",
@@ -1075,6 +1263,20 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Не реалізовано",
   },
   tr: {
+    // Admin tab — daemon restart
+    "Local CLI process": "Yerel CLI işlemi",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "Yukarıdaki Yerel CLI modu sunucuda ayrı bir işlem olarak çalışır. Tovu bir çökmeden sonra bunu zaten otomatik olarak yeniden dener — bunu yalnızca beklemek istemiyorsanız kullanın.",
+    "Restart assistant": "Asistanı yeniden başlat",
+    "Restarting…": "Yeniden başlatılıyor…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "Yeniden başlatma kabul edildi. Bu, işlemin sağlıklı olduğunu henüz doğrulamaz — aşağıdaki durumu kontrol edin.",
+    "Restart refused: {reason}": "Yeniden başlatma reddedildi: {reason}",
+    "Checking status…": "Durum kontrol ediliyor…",
+    "Known failed — the last attempt to start it did not succeed.":
+      "Bilinen hata — son başlatma denemesi başarılı olmadı.",
+    "No known failure right now.": "Şu anda bilinen bir hata yok.",
+    "Check status": "Durumu kontrol et",
     "Turn the visitor-facing assistant on or off for your public site.":
       "Herkese açık sitenizde ziyaretçiye yönelik asistanı açın veya kapatın.",
     "Loading AI assistant settings…": "Yapay zeka asistanı ayarları yükleniyor…",
@@ -1142,6 +1344,19 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Uygulanmadı",
   },
   th: {
+    // Admin tab — daemon restart
+    "Local CLI process": "โปรเซส CLI ภายในเครื่อง",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "โหมด CLI ภายในเครื่องด้านบนทำงานเป็นโปรเซสแยกของตัวเองบนเซิร์ฟเวอร์ Tovu จะลองใหม่ให้อัตโนมัติอยู่แล้วหลังจากเกิดข้อขัดข้อง — ใช้ตัวเลือกนี้เฉพาะเมื่อคุณไม่ต้องการรอเท่านั้น",
+    "Restart assistant": "รีสตาร์ทผู้ช่วย",
+    "Restarting…": "กำลังรีสตาร์ท…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "ยอมรับการรีสตาร์ทแล้ว แต่ยังไม่ได้ยืนยันว่าโปรเซสทำงานปกติ — ตรวจสอบสถานะด้านล่าง",
+    "Restart refused: {reason}": "การรีสตาร์ทถูกปฏิเสธ: {reason}",
+    "Checking status…": "กำลังตรวจสอบสถานะ…",
+    "Known failed — the last attempt to start it did not succeed.": "ทราบว่าล้มเหลว — การเริ่มครั้งล่าสุดไม่สำเร็จ",
+    "No known failure right now.": "ขณะนี้ไม่มีความล้มเหลวที่ทราบ",
+    "Check status": "ตรวจสอบสถานะ",
     "Turn the visitor-facing assistant on or off for your public site.":
       "เปิดหรือปิดผู้ช่วยสำหรับผู้เยี่ยมชมบนเว็บไซต์สาธารณะของคุณ",
     "Loading AI assistant settings…": "กำลังโหลดการตั้งค่าผู้ช่วย AI…",
@@ -1209,6 +1424,20 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "ยังไม่ได้ใช้งาน",
   },
   it: {
+    // Admin tab — daemon restart
+    "Local CLI process": "Processo CLI locale",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "La modalità CLI locale qui sopra viene eseguita come processo separato sul server. Tovu la riprova già automaticamente dopo un arresto anomalo: usa questa opzione solo se non vuoi aspettare.",
+    "Restart assistant": "Riavvia assistente",
+    "Restarting…": "Riavvio in corso…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "Riavvio accettato. Questo non conferma ancora che il processo funzioni correttamente: controlla lo stato qui sotto.",
+    "Restart refused: {reason}": "Riavvio rifiutato: {reason}",
+    "Checking status…": "Verifica dello stato…",
+    "Known failed — the last attempt to start it did not succeed.":
+      "Errore noto: l’ultimo tentativo di avvio non è riuscito.",
+    "No known failure right now.": "Nessun errore noto al momento.",
+    "Check status": "Verifica stato",
     "Turn the visitor-facing assistant on or off for your public site.":
       "Attiva o disattiva l'assistente rivolto ai visitatori per il tuo sito pubblico.",
     "Loading AI assistant settings…": "Caricamento delle impostazioni dell'assistente IA…",
@@ -1276,6 +1505,20 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Non implementato",
   },
   hi: {
+    // Admin tab — daemon restart
+    "Local CLI process": "लोकल CLI प्रोसेस",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "ऊपर वाला लोकल CLI मोड सर्वर पर अपनी अलग प्रोसेस के रूप में चलता है। क्रैश के बाद Tovu इसे पहले से ही अपने आप फिर से आज़माता है — इसका उपयोग सिर्फ़ तभी करें जब आप उसका इंतज़ार नहीं करना चाहते।",
+    "Restart assistant": "असिस्टेंट रीस्टार्ट करें",
+    "Restarting…": "रीस्टार्ट हो रहा है…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "रीस्टार्ट स्वीकार किया गया। इससे अभी यह पुष्टि नहीं होती कि प्रोसेस ठीक चल रही है — नीचे स्थिति देखें।",
+    "Restart refused: {reason}": "रीस्टार्ट अस्वीकार किया गया: {reason}",
+    "Checking status…": "स्थिति जाँची जा रही है…",
+    "Known failed — the last attempt to start it did not succeed.":
+      "ज्ञात विफलता — इसे शुरू करने का पिछला प्रयास सफल नहीं हुआ।",
+    "No known failure right now.": "अभी कोई ज्ञात विफलता नहीं है।",
+    "Check status": "स्थिति जाँचें",
     "Turn the visitor-facing assistant on or off for your public site.":
       "अपनी सार्वजनिक साइट पर विज़िटर के सामने आने वाले सहायक को चालू या बंद करें।",
     "Loading AI assistant settings…": "एआई सहायक की सेटिंग्स लोड हो रही हैं…",
@@ -1345,6 +1588,20 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "लागू नहीं किया गया",
   },
   ur: {
+    // Admin tab — daemon restart
+    "Local CLI process": "مقامی CLI پروسیس",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "اوپر والا مقامی CLI موڈ سرور پر اپنے الگ پروسیس کے طور پر چلتا ہے۔ کریش کے بعد Tovu پہلے ہی اسے خود بخود دوبارہ آزماتا ہے — اسے صرف تب استعمال کریں جب آپ اس کا انتظار نہ کرنا چاہیں۔",
+    "Restart assistant": "اسسٹنٹ دوبارہ شروع کریں",
+    "Restarting…": "دوبارہ شروع ہو رہا ہے…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "دوبارہ شروع کرنا قبول ہو گیا۔ اس سے ابھی یہ تصدیق نہیں ہوتی کہ پروسیس ٹھیک چل رہا ہے — نیچے اسٹیٹس دیکھیں۔",
+    "Restart refused: {reason}": "دوبارہ شروع کرنا مسترد: {reason}",
+    "Checking status…": "اسٹیٹس چیک ہو رہا ہے…",
+    "Known failed — the last attempt to start it did not succeed.":
+      "معلوم ناکامی — اسے شروع کرنے کی پچھلی کوشش کامیاب نہیں ہوئی۔",
+    "No known failure right now.": "اس وقت کوئی معلوم ناکامی نہیں۔",
+    "Check status": "اسٹیٹس چیک کریں",
     "Turn the visitor-facing assistant on or off for your public site.":
       "اپنی عوامی سائٹ کے لیے وزیٹر کو نظر آنے والے اسسٹنٹ کو آن یا آف کریں۔",
     "Loading AI assistant settings…": "AI اسسٹنٹ کی ترتیبات لوڈ ہو رہی ہیں…",
@@ -1414,6 +1671,20 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "نافذ نہیں کیا گیا",
   },
   bn: {
+    // Admin tab — daemon restart
+    "Local CLI process": "লোকাল CLI প্রসেস",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "উপরের লোকাল CLI মোডটি সার্ভারে নিজস্ব আলাদা প্রসেস হিসেবে চলে। ক্র্যাশের পর Tovu ইতিমধ্যেই স্বয়ংক্রিয়ভাবে আবার চেষ্টা করে — শুধু তখনই এটি ব্যবহার করুন যখন আপনি সেটির জন্য অপেক্ষা করতে চান না।",
+    "Restart assistant": "সহকারী রিস্টার্ট করুন",
+    "Restarting…": "রিস্টার্ট হচ্ছে…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "রিস্টার্ট গৃহীত হয়েছে। এতে এখনও নিশ্চিত হয় না যে প্রসেসটি ঠিকভাবে চলছে — নিচে স্ট্যাটাস দেখুন।",
+    "Restart refused: {reason}": "রিস্টার্ট প্রত্যাখ্যাত: {reason}",
+    "Checking status…": "স্ট্যাটাস যাচাই করা হচ্ছে…",
+    "Known failed — the last attempt to start it did not succeed.":
+      "জানা ব্যর্থতা — এটি চালু করার শেষ চেষ্টা সফল হয়নি।",
+    "No known failure right now.": "এই মুহূর্তে কোনো জানা ব্যর্থতা নেই।",
+    "Check status": "স্ট্যাটাস যাচাই করুন",
     "Turn the visitor-facing assistant on or off for your public site.":
       "আপনার পাবলিক সাইটের জন্য ভিজিটরমুখী সহকারী চালু বা বন্ধ করুন।",
     "Loading AI assistant settings…": "এআই সহকারীর সেটিংস লোড হচ্ছে…",
