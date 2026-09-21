@@ -924,6 +924,50 @@ describe("useAdminExecutionCredential — the three writes to the one credential
     expect(server.maxInFlight()).toBe(1);
   });
 
+  it("a Save settings pressed while a migration is in flight never wipes the migrated key, even when the migration lands first", async () => {
+    // The key-loss interleaving: unserialized, the settings PUT reads the row BEFORE the migration's
+    // upsert (no key yet) and commits AFTER it, so its whole-row upsert writes the key back to empty
+    // — while the migration has already deleted the browser's only copy from localStorage.
+    window.localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ apiKey: "sk-legacy" }));
+    const server = readMergeUpsertServer({
+      protocol: "anthropic",
+      providerId: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      model: "model-a",
+      apiKey: "",
+    });
+    const { result, rerender } = renderHook(
+      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ byok: b, onByokChange: vi.fn() }, server.port),
+      { initialProps: { b: byok({ model: "model-a" }) } },
+    );
+    await waitFor(() => expect(result.current.legacyKey).toBe("sk-legacy"));
+
+    act(() => {
+      void result.current.migrateLegacyKey();
+    });
+    rerender({ b: byok({ protocol: "openai", providerId: "openai", baseUrl: "https://api.openai.com", model: "model-b" }) });
+    act(() => {
+      void result.current.saveSettings();
+    });
+
+    // Release OLDEST arrival first — the migration lands before the settings write.
+    for (let i = 0; i < 2; i += 1) {
+      await waitFor(() => expect(server.pending.length).toBeGreaterThan(0));
+      server.pending.shift()!();
+    }
+
+    await waitFor(() => expect(result.current.settingsSaveState.status).toBe("saved"));
+
+    expect(server.row()).toEqual({
+      apiKey: "sk-legacy",
+      protocol: "openai",
+      providerId: "openai",
+      baseUrl: "https://api.openai.com",
+      model: "model-b",
+    });
+    expect(window.localStorage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
+  });
+
   it("Save key and Save settings pressed back to back keep both", async () => {
     const server = readMergeUpsertServer({
       protocol: "anthropic",
