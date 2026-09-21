@@ -111,7 +111,7 @@ async function seedComment(routeDeps: RouteDeps, overrides: Record<string, unkno
     version: 3,
     ...overrides,
   };
-  await routeDeps.commentRepo.save(row as never);
+  await routeDeps.commentRepo.create(row as never);
   return row;
 }
 
