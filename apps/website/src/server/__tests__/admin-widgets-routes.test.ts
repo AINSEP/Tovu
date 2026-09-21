@@ -533,7 +533,9 @@ test("admin widgets embeds: a principal holding widgets.place but NOT content.wr
   });
   assert.equal(res.status, 403, await res.clone().text());
   const body = (await res.json()) as { code: string; details: { permission: string } };
-  assert.equal(body.code, "FORBIDDEN");
+  // d376d5b16 (2026-09-16) converged the widget forbidden-error HTTP code onto "WIDGETS_FORBIDDEN"
+  // for parity with the model-facing side and every other widgets error class.
+  assert.equal(body.code, "WIDGETS_FORBIDDEN");
   assert.equal(body.details.permission, "content.write");
 
   const after = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
@@ -1067,7 +1069,9 @@ test("admin widgets agent tools: widgets.remove denied 403 FORBIDDEN without wid
   });
   assert.equal(denied.status, 403);
   const deniedBody = (await denied.json()) as { code: string; details: { permission: string } };
-  assert.equal(deniedBody.code, "FORBIDDEN");
+  // d376d5b16 (2026-09-16) converged the widget forbidden-error HTTP code onto "WIDGETS_FORBIDDEN"
+  // for parity with the model-facing side and every other widgets error class.
+  assert.equal(deniedBody.code, "WIDGETS_FORBIDDEN");
   assert.equal(deniedBody.details.permission, "widgets.place");
 
   // The denied attempt left the placement untouched.
