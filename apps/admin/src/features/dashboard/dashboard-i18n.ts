@@ -1,14 +1,16 @@
 /**
  * @file Spanish dictionary for `Dashboard.tsx` — the admin landing screen's own chrome (header,
- * stat card labels, activity/appearance panels). Same `DICT[locale]?.[key] ?? key` shape
- * `SettingsUi.tsx`'s own `const t` uses.
+ * stat card labels, activity/appearance panels). `t()` falls back to `COMMON_I18N` via
+ * `createDictionaryTranslator`, same as `trash-i18n.ts`.
  *
  * Deliberately does NOT cover `rules.ts`'s `postsStatMeta`/`pagesStatMeta`/`commentsStatMeta` —
  * pure, independently-tested helpers (`rules.unit.test.ts` asserts their exact English return
  * values with no locale parameter), same boundary applied to every other feature's loading/error
  * guard functions and `widgetTypeLabel`. Their stat-card meta lines ("5 published", "1 draft", …)
- * stay English for now.
+ * stay English for now (owner decision — not in scope for the S-I18N fallback fix either).
  */
+import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+
 export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
   es: {
     Overview: "Resumen",
@@ -583,11 +585,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-/** Same two-step fallback every other `t()` in this app uses: translated value, else the English
- *  source string itself — never a raw dictionary-miss placeholder. Exported so
- *  `use-dashboard.hooks.ts` (which has no JSX and builds its own `t` closure the way
- *  `Dashboard.tsx` does) can call it directly instead of duplicating the
- *  `DASHBOARD_DICT[locale]?.[key] ?? key` lookup. */
-export function t(locale: string, key: string): string {
-  return DASHBOARD_DICT[locale]?.[key] ?? key;
-}
+/** `DASHBOARD_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via
+ *  `createDictionaryTranslator` (same fallback `trash-i18n.ts` uses) — a shared word this dict
+ *  doesn't carry for a locale still renders translated instead of falling straight to English.
+ *  Exported so `use-dashboard.hooks.ts` (which has no JSX and builds its own `t` closure the way
+ *  `Dashboard.tsx` does) can call it directly instead of duplicating the lookup. */
+export const t = createDictionaryTranslator(DASHBOARD_DICT);
