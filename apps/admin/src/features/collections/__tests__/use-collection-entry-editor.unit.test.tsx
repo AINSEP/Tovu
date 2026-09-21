@@ -321,19 +321,27 @@ describe("toggleLifecycle", () => {
     expect(fetchMock.mock.calls.length).toBe(callsBefore);
   });
 
-  it("POSTs { op, expectedVersion } to /entries/{id}/lifecycle and sets entry + op-specific message", async () => {
+  it("publish PUTs the current edits to /entries/{id} first, then POSTs { op, expectedVersion } to /entries/{id}/lifecycle with the SAVE's new version", async () => {
     const view = await mountLoaded({ entryId: "e1", entries: [ENTRY] });
-    fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY, status: "published", version: 3 } }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY, version: 3 } })); // the save (PUT)
+    fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY, status: "published", version: 4 } })); // the lifecycle call
 
     await act(async () => {
       await view.result.current.toggleLifecycle("publish");
     });
 
-    const call = fetchMock.mock.calls.at(-1)!;
-    expect(String(call[0])).toContain("/entries/e1/lifecycle");
-    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({ op: "publish", expectedVersion: 2 });
+    const calls = fetchMock.mock.calls;
+    const saveCall = calls.at(-2)!;
+    expect(String(saveCall[0])).toContain("/entries/e1");
+    expect(String(saveCall[0])).not.toContain("/lifecycle");
+    expect((saveCall[1] as RequestInit).method).toBe("PUT");
+    expect(JSON.parse(String((saveCall[1] as RequestInit).body)).expectedVersion).toBe(2);
+
+    const lifecycleCall = calls.at(-1)!;
+    expect(String(lifecycleCall[0])).toContain("/entries/e1/lifecycle");
+    expect(JSON.parse(String((lifecycleCall[1] as RequestInit).body))).toEqual({ op: "publish", expectedVersion: 3 });
     expect(view.result.current.entry?.status).toBe("published");
-    expect(view.result.current.message).toBe("Entry published · version 3");
+    expect(view.result.current.message).toBe("Entry published · version 4");
   });
 
   it("uses the 'unpublish' verb in its message for the unpublish op", async () => {
@@ -348,9 +356,10 @@ describe("toggleLifecycle", () => {
     expect(view.result.current.message).toBe("Entry unpublished · version 3");
   });
 
-  it("on failure, sets an op-specific fallback error", async () => {
+  it("on failure, sets an op-specific fallback error (after the save succeeds)", async () => {
     const view = await mountLoaded({ entryId: "e1", entries: [ENTRY] });
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY, version: 3 } })); // the save (PUT) succeeds
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500)); // the lifecycle call fails
 
     await act(async () => {
       await view.result.current.toggleLifecycle("publish");
@@ -361,13 +370,15 @@ describe("toggleLifecycle", () => {
 
   it("clears a prior message/error when re-invoked", async () => {
     const view = await mountLoaded({ entryId: "e1", entries: [ENTRY] });
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY, version: 3 } })); // the save (PUT) succeeds
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500)); // the lifecycle call fails
     await act(async () => {
       await view.result.current.toggleLifecycle("publish");
     });
     expect(view.result.current.error).not.toBeNull();
 
-    fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY, status: "published", version: 3 } }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY, version: 4 } })); // the retry's save (PUT) succeeds
+    fetchMock.mockResolvedValueOnce(jsonResponse({ entry: { ...ENTRY, status: "published", version: 5 } }));
     await act(async () => {
       await view.result.current.toggleLifecycle("publish");
     });
@@ -458,9 +469,94 @@ describe("injected port (useWiredX conversion coverage)", () => {
       await result.current.toggleLifecycle("publish");
     });
 
+    // Publish now saves first (H2), so the fake port's `updateEntry` bumps the version once, then
+    // `entryLifecycle` bumps it again — version + 2, not + 1.
     expect(port.entries[0]!.status).toBe("published");
     expect(result.current.entry?.status).toBe("published");
-    expect(result.current.message).toBe(`Entry published · version ${ENTRY.version + 1}`);
+    expect(result.current.message).toBe(`Entry published · version ${ENTRY.version + 2}`);
+  });
+
+  it("Publish saves the edited title/body before publishing", async () => {
+    const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
+    const { result } = renderHook(() =>
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
+    , { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    act(() => result.current.setTitle("Edited title"));
+    await act(async () => {
+      await result.current.toggleLifecycle("publish");
+    });
+
+    expect(port.entries[0]!.title).toBe("Edited title");
+    expect(result.current.entry?.status).toBe("published");
+    expect(result.current.message).toBe(`Entry published · version ${ENTRY.version + 2}`);
+  });
+
+  it("a failed save during Publish does not publish", async () => {
+    const port = createFakeCollectionEntryEditorPort({
+      types: [RECIPE_TYPE],
+      entries: [ENTRY],
+      saveError: new Error("save exploded"),
+    });
+    const { result } = renderHook(() =>
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
+    , { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    await act(async () => {
+      await result.current.toggleLifecycle("publish");
+    });
+
+    expect(port.entries[0]!.status).toBe("draft");
+    expect(result.current.error).toBe("save exploded");
+  });
+});
+
+describe("M2 — an invalid json field refuses to save instead of saving the old value", () => {
+  it("refuses to save while a json field is invalid, then saves once it's fixed", async () => {
+    const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
+    const { result } = renderHook(() =>
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
+    , { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    act(() => result.current.setFieldValidity("meta", false));
+    act(() => result.current.setTitle("X"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    // No write happened — the fake port's title is untouched — and Save's own "Saved" message
+    // never got set.
+    expect(port.entries[0]!.title).toBe("My Recipe");
+    expect(result.current.error).toBe("Fix the invalid JSON before saving.");
+    expect(result.current.message).toBeNull();
+
+    act(() => result.current.setFieldValidity("meta", true));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(port.entries[0]!.title).toBe("X");
+    expect(result.current.error).toBeNull();
+    expect(result.current.message).toBe(`Saved · version ${ENTRY.version + 1}`);
+  });
+
+  it("refuses to Publish (its save leg) while a json field is invalid", async () => {
+    const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
+    const { result } = renderHook(() =>
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
+    , { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    act(() => result.current.setFieldValidity("meta", false));
+    await act(async () => {
+      await result.current.toggleLifecycle("publish");
+    });
+
+    expect(port.entries[0]!.status).toBe("draft");
+    expect(result.current.error).toBe("Fix the invalid JSON before saving.");
   });
 });
 

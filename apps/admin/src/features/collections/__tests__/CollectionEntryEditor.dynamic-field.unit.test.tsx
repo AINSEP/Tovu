@@ -96,9 +96,11 @@ function editorController(overrides: Partial<CollectionEntryEditorController> = 
     loadError: null,
     loaded: true,
     saving: false,
+    busy: false,
     editor: null,
     save: vi.fn(async () => {}),
     toggleLifecycle: vi.fn(async () => {}),
+    setFieldValidity: vi.fn(),
     // Identity `t` — matches what the pre-`useWiredX` component got from a real, unmocked
     // `useAdminLocale()` call in this render-only test (defaults to "en", and `COLLECTIONS_DICT`
     // has no "en" entries, so every lookup already fell through to `?? key`), so every existing
@@ -244,8 +246,16 @@ describe("Save button", () => {
   });
 
   it("shows 'Saving…' and disables while saving", () => {
-    renderEditor({ saving: true });
+    // `saving` implies `busy` in the real hook (`busy = saving || lifecycleMutation.pending`) — the
+    // fake controller's two fields are independent, so both are set here to match.
+    renderEditor({ saving: true, busy: true });
     expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+  });
+
+  it("disables Publish/Save while busy (H2: Publish now saves first, so a lifecycle-only pending state must also disable)", () => {
+    renderEditor({ entry: { ...ENTRY, status: "draft" }, busy: true });
+    expect(screen.getByRole("button", { name: "Publish" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
   it("clicking Save calls save()", async () => {
@@ -480,6 +490,20 @@ describe("DynamicField — one control per ContentTypeFieldDef.kind", () => {
     expect(control).toHaveAttribute("aria-invalid", "false");
     fireEvent.change(control, { target: { value: "{not valid json" } });
     expect(control).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("json: typing invalid text calls controller.setFieldValidity(fieldName, false) (M2)", () => {
+    const setFieldValidity = vi.fn();
+    renderEditor({ contentType: { ...CONTENT_TYPE, fields: [FIELD_JSON] }, extFields: { meta: { count: 1 } }, setFieldValidity });
+    fireEvent.change(screen.getByLabelText("meta"), { target: { value: "{not valid json" } });
+    expect(setFieldValidity).toHaveBeenCalledWith("meta", false);
+  });
+
+  it("json: typing valid text calls controller.setFieldValidity(fieldName, true) (M2)", () => {
+    const setFieldValidity = vi.fn();
+    renderEditor({ contentType: { ...CONTENT_TYPE, fields: [FIELD_JSON] }, extFields: {}, setFieldValidity });
+    fireEvent.change(screen.getByLabelText("meta"), { target: { value: '{"tags":["x"],"count":1}' } });
+    expect(setFieldValidity).toHaveBeenCalledWith("meta", true);
   });
 });
 

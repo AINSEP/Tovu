@@ -108,9 +108,11 @@ describe("injected hook seam (useCollectionEntryEditorHook)", () => {
       loadError: null,
       loaded: true,
       saving: false,
+      busy: false,
       editor: null,
       save: vi.fn(async () => {}),
       toggleLifecycle: vi.fn(async () => {}),
+      setFieldValidity: vi.fn(),
       t: (key) => key,
     };
     render(

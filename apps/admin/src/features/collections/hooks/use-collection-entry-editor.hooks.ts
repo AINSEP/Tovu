@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import {
@@ -75,9 +75,18 @@ export interface CollectionEntryEditorController {
   loadError: string | null;
   loaded: boolean;
   saving: boolean;
+  /** True while `save()` OR a lifecycle toggle is in flight — unlike `saving` (Save's own label),
+   *  this also covers `toggleLifecycle`'s standalone lifecycle write (Unpublish, and Publish's own
+   *  lifecycle leg once its save leg has landed — see H2's `publishWithSave`). Drives `disabled` on
+   *  Publish/Unpublish/Save so a second click can't race an in-flight write on the same entry. */
+  busy: boolean;
   editor: Editor | null;
   save: () => Promise<void>;
   toggleLifecycle: (op: "publish" | "unpublish") => Promise<void>;
+  /** M2: a `json`-kind dynamic field control reports its own parse validity here on every change
+   *  (and clears it to valid on unmount) — see `use-json-field-control.hooks.ts`. `save()`/
+   *  Publish refuse to write while any field is reporting invalid. */
+  setFieldValidity: (fieldName: string, valid: boolean) => void;
   /** Bound translator — `CollectionEntryEditor.tsx`'s only source of UI copy; see this file's own
    *  header. */
   t: (key: string) => string;
@@ -108,6 +117,32 @@ export function useCollectionEntryEditor(
   // both create/update), publish/unpublish share one mutation object with no other way to recover
   // which op a given failure was for.
   const [lastLifecycleOp, setLastLifecycleOp] = useState<"publish" | "unpublish" | null>(null);
+  // M2: which `json`-kind dynamic fields currently hold unparseable text — see
+  // `use-json-field-control.hooks.ts`'s own header. `save()`/`publishWithSave()` refuse to write
+  // while this is non-empty, rather than silently sending the last value that DID parse under a
+  // "Saved" message (the bug: an entry could show "Saved · version N" for text that was never
+  // stored).
+  const [invalidFields, setInvalidFields] = useState<ReadonlySet<string>>(new Set());
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  /**
+   * Stable setter passed down to every dynamic field control (`setFieldValidity` on the
+   * controller) — `useCallback` with a functional update, so a field re-reporting the SAME
+   * validity it already had returns the identical `Set` instance rather than a new one, keeping
+   * `invalidFields` referentially stable across renders that don't actually change it.
+   *
+   * @complexity Time/space: O(1) amortized — a `Set` copy only on an actual validity flip.
+   */
+  const setFieldValidity = useCallback((fieldName: string, valid: boolean) => {
+    setInvalidFields((current) => {
+      const currentlyInvalid = current.has(fieldName);
+      if (valid === !currentlyInvalid) return current;
+      const next = new Set(current);
+      if (valid) next.delete(fieldName);
+      else next.add(fieldName);
+      return next;
+    });
+  }, []);
 
   const editor = useEditor({ extensions: [StarterKit, WidgetEmbed], content: "" });
 
@@ -179,26 +214,43 @@ export function useCollectionEntryEditor(
     invalidates: [KEYS.entries(props.contentTypeKey)],
   });
 
+  /**
+   * Writes the existing entry's current working copy (title/fields/body) through `updateMutation`
+   * and mirrors the saved row into `entry` — the one place that write happens, shared by `save()`
+   * and H2's `publishWithSave()` (Publish must save the working copy before it publishes it; see
+   * this file's own module header / the H2 fix notes for why the two were unified rather than
+   * publish going straight to `lifecycleMutation` against the stale, already-loaded `entry.version`).
+   *
+   * @complexity Time/space: O(1) — one mutation call, one state write.
+   */
+  async function saveExisting(current: AdminEntry): Promise<AdminEntry> {
+    const { entry: saved } = await updateMutation.mutate({
+      target: { id: current.id, expectedVersion: current.version },
+      // `bodyJson` was omitted here while the create branch below sent it, so editing an existing
+      // entry's rich text reported "Saved · version N" and left the stored body untouched. Silent
+      // data loss on the primary content surface; `PostEditor` has always done this correctly.
+      patch: { title, fieldsJson: { ext: { site: extFields } }, bodyJson: editor?.getJSON() },
+    });
+    setEntry(saved);
+    return saved;
+  }
+
   async function save() {
     if (!contentType || !editor) return;
     setMessage(null);
+    setValidationError(null);
+    if (invalidFields.size > 0) {
+      setValidationError(translate(locale, "Fix the invalid JSON before saving."));
+      return;
+    }
     try {
-      const fieldsJson = { ext: { site: extFields } };
       if (entry) {
-        const { entry: saved } = await updateMutation.mutate({
-          target: { id: entry.id, expectedVersion: entry.version },
-          // `bodyJson` was omitted here while the create branch below sent it,
-          // so editing an existing entry's rich text reported "Saved · version N"
-          // and left the stored body untouched. Silent data loss on the primary
-          // content surface; `PostEditor` has always done this correctly.
-          patch: { title, fieldsJson, bodyJson: editor.getJSON() },
-        });
-        setEntry(saved);
+        const saved = await saveExisting(entry);
         setMessage(`Saved · version ${saved.version}`);
       } else {
         const { entry: created } = await createMutation.mutate({
           input: { type: props.contentTypeKey, slug: slug.trim(), title },
-          options: { fieldsJson, bodyJson: editor.getJSON() },
+          options: { fieldsJson: { ext: { site: extFields } }, bodyJson: editor.getJSON() },
         });
         setEntry(created);
         setMessage(`Created · version ${created.version}`);
@@ -209,8 +261,51 @@ export function useCollectionEntryEditor(
     }
   }
 
+  /**
+   * H2 fix: Publish was wired straight to `lifecycleMutation`, so it published whatever was last
+   * SAVED, silently dropping any edit made since — the button's own label claims it saves "its
+   * current title, fields and body". This saves the working copy first (through `saveExisting`,
+   * shared with `save()`) and only publishes once that save lands, against the SAVE's own new
+   * version rather than the stale `entry.version` a same-tick save+publish would otherwise race.
+   * A save failure stops here (its own error already surfaces via `updateMutation.error`) and
+   * leaves the entry unpublished — the safe direction, per the plan's own fix note.
+   *
+   * @complexity Time/space: O(1) — at most two sequential mutation calls.
+   */
+  async function publishWithSave(current: AdminEntry) {
+    if (!editor) return;
+    setMessage(null);
+    setValidationError(null);
+    if (invalidFields.size > 0) {
+      setValidationError(translate(locale, "Fix the invalid JSON before saving."));
+      return;
+    }
+    setLastLifecycleOp("publish");
+    let saved: AdminEntry;
+    try {
+      saved = await saveExisting(current);
+    } catch {
+      return; // already surfaced through updateMutation.error -> error below
+    }
+    try {
+      const { entry: published } = await lifecycleMutation.mutate({
+        id: saved.id,
+        op: "publish",
+        expectedVersion: saved.version,
+      });
+      setEntry(published);
+      setMessage(`Entry published · version ${published.version}`);
+    } catch {
+      // already surfaced through lifecycleMutation.error -> error below
+    }
+  }
+
   async function toggleLifecycle(op: "publish" | "unpublish") {
     if (!entry) return;
+    if (op === "publish") {
+      await publishWithSave(entry);
+      return;
+    }
     setLastLifecycleOp(op);
     try {
       const { entry: saved } = await lifecycleMutation.mutate({ id: entry.id, op, expectedVersion: entry.version });
@@ -222,10 +317,16 @@ export function useCollectionEntryEditor(
   }
 
   const saving = updateMutation.status === "pending" || createMutation.status === "pending";
+  // Publish now folds a save into its lifecycle write (H2), so a second click must be blocked for
+  // BOTH legs, not just the save leg `saving` alone would cover.
+  const busy = saving || lifecycleMutation.status === "pending";
   // Precedence logic lives in `rules.ts`'s `visibleEntryEditorError` — extracted out of this hook
   // (not just for the usual "computes a value" reason, but because the branching here pushed the
-  // hook's own complexity over ESLint's ceiling).
-  const error = visibleEntryEditorError({
+  // hook's own complexity over ESLint's ceiling). `validationError` (M2) takes precedence over it,
+  // mirroring `use-new-content-type-dialog`'s own local-validation-first ordering: an unparseable
+  // JSON field blocks the write entirely, so its message should win over a stale mutation error
+  // from a previous attempt.
+  const error = validationError ?? visibleEntryEditorError({
     updateError: updateMutation.error,
     createError: createMutation.error,
     lifecycleError: lifecycleMutation.error,
@@ -248,9 +349,11 @@ export function useCollectionEntryEditor(
     loadError,
     loaded,
     saving,
+    busy,
     editor,
     save,
     toggleLifecycle,
+    setFieldValidity,
     t,
   };
 }
