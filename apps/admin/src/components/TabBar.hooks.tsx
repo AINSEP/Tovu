@@ -96,6 +96,8 @@ export interface TabBarKeyboardHandlers {
 /**
  * Wires {@link resolveTabBarKeyTarget} into a tablist's `onKeyDown`: on a nav key, changes the
  * active tab and moves DOM focus to the new tab button, so focus and selection never drift apart.
+ * Keydowns that did not originate inside a `[role="tab"]` are ignored, so a non-tab control hosted
+ * in the same tablist keeps its own arrow/Home/End keys.
  *
  * @param tabs - The tab row in DOM order.
  * @param activeId - The currently active tab's id.
@@ -105,6 +107,12 @@ export interface TabBarKeyboardHandlers {
  */
 export function useTabBarKeyboard(tabs: readonly TabBarTab[], activeId: string, onChange: (id: string) => void): TabBarKeyboardHandlers {
   function onKeyDown(e: ReactKeyboardEvent<HTMLDivElement>): void {
+    // A tablist may legitimately hold a control that is NOT a tab — `AccessTokensTab.tsx`'s
+    // "+ Add custom provider" button sits inside its `role="tablist"` div and is Tab-reachable.
+    // React's onKeyDown here fires for keydowns anywhere in the subtree, so without this origin
+    // check an arrow press on that button would change the selection and pull focus onto a tab,
+    // silently moving the operator off the control they were standing on.
+    if (!(e.target instanceof Element) || !e.target.closest('[role="tab"]')) return;
     const target = resolveTabBarKeyTarget(tabs, activeId, e.key);
     if (target === null) return;
     e.preventDefault();

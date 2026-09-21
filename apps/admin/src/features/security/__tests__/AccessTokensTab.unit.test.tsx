@@ -135,4 +135,28 @@ describe("AccessTokensTab category filter keyboard (WAI-ARIA tabs)", () => {
     expect(screen.getByRole("tab", { name: "All" })).toHaveAttribute("tabindex", "-1");
     expect(screen.getByRole("button", { name: "+ Add custom provider" })).not.toHaveAttribute("tabindex");
   });
+
+  /** The "+ Add custom provider" button is a real, Tab-reachable control that lives INSIDE this
+   *  `role="tablist"` div. A keydown on it bubbles to the tablist's own `onKeyDown`, so without an
+   *  origin check the tabs handler would answer arrow keys pressed on a button that is not a tab:
+   *  it would silently change the category filter and yank focus off the button the operator was
+   *  standing on. Only the keys the tabs pattern owns are affected, which is exactly why this is
+   *  invisible until someone Tabs to that button and presses an arrow. */
+  it("ignores an arrow key pressed on the non-tab Add custom provider button inside the tablist", async () => {
+    const user = userEvent.setup();
+    const setCategory = vi.fn();
+    render(
+      <AccessTokensTab
+        useAccessTokensHook={() => makeAccessTokens({ setCategory })}
+        useOtherCredentialsHook={() => makeOtherCredentials()}
+      />,
+    );
+
+    const addButton = screen.getByRole("button", { name: "+ Add custom provider" });
+    addButton.focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(setCategory).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(addButton);
+  });
 });
