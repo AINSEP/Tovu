@@ -11,6 +11,7 @@ import {
   SqliteMediaRepo,
   SqliteTransformDefinitionRepo,
 } from "#src/platform/db/sqlite/media-repo.sqlite";
+import { InMemoryVersionedMediaRepo } from "#src/features/media/index";
 import {
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
@@ -28,6 +29,7 @@ import type {
   MediaRecord,
   TransformDefinitionRecord,
 } from "@jini-ai/cms/media";
+import type { VersionedMediaRepoPort } from "#src/features/media/index";
 
 /**
  * @file ADR-046 Phase 1 — shared contract-test suite for the four route-consumed media repo
@@ -113,6 +115,95 @@ function runMediaSuite(label: string, makeRepo: () => MediaRepoPort) {
 
 runMediaSuite("memory", () => new InMemoryMediaRepo());
 runMediaSuite("sqlite", () => new SqliteMediaRepo(openContentDb(":memory:")));
+// `InMemoryVersionedMediaRepo` implements the plain `MediaRepoPort` surface identically to Jini's
+// `InMemoryMediaRepo` (same `findById`/`findBySlug`/`list`/`save`/`remove` shape, see that class's
+// own doc) — running it through the SAME order-agnostic suite proves that parity directly, rather
+// than by inspection.
+runMediaSuite("memory-versioned", () => new InMemoryVersionedMediaRepo());
+
+/**
+ * ADR-046 / sol-review 2026-09-20 finding 1 — the `VersionedMediaRepoPort` compare-and-set surface
+ * (`saveIfVersion`, `insertIfAbsent`) both adapters gained so `importMediaEntity` can make the
+ * publish-apply write atomic (see `versioned-media-repo.ts`'s file doc). Run against both adapters
+ * that implement the port; `InMemoryMediaRepo` (Jini) has no CAS methods and is out of scope here.
+ *
+ * Every assertion below checks the FULL row state after the call, not just the returned
+ * `{applied}` flag — a `saveIfVersion`/`insertIfAbsent` that silently degraded to `save()`
+ * (unconditional, ignoring the version predicate or the existing-id check) would still return
+ * `{applied: true}` half these tests expect, but would fail the row-state assertion: the "stale
+ * version" test would find the row overwritten instead of untouched, and the "insertIfAbsent
+ * refuses an existing row" test would find the original row's fields replaced instead of intact.
+ */
+function runVersionedMediaSuite(label: string, makeRepo: () => VersionedMediaRepoPort) {
+  test(`[${label}] saveIfVersion() applies the write when the row is at the expected version`, async () => {
+    const repo = makeRepo();
+    await repo.save(makeMedia({ version: 3 }));
+
+    const result = await repo.saveIfVersion({ record: makeMedia({ title: "Updated", version: 4 }), ifVersion: 3 });
+
+    assert.deepEqual(result, { applied: true });
+    const found = await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-1" });
+    assert.equal(found?.title, "Updated");
+    assert.equal(found?.version, 4);
+  });
+
+  test(`[${label}] saveIfVersion() refuses a stale version and leaves the row untouched`, async () => {
+    const repo = makeRepo();
+    await repo.save(makeMedia({ title: "Original", version: 3 }));
+
+    const result = await repo.saveIfVersion({ record: makeMedia({ title: "Should not land", version: 3 }), ifVersion: 2 });
+
+    assert.deepEqual(result, { applied: false });
+    const found = await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-1" });
+    // An unconditional write (`save()`'s upsert behavior) would leave "Should not land"/version 3
+    // here instead — this is the assertion that catches a CAS predicate silently dropped.
+    assert.equal(found?.title, "Original");
+    assert.equal(found?.version, 3);
+  });
+
+  test(`[${label}] saveIfVersion() refuses a missing row and inserts nothing`, async () => {
+    const repo = makeRepo();
+
+    const result = await repo.saveIfVersion({ record: makeMedia({ version: 1 }), ifVersion: 0 });
+
+    assert.deepEqual(result, { applied: false });
+    assert.equal(await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-1" }), null);
+  });
+
+  test(`[${label}] saveIfVersion() refuses a row that exists only in a DIFFERENT workspace`, async () => {
+    const repo = makeRepo();
+    await repo.save(makeMedia({ workspaceId: "workspace-2", version: 3 }));
+
+    const result = await repo.saveIfVersion({
+      record: makeMedia({ workspaceId: "workspace-1", title: "Should not land", version: 4 }),
+      ifVersion: 3,
+    });
+
+    assert.deepEqual(result, { applied: false });
+    assert.equal(await repo.findById({ workspaceId: "workspace-1", id: "media-1" }), null);
+    const otherWorkspaceRow = await repo.findById({ workspaceId: "workspace-2", id: "media-1" });
+    assert.equal(otherWorkspaceRow?.title, "A photo");
+    assert.equal(otherWorkspaceRow?.version, 3);
+  });
+
+  test(`[${label}] insertIfAbsent() inserts once, then refuses and leaves the original row intact`, async () => {
+    const repo = makeRepo();
+
+    const first = await repo.insertIfAbsent(makeMedia({ title: "Original" }));
+    assert.deepEqual(first, { applied: true });
+
+    const second = await repo.insertIfAbsent(makeMedia({ title: "Should not land" }));
+
+    assert.deepEqual(second, { applied: false });
+    const found = await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-1" });
+    // Same reasoning as the stale-version test above: an unconditional write here would leave
+    // "Should not land" instead of the original title.
+    assert.equal(found?.title, "Original");
+  });
+}
+
+runVersionedMediaSuite("memory-versioned", () => new InMemoryVersionedMediaRepo());
+runVersionedMediaSuite("sqlite", () => new SqliteMediaRepo(openContentDb(":memory:")));
 
 /**
  * `idx_media_workspace_slug` is the REAL enforcement (2026-09-07) — `updateMediaMetadata`'s own
@@ -136,6 +227,49 @@ test("[sqlite] save() with a slug already claimed by a DIFFERENT row in the same
 
   // The second row must never have landed — the failed insert must not leave a partial row behind.
   assert.equal(await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-2" }), null);
+});
+
+/**
+ * The conflict target on `insertIfAbsent`'s `onConflictDoNothing({ target: media.id })` must be
+ * `media.id` alone — a bare `onConflictDoNothing()` would also swallow `idx_media_workspace_slug`'s
+ * unique-constraint violation, silently reporting `applied: false` for a slug collision instead of
+ * throwing `MediaConflictError` like every other write on this repo. `InMemoryVersionedMediaRepo`
+ * has no slug index (see this file's `runMediaSuite`/`runVersionedMediaSuite` doc), so this is
+ * `[sqlite]`-only, matching this file's established pattern for adapter-specific behavior.
+ */
+test("[sqlite] insertIfAbsent() with a slug already claimed by a DIFFERENT row throws MediaConflictError, not a swallowed applied:false", async () => {
+  const repo = new SqliteMediaRepo(openContentDb(":memory:"));
+  await repo.save(makeMedia({ id: "media-1", slug: "taken-slug" }));
+
+  await assert.rejects(
+    () => repo.insertIfAbsent(makeMedia({ id: "media-2", slug: "taken-slug" })),
+    (err: unknown) => {
+      assert.ok(err instanceof MediaConflictError, `expected MediaConflictError, got ${err}`);
+      assert.match((err as Error).message, /taken-slug/);
+      return true;
+    }
+  );
+
+  assert.equal(await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-2" }), null);
+});
+
+test("[sqlite] saveIfVersion() with a slug already claimed by a DIFFERENT row throws MediaConflictError", async () => {
+  const repo = new SqliteMediaRepo(openContentDb(":memory:"));
+  await repo.save(makeMedia({ id: "media-1", slug: "taken-slug" }));
+  await repo.save(makeMedia({ id: "media-2", slug: "media-2-slug", version: 1 }));
+
+  await assert.rejects(
+    () => repo.saveIfVersion({ record: makeMedia({ id: "media-2", slug: "taken-slug", version: 2 }), ifVersion: 1 }),
+    (err: unknown) => {
+      assert.ok(err instanceof MediaConflictError, `expected MediaConflictError, got ${err}`);
+      assert.match((err as Error).message, /taken-slug/);
+      return true;
+    }
+  );
+
+  const found = await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-2" });
+  assert.equal(found?.slug, "media-2-slug");
+  assert.equal(found?.version, 1);
 });
 
 test("[sqlite] save() lets a row keep re-claiming its OWN slug on every update (not a self-conflict against its own prior row)", async () => {
