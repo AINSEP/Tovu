@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { type PresentationSettings, type ThemeTier } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useSerialWrites } from "@/hooks/use-serial-writes.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemesPort } from "./themes-dependencies.hooks";
@@ -115,6 +116,14 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   const activateSettlement = useSettlementGeneration();
   const downloadSettlement = useSettlementGeneration();
 
+  // Serializes `activate` calls onto one lane (2026-09-20, same shape `use-sites.hooks.ts`'s
+  // `activate` adopted first): the server persists whichever activation it processes LAST, so two
+  // activations in flight at once could leave the server on an earlier choice than the one this
+  // screen reports. `download` deliberately stays off this lane — it is a separate action with its
+  // own busy flag (`downloading`), and queuing it behind `activate` would make a download wait
+  // behind an unrelated theme switch with no bug behind it.
+  const activateWrites = useSerialWrites();
+
   useEffect(() => {
     port
       .getPresentation()
@@ -152,24 +161,29 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     }
   }
 
-  async function activate(themeId: string) {
+  function activate(themeId: string) {
+    // Minted BEFORE `run`, synchronously, so a second same-tick click observes this claim before
+    // its own task ever starts — see `useSerialWrites`' own doc for why minting inside the queued
+    // task would make every queued call read as "current".
     const generation = activateSettlement.next();
     setBusyTheme(themeId);
     setError(null);
-    try {
-      const r = await port.setActiveTheme(themeId);
-      // Superseded by a newer activate call started after this one — that later call owns
-      // `settings`/`busyTheme` now, and applying this stale result would let whichever request
-      // happens to settle LAST win regardless of which theme was actually clicked last.
-      if (!activateSettlement.isCurrent(generation)) return;
-      setSettings(r.settings);
-    } catch (e) {
-      if (!activateSettlement.isCurrent(generation)) return;
-      setError(e instanceof Error ? e.message : "failed to switch theme");
-    } finally {
-      if (!activateSettlement.isCurrent(generation)) return;
-      setBusyTheme(null);
-    }
+    return activateWrites.run(async () => {
+      try {
+        const r = await port.setActiveTheme(themeId);
+        // Superseded by a newer activate call started after this one — that later call owns
+        // `settings`/`busyTheme` now, and applying this stale result would let whichever request
+        // happens to settle LAST win regardless of which theme was actually clicked last.
+        if (!activateSettlement.isCurrent(generation)) return;
+        setSettings(r.settings);
+      } catch (e) {
+        if (!activateSettlement.isCurrent(generation)) return;
+        setError(e instanceof Error ? e.message : "failed to switch theme");
+      } finally {
+        if (!activateSettlement.isCurrent(generation)) return;
+        setBusyTheme(null);
+      }
+    });
   }
 
   async function loadMarketplace() {
