@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "@/lib/api";
+import { api, type AdminPlugin } from "@/lib/api";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { usePlugins } from "../hooks/use-plugins.hooks";
 
@@ -280,5 +280,93 @@ describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
       await removeCall;
     });
     expect(result.current.rowSavingId).toBeNull();
+  });
+});
+
+/**
+ * X1 (2026-09-20 platform review, not in the original review — found while triaging it):
+ * `reload()` has no generation guard and never calls `setError(null)` anywhere. Two consequences:
+ * a transient failure of a post-write reload sticks forever (nothing ever clears `error` again), and
+ * two reloads in flight at once (from two different rows' toggles — the single-flight guard is
+ * per-row, see the `describe` above) can let an OLDER response overwrite a NEWER one if it settles
+ * last.
+ */
+describe("X1: reload() generation guard", () => {
+  it("a later successful reload clears a failed reload's error", async () => {
+    const pluginA: AdminPlugin = { id: "p1", name: "A", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [] };
+    const pluginB: AdminPlugin = { id: "p2", name: "B", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [] };
+    const port = createFakePluginsPort({ plugins: [pluginA, pluginB] });
+
+    let listCall = 0;
+    const listResponses: Array<() => Promise<{ plugins: AdminPlugin[] }>> = [
+      () => Promise.resolve({ plugins: [pluginA, pluginB] }), // initial mount load
+      () => Promise.reject(new Error("reload failed")), // after toggling A
+      () => Promise.resolve({ plugins: [pluginA, pluginB] }), // after toggling B
+    ];
+    port.listPlugins = () => listResponses[listCall++]!();
+
+    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.plugins).toHaveLength(2));
+
+    await act(async () => {
+      await result.current.onToggleEnabled(pluginA);
+    });
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+
+    await act(async () => {
+      await result.current.onToggleEnabled(pluginB);
+    });
+    // RED today: the error set by A's failed reload is never cleared, even though B's reload
+    // that follows it succeeds.
+    await waitFor(() => expect(result.current.error).toBeNull());
+  });
+
+  it("an older reload that settles last does not overwrite a newer one", async () => {
+    const pluginA: AdminPlugin = { id: "p1", name: "A", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] };
+    const pluginB: AdminPlugin = { id: "p2", name: "B", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] };
+    const port = createFakePluginsPort({ plugins: [pluginA, pluginB] });
+
+    let listCall = 0;
+    let resolveD1!: (v: { plugins: AdminPlugin[] }) => void;
+    let resolveD2!: (v: { plugins: AdminPlugin[] }) => void;
+    const d1 = new Promise<{ plugins: AdminPlugin[] }>((resolve) => (resolveD1 = resolve));
+    const d2 = new Promise<{ plugins: AdminPlugin[] }>((resolve) => (resolveD2 = resolve));
+    port.listPlugins = () => {
+      listCall += 1;
+      if (listCall === 1) return Promise.resolve({ plugins: [pluginA, pluginB] }); // initial mount load
+      if (listCall === 2) return d1; // A's post-toggle reload
+      return d2; // B's post-toggle reload
+    };
+
+    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.plugins).toHaveLength(2));
+
+    act(() => {
+      void result.current.onToggleEnabled(pluginA);
+    });
+    await waitFor(() => expect(listCall).toBe(2));
+
+    act(() => {
+      void result.current.onToggleEnabled(pluginB);
+    });
+    await waitFor(() => expect(listCall).toBe(3));
+
+    const aOn = { ...pluginA, enabled: true };
+    const bOn = { ...pluginB, enabled: true };
+    const bOff = { ...pluginB, enabled: false };
+
+    // The NEWER reload (B's, d2) settles first...
+    await act(async () => {
+      resolveD2({ plugins: [aOn, bOn] });
+      await Promise.resolve();
+    });
+    // ...then the OLDER reload (A's, d1) settles last. RED today: `d1`'s stale list wins and
+    // overwrites `d2`'s newer one.
+    await act(async () => {
+      resolveD1({ plugins: [aOn, bOff] });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(result.current.plugins).toEqual([aOn, bOn]));
   });
 });

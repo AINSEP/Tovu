@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Plugins } from "../Plugins";
+import type { PluginsController } from "../hooks/use-plugins.hooks";
 
 /**
  * @file `Plugins` screen — SPEC-005 REQ-12..18, AC-18..26, EC-11 (ui.spec.md), rebuilt onto the
@@ -556,5 +557,57 @@ describe("Accessibility (React Component Testing Policy)", () => {
 
     const invalidRow = await screen.findByRole("listitem", { name: "Invalid Site Plugin" });
     expect(within(invalidRow).getByText(/invalid/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * X1 (2026-09-20 platform review): `use-plugins.hooks.ts`'s `reload()` has no generation guard, and
+ * `Plugins.tsx`'s fatal `if (error) return …` does not distinguish "never loaded" (the REQ-15/AC-23
+ * suite above, still correct) from "loaded once, then a background reload failed" — a transient
+ * failure of the post-toggle re-fetch used to replace the whole populated screen (tabs, rows,
+ * dialogs) with an error that nothing ever cleared. Driven through the `usePluginsHook` DI seam with
+ * a full `PluginsController` stub, same shape as `AgentPlugins.unit.test.tsx`'s `fakeController` —
+ * this is a component-rendering fact ("what does the screen show for THIS controller state"), not a
+ * `usePlugins` load/toggle behavior, which stays in `use-plugins.hooks.unit.test.ts`.
+ */
+const WORD_COUNT_PLUGIN = { id: "word-count", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [] };
+
+function fakePluginsController(overrides: Partial<PluginsController> = {}): PluginsController {
+  return {
+    plugins: [WORD_COUNT_PLUGIN],
+    error: null,
+    rowError: null,
+    rowSavingId: null,
+    onToggleEnabled: async () => {},
+    onRemovePlugin: async () => {},
+    expandedIds: new Set<string>(),
+    onToggleExpanded: () => {},
+    inspectedPlugin: null,
+    onInspectPlugin: () => {},
+    onCloseInspector: () => {},
+    pendingRemovePlugin: null,
+    onRequestRemove: () => {},
+    onConfirmRemove: () => {},
+    onCancelRemove: () => {},
+    t: (key: string) => key,
+    locale: "en",
+    ...overrides,
+  };
+}
+
+function renderPluginsWithController(overrides: Partial<PluginsController> = {}) {
+  function useFakePlugins(): PluginsController {
+    return fakePluginsController(overrides);
+  }
+  return render(<Plugins usePluginsHook={useFakePlugins} />);
+}
+
+describe("X1: a refresh failure after load keeps the tabs and rows", () => {
+  it("keeps the tab bar and the already-loaded row visible, and still shows the error as an alert", () => {
+    renderPluginsWithController({ plugins: [WORD_COUNT_PLUGIN], error: "failed to load plugins" });
+
+    expect(screen.getByRole("tablist")).toBeInTheDocument();
+    expect(screen.getByRole("listitem", { name: "Word Count" })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("failed to load plugins");
   });
 });

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { AdminPlugin } from "@/lib/api";
 import { describeApiError } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { t as translate } from "../plugins-i18n";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
 import type { PluginsPort } from "./plugins-port.hooks";
@@ -34,6 +35,18 @@ import type { Translate } from "@/lib/dictionary-translator";
  * split the sibling `use-agent-plugins.hooks.ts` already draws for `AgentPlugins.tsx`. The Remove
  * confirm dialog's target (`pendingRemovePlugin`) followed on 2026-09-13, the same way
  * `inspectedPlugin` had already arrived: it was the last `useState` left in `Plugins.tsx`.
+ *
+ * `reload()`'s generation guard (2026-09-20 platform review, X1): `reload()` used to have no
+ * ordering guard at all and never cleared `error` on a later success. Two toggles on DIFFERENT rows
+ * are allowed to have reloads in flight at once (`rowSavingId`'s single-flight guard is per-row, see
+ * this file's own `@tradeoffs` note below), so an older reload's GET could resolve after a newer
+ * one's and paint a stale list back over a fresher one — and a single transient reload failure stuck
+ * forever, since nothing ever called `setError(null)` again, which replaced the whole populated
+ * screen (`Plugins.tsx`'s fatal `if (error) return …`) with an error the operator could not clear
+ * short of a full remount. Fixed with `useSettlementGeneration()`, the same "ignore a settled result
+ * once a newer call has superseded it" guard this admin already uses at eight other call sites — see
+ * that hook's own header. The generation check guards `reload()`'s `catch` too, not only its `then`,
+ * so an old rejection cannot blank a newer success either.
  */
 
 export interface PluginsDependencies {
@@ -117,12 +130,21 @@ export function usePlugins({ port, locale, t }: PluginsDependencies): PluginsCon
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
   const [inspectedPluginId, setInspectedPluginId] = useState<string | null>(null);
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
+  const settlement = useSettlementGeneration();
 
   function reload(): Promise<void> {
+    const generation = settlement.next();
     return port
       .listPlugins()
-      .then((r) => setPlugins(r.plugins))
-      .catch((e) => setError(describeApiError(e, translate(locale, "failed to load plugins"))));
+      .then((r) => {
+        if (!settlement.isCurrent(generation)) return; // a newer reload already won
+        setPlugins(r.plugins);
+        setError(null);
+      })
+      .catch((e) => {
+        if (!settlement.isCurrent(generation)) return;
+        setError(describeApiError(e, translate(locale, "failed to load plugins")));
+      });
   }
 
   useEffect(() => {
