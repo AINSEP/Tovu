@@ -196,7 +196,7 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
     setPendingDelete,
     confirmDelete,
     deletePending,
-    createRedirect,
+    submitCreate,
     onToggleStatus,
     onRequestDelete,
     t,
@@ -233,14 +233,7 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
       </div>
       {error ? <div className="notice error">{describeApiError(error, "request failed")}</div> : null}
 
-      <form
-        className="card form-measure"
-        onSubmit={(e) => {
-          e.preventDefault();
-          createRedirect(new FormData(e.currentTarget));
-          e.currentTarget.reset();
-        }}
-      >
+      <form className="card form-measure" onSubmit={submitCreate}>
         <div className="field-group">
           <div className="field-row">
             <div className="field">

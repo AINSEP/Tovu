@@ -72,7 +72,18 @@ export interface RedirectsController {
   /** Drives `ConfirmDialog`'s `pending` prop — true only while the confirmed delete itself is in
    *  flight, not for the other two writes. */
   deletePending: boolean;
-  createRedirect: (form: FormData) => void;
+  /** Fires the create mutation. Resolves `true` on success, `false` on a caught failure — never
+   *  rejects. Kept on the controller because the existing hook tests call it directly; the form's
+   *  own `onSubmit` uses {@link submitCreate} instead, which is what actually decides whether to
+   *  reset the fields. */
+  createRedirect: (form: FormData) => Promise<boolean>;
+  /** `Redirects.tsx`'s form `onSubmit`, in full: captures the form synchronously (`currentTarget`
+   *  is nulled after React finishes dispatching), then resets it ONLY once `createRedirect`
+   *  resolves `true`. Moving the reset here (out of the `.tsx`) is what fixes the bug: the old
+   *  inline handler called `e.currentTarget.reset()` unconditionally and synchronously, before the
+   *  fire-and-forget mutation had any chance to settle, so a REJECTED create still wiped whatever
+   *  the operator had just typed — right when they needed it to fix and resubmit. */
+  submitCreate: (e: React.FormEvent<HTMLFormElement>) => void;
   onToggleStatus: (rule: AdminRedirect) => void;
   onRequestDelete: (rule: AdminRedirect) => void;
   /** Bound translator — `key` already resolved against the caller's locale, so `Redirects.tsx`
@@ -156,9 +167,25 @@ export function useRedirects(port: RedirectsPort, t: Translate, locale: string):
     for (const write of writes) if (write !== active) write.reset();
   }
 
-  function createRedirect(form: FormData) {
+  function createRedirect(form: FormData): Promise<boolean> {
     clearOtherWriteErrors(createRule);
-    void createRule.mutate(form);
+    // Never rejects — a caught failure resolves `false` instead, so `submitCreate` below can
+    // `.then()` it directly without its own try/catch. The failure is still surfaced through
+    // `createRule.error` -> `error`, exactly as before this method returned anything.
+    return createRule.mutate(form).then(
+      () => true,
+      () => false,
+    );
+  }
+
+  function submitCreate(e: React.FormEvent<HTMLFormElement>): void {
+    e.preventDefault();
+    // Captured synchronously: React nulls `currentTarget` once it finishes dispatching this event,
+    // so a reference taken only after `createRedirect`'s `await` would already be `null`.
+    const form = e.currentTarget;
+    void createRedirect(new FormData(form)).then((succeeded) => {
+      if (succeeded) form.reset();
+    });
   }
 
   // `disabled={saving}` on the old inline buttons guarded against a second write firing while any
@@ -188,6 +215,7 @@ export function useRedirects(port: RedirectsPort, t: Translate, locale: string):
     confirmDelete,
     deletePending: removeRule.status === "pending",
     createRedirect,
+    submitCreate,
     onToggleStatus,
     onRequestDelete,
     t,
