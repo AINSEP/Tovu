@@ -24,7 +24,7 @@ import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from 
 import { resolveConfirmationDecision, type AssistantSurfaceDeps, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
 import type { ToolContributor } from "#src/assistant/index";
 import type { HttpClientPort } from "../../platform/http/index.js";
-import { runtimeSchemaVersion } from "../../platform/site-dir/schema-guard.js";
+import { runtimeSchemaVersion } from "../../platform/site-dir/index.js";
 import {
   CustomCredentialSecretStoreUnconfiguredError,
   CustomCredentialValidationError,

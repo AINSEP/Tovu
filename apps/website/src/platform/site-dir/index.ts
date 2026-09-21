@@ -3,7 +3,7 @@
  * 2026-08-13-api-surface-trace-A.md, proposal S-1).
  *
  * Boot-only functions (`boot-site-dir.ts`, `init-site.ts`, `read-site-dir.ts`,
- * `resolve-install-dir-target.ts`, `resolve-workspace.ts`, `schema-guard.ts`) are deliberately
+ * `resolve-install-dir-target.ts`, `resolve-workspace.ts`, `schema-guard.ts`'s guard) are deliberately
  * NOT re-exported here — each has exactly one caller in `cli/**`/`server/deps.ts`'s own boot
  * sequence, so there is nothing to consolidate behind a door. Only the typed exit-code errors
  * and `ConfigJson` — the shapes `cli/errors.ts` and `cli/commands/serve.ts` need — live here.
@@ -72,3 +72,10 @@ export {
   type ActiveSiteEnvOptional,
 } from "./active-site.js";
 export { duplicateSite, type DuplicateSiteRequired, type DuplicateSiteResult } from "./duplicate-site.js";
+/**
+ * `runtimeSchemaVersion` joined 2026-09-21: `features/site-backup/tool-registrations.ts` stamps it
+ * into every backup plan, and it is the first `features/**` caller of `schema-guard.ts`. The guard
+ * itself (`compareSchemaVersion`) stays boot-only, off this barrel (`no-deep-imports:platform/site-dir`
+ * is `error`-severity).
+ */
+export { runtimeSchemaVersion, type RuntimeSchemaVersion } from "./schema-guard.js";
