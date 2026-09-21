@@ -1,7 +1,6 @@
 /**
  * @file Spanish dictionary for `Posts.tsx` (list) and `PostEditor.tsx` (shared post/page editor
- * screen — see that file's header for why one editor serves both kinds). Same `DICT[locale]?.[key]
- * ?? key` shape `SettingsUi.tsx`'s own `const t` uses.
+ * screen — see that file's header for why one editor serves both kinds).
  *
  * A few entries exist in two `kindLabel`-specific variants (post vs. page) rather than one
  * template string with a substituted word — `PostEditor.tsx`'s English copy embeds "post"/"page"
@@ -11,7 +10,19 @@
  * Also covers `rules.ts`'s `postRowMenuItems` row-menu labels (Edit/Disable/Delete) — outside the
  * original `.tsx`-only pass's scope, closed here since this dictionary already owns the rest of
  * this screen's vocabulary.
+ *
+ * `t()` falls back to `COMMON_I18N` via `createDictionaryTranslator`, same as `trash-i18n.ts`.
+ *
+ * `Move` is deliberately the empty string in `ja`, `ko`, `tr`, `hi`, `ur`, and `bn` — the confirm
+ * dialog body composes `{t("Move")} "{title}" {t("to trash? It will disappear…")}` (see
+ * `Posts.tsx`/`PostEditor.tsx`), and all six of those locales are object-before-verb constructions:
+ * the verb ("move to trash?") is already embedded in the second (trailing) fragment right after the
+ * quoted title, e.g. `ja`'s trailing fragment is `をゴミ箱に移動しますか？…`. A prefix word here would
+ * read as a stray leading verb before the sentence's real subject. Not a missing-translation bug —
+ * `posts-i18n.unit.test.ts`'s non-empty-value check excludes this one key for this reason.
  */
+import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+
 export const POSTS_DICT: Record<string, Record<string, string>> = {
   es: {
     Restore: "Restaurar",
@@ -919,3 +930,9 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "কে ট্র্যাশে সরাবেন? এটি সাইট এবং পোস্টের তালিকা থেকে অদৃশ্য হয়ে যাবে।",
   },
 };
+
+/** `POSTS_DICT` had no exported `t` at all before this fix — `Posts.tsx`, `rules.ts`'s
+ *  `postRowMenuItems`, and `use-post-editor.hooks.ts` each built their own no-fallback
+ *  `POSTS_DICT[locale]?.[key] ?? key` closure inline. `createDictionaryTranslator` falls through to
+ *  `COMMON_I18N` before the raw English key, same as `trash-i18n.ts`. */
+export const t = createDictionaryTranslator(POSTS_DICT);

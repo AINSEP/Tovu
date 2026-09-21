@@ -9,7 +9,7 @@ import type {
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
 import { formatRelativeMinutesAgo } from "../../lib/format-timestamp";
-import { POSTS_DICT } from "./posts-i18n";
+import { t as translate } from "./posts-i18n";
 
 /**
  * @file Pure logic for the `posts` feature — everything that computes a value rather than rendering
@@ -56,7 +56,7 @@ export interface PostRowMenuHandlers {
  * @complexity Time/space: O(1) — at most three entries, no iteration.
  */
 export function postRowMenuItems(post: AdminPost, handlers: PostRowMenuHandlers, locale: string): RowMenuItem[] {
-  const t = (key: string): string => POSTS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   const items: RowMenuItem[] = [{ key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit(post) }];
   if (post.status === "published") {
     items.push({ key: "disable", label: t("Disable"), onSelect: () => handlers.onDisable(post) });

@@ -43,7 +43,7 @@ import {
   type PostSaveConflict,
   resolvePostPreviewBranches,
 } from "../rules";
-import { POSTS_DICT } from "../posts-i18n";
+import { t as translate } from "../posts-i18n";
 import { defaultPostEditorPort } from "./post-editor-dependencies.hooks";
 import type { PostEditorPort } from "./post-editor-port.hooks";
 import { usePostEditorUi, type PostEditorUiController } from "./use-post-editor-ui.hooks";
@@ -1145,6 +1145,6 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
  */
 export function useWiredPostEditor(postId: string): PostEditorController {
   const locale = useAdminLocale();
-  const t = (key: string): string => POSTS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return usePostEditor(postId, { port: defaultPostEditorPort, navigate: realNavigate, t });
 }

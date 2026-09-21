@@ -18,7 +18,7 @@ import {
 } from "./rules";
 import { useWiredPosts } from "./hooks/use-posts.hooks";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { POSTS_DICT } from "./posts-i18n";
+import { t as translate } from "./posts-i18n";
 
 /**
  * @file The Posts list screen — markup only.
@@ -69,7 +69,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
     rowMenuHandleById,
   } = usePostsHook();
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => POSTS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   // Owner ruling (2026-08-14): pure interactive DOM-chrome state — a client-side sort toggle with
   // no I/O behind it — stays LOCAL rather than moving into `use-posts.hooks.ts`, unlike every other
   // piece of state on this screen. The line to draw: async/API/data state always moves into the
