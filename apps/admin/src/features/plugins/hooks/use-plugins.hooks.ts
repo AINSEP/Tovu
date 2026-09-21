@@ -105,6 +105,8 @@ function withId(ids: ReadonlySet<string>, id: string, present: boolean): Readonl
  * `Roles.tsx`), so toggling a second row while the first is still in flight re-enables the first
  * row's button — EC-11's single-flight guarantee is per-row-at-a-time, not per-row-concurrent. A
  * `Set` of in-flight ids would close that, at the cost of diverging from the mandated convention.
+ * What is NOT part of that tradeoff, and is guarded below: the row whose request is still on the
+ * wire must never be unlocked by an UNRELATED row's request settling — see both `finally` blocks.
  * @overallScore 92
  */
 export function usePlugins({ port, locale, t }: PluginsDependencies): PluginsController {
@@ -139,7 +141,12 @@ export function usePlugins({ port, locale, t }: PluginsDependencies): PluginsCon
     } catch (e) {
       setRowError(describeApiError(e, translate(locale, "failed to update plugin")));
     } finally {
-      setRowSavingId(null);
+      // Only clear THIS row's lock — `rowSavingId` is shared with `onRemovePlugin`, and the EC-11
+      // guard above is per-row, so a second row's action starts freely while this one is still
+      // outstanding. An unconditional `setRowSavingId(null)` here would re-enable THAT row's control
+      // the moment this request settled, while its own request was still on the wire (same S4b bug
+      // fixed in `use-posts.hooks.ts` 26fbe22c5 / `use-pages.hooks.ts` f4f2fe899).
+      setRowSavingId((current) => (current === plugin.id ? null : current));
     }
   }
 
@@ -155,7 +162,9 @@ export function usePlugins({ port, locale, t }: PluginsDependencies): PluginsCon
     } catch (e) {
       setRowError(describeApiError(e, translate(locale, "failed to remove plugin")));
     } finally {
-      setRowSavingId(null);
+      // Symmetric guard to `onToggleEnabled`'s — see its comment. Keeps this correct regardless of
+      // which of the two in-flight actions settles first.
+      setRowSavingId((current) => (current === plugin.id ? null : current));
     }
   }
 

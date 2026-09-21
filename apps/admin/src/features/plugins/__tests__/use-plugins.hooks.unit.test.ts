@@ -181,4 +181,58 @@ describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
       await firstCall;
     });
   });
+
+  /**
+   * Unwired sink of the same S4b bug fixed in `use-posts.hooks.ts` (26fbe22c5) and
+   * `use-pages.hooks.ts` (f4f2fe899): `onToggleEnabled` and `onRemovePlugin` share ONE `rowSavingId`,
+   * and the EC-11 single-flight guard above is per-row (`rowSavingId === plugin.id`), so a second
+   * row's action starts freely while the first is still outstanding. Both `finally` blocks then
+   * cleared the field unconditionally, so whichever request settled FIRST unlocked the other row too
+   * — `Plugins.tsx` reads `rowSavingId === plugin.id` for both the toggle's busy state
+   * (`pluginToggleControl`, `rules.ts`) and the Downloaded tab's Remove button, so that row's control
+   * became clickable again while its own request was still on the wire.
+   */
+  it("an unrelated row's action settling does not unlock a DIFFERENT row's still-outstanding action", async () => {
+    const port = createFakePluginsPort({
+      plugins: [
+        { id: "p1", name: "Removable", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] },
+        { id: "p2", name: "Togglable", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [] },
+      ],
+    });
+    let resolveUninstall!: () => void;
+    const realUninstall = port.uninstallPlugin.bind(port);
+    port.uninstallPlugin = (id: string) => new Promise((resolve) => (resolveUninstall = () => resolve(realUninstall(id))));
+    let resolveToggle!: () => void;
+    const realSetEnabled = port.setPluginEnabled.bind(port);
+    port.setPluginEnabled = (id, patch) => new Promise((resolve) => (resolveToggle = () => resolve(realSetEnabled(id, patch))));
+
+    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.plugins).toHaveLength(2));
+
+    let removeCall!: Promise<void>;
+    act(() => {
+      removeCall = result.current.onRemovePlugin(result.current.plugins![0]!);
+    });
+    await waitFor(() => expect(result.current.rowSavingId).toBe("p1"));
+
+    let toggleCall!: Promise<void>;
+    act(() => {
+      toggleCall = result.current.onToggleEnabled(result.current.plugins![1]!);
+    });
+    await waitFor(() => expect(result.current.rowSavingId).toBe("p2"));
+
+    await act(async () => {
+      resolveUninstall();
+      await removeCall;
+    });
+
+    // p1's uninstall settling must not unlock p2, whose PATCH is still on the wire.
+    expect(result.current.rowSavingId).toBe("p2");
+
+    await act(async () => {
+      resolveToggle();
+      await toggleCall;
+    });
+    expect(result.current.rowSavingId).toBeNull();
+  });
 });
