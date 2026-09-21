@@ -254,7 +254,7 @@ describe("useWidgetsLibrary — permanent delete asks first", () => {
   it("purging is true only while the confirmed purge is in flight", async () => {
     let resolvePurge: ((r: { purged: true }) => void) | undefined;
     const port = createFakeWidgetsPort({ widgets: [TRASHED] });
-    port.purgeWidget = vi.fn(() => new Promise((resolve) => (resolvePurge = resolve)));
+    port.purgeWidget = vi.fn(() => new Promise<{ purged: true }>((resolve) => (resolvePurge = resolve)));
     const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.widgets).toHaveLength(1));
 
