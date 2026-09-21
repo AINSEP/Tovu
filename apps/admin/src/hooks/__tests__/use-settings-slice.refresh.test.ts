@@ -266,7 +266,7 @@ describe("useSettingsSlice external refresh", () => {
     // since no save happens between them; only settlement (mint order) can.
     let stored = "en";
     let loadCount = 0;
-    const releases: Array<(value: string) => void> = [];
+    const releases: Array<() => void> = [];
     const load = vi.fn(async () => {
       loadCount += 1;
       if (loadCount === 1) return stored; // the mount load resolves immediately
