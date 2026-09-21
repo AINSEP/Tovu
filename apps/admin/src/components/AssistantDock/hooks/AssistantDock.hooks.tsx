@@ -41,7 +41,7 @@ import {
   resolveTovuComposerDiscoveryRoute,
   type ComposerCapabilityProjection,
 } from "@/features/plugins/composer-capabilities";
-import { ASSISTANT_DOCK_DICT, createChatI18nAdapter } from "../assistant-dock-i18n";
+import { t as translateAssistantDockLabel, createChatI18nAdapter } from "../assistant-dock-i18n";
 import type { SelectedAgentPluginChip } from "../SelectedAgentPluginTray";
 import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@/features/fs-files/hooks/use-folder-drop.hooks";
 
@@ -1483,8 +1483,8 @@ export interface AssistantDockChrome {
    *  `useWiredAdminLocale`'s real fetched value. */
   locale: string;
   /** Translates this component's OWN pane chrome (eyebrow, title fallback, composer placeholder) —
-   *  `ASSISTANT_DOCK_DICT[locale]?.[key] ?? key`, the same bounded-dictionary-with-passthrough
-   *  shape every other `*-i18n.ts` file in this app uses. Recomputed each render (cheap: one
+   *  `assistant-dock-i18n.ts`'s own `t`, which falls back to `COMMON_I18N` via
+   *  `createDictionaryTranslator` before returning the raw key. Recomputed each render (cheap: one
    *  object lookup), not memoized — matches this closure's pre-extraction behavior exactly. */
   t: (key: string) => string;
   /** The `I18nAdapter` `<JiniChatProvider i18n={...}>` takes — `@jini-ai/chat/react`'s OWN
@@ -1538,7 +1538,7 @@ export interface AssistantDockChrome {
  */
 export function useAssistantDockChrome(useAdminLocaleOverride: (() => string) | undefined): AssistantDockChrome {
   const locale = (useAdminLocaleOverride ?? useWiredAdminLocale)();
-  const t = (key: string): string => ASSISTANT_DOCK_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translateAssistantDockLabel(locale, key);
   const chatI18n = useChatI18n(locale);
   return { locale, t, chatI18n };
 }

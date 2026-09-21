@@ -1,12 +1,13 @@
 import type { I18nAdapter } from "@jini-ai/chat/react";
+import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 /**
  * @file Spanish dictionary for the assistant dock's OWN chrome — `AssistantDock.tsx`'s pane
  * header/placeholder, plus the mobile-sheet chrome and `ChatFab`'s "assistant" label that live in
  * `App.tsx` around it (ADR-049's "never touch the dock's own mount lifecycle" is why that chrome
  * sits in `App.tsx` rather than inside `AssistantDock.tsx` — see that file's own comment). One
- * shared dictionary rather than two, since both describe the same one dock. Same
- * `DICT[locale]?.[key] ?? key` shape every other `*-i18n.ts` file in this app uses.
+ * shared dictionary rather than two, since both describe the same one dock. `t()` falls back to
+ * `COMMON_I18N` via `createDictionaryTranslator`, same as `trash-i18n.ts`.
  */
 export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -220,6 +221,13 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "সহকারী এইমাত্র এই স্ক্রিনের একটি স্ক্রিনশট নিয়েছে।",
   },
 };
+
+/** `ASSISTANT_DOCK_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via
+ *  `createDictionaryTranslator` (same fallback `trash-i18n.ts` uses) — a shared word this dict
+ *  doesn't carry for a locale still renders translated instead of falling straight to English.
+ *  Exported so `App.hooks.tsx`'s `translateAssistantDockLabel` and `AssistantDock.hooks.tsx`'s
+ *  `useAssistantDockChrome` can both call it directly instead of each duplicating the lookup. */
+export const t = createDictionaryTranslator(ASSISTANT_DOCK_DICT);
 
 /**
  * @file Spanish dictionary backing `@jini-ai/chat/react`'s OWN `I18nAdapter` contract

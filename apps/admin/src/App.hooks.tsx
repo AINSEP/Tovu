@@ -15,7 +15,7 @@ import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api"
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "./lib/assistant-dock-bus";
-import { ASSISTANT_DOCK_DICT } from "./components/AssistantDock/assistant-dock-i18n";
+import { t as translateAssistantDockDictLabel } from "./components/AssistantDock/assistant-dock-i18n";
 import type { AdminNavGroup, AdminNavItem } from "./nav";
 
 /**
@@ -484,15 +484,18 @@ export function useInternalLinkInterceptor(): void {
 }
 
 /**
- * `App.tsx`'s `dockT` translator, minus the `ASSISTANT_DOCK_DICT[locale]?.[key] ?? key` fallback
- * chain itself — kept here rather than as an inline closure in `App.tsx` per this codebase's
- * standing rule against derived logic living in a `.tsx` file (see `App.tsx`'s `AssistantChrome`
- * for the same reasoning applied to JSX branches). `App.tsx` still defines its own `dockT` closure
- * (`(key) => translateAssistantDockLabel(navLocale, key)`) so every existing call site keeps
- * calling `dockT("...")` with no `locale` argument to thread through by hand.
+ * `App.tsx`'s `dockT` translator, minus the fallback chain itself — kept here rather than as an
+ * inline closure in `App.tsx` per this codebase's standing rule against derived logic living in a
+ * `.tsx` file (see `App.tsx`'s `AssistantChrome` for the same reasoning applied to JSX branches).
+ * `App.tsx` still defines its own `dockT` closure (`(key) => translateAssistantDockLabel(navLocale,
+ * key)`) so every existing call site keeps calling `dockT("...")` with no `locale` argument to
+ * thread through by hand. Delegates to `assistant-dock-i18n.ts`'s own `t` (COMMON_I18N-falling-back,
+ * via `createDictionaryTranslator`) rather than duplicating `ASSISTANT_DOCK_DICT[locale]?.[key] ??
+ * key` inline — same fix as `AssistantDock.hooks.tsx`'s `useAssistantDockChrome`, which had an
+ * independent copy of the same no-fallback lookup.
  */
 export function translateAssistantDockLabel(locale: string, key: string): string {
-  return ASSISTANT_DOCK_DICT[locale]?.[key] ?? key;
+  return translateAssistantDockDictLabel(locale, key);
 }
 
 /**
