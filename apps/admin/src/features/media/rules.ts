@@ -424,6 +424,42 @@ export function hasUntypedMedia(media: AdminMedia[]): boolean {
   return media.some((item) => item.contentType === null);
 }
 
+/**
+ * Formats a byte count as "820 KB" / "9.5 MB" / "1.2 GB" for the Media grid card (owner ask,
+ * 2026-09-21: "have the size of the media asset ... on the card").
+ *
+ * 1024-based (KB = 1024 bytes, not 1000) — the SAME base `TOVU_MAX_UPLOAD_BYTES`'s own
+ * upload-limit error text uses (`apps/website/src/features/media/upload-limits.ts`,
+ * `50 * 1024 * 1024`), so "50 MB" means the identical byte count in both places an operator sees
+ * it. Not the strict IEC "KiB"/"MiB" naming — this matches `@jini-ai/chat`'s own
+ * `formatByteLimit` convention (`create-daemon-attachment-uploader.js`), the other size string
+ * already visible in this admin.
+ *
+ * Whole units below 1 MB (bytes/KB): no decimal — "820 KB", not "820.0 KB", since a fractional KB
+ * carries no information a person acts on. MB and above: one decimal, since a whole-number MB/GB
+ * value hides a real size difference between two similar assets (a 9.5 MB and a 10.4 MB clip both
+ * round to "10 MB"/"10 GB" at zero decimals — misleadingly identical for a size an operator may be
+ * checking against the 50 MB cap).
+ *
+ * `locale` drives `Intl.NumberFormat`'s digit grouping/decimal separator — never a hardcoded
+ * `.`/`,` — defaulting to `"en-US"` for a caller with no locale in scope (mirrors this file's
+ * other locale-optional formatters, e.g. {@link describeMediaHtmlAttributeError}'s `locale` param).
+ *
+ * @complexity O(1) — a fixed number of comparisons and one `Intl.NumberFormat` call.
+ */
+export function formatByteSize(required: { bytes: number }, options?: { locale?: string }): string {
+  const { bytes } = required;
+  const locale = options?.locale ?? "en-US";
+  if (bytes < 1024) return `${Math.round(bytes)} B`;
+  const kilobytes = bytes / 1024;
+  if (kilobytes < 1024) return `${Math.round(kilobytes)} KB`;
+  const oneDecimal = new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const megabytes = kilobytes / 1024;
+  if (megabytes < 1024) return `${oneDecimal.format(megabytes)} MB`;
+  const gigabytes = megabytes / 1024;
+  return `${oneDecimal.format(gigabytes)} GB`;
+}
+
 /** Alt text fallback chain for a previewed media asset: prefers the operator-set alt, falls back
  *  to the title, and finally a generic label when neither is set. */
 export function mediaAltText(item: AdminMedia): string {
