@@ -5,6 +5,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { widgetTypeLabel } from "./rules";
 import { useWiredWidgetsLibrary } from "./hooks/use-widgets-library.hooks";
+import { ServerLabel } from "@/components/status-labels";
 
 /**
  * @file `WidgetsLibraryScreen` (`ui.spec.md` §2.1/§3.1/§4.1) — the widget library/list screen,
@@ -26,17 +27,18 @@ export interface WidgetsLibraryProps {
   useWidgetsLibraryHook?: typeof useWiredWidgetsLibrary;
 }
 
-/** The list screen's two independent notices — a fetch/action error, and how many rows the server
- *  sent back that couldn't be displayed — pulled out of `WidgetsLibrary`'s own render body as a
- *  top-level component under the tightened ≤9/≤9 pass. `skippedCount`'s own singular/plural
- *  ternary is part of the same extraction, since it only exists inside this notice. */
+/** The list screen's two independent notices — a fetch/action error, and malformed widget records
+ *  the server could not read — pulled out of `WidgetsLibrary`'s own render body as a top-level
+ *  component under the tightened ≤9/≤9 pass. */
 export function WidgetsLibraryNotices({
   error,
   skippedCount,
+  skippedIds = [],
   t = (key: string) => key,
 }: {
   error: string | null;
   skippedCount: number;
+  skippedIds?: string[];
   /** Translator closure — see `WidgetsLibrary()`'s own `t`. Optional (identity default) since this
    *  component is exported and unit-tested directly without one — same "default to the real thing,
    *  a stub renders English" convention every `use*Hook` prop in this app already follows. */
@@ -48,8 +50,14 @@ export function WidgetsLibraryNotices({
       {skippedCount > 0 ? (
         <div className="notice">
           {skippedCount === 1
-            ? t("1 row could not be displayed.")
-            : t("{n} rows could not be displayed.").replace("{n}", String(skippedCount))}
+            ? t("1 widget record in this workspace could not be read.")
+            : t("{n} widget records in this workspace could not be read.").replace("{n}", String(skippedCount))}
+          {skippedIds.length > 0 ? (
+            <details>
+              <summary>{t("Show ids")}</summary>
+              <ul>{skippedIds.map((id) => <li key={id}><code>{id}</code></li>)}</ul>
+            </details>
+          ) : null}
         </div>
       ) : null}
     </>
@@ -61,6 +69,7 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
     widgets,
     error,
     skippedCount,
+    skippedIds,
     createType,
     setCreateType,
     pendingTrash,
@@ -122,7 +131,7 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
           </a>
         </div>
       </div>
-      <WidgetsLibraryNotices error={error} skippedCount={skippedCount} t={t} />
+      <WidgetsLibraryNotices error={error} skippedCount={skippedCount} skippedIds={skippedIds} t={t} />
       <DataTable
         rows={widgets}
         rowKey={(widget) => widget.id}
@@ -155,7 +164,7 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
           {
             key: "status",
             header: t("Status"),
-            cell: (widget) => <span className={`status status-${widget.status}`}>{widget.status}</span>,
+            cell: (widget) => <span className={`status status-${widget.status}`}><ServerLabel value={widget.status} /></span>,
           },
           { key: "version", header: "v", cell: (widget) => widget.version },
           {

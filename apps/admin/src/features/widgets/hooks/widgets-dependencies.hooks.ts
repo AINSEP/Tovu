@@ -24,6 +24,7 @@ export const defaultWidgetsPort: WidgetsPort = {
 export interface FakeWidgetsPortOptions {
   widgets?: AdminWidget[];
   skippedCount?: number;
+  skippedIds?: string[];
   whereUsed?: Record<string, { count: number; references: Array<{ kind: "region" | "embed"; sourceEntryId: string; fieldPath: string }> }>;
 }
 
@@ -47,7 +48,7 @@ export function createFakeWidgetsPort(options: FakeWidgetsPortOptions = {}): Wid
         if (!listOptions.includeInactive && w.status !== "active") return false;
         return true;
       });
-      return { widgets: filtered, skippedCount: options.skippedCount };
+      return { widgets: filtered, skippedCount: options.skippedCount, skippedIds: options.skippedIds };
     },
 
     async getWidget(id) {

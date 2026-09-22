@@ -17,7 +17,7 @@ import type { AdminWidget, AdminWidgetType, AdminWidgetWhereUsed } from "@/lib/a
  * `describeApiError`.
  */
 export interface WidgetsPort {
-  listWidgets(options?: { widgetType?: string; includeInactive?: boolean }): Promise<{ widgets: AdminWidget[]; skippedCount?: number }>;
+  listWidgets(options?: { widgetType?: string; includeInactive?: boolean }): Promise<{ widgets: AdminWidget[]; skippedCount?: number; skippedIds?: string[] }>;
   getWidget(id: string): Promise<{ widget: AdminWidget; whereUsed: AdminWidgetWhereUsed }>;
   /** No `options` (`api.createWidget`'s own `slug` override) — narrowed to what's actually called:
    *  `use-widget-instance-editor.hooks.ts` always calls this with one argument. Forwarding a second

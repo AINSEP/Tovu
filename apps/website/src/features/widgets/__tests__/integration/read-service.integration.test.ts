@@ -135,7 +135,7 @@ test("REQ-04: listWidgetInstances defaults to active-only and narrows by widgetT
   assert.equal(includingTrashed.instances.length, 1, "the Trash lists it; the widgets library does not");
 });
 
-test("dossier C5 follow-up: a malformed widget-instance row (wrong owner namespace, e.g. written by bypassing the widgets domain layer) is skipped, not a crash, and skippedCount reports it instead of staying silent", async () => {
+test("dossier C5 follow-up: a malformed widget-instance record is skipped, counted before filters, and identified for the caller", async () => {
   const repos = makeRepos();
   await createWidgetInstance({
     deps: writeDeps(repos),
@@ -163,10 +163,11 @@ test("dossier C5 follow-up: a malformed widget-instance row (wrong owner namespa
 
   const result = await listWidgetInstances({
     deps: readDeps(repos),
-    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, includeInactive: true },
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetType: "text" },
   });
 
   assert.equal(result.instances.length, 1, "the one well-formed widget must still be returned");
   assert.equal(result.instances[0].title, "Good widget");
   assert.equal(result.skippedCount, 1, "the malformed row must be counted, not silently disappear with no trace");
+  assert.deepEqual(result.skippedIds, ["malformed-1"], "the caller must receive the malformed record's id even though its unparseable payload makes its type and status unknowable");
 });

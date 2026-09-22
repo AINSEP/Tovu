@@ -176,12 +176,17 @@ it("renders the error banner", () => {
   expect(screen.getByText("failed to load widgets")).toBeInTheDocument();
 });
 
-it("uses the singular phrasing for exactly one skipped row", () => {
-  render(<WidgetsLibraryNotices error={null} skippedCount={1} />);
-  expect(screen.getByText("1 row could not be displayed.")).toBeInTheDocument();
+it("identifies an unreadable widget record rather than implying a row is missing from this list", async () => {
+  const user = userEvent.setup();
+  render(<WidgetsLibraryNotices error={null} skippedCount={1} skippedIds={["malformed-1"]} />);
+  expect(screen.getByText("1 widget record in this workspace could not be read.")).toBeInTheDocument();
+  expect(screen.queryByText("1 row could not be displayed.")).not.toBeInTheDocument();
+  await user.click(screen.getByText("Show ids"));
+  expect(screen.getByText("Show ids").closest("details")).toHaveAttribute("open");
+  expect(screen.getByText("malformed-1")).toBeInTheDocument();
 });
 
-it("uses the plural phrasing for more than one skipped row", () => {
+it("uses the plural phrasing for more than one unreadable widget record", () => {
   render(<WidgetsLibraryNotices error={null} skippedCount={3} />);
-  expect(screen.getByText("3 rows could not be displayed.")).toBeInTheDocument();
+  expect(screen.getByText("3 widget records in this workspace could not be read.")).toBeInTheDocument();
 });

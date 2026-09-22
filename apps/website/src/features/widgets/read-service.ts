@@ -85,7 +85,7 @@ export interface ListWidgetInstancesRequired {
 
 export async function listWidgetInstances(
   required: ListWidgetInstancesRequired
-): Promise<{ instances: WidgetInstanceEntry[]; skippedCount: number }> {
+): Promise<{ instances: WidgetInstanceEntry[]; skippedCount: number; skippedIds: string[] }> {
   const { deps, input } = required;
   await requireWidgetPermission({
     authorize: deps.authorize,
@@ -97,6 +97,7 @@ export async function listWidgetInstances(
   const rows = await deps.entryRepo.listByWorkspace({ workspaceId: input.workspaceId, type: WIDGET_CONTENT_TYPE });
   const instances: WidgetInstanceEntry[] = [];
   let skippedCount = 0;
+  const skippedIds: string[] = [];
   for (const row of rows) {
     let instance: WidgetInstanceEntry;
     try {
@@ -109,7 +110,7 @@ export async function listWidgetInstances(
       // 2026-08-03 (dossier C5 follow-up): the skip itself was silent — nothing recorded that a row
       // never reached the caller, so a genuinely corrupted widget could vanish from the library with
       // zero trace. Kept the skip (a malformed row must not 500 the whole screen), added a
-      // server-side log line and a returned count so it's observable instead of invisible.
+      // server-side log line plus returned count and IDs so it's observable instead of invisible.
       // Deliberately logs only `row.id`/`workspaceId`, never `row.fieldsJson` — a malformed payload
       // may hold arbitrary caller-supplied content, and this line is not the place to disclose it.
       console.warn("[widgets] listWidgetInstances: skipping malformed widget-instance row", {
@@ -117,11 +118,12 @@ export async function listWidgetInstances(
         workspaceId: input.workspaceId,
       });
       skippedCount += 1;
+      skippedIds.push(row.id);
       continue;
     }
     if (input.widgetType && instance.widgetType !== input.widgetType) continue;
     if (!input.includeInactive && instance.status !== "active") continue;
     instances.push(instance);
   }
-  return { instances, skippedCount };
+  return { instances, skippedCount, skippedIds };
 }

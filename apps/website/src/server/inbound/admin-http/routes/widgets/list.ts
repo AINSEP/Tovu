@@ -8,9 +8,9 @@ import type { RouteRegistrar } from "#src/server/routes/types";
  * `active`-only (`?includeInactive=true` to also list `trash`/`purged`), narrowable by
  * `?widgetType=`. Mirrors `routes/admin/menus/list.ts`'s registration shape.
  *
- * Response body carries an optional `skippedCount` (dossier C5 follow-up, 2026-08-03) — present
- * only when `listWidgetInstances` silently dropped one or more malformed rows, so a client can
- * surface "N rows could not be displayed" without every caller needing to handle a new key.
+ * Response body carries optional `skippedCount` and `skippedIds` fields (dossier C5 follow-up,
+ * 2026-08-03) — present only when `listWidgetInstances` dropped malformed records, so a client
+ * can identify the records that could not be read without every caller handling new keys.
  */
 export const registerAdminWidgetListRoute: RouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/widgets", async (req, res) => {
@@ -21,7 +21,7 @@ export const registerAdminWidgetListRoute: RouteRegistrar = (app, deps) => {
 
     try {
       const principal = getAuthedPrincipal(res);
-      const { instances, skippedCount } = await listWidgetInstances({
+      const { instances, skippedCount, skippedIds } = await listWidgetInstances({
         deps: { entryRepo: deps.entryRepo, authorize: deps.authorize },
         input: {
           workspaceId: deps.workspaceId,
@@ -30,9 +30,9 @@ export const registerAdminWidgetListRoute: RouteRegistrar = (app, deps) => {
           includeInactive: req.query.includeInactive === "true",
         },
       });
-      // Additive, optional wire field (dossier C5 follow-up) — only present when non-zero, so the
-      // response shape is unchanged for the common case and every existing consumer of this route.
-      res.status(200).json({ widgets: instances, ...(skippedCount > 0 ? { skippedCount } : {}) });
+      // Additive, optional wire fields (dossier C5 follow-up) — only present when a malformed
+      // record was skipped, so the response shape is unchanged for the common case.
+      res.status(200).json({ widgets: instances, ...(skippedCount > 0 ? { skippedCount, skippedIds } : {}) });
     } catch (err) {
       mapWidgetErrorToResponse(err, res);
     }

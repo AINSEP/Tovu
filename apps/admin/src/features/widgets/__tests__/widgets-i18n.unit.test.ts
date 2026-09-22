@@ -67,6 +67,11 @@ describe("WIDGETS_DICT: cross-locale key parity", () => {
   // locales" renders English to 20 locales silently — the exact regression
   // `media-i18n.unit.test.ts` guards against for its own dialogs.
   const TRASH_DIALOG_KEYS = ["Move to trash?", "Move to trash", 'Move "{title}" to trash?'];
+  const UNREADABLE_WIDGET_RECORD_NOTICE_KEYS = [
+    "1 widget record in this workspace could not be read.",
+    "{n} widget records in this workspace could not be read.",
+    "Show ids",
+  ];
 
   it.each(TRASH_DIALOG_KEYS)("carries %j in every locale (move-to-trash confirm dialog)", (key) => {
     for (const locale of locales) {
@@ -80,6 +85,12 @@ describe("WIDGETS_DICT: cross-locale key parity", () => {
         WIDGETS_DICT[locale]["This item changed since you loaded it. Reload and try again."],
         `${locale} is missing the TRASH_VERSION_CHANGED message`,
       ).toBeTruthy();
+    }
+  });
+
+  it.each(UNREADABLE_WIDGET_RECORD_NOTICE_KEYS)("carries %j in every locale (unreadable widget record notice)", (key) => {
+    for (const locale of locales) {
+      expect(WIDGETS_DICT[locale][key], `${locale} is missing ${JSON.stringify(key)}`).toBeTruthy();
     }
   });
 });

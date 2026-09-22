@@ -56,10 +56,11 @@ export interface WidgetsLibraryController {
   /** `null` until the initial load settles — the caller renders a loading state. */
   widgets: AdminWidget[] | null;
   error: string | null;
-  /** Count of widget-instance rows the server silently skipped (unparseable `fields_json`) — see
-   *  the state's own declaration below for the full Dossier C5 rationale. `0` and `undefined` both
-   *  mean "nothing to say". */
+  /** Count of widget-instance records the server could not read (unparseable `fields_json`).
+   *  `0` and `undefined` both mean "nothing to say". */
   skippedCount: number;
+  /** IDs of the malformed widget records counted in {@link skippedCount}. */
+  skippedIds: string[];
   createType: AdminWidgetType;
   setCreateType: (type: AdminWidgetType) => void;
   /** The widget a "Trash" click is asking to confirm — `null` when the dialog is closed. Set by
@@ -83,10 +84,11 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
   const [error, setError] = useState<string | null>(null);
   // Dossier C5 follow-up (2026-08-03): `listWidgetInstances` silently skips a widget-instance row
   // whose `fields_json` doesn't parse into the expected shape, rather than 500ing the whole
-  // screen — correct, but it used to be invisible. The server now counts the skips; this just
-  // surfaces that count as a quiet note, never as an error (nothing failed — some rows just
-  // aren't shown). `undefined`/`0` both mean "nothing to say", handled identically below.
+  // screen — correct, but it used to be invisible. The server now returns the skip count and
+  // record IDs; this surfaces them as a quiet note, never as an error. `undefined`/`0` both mean
+  // "nothing to say", handled identically below.
   const [skippedCount, setSkippedCount] = useState<number>(0);
+  const [skippedIds, setSkippedIds] = useState<string[]>([]);
   const [createType, setCreateType] = useState<AdminWidgetType>("text");
   // The widget a "Trash" click is asking to confirm — `null` when the dialog is closed.
   // `ConfirmDialog` stays mounted unconditionally in `WidgetsLibrary.tsx`; this is what drives its
@@ -112,6 +114,7 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
         // file's own header for why the old client-side `purged` filter is gone too.
         setWidgets(r.widgets);
         setSkippedCount(r.skippedCount ?? 0);
+        setSkippedIds(r.skippedIds ?? []);
       })
       .catch((e) => {
         if (!loadSettlement.isCurrent(generation)) return;
@@ -170,6 +173,7 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
     widgets,
     error,
     skippedCount,
+    skippedIds,
     createType,
     setCreateType,
     pendingTrash,

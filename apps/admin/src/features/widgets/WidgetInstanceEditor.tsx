@@ -168,7 +168,7 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
       {/* Audit finding: placeholder-only, no `<label>` — same fix as `PostEditor.tsx`'s title field
           (see `styles/editor.css`'s `.a11y-label-wrap` comment). */}
       <label className="a11y-label-wrap">
-        <span className="visually-hidden">Widget title</span>
+        <span className="visually-hidden">{t("Widget title")}</span>
         <input
           className="editor-title"
           value={title}

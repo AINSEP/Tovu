@@ -34,13 +34,15 @@ afterEach(() => {
 });
 
 describe("useWidgetsLibrary — injected port (no fetch stub)", () => {
-  it("loads the list from the injected port and never touches the real api client", async () => {
+  it("loads the list and skipped record IDs from the injected port without touching the real api client", async () => {
     const listSpy = vi.spyOn(api, "listWidgets");
-    const port = createFakeWidgetsPort({ widgets: [WIDGET] });
+    const port = createFakeWidgetsPort({ widgets: [WIDGET], skippedCount: 1, skippedIds: ["malformed-1"] });
     const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
 
     await waitFor(() => expect(result.current.widgets).toHaveLength(1));
     expect(result.current.widgets?.[0]?.id).toBe("w1");
+    expect(result.current.skippedCount).toBe(1);
+    expect(result.current.skippedIds).toEqual(["malformed-1"]);
     expect(listSpy).not.toHaveBeenCalled();
   });
 
