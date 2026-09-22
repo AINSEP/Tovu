@@ -144,7 +144,9 @@ export function createTrashService(deps: TrashServiceDeps): TrashPort {
           displayTitle: required.display.title,
           displaySubtitle: required.display.subtitle ?? null,
           entityVersion: marker.version,
-          priorMarker: marker.priorMarker ?? null,
+          // The adapter's own reading of the marker column wins; a caller-stated prior state only
+          // fills in for an adapter that has none (see `TrashPort.trash`).
+          priorMarker: marker.priorMarker ?? required.priorMarker ?? null,
         };
         await deps.repo.insert(row);
         await notifyChanged(deps, {
@@ -294,5 +296,7 @@ export function bindRemoveEntity(trash: TrashPort, entityType: TrashEntityType):
       display: required.display,
       at: required.at,
       expectedVersion: required.expectedVersion,
+      // Only when stated, so every existing caller's `trash()` argument stays exactly as it was.
+      ...(required.priorMarker !== undefined ? { priorMarker: required.priorMarker } : {}),
     });
 }

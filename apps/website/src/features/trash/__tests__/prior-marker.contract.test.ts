@@ -5,7 +5,7 @@ import type Database from "better-sqlite3";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { createTrashService } from "../write-service.js";
+import { bindRemoveEntity, createTrashService } from "../write-service.js";
 import type { TrashAdapter, TrashMarkerResult, TrashPort } from "../ports.js";
 
 /**
@@ -109,4 +109,58 @@ test("restore() passes the trashed row's stored priorMarker back into the adapte
   assert.equal(restored, "restored");
   assert.equal(seen.length, 1);
   assert.equal(seen[0]?.priorMarker, "draft");
+});
+
+test("trash() stores a caller-supplied priorMarker when the adapter reports none (an adopted legacy widget)", async () => {
+  const { trash } = harness({ ok: true, version: 2 });
+  await trash.trash({
+    workspaceId: WS,
+    entityType: STUB_ENTITY_TYPE,
+    entityId: "e-4",
+    actor: ACTOR,
+    display: { title: "Entity e-4" },
+    at: AT,
+    expectedVersion: 1,
+    priorMarker: "active",
+  });
+
+  const page = await trash.list({ workspaceId: WS, now: AT, limit: 10 });
+  assert.equal(page.items[0]?.priorMarker, "active");
+});
+
+test("trash() keeps the adapter's own priorMarker over a caller-supplied one — the marker column is the truth", async () => {
+  const { trash } = harness({ ok: true, version: 2, priorMarker: "draft" });
+  await trash.trash({
+    workspaceId: WS,
+    entityType: STUB_ENTITY_TYPE,
+    entityId: "e-5",
+    actor: ACTOR,
+    display: { title: "Entity e-5" },
+    at: AT,
+    expectedVersion: 1,
+    priorMarker: "active",
+  });
+
+  const page = await trash.list({ workspaceId: WS, now: AT, limit: 10 });
+  assert.equal(page.items[0]?.priorMarker, "draft");
+});
+
+test("bindRemoveEntity passes a domain's priorMarker through, and restore hands it back to unhide", async () => {
+  const seen: { priorMarker?: string | null }[] = [];
+  const { trash } = harness({ ok: true, version: 2 }, (required) => seen.push(required));
+  const remove = bindRemoveEntity(trash, STUB_ENTITY_TYPE);
+
+  const removed = await remove({
+    workspaceId: WS,
+    id: "e-6",
+    display: { title: "Entity e-6" },
+    at: AT,
+    expectedVersion: 1,
+    actor: ACTOR,
+    priorMarker: "active",
+  });
+  assert.deepEqual(removed, { ok: true, version: 2 });
+
+  assert.equal(await trash.restore({ workspaceId: WS, entityType: STUB_ENTITY_TYPE, entityId: "e-6", at: AT }), "restored");
+  assert.equal(seen[0]?.priorMarker, "active");
 });

@@ -187,6 +187,12 @@ export interface TrashPort {
     display: TrashDisplay;
     at: string;
     expectedVersion: number | null;
+    /**
+     * The state a restore should bring back, stated by the caller for an entity whose marker column
+     * cannot say it (an adopted legacy widget: its real state lives in its payload). Stored only
+     * when the adapter's `hide` reports no `priorMarker` of its own — the marker column wins.
+     */
+    priorMarker?: string | null;
   }): Promise<TrashMarkerResult>;
 
   restore(required: {
@@ -233,6 +239,8 @@ export type RemoveEntity = (required: {
   at: string;
   expectedVersion: number | null;
   actor: TrashActor;
+  /** See `TrashPort.trash`'s `priorMarker`. */
+  priorMarker?: string | null;
 }) => Promise<TrashMarkerResult>;
 
 /**

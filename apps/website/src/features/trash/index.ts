@@ -47,6 +47,8 @@ export { createSqliteTrashDb } from "./db-port.sqlite.js";
 export type { TrashDb, TrashDbAssignment, TrashDbRow } from "./db-port.js";
 
 export { createTableTrashAdapter } from "./table-adapter.js";
+export { withRestoreFollowUp } from "./restore-follow-up.js";
+export type { RestoreFollowUp } from "./restore-follow-up.js";
 
 export { isTrashedRecord, notTrashed } from "./not-trashed.js";
 

@@ -63,7 +63,6 @@ function widgetWriteDeps(repos: ReturnType<typeof makeSharedRepos>): WidgetTrash
   return {
     ...repos,
     remove: repos.trash.remove,
-    transaction: (fn) => fn(),
     clock: { nowIso: () => "2026-07-21T00:00:00.000Z" },
     ids: { newId: () => `id-${++idCounter}` },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),

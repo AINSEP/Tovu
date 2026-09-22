@@ -98,4 +98,7 @@ export type RemoveWidgetFn = (required: {
   at: string;
   expectedVersion: number | null;
   actor: { principalId: string; pluginId?: string | null };
+  /** The status a restore brings back, when the Trash cannot read it off a column — only the
+   *  legacy-widget adoption states one (`"active"`). */
+  priorMarker?: string | null;
 }) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }>;

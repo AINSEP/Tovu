@@ -37,7 +37,6 @@ function makeDeps(): WidgetTrashDeps {
   return {
     entryRepo: trash.entryRepo,
     remove: trash.remove,
-    transaction: (fn) => fn(),
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     clock: { nowIso: () => "2026-07-21T00:00:00.000Z" },

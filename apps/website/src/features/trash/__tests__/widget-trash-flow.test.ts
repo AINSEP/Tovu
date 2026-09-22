@@ -11,6 +11,7 @@ import { buildWidgetInstanceFieldsJson, parseWidgetInstancePayload } from "#src/
 import {
   adoptLegacyTrashedWidgets,
   createWidgetInstance,
+  restoreWidgetPriorStatus,
   trashWidgetInstance,
   type WidgetTrashDeps,
 } from "#src/features/widgets/write-service";
@@ -19,6 +20,7 @@ import { createSqliteTrashDb } from "../db-port.sqlite.js";
 import { moveToTrash } from "../move-to-trash.js";
 import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
+import { withRestoreFollowUp, type RestoreFollowUp } from "../restore-follow-up.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { bindRemoveEntity, createTrashService } from "../write-service.js";
 import type { TrashAdapter, TrashPort } from "../index.js";
@@ -42,7 +44,9 @@ interface Harness {
   deps: WidgetTrashDeps;
 }
 
-function harness(): Harness {
+/** The widget adapter the way `deps.ts` builds it: the generic table adapter, plus the widgets
+ *  domain's follow-up that brings back an adopted widget's recorded status on restore. */
+function harness(options: { widgetRestoreFollowUp?: RestoreFollowUp } = {}): Harness {
   const db = openContentDb(":memory:");
   db.$client
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
@@ -52,6 +56,14 @@ function harness(): Harness {
   const adapters = new Map<string, TrashAdapter>(
     [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])
   );
+  const widgetRestoreFollowUp: RestoreFollowUp =
+    options.widgetRestoreFollowUp ??
+    ((required) =>
+      restoreWidgetPriorStatus({
+        deps: widgetDeps,
+        input: { workspaceId: required.workspaceId, widgetInstanceId: required.entityId, priorStatus: required.priorMarker },
+      }));
+  adapters.set("widget", withRestoreFollowUp({ adapter: adapters.get("widget")!, followUp: widgetRestoreFollowUp }));
   let seq = 0;
   const transaction = createContentDbTransactionRunner(db.$client);
   const trash = createTrashService({
@@ -61,23 +73,17 @@ function harness(): Harness {
     transaction,
   });
   const entries = new SqliteEntryRepo(db);
-  return {
-    db,
-    registry,
-    trash,
-    entries,
-    deps: {
-      entryRepo: entries,
-      contentTypeRepo: new SqliteContentTypeRepo(db),
-      entryRefsRepo: new SqliteEntryRefsRepo(db),
-      clock: { nowIso: () => AT },
-      ids: { newId: () => randomUUID() },
-      authorize: async () => ({ allowed: true, reason: "test: always allow" }),
-      outbox: { enqueue: async () => undefined },
-      remove: bindRemoveEntity(trash, "widget"),
-      transaction,
-    },
+  const widgetDeps: WidgetTrashDeps = {
+    entryRepo: entries,
+    contentTypeRepo: new SqliteContentTypeRepo(db),
+    entryRefsRepo: new SqliteEntryRefsRepo(db),
+    clock: { nowIso: () => AT },
+    ids: { newId: () => randomUUID() },
+    authorize: async () => ({ allowed: true, reason: "test: always allow" }),
+    outbox: { enqueue: async () => undefined },
+    remove: bindRemoveEntity(trash, "widget"),
   };
+  return { db, registry, trash, entries, deps: widgetDeps };
 }
 
 async function createTextWidget(h: Harness, title: string, slug?: string): Promise<{ id: string; slug: string }> {
@@ -227,36 +233,96 @@ test("creating a widget with the slug a trashed widget holds is refused with a m
   });
 });
 
-test("adoptLegacyTrashedWidgets moves every old trash/purged widget into the Trash with an active payload, once", async () => {
+/** Rewrites a widget's payload status the way the old delete ladder left it. */
+function setLegacyStatus(h: Harness, id: string, status: "trash" | "purged"): void {
+  const fieldsJson = buildWidgetInstanceFieldsJson({ widgetType: "text", config: { body: "x" }, status });
+  h.db.$client.prepare(`UPDATE entries SET fields_json = ? WHERE id = ?`).run(JSON.stringify(fieldsJson), id);
+}
+
+test("adoptLegacyTrashedWidgets moves every old trash/purged widget into the Trash with its payload status untouched, once", async () => {
   const h = harness();
   const live = await createTextWidget(h, "Live");
   const oldTrash = await createTextWidget(h, "Old trash");
   const oldPurged = await createTextWidget(h, "Old purged");
+  setLegacyStatus(h, oldTrash.id, "trash");
+  setLegacyStatus(h, oldPurged.id, "purged");
+  const versionsBefore = new Map([oldTrash.id, oldPurged.id].map((id) => [id, rawRow(h, id)!.version]));
+
+  const first = await adoptLegacyTrashedWidgets({ deps: h.deps, input: { workspaceId: WS } });
+  assert.deepEqual(
+    [...first.adopted].sort((a, b) => a.id.localeCompare(b.id)),
+    [
+      { id: oldTrash.id, title: "Old trash" },
+      { id: oldPurged.id, title: "Old purged" },
+    ].sort((a, b) => a.id.localeCompare(b.id))
+  );
+
+  const page = await h.trash.list({ workspaceId: WS, now: AT, limit: 50 });
+  assert.deepEqual(page.items.map((item) => item.entityId).sort(), [oldTrash.id, oldPurged.id].sort());
+  for (const item of page.items) {
+    assert.equal(item.priorMarker, "active", "the Trash row remembers the status a restore brings back");
+    assert.equal(item.actorPrincipalId, "system");
+  }
+  // An older site build that knows nothing about `deleted_at` still reads these payloads, so they
+  // must keep saying trash/purged until a restore — otherwise that build shows them as live.
   for (const [id, status] of [
     [oldTrash.id, "trash"],
     [oldPurged.id, "purged"],
   ] as const) {
-    const fieldsJson = buildWidgetInstanceFieldsJson({ widgetType: "text", config: { body: "x" }, status });
-    h.db.$client.prepare(`UPDATE entries SET fields_json = ? WHERE id = ?`).run(JSON.stringify(fieldsJson), id);
-  }
-
-  const first = await adoptLegacyTrashedWidgets({ deps: h.deps, input: { workspaceId: WS } });
-  assert.deepEqual([...first.adopted].sort(), [oldTrash.id, oldPurged.id].sort());
-
-  const page = await h.trash.list({ workspaceId: WS, now: AT, limit: 50 });
-  assert.deepEqual(page.items.map((item) => item.entityId).sort(), [oldTrash.id, oldPurged.id].sort());
-  for (const id of [oldTrash.id, oldPurged.id]) {
     const row = rawRow(h, id)!;
     assert.equal(row.deleted_at, AT);
-    assert.equal(parseWidgetInstancePayload(JSON.parse(row.fields_json)).status, "active");
+    assert.equal(parseWidgetInstancePayload(JSON.parse(row.fields_json)).status, status);
+    assert.equal(row.version, versionsBefore.get(id)! + 1, "only the Trash's own version bump");
   }
   assert.ok(await h.entries.findById({ workspaceId: WS, id: live.id }), "a live widget is left alone");
 
   const second = await adoptLegacyTrashedWidgets({ deps: h.deps, input: { workspaceId: WS } });
   assert.deepEqual(second.adopted, []);
   assert.equal((await h.trash.list({ workspaceId: WS, now: AT, limit: 50 })).items.length, 2);
+});
+
+test("a restored adopted widget comes back active and readable", async () => {
+  const h = harness();
+  const oldPurged = await createTextWidget(h, "Old purged");
+  setLegacyStatus(h, oldPurged.id, "purged");
+  await adoptLegacyTrashedWidgets({ deps: h.deps, input: { workspaceId: WS } });
 
   assert.equal(await h.trash.restore({ workspaceId: WS, entityType: "widget", entityId: oldPurged.id, at: AT }), "restored");
+
   const restored = await h.entries.findById({ workspaceId: WS, id: oldPurged.id });
-  assert.equal(parseWidgetInstancePayload(restored!.fieldsJson).status, "active", "a restored old widget renders");
+  assert.ok(restored, "a restored adopted widget reads again");
+  assert.equal(parseWidgetInstancePayload(restored.fieldsJson).status, "active", "a restored old widget renders");
+  assert.equal(rawRow(h, oldPurged.id)!.deleted_at, null);
+  assert.equal((await h.trash.list({ workspaceId: WS, now: AT, limit: 50 })).items.length, 0);
+});
+
+test("a widget trashed the normal way is restored with its payload untouched — no prior status, no rewrite", async () => {
+  const h = harness();
+  const widget = await createTextWidget(h, "Plain");
+  await trashWidgetInstance({ deps: h.deps, input: { workspaceId: WS, actor: ACTOR, widgetInstanceId: widget.id } });
+  const trashedRow = rawRow(h, widget.id)!;
+
+  assert.equal(await h.trash.restore({ workspaceId: WS, entityType: "widget", entityId: widget.id, at: AT }), "restored");
+
+  const row = rawRow(h, widget.id)!;
+  assert.equal(row.fields_json, trashedRow.fields_json);
+  assert.equal(row.version, trashedRow.version + 1, "only the Trash's own version bump — no payload update");
+});
+
+test("when the restore follow-up fails, the whole restore rolls back: the widget stays in the Trash", async () => {
+  const h = harness({
+    widgetRestoreFollowUp: async () => {
+      throw new Error("follow-up failed");
+    },
+  });
+  const oldPurged = await createTextWidget(h, "Old purged");
+  setLegacyStatus(h, oldPurged.id, "purged");
+  await adoptLegacyTrashedWidgets({ deps: h.deps, input: { workspaceId: WS } });
+
+  await assert.rejects(
+    () => h.trash.restore({ workspaceId: WS, entityType: "widget", entityId: oldPurged.id, at: AT }),
+    /follow-up failed/
+  );
+  assert.equal(rawRow(h, oldPurged.id)!.deleted_at, AT, "the marker clear must roll back with the failed follow-up");
+  assert.equal((await h.trash.list({ workspaceId: WS, now: AT, limit: 50 })).items.length, 1, "the Trash row stays");
 });

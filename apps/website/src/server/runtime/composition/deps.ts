@@ -154,6 +154,8 @@ import { NoopContentTypeIndexProvisioner } from "#src/features/content-types/ind
 import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
 import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
 import { SqliteWidgetRegionBindingRepo } from "#src/features/widgets/repo.sqlite";
+import { buildWidgetsDeps } from "#src/features/widgets/deps";
+import { adoptLegacyTrashedWidgets, restoreWidgetPriorStatus } from "#src/features/widgets/write-service";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 import { SqlitePluginActivationRepo } from "#src/features/plugin-runtime/repo.sqlite";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
@@ -198,7 +200,9 @@ import {
   POST_ENTITY_TYPE,
   REDIRECT_ENTITY_TYPE,
   SqliteTrashRepo,
+  type RestoreFollowUp,
   type TrashAdapter,
+  withRestoreFollowUp,
 } from "#src/features/trash/index";
 import * as contentSchema from "#src/platform/db/schema";
 import { installCommentsDataModule } from "#src/features/comments/data-module-install";
@@ -1128,6 +1132,20 @@ export function createSqliteRouteDeps(
   // loops over every registered entry generically.
   const trashRegistry = buildTrashRegistry({ schema: contentSchema });
   const sqliteTrashDb = createSqliteTrashDb({ db });
+  // A restore its marker column alone cannot finish, per type (`restore-follow-up.ts`). `widget`: an
+  // adopted legacy widget keeps its `purged` payload while in the Trash (an older site build still
+  // reads it), and its restore makes the payload active again. `routeDeps` is read at restore time,
+  // long after it exists below.
+  const trashRestoreFollowUps = new Map<string, RestoreFollowUp>([
+    [
+      "widget",
+      (required) =>
+        restoreWidgetPriorStatus({
+          deps: buildWidgetsDeps(routeDeps),
+          input: { workspaceId: required.workspaceId, widgetInstanceId: required.entityId, priorStatus: required.priorMarker },
+        }),
+    ],
+  ]);
   const trashAdapters = new Map<string, TrashAdapter>([
     [POST_ENTITY_TYPE, createPostTrashAdapter(db.$client)],
     [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(db.$client)],
@@ -1150,9 +1168,11 @@ export function createSqliteRouteDeps(
     // One generic adapter per `TRASHABLE` entry — `createTableTrashAdapter` is
     // written once and driven entirely by each entry's own registration, so this line never changes
     // as G2-G4 add more entries.
-    ...[...trashRegistry.values()].map(
-      (entry) => [entry.entityType, createTableTrashAdapter({ entry, db: sqliteTrashDb })] as const
-    ),
+    ...[...trashRegistry.values()].map((entry) => {
+      const adapter = createTableTrashAdapter({ entry, db: sqliteTrashDb });
+      const followUp = trashRestoreFollowUps.get(entry.entityType);
+      return [entry.entityType, followUp ? withRestoreFollowUp({ adapter, followUp }) : adapter] as const;
+    }),
   ]);
   const trashRepo = new SqliteTrashRepo(db.$client);
   // Reentrant: `deletePost` and `tombstoneRedirect` already open their own BEGIN IMMEDIATE around
@@ -1874,6 +1894,26 @@ export function createSqliteRouteDeps(
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
   };
+
+  // Owner decision 6 (2026-09-21): the widgets the retired "delete permanently" rung left behind
+  // (payload status `purged`/`trash`) go into the Trash, once — idempotent, so every later boot finds
+  // none and logs nothing. Waits for every boot-time SQLite writer above to settle first (the shared-
+  // connection transaction hazard `seoReady`'s comment documents); fire-and-forget, logged, never
+  // aborts boot.
+  const widgetAdoptionReady = Promise.allSettled([siteTitleReady, menuBindingsReady, mediaTransformReady])
+    .then(() => adoptLegacyTrashedWidgets({ deps: buildWidgetsDeps(routeDeps), input: { workspaceId } }))
+    .then(({ adopted }) => {
+      for (const widget of adopted) {
+        // eslint-disable-next-line no-console
+        console.info(`[trash] moved legacy deleted widget '${widget.id}' ("${widget.title}") to the Trash`);
+      }
+    })
+    .catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error(`adoptLegacyTrashedWidgets failed at boot: ${(err as Error).message}`);
+    });
+  void widgetAdoptionReady;
+
   return routeDeps;
 }
 
