@@ -210,8 +210,8 @@ describe("WidgetEmbedNodeView", () => {
     vi.spyOn(api, "getWidget").mockResolvedValue({ widget: ACTIVE_WIDGET, whereUsed: NO_WHERE_USED });
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ widgets: [{ ...ACTIVE_WIDGET, id: "w2", title: "Other text widget" }] }), { status: 200 }),
+      vi.fn().mockImplementation(() =>
+        Promise.resolve(new Response(JSON.stringify({ widgets: [{ ...ACTIVE_WIDGET, id: "w2", title: "Other text widget" }] }), { status: 200 })),
       ),
     );
     render(
@@ -452,8 +452,8 @@ describe("WidgetEmbedInsertControl", () => {
     const fakeEditor = { commands: { insertWidgetEmbed } };
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ widgets: [{ ...ACTIVE_WIDGET, id: "w9", title: "Reusable text" }] }), { status: 200 }),
+      vi.fn().mockImplementation(() =>
+        Promise.resolve(new Response(JSON.stringify({ widgets: [{ ...ACTIVE_WIDGET, id: "w9", title: "Reusable text" }] }), { status: 200 })),
       ),
     );
 
@@ -479,8 +479,8 @@ describe("WidgetEmbedInsertControl", () => {
     const fakeEditor = { commands: { insertWidgetEmbed } };
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ widgets: [{ ...ACTIVE_WIDGET, id: "w10", title: "Another text widget" }] }), { status: 200 }),
+      vi.fn().mockImplementation(() =>
+        Promise.resolve(new Response(JSON.stringify({ widgets: [{ ...ACTIVE_WIDGET, id: "w10", title: "Another text widget" }] }), { status: 200 })),
       ),
     );
 
