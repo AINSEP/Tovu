@@ -62,6 +62,7 @@ describe("TRASH_DICT: cross-locale key parity", () => {
     "Deleted",
     "Deleted by",
     "Deleted user",
+    "Unknown",
     "Days left",
     "{count} selected",
     "Loading the Trash…",

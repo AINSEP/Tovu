@@ -1915,8 +1915,11 @@ export interface AdminTrashItem {
   actorPluginId: string | null;
   /** The server-resolved username for `actorPrincipalId`, or `null` when no user record matches
    *  it (the account was since removed, or the principal is not a user). Never the raw id — that
-   *  resolution happens server-side so the admin UI never has to guess at a fallback. */
-  actorUsername: string | null;
+   *  resolution happens server-side so the admin UI never has to guess at a fallback. Optional
+   *  (rather than always `string | null`) because an older server build that predates username
+   *  resolution omits the field entirely — `rules.ts`'s `actorLabel` treats that absence
+   *  differently from an explicit `null`, so the type must let the two states be told apart. */
+  actorUsername?: string | null;
 }
 
 export interface AdminTrashPage {

@@ -424,6 +424,43 @@ test("list: resolves the deleting principal to a username, and falls back to a r
   assert.equal(ghost?.actorUsername, null);
 });
 
+/**
+ * Regression guard for the 2026-09-21 "Deleted user" report: the owner's OWN account must resolve
+ * to a username here too, not just other operators'. `loadUsernamesByPrincipalId` reads
+ * `userRepo.list({ workspaceId })`, and this product seeds exactly one workspace with the owner
+ * account inside it (`identity/wiring.ts`'s `ownerPrincipalId`), so there is no membership boundary
+ * that could exclude the owner from that list — this test proves that rather than assuming it.
+ */
+test("list: resolves the seeded owner/admin account's own deletions to its username, not a fallback", async (t) => {
+  const h = buildTrashHarness();
+  await h.deps.identityReady;
+
+  const ownerPrincipalId = await h.deps.ownerPrincipalId;
+  const owner = await h.deps.userRepo.findByPrincipalId({ workspaceId: h.deps.workspaceId, principalId: ownerPrincipalId });
+  assert.ok(owner, "the seeded owner account must have a user record");
+
+  seedRedirect(h.client, h.deps.workspaceId, "redirect-by-owner");
+  const marker = await h.trash.trash({
+    workspaceId: h.deps.workspaceId,
+    entityType: REDIRECT_ENTITY_TYPE,
+    entityId: "redirect-by-owner",
+    actor: { principalId: ownerPrincipalId },
+    display: { title: "redirect-by-owner" },
+    at: AT,
+    expectedVersion: 1,
+  });
+  assert.equal(marker.ok, true, "seeding redirect-by-owner into the trash");
+
+  const baseUrl = await startTestServer(h.app, t);
+  const cookie = await loginWithPermissions(h.deps, baseUrl, ["content.read", "admin.redirects.manage"]);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${h.deps.workspaceId}/trash`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  const body3 = (await res.json()) as { items: { entityId: string; actorUsername: string | null }[] };
+  const row = body3.items.find((item) => item.entityId === "redirect-by-owner");
+  assert.equal(row?.actorUsername, owner!.username);
+});
+
 test("restore: one forbidden item in a mixed selection does not abort the rest", async (t) => {
   const h = buildTrashHarness();
   await trashOneOfEach(h);

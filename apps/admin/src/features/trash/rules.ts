@@ -62,14 +62,21 @@ export function entityTypeLabel(locale: string, entityType: string): string {
  * Who deleted it, in words an operator can read — never the raw principal id.
  *
  * Priority: the plugin/agent id when an agent did it (already a readable slug, e.g. `"forms"`),
- * else the username the server resolved for `actorPrincipalId`, else `"Deleted user"` — the
- * principal that deleted it no longer has a user record (account removed, or a non-user system
- * principal), which is a real, expected state rather than a bug to hide.
+ * else the username the server resolved for `actorPrincipalId`. Below that, two DIFFERENT server
+ * answers must not collapse into one label: an explicit `actorUsername: null` means the server
+ * looked the id up and found no user record (account removed, or a non-user system principal) —
+ * `"Deleted user"` is true there. `actorUsername` being absent from the response entirely (an
+ * older server build that predates username resolution) means the server never told us anything,
+ * so claiming the account was deleted would be false — `"Unknown"` instead. Conflating the two
+ * showed every row as "Deleted user", including the owner's own account, against a server that
+ * simply hadn't picked up the field yet (2026-09-21).
  *
  * @complexity O(1).
  */
 export function actorLabel(locale: string, item: AdminTrashItem): string {
-  return item.actorPluginId ?? item.actorUsername ?? t(locale, "Deleted user");
+  if (item.actorPluginId != null) return item.actorPluginId;
+  if (item.actorUsername === undefined) return t(locale, "Unknown");
+  return item.actorUsername ?? t(locale, "Deleted user");
 }
 
 /**
