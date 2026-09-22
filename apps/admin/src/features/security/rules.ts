@@ -993,3 +993,22 @@ export function envNamesFact(envNames: readonly string[], t: Translate = (key) =
   if (envNames.length === 1) return t("1 environment variable set");
   return t("{count} environment variables set").replace("{count}", String(envNames.length));
 }
+
+/** `AccessTokensSearch`'s own count line (the search box's `role="status"` caption) — whole-sentence
+ *  templates keyed by the plural of `totalCount`, not string-fragment concatenation. Gluing
+ *  translated words in English order (`"${count} ${tokenWord} ${translate("saved")}"`) can't read
+ *  naturally in a language that puts the verb, the count, or the quoted query somewhere else in the
+ *  sentence (ja/ko/zh/th all reorder this), so each plural form is one full translated sentence
+ *  instead. The plural is chosen by `totalCount` alone (never `matchCount`) — see this file's own
+ *  callers for why the visible noun stays anchored to the total, not the filtered subset. `query` is
+ *  interpolated raw (not trimmed) to match the box's own display of what was typed.
+ *  @complexity O(1). */
+export function accessTokensCountText(totalCount: number, matchCount: number, query: string, t: Translate = (key) => key): string {
+  if (query.trim() === "") {
+    return t(totalCount === 1 ? "{count} token saved" : "{count} tokens saved").replace("{count}", String(totalCount));
+  }
+  return t(totalCount === 1 ? "{matched} of {count} token matching “{query}”" : "{matched} of {count} tokens matching “{query}”")
+    .replace("{matched}", String(matchCount))
+    .replace("{count}", String(totalCount))
+    .replace("{query}", query);
+}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@/lib/api";
+import { t as translateSecurity } from "../security-i18n";
 import {
   ACCESS_TOKEN_CATEGORIES,
   ACCESS_TOKEN_PROVIDERS,
@@ -15,6 +16,7 @@ import {
   accessTokenRowProviderInfo,
   accessTokenRowReadyToSave,
   accessTokenRowsForProvider,
+  accessTokensCountText,
   buildAccessTokenConnectionInput,
   buildAccessTokenRows,
   buildAccessTokenUpdatePatch,
@@ -244,6 +246,44 @@ describe("value-fact formatters", () => {
 
   it("envNamesFact reports zero as a fact, not blank", () => {
     expect(envNamesFact([])).toBe("No environment variables set");
+  });
+});
+
+describe("accessTokensCountText", () => {
+  // Whole-sentence templates replaced the old `${totalCount} ${tokenWord} ${translate("saved")}`
+  // fragment concatenation (see rules.ts's own doc) — pinning English byte-identical to what that
+  // concatenation used to produce, including the plural boundary at exactly 1 and the curly quotes
+  // around the query, is what proves the rewrite changed no visible English copy.
+  it("stays byte-identical in English for the empty-query, zero-count case", () => {
+    expect(accessTokensCountText(0, 0, "")).toBe("0 tokens saved");
+  });
+
+  it("stays byte-identical in English for the empty-query singular case", () => {
+    expect(accessTokensCountText(1, 1, "")).toBe("1 token saved");
+  });
+
+  it("stays byte-identical in English for a searched, plural-total case", () => {
+    expect(accessTokensCountText(5, 2, "abc")).toBe("2 of 5 tokens matching “abc”");
+  });
+
+  it("stays byte-identical in English for a searched, singular-total case", () => {
+    expect(accessTokensCountText(1, 1, "abc")).toBe("1 of 1 token matching “abc”");
+  });
+
+  it("ignores leading/trailing whitespace in the query the same way the old check did", () => {
+    expect(accessTokensCountText(3, 0, "   ")).toBe("3 tokens saved");
+  });
+
+  it("renders a full translated German sentence, not glued fragments", () => {
+    const translate = (key: string) => translateSecurity("de", key);
+    expect(accessTokensCountText(0, 0, "", translate)).toBe("0 Tokens gespeichert");
+    expect(accessTokensCountText(1, 1, "", translate)).toBe("1 Token gespeichert");
+    expect(accessTokensCountText(5, 2, "abc", translate)).toBe("2 von 5 Tokens, die zu “abc” passen");
+  });
+
+  it("renders a full translated Japanese sentence with the query reordered to the front", () => {
+    const translate = (key: string) => translateSecurity("ja", key);
+    expect(accessTokensCountText(5, 2, "abc", translate)).toBe("「abc」に一致するトークン5件中2件");
   });
 });
 

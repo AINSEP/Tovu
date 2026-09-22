@@ -4,7 +4,6 @@ import { agentHandle } from "@jini-ai/agentic";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBar.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { formatTimestamp } from "../../lib/format-timestamp";
-import { pickPlural } from "../../lib/template-i18n";
 import type { Translate } from "../../lib/dictionary-translator";
 import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle } from "./security-i18n";
 import {
@@ -12,6 +11,7 @@ import {
   accessTokenExistingRowReadyToSave,
   accessTokenRowProviderInfo,
   accessTokenRowReadyToSave,
+  accessTokensCountText,
   invalidAdditionalHostsEntries,
   providerGroupHandleLabel,
   tokenRowHandleLabel,
@@ -216,20 +216,18 @@ function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { contr
 
 /** The search box and its own match-count line — counts are the SUM of both tiers'
  *  `totalCount`/`matchCount` (this file's header on why the combined count stays a GLOBAL fact,
- *  unaffected by the category filter below it). "tokens" stays the noun even though the count now
+ *  unaffected by the category filter below it). "token(s)" stays the noun even though the count now
  *  spans Tier 2's keys/credentials too — the existing e2e suite pins the exact string
  *  (`development/e2e/access-tokens.spec.ts`'s `/^0 tokens saved$/`), and nothing in this pass asked
  *  for new copy here; a person calling a Composio key a "token" loosely is the same shorthand this
- *  page's own tab name already uses for the whole install. */
+ *  page's own tab name already uses for the whole install. The line itself is `rules.ts`'s
+ *  `accessTokensCountText` — a whole translated sentence per plural form, not fragments glued in
+ *  English word order (see that function's own doc for why). */
 function AccessTokensSearch({ controller, otherController }: { controller: AccessTokensController; otherController: OtherCredentialsController }) {
   const translate = controller.t;
   const totalCount = controller.totalCount + otherController.totalCount;
   const matchCount = controller.matchCount + otherController.matchCount;
-  const tokenWord = pickPlural(totalCount, { one: translate("token"), other: translate("tokens") });
-  const countText =
-    controller.query.trim() === ""
-      ? `${totalCount} ${tokenWord} ${translate("saved")}`
-      : `${matchCount} ${translate("of")} ${totalCount} ${tokenWord} ${translate("matching")} “${controller.query}”`;
+  const countText = accessTokensCountText(totalCount, matchCount, controller.query, translate);
   return (
     <div className="access-tokens-search">
       <label className="visually-hidden" htmlFor="access-tokens-search">
