@@ -6,6 +6,7 @@ import type { Translate } from "../../lib/dictionary-translator";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { redirectRowMenuItems } from "./rules";
 import { useWiredRedirects } from "./hooks/use-redirects.hooks";
+import { ServerLabel } from "@/components/status-labels";
 import { useWiredHitCountCell } from "./hooks/use-hit-count-cell.hooks";
 import { useWiredImportRedirectsForm } from "./hooks/use-import-redirects-form.hooks";
 import {
@@ -317,7 +318,7 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
           {
             key: "status",
             header: t("Status"),
-            cell: (rule) => <span className={`status status-${rule.status}`}>{rule.status}</span>,
+            cell: (rule) => <span className={`status status-${rule.status}`}><ServerLabel value={rule.status} /></span>,
           },
           {
             key: "hits",

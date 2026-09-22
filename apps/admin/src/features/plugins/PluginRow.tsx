@@ -2,9 +2,9 @@ import { agentHandle } from "@jini-ai/agentic";
 import { useId, type ReactNode } from "react";
 
 import type { AdminPlugin } from "@/lib/api";
-import { pluginSubline } from "./rules";
 import { PluginChevronIcon, PluginPackageIcon } from "./plugins-visuals";
 import { EyeIcon } from "./agent-plugins-visuals";
+import { PluginMetadataLabel } from "@/components/status-labels";
 import type { Translate } from "@/lib/dictionary-translator";
 
 /**
@@ -108,7 +108,7 @@ export function PluginRow({ plugin, t, expanded, onToggleExpanded, agentHandleBa
               {" "}
               <span className="plugin-row-version">v{plugin.version}</span>
             </span>
-            <span className="plugin-row-subline">{pluginSubline(plugin)}</span>
+            <span className="plugin-row-subline"><PluginMetadataLabel values={[plugin.source, plugin.tier, plugin.status]} /></span>
           </span>
           <span className="plugin-row-chevron">
             <PluginChevronIcon />

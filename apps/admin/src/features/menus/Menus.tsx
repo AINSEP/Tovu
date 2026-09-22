@@ -1,5 +1,6 @@
 import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
 import { useWiredMenus } from "./hooks/use-menus.hooks";
+import { ServerLabel } from "@/components/status-labels";
 
 /**
  * @file Menus admin screens: list view (this file) + tree editor
@@ -55,7 +56,7 @@ export function Menus({ useMenusHook = useWiredMenus }: MenusProps = {}) {
           {
             key: "status",
             header: t("Status"),
-            cell: (menu) => <span className={`status status-${menu.status}`}>{menu.status}</span>,
+            cell: (menu) => <span className={`status status-${menu.status}`}><ServerLabel value={menu.status} /></span>,
           },
           {
             key: "actions",

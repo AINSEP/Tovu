@@ -8,6 +8,7 @@ import { useWiredNewTaxonomyForm } from "./hooks/use-new-taxonomy-form.hooks";
 import { useWiredMergeTermSection } from "./hooks/use-merge-term-section.hooks";
 import { useWiredTermDetailPanel } from "./hooks/use-term-detail-panel.hooks";
 import { useWiredTaxonomy } from "./hooks/use-taxonomy.hooks";
+import { ServerLabel } from "@/components/status-labels";
 
 /**
  * @file Categories & Tags screen (design-spec.md §2, ADR-044) — the `/admin/taxonomy` route.
@@ -407,7 +408,7 @@ function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, useTermDetailPan
       <div className="settings-layer-grid">
         <div className="settings-layer-cell">
           <span className="settings-layer-label">{t("Status")}</span>
-          <span className={`status status-${term.status}`}>{term.status}</span>
+          <span className={`status status-${term.status}`}><ServerLabel value={term.status} /></span>
         </div>
         <div className="settings-layer-cell">
           <span className="settings-layer-label">{t("Parent")}</span>
@@ -812,7 +813,7 @@ function namespaceList(
                       >
                         {term.name}
                       </span>
-                      <span className={`status status-${term.status}`}>{term.status}</span>
+                      <span className={`status status-${term.status}`}><ServerLabel value={term.status} /></span>
                       {/* Stops the click before it reaches the `<li>`'s own `onClick` above — without
                           this, opening the row menu (or picking an item in it) would ALSO select the
                           row and pop the detail panel open behind the menu, since this trigger sits
