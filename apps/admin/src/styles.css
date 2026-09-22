@@ -2656,6 +2656,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .settings-detail-panel h2 { margin: 0; font-family: var(--font-mono); font-size: 1rem; }
 .settings-layer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 0.7rem; }
 .settings-layer-cell { display: flex; flex-direction: column; gap: 0.2rem; background: var(--surface-2); border-radius: var(--r-md); padding: 0.5rem 0.6rem; font-size: 0.85rem; }
+.taxonomy-term-detail .settings-layer-cell > .status { align-self: flex-start; }
 .settings-layer-effective { border: 1.5px solid var(--accent-text); }
 .settings-layer-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--faint); }
 /* Groups Workspace's read-only ID/Created facts with the rename form above them (nested inside the
@@ -2922,9 +2923,9 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    `.settings-layer-grid`/`-cell`/`-label` are no longer used by this screen at all (they stay
    untouched for Workspace/Taxonomy). Dropping them also fixes a real defect visible in the
    before-screenshot: `.settings-layer-cell` is a stretch-aligned flex column, which blew the
-   "Fast restore" `.status` pill out into a full-width green BAR. Taxonomy.tsx:411 still has that
-   same bug; fixing it there means touching the shared rule, which is out of this dispatch's
-   scope — flagged in the report instead. */
+   "Fast restore" `.status` pill out into a full-width green BAR. Taxonomy's equivalent status
+   pill opts out locally with `.taxonomy-term-detail .settings-layer-cell > .status`, preserving
+   the shared layout for Workspace and every other non-pill cell. */
 .recovery-restore-docket { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 /* Pulls the ghost button's own left padding back so its label optically aligns with the card edge
    below it, rather than sitting indented by a padding it doesn't visually own. */
