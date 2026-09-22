@@ -26,8 +26,7 @@ describe("MENUS_DICT: cross-locale key parity", () => {
   /** Same measured state, same rule as `taxonomy/__tests__/taxonomy-i18n.unit.test.ts`'s own
    *  version of this assertion — read its comment. `MENUS_DICT`'s `es` block is a superset (plus
    *  `hi`/`ur`/`bn`, which happen to already carry a few of the same words) whose extra keys
-   *  ("Title", "Status", "Trash", "Delete permanently", "Save", "Label") are all `COMMON_I18N`
-   *  words in every locale. */
+   *  ("Title", "Status", "Trash", "Save", "Label") are all `COMMON_I18N` words in every locale. */
   it("every partially-present key is one COMMON_I18N carries in all 21 locales", () => {
     const allKeys = new Set(locales.flatMap((locale) => Object.keys(MENUS_DICT[locale])));
     const unrescuable: string[] = [];
@@ -50,21 +49,53 @@ describe("MENUS_DICT: cross-locale key parity", () => {
 });
 
 /**
- * Regression for the "Permanently delete menu?" confirm dialog's BUTTON rendering English in 17 of
- * 21 locales (S-I18N fallback fix). `MENUS_DICT.de` never carries "Delete permanently" (only
- * `es`/`hi`/`ur`/`bn` do), but it is a `COMMON_I18N` key in all 21 locales, so `t` must fall through
- * to `COMMON_I18N` instead of returning the raw English key. Menus.tsx calls `t("Delete permanently")`
- * directly for this button.
+ * Regression for the original S-I18N fallback fix — the confirm dialog's own button rendered
+ * English in 17 of 21 locales before `t` fell through to `COMMON_I18N`. That button's copy has
+ * since moved from "Delete permanently" to "Move to trash" (Trash rewrite, 2026-09-21 — see the
+ * `describe` block below), but the fallback mechanism this originally fixed is unrelated to which
+ * key the button happens to render and still needs covering.
  */
 describe("MENUS_DICT: t() falls back to COMMON_I18N", () => {
-  it("translates 'Delete permanently' in German even though MENUS_DICT.de never carries it", () => {
-    expect(MENUS_DICT.de["Delete permanently"]).toBeUndefined();
-    expect(t("de", "Delete permanently")).toBe(COMMON_I18N.de["Delete permanently"]);
-  });
-
   it("translates 'Save' in German even though MENUS_DICT.de never carries it", () => {
     expect(MENUS_DICT.de.Save).toBeUndefined();
     expect(t("de", "Save")).toBe(COMMON_I18N.de.Save);
+  });
+});
+
+/**
+ * Trash rewrite (2026-09-21, `trash-delete-architecture.md`): `Menus.tsx`'s confirm dialog swapped
+ * from the "Permanently delete menu?" force-purge ladder to a single "Move to trash?" confirm,
+ * matching the Widgets library delete precedent (46fa4e467) verbatim — same three dialog keys plus
+ * the shared `TRASH_VERSION_CHANGED` reload message, same translations reused across all 21 locales.
+ */
+describe("MENUS_DICT: 'Move to trash' confirm dialog copy", () => {
+  const LOCALES = [
+    "ar", "bn", "de", "es", "fa", "fr", "hi", "hu", "id", "it",
+    "ja", "ko", "pl", "pt-BR", "ru", "th", "tr", "uk", "ur", "zh-CN", "zh-TW",
+  ];
+  const TRASH_KEYS = [
+    "Move to trash?",
+    "Move to trash",
+    'Move "{title}" to trash?',
+    "This item changed since you loaded it. Reload and try again.",
+  ];
+
+  it.each(LOCALES)("carries every trash-dialog key in %s", (locale) => {
+    const missing = TRASH_KEYS.filter((key) => MENUS_DICT[locale]?.[key] === undefined);
+    expect(missing).toEqual([]);
+  });
+
+  it("no longer carries the removed force-purge dialog keys in any locale", () => {
+    const removedKeys = [
+      "Delete permanently",
+      "Permanently delete menu?",
+      "Permanently delete",
+      'Permanently delete "{title}"? This cannot be undone.',
+    ];
+    for (const key of removedKeys) {
+      const stillPresent = Object.keys(MENUS_DICT).filter((locale) => key in MENUS_DICT[locale]);
+      expect(stillPresent, `${JSON.stringify(key)} should be gone from every locale`).toEqual([]);
+    }
   });
 });
 

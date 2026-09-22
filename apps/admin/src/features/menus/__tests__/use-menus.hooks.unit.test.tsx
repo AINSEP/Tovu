@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminMenu } from "@/lib/api";
+import { api, ApiError, type AdminMenu } from "@/lib/api";
 import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
 import { useMenus } from "../hooks/use-menus.hooks";
 
@@ -10,6 +10,11 @@ import { useMenus } from "../hooks/use-menus.hooks";
  * `Menus.tsx` has no component-level DI seam, so `Menus.unit.test.tsx` exercises the hook only
  * indirectly through a full component render with `fetch` stubbed — this is the first test to
  * exercise the hook itself.
+ *
+ * Trash rewrite (2026-09-21, `trash-delete-architecture.md`): `trashOrPurge`/`confirmForceDelete`
+ * are gone — every delete now opens a confirm (`requestTrash`) and only calls `port.trash` on
+ * {@link useMenus}'s `confirmTrash`, mirroring `use-widgets-library.hooks.unit.test.tsx`'s own
+ * `requestTrash`/`confirmTrash`/`cancelTrash` coverage.
  */
 
 const MENU: AdminMenu = {
@@ -38,23 +43,85 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
     expect(listSpy).not.toHaveBeenCalled();
   });
 
-  it("routes trashOrPurge (active menu) through the injected port's deleteMenu, and the row flips to trash once the list re-reads it", async () => {
-    const deleteSpy = vi.spyOn(api, "deleteMenu");
+  it("requestTrash opens the confirm without calling the port; confirmTrash then calls trash exactly once and the row flips to trash once the list re-reads it", async () => {
+    const trashSpy = vi.spyOn(api, "trash");
     const port = createFakeMenusPort({ menus: [MENU] });
     const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
 
+    act(() => {
+      result.current.requestTrash(MENU);
+    });
+    expect(result.current.pendingTrash).toEqual(MENU);
+    expect(trashSpy).not.toHaveBeenCalled();
+
     await act(async () => {
-      await result.current.trashOrPurge(MENU);
+      await result.current.confirmTrash();
     });
 
     await waitFor(() => expect(result.current.menus?.[0]?.status).toBe("trash"));
-    expect(deleteSpy).not.toHaveBeenCalled();
+    expect(result.current.pendingTrash).toBeNull();
+    expect(trashSpy).not.toHaveBeenCalled(); // the injected fake port, never the real `api` client
+  });
+
+  it("cancelTrash closes the confirm and calls nothing", async () => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    const trashFn = vi.fn(port.trash);
+    port.trash = trashFn;
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+    await waitFor(() => expect(result.current.menus).toEqual([MENU]));
+
+    act(() => {
+      result.current.requestTrash(MENU);
+    });
+    act(() => {
+      result.current.cancelTrash();
+    });
+
+    expect(result.current.pendingTrash).toBeNull();
+    expect(trashFn).not.toHaveBeenCalled();
+  });
+
+  it("a 404 on confirmTrash is quiet (no error banner) and re-reads the list", async () => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    port.trash = vi.fn(() => {
+      throw new ApiError("not found", 404, "NOT_FOUND");
+    });
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+    await waitFor(() => expect(result.current.menus).toEqual([MENU]));
+
+    act(() => {
+      result.current.requestTrash(MENU);
+    });
+    await act(async () => {
+      await result.current.confirmTrash();
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.pendingTrash).toBeNull();
+  });
+
+  it("a 409 TRASH_VERSION_CHANGED on confirmTrash shows the reload message", async () => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    port.trash = vi.fn(() => {
+      throw new ApiError("stale", 409, "TRASH_VERSION_CHANGED");
+    });
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+    await waitFor(() => expect(result.current.menus).toEqual([MENU]));
+
+    act(() => {
+      result.current.requestTrash(MENU);
+    });
+    await act(async () => {
+      await result.current.confirmTrash();
+    });
+
+    expect(result.current.error).toBe("This item changed since you loaded it. Reload and try again.");
   });
 
   /**
    * Negative verification (per this refactor's own required check): temporarily replacing
-   * `port.listMenus(...)`/`port.deleteMenu(...)` in `use-menus.hooks.ts` with direct calls to the
+   * `port.listMenus(...)`/`port.trash(...)` in `use-menus.hooks.ts` with direct calls to the
    * real `api` import and re-running this suite fails both assertions above (no real network in
    * this test env) — see this feature's commit/handoff report for the recorded run.
    */
@@ -92,11 +159,17 @@ describe("useMenus — overlapping list reads keep the newest", () => {
 
   async function trashAThenB(result: { current: ReturnType<typeof useMenus> }, releases: unknown[]) {
     act(() => {
-      void result.current.trashOrPurge(MENU_A);
+      result.current.requestTrash(MENU_A);
+    });
+    act(() => {
+      void result.current.confirmTrash();
     });
     await waitFor(() => expect(releases[2]).toBeDefined());
     act(() => {
-      void result.current.trashOrPurge(MENU_B);
+      result.current.requestTrash(MENU_B);
+    });
+    act(() => {
+      void result.current.confirmTrash();
     });
     await waitFor(() => expect(releases[3]).toBeDefined());
   }

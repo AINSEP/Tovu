@@ -6,9 +6,10 @@ import { Menus } from "../Menus";
 import type { MenusController } from "../hooks/use-menus.hooks";
 
 /**
- * @file `Menus` — pins the MSG-03 confirm-dialog swap: trashing an active menu still needs no
- * confirmation at all (unchanged); permanently deleting an already-trashed menu used to gate via
- * `window.confirm` and now gates via the shared `ConfirmDialog`, same copy.
+ * @file `Menus` — Trash rewrite (2026-09-21, `trash-delete-architecture.md`): every delete now
+ * opens the shared `ConfirmDialog` ("Move to trash?") before calling `api.trash`; there is no more
+ * force/purge ladder, since a trashed menu never reappears in this list (server-side default
+ * filter). Matches the Widgets library delete precedent (46fa4e467) verbatim.
  *
  * The "injected hook seam" describe block pins `MenusProps.useMenusHook` — the DI seam that
  * replaced this component's previous inline `useWiredMenus()` call.
@@ -29,8 +30,6 @@ const ACTIVE_MENU = {
   updatedAt: "2026-08-01T00:00:00.000Z",
   version: 1,
 };
-
-const TRASHED_MENU = { ...ACTIVE_MENU, id: "m2", title: "Old nav", status: "trash" as const };
 
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
@@ -54,52 +53,63 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("Trash (non-force)", () => {
-  it("needs no confirmation at all — matches the pre-existing behavior", async () => {
+describe("Move to trash", () => {
+  it("opens ConfirmDialog on click (not window.confirm), calls nothing until confirmed, then moves the menu to the Trash", async () => {
     const user = userEvent.setup();
     const confirmSpy = vi.spyOn(window, "confirm");
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ menus: [ACTIVE_MENU] }))
-      .mockResolvedValueOnce(jsonResponse({ menu: { ...ACTIVE_MENU, status: "trash" }, purged: false }))
-      .mockResolvedValueOnce(jsonResponse({ menus: [] }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ menus: [ACTIVE_MENU] }));
 
     render(<Menus />);
 
     await user.click(await screen.findByRole("button", { name: /^trash$/i }));
 
     expect(confirmSpy).not.toHaveBeenCalled();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-    const trashCall = fetchMock.mock.calls[1];
-    expect(trashCall[1]?.method).toBe("DELETE");
-    expect(String(trashCall[0])).not.toContain("force=true");
-  });
-});
-
-describe("Delete permanently (force, already-trashed)", () => {
-  it("opens ConfirmDialog instead of window.confirm, and only force-deletes on explicit confirm", async () => {
-    const user = userEvent.setup();
-    const confirmSpy = vi.spyOn(window, "confirm");
-    fetchMock.mockResolvedValueOnce(jsonResponse({ menus: [TRASHED_MENU] }));
-
-    render(<Menus />);
-
-    await user.click(await screen.findByRole("button", { name: /delete permanently/i }));
-
-    expect(confirmSpy).not.toHaveBeenCalled();
-    expect(await screen.findByText(/permanently delete "old nav"\? this cannot be undone\./i)).toBeInTheDocument();
-    // Not deleted yet — only the GET so far.
+    expect(await screen.findByText('Move "Primary nav" to trash?')).toBeInTheDocument();
+    // Not trashed yet — only the initial GET so far.
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({ menu: null, purged: true }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true, version: 2 }))
       .mockResolvedValueOnce(jsonResponse({ menus: [] }));
 
-    await user.click(screen.getByRole("button", { name: /^permanently delete$/i }));
+    await user.click(screen.getByRole("button", { name: /^move to trash$/i }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-    const deleteCall = fetchMock.mock.calls[1];
-    expect(deleteCall[1]?.method).toBe("DELETE");
-    expect(String(deleteCall[0])).toContain("force=true");
+    const trashCall = fetchMock.mock.calls[1];
+    expect(trashCall[1]?.method).toBe("POST");
+    expect(String(trashCall[0])).toContain("/trash/items");
+    expect(JSON.parse(trashCall[1]?.body as string)).toEqual({ type: "menu", id: "m1" });
+  });
+
+  it("Cancel closes the dialog and calls nothing", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ menus: [ACTIVE_MENU] }));
+
+    render(<Menus />);
+
+    await user.click(await screen.findByRole("button", { name: /^trash$/i }));
+    expect(await screen.findByText('Move "Primary nav" to trash?')).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^cancel$/i }));
+
+    expect(screen.queryByText('Move "Primary nav" to trash?')).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("a 409 TRASH_VERSION_CHANGED response shows the reload message instead of trashing", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ menus: [ACTIVE_MENU] }));
+
+    render(<Menus />);
+
+    await user.click(await screen.findByRole("button", { name: /^trash$/i }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ error: "changed", code: "TRASH_VERSION_CHANGED" }, 409),
+    );
+
+    await user.click(screen.getByRole("button", { name: /^move to trash$/i }));
+
+    expect(await screen.findByText(/this item changed since you loaded it\. reload and try again\./i)).toBeInTheDocument();
   });
 });
 
@@ -108,11 +118,11 @@ describe("injected hook seam (useMenusHook)", () => {
     const controller: MenusController = {
       menus: null,
       error: "fake controller error",
-      pendingForceDelete: null,
-      setPendingForceDelete: vi.fn(),
-      forceDeleting: false,
-      trashOrPurge: vi.fn(async () => {}),
-      confirmForceDelete: vi.fn(async () => {}),
+      pendingTrash: null,
+      trashing: false,
+      requestTrash: vi.fn(),
+      confirmTrash: vi.fn(async () => {}),
+      cancelTrash: vi.fn(),
       t: (key) => key,
     };
     render(<Menus useMenusHook={() => controller} />);
