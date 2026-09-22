@@ -1,8 +1,6 @@
 import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { NavigationEventName, NavMenuChangedPayload, NavMenuEntry } from "@jini-ai/cms/navigation";
 
-import type { TrashFollowUpHooks } from "../trash/follow-ups.js";
-
 /**
  * @file Menu-flavored trash follow-up hooks (T5, plan §3): emits the same
  * `navigation.menu.updated`/`navigation.menu.deleted` events Jini's own `deleteMenu` emits, so a
@@ -30,6 +28,21 @@ export interface MenuTrashFollowUpDeps {
   clock: ClockPort;
 }
 
+/** `features/trash/follow-ups.ts`'s `TrashFollowUpHooks` shape, declared structurally — no
+ *  `features/trash` import (domains never import from trash), composed at
+ *  `server/runtime/composition/deps.ts`. */
+export interface MenuTrashFollowUpHooks {
+  afterHide?(required: { workspaceId: string; entityId: string; at: string }): Promise<void>;
+  afterUnhide?(required: {
+    workspaceId: string;
+    entityId: string;
+    priorMarker: string;
+    at: string;
+  }): Promise<void>;
+  beforePurge?(required: { workspaceId: string; entityId: string }): Promise<unknown>;
+  afterPurge?(required: { workspaceId: string; entityId: string; priorState: unknown }): Promise<void>;
+}
+
 /** @complexity O(1): builds one event from an already-loaded menu row. */
 function buildEvent(
   deps: MenuTrashFollowUpDeps,
@@ -53,7 +66,7 @@ function buildEvent(
  * `trashFollowUpHooks.set("menu", ...)` (composition lock).
  * @complexity O(1) per hook: one lookup, at most one outbox enqueue.
  */
-export function buildMenuTrashFollowUpHooks(deps: MenuTrashFollowUpDeps): TrashFollowUpHooks {
+export function buildMenuTrashFollowUpHooks(deps: MenuTrashFollowUpDeps): MenuTrashFollowUpHooks {
   // `OutboxPort.enqueue`'s `DomainEvent` parameter defaults its payload generic to
   // `Record<string, unknown>`; a named `interface` payload (`NavMenuChangedPayload`, as opposed to a
   // type alias/object literal) isn't automatically assignable to that without an explicit index
