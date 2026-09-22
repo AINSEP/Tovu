@@ -170,10 +170,13 @@ test("confirm: the human's click trashes the widget instance and the SAME call r
   const delivered = surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
   assert.deepEqual(delivered, { ok: true });
 
-  const result = (await pending) as { trashed: boolean; cancelled: boolean; instance: { status: string } };
+  const result = (await pending) as { trashed: boolean; cancelled: boolean; title: string };
   assert.equal(result.trashed, true);
   assert.equal(result.cancelled, false);
-  assert.equal(result.instance.status, "trash");
+  // No `instance.status` here (2026-09-21, trash T4): the confirm path no longer parses the
+  // payload — see `tool-registrations.ts`'s `widgets_trash_instance` header. The real proof the
+  // marker flipped is the entries read below.
+  assert.equal(result.title, instance.title);
 
   const row = await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: instance.id });
   assert.equal(row, null, "a trashed widget is in the Trash — entries reads no longer return it");
@@ -188,10 +191,10 @@ test("cancel: nothing is trashed, and the SAME call reports the cancellation", a
   const { exchangeId, pending } = await raiseDialog(trashTool, instance.id);
   surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
 
-  const result = (await pending) as { trashed: boolean; cancelled: boolean; instance: { status: string } };
+  const result = (await pending) as { trashed: boolean; cancelled: boolean; title: string };
   assert.equal(result.trashed, false);
   assert.equal(result.cancelled, true);
-  assert.equal(result.instance.status, "active");
+  assert.equal(result.title, instance.title);
 });
 
 test("an answer with no 'decision' field at all is NOT confirm — nothing is trashed (fail-closed)", async () => {

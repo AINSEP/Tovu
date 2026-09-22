@@ -339,38 +339,51 @@ test("every delegate pre-checks exactly the permission its own delete tool decla
   );
   // `media_trash_asset`'s catalog is Jini-owned; its Tovu wrapper hard-codes the same gate.
   declared.set("media_trash_asset", "media.delete");
+  // `widgets_trash_instance`'s catalog is Jini-owned too; its Tovu wrapper hard-codes the same gate.
+  declared.set("widgets_trash_instance", "widgets.delete");
 
   for (const delegate of TRASH_ITEM_DELEGATES.values()) {
     assert.equal(delegate.permission, declared.get(delegate.toolId), `${delegate.entityType} -> ${delegate.toolId}`);
   }
-  assert.deepEqual([...TRASH_ITEM_DELEGATES.keys()], ["post", "comment", "media", "redirect"]);
+  assert.deepEqual([...TRASH_ITEM_DELEGATES.keys()], ["post", "comment", "media", "redirect", "widget"]);
 });
 
-test("SINK AUDIT: in the production catalog, trash_item accepts all four kinds — every delegate is really wired", () => {
+test("SINK AUDIT: in the production catalog, trash_item accepts every delegate AND every generic TRASHABLE kind", () => {
   const { registrations } = harness(EVERYTHING);
   const schema = tool(registrations, TRASH_ITEM_TOOL_ID).descriptor.inputSchema as {
     properties: { entityType: { enum: string[] } };
   };
-  assert.deepEqual(schema.properties.entityType.enum, ["post", "comment", "media", "redirect"]);
+  // Delegates first (insertion order of TRASH_ITEM_DELEGATES), then generic registry kinds with no
+  // delegate (insertion order of TRASHABLE) — `widget` has a delegate, so it never repeats below.
+  assert.deepEqual(schema.properties.entityType.enum, ["post", "comment", "media", "redirect", "widget", "form", "form_submission"]);
 });
 
 test("a kind whose delete tool is not registered is not accepted, with an exact error, and nothing is written", async () => {
   const { routeDeps, registrations } = harness(EVERYTHING);
   await seedComment(routeDeps);
   const withoutComments = registrations.filter((registration) => registration.descriptor.id !== "comments_trash_comment");
-  const [trashItem] = deriveTrashItemRegistrations({ registrations: withoutComments, routeDeps });
+  const [trashItem] = deriveTrashItemRegistrations({ registrations: withoutComments, routeDeps, surfaces: createSurfaceExchangeStore() });
   assert.ok(trashItem);
 
   await assert.rejects(call(trashItem, { entityType: "comment", entityId: "comment-1" }), {
     message:
-      "trash_item: 'comment' is not a kind of thing the Trash can hold. Expected one of: post, media, redirect. Nothing was changed.",
+      "trash_item: 'comment' is not a kind of thing the Trash can hold. Expected one of: post, media, redirect, widget, form, form_submission. Nothing was changed.",
   });
   assert.equal((await routeDeps.commentRepo.findById({ workspaceId: routeDeps.workspaceId, id: "comment-1" }))?.status, "approved");
 });
 
-test("with no delegate tool registered at all, trash_item is not registered", () => {
+test("with no delegate tool registered and an empty registry, trash_item is not registered", () => {
   const { routeDeps } = harness(EVERYTHING);
-  assert.deepEqual(deriveTrashItemRegistrations({ registrations: [], routeDeps }), []);
+  const emptyRegistry = { ...routeDeps, registry: new Map() };
+  assert.deepEqual(deriveTrashItemRegistrations({ registrations: [], routeDeps: emptyRegistry, surfaces: createSurfaceExchangeStore() }), []);
+});
+
+test("with no delegate tool registered but a non-empty registry, trash_item is still registered for the GENERIC kinds", () => {
+  const { routeDeps } = harness(EVERYTHING);
+  const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps, surfaces: createSurfaceExchangeStore() });
+  assert.ok(trashItem, "form/form_submission have no delegate, so trash_item must still be built from the registry alone");
+  const schema = trashItem.descriptor.inputSchema as { properties: { entityType: { enum: string[] } } };
+  assert.deepEqual(schema.properties.entityType.enum, ["form", "form_submission"]);
 });
 
 // --- the purge ban reaches this tool too -----------------------------------------------------

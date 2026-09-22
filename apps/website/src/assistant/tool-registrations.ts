@@ -730,7 +730,7 @@ export function buildAssistantToolRegistrations(
   // pass for the same reason `content_read` below is one: it reuses the four per-domain delete tools'
   // ALREADY-BUILT handlers, so it can only be built once every contributor above has run. Pushed
   // before the collapse's early return so both of this function's shapes include it.
-  for (const registration of deriveTrashItemRegistrations({ registrations, routeDeps: enrichedRouteDeps })) {
+  for (const registration of deriveTrashItemRegistrations({ registrations, routeDeps: enrichedRouteDeps, surfaces })) {
     const owner = ownerByToolId.get(registration.descriptor.id);
     if (owner) {
       throw new Error(
