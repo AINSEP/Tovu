@@ -72,6 +72,15 @@ async function loadUsernamesByPrincipalId(deps: TrashRouteDeps): Promise<Readonl
 }
 
 /**
+ * The principal id the boot-time widget adoption writes as its actor
+ * (`features/widgets/write-service.ts`'s `ADOPTION_ACTOR`) — today the only non-human actor the
+ * Trash records. No `userRepo` account can ever hold this id, so a row bearing it can never be a
+ * real, since-removed user account; `actorIsSystem` lets the admin UI tell the two apart instead of
+ * both collapsing into "Deleted user" (2026-09-21).
+ */
+const SYSTEM_ACTOR_PRINCIPAL_ID = "system";
+
+/**
  * The screen's row shape. Keeps `id` — unlike the agent view, which drops it — because the
  * checkboxes select rows by it and the purge endpoint addresses them by it.
  *
@@ -95,6 +104,7 @@ export function toAdminTrashResponse(item: TrashItem, now: string, usernameByPri
     actorPrincipalId: item.actorPrincipalId,
     actorPluginId: item.actorPluginId,
     actorUsername: usernameByPrincipalId.get(item.actorPrincipalId) ?? null,
+    actorIsSystem: item.actorPrincipalId === SYSTEM_ACTOR_PRINCIPAL_ID,
   };
 }
 
