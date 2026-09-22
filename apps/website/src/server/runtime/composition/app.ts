@@ -1373,12 +1373,12 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
 
   // Default 100kb body limit is too small for the media upload route, which accepts
   // base64-encoded bytes in the JSON body (no multipart-parsing dependency in this repo yet —
-  // see routes/admin/media/upload.ts's file comment for the disclosed simplification). 50mb
-  // covers `TOVU_MAX_UPLOAD_BYTES` (35 MiB, `features/media/upload-limits.ts`) once base64
-  // inflates it ~1.33x (~47 MiB) plus headroom — owner-directed 2026-09-16 to fit a 10-20s
-  // generated video clip. A real implementation should stream multipart/octet-stream instead of
-  // inflating bytes through base64 JSON.
-  app.use(express.json({ limit: "50mb" }));
+  // see routes/admin/media/upload.ts's file comment for the disclosed simplification). 75mb
+  // covers `TOVU_MAX_UPLOAD_BYTES` (50 MiB as of 2026-09-21, `features/media/upload-limits.ts`)
+  // once base64 inflates it ~1.33x (~66.7 MiB) plus headroom — owner-directed 2026-09-16 to fit a
+  // 10-20s generated video clip, raised again 2026-09-21 for larger videos. A real implementation
+  // should stream multipart/octet-stream instead of inflating bytes through base64 JSON.
+  app.use(express.json({ limit: "75mb" }));
 
   // Once per bus, not once per createApp call: see `subscribeSiteEventHandlersOnce`.
   subscribeSiteEventHandlersOnce(routeDeps);
