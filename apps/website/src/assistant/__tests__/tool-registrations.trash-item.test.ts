@@ -19,8 +19,15 @@ import type { RouteDeps } from "#src/server/routes/types";
 import * as contentSchema from "#src/platform/db/schema";
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import type { TrashEntityType } from "#src/features/trash/ports";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { createSqliteTrashDb } from "#src/features/trash/db-port.sqlite";
+import { createTableTrashAdapter } from "#src/features/trash/table-adapter";
+import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
+import { createTrashService } from "#src/features/trash/write-service";
+import type { TrashAdapter } from "#src/features/trash/index";
+import type { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
 
-import { deriveTrashItemRegistrations, TRASH_ITEM_DELEGATES, TRASH_ITEM_TOOL_ID } from "#src/features/trash/trash-item-tool";
+import { deriveTrashItemRegistrations, TRASH_ITEM_DELEGATES, TRASH_ITEM_TOOL_ID, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
 
 /**
  * @file `trash_item` — one generic "move this to the Trash" tool that is a fifth DOOR onto the four
@@ -86,6 +93,72 @@ function withRealTrashRegistry(routeDeps: RouteDeps): RouteDeps {
  *  `taxonomy` as this is written). */
 function realGenericKinds(): TrashEntityType[] {
   return [...REAL_REGISTRY.keys()].filter((entityType) => !TRASH_ITEM_DELEGATES.has(entityType));
+}
+
+/**
+ * A GENERIC kind (no bespoke delegate, e.g. `form`) actually WRITES through `moveToTrash`, which
+ * reads `routeDeps.db` — this file's own hermetic `harness()` stubs `db` to throw ("must never be
+ * called", true only while `registry` is empty). Real SQLite, real `buildTrashRegistry`, real
+ * `TrashPort` — the same three-line composition `features/trash/__tests__/form-trash-flow.test.ts`
+ * already uses for the identical reason — is the only way to exercise the generic path past its
+ * confirmation dialog rather than stopping at "the dialog was raised."
+ */
+interface SqliteFormHarness {
+  routeDeps: TrashItemToolDeps;
+  surfaces: { surfaceExchanges: SurfaceExchangeStore };
+  authorizeCalls: Array<{ permission: string }>;
+  formIsLive(id: string): boolean;
+}
+
+function sqliteFormHarness(options: { deny?: boolean } = {}): SqliteFormHarness {
+  const workspaceId = "ws-trash-item-generic";
+  const db = openContentDb(":memory:");
+  db.$client
+    .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
+    .run(workspaceId, workspaceId, workspaceId, NOW);
+  db.$client
+    .prepare(
+      `INSERT INTO form_definitions
+         (id, workspace_id, name, slug, fields_json, notify_json, status, created_at, updated_at, deleted_at, version)
+       VALUES ('f1', ?, 'Contact Form', 'contact-form', '{"fields":[]}', '{"enabled":false,"recipients":[]}', 'active', ?, ?, NULL, 1)`
+    )
+    .run(workspaceId, NOW, NOW);
+
+  const registry = buildTrashRegistry({ schema: contentSchema });
+  const trashDb = createSqliteTrashDb({ db });
+  const adapters = new Map<string, TrashAdapter>(
+    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])
+  );
+  let seq = 0;
+  const trash = createTrashService({
+    repo: new SqliteTrashRepo(db.$client),
+    adapters,
+    idGen: { next: () => `trash-${(seq += 1)}` },
+    transaction: createContentDbTransactionRunner(db.$client),
+  });
+
+  const authorizeCalls: Array<{ permission: string }> = [];
+  const routeDeps = {
+    workspaceId,
+    authorize: async (params: { permission: string }) => {
+      authorizeCalls.push(params);
+      return options.deny ? { allowed: false, reason: "insufficient_permission" } : { allowed: true, reason: "matched" };
+    },
+    isTrashableEntityType: (entityType: TrashEntityType) => registry.has(entityType),
+    registry,
+    trash,
+    db: trashDb,
+    clock: { nowIso: () => NOW },
+  } as unknown as TrashItemToolDeps;
+
+  return {
+    routeDeps,
+    surfaces: { surfaceExchanges: createSurfaceExchangeStore() },
+    authorizeCalls,
+    formIsLive: (id) =>
+      (db.$client.prepare(`SELECT deleted_at FROM form_definitions WHERE id = ?`).get(id) as { deleted_at: string | null } | undefined)
+        ?.deleted_at === null,
+  };
 }
 
 function tool(registrations: readonly ToolRegistration[], id: string): ToolRegistration {
