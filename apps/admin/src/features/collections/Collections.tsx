@@ -4,6 +4,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { contentTypeMenuItems, type DraftField, type LifecycleConfirmOp } from "./rules";
 import { useWiredCollections } from "./hooks/use-collections.hooks";
+import { ServerLabel } from "@/components/status-labels";
 import { useWiredNewContentTypeDialog } from "./hooks/use-new-content-type-dialog.hooks";
 import { useWiredEditFieldsDialog } from "./hooks/use-edit-fields-dialog.hooks";
 import { useLifecycleConfirmDialog } from "./hooks/use-lifecycle-confirm-dialog.hooks";
@@ -577,7 +578,7 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
           {
             key: "status",
             header: t("Status"),
-            cell: (ct) => <span className={`status status-${ct.status}`}>{ct.status}</span>,
+            cell: (ct) => <span className={`status status-${ct.status}`}><ServerLabel value={ct.status} /></span>,
           },
           {
             key: "entries",

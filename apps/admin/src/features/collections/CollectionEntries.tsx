@@ -3,6 +3,7 @@ import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { useWiredCollectionEntries } from "./hooks/use-collection-entries.hooks";
+import { ServerLabel } from "@/components/status-labels";
 
 /**
  * @file Collections' entries list (design-spec.md §1.4) — the `/admin/collections/{typeKey}` route.
@@ -114,7 +115,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
           {
             key: "status",
             header: t("Status"),
-            cell: (entry) => <span className={`status status-${entry.status}`}>{entry.status}</span>,
+            cell: (entry) => <span className={`status status-${entry.status}`}><ServerLabel value={entry.status} /></span>,
           },
           { key: "updated", header: t("Updated"), cell: (entry) => formatTimestamp(entry.updatedAt) },
         ]}

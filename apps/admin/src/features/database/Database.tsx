@@ -3,6 +3,7 @@ import { formatTimestamp } from "../../lib/format-timestamp";
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { ServerLabel } from "@/components/status-labels";
 
 import { navigateToRecoveryWithDeepLink, useWiredTimelineSection } from "./hooks/use-timeline-section.hooks";
 import { useWiredMigrateForwardSection, type MigrateForwardSectionController } from "./hooks/use-migrate-forward-section.hooks";
@@ -190,7 +191,7 @@ function timelineColumns(
     {
       key: "outcome",
       header: t(locale, "Outcome"),
-      cell: (row) => <span className={`status status-${row.outcome}`}>{row.outcome}</span>,
+      cell: (row) => <span className={`status status-${row.outcome}`}><ServerLabel value={row.outcome} /></span>,
     },
     {
       key: "restore-point",

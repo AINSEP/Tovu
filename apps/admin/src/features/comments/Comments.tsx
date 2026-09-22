@@ -7,6 +7,7 @@ import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { commentRowMenuItems, truncate, type RowActionState } from "./rules";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { useWiredComments } from "./hooks/use-comments.hooks";
+import { ServerLabel } from "@/components/status-labels";
 import { useWiredCommentQueue } from "./hooks/use-comment-queue.hooks";
 import { useWiredCommentSettings } from "./hooks/use-comment-settings.hooks";
 import { t } from "./comments-i18n";
@@ -138,7 +139,7 @@ function queueColumns(props: {
     {
       key: "status",
       header: t(props.locale, "Status"),
-      cell: (comment) => <span className={`status status-${comment.status}`}>{comment.status}</span>,
+      cell: (comment) => <span className={`status status-${comment.status}`}><ServerLabel value={comment.status} /></span>,
     },
     { key: "depth", header: t(props.locale, "Depth"), cell: (comment) => comment.depth },
     { key: "created", header: t(props.locale, "Created"), cell: (comment) => formatTimestamp(comment.createdAt) },

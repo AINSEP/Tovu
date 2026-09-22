@@ -1,4 +1,5 @@
 import { DataTable } from "@jini-ai/admin/react";
+import { ServerLabel } from "@/components/status-labels";
 
 import { displayTimestamp } from "./rules";
 import { useWiredIntegrationDeliveries } from "./hooks/use-integration-deliveries.hooks";
@@ -53,7 +54,7 @@ export function IntegrationDeliveries({
             key: "status",
             header: t("Status"),
             cell: (delivery) => (
-              <span className={`status status-delivery-${delivery.status}`}>{delivery.status}</span>
+              <span className={`status status-delivery-${delivery.status}`}><ServerLabel value={delivery.status} /></span>
             ),
           },
           { key: "attempts", header: t("Attempts"), cell: (delivery) => delivery.attempts },

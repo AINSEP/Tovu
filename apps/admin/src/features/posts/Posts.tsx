@@ -17,6 +17,7 @@ import {
   DEFAULT_POST_SORT,
 } from "./rules";
 import { useWiredPosts } from "./hooks/use-posts.hooks";
+import { ServerLabel } from "@/components/status-labels";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t as translate } from "./posts-i18n";
 
@@ -162,7 +163,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
             key: "status",
             header: t("Status"),
             sort: { compare: comparePostsByStatus, label: (direction) => postColumnSortLabel("Status", direction) },
-            cell: (post) => <span className={`status status-${post.status}`}>{post.status}</span>,
+            cell: (post) => <span className={`status status-${post.status}`}><ServerLabel value={post.status} /></span>,
           },
           {
             key: "updated",

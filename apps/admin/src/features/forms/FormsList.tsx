@@ -4,6 +4,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { formRowMenuItems } from "./rules";
 import { useWiredFormsList } from "./hooks/use-forms-list.hooks";
+import { RecipientLabel, ServerLabel } from "@/components/status-labels";
 
 /**
  * @file Forms list screen (SPEC-010 ui.spec.md §2.1/§3.1) — the `/admin/forms` route.
@@ -116,13 +117,13 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
           {
             key: "status",
             header: t("Status"),
-            cell: (form) => <span className={`status status-${form.status}`}>{form.status}</span>,
+            cell: (form) => <span className={`status status-${form.status}`}><ServerLabel value={form.status} /></span>,
           },
           { key: "fields", header: t("Fields"), cell: (form) => form.fields.length },
           {
             key: "notify",
             header: t("Notify"),
-            cell: (form) => (form.notify.enabled ? `${form.notify.recipients.length} recipient(s)` : t("off")),
+            cell: (form) => (form.notify.enabled ? <>{form.notify.recipients.length} <RecipientLabel count={form.notify.recipients.length} /></> : t("off")),
           },
           {
             key: "actions",

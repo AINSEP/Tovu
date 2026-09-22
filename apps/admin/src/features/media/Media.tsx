@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from "react";
 import type { AdminMedia } from "../../lib/api";
+import { ServerLabel } from "@/components/status-labels";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import { I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
@@ -995,7 +996,7 @@ function MediaGridOrEmpty({
               {item.title}
             </p>
             <div className="media-card-meta">
-              <span className={`status status-${item.status}`}>{item.status}</span>
+              <span className={`status status-${item.status}`}><ServerLabel value={item.status} /></span>
               <RowMenu
                 triggerLabel={`Actions for "${item.title}"`}
                 agentHandle={`${mediaExpandHandles[index]}-menu`}

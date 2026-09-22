@@ -8,6 +8,7 @@ import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { adminHref, navigate } from "../../lib/router";
 import { TabBar } from "../../components/TabBar";
+import { ServerLabel } from "@/components/status-labels";
 import {
   pageRowMenuItems,
   pagePublicPath,
@@ -242,7 +243,7 @@ export function Pages(props: PagesProps) {
                 key: "status",
                 header: t("Status"),
                 sort: { compare: comparePagesByStatus, label: (direction) => pageColumnSortLabel("Status", direction) },
-                cell: (page) => <span className={`status status-${page.status}`}>{page.status}</span>,
+                cell: (page) => <span className={`status status-${page.status}`}><ServerLabel value={page.status} /></span>,
               },
               {
                 key: "updated",

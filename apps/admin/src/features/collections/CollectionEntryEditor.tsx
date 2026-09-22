@@ -4,6 +4,7 @@ import { type AdminTaxonomyWithTerms, type ContentTypeFieldDef } from "../../lib
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
 import { useWiredCollectionEntryEditor } from "./hooks/use-collection-entry-editor.hooks";
+import { ServerLabel } from "@/components/status-labels";
 import { useWiredTermPicker } from "./hooks/use-term-picker.hooks";
 import { useJsonFieldControl } from "./hooks/use-json-field-control.hooks";
 
@@ -386,7 +387,7 @@ function EntryPageActions(props: {
       </a>
       {message ? <span className="save-ok">{message}</span> : null}
       {error ? <span className="save-error">{error}</span> : null}
-      {entry ? <span className={`status status-${entry.status}`}>{entry.status}</span> : null}
+      {entry ? <span className={`status status-${entry.status}`}><ServerLabel value={entry.status} /></span> : null}
       <EntryLifecycleButtons
         entry={entry}
         saving={saving}

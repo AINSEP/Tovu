@@ -6,6 +6,7 @@ import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
 import { formatGrantLabel, userRowMenuItems } from "./rules";
 import { useWiredUsers } from "./hooks/use-users.hooks";
+import { ServerLabel } from "@/components/status-labels";
 import { useResetPasswordFields } from "./hooks/use-reset-password-fields.hooks";
 
 /**
@@ -352,9 +353,9 @@ function UserRow({ user, roleById, policyById, actions, manage, agentBase, t, lo
         </td>
         <td>{user.email ?? <span className="muted-cell">—</span>}</td>
         <td>
-          <span className={`status status-${user.status}`}>{user.status}</span>
+          <span className={`status status-${user.status}`}><ServerLabel value={user.status} /></span>
         </td>
-        <td>{roleLabel !== null ? roleLabel : <span className="muted-cell">{t("none")}</span>}</td>
+        <td>{roleLabel !== null ? <ServerLabel value={roleLabel} /> : <span className="muted-cell">{t("none")}</span>}</td>
         <td>{policyLabel !== null ? policyLabel : <span className="muted-cell">{t("none")}</span>}</td>
         <td>
           {/* Matches Posts.tsx/Pages.tsx's three-dot RowMenu shape — Disable/Enable,

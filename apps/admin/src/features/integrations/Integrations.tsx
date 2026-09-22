@@ -4,6 +4,7 @@ import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
 import { integrationRowMenuItems } from "./rules";
 import { useWiredIntegrations } from "./hooks/use-integrations.hooks";
+import { ServerLabel } from "@/components/status-labels";
 import { t, deleteWebhookBody, actionsForWebhookLabel } from "./integrations-i18n";
 
 /**
@@ -262,7 +263,7 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
             key: "status",
             header: t("Status"),
             cell: (subscription) => (
-              <span className={`status status-sub-${subscription.status}`}>{subscription.status}</span>
+              <span className={`status status-sub-${subscription.status}`}><ServerLabel value={subscription.status} /></span>
             ),
           },
           {
@@ -271,7 +272,7 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
             cell: (subscription) =>
               subscription.lastDelivery ? (
                 <span className={`status status-delivery-${subscription.lastDelivery.status}`}>
-                  {subscription.lastDelivery.status}
+                  <ServerLabel value={subscription.lastDelivery.status} />
                 </span>
               ) : (
                 <span className="muted-cell">{t("never")}</span>
