@@ -55,6 +55,16 @@ export const registerAdminTrashMoveToTrashRoute: TrashRouteRegistrar = (app, dep
         case "version-changed":
           res.status(409).json({ error: "the item changed since it was last read", code: "TRASH_VERSION_CHANGED" });
           return;
+        case "blocked":
+          // `TERM_HAS_CHILDREN` (`registry.ts`'s only `blocker` today) is the one message this text is
+          // written for — plan's literal spec. A second blocked kind needs its own `code` branch here
+          // rather than reusing this sentence; `code`/`count` alone are already generic.
+          res.status(409).json({
+            error: `this term has ${outcome.count} sub-terms — move them under another parent, or delete them permanently, first`,
+            code: outcome.code,
+            count: outcome.count,
+          });
+          return;
       }
     } catch {
       res.status(500).json({ error: "internal error" });
