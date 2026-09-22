@@ -26,6 +26,11 @@ import {
 } from "../rules";
 import { ApiError, type AdminPost } from "@/lib/api";
 
+/** Identity translator — same convention `pages/__tests__/rules.unit.test.ts` uses for its
+ *  `pageColumnSortLabel`/`updatedPageColumnSortLabel` tests: asserts against the English key
+ *  template (with `{columnName}` substituted) rather than a real locale's copy. */
+const identityT = (key: string): string => key;
+
 /**
  * @file Pure(ish) logic for `features/posts` — `postRowMenuItems` (the row-action menu, driven
  * entirely by `post.status`), `readFileAsDataUrl` (a `File` -> `data:` URL reader, the one
@@ -219,25 +224,25 @@ describe("comparePostsByUpdated", () => {
 
 describe("updatedColumnSortLabel", () => {
   it("states 'not sorted by updated date' and offers newest-first when direction is null (a different column is active)", () => {
-    const label = updatedColumnSortLabel(null);
+    const label = updatedColumnSortLabel(identityT, null);
     expect(label).toMatch(/not sorted by updated date/i);
     expect(label).toMatch(/newest first/i);
   });
 
   it("states 'newest first' and offers oldest-first as the next action when direction is 'desc'", () => {
-    const label = updatedColumnSortLabel("desc");
+    const label = updatedColumnSortLabel(identityT, "desc");
     expect(label).toMatch(/newest first/i);
     expect(label).toMatch(/oldest first/i);
   });
 
   it("states 'oldest first' and offers newest-first as the next action when direction is 'asc'", () => {
-    const label = updatedColumnSortLabel("asc");
+    const label = updatedColumnSortLabel(identityT, "asc");
     expect(label).toMatch(/oldest first/i);
     expect(label).toMatch(/newest first/i);
   });
 
   it("all three states produce different labels", () => {
-    expect(new Set([updatedColumnSortLabel(null), updatedColumnSortLabel("asc"), updatedColumnSortLabel("desc")]).size).toBe(3);
+    expect(new Set([updatedColumnSortLabel(identityT, null), updatedColumnSortLabel(identityT, "asc"), updatedColumnSortLabel(identityT, "desc")]).size).toBe(3);
   });
 });
 
@@ -292,25 +297,25 @@ describe("DEFAULT_POST_SORT", () => {
 
 describe("postColumnSortLabel", () => {
   it("states 'not sorted' and names the ascending action when direction is null (the column isn't active)", () => {
-    const label = postColumnSortLabel("Title", null);
+    const label = postColumnSortLabel(identityT, "Title", null);
     expect(label).toMatch(/not sorted by title/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("states 'ascending' and offers descending as the next action when direction is 'asc'", () => {
-    const label = postColumnSortLabel("Title", "asc");
+    const label = postColumnSortLabel(identityT, "Title", "asc");
     expect(label).toMatch(/sorted by title, ascending/i);
     expect(label).toMatch(/activate to sort descending/i);
   });
 
   it("states 'descending' and offers ascending as the next action when direction is 'desc'", () => {
-    const label = postColumnSortLabel("Title", "desc");
+    const label = postColumnSortLabel(identityT, "Title", "desc");
     expect(label).toMatch(/sorted by title, descending/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("all three states produce different labels", () => {
-    expect(new Set([postColumnSortLabel("Title", null), postColumnSortLabel("Title", "asc"), postColumnSortLabel("Title", "desc")]).size).toBe(3);
+    expect(new Set([postColumnSortLabel(identityT, "Title", null), postColumnSortLabel(identityT, "Title", "asc"), postColumnSortLabel(identityT, "Title", "desc")]).size).toBe(3);
   });
 });
 

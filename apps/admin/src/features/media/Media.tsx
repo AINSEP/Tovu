@@ -1023,7 +1023,7 @@ function MediaGridOrEmpty({
             <div className="media-card-meta">
               <span className={`status status-${item.status}`}><ServerLabel value={item.status} /></span>
               <RowMenu
-                triggerLabel={`Actions for "${item.title}"`}
+                triggerLabel={t('Actions for "{title}"').replace("{title}", item.title)}
                 agentHandle={`${mediaExpandHandles[index]}-menu`}
                 items={mediaRowMenuItems(item, editingId, { onToggleEdit, onTrash, onRequestPurge }, locale)}
               />

@@ -715,7 +715,7 @@ function namespaceList(
             <div className="taxonomy-namespace-group-header">
               <h2>{group.taxonomy.name}</h2>
               <RowMenu
-                triggerLabel={`Actions for taxonomy "${group.taxonomy.name}"`}
+                triggerLabel={t('Actions for taxonomy "{name}"').replace("{name}", group.taxonomy.name)}
                 agentHandle={taxonomyMenuHandles[groupIndex]}
                 items={[
                   {
@@ -822,7 +822,7 @@ function namespaceList(
                           precedent to follow here. */}
                       <span onClick={(e) => e.stopPropagation()}>
                         <RowMenu
-                          triggerLabel={`Actions for term "${term.name}"`}
+                          triggerLabel={t('Actions for term "{name}"').replace("{name}", term.name)}
                           agentHandle={`${termHandle}-menu`}
                           items={[
                             {

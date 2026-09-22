@@ -1,4 +1,5 @@
 import type { AdminPost } from "../../lib/api";
+import type { Translate } from "../../lib/dictionary-translator";
 
 /**
  * @file Pure logic for the `dashboard` feature — everything that computes a value rather than
@@ -42,21 +43,21 @@ export function activityRowHref(row: Pick<AdminPost, "id" | "kind">): string {
 }
 
 /** The Posts stat card's meta line — blank while `published` is still pending (`null`). */
-export function postsStatMeta(published: number | null): string {
-  return published === null ? "" : `${published} published`;
+export function postsStatMeta(published: number | null, t: Translate): string {
+  return published === null ? "" : t("{count} published").replace("{count}", String(published));
 }
 
 /** The Pages stat card's meta line — blank while `drafts` is still pending, singular/plural
  *  otherwise. */
-export function pagesStatMeta(drafts: number | null): string {
+export function pagesStatMeta(drafts: number | null, t: Translate): string {
   if (drafts === null) return "";
-  return `${drafts} draft${drafts === 1 ? "" : "s"}`;
+  return t(drafts === 1 ? "{count} draft" : "{count} drafts").replace("{count}", String(drafts));
 }
 
 /** The Comments stat card's meta line. Note this reads `StatState.value` directly rather than a
  *  loading-aware wrapper: `null !== 0`, so it reads "awaiting moderation" while the count is still
  *  pending, same as before this was extracted — preserved rather than fixed, since a moderation
  *  queue of unknown size defaulting to "may need attention" is arguably the safer default anyway. */
-export function commentsStatMeta(pendingCount: number | null): string {
-  return pendingCount === 0 ? "nothing to review" : "awaiting moderation";
+export function commentsStatMeta(pendingCount: number | null, t: Translate): string {
+  return t(pendingCount === 0 ? "nothing to review" : "awaiting moderation");
 }

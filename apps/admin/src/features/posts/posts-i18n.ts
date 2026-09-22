@@ -136,6 +136,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "a la papelera? Desaparecerá del sitio y de la lista de páginas.",
     "to trash? It will disappear from the site and from the posts list.":
       "a la papelera? Desaparecerá del sitio y de la lista de entradas.",
+    "Not sorted by {columnName}. Activate to sort ascending.": "No ordenado por {columnName}. Actívalo para ordenar de forma ascendente.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Ordenado por {columnName}, ascendente. Actívalo para ordenar de forma descendente.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Ordenado por {columnName}, descendente. Actívalo para ordenar de forma ascendente.",
+    "Not sorted by updated date. Activate to sort newest first.": "No ordenado por fecha de actualización. Actívalo para ordenar de más reciente a más antiguo.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Ordenado por fecha de actualización, de más reciente a más antiguo. Actívalo para ordenar de más antiguo a más reciente.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Ordenado por fecha de actualización, de más antiguo a más reciente. Actívalo para ordenar de más reciente a más antiguo.",
+    "Slug": "Slug",
+    "Actions for \"{title}\"": "Acciones para \"{title}\"",
   },
   id: {
     Restore: "Pulihkan",
@@ -180,6 +188,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "ke sampah? Halaman ini akan hilang dari situs dan dari daftar halaman.",
     "to trash? It will disappear from the site and from the posts list.":
       "ke sampah? Postingan ini akan hilang dari situs dan dari daftar postingan.",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Tidak diurutkan menurut {columnName}. Aktifkan untuk mengurutkan naik.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Diurutkan menurut {columnName}, naik. Aktifkan untuk mengurutkan turun.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Diurutkan menurut {columnName}, turun. Aktifkan untuk mengurutkan naik.",
+    "Not sorted by updated date. Activate to sort newest first.": "Tidak diurutkan menurut tanggal pembaruan. Aktifkan untuk mengurutkan dari yang terbaru.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Diurutkan menurut tanggal pembaruan, terbaru dahulu. Aktifkan untuk mengurutkan dari yang terlama.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Diurutkan menurut tanggal pembaruan, terlama dahulu. Aktifkan untuk mengurutkan dari yang terbaru.",
+    "Slug": "Slug",
+    "Actions for \"{title}\"": "Tindakan untuk \"{title}\"",
   },
   de: {
     Restore: "Wiederherstellen",
@@ -224,6 +240,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "in den Papierkorb? Sie verschwindet von der Website und aus der Seitenliste.",
     "to trash? It will disappear from the site and from the posts list.":
       "in den Papierkorb? Er verschwindet von der Website und aus der Beitragsliste.",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Nicht nach {columnName} sortiert. Aktivieren, um aufsteigend zu sortieren.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Nach {columnName} sortiert, aufsteigend. Aktivieren, um absteigend zu sortieren.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Nach {columnName} sortiert, absteigend. Aktivieren, um aufsteigend zu sortieren.",
+    "Not sorted by updated date. Activate to sort newest first.": "Nicht nach Aktualisierungsdatum sortiert. Aktivieren, um die neuesten zuerst anzuzeigen.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Nach Aktualisierungsdatum sortiert, neueste zuerst. Aktivieren, um die ältesten zuerst anzuzeigen.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Nach Aktualisierungsdatum sortiert, älteste zuerst. Aktivieren, um die neuesten zuerst anzuzeigen.",
+    "Slug": "Slug",
+    "Actions for \"{title}\"": "Aktionen für \"{title}\"",
   },
   "zh-CN": {
     Restore: "恢复",
@@ -268,6 +292,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "到回收站？它将从网站和页面列表中消失。",
     "to trash? It will disappear from the site and from the posts list.":
       "到回收站？它将从网站和文章列表中消失。",
+    "Not sorted by {columnName}. Activate to sort ascending.": "未按{columnName}排序。激活以升序排序。",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "已按{columnName}升序排序。激活以降序排序。",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "已按{columnName}降序排序。激活以升序排序。",
+    "Not sorted by updated date. Activate to sort newest first.": "未按更新日期排序。激活以按最新优先排序。",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "已按更新日期排序，最新优先。激活以按最早优先排序。",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "已按更新日期排序，最早优先。激活以按最新优先排序。",
+    "Slug": "别名",
+    "Actions for \"{title}\"": "\"{title}\"的操作",
   },
   "zh-TW": {
     Restore: "還原",
@@ -312,6 +344,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "到資源回收筒？它將從網站和頁面清單中消失。",
     "to trash? It will disappear from the site and from the posts list.":
       "到資源回收筒？它將從網站和文章清單中消失。",
+    "Not sorted by {columnName}. Activate to sort ascending.": "未依{columnName}排序。啟用以遞增排序。",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "已依{columnName}遞增排序。啟用以遞減排序。",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "已依{columnName}遞減排序。啟用以遞增排序。",
+    "Not sorted by updated date. Activate to sort newest first.": "未依更新日期排序。啟用以最新優先排序。",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "已依更新日期排序，最新優先。啟用以最舊優先排序。",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "已依更新日期排序，最舊優先。啟用以最新優先排序。",
+    "Slug": "代稱",
+    "Actions for \"{title}\"": "\"{title}\"的操作",
   },
   "pt-BR": {
     Restore: "Restaurar",
@@ -356,6 +396,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "para a lixeira? Ela desaparecerá do site e da lista de páginas.",
     "to trash? It will disappear from the site and from the posts list.":
       "para a lixeira? Ela desaparecerá do site e da lista de publicações.",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Não ordenado por {columnName}. Ative para ordenar em ordem crescente.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Ordenado por {columnName}, crescente. Ative para ordenar em ordem decrescente.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Ordenado por {columnName}, decrescente. Ative para ordenar em ordem crescente.",
+    "Not sorted by updated date. Activate to sort newest first.": "Não ordenado por data de atualização. Ative para mostrar os mais recentes primeiro.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Ordenado por data de atualização, mais recentes primeiro. Ative para mostrar os mais antigos primeiro.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Ordenado por data de atualização, mais antigos primeiro. Ative para mostrar os mais recentes primeiro.",
+    "Slug": "Slug",
+    "Actions for \"{title}\"": "Ações para \"{title}\"",
   },
   ru: {
     Restore: "Восстановить",
@@ -400,6 +448,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "в корзину? Она исчезнет с сайта и из списка страниц.",
     "to trash? It will disappear from the site and from the posts list.":
       "в корзину? Она исчезнет с сайта и из списка записей.",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Не отсортировано по столбцу «{columnName}». Активируйте, чтобы отсортировать по возрастанию.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Отсортировано по столбцу «{columnName}», по возрастанию. Активируйте, чтобы отсортировать по убыванию.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Отсортировано по столбцу «{columnName}», по убыванию. Активируйте, чтобы отсортировать по возрастанию.",
+    "Not sorted by updated date. Activate to sort newest first.": "Не отсортировано по дате обновления. Активируйте, чтобы сначала показать новые.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Отсортировано по дате обновления, сначала новые. Активируйте, чтобы сначала показать старые.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Отсортировано по дате обновления, сначала старые. Активируйте, чтобы сначала показать новые.",
+    "Slug": "Ярлык",
+    "Actions for \"{title}\"": "Действия для \"{title}\"",
   },
   fa: {
     Restore: "بازیابی",
@@ -444,6 +500,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "را به زباله‌دان منتقل کنید؟ از سایت و از فهرست صفحات ناپدید خواهد شد.",
     "to trash? It will disappear from the site and from the posts list.":
       "را به زباله‌دان منتقل کنید؟ از سایت و از فهرست نوشته‌ها ناپدید خواهد شد.",
+    "Not sorted by {columnName}. Activate to sort ascending.": "بر اساس {columnName} مرتب نشده است. برای مرتب‌سازی صعودی فعال کنید.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "بر اساس {columnName} مرتب شده، صعودی. برای مرتب‌سازی نزولی فعال کنید.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "بر اساس {columnName} مرتب شده، نزولی. برای مرتب‌سازی صعودی فعال کنید.",
+    "Not sorted by updated date. Activate to sort newest first.": "بر اساس تاریخ به‌روزرسانی مرتب نشده است. برای نمایش جدیدترین‌ها در ابتدا فعال کنید.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "بر اساس تاریخ به‌روزرسانی مرتب شده، جدیدترین‌ها در ابتدا. برای نمایش قدیمی‌ترین‌ها در ابتدا فعال کنید.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "بر اساس تاریخ به‌روزرسانی مرتب شده، قدیمی‌ترین‌ها در ابتدا. برای نمایش جدیدترین‌ها در ابتدا فعال کنید.",
+    "Slug": "نامک",
+    "Actions for \"{title}\"": "عملیات مربوط به \"{title}\"",
   },
   ar: {
     Restore: "استعادة",
@@ -488,6 +552,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "إلى سلة المهملات؟ ستختفي من الموقع ومن قائمة الصفحات.",
     "to trash? It will disappear from the site and from the posts list.":
       "إلى سلة المهملات؟ سيختفي من الموقع ومن قائمة المنشورات.",
+    "Not sorted by {columnName}. Activate to sort ascending.": "غير مرتّب حسب {columnName}. فعّل للترتيب تصاعديًا.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "مرتّب حسب {columnName}، تصاعديًا. فعّل للترتيب تنازليًا.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "مرتّب حسب {columnName}، تنازليًا. فعّل للترتيب تصاعديًا.",
+    "Not sorted by updated date. Activate to sort newest first.": "غير مرتّب حسب تاريخ التحديث. فعّل لعرض الأحدث أولًا.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "مرتّب حسب تاريخ التحديث، الأحدث أولًا. فعّل لعرض الأقدم أولًا.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "مرتّب حسب تاريخ التحديث، الأقدم أولًا. فعّل لعرض الأحدث أولًا.",
+    "Slug": "الاسم اللطيف",
+    "Actions for \"{title}\"": "إجراءات لـ\"{title}\"",
   },
   ja: {
     Restore: "復元",
@@ -532,6 +604,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "をゴミ箱に移動しますか？サイトとページ一覧から削除されます。",
     "to trash? It will disappear from the site and from the posts list.":
       "をゴミ箱に移動しますか？サイトと投稿一覧から削除されます。",
+    "Not sorted by {columnName}. Activate to sort ascending.": "{columnName}で並べ替えられていません。有効にすると昇順で並べ替えます。",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "{columnName}で昇順に並べ替え済み。有効にすると降順で並べ替えます。",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "{columnName}で降順に並べ替え済み。有効にすると昇順で並べ替えます。",
+    "Not sorted by updated date. Activate to sort newest first.": "更新日で並べ替えられていません。有効にすると新しい順に並べ替えます。",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "更新日で新しい順に並べ替え済み。有効にすると古い順に並べ替えます。",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "更新日で古い順に並べ替え済み。有効にすると新しい順に並べ替えます。",
+    "Slug": "スラッグ",
+    "Actions for \"{title}\"": "\"{title}\"の操作",
   },
   ko: {
     Restore: "복원",
@@ -576,6 +656,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "를 휴지통으로 이동할까요? 사이트와 페이지 목록에서 사라집니다.",
     "to trash? It will disappear from the site and from the posts list.":
       "을 휴지통으로 이동할까요? 사이트와 게시물 목록에서 사라집니다.",
+    "Not sorted by {columnName}. Activate to sort ascending.": "{columnName} 기준으로 정렬되지 않았습니다. 활성화하면 오름차순으로 정렬합니다.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "{columnName} 기준 오름차순으로 정렬되었습니다. 활성화하면 내림차순으로 정렬합니다.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "{columnName} 기준 내림차순으로 정렬되었습니다. 활성화하면 오름차순으로 정렬합니다.",
+    "Not sorted by updated date. Activate to sort newest first.": "업데이트 날짜 기준으로 정렬되지 않았습니다. 활성화하면 최신순으로 정렬합니다.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "업데이트 날짜 기준 최신순으로 정렬되었습니다. 활성화하면 오래된순으로 정렬합니다.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "업데이트 날짜 기준 오래된순으로 정렬되었습니다. 활성화하면 최신순으로 정렬합니다.",
+    "Slug": "슬러그",
+    "Actions for \"{title}\"": "\"{title}\" 작업",
   },
   pl: {
     Restore: "Przywróć",
@@ -620,6 +708,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "do kosza? Zniknie z witryny i z listy stron.",
     "to trash? It will disappear from the site and from the posts list.":
       "do kosza? Zniknie z witryny i z listy wpisów.",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Nieposortowane według kolumny {columnName}. Aktywuj, aby posortować rosnąco.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Posortowane według kolumny {columnName}, rosnąco. Aktywuj, aby posortować malejąco.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Posortowane według kolumny {columnName}, malejąco. Aktywuj, aby posortować rosnąco.",
+    "Not sorted by updated date. Activate to sort newest first.": "Nieposortowane według daty aktualizacji. Aktywuj, aby pokazać najpierw najnowsze.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Posortowane według daty aktualizacji, najpierw najnowsze. Aktywuj, aby pokazać najpierw najstarsze.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Posortowane według daty aktualizacji, najpierw najstarsze. Aktywuj, aby pokazać najpierw najnowsze.",
+    "Slug": "Slug",
+    "Actions for \"{title}\"": "Działania dla \"{title}\"",
   },
   hu: {
     Restore: "Visszaállítás",
@@ -664,6 +760,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "a kukába? Eltűnik a webhelyről és az oldallistáról.",
     "to trash? It will disappear from the site and from the posts list.":
       "a kukába? Eltűnik a webhelyről és a bejegyzéslistáról.",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Nincs {columnName} szerint rendezve. Aktiválja a növekvő rendezéshez.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "{columnName} szerint rendezve, növekvő sorrendben. Aktiválja a csökkenő rendezéshez.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "{columnName} szerint rendezve, csökkenő sorrendben. Aktiválja a növekvő rendezéshez.",
+    "Not sorted by updated date. Activate to sort newest first.": "Nincs frissítési dátum szerint rendezve. Aktiválja, hogy a legújabbak legyenek elöl.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Frissítési dátum szerint rendezve, a legújabbak elöl. Aktiválja, hogy a legrégebbiek legyenek elöl.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Frissítési dátum szerint rendezve, a legrégebbiek elöl. Aktiválja, hogy a legújabbak legyenek elöl.",
+    "Slug": "Slug",
+    "Actions for \"{title}\"": "Műveletek: \"{title}\"",
   },
   fr: {
     Restore: "Restaurer",
@@ -708,6 +812,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "vers la corbeille ? Elle disparaîtra du site et de la liste des pages.",
     "to trash? It will disappear from the site and from the posts list.":
       "vers la corbeille ? Il disparaîtra du site et de la liste des articles.",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Non trié par {columnName}. Activez pour trier par ordre croissant.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Trié par {columnName}, ordre croissant. Activez pour trier par ordre décroissant.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Trié par {columnName}, ordre décroissant. Activez pour trier par ordre croissant.",
+    "Not sorted by updated date. Activate to sort newest first.": "Non trié par date de mise à jour. Activez pour afficher les plus récents en premier.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Trié par date de mise à jour, les plus récents en premier. Activez pour afficher les plus anciens en premier.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Trié par date de mise à jour, les plus anciens en premier. Activez pour afficher les plus récents en premier.",
+    "Slug": "Slug",
+    "Actions for \"{title}\"": "Actions pour \"{title}\"",
   },
   uk: {
     Restore: "Відновити",
@@ -752,6 +864,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "в кошик? Вона зникне з сайту та зі списку сторінок.",
     "to trash? It will disappear from the site and from the posts list.":
       "в кошик? Він зникне з сайту та зі списку дописів.",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Не відсортовано за стовпцем «{columnName}». Активуйте, щоб відсортувати за зростанням.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Відсортовано за стовпцем «{columnName}», за зростанням. Активуйте, щоб відсортувати за спаданням.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Відсортовано за стовпцем «{columnName}», за спаданням. Активуйте, щоб відсортувати за зростанням.",
+    "Not sorted by updated date. Activate to sort newest first.": "Не відсортовано за датою оновлення. Активуйте, щоб спочатку показати нові.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Відсортовано за датою оновлення, спочатку нові. Активуйте, щоб спочатку показати старі.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Відсортовано за датою оновлення, спочатку старі. Активуйте, щоб спочатку показати нові.",
+    "Slug": "Ярлик",
+    "Actions for \"{title}\"": "Дії для \"{title}\"",
   },
   tr: {
     Restore: "Geri yükle",
@@ -796,6 +916,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "çöp kutusuna taşınsın mı? Siteden ve sayfa listesinden kaybolacak.",
     "to trash? It will disappear from the site and from the posts list.":
       "çöp kutusuna taşınsın mı? Siteden ve gönderi listesinden kaybolacak.",
+    "Not sorted by {columnName}. Activate to sort ascending.": "{columnName} sütununa göre sıralanmadı. Artan sırada sıralamak için etkinleştirin.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "{columnName} sütununa göre artan sırada sıralandı. Azalan sırada sıralamak için etkinleştirin.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "{columnName} sütununa göre azalan sırada sıralandı. Artan sırada sıralamak için etkinleştirin.",
+    "Not sorted by updated date. Activate to sort newest first.": "Güncellenme tarihine göre sıralanmadı. En yenileri önce göstermek için etkinleştirin.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Güncellenme tarihine göre sıralandı, en yeniler önce. En eskileri önce göstermek için etkinleştirin.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Güncellenme tarihine göre sıralandı, en eskiler önce. En yenileri önce göstermek için etkinleştirin.",
+    "Slug": "Kısa ad",
+    "Actions for \"{title}\"": "\"{title}\" için işlemler",
   },
   th: {
     Restore: "กู้คืน",
@@ -840,6 +968,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "ไปถังขยะหรือไม่ จะหายไปจากเว็บไซต์และรายการหน้า",
     "to trash? It will disappear from the site and from the posts list.":
       "ไปถังขยะหรือไม่ จะหายไปจากเว็บไซต์และรายการโพสต์",
+    "Not sorted by {columnName}. Activate to sort ascending.": "ไม่ได้เรียงตาม{columnName} เปิดใช้งานเพื่อเรียงจากน้อยไปมาก",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "เรียงตาม{columnName} จากน้อยไปมาก เปิดใช้งานเพื่อเรียงจากมากไปน้อย",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "เรียงตาม{columnName} จากมากไปน้อย เปิดใช้งานเพื่อเรียงจากน้อยไปมาก",
+    "Not sorted by updated date. Activate to sort newest first.": "ไม่ได้เรียงตามวันที่อัปเดต เปิดใช้งานเพื่อเรียงจากใหม่สุดก่อน",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "เรียงตามวันที่อัปเดต ใหม่สุดก่อน เปิดใช้งานเพื่อเรียงจากเก่าสุดก่อน",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "เรียงตามวันที่อัปเดต เก่าสุดก่อน เปิดใช้งานเพื่อเรียงจากใหม่สุดก่อน",
+    "Slug": "Slug",
+    "Actions for \"{title}\"": "การดำเนินการสำหรับ \"{title}\"",
   },
   it: {
     Restore: "Ripristina",
@@ -884,6 +1020,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "nel cestino? Scomparirà dal sito e dall'elenco delle pagine.",
     "to trash? It will disappear from the site and from the posts list.":
       "nel cestino? Scomparirà dal sito e dall'elenco degli articoli.",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Non ordinato per {columnName}. Attiva per ordinare in modo crescente.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Ordinato per {columnName}, in modo crescente. Attiva per ordinare in modo decrescente.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Ordinato per {columnName}, in modo decrescente. Attiva per ordinare in modo crescente.",
+    "Not sorted by updated date. Activate to sort newest first.": "Non ordinato per data di aggiornamento. Attiva per mostrare prima i più recenti.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Ordinato per data di aggiornamento, prima i più recenti. Attiva per mostrare prima i meno recenti.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Ordinato per data di aggiornamento, prima i meno recenti. Attiva per mostrare prima i più recenti.",
+    "Slug": "Slug",
+    "Actions for \"{title}\"": "Azioni per \"{title}\"",
   },
   hi: {
     Restore: "पुनर्स्थापित करें",
@@ -928,6 +1072,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "को ट्रैश में भेजें? यह साइट और पेज सूची से हट जाएगा।",
     "to trash? It will disappear from the site and from the posts list.":
       "को ट्रैश में भेजें? यह साइट और पोस्ट सूची से हट जाएगा।",
+    "Not sorted by {columnName}. Activate to sort ascending.": "{columnName} के अनुसार क्रमबद्ध नहीं है। आरोही क्रम में लगाने के लिए सक्रिय करें।",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "{columnName} के अनुसार आरोही क्रम में क्रमबद्ध। अवरोही क्रम में लगाने के लिए सक्रिय करें।",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "{columnName} के अनुसार अवरोही क्रम में क्रमबद्ध। आरोही क्रम में लगाने के लिए सक्रिय करें।",
+    "Not sorted by updated date. Activate to sort newest first.": "अपडेट की तारीख के अनुसार क्रमबद्ध नहीं है। नवीनतम पहले दिखाने के लिए सक्रिय करें।",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "अपडेट की तारीख के अनुसार क्रमबद्ध, नवीनतम पहले। सबसे पुराने पहले दिखाने के लिए सक्रिय करें।",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "अपडेट की तारीख के अनुसार क्रमबद्ध, सबसे पुराने पहले। नवीनतम पहले दिखाने के लिए सक्रिय करें।",
+    "Slug": "स्लग",
+    "Actions for \"{title}\"": "\"{title}\" के लिए कार्रवाइयां",
   },
   ur: {
     Restore: "بحال کریں",
@@ -972,6 +1124,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "کو ردی کی ٹوکری میں بھیجیں؟ یہ سائٹ اور صفحات کی فہرست سے غائب ہو جائے گا۔",
     "to trash? It will disappear from the site and from the posts list.":
       "کو ردی کی ٹوکری میں بھیجیں؟ یہ سائٹ اور پوسٹس کی فہرست سے غائب ہو جائے گا۔",
+    "Not sorted by {columnName}. Activate to sort ascending.": "{columnName} کے مطابق ترتیب نہیں دیا گیا۔ صعودی ترتیب کے لیے فعال کریں۔",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "{columnName} کے مطابق صعودی ترتیب میں۔ نزولی ترتیب کے لیے فعال کریں۔",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "{columnName} کے مطابق نزولی ترتیب میں۔ صعودی ترتیب کے لیے فعال کریں۔",
+    "Not sorted by updated date. Activate to sort newest first.": "اپ ڈیٹ کی تاریخ کے مطابق ترتیب نہیں دیا گیا۔ تازہ ترین پہلے دکھانے کے لیے فعال کریں۔",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "اپ ڈیٹ کی تاریخ کے مطابق ترتیب، تازہ ترین پہلے۔ پرانے پہلے دکھانے کے لیے فعال کریں۔",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "اپ ڈیٹ کی تاریخ کے مطابق ترتیب، پرانے پہلے۔ تازہ ترین پہلے دکھانے کے لیے فعال کریں۔",
+    "Slug": "سلگ",
+    "Actions for \"{title}\"": "\"{title}\" کے لیے کارروائیاں",
   },
   bn: {
     Restore: "পুনরুদ্ধার করুন",
@@ -1016,6 +1176,14 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
       "কে ট্র্যাশে সরাবেন? এটি সাইট এবং পেজের তালিকা থেকে অদৃশ্য হয়ে যাবে।",
     "to trash? It will disappear from the site and from the posts list.":
       "কে ট্র্যাশে সরাবেন? এটি সাইট এবং পোস্টের তালিকা থেকে অদৃশ্য হয়ে যাবে।",
+    "Not sorted by {columnName}. Activate to sort ascending.": "{columnName} অনুযায়ী সাজানো নেই। ঊর্ধ্বক্রমে সাজাতে সক্রিয় করুন।",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "{columnName} অনুযায়ী ঊর্ধ্বক্রমে সাজানো। অধঃক্রমে সাজাতে সক্রিয় করুন।",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "{columnName} অনুযায়ী অধঃক্রমে সাজানো। ঊর্ধ্বক্রমে সাজাতে সক্রিয় করুন।",
+    "Not sorted by updated date. Activate to sort newest first.": "হালনাগাদের তারিখ অনুযায়ী সাজানো নেই। নতুনগুলো আগে দেখাতে সক্রিয় করুন।",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "হালনাগাদের তারিখ অনুযায়ী সাজানো, নতুনগুলো আগে। পুরোনোগুলো আগে দেখাতে সক্রিয় করুন।",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "হালনাগাদের তারিখ অনুযায়ী সাজানো, পুরোনোগুলো আগে। নতুনগুলো আগে দেখাতে সক্রিয় করুন।",
+    "Slug": "স্লাগ",
+    "Actions for \"{title}\"": "\"{title}\" এর জন্য কার্যক্রম",
   },
 };
 

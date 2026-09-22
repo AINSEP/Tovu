@@ -76,6 +76,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     Submissions: "Envíos",
     // FormEditor (main)
     "Back to forms": "Volver a los formularios",
+    "Actions for form \"{name}\"": "Acciones para el formulario \"{name}\"",
   },
   id: {
     Content: "Konten",
@@ -125,6 +126,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "Konfigurasikan bidang dan notifikasi formulir ini, atau tinjau kirimannya.",
     Submissions: "Kiriman",
     "Back to forms": "Kembali ke formulir",
+    "Actions for form \"{name}\"": "Tindakan untuk formulir \"{name}\"",
   },
   de: {
     Content: "Inhalt",
@@ -176,6 +178,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "Konfigurieren Sie die Felder und Benachrichtigungen dieses Formulars, oder sehen Sie sich seine Einsendungen an.",
     Submissions: "Einsendungen",
     "Back to forms": "Zurück zu den Formularen",
+    "Actions for form \"{name}\"": "Aktionen für Formular \"{name}\"",
   },
   "zh-CN": {
     Content: "内容",
@@ -184,7 +187,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "New form": "新建表单",
     "No forms yet.": "暂无表单。",
     "Create your first form to start collecting submissions.": "创建您的第一个表单以开始收集提交内容。",
-    Slug: "Slug",
+    Slug: "别名",
     Fields: "字段",
     Notify: "通知",
     off: "关闭",
@@ -224,6 +227,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "配置此表单的字段和通知,或查看其提交内容。",
     Submissions: "提交内容",
     "Back to forms": "返回表单",
+    "Actions for form \"{name}\"": "表单\"{name}\"的操作",
   },
   "zh-TW": {
     Content: "內容",
@@ -232,7 +236,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "New form": "新增表單",
     "No forms yet.": "尚無表單。",
     "Create your first form to start collecting submissions.": "建立您的第一個表單以開始收集提交內容。",
-    Slug: "Slug",
+    Slug: "網址別名",
     Fields: "欄位",
     Notify: "通知",
     off: "關閉",
@@ -272,6 +276,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "設定此表單的欄位與通知,或檢視其提交內容。",
     Submissions: "提交內容",
     "Back to forms": "返回表單",
+    "Actions for form \"{name}\"": "表單\"{name}\"的操作",
   },
   "pt-BR": {
     Content: "Conteúdo",
@@ -322,6 +327,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "Configure os campos e as notificações deste formulário, ou revise seus envios.",
     Submissions: "Envios",
     "Back to forms": "Voltar para os formulários",
+    "Actions for form \"{name}\"": "Ações para o formulário \"{name}\"",
   },
   ru: {
     Content: "Контент",
@@ -331,7 +337,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "New form": "Новая форма",
     "No forms yet.": "Пока нет форм.",
     "Create your first form to start collecting submissions.": "Создайте свою первую форму, чтобы начать собирать отправки.",
-    Slug: "Slug",
+    Slug: "Ярлык",
     Fields: "Поля",
     Notify: "Уведомлять",
     off: "выкл.",
@@ -372,6 +378,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "Настройте поля и уведомления этой формы или просмотрите её отправки.",
     Submissions: "Отправки",
     "Back to forms": "Назад к формам",
+    "Actions for form \"{name}\"": "Действия для формы \"{name}\"",
   },
   fa: {
     Content: "محتوا",
@@ -381,7 +388,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "New form": "فرم جدید",
     "No forms yet.": "هنوز فرمی وجود ندارد.",
     "Create your first form to start collecting submissions.": "اولین فرم خود را بسازید تا جمع‌آوری ارسال‌ها را شروع کنید.",
-    Slug: "Slug",
+    Slug: "نامک",
     Fields: "فیلدها",
     Notify: "اطلاع‌رسانی",
     off: "غیرفعال",
@@ -421,6 +428,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "فیلدها و اعلان‌های این فرم را پیکربندی کنید یا ارسال‌های آن را بررسی کنید.",
     Submissions: "ارسال‌ها",
     "Back to forms": "بازگشت به فرم‌ها",
+    "Actions for form \"{name}\"": "عملیات مربوط به فرم \"{name}\"",
   },
   ar: {
     Content: "المحتوى",
@@ -429,7 +437,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "New form": "نموذج جديد",
     "No forms yet.": "لا توجد نماذج بعد.",
     "Create your first form to start collecting submissions.": "أنشئ أول نموذج لديك لتبدأ بجمع الإرسالات.",
-    Slug: "Slug",
+    Slug: "الرابط المختصر",
     Fields: "الحقول",
     Notify: "إشعار",
     off: "إيقاف",
@@ -469,6 +477,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "اضبط حقول هذا النموذج وإشعاراته، أو راجع إرسالاته.",
     Submissions: "الإرسالات",
     "Back to forms": "العودة إلى النماذج",
+    "Actions for form \"{name}\"": "إجراءات لنموذج \"{name}\"",
   },
   ja: {
     Content: "コンテンツ",
@@ -518,6 +527,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "このフォームのフィールドと通知を設定するか、送信内容を確認します。",
     Submissions: "送信内容",
     "Back to forms": "フォームに戻る",
+    "Actions for form \"{name}\"": "フォーム\"{name}\"の操作",
   },
   ko: {
     Content: "콘텐츠",
@@ -526,7 +536,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "New form": "새 양식",
     "No forms yet.": "아직 양식이 없습니다.",
     "Create your first form to start collecting submissions.": "첫 번째 양식을 만들어 제출 수집을 시작하세요.",
-    Slug: "Slug",
+    Slug: "슬러그",
     Fields: "필드",
     Notify: "알림",
     off: "꺼짐",
@@ -566,6 +576,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "이 양식의 필드와 알림을 구성하거나 제출 내용을 검토하세요.",
     Submissions: "제출 내용",
     "Back to forms": "양식으로 돌아가기",
+    "Actions for form \"{name}\"": "양식 \"{name}\" 작업",
   },
   pl: {
     Content: "Treść",
@@ -616,6 +627,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "Skonfiguruj pola i powiadomienia tego formularza lub przejrzyj jego zgłoszenia.",
     Submissions: "Zgłoszenia",
     "Back to forms": "Wróć do formularzy",
+    "Actions for form \"{name}\"": "Działania dla formularza \"{name}\"",
   },
   hu: {
     Content: "Tartalom",
@@ -667,6 +679,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "Konfigurálja ennek az űrlapnak a mezőit és értesítéseit, vagy tekintse át a beküldéseit.",
     Submissions: "Beküldések",
     "Back to forms": "Vissza az űrlapokhoz",
+    "Actions for form \"{name}\"": "Műveletek: űrlap \"{name}\"",
   },
   fr: {
     Content: "Contenu",
@@ -718,6 +731,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "Configurez les champs et les notifications de ce formulaire, ou consultez ses soumissions.",
     Submissions: "Soumissions",
     "Back to forms": "Retour aux formulaires",
+    "Actions for form \"{name}\"": "Actions pour le formulaire \"{name}\"",
   },
   uk: {
     Content: "Вміст",
@@ -727,7 +741,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "New form": "Нова форма",
     "No forms yet.": "Поки немає форм.",
     "Create your first form to start collecting submissions.": "Створіть свою першу форму, щоб почати збирати надсилання.",
-    Slug: "Slug",
+    Slug: "Ярлик",
     Fields: "Поля",
     Notify: "Сповіщати",
     off: "вимк.",
@@ -768,6 +782,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "Налаштуйте поля та сповіщення цієї форми або перегляньте її надсилання.",
     Submissions: "Надсилання",
     "Back to forms": "Назад до форм",
+    "Actions for form \"{name}\"": "Дії для форми \"{name}\"",
   },
   tr: {
     Content: "İçerik",
@@ -818,6 +833,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "Bu formun alanlarını ve bildirimlerini yapılandırın veya gönderimlerini inceleyin.",
     Submissions: "Gönderimler",
     "Back to forms": "Formlara dön",
+    "Actions for form \"{name}\"": "\"{name}\" formu için işlemler",
   },
   th: {
     Content: "เนื้อหา",
@@ -827,7 +843,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "New form": "แบบฟอร์มใหม่",
     "No forms yet.": "ยังไม่มีแบบฟอร์ม",
     "Create your first form to start collecting submissions.": "สร้างแบบฟอร์มแรกของคุณเพื่อเริ่มรวบรวมข้อมูลที่ส่ง",
-    Slug: "Slug",
+    Slug: "ชื่อ URL",
     Fields: "ฟิลด์",
     Notify: "แจ้งเตือน",
     off: "ปิด",
@@ -867,6 +883,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "กำหนดค่าฟิลด์และการแจ้งเตือนของแบบฟอร์มนี้ หรือตรวจสอบข้อมูลที่ส่ง",
     Submissions: "ข้อมูลที่ส่ง",
     "Back to forms": "กลับไปที่แบบฟอร์ม",
+    "Actions for form \"{name}\"": "การดำเนินการสำหรับแบบฟอร์ม \"{name}\"",
   },
   it: {
     Content: "Contenuto",
@@ -916,6 +933,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "Configura i campi e le notifiche di questo modulo, oppure controlla i suoi invii.",
     Submissions: "Invii",
     "Back to forms": "Torna ai moduli",
+    "Actions for form \"{name}\"": "Azioni per il modulo \"{name}\"",
   },
   hi: {
     Content: "सामग्री",
@@ -976,6 +994,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "इस फ़ॉर्म के फ़ील्ड और सूचनाएं कॉन्फ़िगर करें, या इसके सबमिशन देखें।",
     Submissions: "सबमिशन",
     "Back to forms": "फ़ॉर्म पर वापस जाएं",
+    "Actions for form \"{name}\"": "फ़ॉर्म \"{name}\" के लिए कार्रवाइयां",
   },
   ur: {
     Content: "مواد",
@@ -1036,6 +1055,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "اس فارم کی فیلڈز اور اطلاعات کو ترتیب دیں، یا اس کی اندراجات کا جائزہ لیں۔",
     Submissions: "اندراجات",
     "Back to forms": "فارمز پر واپس جائیں",
+    "Actions for form \"{name}\"": "فارم \"{name}\" کے لیے کارروائیاں",
   },
   bn: {
     Content: "কন্টেন্ট",
@@ -1096,6 +1116,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
       "এই ফর্মের ফিল্ড এবং বিজ্ঞপ্তি কনফিগার করুন, অথবা এর জমাগুলো পর্যালোচনা করুন।",
     Submissions: "জমা",
     "Back to forms": "ফর্মে ফিরে যান",
+    "Actions for form \"{name}\"": "ফর্ম \"{name}\" এর জন্য কার্যক্রম",
   },
 };
 

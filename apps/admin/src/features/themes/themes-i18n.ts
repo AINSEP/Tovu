@@ -2063,7 +2063,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     HTML: "HTML",
     "Loading the marketplace…": "Chargement de la marketplace…",
     "Loading theme…": "Chargement du thème…",
-    Marketplace: "Marketplace",
+    Marketplace: "Place de marché",
     Mobile: "Mobile",
     "More actions for {file}": "Autres actions pour {file}",
     "New name for {file}": "Nouveau nom pour {file}",

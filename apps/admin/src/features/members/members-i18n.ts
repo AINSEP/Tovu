@@ -194,7 +194,7 @@ const MEMBERS_DICT: Record<string, Record<string, string>> = {
     "Loading members…": "Загрузка участников…",
     "No members yet.": "Участников пока нет.",
     "Registered site visitors will show up here.": "Зарегистрированные посетители сайта будут отображаться здесь.",
-    Email: "Email",
+    Email: "Эл. почта",
     Created: "Создан",
     Actions: "Действия",
     "Actions for member": "Действия для участника",

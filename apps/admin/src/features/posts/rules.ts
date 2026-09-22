@@ -3,6 +3,7 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { EditorView } from "@tiptap/pm/view";
 
 import { ApiError, type AdminPost } from "../../lib/api";
+import type { Translate } from "../../lib/dictionary-translator";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import type {
   StandingDraftAutosaveInput,
@@ -439,27 +440,28 @@ export function comparePostsByUpdated(a: AdminPost, b: AdminPost): number {
  * is `null` when a different column is currently active — `DataTable` resolves that itself, so
  * unlike the pre-existing hand-rolled version this needs no `PostSortState`/column comparison here.
  *
- * `columnName` is a fixed English label supplied by the caller (`Posts.tsx`), not the translated
- * header text — matching this feature's pre-existing precedent of hardcoded English regardless of
- * admin locale (aria-label copy in this codebase is not run through `POSTS_DICT`).
+ * `columnName` is supplied by the caller (`Posts.tsx`), translated the same way that screen
+ * translates the header text — mirrors `pages/rules.ts`'s `pageColumnSortLabel` exactly (a browser
+ * sweep, 2026-09-22, found this function returning a plain untranslated template while its `pages`
+ * twin already called `t()`).
  *
  * @complexity Time/space: O(1).
  */
-export function postColumnSortLabel(columnName: string, direction: DataTableSortDirection | null): string {
-  if (direction === null) return `Not sorted by ${columnName}. Activate to sort ascending.`;
+export function postColumnSortLabel(t: Translate, columnName: string, direction: DataTableSortDirection | null): string {
+  if (direction === null) return t("Not sorted by {columnName}. Activate to sort ascending.").replace("{columnName}", columnName);
   return direction === "asc"
-    ? `Sorted by ${columnName}, ascending. Activate to sort descending.`
-    : `Sorted by ${columnName}, descending. Activate to sort ascending.`;
+    ? t("Sorted by {columnName}, ascending. Activate to sort descending.").replace("{columnName}", columnName)
+    : t("Sorted by {columnName}, descending. Activate to sort ascending.").replace("{columnName}", columnName);
 }
 
 /** Same contract as {@link postColumnSortLabel}, phrased in the Updated column's own "newest"/
- *  "oldest" vocabulary rather than generic "ascending"/"descending" — unchanged wording from the
- *  pre-existing Updated-only feature. */
-export function updatedColumnSortLabel(direction: DataTableSortDirection | null): string {
-  if (direction === null) return "Not sorted by updated date. Activate to sort newest first.";
+ *  "oldest" vocabulary rather than generic "ascending"/"descending" — mirrors `pages/rules.ts`'s
+ *  `updatedPageColumnSortLabel` verbatim. */
+export function updatedColumnSortLabel(t: Translate, direction: DataTableSortDirection | null): string {
+  if (direction === null) return t("Not sorted by updated date. Activate to sort newest first.");
   return direction === "desc"
-    ? "Sorted by updated date, newest first. Activate to sort oldest first."
-    : "Sorted by updated date, oldest first. Activate to sort newest first.";
+    ? t("Sorted by updated date, newest first. Activate to sort oldest first.")
+    : t("Sorted by updated date, oldest first. Activate to sort newest first.");
 }
 
 /**

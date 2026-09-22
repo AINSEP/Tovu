@@ -377,7 +377,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Password: "Пароль",
     "Create user": "Создать пользователя",
 
-    Email: "Email",
+    Email: "Эл. почта",
     "(none)": "(нет)",
     "Save email": "Сохранить email",
     "Assign role": "Назначить роль",

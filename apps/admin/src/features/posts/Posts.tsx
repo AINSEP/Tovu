@@ -134,7 +134,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
             // migrated onto `DataTable`'s own shared sort mechanism 2026-09-02) — `DataTable` now
             // renders the button, caret, and `aria-sort` itself from this descriptor; only the
             // domain-specific comparator and label wording stay here (`rules.ts`).
-            sort: { compare: comparePostsByTitle, label: (direction) => postColumnSortLabel("Title", direction) },
+            sort: { compare: comparePostsByTitle, label: (direction) => postColumnSortLabel(t, t("Title"), direction) },
             cell: (post) => (
               <a
                 href={`/admin/posts/${post.slug}`}
@@ -147,7 +147,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           {
             key: "slug",
             header: "Slug",
-            sort: { compare: comparePostsBySlug, label: (direction) => postColumnSortLabel("Slug", direction) },
+            sort: { compare: comparePostsBySlug, label: (direction) => postColumnSortLabel(t, t("Slug"), direction) },
             cell: (post) => (
               <a
                 href={siteUrl(`/${post.slug}`)}
@@ -162,7 +162,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           {
             key: "status",
             header: t("Status"),
-            sort: { compare: comparePostsByStatus, label: (direction) => postColumnSortLabel("Status", direction) },
+            sort: { compare: comparePostsByStatus, label: (direction) => postColumnSortLabel(t, t("Status"), direction) },
             cell: (post) => <span className={`status status-${post.status}`}><ServerLabel value={post.status} /></span>,
           },
           {
@@ -170,7 +170,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
             header: t("Updated"),
             // "desc" (newest first) is this column's own starting direction, unlike the other
             // three's ascending default — unchanged from the pre-existing Updated-only feature.
-            sort: { compare: comparePostsByUpdated, defaultDirection: "desc", label: updatedColumnSortLabel },
+            sort: { compare: comparePostsByUpdated, defaultDirection: "desc", label: (direction) => updatedColumnSortLabel(t, direction) },
             cell: (post) => formatTimestamp(post.updatedAt),
           },
           {
@@ -178,7 +178,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
             header: t("More"),
             cell: (post) => (
               <RowMenu
-                triggerLabel={`Actions for "${post.title}"`}
+                triggerLabel={t('Actions for "{title}"').replace("{title}", post.title)}
                 agentHandle={`${rowMenuHandleById.get(post.id)}-menu`}
                 items={postRowMenuItems(
                   post,

@@ -179,14 +179,14 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
           href="/admin/posts"
           label={t("Posts")}
           state={posts}
-          meta={postsStatMeta(published)}
+          meta={postsStatMeta(published, t)}
           agentHandleId="dashboard-stat-posts"
         />
         <Stat
           href="/admin/pages"
           label={t("Pages")}
           state={pages}
-          meta={pagesStatMeta(drafts)}
+          meta={pagesStatMeta(drafts, t)}
           agentHandleId="dashboard-stat-pages"
         />
         <Stat
@@ -200,7 +200,7 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
           href="/admin/comments"
           label={t("Comments")}
           state={comments}
-          meta={commentsStatMeta(comments.value)}
+          meta={commentsStatMeta(comments.value, t)}
           agentHandleId="dashboard-stat-comments"
         />
       </div>

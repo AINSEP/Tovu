@@ -91,6 +91,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "No se pudieron actualizar los campos",
     "Deprecate content type": "Marcar tipo de contenido como obsoleto",
     "Tombstone content type": "Eliminar tipo de contenido definitivamente",
+    "Actions for content type \"{label}\"": "Acciones para el tipo de contenido \"{label}\"",
   },
   id: {
     Content: "Konten",
@@ -148,6 +149,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "Gagal memperbarui bidang",
     "Deprecate content type": "Tandai jenis konten sebagai usang",
     "Tombstone content type": "Hapus jenis konten secara permanen",
+    "Actions for content type \"{label}\"": "Tindakan untuk jenis konten \"{label}\"",
   },
   de: {
     Content: "Inhalt",
@@ -205,6 +207,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "Felder konnten nicht aktualisiert werden",
     "Deprecate content type": "Inhaltstyp als veraltet markieren",
     "Tombstone content type": "Inhaltstyp endgültig löschen",
+    "Actions for content type \"{label}\"": "Aktionen für Inhaltstyp \"{label}\"",
   },
   "zh-CN": {
     Content: "内容",
@@ -261,6 +264,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "更新字段失败",
     "Deprecate content type": "弃用内容类型",
     "Tombstone content type": "永久删除内容类型",
+    "Actions for content type \"{label}\"": "内容类型\"{label}\"的操作",
   },
   "zh-TW": {
     Content: "內容",
@@ -317,6 +321,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "更新欄位失敗",
     "Deprecate content type": "淘汰內容類型",
     "Tombstone content type": "永久刪除內容類型",
+    "Actions for content type \"{label}\"": "內容類型\"{label}\"的操作",
   },
   "pt-BR": {
     Content: "Conteúdo",
@@ -374,6 +379,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "Falha ao atualizar campos",
     "Deprecate content type": "Marcar tipo de conteúdo como obsoleto",
     "Tombstone content type": "Excluir tipo de conteúdo permanentemente",
+    "Actions for content type \"{label}\"": "Ações para o tipo de conteúdo \"{label}\"",
   },
   ru: {
     Content: "Контент",
@@ -431,6 +437,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "Не удалось обновить поля",
     "Deprecate content type": "Пометить тип содержимого как устаревший",
     "Tombstone content type": "Удалить тип содержимого навсегда",
+    "Actions for content type \"{label}\"": "Действия для типа контента \"{label}\"",
   },
   fa: {
     Content: "محتوا",
@@ -488,6 +495,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "به‌روزرسانی فیلدها ناموفق بود",
     "Deprecate content type": "منسوخ کردن نوع محتوا",
     "Tombstone content type": "حذف دائمی نوع محتوا",
+    "Actions for content type \"{label}\"": "عملیات مربوط به نوع محتوای \"{label}\"",
   },
   ar: {
     Content: "المحتوى",
@@ -545,6 +553,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "تعذّر تحديث الحقول",
     "Deprecate content type": "وضع علامة منسوخ على نوع المحتوى",
     "Tombstone content type": "حذف نوع المحتوى نهائيًا",
+    "Actions for content type \"{label}\"": "إجراءات لنوع المحتوى \"{label}\"",
   },
   ja: {
     Content: "コンテンツ",
@@ -602,6 +611,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "フィールドの更新に失敗しました",
     "Deprecate content type": "コンテンツタイプを非推奨にする",
     "Tombstone content type": "コンテンツタイプを完全に削除する",
+    "Actions for content type \"{label}\"": "コンテンツタイプ\"{label}\"の操作",
   },
   ko: {
     Content: "콘텐츠",
@@ -658,6 +668,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "필드 업데이트에 실패했습니다",
     "Deprecate content type": "콘텐츠 유형을 지원 중단으로 표시",
     "Tombstone content type": "콘텐츠 유형을 영구 삭제",
+    "Actions for content type \"{label}\"": "콘텐츠 유형 \"{label}\" 작업",
   },
   pl: {
     Content: "Treść",
@@ -715,6 +726,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "Nie udało się zaktualizować pól",
     "Deprecate content type": "Oznacz typ zawartości jako przestarzały",
     "Tombstone content type": "Usuń typ zawartości na stałe",
+    "Actions for content type \"{label}\"": "Działania dla typu treści \"{label}\"",
   },
   hu: {
     Content: "Tartalom",
@@ -772,6 +784,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "Nem sikerült frissíteni a mezőket",
     "Deprecate content type": "Tartalomtípus elavultként jelölése",
     "Tombstone content type": "Tartalomtípus végleges törlése",
+    "Actions for content type \"{label}\"": "Műveletek: tartalomtípus \"{label}\"",
   },
   fr: {
     Content: "Contenu",
@@ -829,6 +842,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "Échec de la mise à jour des champs",
     "Deprecate content type": "Rendre le type de contenu obsolète",
     "Tombstone content type": "Supprimer définitivement le type de contenu",
+    "Actions for content type \"{label}\"": "Actions pour le type de contenu \"{label}\"",
   },
   uk: {
     Content: "Вміст",
@@ -886,6 +900,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "Не вдалося оновити поля",
     "Deprecate content type": "Позначити тип вмісту як застарілий",
     "Tombstone content type": "Назавжди видалити тип вмісту",
+    "Actions for content type \"{label}\"": "Дії для типу контенту \"{label}\"",
   },
   tr: {
     Content: "İçerik",
@@ -943,6 +958,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "Alanlar güncellenemedi",
     "Deprecate content type": "İçerik türünü kullanımdan kaldır",
     "Tombstone content type": "İçerik türünü kalıcı olarak sil",
+    "Actions for content type \"{label}\"": "\"{label}\" içerik türü için işlemler",
   },
   th: {
     Content: "เนื้อหา",
@@ -999,6 +1015,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "อัปเดตฟิลด์ไม่สำเร็จ",
     "Deprecate content type": "เลิกใช้ประเภทเนื้อหา",
     "Tombstone content type": "ลบประเภทเนื้อหาอย่างถาวร",
+    "Actions for content type \"{label}\"": "การดำเนินการสำหรับประเภทเนื้อหา \"{label}\"",
   },
   it: {
     Content: "Contenuto",
@@ -1056,6 +1073,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "Impossibile aggiornare i campi",
     "Deprecate content type": "Depreca tipo di contenuto",
     "Tombstone content type": "Elimina definitivamente il tipo di contenuto",
+    "Actions for content type \"{label}\"": "Azioni per il tipo di contenuto \"{label}\"",
   },
   hi: {
     // Collections.tsx — list
@@ -1128,6 +1146,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "फ़ील्ड अपडेट नहीं किए जा सके",
     "Deprecate content type": "सामग्री प्रकार को अप्रचलित करें",
     "Tombstone content type": "सामग्री प्रकार को स्थायी रूप से हटाएं",
+    "Actions for content type \"{label}\"": "सामग्री प्रकार \"{label}\" के लिए कार्रवाइयां",
   },
   ur: {
     Content: "مواد",
@@ -1195,6 +1214,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "فیلڈز اپ ڈیٹ نہیں ہو سکے",
     "Deprecate content type": "مواد کی قسم کو متروک کریں",
     "Tombstone content type": "مواد کی قسم مستقل طور پر حذف کریں",
+    "Actions for content type \"{label}\"": "مواد کی قسم \"{label}\" کے لیے کارروائیاں",
   },
   bn: {
     Content: "কন্টেন্ট",
@@ -1262,6 +1282,7 @@ export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
     "Failed to update fields": "ফিল্ড আপডেট করা যায়নি",
     "Deprecate content type": "কনটেন্টের ধরন অপ্রচলিত করুন",
     "Tombstone content type": "কনটেন্টের ধরন স্থায়ীভাবে মুছুন",
+    "Actions for content type \"{label}\"": "কন্টেন্ট প্রকার \"{label}\" এর জন্য কার্যক্রম",
   },
 };
 

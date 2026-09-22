@@ -71,6 +71,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "No se pudo planificar la combinación",
     "Failed to confirm the merge": "No se pudo confirmar la combinación",
     "Failed to execute the merge": "No se pudo ejecutar la combinación",
+    "Actions for taxonomy \"{name}\"": "Acciones para la taxonomía \"{name}\"",
+    "Actions for term \"{name}\"": "Acciones para el término \"{name}\"",
   },
   id: {
     Content: "Konten",
@@ -120,6 +122,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "Gagal merencanakan penggabungan",
     "Failed to confirm the merge": "Gagal mengonfirmasi penggabungan",
     "Failed to execute the merge": "Gagal menjalankan penggabungan",
+    "Actions for taxonomy \"{name}\"": "Tindakan untuk taksonomi \"{name}\"",
+    "Actions for term \"{name}\"": "Tindakan untuk istilah \"{name}\"",
   },
   de: {
     Content: "Inhalt",
@@ -169,6 +173,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "Zusammenführung konnte nicht geplant werden",
     "Failed to confirm the merge": "Zusammenführung konnte nicht bestätigt werden",
     "Failed to execute the merge": "Zusammenführung konnte nicht ausgeführt werden",
+    "Actions for taxonomy \"{name}\"": "Aktionen für Taxonomie \"{name}\"",
+    "Actions for term \"{name}\"": "Aktionen für Begriff \"{name}\"",
   },
   "zh-CN": {
     Content: "内容",
@@ -217,6 +223,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "规划合并失败",
     "Failed to confirm the merge": "确认合并失败",
     "Failed to execute the merge": "执行合并失败",
+    "Actions for taxonomy \"{name}\"": "分类法\"{name}\"的操作",
+    "Actions for term \"{name}\"": "术语\"{name}\"的操作",
   },
   "zh-TW": {
     Content: "內容",
@@ -265,6 +273,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "規劃合併失敗",
     "Failed to confirm the merge": "確認合併失敗",
     "Failed to execute the merge": "執行合併失敗",
+    "Actions for taxonomy \"{name}\"": "分類法\"{name}\"的操作",
+    "Actions for term \"{name}\"": "詞彙\"{name}\"的操作",
   },
   "pt-BR": {
     Content: "Conteúdo",
@@ -314,6 +324,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "Falha ao planejar a mesclagem",
     "Failed to confirm the merge": "Falha ao confirmar a mesclagem",
     "Failed to execute the merge": "Falha ao executar a mesclagem",
+    "Actions for taxonomy \"{name}\"": "Ações para a taxonomia \"{name}\"",
+    "Actions for term \"{name}\"": "Ações para o termo \"{name}\"",
   },
   ru: {
     Content: "Контент",
@@ -363,6 +375,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "Не удалось спланировать объединение",
     "Failed to confirm the merge": "Не удалось подтвердить объединение",
     "Failed to execute the merge": "Не удалось выполнить объединение",
+    "Actions for taxonomy \"{name}\"": "Действия для таксономии \"{name}\"",
+    "Actions for term \"{name}\"": "Действия для термина \"{name}\"",
   },
   fa: {
     Content: "محتوا",
@@ -412,6 +426,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "برنامه‌ریزی ادغام ناموفق بود",
     "Failed to confirm the merge": "تأیید ادغام ناموفق بود",
     "Failed to execute the merge": "اجرای ادغام ناموفق بود",
+    "Actions for taxonomy \"{name}\"": "عملیات مربوط به طبقه‌بندی \"{name}\"",
+    "Actions for term \"{name}\"": "عملیات مربوط به اصطلاح \"{name}\"",
   },
   ar: {
     Content: "المحتوى",
@@ -461,6 +477,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "تعذّر تخطيط الدمج",
     "Failed to confirm the merge": "تعذّر تأكيد الدمج",
     "Failed to execute the merge": "تعذّر تنفيذ الدمج",
+    "Actions for taxonomy \"{name}\"": "إجراءات لتصنيف \"{name}\"",
+    "Actions for term \"{name}\"": "إجراءات لمصطلح \"{name}\"",
   },
   ja: {
     Content: "コンテンツ",
@@ -510,6 +528,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "統合の計画に失敗しました",
     "Failed to confirm the merge": "統合の確定に失敗しました",
     "Failed to execute the merge": "統合の実行に失敗しました",
+    "Actions for taxonomy \"{name}\"": "タクソノミー\"{name}\"の操作",
+    "Actions for term \"{name}\"": "用語\"{name}\"の操作",
   },
   ko: {
     Content: "콘텐츠",
@@ -559,6 +579,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "병합을 계획하지 못했습니다",
     "Failed to confirm the merge": "병합을 확인하지 못했습니다",
     "Failed to execute the merge": "병합을 실행하지 못했습니다",
+    "Actions for taxonomy \"{name}\"": "택소노미 \"{name}\" 작업",
+    "Actions for term \"{name}\"": "용어 \"{name}\" 작업",
   },
   pl: {
     Content: "Treść",
@@ -608,6 +630,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "Nie udało się zaplanować połączenia",
     "Failed to confirm the merge": "Nie udało się potwierdzić połączenia",
     "Failed to execute the merge": "Nie udało się wykonać połączenia",
+    "Actions for taxonomy \"{name}\"": "Działania dla taksonomii \"{name}\"",
+    "Actions for term \"{name}\"": "Działania dla terminu \"{name}\"",
   },
   hu: {
     Content: "Tartalom",
@@ -657,6 +681,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "Nem sikerült megtervezni az összevonást",
     "Failed to confirm the merge": "Nem sikerült megerősíteni az összevonást",
     "Failed to execute the merge": "Nem sikerült végrehajtani az összevonást",
+    "Actions for taxonomy \"{name}\"": "Műveletek: taxonómia \"{name}\"",
+    "Actions for term \"{name}\"": "Műveletek: kifejezés \"{name}\"",
   },
   fr: {
     Content: "Contenu",
@@ -706,6 +732,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "Échec de la planification de la fusion",
     "Failed to confirm the merge": "Échec de la confirmation de la fusion",
     "Failed to execute the merge": "Échec de l'exécution de la fusion",
+    "Actions for taxonomy \"{name}\"": "Actions pour la taxonomie \"{name}\"",
+    "Actions for term \"{name}\"": "Actions pour le terme \"{name}\"",
   },
   uk: {
     Content: "Вміст",
@@ -755,6 +783,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "Не вдалося спланувати об'єднання",
     "Failed to confirm the merge": "Не вдалося підтвердити об'єднання",
     "Failed to execute the merge": "Не вдалося виконати об'єднання",
+    "Actions for taxonomy \"{name}\"": "Дії для таксономії \"{name}\"",
+    "Actions for term \"{name}\"": "Дії для терміна \"{name}\"",
   },
   tr: {
     Content: "İçerik",
@@ -804,6 +834,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "Birleştirme planlanamadı",
     "Failed to confirm the merge": "Birleştirme onaylanamadı",
     "Failed to execute the merge": "Birleştirme yürütülemedi",
+    "Actions for taxonomy \"{name}\"": "\"{name}\" taksonomisi için işlemler",
+    "Actions for term \"{name}\"": "\"{name}\" terimi için işlemler",
   },
   th: {
     Content: "เนื้อหา",
@@ -853,6 +885,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "วางแผนการผสานไม่สำเร็จ",
     "Failed to confirm the merge": "ยืนยันการผสานไม่สำเร็จ",
     "Failed to execute the merge": "ดำเนินการผสานไม่สำเร็จ",
+    "Actions for taxonomy \"{name}\"": "การดำเนินการสำหรับอนุกรมวิธาน \"{name}\"",
+    "Actions for term \"{name}\"": "การดำเนินการสำหรับคำศัพท์ \"{name}\"",
   },
   it: {
     Content: "Contenuto",
@@ -902,6 +936,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "Impossibile pianificare l'unione",
     "Failed to confirm the merge": "Impossibile confermare l'unione",
     "Failed to execute the merge": "Impossibile eseguire l'unione",
+    "Actions for taxonomy \"{name}\"": "Azioni per la tassonomia \"{name}\"",
+    "Actions for term \"{name}\"": "Azioni per il termine \"{name}\"",
   },
   hi: {
     Content: "कंटेंट",
@@ -951,6 +987,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "मर्ज की योजना नहीं बन सकी",
     "Failed to confirm the merge": "मर्ज की पुष्टि नहीं हो सकी",
     "Failed to execute the merge": "मर्ज एक्ज़ीक्यूट नहीं हो सका",
+    "Actions for taxonomy \"{name}\"": "टैक्सोनॉमी \"{name}\" के लिए कार्रवाइयां",
+    "Actions for term \"{name}\"": "टर्म \"{name}\" के लिए कार्रवाइयां",
   },
   ur: {
     Content: "کنٹینٹ",
@@ -1000,6 +1038,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "انضمام کی منصوبہ بندی نہ ہو سکی",
     "Failed to confirm the merge": "انضمام کی تصدیق نہ ہو سکی",
     "Failed to execute the merge": "انضمام ایگزیکیوٹ نہ ہو سکا",
+    "Actions for taxonomy \"{name}\"": "ٹیکسونومی \"{name}\" کے لیے کارروائیاں",
+    "Actions for term \"{name}\"": "ٹرم \"{name}\" کے لیے کارروائیاں",
   },
   bn: {
     Content: "কন্টেন্ট",
@@ -1049,6 +1089,8 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Failed to plan the merge": "মার্জের পরিকল্পনা করা যায়নি",
     "Failed to confirm the merge": "মার্জ নিশ্চিত করা যায়নি",
     "Failed to execute the merge": "মার্জ এক্সিকিউট করা যায়নি",
+    "Actions for taxonomy \"{name}\"": "ট্যাক্সোনমি \"{name}\" এর জন্য কার্যক্রম",
+    "Actions for term \"{name}\"": "টার্ম \"{name}\" এর জন্য কার্যক্রম",
   },
 };
 

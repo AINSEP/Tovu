@@ -75,6 +75,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "Ordenado por fecha de actualización, de más reciente a más antiguo. Actívalo para ordenar de más antiguo a más reciente.",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "Ordenado por fecha de actualización, de más antiguo a más reciente. Actívalo para ordenar de más reciente a más antiguo.",
     "Slug": "Slug",
+    "Actions for \"{title}\"": "Acciones para \"{title}\"",
   },
   id: {
     "Loading pages…": "Memuat halaman…",
@@ -131,6 +132,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "Diurutkan menurut tanggal pembaruan, terbaru dahulu. Aktifkan untuk mengurutkan dari yang terlama.",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "Diurutkan menurut tanggal pembaruan, terlama dahulu. Aktifkan untuk mengurutkan dari yang terbaru.",
     "Slug": "Slug",
+    "Actions for \"{title}\"": "Tindakan untuk \"{title}\"",
   },
   de: {
     "Loading pages…": "Seiten werden geladen…",
@@ -187,6 +189,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "Nach Aktualisierungsdatum sortiert, neueste zuerst. Aktivieren, um die ältesten zuerst anzuzeigen.",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "Nach Aktualisierungsdatum sortiert, älteste zuerst. Aktivieren, um die neuesten zuerst anzuzeigen.",
     "Slug": "Slug",
+    "Actions for \"{title}\"": "Aktionen für \"{title}\"",
   },
   "zh-CN": {
     "Loading pages…": "正在加载页面…",
@@ -243,6 +246,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "已按更新日期排序，最新优先。激活以按最早优先排序。",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "已按更新日期排序，最早优先。激活以按最新优先排序。",
     "Slug": "别名",
+    "Actions for \"{title}\"": "\"{title}\"的操作",
   },
   "zh-TW": {
     "Loading pages…": "正在載入頁面…",
@@ -299,6 +303,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "已依更新日期排序，最新優先。啟用以最舊優先排序。",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "已依更新日期排序，最舊優先。啟用以最新優先排序。",
     "Slug": "代稱",
+    "Actions for \"{title}\"": "\"{title}\"的操作",
   },
   "pt-BR": {
     "Loading pages…": "Carregando páginas…",
@@ -355,6 +360,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "Ordenado por data de atualização, mais recentes primeiro. Ative para mostrar os mais antigos primeiro.",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "Ordenado por data de atualização, mais antigos primeiro. Ative para mostrar os mais recentes primeiro.",
     "Slug": "Slug",
+    "Actions for \"{title}\"": "Ações para \"{title}\"",
   },
   ru: {
     "Loading pages…": "Загрузка страниц…",
@@ -411,6 +417,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "Отсортировано по дате обновления, сначала новые. Активируйте, чтобы сначала показать старые.",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "Отсортировано по дате обновления, сначала старые. Активируйте, чтобы сначала показать новые.",
     "Slug": "Ярлык",
+    "Actions for \"{title}\"": "Действия для \"{title}\"",
   },
   fa: {
     "Loading pages…": "در حال بارگذاری صفحه‌ها…",
@@ -467,6 +474,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "بر اساس تاریخ به‌روزرسانی مرتب شده، جدیدترین‌ها در ابتدا. برای نمایش قدیمی‌ترین‌ها در ابتدا فعال کنید.",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "بر اساس تاریخ به‌روزرسانی مرتب شده، قدیمی‌ترین‌ها در ابتدا. برای نمایش جدیدترین‌ها در ابتدا فعال کنید.",
     "Slug": "نامک",
+    "Actions for \"{title}\"": "عملیات مربوط به \"{title}\"",
   },
   ar: {
     "Loading pages…": "جارٍ تحميل الصفحات…",
@@ -523,6 +531,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "مرتّب حسب تاريخ التحديث، الأحدث أولًا. فعّل لعرض الأقدم أولًا.",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "مرتّب حسب تاريخ التحديث، الأقدم أولًا. فعّل لعرض الأحدث أولًا.",
     "Slug": "الاسم اللطيف",
+    "Actions for \"{title}\"": "إجراءات لـ\"{title}\"",
   },
   ja: {
     "Loading pages…": "ページを読み込み中…",
@@ -579,6 +588,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "更新日で新しい順に並べ替え済み。有効にすると古い順に並べ替えます。",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "更新日で古い順に並べ替え済み。有効にすると新しい順に並べ替えます。",
     "Slug": "スラッグ",
+    "Actions for \"{title}\"": "\"{title}\"の操作",
   },
   ko: {
     "Loading pages…": "페이지를 불러오는 중…",
@@ -635,6 +645,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "업데이트 날짜 기준 최신순으로 정렬되었습니다. 활성화하면 오래된순으로 정렬합니다.",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "업데이트 날짜 기준 오래된순으로 정렬되었습니다. 활성화하면 최신순으로 정렬합니다.",
     "Slug": "슬러그",
+    "Actions for \"{title}\"": "\"{title}\" 작업",
   },
   pl: {
     "Loading pages…": "Wczytywanie stron…",
@@ -691,6 +702,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "Posortowane według daty aktualizacji, najpierw najnowsze. Aktywuj, aby pokazać najpierw najstarsze.",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "Posortowane według daty aktualizacji, najpierw najstarsze. Aktywuj, aby pokazać najpierw najnowsze.",
     "Slug": "Slug",
+    "Actions for \"{title}\"": "Działania dla \"{title}\"",
   },
   hu: {
     "Loading pages…": "Oldalak betöltése…",
@@ -747,6 +759,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "Frissítési dátum szerint rendezve, a legújabbak elöl. Aktiválja, hogy a legrégebbiek legyenek elöl.",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "Frissítési dátum szerint rendezve, a legrégebbiek elöl. Aktiválja, hogy a legújabbak legyenek elöl.",
     "Slug": "Slug",
+    "Actions for \"{title}\"": "Műveletek: \"{title}\"",
   },
   fr: {
     "Loading pages…": "Chargement des pages…",
@@ -803,6 +816,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "Trié par date de mise à jour, les plus récents en premier. Activez pour afficher les plus anciens en premier.",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "Trié par date de mise à jour, les plus anciens en premier. Activez pour afficher les plus récents en premier.",
     "Slug": "Slug",
+    "Actions for \"{title}\"": "Actions pour \"{title}\"",
   },
   uk: {
     "Loading pages…": "Завантаження сторінок…",
@@ -859,6 +873,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "Відсортовано за датою оновлення, спочатку нові. Активуйте, щоб спочатку показати старі.",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "Відсортовано за датою оновлення, спочатку старі. Активуйте, щоб спочатку показати нові.",
     "Slug": "Ярлик",
+    "Actions for \"{title}\"": "Дії для \"{title}\"",
   },
   tr: {
     "Loading pages…": "Sayfalar yükleniyor…",
@@ -915,6 +930,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "Güncellenme tarihine göre sıralandı, en yeniler önce. En eskileri önce göstermek için etkinleştirin.",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "Güncellenme tarihine göre sıralandı, en eskiler önce. En yenileri önce göstermek için etkinleştirin.",
     "Slug": "Kısa ad",
+    "Actions for \"{title}\"": "\"{title}\" için işlemler",
   },
   th: {
     "Loading pages…": "กำลังโหลดหน้า…",
@@ -971,6 +987,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "เรียงตามวันที่อัปเดต ใหม่สุดก่อน เปิดใช้งานเพื่อเรียงจากเก่าสุดก่อน",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "เรียงตามวันที่อัปเดต เก่าสุดก่อน เปิดใช้งานเพื่อเรียงจากใหม่สุดก่อน",
     "Slug": "Slug",
+    "Actions for \"{title}\"": "การดำเนินการสำหรับ \"{title}\"",
   },
   it: {
     "Loading pages…": "Caricamento pagine…",
@@ -1027,6 +1044,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "Ordinato per data di aggiornamento, prima i più recenti. Attiva per mostrare prima i meno recenti.",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "Ordinato per data di aggiornamento, prima i meno recenti. Attiva per mostrare prima i più recenti.",
     "Slug": "Slug",
+    "Actions for \"{title}\"": "Azioni per \"{title}\"",
   },
   hi: {
     "Loading pages…": "पेज लोड हो रहे हैं…",
@@ -1083,6 +1101,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "अपडेट की तारीख के अनुसार क्रमबद्ध, नवीनतम पहले। सबसे पुराने पहले दिखाने के लिए सक्रिय करें।",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "अपडेट की तारीख के अनुसार क्रमबद्ध, सबसे पुराने पहले। नवीनतम पहले दिखाने के लिए सक्रिय करें।",
     "Slug": "स्लग",
+    "Actions for \"{title}\"": "\"{title}\" के लिए कार्रवाइयां",
   },
   ur: {
     "Loading pages…": "صفحات لوڈ ہو رہے ہیں…",
@@ -1139,6 +1158,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "اپ ڈیٹ کی تاریخ کے مطابق ترتیب، تازہ ترین پہلے۔ پرانے پہلے دکھانے کے لیے فعال کریں۔",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "اپ ڈیٹ کی تاریخ کے مطابق ترتیب، پرانے پہلے۔ تازہ ترین پہلے دکھانے کے لیے فعال کریں۔",
     "Slug": "سلگ",
+    "Actions for \"{title}\"": "\"{title}\" کے لیے کارروائیاں",
   },
   bn: {
     "Loading pages…": "পেজ লোড হচ্ছে…",
@@ -1195,6 +1215,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Sorted by updated date, newest first. Activate to sort oldest first.": "হালনাগাদের তারিখ অনুযায়ী সাজানো, নতুনগুলো আগে। পুরোনোগুলো আগে দেখাতে সক্রিয় করুন।",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "হালনাগাদের তারিখ অনুযায়ী সাজানো, পুরোনোগুলো আগে। নতুনগুলো আগে দেখাতে সক্রিয় করুন।",
     "Slug": "স্লাগ",
+    "Actions for \"{title}\"": "\"{title}\" এর জন্য কার্যক্রম",
   },
 };
 

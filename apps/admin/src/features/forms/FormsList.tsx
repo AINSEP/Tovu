@@ -130,7 +130,7 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
             header: t("More"),
             cell: (form, index) => (
               <RowMenu
-                triggerLabel={`Actions for form "${form.name}"`}
+                triggerLabel={t('Actions for form "{name}"').replace("{name}", form.name)}
                 agentHandle={`${rowHandles[index]}-menu`}
                 items={formRowMenuItems(
                   form,

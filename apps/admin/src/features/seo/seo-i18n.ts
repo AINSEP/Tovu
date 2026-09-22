@@ -950,7 +950,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "Default nofollow": "Nofollow par défaut",
   "Sitemap enabled": "Sitemap activé",
   "Save settings": "Enregistrer les paramètres",
-  Sitemap: "Sitemap",
+  Sitemap: "Plan du site",
   "Force-rebuild the cached sitemap now, bypassing the normal cache-hit path.": "Force la reconstruction immédiate du sitemap mis en cache, en contournant le chemin habituel de cache.",
   "Working…": "Traitement en cours…",
   "Regenerate sitemap": "Régénérer le sitemap",

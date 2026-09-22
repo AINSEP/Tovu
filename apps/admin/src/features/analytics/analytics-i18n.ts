@@ -119,7 +119,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "No hits recorded yet.": "Обращений пока не зафиксировано.",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "Как только маяк сайта начнёт отправлять трафик, последние обращения появятся здесь.",
     Path: "Путь",
-    Referrer: "Referrer",
+    Referrer: "Реферер",
     "(direct)": "(прямой)",
     "Device / Browser": "Устройство / Браузер",
     "event:": "событие:",

@@ -600,7 +600,7 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
             header: t("More"),
             cell: (ct, index) => (
               <RowMenu
-                triggerLabel={`Actions for content type "${ct.label}"`}
+                triggerLabel={t('Actions for content type "{label}"').replace("{label}", ct.label)}
                 agentHandle={`${rowHandles[index]}-menu`}
                 items={contentTypeMenuItems(
                   ct,

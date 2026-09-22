@@ -854,7 +854,7 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   Providers: "Fournisseurs",
   "APIs & Webhooks": "API et Webhooks",
   Plugins: "Extensions",
-  Marketplace: "Marketplace",
+  Marketplace: "Place de marché",
   "Agent Plugins": "Extensions d'agents",
   Payments: "Paiements",
   Orders: "Commandes",
