@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminTrashItem, AdminTrashPage } from "@/lib/api";
@@ -188,6 +188,153 @@ describe("useTrash", () => {
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.items).toBeNull();
+  });
+});
+
+/**
+ * Refresh (2026-09-21, forms plan §C): a "rescan" button plus automatic freshness, because a delete
+ * from ANY other screen, the assistant, or a second desktop instance has no single write path that
+ * could invalidate this query for it. `staleTime: 0` is what makes the remount case GREEN; before it
+ * the query's own `useFetchQuery` call carried no `staleTime`, so a remount inside the client's
+ * shared 10s default (`adapter.tanstack.tsx`'s `createClient`) served the stale cached page instead
+ * of refetching.
+ */
+describe("useTrash — Refresh (2026-09-21)", () => {
+  it("a remount within 10s shows freshly changed rows, not the stale cache (staleTime: 0)", async () => {
+    let rows: AdminTrashItem[] = [item({ id: "a" })];
+    const listTrash = vi.fn(async () => ({ items: rows, nextCursor: null }));
+    const port: TrashPort = {
+      listTrash,
+      async restoreTrashItems() {
+        return { restored: 0, results: [] };
+      },
+      async purgeTrashItems() {
+        return { purged: 0, results: [] };
+      },
+    };
+
+    function TrashChild() {
+      const trash = useTrash({ port, locale: "en" });
+      return <span data-testid="ids">{trash.items?.map((i) => i.id).join(",") ?? "loading"}</span>;
+    }
+    function Harness({ mounted }: { mounted: boolean }) {
+      return mounted ? <TrashChild /> : <span data-testid="ids">unmounted</span>;
+    }
+
+    const { rerender } = render(
+      <FetchQueryProvider>
+        <Harness mounted />
+      </FetchQueryProvider>
+    );
+    await waitFor(() => expect(screen.getByTestId("ids")).toHaveTextContent("a"));
+
+    rerender(
+      <FetchQueryProvider>
+        <Harness mounted={false} />
+      </FetchQueryProvider>
+    );
+    expect(screen.getByTestId("ids")).toHaveTextContent("unmounted");
+
+    rows = [item({ id: "b" })];
+    rerender(
+      <FetchQueryProvider>
+        <Harness mounted />
+      </FetchQueryProvider>
+    );
+    await waitFor(() => expect(screen.getByTestId("ids")).toHaveTextContent("b"));
+    expect(listTrash).toHaveBeenCalledTimes(2);
+  });
+
+  it("'refreshing' is true only while the refresh's own fetch is pending", async () => {
+    let resolveSecond!: (v: AdminTrashPage) => void;
+    let call = 0;
+    const port: TrashPort = {
+      listTrash: vi.fn(() => {
+        call++;
+        if (call === 1) return Promise.resolve({ items: [item()], nextCursor: null });
+        return new Promise<AdminTrashPage>((resolve) => {
+          resolveSecond = resolve;
+        });
+      }),
+      async restoreTrashItems() {
+        return { restored: 0, results: [] };
+      },
+      async purgeTrashItems() {
+        return { purged: 0, results: [] };
+      },
+    };
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.items).not.toBeNull());
+    expect(result.current.refreshing).toBe(false);
+
+    act(() => {
+      result.current.refresh();
+    });
+    await waitFor(() => expect(result.current.refreshing).toBe(true));
+
+    await act(async () => {
+      resolveSecond({ items: [item()], nextCursor: null });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.refreshing).toBe(false));
+  });
+
+  it("refresh() drops accumulated 'more' pages, and a Load more still in flight when it lands does not append", async () => {
+    let firstPageResult: AdminTrashPage = { items: [item({ id: "p1" })], nextCursor: "c2" };
+    const cursorCalls: Array<{ resolve: (v: AdminTrashPage) => void }> = [];
+    const port: TrashPort = {
+      listTrash: vi.fn((options: { cursor?: string }) => {
+        if (options.cursor) {
+          return new Promise<AdminTrashPage>((resolve) => {
+            cursorCalls.push({ resolve });
+          });
+        }
+        return Promise.resolve(firstPageResult);
+      }),
+      async restoreTrashItems() {
+        throw new Error("not used by this test");
+      },
+      async purgeTrashItems() {
+        throw new Error("not used by this test");
+      },
+    };
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.nextCursor).toBe("c2"));
+
+    act(() => {
+      void result.current.loadMore();
+    });
+    await waitFor(() => expect(cursorCalls).toHaveLength(1));
+
+    firstPageResult = { items: [item({ id: "fresh" })], nextCursor: null };
+    act(() => {
+      result.current.refresh();
+    });
+    await waitFor(() => expect(result.current.items?.map((i) => i.id)).toEqual(["fresh"]));
+
+    // The Load more from before the refresh finally resolves — it must not append onto the
+    // refreshed page.
+    await act(async () => {
+      cursorCalls[0].resolve({ items: [item({ id: "stale-more" })], nextCursor: null });
+      await Promise.resolve();
+    });
+    expect(result.current.items?.map((i) => i.id)).toEqual(["fresh"]);
+  });
+
+  it("refresh() does not clear the current selection", async () => {
+    const port = createFakeTrashPort({ items: [item({ id: "a" })] });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.items).not.toBeNull());
+
+    act(() => result.current.toggle("a"));
+    expect(result.current.selected.has("a")).toBe(true);
+
+    act(() => {
+      result.current.refresh();
+    });
+    await waitFor(() => expect(result.current.refreshing).toBe(false));
+    // The row is still on screen after the refresh, so the reconcile-selection effect keeps it.
+    expect(result.current.selected.has("a")).toBe(true);
   });
 });
 

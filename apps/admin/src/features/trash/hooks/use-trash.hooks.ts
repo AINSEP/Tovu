@@ -63,6 +63,11 @@ export interface TrashController {
   setPurgeConfirmOpen: Dispatch<SetStateAction<boolean>>;
   onPurgeConfirmed: () => Promise<void>;
 
+  /** The Refresh button's gesture — an imperative re-read regardless of freshness. */
+  refresh: () => void;
+  /** True while a refresh (including the initial load) is in flight — drives "Refreshing…". */
+  refreshing: boolean;
+
   locale: string;
 }
 
@@ -79,7 +84,16 @@ export function useTrash(deps: TrashDependencies): TrashController {
   const invalidateList = useCallback(() => invalidate(KEYS.listRoot), [invalidate]);
   useContentRefreshSubscription(TRASH_RESOURCE, invalidateList);
 
-  const firstPage = useFetchQuery({ key: KEYS.list(), fetch: () => port.listTrash({}) });
+  // `staleTime: 0` + `refetchOnWindowFocus: true` (2026-09-21, forms plan §C): deletes can
+  // originate from ANY admin screen, the assistant, or a second desktop instance, so there is no
+  // single write path to invalidate this key from — always revalidating on mount/focus is cheaper
+  // than being wrong. First per-query `staleTime` user in this app.
+  const firstPage = useFetchQuery({
+    key: KEYS.list(),
+    fetch: () => port.listTrash({}),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
 
   const [morePages, setMorePages] = useState<AdminTrashItem[]>([]);
   const [moreCursor, setMoreCursor] = useState<string | null>(null);
@@ -165,6 +179,18 @@ export function useTrash(deps: TrashDependencies): TrashController {
     invalidate(KEYS.listRoot);
   }
 
+  /**
+   * The Refresh button: an explicit re-read regardless of freshness. Reuses `resetMorePages` so an
+   * in-flight `loadMore` is superseded the same way a reload after restore/purge already supersedes
+   * one (same `pageSettlement` generation guard). Does not touch `selected` — the existing
+   * reconcile-selection effect (keyed on `items`) already prunes any id that drops off the
+   * refreshed rows once they land.
+   */
+  function refresh() {
+    resetMorePages();
+    void firstPage.refetch();
+  }
+
   /** The rows the current selection actually names, resolved from what is on screen. */
   function selectedItems(): AdminTrashItem[] {
     return (items ?? []).filter((item) => selected.has(item.id));
@@ -224,6 +250,8 @@ export function useTrash(deps: TrashDependencies): TrashController {
     purgeConfirmOpen,
     setPurgeConfirmOpen,
     onPurgeConfirmed,
+    refresh,
+    refreshing: firstPage.isFetching,
     locale,
   };
 }

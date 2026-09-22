@@ -158,12 +158,19 @@ export function resolveFetchQueryError(rawError: unknown, disabled: boolean, has
   return toError(rawError, "request failed");
 }
 
-export function useFetchQuery<T>({ key, fetch, enabled = true, staleTime }: FetchQueryOptions<T>): QueryResult<T> {
+export function useFetchQuery<T>({
+  key,
+  fetch,
+  enabled = true,
+  staleTime,
+  refetchOnWindowFocus,
+}: FetchQueryOptions<T>): QueryResult<T> {
   const query = useQuery({
     queryKey: key,
     queryFn: fetch,
     enabled,
     ...(staleTime === undefined ? {} : { staleTime }),
+    ...(refetchOnWindowFocus === undefined ? {} : { refetchOnWindowFocus }),
   });
 
   const disabled = !enabled;

@@ -1920,6 +1920,10 @@ export interface AdminTrashItem {
    *  resolution omits the field entirely — `rules.ts`'s `actorLabel` treats that absence
    *  differently from an explicit `null`, so the type must let the two states be told apart. */
   actorUsername?: string | null;
+  /** True when the row's actor is a non-human system principal (e.g. the boot-time widget
+   *  adoption), never a real user account. Optional because an older server predates this field;
+   *  absent means "not known to be a system actor", the same safe default as `false`. */
+  actorIsSystem?: boolean;
 }
 
 export interface AdminTrashPage {
@@ -3672,6 +3676,14 @@ export const api = {
     request<AdminTrashPurgeReport>(`/workspaces/${WORKSPACE_ID}/trash/purge`, {
       method: "POST",
       body: JSON.stringify({ ids }),
+    }),
+  /** The generic single-item trash endpoint (`POST /trash/items`, `W/features/trash/`): the way
+   *  every OTHER admin feature's delete button (forms, widgets, menus, terms, taxonomies) moves one
+   *  row to the Trash, instead of each domain keeping its own bespoke delete call. */
+  trash: ({ type, id }: { type: string; id: string }) =>
+    request<{ ok: true; version: number | null }>(`/workspaces/${WORKSPACE_ID}/trash/items`, {
+      method: "POST",
+      body: JSON.stringify({ type, id }),
     }),
 
   // -------------------------------------------------------------------------

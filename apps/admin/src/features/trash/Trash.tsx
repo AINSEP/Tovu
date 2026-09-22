@@ -124,6 +124,18 @@ function TrashToolbar(props: { controller: TrashController; selectedCount: numbe
       <button
         type="button"
         className="btn-secondary"
+        disabled={controller.refreshing || controller.busy}
+        onClick={() => controller.refresh()}
+        {...agentHandle("trash-refresh", {
+          role: "button",
+          label: controller.refreshing ? t(locale, "Refreshing…") : t(locale, "Refresh"),
+        })}
+      >
+        {controller.refreshing ? t(locale, "Refreshing…") : t(locale, "Refresh")}
+      </button>
+      <button
+        type="button"
+        className="btn-secondary"
         disabled={none}
         onClick={() => void controller.onRestoreSelected()}
         {...agentHandle("trash-restore", { role: "button", label: t(locale, "Restore") })}

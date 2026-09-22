@@ -24,25 +24,16 @@ export const KEYS = {
 export const TRASH_RESOURCE = "trash";
 
 /**
- * The kinds phase 1 actually collects, in the order the coverage line names them.
- *
- * Kept here rather than derived from whatever rows happen to be on screen: the sentence has to be
- * true on an EMPTY Trash, which is exactly when a user who just deleted a widget is looking for it.
- */
-export const COVERED_SECTIONS = ["Posts", "Comments", "Media", "Redirects"] as const;
-
-/**
  * The line the screen must show, per design §4.2, and NOT behind a disclosure.
  *
- * With four of seven deletable kinds collected here, a user who deletes a widget, does not find it
- * in the Trash and is told nothing will conclude it is unrecoverable. Saying which sections are
- * covered is cheaper than that mistake.
+ * Updated 2026-09-21: the registry now covers every deletable kind except Collection entries and
+ * Theme files (T1/T5/T6/T7 land the rest of this wave's registry entries and admin delete buttons),
+ * so the sentence no longer enumerates covered sections — it names the two real exceptions instead.
+ * A user who deletes something and does not find it here, and is told nothing, would otherwise
+ * conclude it is unrecoverable; naming the exceptions is cheaper than that mistake.
  */
 export function coverageLine(locale: string): string {
-  return t(
-    locale,
-    "Covers Posts, Comments, Media and Redirects. Widgets, Collection entries and Theme files are deleted in their own sections and aren't collected here yet."
-  );
+  return t(locale, "Deleted items from every section appear here, except Collection entries and Theme files.");
 }
 
 /** A human label for a row's kind. Unknown kinds print as themselves rather than being hidden —
@@ -53,6 +44,12 @@ export function entityTypeLabel(locale: string, entityType: string): string {
     comment: "Comment",
     media: "Media",
     redirect: "Redirect",
+    form: "Form",
+    form_submission: "Form submission",
+    widget: "Widget",
+    menu: "Menu",
+    term: "Term",
+    taxonomy: "Taxonomy",
   };
   const label = known[entityType];
   return label ? t(locale, label) : entityType;
@@ -71,10 +68,18 @@ export function entityTypeLabel(locale: string, entityType: string): string {
  * showed every row as "Deleted user", including the owner's own account, against a server that
  * simply hadn't picked up the field yet (2026-09-21).
  *
+ * `actorIsSystem` adds a fourth, distinct state (2026-09-21): the 11 legacy widgets adopted into
+ * the Trash at boot (`features/widgets/write-service.ts`'s `ADOPTION_ACTOR`) are recorded with a
+ * `system` principal, not a real user — no user account can ever hold that id, so the server can
+ * tell the two apart and this label must too. Checked BEFORE the username branches, so a system
+ * actor never falls through to "Deleted user": that label means only "a real account that no
+ * longer exists".
+ *
  * @complexity O(1).
  */
 export function actorLabel(locale: string, item: AdminTrashItem): string {
   if (item.actorPluginId != null) return item.actorPluginId;
+  if (item.actorIsSystem) return t(locale, "System");
   if (item.actorUsername === undefined) return t(locale, "Unknown");
   return item.actorUsername ?? t(locale, "Deleted user");
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AdminTrashItem } from "@/lib/api";
-import { actorLabel } from "../rules";
+import { actorLabel, entityTypeLabel } from "../rules";
 
 /**
  * @file `actorLabel`'s three-way fallback — plugin id, then the server-resolved username, then a
@@ -52,5 +52,40 @@ describe("actorLabel", () => {
     const label = actorLabel("en", withoutField);
     expect(label).toBe("Unknown");
     expect(label).not.toBe("Deleted user");
+  });
+
+  it("shows 'System' for the boot-time widget adoption's actor, never 'Deleted user' (2026-09-21)", () => {
+    // The server resolves no user for the "system" principal (no account can ever hold that id), so
+    // actorUsername comes back null exactly as it would for a real removed account — actorIsSystem
+    // is what tells the two apart, and it must win before the username branches run at all.
+    const label = actorLabel("en", baseItem({ actorUsername: null, actorIsSystem: true }));
+    expect(label).toBe("System");
+  });
+
+  it("actorIsSystem does not override a real plugin/agent actor", () => {
+    const label = actorLabel(
+      "en",
+      baseItem({ actorPluginId: "forms", actorUsername: "jdoe", actorIsSystem: true })
+    );
+    expect(label).toBe("forms");
+  });
+});
+
+describe("entityTypeLabel", () => {
+  it("translates every registry kind the Trash's phase-1-and-beyond registry can hold", () => {
+    expect(entityTypeLabel("en", "post")).toBe("Post");
+    expect(entityTypeLabel("en", "comment")).toBe("Comment");
+    expect(entityTypeLabel("en", "media")).toBe("Media");
+    expect(entityTypeLabel("en", "redirect")).toBe("Redirect");
+    expect(entityTypeLabel("en", "form")).toBe("Form");
+    expect(entityTypeLabel("en", "form_submission")).toBe("Form submission");
+    expect(entityTypeLabel("en", "widget")).toBe("Widget");
+    expect(entityTypeLabel("en", "menu")).toBe("Menu");
+    expect(entityTypeLabel("en", "term")).toBe("Term");
+    expect(entityTypeLabel("en", "taxonomy")).toBe("Taxonomy");
+  });
+
+  it("prints an unrecognized kind as itself rather than hiding the row", () => {
+    expect(entityTypeLabel("en", "some_future_kind")).toBe("some_future_kind");
   });
 });

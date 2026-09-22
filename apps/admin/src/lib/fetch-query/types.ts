@@ -98,6 +98,12 @@ export interface FetchQueryOptions<T> {
    *  Omitted means "always revalidate on mount", which is the safe default for
    *  admin data that another operator may have changed. */
   staleTime?: number;
+  /** Per-query override for revalidating when the window regains focus. Omitted keeps the client
+   *  default (`false` — see `adapter.tanstack.tsx`'s `createClient`). For a screen that can be
+   *  changed from ANY other screen, agent tool, or a second desktop instance, and therefore has no
+   *  single write path to invalidate it from (the Trash is the first: `2026-09-21-t8f-trash-forms-
+   *  plan.md` §C), opt IN with `true` rather than lowering the shared default. */
+  refetchOnWindowFocus?: boolean;
 }
 
 export type MutationStatus = "idle" | "pending" | "success" | "error";

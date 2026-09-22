@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AdminTrashItem } from "@/lib/api";
@@ -49,18 +50,20 @@ function controller(overrides: Partial<TrashController> = {}): TrashController {
     purgeConfirmOpen: false,
     setPurgeConfirmOpen: vi.fn(),
     onPurgeConfirmed: vi.fn(async () => {}),
+    refresh: vi.fn(),
+    refreshing: false,
     locale: "en",
     ...overrides,
   };
 }
 
 describe("Trash screen", () => {
-  it("names the sections it covers, and the ones it does not, on an EMPTY Trash", () => {
+  it("names the two sections it does NOT cover, on an EMPTY Trash", () => {
     render(<Trash useTrashHook={() => controller({ items: [] })} />);
 
-    const line = screen.getByText(/Covers Posts, Comments, Media and Redirects/);
+    const line = screen.getByText(/Deleted items from every section appear here/);
     expect(line).toBeTruthy();
-    expect(line.textContent).toContain("Widgets, Collection entries and Theme files");
+    expect(line.textContent).toContain("Collection entries and Theme files");
     expect(screen.getByText("The Trash is empty.")).toBeTruthy();
   });
 
@@ -115,5 +118,18 @@ describe("Trash screen", () => {
 
     expect(screen.getByText("Delete permanently?")).toBeTruthy();
     expect(screen.getByText("1 item(s) will be deleted permanently. This cannot be undone.")).toBeTruthy();
+  });
+
+  it("the Refresh button calls controller.refresh on click, is never gated by selection, and disables while refreshing", async () => {
+    const refresh = vi.fn();
+    const { rerender } = render(<Trash useTrashHook={() => controller({ items: [], refresh })} />);
+
+    const button = screen.getByRole("button", { name: "Refresh" });
+    expect(button).toHaveProperty("disabled", false); // no selection required, unlike Restore/Delete
+    await userEvent.click(button);
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    rerender(<Trash useTrashHook={() => controller({ items: [], refreshing: true })} />);
+    expect(screen.getByRole("button", { name: "Refreshing…" })).toHaveProperty("disabled", true);
   });
 });
