@@ -247,7 +247,7 @@ describe("useWidgetsLibrary — delete confirms first, then trashes exactly once
   it("trashing is true only while the confirmed trash is in flight", async () => {
     let resolveTrash: ((r: { ok: true; version: number | null }) => void) | undefined;
     const port = createFakeWidgetsPort({ widgets: [WIDGET] });
-    port.trashWidget = vi.fn(() => new Promise((resolve) => (resolveTrash = resolve)));
+    port.trashWidget = vi.fn(() => new Promise<{ ok: true; version: number | null }>((resolve) => (resolveTrash = resolve)));
     const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.widgets).toHaveLength(1));
 
