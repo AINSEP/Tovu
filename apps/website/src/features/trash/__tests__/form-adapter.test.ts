@@ -8,7 +8,7 @@ import * as schema from "#src/platform/db/schema";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createSqliteTrashDb } from "../db-port.sqlite.js";
 import { buildTrashRegistry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { createTableTrashAdapter, type TrashedItemsRef } from "../table-adapter.js";
 import { createTrashService } from "../write-service.js";
 import type { TrashAdapter, TrashPort } from "../ports.js";
 
@@ -48,7 +48,16 @@ function harness(): Harness {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
   const registry = buildTrashRegistry({ schema });
-  const adapter = createTableTrashAdapter({ entry: registry.get("form")!, db: createSqliteTrashDb({ db }) });
+  // `form`'s purgeFirst declares `entityType: "form_submission"` (T1 item 5's phantom-row cleanup) —
+  // needed even though this file never independently trashes a submission first, since `runCascade`
+  // requires the ref whenever the cascade declares `entityType` at all.
+  const trashedItems: TrashedItemsRef = {
+    table: schema.trashedItems,
+    workspaceId: schema.trashedItems.workspaceId,
+    entityType: schema.trashedItems.entityType,
+    entityId: schema.trashedItems.entityId,
+  };
+  const adapter = createTableTrashAdapter({ entry: registry.get("form")!, db: createSqliteTrashDb({ db }), trashedItems });
   return { client, adapter };
 }
 

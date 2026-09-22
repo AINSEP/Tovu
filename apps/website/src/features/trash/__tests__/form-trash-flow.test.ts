@@ -11,7 +11,7 @@ import { createContactFormResolver } from "#src/features/widgets/resolvers/conta
 import { createSqliteTrashDb } from "../db-port.sqlite.js";
 import { moveToTrash } from "../move-to-trash.js";
 import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { createTableTrashAdapter, type TrashedItemsRef } from "../table-adapter.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTrashService } from "../write-service.js";
 import type { TrashAdapter, TrashPort } from "../index.js";
@@ -41,8 +41,16 @@ function harness(): Harness {
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
   const registry = buildTrashRegistry({ schema });
   const trashDb = createSqliteTrashDb({ db });
+  // Needed for `form`'s purgeFirst -> `form_submission` phantom-row cleanup (T1 item 5) — same ref
+  // shape `deps.ts` builds at composition.
+  const trashedItems: TrashedItemsRef = {
+    table: schema.trashedItems,
+    workspaceId: schema.trashedItems.workspaceId,
+    entityType: schema.trashedItems.entityType,
+    entityId: schema.trashedItems.entityId,
+  };
   const adapters = new Map<string, TrashAdapter>(
-    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])
+    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb, trashedItems })])
   );
   let seq = 0;
   const trash = createTrashService({
@@ -233,4 +241,39 @@ test("a form_submission moved to the Trash shows the form's name and the time, n
     ["f1-sub-1"]
   );
   assert.equal(await h.submissions.findById({ workspaceId: WS, id: "f1-sub-0" }), null);
+});
+
+test("purge of a form removes the Trash row of a submission that was independently trashed first (the phantom-row gap, T1 item 5)", async () => {
+  const h = harness();
+  seedFormWithSubmissions(h, "f1", 1);
+
+  const subOutcome = await moveToTrash(
+    { workspaceId: WS, entityType: "form_submission", entityId: "f1-sub-0", actor: ACTOR },
+    {
+      registry: h.registry,
+      trash: h.trash,
+      db: createSqliteTrashDb({ db: h.db }),
+      authorize: async () => ({ allowed: true, reason: "matched" }),
+      clock: { nowIso: () => AT },
+    }
+  );
+  assert.deepEqual(subOutcome, { ok: true, version: 2 });
+  assert.ok(await trashItemId(h, "f1-sub-0"), "the submission's own Trash row must exist before the form is purged");
+
+  await trashForm(h, "f1");
+  const purged = await h.trash.purgeSelected({
+    workspaceId: WS,
+    ids: [await trashItemId(h, "f1")],
+    actor: ACTOR,
+    authorizeItem: async () => true,
+  });
+  assert.equal(purged.purged, 1);
+  assert.equal(submissionRowCount(h, "f1"), 0, "the submission row itself must be gone");
+
+  const page = await h.trash.list({ workspaceId: WS, now: AT, limit: 50 });
+  assert.equal(
+    page.items.some((row) => row.entityId === "f1-sub-0"),
+    false,
+    "the submission's Trash row must not survive its own row's deletion — a phantom row pointing at nothing"
+  );
 });

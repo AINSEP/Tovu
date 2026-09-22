@@ -9,7 +9,7 @@ import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { createSqliteTrashDb } from "../db-port.sqlite.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { buildTrashRegistry, type TrashEntry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { createTableTrashAdapter, type TrashedItemsRef } from "../table-adapter.js";
 import { createTrashService } from "../write-service.js";
 import type { TrashAdapter, TrashPort } from "../ports.js";
 
@@ -65,12 +65,20 @@ function harness(): Harness {
   const registry = buildTrashRegistry({ schema });
   const formEntry = registry.get("form")!;
   const menuEntry = buildMenuEntry();
+  // `form`'s purgeFirst declares `entityType: "form_submission"` (T1 item 5) — needed for its own
+  // phantom-row cleanup, same ref shape `deps.ts` builds at composition.
+  const trashedItems: TrashedItemsRef = {
+    table: schema.trashedItems,
+    workspaceId: schema.trashedItems.workspaceId,
+    entityType: schema.trashedItems.entityType,
+    entityId: schema.trashedItems.entityId,
+  };
 
   return {
     db,
     client,
-    formAdapter: createTableTrashAdapter({ entry: formEntry, db: trashDb }),
-    menuAdapter: createTableTrashAdapter({ entry: menuEntry, db: trashDb }),
+    formAdapter: createTableTrashAdapter({ entry: formEntry, db: trashDb, trashedItems }),
+    menuAdapter: createTableTrashAdapter({ entry: menuEntry, db: trashDb, trashedItems }),
     menuEntry,
   };
 }

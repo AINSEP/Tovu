@@ -234,7 +234,18 @@ export function buildTrashRegistry<TSchema extends TrashRegistrySchema>(required
         marker: { kind: "timestamp", column: schema.formDefinitions.deletedAt },
         versionColumn: schema.formDefinitions.version,
         display: { title: schema.formDefinitions.name, subtitle: schema.formDefinitions.slug },
-        purgeFirst: [{ table: schema.formSubmissions, parentIdColumn: schema.formSubmissions.formDefinitionId }],
+        // `entityType`/`idColumn`: `form_submission` is itself a `TRASHABLE` entry (below), so a purge
+        // also cleans up the phantom `trashed_items` row of any submission that was trashed
+        // independently first (T1 item 5) — the doc comment on `TrashCascadeSpec.entityType` names
+        // this exact case as its example; it was missing here (RED-first regression test).
+        purgeFirst: [
+          {
+            table: schema.formSubmissions,
+            parentIdColumn: schema.formSubmissions.formDefinitionId,
+            idColumn: schema.formSubmissions.id,
+            entityType: "form_submission",
+          },
+        ],
       },
     ],
     [
