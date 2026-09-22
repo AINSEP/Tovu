@@ -775,9 +775,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     },
     removePost: removeEntityWithoutBlocker(bindRemoveEntity(trash, POST_ENTITY_TYPE)),
     removeComment: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
-    removeMedia: bindRemoveEntity(trash, MEDIA_ENTITY_TYPE),
+    removeMedia: removeEntityWithoutBlocker(bindRemoveEntity(trash, MEDIA_ENTITY_TYPE)),
     removeRedirect: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
-    removeWidget: bindRemoveEntity(trash, "widget"),
+    removeWidget: removeEntityWithoutBlocker(bindRemoveEntity(trash, "widget")),
     forgetRemovedMedia: bindForgetRemovedEntity(trashRepo, MEDIA_ENTITY_TYPE),
     forgetRemovedPost: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
     // Present so this root satisfies `TrashDeps`, and harmless: `createApp` never starts the

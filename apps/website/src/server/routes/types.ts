@@ -80,6 +80,7 @@ import type {
 // `ensureCoreMediaTransform` (not barrel-exported either): this type has no reason to be part of
 // this host's wider public media surface.
 import type { HydrateBlobStoreFromSeedResult } from "../../features/media/hydrate-blob-store-from-seed.js";
+import type { RemoveMediaFn } from "../../features/media/tool-registrations.js";
 import type { OriginRegistryPort } from "../../features/origin/index.js";
 import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../../features/redirects/index.js";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort, RemoveFormSubmissionFn } from "../../features/forms/index.js";
@@ -121,7 +122,7 @@ import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.j
 import type { LedgerAppendPort } from "../../features/database/gated-hooks.js";
 import type { MergeableEntryTermRepoPort } from "../../features/taxonomy/gated-hooks.js";
 import type { EntryTermReadPort } from "../../features/taxonomy/repo.sqlite.js";
-import type { WidgetRegionBindingRepoPort } from "../../features/widgets/ports.js";
+import type { WidgetRegionBindingRepoPort, RemoveWidgetFn } from "../../features/widgets/ports.js";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation.js";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
@@ -1378,9 +1379,15 @@ export interface TrashDeps {
   // in `deps.ts`/`app.ts`) so this field's promise is actually kept.
   removePost: RemovePostFn;
   removeComment: RemoveEntity;
-  removeMedia: RemoveEntity;
+  // `RemoveMediaFn`, not the broad `RemoveEntity` — same reasoning as `removePost` above:
+  // `media_trash_asset` (`features/media/tool-registrations.ts`) declares its own narrower
+  // structural type with no `"blocked"` branch (media has no `TrashBlockerSpec`, T1).
+  removeMedia: RemoveMediaFn;
   removeRedirect: RemoveEntity;
-  removeWidget: RemoveEntity;
+  // `RemoveWidgetFn`, not the broad `RemoveEntity` — same reasoning as `removePost` above:
+  // `trashWidgetInstance` (`features/widgets/ports.ts`) declares its own narrower structural type
+  // with no `"blocked"` branch (widget has no `TrashBlockerSpec`, T1).
+  removeWidget: RemoveWidgetFn;
   /**
    * Media alone needs this pair: its ladder has a HUMAN hard-purge rung of its own
    * (`routes/media/delete.ts`, gated by `media.delete.force`) that removes the row outside the

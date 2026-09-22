@@ -1548,9 +1548,9 @@ export function createSqliteRouteDeps(
     // another domain's entities by passing the wrong string.
     removePost: removeEntityWithoutBlocker(bindRemoveEntity(trash, POST_ENTITY_TYPE)),
     removeComment: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
-    removeMedia: bindRemoveEntity(trash, MEDIA_ENTITY_TYPE),
+    removeMedia: removeEntityWithoutBlocker(bindRemoveEntity(trash, MEDIA_ENTITY_TYPE)),
     removeRedirect: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
-    removeWidget: bindRemoveEntity(trash, "widget"),
+    removeWidget: removeEntityWithoutBlocker(bindRemoveEntity(trash, "widget")),
     forgetRemovedMedia: bindForgetRemovedEntity(trashRepo, MEDIA_ENTITY_TYPE),
     forgetRemovedPost: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
     // The 60-day backstop's one pass. `createServingApp` owns the timer that calls it, so it runs
