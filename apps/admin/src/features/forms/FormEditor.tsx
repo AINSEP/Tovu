@@ -544,7 +544,7 @@ function FormSubmissionDetail({
         onClick={requestDelete}
         {...agentHandle("form-submission-delete", {
           role: "button",
-          label: "Delete this submission permanently. Opens a confirmation dialog first.",
+          label: "Move this submission to the trash. Opens a confirmation dialog first.",
         })}
       >
         {t("Delete submission")}
@@ -552,9 +552,9 @@ function FormSubmissionDetail({
       <ConfirmDialog
         open={confirmOpen}
         agentHandle="form-submission-delete-confirm"
-        title={t("Delete permanently?")}
-        body={<p>{t("This cannot be undone.")}</p>}
-        confirmLabel={t("Delete permanently")}
+        title={t("Move to trash?")}
+        body={<p>{t("It will disappear from this list. You can restore it from the Trash.")}</p>}
+        confirmLabel={t("Move to trash")}
         destructive
         pending={deleting}
         onConfirm={confirmDelete}

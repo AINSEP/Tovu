@@ -1,8 +1,8 @@
 import { useState } from "react";
 
 import { describeApiError, type AdminFormSubmission } from "@/lib/api";
-import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
-import { KEYS } from "../rules";
+import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-query";
+import { KEYS, describeTrashError } from "../rules";
 import { defaultFormSubmissionsPort } from "./form-submissions-dependencies.hooks";
 import type { FormSubmissionsPort } from "./form-submissions-port.hooks";
 
@@ -65,6 +65,7 @@ export function useFormSubmissionDetail(
   port: FormSubmissionsPort
 ): FormSubmissionDetailController {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const invalidate = useInvalidate();
 
   const list = useFetchQuery({
     key: KEYS.submissionDetail(props.formId, props.submissionId),
@@ -84,12 +85,23 @@ export function useFormSubmissionDetail(
     setConfirmOpen(false);
   }
 
+  /** T7a (2026-09-21): `port.deleteFormSubmission` now moves the submission to the Trash (generic
+   *  `POST /trash/items`) rather than a hard delete — see `form-submissions-dependencies.hooks.ts`'s
+   *  own doc. A 404 (`describeTrashError`'s `alreadyGone`) means the submission is already gone: from
+   *  the operator's point of view that's the same outcome as a successful delete, so this still calls
+   *  `onDeleted()` and invalidates the list directly — `deleteMutation`'s own `invalidates` only fires
+   *  on success, and a failed mutation would otherwise leave the sibling list showing a row that's
+   *  already gone. */
   async function confirmDelete() {
     try {
       await deleteMutation.mutate(undefined);
       props.onDeleted();
-    } catch {
-      // already surfaced through deleteMutation.error -> error below
+    } catch (e) {
+      if (describeTrashError(e instanceof Error ? e : null, "delete failed").alreadyGone) {
+        invalidate(KEYS.submissionsList(props.formId));
+        props.onDeleted();
+      }
+      // otherwise: already surfaced through deleteMutation.error -> error below
     } finally {
       setConfirmOpen(false);
     }
@@ -101,7 +113,7 @@ export function useFormSubmissionDetail(
   // a different complexity-gate weight for the same branch count.
   let error: string | null = null;
   if (deleteMutation.error) {
-    error = describeApiError(deleteMutation.error, "delete failed");
+    error = describeTrashError(deleteMutation.error, "delete failed").message;
   } else if (list.error) {
     error = describeApiError(list.error, "failed to load submission");
   }

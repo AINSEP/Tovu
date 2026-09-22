@@ -13,6 +13,7 @@ export const defaultFormsPort: FormsPort = {
   getForm: (id) => api.getForm(id),
   createForm: (input, options) => api.createForm(input, options),
   updateForm: (target, options) => api.updateForm(target, options),
+  trashForm: (id) => api.trash({ type: "form", id }),
 };
 
 /** Seed state for {@link createFakeFormsPort}. */
@@ -74,6 +75,13 @@ export function createFakeFormsPort(options: FakeFormsPortOptions = {}): FormsPo
       const updated = { ...forms[index]!, ...options };
       forms[index] = updated;
       return { data: updated };
+    },
+
+    async trashForm(id) {
+      const index = forms.findIndex((f) => f.id === id);
+      if (index < 0) throw new Error(`fake forms port: unknown form ${id}`);
+      forms.splice(index, 1);
+      return { ok: true, version: null };
     },
   };
 }

@@ -7,12 +7,12 @@ import { FormsList } from "../FormsList";
 
 /**
  * @file `FormsList` — pins this dispatch's row-actions pass: a `RowMenu` "More" column matching
- * `Posts.tsx`/`Pages.tsx`, with exactly two items (Edit, and a single bidirectional status
- * toggle) and deliberately no Delete — see `FormsList.tsx`'s own file header for why a delete
- * item is not invented (no `deleteForm` route exists anywhere in this stack, only
- * `deleteFormSubmission`, a different resource). Follows the RTL harness
- * `Media.unit.test.tsx`/`Plugins.unit.test.tsx` established for this package (mocked global
- * `fetch`, URL-routed rather than call-order-coupled, no server).
+ * `Posts.tsx`/`Pages.tsx`, with Edit, a bidirectional status toggle, and (T7a, 2026-09-21) a
+ * destructive Delete that opens a `ConfirmDialog` ("Move to trash?") and, only on confirm, POSTs
+ * the generic `/trash/items` route (`type: "form"`) — see `FormsList.tsx`'s own file header for the
+ * fuller rationale. Follows the RTL harness `Media.unit.test.tsx`/`Plugins.unit.test.tsx`
+ * established for this package (mocked global `fetch`, URL-routed rather than call-order-coupled,
+ * no server).
  *
  * `renderScreen` wraps every render in `FetchQueryProvider` (2026-08-12, `lib/fetch-query`
  * migration) — `FormsList`'s hooks are now backed by `useFetchQuery`/`useFetchMutation`, which
@@ -133,16 +133,91 @@ describe("row menu contents", () => {
     expect(screen.queryByRole("menuitem", { name: "Disable" })).not.toBeInTheDocument();
   });
 
-  it("never offers a Delete item — no deleteForm route exists to wire one to", async () => {
+  it("offers a Delete item with the danger tone — opens the confirm, no POST yet", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM] })) }]));
     renderScreen(<FormsList />);
 
     await user.click(await screen.findByRole("button", { name: 'Actions for form "Contact"' }));
+    const del = screen.getByRole("menuitem", { name: "Delete" });
+    expect(del).toHaveClass("btn-danger");
+    await user.click(del);
 
-    expect(screen.queryByRole("menuitem", { name: /delete/i })).not.toBeInTheDocument();
-    // No ConfirmDialog either — this screen has nothing that needs one.
-    expect(document.querySelector("dialog")).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Move to trash?" })).toBeInTheDocument();
+    const postCall = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === "POST");
+    expect(postCall).toBeUndefined();
+  });
+});
+
+describe("delete (T7a, move to Trash)", () => {
+  it("Cancel closes the dialog with no POST", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM] })) }]));
+    renderScreen(<FormsList />);
+
+    await user.click(await screen.findByRole("button", { name: 'Actions for form "Contact"' }));
+    await user.click(screen.getByRole("menuitem", { name: "Delete" }));
+    await screen.findByRole("heading", { name: "Move to trash?" });
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Move to trash?" })).not.toBeInTheDocument());
+    expect(fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === "POST")).toBeUndefined();
+  });
+
+  it("Confirm POSTs /trash/items with { type: 'form', id }, and the row disappears once the list refetches", async () => {
+    const user = userEvent.setup();
+    let deleted = false;
+    fetchMock.mockImplementation(
+      routeFetch([
+        { match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: deleted ? [] : [ACTIVE_FORM] })) },
+        {
+          match: "/trash/items",
+          method: "POST",
+          handler: () => {
+            deleted = true;
+            return Promise.resolve(jsonResponse({ ok: true, version: 2 }));
+          },
+        },
+      ])
+    );
+    renderScreen(<FormsList />);
+    const row = await rowFor("Contact");
+
+    await user.click(within(row).getByRole("button", { name: 'Actions for form "Contact"' }));
+    await user.click(screen.getByRole("menuitem", { name: "Delete" }));
+    await screen.findByRole("heading", { name: "Move to trash?" });
+    await user.click(screen.getByRole("button", { name: "Move to trash" }));
+
+    await waitFor(() => expect(screen.queryByRole("link", { name: "Contact" })).not.toBeInTheDocument());
+    const postCall = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === "POST");
+    expect(postCall).toBeTruthy();
+    expect(JSON.parse(String((postCall![1] as RequestInit).body))).toEqual({ type: "form", id: "f1" });
+  });
+
+  it("a 409 TRASH_VERSION_CHANGED shows the reload-and-retry copy inline", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation(
+      routeFetch([
+        { match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM] })) },
+        {
+          match: "/trash/items",
+          method: "POST",
+          handler: () => Promise.resolve(jsonResponse({ error: "the item changed since it was last read", code: "TRASH_VERSION_CHANGED" }, 409)),
+        },
+      ])
+    );
+    renderScreen(<FormsList />);
+    const row = await rowFor("Contact");
+
+    await user.click(within(row).getByRole("button", { name: 'Actions for form "Contact"' }));
+    await user.click(screen.getByRole("menuitem", { name: "Delete" }));
+    await screen.findByRole("heading", { name: "Move to trash?" });
+    await user.click(screen.getByRole("button", { name: "Move to trash" }));
+
+    expect(await screen.findByText("This item changed since you loaded it. Reload and try again.")).toBeInTheDocument();
+    // Still on screen — the row was not optimistically removed for a failed delete.
+    expect(screen.getByRole("link", { name: "Contact" })).toBeInTheDocument();
   });
 });
 

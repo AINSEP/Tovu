@@ -367,9 +367,11 @@ describe("form submission delete — confirm modal (S5 fix, 2026-09-20)", () => 
     await user.click(deleteButton);
     await user.click(deleteButton);
 
+    // T7a (2026-09-21): submission delete now moves it to the Trash (`api.trash`) rather than a
+    // hard `DELETE` — see `form-submissions-dependencies.hooks.ts`'s own doc.
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
-    const dialog = await screen.findByRole("dialog", { name: "Delete permanently?" });
-    expect(within(dialog).getByText("This cannot be undone.")).toBeInTheDocument();
+    const dialog = await screen.findByRole("dialog", { name: "Move to trash?" });
+    expect(within(dialog).getByText("It will disappear from this list. You can restore it from the Trash.")).toBeInTheDocument();
   });
 });
 

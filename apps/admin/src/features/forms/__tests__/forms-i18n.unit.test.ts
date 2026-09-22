@@ -40,9 +40,18 @@ describe("FORMS_DICT: cross-locale key parity", () => {
     expect(unrescuable).toEqual([]);
   });
 
-  it("has a non-empty translation for every key in every locale", () => {
+  // "Move" is deliberately empty in the six object-before-verb locales (ja, ko, tr, hi, ur, bn) —
+  // same documented exception `posts-i18n.ts`'s own parity test carries for its identical "Move"
+  // fragment (the verb is already embedded in the trailing "to trash? …" fragment that follows the
+  // quoted name in those languages, reused verbatim here — T7a, 2026-09-21).
+  const DELIBERATELY_EMPTY: Record<string, string[]> = {
+    Move: ["ja", "ko", "tr", "hi", "ur", "bn"],
+  };
+
+  it("has a non-empty translation for every key in every locale, except documented deliberate exceptions", () => {
     for (const locale of locales) {
       for (const [key, value] of Object.entries(FORMS_DICT[locale])) {
+        if (DELIBERATELY_EMPTY[key]?.includes(locale)) continue;
         expect(value.length, `${locale} value for ${JSON.stringify(key)} should not be empty`).toBeGreaterThan(0);
       }
     }
@@ -57,6 +66,25 @@ describe("FORMS_DICT: cross-locale key parity", () => {
   it.each(DELETE_DIALOG_KEYS)("carries %j in every locale (submission-delete confirm dialog)", (key) => {
     for (const locale of locales) {
       expect(FORMS_DICT[locale][key], `${locale} is missing ${JSON.stringify(key)}`).toBeTruthy();
+    }
+  });
+
+  // T7a (2026-09-21): forms and submissions both move to the Trash now — the keys `FormsList.tsx`'s
+  // `ConfirmDialog` (row delete) and `FormEditor.tsx`'s `FormSubmissionDetail` `ConfirmDialog`
+  // (submission delete) both need. Added to all 21 locale blocks by hand (reusing `posts-i18n.ts`'s
+  // already-translated "Move to trash?"/"Move to trash"/"Move"/suffix pair for the row dialog); this
+  // is the enforcing test the header comment above says the LAST hand-added key pair shipped without.
+  const TRASH_DIALOG_KEYS = [
+    "Move to trash?",
+    "Move to trash",
+    "Move",
+    "to trash? It will disappear from the site and from this list.",
+    "It will disappear from this list. You can restore it from the Trash.",
+  ];
+
+  it.each(TRASH_DIALOG_KEYS)("carries %j in every locale (move-to-trash confirm dialogs)", (key) => {
+    for (const locale of locales) {
+      expect(FORMS_DICT[locale][key], `${locale} is missing ${JSON.stringify(key)}`).not.toBeUndefined();
     }
   });
 });

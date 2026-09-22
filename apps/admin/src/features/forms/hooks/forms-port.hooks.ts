@@ -27,4 +27,8 @@ export interface FormsPort {
     target: { id: string },
     options?: { name?: string; fields?: AdminFormField[]; notify?: AdminFormNotify; status?: "active" | "disabled" }
   ): Promise<{ data: AdminFormDefinition }>;
+  /** Moves a form to the Trash via the generic `POST /trash/items` route (`type: "form"`) — see
+   *  `api.ts`'s `trash` doc comment for why this is the shared route rather than a form-specific
+   *  delete endpoint. `useFormsList`'s `removeForm` is the one caller. */
+  trashForm(id: string): Promise<{ ok: true; version: number | null }>;
 }
