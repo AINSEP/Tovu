@@ -66,14 +66,8 @@ function harness(grants: Grants) {
   return { routeDeps, surfaceExchanges, registrations, authorizeCalls };
 }
 
-// This file's own hermetic composition (`createRouteDeps()` in `composition/app.ts`) hardcodes
-// `registry: new Map()` — it has no Drizzle-backed `content.db` for `createTableTrashAdapter` to run
-// against (see that file's comment on the field) — so it can never surface a GENERIC kind (`form`,
-// `form_submission`, and whatever T1 adds) on its own. Built once from the real schema module (no
-// live DB needed — it is pure table/column metadata), the same way the real composition root
-// (`composition/deps.ts`) builds it, so a test that needs a generic kind reachable overrides
-// `registry`/`isTrashableEntityType` locally with this rather than asserting against data the
-// hermetic root structurally cannot produce.
+// This file's hermetic composition registers only the term/taxonomy GENERIC kinds. Built once from
+// the real schema module, the full registry lets tests reach the remaining generic kinds too.
 const REAL_REGISTRY = buildTrashRegistry({ schema: contentSchema });
 
 function withRealTrashRegistry(routeDeps: RouteDeps): RouteDeps {
@@ -451,12 +445,11 @@ test("an entityType with no registered Trash adapter is refused with an exact er
   await seedPost(routeDeps);
 
   // `form`, not `widget`: `widget` is one of `TRASH_ITEM_DELEGATES` now (2026-09-21), so it has a
-  // registered adapter (`widgets_trash_instance`) in this file's default (registry-empty) harness —
-  // `form` is a genuinely un-adapted kind here (its only home is the GENERIC registry path, and this
-  // harness's `registry` is empty; see `withRealTrashRegistry`'s comment).
+  // registered adapter (`widgets_trash_instance`) in this file's default harness — `form` is a
+  // genuinely un-adapted kind here (see `withRealTrashRegistry`'s comment).
   await assert.rejects(call(tool(registrations, TRASH_ITEM_TOOL_ID), { entityType: "form", entityId: "post-1" }), {
     message:
-      "trash_item: 'form' is not a kind of thing the Trash can hold. Expected one of: post, comment, media, redirect, widget. Nothing was changed.",
+      "trash_item: 'form' is not a kind of thing the Trash can hold. Expected one of: post, comment, media, redirect, widget, term, taxonomy. Nothing was changed.",
   });
   assert.deepEqual(authorizeCalls, []);
   assert.deepEqual(await trashRows(routeDeps), []);
@@ -472,11 +465,10 @@ test("the entityType check reads the live adapter map at CALL time, not a list c
   void registrations;
 
   postAdapterRegistered = false;
-  // `widget` now appears in "Expected one of" too (it is a delegate kind whose own
-  // `isTrashableEntityType` check `probed` never touches — only `post` is probed here).
+  // Delegate and generic kinds remain available; only `post` is removed by this probe.
   await assert.rejects(call(trashItem, { entityType: "post", entityId: "post-1" }), {
     message:
-      "trash_item: 'post' is not a kind of thing the Trash can hold. Expected one of: comment, media, redirect, widget. Nothing was changed.",
+      "trash_item: 'post' is not a kind of thing the Trash can hold. Expected one of: comment, media, redirect, widget, term, taxonomy. Nothing was changed.",
   });
   assert.equal((await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id: "post-1" }))?.deletedAt, null);
 });

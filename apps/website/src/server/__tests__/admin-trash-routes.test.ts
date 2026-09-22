@@ -88,11 +88,8 @@ test("createApp() actually mounts all four trash routes, including the generic m
     results: [{ id: "no-such-row", outcome: "not-found" }],
   });
 
-  // This hermetic (in-memory) composition registers no `TRASHABLE` entry at all (no Drizzle-backed
-  // `content.db` for `createTableTrashAdapter` to run against — see `createRouteDeps`'s own
-  // `registry: new Map()` comment in `app.ts`), so every type here reads as unknown. The not-found/
-  // forbidden/success outcomes are proven below, against real SQLite trash rows, where `form` IS
-  // registered.
+  // This hermetic composition registers only term/taxonomy generic entries, so `form` remains
+  // unknown here. Its not-found/forbidden/success outcomes are proven below against real SQLite.
   const itemsUnknownRes = await fetch(`${root}/items`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
@@ -100,6 +97,33 @@ test("createApp() actually mounts all four trash routes, including the generic m
   });
   assert.equal(itemsUnknownRes.status, 404);
   assert.equal((await itemsUnknownRes.json() as { code: string }).code, "TRASH_UNKNOWN_TYPE");
+});
+
+test("createApp() moves a term through the generic trash items route", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "category", hierarchical: true }),
+  });
+  assert.equal(taxRes.status, 201, await taxRes.clone().text());
+  const tax = (await taxRes.json()) as { taxonomy: { id: string } };
+  const termRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}/terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Generic Trash" }),
+  });
+  assert.equal(termRes.status, 201, await termRes.clone().text());
+  const term = (await termRes.json()) as { term: { id: string } };
+
+  const trashRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/trash/items`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ type: "term", id: term.term.id }),
+  });
+  assert.equal(trashRes.status, 200, await trashRes.clone().text());
+  assert.deepEqual(await trashRes.json(), { ok: true, version: 2 });
 });
 
 test("the trash routes answer 404 for a workspace that is not this site's", async (t) => {

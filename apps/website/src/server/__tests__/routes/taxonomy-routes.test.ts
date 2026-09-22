@@ -81,6 +81,175 @@ test("taxonomy routes: create taxonomy -> create term -> rename -> list golden p
   );
 });
 
+test("taxonomy routes: delete-term/delete-taxonomy move a live row to the Trash", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "category", hierarchical: true }),
+  });
+  assert.equal(taxRes.status, 201);
+  const tax = (await taxRes.json()) as { taxonomy: { id: string } };
+
+  const termRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}/terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Breakfast" }),
+  });
+  assert.equal(termRes.status, 201);
+  const term = (await termRes.json()) as { term: { id: string } };
+
+  const deleteTermRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/terms/${term.term.id}`, {
+    method: "DELETE",
+    headers: { cookie },
+  });
+  assert.equal(deleteTermRes.status, 200);
+  const deletedTerm = (await deleteTermRes.json()) as { trashed: boolean };
+  assert.equal(deletedTerm.trashed, true);
+
+  const listRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, { headers: { cookie } });
+  assert.equal(listRes.status, 200);
+  const listed = (await listRes.json()) as { items: Array<{ taxonomy: { id: string }; terms: Array<{ id: string }> }> };
+  const categoryEntry = listed.items.find((item) => item.taxonomy.id === tax.taxonomy.id);
+  assert.equal(categoryEntry?.terms.some((item) => item.id === term.term.id), false);
+
+  const deleteTaxonomyRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}`, {
+    method: "DELETE",
+    headers: { cookie },
+  });
+  assert.equal(deleteTaxonomyRes.status, 200);
+});
+
+test("taxonomy routes: purging a trashed term removes its entry-term assignments", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  await deps.postRepo.save({
+    id: "post-purge-term",
+    workspaceId: deps.workspaceId,
+    title: "Purge Term Post",
+    slug: "purge-term-post",
+    bodyJson: {},
+    status: "published",
+    kind: "post",
+    updatedAt: deps.clock.nowIso(),
+    version: 1,
+  });
+  const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "category", hierarchical: true }),
+  });
+  const tax = (await taxRes.json()) as { taxonomy: { id: string } };
+  const termRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}/terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Assigned" }),
+  });
+  const term = (await termRes.json()) as { term: { id: string } };
+  const assignRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/assign-terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ contentType: "post", contentId: "post-purge-term", termIds: [term.term.id] }),
+  });
+  assert.equal(assignRes.status, 204, await assignRes.clone().text());
+  assert.equal(await deps.entryTermRepo.countByTerm({ termId: term.term.id }), 1);
+
+  const deleteRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/terms/${term.term.id}`, {
+    method: "DELETE",
+    headers: { cookie },
+  });
+  assert.equal(deleteRes.status, 200, await deleteRes.clone().text());
+  const page = await deps.trash.list({
+    workspaceId: deps.workspaceId,
+    now: deps.clock.nowIso(),
+    entityTypes: ["term"],
+    limit: 100,
+  });
+  const trashItem = page.items.find((item) => item.entityId === term.term.id);
+  assert.ok(trashItem);
+  await deps.trash.purgeSelected({
+    workspaceId: deps.workspaceId,
+    ids: [trashItem.id],
+    actor: { principalId: "test-admin" },
+    authorizeItem: async () => true,
+  });
+
+  assert.equal(await deps.entryTermRepo.countByTerm({ termId: term.term.id }), 0);
+});
+
+test("taxonomy routes: restoring a trashed term makes it visible in the list again", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "category", hierarchical: true }),
+  });
+  const tax = (await taxRes.json()) as { taxonomy: { id: string } };
+  const termRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}/terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Restorable" }),
+  });
+  const term = (await termRes.json()) as { term: { id: string } };
+  const deleteRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/terms/${term.term.id}`, {
+    method: "DELETE",
+    headers: { cookie },
+  });
+  assert.equal(deleteRes.status, 200, await deleteRes.clone().text());
+
+  assert.equal(
+    await deps.trash.restore({
+      workspaceId: deps.workspaceId,
+      entityType: "term",
+      entityId: term.term.id,
+      at: deps.clock.nowIso(),
+    }),
+    "restored"
+  );
+  const listRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, { headers: { cookie } });
+  assert.equal(listRes.status, 200);
+  const listed = (await listRes.json()) as { items: Array<{ taxonomy: { id: string }; terms: Array<{ id: string }> }> };
+  const categoryEntry = listed.items.find((item) => item.taxonomy.id === tax.taxonomy.id);
+  assert.equal(categoryEntry?.terms.some((item) => item.id === term.term.id), true);
+});
+
+test("taxonomy routes: trashing a parent term with a child returns 409 TERM_HAS_CHILDREN", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "category", hierarchical: true }),
+  });
+  const tax = (await taxRes.json()) as { taxonomy: { id: string } };
+  const parentRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}/terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Parent" }),
+  });
+  const parent = (await parentRes.json()) as { term: { id: string } };
+  const childRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}/terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Child", parentId: parent.term.id }),
+  });
+  assert.equal(childRes.status, 201, await childRes.clone().text());
+
+  const deleteRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/terms/${parent.term.id}`, {
+    method: "DELETE",
+    headers: { cookie },
+  });
+  assert.equal(deleteRes.status, 409, await deleteRes.clone().text());
+  const body = (await deleteRes.json()) as { code: string };
+  assert.equal(body.code, "TERM_HAS_CHILDREN");
+});
+
 test("taxonomy routes: assigning a parentId to a term in a non-hierarchical ('tag') taxonomy is rejected VALIDATION_ERROR (ADR-044 §4)", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

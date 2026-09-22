@@ -11,9 +11,12 @@ import type { PostRecord } from "#src/features/post/index";
 import type { RedirectRecord } from "#src/features/redirects/index";
 import {
   bindRemoveEntity,
+  buildTrashRegistry,
   COMMENT_ENTITY_TYPE,
   bindForgetRemovedEntity,
   createRecordStoreTrashAdapter,
+  createSqliteTrashDb,
+  createTableTrashAdapter,
   createTrashService,
   createTrashSweep,
   InMemoryTrashRepo,
@@ -22,7 +25,12 @@ import {
   REDIRECT_ENTITY_TYPE,
   type RemoveEntity,
   type TrashAdapter,
+  type TrashDb,
+  type TrashedItemsRef,
+  withFollowUps,
 } from "#src/features/trash/index";
+import * as contentSchema from "#src/platform/db/schema";
+import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
 import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
@@ -176,13 +184,14 @@ import {
 import { InMemoryCommentRepo } from "#src/features/comments/repo.memory";
 import type { CommentRecord } from "#src/features/comments/index";
 import { registerCommentsSubmitRoute } from "../../inbound/public-http/routes/site/comments-submit.js";
+import { noopStampWatermark, toTaxonomyOutbox } from "#src/features/taxonomy/index";
 import {
-  InMemoryEntryTermRepo,
-  InMemoryTaxonomyRepo,
-  InMemoryTaxonomyRevisionRepo,
-  InMemoryTermRepo,
-  noopStampWatermark,
-} from "#src/features/taxonomy/index";
+  SqliteEntryTermRepo,
+  SqliteTaxonomyRepo,
+  SqliteTaxonomyRevisionRepo,
+  SqliteTermRepo,
+} from "#src/features/taxonomy/repo.sqlite";
+import { createTaxonomyPurgeFollowUp, createTermPurgeFollowUp } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "#src/features/recovery/repo.memory";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
@@ -303,6 +312,17 @@ export interface CreateRouteDepsOptions {
    * directory here is opt-in, for a caller that specifically wants to exercise site-plugin
    * discovery through this in-memory root instead of `server/deps.ts`'s SQLite one. */
   readonly installDir?: string;
+}
+
+function createLazyProxy<T extends object>(factory: () => T): T {
+  let instance: T | undefined;
+  return new Proxy({} as T, {
+    get(_target, property) {
+      const object = (instance ??= factory());
+      const value = Reflect.get(object, property, object);
+      return typeof value === "function" ? value.bind(object) : value;
+    },
+  });
 }
 
 /** In-memory route deps seeded from `./seed`. Default for tests/dev. */
@@ -480,6 +500,28 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // `restorePointsRepo`'s identical hoisting rationale above) — and so the `widget` `TrashAdapter`
   // below flips the marker on the very store the widget routes read.
   const entryRepo = new TrashAwareInMemoryEntryRepo();
+  const workspaceId = seededWorkspace.id;
+  const taxonomyDb = createLazyProxy<ContentDb>(() => openContentDb(":memory:"));
+  const sqliteTrashDb = createLazyProxy<TrashDb>(() => createSqliteTrashDb({ db: taxonomyDb }));
+  const trashRegistry = new Map(
+    [...buildTrashRegistry({ schema: contentSchema })].filter(([entityType]) =>
+      entityType === "term" || entityType === "taxonomy"
+    )
+  );
+  const trashedItemsRef: TrashedItemsRef = {
+    table: contentSchema.trashedItems,
+    workspaceId: contentSchema.trashedItems.workspaceId,
+    entityType: contentSchema.trashedItems.entityType,
+    entityId: contentSchema.trashedItems.entityId,
+  };
+  const trashRepo = new InMemoryTrashRepo();
+  const taxonomyFollowUpTermRepo = new SqliteTermRepo({ db: taxonomyDb, workspaceId });
+  const taxonomyFollowUpRevisions = new SqliteTaxonomyRevisionRepo({ db: taxonomyDb, workspaceId });
+  const taxonomyFollowUpOutbox = toTaxonomyOutbox({ outbox, clock, idGen, workspaceId });
+  const taxonomyRepo = new SqliteTaxonomyRepo({ db: taxonomyDb, workspaceId });
+  const termRepo = new SqliteTermRepo({ db: taxonomyDb, workspaceId });
+  const entryTermRepo = new SqliteEntryTermRepo({ db: taxonomyDb, workspaceId });
+  const taxonomyRevisionRepo = new SqliteTaxonomyRevisionRepo({ db: taxonomyDb, workspaceId });
   const trashAdapters = new Map<string, TrashAdapter>([
     [
       POST_ENTITY_TYPE,
@@ -594,8 +636,41 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         shown: (record, at) => ({ ...record, status: record.priorStatus ?? "published", updatedAt: at, priorStatus: null }),
       }),
     ],
+    [
+      "term",
+      withFollowUps({
+        adapter: createTableTrashAdapter({
+          entry: trashRegistry.get("term")!,
+          db: sqliteTrashDb,
+          trashedItems: trashedItemsRef,
+        }),
+        hooks: createTermPurgeFollowUp({
+          termRepo: taxonomyFollowUpTermRepo,
+          trash: trashRepo,
+          revisions: taxonomyFollowUpRevisions,
+          outbox: taxonomyFollowUpOutbox,
+          clock,
+        }),
+      }),
+    ],
+    [
+      "taxonomy",
+      withFollowUps({
+        adapter: createTableTrashAdapter({
+          entry: trashRegistry.get("taxonomy")!,
+          db: sqliteTrashDb,
+          trashedItems: trashedItemsRef,
+        }),
+        hooks: createTaxonomyPurgeFollowUp({
+          termRepo: taxonomyFollowUpTermRepo,
+          trash: trashRepo,
+          revisions: taxonomyFollowUpRevisions,
+          outbox: taxonomyFollowUpOutbox,
+          clock,
+        }),
+      }),
+    ],
   ]);
-  const trashRepo = new InMemoryTrashRepo();
   const trash = createTrashService({
     repo: trashRepo,
     adapters: trashAdapters,
@@ -770,38 +845,16 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const routeDeps: NewsletterRouteDeps = {
     workspaceId: seededWorkspace.id,
     trash,
-    // This hermetic (in-memory) root has no Drizzle-backed `content.db` for `createTableTrashAdapter`
-    // to run against, so it registers no `TRASHABLE` entries (`registry` empty) rather than a second,
-    // divergent `TrashDb` implementation over in-memory record stores. `db` is a stub that must never
-    // actually run: with an empty registry, `moveToTrash` always returns before reading `deps.db`.
-    registry: new Map(),
-    db: {
-      transaction: ({ run }) => run(),
-      selectOne: () => {
-        throw new Error("trash: this hermetic composition registers no TRASHABLE entries — db must never be called");
-      },
-      updateWhere: () => {
-        throw new Error("trash: this hermetic composition registers no TRASHABLE entries — db must never be called");
-      },
-      deleteWhere: () => {
-        throw new Error("trash: this hermetic composition registers no TRASHABLE entries — db must never be called");
-      },
-      count: () => {
-        throw new Error("trash: this hermetic composition registers no TRASHABLE entries — db must never be called");
-      },
-      selectIds: () => {
-        throw new Error("trash: this hermetic composition registers no TRASHABLE entries — db must never be called");
-      },
-    },
+    // The rest of this root stays hermetic; only term/taxonomy exercise the shared scratch database.
+    registry: trashRegistry,
+    db: sqliteTrashDb,
     removePost: removeEntityWithoutBlocker(bindRemoveEntity(trash, POST_ENTITY_TYPE)),
     removeComment: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
     removeMedia: removeEntityWithoutBlocker(bindRemoveEntity(trash, MEDIA_ENTITY_TYPE)),
     removeRedirect: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
     removeWidget: removeEntityWithoutBlocker(bindRemoveEntity(trash, "widget")),
     removeMenu: removeEntityWithoutBlocker(bindRemoveEntity(trash, "menu")),
-    // Bound the same way as `composition/deps.ts` (T6, step 3/5). Functionally inert here until
-    // the next agent's step 4 adds real `"term"`/`"taxonomy"` entries to `trashAdapters` above —
-    // nothing in this hermetic composition calls either yet.
+    // Bound the same way as `composition/deps.ts`; the matching adapters share `taxonomyDb`.
     removeTerm: bindRemoveEntity(trash, "term"),
     removeTaxonomy: removeEntityWithoutBlocker(bindRemoveEntity(trash, "taxonomy")),
     forgetRemovedMedia: bindForgetRemovedEntity(trashRepo, MEDIA_ENTITY_TYPE),
@@ -992,36 +1045,15 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     databaseLedgerRepo: new InMemoryDatabaseLedgerRepo(),
     migrationRunsRepo: new InMemoryMigrationRunsRepo(),
     // Admin-UI backend-gap closure (design-spec.md §0.4, this dispatch): in-memory adapters for
-    // content-types/entries/taxonomy (no SQLite adapter exists yet for any of the three — see
-    // `routes/types.ts`'s doc comment on this field group for the full disclosure) plus the
-    // restore-points/dbOps/site-status/recovery seams the Database/Recovery screens' remaining
-    // read routes need.
+    // content-types/entries plus the restore-points/dbOps/site-status/recovery seams the
+    // Database/Recovery screens' remaining read routes need.
     contentTypeRepo: new InMemoryContentTypeRepo(),
     contentTypeIndexProvisioner: new NoopContentTypeIndexProvisioner(),
     entryRepo,
-    // STUB (T6, step 3/5 landed; step 4 — the full hermetic trash-aware repos — is NOT done this
-    // pass). `InMemoryTaxonomyRepo`/`InMemoryTermRepo` (`@jini-ai/cms/taxonomy`) have no
-    // `findForTrash` method at all — `TaxonomyTrashReadPort`/`TermTrashReadPort` are host-only
-    // additions (`routes/types.ts`'s doc) `ContentTaxonomyDeps` now requires. `trashTerm`/
-    // `trashTaxonomy` read through this before ever calling `remove`, so "always not-found" is
-    // inert here — this hermetic root has no route wired to exercise the term/taxonomy trash path
-    // yet, unlike `composition/deps.ts`'s real SQLite repos, which implement `findForTrash` for
-    // real. The next agent replaces both fields with `TrashAwareInMemoryTaxonomyRepo`/
-    // `TrashAwareInMemoryTermRepo` (own-`Map` classes, not a wrapper — T6b handoff item 4) and
-    // removes this stub, along with wiring real `"term"`/`"taxonomy"` entries into `trashAdapters`
-    // above (also not present yet).
-    taxonomyRepo: Object.assign(new InMemoryTaxonomyRepo(), {
-      async findForTrash(): Promise<{ id: string; name: string; version: number } | null> {
-        return null;
-      },
-    }),
-    termRepo: Object.assign(new InMemoryTermRepo(), {
-      async findForTrash(): Promise<{ id: string; name: string; taxonomyName: string; version: number } | null> {
-        return null;
-      },
-    }),
-    entryTermRepo: new InMemoryEntryTermRepo(),
-    taxonomyRevisionRepo: new InMemoryTaxonomyRevisionRepo(),
+    taxonomyRepo,
+    termRepo,
+    entryTermRepo,
+    taxonomyRevisionRepo,
     stampWatermark: noopStampWatermark,
     restorePointsRepo,
     dbOps: new InMemoryDbOpsAdapter(),

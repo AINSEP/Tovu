@@ -130,9 +130,8 @@ test("admin widgets routes: create -> list -> get -> update -> trash -> gone fro
   const purgeRes = await fetch(`${baseUrl}${BASE}/widgets/${widgetId}/purge`, { method: "POST", headers: { cookie } });
   assert.equal(purgeRes.status, 404);
 
-  // Restore goes through the Trash port directly: this hermetic root registers no TRASHABLE
-  // entries, so the HTTP restore route has no permission to check a widget against (the SQLite root
-  // does — `features/trash/__tests__/widget-trash-flow.test.ts` covers that path).
+  // Restore goes through the Trash port directly: this hermetic root's generic registry covers only
+  // term/taxonomy, so the HTTP restore route has no permission to check a widget against.
   const restoreOutcome = await deps.trash.restore({ workspaceId: WORKSPACE_ID, entityType: "widget", entityId: widgetId, at: deps.clock.nowIso() });
   assert.equal(restoreOutcome, "restored");
 
