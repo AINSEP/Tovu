@@ -60,6 +60,23 @@ function harness(): Harness {
   return { db, registry, trash, authorize, granted };
 }
 
+function seedTaxonomy(h: Harness, id: string, overrides: { status?: string; version?: number } = {}): void {
+  h.db.$client
+    .prepare(
+      `INSERT INTO taxonomies (id, workspace_id, name, hierarchical, status, updated_at, version) VALUES (?, ?, ?, 1, ?, ?, ?)`
+    )
+    .run(id, WS, `Taxonomy ${id}`, overrides.status ?? "active", AT, overrides.version ?? 1);
+}
+
+function seedTerm(h: Harness, id: string, taxonomyId: string, overrides: { status?: string; version?: number } = {}): void {
+  h.db.$client
+    .prepare(
+      `INSERT INTO terms (id, workspace_id, taxonomy_id, parent_id, name, status, updated_at, version)
+       VALUES (?, ?, ?, NULL, ?, ?, ?, ?)`
+    )
+    .run(id, WS, taxonomyId, `Term ${id}`, overrides.status ?? "active", AT, overrides.version ?? 1);
+}
+
 function seedForm(h: Harness, id: string, overrides: { deletedAt?: string | null; version?: number } = {}): void {
   h.db.$client
     .prepare(
@@ -157,4 +174,58 @@ test("a version-changed race from TrashPort.trash itself surfaces as version-cha
     { registry: h.registry, trash: racingTrash, db: createSqliteTrashDb({ db: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
   );
   assert.deepEqual(outcome, { ok: false, reason: "version-changed" });
+});
+
+test("a blocked race from TrashPort.trash itself passes the code and count straight through", async () => {
+  const h = harness();
+  seedForm(h, "form-1");
+  const racingTrash: TrashPort = {
+    ...h.trash,
+    trash: async () => ({ ok: false, reason: "blocked", code: "TERM_HAS_CHILDREN", count: 2 }),
+  };
+  const outcome = await moveToTrash(
+    { workspaceId: WS, entityType: "form", entityId: "form-1", actor: { principalId: "p-1" } },
+    { registry: h.registry, trash: racingTrash, db: createSqliteTrashDb({ db: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
+  );
+  assert.deepEqual(outcome, { ok: false, reason: "blocked", code: "TERM_HAS_CHILDREN", count: 2 });
+});
+
+// ---------------------------------------------------------------------------
+// `hiddenWithParent` (registry.ts's `term` entry): a term is trashed the moment its taxonomy is,
+// with no second write. `not-trashed.ts`'s `notTrashed` ANDs the parent check into moveToTrash's own
+// read, so a live term under a trashed taxonomy must read exactly like an already-trashed row does
+// elsewhere in this file: `not-found`, never touching the term's own row. Real SQLite, real `term`
+// registry entry — not a fake port, since the whole point is `notTrashed`'s SQL-built `NOT EXISTS`.
+// ---------------------------------------------------------------------------
+
+test("a live term whose taxonomy is trashed reads as not-found — hiddenWithParent, never a second write", async () => {
+  const h = harness();
+  h.granted.add("admin.taxonomy.manage");
+  seedTaxonomy(h, "tax-1", { status: "trash", version: 1 });
+  seedTerm(h, "term-1", "tax-1", { status: "active", version: 1 });
+
+  const outcome = await moveToTrash(
+    { workspaceId: WS, entityType: "term", entityId: "term-1", actor: { principalId: "p-1" } },
+    { registry: h.registry, trash: h.trash, db: createSqliteTrashDb({ db: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
+  );
+  assert.deepEqual(outcome, { ok: false, reason: "not-found" });
+
+  const row = h.db.$client.prepare(`SELECT status, version FROM terms WHERE id = ?`).get("term-1") as { status: string; version: number };
+  assert.deepEqual(row, { status: "active", version: 1 }, "moveToTrash must never write to a term hidden through its parent");
+});
+
+test("a live term whose taxonomy is LIVE trashes normally — hiddenWithParent only fires when the parent actually is trashed", async () => {
+  const h = harness();
+  h.granted.add("admin.taxonomy.manage");
+  seedTaxonomy(h, "tax-1", { status: "active", version: 1 });
+  seedTerm(h, "term-1", "tax-1", { status: "active", version: 1 });
+
+  const outcome = await moveToTrash(
+    { workspaceId: WS, entityType: "term", entityId: "term-1", actor: { principalId: "p-1" } },
+    { registry: h.registry, trash: h.trash, db: createSqliteTrashDb({ db: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
+  );
+  assert.deepEqual(outcome, { ok: true, version: 2 });
+
+  const row = h.db.$client.prepare(`SELECT status, version FROM terms WHERE id = ?`).get("term-1") as { status: string; version: number };
+  assert.deepEqual(row, { status: "trash", version: 2 });
 });
