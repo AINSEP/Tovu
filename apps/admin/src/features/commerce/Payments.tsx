@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { agentHandle } from "@jini-ai/agentic";
-import { t as translateApp } from "../../app-i18n";
+import { t as translateCommerce } from "./commerce-i18n";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 
 /**
@@ -25,7 +25,7 @@ import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
  */
 export function Payments(): ReactElement {
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateApp(locale, key);
+  const t = (key: string): string => translateCommerce(locale, key);
   return (
     <div className="page">
       <div className="page-header">
