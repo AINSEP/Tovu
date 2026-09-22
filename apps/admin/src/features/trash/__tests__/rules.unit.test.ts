@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AdminTrashItem } from "@/lib/api";
-import { actorLabel, entityTypeLabel } from "../rules";
+import { actorLabel, entityTypeLabel, itemSubtitle } from "../rules";
 
 /**
  * @file `actorLabel`'s fallback chain — server username, then client-resolved username, then
@@ -130,9 +130,18 @@ describe("entityTypeLabel", () => {
     expect(entityTypeLabel("en", "menu")).toBe("Menu");
     expect(entityTypeLabel("en", "term")).toBe("Term");
     expect(entityTypeLabel("en", "taxonomy")).toBe("Taxonomy");
+    expect(entityTypeLabel("en", "plugin")).toBe("Plugin");
   });
 
   it("prints an unrecognized kind as itself rather than hiding the row", () => {
     expect(entityTypeLabel("en", "some_future_kind")).toBe("some_future_kind");
+  });
+});
+
+describe("itemSubtitle", () => {
+  it("marks plugin packages as shared across workspaces", () => {
+    expect(itemSubtitle("en", { entityType: "plugin", subtitle: "my-plugin 1.0.0" })).toBe(
+      "my-plugin 1.0.0 · Shared across all workspaces on this site.",
+    );
   });
 });

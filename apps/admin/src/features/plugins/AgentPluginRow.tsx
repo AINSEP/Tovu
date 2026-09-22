@@ -130,10 +130,10 @@ function AgentPluginRowStateArea({
   }
 
   // Downloaded: a single action, not a toggle — its own label already names the state (a row
-  // reading "Remove" is implicitly on; one reading "Enable" is implicitly off), so this does not
+  // reading "Turn off" is implicitly on; one reading "Enable" is implicitly off), so this does not
   // need a second, separate state word the way the switch does.
   const enabled = plugin.enabled;
-  const actionWord = enabled ? "Remove" : "Enable";
+  const actionWord = enabled ? "Turn off" : "Enable";
   return (
     <button
       type="button"

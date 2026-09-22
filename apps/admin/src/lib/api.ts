@@ -3751,22 +3751,9 @@ export const api = {
       `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}`,
       { method: "PATCH", body: JSON.stringify({ enabled }) }
     ),
-  /**
-   * PLUGIN_UNINSTALL (Milestone 2, 2026-08-20) — `DELETE /workspaces/:id/plugins/:pluginId`.
-   * Deletes a `"site"` plugin's on-disk artifact and every workspace's activation row for it; no
-   * `PLUGINS_LIST`/`PLUGIN_SET_ENABLED`-style spec package covers this route at all (see
-   * `server/inbound/admin-http/routes/plugins/uninstall.ts`'s own header — new surface, not an
-   * implementation of an existing contract). Deliberately NOT `executeCommand`-wrapped server-side
-   * (a filesystem delete has no meaningful inverse), so unlike `setPluginEnabled` above there is no
-   * `changeSetId` in the response — just the id and which workspaces' activation rows were cleared.
-   *
-   * Refuses with `PLUGIN_NOT_FOUND` (404, id unknown), `PLUGIN_NOT_UNINSTALLABLE` (422, the
-   * discovered record is `"built-in"`), `PLUGIN_ENABLED` (409, still enabled in some workspace), or
-   * `PLUGIN_ID_INVALID` (400, path-traversal-shaped id) — see `rules.ts`'s `describeApiError` for
-   * the operator-facing text each maps to.
-   */
+  /** Moves a site plugin to the 60-day Trash. `PLUGIN_IN_TRASH` reports an existing parked copy. */
   uninstallPlugin: (pluginId: string) =>
-    request<{ pluginId: string; clearedWorkspaceIds: string[] }>(
+    request<{ pluginId: string; trashed: true }>(
       `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}`,
       { method: "DELETE" }
     ),

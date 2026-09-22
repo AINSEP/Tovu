@@ -199,7 +199,7 @@ describe("AgentPlugins", () => {
     const busy = within(row("Fly.io Deploy")).getByRole("button", { name: "Enable Fly.io Deploy" });
     expect(busy).toBeDisabled();
     expect(busy).toHaveAttribute("aria-busy", "true");
-    expect(within(row("Site Compliance")).getByRole("button", { name: "Remove Site Compliance" })).toBeEnabled();
+    expect(within(row("Site Compliance")).getByRole("button", { name: "Turn off Site Compliance" })).toBeEnabled();
   });
 
   it("keeps the switch on the server-confirmed position when a toggle failed, and says so", () => {
@@ -307,7 +307,7 @@ describe("AgentPlugins", () => {
     await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
     const complianceRow = row("Site Compliance");
     expect(within(complianceRow).queryByRole("switch")).not.toBeInTheDocument();
-    expect(within(complianceRow).getByRole("button", { name: "Remove Site Compliance" })).toBeInTheDocument();
+    expect(within(complianceRow).getByRole("button", { name: "Turn off Site Compliance" })).toBeInTheDocument();
   });
 
   it("keeps Marketplace explicitly future-only, with no listing and no install control", async () => {
@@ -362,37 +362,37 @@ describe("AgentPlugins disable-confirm dialog", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("Downloaded's Remove opens a confirm dialog worded for Remove, and calls the controller once confirmed", async () => {
+  it("Downloaded's Turn off opens a matching confirm dialog and calls the controller once confirmed", async () => {
     const onToggleEnabled = vi.fn(async () => {});
     renderAgentPlugins({ onToggleEnabled });
     await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
 
-    await userEvent.click(within(row("Site Compliance")).getByRole("button", { name: "Remove Site Compliance" }));
+    await userEvent.click(within(row("Site Compliance")).getByRole("button", { name: "Turn off Site Compliance" }));
 
     expect(onToggleEnabled).not.toHaveBeenCalled();
-    const dialog = screen.getByRole("dialog", { name: "Remove Site Compliance?" });
+    const dialog = screen.getByRole("dialog", { name: "Turn off Site Compliance?" });
     expect(within(dialog).getByText(/stays right here on Downloaded and can be enabled again/)).toBeInTheDocument();
     expect(within(dialog).getByText(/ships with Tovu/)).toBeInTheDocument();
 
-    await userEvent.click(within(dialog).getByRole("button", { name: "Remove" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Turn off" }));
 
     expect(onToggleEnabled).toHaveBeenCalledTimes(1);
     expect(onToggleEnabled).toHaveBeenCalledWith(SITE_COMPLIANCE);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("Cancel on Downloaded's Remove dialog closes it without ever calling the controller", async () => {
+  it("Cancel on Downloaded's Turn off dialog closes it without ever calling the controller", async () => {
     const onToggleEnabled = vi.fn(async () => {});
     renderAgentPlugins({ onToggleEnabled });
     await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
 
-    await userEvent.click(within(row("Site Compliance")).getByRole("button", { name: "Remove Site Compliance" }));
+    await userEvent.click(within(row("Site Compliance")).getByRole("button", { name: "Turn off Site Compliance" }));
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(onToggleEnabled).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    // The row itself is untouched — Remove is still there, unfired.
-    expect(within(row("Site Compliance")).getByRole("button", { name: "Remove Site Compliance" })).toBeInTheDocument();
+    // The row itself is untouched — Turn off is still there, unfired.
+    expect(within(row("Site Compliance")).getByRole("button", { name: "Turn off Site Compliance" })).toBeInTheDocument();
   });
 
   it("calls the controller only once Confirm is pressed, then closes the dialog", async () => {

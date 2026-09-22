@@ -21,6 +21,7 @@
 import { COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
 import { MEDIA_ENTITY_TYPE } from "./adapters/media.js";
 import { POST_ENTITY_TYPE } from "./adapters/post.js";
+import { PLUGIN_ENTITY_TYPE } from "./adapters/plugin.js";
 import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
 import type { TrashEntityType, TrashItem } from "./ports.js";
 import type { TrashRegistry } from "./registry.js";
@@ -44,6 +45,7 @@ export const TRASH_PERMISSION_BY_ENTITY_TYPE: ReadonlyMap<TrashEntityType, strin
   [COMMENT_ENTITY_TYPE, "comments.moderate"],
   [MEDIA_ENTITY_TYPE, "media.delete"],
   [REDIRECT_ENTITY_TYPE, "admin.redirects.manage"],
+  [PLUGIN_ENTITY_TYPE, "admin.plugins.enable"],
 ]);
 
 /**

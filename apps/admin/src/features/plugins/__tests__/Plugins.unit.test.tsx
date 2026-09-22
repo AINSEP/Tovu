@@ -407,16 +407,16 @@ describe("Downloaded tab: Remove is gated behind a confirm dialog before the rea
     const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });
     await user.click(within(row).getByRole("button", { name: "Remove Valid Site Plugin" }));
 
-    const dialog = screen.getByRole("dialog", { name: 'Remove "Valid Site Plugin" from this site?' });
-    expect(within(dialog).getByText(/deletes the plugin's files from this site/)).toBeInTheDocument();
-    expect(within(dialog).getByText(/cannot be undone/)).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: 'Move "Valid Site Plugin" to trash?' });
+    expect(within(dialog).getByText(/all workspaces on this site/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/restore it from the Trash for 60 days/)).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
 
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({ pluginId: "valid-site-plugin", clearedWorkspaceIds: [] }))
+      .mockResolvedValueOnce(jsonResponse({ pluginId: "valid-site-plugin", trashed: true }))
       .mockResolvedValueOnce(jsonResponse({ plugins: AC11_PLUGINS_RESPONSE.plugins.filter((p) => p.id !== "valid-site-plugin") }));
 
-    await user.click(within(dialog).getByRole("button", { name: "Remove" }));
+    await user.click(within(dialog).getByRole("button", { name: "Move to trash" }));
 
     await waitFor(() => {
       const deleteCall = fetchMock.mock.calls.find(([, init]) => init?.method === "DELETE");

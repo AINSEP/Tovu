@@ -91,12 +91,11 @@ describe("pluginRemoveAriaLabel", () => {
 });
 
 describe("buildPluginRemoveConfirmCopy", () => {
-  it("names the exact plugin and states the deletion is real and permanent", () => {
+  it("names the exact plugin and explains the shared, restorable removal", () => {
     const copy = buildPluginRemoveConfirmCopy({ name: "Valid Site Plugin" });
-    expect(copy.title).toBe('Remove "Valid Site Plugin" from this site?');
-    expect(copy.body).toMatch(/deletes the plugin's files from this site/);
-    expect(copy.body).toMatch(/cannot be undone/);
-    expect(copy.body).toMatch(/reinstalling starts from scratch/);
+    expect(copy.title).toBe('Move "Valid Site Plugin" to trash?');
+    expect(copy.body).toMatch(/all workspaces on this site/);
+    expect(copy.body).toMatch(/restore it from the Trash for 60 days/);
   });
 });
 
@@ -110,6 +109,12 @@ describe("describeApiError — PLUGIN_UNINSTALL's four codes", () => {
   it("maps PLUGIN_ENABLED to the disable-first guidance", () => {
     expect(describeApiError(new ApiError("x", 409, "PLUGIN_ENABLED"), "fallback")).toBe(
       "This plugin is enabled and must be disabled everywhere before it can be removed.",
+    );
+  });
+
+  it("maps PLUGIN_IN_TRASH to restore-or-delete guidance", () => {
+    expect(describeApiError(new ApiError("x", 409, "PLUGIN_IN_TRASH"), "fallback")).toBe(
+      "This plugin is already in the Trash. Restore or delete it there first.",
     );
   });
 

@@ -14,6 +14,8 @@ import {
   buildTrashRegistry,
   COMMENT_ENTITY_TYPE,
   bindForgetRemovedEntity,
+  createDirectoryTrashAdapter,
+  unhideIfRemoveThrows,
   createRecordStoreTrashAdapter,
   createSqliteTrashDb,
   createTableTrashAdapter,
@@ -21,6 +23,7 @@ import {
   createTrashSweep,
   InMemoryTrashRepo,
   MEDIA_ENTITY_TYPE,
+  PLUGIN_ENTITY_TYPE,
   POST_ENTITY_TYPE,
   REDIRECT_ENTITY_TYPE,
   type RemoveEntity,
@@ -168,6 +171,7 @@ import { InMemoryWidgetRegionBindingRepo } from "#src/features/widgets/repo.memo
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
+import { forgetPluginActivations, type RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
 import { createAgentPluginsModule } from "./modules/agent-plugins.js";
 import { createPluginsModule } from "./modules/plugins.js";
 import { createSkillsModule } from "./modules/skills.js";
@@ -522,7 +526,13 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const termRepo = new SqliteTermRepo({ db: taxonomyDb, workspaceId });
   const entryTermRepo = new SqliteEntryTermRepo({ db: taxonomyDb, workspaceId });
   const taxonomyRevisionRepo = new SqliteTaxonomyRevisionRepo({ db: taxonomyDb, workspaceId });
+  const pluginTrashAdapter = createDirectoryTrashAdapter({
+    entityType: PLUGIN_ENTITY_TYPE,
+    locate: ({ entityId }) => pluginRuntime.locatePluginPackageDirs(entityId),
+    forget: ({ entityId }) => forgetPluginActivations({ pluginId: entityId }, { repo: pluginActivationRepo }),
+  });
   const trashAdapters = new Map<string, TrashAdapter>([
+    [PLUGIN_ENTITY_TYPE, pluginTrashAdapter],
     [
       POST_ENTITY_TYPE,
       createRecordStoreTrashAdapter<PostRecord>({
@@ -679,6 +689,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // guarantee this replaces is a SQLite one; an in-memory store has no partial-write window.
     transaction: (fn) => fn(),
   });
+  // Folder moves before the Trash row is written; if that write throws, move the folder back.
+  const removePlugin: RemovePluginFn = unhideIfRemoveThrows(pluginTrashAdapter, bindRemoveEntity(trash, PLUGIN_ENTITY_TYPE));
 
   // See `composition/deps.ts`'s identically-named/documented helper: narrows `bindRemoveEntity`'s
   // result for a type whose registry entry declares no `blocker` (redirect/comment/form_submission).
@@ -1094,7 +1106,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     discoverPlugins: pluginRuntime.discoverPlugins,
     onPluginEnabled: pluginRuntime.onPluginEnabled,
     onPluginDisabled: pluginRuntime.onPluginDisabled,
-    onPluginUninstalled: pluginRuntime.onPluginUninstalled,
+    removePlugin,
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
     // 2026-08-15 — hermetic double for `server/deps.ts`'s real `SqliteDeploymentsReadRepo`. Empty

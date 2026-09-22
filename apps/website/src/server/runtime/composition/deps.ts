@@ -160,6 +160,7 @@ import { adoptLegacyTrashedWidgets, restoreWidgetPriorStatus } from "#src/featur
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 import { SqlitePluginActivationRepo } from "#src/features/plugin-runtime/repo.sqlite";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
+import { forgetPluginActivations, type RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { isAdminAssistantEnabled } from "./admin-assistant-enabled.js";
 import { wireCoreResolvers } from "#src/features/widgets/resolvers/index";
@@ -190,6 +191,8 @@ import {
   buildTrashRegistry,
   createCommentTrashAdapter,
   createContentDbTransactionRunner,
+  createDirectoryTrashAdapter,
+  unhideIfRemoveThrows,
   createMediaTrashAdapter,
   createPostTrashAdapter,
   createRedirectTrashAdapter,
@@ -198,6 +201,7 @@ import {
   createTrashService,
   createTrashSweep,
   MEDIA_ENTITY_TYPE,
+  PLUGIN_ENTITY_TYPE,
   POST_ENTITY_TYPE,
   REDIRECT_ENTITY_TYPE,
   SqliteTrashRepo,
@@ -1196,10 +1200,16 @@ export function createSqliteRouteDeps(
       }),
     ],
   ]);
+  const pluginTrashAdapter = createDirectoryTrashAdapter({
+    entityType: PLUGIN_ENTITY_TYPE,
+    locate: ({ entityId }) => pluginRuntime.locatePluginPackageDirs(entityId),
+    forget: ({ entityId }) => forgetPluginActivations({ pluginId: entityId }, { repo: pluginActivationRepo }),
+  });
   const trashAdapters = new Map<string, TrashAdapter>([
     [POST_ENTITY_TYPE, createPostTrashAdapter(db.$client)],
     [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(db.$client)],
     [COMMENT_ENTITY_TYPE, createCommentTrashAdapter(db.$client)],
+    [PLUGIN_ENTITY_TYPE, pluginTrashAdapter],
     [
       MEDIA_ENTITY_TYPE,
       createMediaTrashAdapter({
@@ -1234,6 +1244,8 @@ export function createSqliteRouteDeps(
     idGen: { next: () => randomUUID() },
     transaction: trashTransaction,
   });
+  // Folder moves before the Trash row is written; if that write throws, move the folder back.
+  const removePlugin: RemovePluginFn = unhideIfRemoveThrows(pluginTrashAdapter, bindRemoveEntity(trash, PLUGIN_ENTITY_TYPE));
 
   /**
    * Narrows `bindRemoveEntity`'s result for a type whose registry entry declares no `blocker`
@@ -1879,7 +1891,7 @@ export function createSqliteRouteDeps(
     discoverPlugins: pluginRuntime.discoverPlugins,
     onPluginEnabled: pluginRuntime.onPluginEnabled,
     onPluginDisabled: pluginRuntime.onPluginDisabled,
-    onPluginUninstalled: pluginRuntime.onPluginUninstalled,
+    removePlugin,
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
     // 2026-08-15 — read-only wiring onto migration 0037's tables, previously applied with zero

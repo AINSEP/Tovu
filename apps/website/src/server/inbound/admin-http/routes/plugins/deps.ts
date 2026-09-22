@@ -5,6 +5,7 @@ import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/
 import type { PluginActivationRepoPort } from "#src/features/plugin-runtime/activation";
 import type { PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";
 import type { PluginPackageFiles } from "#src/features/plugin-runtime/package-files";
+import type { RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
 
 /**
  * @file Narrow `RouteDeps` slice for the `plugins` admin HTTP surface (SPEC-005 REQ-10, C-016) —
@@ -33,9 +34,7 @@ export interface PluginsRouteDeps {
   discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   onPluginEnabled: (pluginId: string) => Promise<void>;
   onPluginDisabled: (pluginId: string) => void;
-  /** Milestone 2 — pre-bound on-disk removal mechanism (`installDir` already captured). See
-   * `routes/types.ts`'s `PluginRuntimeDeps.onPluginUninstalled` doc for the full convention. */
-  onPluginUninstalled: (pluginId: string) => Promise<void>;
+  removePlugin: RemovePluginFn;
   /** 2026-09-13 — pre-bound package-files listing (`installDir`/built-in sources already
    * captured). See `routes/types.ts`'s `PluginRuntimeDeps.readPluginPackageFiles` doc. */
   readPluginPackageFiles: (record: PluginDiscoveryRecord) => Promise<PluginPackageFiles>;

@@ -334,7 +334,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   plugins_list: "plugin plugins extensions installed available list",
   // Added 2026-09-07 (ADS-memory/reports/2026-09-07-assistant-tool-coverage-audit.md, Gap #4):
   // plugins_uninstall is a new tool with no prior entry at all.
-  plugins_uninstall: "plugin plugins uninstall remove delete extension get rid of",
+  plugins_uninstall: "plugin plugins uninstall remove delete trash extension get rid of",
 
   // --- agent plugins (agent-plugins.org packages — a DIFFERENT system from .tovu-plugin above) -----------
   // 2026-09-09: search_agent_plugin_local is a new tool with no prior entry. Phrased from how an

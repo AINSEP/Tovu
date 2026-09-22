@@ -134,6 +134,7 @@ import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js
 import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation.js";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
 import type { PluginPackageFiles } from "../../features/plugin-runtime/package-files.js";
+import type { RemovePluginFn } from "../../features/plugin-runtime/uninstall.js";
 import type { DeploymentsReadRepoPort, ExportEngine } from "../../features/deployments/index.js";
 import type { PublishTrustRevocationPort } from "#src/features/publish-trust/revocations";
 import type { PublishContentBundleRepoPort } from "../../features/publish-content/bundle-staging.js";
@@ -1359,11 +1360,7 @@ export interface PluginRuntimeDeps {
    * and agent-tool enable paths. Failures reject the enable operation. */
   onPluginEnabled: (pluginId: string) => Promise<void>;
   onPluginDisabled: (pluginId: string) => void;
-  /** Milestone 2 (2026-08-20) — removes a site plugin's on-disk artifact. Mechanism only, same
-   * pre-bound-closure convention as `onPluginEnabled`/`onPluginDisabled` above; the business-rule
-   * gating (not-found / built-in / still-enabled-somewhere) lives in
-   * `features/plugin-runtime/uninstall.ts`'s `uninstallPlugin()`, the route's actual entry point. */
-  onPluginUninstalled: (pluginId: string) => Promise<void>;
+  removePlugin: RemovePluginFn;
   /** 2026-09-13 — pre-bound, read-only, bounded listing of one discovered plugin's own files
    * (`PLUGIN_FILES`). Path safety lives in the binding (`plugin-runtime.ts`) and
    * `features/plugin-runtime/package-files.ts`; the route only authorizes and resolves the record. */

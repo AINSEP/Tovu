@@ -80,6 +80,19 @@ describe("Trash screen", () => {
     expect(screen.getByText("41")).toBeTruthy();
   });
 
+  it("labels a plugin row as shared across all workspaces on the site", () => {
+    render(
+      <Trash
+        useTrashHook={() =>
+          controller({ items: [item({ entityType: "plugin", title: "My Plugin", subtitle: "my-plugin 1.0.0" })] })
+        }
+      />
+    );
+
+    expect(screen.getByText("Plugin")).toBeTruthy();
+    expect(screen.getByText("my-plugin 1.0.0 · Shared across all workspaces on this site.")).toBeTruthy();
+  });
+
   it("falls back to a readable label when the deleting user no longer has an account", () => {
     render(<Trash useTrashHook={() => controller({ items: [item({ actorUsername: null })] })} />);
 

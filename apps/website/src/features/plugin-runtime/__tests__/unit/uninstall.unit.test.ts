@@ -1,15 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { RemoveEntity } from "../../../trash/ports.js";
 import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
 import type { PluginDiscoveryRecord } from "../../discovery.js";
-import { PluginChangedSincePreviewError, uninstallPlugin, type UninstallPluginRequired } from "../../uninstall.js";
+import {
+  PluginAlreadyInTrashError,
+  PluginChangedSincePreviewError,
+  PluginEnabledError,
+  PluginNotUninstallableError,
+  uninstallPlugin,
+  type UninstallPluginRequired,
+} from "../../uninstall.js";
 
-/**
- * @file `uninstallPlugin()`'s `confirmedPreview` binding — t91 F2.2. B-T7 failed at this commit's
- * parent (the file failed to load: `../../uninstall.js` did not yet export
- * `PluginChangedSincePreviewError`).
- */
+const WS = "ws-1";
+const AT = "2026-09-22T00:00:00.000Z";
+const ACTOR = { principalId: "principal-1" };
 
 const SITE: PluginDiscoveryRecord = {
   id: "my-plugin",
@@ -21,67 +27,114 @@ const SITE: PluginDiscoveryRecord = {
   errors: [],
 };
 
-function requestFor(record: PluginDiscoveryRecord, repo: InMemoryPluginActivationRepo, calls: string[]): UninstallPluginRequired {
+interface RequestHarness {
+  required: UninstallPluginRequired;
+  removeCalls: Parameters<RemoveEntity>[0][];
+}
+
+function requestFor(
+  record: PluginDiscoveryRecord,
+  repo: InMemoryPluginActivationRepo,
+  result: Awaited<ReturnType<RemoveEntity>> = { ok: true, version: null },
+): RequestHarness {
+  const removeCalls: Parameters<RemoveEntity>[0][] = [];
+  const remove: RemoveEntity = async (required) => {
+    removeCalls.push(required);
+    return result;
+  };
   return {
-    deps: { repo, discovery: [record], onUninstall: async (id: string) => void calls.push(id) },
-    input: { pluginId: record.id },
+    required: {
+      deps: { repo, discovery: [record], remove },
+      input: { pluginId: record.id, workspaceId: WS, at: AT, actor: ACTOR },
+    },
+    removeCalls,
   };
 }
 
-test("a confirmed preview refuses when the record's version no longer matches the previewed version", async () => {
+async function saveDisabled(repo: InMemoryPluginActivationRepo): Promise<void> {
+  await repo.save({
+    pluginId: SITE.id,
+    workspaceId: WS,
+    version: SITE.version,
+    enabled: false,
+    updatedAt: AT,
+  });
+}
+
+test("a confirmed preview refuses when the record's version no longer matches", async () => {
   const repo = new InMemoryPluginActivationRepo();
-  await repo.save({ pluginId: "my-plugin", workspaceId: "ws-1", version: "1.0.0", enabled: false, updatedAt: "2026-09-16T00:00:00.000Z" });
-  const calls: string[] = [];
+  await saveDisabled(repo);
   const changed: PluginDiscoveryRecord = { ...SITE, version: "2.0.0" };
+  const h = requestFor(changed, repo);
 
   await assert.rejects(
-    () => uninstallPlugin(requestFor(changed, repo, calls), { confirmedPreview: { pluginId: "my-plugin", name: "My Plugin", version: "1.0.0" } }),
+    () => uninstallPlugin(h.required, { confirmedPreview: { pluginId: SITE.id, name: SITE.name, version: SITE.version } }),
     (error: unknown) =>
       error instanceof PluginChangedSincePreviewError &&
       error.message === "plugin 'my-plugin' changed after its uninstall was previewed (previewed My Plugin 1.0.0; now My Plugin 2.0.0) — nothing was removed",
   );
-  assert.deepEqual(calls, []);
+  assert.deepEqual(h.removeCalls, []);
   assert.equal((await repo.listAll()).length, 1);
 });
 
-test("a confirmed preview refuses when the record's NAME changed but its version did not", async () => {
+test("a confirmed preview refuses when the record's name changed", async () => {
   const repo = new InMemoryPluginActivationRepo();
-  await repo.save({ pluginId: "my-plugin", workspaceId: "ws-1", version: "1.0.0", enabled: false, updatedAt: "2026-09-16T00:00:00.000Z" });
-  const calls: string[] = [];
+  await saveDisabled(repo);
   const renamed: PluginDiscoveryRecord = { ...SITE, name: "Someone Else's Plugin" };
+  const h = requestFor(renamed, repo);
 
   await assert.rejects(
-    () => uninstallPlugin(requestFor(renamed, repo, calls), { confirmedPreview: { pluginId: "my-plugin", name: "My Plugin", version: "1.0.0" } }),
-    (error: unknown) =>
-      error instanceof PluginChangedSincePreviewError &&
-      error.message ===
-        "plugin 'my-plugin' changed after its uninstall was previewed (previewed My Plugin 1.0.0; now Someone Else's Plugin 1.0.0) — nothing was removed",
+    () => uninstallPlugin(h.required, { confirmedPreview: { pluginId: SITE.id, name: SITE.name, version: SITE.version } }),
+    PluginChangedSincePreviewError,
   );
-  assert.deepEqual(calls, []);
+  assert.deepEqual(h.removeCalls, []);
   assert.equal((await repo.listAll()).length, 1);
 });
 
-test("guard: an unchanged confirmed preview uninstalls normally", async () => {
+test("an unchanged target delegates to remove with the discovery display and keeps activation rows", async () => {
   const repo = new InMemoryPluginActivationRepo();
-  await repo.save({ pluginId: "my-plugin", workspaceId: "ws-1", version: "1.0.0", enabled: false, updatedAt: "2026-09-16T00:00:00.000Z" });
-  const calls: string[] = [];
+  await saveDisabled(repo);
+  const h = requestFor(SITE, repo);
 
-  const result = await uninstallPlugin(requestFor(SITE, repo, calls), {
-    confirmedPreview: { pluginId: "my-plugin", name: "My Plugin", version: "1.0.0" },
+  assert.deepEqual(
+    await uninstallPlugin(h.required, { confirmedPreview: { pluginId: SITE.id, name: SITE.name, version: SITE.version } }),
+    { trashed: true },
+  );
+  assert.equal(h.removeCalls.length, 1);
+  assert.deepEqual(h.removeCalls[0], {
+    workspaceId: WS,
+    id: SITE.id,
+    display: { title: SITE.name, subtitle: `${SITE.id} ${SITE.version}` },
+    at: AT,
+    expectedVersion: null,
+    actor: ACTOR,
   });
-
-  assert.deepEqual(result, { clearedWorkspaceIds: ["ws-1"] });
-  assert.deepEqual(calls, ["my-plugin"]);
+  assert.equal((await repo.listAll()).length, 1);
 });
 
-test("guard: no optional argument (the admin route path) uninstalls normally regardless of version", async () => {
+test("a built-in plugin is refused before remove", async () => {
   const repo = new InMemoryPluginActivationRepo();
-  await repo.save({ pluginId: "my-plugin", workspaceId: "ws-1", version: "1.0.0", enabled: false, updatedAt: "2026-09-16T00:00:00.000Z" });
-  const calls: string[] = [];
-  const changed: PluginDiscoveryRecord = { ...SITE, version: "2.0.0" };
+  const h = requestFor({ ...SITE, source: "built-in" }, repo);
 
-  const result = await uninstallPlugin(requestFor(changed, repo, calls));
+  await assert.rejects(() => uninstallPlugin(h.required), PluginNotUninstallableError);
+  assert.deepEqual(h.removeCalls, []);
+});
 
-  assert.deepEqual(result, { clearedWorkspaceIds: ["ws-1"] });
-  assert.deepEqual(calls, ["my-plugin"]);
+test("a plugin enabled in any workspace is refused before remove", async () => {
+  const repo = new InMemoryPluginActivationRepo();
+  await repo.save({ pluginId: SITE.id, workspaceId: "ws-2", version: SITE.version, enabled: true, updatedAt: AT });
+  const h = requestFor(SITE, repo);
+
+  await assert.rejects(() => uninstallPlugin(h.required), PluginEnabledError);
+  assert.deepEqual(h.removeCalls, []);
+});
+
+test("an already-parked plugin becomes PluginAlreadyInTrashError", async () => {
+  const repo = new InMemoryPluginActivationRepo();
+  await saveDisabled(repo);
+  const h = requestFor(SITE, repo, { ok: false, reason: "blocked", code: "ALREADY_IN_TRASH", count: 1 });
+
+  await assert.rejects(() => uninstallPlugin(h.required), PluginAlreadyInTrashError);
+  assert.equal(h.removeCalls.length, 1);
+  assert.equal((await repo.listAll()).length, 1);
 });

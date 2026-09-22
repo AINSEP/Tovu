@@ -20,14 +20,8 @@ export interface PluginsPort {
     id: string,
     patch: { enabled: boolean }
   ): Promise<{ plugin: { id: string; version: string; enabled: boolean; updatedAt: string }; changeSetId: string }>;
-  /** `PLUGIN_UNINSTALL` (`DELETE /workspaces/:id/plugins/:pluginId`) — deletes a `"site"` plugin's
-   *  on-disk artifact and every workspace's activation row for it. Refuses a `"built-in"` plugin
-   *  (`PLUGIN_NOT_UNINSTALLABLE`) and a plugin still enabled somewhere (`PLUGIN_ENABLED`) — see
-   *  `features/plugin-runtime/uninstall.ts`'s own two preconditions. The Downloaded tab's own
-   *  `usePlugins` caller re-fetches the list afterward (`reload()`), the same "echo is narrow,
-   *  re-fetch is authoritative" convention `setPluginEnabled` above already uses, rather than
-   *  reading `clearedWorkspaceIds` itself. */
-  uninstallPlugin(id: string): Promise<{ pluginId: string; clearedWorkspaceIds: string[] }>;
+  /** Moves a site plugin to the 60-day Trash; the caller reloads the authoritative list. */
+  uninstallPlugin(id: string): Promise<{ pluginId: string; trashed: true }>;
   /** `PLUGIN_FILES` (`GET /workspaces/:id/plugins/:pluginId/files`) — the read-only package-files
    *  listing behind `PluginPackageFilesModal`. */
   getPluginFiles(id: string): Promise<AdminPluginFiles>;

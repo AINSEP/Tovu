@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { rm } from "node:fs/promises";
+import { lstat } from "node:fs/promises";
 import path from "node:path";
 
 import type { ClockPort } from "@jini-ai/cms/core";
@@ -114,14 +114,14 @@ function resolveLoadTarget(params: {
  */
 const SAFE_PLUGIN_ID_SEGMENT = /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/;
 
-/** Thrown by `onPluginUninstalled` when `pluginId` is not safe to use as a filesystem path segment
+/** Thrown when `pluginId` is not safe to use as a filesystem path segment
  * under `installDir` — either it fails {@link SAFE_PLUGIN_ID_SEGMENT}'s allowlist, or (defense in
  * depth, in case some future caller's id validation elsewhere ever drifts) the resolved absolute
  * path would land outside `installDir` after resolution. Deliberately fails closed on EITHER
  * check independently, not just the one presumed sufficient. */
 export class PluginUninstallPathError extends Error {
   constructor(pluginId: string) {
-    super(`plugin id '${pluginId}' is not a safe filesystem path segment — refusing to uninstall`);
+    super(`plugin id '${pluginId}' is not a safe filesystem path segment — refusing to remove it`);
     this.name = "PluginUninstallPathError";
   }
 }
@@ -180,12 +180,11 @@ export interface PluginRuntimeBindings {
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   readonly onPluginEnabled: (pluginId: string) => Promise<void>;
   readonly onPluginDisabled: (pluginId: string) => void;
-  /** Removes a site plugin's on-disk artifact (Milestone 2). Mechanism only — no business-rule
-   * gating (not-found / built-in / still-enabled); that lives in
-   * `features/plugin-runtime/uninstall.ts`'s `uninstallPlugin()`, which is the only intended
-   * caller. Rejects (never silently no-ops) when `installDir` was never configured for this
-   * composition root, or when `pluginId` fails the path-traversal safety check. */
-  readonly onPluginUninstalled: (pluginId: string) => Promise<void>;
+  readonly locatePluginPackageDirs: (pluginId: string) => Promise<{
+    liveParent: string;
+    liveNames: readonly string[];
+    parkedDir: string;
+  }>;
   /** Lists one discovered plugin's own files, read-only and bounded, for the admin Plugins
    * screen's package-files viewer — see {@link resolvePackageLocation} and
    * `features/plugin-runtime/package-files.ts`. Rejects with `PluginPackagePathError` for an
@@ -296,34 +295,35 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     hookRegistry.detach(pluginId);
   }
 
-  /**
-   * Deletes `<installDir>/<pluginId>/` (every installed version of this id — REQ-02's
-   * `<installDir>/<id>/<version>/` layout has no "keep an uninstalled version around" concept).
-   * Two independent, fail-closed guards run BEFORE any filesystem write: the id must match
-   * {@link SAFE_PLUGIN_ID_SEGMENT}, AND the resolved absolute target must still be a descendant of
-   * `installDir` after `path.resolve()` — the second check is defense in depth against the first
-   * ever having a gap, not a substitute for it (mirrors CIC U-001's own "both checks must
-   * independently pass" shape, applied to a filesystem-write hazard instead of a code-execution
-   * one). `force: true` makes an already-missing directory a no-op, not an error — uninstalling a
-   * plugin whose files were removed by some other means must not itself fail.
-   *
-   * @throws {PluginUninstallPathError} `pluginId` fails either guard.
-   * @throws {Error} `installDir` was never configured for this composition root.
-   * @complexity O(files under the plugin's id folder) — a recursive directory removal.
-   */
-  async function onPluginUninstalled(pluginId: string): Promise<void> {
+  async function locatePluginPackageDirs(pluginId: string): Promise<{
+    liveParent: string;
+    liveNames: readonly string[];
+    parkedDir: string;
+  }> {
     if (installDir === undefined) {
-      throw new Error(`onPluginUninstalled: no installDir configured for this composition root — cannot uninstall '${pluginId}'`);
+      throw new Error(`locatePluginPackageDirs: no installDir configured for this composition root — cannot remove '${pluginId}'`);
     }
     if (!SAFE_PLUGIN_ID_SEGMENT.test(pluginId)) {
       throw new PluginUninstallPathError(pluginId);
     }
     const installRoot = path.resolve(installDir);
-    const targetDir = path.resolve(installRoot, pluginId);
-    if (targetDir !== installRoot && !targetDir.startsWith(installRoot + path.sep)) {
+    const liveDir = path.resolve(installRoot, pluginId);
+    if (liveDir === installRoot || !liveDir.startsWith(installRoot + path.sep)) {
       throw new PluginUninstallPathError(pluginId);
     }
-    await rm(targetDir, { recursive: true, force: true });
+    const parkedRoot = path.resolve(path.dirname(installRoot), `${path.basename(installRoot)}-trash`);
+    const parkedDir = path.resolve(parkedRoot, pluginId);
+    if (parkedDir === parkedRoot || !parkedDir.startsWith(parkedRoot + path.sep)) {
+      throw new PluginUninstallPathError(pluginId);
+    }
+    const liveNames = await lstat(liveDir).then(
+      () => [pluginId],
+      (error: unknown) => {
+        if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") return [];
+        throw error;
+      },
+    );
+    return { liveParent: installRoot, liveNames, parkedDir };
   }
 
   async function readPluginPackageFiles(record: PluginDiscoveryRecord): Promise<PluginPackageFiles> {
@@ -337,7 +337,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     discoverPlugins,
     onPluginEnabled,
     onPluginDisabled,
-    onPluginUninstalled,
+    locatePluginPackageDirs,
     readPluginPackageFiles,
     beforeSaveHook: (entry) => hookRegistry.runBeforeSave(entry),
   };

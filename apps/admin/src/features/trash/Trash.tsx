@@ -6,7 +6,7 @@ import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { interpolate } from "../../lib/template-i18n";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
-import { actorLabel, coverageLine, entityTypeLabel } from "./rules";
+import { actorLabel, coverageLine, entityTypeLabel, itemSubtitle } from "./rules";
 import { t } from "./trash-i18n";
 import { useWiredTrash, type TrashController } from "./hooks/use-trash.hooks";
 
@@ -84,7 +84,7 @@ function trashColumns(props: {
       cell: (item) => (
         <>
           <div>{item.title}</div>
-          {item.subtitle ? <div className="muted-cell">{item.subtitle}</div> : null}
+          {itemSubtitle(props.locale, item) ? <div className="muted-cell">{itemSubtitle(props.locale, item)}</div> : null}
         </>
       ),
     },

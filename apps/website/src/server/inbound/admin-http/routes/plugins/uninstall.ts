@@ -1,5 +1,10 @@
 import { PluginNotFoundError } from "#src/features/plugin-runtime/activation";
-import { PluginEnabledError, PluginNotUninstallableError, uninstallPlugin } from "#src/features/plugin-runtime/uninstall";
+import {
+  PluginAlreadyInTrashError,
+  PluginEnabledError,
+  PluginNotUninstallableError,
+  uninstallPlugin,
+} from "#src/features/plugin-runtime/uninstall";
 import { PluginUninstallPathError } from "#src/server/runtime/composition/plugin-runtime";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -24,6 +29,11 @@ function sendPluginUninstallError(res: Response, err: unknown): void {
     return;
   }
 
+  if (err instanceof PluginAlreadyInTrashError) {
+    res.status(409).json({ error: err.message, code: "PLUGIN_IN_TRASH" });
+    return;
+  }
+
   if (err instanceof PluginUninstallPathError) {
     res.status(400).json({ error: err.message, code: "PLUGIN_ID_INVALID" });
     return;
@@ -33,26 +43,8 @@ function sendPluginUninstallError(res: Response, err: unknown): void {
 }
 
 /**
- * @file `PLUGIN_UNINSTALL` — `DELETE /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId`
- * (Milestone 2, 2026-08-20). No SPEC-005 spec package covers this endpoint at all — `ui.spec.md`'s
- * "On plugin installation" section explicitly says v1 install is "a filesystem operation, not an
- * HTTP one" and `api.spec.md` §1 lists only `PLUGINS_LIST`/`PLUGIN_SET_ENABLED`. This route (and
- * its error codes below) is new surface, not an implementation of an existing contract.
- *
- * Deliberately NOT wrapped in `executeCommand`/the gateway's change-set/revert machinery, unlike
- * `set-enabled.ts`: removing a plugin's on-disk artifact is not a revertible database write — there
- * is no meaningful "restore the prior state" for deleted bytes, and wrapping this in a mechanism
- * whose entire point is capturing a usable inverse would be misleading (a captured "inverse" could
- * only ever re-create an activation ROW, never the artifact that made the plugin actually work).
- * Structured like `list.ts` instead: authorize, call the feature function, map its typed errors.
- * Same `admin.plugins.enable` permission `set-enabled.ts` already gates its own mutation behind —
- * no new permission string introduced, per the settled policy for this route surface.
- *
- * All business-rule gating (not-found / built-in-can't-be-uninstalled / enabled-somewhere) lives in
- * `uninstallPlugin()` (`features/plugin-runtime/uninstall.ts`); all path-traversal-safety gating
- * lives in `deps.onPluginUninstalled` (`server/plugin-runtime.ts`'s `onPluginUninstalled`, bound by
- * the composition root). This handler is purely the HTTP <-> typed-error translation layer, mirrors
- * every other route in this directory.
+ * @file `PLUGIN_UNINSTALL` moves a site plugin to the 60-day Trash. The package directory is shared
+ * by every workspace on this site, while the Trash row belongs to the workspace making the request.
  */
 export const registerPluginUninstallRoute: PluginsRouteRegistrar = (app, deps) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId", async (req, res) => {
@@ -79,12 +71,17 @@ export const registerPluginUninstallRoute: PluginsRouteRegistrar = (app, deps) =
         deps: {
           repo: deps.pluginActivationRepo,
           discovery,
-          onUninstall: deps.onPluginUninstalled,
+          remove: deps.removePlugin,
         },
-        input: { pluginId },
+        input: {
+          pluginId,
+          workspaceId: deps.workspaceId,
+          at: deps.clock.nowIso(),
+          actor: { principalId: principal.id },
+        },
       });
 
-      res.json({ pluginId, clearedWorkspaceIds: result.clearedWorkspaceIds });
+      res.json({ pluginId, trashed: result.trashed });
     } catch (err) {
       sendPluginUninstallError(res, err);
     }

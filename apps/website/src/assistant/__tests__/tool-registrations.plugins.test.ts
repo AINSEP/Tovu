@@ -85,8 +85,9 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
     },
     pluginActivationRepo,
     discoverPlugins: async () => discovery,
-    onPluginUninstalled: async (pluginId: string) => {
-      order.push(`onPluginUninstalled:${pluginId}`);
+    removePlugin: async (required: { id: string }) => {
+      order.push(`removePlugin:${required.id}`);
+      return { ok: true as const, version: null };
     },
   };
 

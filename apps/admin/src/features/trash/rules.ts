@@ -57,9 +57,16 @@ export function entityTypeLabel(locale: string, entityType: string): string {
     menu: "Menu",
     term: "Term",
     taxonomy: "Taxonomy",
+    plugin: "Plugin",
   };
   const label = known[entityType];
   return label ? t(locale, label) : entityType;
+}
+
+export function itemSubtitle(locale: string, item: { entityType: string; subtitle: string | null }): string | null {
+  if (item.entityType !== "plugin") return item.subtitle;
+  const shared = t(locale, "Shared across all workspaces on this site.");
+  return item.subtitle ? `${item.subtitle} · ${shared}` : shared;
 }
 
 /** Empty default for {@link actorLabel}'s `knownUsernames` parameter — a module-level constant so

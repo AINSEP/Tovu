@@ -85,8 +85,9 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
     discoverPlugins: async () => discovery,
     onPluginEnabled: async () => undefined,
     onPluginDisabled: () => undefined,
-    onPluginUninstalled: async (pluginId: string) => {
-      uninstallCalls.push(pluginId);
+    removePlugin: async (required) => {
+      uninstallCalls.push(required.id);
+      return { ok: true, version: null };
     },
     externalMcpServerRepo: new InMemoryExternalMcpServerRepo(),
     siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
@@ -151,6 +152,10 @@ async function uninstallWithDecision(
   if (emitted.length === 0) return pending; // refused before the dialog — let the caller assert on it
 
   const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text ?? "";
+  assert.match(html, /Move My Plugin to trash\?/);
+  assert.match(html, /all workspaces on this site/);
+  assert.match(html, /60 days/);
+  assert.match(html, /Move to trash/);
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
   assert.ok(match, "the dialog must carry its exchange id");
   surfaceExchanges.deliver({ exchangeId: match[1] ?? "", params: { decision }, principalId: PRINCIPAL_ID, toolId: "plugins_uninstall" });
@@ -167,8 +172,10 @@ test("plugins_uninstall is wired alongside plugins_list/plugins_set_enabled — 
   assert.equal(pluginAgentToolCatalog.length, 3, "no unwired plugins entry — the whole catalog is wired");
 });
 
-test("plugins_uninstall's own catalog description states it is not reversible", () => {
-  assert.match(catalogEntry("plugins_uninstall").description, /not reversible|NOT reversible|permanently/i);
+test("plugins_uninstall's catalog says the plugin moves to the 60-day Trash", () => {
+  assert.match(catalogEntry("plugins_uninstall").description, /Trash/);
+  assert.match(catalogEntry("plugins_uninstall").description, /60 days/);
+  assert.match(catalogEntry("plugins_uninstall").description, /all workspaces on this site/);
 });
 
 test("agent-tools.ts's header no longer claims uninstall has no admin route — the stale comment is fixed", async () => {
@@ -266,32 +273,32 @@ test("plugins_uninstall: refuses an unknown plugin id", async () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4. Happy path — files removed, activation rows cleared in every workspace
+// 4. Happy path — files moved to Trash, activation rows retained until purge
 // ---------------------------------------------------------------------------
 
-test("plugins_uninstall: removes the on-disk artifact and clears activation rows in every workspace that has one", async () => {
+test("plugins_uninstall: moves the on-disk artifact to Trash and retains activation rows", async () => {
   const { deps, uninstallCalls, pluginActivationRepo } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
   await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: false, updatedAt: NOW });
   await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: "other-ws", version: "1.0.0", enabled: false, updatedAt: NOW });
 
   const out = (await uninstallWithDecision(deps, { pluginId: SITE_PLUGIN.id }, "confirm")) as {
     pluginId: string;
-    clearedWorkspaceIds: string[];
+    trashed: true;
   };
 
   assert.deepEqual(uninstallCalls, [SITE_PLUGIN.id]);
   assert.equal(out.pluginId, SITE_PLUGIN.id);
-  assert.deepEqual([...out.clearedWorkspaceIds].sort(), ["other-ws", WORKSPACE_ID].sort());
+  assert.equal(out.trashed, true);
 
   const remaining = await pluginActivationRepo.listAll();
-  assert.equal(remaining.filter((a) => a.pluginId === SITE_PLUGIN.id).length, 0, "every activation row for this plugin must be gone");
+  assert.equal(remaining.filter((a) => a.pluginId === SITE_PLUGIN.id).length, 2, "activation rows remain until permanent purge");
 });
 
-test("plugins_uninstall: a plugin never activated anywhere uninstalls cleanly with an empty clearedWorkspaceIds", async () => {
+test("plugins_uninstall: a plugin never activated anywhere moves to Trash cleanly", async () => {
   const { deps, uninstallCalls } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
-  const out = (await uninstallWithDecision(deps, { pluginId: SITE_PLUGIN.id }, "confirm")) as { clearedWorkspaceIds: string[] };
+  const out = (await uninstallWithDecision(deps, { pluginId: SITE_PLUGIN.id }, "confirm")) as { trashed: true };
   assert.deepEqual(uninstallCalls, [SITE_PLUGIN.id]);
-  assert.deepEqual(out.clearedWorkspaceIds, []);
+  assert.equal(out.trashed, true);
 });
 
 // ---------------------------------------------------------------------------

@@ -40,6 +40,7 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
   readonly plugins: AdminPlugin[];
 } {
   const plugins = [...(options.plugins ?? [])];
+  const trashedPluginIds = new Set<string>();
 
   return {
     plugins,
@@ -58,6 +59,9 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
     },
 
     async uninstallPlugin(id) {
+      if (trashedPluginIds.has(id)) {
+        throw new ApiError("plugin is already in Trash", 409, "PLUGIN_IN_TRASH");
+      }
       const index = plugins.findIndex((p) => p.id === id);
       if (index < 0) throw new ApiError("plugin not found", 404, "PLUGIN_NOT_FOUND");
       const plugin = plugins[index]!;
@@ -67,8 +71,9 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
       if (plugin.enabled) {
         throw new ApiError(`plugin '${id}' is enabled and must be disabled everywhere before it can be uninstalled`, 409, "PLUGIN_ENABLED");
       }
+      trashedPluginIds.add(id);
       plugins.splice(index, 1);
-      return { pluginId: id, clearedWorkspaceIds: [] };
+      return { pluginId: id, trashed: true };
     },
 
     async getPluginFiles(id) {

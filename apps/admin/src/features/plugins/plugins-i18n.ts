@@ -16,6 +16,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "Sus habilidades dejarán de llegar al asistente en la próxima ejecución. El paquete permanece en el disco y puede activarse de nuevo.",
     Enable: "Activar",
     Disable: "Desactivar",
+    "Turn off": "Desactivar",
+    "Move to trash": "Mover a la papelera",
+    "This plugin is already in the Trash. Restore or delete it there first.": "Este plugin ya está en la Papelera. Restáuralo o elimínalo allí primero.",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "Esto lo elimina de todos los espacios de trabajo de este sitio. Puedes restaurarlo desde la Papelera durante 60 días.",
     "Inspect package files": "Inspeccionar los archivos del paquete",
     // "Add-Ons" -> "Integrations" 2026-09-10: the nav group this page's kicker names was renamed
     // (see `panels.tsx`'s own comment on the group). Only `es` has ever carried a value for this
@@ -100,6 +104,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "no se pudo actualizar el plugin",
     "failed to remove plugin": "no se pudo eliminar el plugin",
     "failed to update agent plugin": "no se pudo actualizar el plugin de agentes",
+    "failed to load agent plugins": "no se pudieron cargar los plugins de agentes",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "archivos del paquete",
@@ -127,6 +132,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "Keterampilannya berhenti menjangkau asisten pada proses berikutnya. Paket tetap di disk dan dapat diaktifkan lagi.",
     Enable: "Aktifkan",
     Disable: "Nonaktifkan",
+    "Turn off": "Nonaktifkan",
+    "Move to trash": "Pindahkan ke Sampah",
+    "This plugin is already in the Trash. Restore or delete it there first.": "Plugin ini sudah ada di Sampah. Pulihkan atau hapus di sana terlebih dahulu.",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "Ini menghapusnya dari semua ruang kerja di situs ini. Anda dapat memulihkannya dari Sampah selama 60 hari.",
     "Inspect package files": "Periksa berkas paket",
     Plugins: "Plugin",
     "Loading plugins…": "Memuat plugin…",
@@ -153,6 +162,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "gagal memuat plugin",
     "failed to update plugin": "gagal memperbarui plugin",
     "failed to update agent plugin": "gagal memperbarui plugin agen",
+    "failed to load agent plugins": "gagal memuat plugin agen",
+    "failed to remove plugin": "gagal menghapus plugin",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "berkas paket",
@@ -180,6 +191,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "Seine Skills erreichen den Assistenten beim nächsten Lauf nicht mehr. Das Paket bleibt auf der Festplatte und kann wieder aktiviert werden.",
     Enable: "Aktivieren",
     Disable: "Deaktivieren",
+    "Turn off": "Deaktivieren",
+    "Move to trash": "In den Papierkorb verschieben",
+    "This plugin is already in the Trash. Restore or delete it there first.": "Dieses Plugin befindet sich bereits im Papierkorb. Stellen Sie es dort wieder her oder löschen Sie es zuerst.",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "Dadurch wird es für alle Arbeitsbereiche dieser Website entfernt. Sie können es 60 Tage lang aus dem Papierkorb wiederherstellen.",
     "Inspect package files": "Paketdateien untersuchen",
     Plugins: "Plugins",
     "Loading plugins…": "Plugins werden geladen…",
@@ -206,6 +221,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "Plugins konnten nicht geladen werden",
     "failed to update plugin": "Plugin konnte nicht aktualisiert werden",
     "failed to update agent plugin": "Agent-Plugin konnte nicht aktualisiert werden",
+    "failed to load agent plugins": "Agent-Plugins konnten nicht geladen werden",
+    "failed to remove plugin": "Plugin konnte nicht entfernt werden",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "Paketdateien",
@@ -233,6 +250,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "在下次运行时，其技能将不再提供给助手。软件包会保留在磁盘上，并可再次启用。",
     Enable: "启用",
     Disable: "禁用",
+    "Turn off": "禁用",
+    "Move to trash": "移至回收站",
+    "This plugin is already in the Trash. Restore or delete it there first.": "此插件已在回收站中。请先在那里恢复或删除它。",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "这会为此站点的所有工作区移除该插件。您可以在 60 天内从回收站恢复它。",
     "Inspect package files": "检查软件包文件",
     Plugins: "插件",
     "Loading plugins…": "正在加载插件…",
@@ -259,6 +280,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "加载插件失败",
     "failed to update plugin": "更新插件失败",
     "failed to update agent plugin": "更新智能体插件失败",
+    "failed to load agent plugins": "加载智能体插件失败",
+    "failed to remove plugin": "移除插件失败",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "软件包文件",
@@ -286,6 +309,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "下次執行時，其技能將不再提供給助理。套件會留在磁碟上，且可以再次啟用。",
     Enable: "啟用",
     Disable: "停用",
+    "Turn off": "停用",
+    "Move to trash": "移至垃圾桶",
+    "This plugin is already in the Trash. Restore or delete it there first.": "此外掛已在垃圾桶中。請先在那裡還原或刪除它。",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "這會為此網站的所有工作區移除它。您可以在 60 天內從垃圾桶還原它。",
     "Inspect package files": "檢視套件檔案",
     Plugins: "外掛",
     "Loading plugins…": "正在載入外掛…",
@@ -312,6 +339,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "載入外掛失敗",
     "failed to update plugin": "更新外掛失敗",
     "failed to update agent plugin": "更新代理程式外掛失敗",
+    "failed to load agent plugins": "載入代理程式外掛失敗",
+    "failed to remove plugin": "移除外掛失敗",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "套件檔案",
@@ -339,6 +368,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "Suas habilidades deixam de chegar ao assistente na próxima execução. O pacote permanece no disco e pode ser ativado novamente.",
     Enable: "Ativar",
     Disable: "Desativar",
+    "Turn off": "Desativar",
+    "Move to trash": "Mover para a Lixeira",
+    "This plugin is already in the Trash. Restore or delete it there first.": "Este plugin já está na Lixeira. Restaure-o ou exclua-o lá primeiro.",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "Isso o remove de todos os espaços de trabalho deste site. Você pode restaurá-lo da Lixeira por 60 dias.",
     "Inspect package files": "Inspecionar arquivos do pacote",
     Plugins: "Plugins",
     "Loading plugins…": "Carregando plugins…",
@@ -365,6 +398,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "não foi possível carregar os plugins",
     "failed to update plugin": "não foi possível atualizar o plugin",
     "failed to update agent plugin": "não foi possível atualizar o plugin de agentes",
+    "failed to load agent plugins": "não foi possível carregar os plugins de agentes",
+    "failed to remove plugin": "não foi possível remover o plugin",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "arquivos do pacote",
@@ -392,6 +427,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "При следующем запуске его навыки перестанут поступать к помощнику. Пакет останется на диске, и его можно будет снова включить.",
     Enable: "Включить",
     Disable: "Отключить",
+    "Turn off": "Отключить",
+    "Move to trash": "Переместить в Корзину",
+    "This plugin is already in the Trash. Restore or delete it there first.": "Этот плагин уже находится в Корзине. Сначала восстановите или удалите его там.",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "Это удалит его для всех рабочих пространств на этом сайте. Его можно восстановить из Корзины в течение 60 дней.",
     "Inspect package files": "Просмотреть файлы пакета",
     Plugins: "Плагины",
     "Loading plugins…": "Загрузка плагинов…",
@@ -418,6 +457,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "не удалось загрузить плагины",
     "failed to update plugin": "не удалось обновить плагин",
     "failed to update agent plugin": "не удалось обновить плагин агента",
+    "failed to load agent plugins": "не удалось загрузить плагины агентов",
+    "failed to remove plugin": "не удалось удалить плагин",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "файлы пакета",
@@ -445,6 +486,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "مهارت‌هایش از اجرای بعدی دیگر به دستیار نمی‌رسند. بسته روی دیسک می‌ماند و می‌توان دوباره فعالش کرد.",
     Enable: "فعال‌سازی",
     Disable: "غیرفعال‌سازی",
+    "Turn off": "غیرفعال‌سازی",
+    "Move to trash": "انتقال به زباله‌دان",
+    "This plugin is already in the Trash. Restore or delete it there first.": "این افزونه از قبل در زباله‌دان است. ابتدا آن را از آنجا بازیابی یا حذف کنید.",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "این کار افزونه را برای همهٔ فضاهای کاری این سایت حذف می‌کند. تا ۶۰ روز می‌توانید آن را از زباله‌دان بازیابی کنید.",
     "Inspect package files": "بررسی فایل‌های بسته",
     Plugins: "افزونه‌ها",
     "Loading plugins…": "در حال بارگذاری افزونه‌ها…",
@@ -471,6 +516,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "بارگذاری افزونه‌ها ناموفق بود",
     "failed to update plugin": "به‌روزرسانی افزونه ناموفق بود",
     "failed to update agent plugin": "به‌روزرسانی افزونه عامل ناموفق بود",
+    "failed to load agent plugins": "بارگیری افزونه‌های عامل ناموفق بود",
+    "failed to remove plugin": "حذف افزونه ناموفق بود",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "فایل‌های بسته",
@@ -498,6 +545,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "ستتوقف مهاراته عن الوصول إلى المساعد في التشغيل التالي. تبقى الحزمة على القرص ويمكن تفعيلها من جديد.",
     Enable: "تفعيل",
     Disable: "تعطيل",
+    "Turn off": "تعطيل",
+    "Move to trash": "نقل إلى سلة المهملات",
+    "This plugin is already in the Trash. Restore or delete it there first.": "هذه الإضافة موجودة بالفعل في سلة المهملات. استعدها أو احذفها من هناك أولاً.",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "يؤدي هذا إلى إزالتها من جميع مساحات العمل في هذا الموقع. يمكنك استعادتها من سلة المهملات لمدة 60 يومًا.",
     "Inspect package files": "فحص ملفات الحزمة",
     Plugins: "الإضافات",
     "Loading plugins…": "جارٍ تحميل الإضافات…",
@@ -524,6 +575,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "تعذّر تحميل الإضافات",
     "failed to update plugin": "تعذّر تحديث الإضافة",
     "failed to update agent plugin": "تعذّر تحديث إضافة الوكيل",
+    "failed to load agent plugins": "تعذّر تحميل إضافات الوكيل",
+    "failed to remove plugin": "تعذّرت إزالة الإضافة",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "ملفات الحزمة",
@@ -551,6 +604,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "次回の実行からそのスキルはアシスタントに届かなくなります。パッケージはディスクに残り、再度有効にできます。",
     Enable: "有効にする",
     Disable: "無効にする",
+    "Turn off": "無効にする",
+    "Move to trash": "ゴミ箱に移動",
+    "This plugin is already in the Trash. Restore or delete it there first.": "このプラグインはすでにゴミ箱にあります。先にゴミ箱から復元または削除してください。",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "このサイトのすべてのワークスペースから削除されます。60 日間はゴミ箱から復元できます。",
     "Inspect package files": "パッケージファイルを確認",
     Plugins: "プラグイン",
     "Loading plugins…": "プラグインを読み込み中…",
@@ -577,6 +634,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "プラグインの読み込みに失敗しました",
     "failed to update plugin": "プラグインの更新に失敗しました",
     "failed to update agent plugin": "エージェントプラグインの更新に失敗しました",
+    "failed to load agent plugins": "エージェントプラグインの読み込みに失敗しました",
+    "failed to remove plugin": "プラグインの削除に失敗しました",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "パッケージファイル",
@@ -604,6 +663,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "다음 실행부터 해당 스킬이 어시스턴트에 전달되지 않습니다. 패키지는 디스크에 남아 다시 활성화할 수 있습니다.",
     Enable: "사용",
     Disable: "사용 안 함",
+    "Turn off": "사용 안 함",
+    "Move to trash": "휴지통으로 이동",
+    "This plugin is already in the Trash. Restore or delete it there first.": "이 플러그인은 이미 휴지통에 있습니다. 먼저 휴지통에서 복원하거나 삭제하세요.",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "이 사이트의 모든 워크스페이스에서 제거됩니다. 60일 동안 휴지통에서 복원할 수 있습니다.",
     "Inspect package files": "패키지 파일 검사",
     Plugins: "플러그인",
     "Loading plugins…": "플러그인을 불러오는 중…",
@@ -630,6 +693,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "플러그인을 불러오지 못했습니다",
     "failed to update plugin": "플러그인을 업데이트하지 못했습니다",
     "failed to update agent plugin": "에이전트 플러그인을 업데이트하지 못했습니다",
+    "failed to load agent plugins": "에이전트 플러그인을 불러오지 못했습니다",
+    "failed to remove plugin": "플러그인을 제거하지 못했습니다",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "패키지 파일",
@@ -657,6 +722,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "Przy następnym uruchomieniu jego umiejętności przestaną docierać do asystenta. Pakiet pozostaje na dysku i można go ponownie włączyć.",
     Enable: "Włącz",
     Disable: "Wyłącz",
+    "Turn off": "Wyłącz",
+    "Move to trash": "Przenieś do Kosza",
+    "This plugin is already in the Trash. Restore or delete it there first.": "Ta wtyczka jest już w Koszu. Najpierw przywróć ją lub usuń stamtąd.",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "Spowoduje to usunięcie jej ze wszystkich obszarów roboczych w tej witrynie. Możesz ją przywrócić z Kosza przez 60 dni.",
     "Inspect package files": "Sprawdź pliki pakietu",
     Plugins: "Wtyczki",
     "Loading plugins…": "Wczytywanie wtyczek…",
@@ -683,6 +752,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "nie udało się wczytać wtyczek",
     "failed to update plugin": "nie udało się zaktualizować wtyczki",
     "failed to update agent plugin": "nie udało się zaktualizować wtyczki agenta",
+    "failed to load agent plugins": "nie udało się wczytać wtyczek agenta",
+    "failed to remove plugin": "nie udało się usunąć wtyczki",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "pliki pakietu",
@@ -710,6 +781,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "A képességei a következő futtatástól nem jutnak el az asszisztenshez. A csomag a lemezen marad, és újra engedélyezhető.",
     Enable: "Engedélyezés",
     Disable: "Letiltás",
+    "Turn off": "Letiltás",
+    "Move to trash": "Áthelyezés a Kukába",
+    "This plugin is already in the Trash. Restore or delete it there first.": "Ez a bővítmény már a Kukában van. Előbb állítsa vissza vagy törölje onnan.",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "Ez eltávolítja a webhely összes munkaterületéről. A Kukából 60 napig visszaállíthatja.",
     "Inspect package files": "Csomagfájlok megtekintése",
     Plugins: "Bővítmények",
     "Loading plugins…": "Bővítmények betöltése…",
@@ -736,6 +811,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "a bővítmények betöltése sikertelen",
     "failed to update plugin": "a bővítmény frissítése sikertelen",
     "failed to update agent plugin": "az ügynök-bővítmény frissítése sikertelen",
+    "failed to load agent plugins": "az ügynök-bővítmények betöltése sikertelen",
+    "failed to remove plugin": "a bővítmény eltávolítása sikertelen",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "csomagfájlok",
@@ -763,6 +840,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "Ses compétences ne parviendront plus à l’assistant à la prochaine exécution. Le package reste sur le disque et peut être réactivé.",
     Enable: "Activer",
     Disable: "Désactiver",
+    "Turn off": "Désactiver",
+    "Move to trash": "Déplacer vers la Corbeille",
+    "This plugin is already in the Trash. Restore or delete it there first.": "Ce plugin se trouve déjà dans la Corbeille. Restaurez-le ou supprimez-le d’abord depuis celle-ci.",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "Cela le retire de tous les espaces de travail de ce site. Vous pouvez le restaurer depuis la Corbeille pendant 60 jours.",
     "Inspect package files": "Inspecter les fichiers du paquet",
     Plugins: "Extensions",
     "Loading plugins…": "Chargement des extensions…",
@@ -789,6 +870,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "échec du chargement des extensions",
     "failed to update plugin": "échec de la mise à jour de l'extension",
     "failed to update agent plugin": "échec de la mise à jour de l'extension d'agent",
+    "failed to load agent plugins": "échec du chargement des extensions d'agent",
+    "failed to remove plugin": "échec de la suppression de l'extension",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "fichiers du paquet",
@@ -816,6 +899,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "Під час наступного запуску його навички перестануть надходити до асистента. Пакет залишиться на диску, і його можна буде знову ввімкнути.",
     Enable: "Увімкнути",
     Disable: "Вимкнути",
+    "Turn off": "Вимкнути",
+    "Move to trash": "Перемістити до Кошика",
+    "This plugin is already in the Trash. Restore or delete it there first.": "Цей плагін уже в Кошику. Спочатку відновіть або видаліть його звідти.",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "Це видалить його для всіх робочих просторів на цьому сайті. Його можна відновити з Кошика протягом 60 днів.",
     "Inspect package files": "Переглянути файли пакета",
     Plugins: "Плагіни",
     "Loading plugins…": "Завантаження плагінів…",
@@ -842,6 +929,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "не вдалося завантажити плагіни",
     "failed to update plugin": "не вдалося оновити плагін",
     "failed to update agent plugin": "не вдалося оновити плагін агента",
+    "failed to load agent plugins": "не вдалося завантажити плагіни агентів",
+    "failed to remove plugin": "не вдалося видалити плагін",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "файли пакета",
@@ -869,6 +958,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "Becerileri sonraki çalıştırmada asistana ulaşmayı bırakır. Paket diskte kalır ve yeniden etkinleştirilebilir.",
     Enable: "Etkinleştir",
     Disable: "Devre dışı bırak",
+    "Turn off": "Devre dışı bırak",
+    "Move to trash": "Çöp Kutusu'na taşı",
+    "This plugin is already in the Trash. Restore or delete it there first.": "Bu eklenti zaten Çöp Kutusu'nda. Önce oradan geri yükleyin veya silin.",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "Bu işlem eklentiyi bu sitedeki tüm çalışma alanlarından kaldırır. Eklentiyi 60 gün boyunca Çöp Kutusu'ndan geri yükleyebilirsiniz.",
     "Inspect package files": "Paket dosyalarını incele",
     Plugins: "Eklentiler",
     "Loading plugins…": "Eklentiler yükleniyor…",
@@ -895,6 +988,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "eklentiler yüklenemedi",
     "failed to update plugin": "eklenti güncellenemedi",
     "failed to update agent plugin": "ajan eklentisi güncellenemedi",
+    "failed to load agent plugins": "ajan eklentileri yüklenemedi",
+    "failed to remove plugin": "eklenti kaldırılamadı",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "paket dosyaları",
@@ -922,6 +1017,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "ทักษะของปลั๊กอินจะไม่ส่งถึงผู้ช่วยในการทำงานครั้งถัดไป แพ็กเกจจะยังอยู่บนดิสก์และเปิดใช้งานอีกครั้งได้",
     Enable: "เปิดใช้งาน",
     Disable: "ปิดใช้งาน",
+    "Turn off": "ปิดใช้งาน",
+    "Move to trash": "ย้ายไปที่ถังขยะ",
+    "This plugin is already in the Trash. Restore or delete it there first.": "ปลั๊กอินนี้อยู่ในถังขยะแล้ว โปรดกู้คืนหรือลบจากที่นั่นก่อน",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "การดำเนินการนี้จะนำปลั๊กอินออกจากพื้นที่ทำงานทั้งหมดในไซต์นี้ คุณสามารถกู้คืนจากถังขยะได้ภายใน 60 วัน",
     "Inspect package files": "ตรวจสอบไฟล์แพ็กเกจ",
     Plugins: "ปลั๊กอิน",
     "Loading plugins…": "กำลังโหลดปลั๊กอิน…",
@@ -948,6 +1047,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "โหลดปลั๊กอินไม่สำเร็จ",
     "failed to update plugin": "อัปเดตปลั๊กอินไม่สำเร็จ",
     "failed to update agent plugin": "อัปเดตปลั๊กอินเอเจนต์ไม่สำเร็จ",
+    "failed to load agent plugins": "โหลดปลั๊กอินเอเจนต์ไม่สำเร็จ",
+    "failed to remove plugin": "นำปลั๊กอินออกไม่สำเร็จ",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "ไฟล์แพ็กเกจ",
@@ -975,6 +1076,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "Le sue competenze non raggiungeranno più l'assistente alla prossima esecuzione. Il pacchetto rimane sul disco e può essere riattivato.",
     Enable: "Abilita",
     Disable: "Disabilita",
+    "Turn off": "Disabilita",
+    "Move to trash": "Sposta nel Cestino",
+    "This plugin is already in the Trash. Restore or delete it there first.": "Questo plugin è già nel Cestino. Prima ripristinalo o eliminalo da lì.",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "Questo lo rimuove da tutti gli spazi di lavoro del sito. Puoi ripristinarlo dal Cestino per 60 giorni.",
     "Inspect package files": "Ispeziona i file del pacchetto",
     Plugins: "Plugin",
     "Loading plugins…": "Caricamento plugin…",
@@ -1001,6 +1106,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "impossibile caricare i plugin",
     "failed to update plugin": "impossibile aggiornare il plugin",
     "failed to update agent plugin": "impossibile aggiornare il plugin per agenti",
+    "failed to load agent plugins": "impossibile caricare i plugin per agenti",
+    "failed to remove plugin": "impossibile rimuovere il plugin",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "file del pacchetto",
@@ -1028,6 +1135,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "अगली बार चलने पर इसके कौशल सहायक तक पहुँचना बंद हो जाएँगे। पैकेज डिस्क पर रहेगा और फिर से सक्षम किया जा सकता है।",
     Enable: "सक्षम करें",
     Disable: "अक्षम करें",
+    "Turn off": "अक्षम करें",
+    "Move to trash": "ट्रैश में ले जाएँ",
+    "This plugin is already in the Trash. Restore or delete it there first.": "यह प्लगइन पहले से ट्रैश में है। पहले इसे वहीं से पुनर्स्थापित या हटाएँ।",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "यह इसे इस साइट के सभी कार्यस्थानों से हटा देता है। आप इसे 60 दिनों तक ट्रैश से पुनर्स्थापित कर सकते हैं।",
     "Inspect package files": "पैकेज फ़ाइलें देखें",
     Plugins: "प्लगिन",
     "Loading plugins…": "प्लगिन लोड हो रहे हैं…",
@@ -1054,6 +1165,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "प्लगिन लोड नहीं हो सके",
     "failed to update plugin": "प्लगिन अपडेट नहीं हो सका",
     "failed to update agent plugin": "एजेंट प्लगिन अपडेट नहीं हो सका",
+    "failed to load agent plugins": "एजेंट प्लगिन लोड नहीं हो सके",
+    "failed to remove plugin": "प्लगिन हटाया नहीं जा सका",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "पैकेज फ़ाइलें",
@@ -1081,6 +1194,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "اگلی بار چلنے پر اس کی اسکلز اسسٹنٹ تک پہنچنا بند ہو جائیں گی۔ پیکیج ڈسک پر رہے گا اور دوبارہ فعال کیا جا سکتا ہے۔",
     Enable: "فعال کریں",
     Disable: "غیرفعال کریں",
+    "Turn off": "غیرفعال کریں",
+    "Move to trash": "ٹریش میں منتقل کریں",
+    "This plugin is already in the Trash. Restore or delete it there first.": "یہ پلگ ان پہلے ہی ٹریش میں ہے۔ پہلے اسے وہاں سے بحال یا حذف کریں۔",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "یہ اسے اس سائٹ کے تمام ورک اسپیسز سے ہٹا دیتا ہے۔ آپ اسے 60 دن تک ٹریش سے بحال کر سکتے ہیں۔",
     "Inspect package files": "پیکیج فائلیں دیکھیں",
     Plugins: "پلگ اِنز",
     "Loading plugins…": "پلگ اِنز لوڈ ہو رہے ہیں…",
@@ -1107,6 +1224,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "پلگ اِنز لوڈ نہ ہو سکے",
     "failed to update plugin": "پلگ اِن اپ ڈیٹ نہ ہو سکا",
     "failed to update agent plugin": "ایجنٹ پلگ اِن اپ ڈیٹ نہ ہو سکا",
+    "failed to load agent plugins": "ایجنٹ پلگ اِنز لوڈ نہ ہو سکے",
+    "failed to remove plugin": "پلگ اِن ہٹایا نہ جا سکا",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "پیکیج فائلیں",
@@ -1134,6 +1253,10 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.": "পরের বার চালানোর সময় এর দক্ষতাগুলো সহকারীর কাছে পৌঁছানো বন্ধ হবে। প্যাকেজটি ডিস্কে থাকবে এবং আবার সক্ষম করা যাবে।",
     Enable: "সক্ষম করুন",
     Disable: "নিষ্ক্রিয় করুন",
+    "Turn off": "নিষ্ক্রিয় করুন",
+    "Move to trash": "ট্র্যাশে সরান",
+    "This plugin is already in the Trash. Restore or delete it there first.": "এই প্লাগইনটি ইতিমধ্যে ট্র্যাশে আছে। প্রথমে সেখান থেকে পুনরুদ্ধার বা মুছে দিন।",
+    "This removes it for all workspaces on this site. You can restore it from the Trash for 60 days.": "এটি এই সাইটের সব ওয়ার্কস্পেস থেকে প্লাগইনটি সরিয়ে দেয়। আপনি ৬০ দিনের মধ্যে ট্র্যাশ থেকে এটি পুনরুদ্ধার করতে পারবেন।",
     "Inspect package files": "প্যাকেজ ফাইল পরীক্ষা করুন",
     Plugins: "প্লাগইন",
     "Loading plugins…": "প্লাগইন লোড হচ্ছে…",
@@ -1160,6 +1283,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "প্লাগইন লোড করা যায়নি",
     "failed to update plugin": "প্লাগইন আপডেট করা যায়নি",
     "failed to update agent plugin": "এজেন্ট প্লাগইন আপডেট করা যায়নি",
+    "failed to load agent plugins": "এজেন্ট প্লাগইন লোড করা যায়নি",
+    "failed to remove plugin": "প্লাগইন সরানো যায়নি",
 
     // PackageFilesModal / PluginPackageFilesModal (2026-09-13).
     "package files": "প্যাকেজ ফাইল",

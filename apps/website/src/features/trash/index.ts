@@ -100,3 +100,6 @@ export type { MediaTrashAdapterDeps } from "./adapters/media.js";
 export { createRedirectTrashAdapter, REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
 export { createRecordStoreTrashAdapter } from "./adapters/record-store.js";
 export type { RecordStoreTrashAdapterDeps, TrashRecordStore } from "./adapters/record-store.js";
+export { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "./adapters/directory.js";
+export type { DirectoryTrashAdapterDeps, DirectoryTrashLocation } from "./adapters/directory.js";
+export { PLUGIN_ENTITY_TYPE } from "./adapters/plugin.js";

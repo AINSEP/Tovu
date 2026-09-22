@@ -1,66 +1,9 @@
 /**
- * @file `uninstallPlugin()` — removes a site-installed plugin's on-disk artifact and activation
- * state (Milestone 2, 2026-08-20 dispatch — SPEC-005 had no install/uninstall route at all;
- * `ui.spec.md` §"On plugin installation" explicitly says REQ-02 install is "a filesystem
- * operation, not an HTTP one" and lists no `DELETE`. This module is the first uninstall surface).
- *
- * Purpose:
- * BR-05-style precondition evaluation (mirrors `activation.ts`'s `setPluginEnabled()` shape and
- * error-channel convention exactly — same `deps: { repo, discovery, on... }` split between
- * business-rule gating here and mechanism in the injected callback) followed by one mechanism
- * call. Two preconditions, evaluated in order:
- *   1. The id must resolve to a `"site"` discovery record — a built-in has no on-disk artifact to
- *      remove (`PluginNotUninstallableError`). Reuses `activation.ts`'s `PluginNotFoundError` for
- *      "id absent from discovery" so this module does not grow a second not-found error type.
- *   2. The plugin must not be enabled in ANY workspace, not only the caller's own — the on-disk
- *      artifact this instance's `installDir` scans is shared across every workspace (mirrors
- *      `builtInThemesDir()`'s themes; `server/deps.ts`'s `pluginsInstallDir()` doc has the full
- *      instance-wide-vs-per-workspace reasoning), so deleting it out from under a DIFFERENT,
- *      still-enabled workspace would silently break that workspace's runtime with no route of its
- *      own having done anything wrong. Checked via `repo.listAll()`, not just the caller's own
- *      `workspaceId` (`PluginEnabledError`).
- *
- * On success, calls the injected `onUninstall` mechanism (the actual filesystem removal — see
- * `server/plugin-runtime.ts`'s `onPluginUninstalled`, which owns the install-dir/path-traversal
- * safety this module does not itself need to know about) FIRST, then deletes every matching
- * activation row across every workspace. Files-first ordering: if the filesystem removal throws,
- * this function has made NO database change yet, so a failed uninstall attempt leaves state
- * exactly as it was (no orphaned "disabled but not really gone" row, no accidental data loss to
- * roll back).
- *
- * A caller that asked a human first (the `plugins_uninstall` tool) also passes the confirmed preview; the record it
- * resolves must then still carry the previewed name and version, or nothing is removed
- * (`PluginChangedSincePreviewError`, t91 F2.2).
- *
- * Settled policy (verified, not assumed, before writing this file):
- * - `ext.*` fields are never touched — this module has no dependency on `posts`/`post.ts` at all,
- *   by construction (same INV-03 shape `activation.ts` already documents for enable/disable).
- * - Plugin-owned DB tables are never dropped — moot for a v1 SPEC-005 plugin specifically: no
- *   `PluginManifest` field declares dataModule tables at all yet (`ui.spec.md`'s OQ-11, deferred).
- *   `src/features/plugins/data-module.ts`'s drop-avoidance guarantee is a DIFFERENT subsystem
- *   (ADR-023 `dataModule` engine + `newsletter`) that this module never calls.
- * - Plugin ids are "permanently retired at first mint" per `src/features/plugins/plugin-identity.ts`
- *   — verified that file's `checkNamespaceAdoption()`/`_plugin_identity` mechanism has ZERO
- *   callers anywhere in `plugin-runtime`, `discovery.ts`, `loader.ts`, or `activation.ts` (grep,
- *   2026-08-20): it is wired ONLY into the ADR-023 `dataModule` engine and `newsletter`, never into
- *   this SPEC-005 system, which the ADR's own codebase grounding independently calls "confirmed
- *   unrelated". Retirement is therefore NOT enforced for a SPEC-005 plugin id today, by any
- *   mechanism — this module does not newly wire one in (that is properly an INSTALL-time check:
- *   "refuse an upload declaring a previously-retired id", not an uninstall-time one), and no
- *   install route exists yet in this slice to make that check meaningful. Flagged explicitly in
- *   the handoff rather than silently left unaddressed or wired in behind a mismatched
- *   `PluginProvenance` shape (`plugin-identity.ts` requires `publisher: string`; `PluginManifest`'s
- *   own `provenance` field has no `publisher` at all — closing that gap needs a `manifest.ts`
- *   change, out of this session's file ownership).
- *
- * Architectural role:
- * Feature-layer orchestration, no I/O of its own beyond the injected ports — mirrors
- * `setPluginEnabled()`'s division of labor between business rules (here) and mechanism (the
- * composition root's closure) exactly.
+ * @file Site-plugin removal policy. Removal moves package files to the shared Trash adapter;
+ * activation rows remain until permanent purge so restore brings the plugin back disabled.
  */
-import type { UUID } from "@jini-ai/cms/core";
 import { PluginNotFoundError } from "./activation.js";
-import type { PluginActivationRecord, PluginActivationRepoPort } from "./activation.js";
+import type { PluginActivationRepoPort } from "./activation.js";
 import type { PluginDiscoveryRecord } from "./discovery.js";
 
 /** A built-in plugin has no on-disk artifact — there is nothing for `DELETE .../plugins/:id` to
@@ -78,6 +21,21 @@ export class PluginEnabledError extends Error {}
  *  `UninstallPluginOptional.confirmedPreview`. Nothing was removed. */
 export class PluginChangedSincePreviewError extends Error {}
 
+export class PluginAlreadyInTrashError extends Error {}
+
+export type RemovePluginFn = (required: {
+  workspaceId: string;
+  id: string;
+  display: { title: string; subtitle?: string | null };
+  at: string;
+  expectedVersion: number | null;
+  actor: { principalId: string; pluginId?: string | null };
+}) => Promise<
+  | { ok: true; version: number | null }
+  | { ok: false; reason: "not-found" | "version-changed" }
+  | { ok: false; reason: "blocked"; code: string; count: number }
+>;
+
 export interface UninstallPluginDeps {
   readonly repo: PluginActivationRepoPort;
   /** Caller-supplied fresh discovery snapshot — same convention as `SetPluginEnabledDeps.discovery`
@@ -85,14 +43,14 @@ export interface UninstallPluginDeps {
    * than calling discovery itself, so it stays deterministic and testable without a real
    * filesystem scan. */
   readonly discovery: readonly PluginDiscoveryRecord[];
-  /** The actual filesystem removal (composition-root-owned; see `server/plugin-runtime.ts`'s
-   * `onPluginUninstalled`). Invoked exactly once, after both preconditions pass, before any
-   * activation row is touched. */
-  readonly onUninstall: (pluginId: string) => Promise<void>;
+  readonly remove: RemovePluginFn;
 }
 
 export interface UninstallPluginInput {
   readonly pluginId: string;
+  readonly workspaceId: string;
+  readonly at: string;
+  readonly actor: { principalId: string; pluginId?: string | null };
 }
 
 export interface UninstallPluginRequired {
@@ -101,25 +59,18 @@ export interface UninstallPluginRequired {
 }
 
 export interface UninstallPluginOptional {
-  /** The preview a human confirmed. When given, the uninstall refuses before `onUninstall` (so nothing is removed)
+  /** The preview a human confirmed. When given, the uninstall refuses before `remove` (so nothing is removed)
    *  unless the record it resolves still has the previewed name and version (t91 F2.2). The admin HTTP route has no
    *  gap between showing and removing, and omits it. */
   readonly confirmedPreview?: PluginUninstallPreview;
 }
 
 export interface UninstallPluginResult {
-  /** Every workspace whose activation row for this plugin was removed (for the route's own
-   * response/logging use — empty when the plugin had never been enabled anywhere). */
-  readonly clearedWorkspaceIds: readonly UUID[];
+  readonly trashed: true;
 }
 
-/** What `resolveUninstallTarget` found: a confirmed-uninstallable discovery record, plus every
- *  activation row for it across every workspace (so `uninstallPlugin` does not have to scan again to
- *  drive its own `deleteActivation` loop). */
-interface UninstallTarget {
-  readonly record: PluginDiscoveryRecord;
-  readonly matching: readonly PluginActivationRecord[];
-}
+/** What `resolveUninstallTarget` found after checking every workspace's activation. */
+interface UninstallTarget { readonly record: PluginDiscoveryRecord }
 
 /**
  * Evaluates `uninstallPlugin()`'s two preconditions with no mutation. Factored out so
@@ -150,7 +101,7 @@ async function resolveUninstallTarget(deps: UninstallPluginDeps, pluginId: strin
       `plugin '${pluginId}' is enabled in at least one workspace and must be disabled everywhere before it can be uninstalled`
     );
   }
-  return { record, matching };
+  return { record };
 }
 
 /** What a human confirmation dialog needs to describe truthfully what is about to be removed.
@@ -178,16 +129,13 @@ export async function previewUninstallPlugin(required: UninstallPluginRequired):
 }
 
 /**
- * Uninstalls a site-installed plugin: removes its on-disk artifact, then every workspace's
- * activation row for it. Never touches `ext.*` content data or plugin-owned DB tables (see this
- * file's header for the verified settled-policy reasoning).
+ * Moves a site-installed plugin to Trash. Activation rows stay in place until permanent purge.
  *
  * @throws {PluginNotFoundError} `input.pluginId` is absent from `deps.discovery`.
  * @throws {PluginNotUninstallableError} the discovered record's `source` is `"built-in"`.
  * @throws {PluginEnabledError} the plugin is enabled in one or more workspaces.
  * @throws {PluginChangedSincePreviewError} `optional.confirmedPreview` was given and the record's name or version differs from it.
- * @complexity O(activation rows for this plugin) — one `listAll()` scan (bounded by total
- * activation rows in this instance) plus one `deleteActivation()` per matching row.
+ * @complexity O(activation rows for this plugin) plus one delegated remove.
  */
 export async function uninstallPlugin(
   required: UninstallPluginRequired,
@@ -195,20 +143,33 @@ export async function uninstallPlugin(
 ): Promise<UninstallPluginResult> {
   const { deps, input } = required;
 
-  const { record, matching } = await resolveUninstallTarget(deps, input.pluginId);
+  const { record } = await resolveUninstallTarget(deps, input.pluginId);
   assertUnchangedSincePreview(record, optional.confirmedPreview);
 
-  // Files first: if this throws, no activation row has been touched yet, so a failed attempt
-  // leaves state exactly as it was (see this file's header for the full ordering rationale).
-  await deps.onUninstall(input.pluginId);
-
-  const clearedWorkspaceIds: UUID[] = [];
-  for (const activation of matching) {
-    await deps.repo.deleteActivation({ workspaceId: activation.workspaceId, pluginId: input.pluginId });
-    clearedWorkspaceIds.push(activation.workspaceId);
+  const result = await deps.remove({
+    workspaceId: input.workspaceId,
+    id: input.pluginId,
+    display: { title: record.name, subtitle: `${record.id} ${record.version}` },
+    at: input.at,
+    expectedVersion: null,
+    actor: input.actor,
+  });
+  if (result.ok) return { trashed: true };
+  if (result.reason === "blocked") {
+    throw new PluginAlreadyInTrashError(`plugin '${input.pluginId}' is already in the Trash`);
   }
+  throw new PluginNotFoundError(`plugin '${input.pluginId}' was not found while moving it to the Trash`);
+}
 
-  return { clearedWorkspaceIds };
+export async function forgetPluginActivations(
+  required: { pluginId: string },
+  deps: { repo: PluginActivationRepoPort },
+): Promise<void> {
+  for (const activation of await deps.repo.listAll()) {
+    if (activation.pluginId === required.pluginId) {
+      await deps.repo.deleteActivation({ workspaceId: activation.workspaceId, pluginId: required.pluginId });
+    }
+  }
 }
 
 /**

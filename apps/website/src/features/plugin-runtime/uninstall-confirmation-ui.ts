@@ -42,19 +42,18 @@ export function buildUninstallConfirmationResource(spec: { preview: PluginUninst
 
   return buildConfirmationSurface({
     uri: uninstallConfirmationUri(preview.pluginId),
-    title: `Uninstall ${preview.name}?`,
-    description: `This permanently removes the site plugin "${preview.pluginId}" (version ${preview.version}): its on-disk artifact and its activation record in every workspace.`,
+    title: `Move ${preview.name} to trash?`,
+    description: `This moves the site plugin "${preview.pluginId}" (version ${preview.version}) to the Trash for 60 days.`,
     details: [
       { label: "Plugin", value: preview.pluginId },
       { label: "Version", value: preview.version },
     ],
     warning:
-      "There is no trash and no undo — getting it back means the operator re-uploading its files. Its artifact is " +
-      "shared across every workspace this instance serves, which is why it must already be disabled everywhere " +
-      "before this point is reached.",
+      "This removes it for all workspaces on this site. You can restore it from Admin → Trash for 60 days; " +
+      "only a human can delete it permanently.",
     danger: true,
     confirm: {
-      label: "Uninstall",
+      label: "Move to trash",
       toolName: PLUGINS_UNINSTALL_TOOL_ID,
       params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
     },

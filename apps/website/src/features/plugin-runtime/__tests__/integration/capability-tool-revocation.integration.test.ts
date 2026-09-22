@@ -115,20 +115,24 @@ test("any writer of the activation row revokes the tool, and re-enabling restore
   assert.equal(completed.status, "completed", "re-enabling must restore the already-registered tool");
 });
 
-test("uninstall — which deletes every activation row — leaves the tool refused, not re-admitted", async () => {
+test("moving a plugin to Trash retains its disabled activation and leaves the tool refused", async () => {
   const repo = new InMemoryPluginActivationRepo([activation(true)]);
   const registry = await bootDaemonToolSurface(repo);
 
   await repo.save(activation(false));
-  await uninstallPlugin({ deps: { repo, discovery: [RECORD], onUninstall: async () => undefined }, input: { pluginId: PLUGIN_ID } });
+  await uninstallPlugin({
+    deps: { repo, discovery: [RECORD], remove: async () => ({ ok: true, version: null }) },
+    input: {
+      pluginId: PLUGIN_ID,
+      workspaceId: WORKSPACE,
+      at: NOW,
+      actor: { principalId: "principal-1" },
+    },
+  });
 
-  assert.equal(
-    await repo.getActivation({ workspaceId: WORKSPACE, pluginId: PLUGIN_ID }),
-    null,
-    "precondition: uninstall really does delete the row",
-  );
+  assert.equal((await repo.getActivation({ workspaceId: WORKSPACE, pluginId: PLUGIN_ID }))?.enabled, false);
   const after = await callCapabilityTool(registry);
-  assert.equal(after.status, "denied", "an absent activation row must not be read as re-admitting a previously revoked tool");
+  assert.equal(after.status, "denied", "a trashed plugin's retained disabled activation must keep its tool revoked");
 });
 
 test("an activation read that throws DENIES and says why in the server log — it never completes", async (t) => {
