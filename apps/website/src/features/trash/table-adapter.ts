@@ -26,12 +26,34 @@
  * adapter construction, via Drizzle's own `getTableColumns(table)` — the same map Drizzle keys by
  * property name internally — rather than adding a second, hand-maintained string field per column to
  * `TrashEntry`.
+ *
+ * T1 additions (blockers, the two-hop/phantom-row cascade — plan §2 T1 items 2/4/5): `purge`
+ * resolves each `TrashCascadeSpec` generically (direct parent-id match, or the two-hop `via` join),
+ * and, for a cascade that also declares `entityType`, reads the child ids BEFORE deleting them so
+ * their `trashed_items` rows can be cleaned up in the same transaction. `hide` gains one guard clause
+ * ahead of the real transition for `TrashEntry.blocker`. Neither addition is type-specific: both read
+ * entirely off the `TrashEntry`/`TrashCascadeSpec` the caller registered.
  */
-import { and, eq, getTableColumns, getTableName, sql, type AnyColumn, type SQL, type Table } from "drizzle-orm";
+import { and, eq, getTableColumns, getTableName, inArray, sql, type AnyColumn, type SQL, type Table } from "drizzle-orm";
 
 import type { TrashDb, TrashDbAssignment } from "./db-port.js";
-import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "./ports.js";
-import type { TrashEntry, TrashMarkerSpec } from "./registry.js";
+import type { TrashAdapter, TrashEntityType, TrashMarkerResult, TrashPurgeOutcome } from "./ports.js";
+import type { TrashCascadeSpec, TrashEntry, TrashMarkerSpec } from "./registry.js";
+
+/**
+ * Column-only reference to `trashed_items`, passed once at composition and reused for every entry's
+ * adapter (mirrors `db: TrashDb` — one instance, shared). Not part of `TrashEntry`/`registry.ts`:
+ * `trashed_items` is a Trash-internal table, not a domain's own, so it does not belong alongside the
+ * per-domain columns `TrashRegistrySchema` lists. Needed only by a cascade that declares
+ * `entityType` (`registry.ts`'s `TrashCascadeSpec`) — every call site that never registers one such
+ * cascade may omit this.
+ */
+export interface TrashedItemsRef {
+  table: Table;
+  workspaceId: AnyColumn;
+  entityType: AnyColumn;
+  entityId: AnyColumn;
+}
 
 /** The row shape every `hide`/`unhide`/`purge` read needs: the marker's raw value, plus the version
  *  column when the entry has one. Cast once, right after the read — `TrashDb.selectOne`'s generic
@@ -78,13 +100,68 @@ function isMarkerValueLive(marker: TrashMarkerSpec, value: unknown): boolean {
  * adapter map at composition (`deps.ts`), exactly like every bespoke adapter today.
  *
  * @complexity O(c) to construct (resolving up to three column keys); each method is O(1) plus
- *             whatever index its `where` matches, same complexity class as the bespoke adapters.
+ *             whatever index its `where` matches, same complexity class as the bespoke adapters,
+ *             plus O(k) for `purge`'s k `purgeFirst` cascades (each still a single indexed statement).
  */
-export function createTableTrashAdapter(required: { entry: TrashEntry; db: TrashDb }): TrashAdapter {
-  const { entry, db } = required;
+export function createTableTrashAdapter(required: { entry: TrashEntry; db: TrashDb; trashedItems?: TrashedItemsRef }): TrashAdapter {
+  const { entry, db, trashedItems } = required;
   const markerKey = resolveColumnKey(entry.table, entry.marker.column);
   const versionKey = entry.versionColumn ? resolveColumnKey(entry.table, entry.versionColumn) : undefined;
   const touchKey = entry.touchColumn ? resolveColumnKey(entry.table, entry.touchColumn) : undefined;
+
+  /**
+   * Deletes the `trashed_items` rows of `childIds` for `childType` — the phantom-row cleanup
+   * (`TrashCascadeSpec.entityType`). A no-op when there are no ids, or when the caller never wired
+   * `trashedItems` (every entry with such a cascade must; see {@link TrashedItemsRef}'s doc).
+   *
+   * @complexity O(1): one indexed `DELETE ... WHERE entity_type = ? AND entity_id IN (...)`.
+   */
+  async function cleanUpTrashedItemsRows(workspaceId: string, childType: TrashEntityType, childIds: readonly unknown[]): Promise<void> {
+    if (childIds.length === 0) return;
+    if (!trashedItems) {
+      throw new Error(
+        `trash: '${entry.entityType}' has a purgeFirst cascade for '${childType}' but no trashedItems ref was passed to createTableTrashAdapter — check deps.ts.`
+      );
+    }
+    await db.deleteWhere({
+      table: trashedItems.table,
+      where: and(
+        eq(trashedItems.workspaceId, workspaceId),
+        eq(trashedItems.entityType, childType),
+        inArray(trashedItems.entityId, childIds as unknown[])
+      )!,
+    });
+  }
+
+  /**
+   * Runs one `purgeFirst` cascade: resolves the child ids (direct match, or the two-hop `via` join),
+   * cleans up their `trashed_items` rows when the cascade declares `entityType`, then deletes the
+   * child rows themselves — in that order, so the phantom-row cleanup can still see what it is about
+   * to remove.
+   *
+   * @complexity O(1) reads plus O(1) deletes — every step is one indexed statement.
+   */
+  async function runCascade(workspaceId: string, entityId: string, cascade: TrashCascadeSpec): Promise<void> {
+    if (cascade.via) {
+      const throughIds = await db.selectIds({
+        table: cascade.via.throughTable,
+        column: cascade.via.throughIdColumn,
+        where: eq(cascade.via.throughParentIdColumn, entityId),
+      });
+      if (throughIds.length === 0) return; // nothing on the other side of the join to cascade to
+      if (cascade.entityType) await cleanUpTrashedItemsRows(workspaceId, cascade.entityType, throughIds);
+      await db.deleteWhere({ table: cascade.table, where: inArray(cascade.via.matchColumn, throughIds as unknown[]) });
+      return;
+    }
+
+    // Direct case: `cascade.parentIdColumn` is always set when `via` is not (registration contract).
+    const parentIdColumn = cascade.parentIdColumn!;
+    if (cascade.entityType) {
+      const childIds = await db.selectIds({ table: cascade.table, column: cascade.idColumn!, where: eq(parentIdColumn, entityId) });
+      await cleanUpTrashedItemsRows(workspaceId, cascade.entityType, childIds);
+    }
+    await db.deleteWhere({ table: cascade.table, where: eq(parentIdColumn, entityId) });
+  }
 
   /** `workspace_id = ? AND id = ?`, plus the entry's fixed `scope` predicate when it has one. Always
    *  at least two conditions, so `and(...)` never returns `undefined`. */
@@ -118,11 +195,14 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
     entityType: entry.entityType,
 
     /**
-     * Move the entry's marker to hidden. Classification order (matches `flipMarker`):
-     * not-found -> version-changed -> already-in-state (idempotent, no write) -> real transition.
+     * Move the entry's marker to hidden. Classification order (matches `flipMarker`, extended by T1
+     * item 2): not-found -> version-changed -> already-in-state (idempotent, no write) -> blocked
+     * (only when `entry.blocker` finds rows) -> real transition. `blocked` sits after the idempotent
+     * check on purpose: re-hiding an already-trashed row must stay a true no-op even if a blocking
+     * child has since appeared, since nothing is about to change.
      *
-     * @complexity O(1): one read, at most one write, at most one re-read — all inside the caller's
-     *             transaction (reentrant, see `db-port.sqlite.ts`).
+     * @complexity O(1): one read, at most one blocker count, at most one write, at most one re-read —
+     *             all inside the caller's transaction (reentrant, see `db-port.sqlite.ts`).
      */
     async hide(hideRequired): Promise<TrashMarkerResult> {
       return db.transaction({
@@ -136,6 +216,10 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
           if (!isMarkerValueLive(entry.marker, before.marker)) {
             // Already trashed -- idempotent success, no write (mirrors `flipMarker`'s fallback branch).
             return { ok: true, version: entry.versionColumn ? (before.version ?? null) : null };
+          }
+          if (entry.blocker) {
+            const count = await db.count({ table: entry.blocker.table, where: eq(entry.blocker.parentIdColumn, entityId) });
+            if (count > 0) return { ok: false, reason: "blocked", code: entry.blocker.code, count };
           }
 
           const set: TrashDbAssignment = { [markerKey]: entry.marker.kind === "timestamp" ? at : entry.marker.trashed };
@@ -193,9 +277,12 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
     /**
      * Physically removes the row. Never deletes a LIVE row or its {@link TrashEntry.purgeFirst}
      * children, even at a matching version (decision 6) — both checked before either delete runs,
-     * same order as `adapters/form.ts`'s bespoke purge.
+     * same order as `adapters/form.ts`'s bespoke purge. Each cascade runs through {@link runCascade}:
+     * a direct parent-id match, or the two-hop `via` join, plus the phantom-`trashed_items`-row
+     * cleanup when the cascade declares `entityType` (T1 items 4/5).
      *
-     * @complexity O(k) delete statements for k `purgeFirst` tables, plus the row's own delete.
+     * @complexity O(k) cascades for k `purgeFirst` entries (each O(1) reads plus O(1) deletes), plus
+     *             the row's own delete.
      */
     async purge(purgeRequired): Promise<TrashPurgeOutcome> {
       return db.transaction({
@@ -207,7 +294,7 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
           if (entry.versionColumn && expectedVersion !== null && row.version !== expectedVersion) return "version-changed";
 
           for (const cascade of entry.purgeFirst ?? []) {
-            await db.deleteWhere({ table: cascade.table, where: eq(cascade.parentIdColumn, entityId) });
+            await runCascade(workspaceId, entityId, cascade);
           }
 
           const deleteWhere =

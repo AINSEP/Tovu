@@ -41,14 +41,24 @@ export { moveToTrash } from "./move-to-trash.js";
 export type { MoveToTrashOutcome } from "./move-to-trash.js";
 
 export { buildTrashRegistry } from "./registry.js";
-export type { TrashEntry, TrashRegistry, TrashRegistrySchema } from "./registry.js";
+export type {
+  TrashBlockerSpec,
+  TrashCascadeSpec,
+  TrashDisplaySpec,
+  TrashEntry,
+  TrashHiddenWithParentSpec,
+  TrashMarkerSpec,
+  TrashRegistry,
+  TrashRegistrySchema,
+} from "./registry.js";
 
 export { createSqliteTrashDb } from "./db-port.sqlite.js";
 export type { TrashDb, TrashDbAssignment, TrashDbRow } from "./db-port.js";
 
 export { createTableTrashAdapter } from "./table-adapter.js";
-export { withRestoreFollowUp } from "./restore-follow-up.js";
-export type { RestoreFollowUp } from "./restore-follow-up.js";
+export type { TrashedItemsRef } from "./table-adapter.js";
+export { withFollowUps } from "./follow-ups.js";
+export type { AfterPurge, BeforePurge, HideFollowUp, TrashFollowUpHooks, UnhideFollowUp } from "./follow-ups.js";
 
 export { isTrashedRecord, notTrashed } from "./not-trashed.js";
 

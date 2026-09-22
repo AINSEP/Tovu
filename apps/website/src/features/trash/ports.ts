@@ -58,10 +58,16 @@ export interface TrashActor {
  * `undefined`; leave the key out. `trash.contract.test.ts`'s pinned `assert.deepEqual(trashed, {
  * ok: true, version: 2 })` depends on that: Node's `assert.deepEqual` treats an extra own-enumerable
  * property, even one valued `undefined`, as a mismatch.
+ *
+ * `"blocked"` (T1 item 2, migration-free — no new column) is a THIRD failure reason, alongside
+ * `"not-found"`/`"version-changed"`: the row exists and the version matches, but the entry's
+ * `TrashBlockerSpec` found rows that must move or be deleted first (a term with child terms). `code`
+ * and `count` are always present together on this branch — see `registry.ts`'s `TrashBlockerSpec`.
  */
 export type TrashMarkerResult =
   | { ok: true; version: number | null; priorMarker?: string | null }
-  | { ok: false; reason: "not-found" | "version-changed" };
+  | { ok: false; reason: "not-found" | "version-changed" }
+  | { ok: false; reason: "blocked"; code: string; count: number };
 
 /** Outcome of a physical row removal. */
 export type TrashPurgeOutcome = "purged" | "version-changed" | "already-gone";

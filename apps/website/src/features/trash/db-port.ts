@@ -53,4 +53,18 @@ export interface TrashDb {
 
   /** @returns the number of rows the `DELETE` removed. */
   deleteWhere(required: { table: Table; where: SQL }): Promise<number>;
+
+  /**
+   * `count(*)` of rows matching `where` — T1 item 2's blocker check (`TrashBlockerSpec`). Every
+   * caller's `where` is an indexed parent-id equality, never a full scan.
+   */
+  count(required: { table: Table; where: SQL }): Promise<number>;
+
+  /**
+   * All values of one column matching `where` — resolves a cascade's child ids BEFORE they are
+   * deleted, either to drive a two-hop cascade's own delete (`TrashCascadeSpec.via`) or to know which
+   * `trashed_items` rows to clean up alongside them (`TrashCascadeSpec.entityType`). Bounded by the
+   * caller's own scope (a taxonomy's terms, a form's submissions) — never a full-table scan.
+   */
+  selectIds(required: { table: Table; column: AnyColumn; where: SQL }): Promise<readonly unknown[]>;
 }

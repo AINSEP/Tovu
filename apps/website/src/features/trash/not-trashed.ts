@@ -4,14 +4,20 @@
  * for an in-memory record — so a SQLite/Postgres repo and its in-memory test double agree without
  * either one re-deriving the rule from `entityType` itself.
  *
- * Deliberately excludes the `hiddenWithParent` clause (a term hidden because its taxonomy is
- * trashed) — no G1 entry declares it. See `registry.ts`'s file header for why that field is not on
- * `TrashEntry` yet; adding it here is G3/G4's job, once a real entry exercises it.
+ * `term`'s `hiddenWithParent` (T1 item 3, `registry.ts`'s `TrashHiddenWithParentSpec`): a term is
+ * trashed the moment its taxonomy is, with no second write and no cascade-hide of every member term.
+ * {@link notTrashed} ANDs in a `NOT EXISTS` over the parent table, built with `sql` over column
+ * OBJECTS only (never caller input — the same rule `db-port.ts`'s `TrashDbAssignment` doc states for
+ * writes), so a term reads as trashed the instant its taxonomy does, with no extra write to keep in
+ * sync. {@link isTrashedRecord} — the in-memory twin, used by record-store doubles and hermetic test
+ * repos — CANNOT evaluate this: a flat record has no parent row to join against. It reports the
+ * entity's own marker only; a term entity whose taxonomy is trashed reads as live through this path
+ * until a caller with a real parent lookup (T6's own domain repo) filters it separately.
  */
-import { eq, isNull, ne, not, type SQL } from "drizzle-orm";
+import { and, eq, isNull, isNotNull, ne, not, sql, type SQL } from "drizzle-orm";
 
 import type { TrashEntityType } from "./ports.js";
-import type { TrashEntry, TrashRegistry } from "./registry.js";
+import type { TrashEntry, TrashHiddenWithParentSpec, TrashRegistry } from "./registry.js";
 
 /** Fails fast: an `entityType` with no registry entry is a composition bug (a caller wired a domain
  *  into the Trash without registering it), not a runtime condition to degrade around. */
@@ -23,15 +29,38 @@ function requireEntry(entityType: TrashEntityType, registry: TrashRegistry): Tra
   return entry;
 }
 
+/** True for a row whose OWN marker (not its parent's) says LIVE. @complexity O(1) to build. */
+function ownMarkerLive(entry: TrashEntry): SQL {
+  return entry.marker.kind === "timestamp" ? isNull(entry.marker.column) : ne(entry.marker.column, entry.marker.trashed);
+}
+
 /**
- * A SQL condition, true for a row that is currently LIVE.
+ * `NOT EXISTS (SELECT 1 FROM <parent> WHERE <parent pk> = <this row's fk> AND <parent is trashed>)`
+ * — true when the entity's PARENT is not currently trashed. Built with `sql` over column objects
+ * only (see the file header), never a string the caller controls.
+ *
+ * @complexity O(1) to build; the `NOT EXISTS` costs whatever index the parent table's own primary
+ *             key already provides.
+ */
+function parentNotTrashed(spec: TrashHiddenWithParentSpec): SQL {
+  const parentTrashed =
+    spec.parentMarker.kind === "timestamp"
+      ? isNotNull(spec.parentMarker.column)
+      : eq(spec.parentMarker.column, spec.parentMarker.trashed);
+  return sql`NOT EXISTS (SELECT 1 FROM ${spec.parentTable} WHERE ${spec.parentPkColumn} = ${spec.parentIdColumn} AND ${parentTrashed})`;
+}
+
+/**
+ * A SQL condition, true for a row that is currently LIVE — its own marker, ANDed with its parent's
+ * when the entry declares `hiddenWithParent` (a term whose taxonomy is trashed reads as trashed too).
  *
  * @complexity O(1) to build; the condition itself costs whatever index the caller's query already
- *             uses on the marker column.
+ *             uses on the marker column, plus the parent lookup's own primary key when present.
  */
 export function notTrashed(required: { entityType: TrashEntityType }, options: { registry: TrashRegistry }): SQL {
   const entry = requireEntry(required.entityType, options.registry);
-  return entry.marker.kind === "timestamp" ? isNull(entry.marker.column) : ne(entry.marker.column, entry.marker.trashed);
+  const own = ownMarkerLive(entry);
+  return entry.hiddenWithParent ? and(own, parentNotTrashed(entry.hiddenWithParent))! : own;
 }
 
 /** The same condition as {@link notTrashed}, negated — true for a row that is currently TRASHED.
@@ -63,7 +92,12 @@ function sqlNameToJsProperty(sqlName: string): string {
  * camelCase-property convention (every domain does) needs no extra wiring beyond registering the
  * entry.
  *
- * @returns `true` when `record` is currently in the Trash.
+ * Deliberately ignores `hiddenWithParent` (see the file header): `record` is a flat, already-detached
+ * object with no parent row to join against, so this reports the entity's OWN marker only. A record
+ * store or hermetic repo for an entry that declares `hiddenWithParent` must apply that half of the
+ * rule itself, with its own parent lookup, exactly as `not-trashed.ts`'s SQL half does with `sql`.
+ *
+ * @returns `true` when `record` is currently in the Trash (by its own marker alone).
  * @complexity O(1).
  */
 export function isTrashedRecord(

@@ -32,7 +32,8 @@ export type MoveToTrashOutcome =
   | { ok: false; reason: "unknown-type" }
   | { ok: false; reason: "not-found" }
   | { ok: false; reason: "forbidden"; permission: string }
-  | { ok: false; reason: "version-changed" };
+  | { ok: false; reason: "version-changed" }
+  | { ok: false; reason: "blocked"; code: string; count: number };
 
 /** The snapshot `moveToTrash` reads before calling `TrashPort.trash` — columns only, per every other
  *  Trash read in this feature. `subtitle`/`version` are present only when the entry declares them,
@@ -108,7 +109,10 @@ export async function moveToTrash(
     expectedVersion: entry.versionColumn ? (row.version ?? null) : null,
   });
   if (marker.ok) return { ok: true, version: marker.version };
-  // A race between the read above and `trash.trash` itself (someone else trashed or edited the row
-  // in between) — same two reasons `TrashMarkerResult`'s failure branch already distinguishes.
-  return marker.reason === "not-found" ? { ok: false, reason: "not-found" } : { ok: false, reason: "version-changed" };
+  // A race between the read above and `trash.trash` itself (someone else trashed or edited the row,
+  // or a blocking child appeared, in between) — same reasons `TrashMarkerResult`'s failure branch
+  // already distinguishes; `blocked` carries its `code`/`count` straight through.
+  if (marker.reason === "not-found") return { ok: false, reason: "not-found" };
+  if (marker.reason === "blocked") return { ok: false, reason: "blocked", code: marker.code, count: marker.count };
+  return { ok: false, reason: "version-changed" };
 }

@@ -9,7 +9,7 @@
  * revision append"). Drizzle's `transaction()` requires a synchronous callback and cannot nest, so it
  * cannot stand in here — the raw-client runner already handles both constraints.
  */
-import type { AnyColumn, SQL, Table } from "drizzle-orm";
+import { count as countOf, type AnyColumn, type SQL, type Table } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
@@ -66,6 +66,26 @@ export function createSqliteTrashDb(required: { db: ContentDb }): TrashDb {
         .where(write.where)
         .run();
       return result.changes;
+    },
+
+    /** @complexity O(1) plus whatever index the `where` matches. */
+    async count(required: { table: Table; where: SQL }): Promise<number> {
+      const rows = db
+        .select({ n: countOf() })
+        .from(required.table as SQLiteTable)
+        .where(required.where)
+        .all() as { n: number }[];
+      return rows[0]?.n ?? 0;
+    },
+
+    /** @complexity O(k) rows matching `where`, via whatever index it matches. */
+    async selectIds(required: { table: Table; column: AnyColumn; where: SQL }): Promise<readonly unknown[]> {
+      const rows = db
+        .select({ id: required.column as SQLiteColumn })
+        .from(required.table as SQLiteTable)
+        .where(required.where)
+        .all() as { id: unknown }[];
+      return rows.map((row) => row.id);
     },
   };
 }

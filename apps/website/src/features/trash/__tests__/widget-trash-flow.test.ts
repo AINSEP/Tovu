@@ -20,7 +20,7 @@ import { createSqliteTrashDb } from "../db-port.sqlite.js";
 import { moveToTrash } from "../move-to-trash.js";
 import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
-import { withRestoreFollowUp, type RestoreFollowUp } from "../restore-follow-up.js";
+import { withFollowUps, type UnhideFollowUp } from "../follow-ups.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { bindRemoveEntity, createTrashService } from "../write-service.js";
 import type { TrashAdapter, TrashPort } from "../index.js";
@@ -46,7 +46,7 @@ interface Harness {
 
 /** The widget adapter the way `deps.ts` builds it: the generic table adapter, plus the widgets
  *  domain's follow-up that brings back an adopted widget's recorded status on restore. */
-function harness(options: { widgetRestoreFollowUp?: RestoreFollowUp } = {}): Harness {
+function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harness {
   const db = openContentDb(":memory:");
   db.$client
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
@@ -56,14 +56,17 @@ function harness(options: { widgetRestoreFollowUp?: RestoreFollowUp } = {}): Har
   const adapters = new Map<string, TrashAdapter>(
     [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])
   );
-  const widgetRestoreFollowUp: RestoreFollowUp =
+  const widgetRestoreFollowUp: UnhideFollowUp =
     options.widgetRestoreFollowUp ??
     ((required) =>
       restoreWidgetPriorStatus({
         deps: widgetDeps,
         input: { workspaceId: required.workspaceId, widgetInstanceId: required.entityId, priorStatus: required.priorMarker },
       }));
-  adapters.set("widget", withRestoreFollowUp({ adapter: adapters.get("widget")!, followUp: widgetRestoreFollowUp }));
+  adapters.set(
+    "widget",
+    withFollowUps({ adapter: adapters.get("widget")!, hooks: { afterUnhide: widgetRestoreFollowUp } })
+  );
   let seq = 0;
   const transaction = createContentDbTransactionRunner(db.$client);
   const trash = createTrashService({
