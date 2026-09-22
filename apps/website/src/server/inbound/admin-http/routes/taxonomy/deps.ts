@@ -32,4 +32,6 @@ export type TaxonomyRouteDeps = Pick<
   | "taxonomyRevisionRepo"
   | "postRepo"
   | "stampWatermark"
+  | "removeTerm"
+  | "removeTaxonomy"
 >;

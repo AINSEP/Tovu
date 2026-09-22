@@ -20,6 +20,10 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `resolveMergeTermError` centralizes the gated-mutation error-to-HTTP-status mapping every one of
  * this dispatch's 3 ceremony route files repeats (kept per-file rather than a shared helper module,
  * since each ceremony's own domain error — `SameTermMergeError` here — differs).
+ *
+ * Trash parallel plan, owner decision 5: merge stays a hard delete (`executeMergeTerm` migrates
+ * `intoTermId`'s content and removes `fromTermId` outright) — unlike `delete-term.ts`/
+ * `delete-taxonomy.ts`, this file is NOT converted to the Trash. No code change here.
  */
 function statusFor(err: unknown): { status: number; code: string } {
   if (err instanceof ForbiddenError) return { status: 403, code: err.reasonCode };
