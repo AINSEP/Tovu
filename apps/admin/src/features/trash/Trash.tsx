@@ -100,7 +100,7 @@ function trashColumns(props: {
     {
       key: "actor",
       header: t(props.locale, "Deleted by"),
-      cell: (item) => actorLabel(item),
+      cell: (item) => actorLabel(props.locale, item),
     },
     {
       key: "days",

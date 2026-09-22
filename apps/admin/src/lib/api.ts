@@ -1913,6 +1913,10 @@ export interface AdminTrashItem {
   daysRemaining: number;
   actorPrincipalId: string;
   actorPluginId: string | null;
+  /** The server-resolved username for `actorPrincipalId`, or `null` when no user record matches
+   *  it (the account was since removed, or the principal is not a user). Never the raw id — that
+   *  resolution happens server-side so the admin UI never has to guess at a fallback. */
+  actorUsername: string | null;
 }
 
 export interface AdminTrashPage {

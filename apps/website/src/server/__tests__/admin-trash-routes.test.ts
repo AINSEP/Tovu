@@ -180,6 +180,7 @@ function buildTrashHarness(): TrashHarness {
     trash,
     registry,
     db: sqliteTrashDb,
+    userRepo: base.userRepo,
   };
 
   const app = express();
@@ -365,6 +366,62 @@ test("list: rows are filtered by the permission each row's own kind needs", asyn
   );
   assert.equal(body.items[0]?.title, "redirect-1");
   assert.equal(typeof body.items[0]?.daysRemaining, "number");
+});
+
+test("list: resolves the deleting principal to a username, and falls back to a readable label when there is none", async (t) => {
+  const h = buildTrashHarness();
+  await h.deps.identityReady;
+
+  // A real user account — this is the row the fix must resolve to a username instead of the raw id.
+  const deleterPrincipalId = "deleter-principal-1";
+  await h.deps.principalRepo.save({
+    id: deleterPrincipalId,
+    workspaceId: h.deps.workspaceId,
+    kind: "user",
+    displayName: "Row Deleter",
+    status: "active",
+    createdAt: h.deps.clock.nowIso(),
+  });
+  await h.deps.userRepo.save({
+    principalId: deleterPrincipalId,
+    workspaceId: h.deps.workspaceId,
+    username: "row-deleter",
+    passwordHash: await h.deps.passwordHasher.hash("irrelevant-pw"),
+  });
+
+  seedRedirect(h.client, h.deps.workspaceId, "redirect-known");
+  seedRedirect(h.client, h.deps.workspaceId, "redirect-ghost");
+  for (const [entityId, actorPrincipalId] of [
+    ["redirect-known", deleterPrincipalId],
+    // No principal or user row exists for this id — an account removed after the fact, or a
+    // non-user system actor. The endpoint must not fall back to sending the raw id as the answer.
+    ["redirect-ghost", "principal-with-no-user-row"],
+  ] as const) {
+    const marker = await h.trash.trash({
+      workspaceId: h.deps.workspaceId,
+      entityType: REDIRECT_ENTITY_TYPE,
+      entityId,
+      actor: { principalId: actorPrincipalId },
+      display: { title: entityId },
+      at: AT,
+      expectedVersion: 1,
+    });
+    assert.equal(marker.ok, true, `seeding ${entityId} into the trash`);
+  }
+
+  const baseUrl = await startTestServer(h.app, t);
+  const cookie = await loginWithPermissions(h.deps, baseUrl, ["content.read", "admin.redirects.manage"]);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${h.deps.workspaceId}/trash`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  const body2 = (await res.json()) as {
+    items: { entityId: string; actorPrincipalId: string; actorUsername: string | null }[];
+  };
+  const known = body2.items.find((item) => item.entityId === "redirect-known");
+  const ghost = body2.items.find((item) => item.entityId === "redirect-ghost");
+  assert.equal(known?.actorPrincipalId, deleterPrincipalId);
+  assert.equal(known?.actorUsername, "row-deleter");
+  assert.equal(ghost?.actorUsername, null);
 });
 
 test("restore: one forbidden item in a mixed selection does not abort the rest", async (t) => {

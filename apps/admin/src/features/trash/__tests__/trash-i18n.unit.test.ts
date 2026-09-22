@@ -61,6 +61,7 @@ describe("TRASH_DICT: cross-locale key parity", () => {
     "{count} item(s) will be deleted permanently. This cannot be undone.",
     "Deleted",
     "Deleted by",
+    "Deleted user",
     "Days left",
     "{count} selected",
     "Loading the Trash…",

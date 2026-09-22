@@ -1,6 +1,7 @@
 import type { Express } from "express";
 
 import type { TrashAuthorizeFn, TrashDb, TrashPort, TrashRegistry } from "#src/features/trash/index";
+import type { UserRepoPort } from "@jini-ai/cms/identity";
 
 /**
  * @file The narrow dependency slice the four Trash admin routes read, and the registrar shape
@@ -15,6 +16,9 @@ import type { TrashAuthorizeFn, TrashDb, TrashPort, TrashRegistry } from "#src/f
  * `moveToTrash`) and by `permissions.ts`'s `trashPermissionFor`/`mayActOnEntityType`/
  * `filterVisibleTrashItems`, which `list.ts`/`restore.ts`/`purge.ts` already call with this same
  * `deps` object — one field serving both concerns (plan §8/§9).
+ *
+ * `userRepo` is read only by `list.ts`, to resolve each row's `actorPrincipalId` to a username for
+ * the "Deleted by" column (2026-09-21) — the admin screen must never show a raw principal UUID.
  */
 export interface TrashRouteDeps {
   workspaceId: string;
@@ -23,6 +27,7 @@ export interface TrashRouteDeps {
   trash: TrashPort;
   registry: TrashRegistry;
   db: TrashDb;
+  userRepo: UserRepoPort;
 }
 
 export type TrashRouteRegistrar = (app: Express, deps: TrashRouteDeps) => void;

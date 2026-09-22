@@ -1,7 +1,7 @@
 import { filterVisibleTrashItems, trashDaysRemaining, TRASH_READ_PERMISSION } from "#src/features/trash/index";
 import type { TrashItem } from "#src/features/trash/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { DEFAULT_TRASH_PAGE_SIZE, MAX_TRASH_PAGE_SIZE, type TrashRouteRegistrar } from "./deps.js";
+import { DEFAULT_TRASH_PAGE_SIZE, MAX_TRASH_PAGE_SIZE, type TrashRouteDeps, type TrashRouteRegistrar } from "./deps.js";
 
 /**
  * GET one page of the Trash.
@@ -46,7 +46,13 @@ export const registerAdminTrashListRoute: TrashRouteRegistrar = (app, deps) => {
       // Per-kind, not per-surface: a principal who can only moderate comments must not read the
       // titles of deleted posts here any more than they can through the agent tool.
       const visible = await filterVisibleTrashItems(deps, { principalId: principal.id, items: page.items });
-      res.json({ items: visible.map((item) => toAdminTrashResponse(item, now)), nextCursor: page.nextCursor });
+      // Skip the query on an empty page (nothing visible to this principal, or the Trash truly is
+      // empty) rather than paying for a lookup with no rows to resolve.
+      const usernameByPrincipalId = visible.length > 0 ? await loadUsernamesByPrincipalId(deps) : new Map<string, string>();
+      res.json({
+        items: visible.map((item) => toAdminTrashResponse(item, now, usernameByPrincipalId)),
+        nextCursor: page.nextCursor,
+      });
     } catch {
       res.status(500).json({ error: "internal error" });
     }
@@ -54,12 +60,29 @@ export const registerAdminTrashListRoute: TrashRouteRegistrar = (app, deps) => {
 };
 
 /**
+ * One `userRepo.list` call per request, not one lookup per row — the admin Users screen already
+ * reads this same unpaginated list (`UserRepoPort.list`'s own doc: "Not paginated in v1"), so a
+ * workspace's user count is already assumed small enough for a single in-memory pass here too.
+ *
+ * @complexity O(u) in the workspace's user count, once per request regardless of page size.
+ */
+async function loadUsernamesByPrincipalId(deps: TrashRouteDeps): Promise<ReadonlyMap<string, string>> {
+  const users = await deps.userRepo.list({ workspaceId: deps.workspaceId });
+  return new Map(users.map((user) => [user.principalId, user.username]));
+}
+
+/**
  * The screen's row shape. Keeps `id` — unlike the agent view, which drops it — because the
  * checkboxes select rows by it and the purge endpoint addresses them by it.
  *
+ * `actorUsername` is `null` when `usernameByPrincipalId` has no entry for `actorPrincipalId` — the
+ * deleting principal's user account no longer exists, or never had one (a non-user system
+ * principal). The admin UI decides the fallback copy for that case; this endpoint never sends the
+ * raw id as if it were a display value.
+ *
  * @complexity O(1).
  */
-export function toAdminTrashResponse(item: TrashItem, now: string) {
+export function toAdminTrashResponse(item: TrashItem, now: string, usernameByPrincipalId: ReadonlyMap<string, string>) {
   return {
     id: item.id,
     entityType: item.entityType,
@@ -71,6 +94,7 @@ export function toAdminTrashResponse(item: TrashItem, now: string) {
     daysRemaining: trashDaysRemaining(now, item.purgeAfter),
     actorPrincipalId: item.actorPrincipalId,
     actorPluginId: item.actorPluginId,
+    actorUsername: usernameByPrincipalId.get(item.actorPrincipalId) ?? null,
   };
 }
 

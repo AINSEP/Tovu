@@ -58,9 +58,18 @@ export function entityTypeLabel(locale: string, entityType: string): string {
   return label ? t(locale, label) : entityType;
 }
 
-/** Who deleted it — the plugin when an agent did, otherwise the principal. @complexity O(1). */
-export function actorLabel(item: AdminTrashItem): string {
-  return item.actorPluginId ?? item.actorPrincipalId;
+/**
+ * Who deleted it, in words an operator can read — never the raw principal id.
+ *
+ * Priority: the plugin/agent id when an agent did it (already a readable slug, e.g. `"forms"`),
+ * else the username the server resolved for `actorPrincipalId`, else `"Deleted user"` — the
+ * principal that deleted it no longer has a user record (account removed, or a non-user system
+ * principal), which is a real, expected state rather than a bug to hide.
+ *
+ * @complexity O(1).
+ */
+export function actorLabel(locale: string, item: AdminTrashItem): string {
+  return item.actorPluginId ?? item.actorUsername ?? t(locale, "Deleted user");
 }
 
 /**

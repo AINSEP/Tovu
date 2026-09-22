@@ -27,6 +27,7 @@ function item(overrides: Partial<AdminTrashItem> = {}): AdminTrashItem {
     daysRemaining: 41,
     actorPrincipalId: "principal-1",
     actorPluginId: null,
+    actorUsername: "jdoe",
     ...overrides,
   };
 }
@@ -68,8 +69,29 @@ describe("Trash screen", () => {
 
     expect(screen.getByText("A deleted post")).toBeTruthy();
     expect(screen.getByText("Post")).toBeTruthy();
-    expect(screen.getByText("principal-1")).toBeTruthy();
+    // The username, not the raw principal id — a UUID means nobody but the server can tell who
+    // this was, which is exactly what this column exists to answer.
+    expect(screen.getByText("jdoe")).toBeTruthy();
+    expect(screen.queryByText("principal-1")).toBeNull();
     expect(screen.getByText("41")).toBeTruthy();
+  });
+
+  it("falls back to a readable label when the deleting user no longer has an account", () => {
+    render(<Trash useTrashHook={() => controller({ items: [item({ actorUsername: null })] })} />);
+
+    expect(screen.getByText("Deleted user")).toBeTruthy();
+    expect(screen.queryByText("principal-1")).toBeNull();
+  });
+
+  it("shows the plugin/agent id, not the username, when an agent did the deleting", () => {
+    render(
+      <Trash
+        useTrashHook={() => controller({ items: [item({ actorPluginId: "forms", actorUsername: "jdoe" })] })}
+      />
+    );
+
+    expect(screen.getByText("forms")).toBeTruthy();
+    expect(screen.queryByText("jdoe")).toBeNull();
   });
 
   it("both selection actions are disabled until something is selected", () => {

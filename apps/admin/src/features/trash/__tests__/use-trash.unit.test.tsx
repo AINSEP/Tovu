@@ -35,6 +35,7 @@ function item(overrides: Partial<AdminTrashItem> = {}): AdminTrashItem {
     daysRemaining: 41,
     actorPrincipalId: "principal-1",
     actorPluginId: null,
+    actorUsername: "jdoe",
     ...overrides,
   };
 }
