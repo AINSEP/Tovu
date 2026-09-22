@@ -62,8 +62,8 @@ export const SINGLE_HOP_HTTPS_EGRESS_POLICY: EgressPolicy = {
 /**
  * {@link MEDIA_IMPORT_EGRESS_POLICY}'s response cap — the transport-level BACKSTOP, deliberately set
  * above `features/media-import`'s own accept limit (`features/media/upload-limits.ts`'s
- * `TOVU_MAX_UPLOAD_BYTES`, 35 MiB — this host's override of `@jini-ai/cms/media`'s 10 MiB
- * `DEFAULT_MAX_UPLOAD_BYTES`, the same cap `uploadMedia` itself is now called with) so the feature's
+ * `TOVU_MAX_UPLOAD_BYTES`, 50 MiB as of 2026-09-21 — this host's override of `@jini-ai/cms/media`'s
+ * 10 MiB `DEFAULT_MAX_UPLOAD_BYTES`, the same cap `uploadMedia` itself is now called with) so the feature's
  * own error message is the one a caller normally sees, and this cap only fires for a response so far
  * over the line that reading it to the feature's own check would be wasted bandwidth.
  *
@@ -78,7 +78,7 @@ export const SINGLE_HOP_HTTPS_EGRESS_POLICY: EgressPolicy = {
  * both body shapes, and this cap is crossed by the LOSSY text decode of any large image long before
  * the bytes reach it (2026-09-06, MI-01).
  */
-const MEDIA_IMPORT_MAX_RESPONSE_BYTES = 42 * 1024 * 1024;
+const MEDIA_IMPORT_MAX_RESPONSE_BYTES = 60 * 1024 * 1024;
 
 /**
  * A single HTTPS GET fetching an IMAGE FILE from a URL the ASSISTANT supplied — today only
@@ -99,7 +99,8 @@ const MEDIA_IMPORT_MAX_RESPONSE_BYTES = 42 * 1024 * 1024;
  *    agent-supplied URL safe to follow at all.
  * 2. **The response is a file, not a JSON envelope.** 1 MB would reject the overwhelming majority of
  *    real images (the incident that motivated this tool involved a 3.29 MB 2048x1152 PNG). The cap
- *    here is `features/media-import`'s own {@link MEDIA_IMPORT_MAX_RESPONSE_BYTES} — slightly above
+ *    here is `features/media-import`'s own {@link MEDIA_IMPORT_MAX_RESPONSE_BYTES} (60 MiB, ~20%
+ *    above `TOVU_MAX_UPLOAD_BYTES`'s 50 MiB, 2026-09-21) — slightly above
  *    what that feature will itself accept, so the feature's own cap is what a caller hits first and
  *    the policy cap only ever fires as a backstop. Either way the bytes are never silently
  *    truncated into a corrupt image: `client.ts` flags `bodyBytesTruncated`, and the feature refuses
@@ -187,10 +188,16 @@ export const CUSTOM_CREDENTIALS_EGRESS_POLICY: EgressPolicy = {
  * {@link SINGLE_HOP_HTTPS_EGRESS_POLICY}'s 1 MB: an export envelope is the workspace's whole
  * transportable corpus in one JSON body (54 live posts ≈ 115 KB of body text locally, per the
  * feature plan's own measurement), so a 1 MB cap would silently truncate a real site's export into
- * a body that no longer parses. 64 MiB is the same order as this install's own upload ceiling and
+ * a body that no longer parses. 96 MiB is the same order as this install's own upload ceiling and
  * still bounded — a peer cannot stream an unbounded response into this process's memory.
+ *
+ * Also the cap this server (acting as the PULLING side) applies to a peer's `blob-get.ts` response
+ * for one blob: that route sends the blob's raw bytes as base64 JSON, which inflates them ~1.33x, so
+ * this must clear `TOVU_MAX_UPLOAD_BYTES`'s (`features/media/upload-limits.ts`, 50 MiB as of
+ * 2026-09-21) base64-inflated size (~66.7 MiB) with headroom — raised from 64 MiB alongside that
+ * cap's own 2026-09-21 raise from 35 MiB, which the old 64 MiB value no longer cleared.
  */
-export const PUBLISH_CONTENT_PEER_MAX_RESPONSE_BYTES = 64 * 1024 * 1024;
+export const PUBLISH_CONTENT_PEER_MAX_RESPONSE_BYTES = 96 * 1024 * 1024;
 
 /**
  * `features/publish-content`'s own policy (2026-09-18, plan §1.6 / §4 task 10) for the outbound

@@ -10,8 +10,9 @@
  * Adopts the same rule as Jini's module-private `http-kit/src/connectors.ts` `isWellFormedBase64`:
  * non-empty, a length that is a multiple of 4, and every character drawn from the standard
  * (non-URL) alphabet plus up to two trailing `=` pad characters. A round-trip canonical check
- * (decode, re-encode, compare) was considered and rejected: it costs an extra ~47 MB string at the
- * 35 MiB upload cap and rejects nothing that matters here — non-canonical pad bits (`"Zm9="`
+ * (decode, re-encode, compare) was considered and rejected: it costs an extra ~67 MB string at the
+ * 50 MiB upload cap (as of 2026-09-21) and rejects nothing that matters here — non-canonical pad
+ * bits (`"Zm9="`
  * decoding to the same bytes as canonical `"Zm8="`) are not a security concern for these routes.
  */
 

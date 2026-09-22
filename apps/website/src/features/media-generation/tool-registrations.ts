@@ -29,6 +29,7 @@ import type { SecretSealerPort } from "../webhooks/index.js";
 import {
   resolveMediaProviderCredential,
   sniffContentType,
+  TOVU_MAX_UPLOAD_BYTES,
   uploadMedia,
   type AssetBlobRepoPort,
   type AssetRenditionRepoPort,
@@ -366,7 +367,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
               credit: optionalString(input, "credit"),
               createdByPrincipal: ctx.principal.id,
             },
-          });
+          }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
 
           // Same "record what the bytes actually are" write `routes/admin/media/upload.ts` performs
           // after every human upload — see that route's own doc for why this is sniffed rather than
