@@ -60,7 +60,7 @@ export interface TrashedItemsRef {
  *  selection type loses its literal keys once `columns` is built as a plain `Record<string,
  *  AnyColumn>` (needed here because the key set is conditional on `entry.versionColumn`), so the
  *  precise row shape is asserted here instead. Safe: every column reaching this file comes from a
- *  `TrashEntry` built off `schema.ts`, so the runtime row always has these keys. */
+ *  `TrashEntry` built off `schema.sqlite.ts`, so the runtime row always has these keys. */
 interface MarkerRow {
   marker: unknown;
   version?: number | null;

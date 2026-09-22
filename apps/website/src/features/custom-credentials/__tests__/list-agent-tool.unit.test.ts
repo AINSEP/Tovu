@@ -146,7 +146,7 @@ test("custom_credential_list is wired to a real handler", () => {
 // ---------------------------------------------------------------------------
 // 2. Correct rows, exactly the fields agent-tools.ts promises — never the secret. `username` IS
 // reported (2026-09-01): it moved out of the sealed blob onto its own plaintext column, so the read
-// model can carry it without opening the sealer. See `db/schema.ts`'s `customCredentialSets.username`.
+// model can carry it without opening the sealer. See `db/schema.sqlite.ts`'s `customCredentialSets.username`.
 // ---------------------------------------------------------------------------
 
 test("returns every saved credential's label, category, baseUrl, additionalHosts, username, configured, and timestamps", async () => {

@@ -2,7 +2,7 @@
  * @file Task 8 of the publish-content (Publish Content) feature —
  * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §2/§4 task 8.
  *
- * Write-side seam over `publish_content_runs` (migration `0066`, `platform/db/schema.ts`) — one row
+ * Write-side seam over `publish_content_runs` (migration `0066`, `platform/db/schema.sqlite.ts`) — one row
  * per export/import run, the audit trail an operator sees and the report they acted on when choosing
  * to force a conflict (that table's own doc comment). No prior task built this port — `grep -rln
  * "publishContentRuns|PublishContentRun" apps/website/src --include=*.ts` found only doc-comment
@@ -32,7 +32,7 @@ export interface PublishContentRunItemState {
   readonly updatedAt: string;
 }
 
-/** One persisted run row — mirrors `publishContentRuns` (`platform/db/schema.ts`) field-for-field. */
+/** One persisted run row — mirrors `publishContentRuns` (`platform/db/schema.sqlite.ts`) field-for-field. */
 export interface PublishContentRunRecord {
   readonly id: string;
   readonly workspaceId: string;

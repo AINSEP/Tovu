@@ -225,7 +225,7 @@ const composioConnectorCredentials: SealedColumnDescriptor = {
     ),
 };
 
-/** Every sealed column the app can open today, in `schema.ts` order. */
+/** Every sealed column the app can open today, in `schema.sqlite.ts` order. */
 export const SEALED_COLUMN_DESCRIPTORS: readonly SealedColumnDescriptor[] = [
   siteAssistantCredentials,
   adminExecutionCredentials,

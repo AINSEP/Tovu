@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import { webhookDeliveries, webhookSubscriptions } from "../schema.js";
+import { webhookDeliveries, webhookSubscriptions } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 import { findOneBy } from "./repo-helpers.js";
 
@@ -31,7 +31,7 @@ import type {
  * - `enqueueDelivery` (`../../webhooks/delivery.ts`) calls `deliveryRepo.enqueue()` then
  *   `envelopeStore.save()` as two sequential calls (see that file) — both land on the same row
  *   here, `save()` updating the `payload_json` column `enqueue()` left `NULL`.
- * - The unique index on `(workspace_id, subscription_id, event_id)` (`schema.ts`) makes `enqueue`
+ * - The unique index on `(workspace_id, subscription_id, event_id)` (`schema.sqlite.ts`) makes `enqueue`
  *   idempotent at the storage layer: a duplicate insert is caught and silently ignored rather
  *   than throwing, closing the race `delivery.ts`'s scan-based pre-check alone can't (two
  *   concurrent enqueues could both pass the scan before either commits).

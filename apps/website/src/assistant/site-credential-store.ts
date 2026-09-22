@@ -42,7 +42,7 @@ export interface SiteAssistantCredentialRecord {
    *  verification fails. `1` = sealed under `site-credential-aad.ts`'s
    *  `buildSiteAssistantCredentialAad`; open MUST supply the byte-identical string. Meaningless
    *  (and always `0`) when `sealed` is `null`. Added 2026-09-02 (AAD gap closure) — see
-   *  `db/schema.ts`'s `siteAssistantCredentials.aad_version` doc for the full migration story. */
+   *  `db/schema.sqlite.ts`'s `siteAssistantCredentials.aad_version` doc for the full migration story. */
   aadVersion: number;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;

@@ -218,7 +218,7 @@ const HAND_WRITTEN_RULES = [
       // honestly discloses "concrete adapter" is exempt from this rule.
       //
       // `.*/__tests__/.*` (2026-08-17): the remaining 22 warnings this rule produced were all
-      // `__tests__/**` files spinning up a real `db/sqlite/content-db.ts`/`db/schema.ts` to exercise
+      // `__tests__/**` files spinning up a real `db/sqlite/content-db.ts`/`db/schema.sqlite.ts` to exercise
       // a genuine SQLite-backed integration/contract test — precisely what an integration test is
       // for, and the same reasoning `core-no-server-or-app-imports` above already applies via the
       // identical `.*/__tests__/.*` pattern (reused verbatim here rather than a new one, per that
@@ -256,7 +256,7 @@ const HAND_WRITTEN_RULES = [
       severity: "warn",
       comment: "SPEC-003 (ADR-PIPE-003) — apps/website/src/cli/** dispatches to site-dir/server only; it never touches Drizzle or the schema module directly.",
       from: { path: "^apps/website/src/cli" },
-      to: { path: "^(drizzle-orm|apps/website/src/platform/db/schema\\.ts)" },
+      to: { path: "^(drizzle-orm|apps/website/src/platform/db/schema\\.sqlite\\.ts)" },
     },
     {
       name: "plugin-loading-internals-confined-to-plugin-runtime",

@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS assistant_agent_sessions (
  * `assistant_agent_sessions`' `ON DELETE CASCADE` to actually fire — and `busy_timeout = 5000`),
  * then ensures all three chat tables exist. Returns the raw `better-sqlite3` handle, not a
  * Drizzle wrapper: none of `ai_chats`/`ai_chat_messages`/`assistant_agent_sessions` has a
- * `sqliteTable` declaration in `schema.ts` (by design, `RAW_SQL_MANAGED_TABLES` in
+ * `sqliteTable` declaration in `schema.sqlite.ts` (by design, `RAW_SQL_MANAGED_TABLES` in
  * `schema-migration-drift.test.ts`), and both consumers (`createChatStoreFactory`,
  * `createSqliteAgentSessionStore`) already take a raw handle, not a typed one.
  *

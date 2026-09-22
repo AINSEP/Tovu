@@ -122,7 +122,7 @@ function isValidCalendarInstant(year: number, month: number, day: number, hour: 
  * `STRICT_RFC3339_SHAPE` alone matches any two-digit:two-digit offset (`+24:00`, `+23:60`, `+99:99`
  * all shape-match), and `isValidCalendarInstant` only round-trips the date/time fields through
  * `Date.UTC` — neither one, by itself, would have caught that. Verified against the live
- * `infra/content.db` before this tightened — every `schema.ts`-declared timestamp column's stored
+ * `infra/content.db` before this tightened — every `schema.sqlite.ts`-declared timestamp column's stored
  * values already match the literal `T`-separated, calendar-valid, range-valid-offset shape this
  * enforces (117 in-scope columns; 3,027 non-null values at the first check, 3,029 when re-verified for
  * the 2026-08-12 round-3 offset-bound tightening below, zero rejections either time — every stored
@@ -130,7 +130,7 @@ function isValidCalendarInstant(year: number, month: number, day: number, hour: 
  * offset bound from ±23:59 to ±15:59 has zero real-data impact), so tightening does not retroactively
  * flag any value this manifest's scope actually covers (the handful of anomalous `*_at`-named columns
  * holding epoch-millisecond integers live in `__drizzle_migrations`/`_plugin_*`/`ai_chat*` tables, none
- * of which are exported from `schema.ts` — out of `classifyAllCoreColumns()`'s scope entirely).
+ * of which are exported from `schema.sqlite.ts` — out of `classifyAllCoreColumns()`'s scope entirely).
  */
 export function verifyUtcTimestampText(value: string | null): VerificationFailure | null {
   if (value === null) return null;

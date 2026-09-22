@@ -7,7 +7,7 @@ import test from "node:test";
 import Database from "better-sqlite3";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { workspaces } from "#src/platform/db/schema";
+import { workspaces } from "#src/platform/db/schema.sqlite";
 import { runtimeSchemaVersion } from "../../schema-guard.js";
 import { bootSiteDir } from "../../boot-site-dir.js";
 

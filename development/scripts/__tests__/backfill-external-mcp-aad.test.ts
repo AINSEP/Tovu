@@ -7,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
-import { externalMcpServers, workspaces } from "../../../apps/website/src/platform/db/schema.js";
+import { externalMcpServers, workspaces } from "../../../apps/website/src/platform/db/schema.sqlite.js";
 import { AesGcmSecretSealer } from "../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
 import { EnvOrFileKeyring } from "../../../apps/website/src/features/webhooks/keyring.env.js";
 import { buildExternalMcpEnvAad, buildExternalMcpOAuthAad } from "../../../apps/website/src/assistant/external-mcp-aad.js";

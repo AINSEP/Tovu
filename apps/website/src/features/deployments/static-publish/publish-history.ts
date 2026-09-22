@@ -23,7 +23,7 @@ import { resolvePublishHistoryListLimit } from "#src/contracts/core/publish-hist
  * stated reason for staying file-backed — "adding a DB table needs a migration, and migrations
  * belong to whichever dispatch owns `drizzle/` for this session" — was a scheduling convenience
  * across two concurrently-dispatched agents, not an architectural argument, and does not survive
- * being named explicitly. This file, `publish-run.ts`, `src/platform/db/schema.ts`'s `publishHistory` table,
+ * being named explicitly. This file, `publish-run.ts`, `src/platform/db/schema.sqlite.ts`'s `publishHistory` table,
  * and `src/platform/db/sqlite/publish-history-repo.sqlite.ts` are that rework.
  *
  * Purpose:

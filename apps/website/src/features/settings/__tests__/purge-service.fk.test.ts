@@ -4,13 +4,13 @@ import test from "node:test";
 import { eq } from "drizzle-orm";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import { settingValuesUser, settingValuesWorkspace, workspaces } from "#src/platform/db/schema";
+import { settingValuesUser, settingValuesWorkspace, workspaces } from "#src/platform/db/schema.sqlite";
 import { SqliteSettingsRepo } from "../repo.sqlite.js";
 import { purgeTenantSettings } from "@jini-ai/cms/settings";
 
 /**
  * T027 (AC-13, EC-07) — a raw `DELETE` on a workspace holding setting values
- * must be rejected by the real `ON DELETE RESTRICT` FK (schema.ts /
+ * must be rejected by the real `ON DELETE RESTRICT` FK (schema.sqlite.ts /
  * ADR-028 §2 ✔B4), never silently cascade-drop value rows without a
  * ledgered `op='purge'` revision. This is a proof of the DB-level barrier
  * itself — no app-level pre-check is needed or added; better-sqlite3 raises

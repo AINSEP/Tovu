@@ -30,18 +30,18 @@ import { InternalError } from "./errors.js";
  *
  * ## Why the purge names what it DELETES rather than what it keeps
  *
- * This module previously inverted that: it built an allowlist of every table `db/schema.ts`
+ * This module previously inverted that: it built an allowlist of every table `db/schema.sqlite.ts`
  * declares (plus the migrator's bookkeeping table, SQLite's catalog and the FTS5 shadow objects)
  * and `DELETE`d the rows of every OTHER table, on the stated premise that the only undeclared
  * tables in a `content.db` were the three chat tables. That premise was false, and the file's own
  * citation for it was false too — both are corrected here:
  *
  * - **The premise.** Measured read-only against `sites/tovu-com/content.db` on 2026-09-06: 104
- *   physical tables, 81 declared by `schema.ts`, and the keep-list emptied FIFTEEN — the three chat
+ *   physical tables, 81 declared by `schema.sqlite.ts`, and the keep-list emptied FIFTEEN — the three chat
  *   tables and TWELVE plugin tables. `_plugin_identity` (3 rows), `_plugin_migration_journal` (3),
  *   `_plugin_migrations` (12), `p_comments__comments`, `p_comments__moderation_log`, five
  *   `p_newsletter__*` (one holding a real list), `p_store__orders` and `p_store__products` (3 real
- *   products). None is declared in `schema.ts` because none is created by a MIGRATION: they are
+ *   products). None is declared in `schema.sqlite.ts` because none is created by a MIGRATION: they are
  *   raw SQL written at plugin-install time by `features/plugins/data-module.ts` (`p_{pluginId}__`
  *   tables plus `_plugin_migrations`), `plugin-identity.ts` and `migration-journal.ts`. Duplicating
  *   a client site with a store and a newsletter therefore produced a copy with zero products, zero

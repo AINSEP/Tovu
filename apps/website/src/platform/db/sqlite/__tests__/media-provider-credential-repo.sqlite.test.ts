@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { MediaProviderCredentialRecord } from "#src/features/media/provider-credential-store";
-import { workspaces } from "../../schema.js";
+import { workspaces } from "../../schema.sqlite.js";
 import { openContentDb } from "../content-db.js";
 import { SqliteMediaProviderCredentialRepo } from "../media-provider-credential-repo.sqlite.js";
 

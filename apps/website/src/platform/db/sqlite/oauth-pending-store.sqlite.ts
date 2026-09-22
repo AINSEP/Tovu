@@ -18,7 +18,7 @@ import {
   type PendingAuthorization,
   type PendingAuthorizationStore,
 } from "#src/platform/oauth/index";
-import { oauthDeviceAuthorizations, oauthPendingAuthorizations } from "../schema.js";
+import { oauthDeviceAuthorizations, oauthPendingAuthorizations } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
 /**

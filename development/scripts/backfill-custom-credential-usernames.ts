@@ -1,5 +1,5 @@
 /**
- * Populates `custom_credential_sets.username` (`apps/website/src/platform/db/schema.ts`, migration
+ * Populates `custom_credential_sets.username` (`apps/website/src/platform/db/schema.sqlite.ts`, migration
  * `0054`) from the `username` field already sitting inside each row's sealed `{token, username?}`
  * connection object — Pass 1 of the two-pass migration that column's own doc comment describes.
  *
@@ -98,7 +98,7 @@ import { and, eq } from "drizzle-orm";
 import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
 import { resolveExistingDbPath } from "./backfill-db-path.js";
-import { customCredentialSets } from "../../apps/website/src/platform/db/schema.js";
+import { customCredentialSets } from "../../apps/website/src/platform/db/schema.sqlite.js";
 import { AesGcmSecretSealer } from "../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
 import { EnvOrFileKeyring } from "../../apps/website/src/features/webhooks/keyring.env.js";
 import type { KeyringPort, SecretSealerPort } from "../../apps/website/src/features/webhooks/index.js";
@@ -265,7 +265,7 @@ export async function runCustomCredentialUsernameBackfill(
 
 /**
  * Pending count for the `--apply` gate. `username IS NULL` alone is NOT enough: a token-only
- * credential's `username` column stays NULL forever by design (`schema.ts`'s own doc on that
+ * credential's `username` column stays NULL forever by design (`schema.sqlite.ts`'s own doc on that
  * column — "NULL means this credential has no username, not not yet migrated"), so counting NULL
  * rows would report outstanding work forever even after every row has already been visited once,
  * and the `--apply` gate below would never again skip its restore-point capture. A row counts as

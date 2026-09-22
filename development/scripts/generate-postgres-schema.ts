@@ -1,5 +1,5 @@
 /**
- * @file Generates `src/platform/db/schema.postgres.ts` from `src/platform/db/schema.ts`.
+ * @file Generates `src/platform/db/schema.postgres.ts` from `src/platform/db/schema.sqlite.ts`.
  *
  * Why generate rather than hand-maintain a second schema:
  * Tovu must run on SQLite (bundled, local, zero-config) and PostgreSQL (hosted, Supabase). The
@@ -22,7 +22,7 @@
  * the approach is tractable, they are not a contract. ("No JSON columns" above means no Drizzle
  * `{ mode: "json" }` column; the `text` columns that HOLD JSON are now emitted as native `jsonb` —
  * see `JSON_TEXT_DECLARATION`.) The enforced invariants live in
- * `src/platform/db/__tests__/schema-postgres-parity.test.ts`, which derives every count from `schema.ts` at
+ * `src/platform/db/__tests__/schema-postgres-parity.test.ts`, which derives every count from `schema.sqlite.ts` at
  * run time; re-measure with `getTableConfig()` rather than trusting a number in this paragraph.
  *
  * Every one of those 65 indexes is a plain ascending column list today — no partial-index `WHERE`,
@@ -31,7 +31,7 @@
  * represents ordering and expressions as the exact same `SQL`-chunk shape CHECK bodies already use
  * (`asc(col)`/`desc(col)` literally expand to `` sql`${col} asc` ``), so the hardened renderer that
  * shape needs already exists. `src/platform/db/__tests__/schema-postgres-generator-fixtures.test.ts` proves
- * the translation against hand-built fixture tables, since `schema.ts` has no live case to prove it
+ * the translation against hand-built fixture tables, since `schema.sqlite.ts` has no live case to prove it
  * against — read that file's own doc before assuming this paragraph is aspirational.
  *
  * What this deliberately does NOT handle:
@@ -53,12 +53,12 @@ import { Column, is, Param, SQL, StringChunk } from "drizzle-orm";
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import { classifyCoreColumn } from "../../apps/website/src/platform/db/migration/manifest.js";
-import * as schema from "../../apps/website/src/platform/db/schema.js";
+import * as schema from "../../apps/website/src/platform/db/schema.sqlite.js";
 
 const OUT_PATH = path.resolve(import.meta.dirname, "../../apps/website/src/platform/db/schema.postgres.ts");
 const DRIZZLE_IS_TABLE = Symbol.for("drizzle:IsDrizzleTable");
 
-/** Every exported Drizzle table in `schema.ts`, paired with the export name it must keep. */
+/** Every exported Drizzle table in `schema.sqlite.ts`, paired with the export name it must keep. */
 function collectTables(): Array<{ exportName: string; table: never }> {
   return Object.entries(schema)
     .filter(([, v]) => Boolean(v && typeof v === "object" && (v as Record<symbol, unknown>)[DRIZZLE_IS_TABLE]))
@@ -115,7 +115,7 @@ function columnBuilder(col: SQLiteColumn, tableSqlName: string): string {
       throw new Error(
         `unmapped column kind "${col.columnType}" on column "${col.name}". ` +
           `This generator was written against a measured surface of SQLiteText/SQLiteInteger/SQLiteBoolean. ` +
-          `Adding a new kind to schema.ts requires teaching columnBuilder about it first.`
+          `Adding a new kind to schema.sqlite.ts requires teaching columnBuilder about it first.`
       );
   }
 }
@@ -334,7 +334,7 @@ const INERT_COLUMN_PROPS = new Set(["name", "table", "keyAsName", "dataType", "c
 
 /**
  * Column properties that ARE dialect-relevant modifiers this generator does not yet translate.
- * None has a live case in `schema.ts` today (each is confirmed `undefined` across all 580 columns),
+ * None has a live case in `schema.sqlite.ts` today (each is confirmed `undefined` across all 580 columns),
  * so requiring them to stay unset costs nothing now and turns "someone adds one" into a loud failure
  * instead of a silently incomplete PostgreSQL column:
  *  - `length` — SQLite text length (e.g. `text("x", { length: 20 })`); does not change `columnType`.
@@ -426,7 +426,7 @@ interface ForeignKeyRef {
 }
 
 /**
- * Table object -> the export name it is bound to in `schema.ts`.
+ * Table object -> the export name it is bound to in `schema.sqlite.ts`.
  *
  * A foreign key names its target by table *object*, but the generated file must reference it by
  * the export name the generated file itself declares. Resolving through identity keeps the two in
@@ -440,7 +440,7 @@ function exportNameOfTable(table: object): string {
   const name = EXPORT_NAME_BY_TABLE.get(table);
   if (!name) {
     throw new Error(
-      `a foreign key targets a table that is not exported from schema.ts (SQL name "${getTableConfig(table as never).name}"). ` +
+      `a foreign key targets a table that is not exported from schema.sqlite.ts (SQL name "${getTableConfig(table as never).name}"). ` +
         `The generated file cannot reference it. Export the table or drop the constraint.`
     );
   }
@@ -483,7 +483,7 @@ function describeChunkKind(chunk: unknown): string {
  * silently permit exactly the state SQLite forbids, on the tables where it matters most.
  *
  * Only two chunk kinds are accepted, and everything else is rejected rather than guessed at:
- *  - `StringChunk` — the tagged template's own static text, authored directly in `schema.ts` and
+ *  - `StringChunk` — the tagged template's own static text, authored directly in `schema.sqlite.ts` and
  *    therefore as trustworthy as any other line of source code.
  *  - `Column` belonging to `owningTable` — resolved to its bare SQL name (validated as an unquoted
  *    identifier, matching this schema's lowercase-snake_case convention; a name that needed quoting
@@ -661,7 +661,7 @@ function generate(): string {
   return `/**
  * GENERATED FILE — DO NOT EDIT BY HAND.
  *
- * Produced from \`src/platform/db/schema.ts\` by \`development/scripts/generate-postgres-schema.ts\`.
+ * Produced from \`src/platform/db/schema.sqlite.ts\` by \`development/scripts/generate-postgres-schema.ts\`.
  * Edit the SQLite schema and regenerate; editing this file directly will be overwritten and will
  * fail the drift check in CI.
  *
@@ -691,11 +691,11 @@ function main(): void {
 
   const current = fs.existsSync(OUT_PATH) ? fs.readFileSync(OUT_PATH, "utf8") : "";
   if (current === generated) {
-    process.stdout.write("schema.postgres.ts is up to date with schema.ts\n");
+    process.stdout.write("schema.postgres.ts is up to date with schema.sqlite.ts\n");
     return;
   }
   process.stderr.write(
-    "DRIFT: src/platform/db/schema.postgres.ts does not match what schema.ts generates.\n" +
+    "DRIFT: src/platform/db/schema.postgres.ts does not match what schema.sqlite.ts generates.\n" +
       "Run `npx tsx development/scripts/generate-postgres-schema.ts` and commit the result.\n"
   );
   process.exit(1);
@@ -703,7 +703,7 @@ function main(): void {
 
 // Only run when invoked directly (`npx tsx generate-postgres-schema.ts[, --check]`), never as a side
 // effect of import. The negative-fixture tests below import renderTable()/renderSqlText() etc. against
-// hand-built tables that are NOT part of schema.ts, specifically so a fixture proving the generator
+// hand-built tables that are NOT part of schema.sqlite.ts, specifically so a fixture proving the generator
 // rejects a bad shape can never itself write or drift-check the real src/platform/db/schema.postgres.ts.
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();

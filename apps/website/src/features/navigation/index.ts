@@ -5,7 +5,7 @@
  * location bindings, and resolution rules. What is left in this directory is only what is
  * genuinely this host's:
  *
- * - `repo.sqlite.ts` — the Drizzle adapters. They name `db/schema.ts`, which is this repo's shared
+ * - `repo.sqlite.ts` — the Drizzle adapters. They name `db/schema.sqlite.ts`, which is this repo's shared
  *   1,246-line schema covering every domain, so they are host persistence, not library code.
  *
  * Everything else here is a re-export, and the shape of what is *not* re-exported is the point:

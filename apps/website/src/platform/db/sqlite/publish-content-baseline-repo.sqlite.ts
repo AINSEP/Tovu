@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import type { PublishContentBaselineRecord, PublishContentBaselineRepoPort } from "#src/features/publish-content/baseline-repo";
-import { publishContentBaselines } from "../schema.js";
+import { publishContentBaselines } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
 /**
@@ -9,7 +9,7 @@ import type { ContentDb } from "./content-db.js";
  * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §2/§4 task 7.
  *
  * Real SQLite `PublishContentBaselineRepoPort` adapter over `publish_content_baselines`
- * (migration `0066`, `platform/db/schema.ts`). Mirrors
+ * (migration `0066`, `platform/db/schema.sqlite.ts`). Mirrors
  * `publish-content-bundle-repo.sqlite.ts`'s shape; `upsert` uses the table's own
  * `publish_content_baselines_unique` 4-column index as the `onConflictDoUpdate` target, the same
  * pattern `composio-connector-credential-repo.sqlite.ts`'s `upsert` already establishes for a

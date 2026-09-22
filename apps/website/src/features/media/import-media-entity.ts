@@ -297,7 +297,7 @@ export async function importMediaEntity(required: {
     source: resolvedSource,
     version: (baseVersion ?? 0) + 1,
     // createdAt is write-once, same convention `posts.createdByPrincipalId`/`createdAt` establish
-    // (`platform/db/schema.ts`) — an existing row keeps its own; a brand-new row takes the source's.
+    // (`platform/db/schema.sqlite.ts`) — an existing row keeps its own; a brand-new row takes the source's.
     createdAt: existingById?.createdAt ?? record.createdAt,
     updatedAt: deps.clock.nowIso(),
   };

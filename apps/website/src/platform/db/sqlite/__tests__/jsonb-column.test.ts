@@ -12,7 +12,7 @@ import { decodeSqliteJsonb, sqliteJsonb } from "../jsonb-column.js";
  * @file Direct coverage for `sqliteJsonb`/`decodeSqliteJsonb` (`jsonb-column.ts`) against a real
  * in-memory better-sqlite3 connection — no app schema or migrations involved, since this is
  * testing the reusable column type itself, not any of the 37 existing `text("*_json")` columns
- * in `db/schema.ts` (those are untouched; a separate design debate owns migrating them).
+ * in `db/schema.sqlite.ts` (those are untouched; a separate design debate owns migrating them).
  *
  * Table shapes here are minimal ad hoc `CREATE TABLE ... BLOB` statements rather than
  * `drizzle-kit generate`d migrations, matching what `dataType()` itself would emit.

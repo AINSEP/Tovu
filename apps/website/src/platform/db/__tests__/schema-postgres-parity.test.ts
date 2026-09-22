@@ -18,7 +18,7 @@
  * `.unique()` modifier shows up as; it lives on the column's `isUnique` flag instead. A dropped
  * `.unique()` means PostgreSQL silently accepts duplicate rows that SQLite rejects.
  *
- * So this test compares against the SOURCE OF TRUTH — `schema.ts` introspected via Drizzle — rather
+ * So this test compares against the SOURCE OF TRUTH — `schema.sqlite.ts` introspected via Drizzle — rather
  * than against the generator's own output. Counts, not exact SQL, because the two dialects legibly
  * differ in type spelling; a count mismatch means something was dropped or invented.
  *
@@ -27,7 +27,7 @@
  * *meaning* without changing any count this file was checking before. Two tests below compare meaning
  * directly — CHECK SQL text against a hand-transcribed expectation (see their own doc for why that
  * expectation is NOT derived by calling the generator's own renderer), and each index's exact
- * `.on(...)` argument list/order against source. Both are still measured against `schema.ts`, not the
+ * `.on(...)` argument list/order against source. Both are still measured against `schema.sqlite.ts`, not the
  * generator's output-of-its-own-output, for the same reason the count tests are.
  *
  * The identity and foreign-key tests near the bottom of this file close a related but distinct blind
@@ -40,7 +40,7 @@
  * was never created. Likewise, `occurrences("foreignKey({")` (above) proves nine `foreignKey({` tokens
  * exist; it says nothing about which table each one targets, so a foreign key silently pointed at the
  * wrong table — same count, wrong meaning — passes that test today. Both new tests below resolve
- * columns and tables on *both* sides by identity via `getTableConfig()` — `schema.ts` for source,
+ * columns and tables on *both* sides by identity via `getTableConfig()` — `schema.sqlite.ts` for source,
  * `schema.postgres.ts` (imported as a module, not read as text) for target — and compare what each
  * column/constraint actually *is*, not how many of a token appear.
  */
@@ -53,7 +53,7 @@ import { SQL, is } from "drizzle-orm";
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { getTableConfig as getPgTableConfig } from "drizzle-orm/pg-core";
 
-import * as sqliteSchema from "../schema.js";
+import * as sqliteSchema from "../schema.sqlite.js";
 import * as pgSchema from "../schema.postgres.js";
 
 import { tsPropertyNames } from "../../../../../../development/scripts/generate-postgres-schema.js";
@@ -67,7 +67,7 @@ const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/
 /**
  * Every exported Drizzle table on a schema module, paired with its export name. `IsDrizzleTable` is
  * the same symbol on both SQLite and PostgreSQL table instances — it is set by the dialect-agnostic
- * base `Table` class drizzle-orm shares across cores — so this one walk works for `schema.ts` and the
+ * base `Table` class drizzle-orm shares across cores — so this one walk works for `schema.sqlite.ts` and the
  * generated `schema.postgres.ts` alike.
  */
 function tablesOf(schemaModule: object): Array<{ exportName: string; table: never }> {
@@ -191,7 +191,7 @@ test("every SQLiteInteger column is widened to bigint(mode:\"number\") — a pla
   // `bigint(` only matches the column-builder call, since the import line lists the identifier as
   // `bigint,` with no immediately-following "(" — same reasoning the other count tests in this file
   // rely on for "foreignKey({", "check(", etc.
-  assert.equal(occurrences("bigint("), expectedBigint, "bigint(...) count differs from the number of SQLiteInteger columns in schema.ts");
+  assert.equal(occurrences("bigint("), expectedBigint, "bigint(...) count differs from the number of SQLiteInteger columns in schema.sqlite.ts");
   assert.equal(occurrences("integer("), 0, "a SQLiteInteger column rendered as plain integer(...) instead of being widened to bigint");
 });
 
@@ -207,7 +207,7 @@ test("column count matches per table — a dropped column would not be caught by
 
 /**
  * Builds the "sealed shape" CHECK's expected bare SQL text directly from the table's own column
- * names, using the pattern transcribed by hand from `schema.ts` (all sealed columns NULL, or all
+ * names, using the pattern transcribed by hand from `schema.sqlite.ts` (all sealed columns NULL, or all
  * NOT NULL) — NOT by calling `renderSqlText()`/`renderTable()` from the generator. A generator whose
  * translation logic silently mis-renders CHECK bodies would, by construction, still agree with
  * itself; this only agrees with it if the actual emitted text matches an independently-authored
@@ -221,7 +221,7 @@ function sealedShapeCheckSql(table: object, sealedColumns: readonly string[]): s
 }
 
 test("sealed-shape CHECK SQL text is semantically exact on every credential table — a count match cannot tell a correct constraint from a corrupted one with the same token count", () => {
-  // Column lists transcribed from each table's own `check(...)` declaration in schema.ts, not
+  // Column lists transcribed from each table's own `check(...)` declaration in schema.sqlite.ts, not
   // inferred — a table with the wrong column list here would itself be a bug in this test, which is
   // exactly why the assertion below is on the literal generated text, not on this list's shape.
   const cases: ReadonlyArray<{ table: object; checkName: string; sealedColumns: readonly string[] }> = [
@@ -268,7 +268,7 @@ test("sealed-shape CHECK SQL text is semantically exact on every credential tabl
   assert.equal(
     cases.length,
     sourceTables().reduce((n, { table }) => n + getTableConfig(table).checks.filter((c) => c.name.endsWith("_sealed_shape")).length, 0),
-    "this test's case list has drifted from the number of *_sealed_shape CHECK constraints actually declared in schema.ts"
+    "this test's case list has drifted from the number of *_sealed_shape CHECK constraints actually declared in schema.sqlite.ts"
   );
   for (const { table, checkName, sealedColumns } of cases) {
     const expected = sealedShapeCheckSql(table, sealedColumns);
@@ -291,7 +291,7 @@ test("every index's column list and order in the generated schema exactly matche
     const tsNames = tsPropertyNames(table, cfg.columns);
     for (const idx of cfg.indexes) {
       const describe = `${exportName}'s index "${idx.config.name}"`;
-      // Every column in schema.ts's indexes today is a plain column (confirmed by this assertion,
+      // Every column in schema.sqlite.ts's indexes today is a plain column (confirmed by this assertion,
       // not assumed) — a source index that starts using asc()/desc()/an expression would need this
       // test extended to assert its exact translated text before this test could trust it, the same
       // way the fixtures test proves that translation independently of the real schema.

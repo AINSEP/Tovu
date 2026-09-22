@@ -4,7 +4,7 @@ import type Database from "better-sqlite3";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 import type { JsonObject } from "@jini-ai/cms/core";
-import { postRevisions, posts } from "../../platform/db/schema.js";
+import { postRevisions, posts } from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import {

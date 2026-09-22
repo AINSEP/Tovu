@@ -1,7 +1,7 @@
 /**
  * GENERATED FILE — DO NOT EDIT BY HAND.
  *
- * Produced from `src/platform/db/schema.ts` by `development/scripts/generate-postgres-schema.ts`.
+ * Produced from `src/platform/db/schema.sqlite.ts` by `development/scripts/generate-postgres-schema.ts`.
  * Edit the SQLite schema and regenerate; editing this file directly will be overwritten and will
  * fail the drift check in CI.
  *

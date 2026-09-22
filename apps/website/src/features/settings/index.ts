@@ -5,7 +5,7 @@
  * definitions/values/revision-ledger model. What is left in this directory is only what is
  * genuinely this host's:
  *
- * - `repo.sqlite.ts` — the Drizzle adapters. They name `db/schema.ts`, this repo's shared
+ * - `repo.sqlite.ts` — the Drizzle adapters. They name `db/schema.sqlite.ts`, this repo's shared
  *   1,246-line schema covering every domain, so they are host persistence, not library code.
  * - `migration.ts` — the one-time brownfield migration retiring this host's own legacy
  *   `presentation_settings` table into the ledger. A fresh host has no such legacy data, so this

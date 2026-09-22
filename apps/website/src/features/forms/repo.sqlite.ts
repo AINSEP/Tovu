@@ -1,7 +1,7 @@
 import { and, desc, eq, isNull, lt, or } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
-import { formDefinitions, formSubmissions } from "../../platform/db/schema.js";
+import { formDefinitions, formSubmissions } from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import { FormSlugConflictError } from "./errors.js";
@@ -19,7 +19,7 @@ import type {
  * @file Drizzle/SQLite adapters for `forms` (rule-of-two half #2, ADR-006, C-012).
  *
  * `create`'s slug-uniqueness relies on the real DB unique index
- * (`form_definitions_workspace_slug_unique`, `db/schema.ts`) — behavior.spec.md §6.1's
+ * (`form_definitions_workspace_slug_unique`, `db/schema.sqlite.ts`) — behavior.spec.md §6.1's
  * actual tie-break mechanism, not app-level check-then-insert. A `SQLITE_CONSTRAINT_UNIQUE`
  * violation is mapped here to `FormSlugConflictError`, matching `repo.memory.ts`'s emulated
  * behavior so `write-service.ts`'s error handling is identical against either adapter.

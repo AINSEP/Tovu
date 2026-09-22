@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, lte } from "drizzle-orm";
 
-import { outboxEvents } from "../schema.js";
+import { outboxEvents } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "#src/contracts/core/events/outbox-worker";
 import type { DomainEvent, ISODateTime, OutboxPort, OutboxRecord, UUID } from "@jini-ai/cms/core";

@@ -1,7 +1,7 @@
 /**
  * GENERATED FILE — DO NOT EDIT BY HAND.
  *
- * Produced from `src/platform/db/schema.ts` by `development/scripts/generate-mysql-schema.ts`.
+ * Produced from `src/platform/db/schema.sqlite.ts` by `development/scripts/generate-mysql-schema.ts`.
  * Edit the SQLite schema and regenerate; editing this file directly will be overwritten and will
  * fail the drift check in CI. Targets MySQL 8.0.16+ (not MariaDB) — the generator's module doc
  * lists every MySQL-specific mapping (varchar(191) keys, native JSON, expression defaults).

@@ -26,7 +26,7 @@ import type {
  * permanently only by a Trash purge (owner ruling 2026-09-21, superseding the original INV-08
  * "never deleted" wording) — the repo port itself has no delete method for this file to call.
  *
- * Slug-uniqueness relies on the DB unique index (`db/schema.ts`), not an app-level check
+ * Slug-uniqueness relies on the DB unique index (`db/schema.sqlite.ts`), not an app-level check
  * (behavior.spec.md §6.1) — `repo.memory.ts`/`repo.sqlite.ts` both map a conflicting insert to
  * `FormSlugConflictError`, which this file lets propagate unchanged out of `mutation.execute()`.
  */

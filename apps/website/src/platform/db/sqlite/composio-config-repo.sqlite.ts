@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { ISODateTime, UUID } from "@jini-ai/cms/core";
 
 import type { ComposioConfigRecord, ComposioConfigRepoPort } from "../../connectors/composio-config-store.js";
-import { composioConfig } from "../schema.js";
+import { composioConfig } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
 /**

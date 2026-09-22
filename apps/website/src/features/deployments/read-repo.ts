@@ -5,7 +5,7 @@ import type { DeploymentRunRecord, DeploymentTargetRecord, EnvironmentRecord, Re
 /**
  * @file The deployments feature's READ-ONLY persistence port (2026-08-15 — closes the "zero
  * callers" gap `types.ts`'s own header discloses: this is the first repository/route wiring onto
- * the five tables `src/platform/db/schema.ts` has carried, unread, since migration `0037`).
+ * the five tables `src/platform/db/schema.sqlite.ts` has carried, unread, since migration `0037`).
  *
  * Deliberately read-only: `write-service.md`/the six-debate consensus scope a real write path
  * (create environment/target, start a run) behind credential storage that does not exist yet (see

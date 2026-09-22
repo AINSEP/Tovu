@@ -6,7 +6,7 @@
  * A received bundle (Task 4's export envelope: `{hashVersion, sourceLabel, entities, blobManifest}`)
  * is staged here, between the peer's push/pull and Task 7's gated `plan()`/`execute()`, so the plan
  * hash has a stable input and large media bytes upload exactly once (schema doc, `platform/db/
- * schema.ts`'s `publishContentBundles`). Bytes are NOT stored here — see `blob-staging.ts`.
+ * schema.sqlite.ts`'s `publishContentBundles`). Bytes are NOT stored here — see `blob-staging.ts`.
  *
  * `expiresAt` is ALWAYS computed here, server-side, from `receivedAt` + a fixed TTL — never accepted
  * from the caller. A client-controlled expiry would let a peer stage a bundle that never expires
@@ -14,7 +14,7 @@
  *
  * **Deviation from the plan's draft schema (disclosed):** plan §2's `publish_content_bundles`
  * draft included a `sourceLabel`/label-style column; the migration Task 3 actually landed
- * (`platform/db/schema.ts`'s `publishContentBundles`, migration `0066`) has NO such column — only
+ * (`platform/db/schema.sqlite.ts`'s `publishContentBundles`, migration `0066`) has NO such column — only
  * `id`/`workspaceId`/`sourcePrincipalId`/`hashVersion`/`entitiesJson`/`blobManifestJson`/`sizeBytes`/
  * `receivedAt`/`expiresAt`. This module accepts an optional `sourceLabel` on {@link StageBundleInput}
  * (the export envelope carries one) but does NOT persist it — it is display-only and, per
@@ -35,7 +35,7 @@
  */
 
 /** One staged bundle row — the in-process shape `PublishContentBundleRepoPort` reads/writes.
- *  Mirrors `publishContentBundles` (`platform/db/schema.ts`) field-for-field; `sourceLabel` is
+ *  Mirrors `publishContentBundles` (`platform/db/schema.sqlite.ts`) field-for-field; `sourceLabel` is
  *  `string | null` here (not `string | undefined`) to match Drizzle's own nullable-column convention
  *  used throughout this codebase's other repo record shapes (e.g. `PublishHistoryEntry`'s optional
  *  fields via `row.x !== null`). */

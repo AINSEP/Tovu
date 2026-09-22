@@ -1,15 +1,15 @@
 /**
  * @file Proves the generator's index/CHECK-SQL translation on the specific shapes that have no live
- * case in `schema.ts` today, so its correctness rests on evidence rather than "the real schema never
+ * case in `schema.sqlite.ts` today, so its correctness rests on evidence rather than "the real schema never
  * exercises this branch."
  *
- * Why fixtures instead of adding these shapes to `schema.ts` itself: the real schema is the single
+ * Why fixtures instead of adding these shapes to `schema.sqlite.ts` itself: the real schema is the single
  * source of truth this whole generator exists to preserve, and none of these four shapes (a partial
  * index, a `.desc()`-ordered index, an expression index, a CHECK containing a bound parameter) is
  * something the product actually needs today — inventing a real table just to exercise them would be
  * fixture data masquerading as a schema decision. Building small standalone `sqliteTable`s here,
  * against the generator's own exported `renderTable`, exercises the exact same code path
- * `generate()` uses per real table without touching `schema.ts` or `schema.postgres.ts` at all.
+ * `generate()` uses per real table without touching `schema.sqlite.ts` or `schema.postgres.ts` at all.
  *
  * Three of the four are proven by CORRECT TRANSLATION, not rejection — see
  * `generate-postgres-schema.ts`'s own doc on `renderIndexColumnExpr`/`renderSqlText` for why ordering,

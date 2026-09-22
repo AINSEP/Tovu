@@ -7,7 +7,7 @@ import type {
   MediaProviderCredentialReplacePlanner,
   MediaProviderCredentialRepoPort,
 } from "#src/features/media/provider-credential-store";
-import { mediaProviderCredentials } from "../schema.js";
+import { mediaProviderCredentials } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
 /**

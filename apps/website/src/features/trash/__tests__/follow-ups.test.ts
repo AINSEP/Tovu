@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type Database from "better-sqlite3";
 
-import * as schema from "#src/platform/db/schema";
+import * as schema from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 
 import { createSqliteTrashDb } from "../db-port.sqlite.js";

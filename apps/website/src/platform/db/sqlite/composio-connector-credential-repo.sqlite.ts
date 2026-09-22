@@ -6,7 +6,7 @@ import type {
   ConnectorCredentialRepoPort,
   ConnectorCredentialRow,
 } from "../../connectors/connector-credential-store.js";
-import { composioConnectorCredentials } from "../schema.js";
+import { composioConnectorCredentials } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
 /**

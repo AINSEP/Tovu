@@ -8,7 +8,7 @@ import {
   type RevocationRead,
   type RevocationWrite,
 } from "#src/features/publish-trust/revocations";
-import { publishTrustRevocations } from "../schema.js";
+import { publishTrustRevocations } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
 /**

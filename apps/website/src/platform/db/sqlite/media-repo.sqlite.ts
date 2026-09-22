@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 
-import { assetBlobs, assetRenditions, media, transformDefinitions } from "../schema.js";
+import { assetBlobs, assetRenditions, media, transformDefinitions } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 import { findOneBy } from "./repo-helpers.js";
 import type { MediaContentTypeStorePort } from "#src/features/media/content-type-store";
@@ -42,7 +42,7 @@ function toMediaRecord(row: typeof media.$inferSelect): MediaRecord {
     id: row.id,
     workspaceId: row.workspaceId,
     title: row.title,
-    // `row.slug` is nullable in the DB (see `schema.ts`'s doc: backfilled out of band, not on
+    // `row.slug` is nullable in the DB (see `schema.sqlite.ts`'s doc: backfilled out of band, not on
     // write) but `MediaRecord.slug` is non-nullable in the domain model — every row this repo
     // itself ever writes always has a real slug (`SqliteMediaRepo.save()`'s `values` below never
     // omits it), so a `null` here can only mean a genuinely pre-backfill row. Falling back to the

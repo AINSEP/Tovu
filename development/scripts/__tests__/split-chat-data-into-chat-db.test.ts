@@ -9,7 +9,7 @@ import Database from "better-sqlite3";
 
 import { openContentDb, openContentDbReadOnly } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
 import { openChatDb } from "../../../apps/website/src/platform/db/sqlite/chat-db.js";
-import { workspaces } from "../../../apps/website/src/platform/db/schema.js";
+import { workspaces } from "../../../apps/website/src/platform/db/schema.sqlite.js";
 import { readChatSplitPlan, reportDryRun, applyChatSplit } from "../split-chat-data-into-chat-db.js";
 
 /**

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ExternalMcpServerRecord } from "#src/assistant/index";
-import { workspaces } from "../../schema.js";
+import { workspaces } from "../../schema.sqlite.js";
 import { openContentDb } from "../content-db.js";
 import { SqliteExternalMcpServerRepo } from "../external-mcp-repo.sqlite.js";
 

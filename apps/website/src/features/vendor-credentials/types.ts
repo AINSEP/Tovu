@@ -1,5 +1,5 @@
 /**
- * @file Domain types for `vendor_credential_sets` (`../../db/schema.ts`) — see that table's own doc
+ * @file Domain types for `vendor_credential_sets` (`../../db/schema.sqlite.ts`) — see that table's own doc
  * comment for the full "destination vs. vendor" redesign this file is the center of.
  *
  * Two halves, added in two passes:
@@ -24,7 +24,7 @@ import type { SealedSecret } from "../webhooks/index.js";
 /**
  * A company/protocol identity a saved credential authenticates to — as opposed to a PUBLISH
  * DESTINATION (`"github-pages"`), which is what a token is *used for*, not *who it is*. See
- * `../../db/schema.ts`'s `vendorCredentialSets` doc for the full reasoning.
+ * `../../db/schema.sqlite.ts`'s `vendorCredentialSets` doc for the full reasoning.
  *
  * **`"s3-compatible"` is a KNOWN, DELIBERATE exception to "every member identifies one account"** —
  * flagged 2026-08-16 during Phase 1 review, kept rather than removed on purpose. Every other member
@@ -128,7 +128,7 @@ export interface CloudflareVendorConnectionInput {
  *  Carried over verbatim from `../deployments/publish-credentials/types.ts`'s own
  *  `S3CompatibleConnectionInput` — see that file's header for the full per-field reasoning (spec
  *  `custom-publish-provider-contract.md` §4). `token_tail`'s "primary secret" for this vendor is
- *  `secretAccessKey`, never `accessKeyId` — see `../../db/schema.ts`'s `vendorCredentialSets.
+ *  `secretAccessKey`, never `accessKeyId` — see `../../db/schema.sqlite.ts`'s `vendorCredentialSets.
  *  tokenTail` doc. */
 export interface S3CompatibleVendorConnectionInput {
   readonly vendorId: "s3-compatible";
@@ -162,14 +162,14 @@ export interface VendorCredentialSetRecord {
   readonly vendorId: VendorId;
   readonly label: string;
   readonly sealed: SealedSecret;
-  /** Last 4 characters of the connection's primary secret, plaintext — see `../../db/schema.ts`'s
+  /** Last 4 characters of the connection's primary secret, plaintext — see `../../db/schema.sqlite.ts`'s
    *  `vendorCredentialSets.tokenTail` doc. Always populated (`NOT NULL`), unlike `accountLabel`. */
   readonly tokenTail: string;
   /** At most one `TRUE` per `(workspaceId, vendorId)`, maintained by `store.ts`'s write path — see
-   *  `../../db/schema.ts`'s `vendorCredentialSets.isDefault` doc. */
+   *  `../../db/schema.sqlite.ts`'s `vendorCredentialSets.isDefault` doc. */
   readonly isDefault: boolean;
   /** The verified account's public login/username, held in the clear — `null` until populated. See
-   *  `../../db/schema.ts`'s `vendorCredentialSets.accountLabel` doc. */
+   *  `../../db/schema.sqlite.ts`'s `vendorCredentialSets.accountLabel` doc. */
   readonly accountLabel: string | null;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
@@ -178,7 +178,7 @@ export interface VendorCredentialSetRecord {
 /** The read model every route/tool in this feature returns — see `store.ts`'s `toSummary`. NEVER
  *  contains `sealed`, a token, or any `VendorConnectionInput` field — enforced by construction: this
  *  type has no field capable of carrying one. `tokenTail` IS included, deliberately — see
- *  `../../db/schema.ts`'s `vendorCredentialSets.tokenTail` doc for why 4 characters of a long token
+ *  `../../db/schema.sqlite.ts`'s `vendorCredentialSets.tokenTail` doc for why 4 characters of a long token
  *  is not meaningful secret material on its own. */
 export interface VendorCredentialSetSummary {
   readonly id: UUID;

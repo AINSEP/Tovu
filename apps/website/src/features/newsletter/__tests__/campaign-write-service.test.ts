@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { newsletterCampaignRevisions, newsletterCampaigns } from "#src/platform/db/schema";
+import { newsletterCampaignRevisions, newsletterCampaigns } from "#src/platform/db/schema.sqlite";
 import { cancelCampaign, saveCampaign, scheduleCampaign, type CampaignWriteServiceDeps } from "../campaign-write-service.js";
 import { NewsletterCampaignNotEditableError, NewsletterConflictError, NewsletterListNotFoundError, NewsletterValidationError } from "../errors.js";
 import { InMemoryNewsletterCampaignRepo, InMemoryNewsletterListRepo } from "../repo.memory.js";

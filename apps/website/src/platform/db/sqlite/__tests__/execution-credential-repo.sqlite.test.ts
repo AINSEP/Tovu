@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { openContentDb } from "../content-db.js";
 import { SqliteAdminExecutionCredentialRepo } from "../execution-credential-repo.sqlite.js";
-import { principals, workspaces } from "../../schema.js";
+import { principals, workspaces } from "../../schema.sqlite.js";
 import type { AdminExecutionCredentialRecord } from "#src/assistant/execution-credential-store";
 
 /**

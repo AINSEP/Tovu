@@ -1,7 +1,7 @@
 import type { ClockPort } from "@jini-ai/cms/core";
 import { and, eq } from "drizzle-orm";
 
-import { posts } from "../../platform/db/schema.js";
+import { posts } from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";

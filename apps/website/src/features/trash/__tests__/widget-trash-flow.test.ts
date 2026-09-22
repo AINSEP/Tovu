@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import * as schema from "#src/platform/db/schema";
+import * as schema from "#src/platform/db/schema.sqlite";
 import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
 import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";

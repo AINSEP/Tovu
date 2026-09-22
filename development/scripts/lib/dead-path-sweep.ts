@@ -29,7 +29,7 @@
  * 2. **Hardcoded repo-relative path strings** resolve against the CWD the npm script runs in — the
  *    REPO ROOT — not the containing file's directory. `drizzle.config.ts`'s own header comment
  *    documents this explicitly, and it is why that file legitimately reads
- *    `"./apps/website/src/platform/db/schema.ts"` from inside `apps/website/src/platform/db/`.
+ *    `"./apps/website/src/platform/db/schema.sqlite.ts"` from inside `apps/website/src/platform/db/`.
  *    `list-server-test-files.ts`'s `execFileSync("find", ["src/server", ...])` is the same class.
  *
  * Class 2 is the one a naive "check the imports" linter misses entirely, and it is three of those six
@@ -680,7 +680,7 @@ const SOURCE_FILE_EXTENSION = /\.(ts|tsx|mts|cts|js|mjs|cjs)$/;
 /**
  * The portion of a repo-relative path string whose absence proves the reference is dead.
  *
- * A path naming a SOURCE file must exist in full — a missing `schema.ts` is exactly the
+ * A path naming a SOURCE file must exist in full — a missing `schema.sqlite.ts` is exactly the
  * `drizzle.config.ts` defect. Every other path is checked only down to its parent directory,
  * because a missing leaf under an existing directory is routine and not rot: `check-test-baseline.ts`
  * names `development/coverage/test-results.tap` and `route-coverage-lib.ts` names

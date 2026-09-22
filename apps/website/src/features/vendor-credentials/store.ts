@@ -30,7 +30,7 @@ import type {
  *
  * `tokenTail`: unlike `accountLabel`, this is NOT NULL and needs no network probe — it is derived
  * synchronously from the SAME plaintext `connection` object being sealed, on every create and every
- * connection-changing update. See `../../db/schema.ts`'s `vendorCredentialSets.tokenTail` doc for
+ * connection-changing update. See `../../db/schema.sqlite.ts`'s `vendorCredentialSets.tokenTail` doc for
  * which field is the "primary secret" per vendor.
  *
  * `accountLabel`: probed INLINE, at save time, for `github` only — the SAME choice
@@ -278,7 +278,7 @@ function validateConnection(raw: unknown): VendorConnectionInput {
 }
 
 /** Extracts the last 4 characters of `connection`'s primary secret — `secretAccessKey` for
- *  `s3-compatible`, `token` for every other vendor. See `../../db/schema.ts`'s
+ *  `s3-compatible`, `token` for every other vendor. See `../../db/schema.sqlite.ts`'s
  *  `vendorCredentialSets.tokenTail` doc.
  *
  * @complexity O(1).

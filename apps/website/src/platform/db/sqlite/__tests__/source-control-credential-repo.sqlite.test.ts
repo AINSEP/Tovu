@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 
 import { openContentDb } from "../content-db.js";
 import { SqliteSourceControlCredentialSetRepo } from "../source-control-credential-repo.sqlite.js";
-import { workspaces } from "../../schema.js";
+import { workspaces } from "../../schema.sqlite.js";
 import type { SourceControlCredentialSetRecord } from "#src/features/source-control/types";
 
 /**

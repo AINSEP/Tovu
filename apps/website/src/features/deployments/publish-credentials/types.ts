@@ -5,7 +5,7 @@ import type { SealedSecret } from "../../webhooks/index.js";
 /**
  * @file Domain types for named, workspace-scoped provider connections used to publish a static
  * export to GitHub Pages / Vercel / Netlify / Cloudflare Pages (`publish_credential_sets`,
- * `src/platform/db/schema.ts`). Design: `ADS-memory/reports/external-audit/runs/
+ * `src/platform/db/schema.sqlite.ts`). Design: `ADS-memory/reports/external-audit/runs/
  * 2026-08-15-terra-xhigh-publish-credentials-design.md`.
  *
  * Purpose:
@@ -117,7 +117,7 @@ export interface S3CompatibleConnectionInput {
 
 /** Closed discriminated union — see this file's header. This whole object is what gets serialized to
  *  JSON and sealed as ONE ciphertext blob per credential set (never per-field columns — see
- *  `src/platform/db/schema.ts`'s `publishCredentialSets` header for why). */
+ *  `src/platform/db/schema.sqlite.ts`'s `publishCredentialSets` header for why). */
 export type PublishConnectionInput =
   | GitHubPagesConnectionInput
   | VercelConnectionInput
@@ -136,11 +136,11 @@ export interface PublishCredentialSetRecord {
   readonly sealed: SealedSecret;
   /** Migration `0041` (Contract v2 Correction B) — at most one `TRUE` per `(workspaceId,
    *  providerId)`, maintained by `store.ts`'s write path (never by a DB constraint — see
-   *  `db/schema.ts`'s `publishCredentialSets.isDefault` doc). `resolveDefaultForPublish` reads the
+   *  `db/schema.sqlite.ts`'s `publishCredentialSets.isDefault` doc). `resolveDefaultForPublish` reads the
    *  row with `isDefault: true` for a provider instead of requiring a caller-supplied `id`. */
   readonly isDefault: boolean;
   /** Migration `0044` (2026-08-16) — the verified account's public login/username, held in the
-   *  clear (never sealed) — see `db/schema.ts`'s `publishCredentialSets.accountLabel` doc for the
+   *  clear (never sealed) — see `db/schema.sqlite.ts`'s `publishCredentialSets.accountLabel` doc for the
    *  full reasoning (mirrors `composioConnectorCredentials.accountLabel`) and `store.ts`'s header for
    *  exactly which write paths are and are not allowed to populate it. */
   readonly accountLabel: string | null;

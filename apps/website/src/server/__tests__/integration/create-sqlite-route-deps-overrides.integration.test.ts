@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { workspaces } from "#src/platform/db/schema";
+import { workspaces } from "#src/platform/db/schema.sqlite";
 
 /**
  * @file SPEC-003 C-010 (`createSqliteRouteDeps`, changed signature) — TDD certification,

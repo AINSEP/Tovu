@@ -37,7 +37,7 @@ import path from "node:path";
 
 import { and, eq } from "drizzle-orm";
 
-import { externalMcpServers } from "../../apps/website/src/platform/db/schema.js";
+import { externalMcpServers } from "../../apps/website/src/platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { buildExternalMcpEnvAad, buildExternalMcpOAuthAad, EXTERNAL_MCP_AAD_VERSION } from "../../apps/website/src/assistant/external-mcp-aad.js";
 

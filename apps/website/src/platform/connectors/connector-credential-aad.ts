@@ -10,13 +10,13 @@ import type { UUID } from "@jini-ai/cms/core";
  *
  * Format: `composio-connector-credential:v1:${workspaceId}:${connectorId}` — this table has no
  * surrogate `id` column (`(workspace_id, connector_id)` IS the row's own primary key, per
- * `db/schema.ts`'s `composioConnectorCredentials` doc), so the AAD binds that composite PK
+ * `db/schema.sqlite.ts`'s `composioConnectorCredentials` doc), so the AAD binds that composite PK
  * directly. Binds both scoping dimensions this table actually has: a ciphertext sealed under one
  * connected account's AAD fails auth-tag verification if presented as any other connector's
  * ciphertext, even within the same workspace.
  *
  * This table's rows predate AAD entirely (2026-09-02 gap closure) — see
- * `composio_connector_credentials.aad_version`'s own doc in `db/schema.ts` and
+ * `composio_connector_credentials.aad_version`'s own doc in `db/schema.sqlite.ts` and
  * `development/scripts/backfill-connector-credential-aad.ts` for how existing rows are migrated
  * without becoming unreadable.
  */

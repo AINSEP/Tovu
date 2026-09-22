@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { and, eq, ne, sql, type SQL } from "drizzle-orm";
 
 import { stampWatermarkTx, type ContentDbTransaction } from "../../platform/db/sqlite/watermark.js";
-import { entryTerms, taxonomies, taxonomyRevisions, terms } from "../../platform/db/schema.js";
+import { entryTerms, taxonomies, taxonomyRevisions, terms } from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import type {

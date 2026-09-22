@@ -3,7 +3,7 @@ import test from "node:test";
 import type Database from "better-sqlite3";
 import { sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-import * as schema from "#src/platform/db/schema";
+import * as schema from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 

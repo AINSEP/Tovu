@@ -92,7 +92,7 @@ import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
  * external MCP connection is UNRECOVERABLE in this app (`project_external_mcp_delete_is_unrecoverable`
  * — no soft-delete, no undo). Silently destroying that on a disable/uninstall would be a strictly
  * worse failure mode than leaving an inert, disabled row behind. `provisioned_by_plugin_id`
- * (`schema.ts`) records which plugin created a surviving row, so a FUTURE uninstall flow can offer
+ * (`schema.sqlite.ts`) records which plugin created a surviving row, so a FUTURE uninstall flow can offer
  * to remove it explicitly — an operator decision, never an automatic side effect of this file.
  *
  * ---------------------------------------------------------------------------

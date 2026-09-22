@@ -97,7 +97,7 @@ export async function describeCredential(deps: CustomCredentialReadDeps, input: 
 /**
  * The non-decrypting sibling of {@link resolveCustomCredentialByLabel}: finds a credential by its
  * exact label and returns its read model — `baseUrl`/`additionalHosts` included, since both are
- * plaintext columns (`db/schema.ts`'s own doc) — WITHOUT ever touching `sealer`/`keyring`. Exists so
+ * plaintext columns (`db/schema.sqlite.ts`'s own doc) — WITHOUT ever touching `sealer`/`keyring`. Exists so
  * a caller that only needs to validate a request's target origin or render a confirmation dialog
  * (`features/custom-credentials/credentialed-request.ts`'s `resolveRequestTarget`,
  * `tool-registrations.ts`'s DELETE confirmation gate) never has to decrypt just to read two plaintext
@@ -194,7 +194,7 @@ function validateAdditionalHostEntry(raw: unknown, index: number): string {
 
 /**
  * Validates and normalizes the optional `additionalHosts` field (2026-08-31, owner-driven multi-host
- * support — see `db/schema.ts`'s `customCredentialSets.additionalHostsJson` doc). `undefined` (the
+ * support — see `db/schema.sqlite.ts`'s `customCredentialSets.additionalHostsJson` doc). `undefined` (the
  * field was omitted) degrades to no extra hosts, matching every other optional field's "omitted is
  * not an error" contract on this store. Each entry is normalized to its own ORIGIN (scheme+host+port,
  * no path) and the result is deduped — this is what lets
@@ -333,7 +333,7 @@ export async function createCustomCredential(deps: CustomCredentialWriteDeps, in
     baseUrl,
     additionalHosts,
     // Written to the plaintext column AND left inside the sealed connection object above — see
-    // `db/schema.ts`'s `customCredentialSets.username` doc: the column is the read model's source,
+    // `db/schema.sqlite.ts`'s `customCredentialSets.username` doc: the column is the read model's source,
     // the sealed copy keeps every existing decrypting reader working until the migration's Pass 2.
     ...(connection.username !== undefined ? { username: connection.username } : {}),
     sealed,
@@ -375,7 +375,7 @@ export interface UpdateCustomCredentialInput {
    * re-pasting the token to say so was pure friction) WITHOUT retyping the token. Before this field
    * existed, `username` only ever changed as a side effect of a full `connection` replacement (see
    * {@link connection}'s own doc) — correct when username lived inside the sealed blob, no longer
-   * necessary now that it is its own column (`db/schema.ts`'s `customCredentialSets.username` doc).
+   * necessary now that it is its own column (`db/schema.sqlite.ts`'s `customCredentialSets.username` doc).
    *
    * Three states, validated by {@link validateUsernamePatch}: omitted (`undefined`) leaves the column
    * exactly as `connection` (if supplied) would otherwise have set it; `null` explicitly clears it;

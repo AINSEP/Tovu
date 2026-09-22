@@ -193,7 +193,7 @@ export interface BeforeSaveEntryDraft {
 export type BeforeSaveHookPort = (entry: BeforeSaveEntryDraft) => Promise<JsonObject>;
 
 /**
- * One row `appendRevision` writes to `post_revisions` (`platform/db/schema.ts`, migration
+ * One row `appendRevision` writes to `post_revisions` (`platform/db/schema.sqlite.ts`, migration
  * `0064_famous_omega_sentinel.sql`) — the full `PostRecord` snapshot, not the narrower shape
  * `postUpdateReverter`'s inverse payload captures (`reverters.ts` — that inverse drops
  * `seoExtJson`, `memberAccessJson`, `bodyHtml`/`bodyFormat`, `kind`, `deletedAt`, a documented,
@@ -206,7 +206,7 @@ export type PostRevisionOp = "create" | "update" | "delete" | "restore";
  * `appendRevision`'s write contract. `seq` is `PostRecord.version` AFTER the write this revision
  * captures — the caller (`createPost`/`updatePost`/`deletePost` below) already has that value in
  * hand from building the record, so it travels in rather than being independently recomputed by
- * the repo (one fact, one name — see `schema.ts`'s `postRevisions.seq` doc).
+ * the repo (one fact, one name — see `schema.sqlite.ts`'s `postRevisions.seq` doc).
  */
 export interface PostRevisionInput {
   postId: UUID;
@@ -1397,7 +1397,7 @@ export interface RestorePostForwardOptional {}
  * transaction, and {@link PostRepoPort.appendRevision} is append-only by contract — the revision
  * the undone write appended cannot be removed. A verbatim restore therefore puts `version` back
  * onto a `seq` that ghost revision already occupies, and `post_revisions` carries only
- * `idx_post_revisions_workspace_post` (`platform/db/schema.ts`) — an INDEX, not a unique constraint
+ * `idx_post_revisions_workspace_post` (`platform/db/schema.sqlite.ts`) — an INDEX, not a unique constraint
  * — so the next real write silently appends a SECOND row at that same `seq` rather than erroring.
  * The ledger would then record two different states under one sequence number with nothing to tell
  * a reader which one the row ever actually held. Restoring forward keeps every `seq` mapped to

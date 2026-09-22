@@ -4,7 +4,7 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import type { UserRepoPort, UserRecord } from "@jini-ai/cms/identity";
 
-import * as schema from "#src/platform/db/schema";
+import * as schema from "#src/platform/db/schema.sqlite";
 
 import { buildTrashRegistry } from "../registry.js";
 import { buildTrashRegistrations } from "../tool-registrations.js";

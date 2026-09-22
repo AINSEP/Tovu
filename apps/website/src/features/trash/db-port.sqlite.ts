@@ -42,7 +42,7 @@ export function createSqliteTrashDb(required: { db: ContentDb }): TrashDb {
       // `select.columns` is typed `Record<string, AnyColumn>` at the dialect-neutral port boundary
       // (`db-port.ts`); Drizzle's better-sqlite3 `.select()` wants its own narrower `SQLiteColumn`
       // selection shape. The cast is safe: every column that reaches here came from a `sqliteTable`
-      // declaration in `schema.ts` (the only schema module wired up today), so it already IS one.
+      // declaration in `schema.sqlite.ts` (the only schema module wired up today), so it already IS one.
       const from = db.select(select.columns as unknown as Record<string, SQLiteColumn>).from(select.table as SQLiteTable);
       const joined = select.join ? from.innerJoin(select.join.table as SQLiteTable, select.join.on) : from;
       const rows = joined.where(select.where).limit(1).all() as Array<TrashDbRow<TSelection>>;

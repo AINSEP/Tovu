@@ -4,7 +4,7 @@ import test from "node:test";
 import type { PublishHistoryEntry } from "#src/features/deployments/static-publish/publish-history";
 import { openContentDb } from "../content-db.js";
 import { SqlitePublishHistoryStore } from "../publish-history-repo.sqlite.js";
-import { workspaces } from "../../schema.js";
+import { workspaces } from "../../schema.sqlite.js";
 
 /**
  * @file `SqlitePublishHistoryStore` against a real, migrated `content.db` (`:memory:`) — the thing

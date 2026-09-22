@@ -1,14 +1,14 @@
 /**
- * @file Does `schema.ts` agree with THE MIGRATIONS ON DISK?
+ * @file Does `schema.sqlite.ts` agree with THE MIGRATIONS ON DISK?
  *
  * Why this exists — the 2026-09-02 outage this guard is the regression test for: an agent added
- * `memberAccessJson: text("member_access_json")` to `schema.ts` and did not generate the matching
+ * `memberAccessJson: text("member_access_json")` to `schema.sqlite.ts` and did not generate the matching
  * migration. Drizzle builds an EXPLICIT column list for every query, never `SELECT *`, so from the
  * moment that line was saved every `posts` query named a column SQLite did not have. `/` and
  * `/:slug` both run through `listPublishedPosts`, so the entire public site 500'd in 3ms. Nothing in
  * the failure named the schema — the admin UI showed only a 60s timeout.
  *
- * The sharp edge this file exists to blunt: **editing `schema.ts` is a breaking change the moment
+ * The sharp edge this file exists to blunt: **editing `schema.sqlite.ts` is a breaking change the moment
  * you save it, not when the new field is first read.** A feature nobody had wired up took the site
  * down. So the failure messages below name the exact `table.column`, never a count — the outage's
  * real symptom named nothing at all, and that is what made it expensive.
@@ -17,15 +17,15 @@
  * - `site-dir/schema-guard.ts` compares a SITE's persisted stamp against the runtime's bundled
  *   migrations. That is "is this site's file behind the code", a different question entirely.
  * - `migration/manifest.ts` + `schema-postgres-parity.test.ts` prove the two DIALECTS agree. Both
- *   are DERIVED FROM `schema.ts`. So when `schema.ts` declares a column no migration creates, both
+ *   are DERIVED FROM `schema.sqlite.ts`. So when `schema.sqlite.ts` declares a column no migration creates, both
  *   agree perfectly and both are wrong — which is precisely how the outage sailed through a green
- *   suite. Every one of those checks is downstream of `schema.ts`; none of them ever looks at the
+ *   suite. Every one of those checks is downstream of `schema.sqlite.ts`; none of them ever looks at the
  *   SQL that actually runs against the database.
  *
  * This file is the missing third thing: it applies the real migrations to a throwaway SQLite file
  * with the SAME migrator the product uses (`sqlite/content-db.ts`'s `better-sqlite3` +
  * `migrate(db, { migrationsFolder })`) and compares the resulting physical shape against
- * `schema.ts`'s declared shape IN BOTH DIRECTIONS.
+ * `schema.sqlite.ts`'s declared shape IN BOTH DIRECTIONS.
  *
  * Why a test and not a `check:*` script: ten of this repo's nineteen `check:*` scripts are invoked
  * nowhere, and all eight wired into CI are `continue-on-error: true` — a `check:` script cannot fail
@@ -56,7 +56,7 @@ const MIGRATIONS_DIR = path.resolve(import.meta.dirname, "../drizzle");
 type TableShape = ReadonlyMap<string, readonly string[]>;
 
 // ---------------------------------------------------------------------------
-// Side A — what schema.ts DECLARES
+// Side A — what schema.sqlite.ts DECLARES
 // ---------------------------------------------------------------------------
 
 /**
@@ -72,7 +72,7 @@ function declaredShape(): TableShape {
   for (const { exportName, table } of collectCoreTables()) {
     const cfg = getTableConfig(table);
     if (shape.has(cfg.name)) {
-      throw new Error(`schema.ts exports two tables both named "${cfg.name}" (second one: "${exportName}")`);
+      throw new Error(`schema.sqlite.ts exports two tables both named "${cfg.name}" (second one: "${exportName}")`);
     }
     shape.set(
       cfg.name,
@@ -134,7 +134,7 @@ const MIGRATOR_BOOKKEEPING_TABLE = "__drizzle_migrations";
 const RAW_SQL_MANAGED_TABLES: Readonly<Record<string, string>> = {
   ai_chats: "0023_ai_chat_history.sql — Jini's chat-history DDL copied verbatim into a Tovu migration so @jini-ai/sqlite does not run a second migrator against content.db. Read/written through @jini-ai/sqlite's own store, never through Drizzle; drift against the package constant is guarded separately by assistant/persistence/__tests__/ddl-parity.test.ts.",
   ai_chat_messages: "0023_ai_chat_history.sql — the message table of the same Jini-mirrored chat-history DDL as ai_chats, with the same owner and the same separate ddl-parity.test.ts guard.",
-  assistant_agent_sessions: "0051_assistant_agent_sessions.sql — the (conversation, agent) -> agent-CLI session id map, read and written exclusively through raw prepared statements in assistant/persistence/agent-session-store.ts. Kept out of schema.ts on purpose; see that migration's own header for why it is separate from the Jini-mirrored tables above.",
+  assistant_agent_sessions: "0051_assistant_agent_sessions.sql — the (conversation, agent) -> agent-CLI session id map, read and written exclusively through raw prepared statements in assistant/persistence/agent-session-store.ts. Kept out of schema.sqlite.ts on purpose; see that migration's own header for why it is separate from the Jini-mirrored tables above.",
 };
 
 function fts5ShadowPrefixes(): string[] {
@@ -199,13 +199,13 @@ function migratedDatabase(): MigratedDatabase {
 // ---------------------------------------------------------------------------
 
 interface DriftReport {
-  /** Tables `schema.ts` declares that no migration creates. */
+  /** Tables `schema.sqlite.ts` declares that no migration creates. */
   readonly missingTables: readonly string[];
-  /** Tables the migrations create that `schema.ts` no longer declares. */
+  /** Tables the migrations create that `schema.sqlite.ts` no longer declares. */
   readonly extraTables: readonly string[];
-  /** `"table.column"` — declared in `schema.ts`, created by no migration. THE OUTAGE'S SHAPE. */
+  /** `"table.column"` — declared in `schema.sqlite.ts`, created by no migration. THE OUTAGE'S SHAPE. */
   readonly missingColumns: readonly string[];
-  /** `"table.column"` — created by a migration, no longer declared in `schema.ts`. */
+  /** `"table.column"` — created by a migration, no longer declared in `schema.sqlite.ts`. */
   readonly extraColumns: readonly string[];
 }
 
@@ -243,8 +243,8 @@ function diffShapes(declared: TableShape, migrated: TableShape): DriftReport {
 }
 
 const OUTAGE_REMINDER =
-  "Drizzle builds an EXPLICIT column list for every query (never SELECT *), so a column declared in schema.ts " +
-  "with no migration behind it breaks EVERY query against that table the moment schema.ts is saved — not when " +
+  "Drizzle builds an EXPLICIT column list for every query (never SELECT *), so a column declared in schema.sqlite.ts " +
+  "with no migration behind it breaks EVERY query against that table the moment schema.sqlite.ts is saved — not when " +
   "the new field is first read. On 2026-09-02 one such column (posts.member_access_json) 500'd the entire " +
   "public site in 3ms. Generate the migration: npm run db:generate (see drizzle.config.ts).";
 
@@ -252,44 +252,44 @@ const OUTAGE_REMINDER =
 // End-to-end gates against the real schema and the real migrations
 // ---------------------------------------------------------------------------
 
-test("schema.ts declares no COLUMN that the migrations on disk do not create", () => {
+test("schema.sqlite.ts declares no COLUMN that the migrations on disk do not create", () => {
   const report = diffShapes(declaredShape(), migratedDatabase().shape);
   assert.deepEqual(
     report.missingColumns,
     [],
-    `schema.ts declares ${report.missingColumns.length} column(s) no migration creates: ` +
+    `schema.sqlite.ts declares ${report.missingColumns.length} column(s) no migration creates: ` +
       `${report.missingColumns.join(", ")}. ${OUTAGE_REMINDER}`
   );
 });
 
-test("the migrations on disk create no COLUMN that schema.ts has dropped", () => {
+test("the migrations on disk create no COLUMN that schema.sqlite.ts has dropped", () => {
   const report = diffShapes(declaredShape(), migratedDatabase().shape);
   assert.deepEqual(
     report.extraColumns,
     [],
-    `the migrations create ${report.extraColumns.length} column(s) schema.ts no longer declares: ` +
-      `${report.extraColumns.join(", ")}. Either schema.ts dropped a column without a migration to drop it ` +
+    `the migrations create ${report.extraColumns.length} column(s) schema.sqlite.ts no longer declares: ` +
+      `${report.extraColumns.join(", ")}. Either schema.sqlite.ts dropped a column without a migration to drop it ` +
       `(reads stay fine, but the column is now unmanaged and any NOT NULL default it carries will fight ` +
       `inserts), or this column is a derived object that belongs in manifest.ts's DERIVED_OBJECTS.`
   );
 });
 
-test("schema.ts declares no TABLE that the migrations on disk do not create", () => {
+test("schema.sqlite.ts declares no TABLE that the migrations on disk do not create", () => {
   const report = diffShapes(declaredShape(), migratedDatabase().shape);
   assert.deepEqual(
     report.missingTables,
     [],
-    `schema.ts declares ${report.missingTables.length} table(s) no migration creates: ` +
+    `schema.sqlite.ts declares ${report.missingTables.length} table(s) no migration creates: ` +
       `${report.missingTables.join(", ")}. ${OUTAGE_REMINDER}`
   );
 });
 
-test("the migrations on disk create no TABLE that schema.ts has dropped", () => {
+test("the migrations on disk create no TABLE that schema.sqlite.ts has dropped", () => {
   const report = diffShapes(declaredShape(), migratedDatabase().shape);
   assert.deepEqual(
     report.extraTables,
     [],
-    `the migrations create ${report.extraTables.length} table(s) schema.ts does not declare: ` +
+    `the migrations create ${report.extraTables.length} table(s) schema.sqlite.ts does not declare: ` +
       `${report.extraTables.join(", ")}. A table with no sqliteTable declaration is unreachable through ` +
       `Drizzle. If it is a rebuildable search index, it belongs in manifest.ts's DERIVED_OBJECTS with its ` +
       `rationale; if it holds real data and is read through raw prepared statements, add it to ` +
@@ -331,17 +331,17 @@ test("every allowlisted non-drift object is actually present in the migrated dat
 
 /**
  * The other half of the `RAW_SQL_MANAGED_TABLES` gate: an entry is only legitimate while the table
- * really has NO `sqliteTable` declaration. The moment someone declares one in `schema.ts`, that
+ * really has NO `sqliteTable` declaration. The moment someone declares one in `schema.sqlite.ts`, that
  * table must go back under the ordinary column-level comparison — otherwise this registry would be
  * silently exempting a fully Drizzle-managed table from the exact check that catches the outage.
  */
-test("no RAW_SQL_MANAGED_TABLES entry has since acquired a schema.ts declaration", () => {
+test("no RAW_SQL_MANAGED_TABLES entry has since acquired a schema.sqlite.ts declaration", () => {
   const declared = declaredShape();
   const nowDeclared = Object.keys(RAW_SQL_MANAGED_TABLES).filter((name) => declared.has(name)).sort();
   assert.deepEqual(
     nowDeclared,
     [],
-    `${nowDeclared.join(", ")} now has a sqliteTable declaration in schema.ts but is still listed in ` +
+    `${nowDeclared.join(", ")} now has a sqliteTable declaration in schema.sqlite.ts but is still listed in ` +
       `RAW_SQL_MANAGED_TABLES. Remove the entry so its columns are compared against the migrations like every ` +
       `other declared table — leaving it excuses exactly the drift this file exists to catch.`
   );
@@ -378,7 +378,7 @@ test("FTS5 shadow-table suffixes are exhaustive — an unknown one is a stale al
 test("the derived shape is non-trivial — a guard comparing two empty sets proves nothing", () => {
   const declared = declaredShape();
   const { shape: migrated } = migratedDatabase();
-  assert.ok(declared.size > 50, `expected schema.ts to declare dozens of tables, got ${declared.size}`);
+  assert.ok(declared.size > 50, `expected schema.sqlite.ts to declare dozens of tables, got ${declared.size}`);
   assert.ok(migrated.size > 50, `expected the migrations to create dozens of tables, got ${migrated.size}`);
   const postsColumns = migrated.get("posts");
   assert.ok(postsColumns && postsColumns.length > 5, `expected a migrated "posts" table with real columns, got ${String(postsColumns)}`);
@@ -391,7 +391,7 @@ test("the derived shape is non-trivial — a guard comparing two empty sets prov
 // reversible act in this repo).
 // ---------------------------------------------------------------------------
 
-test("seam: a column in schema.ts with no migration is reported as missing, by name", () => {
+test("seam: a column in schema.sqlite.ts with no migration is reported as missing, by name", () => {
   const declared = new Map([["posts", ["id", "slug", "member_access_json"]]]);
   const migrated = new Map([["posts", ["id", "slug"]]]);
   const report = diffShapes(declared, migrated);
@@ -401,7 +401,7 @@ test("seam: a column in schema.ts with no migration is reported as missing, by n
   assert.deepEqual(report.extraTables, []);
 });
 
-test("seam: a column the migrations create but schema.ts dropped is reported as extra, by name", () => {
+test("seam: a column the migrations create but schema.sqlite.ts dropped is reported as extra, by name", () => {
   const declared = new Map([["posts", ["id", "slug"]]]);
   const migrated = new Map([["posts", ["id", "slug", "legacy_body_html"]]]);
   const report = diffShapes(declared, migrated);

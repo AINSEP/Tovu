@@ -14,7 +14,7 @@ import { waitForAgentDaemon } from "./daemon-ready.js";
  *
  * 1. `widgets_insert_embed`'s `hostEntryId` resolves via `EntryRepoPort.findById` against the
  *    generic `entries` table (`src/widgets/embed-service.ts:148-152`). Blog Posts/Pages live in a
- *    separate `posts` table (`src/platform/db/schema.ts`) — a real post id 404s as a host. Disclosed in the
+ *    separate `posts` table (`src/platform/db/schema.sqlite.ts`) — a real post id 404s as a host. Disclosed in the
  *    product's own code: `src/server/routes/site/pages.ts:104-111`, "no reachable target on the
  *    live home/post routes yet."
  * 2. The one fallback that WOULD reach a post (a widget bound into a site-wide theme region —

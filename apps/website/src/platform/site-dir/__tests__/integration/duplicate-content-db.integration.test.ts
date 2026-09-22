@@ -184,7 +184,7 @@ test("no stray -wal/-shm sidecar is left next to the finished copy", () => {
  * - `p_store__products` / `p_comments__comments` — one plugin's own business data, named
  *   `p_{pluginId}__{table}` by `data-module.ts`'s `fqName`. The owner's site holds 3 products.
  *
- * None of these is declared in `db/schema.ts`, and none is chat.
+ * None of these is declared in `db/schema.sqlite.ts`, and none is chat.
  */
 function plantPluginData(dbPath: string): void {
   const raw = new Database(dbPath);
@@ -236,7 +236,7 @@ function plantPluginData(dbPath: string): void {
  * over tables that already exist, and losing `_plugin_migrations` erases the DDL timeline
  * `data-module.ts` reconciles against.
  *
- * This is the regression for a purge that kept only what `db/schema.ts` declares: none of these
+ * This is the regression for a purge that kept only what `db/schema.sqlite.ts` declares: none of these
  * four tables is declared there, so all four were emptied.
  */
 test("plugin tables and their rows survive the copy — a duplicated store keeps its products", () => {

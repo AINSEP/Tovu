@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import { workspaces } from "#src/platform/db/schema";
+import { workspaces } from "#src/platform/db/schema.sqlite";
 import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
 import { SqliteSettingsRepo } from "../repo.sqlite.js";
 import { set, type SettingDefinitionRecord } from "@jini-ai/cms/settings";
@@ -18,7 +18,7 @@ function openTestDb() {
   return openContentDb(":memory:");
 }
 
-/** `setting_values_workspace`/`_user` carry a real FK to `workspaces` (schema.ts) — seed one row per id a test references. */
+/** `setting_values_workspace`/`_user` carry a real FK to `workspaces` (schema.sqlite.ts) — seed one row per id a test references. */
 function seedWorkspace(db: ContentDb, id: string): void {
   db.insert(workspaces)
     .values({ id, name: id, slug: id, createdAt: "2026-07-11T00:00:00.000Z" })

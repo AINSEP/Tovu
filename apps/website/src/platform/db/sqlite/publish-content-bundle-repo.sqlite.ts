@@ -1,7 +1,7 @@
 import { and, eq, lt } from "drizzle-orm";
 
 import type { PublishContentBundleRepoPort, StagedBundleRecord } from "#src/features/publish-content/bundle-staging";
-import { publishContentBundles } from "../schema.js";
+import { publishContentBundles } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
 /**
@@ -9,7 +9,7 @@ import type { ContentDb } from "./content-db.js";
  * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §2/§4 task 6.
  *
  * Real SQLite `PublishContentBundleRepoPort` adapter over `publish_content_bundles`
- * (migration `0066`, `platform/db/schema.ts`). Mirrors `publish-history-repo.sqlite.ts`'s shape: a
+ * (migration `0066`, `platform/db/schema.sqlite.ts`). Mirrors `publish-history-repo.sqlite.ts`'s shape: a
  * plain `INSERT` per write (a staged bundle has no group invariant to maintain across rows, unlike
  * `publishCredentialSets.isDefault`), a scoped `SELECT` read by `(workspace_id, id)`.
  */

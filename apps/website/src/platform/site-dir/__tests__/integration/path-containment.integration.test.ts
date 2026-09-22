@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { workspaces } from "#src/platform/db/schema";
+import { workspaces } from "#src/platform/db/schema.sqlite";
 import { runtimeSchemaVersion } from "../../schema-guard.js";
 import { initSite } from "../../init-site.js";
 import { bootSiteDir } from "../../boot-site-dir.js";

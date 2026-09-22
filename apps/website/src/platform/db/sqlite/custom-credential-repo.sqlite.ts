@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
 import type { CustomCredentialCategoryId, CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "#src/features/custom-credentials/types";
-import { customCredentialSets } from "../schema.js";
+import { customCredentialSets } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
 /**
@@ -20,7 +20,7 @@ import type { ContentDb } from "./content-db.js";
 
 type Row = typeof customCredentialSets.$inferSelect;
 
-/** `additionalHostsJson` is a nullable plain-text JSON array (`db/schema.ts`'s own doc — this schema
+/** `additionalHostsJson` is a nullable plain-text JSON array (`db/schema.sqlite.ts`'s own doc — this schema
  *  never uses Drizzle's `{mode:"json"}` column type), so `toRecord`/`toValues` are the one place it
  *  is (de)serialized. `null`/empty normalizes to `[]`, matching `CustomCredentialSetRecord.
  *  additionalHosts`'s own "empty, never null" contract. */
@@ -32,7 +32,7 @@ function serializeAdditionalHosts(hosts: readonly string[]): string | null {
   return hosts.length > 0 ? JSON.stringify(hosts) : null;
 }
 
-/** `username` is a nullable plaintext column (`db/schema.ts`'s own doc). SQL's `NULL` and the domain
+/** `username` is a nullable plaintext column (`db/schema.sqlite.ts`'s own doc). SQL's `NULL` and the domain
  *  type's `undefined` are normalized to each other in exactly these two functions, so no caller ever
  *  has to distinguish "no username" from "null username" — see `CustomCredentialSetRecord.username`. */
 function toRecord(row: Row): CustomCredentialSetRecord {

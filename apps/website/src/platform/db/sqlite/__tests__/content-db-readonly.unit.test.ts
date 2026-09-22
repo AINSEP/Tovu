@@ -9,7 +9,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
 import { openContentDb, openContentDbReadOnly } from "../content-db.js";
-import * as schema from "../../schema.js";
+import * as schema from "../../schema.sqlite.js";
 
 /**
  * @file The mandatory proof for `openContentDbReadOnly` — the fix for the AAD/username backfill

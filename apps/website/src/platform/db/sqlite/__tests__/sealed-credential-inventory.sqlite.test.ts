@@ -17,7 +17,7 @@ import { buildComposioConfigAad } from "#src/platform/connectors/composio-config
 import { buildConnectorCredentialAad } from "#src/platform/connectors/connector-credential-aad";
 import { InMemoryKeyring } from "../../../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../../../features/webhooks/secret-sealer.aesgcm.js";
-import { principals, workspaces } from "../../schema.js";
+import { principals, workspaces } from "../../schema.sqlite.js";
 import { openContentDb, type ContentDb } from "../content-db.js";
 import { SEALED_COLUMN_DESCRIPTORS } from "../sealed-credential-descriptors.sqlite.js";
 import { SqliteSiteAssistantCredentialRepo } from "../site-credential-repo.sqlite.js";

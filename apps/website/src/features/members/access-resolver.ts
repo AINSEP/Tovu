@@ -24,7 +24,7 @@ const ANONYMOUS_CONTEXT: MemberContext = { isAuthenticated: false, activeTierIds
 
 /**
  * Decodes a post's raw `memberAccessJson` column (`posts.ext` is NOT this value — see
- * `schema.ts`'s doc on the column) into the `MemberContentAccess` {@link DefaultMemberAccessResolver.decide}
+ * `schema.sqlite.ts`'s doc on the column) into the `MemberContentAccess` {@link DefaultMemberAccessResolver.decide}
  * expects. This is the one place that owns the `JSON.parse` boundary for the column, mirroring
  * `features/seo/seo.ts`'s identical ownership of `seoExtJson`'s parse boundary — `post`/its repo
  * adapters stay ignorant of this value's shape.

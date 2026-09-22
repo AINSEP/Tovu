@@ -782,7 +782,7 @@ export interface AdminRevealedSiteToken extends AdminSiteTokenStatus {
  * union, NOT reusing {@link AdminPublishCredentialProviderId} — that type is a deploy-target id by
  * design (aliased to {@link AdminStaticPublishTargetId} so the two can never drift), and none of
  * GitLab, Bitbucket, or a *source* GitHub account is a static-publish target. See
- * `src/platform/db/schema.ts`'s `sourceControlCredentialSets` doc comment (server-side) for the full "why a
+ * `src/platform/db/schema.sqlite.ts`'s `sourceControlCredentialSets` doc comment (server-side) for the full "why a
  * second table/type, not a wider union" reasoning this type mirrors on the client.
  */
 export type AdminSourceControlProviderId = "github" | "gitlab" | "bitbucket";
@@ -840,7 +840,7 @@ export type AdminCustomCredentialCategoryId = "source-control" | "hosting" | "me
  * custom-credentials.ts`) — never carries the token or username. Unlike
  * {@link AdminSourceControlCredentialSummary}, `baseUrl`/`category` ARE part of this summary: both
  * are stored in the clear server-side specifically so the Access Tokens list can group/filter a
- * custom row without decrypting it (see `src/platform/db/schema.ts`'s `customCredentialSets` doc).
+ * custom row without decrypting it (see `src/platform/db/schema.sqlite.ts`'s `customCredentialSets` doc).
  */
 export interface AdminCustomCredentialSummary {
   readonly id: string;

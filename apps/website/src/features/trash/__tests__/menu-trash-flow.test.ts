@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import * as schema from "#src/platform/db/schema";
+import * as schema from "#src/platform/db/schema.sqlite";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "#src/features/navigation/repo.sqlite";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
 import type { NavMenuReadModel } from "#src/features/navigation/index";

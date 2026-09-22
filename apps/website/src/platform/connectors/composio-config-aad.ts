@@ -9,14 +9,14 @@ import type { UUID } from "@jini-ai/cms/core";
  * `webhooks/secret-sealer.aesgcm.ts`'s file header).
  *
  * Format: `composio-config:v1:${workspaceId}` — this table is single-row-per-workspace
- * (`workspace_id` is the bare primary key, `db/schema.ts`'s `composioConfig` doc), so `workspaceId`
+ * (`workspace_id` is the bare primary key, `db/schema.sqlite.ts`'s `composioConfig` doc), so `workspaceId`
  * is the whole row identity there is to bind. That single binding is still load-bearing: without it,
  * an attacker (or a bad migration) with DB write access could copy one workspace's sealed Composio
  * project key onto another workspace's row and have it decrypt cleanly, since the underlying AES key
  * is shared app-wide (`secret-sealer.aesgcm.ts`'s own header).
  *
  * This table's rows predate AAD entirely (2026-09-02 gap closure) — see
- * `composio_config.aad_version`'s own doc in `db/schema.ts` and `development/scripts/backfill-
+ * `composio_config.aad_version`'s own doc in `db/schema.sqlite.ts` and `development/scripts/backfill-
  * composio-config-aad.ts` for how existing rows are migrated without becoming unreadable.
  */
 const AAD_VERSION = "v1";

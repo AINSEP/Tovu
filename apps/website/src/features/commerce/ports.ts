@@ -68,7 +68,7 @@ export interface CommerceWebhookEventRepoPort {
    * (the event row's `UNIQUE(provider, eventId)` insert) and out-of-order delivery (a single
    * `UPDATE ... WHERE providerEventAt < ?` inside the SAME transaction as the insert — never a
    * prior `SELECT` deciding whether to write, which would reopen the race the unique index
-   * exists to close). See `db/schema.ts`'s `commerceWebhookEvents` doc.
+   * exists to close). See `db/schema.sqlite.ts`'s `commerceWebhookEvents` doc.
    *
    * `event.status` is caller-supplied only as `"received"` — the repo owns the terminal
    * `"applied"`/`"ignored"` transition once the projection outcome is known.

@@ -2,7 +2,7 @@ import { and, desc, eq, ne } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
 import type { PublishCredentialSetRecord, PublishCredentialSetRepoPort, PublishProviderId } from "#src/features/deployments/publish-credentials/types";
-import { publishCredentialSets } from "../schema.js";
+import { publishCredentialSets } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
 /**

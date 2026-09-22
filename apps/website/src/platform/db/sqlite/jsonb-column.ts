@@ -32,14 +32,14 @@ import { customType } from "drizzle-orm/sqlite-core";
  *
  * **So the blocker is Drizzle, not SQLite.** The compliant shape is: write through `jsonb()`, read
  * through `json(col)` in the query itself, which means NOT using a `customType` for reads. Until
- * something implements that, `db/schema.ts`'s `text("*_json")` remains the pragmatic default —
+ * something implements that, `db/schema.sqlite.ts`'s `text("*_json")` remains the pragmatic default —
  * a choice about tooling ergonomics, NOT about on-disk durability.
  *
  * This module exists anyway, alongside its tests, purely as **verified reference material**:
  * concrete proof of what `jsonb()`/`jsonb_extract()`/expression indexes actually do against this
  * repo's better-sqlite3 3.49.2, in case a future decision needs that evidence. It is deliberately
  * NOT wired into any schema column, and this file is not a recommendation to do so. Tovu's own
- * `db/schema.ts` deliberately keeps `text("*_json")` for SQLite, including for new columns —
+ * `db/schema.sqlite.ts` deliberately keeps `text("*_json")` for SQLite, including for new columns —
  * Postgres `jsonb` and MySQL `JSON` carry no equivalent caveat, so that decision is SQLite-only.
  * The byte-format test in the sibling `__tests__` file pins the observed 3.49.2 encoding so a
  * driver upgrade that moves the format fails loudly there instead of silently in stored data.

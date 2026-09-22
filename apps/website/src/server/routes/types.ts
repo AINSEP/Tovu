@@ -312,7 +312,7 @@ export interface CredentialsDeps {
    * GET/PUT/DELETE `.../assistant/execution-credential` routes. NOT `siteAssistantCredentialRepo`
    * above (that one is per-workspace and backs the public visitor assistant). Sealed via the SAME
    * `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above — see
-   * `db/schema.ts`'s `adminExecutionCredentials` header for why one shared sealing capability is
+   * `db/schema.sqlite.ts`'s `adminExecutionCredentials` header for why one shared sealing capability is
    * correct here rather than a third `KeyringPort` instance. No matching `*Ready` promise, for the
    * same reason `siteAssistantCredentialRepo` has none: a plain table, usable as soon as migrations
    * have run.
@@ -423,13 +423,13 @@ export interface CredentialsDeps {
    * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above — one
    * sealing capability app-wide, same reasoning `publishCredentialSetRepo` already establishes. A
    * deliberately SEPARATE table from `publishCredentialSetRepo` above, not a widened
-   * `PublishProviderId` union — see `src/platform/db/schema.ts`'s `sourceControlCredentialSets` doc comment for
+   * `PublishProviderId` union — see `src/platform/db/schema.sqlite.ts`'s `sourceControlCredentialSets` doc comment for
    * why.
    */
   sourceControlCredentialSetRepo: SourceControlCredentialSetRepoPort;
   /**
    * 2026-08-16 (Phase 3) — the `vendor_credential_sets` repo backing the unified vendor-scoped
-   * credential redesign (`features/vendor-credentials/`; `db/schema.ts`'s `vendorCredentialSets`
+   * credential redesign (`features/vendor-credentials/`; `db/schema.sqlite.ts`'s `vendorCredentialSets`
    * doc has the full "destination vs. vendor" reasoning). Real `SqliteVendorCredentialSetRepo`
    * (`db/sqlite/vendor-credential-repo.sqlite.ts`) in `server/deps.ts`;
    * `InMemoryVendorCredentialSetRepo` in `server/app.ts`'s hermetic composition, same rule-of-two
@@ -454,7 +454,7 @@ export interface CredentialsDeps {
    * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above —
    * one sealing capability app-wide, same reasoning `publishCredentialSetRepo`/
    * `sourceControlCredentialSetRepo` already establish. A deliberately separate table from both of
-   * those and from `vendorCredentialSetRepo` — see `src/platform/db/schema.ts`'s `customCredentialSets` doc
+   * those and from `vendorCredentialSetRepo` — see `src/platform/db/schema.sqlite.ts`'s `customCredentialSets` doc
    * comment for why (no fixed provider-id catalog to join either union, or the vendor table's own
    * vendor-keyed model).
    */

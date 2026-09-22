@@ -1,8 +1,8 @@
 /**
- * @file Proves `src/platform/db/schema.mysql.ts` still matches what `src/platform/db/schema.ts` generates.
+ * @file Proves `src/platform/db/schema.mysql.ts` still matches what `src/platform/db/schema.sqlite.ts` generates.
  *
  * Why a test rather than a code-review convention: the MySQL schema is a build artifact, not
- * an authored file. Anyone adding a column to `schema.ts` and forgetting to regenerate would
+ * an authored file. Anyone adding a column to `schema.sqlite.ts` and forgetting to regenerate would
  * otherwise ship a MySQL schema silently missing that column — and the failure would surface
  * only on a MySQL-backed site, at query time, far from the change that caused it. Deriving the
  * second dialect makes drift impossible to introduce *deliberately*; this test is what makes it
@@ -30,7 +30,7 @@ const GENERATOR = path.join("development", "scripts", "generate-mysql-schema.ts"
 const WORKER_COVERAGE_DIR = mkdtempSync(path.join(os.tmpdir(), "tovu-schema-mysql-drift-worker-coverage-"));
 after(() => rmSync(WORKER_COVERAGE_DIR, { recursive: true, force: true }));
 
-test("schema.mysql.ts is up to date with schema.ts (run the generator and commit if this fails)", () => {
+test("schema.mysql.ts is up to date with schema.sqlite.ts (run the generator and commit if this fails)", () => {
   const run = (): string =>
     execFileSync("npx", ["tsx", GENERATOR, "--check"], {
       cwd: REPO_ROOT,
@@ -42,6 +42,6 @@ test("schema.mysql.ts is up to date with schema.ts (run the generator and commit
   // `--check` exits non-zero on drift, which execFileSync surfaces as a throw. Asserting on the
   // thrown output rather than a boolean keeps the generator's own remediation message in the
   // failure a developer actually reads.
-  assert.doesNotThrow(run, "src/platform/db/schema.mysql.ts has drifted from src/platform/db/schema.ts");
+  assert.doesNotThrow(run, "src/platform/db/schema.mysql.ts has drifted from src/platform/db/schema.sqlite.ts");
   assert.match(run(), /up to date/);
 });

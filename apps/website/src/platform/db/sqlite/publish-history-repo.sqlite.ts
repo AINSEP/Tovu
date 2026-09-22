@@ -9,7 +9,7 @@ import {
 } from "#src/features/deployments/static-publish/publish-history";
 import { resolvePublishHistoryListLimit } from "#src/contracts/core/publish-history-list-limit";
 import type { StaticPublishTargetId } from "#src/features/deployments/static-publish/types";
-import { publishHistory } from "../schema.js";
+import { publishHistory } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
 /**

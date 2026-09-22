@@ -8,14 +8,14 @@
  * rather than switching on `entityType` themselves.
  *
  * `buildTrashRegistry` is generic over the schema module it is given so the SAME function builds the
- * registry from either `schema.ts` (SQLite, today) or `schema.postgres.ts` (later) — both export the
+ * registry from either `schema.sqlite.ts` (SQLite, today) or `schema.postgres.ts` (later) — both export the
  * same table and column names (`schema.postgres.ts`'s own header), so a `TSchema` satisfying
  * {@link TrashRegistrySchema} is satisfied by either module without this file importing either
  * driver's table types.
  *
  * Registered today: `form`, `form_submission`, `widget` (an `entries` row scoped to
  * `type = 'widget'`), `menu`, `term`, `taxonomy` (T1). `taxonomy` has no `subtitle`: unlike the plan's
- * entry table suggests, `taxonomies` (`schema.ts`) has no `slug` column (only `id`/`name`/
+ * entry table suggests, `taxonomies` (`schema.sqlite.ts`) has no `slug` column (only `id`/`name`/
  * `hierarchical`/`status`/`updatedAt`/`version`) — verified by reading the table, not assumed from
  * the plan. `TrashDisplaySpec.subtitle` is optional for exactly this reason.
  */
@@ -150,7 +150,7 @@ export interface TrashEntry {
 export type TrashRegistry = ReadonlyMap<TrashEntityType, TrashEntry>;
 
 /** The exact slice of a schema module {@link buildTrashRegistry} reads — satisfied by both
- *  `schema.ts` and `schema.postgres.ts` (same names, same shape) without importing either. */
+ *  `schema.sqlite.ts` and `schema.postgres.ts` (same names, same shape) without importing either. */
 export interface TrashRegistrySchema {
   formDefinitions: Table & {
     id: AnyColumn;
@@ -369,7 +369,7 @@ export function buildTrashRegistry<TSchema extends TrashRegistrySchema>(required
         marker: { kind: "status", column: schema.taxonomies.status, trashed: "trash", restoreFallback: "active" },
         versionColumn: schema.taxonomies.version,
         touchColumn: schema.taxonomies.updatedAt,
-        // No `subtitle` — `taxonomies` (`schema.ts`) has no `slug` column, see the file header.
+        // No `subtitle` — `taxonomies` (`schema.sqlite.ts`) has no `slug` column, see the file header.
         display: { title: schema.taxonomies.name },
         // Two-hop: `entry_terms` has no `taxonomy_id` column, so its rows are resolved through
         // `terms` first (`term_id IN (SELECT id FROM terms WHERE taxonomy_id = ?)`), THEN the terms

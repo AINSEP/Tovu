@@ -47,7 +47,7 @@ export interface AdminExecutionCredentialRecord {
    *  verification fails. `1` = sealed under `execution-credential-aad.ts`'s
    *  `buildExecutionCredentialAad`; open MUST supply the byte-identical string. Meaningless (and
    *  always `0`) when `sealed` is `null`. Added 2026-09-02 (AAD gap closure) — see
-   *  `db/schema.ts`'s `adminExecutionCredentials.aad_version` doc for the full migration story. */
+   *  `db/schema.sqlite.ts`'s `adminExecutionCredentials.aad_version` doc for the full migration story. */
   aadVersion: number;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;

@@ -60,7 +60,7 @@ import type { PublishContentDeps, PublishContentHandler, PackedEntity } from "./
  */
 
 /** One entity's recorded sync memory with a specific peer — the read side of
- *  `publish_content_baselines` (`platform/db/schema.ts`), abstracted behind a callback so this
+ *  `publish_content_baselines` (`platform/db/schema.sqlite.ts`), abstracted behind a callback so this
  *  module never has to know its caller's storage (SQLite today, an in-memory fake in this module's
  *  own tests). `hashVersion` is checked, never ignored — see this file's header. */
 export interface BaselineRecord {

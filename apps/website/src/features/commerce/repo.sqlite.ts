@@ -7,7 +7,7 @@ import {
   commerceProductImages,
   commerceProducts,
   commerceWebhookEvents,
-} from "../../platform/db/schema.js";
+} from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import type {
@@ -381,7 +381,7 @@ export class SqliteCommerceWebhookEventRepo implements CommerceWebhookEventRepoP
 
       // Statement 2 — ordering guard, one atomic UPDATE. The WHERE comparison (not a prior
       // SELECT) is what makes "is this event newer than what's applied" and "apply it" a single
-      // indivisible operation — see db/schema.ts's commerceWebhookEvents doc.
+      // indivisible operation — see db/schema.sqlite.ts's commerceWebhookEvents doc.
       const applied = tx
         .update(commerceOrders)
         .set({

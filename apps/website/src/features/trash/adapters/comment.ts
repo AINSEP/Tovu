@@ -2,7 +2,7 @@
  * @file `TrashAdapter` for comments. Marker: the plugin table's `status` column (`"pending" |
  * "approved" | "spam" | "trash"`).
  *
- * The comments table is NOT in `schema.ts` — it is created by the ADR-023 dataModule engine as
+ * The comments table is NOT in `schema.sqlite.ts` — it is created by the ADR-023 dataModule engine as
  * `p_comments__comments`, so this adapter addresses it by the same derived name
  * `features/comments/repo.sqlite.ts` uses, over the same raw connection.
  *

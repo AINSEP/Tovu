@@ -8,7 +8,7 @@ import test from "node:test";
 import { createApp } from "#src/server/runtime/composition/app";
 import { createSqliteRouteDeps } from "#src/server/runtime/composition/deps";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import * as schema from "#src/platform/db/schema";
+import * as schema from "#src/platform/db/schema.sqlite";
 
 /**
  * @file Task 4 of the publish-content (Publish Content) feature —

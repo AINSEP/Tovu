@@ -13,7 +13,7 @@ import {
   SqliteTrashRepo,
   type TrashAdapter,
 } from "#src/features/trash/index";
-import * as schema from "#src/platform/db/schema";
+import * as schema from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
 import { startTestServer } from "./helpers/http-test-server.js";

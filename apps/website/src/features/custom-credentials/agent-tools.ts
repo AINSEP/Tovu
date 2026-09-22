@@ -23,7 +23,7 @@ import { WRITE_FILES_LIMITS } from "./write-files-validation.js";
  *   would have meant decrypting every row on every list call — the exact "never touch the sealer for a
  *   read model" contract this store's own header documents twice. The fix was to move the field rather
  *   than to widen the tool: a username is an account identifier, not a secret, so it now has its own
- *   plaintext column beside `base_url` (`db/schema.ts`'s `customCredentialSets.username`) and this tool
+ *   plaintext column beside `base_url` (`db/schema.sqlite.ts`'s `customCredentialSets.username`) and this tool
  *   reads it with zero decrypts, exactly like `category`/`baseUrl`. The token remains sealed and
  *   remains unreachable from here.
  * - `custom_credential_verify` — checks ONE saved credential against its own real provider, live, and

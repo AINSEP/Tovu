@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import * as schema from "#src/platform/db/schema";
+import * as schema from "#src/platform/db/schema.sqlite";
 
 import { createSqliteTrashDb } from "../db-port.sqlite.js";
 import { moveToTrash } from "../move-to-trash.js";

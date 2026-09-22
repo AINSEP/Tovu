@@ -74,7 +74,7 @@ export function isCurrentlyTrashed(required: { entityType: TrashEntityType }, op
 /**
  * Converts a Drizzle SQL column name (`deleted_at`) to the camelCase JS property name this
  * codebase's schema always pairs it with (`deletedAt`) — the same convention every `sqliteTable`
- * declaration in `schema.ts` already follows 1:1 (`workspaceId` / `workspace_id`,
+ * declaration in `schema.sqlite.ts` already follows 1:1 (`workspaceId` / `workspace_id`,
  * `formDefinitionId` / `form_definition_id`, …).
  *
  * @complexity O(n) in the column name's length.

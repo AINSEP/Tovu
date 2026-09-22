@@ -125,7 +125,7 @@ export interface ExternalMcpServerRecord {
   serverId: string;
   label: string | null;
   /** The Agent Plugin id that auto-provisioned this row, or `null` for an operator-created one. See
-   *  `schema.ts`'s `provisioned_by_plugin_id` column doc for the full rule. */
+   *  `schema.sqlite.ts`'s `provisioned_by_plugin_id` column doc for the full rule. */
   provisionedByPluginId: string | null;
   transport: string;
   /** How credentials are obtained. Independent of `transport` — see this file's header. */
@@ -1110,7 +1110,7 @@ export interface SaveExternalMcpServerInput {
    * `external_mcp_save` tool) omits this field entirely, and an omitted field PRESERVES whatever the
    * row already has — the same three-state rule `env` establishes, minus the "empty string clears
    * it" arm: nothing should ever intentionally clear this column once set, so no clear signal is
-   * defined for it. See `schema.ts`'s `provisioned_by_plugin_id` doc for the full rule.
+   * defined for it. See `schema.sqlite.ts`'s `provisioned_by_plugin_id` doc for the full rule.
    */
   provisionedByPluginId?: string;
   /**

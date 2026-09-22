@@ -17,7 +17,7 @@
  * consume, so the two can never independently drift out of agreement the way two hand-written docs
  * would. A markdown table recording "these columns need bigint" would need someone to remember to
  * update it every time a table is added; this file's structural facts (table/column list, SQLite
- * column kind, primary-key/autoincrement-ness) are instead DERIVED from `schema.ts` via the exact
+ * column kind, primary-key/autoincrement-ness) are instead DERIVED from `schema.sqlite.ts` via the exact
  * same `drizzle-orm/sqlite-core` `getTableConfig()` introspection `generate-postgres-schema.ts`
  * already uses — so those facts cannot drift from the source schema either. Manual review only
  * happens where structure genuinely cannot answer the question (Drizzle has no concept of "this
@@ -66,7 +66,7 @@
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import type { ColumnDecl, ColumnType as PluginColumnType } from "#src/features/plugins/index";
-import * as schema from "../schema.js";
+import * as schema from "../schema.sqlite.js";
 
 const DRIZZLE_IS_TABLE = Symbol.for("drizzle:IsDrizzleTable");
 
@@ -81,7 +81,7 @@ const DRIZZLE_IS_TABLE = Symbol.for("drizzle:IsDrizzleTable");
 /**
  * `table` is typed `never`, matching `generate-postgres-schema.ts`'s own `collectTables()` — each
  * `SQLiteTable`'s generic type parameter is unique per table (its own column shape), so no common
- * non-`never` type could describe "any one of schema.ts's 63 tables" without erasing exactly the
+ * non-`never` type could describe "any one of schema.sqlite.ts's 63 tables" without erasing exactly the
  * column-shape information `getTableConfig()` needs back out. `never` is assignable to every
  * `getTableConfig()` call site below without an unsafe cast at each use.
  */
@@ -90,7 +90,7 @@ export interface SourceTable {
   readonly table: never;
 }
 
-/** Every exported Drizzle table in `schema.ts`. */
+/** Every exported Drizzle table in `schema.sqlite.ts`. */
 export function collectCoreTables(): SourceTable[] {
   return Object.entries(schema)
     .filter(([, v]) => Boolean(v && typeof v === "object" && (v as unknown as Record<symbol, unknown>)[DRIZZLE_IS_TABLE]))
@@ -191,7 +191,7 @@ export interface AutoIncrementReview {
 /**
  * Every autoincrement-identity integer column, PLUS the write watermark (a monotonically
  * incrementing counter, not a row id, but the identical overflow shape) — reviewed by hand against
- * `schema.ts` and the 2026-08-12 handoff's named risk categories: append-only revision/event/attempt
+ * `schema.sqlite.ts` and the 2026-08-12 handoff's named risk categories: append-only revision/event/attempt
  * logs, and the watermark. Keyed by `"{sql_table_name}.{sql_column_name}"`.
  *
  * This map IS the review, not a cache of one performed elsewhere. `classifyCoreColumn`'s
@@ -314,7 +314,7 @@ export const TIMESTAMP_REPRESENTATION = {
  * of which cast to `timestamptz` first.
  *
  * NOT broken today: the app writes only `toISOString()` (always `Z`), and a live scan of
- * `infra/content.db` found zero non-`Z` text timestamps in any `schema.ts`-declared table — see this
+ * `infra/content.db` found zero non-`Z` text timestamps in any `schema.sqlite.ts`-declared table — see this
  * manifest's own 2026-08-12 audit. `verifyUtcTimestampText` deliberately keeps accepting BOTH forms
  * (both are valid UTC-designated instants; rejecting the offset form would be a false rejection, not a
  * fix for this). The obligation this invariant records is forward-looking: any importer capable of
@@ -365,14 +365,14 @@ export function isJsonColumnName(sqlColumnName: string): boolean {
  * elsewhere, so each entry carries its own rationale rather than being a bare name list.
  *
  * Found by the 2026-08-12 round-3 audit: `composio_config.auth_config_ids` is a JSON object per its
- * own schema.ts doc comment ("a JSON object mapping connector id → Composio auth-config id"), but
+ * own schema.sqlite.ts doc comment ("a JSON object mapping connector id → Composio auth-config id"), but
  * neither its SQL name (`auth_config_ids` — no `_json` suffix) nor its TS name (`authConfigIds` — ends
  * `Ids`, not `Json`) matches the convention, so it silently classified `plain-text` and `verifyJsonText`
  * never ran on it (see `classifyCoreColumn`'s `SQLiteText` case). Both of this schema's `_json`-scan
  * regression tests in `migration-manifest.test.ts` stayed green right alongside the gap, because both
  * read one of the two naming conventions this column fails on both sides of — see that file's own
  * LEDGER #14 comment for exactly what those tests do and do not prove. A follow-up scan of every
- * `text()` column in `schema.ts` whose doc comment mentions "JSON" (or defaults to the JSON literal
+ * `text()` column in `schema.sqlite.ts` whose doc comment mentions "JSON" (or defaults to the JSON literal
  * `"{}"`/`"[]"`) found four more instances of the identical gap — five total, none renamed here (a
  * rename touches every reader/writer of the column and is a separate change with its own blast
  * radius).
@@ -381,37 +381,37 @@ export function isJsonColumnName(sqlColumnName: string): boolean {
  * JSON") — a hand-reviewed, hand-maintained list is exactly the failure mode
  * `REVIEWED_INTEGER_ID_COLUMNS`'s own doc rejected for the bigint policy, so this one is paired with
  * the same kind of gate that registry has: `migration-manifest.test.ts`'s own staleness test asserts
- * every key here still names a real column in `schema.ts` today, and a separate test asserts no entry
+ * every key here still names a real column in `schema.sqlite.ts` today, and a separate test asserts no entry
  * here is redundant with `isJsonColumnName` (which would mean the allowlist grew a stale duplicate
  * instead of staying exactly the columns the naming convention cannot see).
  */
 export const REVIEWED_JSON_COLUMNS: Readonly<Record<string, { readonly rationale: string }>> = {
   "posts.ext": {
     rationale:
-      'the plugin extension-field bag, `{ [pluginId]: { ...fields } }` per schema.ts\'s own doc comment on this ' +
+      'the plugin extension-field bag, `{ [pluginId]: { ...fields } }` per schema.sqlite.ts\'s own doc comment on this ' +
       'column; defaults to the literal JSON object \'{}\', not an empty string',
   },
   "composio_config.auth_config_ids": {
     rationale:
-      "a JSON object mapping connector id → Composio auth-config id, per schema.ts's own table-header and " +
+      "a JSON object mapping connector id → Composio auth-config id, per schema.sqlite.ts's own table-header and " +
       "column doc comments — the column this gap was originally found on",
   },
   "external_mcp_servers.args": {
-    rationale: "a JSON array of argv strings for the federated MCP server's launch command, per schema.ts's own doc comment",
+    rationale: "a JSON array of argv strings for the federated MCP server's launch command, per schema.sqlite.ts's own doc comment",
   },
   "external_mcp_servers.allowed_tool_names": {
     rationale:
-      "a JSON array of admissible remote tool names — a SECURITY column per schema.ts's own doc comment " +
+      "a JSON array of admissible remote tool names — a SECURITY column per schema.sqlite.ts's own doc comment " +
       "(default-deny federation: an empty array correctly yields zero tools), not merely a convenience field",
   },
   "external_mcp_servers.env_names": {
-    rationale: "a JSON array of environment-variable NAMES (plaintext; the values themselves are sealed separately), per schema.ts's own doc comment",
+    rationale: "a JSON array of environment-variable NAMES (plaintext; the values themselves are sealed separately), per schema.sqlite.ts's own doc comment",
   },
   "external_mcp_servers.write_allowed_tool_names": {
     rationale:
       "a JSON array of remote tool names separately authorized to write — trust.ts R3's override, a SECOND " +
       "security column with the identical never-backfilled-from-the-server status as allowed_tool_names, per " +
-      "schema.ts's own doc comment",
+      "schema.sqlite.ts's own doc comment",
   },
 };
 
@@ -431,7 +431,7 @@ export const BOOLEAN_COPY_TRANSFORM = {
     "integer columns are conceptually 0/1 flags too (tombstoned, hierarchical, is_builtin, is_frozen, " +
     "visible_in_portal) but are declared plain `integer`, not `{mode:\"boolean\"}` — those get NO transform " +
     "(correct passthrough as a numeric 0/1 on both dialects, whatever integer width each side uses) precisely " +
-    "because schema.ts itself did not choose the boolean representation for them. This manifest follows the " +
+    "because schema.sqlite.ts itself did not choose the boolean representation for them. This manifest follows the " +
     "schema's own type choice; it does not redesign it.",
 } as const;
 
@@ -477,7 +477,7 @@ function classifyCoreIntegerColumn(key: string, col: SQLiteColumn): SemanticColu
  * which is exactly the round-3-audit gap that registry closes (see its own doc). Order between the two
  * checks does not matter (either can be genuinely JSON on its own), but JSON is checked before the
  * timestamp convention so a hypothetical future registry entry could never be shadowed by a column
- * also matching `_at`/`at` — not possible for any column in `schema.ts` today (no name both ends
+ * also matching `_at`/`at` — not possible for any column in `schema.sqlite.ts` today (no name both ends
  * `_json`-or-registry AND `_at`), but the ordering documents the intended precedence regardless.
  */
 function classifyCoreTextColumn(key: string, col: SQLiteColumn): SemanticColumnClass {
@@ -487,7 +487,7 @@ function classifyCoreTextColumn(key: string, col: SQLiteColumn): SemanticColumnC
 }
 
 /**
- * Classifies one column of one CORE (schema.ts) table. See `classifyCoreIntegerColumn` and
+ * Classifies one column of one CORE (schema.sqlite.ts) table. See `classifyCoreIntegerColumn` and
  * `classifyCoreTextColumn` above for the `SQLiteInteger`/`SQLiteText` cases' own logic and rationale.
  */
 export function classifyCoreColumn(sqlTableName: string, col: SQLiteColumn): SemanticColumnClass {
@@ -547,7 +547,7 @@ export interface IdentityColumn {
   readonly sqlColumnName: string;
 }
 
-/** Every autoincrement primary key in the core schema — purely structural, derived from `schema.ts`
+/** Every autoincrement primary key in the core schema — purely structural, derived from `schema.sqlite.ts`
  * (no manual review needed: EVERY autoincrement PK needs reseeding after a bulk copy that preserves
  * original row ids, regardless of its growth-class annotation above or its generated column width). */
 export function collectIdentityColumns(): IdentityColumn[] {
@@ -653,7 +653,7 @@ export function collectForeignKeyEdges(): ForeignKeyEdge[] {
       const toExportName = exportNameByTable.get(ref.foreignTable);
       if (!toExportName) {
         throw new Error(
-          `foreign key on "${exportName}" targets a table that is not exported from schema.ts. A copy order ` +
+          `foreign key on "${exportName}" targets a table that is not exported from schema.sqlite.ts. A copy order ` +
             `cannot be derived without every foreign-key target being a known, exported table.`
         );
       }
@@ -741,7 +741,7 @@ function insertIntoReadyQueue(ready: string[], name: string): void {
  * schema throws only for whichever caller (a test, a future copier) actually asks for the order, not
  * for every consumer of this module the moment it is imported. `computeCoreTableCopyOrder()` below is
  * the schema-derived convenience wrapper; this function is kept separately exported and testable
- * against synthetic edges so a cycle can be proven to throw without needing schema.ts to contain one.
+ * against synthetic edges so a cycle can be proven to throw without needing schema.sqlite.ts to contain one.
  *
  * Self-referencing edges (`edge.selfReferencing`) are excluded from the ordering graph — a table
  * cannot be sequenced "before itself" — but that exclusion does NOT mean a self-referencing table
@@ -802,7 +802,7 @@ export type PluginSemanticColumnClass =
  * conventions as the core schema, so a future Postgres `declareDataModule()` counterpart does not
  * have to invent its own semantic rules from scratch.
  *
- * `ColumnDecl` has no `autoIncrement` field at all (unlike core `schema.ts`'s Drizzle columns) —
+ * `ColumnDecl` has no `autoIncrement` field at all (unlike core `schema.sqlite.ts`'s Drizzle columns) —
  * `columnSql()` in data-module.ts never emits the `AUTOINCREMENT` keyword, only bare `PRIMARY KEY`
  * (data-module.ts:420-422). SQLite's `INTEGER PRIMARY KEY` is a rowid alias that behaves as an
  * implicit autoincrementing identity even without the keyword, so every `{type:"INTEGER",

@@ -9,7 +9,7 @@
  *
  * What is left in this directory is only what is genuinely this host's:
  *
- * - `repo.sqlite.ts` — the Drizzle adapter. It names `db/schema.ts`, this repo's shared
+ * - `repo.sqlite.ts` — the Drizzle adapter. It names `db/schema.sqlite.ts`, this repo's shared
  *   1,246-line schema covering every domain, so it is host persistence, not library code.
  * - `INFO.md` / `__specs__/` — this host's requirement documents. They describe the host's routes
  *   and acceptance criteria, not a library contract, so they stay with the host.

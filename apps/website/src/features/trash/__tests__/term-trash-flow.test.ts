@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/cms/core";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import * as schema from "#src/platform/db/schema";
+import * as schema from "#src/platform/db/schema.sqlite";
 import {
   SqliteEntryTermRepo,
   SqliteTaxonomyRepo,

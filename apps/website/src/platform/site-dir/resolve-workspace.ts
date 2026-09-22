@@ -1,5 +1,5 @@
 import type { ContentDb } from "../db/sqlite/content-db.js";
-import { workspaces } from "../db/schema.js";
+import { workspaces } from "../db/schema.sqlite.js";
 import type { WorkspaceRecord } from "../../features/workspace/index.js";
 import { SiteCorruptError, ValidationError } from "./errors.js";
 

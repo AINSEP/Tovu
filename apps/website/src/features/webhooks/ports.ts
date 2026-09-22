@@ -107,7 +107,7 @@ export interface KeyringPort {
  * `connectors/connector-credential-store.ts` (this doc used to name three of these as sealing with
  * NO aad at all — that list was already stale by the time it named "three": it predated the last two
  * tables entirely, and none of the five unconditionally omit `aad` any more). Each of those five now
- * carries its own `aad_version` column (`db/schema.ts`) so a row sealed BEFORE this change (no aad)
+ * carries its own `aad_version` column (`db/schema.sqlite.ts`) so a row sealed BEFORE this change (no aad)
  * can still be opened correctly while a per-store backfill script re-seals it under the new aad — see
  * any of those five stores' own file header for the full migration story, and
  * `development/scripts/backfill-*-aad.ts` for the five backfill scripts themselves.

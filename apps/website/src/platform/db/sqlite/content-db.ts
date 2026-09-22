@@ -6,7 +6,7 @@ import { eq, sql } from "drizzle-orm";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
-import * as schema from "../schema.js";
+import * as schema from "../schema.sqlite.js";
 import { dropEmptyLegacyChatTables } from "./drop-empty-legacy-chat-tables.js";
 
 /**
@@ -21,7 +21,7 @@ import { dropEmptyLegacyChatTables } from "./drop-empty-legacy-chat-tables.js";
  * - The composition root (`server/deps.ts`) opens the db here, passing in its own
  *   `server/seed.ts` demo data, and injects the typed Drizzle handle into the
  *   per-feature `repo.sqlite.ts` adapters.
- * - Schema is code-first (`db/schema.ts`) → `db/drizzle/` migrations, so
+ * - Schema is code-first (`db/schema.sqlite.ts`) → `db/drizzle/` migrations, so
  *   same schema maps cleanly to a future Postgres adapter (ADR-006 rule-of-two,
  *   Payload's shared-schema shape).
  * - ADR-042 item 3: this file previously imported `seededWorkspace`/`seededPosts`/

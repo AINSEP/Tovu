@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
-import { entries, entryRevisions } from "../../platform/db/schema.js";
+import { entries, entryRevisions } from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import { EntrySlugConflictError } from "./index.js";

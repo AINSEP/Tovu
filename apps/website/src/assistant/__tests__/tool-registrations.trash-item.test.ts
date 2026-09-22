@@ -16,7 +16,7 @@ import { getRedirectsAgentToolCatalog } from "#src/features/redirects/agent-tool
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 import type { RouteDeps } from "#src/server/routes/types";
-import * as contentSchema from "#src/platform/db/schema";
+import * as contentSchema from "#src/platform/db/schema.sqlite";
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import type { TrashEntityType } from "#src/features/trash/ports";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";

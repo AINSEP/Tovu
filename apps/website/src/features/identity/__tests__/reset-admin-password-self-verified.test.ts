@@ -8,7 +8,7 @@ import { login, AuthInvalidCredentialsError, type AuthServiceDeps, type Identity
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteDbOpsAdapter } from "#src/platform/db/sqlite/db-ops";
-import { identityUsers } from "#src/platform/db/schema";
+import { identityUsers } from "#src/platform/db/schema.sqlite";
 import { createSqliteIdentityRouteDeps } from "../wiring.js";
 import {
   resetAdminPasswordSelfVerified,

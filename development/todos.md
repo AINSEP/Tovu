@@ -1688,7 +1688,7 @@ deliberately deferred.
 `/(?<!\.)\bjson\b(?!\.(?:stringify|parse)\b)/i` in
 `apps/website/src/platform/db/__tests__/migration-manifest.test.ts`
 matches `"non-JSON"`, `"JSON Web Token (JWT)"`, `"JSON:API"`, `"GeoJSON-style … NOT parsed JSON"`.
-No such phrasing exists in `schema.ts` today (grep-confirmed). It fails **loud** — the suite breaks
+No such phrasing exists in `schema.sqlite.ts` today (grep-confirmed). It fails **loud** — the suite breaks
 and someone rewords a comment or adds a `REVIEWED_JSON_COLUMNS` entry — so it cannot pass bad data
 silently. Same accepted risk class as the `theme.json` filename false positive the `(?<!\.)`
 lookbehind already handles. *Fix only if actually hit*, with a narrow `(?<!non-)` exclusion.
@@ -1962,7 +1962,7 @@ in the system"**.
 
 **The stated cause was already false when written, and is verified false today.** A `templateChoice`
 column exists and is threaded end to end — all five citations confirmed by line 2026-09-06:
-`platform/db/schema.ts:107` (`templateChoice: text("template_choice")`), mirrored at
+`platform/db/schema.sqlite.ts:107` (`templateChoice: text("template_choice")`), mirrored at
 `schema.postgres.ts:871`; threaded through `features/post/post.ts` (`:101`, `:332`, `:958`); exposed
 on the headless contract at `contracts/headless/contracts.ts:53`; resolved by
 `features/theme/static-render.ts` (`resolveTemplate`, `isEligibleForTemplateBranch`,

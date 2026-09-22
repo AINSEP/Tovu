@@ -1,5 +1,5 @@
 /**
- * @file Generates `src/platform/db/schema.mysql.ts` from `src/platform/db/schema.ts`.
+ * @file Generates `src/platform/db/schema.mysql.ts` from `src/platform/db/schema.sqlite.ts`.
  *
  * Same contract as `generate-postgres-schema.ts` — read that file's module doc first: the SQLite
  * schema is the one authored definition, every other dialect is a build artifact, and
@@ -27,7 +27,7 @@
  *  4. Integers -> `bigint(..., { mode: "number" })`, autoincrement -> `.autoincrement()`. SQLite
  *     INTEGER is 64-bit, so BIGINT is the faithful width — same reasoning as the Postgres generator.
  *  5. Booleans -> `boolean()` (MySQL `tinyint(1)`), which stores 0/1 exactly as SQLite does.
- *  6. Timestamps stay text (ISO-8601), as in `schema.ts`; stored semantics do not change.
+ *  6. Timestamps stay text (ISO-8601), as in `schema.sqlite.ts`; stored semantics do not change.
  *  7. MySQL has no partial indexes and needs `((expr))` for functional ones — both are rejected
  *     rather than silently dropped (no live case today).
  *  8. Identifiers are capped at 64 characters and each index at 3072 key bytes (InnoDB DYNAMIC);
@@ -48,7 +48,7 @@ import { Column, is } from "drizzle-orm";
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import { classifyCoreColumn } from "../../apps/website/src/platform/db/migration/manifest.js";
-import * as schema from "../../apps/website/src/platform/db/schema.js";
+import * as schema from "../../apps/website/src/platform/db/schema.sqlite.js";
 import { assertKnownShape, columnRef, renderSqlText, tsPropertyNames } from "./generate-postgres-schema.js";
 
 const OUT_PATH = path.resolve(import.meta.dirname, "../../apps/website/src/platform/db/schema.mysql.ts");
@@ -86,7 +86,7 @@ function keyBytes(col: SQLiteColumn): number {
 }
 
 /**
- * A `*_json` column in `schema.ts` holds an already-serialised JSON string (repositories
+ * A `*_json` column in `schema.sqlite.ts` holds an already-serialised JSON string (repositories
  * `JSON.stringify` on write and `JSON.parse` on read). Drizzle's own `json()` would stringify that
  * string a second time and store a JSON string scalar, and mysql2 hands a JSON column back already
  * parsed — either would change what repository code sees. This custom type keeps the TypeScript
@@ -105,7 +105,7 @@ const jsonText = customType<{ data: string; driverData: unknown }>({
   fromDriver: (value) => (typeof value === "string" ? value : JSON.stringify(value)),
 });`;
 
-/** Every exported Drizzle table in `schema.ts`, paired with the export name it must keep. */
+/** Every exported Drizzle table in `schema.sqlite.ts`, paired with the export name it must keep. */
 function collectTables(): Array<{ exportName: string; table: never }> {
   return Object.entries(schema)
     .filter(([, v]) => Boolean(v && typeof v === "object" && (v as unknown as Record<symbol, unknown>)[DRIZZLE_IS_TABLE]))
@@ -165,7 +165,7 @@ function columnBuilder(col: SQLiteColumn): string {
     default:
       throw new Error(
         `unmapped column kind "${col.columnType}" on column "${col.name}". ` +
-          `Adding a new kind to schema.ts requires teaching columnBuilder about it first.`
+          `Adding a new kind to schema.sqlite.ts requires teaching columnBuilder about it first.`
       );
   }
 }
@@ -247,7 +247,7 @@ const HANDLED_CHECK_KEYS = new Set(["table", "name", "value"]);
 
 function exportNameOfTable(table: object): string {
   const name = EXPORT_NAME_BY_TABLE.get(table);
-  if (!name) throw new Error(`a foreign key targets a table not exported from schema.ts ("${getTableConfig(table as never).name}")`);
+  if (!name) throw new Error(`a foreign key targets a table not exported from schema.sqlite.ts ("${getTableConfig(table as never).name}")`);
   return name;
 }
 
@@ -334,7 +334,7 @@ function generate(): string {
   return `/**
  * GENERATED FILE — DO NOT EDIT BY HAND.
  *
- * Produced from \`src/platform/db/schema.ts\` by \`development/scripts/generate-mysql-schema.ts\`.
+ * Produced from \`src/platform/db/schema.sqlite.ts\` by \`development/scripts/generate-mysql-schema.ts\`.
  * Edit the SQLite schema and regenerate; editing this file directly will be overwritten and will
  * fail the drift check in CI. Targets MySQL 8.0.16+ (not MariaDB) — the generator's module doc
  * lists every MySQL-specific mapping (varchar(${KEY_VARCHAR_LENGTH}) keys, native JSON, expression defaults).
@@ -373,11 +373,11 @@ function main(): void {
   }
   const current = fs.existsSync(OUT_PATH) ? fs.readFileSync(OUT_PATH, "utf8") : "";
   if (current === generated) {
-    process.stdout.write("schema.mysql.ts is up to date with schema.ts\n");
+    process.stdout.write("schema.mysql.ts is up to date with schema.sqlite.ts\n");
     return;
   }
   process.stderr.write(
-    "DRIFT: src/platform/db/schema.mysql.ts does not match what schema.ts generates.\n" +
+    "DRIFT: src/platform/db/schema.mysql.ts does not match what schema.sqlite.ts generates.\n" +
       "Run `npx tsx development/scripts/generate-mysql-schema.ts` and commit the result.\n"
   );
   process.exit(1);

@@ -28,7 +28,7 @@ import { buildConnectorCredentialAad } from "./connector-credential-aad.js";
  */
 
 /** One connected account's stored row. `sealed` is null only in the degenerate pre-credential
- *  state the table's CHECK still permits; see `db/schema.ts`'s header. */
+ *  state the table's CHECK still permits; see `db/schema.sqlite.ts`'s header. */
 export interface ConnectorCredentialRow {
   workspaceId: UUID;
   connectorId: string;
@@ -37,7 +37,7 @@ export interface ConnectorCredentialRow {
   /** `0` = `sealed` (when non-null) was sealed with NO aad — open with none either, or auth-tag
    *  verification fails. `1` = sealed under `connector-credential-aad.ts`'s
    *  `buildConnectorCredentialAad`; open MUST supply the byte-identical string. Meaningless (and
-   *  always `0`) when `sealed` is `null`. Added 2026-09-02 (AAD gap closure) — see `db/schema.ts`'s
+   *  always `0`) when `sealed` is `null`. Added 2026-09-02 (AAD gap closure) — see `db/schema.sqlite.ts`'s
    *  `composioConnectorCredentials.aad_version` doc for the full migration story. */
   aadVersion: number;
   createdAt: ISODateTime;

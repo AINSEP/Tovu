@@ -33,7 +33,7 @@ import path from "node:path";
 
 import { and, eq } from "drizzle-orm";
 
-import { adminExecutionCredentials } from "../../apps/website/src/platform/db/schema.js";
+import { adminExecutionCredentials } from "../../apps/website/src/platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { buildExecutionCredentialAad } from "../../apps/website/src/assistant/execution-credential-aad.js";
 
