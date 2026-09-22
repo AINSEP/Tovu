@@ -265,6 +265,37 @@ export class SqliteTermRepo implements TermRepoPort, TermListPort {
     return rows[0] ?? null;
   }
 
+  /** Purge-audit read for `taxonomy-trash-follow-ups.ts`'s term `beforePurge` hook — deliberately
+   *  trash-BLIND (no `termIsLive()` filter), unlike every other read on this class. A purge only
+   *  ever runs on a row that is already hidden (its own marker or `hiddenWithParent`), so
+   *  `findForTrash`'s live filter would return `null` at exactly the moment the follow-up needs to
+   *  read the term's name/taxonomy for the revision it is about to write. Additive, not part of
+   *  the certified `TermRepoPort`. @complexity O(1). */
+  async findForPurgeAudit(id: string): Promise<{ id: string; name: string; taxonomyId: string } | null> {
+    return findOneBy(
+      this.deps.db,
+      terms,
+      [eq(terms.workspaceId, this.deps.workspaceId), eq(terms.id, id)],
+      (row) => ({ id: row.id, name: row.name, taxonomyId: row.taxonomyId })
+    );
+  }
+
+  /** Purge-audit read for `taxonomy-trash-follow-ups.ts`'s taxonomy `beforePurge` hook — the ids of
+   *  EVERY member term regardless of status, because `registry.ts`'s taxonomy `purgeFirst` cascade
+   *  physically deletes all of them along with the taxonomy row, whether or not each one carries
+   *  its own trash marker (`hiddenWithParent` means most never do). `listByTaxonomy` cannot serve
+   *  this: it excludes rows under an already-trashed taxonomy, which is always true by the time a
+   *  purge runs. Additive, not part of the certified `TermRepoPort`. @complexity O(1) plus
+   *  whatever index the taxonomy id match uses. */
+  async listIdsForPurgeAudit(taxonomyId: string): Promise<string[]> {
+    const rows = this.deps.db
+      .select({ id: terms.id })
+      .from(terms)
+      .where(and(eq(terms.workspaceId, this.deps.workspaceId), eq(terms.taxonomyId, taxonomyId)))
+      .all();
+    return rows.map((row) => row.id);
+  }
+
   /** Ancestor-chain lookup for `validation-chain.ts`'s `wouldCreateCycle` — mirrors
    * `InMemoryTermRepo.getParentId`'s optional, not-yet-wired-by-any-route seam. */
   getParentId(termId: string): string | null {

@@ -323,6 +323,37 @@ test("listForContent excludes a trashed term's assignment and a live term's assi
   }
 });
 
+test("findForPurgeAudit/listIdsForPurgeAudit read regardless of trash status — the shape a purge follow-up needs after the row is already hidden", async () => {
+  const { db, tmpDir } = openTempContentDb();
+  try {
+    const deps = buildDeps(db, "ws-1");
+    const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Category", hierarchical: false });
+    const termA = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "A" });
+    const termB = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "B" });
+    const termRepo = deps.terms as SqliteTermRepo;
+
+    // Sanity: both reads work before anything is trashed.
+    assert.deepEqual(await termRepo.findForPurgeAudit(termA.id), { id: termA.id, name: "A", taxonomyId: taxonomy.id });
+    assert.deepEqual((await termRepo.listIdsForPurgeAudit(taxonomy.id)).sort(), [termA.id, termB.id].sort());
+
+    // A purge only ever runs on an already-trashed row — `findForTrash` would already return null
+    // here, which is exactly the case `findForPurgeAudit` exists to still serve.
+    db.$client.prepare("UPDATE terms SET status = 'trash' WHERE id = ?").run(termA.id);
+    assert.equal(await termRepo.findForTrash(termA.id), null, "sanity: the live-filtered read is blind to a trashed term");
+    assert.deepEqual(await termRepo.findForPurgeAudit(termA.id), { id: termA.id, name: "A", taxonomyId: taxonomy.id });
+
+    // `listIdsForPurgeAudit` must also see a member term whose PARENT taxonomy is trashed
+    // (hiddenWithParent) — the taxonomy purge cascade deletes it too, regardless of its own marker.
+    db.$client.prepare("UPDATE taxonomies SET status = 'trash' WHERE id = ?").run(taxonomy.id);
+    assert.deepEqual(await termRepo.listByTaxonomy({ taxonomyId: taxonomy.id }), [], "sanity: the live-filtered read is now blind to both");
+    assert.deepEqual((await termRepo.listIdsForPurgeAudit(taxonomy.id)).sort(), [termA.id, termB.id].sort());
+
+    assert.equal(await termRepo.findForPurgeAudit("does-not-exist"), null);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test("SqliteTermRepo.update's setWhere guard: a write against an already-trashed term is a no-op, the row stays exactly as it was", async () => {
   const { db, tmpDir } = openTempContentDb();
   try {
