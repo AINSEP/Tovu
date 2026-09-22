@@ -260,8 +260,8 @@ export function useExternalMcp(): ExternalMcpController {
 
         async addSource(input: AddSourceInput): Promise<AddSourceResult<SourceConfigItem>> {
           const serverId = (input.fields.id ?? "").trim();
-          if (serverId === "") return { ok: false, message: "An ID is required." };
-          const oauthIdentityIssue = validateExternalMcpOAuthIdentity(input.fields);
+          if (serverId === "") return { ok: false, message: t("An ID is required.") };
+          const oauthIdentityIssue = validateExternalMcpOAuthIdentity(input.fields, t);
           if (oauthIdentityIssue) return { ok: false, message: oauthIdentityIssue };
           try {
             const { server } = await api.saveExternalMcpServer(
@@ -273,7 +273,7 @@ export function useExternalMcp(): ExternalMcpController {
             lastKnown.current.set(item.id, item);
             return { ok: true, source: item };
           } catch (e) {
-            return { ok: false, message: describeApiError(e, "That server could not be saved.") };
+            return { ok: false, message: describeApiError(e, t("That server could not be saved.")) };
           }
         },
 
@@ -347,7 +347,7 @@ export function useExternalMcp(): ExternalMcpController {
          */
         async testSource(id: string | undefined): Promise<SourceTestResult> {
           if (id === undefined) {
-            return { ok: false, message: "Save this server before you can test it." };
+            return { ok: false, message: t("Save this server before you can test it.") };
           }
           const startedAt = Date.now();
           try {

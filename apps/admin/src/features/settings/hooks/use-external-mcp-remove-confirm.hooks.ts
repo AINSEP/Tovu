@@ -1,6 +1,7 @@
 import { useEffect, useRef, type RefObject } from "react";
 
 import { useFocusTrap } from "../../../hooks/use-focus-trap.hooks";
+import type { Translate } from "../../../lib/dictionary-translator";
 import { buildExternalMcpRemoveConfirmCopy, type RemoveConfirmCopy } from "../rules";
 
 /**
@@ -32,6 +33,7 @@ export function useExternalMcpRemoveConfirm(props: {
   name: string;
   isOAuth: boolean;
   onCancel: () => void;
+  t?: Translate;
 }): ExternalMcpRemoveConfirmController {
   const { onCancel } = props;
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -46,5 +48,5 @@ export function useExternalMcpRemoveConfirm(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onCancel]);
 
-  return { copy: buildExternalMcpRemoveConfirmCopy({ name: props.name, isOAuth: props.isOAuth }), dialogRef };
+  return { copy: buildExternalMcpRemoveConfirmCopy({ name: props.name, isOAuth: props.isOAuth }, props.t), dialogRef };
 }

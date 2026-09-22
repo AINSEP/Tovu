@@ -3,8 +3,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, describeApiError, type AdminExternalMcpAdmissionsSnapshot } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { hasPermission } from "@/lib/permissions";
+import type { Translate } from "@/lib/dictionary-translator";
 
 import { describeAdmissionDrift, type AdmissionDriftConnection, type SavedConnectionIntent } from "../external-mcp-admissions-rules";
+import { useExternalMcpDriftCopy } from "../ExternalMcpSettingsPanel.hooks";
 
 /**
  * @file The transport behind Settings → External MCP's "what is the assistant actually running"
@@ -69,9 +71,9 @@ export const defaultExternalMcpAdmissionsPort: ExternalMcpAdmissionsPort = {
  *  {@link useExternalMcpAdmissions} stays under the shop complexity ceiling; the fallback sentence
  *  is `describeApiError`'s job, so the route's own 503 body reaches the operator rather than being
  *  replaced by a generic one. */
-function resolveUnavailable(error: unknown): string | null {
+function resolveUnavailable(error: unknown, t: Translate): string | null {
   if (!error) return null;
-  return describeApiError(error, "The assistant is not reporting what it loaded — it may not be running.");
+  return describeApiError(error, t("The assistant is not reporting what it loaded — it may not be running."));
 }
 
 /** Gap between post-restart re-reads. The daemon is a child of the API process and comes back in
@@ -164,9 +166,9 @@ function useRestartAction(
 /** The route's own refusal reason, or `null`. Its 409 body carries `reason`; an older build that
  *  refuses without one still has to say something, so the fallback is a sentence rather than a
  *  silent `null` that would render as "the restart worked". */
-function resolveRefusal(outcome: RestartOutcome | null): string | null {
+function resolveRefusal(outcome: RestartOutcome | null, t: Translate): string | null {
   if (!outcome || outcome.ok) return null;
-  return outcome.reason ?? "the restart was refused";
+  return outcome.reason ?? t("the restart was refused");
 }
 
 /**
@@ -180,8 +182,9 @@ function resolveRefusal(outcome: RestartOutcome | null): string | null {
 export function useExternalMcpAdmissions(deps: {
   port: ExternalMcpAdmissionsPort;
   savedAllowedToolNamesById: Readonly<Record<string, SavedConnectionIntent>>;
+  t?: Translate;
 }): ExternalMcpAdmissionsController {
-  const { port, savedAllowedToolNamesById } = deps;
+  const { port, savedAllowedToolNamesById, t = (key) => key } = deps;
 
   const admissions = useFetchQuery({ key: ADMISSIONS_KEY, fetch: () => port.getAdmissions() });
   const permissions = useFetchQuery({ key: PERMISSIONS_KEY, fetch: () => port.me() });
@@ -199,15 +202,15 @@ export function useExternalMcpAdmissions(deps: {
   const { watching, begin: beginRestartWatch } = useRestartWatch(admissions.refetch);
   const restart = useRestartAction(restartCall.mutate, setOutcome, beginRestartWatch);
 
-  const refusal = resolveRefusal(outcome);
+  const refusal = resolveRefusal(outcome, t);
 
   return {
     loading: admissions.status === "loading",
-    unavailable: resolveUnavailable(admissions.error),
+    unavailable: resolveUnavailable(admissions.error, t),
     connections,
     canRestart: hasPermission(permissions.data?.effectivePermissions ?? [], "system.write"),
     restarting: restartCall.status === "pending",
-    restartError: refusal ?? (restartCall.error ? describeApiError(restartCall.error, "Could not restart the assistant.") : null),
+    restartError: refusal ?? (restartCall.error ? describeApiError(restartCall.error, t("Could not restart the assistant.")) : null),
     restartAccepted: outcome?.ok === true && watching,
     restart,
   };
@@ -218,5 +221,6 @@ export function useExternalMcpAdmissions(deps: {
 export function useWiredExternalMcpAdmissions(
   savedAllowedToolNamesById: Readonly<Record<string, SavedConnectionIntent>>,
 ): ExternalMcpAdmissionsController {
-  return useExternalMcpAdmissions({ port: defaultExternalMcpAdmissionsPort, savedAllowedToolNamesById });
+  const t = useExternalMcpDriftCopy();
+  return useExternalMcpAdmissions({ port: defaultExternalMcpAdmissionsPort, savedAllowedToolNamesById, t });
 }

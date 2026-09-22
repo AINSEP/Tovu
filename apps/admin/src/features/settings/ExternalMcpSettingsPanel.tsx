@@ -234,7 +234,7 @@ function ExternalMcpSourceRow(props: {
 }) {
   const { source, cardHandle, list, tDrift, onRequestRemove } = props;
   const [toolsOpen, setToolsOpen] = useState(false);
-  const fieldSpecs = buildExternalMcpFieldSpecs(source.fields);
+  const fieldSpecs = buildExternalMcpFieldSpecs(source.fields, tDrift);
   // The SAVED count, not the picker's own draft — see this file's header on why.
   const enabledToolCount = parseSavedToolNames(source.fields["allowedToolNames"]).length;
   const rowLabel = sourceDisplayLabel(source, fieldSpecs);
@@ -298,7 +298,7 @@ function ExternalMcpSourceRow(props: {
 function ExternalMcpSourcesSection(props: {
   list: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>;
   cardHandles: string[];
-  t: ReturnType<typeof useT>;
+  t: Translate;
   tDrift: Translate;
   /** Opens the remove-confirmation dialog for this source id, instead of deleting immediately —
    *  see this file's own "Remove asks first" header note. */
@@ -351,10 +351,11 @@ function ExternalMcpRemoveConfirmSection(props: {
   sources: readonly SourceConfigItem[];
   cardHandles: string[];
   t: ReturnType<typeof useT>;
+  tDrift: Translate;
   onConfirm: (sourceId: string) => void;
   onCancel: () => void;
 }) {
-  const { confirmRemoveId, sources, cardHandles, t, onConfirm, onCancel } = props;
+  const { confirmRemoveId, sources, cardHandles, tDrift, onConfirm, onCancel } = props;
   if (confirmRemoveId === null) return null;
   const index = sources.findIndex((source) => source.id === confirmRemoveId);
   if (index === -1) return null;
@@ -362,12 +363,12 @@ function ExternalMcpRemoveConfirmSection(props: {
 
   return (
     <ExternalMcpRemoveConfirmDialog
-      name={sourceDisplayLabel(source, buildExternalMcpFieldSpecs(source.fields))}
+      name={sourceDisplayLabel(source, buildExternalMcpFieldSpecs(source.fields, tDrift))}
       isOAuth={resolveExternalMcpEffectiveAuthMode(source.fields) === "oauth"}
       cardHandle={cardHandles[index]!}
       onConfirm={() => onConfirm(source.id)}
       onCancel={onCancel}
-      t={t}
+      t={tDrift}
     />
   );
 }
@@ -467,6 +468,7 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTi
         sources={list.sources}
         cardHandles={cardHandles}
         t={t}
+        tDrift={tDrift}
         onConfirm={(sourceId) => {
           setConfirmRemoveId(null);
           void list.remove(sourceId);

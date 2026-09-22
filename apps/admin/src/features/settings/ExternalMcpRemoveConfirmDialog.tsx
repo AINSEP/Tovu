@@ -52,7 +52,7 @@ export function ExternalMcpRemoveConfirmDialog({
   t,
   useExternalMcpRemoveConfirmHook = useExternalMcpRemoveConfirm,
 }: ExternalMcpRemoveConfirmDialogProps) {
-  const { copy, dialogRef } = useExternalMcpRemoveConfirmHook({ name, isOAuth, onCancel });
+  const { copy, dialogRef } = useExternalMcpRemoveConfirmHook({ name, isOAuth, onCancel, t });
   const titleId = `${cardHandle}-remove-confirm-title`;
 
   return (
