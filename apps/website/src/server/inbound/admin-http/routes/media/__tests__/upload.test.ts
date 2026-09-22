@@ -130,8 +130,7 @@ test("upload: a normal alt string value is stored trimmed", async (t) => {
   assert.equal(json.media.alt, "A single pixel");
 });
 
-// Owner-directed 2026-09-16: raised from 10 MiB to 35 MiB so a 10-20s generated video clip fits.
-// Owner-directed 2026-09-21: raised again to 50 MiB.
+// Owner-directed 2026-09-21: the Tovu media-upload cap is 50 MiB.
 // `contentType: "image/png"` is enough to pass uploadMedia's allowlist check without real PNG
 // bytes — that check reads the declared `contentType` field, never sniffs the body.
 test("upload: a file one byte over TOVU_MAX_UPLOAD_BYTES (50 MiB) is rejected with the new cap in the message", async (t) => {
@@ -143,5 +142,6 @@ test("upload: a file one byte over TOVU_MAX_UPLOAD_BYTES (50 MiB) is rejected wi
     dataBase64: oversized.toString("base64"),
   });
   assert.equal(status, 400);
-  assert.equal(json.error, `uploaded file exceeds the ${TOVU_MAX_UPLOAD_BYTES}-byte size cap`);
+  // Jini's uploadMedia states the cap in MB (Jini 754b0ff9), e.g. "50 MB" for 50 MiB.
+  assert.equal(json.error, `uploaded file exceeds the ${TOVU_MAX_UPLOAD_BYTES / (1024 * 1024)} MB size cap`);
 });
