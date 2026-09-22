@@ -91,9 +91,10 @@ export interface AdminAssignLocationEnvelope {
   displacedMenu: AdminMenuDto | null;
 }
 
-export interface AdminDeleteMenuEnvelope {
-  menu: AdminMenuDto | null;
-  purged: boolean;
+export interface AdminTrashMenuEnvelope {
+  trashed: true;
+  id: string;
+  version: number | null;
 }
 
 function toAdminMenuItemDto(node: NavItemNode): AdminMenuItemDto {
@@ -149,9 +150,6 @@ export function toAdminAssignLocationResponse(required: {
   };
 }
 
-export function toAdminDeleteMenuResponse(required: {
-  menu: NavMenuEntry | null;
-  purged: boolean;
-}): AdminDeleteMenuEnvelope {
-  return { menu: required.menu ? toAdminMenuDto(required.menu) : null, purged: required.purged };
+export function toAdminTrashMenuResponse(required: { id: string; version: number | null }): AdminTrashMenuEnvelope {
+  return { trashed: true, id: required.id, version: required.version };
 }
