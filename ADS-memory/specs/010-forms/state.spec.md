@@ -36,7 +36,7 @@ generic `entries` model lands, `form_submissions.data_json` maps onto
 | `slug` | `TEXT` | no | — | Public-URL identifier; unique per `workspace_id` (INV-03) |
 | `fields_json` | `TEXT (serialized FieldDescriptor[])` | no | — | The declarative field vocabulary (REQ-01/02) |
 | `notify_json` | `TEXT (serialized NotifyConfig)` | no | `{"enabled": false, "recipients": []}` | Notification config |
-| `status` | `TEXT enum[active, disabled]` | no | `active` | Lifecycle — never `deleted` (INV-08) |
+| `status` | `TEXT enum[active, disabled]` | no | `active` | Lifecycle — only `active`/`disabled`; deletion is tracked separately via the Trash, not this column (INV-08) |
 | `created_at` | `TEXT (ISO-8601)` | no | now | |
 | `updated_at` | `TEXT (ISO-8601)` | no | now | |
 
@@ -96,12 +96,12 @@ FormSubmissionRecord:
 |---|---|---|---|---|
 | `CREATE_FORM_DEFINITION` | `{workspaceId, name, slug, fields, notify?}` | caller holds `admin.forms.manage`; `slug` unique in workspace; every `fields[].type` in vocabulary | Inserts a new `form_definitions` row, `status: "active"` | Bad field type → `FORMS_FIELD_VALIDATION_ERROR`, nothing persisted; duplicate slug → `FORMS_SLUG_CONFLICT` |
 | `UPDATE_FORM_DEFINITION` | `{workspaceId, formId, patch}` | caller holds `admin.forms.manage`; definition exists; `patch.fields[].id` values are a superset-preserving edit (behavior.spec.md §1.2); `slug` not present in patch (immutable) | Merges patch, bumps `updated_at` | Definition not found → `FORMS_DEFINITION_NOT_FOUND`; bad field → `FORMS_FIELD_VALIDATION_ERROR`, no partial write |
-| `SET_FORM_DEFINITION_STATUS` | `{workspaceId, formId, status}` | caller holds `admin.forms.manage`; definition exists | Sets `status` (`active`⇄`disabled`); never deletes the row (INV-08) | Definition not found → `FORMS_DEFINITION_NOT_FOUND` |
+| `SET_FORM_DEFINITION_STATUS` | `{workspaceId, formId, status}` | caller holds `admin.forms.manage`; definition exists | Sets `status` (`active`⇄`disabled`); never deletes the row — deletion happens only via the Trash, a separate action (INV-08) | Definition not found → `FORMS_DEFINITION_NOT_FOUND` |
 | `SUBMIT_FORM` | `{slug, body}` | none (public) | If `_hp` non-empty: no state change (REQ-08). Else if valid and rate-limit not exceeded: inserts a `form_submissions` row, emits `form.submission.received` on the outbox | Slug not found or definition `disabled` → `FORMS_DEFINITION_NOT_FOUND`; validation failure → `FORMS_SUBMISSION_VALIDATION_ERROR`, no row inserted; rate limit exceeded → `FORMS_RATE_LIMIT_EXCEEDED`, no row inserted |
 | `NOTIFY_ON_SUBMISSION` (outbox subscriber to `form.submission.received`) | envelope `{workspaceId, formDefinitionId, submissionId}` | form definition's `notify.enabled === true` | Calls `MailerPort.send()` for each configured recipient; no local state change (a mail-lib-owned dedup/suppression ledger governs retry, per ADR-037) | `MailerPort.send()` returns `{ok:false}` → logged, not retried inline (rides ADR-009 outbox redelivery per ADR-037); submission row is never affected either way (INV-05) |
 | `LIST_FORM_SUBMISSIONS` | `{workspaceId, formId, limit, cursor?}` | caller holds `admin.forms.submissions.read`; definition exists | Pure read, newest-first | Definition not found → `FORMS_DEFINITION_NOT_FOUND` |
 | `GET_FORM_SUBMISSION` | `{workspaceId, formId, submissionId}` | caller holds `admin.forms.submissions.read` | Pure read | Not found → `FORMS_SUBMISSION_NOT_FOUND` |
-| `DELETE_FORM_SUBMISSION` | `{workspaceId, formId, submissionId}` | caller holds `admin.forms.submissions.delete` | Hard-deletes the `form_submissions` row (REQ-14) | Not found → `FORMS_SUBMISSION_NOT_FOUND` |
+| `DELETE_FORM_SUBMISSION` | `{workspaceId, formId, submissionId}` | caller holds `admin.forms.submissions.delete` | Moves the `form_submissions` row to the Trash (REQ-14); permanently deleted only by a subsequent Trash purge | Not found → `FORMS_SUBMISSION_NOT_FOUND` |
 
 ## 4) Selector Contracts
 | Selector | Input | Output | Null/Empty Behavior |
@@ -116,9 +116,11 @@ FormSubmissionRecord:
   `fields[].id` values as they existed at submission time (INV-01).
 - [ ] `form_definitions.fields_json[].type` is always one of `text`/`email`/`textarea`/`checkbox`
   (INV-02).
-- [ ] `form_definitions` rows are never deleted — only `status` transitions (INV-08).
-- [ ] `form_submissions` rows are immutable once inserted, except for permanent deletion
-  (REQ-14) — there is no update action on a submission.
+- [ ] `form_definitions` rows are removed permanently only via a Trash purge; `status` transitions
+  (`active`⇄`disabled`) are a separate, non-destructive action (INV-08).
+- [ ] `form_submissions` rows are immutable once inserted, except for deletion — which moves a row
+  to the Trash, with permanent removal only via a subsequent Trash purge (REQ-14) — there is no
+  update action on a submission.
 - [ ] A honeypot-tripped request (`_hp` non-empty) never reaches `CREATE`/`INSERT` for
   `form_submissions` and never triggers `form.submission.received` (INV-04).
 

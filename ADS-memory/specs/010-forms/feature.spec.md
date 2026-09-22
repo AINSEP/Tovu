@@ -176,8 +176,8 @@ response for every admin-side read or write.
 - REQ-03: The system shall enforce that a form definition's `slug` is unique among all form
   definitions in its workspace, regardless of status.
 - REQ-04: The system shall allow a principal holding `admin.forms.manage` to read, update, and
-  disable (or re-enable) a form definition; the system shall never permanently delete a form
-  definition.
+  disable (or re-enable) a form definition; this permission does not permanently delete a form
+  definition — a form definition is permanently deleted only via a Trash purge (INV-08).
 - REQ-05: The system shall expose a public, unauthenticated endpoint that accepts a submission
   addressed to a form definition by its slug.
 - REQ-06: The system shall validate a submission payload against the addressed form definition's
@@ -203,8 +203,9 @@ response for every admin-side read or write.
   recipient(s), via an outbox-driven subscriber decoupled from the public submission request.
 - REQ-13: The system shall allow a principal holding `admin.forms.submissions.read` to list and
   view submissions for any form definition in its workspace.
-- REQ-14: The system shall allow a principal holding `admin.forms.submissions.delete` to
-  permanently delete a single submission.
+- REQ-14: The system shall allow a principal holding `admin.forms.submissions.delete` to delete a
+  single submission. Deleting a submission moves it to the Trash; only a purge from the Trash
+  deletes it permanently.
 - REQ-15: The system shall reject any form-definition write, submissions list/read, or submission
   delete attempted by a principal lacking the respective required permission.
 - REQ-16: The system shall never fail or delay the public submission response due to a downstream
@@ -232,9 +233,11 @@ response for every admin-side read or write.
 - AC-05 (REQ-04) [P1]: Given a principal holding `admin.forms.manage`, when they set an existing
   form definition's status to `disabled`, then a subsequent submission to that slug is rejected
   (REQ-07) while a `GET` of the definition itself still succeeds and shows `status: "disabled"`.
-- AC-06 (REQ-04) [P1]: Given a form definition, when any client attempts a delete/removal
-  operation against it, then no such operation exists — the only supported lifecycle transition
-  is `active` ⇄ `disabled` (verified by the absence of a delete endpoint in `api.spec.md`).
+- AC-06 (REQ-04) [P1] — SUPERSEDED (owner ruling 2026-09-21: forms and submissions are deleted
+  through the Trash): Given a form definition, when any client attempts a delete/removal operation
+  against it via `write-service.ts`/the admin definition routes (not the Trash), then no such
+  operation exists there — the only lifecycle transition those routes support is `active` ⇄
+  `disabled`; permanent deletion is reachable only through the Trash purge path.
 - AC-07 (REQ-05) [P1]: Given `POST /forms/:slug/submit` with no `Authorization` header and a
   valid payload for an active form, when the request is processed, then it returns `201` (no
   authentication is required).
@@ -276,8 +279,9 @@ response for every admin-side read or write.
   the submissions list for a form definition, then they receive every non-deleted submission for
   that definition, newest first.
 - AC-20 (REQ-14) [P1]: Given a principal holding `admin.forms.submissions.delete`, when they
-  `DELETE` a submission, then a subsequent `GET` of that submission returns
-  `FORMS_SUBMISSION_NOT_FOUND` and it no longer appears in the submissions list.
+  `DELETE` a submission, then it moves to the Trash — a subsequent `GET` of that submission returns
+  `FORMS_SUBMISSION_NOT_FOUND` and it no longer appears in the submissions list — and only a
+  subsequent purge from the Trash deletes it permanently.
 - AC-21 (REQ-15) [P1]: Given an authenticated principal lacking `admin.forms.manage`, when they
   attempt any form-definition write, then the request is rejected with `FORBIDDEN` and no data
   changes.
@@ -313,9 +317,9 @@ response for every admin-side read or write.
   `admin.forms.submissions.delete`).
 - INV-07: `form.submission.received` must be emitted for every accepted (non-honeypot,
   non-rate-limited, validation-passing) submission, and only for such submissions.
-- INV-08: A form definition is never permanently deleted — its only lifecycle transition is
-  `active` ⇄ `disabled`; a form submission, in contrast, supports permanent delete (REQ-14) since
-  it is PII-bearing data an operator may have an affirmative deletion obligation toward.
+- INV-08: A form definition is removed permanently only by a Trash purge (a human on the Trash
+  screen, or the 60-day sweeper); the purge removes its submissions with it; deleting moves it to
+  the Trash, and restore brings it back with its submissions.
 
 ---
 
@@ -394,7 +398,8 @@ response for every admin-side read or write.
 | III — Simplicity Gate | COMPLIES | Every new surface traces to a requirement: `form_definitions`/`form_submissions` tables → REQ-01/10; the notification subscriber → REQ-12; the webhook topic emission → REQ-11; the admin submissions view → REQ-13/14. No form-builder UI, no CAPTCHA integration, no multi-step logic — all explicitly out of scope. |
 | IV — Anti-Abstraction Gate | COMPLIES | Forms introduces no new port. It consumes two already-accepted ports by handle (`MailerPort` from ADR-037, the outbox/domain-event bus from ADR-009) and a new topic string on the existing webhook subsystem (ADR-036) — no second webhook-dispatch mechanism, no second mail seam. |
 | V — Integration-First Testing | COMPLIES | Every P1 AC above is verified at a real HTTP boundary: the public `POST /forms/:slug/submit` route, or the admin `/api/admin/v1/workspaces/:workspaceId/forms/**` routes. |
-| VI — Security-by-Default | EXCEPTION (standing v1, per Constitution Art. VI) | The dev server has no full auth layer yet; this spec still enforces `admin.forms.manage`/`admin.forms.submissions.read`/`admin.forms.submissions.delete` at the existing `authorize()` gateway for every admin route. The public submission route is intentionally unauthenticated by design (REQ-05, a public contact form must be reachable by any site visitor) — a deliberate scope decision, not an instance of the standing no-auth gap. Submissions may carry visitor-supplied PII (name/email/message) and a source IP; this is stored admin-side only, never exposed on any public route, and REQ-14 gives operators a permanent-delete path for data-subject requests. |
+| VI — Security-by-Default | EXCEPTION (standing v1, per Constitution Art. VI) | The dev server has no full auth layer yet; this spec still enforces `admin.forms.manage`/`admin.forms.submissions.read`/`admin.forms.submissions.delete` at the existing `authorize()` gateway for every admin route. The public submission route is intentionally unauthenticated by design (REQ-05, a public contact form must be reachable by any site visitor) — a deliberate scope decision, not an instance of the standing no-auth gap. Submissions may carry visitor-supplied PII (name/email/message) and a source IP; this is stored admin-side only, never exposed on any public route, and REQ-14 gives operators a delete-to-Trash path (permanently removed only by a subsequent Trash
+purge) for data-subject requests. |
 | VII — Spec Integrity | COMPLIES | This spec's `spec_id`/`content_hash` are referenced by every downstream stage per Article VII. |
 | VIII — Observability | COMPLIES | Every write path (definition write, submission accept/reject, notification dispatch) emits a structured error on failure (`errors.spec.md` §2); `form.submission.received` carries `workspaceId`/`formDefinitionId`/`submissionId` as its available correlation identifiers, matching the deferred-`correlationId` pattern already used elsewhere in this codebase. |
 
@@ -450,4 +455,4 @@ Ask before:
 Never:
 - Add a form-builder (drag-drop) UI.
 - Introduce a second webhook-dispatch mechanism parallel to `src/integrations`.
-- Permanently delete a form definition (INV-08) — disable only.
+- Permanently delete a form definition directly, outside a Trash purge (INV-08).
