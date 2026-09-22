@@ -96,7 +96,8 @@ export const formsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSi
   // -> updateFormDefinition (write-service.ts): executeCommand -> repo.update + change-set + outbox.
   ["forms_update_definition", "mutates-durable-state"],
   // -> setFormDefinitionStatus (write-service.ts): executeCommand -> repo.update (status flip) +
-  //    change-set + outbox. Never a delete: FormDefinitionRepoPort exposes no delete method (INV-08).
+  //    change-set + outbox. Never a delete: FormDefinitionRepoPort exposes no delete method — a
+  //    definition is removed permanently only via a Trash purge, never through this tool (INV-08).
   ["forms_set_definition_status", "mutates-durable-state"],
   // -> formSubmissionRepo.listByDefinition: one paginated read, no write of any kind.
   ["forms_list_submissions", "none"],
