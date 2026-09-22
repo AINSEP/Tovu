@@ -65,6 +65,38 @@ existing production rows — those need their own decision.
 
 ---
 
+## Plugin install (local folder / zip) — plan ready, first milestone scoped (owner call, 2026-09-22)
+
+**Plan saved:** `ADS-memory/.local-artifacts/terra-runs/sol/plugin-install-plan.md` (Opus 5.5,
+2026-09-22). Owner deferred to the plan's recommended defaults:
+- **D1** — agent plugins install deferred (per-workspace store conflicts with install-once-per-site).
+- **D2** — reuse `admin.plugins.enable` rather than a new permission.
+- **D3** — URL install deferred (SSRF risk + unverifiable publisher).
+- **D4** — no assistant install tool.
+- **D5** — dev-link installs stay env-gated, with integrity checks kept.
+- **D6** — local folder and zip installs allowed, behind a consent screen (plugin code runs
+  in-process with full machine access — ADR-024 Tier-3).
+
+**First milestone:** local folder install — `tovu plugin install <dir>` CLI command plus an
+env-gated admin route. Depends on Plugin Trash (shipped 2026-09-22).
+
+---
+
+## Jini publishes owed — committed but not released (found 2026-09-22)
+
+Changes already committed in the separate `Jini` repo (`/Users/la/Programming/Jini`) that Tovu's
+registry-installed `@jini-ai/*` packages will NOT get until a version bump + publish:
+- **`@jini-ai/agent-runtime`** — live Claude model discovery without an API key
+  (`claude-code-models.ts`, `probeAgentModels`). Tovu's live model picker depends on this.
+- **`@jini-ai/ui`** — BYOK connection-test/discovery messages translated (commit `d5ae98d7`).
+- **`@jini-ai/cms`** — media upload cap, commits `23d652a4`, `754b0ff9`.
+
+No Tovu code change needed here; this is a reminder that a Jini publish + dist rebuild is owed
+before registry installs pick these up. See also the Jini-publish note in the "Entries envelope
+owner" section above (line ~48), a separate instance of the same publish debt.
+
+---
+
 
 ## 🔜 SOON — make the MCP Server real, starting with the desktop app (owner call, 2026-09-19)
 
@@ -112,6 +144,10 @@ it leaves the fake command visible on desktop and local, which is the worse fail
 **Do not confuse with the External MCP tab** (`ExternalMcpSettingsPanel.tsx`), which is correctly
 ungated: it is about this site connecting OUT to third-party MCP servers, which behaves the same
 whether Tovu is local or hosted.
+
+**2026-09-22: verified still open.** `apps/admin/src/features/providers/Providers.tsx` ~:323 still
+falls back to `createFakeMcpIntegrationsPort()`; no real `McpIntegrationsPort` exists anywhere in
+Tovu source. Next step: an Opus plan (not written yet).
 
 ---
 
@@ -186,6 +222,11 @@ as the spec evolves. Why not now, verified 2026-09-17:
       to the logged-in user. Keep write tools behind confirmation.
 - [ ] **Later: migrate `data-agent-*` → WebMCP `tool*`** once the spec covers non-form elements
       and leaves the origin trial.
+
+**OWNER DECISION 2026-09-22: WebMCP ON BY DEFAULT (with an opt-out).** Resolves the open default
+question above ("off until enabled (recommended) vs on by default"). Verified still fully
+unstarted: the `AssistantDock` webmcp switch is off, and the theme validator still uses
+`data-tovu-agent`. Next: an Opus plan (not written yet).
 
 ---
 
@@ -284,6 +325,8 @@ result is indistinguishable from a chat that "just stopped answering" — the su
 at `apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts:216-222` says so, from the
 2026-09-06 chat-death investigation. No library choice fixes that; it needs process-group
 detachment or run-state checkpointing. Tracked separately.
+
+**2026-09-22: parked for a while — don't pick up.**
 
 
 ## Desktop shell: one window, project tabs — match Tovu Runner (owner directive, 2026-09-06)
@@ -505,6 +548,10 @@ feature. Don't build a vendor-specific widget. Verified 2026-09-21 by a read-onl
     `apps/admin/src/features/pages/PageEditor.tsx:1208,1228` have no `sandbox` attribute. It's unverified whether script in
     the preview runs with the admin origin.
 
+**2026-09-22: owner confirms this is definitely wanted, scheduled for later.** Verified no migration
+is needed — the widget/field/menu types involved are app-code unions, not DB schema, and their data
+is stored as JSON-in-text columns.
+
 ## Raw-HTML authoring for forms, menus, widgets — way + admin UI (owner call, 2026-09-21)
 
 Owner: *"do we have in the todo to have a way and the ui to build raw html forms, menus, widgets, etc? i dont wanna
@@ -546,6 +593,10 @@ is about embedding someone else's vendor snippet; related but a different gap.
   menus via `static-render.ts`'s `withInnerContent`; a bare widget marker still whole-element replaces. Open:
   where authored children go relative to resolved output; how that interacts with the fallback-on-missing reuse
   of the same children; the `<form>`-in-`<form>` / bare-`<li>`-needs-`<ul>` nesting hazards (`html-embeds.ts:322-336`).
+
+**2026-09-22: owner confirms this is definitely wanted, scheduled for later.** Verified no migration
+is needed — forms/menus/widgets are app-code unions, not DB schema, and their data is stored as
+JSON-in-text columns.
 
 ## Open remainder — SPEC-005 (plugins) + SPEC-006 (identity/authorization) gates
 
