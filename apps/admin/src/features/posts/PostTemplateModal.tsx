@@ -2,6 +2,7 @@ import { CodeWithLines } from "@jini-ai/ui";
 import { PreviewModalShell } from "@jini-ai/ui/renderers";
 
 import type { ThemeTier } from "../../lib/api";
+import type { Translate } from "../../lib/dictionary-translator";
 import { useWiredTemplateSource } from "./hooks/use-post-template-source.hooks";
 
 /**
@@ -48,6 +49,7 @@ export interface PostTemplateModalProps {
    *  this modal once a real template is chosen. */
   readonly templateFilename: string;
   readonly onClose: () => void;
+  readonly t: Translate;
   /** Injectable seam for the template-source fetch. Defaults to the real
    *  {@link useWiredTemplateSource}; a test can pass a fake here to exercise the modal's rendering
    *  without a real `fetch`. */
@@ -60,6 +62,7 @@ export function PostTemplateModal({
   themeApiVersion,
   templateFilename,
   onClose,
+  t,
   useTemplateSourceHook = useWiredTemplateSource,
 }: PostTemplateModalProps) {
   const fetchState = useTemplateSourceHook(themeId, themeTier, themeApiVersion, templateFilename);
@@ -68,8 +71,7 @@ export function PostTemplateModal({
   if (themeTier === null) {
     stageContent = (
       <p role="status">
-        Could not determine the active theme&apos;s (&quot;{themeId}&quot;) capability tier, so this
-        cannot tell whether it has a plain-HTML template to show.
+        {translateTemplate(t, "Could not determine the active theme's (\"{themeId}\") capability tier, so this cannot tell whether it has a plain-HTML template to show.", { themeId })}
       </p>
     );
   } else if (themeTier !== "static") {
@@ -77,16 +79,15 @@ export function PostTemplateModal({
     // true (this theme's tier) rather than implying the template itself is missing.
     stageContent = (
       <p role="status">
-        The active theme (&quot;{themeId}&quot;) is a {themeTier} theme — its page templates are not
-        plain HTML files under this admin, so there is nothing to show here.
+        {translateTemplate(t, "The active theme (\"{themeId}\") is a {themeTier} theme — its page templates are not plain HTML files under this admin, so there is nothing to show here.", { themeId, themeTier })}
       </p>
     );
   } else if (fetchState.status === "loading") {
-    stageContent = <p role="status">Loading template…</p>;
+    stageContent = <p role="status">{t("Loading template…")}</p>;
   } else if (fetchState.status === "error") {
     stageContent = (
       <p role="alert">
-        Could not load &quot;{templateFilename}&quot; from the &quot;{themeId}&quot; theme: {fetchState.message}
+        {translateTemplate(t, "Could not load \"{templateFilename}\" from the \"{themeId}\" theme: {message}", { templateFilename, themeId, message: fetchState.message })}
       </p>
     );
   } else {
@@ -102,4 +103,8 @@ export function PostTemplateModal({
       onClose={onClose}
     />
   );
+}
+
+function translateTemplate(t: Translate, key: string, values: Record<string, string>): string {
+  return Object.entries(values).reduce((text, [name, value]) => text.replace(`{${name}}`, value), t(key));
 }

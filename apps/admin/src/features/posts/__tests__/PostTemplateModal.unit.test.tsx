@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PostTemplateModal } from "../PostTemplateModal";
 import type { PostTemplateFetchState } from "../hooks/use-post-template-source.hooks";
 
+const t = (key: string) => key;
+
 /**
  * @file `PostTemplateModal` — the "View Template" read-only source view (2026-08-10). Covers the
  * four outcomes disclosed in `PostEditor.tsx`'s wiring and the modal's own file header: a
@@ -33,6 +35,7 @@ describe("theme tier gates the fetch", () => {
         themeApiVersion={undefined}
         templateFilename="post.html"
         onClose={vi.fn()}
+        t={t}
       />,
     );
 
@@ -51,6 +54,7 @@ describe("theme tier gates the fetch", () => {
         themeApiVersion={undefined}
         templateFilename="post.html"
         onClose={vi.fn()}
+        t={t}
       />,
     );
 
@@ -71,6 +75,7 @@ describe("a static-tier theme", () => {
         themeApiVersion={undefined}
         templateFilename="blog-post.html"
         onClose={vi.fn()}
+        t={t}
       />,
     );
 
@@ -95,6 +100,7 @@ describe("a static-tier theme", () => {
         themeApiVersion={2}
         templateFilename="blog-post.html"
         onClose={vi.fn()}
+        t={t}
       />,
     );
 
@@ -112,6 +118,7 @@ describe("a static-tier theme", () => {
         themeApiVersion={2}
         templateFilename="x.html"
         onClose={vi.fn()}
+        t={t}
       />,
     );
 
@@ -128,6 +135,7 @@ describe("a static-tier theme", () => {
         themeApiVersion={2}
         templateFilename="missing.html"
         onClose={vi.fn()}
+        t={t}
       />,
     );
 
@@ -144,6 +152,7 @@ describe("a static-tier theme", () => {
         themeApiVersion={2}
         templateFilename="x.html"
         onClose={vi.fn()}
+        t={t}
       />,
     );
 
@@ -169,6 +178,7 @@ describe("PostTemplateModal template-source-hook injection", () => {
         themeApiVersion={2}
         templateFilename="blog-post.html"
         onClose={vi.fn()}
+        t={t}
         useTemplateSourceHook={useFakeTemplateSource}
       />,
     );

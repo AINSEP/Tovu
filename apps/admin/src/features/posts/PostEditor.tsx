@@ -1236,6 +1236,7 @@ function PostEditorTemplateModalGate({
   activeThemeTier,
   activeThemeApiVersion,
   onClose,
+  t,
 }: {
   show: boolean;
   templateChoice: string | null;
@@ -1243,6 +1244,7 @@ function PostEditorTemplateModalGate({
   activeThemeTier: ThemeTier | null;
   activeThemeApiVersion: 2 | undefined;
   onClose: () => void;
+  t: Translate;
 }) {
   if (!show || !templateChoice || !activeThemeId) return null;
   return (
@@ -1252,6 +1254,7 @@ function PostEditorTemplateModalGate({
       themeApiVersion={activeThemeApiVersion}
       templateFilename={templateChoice}
       onClose={onClose}
+      t={t}
     />
   );
 }
@@ -1497,7 +1500,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
           MARKUP location changed; where its options/value come from is untouched (a concurrent
           agent owns that wiring). */}
       <div className="page-editor-toolbar">
-        <div className="segmented" role="tablist" aria-label="Editor view" onKeyDown={onViewTabsKeyDown}>
+        <div className="segmented" role="tablist" aria-label={t("Editor view")} onKeyDown={onViewTabsKeyDown}>
           {VIEW_TABS.map((entry) => (
             <button
               key={entry.key}
@@ -1594,6 +1597,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         activeThemeTier={activeThemeTier}
         activeThemeApiVersion={activeThemeApiVersion}
         onClose={onCloseTemplateModal}
+        t={t}
       />
     </div>
   );
