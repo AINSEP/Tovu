@@ -422,7 +422,12 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
         <Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group] })} />
       </FetchQueryProvider>
     );
-    const closedDialog = screen.getByText("Delete term?").closest("dialog")!;
+    // Both dialogs share the "Move to trash?" title and stay mounted regardless of `open` (see
+    // `ConfirmDialog`'s own doc comment) — and the term dialog's body renders `null` while nothing
+    // is pending, so neither title nor body text can locate it here. Its `agentHandle=
+    // "taxonomy-delete-term"` (`Taxonomy.tsx`) is unconditional instead — `data-agent-element` is
+    // published on its actions regardless of `open`, per `ConfirmDialog`'s own doc comment.
+    const closedDialog = document.querySelector('[data-agent-element="taxonomy-delete-term-confirm"]')!.closest("dialog")!;
     expect(closedDialog.hasAttribute("open")).toBe(false);
 
     rerender(
@@ -430,9 +435,10 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
         <Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group], pendingDeleteTerm: t })} />
       </FetchQueryProvider>
     );
-    const openDialog = screen.getByText("Delete term?").closest("dialog")!;
+    const openDialog = document.querySelector('[data-agent-element="taxonomy-delete-term-confirm"]')!.closest("dialog")!;
     expect(openDialog.hasAttribute("open")).toBe(true);
-    expect(within(openDialog).getByText(/delete term "breakfast".*cannot be undone/i)).toBeInTheDocument();
+    expect(within(openDialog).getByRole("heading", { name: "Move to trash?" })).toBeInTheDocument();
+    expect(within(openDialog).getByText('Move "Breakfast" to trash?')).toBeInTheDocument();
   });
 
   it("confirming the term dialog calls confirmDeleteTerm; canceling calls requestDeleteTerm(null)", async () => {
@@ -441,8 +447,8 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
     const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [t] };
     const controller = renderTaxonomy({ taxonomies: [group], pendingDeleteTerm: t });
 
-    const dialog = screen.getByText("Delete term?").closest("dialog")!;
-    await user.click(within(dialog).getByRole("button", { name: /^delete term$/i }));
+    const dialog = screen.getByText('Move "Breakfast" to trash?').closest("dialog")!;
+    await user.click(within(dialog).getByRole("button", { name: /^move to trash$/i }));
     expect(controller.confirmDeleteTerm).toHaveBeenCalledTimes(1);
 
     await user.click(within(dialog).getByRole("button", { name: /^cancel$/i }));
@@ -456,7 +462,7 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
         <Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group] })} />
       </FetchQueryProvider>
     );
-    const closedDialog = screen.getByText("Delete taxonomy?").closest("dialog")!;
+    const closedDialog = document.querySelector('[data-agent-element="taxonomy-delete-taxonomy-confirm"]')!.closest("dialog")!;
     expect(closedDialog.hasAttribute("open")).toBe(false);
 
     rerender(
@@ -464,9 +470,10 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
         <Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group], pendingDeleteTaxonomy: group.taxonomy })} />
       </FetchQueryProvider>
     );
-    const openDialog = screen.getByText("Delete taxonomy?").closest("dialog")!;
+    const openDialog = document.querySelector('[data-agent-element="taxonomy-delete-taxonomy-confirm"]')!.closest("dialog")!;
     expect(openDialog.hasAttribute("open")).toBe(true);
-    expect(within(openDialog).getByText(/delete taxonomy "category".*cannot be undone/i)).toBeInTheDocument();
+    expect(within(openDialog).getByRole("heading", { name: "Move to trash?" })).toBeInTheDocument();
+    expect(within(openDialog).getByText('Move "Category" and its terms to trash?')).toBeInTheDocument();
   });
 
   it("confirming the taxonomy dialog calls confirmDeleteTaxonomy; canceling calls requestDeleteTaxonomy(null)", async () => {
@@ -474,8 +481,8 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
     const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ name: "Category" }), terms: [] };
     const controller = renderTaxonomy({ taxonomies: [group], pendingDeleteTaxonomy: group.taxonomy });
 
-    const dialog = screen.getByText("Delete taxonomy?").closest("dialog")!;
-    await user.click(within(dialog).getByRole("button", { name: /^delete taxonomy$/i }));
+    const dialog = screen.getByText('Move "Category" and its terms to trash?').closest("dialog")!;
+    await user.click(within(dialog).getByRole("button", { name: /^move to trash$/i }));
     expect(controller.confirmDeleteTaxonomy).toHaveBeenCalledTimes(1);
 
     await user.click(within(dialog).getByRole("button", { name: /^cancel$/i }));
@@ -487,8 +494,8 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
     const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [t] };
     renderTaxonomy({ taxonomies: [group], pendingDeleteTerm: t, deleteTermBusy: true });
 
-    const dialog = screen.getByText("Delete term?").closest("dialog")!;
-    expect(within(dialog).getByRole("button", { name: /^delete term$/i })).toBeDisabled();
+    const dialog = screen.getByText('Move "Breakfast" to trash?').closest("dialog")!;
+    expect(within(dialog).getByRole("button", { name: /^move to trash$/i })).toBeDisabled();
   });
 
   it("shows the blocked-delete reason for the specific term that was refused, naming the remedy — not a silent disabled control", () => {
@@ -498,12 +505,12 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
       taxonomies: [group],
       deleteTermBlocked: {
         termId: "t1",
-        state: { code: "TERM_HAS_ASSIGNMENTS", count: 2, message: "Still assigned to 2 content items. Unassign it first." },
+        state: { code: "TERM_HAS_CHILDREN", count: 2, message: "This term has 2 sub-terms. Move them under another parent or delete them first." },
       },
     });
 
     expect(
-      screen.getByText(/can't delete "breakfast": still assigned to 2 content items\. unassign it first\./i)
+      screen.getByText(/can't delete "breakfast": this term has 2 sub-terms\./i)
     ).toBeInTheDocument();
   });
 
@@ -514,27 +521,18 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
     const groupB: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax2", name: "Tag" }), terms: [t2] };
     renderTaxonomy({
       taxonomies: [groupA, groupB],
-      deleteTermBlocked: { termId: "t2", state: { code: "TERM_HAS_ASSIGNMENTS", count: 1, message: "blocked" } },
+      deleteTermBlocked: { termId: "t2", state: { code: "TERM_HAS_CHILDREN", count: 1, message: "blocked" } },
     });
 
     expect(screen.queryByText(/can't delete "breakfast"/i)).not.toBeInTheDocument();
     expect(screen.getByText(/can't delete "lunch"/i)).toBeInTheDocument();
   });
 
-  it("shows the blocked-delete reason for a refused taxonomy delete", () => {
-    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax1", name: "Category" }), terms: [] };
-    renderTaxonomy({
-      taxonomies: [group],
-      deleteTaxonomyBlocked: {
-        taxonomyId: "tax1",
-        state: { code: "TAXONOMY_HAS_ASSIGNMENTS", count: 1, message: "A term is still assigned. Unassign it first." },
-      },
-    });
-
-    expect(
-      screen.getByText(/can't delete "category": a term is still assigned\. unassign it first\./i)
-    ).toBeInTheDocument();
-  });
+  // Taxonomies have no blocked-delete case at all (`registry.ts` registers a `blocker` for `term`
+  // only) — `deleteTaxonomyBlocked`'s `state.code` is typed to the same `DeleteBlockedState` as the
+  // term case (`"TERM_HAS_CHILDREN"` only), so there is no longer a valid state to seed here. The
+  // old "shows the blocked-delete reason for a refused taxonomy delete" test is deleted rather than
+  // adapted — see the T8b handoff.
 });
 
 describe("creating a taxonomy end to end (real hook, mocked fetch)", () => {
@@ -588,13 +586,15 @@ describe("delete term via RowMenu + ConfirmDialog", () => {
     const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [t] };
     const controller = renderTaxonomy({ taxonomies: [group], pendingDeleteTerm: t });
 
-    expect(screen.getByRole("heading", { name: /^delete term\?$/i })).toBeInTheDocument();
-    expect(screen.getByText(/delete term "doomed term"\? this cannot be undone\./i)).toBeInTheDocument();
+    // Both dialogs share the "Move to trash?" heading and stay mounted regardless of `open` (see
+    // `ConfirmDialog`'s own doc comment) — scope to the term dialog via its own body text.
+    const dialog = screen.getByText('Move "Doomed Term" to trash?').closest("dialog")!;
+    expect(within(dialog).getByRole("heading", { name: "Move to trash?" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /^delete term$/i }));
+    await user.click(within(dialog).getByRole("button", { name: /^move to trash$/i }));
     expect(controller.confirmDeleteTerm).toHaveBeenCalledTimes(1);
 
-    await user.click(screen.getAllByRole("button", { name: /^cancel$/i })[0]);
+    await user.click(within(dialog).getByRole("button", { name: /^cancel$/i }));
     expect(controller.requestDeleteTerm).toHaveBeenCalledWith(null);
   });
 
@@ -606,15 +606,15 @@ describe("delete term via RowMenu + ConfirmDialog", () => {
       taxonomies: [group, other],
       deleteTermBlocked: {
         termId: "t1",
-        state: { code: "TERM_HAS_ASSIGNMENTS", count: 2, message: "Still assigned to 2 content items. Unassign it, or merge it into another term, before deleting." },
+        state: { code: "TERM_HAS_CHILDREN", count: 2, message: "This term has 2 sub-terms. Move them under another parent or delete them first." },
       },
     });
 
-    const notice = screen.getByText(/still assigned to 2 content items/i);
+    const notice = screen.getByText(/this term has 2 sub-terms/i);
     expect(notice.closest(".settings-namespace-group")).toHaveTextContent("Category");
     // Never a silent disabled control — the message names the count and the remedy.
     expect(notice).toHaveTextContent("2");
-    expect(notice).toHaveTextContent(/unassign/i);
+    expect(notice).toHaveTextContent(/move them under another parent/i);
   });
 });
 
@@ -630,21 +630,9 @@ describe("delete taxonomy via RowMenu + ConfirmDialog", () => {
     expect(controller.requestDeleteTaxonomy).toHaveBeenCalledWith(group.taxonomy);
   });
 
-  it("shows the blocked-delete reason scoped to the refused taxonomy's own group, not a page-level banner", () => {
-    const blockedGroup: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax1", name: "Category" }), terms: [] };
-    const unrelatedGroup: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax2", name: "Topic" }), terms: [] };
-    renderTaxonomy({
-      taxonomies: [blockedGroup, unrelatedGroup],
-      deleteTaxonomyBlocked: {
-        taxonomyId: "tax1",
-        state: { code: "TAXONOMY_HAS_ASSIGNMENTS", count: 1, message: "A term in this taxonomy is still assigned to 1 content item. Unassign or merge that term before deleting the taxonomy." },
-      },
-    });
-
-    const notice = screen.getByText(/still assigned to 1 content item/i);
-    expect(notice.closest(".settings-namespace-group")).toHaveTextContent("Category");
-    // The unrelated group must not show a reason it was never given.
-    const topicGroup = screen.getByRole("heading", { name: "Topic" }).closest(".settings-namespace-group");
-    expect(within(topicGroup as HTMLElement).queryByText(/still assigned/i)).not.toBeInTheDocument();
-  });
+  // Taxonomies have no blocked-delete case at all (`registry.ts` registers a `blocker` for `term`
+  // only) — `deleteTaxonomyBlocked`'s `state.code` is typed to the same `DeleteBlockedState` as the
+  // term case (`"TERM_HAS_CHILDREN"` only), so there is no longer a valid state to seed here. The
+  // old "shows the blocked-delete reason scoped to the refused taxonomy's own group..." test is
+  // deleted rather than adapted — see the T8b handoff.
 });

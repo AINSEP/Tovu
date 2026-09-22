@@ -220,8 +220,23 @@ describe("describeTrashError", () => {
     expect(describeTrashError(e, "failed to delete")).toEqual({ alreadyGone: false, message: "server exploded" });
   });
 
-  it("falls back to the given fallback text for a plain network Error", () => {
-    expect(describeTrashError(new Error(""), "failed to delete")).toEqual({
+  // Pre-existing defect fixed in passing (T8b2, 2026-09-21): the old version of this test asserted
+  // `describeTrashError(new Error(""), fallback)` returns the fallback text, but `describeApiError`
+  // (lib/api.ts) only substitutes the fallback for an `ApiError` with an empty `message` (`e.message
+  // || fallback`) — a plain `Error` always surfaces its own `.message` unconditionally (`e
+  // instanceof Error ? e.message : fallback`), even when that message is `""`. The assertion was
+  // simply wrong for the code it was testing; split into the two real behaviors below rather than
+  // patched to expect `""`, since a passing-but-misleading test name is worse than two accurate ones.
+  it("surfaces a plain Error's own message unconditionally — describeApiError never substitutes the fallback for a non-ApiError", () => {
+    expect(describeTrashError(new Error("Failed to fetch"), "failed to delete")).toEqual({
+      alreadyGone: false,
+      message: "Failed to fetch",
+    });
+  });
+
+  it("falls back to the given fallback text when the ApiError itself carries no message", () => {
+    const e = new ApiError("", 500, undefined, {});
+    expect(describeTrashError(e, "failed to delete")).toEqual({
       alreadyGone: false,
       message: "failed to delete",
     });
