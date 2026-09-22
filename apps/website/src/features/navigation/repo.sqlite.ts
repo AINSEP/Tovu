@@ -1,8 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 import { menus, navLocationBindings } from "../../platform/db/schema.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
+import { MenuConflictError } from "@jini-ai/cms/navigation";
 import type {
   MenuRepoPort,
   MenuStatus,
@@ -20,11 +21,20 @@ import type {
  * pattern and JSON-text-column convention (`doc`/`locations` stored as
  * `doc_json`/`locations_json` text, parsed on read).
  *
- * Neither class adds any method beyond what its port interface already
- * declares — same contract as the in-memory adapters (`repo.memory.ts`),
- * certified by the shared contract-test suite in
- * `__tests__/repo.sqlite.test.ts` (the exact suite `InMemoryMenuRepo`/
- * `InMemoryNavLocationBindingRepo` already pass, re-run against these).
+ * `SqliteNavLocationBindingRepo` adds no method beyond what its port
+ * interface declares — same contract as the in-memory adapters
+ * (`repo.memory.ts`), certified by the shared contract-test suite in
+ * `__tests__/repo.sqlite.test.ts`. `SqliteMenuRepo` is the one exception:
+ * it adds `findByIdIncludingTrashed`, a trash-blind seam not on
+ * `MenuRepoPort`, needed by the menu trash follow-up hooks (see
+ * `menu-trash-follow-ups.ts`) — same precedent as
+ * `TrashAwareInMemoryEntryRepo.findAnyById`.
+ *
+ * Trash: a `menus` row with `status = 'trash'` is in the Trash. `findById`/
+ * `findBySlug`/`list` all hide it via `NOT_TRASHED`, so every reader treats a
+ * trashed menu as missing. `save` never revives a trashed row it does not
+ * already own outright — `setWhere: NOT_TRASHED` scopes the upsert's UPDATE
+ * branch to live rows only, mirroring `SqliteEntryRepo.save`'s `LIVE` guard.
  *
  * `SqliteNavLocationBindingRepo.upsert` uses `onConflictDoUpdate` targeting
  * the composite `UNIQUE(workspace_id, location_key)` index — this is a real
@@ -32,6 +42,12 @@ import type {
  * guarantee (the DB enforces it even under a concurrent-process race against
  * the same SQLite file).
  */
+
+/** A `menus` row that is not in the Trash. */
+const NOT_TRASHED = ne(menus.status, "trash");
+
+/** SQLite's own text for the `menus_workspace_slug_unique` index. */
+const SLUG_UNIQUE_VIOLATION = "UNIQUE constraint failed: menus.workspace_id, menus.slug";
 
 type MenuRow = typeof menus.$inferSelect;
 type BindingRow = typeof navLocationBindings.$inferSelect;
@@ -66,6 +82,20 @@ export class SqliteMenuRepo implements MenuRepoPort {
     return findOneBy(
       this.db,
       menus,
+      [eq(menus.workspaceId, required.workspaceId), eq(menus.id, required.id), NOT_TRASHED],
+      toMenuRecord
+    );
+  }
+
+  /**
+   * Trash-blind twin of `findById` — sees a trashed row too. Not part of `MenuRepoPort`; exists only
+   * for the trash follow-up hooks, which run after a row's `status` has already flipped to `'trash'`.
+   * @complexity O(1).
+   */
+  async findByIdIncludingTrashed(required: { workspaceId: string; id: string }): Promise<NavMenuEntry | null> {
+    return findOneBy(
+      this.db,
+      menus,
       [eq(menus.workspaceId, required.workspaceId), eq(menus.id, required.id)],
       toMenuRecord
     );
@@ -75,16 +105,27 @@ export class SqliteMenuRepo implements MenuRepoPort {
     return findOneBy(
       this.db,
       menus,
-      [eq(menus.workspaceId, required.workspaceId), eq(menus.slug, required.slug)],
+      [eq(menus.workspaceId, required.workspaceId), eq(menus.slug, required.slug), NOT_TRASHED],
       toMenuRecord
     );
   }
 
   async list(required: { workspaceId: string }): Promise<NavMenuEntry[]> {
-    const rows = this.db.select().from(menus).where(eq(menus.workspaceId, required.workspaceId)).all();
+    const rows = this.db
+      .select()
+      .from(menus)
+      .where(and(eq(menus.workspaceId, required.workspaceId), NOT_TRASHED))
+      .all();
     return rows.map(toMenuRecord);
   }
 
+  /**
+   * Upserts a `menus` row by id. A trashed row is left as it is — `setWhere: NOT_TRASHED` scopes the
+   * UPDATE branch of the upsert to live rows only, so a stale save cannot revive one.
+   * @throws MenuConflictError when a trashed row holds the slug: `findBySlug` above hides it, so the
+   *         app-level slug check could not see it before the INSERT hit the real unique index.
+   * @complexity O(1).
+   */
   async save(record: NavMenuEntry): Promise<void> {
     const row = {
       id: record.id,
@@ -97,23 +138,33 @@ export class SqliteMenuRepo implements MenuRepoPort {
       updatedAt: record.updatedAt,
       version: record.version,
     };
-    this.db
-      .insert(menus)
-      .values(row)
-      .onConflictDoUpdate({
-        target: menus.id,
-        set: {
-          workspaceId: row.workspaceId,
-          slug: row.slug,
-          title: row.title,
-          status: row.status,
-          docJson: row.docJson,
-          locationsJson: row.locationsJson,
-          updatedAt: row.updatedAt,
-          version: row.version,
-        },
-      })
-      .run();
+    try {
+      this.db
+        .insert(menus)
+        .values(row)
+        .onConflictDoUpdate({
+          target: menus.id,
+          set: {
+            workspaceId: row.workspaceId,
+            slug: row.slug,
+            title: row.title,
+            status: row.status,
+            docJson: row.docJson,
+            locationsJson: row.locationsJson,
+            updatedAt: row.updatedAt,
+            version: row.version,
+          },
+          setWhere: NOT_TRASHED,
+        })
+        .run();
+    } catch (error) {
+      if (error instanceof Error && error.message.includes(SLUG_UNIQUE_VIOLATION)) {
+        throw new MenuConflictError(
+          `a menu with slug '${row.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug`
+        );
+      }
+      throw error;
+    }
   }
 
   async remove(required: { workspaceId: string; id: string }): Promise<void> {
