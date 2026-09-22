@@ -117,7 +117,7 @@ describe("useFormSubmissionDetail — injected port", () => {
   });
 });
 
-/** T7a (2026-09-21): `deleteFormSubmission` now routes through the generic `api.trash` (see
+/** T7a (2026-09-21): submission removal routes through the generic `api.trash` (see
  *  `form-submissions-dependencies.hooks.ts`'s own doc) and its 404/409 contract — same classifier
  *  (`describeTrashError`) `use-forms-list.hooks.ts`'s own `removeForm` uses for the forms row delete. */
 describe("useFormSubmissionDetail — trash errors", () => {

@@ -59,7 +59,7 @@ import type { TaxonomyPort } from "./taxonomy-port.hooks";
  * explicitly, not a host reach.
  *
  * `lib/fetch-query` migration (2026-08-12): the list read is now `useFetchQuery({ key: KEYS.list,
- * ... })`, and `deleteTerm`/`deleteTaxonomy` are `useFetchMutation`s that `invalidates: [KEYS.list]`
+ * ... })`, and the two Trash mutations are `useFetchMutation`s that `invalidates: [KEYS.list]`
  * instead of calling `load()` by hand on success — see `rules.ts`'s `KEYS` doc. `error`'s precedence
  * (an active delete's own hard failure over a background list-refresh failure) mirrors
  * `redirects/rules.ts`'s `visibleRedirectsError`, with one addition that screen doesn't have: a

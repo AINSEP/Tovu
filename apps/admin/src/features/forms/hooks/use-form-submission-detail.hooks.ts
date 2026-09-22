@@ -85,9 +85,9 @@ export function useFormSubmissionDetail(
     setConfirmOpen(false);
   }
 
-  /** T7a (2026-09-21): `port.deleteFormSubmission` now moves the submission to the Trash (generic
-   *  `POST /trash/items`) rather than a hard delete — see `form-submissions-dependencies.hooks.ts`'s
-   *  own doc. A 404 (`describeTrashError`'s `alreadyGone`) means the submission is already gone: from
+  /** T7a (2026-09-21): the confirmation mutation moves the submission to Trash through the generic
+   *  `POST /trash/items` endpoint — see `form-submissions-dependencies.hooks.ts`'s own doc. A 404
+   *  (`describeTrashError`'s `alreadyGone`) means the submission is already gone: from
    *  the operator's point of view that's the same outcome as a successful delete, so this still calls
    *  `onDeleted()` and invalidates the list directly — `deleteMutation`'s own `invalidates` only fires
    *  on success, and a failed mutation would otherwise leave the sibling list showing a row that's

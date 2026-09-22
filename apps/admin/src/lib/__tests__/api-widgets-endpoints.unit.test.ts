@@ -8,9 +8,8 @@ import { api } from "../api";
  * `getWidget`, `listWidgetRegions`, `bindWidgetRegion`, `getWidgetRegion`,
  * `widgetsToolPlace`, `widgetsToolCreate`. `listWidgets`, `createWidget`, `updateWidget`,
  * and `mutateWidgetRegionPlacements` already had real fetch-stubbed tests in
- * `api-endpoint-option-branches.unit.test.ts` — not duplicated here. (`trashWidget`/`purgeWidget`,
- * the widget-specific hard-delete pair, were removed with the Trash rewrite, T8c 2026-09-21 — see
- * `api.trash`.) `insertWidgetEmbed` /
+ * `api-endpoint-option-branches.unit.test.ts` — not duplicated here. (The generic Trash endpoint
+ * is covered by its own tests.) `insertWidgetEmbed` /
  * `removeWidgetEmbed` hit `/entries/${id}/widget-embeds`, not a `/widgets/...` path, so they are
  * out of this file's scope (a sibling resource's endpoints).
  *

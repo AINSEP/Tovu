@@ -63,9 +63,8 @@ import { useWiredTaxonomy } from "./hooks/use-taxonomy.hooks";
  * `.page-actions`/`.btn-secondary`/`.btn-ghost` exactly as `Integrations.tsx` does.
  *
  * Delete term/taxonomy (web-design pass, 2026-08-05): the owner's other complaint — dummy
- * categories/tags created to test creation, with no way to remove them — closes here, against the
- * `taxonomy-delete-api` dispatch's real, tested `DELETE /taxonomy/terms/:id` and
- * `DELETE /taxonomy/:id` routes (see `api.ts`'s `deleteTerm`/`deleteTaxonomy`). Both use the same
+ * categories/tags created to test creation, with no way to remove them — closes here through the
+ * generic single-item Trash route. Both use the same
  * `RowMenu`("Delete …") → `ConfirmDialog` idiom `Media.tsx`/`Comments.tsx`/`Menus.tsx` already use
  * for their own destructive actions — no new interaction pattern introduced. State (the pending
  * row, the busy flag, and the *blocked* outcome) lives in `useTaxonomy`; see that hook's own comment

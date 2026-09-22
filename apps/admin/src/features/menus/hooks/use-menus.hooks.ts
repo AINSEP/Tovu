@@ -23,9 +23,8 @@ import type { Translate } from "@/lib/dictionary-translator";
  * This hook's OWN load-error string stays hardcoded English (unchanged) — `useAdminLocale()` and
  * `MENUS_DICT` are read only inside {@link useWiredMenus}.
  *
- * Trash rewrite (2026-09-21, `trash-delete-architecture.md`): the menu-specific trash/force-purge
- * escalation (`deleteMenu`'s `force` ladder) is gone — the server's menu purge route was removed,
- * every admin delete button now goes through the generic `POST .../trash/items`
+ * Trash rewrite (2026-09-21, `trash-delete-architecture.md`): every admin delete button now goes
+ * through the generic `POST .../trash/items`
  * (`port.trash`, which binds to `api.trash({ type: "menu", id })`), and a trashed menu is hidden
  * from `listMenus()` by the server's own default filter. There is no `status === "trash"` row left
  * to force-delete from this list any more — the Trash screen owns restore/purge from here. Mirrors

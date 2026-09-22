@@ -159,14 +159,14 @@ describe("delete term", () => {
     await act(() => result.current.confirmDeleteTerm());
     expect(fetchMock).toHaveBeenCalledTimes(1); // only the initial load — no DELETE fired
     // A mutant that drops the `!pendingDeleteTerm` guard doesn't necessarily call `fetch` either
-    // (accessing `.id` on the still-null `pendingDeleteTerm` throws before `api.deleteTerm` is
+    // (accessing `.id` on the still-null `pendingDeleteTerm` throws before the mutation route is
     // reached) — caught live: that mutant survived the `fetchMock` count assertion alone. `error`
     // staying `null` is what actually distinguishes a real no-op from "guard removed, crashed into
     // the catch block, and silently set a generic failure message" — a true no-op sets no state.
     expect(result.current.error).toBeNull();
   });
 
-  it("on success: calls DELETE, closes the dialog, reloads, and clears selection if the deleted term was selected", async () => {
+  it("on success: moves to Trash, closes the dialog, reloads, and clears selection if the deleted term was selected", async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ items: [GROUP] }))
       .mockResolvedValueOnce(jsonResponse({ deletedTermId: "a" }))

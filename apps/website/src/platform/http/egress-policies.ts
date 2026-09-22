@@ -195,7 +195,7 @@ export const CUSTOM_CREDENTIALS_EGRESS_POLICY: EgressPolicy = {
  * for one blob: that route sends the blob's raw bytes as base64 JSON, which inflates them ~1.33x, so
  * this must clear `TOVU_MAX_UPLOAD_BYTES`'s (`features/media/upload-limits.ts`, 50 MiB as of
  * 2026-09-21) base64-inflated size (~66.7 MiB) with headroom — raised from 64 MiB alongside that
- * cap's own 2026-09-21 raise from 35 MiB, which the old 64 MiB value no longer cleared.
+ * cap's own 2026-09-21 increase to 50 MiB, which the old 64 MiB value no longer cleared.
  */
 export const PUBLISH_CONTENT_PEER_MAX_RESPONSE_BYTES = 96 * 1024 * 1024;
 

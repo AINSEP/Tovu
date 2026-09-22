@@ -9,11 +9,9 @@ import type { FormSubmissionsPort } from "./form-submissions-port.hooks";
 /** The live implementation, as a module-level singleton — matches `redirects-dependencies.hooks.ts`'s
  *  `defaultRedirectsPort`.
  *
- * `deleteFormSubmission` (T7a, 2026-09-21): routes through the generic `POST /trash/items`
- * (`type: "form_submission"`) instead of `api.deleteFormSubmission`'s dedicated `DELETE
- * .../submissions/:id` — same move-to-Trash semantics `routes/trash/items.ts`'s own file header
- * names this exact route as one of its replacements. The port's own method name is unchanged
- * (`useFormSubmissionDetail` still calls `port.deleteFormSubmission`); only the wire call moved. */
+ * Submission removal (T7a, 2026-09-21) routes through the generic `POST /trash/items`
+ * (`type: "form_submission"`) endpoint, which moves the item to Trash. The feature's port keeps
+ * its existing boundary; only the wire call changed. */
 export const defaultFormSubmissionsPort: FormSubmissionsPort = {
   listFormSubmissions: (target, options) => api.listFormSubmissions(target, options),
   getFormSubmission: (target) => api.getFormSubmission(target),

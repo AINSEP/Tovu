@@ -7,9 +7,8 @@ import type { TaxonomyPort } from "./taxonomy-port.hooks";
  * split exists.
  *
  * `trashTerm`/`trashTaxonomy` (T8b, 2026-09-21) go through `api.trash({ type, id })`, the generic
- * single-item Trash route every admin delete button now shares, instead of the removed
- * `deleteTerm`/`deleteTaxonomy` (`DELETE /taxonomy/terms/:id`/`DELETE /taxonomy/:id`) — see
- * `taxonomy-port.hooks.ts`'s own doc comment.
+ * single-item Trash route every admin delete button now shares. See `taxonomy-port.hooks.ts`'s own
+ * doc comment.
  */
 
 /** The live implementation, as a module-level singleton — matches `redirects-dependencies.hooks.ts`'s

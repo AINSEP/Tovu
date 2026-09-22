@@ -20,7 +20,7 @@ vi.mock("../admin-dev-origin", () => ({ isAdminDevServerOrigin: vi.fn() }));
  * `getSeoSettings`, `regenerateSitemap`, `getSeoEntry`, `getSeoEntryAnalyze`, `listRedirects`,
  * `tombstoneRedirect`, `getRedirectHits`, `importRedirects`). A handful of others
  * (`listConnectors`, `getConnector`, `createPolicy`, `updatePolicy`, `writePolicyPermission`,
- * `createForm`, `updateForm`, `listFormSubmissions`, `getFormSubmission`, `deleteFormSubmission`,
+ * `createForm`, `updateForm`, `listFormSubmissions`, `getFormSubmission`,
  * `setSeoSettings`, `putSeoEntry`, `createRedirect`, `updateRedirect`) already had partial coverage
  * in `api-endpoint-option-branches.unit.test.ts` (URL/body branch shape only) — this file adds the
  * method + parsed-response assertions those left uncovered, and fills the missing "options passed"

@@ -6,9 +6,8 @@ import type { WidgetsPort } from "./widgets-port.hooks";
  * (widget-instance) routes — see `widgets-port.hooks.ts` for why the split exists.
  *
  * `trashWidget` goes through `api.trash({ type: "widget", id })`, the generic single-item Trash
- * route every admin delete button now shares, instead of the widget-specific `api.trashWidget`/
- * `api.purgeWidget` (`POST .../widgets/:id/trash` and the now-removed `.../purge`) — the Trash
- * screen owns restore/purge from here.
+ * route every admin delete button now shares. The Trash screen owns restoration and permanent
+ * removal from here.
  */
 
 /** The live implementation, as a module-level singleton — matches `redirects-dependencies

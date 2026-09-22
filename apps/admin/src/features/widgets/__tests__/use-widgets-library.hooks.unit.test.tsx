@@ -321,13 +321,12 @@ describe("useWidgetsLibrary — trash error mapping", () => {
   });
 });
 
-// Grep-style regression: the widget purge/force-purge escalation is gone for good — a WidgetsPort
-// with no `purgeWidget` at all should still satisfy every call site in this hook file and its
-// component. Reading the source text pins that no purge/force CALL survived the rewrite (a doc
-// comment is still allowed to say the word while explaining the history — see this file's own
-// header) — the codebase's established "scan the source text" idiom, e.g.
+// Grep-style regression: the widget escalation is gone for good — a WidgetsPort with no
+// permanent-removal operation still satisfies every call site in this hook file and its component.
+// Reading the source text pins that no permanent-removal call or force option survived the rewrite
+// — the codebase's established "scan the source text" idiom, e.g.
 // `deployment/__tests__/rules.unit.test.ts`'s `.not.toMatch` assertions.
-describe("useWidgetsLibrary/WidgetsLibrary — no purge/force call remains", () => {
+describe("useWidgetsLibrary/WidgetsLibrary — no permanent-removal call remains", () => {
   it.each([
     "src/features/widgets/hooks/use-widgets-library.hooks.ts",
     "src/features/widgets/WidgetsLibrary.tsx",

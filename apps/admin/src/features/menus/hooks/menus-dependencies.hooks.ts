@@ -6,8 +6,8 @@ import type { MenusPort } from "./menus-port.hooks";
  * routes — see `menus-port.hooks.ts` for why the split exists.
  *
  * `trash` goes through `api.trash({ type: "menu", id })`, the generic single-item Trash route
- * every admin delete button now shares, instead of the menu-specific `api.deleteMenu` trash/
- * force-purge ladder — the Trash screen owns restore/purge from here.
+ * every admin delete button now shares. The Trash screen owns restoration and permanent removal
+ * from here.
  */
 
 /** The live implementation, as a module-level singleton — matches `redirects-dependencies

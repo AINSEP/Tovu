@@ -15,10 +15,10 @@ import type { AdminMenu, AdminMenuItem } from "@/lib/api";
  * e.message : "failed to ..."` fallbacks) — so unlike `media-port.hooks.ts`/`widgets-port
  * .hooks.ts`, this port has no accompanying `locale` dependency to inject alongside it.
  *
- * `trash` (Trash rewrite, 2026-09-21, `trash-delete-architecture.md`): replaces `deleteMenu`'s
- * trash/force-purge ladder — the server's menu purge route is gone, a trashed menu is hidden from
+ * `trash` (Trash rewrite, 2026-09-21, `trash-delete-architecture.md`) moves a menu to Trash. A
+ * trashed menu is hidden from
  * `listMenus()` by the server's own default filter, and the Trash screen owns restore/purge from
- * here. Same shape `widgets-port.hooks.ts`'s `trashWidget` moved to first.
+ * here.
  */
 export interface MenusPort {
   listMenus(): Promise<{ menus: AdminMenu[] }>;
