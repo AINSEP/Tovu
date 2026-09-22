@@ -23,11 +23,11 @@ import { buildCommentsRegistrations, type CommentsToolDeps } from "#src/features
 import { PRE_AUTHORIZED } from "#src/features/widgets/authorize-helper";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { InMemoryWidgetRegionBindingRepo } from "#src/features/widgets/repo.memory";
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
 import { createWidgetInstance } from "#src/features/widgets/write-service";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "#src/features/widgets/tool-registrations";
+import { memoryWidgetTrash } from "#src/features/widgets/__tests__/support/memory-widget-trash";
 
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { buildThemesRegistrations, type ThemeToolDeps } from "#src/features/theme/tool-registrations";
@@ -162,12 +162,18 @@ async function setupComments(surfaceExchanges: SurfaceExchangeStore): ReturnType
 async function setupWidgets(surfaceExchanges: SurfaceExchangeStore): ReturnType<Scenario["setup"]> {
   const workspaceId = "ws-mcp-ui-widgets-trash-integration";
   let counter = 0;
+  // `memoryWidgetTrash()`, not a bare `InMemoryEntryRepo()`: `widgets_trash_instance` -> `trashWidgetInstance`
+  // (write-service.ts) calls `deps.remove` (`buildWidgetsDeps`'s alias for `removeWidget`) — a bare
+  // repo with no paired `removeWidget` left it `undefined`, so this suite's own trash scenario threw
+  // "deps.remove is not a function" the one time it actually ran the confirm path. Same fixture
+  // `tool-registrations.widgets-contracts.test.ts` already uses for the identical reason.
+  const widgetTrash = memoryWidgetTrash();
   const deps = {
     workspaceId,
     clock: { nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
-    entryRepo: new InMemoryEntryRepo(),
+    entryRepo: widgetTrash.entryRepo,
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
@@ -175,6 +181,7 @@ async function setupWidgets(surfaceExchanges: SurfaceExchangeStore): ReturnType<
     changeSets: { marker: "not needed by this suite" } as unknown as WidgetsToolDeps["changeSets"],
     pluginBeforeSaveHook: undefined as unknown as WidgetsToolDeps["pluginBeforeSaveHook"],
     authorize: PRE_AUTHORIZED,
+    removeWidget: widgetTrash.remove,
   } as WidgetsToolDeps;
 
   const { instance } = await createWidgetInstance({

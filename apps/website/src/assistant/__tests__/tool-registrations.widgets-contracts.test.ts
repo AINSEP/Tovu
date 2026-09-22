@@ -117,7 +117,7 @@ function wired(toolId: string, deps: RouteDeps): ToolRegistration {
  * round trip lands on the same exchange, standing in for the human's click in this workflow test
  * (the confirmation gate itself is certified by `widgets/__tests__/agent-tools.trash-confirmation.test.ts`).
  */
-async function trashInstance(deps: RouteDeps, widgetInstanceId: string): Promise<{ instance: { status: string } }> {
+async function trashInstance(deps: RouteDeps, widgetInstanceId: string): Promise<{ trashed: boolean; cancelled: boolean }> {
   const surfaceExchanges = createSurfaceExchangeStore();
   const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "widgets_trash_instance");
   assert.ok(trashTool, "expected 'widgets_trash_instance' to be wired");
@@ -131,7 +131,11 @@ async function trashInstance(deps: RouteDeps, widgetInstanceId: string): Promise
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
   assert.ok(match, "the surface must carry its exchange id");
   surfaceExchanges.deliver({ exchangeId: match[1]!, toolId: "widgets_trash_instance", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
-  return pending as Promise<{ instance: { status: string } }>;
+  // `{trashed, cancelled, widgetInstanceId, title, slug, version?}` (2026-09-21) — the confirmed
+  // return shape dropped `instance: toWidgetInstanceToolView(...)` so a corrupt payload can still be
+  // reported as trashed without parsing it. See `features/widgets/tool-registrations.ts`'s
+  // `widgets_trash_instance` handler.
+  return pending as Promise<{ trashed: boolean; cancelled: boolean }>;
 }
 
 /** Seeds a 'text' widget instance through the real create tool, so tests operate on genuine domain output. */
@@ -370,7 +374,7 @@ test("workflow: create a widget instance, bind a region, place the widget into i
   // Step 5: trashing the placed instance must NOT be blocked by the reference (trash is
   // unconditional) — proving the full chain leaves consistent, inspectable state end to end.
   const trashed = await trashInstance(deps, created.instance.id);
-  assert.equal(trashed.instance.status, "trash");
+  assert.deepEqual([trashed.trashed, trashed.cancelled], [true, false]);
 
   // A trashed widget is hidden from every read, so the region's placement now resolves broken with
   // no title — the placement itself is kept, ready for a restore.
