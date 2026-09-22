@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PAGE_EDITOR_DICT } from "../page-editor-i18n";
+import { PAGE_EDITOR_DICT, t } from "../page-editor-i18n";
 import { COMMON_I18N } from "../../../lib/i18n-common";
 
 /**
@@ -50,10 +50,8 @@ describe("PAGE_EDITOR_DICT: cross-locale key parity", () => {
     }
   });
 
-  // Spot-check every key `use-page-editor.hooks.ts`/`rules.ts` actually call `t(locale, key)` with
-  // (`pageSaveSuccessMessage`'s two branches and `pagePartialSaveMessage`'s `PAGE_PARTIAL_SAVE_COPY`
-  // included), so a key added to one locale but not the rest fails here instead of silently
-  // rendering English everywhere else.
+  // Hook/error keys stored directly in the Page editor dictionary. Shared words such as
+  // Save/Saving…/Delete deliberately stay in COMMON_I18N and are therefore absent here.
   const CALL_SITE_KEYS = [
     "failed to load page",
     "failed to save page",
@@ -64,7 +62,7 @@ describe("PAGE_EDITOR_DICT: cross-locale key parity", () => {
     "Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry.",
   ];
 
-  it("covers every copy string use-page-editor.hooks.ts/rules.ts call t(locale, key) with, in every locale", () => {
+  it("covers every hook/error copy key in every locale", () => {
     for (const locale of locales) {
       for (const key of CALL_SITE_KEYS) {
         expect(PAGE_EDITOR_DICT[locale][key], `locale ${locale}, key ${JSON.stringify(key)}`).toBeTruthy();
@@ -72,8 +70,25 @@ describe("PAGE_EDITOR_DICT: cross-locale key parity", () => {
     }
   });
 
-  it("the call-site key list itself has no accidental duplicates or typos vs. the dictionary", () => {
+  it("the hook/error call-site key list has no accidental duplicates or typos vs. the dictionary", () => {
     const referenceKeys = Object.keys(PAGE_EDITOR_DICT[locales[0]]).sort();
     expect(CALL_SITE_KEYS.slice().sort()).toEqual(referenceKeys);
+  });
+
+  it("translates every PageEditor markup key in every locale through the page translator", () => {
+    const MARKUP_KEYS = [
+      "Pages", "Content", "Edit page", "Ask the assistant to build this page, or edit the HTML directly.",
+      "Draft", "Published", "Publish", "Save", "Saving…", "Delete", "Restore", "Discard",
+      "Save anyway", "Keep editing", "Load latest", "Keep my edits", "Preview width", "Template",
+      "No template chosen", "No templates for this theme", "Loading editor…", "Page title", "Untitled",
+      "URL slug", "view ↗", "Editor view", "Move", "Move to trash?", "Move to trash",
+      "to trash? It will disappear from the site and from this list.", "Page HTML",
+      "This page has no HTML yet. Ask the assistant to build it, or write some here.",
+      "Loading the theme's styles…", "Exit full screen (Esc)", "Show full screen", "Exit full screen",
+      "Page preview", "Loading pages…",
+    ];
+    for (const locale of locales) {
+      for (const key of MARKUP_KEYS) expect(t(locale, key), `${locale}, key ${JSON.stringify(key)}`).toBeTruthy();
+    }
   });
 });

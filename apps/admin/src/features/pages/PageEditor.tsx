@@ -3,6 +3,7 @@ import { ConfirmDialog, InteractiveHtmlEditor } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBar.hooks";
+import type { Translate } from "../../lib/dictionary-translator";
 import { siteUrl } from "../../lib/site-url";
 import type {
   StandingDraftAutosaveSnapshot,
@@ -91,7 +92,7 @@ const VIEW_TABS = VIEWS.map((entry) => ({ ...entry, id: entry.key }));
  * consumed this same way). The comparison and the `window.confirm` call both now live in
  * `use-dirty-guard.hooks.ts`, tested once there rather than re-verified per screen.
  */
-function PageEditorHeader({ confirmLeave }: { confirmLeave: () => boolean }) {
+function PageEditorHeader({ confirmLeave, t }: { confirmLeave: () => boolean; t: Translate }) {
   return (
     // `page-header-split` (a modifier on the shared `.page-header`, `styles.css`) is the
     // 2026-09-06 layout experiment: back link alone at the far left, title block centred, and the
@@ -119,14 +120,14 @@ function PageEditorHeader({ confirmLeave }: { confirmLeave: () => boolean }) {
           }}
           {...agentHandle("page-back-to-list", { role: "link", label: "Back to the list of all pages" })}
         >
-          ← Pages
+          ← {t("Pages")}
         </a>
       </div>
       <div className="page-header-text">
-        <p className="page-kicker">Content</p>
-        <h1 className="page-title">Edit page</h1>
+        <p className="page-kicker">{t("Content")}</p>
+        <h1 className="page-title">{t("Edit page")}</h1>
         <p className="page-description">
-          Ask the assistant to build this page, or edit the HTML directly.
+          {t("Ask the assistant to build this page, or edit the HTML directly.")}
         </p>
       </div>
     </div>
@@ -158,6 +159,7 @@ function PageEditorActions({
   onPublish,
   onSave,
   onDeleteClick,
+  t,
 }: {
   dirty: boolean;
   message: string | null;
@@ -168,6 +170,7 @@ function PageEditorActions({
   onPublish: () => void;
   onSave: () => void;
   onDeleteClick: () => void;
+  t: Translate;
 }) {
   return (
     <div
@@ -190,8 +193,8 @@ function PageEditorActions({
             "NOT the same as Delete, which moves the whole entry to the trash.",
         })}
       >
-        <option value="draft">Draft</option>
-        <option value="published">Published</option>
+        <option value="draft">{t("Draft")}</option>
+        <option value="published">{t("Published")}</option>
       </select>
       {status === "draft" ? (
         <button
@@ -206,7 +209,7 @@ function PageEditorActions({
               "published, use Save for further edits.",
           })}
         >
-          Publish
+          {t("Publish")}
         </button>
       ) : null}
       <button
@@ -216,7 +219,7 @@ function PageEditorActions({
         disabled={saving}
         {...agentHandle("page-save", { role: "button", label: "Save this page's title, slug, status and body" })}
       >
-        {saving ? "Saving…" : dirty ? "Save •" : "Save"}
+        {saving ? t("Saving…") : dirty ? `${t("Save")} •` : t("Save")}
       </button>
       <button
         type="button"
@@ -230,7 +233,7 @@ function PageEditorActions({
             "before deleting.",
         })}
       >
-        Delete
+        {t("Delete")}
       </button>
     </div>
   );
@@ -248,11 +251,13 @@ function PageAutosaveRecoveryBanner({
   currentVersion,
   onRestore,
   onDiscard,
+  t,
 }: {
   recoverableDraft: StandingDraftAutosaveSnapshot;
   currentVersion: number;
   onRestore: () => void;
   onDiscard: () => void;
+  t: Translate;
 }) {
   const stale = isAutosaveDraftStale(recoverableDraft.baseVersion, currentVersion);
   return (
@@ -270,7 +275,7 @@ function PageAutosaveRecoveryBanner({
         onClick={onRestore}
         {...agentHandle("page-autosave-restore", { role: "button", label: "Apply the recovered draft into the editor" })}
       >
-        Restore
+        {t("Restore")}
       </button>
       <button
         type="button"
@@ -278,7 +283,7 @@ function PageAutosaveRecoveryBanner({
         onClick={onDiscard}
         {...agentHandle("page-autosave-discard", { role: "button", label: "Discard the recovered draft without applying it" })}
       >
-        Discard
+        {t("Discard")}
       </button>
     </div>
   );
@@ -302,10 +307,12 @@ function PageVersionConflictBanner({
   saveConflict,
   onSaveAnyway,
   onDismiss,
+  t,
 }: {
   saveConflict: PageSaveConflict;
   onSaveAnyway: () => void;
   onDismiss: () => void;
+  t: Translate;
 }) {
   return (
     <div
@@ -325,7 +332,7 @@ function PageVersionConflictBanner({
           label: "Save these changes anyway, replacing the version the other operator saved",
         })}
       >
-        Save anyway
+        {t("Save anyway")}
       </button>
       <button
         type="button"
@@ -336,7 +343,7 @@ function PageVersionConflictBanner({
           label: "Hide this notice and keep editing without saving",
         })}
       >
-        Keep editing
+        {t("Keep editing")}
       </button>
     </div>
   );
@@ -389,7 +396,7 @@ function PageAutosaveStaleBanner({ staleBasis }: { staleBasis: StandingDraftStal
  * Save. "Load latest" mirrors that banner's "Save anyway" in shape (an explicit, named action) but
  * opposite in effect — it discards the operator's edits rather than the other write.
  */
-function PageExternalChangeBanner({ onLoadLatest, onKeepEdits }: { onLoadLatest: () => void; onKeepEdits: () => void }) {
+function PageExternalChangeBanner({ onLoadLatest, onKeepEdits, t }: { onLoadLatest: () => void; onKeepEdits: () => void; t: Translate }) {
   return (
     <div
       className="notice warning"
@@ -408,7 +415,7 @@ function PageExternalChangeBanner({ onLoadLatest, onKeepEdits }: { onLoadLatest:
           label: "Load latest version, discarding my unsaved edits",
         })}
       >
-        Load latest
+        {t("Load latest")}
       </button>
       <button
         type="button"
@@ -419,7 +426,7 @@ function PageExternalChangeBanner({ onLoadLatest, onKeepEdits }: { onLoadLatest:
           label: "Keep my edits and ignore the outside change",
         })}
       >
-        Keep my edits
+        {t("Keep my edits")}
       </button>
     </div>
   );
@@ -450,6 +457,7 @@ function PageEditorNotices({
   pendingExternalVersion,
   onLoadExternalChange,
   onDismissExternalChange,
+  t,
 }: {
   recoverableDraft: StandingDraftAutosaveSnapshot | null;
   currentVersion: number;
@@ -462,6 +470,7 @@ function PageEditorNotices({
   pendingExternalVersion: number | null;
   onLoadExternalChange: () => void;
   onDismissExternalChange: () => void;
+  t: Translate;
 }) {
   return (
     <>
@@ -471,14 +480,15 @@ function PageEditorNotices({
           currentVersion={currentVersion}
           onRestore={onRestore}
           onDiscard={onDiscard}
+          t={t}
         />
       ) : null}
       {autosaveStaleBasis ? <PageAutosaveStaleBanner staleBasis={autosaveStaleBasis} /> : null}
       {saveConflict ? (
-        <PageVersionConflictBanner saveConflict={saveConflict} onSaveAnyway={onSaveAnyway} onDismiss={onDismissConflict} />
+        <PageVersionConflictBanner saveConflict={saveConflict} onSaveAnyway={onSaveAnyway} onDismiss={onDismissConflict} t={t} />
       ) : null}
       {pendingExternalVersion !== null ? (
-        <PageExternalChangeBanner onLoadLatest={onLoadExternalChange} onKeepEdits={onDismissExternalChange} />
+        <PageExternalChangeBanner onLoadLatest={onLoadExternalChange} onKeepEdits={onDismissExternalChange} t={t} />
       ) : null}
     </>
   );
@@ -517,6 +527,7 @@ function PageEditorToolbarEnd({
   availableTemplates,
   templateChoice,
   setTemplateChoice,
+  t,
 }: {
   view: PageEditorView;
   device: PagePreviewDevice;
@@ -525,11 +536,12 @@ function PageEditorToolbarEnd({
   availableTemplates: string[];
   templateChoice: string | null;
   setTemplateChoice: (value: string) => void;
+  t: Translate;
 }) {
   return (
     <div className="page-editor-toolbar-end">
       {view === "preview" ? (
-        <div className="segmented" role="group" aria-label="Preview width">
+        <div className="segmented" role="group" aria-label={t("Preview width")}>
           {DEVICES.map((entry) => (
             <button
               key={entry.key}
@@ -548,7 +560,7 @@ function PageEditorToolbarEnd({
       {bodyFormat === "html" ? (
         <div className="editor-template-picker">
           <label className="a11y-label-wrap">
-            <span className="visually-hidden">Template</span>
+            <span className="visually-hidden">{t("Template")}</span>
           </label>
           {availableTemplates.length > 0 ? (
             <select
@@ -567,7 +579,7 @@ function PageEditorToolbarEnd({
                   {template}
                 </option>
               ))}
-              <option value="">No template chosen</option>
+              <option value="">{t("No template chosen")}</option>
             </select>
           ) : (
             <select
@@ -578,7 +590,7 @@ function PageEditorToolbarEnd({
                 label: "The active theme declares no page templates, so there is nothing to choose here.",
               })}
             >
-              <option value="">No templates for this theme</option>
+              <option value="">{t("No templates for this theme")}</option>
             </select>
           )}
         </div>
@@ -640,17 +652,18 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     loadExternalChange,
     dismissExternalChange,
     contentRevision,
+    t,
   } = usePageEditorHook(routeSlug);
   // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
   // lint even though this one holds no state of its own.
   const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard(VIEW_TABS, view, (id) => setView(id as PageEditorView));
 
   if (error && !page) return <div className="notice error">{error}</div>;
-  if (!page) return <div className="notice">Loading editor…</div>;
+  if (!page) return <div className="notice">{t("Loading editor…")}</div>;
 
   return (
     <div className="page">
-      <PageEditorHeader confirmLeave={confirmLeave} />
+      <PageEditorHeader confirmLeave={confirmLeave} t={t} />
 
       <PageEditorNotices
         recoverableDraft={recoverableDraft}
@@ -664,6 +677,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         pendingExternalVersion={pendingExternalVersion}
         onLoadExternalChange={() => void loadExternalChange()}
         onDismissExternalChange={dismissExternalChange}
+        t={t}
       />
 
       {/* `editor-title`/`editor-slug` are the existing editor chrome from `styles/editor.css`,
@@ -680,12 +694,12 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
           own full-width title row is unaffected. */}
       <div className="page-title-row">
         <label className="a11y-label-wrap">
-          <span className="visually-hidden">Page title</span>
+          <span className="visually-hidden">{t("Page title")}</span>
           <input
             className="editor-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Untitled"
+            placeholder={t("Untitled")}
             {...agentHandle("page-title", { role: "field", label: "This page's title" })}
           />
         </label>
@@ -693,7 +707,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         <div className="editor-slug">
           <span>/</span>
           <label className="a11y-label-wrap">
-            <span className="visually-hidden">URL slug</span>
+            <span className="visually-hidden">{t("URL slug")}</span>
             <input
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
@@ -706,13 +720,13 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
             rel="noreferrer"
             {...agentHandle("page-view-live", { role: "link", label: "Open this page on the public site in a new tab" })}
           >
-            view ↗
+            {t("view ↗")}
           </a>
         </div>
       </div>
 
       <div className="page-editor-toolbar">
-        <div className="segmented" role="tablist" aria-label="Editor view" onKeyDown={onViewTabsKeyDown}>
+        <div className="segmented" role="tablist" aria-label={t("Editor view")} onKeyDown={onViewTabsKeyDown}>
           {VIEW_TABS.map((entry) => (
             <button
               key={entry.key}
@@ -738,6 +752,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
           availableTemplates={availableTemplates}
           templateChoice={templateChoice}
           setTemplateChoice={setTemplateChoice}
+          t={t}
         />
       </div>
 
@@ -752,6 +767,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         onPublish={() => save("published")}
         onSave={() => save()}
         onDeleteClick={() => setConfirmingDelete(true)}
+        t={t}
       />
 
       <PageEditorPane
@@ -778,14 +794,15 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         paneWidth={paneWidth}
         previewExpanded={previewExpanded}
         onTogglePreviewExpanded={togglePreviewExpanded}
+        t={t}
       />
 
       <ConfirmDialog
         open={confirmingDelete}
         agentHandle="page-delete-confirm"
-        title="Move to trash?"
-        body={<p>Move &quot;{title}&quot; to trash? It will disappear from the site and from this list.</p>}
-        confirmLabel="Move to trash"
+        title={t("Move to trash?")}
+        body={<p>{t("Move")} &quot;{title}&quot; {t("to trash? It will disappear from the site and from this list.")}</p>}
+        confirmLabel={t("Move to trash")}
         destructive
         pending={deleting}
         onConfirm={remove}
@@ -836,6 +853,7 @@ function PageEditorPane({
   paneWidth,
   previewExpanded,
   onTogglePreviewExpanded,
+  t,
 }: {
   view: PageEditorView;
   canvasStyling: ThemeCanvasStylingState;
@@ -872,6 +890,7 @@ function PageEditorPane({
    *  own effect collapses the state at the same time). */
   previewExpanded: boolean;
   onTogglePreviewExpanded: () => void;
+  t: Translate;
 }) {
   const surface = pageEditorSurface(view, canvasStyling);
   if (surface.kind === "preview") {
@@ -892,6 +911,7 @@ function PageEditorPane({
         expanded={previewExpanded}
         onToggleExpanded={onTogglePreviewExpanded}
         onFrameLoad={onPreviewFrameLoad}
+        t={t}
       />
     );
   }
@@ -910,14 +930,14 @@ function PageEditorPane({
         }}
         onScroll={(e) => onHtmlScroll(e.currentTarget.scrollTop)}
         spellCheck={false}
-        aria-label="Page HTML"
-        placeholder="This page has no HTML yet. Ask the assistant to build it, or write some here."
+        aria-label={t("Page HTML")}
+        placeholder={t("This page has no HTML yet. Ask the assistant to build it, or write some here.")}
         {...agentHandle("page-html-source", { role: "field", label: "This page's raw HTML source" })}
       />
     );
   }
   if (surface.kind === "interactive-pending") {
-    return <div className="notice">Loading the theme's styles…</div>;
+    return <div className="notice">{t("Loading the theme's styles…")}</div>;
   }
   return <InteractiveHtmlEditor key={contentRevision} html={html} onChange={setHtml} canvasStyling={surface.styling} />;
 }
@@ -1009,6 +1029,7 @@ function PagePreview({
   expanded,
   onToggleExpanded,
   onFrameLoad,
+  t,
 }: {
   html: string;
   width: number;
@@ -1041,6 +1062,7 @@ function PagePreview({
   /** Per-tab scroll memory — see `PageEditorController.onPreviewFrameLoad`'s own doc. Wired to both
    *  `PagePreviewFrame` branches' `<iframe onLoad>` below. */
   onFrameLoad: (iframe: HTMLIFrameElement) => void;
+  t: Translate;
 }) {
   // Floored above zero, not just capped at 1: `paneWidth` is whatever `ResizeObserver` last reported
   // for the frame, and a zero-width observation (the frame measured during a paint where its column
@@ -1088,13 +1110,14 @@ function PagePreview({
             previewFormRef={previewFormRef}
             previewFormTarget={previewFormTarget}
             onFrameLoad={onFrameLoad}
+            t={t}
           />
         </div>
       </div>
     </>
   );
 
-  const fab = <PagePreviewFab expanded={expanded} onToggle={onToggleExpanded} />;
+  const fab = <PagePreviewFab expanded={expanded} onToggle={onToggleExpanded} t={t} />;
 
   // Collapsed: the pane plus the control, wrapped in `.page-preview-surface` — that wrapper is the
   // `position: relative` ancestor the fab's `position: absolute` resolves against (`pages.css`), so
@@ -1128,14 +1151,14 @@ function PagePreview({
  * (`handle.ts`), never `aria-label`/`aria-describedby`, so widening it carries no a11y consequence
  * and nobody should "fix" a11y by editing it.
  */
-function PagePreviewFab({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
+function PagePreviewFab({ expanded, onToggle, t }: { expanded: boolean; onToggle: () => void; t: Translate }) {
   return (
     <button
       type="button"
       className="page-preview-fab"
       onClick={onToggle}
-      title={expanded ? "Exit full screen (Esc)" : "Show full screen"}
-      aria-label={expanded ? "Exit full screen" : "Show full screen"}
+      title={expanded ? t("Exit full screen (Esc)") : t("Show full screen")}
+      aria-label={expanded ? t("Exit full screen") : t("Show full screen")}
       {...agentHandle("page-preview-expand", {
         role: "button",
         // These labels read redundantly ON PURPOSE. `page.find_elements`'s `query` is a plain
@@ -1183,6 +1206,7 @@ function PagePreviewFrame({
   previewFormRef,
   previewFormTarget,
   onFrameLoad,
+  t,
 }: {
   canShowLiveSite: boolean;
   slug: string;
@@ -1202,12 +1226,13 @@ function PagePreviewFrame({
   /** Per-tab scroll memory — see `PageEditorController.onPreviewFrameLoad`'s own doc. Wired to both
    *  branches' `onLoad` below: cross-origin (the live-site branch) it silently does nothing. */
   onFrameLoad: (iframe: HTMLIFrameElement) => void;
+  t: Translate;
 }) {
   if (canShowLiveSite) {
     return (
       <iframe
         src={siteUrl(pageLivePreviewPath(slug, version))}
-        title="Page preview"
+        title={t("Page preview")}
         className="page-preview-iframe"
         referrerPolicy="no-referrer"
         onLoad={(e) => onFrameLoad(e.currentTarget)}
@@ -1227,7 +1252,7 @@ function PagePreviewFrame({
       </form>
       <iframe
         name={previewFormTarget}
-        title="Page preview"
+        title={t("Page preview")}
         className="page-preview-iframe"
         referrerPolicy="no-referrer"
         onLoad={(e) => onFrameLoad(e.currentTarget)}

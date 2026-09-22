@@ -21,6 +21,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 export const PAGES_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Loading pages…": "Cargando páginas…",
     "My Pages": "Mis páginas",
     "Theme Pages": "Páginas del tema",
     Content: "Contenido",
@@ -69,6 +70,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Abrir {title}",
   },
   id: {
+    "Loading pages…": "Memuat halaman…",
     "My Pages": "Halaman Saya",
     "Theme Pages": "Halaman Tema",
     Content: "Konten",
@@ -117,6 +119,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Buka {title}",
   },
   de: {
+    "Loading pages…": "Seiten werden geladen…",
     "My Pages": "Meine Seiten",
     "Theme Pages": "Design-Seiten",
     Content: "Inhalt",
@@ -165,6 +168,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} öffnen",
   },
   "zh-CN": {
+    "Loading pages…": "正在加载页面…",
     "My Pages": "我的页面",
     "Theme Pages": "主题页面",
     Content: "内容",
@@ -213,6 +217,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "打开 {title}",
   },
   "zh-TW": {
+    "Loading pages…": "正在載入頁面…",
     "My Pages": "我的頁面",
     "Theme Pages": "佈景主題頁面",
     Content: "內容",
@@ -261,6 +266,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "開啟 {title}",
   },
   "pt-BR": {
+    "Loading pages…": "Carregando páginas…",
     "My Pages": "Minhas páginas",
     "Theme Pages": "Páginas do tema",
     Content: "Conteúdo",
@@ -309,6 +315,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Abrir {title}",
   },
   ru: {
+    "Loading pages…": "Загрузка страниц…",
     "My Pages": "Мои страницы",
     "Theme Pages": "Страницы темы",
     Content: "Контент",
@@ -357,6 +364,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Открыть {title}",
   },
   fa: {
+    "Loading pages…": "در حال بارگذاری صفحه‌ها…",
     "My Pages": "صفحات من",
     "Theme Pages": "صفحات پوسته",
     Content: "محتوا",
@@ -405,6 +413,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "باز کردن {title}",
   },
   ar: {
+    "Loading pages…": "جارٍ تحميل الصفحات…",
     "My Pages": "صفحاتي",
     "Theme Pages": "صفحات القالب",
     Content: "المحتوى",
@@ -453,6 +462,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "فتح {title}",
   },
   ja: {
+    "Loading pages…": "ページを読み込み中…",
     "My Pages": "マイページ",
     "Theme Pages": "テーマページ",
     Content: "コンテンツ",
@@ -501,6 +511,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} を開く",
   },
   ko: {
+    "Loading pages…": "페이지를 불러오는 중…",
     "My Pages": "내 페이지",
     "Theme Pages": "테마 페이지",
     Content: "콘텐츠",
@@ -549,6 +560,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} 열기",
   },
   pl: {
+    "Loading pages…": "Wczytywanie stron…",
     "My Pages": "Moje strony",
     "Theme Pages": "Strony motywu",
     Content: "Treść",
@@ -597,6 +609,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Otwórz {title}",
   },
   hu: {
+    "Loading pages…": "Oldalak betöltése…",
     "My Pages": "Saját oldalak",
     "Theme Pages": "Téma oldalak",
     Content: "Tartalom",
@@ -645,6 +658,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} megnyitása",
   },
   fr: {
+    "Loading pages…": "Chargement des pages…",
     "My Pages": "Mes pages",
     "Theme Pages": "Pages du thème",
     Content: "Contenu",
@@ -693,6 +707,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Ouvrir {title}",
   },
   uk: {
+    "Loading pages…": "Завантаження сторінок…",
     "My Pages": "Мої сторінки",
     "Theme Pages": "Сторінки теми",
     Content: "Вміст",
@@ -741,6 +756,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Відкрити {title}",
   },
   tr: {
+    "Loading pages…": "Sayfalar yükleniyor…",
     "My Pages": "Sayfalarım",
     "Theme Pages": "Tema sayfaları",
     Content: "İçerik",
@@ -789,6 +805,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} öğesini aç",
   },
   th: {
+    "Loading pages…": "กำลังโหลดหน้า…",
     "My Pages": "หน้าของฉัน",
     "Theme Pages": "หน้าของธีม",
     Content: "เนื้อหา",
@@ -837,6 +854,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "เปิด {title}",
   },
   it: {
+    "Loading pages…": "Caricamento pagine…",
     "My Pages": "Le mie pagine",
     "Theme Pages": "Pagine del tema",
     Content: "Contenuti",
@@ -885,6 +903,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Apri {title}",
   },
   hi: {
+    "Loading pages…": "पेज लोड हो रहे हैं…",
     "My Pages": "मेरे पेज",
     "Theme Pages": "थीम पेज",
     Content: "सामग्री",
@@ -933,6 +952,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} खोलें",
   },
   ur: {
+    "Loading pages…": "صفحات لوڈ ہو رہے ہیں…",
     "My Pages": "میرے صفحات",
     "Theme Pages": "تھیم صفحات",
     Content: "مواد",
@@ -981,6 +1001,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} کھولیں",
   },
   bn: {
+    "Loading pages…": "পেজ লোড হচ্ছে…",
     "My Pages": "আমার পেজ",
     "Theme Pages": "থিম পেজ",
     Content: "কন্টেন্ট",

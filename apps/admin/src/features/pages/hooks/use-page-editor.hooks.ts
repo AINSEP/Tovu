@@ -6,6 +6,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
 import { useAgentScreenEntry } from "@/hooks/use-agent-screen-context.hooks";
+import type { Translate } from "@/lib/dictionary-translator";
 import { useExternalEntryRefresh } from "@/hooks/use-external-entry-refresh.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import {
@@ -141,6 +142,8 @@ export interface PageEditorController {
   frameRef: (node: HTMLDivElement | null) => void;
   paneWidth: number;
   saving: boolean;
+  /** Bound page-editor translator for the markup surface. */
+  t: Translate;
   /**
    * Whether the working copy differs from what was last loaded or saved.
    *
@@ -561,6 +564,7 @@ export interface PageEditorDependencies {
  */
 export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): PageEditorController {
   const { port, themeCanvasPort, navigate, t, locale } = deps;
+  const boundT: Translate = (key) => t(locale, key);
   const [page, setPage] = useState<AdminPost | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -1068,6 +1072,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     frameRef: setFrameNode,
     paneWidth,
     saving,
+    t: boundT,
     // HTML changes only count when they're actually savable (see `save()`'s `canSaveHtml`) — for a
     // doc-format Page, `html` never reflects real persisted content, so comparing it to `savedHtml`
     // would report edits as dirty (or, worse, as clean) independent of anything actually saveable.

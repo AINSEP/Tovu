@@ -10,6 +10,8 @@ import { adminHref, navigate } from "@/lib/router";
 import type { AdminPost } from "@/lib/api";
 import { siteUrl } from "@/lib/site-url";
 
+const identityT = (key: string): string => key;
+
 /**
  * @file `Pages` — markup-only list screen, twin of `features/posts/Posts.tsx`. Driven entirely
  * through the injectable `usePagesHook` seam (`Pages.tsx`'s own doc comment on `PagesProps`), so
@@ -928,21 +930,21 @@ describe("Theme Pages tab — deep link via ?tab=", () => {
  */
 describe("pagesListNotice", () => {
   it("returns the error notice when there is an error and no list yet", () => {
-    expect(pagesListNotice(null, "boom")).not.toBeNull();
+    expect(pagesListNotice(null, "boom", identityT)).not.toBeNull();
   });
 
   it("returns the loading notice when there is no list and no error", () => {
-    expect(pagesListNotice(null, null)).not.toBeNull();
+    expect(pagesListNotice(null, null, identityT)).not.toBeNull();
   });
 
   it("prioritizes the error branch over the loading branch when both conditions could apply", () => {
-    render(<>{pagesListNotice(null, "boom")}</>);
+    render(<>{pagesListNotice(null, "boom", identityT)}</>);
     expect(screen.getByText("boom")).toBeInTheDocument();
     expect(screen.queryByText("Loading pages…")).not.toBeInTheDocument();
   });
 
   it("returns null once the list has loaded, even with an error set (the inline-banner case)", () => {
-    expect(pagesListNotice([], "a later error")).toBeNull();
+    expect(pagesListNotice([], "a later error", identityT)).toBeNull();
   });
 });
 

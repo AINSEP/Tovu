@@ -96,6 +96,7 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     frameRef: vi.fn(),
     paneWidth: 880,
     saving: false,
+    t: (key) => key,
     dirty: false,
     contentDirty: false,
     // Defaults to the SAME shape `defaultPageEditorPort.templatePreviewUrl` produces (the real

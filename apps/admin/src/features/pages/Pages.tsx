@@ -3,6 +3,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { useState, type ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
+import type { Translate } from "../../lib/dictionary-translator";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { adminHref, navigate } from "../../lib/router";
@@ -92,9 +93,9 @@ function resolveThemePagesHook(override: typeof useWiredThemePages | undefined):
  * `postsListNotice`, matching this pair's existing "twin screens" convention (this file's own
  * header).
  */
-export function pagesListNotice(pages: AdminPost[] | null, error: string | null): ReactNode {
+export function pagesListNotice(pages: AdminPost[] | null, error: string | null, t: Translate): ReactNode {
   if (error && !pages) return <div className="notice error">{error}</div>;
-  if (!pages) return <div className="notice">Loading pages…</div>;
+  if (!pages) return <div className="notice">{t("Loading pages…")}</div>;
   return null;
 }
 
@@ -143,7 +144,7 @@ export function Pages(props: PagesProps) {
     writePagesTabToUrl(id);
   }
 
-  const notice = pagesListNotice(pages, error);
+  const notice = pagesListNotice(pages, error, t);
   if (notice) return notice;
   // Unreachable in practice — `pagesListNotice` already returns a non-null notice whenever `pages`
   // is null — but restores the narrowing TS lost by moving that check behind a function call, so
