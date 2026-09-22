@@ -37,6 +37,7 @@ import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js
 import { getSettingsAgentToolCatalog } from "../../features/settings/index.js";
 import { siteInspectionAgentToolCatalog } from "../../features/site-inspection/index.js";
 import { sitesAgentToolCatalog } from "../../features/sites/index.js";
+import { siteBackupAgentToolCatalog } from "../../features/site-backup/tool-registrations.js";
 import { sourceControlAgentToolCatalog } from "../../features/source-control/tool-registrations.js";
 import { siteEvidenceAgentToolCatalog } from "../../features/site-evidence/agent-tools.js";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
@@ -199,6 +200,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // 2026-09-05: `sites` — `sites_duplicate_site`, wiring `platform/site-dir/duplicate-site.ts`'s
   // `duplicateSite` to the assistant. See `server/tool-catalog-manifest.ts`'s own header.
   sites: sitesAgentToolCatalog as unknown as AgentToolDefinition[],
+  "site-backup": siteBackupAgentToolCatalog as unknown as AgentToolDefinition[],
   "custom-credentials": customCredentialsAgentToolCatalog as unknown as AgentToolDefinition[],
   // `media-generation` (2026-09-02): `media_generate_asset`, wired via
   // `contributeMediaGenerationTools()` — see `features/media-generation/tool-registrations.ts`'s own
