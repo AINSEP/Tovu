@@ -94,6 +94,7 @@ import {
 import { SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "#src/features/commerce/repo.sqlite";
 import { rebuildNavLocationBindings } from "#src/features/navigation/index";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "#src/features/navigation/repo.sqlite";
+import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash-follow-ups";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
@@ -1159,6 +1160,7 @@ export function createSqliteRouteDeps(
           }),
       },
     ],
+    ["menu", buildMenuTrashFollowUpHooks({ menuRepo, outbox, idGen, clock })],
   ]);
   const trashAdapters = new Map<string, TrashAdapter>([
     [POST_ENTITY_TYPE, createPostTrashAdapter(db.$client)],
@@ -1705,6 +1707,7 @@ export function createSqliteRouteDeps(
     }),
     menuRepo,
     navLocationBindingRepo,
+    removeMenu: removeEntityWithoutBlocker(bindRemoveEntity(trash, "menu")),
     // ADR-046 Phase 1 (2026-07-16): durable SQLite adapters, wired into a real composition root
     // for the first time. Delivery-worker activation itself stays gated (REQ-07/SPEC-022's
     // capabilityRouteGuard unconditionally contains "webhooks" in production mode regardless of

@@ -98,7 +98,8 @@ import {
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
 } from "#src/features/members/index";
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "#src/features/navigation/index";
+import { InMemoryNavLocationBindingRepo } from "#src/features/navigation/index";
+import { TrashAwareInMemoryMenuRepo, type TrashableMenuRecord } from "#src/features/navigation/trash-aware-memory-menu-repo";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
@@ -574,6 +575,25 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         shown: (record) => ({ ...record, deletedAt: null }),
       }),
     ],
+    [
+      "menu",
+      createRecordStoreTrashAdapter<TrashableMenuRecord>({
+        entityType: "menu",
+        // The repo's trash-blind seam — its port reads hide a trashed menu. No `hardDelete`: a purge
+        // here stands down, same as the hermetic media/comment/widget adapters (T5's own registry
+        // work removes location bindings at purge; this composition has no bindings table to sweep
+        // either, so it stands down the same honest way).
+        store: {
+          findById: (required) => menuRepo.findAnyById(required),
+          save: (record) => menuRepo.saveAny(record),
+        },
+        isHidden: (record) => record.status === "trash",
+        // Stash the pre-trash status so `shown` can restore it — `flip()` has no side-channel of its
+        // own for it (see `trash-aware-memory-menu-repo.ts`'s file doc).
+        hidden: (record, at) => ({ ...record, status: "trash", updatedAt: at, priorStatus: record.status }),
+        shown: (record, at) => ({ ...record, status: record.priorStatus ?? "published", updatedAt: at, priorStatus: null }),
+      }),
+    ],
   ]);
   const trashRepo = new InMemoryTrashRepo();
   const trash = createTrashService({
@@ -628,7 +648,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // W-004) must see the SAME binding/ref-index state, not two independent in-memory instances.
   const widgetBindingRepo = new InMemoryWidgetRegionBindingRepo();
   const entryRefsRepo = new InMemoryEntryRefsRepo();
-  const menuRepo = new InMemoryMenuRepo();
+  const menuRepo = new TrashAwareInMemoryMenuRepo();
   const navLocationBindingRepo = new InMemoryNavLocationBindingRepo();
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — mirrors `server/deps.ts`'s
@@ -778,6 +798,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     removeMedia: removeEntityWithoutBlocker(bindRemoveEntity(trash, MEDIA_ENTITY_TYPE)),
     removeRedirect: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
     removeWidget: removeEntityWithoutBlocker(bindRemoveEntity(trash, "widget")),
+    removeMenu: removeEntityWithoutBlocker(bindRemoveEntity(trash, "menu")),
     forgetRemovedMedia: bindForgetRemovedEntity(trashRepo, MEDIA_ENTITY_TYPE),
     forgetRemovedPost: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
     // Present so this root satisfies `TrashDeps`, and harmless: `createApp` never starts the

@@ -50,6 +50,7 @@ import type {
 import type { CommercePriceRepoPort, CommerceProductRepoPort } from "../../features/commerce/index.js";
 import type { MailerPort } from "../../platform/mail/index.js";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../features/navigation/index.js";
+import type { RemoveMenuFn } from "../../features/navigation/trash-menu.js";
 import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
 import type { WebhookSigner } from "../../features/webhooks/signing.js";
 import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store.js";
@@ -1144,6 +1145,9 @@ export interface NavigationDeps {
   menuRepo: MenuRepoPort;
   /** The one real ADR-029 port: the derived nav_location_bindings index. */
   navLocationBindingRepo: NavLocationBindingRepoPort;
+  /** Bound at composition to the generic trash pipeline's `removeEntityWithoutBlocker` —
+   *  `RemoveMenuFn`, not the broad `RemoveEntity`, same reasoning as `removeWidget` above. */
+  removeMenu: RemoveMenuFn;
 }
 
 /**
