@@ -1,13 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import * as schema from "#src/platform/db/schema";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+
+import { createSqliteTrashDb } from "../db-port.sqlite.js";
 import { InMemoryTrashRepo } from "../repo.memory.js";
+import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
+import { buildTrashRegistry } from "../registry.js";
 import {
   createTrashSweep,
   startTrashSweeper,
   type TrashSweepOnce,
   type TrashSweepReport,
 } from "../sweeper.js";
+import { createTableTrashAdapter } from "../table-adapter.js";
 import { bindRemoveEntity, createTrashService } from "../write-service.js";
 import type {
   TrashAdapter,
@@ -413,4 +420,79 @@ test("stop() is idempotent and waits for a sweep already in flight", async () =>
   await sweeper.stop();
 
   assert.equal(settled, true, "stop() must not resolve before the in-flight sweep has settled");
+});
+
+// ---------------------------------------------------------------------------
+// Real menu adapter through the sweeper (T1c dispatch item 1(b)): every test above drives
+// `createTrashSweep` against a fully fake `TrashAdapter` (`fakeDomain`), which proves the sweeper's
+// OWN decision logic (claim/compare/delete, the restore race) but nothing about any one registered
+// type. `sweeper.ts` has no per-`entityType` branch — `sweepTrashOnce` calls
+// `deps.adapters.get(claim.entityType).purge(...)` the same way for every kind — so the menu-specific
+// claim that "the 60-day sweeper purge behaves the same [as an interactive purge]"
+// (`registry.ts`'s `menu` entry, `table-adapter.test.ts`'s purge/rollback tests) is really a claim
+// about `sweeper.ts` calling the SAME `createTableTrashAdapter` instance, not a second implementation
+// to keep in sync. Proved here against real SQLite rather than inferred from reading the two files
+// side by side.
+// ---------------------------------------------------------------------------
+
+const REAL_WS = "workspace-real-1";
+const REAL_AT = "2026-07-01T00:00:00.000Z";
+/** Comfortably past the 60-day retention window from `REAL_AT`. */
+const REAL_DUE = "2026-10-01T00:00:00.000Z";
+
+test("the sweeper purges a real, overdue menu through the real table adapter — its location bindings go with it, in one transaction", async () => {
+  const db = openContentDb(":memory:");
+  const client = (db as unknown as { $client: import("better-sqlite3").Database }).$client;
+  client
+    .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
+    .run(REAL_WS, REAL_WS, REAL_WS, "2026-01-01T00:00:00.000Z");
+  client
+    .prepare(
+      `INSERT INTO menus (id, workspace_id, slug, title, status, doc_json, locations_json, updated_at, version)
+       VALUES ('menu-overdue', ?, 'slug-menu-overdue', 'Menu menu-overdue', 'trash', '{}', '{}', ?, 1)`
+    )
+    .run(REAL_WS, REAL_AT);
+  client
+    .prepare(`INSERT INTO nav_location_bindings (workspace_id, location_key, menu_id, bound_at) VALUES (?, 'header', 'menu-overdue', ?)`)
+    .run(REAL_WS, REAL_AT);
+  client
+    .prepare(`INSERT INTO nav_location_bindings (workspace_id, location_key, menu_id, bound_at) VALUES (?, 'footer', 'menu-overdue', ?)`)
+    .run(REAL_WS, REAL_AT);
+
+  const registry = buildTrashRegistry({ schema });
+  const trashDb = createSqliteTrashDb({ db });
+  const menuAdapter = createTableTrashAdapter({ entry: registry.get("menu")!, db: trashDb });
+  const adapters = new Map<string, TrashAdapter>([["menu", menuAdapter]]);
+  const repo = new SqliteTrashRepo(client);
+  await repo.insert({
+    id: "trash-overdue-1",
+    workspaceId: REAL_WS,
+    entityType: "menu",
+    entityId: "menu-overdue",
+    trashedAt: REAL_AT,
+    purgeAfter: "2026-08-30T00:00:00.000Z", // < REAL_DUE, so it is claimable
+    actorPrincipalId: "principal-1",
+    actorPluginId: null,
+    displayTitle: "Menu menu-overdue",
+    displaySubtitle: "slug-menu-overdue",
+    entityVersion: 1,
+    priorMarker: "published",
+  });
+
+  const sweep = createTrashSweep({ repo, adapters, transaction: createContentDbTransactionRunner(client) });
+  const report = await sweep({ now: REAL_DUE, leaseOwner: "sweeper-1", leaseUntil: "2026-10-01T00:05:00.000Z", limit: 10 });
+
+  assert.equal(report.claimed, 1);
+  assert.equal(report.purged, 1);
+  assert.deepEqual(report.results, [{ id: "trash-overdue-1", outcome: "purged" }]);
+
+  const menuRow = client.prepare(`SELECT id FROM menus WHERE id = 'menu-overdue'`).get();
+  assert.equal(menuRow, undefined, "the menu row must be gone");
+  const bindingCount = (
+    client.prepare(`SELECT COUNT(*) AS n FROM nav_location_bindings WHERE menu_id = 'menu-overdue'`).get() as { n: number }
+  ).n;
+  assert.equal(bindingCount, 0, "its location bindings must be gone too — same purgeFirst cascade an interactive purge runs");
+
+  const stillIndexed = await repo.findByIds({ workspaceId: REAL_WS, ids: ["trash-overdue-1"] });
+  assert.deepEqual(stillIndexed, [], "a purged row's index entry must be dropped too");
 });

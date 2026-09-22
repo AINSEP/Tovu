@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type Database from "better-sqlite3";
+import { sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import * as schema from "#src/platform/db/schema";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -491,6 +492,58 @@ test("real menu entry: purge removes its location bindings and leaves another me
   assert.equal(readMenuRow(h.client, "menu-bound"), undefined);
   assert.equal(navBindingCount(h.client, "menu-bound"), 0);
   assert.equal(navBindingCount(h.client, "menu-other"), 1, "another menu's bindings must survive");
+});
+
+test("real menu entry: hide and unhide never touch its location bindings — they survive the round trip untouched", async () => {
+  const h = harness();
+  seedMenu(h.client, "menu-bound", { status: "published", version: 1 });
+  seedNavLocationBinding(h.client, "header", "menu-bound");
+  seedNavLocationBinding(h.client, "footer", "menu-bound");
+
+  const hidden = await h.realMenuAdapter.hide({ workspaceId: WS, entityId: "menu-bound", at: AT, expectedVersion: 1 });
+  assert.equal(hidden.ok, true);
+  assert.equal(navBindingCount(h.client, "menu-bound"), 2, "hide must never touch bindings — only purge's purgeFirst does");
+
+  const unhidden = await h.realMenuAdapter.unhide({
+    workspaceId: WS,
+    entityId: "menu-bound",
+    at: AT,
+    expectedVersion: 2,
+    priorMarker: "published",
+  });
+  assert.equal(unhidden.ok, true);
+  assert.equal(navBindingCount(h.client, "menu-bound"), 2, "restore must leave the bindings exactly as they were");
+});
+
+test("real menu entry: a purge that fails after removing bindings rolls back the whole transaction — the menu row and its bindings both survive together", async () => {
+  const h = harness();
+  seedMenu(h.client, "menu-bound", { status: "trash", version: 1 });
+  seedNavLocationBinding(h.client, "header", "menu-bound");
+  seedNavLocationBinding(h.client, "footer", "menu-bound");
+
+  // A second `purgeFirst` cascade pointing at a table that does not exist, appended after the real
+  // `navLocationBindings` cascade — forces `runCascade`'s `deleteWhere` to throw a real SQL error
+  // partway through `purge`'s cascade loop (`table-adapter.ts`), exactly the shape "something after
+  // the bindings cascade fails" takes in production (a later cascade, or the row's own delete,
+  // erroring). Proves `registry.ts`'s doc comment for `menu`'s `purgeFirst` — bindings removed inside
+  // the SAME transaction as the menu row — by observation, not by reading the code: if the two
+  // deletes were NOT one transaction, the bindings cascade's DELETE (which runs first and succeeds)
+  // would survive this throw; it does not.
+  const noSuchTable = sqliteTable("no_such_table_for_rollback_test", { id: text("id"), menuId: text("menu_id") });
+  const registry = buildTrashRegistry({ schema });
+  const realMenu = registry.get("menu")!;
+  const failingEntry: TrashEntry = {
+    ...realMenu,
+    entityType: "test-menu-rollback",
+    purgeFirst: [...(realMenu.purgeFirst ?? []), { table: noSuchTable, parentIdColumn: noSuchTable.menuId }],
+  };
+  const trashDb = createSqliteTrashDb({ db: h.db });
+  const failingAdapter = createTableTrashAdapter({ entry: failingEntry, db: trashDb });
+
+  await assert.rejects(() => failingAdapter.purge({ workspaceId: WS, entityId: "menu-bound", expectedVersion: 1 }));
+
+  assert.deepEqual(readMenuRow(h.client, "menu-bound"), { status: "trash", version: 1 }, "the menu row must survive the rollback");
+  assert.equal(navBindingCount(h.client, "menu-bound"), 2, "the bindings cascade's own DELETE must have rolled back too");
 });
 
 test("term: a LIVE child blocks hide with TERM_HAS_CHILDREN and count 1, and the parent's status is left untouched", async () => {
