@@ -18,16 +18,7 @@ export interface MenusProps {
 }
 
 export function Menus({ useMenusHook = useWiredMenus }: MenusProps = {}) {
-  const {
-    menus,
-    error,
-    pendingForceDelete,
-    setPendingForceDelete,
-    forceDeleting,
-    trashOrPurge,
-    confirmForceDelete,
-    t,
-  } = useMenusHook();
+  const { menus, error, pendingTrash, trashing, requestTrash, confirmTrash, cancelTrash, t } = useMenusHook();
 
   if (error && !menus) return <div className="notice error">{error}</div>;
   if (!menus) return <div className="notice">Loading menus…</div>;
@@ -69,29 +60,19 @@ export function Menus({ useMenusHook = useWiredMenus }: MenusProps = {}) {
           {
             key: "actions",
             headerLabel: t("Actions"),
-            cell: (menu) => (
-              <button onClick={() => trashOrPurge(menu)}>
-                {menu.status === "trash" ? t("Delete permanently") : t("Trash")}
-              </button>
-            ),
+            cell: (menu) => <button onClick={() => requestTrash(menu)}>{t("Trash")}</button>,
           },
         ]}
       />
       <ConfirmDialog
-        open={pendingForceDelete !== null}
-        title={t("Permanently delete menu?")}
-        body={
-          pendingForceDelete ? (
-            <p>
-              {t('Permanently delete "{title}"? This cannot be undone.').replace("{title}", pendingForceDelete.title)}
-            </p>
-          ) : null
-        }
-        confirmLabel={t("Permanently delete")}
+        open={pendingTrash !== null}
+        title={t("Move to trash?")}
+        body={pendingTrash ? <p>{t('Move "{title}" to trash?').replace("{title}", pendingTrash.title)}</p> : null}
+        confirmLabel={t("Move to trash")}
         destructive
-        pending={forceDeleting}
-        onConfirm={confirmForceDelete}
-        onCancel={() => setPendingForceDelete(null)}
+        pending={trashing}
+        onConfirm={confirmTrash}
+        onCancel={cancelTrash}
       />
     </div>
   );
