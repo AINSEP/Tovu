@@ -80,7 +80,7 @@ function safeAgentHandle(handle: string, options: Parameters<typeof agentHandle>
  *  `useMergedSecretsOrder` entry, in place of the deleted `OtherCredentialsSection` wrapper. */
 export function OtherCredentialEntry({ store, row, controller }: { store: OtherCredentialStoreInfo; row: OtherCredentialRowState | undefined; controller: OtherCredentialsController }) {
   const translate = controller.t;
-  const name = row?.name ?? store.label;
+  const name = row?.name ?? translate(store.label);
   return (
     <section
       className="access-tokens-provider-group"

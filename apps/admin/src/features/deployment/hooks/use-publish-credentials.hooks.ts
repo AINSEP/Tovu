@@ -234,7 +234,7 @@ function publishCredentialSubmitErrorMessage(err: unknown, t: Translate, locale:
   const classified = classifyPublishCredentialSubmitError(err);
   if (classified.kind === "duplicate-label") return t("This connection was already saved — reload the page and try again.");
   if (classified.kind === "validation") return publishCredentialSaveErrorMessage(locale, classified.detail);
-  return publishCredentialSaveErrorMessage(locale, describeApiError(err, "unknown error"));
+  return publishCredentialSaveErrorMessage(locale, describeApiError(err, t("Unknown error")));
 }
 
 export function usePublishCredentials(port: PublishCredentialsPort, t: Translate, locale: string): PublishCredentialsController {

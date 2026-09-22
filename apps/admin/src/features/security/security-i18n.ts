@@ -2,23 +2,97 @@ import { interpolate } from "../../lib/template-i18n";
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 import type { OtherCredentialStoreInfo } from "./rules";
 
-/**
- * @file Translations for the Security page (`/admin/access-tokens`). Same shape as
- * `deployment/deployment-i18n.tsx`/`source-control/source-control-i18n.ts`: a flat
- * `DICT[locale][englishKey] = translation` map, `t = createDictionaryTranslator(DICT)`.
- *
- * KNOWN GAP, disclosed rather than silent: this dictionary is English-only for v1 — every OTHER
- * feature dictionary in this app carries the full ~20-locale set `SOURCE_CONTROL_DICT` shows, and
- * this page should eventually match that. `createDictionaryTranslator`'s own fallback chain
- * (`featureDict[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key`) is what makes this a legible
- * degrade rather than a broken one — a non-English reader sees this page's own copy in English
- * inside an otherwise-translated admin, the same "partial-coverage precedent" this file's sibling
- * dictionaries already document for their own newest strings, just applied to the whole page rather
- * than one or two edge-case templates. Follow-up: translate `SECURITY_DICT` into the same locale set
- * `SOURCE_CONTROL_DICT` carries.
- */
-
-const SECURITY_DICT: Record<string, Record<string, string>> = {};
+/** Feature-specific Security copy. Shared chrome such as Save and Cancel falls back to COMMON_I18N. */
+const SECURITY_DICT: Record<string, Record<string, string>> = {
+  en: {
+    "unknown error": "unknown error", "this workspace": "this workspace", All: "All", "Source control": "Source control", Hosting: "Hosting", Media: "Media", AI: "AI", Ops: "Ops", General: "General",
+    "External MCP servers": "External MCP servers", "Providers · External MCP": "Providers · External MCP", "No environment variables set": "No environment variables set", "1 environment variable set": "1 environment variable set", "{count} environment variables set": "{count} environment variables set", Connected: "Connected", "Connected as: {label}": "Connected as: {label}",
+  },
+  es: {
+    "unknown error": "error desconocido", "this workspace": "este espacio de trabajo", All: "Todos", "Source control": "Control de código fuente", Hosting: "Alojamiento", Media: "Medios", AI: "IA", Ops: "Operaciones", General: "General",
+    "External MCP servers": "Servidores MCP externos", "Providers · External MCP": "Proveedores · MCP externo", "No environment variables set": "No hay variables de entorno configuradas", "1 environment variable set": "1 variable de entorno configurada", "{count} environment variables set": "{count} variables de entorno configuradas", Connected: "Conectado", "Connected as: {label}": "Conectado como: {label}",
+  },
+  de: {
+    "unknown error": "unbekannter Fehler", "this workspace": "dieser Arbeitsbereich", All: "Alle", "Source control": "Quellcodeverwaltung", Hosting: "Hosting", Media: "Medien", AI: "KI", Ops: "Betrieb", General: "Allgemein",
+    "External MCP servers": "Externe MCP-Server", "Providers · External MCP": "Anbieter · Externes MCP", "No environment variables set": "Keine Umgebungsvariablen festgelegt", "1 environment variable set": "1 Umgebungsvariable festgelegt", "{count} environment variables set": "{count} Umgebungsvariablen festgelegt", Connected: "Verbunden", "Connected as: {label}": "Verbunden als: {label}",
+  },
+  fr: {
+    "unknown error": "erreur inconnue", "this workspace": "cet espace de travail", All: "Tous", "Source control": "Gestion du code source", Hosting: "Hébergement", Media: "Médias", AI: "IA", Ops: "Opérations", General: "Général",
+    "External MCP servers": "Serveurs MCP externes", "Providers · External MCP": "Fournisseurs · MCP externe", "No environment variables set": "Aucune variable d'environnement définie", "1 environment variable set": "1 variable d'environnement définie", "{count} environment variables set": "{count} variables d'environnement définies", Connected: "Connecté", "Connected as: {label}": "Connecté en tant que : {label}",
+  },
+  it: {
+    "unknown error": "errore sconosciuto", "this workspace": "questo spazio di lavoro", All: "Tutti", "Source control": "Controllo del codice sorgente", Hosting: "Hosting", Media: "Media", AI: "IA", Ops: "Operazioni", General: "Generale",
+    "External MCP servers": "Server MCP esterni", "Providers · External MCP": "Provider · MCP esterno", "No environment variables set": "Nessuna variabile d'ambiente impostata", "1 environment variable set": "1 variabile d'ambiente impostata", "{count} environment variables set": "{count} variabili d'ambiente impostate", Connected: "Connesso", "Connected as: {label}": "Connesso come: {label}",
+  },
+  "pt-BR": {
+    "unknown error": "erro desconhecido", "this workspace": "este espaço de trabalho", All: "Todos", "Source control": "Controle de código-fonte", Hosting: "Hospedagem", Media: "Mídia", AI: "IA", Ops: "Operações", General: "Geral",
+    "External MCP servers": "Servidores MCP externos", "Providers · External MCP": "Provedores · MCP externo", "No environment variables set": "Nenhuma variável de ambiente definida", "1 environment variable set": "1 variável de ambiente definida", "{count} environment variables set": "{count} variáveis de ambiente definidas", Connected: "Conectado", "Connected as: {label}": "Conectado como: {label}",
+  },
+  pl: {
+    "unknown error": "nieznany błąd", "this workspace": "ten obszar roboczy", All: "Wszystkie", "Source control": "Kontrola wersji", Hosting: "Hosting", Media: "Media", AI: "AI", Ops: "Operacje", General: "Ogólne",
+    "External MCP servers": "Zewnętrzne serwery MCP", "Providers · External MCP": "Dostawcy · Zewnętrzne MCP", "No environment variables set": "Nie ustawiono zmiennych środowiskowych", "1 environment variable set": "Ustawiono 1 zmienną środowiskową", "{count} environment variables set": "Ustawiono {count} zmiennych środowiskowych", Connected: "Połączono", "Connected as: {label}": "Połączono jako: {label}",
+  },
+  hu: {
+    "unknown error": "ismeretlen hiba", "this workspace": "ez a munkaterület", All: "Összes", "Source control": "Forráskód-kezelés", Hosting: "Tárhely", Media: "Média", AI: "MI", Ops: "Műveletek", General: "Általános",
+    "External MCP servers": "Külső MCP-kiszolgálók", "Providers · External MCP": "Szolgáltatók · Külső MCP", "No environment variables set": "Nincsenek beállított környezeti változók", "1 environment variable set": "1 környezeti változó van beállítva", "{count} environment variables set": "{count} környezeti változó van beállítva", Connected: "Csatlakoztatva", "Connected as: {label}": "Csatlakozva mint: {label}",
+  },
+  tr: {
+    "unknown error": "bilinmeyen hata", "this workspace": "bu çalışma alanı", All: "Tümü", "Source control": "Kaynak kod yönetimi", Hosting: "Barındırma", Media: "Medya", AI: "YZ", Ops: "İşlemler", General: "Genel",
+    "External MCP servers": "Harici MCP sunucuları", "Providers · External MCP": "Sağlayıcılar · Harici MCP", "No environment variables set": "Ortam değişkeni ayarlanmadı", "1 environment variable set": "1 ortam değişkeni ayarlandı", "{count} environment variables set": "{count} ortam değişkeni ayarlandı", Connected: "Bağlandı", "Connected as: {label}": "Şu olarak bağlandı: {label}",
+  },
+  ru: {
+    "unknown error": "неизвестная ошибка", "this workspace": "это рабочее пространство", All: "Все", "Source control": "Управление исходным кодом", Hosting: "Хостинг", Media: "Медиа", AI: "ИИ", Ops: "Операции", General: "Общее",
+    "External MCP servers": "Внешние серверы MCP", "Providers · External MCP": "Провайдеры · Внешний MCP", "No environment variables set": "Переменные окружения не заданы", "1 environment variable set": "Задана 1 переменная окружения", "{count} environment variables set": "Задано переменных окружения: {count}", Connected: "Подключено", "Connected as: {label}": "Подключено как: {label}",
+  },
+  uk: {
+    "unknown error": "невідома помилка", "this workspace": "цей робочий простір", All: "Усі", "Source control": "Керування вихідним кодом", Hosting: "Хостинг", Media: "Медіа", AI: "ШІ", Ops: "Операції", General: "Загальне",
+    "External MCP servers": "Зовнішні сервери MCP", "Providers · External MCP": "Постачальники · Зовнішній MCP", "No environment variables set": "Змінні середовища не встановлено", "1 environment variable set": "Встановлено 1 змінну середовища", "{count} environment variables set": "Встановлено змінних середовища: {count}", Connected: "Підключено", "Connected as: {label}": "Підключено як: {label}",
+  },
+  id: {
+    "unknown error": "kesalahan tidak diketahui", "this workspace": "ruang kerja ini", All: "Semua", "Source control": "Kontrol sumber", Hosting: "Hosting", Media: "Media", AI: "AI", Ops: "Operasi", General: "Umum",
+    "External MCP servers": "Server MCP eksternal", "Providers · External MCP": "Penyedia · MCP eksternal", "No environment variables set": "Tidak ada variabel lingkungan yang ditetapkan", "1 environment variable set": "1 variabel lingkungan ditetapkan", "{count} environment variables set": "{count} variabel lingkungan ditetapkan", Connected: "Terhubung", "Connected as: {label}": "Terhubung sebagai: {label}",
+  },
+  ar: {
+    "unknown error": "خطأ غير معروف", "this workspace": "مساحة العمل هذه", All: "الكل", "Source control": "إدارة الشفرة المصدرية", Hosting: "الاستضافة", Media: "الوسائط", AI: "الذكاء الاصطناعي", Ops: "العمليات", General: "عام",
+    "External MCP servers": "خوادم MCP الخارجية", "Providers · External MCP": "الموفرون · MCP خارجي", "No environment variables set": "لم يتم تعيين متغيرات بيئة", "1 environment variable set": "تم تعيين متغير بيئة واحد", "{count} environment variables set": "تم تعيين {count} من متغيرات البيئة", Connected: "متصل", "Connected as: {label}": "متصل باسم: {label}",
+  },
+  fa: {
+    "unknown error": "خطای ناشناخته", "this workspace": "این فضای کاری", All: "همه", "Source control": "کنترل کد منبع", Hosting: "میزبانی", Media: "رسانه", AI: "هوش مصنوعی", Ops: "عملیات", General: "عمومی",
+    "External MCP servers": "سرورهای MCP خارجی", "Providers · External MCP": "ارائه‌دهندگان · MCP خارجی", "No environment variables set": "هیچ متغیر محیطی تنظیم نشده است", "1 environment variable set": "۱ متغیر محیطی تنظیم شده است", "{count} environment variables set": "{count} متغیر محیطی تنظیم شده است", Connected: "متصل", "Connected as: {label}": "متصل به‌عنوان: {label}",
+  },
+  hi: {
+    "unknown error": "अज्ञात त्रुटि", "this workspace": "यह कार्यस्थान", All: "सभी", "Source control": "स्रोत नियंत्रण", Hosting: "होस्टिंग", Media: "मीडिया", AI: "AI", Ops: "संचालन", General: "सामान्य",
+    "External MCP servers": "बाहरी MCP सर्वर", "Providers · External MCP": "प्रदाता · बाहरी MCP", "No environment variables set": "कोई परिवेश चर सेट नहीं है", "1 environment variable set": "1 परिवेश चर सेट है", "{count} environment variables set": "{count} परिवेश चर सेट हैं", Connected: "कनेक्टेड", "Connected as: {label}": "इस रूप में कनेक्टेड: {label}",
+  },
+  bn: {
+    "unknown error": "অজানা ত্রুটি", "this workspace": "এই কর্মক্ষেত্র", All: "সব", "Source control": "সোর্স নিয়ন্ত্রণ", Hosting: "হোস্টিং", Media: "মিডিয়া", AI: "AI", Ops: "কার্যক্রম", General: "সাধারণ",
+    "External MCP servers": "বাহ্যিক MCP সার্ভার", "Providers · External MCP": "প্রদানকারী · বাহ্যিক MCP", "No environment variables set": "কোনো পরিবেশ ভেরিয়েবল সেট করা নেই", "1 environment variable set": "1টি পরিবেশ ভেরিয়েবল সেট করা আছে", "{count} environment variables set": "{count}টি পরিবেশ ভেরিয়েবল সেট করা আছে", Connected: "সংযুক্ত", "Connected as: {label}": "এই হিসেবে সংযুক্ত: {label}",
+  },
+  ur: {
+    "unknown error": "نامعلوم خرابی", "this workspace": "یہ ورک اسپیس", All: "سب", "Source control": "ماخذ کنٹرول", Hosting: "ہوسٹنگ", Media: "میڈیا", AI: "AI", Ops: "عملیات", General: "عمومی",
+    "External MCP servers": "بیرونی MCP سرورز", "Providers · External MCP": "فراہم کنندگان · بیرونی MCP", "No environment variables set": "کوئی ماحول متغیر سیٹ نہیں ہے", "1 environment variable set": "1 ماحول متغیر سیٹ ہے", "{count} environment variables set": "{count} ماحول متغیر سیٹ ہیں", Connected: "منسلک", "Connected as: {label}": "بطور منسلک: {label}",
+  },
+  ja: {
+    "unknown error": "不明なエラー", "this workspace": "このワークスペース", All: "すべて", "Source control": "ソース管理", Hosting: "ホスティング", Media: "メディア", AI: "AI", Ops: "運用", General: "一般",
+    "External MCP servers": "外部 MCP サーバー", "Providers · External MCP": "プロバイダー · 外部 MCP", "No environment variables set": "環境変数は設定されていません", "1 environment variable set": "環境変数が 1 件設定されています", "{count} environment variables set": "環境変数が {count} 件設定されています", Connected: "接続済み", "Connected as: {label}": "接続先: {label}",
+  },
+  ko: {
+    "unknown error": "알 수 없는 오류", "this workspace": "이 작업 공간", All: "전체", "Source control": "소스 제어", Hosting: "호스팅", Media: "미디어", AI: "AI", Ops: "운영", General: "일반",
+    "External MCP servers": "외부 MCP 서버", "Providers · External MCP": "공급자 · 외부 MCP", "No environment variables set": "설정된 환경 변수가 없습니다", "1 environment variable set": "환경 변수 1개가 설정되었습니다", "{count} environment variables set": "환경 변수 {count}개가 설정되었습니다", Connected: "연결됨", "Connected as: {label}": "다음으로 연결됨: {label}",
+  },
+  th: {
+    "unknown error": "ข้อผิดพลาดที่ไม่ทราบสาเหตุ", "this workspace": "พื้นที่ทำงานนี้", All: "ทั้งหมด", "Source control": "การควบคุมซอร์ส", Hosting: "โฮสติ้ง", Media: "สื่อ", AI: "AI", Ops: "การดำเนินงาน", General: "ทั่วไป",
+    "External MCP servers": "เซิร์ฟเวอร์ MCP ภายนอก", "Providers · External MCP": "ผู้ให้บริการ · MCP ภายนอก", "No environment variables set": "ไม่ได้ตั้งค่าตัวแปรสภาพแวดล้อม", "1 environment variable set": "ตั้งค่าตัวแปรสภาพแวดล้อม 1 รายการ", "{count} environment variables set": "ตั้งค่าตัวแปรสภาพแวดล้อม {count} รายการ", Connected: "เชื่อมต่อแล้ว", "Connected as: {label}": "เชื่อมต่อเป็น: {label}",
+  },
+  "zh-CN": {
+    "unknown error": "未知错误", "this workspace": "此工作区", All: "全部", "Source control": "源代码管理", Hosting: "托管", Media: "媒体", AI: "AI", Ops: "运维", General: "常规",
+    "External MCP servers": "外部 MCP 服务器", "Providers · External MCP": "提供商 · 外部 MCP", "No environment variables set": "未设置环境变量", "1 environment variable set": "已设置 1 个环境变量", "{count} environment variables set": "已设置 {count} 个环境变量", Connected: "已连接", "Connected as: {label}": "连接身份：{label}",
+  },
+  "zh-TW": {
+    "unknown error": "未知錯誤", "this workspace": "此工作區", All: "全部", "Source control": "原始碼管理", Hosting: "代管", Media: "媒體", AI: "AI", Ops: "維運", General: "一般",
+    "External MCP servers": "外部 MCP 伺服器", "Providers · External MCP": "提供者 · 外部 MCP", "No environment variables set": "未設定環境變數", "1 environment variable set": "已設定 1 個環境變數", "{count} environment variables set": "已設定 {count} 個環境變數", Connected: "已連線", "Connected as: {label}": "連線身分：{label}",
+  },
+};
 
 export const t = createDictionaryTranslator(SECURITY_DICT);
 

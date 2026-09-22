@@ -17,6 +17,7 @@ import {
   buildSourceControlConnectionInput,
 } from "../source-control/rules";
 import { MEDIA_PROVIDER_CATALOG } from "../media/media-provider-catalog";
+import type { Translate } from "../../lib/dictionary-translator";
 
 /**
  * @file Pure data and computation for the Security page's Access Tokens tab — no React, no fetch,
@@ -978,8 +979,8 @@ export function maskedTailFact(tail: string): string {
 /** The value fact for an OAuth-connected `composio-connector` row — "Connected as: {label}" when
  *  Composio returned a human account label, or a bare "Connected" when it did not (a real, observed
  *  case: some connectors report status with no `accountLabel`). @complexity O(1). */
-export function connectedAsFact(accountLabel: string | undefined): string {
-  return accountLabel ? `Connected as: ${accountLabel}` : "Connected";
+export function connectedAsFact(accountLabel: string | undefined, t: Translate = (key) => key): string {
+  return accountLabel ? t("Connected as: {label}").replace("{label}", accountLabel) : t("Connected");
 }
 
 /** The value fact for an `external-mcp` row — there is no single token to characterize (§10: "no
@@ -987,7 +988,8 @@ export function connectedAsFact(accountLabel: string | undefined): string {
  *  already plaintext — see `AdminExternalMcpServer.envNames`'s own doc in `lib/api.ts`). Zero reads as
  *  a fact, not an error: an MCP server can be fully configured with no secrets at all (a local stdio
  *  tool needing no credentials). @complexity O(1). */
-export function envNamesFact(envNames: readonly string[]): string {
-  if (envNames.length === 0) return "No environment variables set";
-  return envNames.length === 1 ? "1 environment variable set" : `${envNames.length} environment variables set`;
+export function envNamesFact(envNames: readonly string[], t: Translate = (key) => key): string {
+  if (envNames.length === 0) return t("No environment variables set");
+  if (envNames.length === 1) return t("1 environment variable set");
+  return t("{count} environment variables set").replace("{count}", String(envNames.length));
 }

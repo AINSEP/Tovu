@@ -154,7 +154,7 @@ async function readMediaProviders(port: OtherCredentialsPort): Promise<RawStoreI
  *  (`getConnectorStatuses`), names from the static catalog (`listConnectors`, no live call) — see
  *  `other-credentials-port.hooks.ts`'s own doc for why two reads beat one heavier live refetch here.
  *  @complexity O(c) in Composio's own (small) connector catalog size. */
-async function readComposioConnectors(port: OtherCredentialsPort): Promise<RawStoreItem[]> {
+async function readComposioConnectors(port: OtherCredentialsPort, t: Translate): Promise<RawStoreItem[]> {
   const [{ connectors }, statuses] = await Promise.all([port.listConnectors(), port.getConnectorStatuses()]);
   const nameById = new Map(connectors.map((connector) => [connector.id, connector.name]));
   return Object.entries(statuses)
@@ -162,18 +162,18 @@ async function readComposioConnectors(port: OtherCredentialsPort): Promise<RawSt
     .map(([connectorId, status]) => ({
       itemId: connectorId,
       name: nameById.get(connectorId) ?? connectorId,
-      valueFact: connectedAsFact(status.accountLabel),
+      valueFact: connectedAsFact(status.accountLabel, t),
       updatedAt: null,
     }));
 }
 /** Every configured external MCP server — @complexity O(s) in this workspace's own (small) server
  *  count. */
-async function readExternalMcpServers(port: OtherCredentialsPort): Promise<RawStoreItem[]> {
+async function readExternalMcpServers(port: OtherCredentialsPort, t: Translate): Promise<RawStoreItem[]> {
   const { servers } = await port.listExternalMcpServers();
   return servers.map((server) => ({
     itemId: server.serverId,
     name: server.label || server.serverId,
-    valueFact: envNamesFact(server.envNames),
+    valueFact: envNamesFact(server.envNames, t),
     updatedAt: null,
   }));
 }
@@ -181,7 +181,7 @@ async function readExternalMcpServers(port: OtherCredentialsPort): Promise<RawSt
 /** Dispatches one store's read by id — the one place `OtherCredentialStoreId` is switched over for
  *  reads, mirroring `rules.ts`'s `buildAccessTokenConnectionInput` dispatch-by-kind pattern.
  *  @complexity O(1) plus whichever reader's own complexity. */
-function readStore(port: OtherCredentialsPort, store: OtherCredentialStoreInfo): Promise<RawStoreItem[]> {
+function readStore(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, t: Translate): Promise<RawStoreItem[]> {
   switch (store.id) {
     case "site-assistant":
       return readSiteAssistant(port, store);
@@ -192,9 +192,9 @@ function readStore(port: OtherCredentialsPort, store: OtherCredentialStoreInfo):
     case "composio-project":
       return readComposioProject(port, store);
     case "composio-connector":
-      return readComposioConnectors(port);
+      return readComposioConnectors(port, t);
     case "external-mcp":
-      return readExternalMcpServers(port);
+      return readExternalMcpServers(port, t);
   }
 }
 
@@ -255,7 +255,7 @@ export function useOtherCredentials(
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     for (const store of OTHER_CREDENTIAL_STORES) {
-      readStore(port, store)
+      readStore(port, store, t)
         .then((items) => setStoreStates((prev) => ({ ...prev, [store.id]: { items, loadError: null } })))
         .catch((err: unknown) =>
           setStoreStates((prev) => ({
@@ -288,7 +288,7 @@ export function useOtherCredentials(
     setDrafts((prev) => ({ ...prev, [row.key]: { token, saving: true, error: null } }));
     try {
       await writeReplace(port, row.store.id, row.itemId, token);
-      await refetchOne(port, row.store, setStoreStates);
+      await refetchOne(port, row.store, setStoreStates, t);
       setDrafts((prev) => ({ ...prev, [row.key]: { token: "", saving: false, error: null } }));
     } catch (err) {
       setDrafts((prev) => ({ ...prev, [row.key]: { token, saving: false, error: otherCredentialSaveErrorMessage(err, t, locale) } }));
@@ -302,7 +302,7 @@ export function useOtherCredentials(
   async function removeNow(row: OtherCredentialRowState): Promise<void> {
     try {
       await writeRemove(port, row.store.id, row.itemId);
-      await refetchOne(port, row.store, setStoreStates);
+      await refetchOne(port, row.store, setStoreStates, t);
     } catch (err) {
       setDrafts((prev) => ({ ...prev, [row.key]: { token: prev[row.key]?.token ?? "", saving: false, error: otherCredentialSaveErrorMessage(err, t, locale) } }));
     }
@@ -365,9 +365,10 @@ function buildGroup(
 async function refetchOne(
   port: OtherCredentialsPort,
   store: OtherCredentialStoreInfo,
-  setStoreStates: (updater: (prev: Record<string, StoreState>) => Record<string, StoreState>) => void
+  setStoreStates: (updater: (prev: Record<string, StoreState>) => Record<string, StoreState>) => void,
+  t: Translate
 ): Promise<void> {
-  const items = await readStore(port, store);
+  const items = await readStore(port, store, t);
   setStoreStates((prev) => ({ ...prev, [store.id]: { items, loadError: null } }));
 }
 
