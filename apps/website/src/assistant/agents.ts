@@ -18,7 +18,7 @@
  * sweep re-ran dozens of times a minute for a fact — which CLIs are installed on this machine's
  * PATH — that does not change turn to turn or even poll to poll.
  */
-import { AGENT_DEFS, resolveAgentLaunch, runtimeSupportsExternalTools } from "@jini-ai/agent-runtime";
+import { AGENT_DEFS, probeAgentModels, resolveAgentLaunch, runtimeSupportsExternalTools } from "@jini-ai/agent-runtime";
 import type { AgentSummary } from "@jini-ai/http-kit";
 
 /**
@@ -54,12 +54,28 @@ export type AssistantAgentSummary = AgentSummary & {
 const UNSUPPORTED_AGENT_IDS = new Set<string>([]);
 
 /**
- * The actual PATH probe — one filesystem check per `AGENT_DEFS` entry. Never called directly by a
- * route; only through {@link listAssistantAgents}/{@link rescanAssistantAgents} below, which own
- * when it re-runs.
+ * Fetches one available def's model list — `@jini-ai/agent-runtime`'s `probeAgentModels`, which runs
+ * the def's own `fetchModels`/`listModels` (e.g. `claude`'s credential-free `initialize` probe,
+ * `codex debug models`) and falls back to `fallbackModels` on any failure. Before this was wired,
+ * every entry here was hardcoded to `fallbackModels`/`"fallback"`, so no live model (e.g. a new
+ * Claude release) could ever reach the Local CLI picker. Swappable so tests never spawn real CLIs.
+ */
+type AgentModelProber = typeof probeAgentModels;
+let agentModelProber: AgentModelProber = probeAgentModels;
+
+/** Test-only: install a fake model prober (or `null` to restore the real one) and drop the cache. */
+export function setAgentModelProberForTesting(prober: AgentModelProber | null): void {
+  agentModelProber = prober ?? probeAgentModels;
+  cachedAgents = null;
+}
+
+/**
+ * The actual probe — one PATH check per `AGENT_DEFS` entry, plus one model-listing call per
+ * AVAILABLE def (see {@link agentModelProber}). Never called directly by a route; only through
+ * {@link listAssistantAgents}/{@link rescanAssistantAgents} below, which own when it re-runs.
  *
- * @complexity Time: O(d) in `AGENT_DEFS.length` (24 today), each a constant-cost PATH walk. Space:
- * O(d) for the returned summaries.
+ * @complexity Time: O(d) in `AGENT_DEFS.length` (24 today): a PATH walk each, and for installed
+ * defs a concurrent model-listing spawn bounded by that def's own timeout. Space: O(d).
  * @overallScore 100
  */
 async function probeAssistantAgents(): Promise<AssistantAgentSummary[]> {
@@ -67,13 +83,16 @@ async function probeAssistantAgents(): Promise<AssistantAgentSummary[]> {
     AGENT_DEFS.filter((def) => !UNSUPPORTED_AGENT_IDS.has(def.id)).map(async (def): Promise<AssistantAgentSummary> => {
       const launch = resolveAgentLaunch(def);
       const available = Boolean(launch.launchPath);
+      const { models, source } = available
+        ? await agentModelProber(def)
+        : { models: def.fallbackModels, source: "fallback" as const };
       return {
         id: def.id,
         name: def.name,
         available,
         supportsCustomModel: def.supportsCustomModel,
-        models: def.fallbackModels,
-        modelsSource: "fallback",
+        models,
+        modelsSource: source,
         // See `runtimeSupportsExternalTools`'s own doc (`@jini-ai/agent-runtime`'s `registry.ts`):
         // the single derivation point for "can this runtime receive Tovu/Jini tools at all,"
         // keyed off the def's own `externalMcpInjection` declaration rather than a hardcoded
