@@ -487,8 +487,13 @@ export function deriveTrashItemRegistrations(
   // module-level list (append-only registries memory: `registry.ts`'s own Map is rebuilt only at
   // composition, but reading it here rather than hardcoding a kind list is what lets a NEW registry
   // entry (T5's `menu`, T6's `term`/`taxonomy`) reach `trash_item` with zero edits to this file).
+  // `?? []`: `registry` is typed as required, but plenty of existing test fixtures build a
+  // `RouteDeps` double with `as unknown as RouteDeps` and never set it — same "many compositions
+  // build a catalog without every domain" reality the comment above already accepts for
+  // `isTrashableEntityType`. A missing registry degrades to "no generic kinds," not a crash that
+  // takes the whole assistant catalog down with it.
   const genericEntryByEntityType = new Map<TrashEntityType, TrashEntry>();
-  for (const [entityType, entry] of routeDeps.registry) {
+  for (const [entityType, entry] of routeDeps.registry ?? []) {
     if (!delegateHandlerByEntityType.has(entityType)) genericEntryByEntityType.set(entityType, entry);
   }
 

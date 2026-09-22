@@ -16,6 +16,9 @@ import { getRedirectsAgentToolCatalog } from "#src/features/redirects/agent-tool
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 import type { RouteDeps } from "#src/server/routes/types";
+import * as contentSchema from "#src/platform/db/schema";
+import { buildTrashRegistry } from "#src/features/trash/registry";
+import type { TrashEntityType } from "#src/features/trash/ports";
 
 import { deriveTrashItemRegistrations, TRASH_ITEM_DELEGATES, TRASH_ITEM_TOOL_ID } from "#src/features/trash/trash-item-tool";
 
@@ -53,6 +56,36 @@ function harness(grants: Grants) {
   const surfaceExchanges = createSurfaceExchangeStore();
   const registrations = buildAssistantToolRegistrations(routeDeps, { surfaceExchanges });
   return { routeDeps, surfaceExchanges, registrations, authorizeCalls };
+}
+
+// This file's own hermetic composition (`createRouteDeps()` in `composition/app.ts`) hardcodes
+// `registry: new Map()` — it has no Drizzle-backed `content.db` for `createTableTrashAdapter` to run
+// against (see that file's comment on the field) — so it can never surface a GENERIC kind (`form`,
+// `form_submission`, and whatever T1 adds) on its own. Built once from the real schema module (no
+// live DB needed — it is pure table/column metadata), the same way the real composition root
+// (`composition/deps.ts`) builds it, so a test that needs a generic kind reachable overrides
+// `registry`/`isTrashableEntityType` locally with this rather than asserting against data the
+// hermetic root structurally cannot produce.
+const REAL_REGISTRY = buildTrashRegistry({ schema: contentSchema });
+
+function withRealTrashRegistry(routeDeps: RouteDeps): RouteDeps {
+  return {
+    ...routeDeps,
+    registry: REAL_REGISTRY,
+    // Production ties the two together the same way (`deps.ts`: every registry entry gets an
+    // adapter, so `isTrashableEntityType` is `trashAdapters.has`, and `trashAdapters` is built FROM
+    // the registry) — `||` keeps this hermetic root's existing delegate-backed kinds (post, comment,
+    // media, redirect, widget, all wired via hand-built in-memory adapters) true too.
+    isTrashableEntityType: (entityType: TrashEntityType) => routeDeps.isTrashableEntityType(entityType) || REAL_REGISTRY.has(entityType),
+  } as RouteDeps;
+}
+
+/** The generic (no-delegate) kinds `withRealTrashRegistry` makes reachable, in registry insertion
+ *  order — computed from the SAME registry rather than hardcoded, so this file does not go stale the
+ *  moment another task registers a new `TRASHABLE` type (T1 is mid-flight on `menu`/`term`/
+ *  `taxonomy` as this is written). */
+function realGenericKinds(): TrashEntityType[] {
+  return [...REAL_REGISTRY.keys()].filter((entityType) => !TRASH_ITEM_DELEGATES.has(entityType));
 }
 
 function tool(registrations: readonly ToolRegistration[], id: string): ToolRegistration {
@@ -252,9 +285,13 @@ test("an entityType with no registered Trash adapter is refused with an exact er
   const { routeDeps, registrations, authorizeCalls } = harness(EVERYTHING);
   await seedPost(routeDeps);
 
-  await assert.rejects(call(tool(registrations, TRASH_ITEM_TOOL_ID), { entityType: "widget", entityId: "post-1" }), {
+  // `form`, not `widget`: `widget` is one of `TRASH_ITEM_DELEGATES` now (2026-09-21), so it has a
+  // registered adapter (`widgets_trash_instance`) in this file's default (registry-empty) harness —
+  // `form` is a genuinely un-adapted kind here (its only home is the GENERIC registry path, and this
+  // harness's `registry` is empty; see `withRealTrashRegistry`'s comment).
+  await assert.rejects(call(tool(registrations, TRASH_ITEM_TOOL_ID), { entityType: "form", entityId: "post-1" }), {
     message:
-      "trash_item: 'widget' is not a kind of thing the Trash can hold. Expected one of: post, comment, media, redirect. Nothing was changed.",
+      "trash_item: 'form' is not a kind of thing the Trash can hold. Expected one of: post, comment, media, redirect, widget. Nothing was changed.",
   });
   assert.deepEqual(authorizeCalls, []);
   assert.deepEqual(await trashRows(routeDeps), []);
@@ -270,9 +307,11 @@ test("the entityType check reads the live adapter map at CALL time, not a list c
   void registrations;
 
   postAdapterRegistered = false;
+  // `widget` now appears in "Expected one of" too (it is a delegate kind whose own
+  // `isTrashableEntityType` check `probed` never touches — only `post` is probed here).
   await assert.rejects(call(trashItem, { entityType: "post", entityId: "post-1" }), {
     message:
-      "trash_item: 'post' is not a kind of thing the Trash can hold. Expected one of: comment, media, redirect. Nothing was changed.",
+      "trash_item: 'post' is not a kind of thing the Trash can hold. Expected one of: comment, media, redirect, widget. Nothing was changed.",
   });
   assert.equal((await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id: "post-1" }))?.deletedAt, null);
 });
@@ -349,25 +388,37 @@ test("every delegate pre-checks exactly the permission its own delete tool decla
 });
 
 test("SINK AUDIT: in the production catalog, trash_item accepts every delegate AND every generic TRASHABLE kind", () => {
-  const { registrations } = harness(EVERYTHING);
-  const schema = tool(registrations, TRASH_ITEM_TOOL_ID).descriptor.inputSchema as {
+  const { routeDeps, registrations } = harness(EVERYTHING);
+  // This file's hermetic `registrations`/`routeDeps.registry` is empty (see `withRealTrashRegistry`'s
+  // comment), so the generic side is rebuilt directly with a real, non-empty registry rather than
+  // read off `harness()`'s own already-built (registry-empty) `trash_item`.
+  const [trashItem] = deriveTrashItemRegistrations({
+    registrations,
+    routeDeps: withRealTrashRegistry(routeDeps),
+    surfaces: createSurfaceExchangeStore(),
+  });
+  const schema = trashItem.descriptor.inputSchema as {
     properties: { entityType: { enum: string[] } };
   };
   // Delegates first (insertion order of TRASH_ITEM_DELEGATES), then generic registry kinds with no
   // delegate (insertion order of TRASHABLE) — `widget` has a delegate, so it never repeats below.
-  assert.deepEqual(schema.properties.entityType.enum, ["post", "comment", "media", "redirect", "widget", "form", "form_submission"]);
+  assert.deepEqual(schema.properties.entityType.enum, ["post", "comment", "media", "redirect", "widget", ...realGenericKinds()]);
 });
 
 test("a kind whose delete tool is not registered is not accepted, with an exact error, and nothing is written", async () => {
   const { routeDeps, registrations } = harness(EVERYTHING);
   await seedComment(routeDeps);
   const withoutComments = registrations.filter((registration) => registration.descriptor.id !== "comments_trash_comment");
-  const [trashItem] = deriveTrashItemRegistrations({ registrations: withoutComments, routeDeps, surfaces: createSurfaceExchangeStore() });
+  const [trashItem] = deriveTrashItemRegistrations({
+    registrations: withoutComments,
+    routeDeps: withRealTrashRegistry(routeDeps),
+    surfaces: createSurfaceExchangeStore(),
+  });
   assert.ok(trashItem);
 
+  const accepted = ["post", "media", "redirect", "widget", ...realGenericKinds()].join(", ");
   await assert.rejects(call(trashItem, { entityType: "comment", entityId: "comment-1" }), {
-    message:
-      "trash_item: 'comment' is not a kind of thing the Trash can hold. Expected one of: post, media, redirect, widget, form, form_submission. Nothing was changed.",
+    message: `trash_item: 'comment' is not a kind of thing the Trash can hold. Expected one of: ${accepted}. Nothing was changed.`,
   });
   assert.equal((await routeDeps.commentRepo.findById({ workspaceId: routeDeps.workspaceId, id: "comment-1" }))?.status, "approved");
 });
@@ -380,10 +431,17 @@ test("with no delegate tool registered and an empty registry, trash_item is not 
 
 test("with no delegate tool registered but a non-empty registry, trash_item is still registered for the GENERIC kinds", () => {
   const { routeDeps } = harness(EVERYTHING);
-  const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps, surfaces: createSurfaceExchangeStore() });
-  assert.ok(trashItem, "form/form_submission have no delegate, so trash_item must still be built from the registry alone");
+  const [trashItem] = deriveTrashItemRegistrations({
+    registrations: [],
+    routeDeps: withRealTrashRegistry(routeDeps),
+    surfaces: createSurfaceExchangeStore(),
+  });
+  assert.ok(trashItem, "generic registry kinds have no delegate, so trash_item must still be built from the registry alone");
   const schema = trashItem.descriptor.inputSchema as { properties: { entityType: { enum: string[] } } };
-  assert.deepEqual(schema.properties.entityType.enum, ["form", "form_submission"]);
+  // `registrations: []` (not just "no widget delegate"): NO delegate handler resolves here, so even
+  // `widget` (which normally routes to its delegate — see `realGenericKinds()`, used elsewhere for
+  // the ordinary case) falls through to the generic path too. Every registry entry, unfiltered.
+  assert.deepEqual(schema.properties.entityType.enum, [...REAL_REGISTRY.keys()]);
 });
 
 // --- the purge ban reaches this tool too -----------------------------------------------------
