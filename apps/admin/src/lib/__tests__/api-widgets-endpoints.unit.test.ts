@@ -5,10 +5,12 @@ import { api } from "../api";
 /**
  * @file Coverage-gap-fill pass (2026-09-05) for `api.ts`'s Widgets-resource endpoint wrappers
  * (`/workspaces/${WORKSPACE_ID}/widgets...` paths) that had no test at all before this file:
- * `getWidget`, `trashWidget`, `listWidgetRegions`, `bindWidgetRegion`, `getWidgetRegion`,
+ * `getWidget`, `listWidgetRegions`, `bindWidgetRegion`, `getWidgetRegion`,
  * `widgetsToolPlace`, `widgetsToolCreate`. `listWidgets`, `createWidget`, `updateWidget`,
- * `purgeWidget`, and `mutateWidgetRegionPlacements` already had real fetch-stubbed tests in
- * `api-endpoint-option-branches.unit.test.ts` — not duplicated here. `insertWidgetEmbed` /
+ * and `mutateWidgetRegionPlacements` already had real fetch-stubbed tests in
+ * `api-endpoint-option-branches.unit.test.ts` — not duplicated here. (`trashWidget`/`purgeWidget`,
+ * the widget-specific hard-delete pair, were removed with the Trash rewrite, T8c 2026-09-21 — see
+ * `api.trash`.) `insertWidgetEmbed` /
  * `removeWidgetEmbed` hit `/entries/${id}/widget-embeds`, not a `/widgets/...` path, so they are
  * out of this file's scope (a sibling resource's endpoints).
  *
@@ -69,13 +71,6 @@ test("getWidget resolves the widget/whereUsed envelope verbatim", async () => {
   const whereUsed = { count: 0, references: [] };
   vi.stubGlobal("fetch", vi.fn(async () => okJson({ widget, whereUsed })));
   await expect(api.getWidget("w1")).resolves.toEqual({ widget, whereUsed });
-});
-
-test("trashWidget POSTs to /widgets/:id/trash", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.trashWidget("w1");
-  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/widgets/w1/trash`);
-  expect(calls[0].init?.method).toBe("POST");
 });
 
 test("listWidgetRegions is a bare GET at /widgets/regions", async () => {

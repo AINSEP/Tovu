@@ -99,18 +99,6 @@ test("updateMenuTree includes title/slug when the caller passes them", async () 
   expect(body()).toEqual({ expectedVersion: 1, items: [], title: "New", slug: "new" });
 });
 
-test("deleteMenu has no ?force query param by default", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.deleteMenu({ id: "m1" });
-  expect(calls[0].url).not.toContain("force");
-});
-
-test("deleteMenu appends ?force=true when force is requested", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.deleteMenu({ id: "m1" }, { force: true });
-  expect(calls[0].url).toContain("?force=true");
-});
-
 // --- Integrations -----------------------------------------------------------------
 
 test("pauseIntegrationSubscription sends the same request whether or not the unused options arg is passed", async () => {
@@ -374,16 +362,6 @@ test("getFormSubmission sends the same request whether or not the unused options
   expect(a[0].url).toContain("/forms/f1/submissions/s1");
 });
 
-test("deleteFormSubmission sends the same request whether or not the unused options arg is passed", async () => {
-  const { calls: a } = stubFetchCapturing();
-  await api.deleteFormSubmission({ formId: "f1", submissionId: "s1" });
-  vi.unstubAllGlobals();
-  const { calls: b } = stubFetchCapturing();
-  await api.deleteFormSubmission({ formId: "f1", submissionId: "s1" }, {});
-  expect(b[0].init?.method).toBe(a[0].init?.method);
-  expect(a[0].init?.method).toBe("DELETE");
-});
-
 // --- AI Assistant -----------------------------------------------------------------
 
 test("restartAssistantDaemon rethrows a non-ApiError failure untouched", async () => {
@@ -605,18 +583,6 @@ test("updateWidget sends the same request whether or not the unused options arg 
   await api.updateWidget({ id: "w1", baseVersion: 1, config: {} }, {});
   expect(b[0].init?.body).toBe(a[0].init?.body);
   expect(a[0].init?.method).toBe("PUT");
-});
-
-test("purgeWidget has no ?force query param by default", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.purgeWidget({ id: "w1" });
-  expect(calls[0].url).not.toContain("force");
-});
-
-test("purgeWidget appends ?force=true when force is requested", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.purgeWidget({ id: "w1" }, { force: true });
-  expect(calls[0].url).toContain("?force=true");
 });
 
 test("mutateWidgetRegionPlacements sends the same request whether or not the unused options arg is passed", async () => {

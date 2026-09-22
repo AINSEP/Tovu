@@ -2797,11 +2797,6 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ expectedVersion, items, title: options.title, slug: options.slug }),
     }),
-  deleteMenu: ({ id }: { id: string }, options: { force?: boolean } = {}) =>
-    request<{ menu: AdminMenu | null; purged: boolean }>(
-      `/workspaces/${WORKSPACE_ID}/menus/${encodeURIComponent(id)}${options.force ? "?force=true" : ""}`,
-      { method: "DELETE" }
-    ),
   listIntegrationSubscriptions: () =>
     request<{ subscriptions: AdminWebhookSubscription[] }>(
       `/workspaces/${WORKSPACE_ID}/integrations/subscriptions`
@@ -3217,13 +3212,6 @@ export const api = {
     _options: Record<string, never> = {}
   ) =>
     request<{ data: AdminFormSubmission }>(`/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(formId)}/submissions/${encodeURIComponent(submissionId)}`),
-  deleteFormSubmission: (
-    { formId, submissionId }: { formId: string; submissionId: string },
-    _options: Record<string, never> = {}
-  ) =>
-    request<void>(`/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(formId)}/submissions/${encodeURIComponent(submissionId)}`, {
-      method: "DELETE",
-    }),
   // AI Assistant — the visitor-facing assistant's master switch. Same `{ data }` envelope and same
   // partial-PUT shape as the SEO settings pair below, because the two routes are deliberately
   // identical in contract (see `server/routes/admin/assistant/put-settings.ts`).
@@ -3475,22 +3463,6 @@ export const api = {
    * unselected assignment — there is no remove-assignment route yet). */
   assignTerms: (input: { contentType: string; contentId: string; termIds: string[] }) =>
     request<void>("/taxonomy/assign-terms", { method: "POST", body: JSON.stringify(input) }),
-  // Guarded hard-delete (backend-gap closure, 2026-08-05) — refuses with a 409 rather than
-  // cascading through live content: `TERM_HAS_ASSIGNMENTS`/`TAXONOMY_HAS_ASSIGNMENTS` when content
-  // is still assigned, `TERM_HAS_CHILDREN` when a hierarchical term still has children. `rules.ts`'s
-  // `describeDeleteBlocked` turns the `ApiError`'s `code`/`assignedCount`/`childCount` into operator
-  // copy naming the remedy, not just a raw refusal. See `src/server/routes/admin/taxonomy/delete-
-  // term.ts`/`delete-taxonomy.ts` for the route implementations this contract was taken from.
-  deleteTerm: (termId: string) =>
-    request<{ deletedTermId: string }>(`/taxonomy/terms/${encodeURIComponent(termId)}`, { method: "DELETE" }),
-  /** `deletedTermIds` lists any (unassigned) member terms cascade-deleted along with the taxonomy —
-   *  the taxonomy delete is refused (409 `TAXONOMY_HAS_ASSIGNMENTS`) before any of this happens if
-   *  even one member term is still assigned, so this list is never a surprise loss of live content. */
-  deleteTaxonomy: (taxonomyId: string) =>
-    request<{ deletedTaxonomyId: string; deletedTermIds: string[] }>(`/taxonomy/${encodeURIComponent(taxonomyId)}`, {
-      method: "DELETE",
-    }),
-
   // Categories & Tags — merge-term ceremony (ADR-044, SPEC-018 C-207). 3-step plan/confirm/execute.
   planMergeTerm: (
     { fromTermId, intoTermId }: { fromTermId: string; intoTermId: string },
@@ -3718,11 +3690,6 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ baseVersion, config, ...(title === undefined ? {} : { title }) }),
     }),
-  trashWidget: (id: string) =>
-    request<{ widget: AdminWidget }>(`/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}/trash`, { method: "POST" }),
-  purgeWidget: ({ id }: { id: string }, options: { force?: boolean } = {}) =>
-    request<{ purged: true }>(`/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}/purge${options.force ? "?force=true" : ""}`, { method: "POST" }),
-
   listWidgetRegions: () => request<{ regions: AdminWidgetRegionBinding[] }>(`/workspaces/${WORKSPACE_ID}/widgets/regions`),
   bindWidgetRegion: (regionKey: string) =>
     request<{ area: AdminWidgetArea }>(`/workspaces/${WORKSPACE_ID}/widgets/regions`, {

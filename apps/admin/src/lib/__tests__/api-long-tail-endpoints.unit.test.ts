@@ -293,37 +293,6 @@ test("assignTerms POSTs the input verbatim to /taxonomy/assign-terms", async () 
   expect(body()).toEqual({ contentType: "recipe", contentId: "e1", termIds: ["term1", "term2"] });
 });
 
-test("deleteTerm DELETEs /taxonomy/terms/:id", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.deleteTerm("term1");
-  expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/terms/term1`);
-  expect(calls[0].init?.method).toBe("DELETE");
-});
-
-test("deleteTerm surfaces the documented TERM_HAS_ASSIGNMENTS 409 contract on ApiError (code + assignedCount)", async () => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(
-      async () =>
-        new Response(JSON.stringify({ error: "term still assigned", code: "TERM_HAS_ASSIGNMENTS", assignedCount: 3 }), {
-          status: 409,
-          headers: { "Content-Type": "application/json" },
-        })
-    )
-  );
-  const error = await api.deleteTerm("term1").catch((e: unknown) => e);
-  expect(error).toBeInstanceOf(ApiError);
-  expect((error as ApiError).code).toBe("TERM_HAS_ASSIGNMENTS");
-  expect((error as ApiError).body?.assignedCount).toBe(3);
-});
-
-test("deleteTaxonomy DELETEs /taxonomy/:id", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.deleteTaxonomy("t1");
-  expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/t1`);
-  expect(calls[0].init?.method).toBe("DELETE");
-});
-
 test("planMergeTerm POSTs { intoTermId } to /taxonomy/terms/:id/merge/plan", async () => {
   const { calls, body } = stubFetchCapturing();
   await api.planMergeTerm({ fromTermId: "term1", intoTermId: "term2" });

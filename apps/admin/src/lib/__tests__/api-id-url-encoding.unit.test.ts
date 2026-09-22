@@ -76,7 +76,6 @@ const singleIdCases: Case[] = [
     () => api.updateMenuTree({ id: SLASH_ID, expectedVersion: 1, items: [] }),
     `${BASE_WORKSPACE}/menus/${ENC}`,
   ],
-  ["deleteMenu", () => api.deleteMenu({ id: SLASH_ID }), `${BASE_WORKSPACE}/menus/${ENC}`],
   [
     "pauseIntegrationSubscription",
     () => api.pauseIntegrationSubscription({ id: SLASH_ID, paused: true }),
@@ -170,8 +169,6 @@ const singleIdCases: Case[] = [
     () => api.renameTerm({ termId: SLASH_ID, newName: "x" }),
     `${BASE_API}/taxonomy/terms/${ENC}`,
   ],
-  ["deleteTerm", () => api.deleteTerm(SLASH_ID), `${BASE_API}/taxonomy/terms/${ENC}`],
-  ["deleteTaxonomy", () => api.deleteTaxonomy(SLASH_ID), `${BASE_API}/taxonomy/${ENC}`],
   [
     "planMergeTerm",
     () => api.planMergeTerm({ fromTermId: SLASH_ID, intoTermId: "t2" }),
@@ -199,8 +196,6 @@ const singleIdCases: Case[] = [
     () => api.updateWidget({ id: SLASH_ID, baseVersion: 1, config: {} }),
     `${BASE_WORKSPACE}/widgets/${ENC}`,
   ],
-  ["trashWidget", () => api.trashWidget(SLASH_ID), `${BASE_WORKSPACE}/widgets/${ENC}/trash`],
-  ["purgeWidget", () => api.purgeWidget({ id: SLASH_ID }), `${BASE_WORKSPACE}/widgets/${ENC}/purge`],
   ["getWidgetRegion", () => api.getWidgetRegion(SLASH_ID), `${BASE_WORKSPACE}/widgets/regions/${ENC}`],
   [
     "mutateWidgetRegionPlacements",
@@ -278,12 +273,6 @@ test("removePolicyPermission encodes both policyId and policyPermissionId", asyn
 test("getFormSubmission encodes both formId and submissionId", async () => {
   const { calls } = stubFetchCapturing();
   await api.getFormSubmission({ formId: SLASH_ID, submissionId: SECOND_ID });
-  expect(calls[0].url).toBe(`${BASE_WORKSPACE}/forms/${ENC}/submissions/${ENC2}`);
-});
-
-test("deleteFormSubmission encodes both formId and submissionId", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.deleteFormSubmission({ formId: SLASH_ID, submissionId: SECOND_ID });
   expect(calls[0].url).toBe(`${BASE_WORKSPACE}/forms/${ENC}/submissions/${ENC2}`);
 });
 
