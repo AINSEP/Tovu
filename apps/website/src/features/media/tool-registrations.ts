@@ -93,6 +93,7 @@ import { requireInputRecord, requireString, requireToolPermission, type ToolHand
 import { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
 import { getLatestTransformDefinition } from "./index.js";
 import type { MediaContentTypeStorePort } from "./content-type-store.js";
+import { TOVU_MAX_UPLOAD_BYTES } from "./upload-limits.js";
 
 export { buildMediaRegistrations, mediaDerivedRisk, type MediaToolDeps };
 
@@ -385,6 +386,16 @@ function buildMediaTrashConfirmationHandler(
  * MediaPublicUrlDeps` and a real `SurfaceExchangeStore`, mirroring every sibling domain's own
  * `build<Domain>Registrations` export (`buildWidgetsRegistrations`, `buildRedirectsRegistrations`,
  * ...) — `media/__tests__/agent-tools.trash-confirmation.test.ts` is what needed it.
+ *
+ * `maxUploadBytes: TOVU_MAX_UPLOAD_BYTES` (2026-09-21): every OTHER upload path into this package
+ * (the admin HTTP upload route, `duplicate-asset.ts`, `media-generation`'s and `media-import`'s own
+ * tool registrations) already calls `uploadMedia` with this host's `TOVU_MAX_UPLOAD_BYTES` override
+ * instead of `@jini-ai/cms/media`'s 10 MiB `DEFAULT_MAX_UPLOAD_BYTES` — this was the one remaining
+ * upload path (and the one a chat attachment promoted into the library also goes through) still
+ * silently stuck at 10 MiB, because `MediaToolDeps` had no field to carry a cap until
+ * `@jini-ai/cms/media`'s `maxUploadBytes` addition. Passed explicitly here (not merely via
+ * `...routeDeps`) since `RouteDeps` itself has no `maxUploadBytes` field — this host's cap is a fixed
+ * constant, not a per-request value.
  */
 export function buildMediaRegistrationsForTovu(
   routeDeps: MediaToolDeps & MediaPublicUrlDeps & MediaTrashToolDeps,
@@ -394,6 +405,7 @@ export function buildMediaRegistrationsForTovu(
     ...routeDeps,
     resolvePublicUrls: (assets) => resolveMediaPublicUrls(routeDeps, assets),
     recordUploadContentType: buildRecordUploadContentType(routeDeps),
+    maxUploadBytes: TOVU_MAX_UPLOAD_BYTES,
   });
 
   return registrations.map((registration) =>

@@ -15,6 +15,7 @@ import type { RouteDeps } from "../../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { resetToolContributorsForTests, registerToolContributor } from "../../../assistant/tool-contribution-registry.js";
 import { contributeMediaTools } from "../tool-registrations.js";
+import { TOVU_MAX_UPLOAD_BYTES } from "../upload-limits.js";
 
 /**
  * Covers `media_upload_asset`'s content-type recording (Defect 2 of the media-pipeline bug batch):
@@ -152,5 +153,39 @@ test("media_upload_asset's published schema offers image/avif as a selectable co
   assert.ok(
     schema.properties.contentType.enum.includes("image/avif"),
     `the model cannot pick a type the enum omits; got: ${schema.properties.contentType.enum.join(", ")}`
+  );
+});
+
+/**
+ * Covers `buildMediaRegistrationsForTovu`'s `maxUploadBytes: TOVU_MAX_UPLOAD_BYTES` wiring
+ * (2026-09-21) — every OTHER upload path into this package (the admin HTTP upload route,
+ * `duplicate-asset.ts`, `media-generation`'s and `media-import`'s own tool registrations) already
+ * called `uploadMedia` with this host's `TOVU_MAX_UPLOAD_BYTES` override; this assistant tool
+ * (the one a chat attachment promoted into the library also goes through) was the one path still
+ * silently stuck at `@jini-ai/cms/media`'s 10 MiB `DEFAULT_MAX_UPLOAD_BYTES`, because
+ * `MediaToolDeps` had no field to carry a host cap until `@jini-ai/cms/media` gained
+ * `maxUploadBytes`.
+ */
+test("media_upload_asset accepts a file over the 10 MiB @jini-ai/cms default, up to Tovu's own TOVU_MAX_UPLOAD_BYTES cap", async () => {
+  const { deps } = fakeRouteDeps();
+  const overTenMib = Buffer.alloc(11 * 1024 * 1024, 0xab);
+  assert.ok(overTenMib.byteLength > 10 * 1024 * 1024 && overTenMib.byteLength <= TOVU_MAX_UPLOAD_BYTES, "fixture must sit strictly between the two caps for this test to prove anything");
+
+  const result = (await wired("media_upload_asset", deps).handler(
+    executionContext({ dataBase64: overTenMib.toString("base64"), filename: "big.png", contentType: "image/png" })
+  )) as { media: { id: string } };
+
+  assert.ok(result.media.id, "an 11 MiB upload must succeed under Tovu's 50 MiB cap");
+});
+
+test("media_upload_asset still rejects a file over Tovu's own TOVU_MAX_UPLOAD_BYTES cap", async () => {
+  const { deps } = fakeRouteDeps();
+  const overTovuCap = Buffer.alloc(TOVU_MAX_UPLOAD_BYTES + 1, 0xab);
+
+  await assert.rejects(
+    () => wired("media_upload_asset", deps).handler(
+      executionContext({ dataBase64: overTovuCap.toString("base64"), filename: "too-big.png", contentType: "image/png" })
+    ),
+    /exceeds/
   );
 });
