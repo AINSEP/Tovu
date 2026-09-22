@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne, sql, type SQL } from "drizzle-orm";
 
 import { stampWatermarkTx, type ContentDbTransaction } from "../../platform/db/sqlite/watermark.js";
 import { entryTerms, taxonomies, taxonomyRevisions, terms } from "../../platform/db/schema.js";
@@ -34,7 +34,38 @@ import type {
  * Architectural role:
  * Infrastructure adapters. ADR-042 item 1: single-row lookups reuse `repo-helpers.ts`'s
  * `findOneBy`.
+ *
+ * T6 (trash parallel plan §2, owner decision 5): tags/categories are trashable, but this domain
+ * never imports `features/trash` (binding rule "own-column read filtering" — each domain repo
+ * filters on its own column and imports nothing from trash). `TRASH_STATUS`/`taxonomyIsLive`/
+ * `termIsLive` below reproduce, on this domain's own `status` columns, exactly the two rules
+ * `features/trash/not-trashed.ts`'s `notTrashed` encodes generically for the Trash's OWN reads:
+ * a row is hidden by its own marker, and a term is ALSO hidden the instant its taxonomy is
+ * (`registry.ts`'s `hiddenWithParent` — there is no second write that cascades the hide onto
+ * every member term, so every term read must re-check the parent taxonomy's status itself).
+ * Every read below excludes trashed rows; `SqliteTermRepo.update` (the rename path) additionally
+ * guards its `WHERE` so a stale write can never resurrect or edit an already-trashed row.
  */
+
+const TRASH_STATUS = "trash";
+
+/** `taxonomies.status <> 'trash'` — the taxonomy read half of the rule (own marker only; a
+ *  taxonomy has no parent to inherit trashed-ness from). @complexity O(1) to build. */
+function taxonomyIsLive(): SQL {
+  return ne(taxonomies.status, TRASH_STATUS);
+}
+
+/** `terms.status <> 'trash' AND NOT EXISTS (the term's own taxonomy is trashed)` — see the file
+ *  header. The `NOT EXISTS` is built with `sql` over column objects only, never caller input,
+ *  same discipline `not-trashed.ts`'s own `parentNotTrashed` documents for the identical shape.
+ *  @complexity O(1) to build; the `NOT EXISTS` costs whatever index `taxonomies`'s own primary key
+ *  already provides. */
+function termIsLive(): SQL {
+  return and(
+    ne(terms.status, TRASH_STATUS),
+    sql`NOT EXISTS (SELECT 1 FROM ${taxonomies} WHERE ${taxonomies.id} = ${terms.taxonomyId} AND ${taxonomies.status} = ${TRASH_STATUS})`
+  )!;
+}
 
 function toTaxonomy(row: typeof taxonomies.$inferSelect): Taxonomy {
   return {
@@ -82,14 +113,32 @@ export class SqliteTaxonomyRepo implements TaxonomyRepoPort, TaxonomyListPort {
     return findOneBy(
       this.deps.db,
       taxonomies,
-      [eq(taxonomies.workspaceId, this.deps.workspaceId), eq(taxonomies.id, id)],
+      [eq(taxonomies.workspaceId, this.deps.workspaceId), eq(taxonomies.id, id), taxonomyIsLive()],
       (row) => ({ id: row.id, hierarchical: row.hierarchical === 1 })
     );
   }
 
   async list(): Promise<Taxonomy[]> {
-    const rows = this.deps.db.select().from(taxonomies).where(eq(taxonomies.workspaceId, this.deps.workspaceId)).all();
+    const rows = this.deps.db
+      .select()
+      .from(taxonomies)
+      .where(and(eq(taxonomies.workspaceId, this.deps.workspaceId), taxonomyIsLive()))
+      .all();
     return rows.map(toTaxonomy);
+  }
+
+  /** Trash display read for `trashTaxonomy` (`trash-term.ts`) — additive, not part of the
+   *  certified `TaxonomyRepoPort`, same precedent as `SqliteEntryTermRepo.listForContent` below.
+   *  Excludes an already-trashed taxonomy, same as every other read here (`moveToTrash`'s own
+   *  "the caller cannot re-trash what is already gone" rule, reproduced on this domain's columns).
+   *  @complexity O(1) plus whatever index the workspace/id match uses. */
+  async findForTrash(id: string): Promise<{ id: string; name: string; version: number } | null> {
+    return findOneBy(
+      this.deps.db,
+      taxonomies,
+      [eq(taxonomies.workspaceId, this.deps.workspaceId), eq(taxonomies.id, id), taxonomyIsLive()],
+      (row) => ({ id: row.id, name: row.name, version: row.version })
+    );
   }
 
   /** `DeletableTaxonomyRepoPort` (`@jini-ai/cms/taxonomy`) — additive capability behind
@@ -159,6 +208,13 @@ export class SqliteTermRepo implements TermRepoPort, TermListPort {
     return row;
   }
 
+  /** `setWhere`-guarded (T6): a stale rename can never write over an already-trashed row — the
+   *  same "no zombie write" guard `db-port.ts`'s `TrashDbAssignment` doc names for the generic
+   *  Trash's own writes, reproduced here so `renameTerm` (`@jini-ai/cms/taxonomy`) silently no-ops
+   *  against a trashed term rather than reviving it with a new name. A 0-row update is not
+   *  reported as an error here — `renameTerm`'s own `findById` (also trash-filtered, above/below)
+   *  already turns a trashed term into a 404 before this ever runs; this is defense in depth
+   *  against a race between that read and this write, not the primary guard. */
   async update(row: Term): Promise<unknown> {
     this.deps.db
       .update(terms)
@@ -170,26 +226,43 @@ export class SqliteTermRepo implements TermRepoPort, TermListPort {
         updatedAt: row.updatedAt,
         version: row.version,
       })
-      .where(and(eq(terms.workspaceId, this.deps.workspaceId), eq(terms.id, row.id)))
+      .where(and(eq(terms.workspaceId, this.deps.workspaceId), eq(terms.id, row.id), termIsLive()))
       .run();
     return row;
   }
 
   async findById(id: string): Promise<{ id: string; taxonomyId: string; name?: string } | null> {
-    return findOneBy(this.deps.db, terms, [eq(terms.workspaceId, this.deps.workspaceId), eq(terms.id, id)], (row) => ({
-      id: row.id,
-      taxonomyId: row.taxonomyId,
-      name: row.name,
-    }));
+    return findOneBy(
+      this.deps.db,
+      terms,
+      [eq(terms.workspaceId, this.deps.workspaceId), eq(terms.id, id), termIsLive()],
+      (row) => ({ id: row.id, taxonomyId: row.taxonomyId, name: row.name })
+    );
   }
 
   async listByTaxonomy(params: { taxonomyId: string }): Promise<Term[]> {
     const rows = this.deps.db
       .select()
       .from(terms)
-      .where(and(eq(terms.workspaceId, this.deps.workspaceId), eq(terms.taxonomyId, params.taxonomyId)))
+      .where(and(eq(terms.workspaceId, this.deps.workspaceId), eq(terms.taxonomyId, params.taxonomyId), termIsLive()))
       .all();
     return rows.map(toTerm);
+  }
+
+  /** Trash display read for `trashTerm` (`trash-term.ts`) — the term's own name plus its
+   *  taxonomy's name, the same join `registry.ts`'s `term` entry uses for the generic Trash's
+   *  display. Additive, not part of the certified `TermRepoPort`. Excludes an already-trashed
+   *  term (own marker or `hiddenWithParent`), same rule every other read here applies.
+   *  @complexity O(1) plus whatever index the workspace/id match and the taxonomy join use. */
+  async findForTrash(id: string): Promise<{ id: string; name: string; taxonomyId: string; taxonomyName: string; version: number } | null> {
+    const rows = this.deps.db
+      .select({ id: terms.id, name: terms.name, taxonomyId: terms.taxonomyId, taxonomyName: taxonomies.name, version: terms.version })
+      .from(terms)
+      .innerJoin(taxonomies, eq(taxonomies.id, terms.taxonomyId))
+      .where(and(eq(terms.workspaceId, this.deps.workspaceId), eq(terms.id, id), termIsLive()))
+      .limit(1)
+      .all();
+    return rows[0] ?? null;
   }
 
   /** Ancestor-chain lookup for `validation-chain.ts`'s `wouldCreateCycle` — mirrors
@@ -366,6 +439,14 @@ export class SqliteEntryTermRepo implements EntryTermRepoPort, EntryTermReadPort
    * @complexity O(n) in the number of terms assigned to this one piece of content (typically single
    * digits) — one join query.
    */
+  /**
+   * T6 (required — "the terms read change is the widest", trash parallel plan §6): trashing never
+   * touches `entry_terms` (decision 5 — a trashed term/taxonomy stays assigned), so the assignment
+   * row survives untouched and must be filtered out HERE, at read time, exactly like every other
+   * `entryTerms`<->`terms` read in this file. `termIsLive()`'s `NOT EXISTS` already covers the
+   * `hiddenWithParent` case (a term whose taxonomy is trashed), so a taxonomy trash hides every one
+   * of its terms from this render path with no extra join.
+   */
   async listForContent(params: { contentType: string; contentId: string }): Promise<readonly AssignedTermView[]> {
     return this.deps.db
       .select({ termId: terms.id, termName: terms.name, taxonomyName: taxonomies.name })
@@ -376,7 +457,8 @@ export class SqliteEntryTermRepo implements EntryTermRepoPort, EntryTermReadPort
         and(
           eq(entryTerms.workspaceId, this.deps.workspaceId),
           eq(entryTerms.contentType, params.contentType),
-          eq(entryTerms.contentId, params.contentId)
+          eq(entryTerms.contentId, params.contentId),
+          termIsLive()
         )
       )
       .orderBy(entryTerms.addedAt)
