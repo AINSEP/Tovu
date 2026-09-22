@@ -511,13 +511,13 @@ function TermDeleteDialog({ pendingDeleteTerm, deleteTermBusy, confirmDeleteTerm
     <ConfirmDialog
       open={pendingDeleteTerm !== null}
       agentHandle="taxonomy-delete-term"
-      title={t("Delete term?")}
+      title={t("Move to trash?")}
       body={
         pendingDeleteTerm ? (
-          <p>{t('Delete term "{name}"? This cannot be undone.').replace("{name}", pendingDeleteTerm.name)}</p>
+          <p>{t('Move "{name}" to trash?').replace("{name}", pendingDeleteTerm.name)}</p>
         ) : null
       }
-      confirmLabel={t("Delete term")}
+      confirmLabel={t("Move to trash")}
       destructive
       pending={deleteTermBusy}
       onConfirm={confirmDeleteTerm}
@@ -546,18 +546,18 @@ function TaxonomyDeleteDialog({
     <ConfirmDialog
       open={pendingDeleteTaxonomy !== null}
       agentHandle="taxonomy-delete-taxonomy"
-      title={t("Delete taxonomy?")}
+      title={t("Move to trash?")}
       body={
         pendingDeleteTaxonomy ? (
           <p>
-            {t('Delete taxonomy "{name}", and every unassigned term in it? This cannot be undone.').replace(
+            {t('Move "{name}" and its terms to trash?').replace(
               "{name}",
               pendingDeleteTaxonomy.name,
             )}
           </p>
         ) : null
       }
-      confirmLabel={t("Delete taxonomy")}
+      confirmLabel={t("Move to trash")}
       destructive
       pending={deleteTaxonomyBusy}
       onConfirm={confirmDeleteTaxonomy}
