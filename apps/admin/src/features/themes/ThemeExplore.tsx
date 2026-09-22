@@ -5,6 +5,7 @@ import { Toast } from "@jini-ai/ui";
 
 import { InfoTip } from "../../components/InfoTip";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBar.hooks";
+import { DEVICE_PREVIEW_ICONS } from "../../components/device-preview-icons";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
 import type { Translate } from "../../lib/dictionary-translator";
@@ -882,17 +883,22 @@ function ThemeExplorePreviewControls({
   return (
     <>
       <div className="segmented" role="group" aria-label={t("Preview width")}>
-        {DEVICES.map((entry) => (
-          <button
-            key={entry.key}
-            type="button"
-            aria-pressed={device === entry.key}
-            className={device === entry.key ? "is-active" : undefined}
-            onClick={() => setDevice(entry.key)}
-          >
-            {t(entry.label)}
-          </button>
-        ))}
+        {DEVICES.map((entry) => {
+          const DeviceIcon = DEVICE_PREVIEW_ICONS[entry.key];
+          return (
+            <button
+              key={entry.key}
+              type="button"
+              aria-pressed={device === entry.key}
+              aria-label={t(entry.label)}
+              title={t(entry.label)}
+              className={device === entry.key ? "is-active" : undefined}
+              onClick={() => setDevice(entry.key)}
+            >
+              <DeviceIcon />
+            </button>
+          );
+        })}
         <span className="page-editor-width">{previewWidth}px</span>
       </div>
       <button

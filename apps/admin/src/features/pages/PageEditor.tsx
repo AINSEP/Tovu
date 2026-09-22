@@ -3,6 +3,7 @@ import { ConfirmDialog, InteractiveHtmlEditor } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBar.hooks";
+import { DEVICE_PREVIEW_ICONS } from "../../components/device-preview-icons";
 import type { Translate } from "../../lib/dictionary-translator";
 import { siteUrl } from "../../lib/site-url";
 import type {
@@ -542,18 +543,23 @@ function PageEditorToolbarEnd({
     <div className="page-editor-toolbar-end">
       {view === "preview" ? (
         <div className="segmented" role="group" aria-label={t("Preview width")}>
-          {DEVICES.map((entry) => (
-            <button
-              key={entry.key}
-              type="button"
-              aria-pressed={device === entry.key}
-              className={device === entry.key ? "is-active" : undefined}
-              onClick={() => setDevice(entry.key)}
-              {...agentHandle(`page-preview-width-${entry.key}`, { role: "button", label: `Preview at ${entry.label} width` })}
-            >
-              {t(entry.label)}
-            </button>
-          ))}
+          {DEVICES.map((entry) => {
+            const DeviceIcon = DEVICE_PREVIEW_ICONS[entry.key];
+            return (
+              <button
+                key={entry.key}
+                type="button"
+                aria-pressed={device === entry.key}
+                aria-label={t(entry.label)}
+                title={t(entry.label)}
+                className={device === entry.key ? "is-active" : undefined}
+                onClick={() => setDevice(entry.key)}
+                {...agentHandle(`page-preview-width-${entry.key}`, { role: "button", label: `Preview at ${entry.label} width` })}
+              >
+                <DeviceIcon />
+              </button>
+            );
+          })}
           <span className="page-editor-width">{PAGE_PREVIEW_WIDTHS[device]}px</span>
         </div>
       ) : null}
