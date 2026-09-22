@@ -107,6 +107,17 @@ describe("SHARED_COMPONENTS_DICT: cross-locale key parity", () => {
     "failed to load media",
     "No media uploaded yet. Upload an asset from the {link} screen first.",
     "Media",
+    // AdminByokKeyPanel.tsx
+    "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.",
+    "Save to my account",
+    "Not now",
+    "Save key",
+    "Save settings",
+    // EmbedInsertControl.tsx
+    "Insert",
+    "Widget…",
+    "Insert media, a form, a menu, or a widget",
+    "Embed",
   ];
 
   it("covers every copy string this commit's wired call sites call t() with, in every locale", () => {
