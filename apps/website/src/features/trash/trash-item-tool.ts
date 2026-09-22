@@ -78,6 +78,20 @@ import type { TrashEntry, TrashRegistry } from "./registry.js";
  *  a trash-owned copy, never the domain's own module). */
 const WIDGET_ENTITY_TYPE: TrashEntityType = "widget";
 
+/**
+ * The AI marker every assistant-initiated Trash write stamps onto `actor.pluginId` (2026-09-21,
+ * trash T4c owner ask: "admin + AI"). `actor.principalId` always stays the human's own principal —
+ * an agent never acts as nobody, some principal's grant let it run — this constant only says THAT
+ * call came through the assistant, not the admin screen's own delete button.
+ *
+ * Duplicated locally in each of the five delegate tool files rather than imported from here, the
+ * same "duplicate the tiny thing" convention {@link WIDGET_ENTITY_TYPE} already documents: those
+ * files structurally type their actor/remove seams and import nothing from `features/trash` (see
+ * e.g. `comments/write-service.ts`'s own header), and this constant is small enough that keeping it
+ * a plain literal in each file costs less than a cross-feature import would.
+ */
+const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
+
 export const TRASH_ITEM_TOOL_ID = "trash_item";
 
 /**
@@ -431,7 +445,7 @@ function buildGenericTrashHandler(spec: { entityType: TrashEntityType; entry: Tr
         };
       }
 
-      const actor: TrashActor = { principalId: ctx.principal.id };
+      const actor: TrashActor = { principalId: ctx.principal.id, pluginId: ASSISTANT_ACTOR_PLUGIN_ID };
       const moved = await moveToTrash(
         { workspaceId: routeDeps.workspaceId, entityType, entityId, actor },
         { registry: routeDeps.registry, trash: routeDeps.trash, db: routeDeps.db, authorize: routeDeps.authorize, clock: routeDeps.clock }

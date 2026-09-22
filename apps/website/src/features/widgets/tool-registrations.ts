@@ -221,6 +221,11 @@ function toWidgetInstanceToolView(instance: WidgetInstanceEntry): WidgetInstance
 
 const WIDGETS_TRASH_TOOL_ID = "widgets_trash_instance";
 
+/** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
+ *  imported, the same "structurally typed, no `features/trash` import" convention this file's own
+ *  header already follows. */
+const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
+
 /** The `ui://` URI for one trash-confirmation instance — keyed by the exchange id, mirroring
  *  `comments/tool-registrations.ts`'s identical `trashConfirmationUri`. */
 function trashConfirmationUri(exchangeId: string): UIResourceUri {
@@ -446,7 +451,11 @@ export function buildWidgetsRegistrations(
 
         const { version } = await trashWidgetInstance({
           deps: buildWidgetsDeps(routeDeps),
-          input: { workspaceId: routeDeps.workspaceId, actor: { principalId: ctx.principal.id }, widgetInstanceId },
+          input: {
+            workspaceId: routeDeps.workspaceId,
+            actor: { principalId: ctx.principal.id, pluginId: ASSISTANT_ACTOR_PLUGIN_ID },
+            widgetInstanceId,
+          },
         });
         // The row itself is unchanged apart from its Trash marker; no `toWidgetInstanceToolView` here
         // (see this handler's own header) — a corrupt payload must still be reportable as trashed.

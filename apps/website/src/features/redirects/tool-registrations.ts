@@ -93,6 +93,11 @@ function toRedirectToolView(record: RedirectRecord) {
 
 const REDIRECTS_TOMBSTONE_TOOL_ID = "redirects_tombstone";
 
+/** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
+ *  imported, the same "structurally typed, no `features/trash` import" convention this domain's
+ *  `TombstoneRedirectRequired.input.pluginId` already follows. */
+const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
+
 /** The `ui://` URI for one tombstone-confirmation instance — keyed by the exchange id, mirroring
  *  `comments/tool-registrations.ts`'s identical `trashConfirmationUri`. */
 function tombstoneConfirmationUri(exchangeId: string): UIResourceUri {
@@ -297,7 +302,7 @@ export function buildRedirectsRegistrations(
 
         const { record } = await tombstoneRedirect({
           deps: routeDeps.redirectsWriteDeps,
-          input: { workspaceId: routeDeps.workspaceId, id, actorId: ctx.principal.id },
+          input: { workspaceId: routeDeps.workspaceId, id, actorId: ctx.principal.id, pluginId: ASSISTANT_ACTOR_PLUGIN_ID },
         });
         return { tombstoned: true, cancelled: false, rule: toRedirectToolView(record) };
       } finally {

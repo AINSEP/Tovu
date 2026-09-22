@@ -265,7 +265,13 @@ export async function updateWidgetInstance(required: UpdateWidgetInstanceRequire
 
 export interface TrashWidgetInstanceInput {
   readonly workspaceId: UUID;
-  readonly actor: { readonly principalId: UUID };
+  readonly actor: {
+    readonly principalId: UUID;
+    /** The assistant's AI marker on the Trash row's `actor.pluginId` (2026-09-21, trash T4c) —
+     *  unset by every non-assistant caller, so a human's own trash from the admin screen stays
+     *  human-only. See {@link RemoveWidgetFn}'s `actor.pluginId`. */
+    readonly pluginId?: UUID | null;
+  };
   readonly widgetInstanceId: UUID;
 }
 
@@ -316,7 +322,7 @@ export async function trashWidgetInstance(
       display: { title: current.title, subtitle: current.slug },
       at: deps.clock.nowIso(),
       expectedVersion: current.version,
-      actor: { principalId: input.actor.principalId },
+      actor: { principalId: input.actor.principalId, pluginId: input.actor.pluginId ?? null },
     });
     if (removed.ok) return { widgetInstanceId: current.id, version: removed.version };
     if (removed.reason === "not-found") throw notFound();

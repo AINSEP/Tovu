@@ -341,6 +341,11 @@ function requireBodyJson(input: Record<string, unknown>, key: string): JsonObjec
 
 /** Shared dependency bag for `core/commands`'s `executeCommand` — identical shape to the one
  * `posts/create.ts`/`posts/update.ts`/`pages/create.ts`/`pages/update.ts` each build inline. */
+/** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
+ *  imported, the same "structurally typed, no `features/trash` import" convention
+ *  {@link RemovePostFn}'s own doc already follows. */
+const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
+
 function postCommandDeps(routeDeps: PostToolDeps) {
   return {
     clock: routeDeps.clock,
@@ -915,6 +920,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                   workspaceId: routeDeps.workspaceId,
                   id,
                   actorId: ctx.principal.id,
+                  actorPluginId: ASSISTANT_ACTOR_PLUGIN_ID,
                   // See content_post_create's identical delegatedBy* comment above.
                   delegatedByWorkspaceId: routeDeps.workspaceId,
                   delegatedById: ctx.principal.id,

@@ -174,6 +174,11 @@ function buildCommentsModerationHandler(
 
 const COMMENTS_TRASH_TOOL_ID = "comments_trash_comment";
 
+/** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
+ *  imported, the same "structurally typed, no `features/trash` import" convention this file's own
+ *  header already follows. */
+const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
+
 /** The `ui://` URI for one trash-confirmation instance — keyed by the exchange id, mirroring
  *  `source-control/tool-registrations.ts`'s `commitConfirmationUri` (a comment has an id but the
  *  dialog is a one-shot per exchange, not a resource with its own stable URL the way a post is). */
@@ -360,6 +365,7 @@ export function buildCommentsRegistrations(
           action: "trash",
           toStatus: "trash",
           actorPrincipalId: ctx.principal.id,
+          actorPluginId: ASSISTANT_ACTOR_PLUGIN_ID,
           note: typeof input.note === "string" ? input.note : null,
         });
         if (!result.ok) {

@@ -118,6 +118,11 @@ export interface CommentWriteService {
     action: ModerationAction;
     toStatus: CommentStatus;
     actorPrincipalId: UUID;
+    /** The assistant's AI marker on the Trash row's `actor.pluginId` (2026-09-21, trash T4c) —
+     *  unset by every non-assistant caller (the admin moderation route), so a human's own moderation
+     *  stays human-only. Held here only for the transition into `trash` ({@link syncRemovalIndex});
+     *  never persisted onto this domain's OWN moderation log, which has no such column. */
+    actorPluginId?: UUID | null;
     note: string | null;
   }): Promise<ModerationResult>;
 
@@ -145,7 +150,7 @@ export interface CommentWriteService {
  */
 async function syncRemovalIndex(
   deps: CommentWriteServiceDeps,
-  required: { at: string; log: ModerationLogEntry; record: CommentRecord }
+  required: { at: string; log: ModerationLogEntry; record: CommentRecord; actorPluginId: UUID | null }
 ): Promise<void> {
   const from = required.log.fromStatus;
   const to = required.record.status;
@@ -163,7 +168,7 @@ async function syncRemovalIndex(
       // The version AFTER the flip: what the sweeper's compare-and-delete checks, and what a
       // restore bumps past so the item always survives a race.
       expectedVersion: required.record.version,
-      actor: { principalId: required.log.actorPrincipalId },
+      actor: { principalId: required.log.actorPrincipalId, pluginId: required.actorPluginId },
     });
     if (!removed.ok) {
       throw new CommentRemovalIndexError(
@@ -181,11 +186,16 @@ async function syncRemovalIndex(
 export function createCommentWriteService(deps: CommentWriteServiceDeps): CommentWriteService {
   return {
     async applyModeration(required) {
+      // Pulled out before the spread below: `deps.repo.applyModeration` persists this domain's OWN
+      // moderation log, which has no `actorPluginId` column — spreading it in would be an excess
+      // property on a fresh object literal (a real `tsc` error, not just a lint nit). The Trash's
+      // `actor.pluginId` is a SEPARATE concern, carried only as far as `syncRemovalIndex` below.
+      const { actorPluginId, ...repoRequired } = required;
       const at = deps.clock.nowIso();
       const result = await deps.runInTransaction(async () => {
-        const applied = await deps.repo.applyModeration({ ...required, at });
+        const applied = await deps.repo.applyModeration({ ...repoRequired, at });
         if (!applied.ok) return applied;
-        await syncRemovalIndex(deps, { at, log: applied.log, record: applied.record });
+        await syncRemovalIndex(deps, { at, log: applied.log, record: applied.record, actorPluginId: actorPluginId ?? null });
         return applied;
       });
       if (!result.ok) return result;

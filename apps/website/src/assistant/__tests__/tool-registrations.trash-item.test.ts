@@ -28,6 +28,7 @@ import type { TrashAdapter } from "#src/features/trash/index";
 import type { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
 
 import { deriveTrashItemRegistrations, TRASH_ITEM_DELEGATES, TRASH_ITEM_TOOL_ID, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
+import { createRedirect } from "#src/features/redirects/redirects";
 
 /**
  * @file `trash_item` — one generic "move this to the Trash" tool that is a fifth DOOR onto the four
@@ -197,6 +198,46 @@ async function seedPost(routeDeps: RouteDeps, overrides: Record<string, unknown>
   return row;
 }
 
+async function seedMedia(routeDeps: RouteDeps, overrides: Record<string, unknown> = {}) {
+  const record = {
+    id: "media-1",
+    workspaceId: routeDeps.workspaceId,
+    title: "A photo nobody should lose",
+    slug: "a-photo",
+    alt: "",
+    caption: "",
+    credit: "",
+    source: { sha256: "0".repeat(64) },
+    status: "active",
+    createdAt: NOW,
+    updatedAt: NOW,
+    version: 1,
+    width: null,
+    height: null,
+    cssClass: null,
+    htmlAttributes: null,
+    ...overrides,
+  };
+  await routeDeps.mediaRepo.save(record as never);
+  return record;
+}
+
+async function seedRedirect(routeDeps: RouteDeps, overrides: Record<string, unknown> = {}) {
+  const { record } = await createRedirect({
+    deps: routeDeps.redirectsWriteDeps,
+    input: {
+      workspaceId: routeDeps.workspaceId,
+      matchType: "exact",
+      fromPattern: "/old-page",
+      toTarget: "/new-page",
+      statusCode: 301,
+      actorId: PRINCIPAL_ID,
+      ...overrides,
+    } as never,
+  });
+  return record;
+}
+
 async function seedComment(routeDeps: RouteDeps, overrides: Record<string, unknown> = {}) {
   const row = {
     id: "comment-1",
@@ -260,6 +301,10 @@ const EVERYTHING: Grants = new Set([
   "media.read",
   "media.delete",
   "admin.redirects.manage",
+  "widgets.read",
+  "widgets.delete",
+  "widgets.place",
+  "widgets.create",
 ]);
 
 // --- reachability ----------------------------------------------------------------------------
@@ -299,6 +344,11 @@ test("a post trashed through trash_item goes through content_post_delete's own d
     [["post", "post-1", "A post nobody should lose"]],
     "the marker and the index row are written together, by the domain's own path"
   );
+  // AI marker (2026-09-21, trash T4c): the Trash row must carry the human's own principal AND a
+  // non-null AI marker, so the admin screen can show "<user> + AI" rather than either collapsing
+  // into "the human alone" (no pluginId at all) or losing who authorized the call (no principalId).
+  assert.equal(rows[0]!.actorPrincipalId, PRINCIPAL_ID);
+  assert.ok(rows[0]!.actorPluginId, "an assistant-initiated delete must record a non-null actorPluginId");
 });
 
 test("a comment trashed through trash_item resolves its version server-side and goes through comments_trash_comment", async () => {
@@ -316,10 +366,52 @@ test("a comment trashed through trash_item resolves its version server-side and 
   assert.equal(result.outcome.trashed, true);
   const after = await routeDeps.commentRepo.findById({ workspaceId: routeDeps.workspaceId, id: "comment-1" });
   assert.equal(after?.status, "trash");
+  const rows = await trashRows(routeDeps);
   assert.deepEqual(
-    (await trashRows(routeDeps)).map((row) => [row.entityType, row.entityId]),
+    rows.map((row) => [row.entityType, row.entityId]),
     [["comment", "comment-1"]]
   );
+  // AI marker (2026-09-21, trash T4c) — see the identical assertion on the post test above.
+  assert.equal(rows[0]!.actorPrincipalId, PRINCIPAL_ID);
+  assert.ok(rows[0]!.actorPluginId, "an assistant-initiated trash must record a non-null actorPluginId");
+});
+
+test("a media asset trashed through trash_item is tagged with the human principal AND a non-null AI marker", async () => {
+  const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
+  await seedMedia(routeDeps);
+
+  const { pending, exchangeId } = await raiseDialog(tool(registrations, TRASH_ITEM_TOOL_ID), {
+    entityType: "media",
+    entityId: "media-1",
+  });
+  answer(surfaceExchanges, { exchangeId, toolId: "media_trash_asset", decision: "confirm" });
+  const result = (await pending) as { via: string; outcome: { trashed: boolean } };
+
+  assert.equal(result.via, "media_trash_asset");
+  assert.equal(result.outcome.trashed, true);
+  const rows = await trashRows(routeDeps);
+  assert.equal(rows[0]?.entityType, "media");
+  assert.equal(rows[0]?.actorPrincipalId, PRINCIPAL_ID);
+  assert.ok(rows[0]?.actorPluginId, "an assistant-initiated trash must record a non-null actorPluginId");
+});
+
+test("a redirect tombstoned through trash_item is tagged with the human principal AND a non-null AI marker", async () => {
+  const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
+  const rule = await seedRedirect(routeDeps);
+
+  const { pending, exchangeId } = await raiseDialog(tool(registrations, TRASH_ITEM_TOOL_ID), {
+    entityType: "redirect",
+    entityId: rule.id,
+  });
+  answer(surfaceExchanges, { exchangeId, toolId: "redirects_tombstone", decision: "confirm" });
+  const result = (await pending) as { via: string; outcome: { tombstoned: boolean } };
+
+  assert.equal(result.via, "redirects_tombstone");
+  assert.equal(result.outcome.tombstoned, true);
+  const rows = await trashRows(routeDeps);
+  assert.equal(rows[0]?.entityType, "redirect");
+  assert.equal(rows[0]?.actorPrincipalId, PRINCIPAL_ID);
+  assert.ok(rows[0]?.actorPluginId, "an assistant-initiated tombstone must record a non-null actorPluginId");
 });
 
 // --- confirmation --------------------------------------------------------------------------
@@ -540,4 +632,116 @@ test("trash_item never reaches TrashPort.purgeSelected, on any input shape a mod
       assert.ok(!(error instanceof PurgeWasReachedError), `reached purgeSelected with ${JSON.stringify(input)}`);
     }
   }
+});
+
+// --- generic-kind acceptance tests (trash T4c, over the real-SQLite form harness) ------------
+
+test("a generic kind (form): cancel writes nothing, confirm on the same item trashes it and tags it with the AI marker", async () => {
+  const h = sqliteFormHarness();
+  const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps: h.routeDeps, surfaces: h.surfaces });
+
+  const cancelled = await raiseDialog(trashItem, { entityType: "form", entityId: "f1" });
+  answer(h.surfaces.surfaceExchanges, { exchangeId: cancelled.exchangeId, toolId: TRASH_ITEM_TOOL_ID, decision: "cancel" });
+  const cancelResult = (await cancelled.pending) as { outcome: { trashed: boolean; cancelled: boolean } };
+  assert.deepEqual([cancelResult.outcome.trashed, cancelResult.outcome.cancelled], [false, true]);
+  assert.equal(h.formIsLive("f1"), true, "a cancelled dialog must leave the form untouched");
+
+  const confirmed = await raiseDialog(trashItem, { entityType: "form", entityId: "f1" });
+  answer(h.surfaces.surfaceExchanges, { exchangeId: confirmed.exchangeId, toolId: TRASH_ITEM_TOOL_ID, decision: "confirm" });
+  const confirmResult = (await confirmed.pending) as { via: string; outcome: { trashed: boolean } };
+  assert.equal(confirmResult.via, "moveToTrash");
+  assert.equal(confirmResult.outcome.trashed, true);
+  assert.equal(h.formIsLive("f1"), false, "a confirmed dialog must move the form to the Trash");
+
+  const rows = (await h.routeDeps.trash.list({ workspaceId: h.routeDeps.workspaceId, now: NOW, limit: 50 })).items;
+  assert.equal(rows[0]?.actorPrincipalId, PRINCIPAL_ID);
+  assert.ok(rows[0]?.actorPluginId, "the generic trash_item path must also record a non-null actorPluginId");
+});
+
+test("a generic kind (form): an id that does not exist is refused with an exact error, with no dialog raised", async () => {
+  const h = sqliteFormHarness();
+  const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps: h.routeDeps, surfaces: h.surfaces });
+  const emitted: unknown[] = [];
+
+  await assert.rejects(
+    call(trashItem, { entityType: "form", entityId: "no-such" }, async (surface) => void emitted.push(surface)),
+    { message: "trash_item: form 'no-such' was not found. Nothing was changed." }
+  );
+  assert.deepEqual(emitted, []);
+});
+
+test("a generic kind (form): permission is checked before any dialog is raised", async () => {
+  const h = sqliteFormHarness({ deny: true });
+  const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps: h.routeDeps, surfaces: h.surfaces });
+  const emitted: unknown[] = [];
+
+  await assert.rejects(
+    call(trashItem, { entityType: "form", entityId: "f1" }, async (surface) => void emitted.push(surface)),
+    { message: /principal '.*' is not authorized for 'admin\.forms\.manage'/ }
+  );
+  assert.deepEqual(emitted, [], "no dialog may be raised for a principal that cannot pass the permission gate");
+});
+
+test("trash_item's GENERIC path never reaches TrashPort.purgeSelected either", async () => {
+  const h = sqliteFormHarness();
+  class PurgeWasReachedError extends Error {}
+  const guarded = {
+    ...h.routeDeps,
+    trash: {
+      ...h.routeDeps.trash,
+      async purgeSelected(): Promise<never> {
+        throw new PurgeWasReachedError("trash_item reached purgeSelected");
+      },
+    },
+  } as TrashItemToolDeps;
+  const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps: guarded, surfaces: h.surfaces });
+
+  try {
+    await call(trashItem, { entityType: "form", entityId: "f1" });
+  } catch (error) {
+    assert.ok(!(error instanceof PurgeWasReachedError), "trash_item's generic path must never reach purgeSelected");
+  }
+});
+
+test("a widget with a corrupt payload can still be trashed, through widgets_trash_instance directly AND through trash_item, both tagged with the AI marker", async () => {
+  const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
+  const entryRepo = (routeDeps as unknown as { entryRepo: TrashAwareInMemoryEntryRepo }).entryRepo;
+
+  async function createCorruptWidget(title: string): Promise<string> {
+    const created = (await call(tool(registrations, "widgets_create_instance"), {
+      widgetType: "text",
+      title,
+      config: { body: "hi" },
+    })) as { instance: { id: string } };
+    const id = created.instance.id;
+    const row = await entryRepo.findAnyById({ workspaceId: routeDeps.workspaceId, id });
+    await entryRepo.saveAny({ ...row!, fieldsJson: "{not json" });
+    return id;
+  }
+
+  // Route 1: the delegate tool called directly.
+  const id1 = await createCorruptWidget("Corrupt widget one");
+  const direct = await raiseDialog(tool(registrations, "widgets_trash_instance"), { widgetInstanceId: id1 });
+  answer(surfaceExchanges, { exchangeId: direct.exchangeId, toolId: "widgets_trash_instance", decision: "confirm" });
+  const directResult = (await direct.pending) as { trashed: boolean };
+  assert.equal(directResult.trashed, true);
+  const after1 = await entryRepo.findAnyById({ workspaceId: routeDeps.workspaceId, id: id1 });
+  assert.equal(after1?.fieldsJson, "{not json", "the corrupt payload bytes must survive untouched");
+  assert.ok(after1?.deletedAt);
+
+  // Route 2: the same delegate reached through trash_item.
+  const id2 = await createCorruptWidget("Corrupt widget two");
+  const viaTrashItem = await raiseDialog(tool(registrations, TRASH_ITEM_TOOL_ID), { entityType: "widget", entityId: id2 });
+  answer(surfaceExchanges, { exchangeId: viaTrashItem.exchangeId, toolId: "widgets_trash_instance", decision: "confirm" });
+  const viaResult = (await viaTrashItem.pending) as { via: string; outcome: { trashed: boolean } };
+  assert.equal(viaResult.via, "widgets_trash_instance");
+  assert.equal(viaResult.outcome.trashed, true);
+  const after2 = await entryRepo.findAnyById({ workspaceId: routeDeps.workspaceId, id: id2 });
+  assert.equal(after2?.fieldsJson, "{not json", "the corrupt payload bytes must survive untouched");
+  assert.ok(after2?.deletedAt);
+
+  const rows = await trashRows(routeDeps);
+  const byId = new Map(rows.map((row) => [row.entityId, row]));
+  assert.ok(byId.get(id1)?.actorPluginId, "the direct delegate call must record a non-null actorPluginId");
+  assert.ok(byId.get(id2)?.actorPluginId, "the trash_item-routed call must record a non-null actorPluginId");
 });

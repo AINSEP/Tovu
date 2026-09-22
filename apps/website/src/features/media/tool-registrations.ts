@@ -210,6 +210,11 @@ function buildRecordUploadContentType(
 
 const MEDIA_TRASH_TOOL_ID = "media_trash_asset";
 
+/** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
+ *  imported, the same "structurally typed, no `features/trash` import" convention this file's own
+ *  {@link RemoveMediaFn} doc already follows. */
+const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
+
 /**
  * Hands one asset's removal to whoever owns removal in this composition.
  *
@@ -350,7 +355,7 @@ function buildMediaTrashConfirmationHandler(
         display: { title: current.title, subtitle: current.slug },
         at: routeDeps.clock.nowIso(),
         expectedVersion: current.version,
-        actor: { principalId: ctx.principal.id },
+        actor: { principalId: ctx.principal.id, pluginId: ASSISTANT_ACTOR_PLUGIN_ID },
       });
       if (!removed.ok) {
         throw new Error(

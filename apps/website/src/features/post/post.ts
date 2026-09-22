@@ -559,6 +559,10 @@ export interface UpdatePostRequired {
 export interface UpdatePostOptional {}
 
 export interface DeletePostInput {
+  /** The assistant's AI marker on the Trash row's `actor.pluginId` (2026-09-21, trash T4c) — unset
+   *  by every non-assistant caller (the admin HTTP delete route), so a human's own delete stays
+   *  human-only. See {@link RemovePostFn}'s `actor.pluginId`. */
+  actorPluginId?: string | null;
   workspaceId: UUID;
   id: UUID;
   /** Same optional-with-fallback contract as {@link CreatePostInput.actorId}. */
@@ -664,7 +668,7 @@ export async function deletePost(
       display: { title: existing.title, subtitle: existing.slug },
       at: now,
       expectedVersion: existing.version,
-      actor: { principalId: input.actorId ?? SYSTEM_ACTOR_ID },
+      actor: { principalId: input.actorId ?? SYSTEM_ACTOR_ID, pluginId: input.actorPluginId ?? null },
     });
     if (!removed.ok) {
       // `not-found` can only mean the row was removed between the read above and this write.
