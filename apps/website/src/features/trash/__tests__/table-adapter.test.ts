@@ -35,6 +35,12 @@ interface Harness {
   formAdapter: TrashAdapter;
   menuAdapter: TrashAdapter;
   menuEntry: TrashEntry;
+  /** The REAL `registry.ts` entries (T1) — distinct from `menuAdapter`'s test-only `test-menu` entry
+   *  above, which only proves the generic status-marker mechanism, not this entry's own registration
+   *  (its `trash`/`published` marker values, its `purgeFirst`, its `blocker`). */
+  realMenuAdapter: TrashAdapter;
+  termAdapter: TrashAdapter;
+  taxonomyAdapter: TrashAdapter;
 }
 
 /** A test-only `TrashEntry` over the real `menus` table, exercising the `"status"` marker branch no
@@ -80,6 +86,9 @@ function harness(): Harness {
     formAdapter: createTableTrashAdapter({ entry: formEntry, db: trashDb, trashedItems }),
     menuAdapter: createTableTrashAdapter({ entry: menuEntry, db: trashDb, trashedItems }),
     menuEntry,
+    realMenuAdapter: createTableTrashAdapter({ entry: registry.get("menu")!, db: trashDb, trashedItems }),
+    termAdapter: createTableTrashAdapter({ entry: registry.get("term")!, db: trashDb, trashedItems }),
+    taxonomyAdapter: createTableTrashAdapter({ entry: registry.get("taxonomy")!, db: trashDb, trashedItems }),
   };
 }
 
@@ -124,6 +133,71 @@ function seedMenu(client: Database.Database, id: string, overrides: { status?: s
        VALUES (?, ?, ?, ?, ?, '{}', '{}', ?, ?)`
     )
     .run(id, WS, `slug-${id}`, `Menu ${id}`, overrides.status ?? "published", "2026-09-01T00:00:00.000Z", overrides.version ?? 1);
+}
+
+function seedNavLocationBinding(client: Database.Database, locationKey: string, menuId: string): void {
+  client
+    .prepare(`INSERT INTO nav_location_bindings (workspace_id, location_key, menu_id, bound_at) VALUES (?, ?, ?, ?)`)
+    .run(WS, locationKey, menuId, AT);
+}
+
+function navBindingCount(client: Database.Database, menuId: string): number {
+  return (
+    client.prepare(`SELECT COUNT(*) AS n FROM nav_location_bindings WHERE menu_id = ?`).get(menuId) as { n: number }
+  ).n;
+}
+
+function seedTaxonomy(client: Database.Database, id: string, overrides: { status?: string; version?: number } = {}): void {
+  client
+    .prepare(
+      `INSERT INTO taxonomies (id, workspace_id, name, hierarchical, status, updated_at, version) VALUES (?, ?, ?, 1, ?, ?, ?)`
+    )
+    .run(id, WS, `Taxonomy ${id}`, overrides.status ?? "active", AT, overrides.version ?? 1);
+}
+
+function seedTerm(
+  client: Database.Database,
+  id: string,
+  taxonomyId: string,
+  overrides: { parentId?: string | null; status?: string; version?: number } = {}
+): void {
+  client
+    .prepare(
+      `INSERT INTO terms (id, workspace_id, taxonomy_id, parent_id, name, status, updated_at, version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      id,
+      WS,
+      taxonomyId,
+      overrides.parentId ?? null,
+      `Term ${id}`,
+      overrides.status ?? "active",
+      AT,
+      overrides.version ?? 1
+    );
+}
+
+function seedEntryTerm(client: Database.Database, termId: string, contentId: string): void {
+  client
+    .prepare(`INSERT INTO entry_terms (workspace_id, content_type, content_id, term_id, added_at) VALUES (?, 'post', ?, ?, ?)`)
+    .run(WS, contentId, termId, AT);
+}
+
+function readTaxonomyRow(client: Database.Database, id: string): { status: string; version: number } | undefined {
+  return client.prepare(`SELECT status, version FROM taxonomies WHERE id = ?`).get(id) as
+    | { status: string; version: number }
+    | undefined;
+}
+
+function readTermRow(client: Database.Database, id: string): { status: string; version: number } | undefined {
+  return client.prepare(`SELECT status, version FROM terms WHERE id = ?`).get(id) as
+    | { status: string; version: number }
+    | undefined;
+}
+
+function entryTermCount(client: Database.Database, termId: string): number {
+  return (client.prepare(`SELECT COUNT(*) AS n FROM entry_terms WHERE term_id = ?`).get(termId) as { n: number }).n;
 }
 
 function readFormRow(
@@ -364,4 +438,160 @@ test("status marker: through createTrashService, trash records priorMarker and r
   const restored = await trash.restore({ workspaceId: WS, entityType: "test-menu", entityId: "menu-1", at: AT });
   assert.equal(restored, "restored");
   assert.deepEqual(readMenuRow(h.client, "menu-1"), { status: "published", version: 3 });
+});
+
+// ---------------------------------------------------------------------------
+// 9. T1: the REAL menu/term/taxonomy registry entries (registry.ts) — this section proves each
+//    entry's OWN registration (its marker values, blocker, hiddenWithParent's read half excluded —
+//    that is `not-trashed.ts`/`move-to-trash.test.ts`'s concern, not this adapter's), not just the
+//    generic mechanism (already proven above via the test-only `test-menu` entry). Scoped to these
+//    three newly-registered entries rather than a literal loop over every `TRASHABLE` entry — the
+//    other kinds (post, comment, media, redirect, form, form_submission, widget) each already have
+//    their own dedicated adapter/flow test file.
+// ---------------------------------------------------------------------------
+
+test("real menu entry: hide flips status to the entry's own 'trash' value and bumps version; unhide restores the recorded prior status", async () => {
+  const h = harness();
+  seedMenu(h.client, "menu-real-1", { status: "draft", version: 1 });
+
+  const hidden = await h.realMenuAdapter.hide({ workspaceId: WS, entityId: "menu-real-1", at: AT, expectedVersion: 1 });
+  assert.deepEqual(hidden, { ok: true, version: 2, priorMarker: "draft" });
+  assert.deepEqual(readMenuRow(h.client, "menu-real-1"), { status: "trash", version: 2 });
+
+  const unhidden = await h.realMenuAdapter.unhide({
+    workspaceId: WS,
+    entityId: "menu-real-1",
+    at: AT,
+    expectedVersion: 2,
+    priorMarker: "draft",
+  });
+  assert.deepEqual(unhidden, { ok: true, version: 3 });
+  assert.deepEqual(readMenuRow(h.client, "menu-real-1"), { status: "draft", version: 3 });
+});
+
+test("real menu entry: unhide with no recorded prior status falls back to 'published', the entry's own restoreFallback", async () => {
+  const h = harness();
+  seedMenu(h.client, "menu-real-2", { status: "trash", version: 4 });
+
+  const unhidden = await h.realMenuAdapter.unhide({ workspaceId: WS, entityId: "menu-real-2", at: AT, expectedVersion: 4 });
+  assert.deepEqual(unhidden, { ok: true, version: 5 });
+  assert.deepEqual(readMenuRow(h.client, "menu-real-2"), { status: "published", version: 5 });
+});
+
+test("real menu entry: purge removes its location bindings and leaves another menu's bindings untouched", async () => {
+  const h = harness();
+  seedMenu(h.client, "menu-bound", { status: "trash", version: 1 });
+  seedMenu(h.client, "menu-other", { status: "published", version: 1 });
+  seedNavLocationBinding(h.client, "header", "menu-bound");
+  seedNavLocationBinding(h.client, "footer", "menu-bound");
+  seedNavLocationBinding(h.client, "sidebar", "menu-other");
+
+  const outcome = await h.realMenuAdapter.purge({ workspaceId: WS, entityId: "menu-bound", expectedVersion: 1 });
+  assert.equal(outcome, "purged");
+  assert.equal(readMenuRow(h.client, "menu-bound"), undefined);
+  assert.equal(navBindingCount(h.client, "menu-bound"), 0);
+  assert.equal(navBindingCount(h.client, "menu-other"), 1, "another menu's bindings must survive");
+});
+
+test("term: a LIVE child blocks hide with TERM_HAS_CHILDREN and count 1, and the parent's status is left untouched", async () => {
+  const h = harness();
+  seedTaxonomy(h.client, "tax-1");
+  seedTerm(h.client, "term-parent", "tax-1");
+  seedTerm(h.client, "term-child", "tax-1", { parentId: "term-parent" });
+
+  const outcome = await h.termAdapter.hide({ workspaceId: WS, entityId: "term-parent", at: AT, expectedVersion: 1 });
+  assert.deepEqual(outcome, { ok: false, reason: "blocked", code: "TERM_HAS_CHILDREN", count: 1 });
+  assert.deepEqual(readTermRow(h.client, "term-parent"), { status: "active", version: 1 });
+});
+
+test("term: a TRASHED child still blocks hide (the blocker counts both live and trashed children, so a purge can never orphan a parent_id)", async () => {
+  const h = harness();
+  seedTaxonomy(h.client, "tax-1");
+  seedTerm(h.client, "term-parent", "tax-1");
+  seedTerm(h.client, "term-child", "tax-1", { parentId: "term-parent", status: "trash" });
+
+  const outcome = await h.termAdapter.hide({ workspaceId: WS, entityId: "term-parent", at: AT, expectedVersion: 1 });
+  assert.deepEqual(outcome, { ok: false, reason: "blocked", code: "TERM_HAS_CHILDREN", count: 1 });
+});
+
+test("term: a childless term hides normally (the blocker check does not fire when the count is 0)", async () => {
+  const h = harness();
+  seedTaxonomy(h.client, "tax-1");
+  seedTerm(h.client, "term-leaf", "tax-1");
+
+  const outcome = await h.termAdapter.hide({ workspaceId: WS, entityId: "term-leaf", at: AT, expectedVersion: 1 });
+  assert.deepEqual(outcome, { ok: true, version: 2, priorMarker: "active" });
+});
+
+test("term: purge at a stale version reports version-changed and leaves the row and its entry_terms intact", async () => {
+  const h = harness();
+  seedTaxonomy(h.client, "tax-1");
+  seedTerm(h.client, "term-1", "tax-1", { status: "trash", version: 3 });
+  seedEntryTerm(h.client, "term-1", "post-1");
+
+  const outcome = await h.termAdapter.purge({ workspaceId: WS, entityId: "term-1", expectedVersion: 2 });
+  assert.equal(outcome, "version-changed");
+  assert.notEqual(readTermRow(h.client, "term-1"), undefined);
+  assert.equal(entryTermCount(h.client, "term-1"), 1);
+});
+
+test("term: purge of a LIVE term at a matching version reports version-changed and deletes nothing, even its entry_terms", async () => {
+  const h = harness();
+  seedTaxonomy(h.client, "tax-1");
+  seedTerm(h.client, "term-1", "tax-1", { status: "active", version: 1 });
+  seedEntryTerm(h.client, "term-1", "post-1");
+
+  const outcome = await h.termAdapter.purge({ workspaceId: WS, entityId: "term-1", expectedVersion: 1 });
+  assert.equal(outcome, "version-changed");
+  assert.notEqual(readTermRow(h.client, "term-1"), undefined, "a live term must never be purged");
+  assert.equal(entryTermCount(h.client, "term-1"), 1);
+});
+
+test("taxonomy: purge removes its terms' entry_terms then the terms then the taxonomy, leaves another taxonomy's rows untouched, and cleans up a member term's own phantom Trash row", async () => {
+  const h = harness();
+  seedTaxonomy(h.client, "tax-1", { status: "trash", version: 1 });
+  seedTerm(h.client, "term-a", "tax-1", { status: "trash" }); // independently trashed first
+  seedTerm(h.client, "term-b", "tax-1");
+  seedEntryTerm(h.client, "term-a", "post-1");
+  seedEntryTerm(h.client, "term-b", "post-2");
+  seedTaxonomy(h.client, "tax-2");
+  seedTerm(h.client, "term-other", "tax-2");
+  seedEntryTerm(h.client, "term-other", "post-3");
+
+  // `term-a` was trashed on its own before its taxonomy — give it a Trash row, same as
+  // `form-trash-flow.test.ts`'s phantom-row case, so the taxonomy purge's cleanup is provable.
+  const repo = new SqliteTrashRepo(h.client);
+  await repo.insert({
+    id: "trash-term-a",
+    workspaceId: WS,
+    entityType: "term",
+    entityId: "term-a",
+    trashedAt: AT,
+    purgeAfter: "2099-01-01T00:00:00.000Z",
+    actorPrincipalId: "principal-1",
+    actorPluginId: null,
+    displayTitle: "Term term-a",
+    displaySubtitle: null,
+    entityVersion: 1,
+    priorMarker: "active",
+  });
+
+  const outcome = await h.taxonomyAdapter.purge({ workspaceId: WS, entityId: "tax-1", expectedVersion: 1 });
+  assert.equal(outcome, "purged");
+  assert.equal(readTaxonomyRow(h.client, "tax-1"), undefined);
+  assert.equal(readTermRow(h.client, "term-a"), undefined);
+  assert.equal(readTermRow(h.client, "term-b"), undefined);
+  assert.equal(entryTermCount(h.client, "term-a"), 0);
+  assert.equal(entryTermCount(h.client, "term-b"), 0);
+  assert.equal(await repo.findByEntity({ workspaceId: WS, entityType: "term", entityId: "term-a" }), null);
+
+  assert.notEqual(readTaxonomyRow(h.client, "tax-2"), undefined, "another taxonomy must survive");
+  assert.notEqual(readTermRow(h.client, "term-other"), undefined, "another taxonomy's terms must survive");
+  assert.equal(entryTermCount(h.client, "term-other"), 1, "another taxonomy's entry_terms must survive");
+});
+
+test("taxonomy: purge of a missing row reports already-gone", async () => {
+  const h = harness();
+  const outcome = await h.taxonomyAdapter.purge({ workspaceId: WS, entityId: "does-not-exist", expectedVersion: 1 });
+  assert.equal(outcome, "already-gone");
 });
