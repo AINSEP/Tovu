@@ -231,115 +231,16 @@ test("taxonomy routes: assign-terms rejects a content type not on the taxonomy a
 // ---------------------------------------------------------------------------
 // delete-term / delete-taxonomy — guarded delete backend-gap closure (this dispatch, no formal
 // AC ids). See `routes/admin/taxonomy/delete-term.ts`/`delete-taxonomy.ts` file headers.
+//
+// T6 (trash parallel plan, owner decision 5): `delete-term`/`delete-taxonomy` now move rows to
+// the Trash (`trashTerm`/`trashTaxonomy`) instead of Jini's guarded hard delete — an assigned term
+// or taxonomy IS trashable now, only `term`'s child-term blocker survives. The golden-path/
+// TERM_HAS_ASSIGNMENTS/TERM_HAS_CHILDREN/TAXONOMY_HAS_ASSIGNMENTS cases that lived here moved to
+// `taxonomy-trash-routes.test.ts` (real SQLite composition — this file's `buildTestApp()` is the
+// hermetic one, whose in-memory taxonomy/term repos have no `findForTrash` yet, T6b handoff item 4,
+// not done this pass; `composition/app.ts` binds an inert always-not-found stub there meanwhile).
+// The 403/404-not-found cases below are untouched: neither reaches `findForTrash`.
 // ---------------------------------------------------------------------------
-
-test("taxonomy routes: delete-term removes an unassigned, childless term and it drops out of list", async (t) => {
-  const { app } = buildTestApp();
-  const { baseUrl, cookie } = await bootAuthenticated(app, t);
-
-  const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ name: "category", hierarchical: true }),
-  });
-  const tax = (await taxRes.json()) as { taxonomy: { id: string } };
-  const termRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}/terms`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ name: "Dummy Term" }),
-  });
-  const term = (await termRes.json()) as { term: { id: string } };
-
-  const deleteRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/terms/${term.term.id}`, {
-    method: "DELETE",
-    headers: { cookie },
-  });
-  assert.equal(deleteRes.status, 200);
-  const deleted = (await deleteRes.json()) as { deletedTermId: string };
-  assert.equal(deleted.deletedTermId, term.term.id);
-
-  const listRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, { headers: { cookie } });
-  const listed = (await listRes.json()) as { items: Array<{ taxonomy: { id: string }; terms: Array<{ id: string }> }> };
-  const categoryEntry = listed.items.find((i) => i.taxonomy.id === tax.taxonomy.id);
-  assert.deepEqual(categoryEntry?.terms, []);
-});
-
-test("taxonomy routes: delete-term refuses with 409 TERM_HAS_ASSIGNMENTS and the exact assigned count when content is still assigned", async (t) => {
-  const { app, deps } = buildTestApp();
-  const { baseUrl, cookie } = await bootAuthenticated(app, t);
-
-  await deps.postRepo.save({
-    id: "post-delete-term",
-    workspaceId: deps.workspaceId,
-    title: "Test Post",
-    slug: "test-post-delete-term",
-    bodyJson: {},
-    status: "published",
-    kind: "post",
-    updatedAt: deps.clock.nowIso(),
-    version: 1,
-  });
-
-  const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ name: "category", hierarchical: true }),
-  });
-  const tax = (await taxRes.json()) as { taxonomy: { id: string } };
-  const termRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}/terms`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ name: "Breakfast" }),
-  });
-  const term = (await termRes.json()) as { term: { id: string } };
-
-  await fetch(`${baseUrl}/api/admin/v1/taxonomy/assign-terms`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ contentType: "post", contentId: "post-delete-term", termIds: [term.term.id] }),
-  });
-
-  const deleteRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/terms/${term.term.id}`, {
-    method: "DELETE",
-    headers: { cookie },
-  });
-  assert.equal(deleteRes.status, 409);
-  const body = (await deleteRes.json()) as { code: string; assignedCount: number };
-  assert.equal(body.code, "TERM_HAS_ASSIGNMENTS");
-  assert.equal(body.assignedCount, 1);
-});
-
-test("taxonomy routes: delete-term refuses with 409 TERM_HAS_CHILDREN and the exact child count when the term still has children", async (t) => {
-  const { app } = buildTestApp();
-  const { baseUrl, cookie } = await bootAuthenticated(app, t);
-
-  const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ name: "category", hierarchical: true }),
-  });
-  const tax = (await taxRes.json()) as { taxonomy: { id: string } };
-  const parentRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}/terms`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ name: "Parent" }),
-  });
-  const parent = (await parentRes.json()) as { term: { id: string } };
-  await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}/terms`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ name: "Child", parentId: parent.term.id }),
-  });
-
-  const deleteRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/terms/${parent.term.id}`, {
-    method: "DELETE",
-    headers: { cookie },
-  });
-  assert.equal(deleteRes.status, 409);
-  const body = (await deleteRes.json()) as { code: string; childCount: number };
-  assert.equal(body.code, "TERM_HAS_CHILDREN");
-  assert.equal(body.childCount, 1);
-});
 
 test("taxonomy routes: delete-term rejects a nonexistent termId with 404 TERM_NOT_FOUND", async (t) => {
   const { app } = buildTestApp();
@@ -352,82 +253,6 @@ test("taxonomy routes: delete-term rejects a nonexistent termId with 404 TERM_NO
   assert.equal(res.status, 404);
   const body = (await res.json()) as { code: string };
   assert.equal(body.code, "TERM_NOT_FOUND");
-});
-
-test("taxonomy routes: delete-taxonomy removes the taxonomy and its unassigned member terms in one call, and it drops out of list", async (t) => {
-  const { app } = buildTestApp();
-  const { baseUrl, cookie } = await bootAuthenticated(app, t);
-
-  const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ name: "dummy-tag", hierarchical: false }),
-  });
-  const tax = (await taxRes.json()) as { taxonomy: { id: string } };
-  const termRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}/terms`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ name: "Dummy Tag Term" }),
-  });
-  const term = (await termRes.json()) as { term: { id: string } };
-
-  const deleteRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}`, {
-    method: "DELETE",
-    headers: { cookie },
-  });
-  assert.equal(deleteRes.status, 200);
-  const deleted = (await deleteRes.json()) as { deletedTaxonomyId: string; deletedTermIds: string[] };
-  assert.equal(deleted.deletedTaxonomyId, tax.taxonomy.id);
-  assert.deepEqual(deleted.deletedTermIds, [term.term.id]);
-
-  const listRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, { headers: { cookie } });
-  const listed = (await listRes.json()) as { items: Array<{ taxonomy: { id: string } }> };
-  assert.equal(listed.items.some((i) => i.taxonomy.id === tax.taxonomy.id), false);
-});
-
-test("taxonomy routes: delete-taxonomy refuses with 409 TAXONOMY_HAS_ASSIGNMENTS when a member term is still assigned to content", async (t) => {
-  const { app, deps } = buildTestApp();
-  const { baseUrl, cookie } = await bootAuthenticated(app, t);
-
-  await deps.postRepo.save({
-    id: "post-delete-taxonomy",
-    workspaceId: deps.workspaceId,
-    title: "Test Post",
-    slug: "test-post-delete-taxonomy",
-    bodyJson: {},
-    status: "published",
-    kind: "post",
-    updatedAt: deps.clock.nowIso(),
-    version: 1,
-  });
-
-  const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ name: "category", hierarchical: true }),
-  });
-  const tax = (await taxRes.json()) as { taxonomy: { id: string } };
-  const termRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}/terms`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ name: "Breakfast" }),
-  });
-  const term = (await termRes.json()) as { term: { id: string } };
-
-  await fetch(`${baseUrl}/api/admin/v1/taxonomy/assign-terms`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ contentType: "post", contentId: "post-delete-taxonomy", termIds: [term.term.id] }),
-  });
-
-  const deleteRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}`, {
-    method: "DELETE",
-    headers: { cookie },
-  });
-  assert.equal(deleteRes.status, 409);
-  const body = (await deleteRes.json()) as { code: string; assignedCount: number };
-  assert.equal(body.code, "TAXONOMY_HAS_ASSIGNMENTS");
-  assert.equal(body.assignedCount, 1);
 });
 
 test("taxonomy routes: delete-taxonomy rejects a nonexistent taxonomyId with 404 TAXONOMY_NOT_FOUND", async (t) => {
