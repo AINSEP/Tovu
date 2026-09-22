@@ -346,12 +346,11 @@ export function isTimestampColumnName(sqlColumnName: string): boolean {
 // ---------------------------------------------------------------------------
 
 export const JSON_TEXT_NOTE =
-  "Stored as plain TEXT in both dialects this round — no jsonb (see generate-postgres-schema.ts's own module " +
-  "doc: 'no JSON columns' in its measured surface, meaning no Drizzle {mode:\"json\"} column, not that no column " +
-  "holds JSON). Neither dialect's TEXT/text column enforces JSON validity — a corrupted payload survives a " +
-  "byte-for-byte copy completely silently on both sides. verify.ts's verifyJsonText is the only thing in this " +
-  "whole pipeline that would catch it; proven live in migration-manifest-postgres.test.ts against a real " +
-  "Postgres text column.";
+  "SQLite stores JSON documents as TEXT; the generated Postgres schema stores every json-text column as native " +
+  "jsonb (MySQL: native JSON), still typed string (generate-postgres-schema.ts's JSON_TEXT_DECLARATION). SQLite " +
+  "does not enforce JSON validity, so a corrupted payload that SQLite kept is REJECTED by the jsonb insert — the " +
+  "copy fails loudly instead of carrying it across. jsonb also normalises the document (key order, whitespace, " +
+  "duplicate keys), so verify.ts's verifyJsonDocumentCopy compares JSON values, not bytes.";
 
 /** Matches this schema's JSON-payload naming convention: SQL name ends `_json`. */
 export function isJsonColumnName(sqlColumnName: string): boolean {

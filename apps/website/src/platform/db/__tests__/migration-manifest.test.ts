@@ -1083,13 +1083,29 @@ test("verifyClassifiedValue rejects a copier that silently substitutes a differe
   // the omission (null never triggers a shape check either way) — this test uses REAL matching source
   // shapes on purpose, so it actually exercises the fidelity comparison.
   const jsonSwap = verifyClassifiedValue({ kind: "json-text" }, '{"role":"admin"}', '{"role":"member"}');
-  assert.equal(jsonSwap?.code, "TEXT_COPY_FIDELITY_MISMATCH");
+  assert.equal(jsonSwap?.code, "JSON_COPY_FIDELITY_MISMATCH");
 
   const timestampSwap = verifyClassifiedValue({ kind: "utc-timestamp-text" }, "2026-08-12T10:00:00Z", "2026-08-12T11:00:00Z");
   assert.equal(timestampSwap?.code, "TEXT_COPY_FIDELITY_MISMATCH");
 
   const plainTextSwap = verifyClassifiedValue({ kind: "plain-text" }, "hello", "goodbye");
   assert.equal(plainTextSwap?.code, "TEXT_COPY_FIDELITY_MISMATCH");
+});
+
+test("json-text copy fidelity is JSON-value equality: jsonb's normalisation (key order, whitespace, duplicate keys) passes, any value change still fails", () => {
+  // Exactly what Postgres jsonb hands back for the source on the left — keys reordered by length,
+  // whitespace re-emitted as ", " / ": ", duplicate key collapsed to its last value.
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, '{"zz":1,"a":{"y":[1,2],"x":null},"a2":true}', '{"a": {"x": null, "y": [1, 2]}, "a2": true, "zz": 1}'), null);
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, '{"k":1,"k":2}', '{"k": 2}'), null);
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, null, null), null);
+  // Array order IS meaning; so are types, nullness, and nested values.
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, "[1,2]", "[2, 1]")?.code, "JSON_COPY_FIDELITY_MISMATCH");
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, '{"a":1}', '{"a": "1"}')?.code, "JSON_COPY_FIDELITY_MISMATCH");
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, '{"a":{"b":1}}', '{"a": {"b": 1, "c": 2}}')?.code, "JSON_COPY_FIDELITY_MISMATCH");
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, '{"a":1}', null)?.code, "JSON_COPY_FIDELITY_MISMATCH");
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, null, '{"a": 1}')?.code, "JSON_COPY_FIDELITY_MISMATCH");
+  // A malformed source cannot be compared as JSON at all.
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, "{bad", '{"a": 1}')?.code, "INVALID_JSON");
 });
 
 test("verifyClassifiedValue still catches a destination-shape violation even when fidelity passes (fidelity and shape are two DIFFERENT checks, not one replacing the other)", () => {

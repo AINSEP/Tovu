@@ -1,30 +1,41 @@
 /**
  * GENERATED FILE — DO NOT EDIT BY HAND.
  *
- * Produced from `src/platform/db/schema.ts` by `development/scripts/generate-postgres-schema.ts`.
+ * Produced from `src/platform/db/schema.ts` by `development/scripts/generate-mysql-schema.ts`.
  * Edit the SQLite schema and regenerate; editing this file directly will be overwritten and will
- * fail the drift check in CI.
+ * fail the drift check in CI. Targets MySQL 8.0.16+ (not MariaDB) — the generator's module doc
+ * lists every MySQL-specific mapping (varchar(191) keys, native JSON, expression defaults).
  *
- * FTS5 search objects are absent on purpose — they are raw-SQL virtual tables, not `sqliteTable`
- * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
- * module doc.
+ * FTS5 search objects are absent on purpose — see the generator's module doc.
  *
  * Tables: 91
  */
 import { sql } from "drizzle-orm";
-import { bigint, boolean, check, customType, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  boolean,
+  check,
+  customType,
+  foreignKey,
+  index,
+  mysqlTable,
+  primaryKey,
+  text,
+  uniqueIndex,
+  varchar,
+} from "drizzle-orm/mysql-core";
 
-/** Native jsonb column exposed as the same serialised `string` the SQLite schema stores. */
+/** Native MySQL JSON column exposed as the same serialised `string` the SQLite schema stores. */
 const jsonText = customType<{ data: string; driverData: unknown }>({
-  dataType: () => "jsonb",
+  dataType: () => "json",
   toDriver: (value) => value,
   fromDriver: (value) => (typeof value === "string" ? value : JSON.stringify(value)),
 });
 
-export const adminExecutionCredentials = pgTable("admin_execution_credentials", {
-  workspaceId: text("workspace_id").notNull(),
-  principalId: text("principal_id").notNull(),
-  protocol: text("protocol").notNull().default("anthropic"),
+export const adminExecutionCredentials = mysqlTable("admin_execution_credentials", {
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  principalId: varchar("principal_id", { length: 191 }).notNull(),
+  protocol: text("protocol").notNull().default(sql`('anthropic')`),
   providerId: text("provider_id"),
   baseUrl: text("base_url"),
   model: text("model"),
@@ -44,11 +55,11 @@ export const adminExecutionCredentials = pgTable("admin_execution_credentials", 
     check("admin_execution_credentials_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL AND masked IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL AND masked IS NOT NULL)`),
   ]);
 
-export const agentToolAttempts = pgTable("agent_tool_attempts", {
-  id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
-  attemptId: text("attempt_id").notNull(),
+export const agentToolAttempts = mysqlTable("agent_tool_attempts", {
+  id: bigint("id", { mode: "number" }).autoincrement().primaryKey(),
+  attemptId: varchar("attempt_id", { length: 191 }).notNull(),
   executionId: text("execution_id"),
-  workspaceId: text("workspace_id").notNull(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   runId: text("run_id").notNull(),
   toolId: text("tool_id").notNull(),
   principalId: text("principal_id").notNull(),
@@ -60,9 +71,9 @@ export const agentToolAttempts = pgTable("agent_tool_attempts", {
     index("idx_agent_tool_attempts_attempt").on(t.workspaceId, t.attemptId),
   ]);
 
-export const analyticsEvents = pgTable("analytics_events", {
-  id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const analyticsEvents = mysqlTable("analytics_events", {
+  id: bigint("id", { mode: "number" }).autoincrement().primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   occurredAt: text("occurred_at").notNull(),
   kind: text("kind").notNull(),
   path: text("path").notNull(),
@@ -85,13 +96,13 @@ export const analyticsEvents = pgTable("analytics_events", {
     index("idx_analytics_events_workspace_list").on(t.workspaceId, t.id),
   ]);
 
-export const apiKeys = pgTable("api_keys", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  principalId: text("principal_id").notNull(),
+export const apiKeys = mysqlTable("api_keys", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  principalId: varchar("principal_id", { length: 191 }).notNull(),
   label: text("label").notNull(),
   keyHash: text("key_hash").notNull(),
-  prefix: text("prefix").notNull(),
+  prefix: varchar("prefix", { length: 191 }).notNull(),
   issuedPolicyId: text("issued_policy_id"),
   createdAt: text("created_at").notNull(),
   lastUsedAt: text("last_used_at"),
@@ -102,10 +113,10 @@ export const apiKeys = pgTable("api_keys", {
     index("idx_api_keys_workspace_principal").on(t.workspaceId, t.principalId),
   ]);
 
-export const assetBlobs = pgTable("asset_blobs", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  sha256: text("sha256").notNull(),
+export const assetBlobs = mysqlTable("asset_blobs", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  sha256: varchar("sha256", { length: 191 }).notNull(),
   storageKey: text("storage_key").notNull(),
   createdByPrincipal: text("created_by_principal").notNull(),
   createdAt: text("created_at").notNull(),
@@ -116,11 +127,11 @@ export const assetBlobs = pgTable("asset_blobs", {
     uniqueIndex("idx_asset_blobs_workspace_sha256").on(t.workspaceId, t.sha256),
   ]);
 
-export const assetRenditions = pgTable("asset_renditions", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  assetId: text("asset_id").notNull(),
-  transformName: text("transform_name").notNull(),
+export const assetRenditions = mysqlTable("asset_renditions", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  assetId: varchar("asset_id", { length: 191 }).notNull(),
+  transformName: varchar("transform_name", { length: 191 }).notNull(),
   version: bigint("version", { mode: "number" }).notNull(),
   storageKey: text("storage_key").notNull(),
   createdAt: text("created_at").notNull(),
@@ -129,9 +140,9 @@ export const assetRenditions = pgTable("asset_renditions", {
     uniqueIndex("idx_asset_renditions_lookup").on(t.workspaceId, t.assetId, t.transformName, t.version),
   ]);
 
-export const changeSetItems = pgTable("change_set_items", {
-  id: text("id").primaryKey(),
-  changeSetId: text("change_set_id").notNull(),
+export const changeSetItems = mysqlTable("change_set_items", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  changeSetId: varchar("change_set_id", { length: 191 }).notNull(),
   entityType: text("entity_type").notNull(),
   entityId: text("entity_id").notNull(),
   operation: text("operation").notNull(),
@@ -144,15 +155,15 @@ export const changeSetItems = pgTable("change_set_items", {
     index("idx_change_set_items_change_set").on(t.changeSetId, t.position),
   ]);
 
-export const changeSets = pgTable("change_sets", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const changeSets = mysqlTable("change_sets", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   actorId: text("actor_id"),
   status: text("status").notNull(),
   summary: text("summary").notNull(),
-  idempotencyKey: text("idempotency_key"),
+  idempotencyKey: varchar("idempotency_key", { length: 191 }),
   intentRef: text("intent_ref"),
-  createdAt: text("created_at").notNull(),
+  createdAt: varchar("created_at", { length: 191 }).notNull(),
   appliedAt: text("applied_at"),
   revertedAt: text("reverted_at"),
 }, (t) => [
@@ -160,12 +171,12 @@ export const changeSets = pgTable("change_sets", {
     uniqueIndex("idx_change_sets_idempotency").on(t.workspaceId, t.idempotencyKey),
   ]);
 
-export const commerceOrderItems = pgTable("commerce_order_items", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  orderId: text("order_id").notNull(),
-  priceId: text("price_id").notNull(),
-  productId: text("product_id").notNull(),
+export const commerceOrderItems = mysqlTable("commerce_order_items", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  orderId: varchar("order_id", { length: 191 }).notNull(),
+  priceId: varchar("price_id", { length: 191 }).notNull(),
+  productId: varchar("product_id", { length: 191 }).notNull(),
   description: text("description").notNull(),
   unitAmountCents: bigint("unit_amount_cents", { mode: "number" }).notNull(),
   quantity: bigint("quantity", { mode: "number" }).notNull().default(1),
@@ -181,10 +192,10 @@ export const commerceOrderItems = pgTable("commerce_order_items", {
     index("idx_commerce_order_items_order").on(t.orderId),
   ]);
 
-export const commerceOrders = pgTable("commerce_orders", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  memberId: text("member_id").notNull(),
+export const commerceOrders = mysqlTable("commerce_orders", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  memberId: varchar("member_id", { length: 191 }).notNull(),
   status: text("status").notNull(),
   currency: text("currency").notNull(),
   totalAmountCents: bigint("total_amount_cents", { mode: "number" }).notNull(),
@@ -205,10 +216,10 @@ export const commerceOrders = pgTable("commerce_orders", {
     index("idx_commerce_orders_workspace_member").on(t.workspaceId, t.memberId),
   ]);
 
-export const commercePrices = pgTable("commerce_prices", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  productId: text("product_id").notNull(),
+export const commercePrices = mysqlTable("commerce_prices", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  productId: varchar("product_id", { length: 191 }).notNull(),
   unitAmountCents: bigint("unit_amount_cents", { mode: "number" }).notNull(),
   compareAtAmountCents: bigint("compare_at_amount_cents", { mode: "number" }),
   currency: text("currency").notNull(),
@@ -227,11 +238,11 @@ export const commercePrices = pgTable("commerce_prices", {
     index("idx_commerce_prices_product").on(t.productId),
   ]);
 
-export const commerceProductImages = pgTable("commerce_product_images", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  productId: text("product_id").notNull(),
-  mediaId: text("media_id").notNull(),
+export const commerceProductImages = mysqlTable("commerce_product_images", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  productId: varchar("product_id", { length: 191 }).notNull(),
+  mediaId: varchar("media_id", { length: 191 }).notNull(),
   position: bigint("position", { mode: "number" }).notNull().default(0),
   createdAt: text("created_at").notNull(),
 }, (t) => [
@@ -242,15 +253,15 @@ export const commerceProductImages = pgTable("commerce_product_images", {
     index("idx_commerce_product_images_product_position").on(t.productId, t.position),
   ]);
 
-export const commerceProducts = pgTable("commerce_products", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const commerceProducts = mysqlTable("commerce_products", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   name: text("name").notNull(),
-  slug: text("slug").notNull(),
+  slug: varchar("slug", { length: 191 }).notNull(),
   kind: text("kind").notNull(),
   status: text("status").notNull(),
   description: text("description"),
-  grantsMemberTierId: text("grants_member_tier_id"),
+  grantsMemberTierId: varchar("grants_member_tier_id", { length: 191 }),
   specsJson: jsonText("specs_json"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
@@ -262,16 +273,16 @@ export const commerceProducts = pgTable("commerce_products", {
     uniqueIndex("commerce_products_workspace_slug_unique").on(t.workspaceId, t.slug),
   ]);
 
-export const commerceWebhookEvents = pgTable("commerce_webhook_events", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  provider: text("provider").notNull(),
-  eventId: text("event_id").notNull(),
+export const commerceWebhookEvents = mysqlTable("commerce_webhook_events", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  provider: varchar("provider", { length: 191 }).notNull(),
+  eventId: varchar("event_id", { length: 191 }).notNull(),
   eventType: text("event_type").notNull(),
   eventOccurredAt: text("event_occurred_at").notNull(),
   payloadJson: jsonText("payload_json").notNull(),
-  status: text("status").notNull(),
-  receivedAt: text("received_at").notNull(),
+  status: varchar("status", { length: 191 }).notNull(),
+  receivedAt: varchar("received_at", { length: 191 }).notNull(),
   processedAt: text("processed_at"),
   lastError: text("last_error"),
 }, (t) => [
@@ -281,8 +292,8 @@ export const commerceWebhookEvents = pgTable("commerce_webhook_events", {
     index("idx_commerce_webhook_events_claim").on(t.status, t.receivedAt),
   ]);
 
-export const composioConfig = pgTable("composio_config", {
-  workspaceId: text("workspace_id").primaryKey(),
+export const composioConfig = mysqlTable("composio_config", {
+  workspaceId: varchar("workspace_id", { length: 191 }).primaryKey(),
   sealedKeyId: text("sealed_key_id"),
   sealedCiphertext: text("sealed_ciphertext"),
   sealedNonce: text("sealed_nonce"),
@@ -298,9 +309,9 @@ export const composioConfig = pgTable("composio_config", {
     check("composio_config_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL AND key_tail IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL AND key_tail IS NOT NULL)`),
   ]);
 
-export const composioConnectorCredentials = pgTable("composio_connector_credentials", {
-  workspaceId: text("workspace_id").notNull(),
-  connectorId: text("connector_id").notNull(),
+export const composioConnectorCredentials = mysqlTable("composio_connector_credentials", {
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  connectorId: varchar("connector_id", { length: 191 }).notNull(),
   accountLabel: text("account_label"),
   sealedKeyId: text("sealed_key_id"),
   sealedCiphertext: text("sealed_ciphertext"),
@@ -315,10 +326,10 @@ export const composioConnectorCredentials = pgTable("composio_connector_credenti
     check("composio_connector_credentials_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL)`),
   ]);
 
-export const contentTypeRevisions = pgTable("content_type_revisions", {
-  seq: bigint("seq", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
-  contentTypeKey: text("content_type_key").notNull(),
-  workspaceId: text("workspace_id").notNull(),
+export const contentTypeRevisions = mysqlTable("content_type_revisions", {
+  seq: bigint("seq", { mode: "number" }).autoincrement().primaryKey(),
+  contentTypeKey: varchar("content_type_key", { length: 191 }).notNull(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   op: text("op").notNull(),
   stateJson: jsonText("state_json").notNull(),
   actorId: text("actor_id").notNull(),
@@ -330,10 +341,10 @@ export const contentTypeRevisions = pgTable("content_type_revisions", {
     index("idx_content_type_revisions_workspace_key").on(t.workspaceId, t.contentTypeKey, t.seq),
   ]);
 
-export const contentTypes = pgTable("content_types", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  key: text("key").notNull(),
+export const contentTypes = mysqlTable("content_types", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  key: varchar("key", { length: 191 }).notNull(),
   label: text("label").notNull(),
   fieldsJson: jsonText("fields_json").notNull(),
   status: text("status").notNull(),
@@ -344,10 +355,10 @@ export const contentTypes = pgTable("content_types", {
     index("idx_content_types_workspace").on(t.workspaceId),
   ]);
 
-export const customCredentialSets = pgTable("custom_credential_sets", {
-  id: text("id").notNull(),
-  workspaceId: text("workspace_id").notNull(),
-  label: text("label").notNull(),
+export const customCredentialSets = mysqlTable("custom_credential_sets", {
+  id: varchar("id", { length: 191 }).notNull(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  label: varchar("label", { length: 191 }).notNull(),
   category: text("category").notNull(),
   baseUrl: text("base_url").notNull(),
   additionalHostsJson: jsonText("additional_hosts_json"),
@@ -364,17 +375,17 @@ export const customCredentialSets = pgTable("custom_credential_sets", {
     uniqueIndex("custom_credential_sets_workspace_label_unique").on(t.workspaceId, t.label),
   ]);
 
-export const databaseWriteWatermark = pgTable("database_write_watermark", {
+export const databaseWriteWatermark = mysqlTable("database_write_watermark", {
   id: bigint("id", { mode: "number" }).primaryKey(),
   value: bigint("value", { mode: "number" }).notNull().default(0),
   lastStampedAt: text("last_stamped_at"),
 });
 
-export const deploymentEnvironments = pgTable("deployment_environments", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const deploymentEnvironments = mysqlTable("deployment_environments", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   name: text("name").notNull(),
-  slug: text("slug").notNull(),
+  slug: varchar("slug", { length: 191 }).notNull(),
   isProduction: bigint("is_production", { mode: "number" }).notNull(),
   createdAt: text("created_at").notNull(),
   version: bigint("version", { mode: "number" }).notNull().default(1),
@@ -384,11 +395,11 @@ export const deploymentEnvironments = pgTable("deployment_environments", {
     uniqueIndex("idx_deployment_environments_workspace_slug").on(t.workspaceId, t.slug),
   ]);
 
-export const deploymentRunEvents = pgTable("deployment_run_events", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  runId: text("run_id").notNull(),
-  at: text("at").notNull(),
+export const deploymentRunEvents = mysqlTable("deployment_run_events", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  runId: varchar("run_id", { length: 191 }).notNull(),
+  at: varchar("at", { length: 191 }).notNull(),
   level: text("level").notNull(),
   message: text("message").notNull(),
 }, (t) => [
@@ -398,18 +409,18 @@ export const deploymentRunEvents = pgTable("deployment_run_events", {
     index("idx_deployment_run_events_run").on(t.runId, t.at),
   ]);
 
-export const deploymentRuns = pgTable("deployment_runs", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  providerId: text("provider_id").notNull(),
-  targetId: text("target_id"),
-  environmentId: text("environment_id"),
-  releaseId: text("release_id"),
+export const deploymentRuns = mysqlTable("deployment_runs", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  providerId: varchar("provider_id", { length: 191 }).notNull(),
+  targetId: varchar("target_id", { length: 191 }),
+  environmentId: varchar("environment_id", { length: 191 }),
+  releaseId: varchar("release_id", { length: 191 }),
   status: text("status").notNull(),
-  providerRunRef: text("provider_run_ref"),
+  providerRunRef: varchar("provider_run_ref", { length: 191 }),
   reconciliation: text("reconciliation").notNull(),
   requestedByPrincipalId: text("requested_by_principal_id").notNull(),
-  requestedAt: text("requested_at").notNull(),
+  requestedAt: varchar("requested_at", { length: 191 }).notNull(),
   startedAt: text("started_at"),
   finishedAt: text("finished_at"),
   errorSummary: text("error_summary"),
@@ -425,10 +436,10 @@ export const deploymentRuns = pgTable("deployment_runs", {
     index("idx_deployment_runs_workspace").on(t.workspaceId, t.requestedAt),
   ]);
 
-export const deploymentTargets = pgTable("deployment_targets", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  environmentId: text("environment_id").notNull(),
+export const deploymentTargets = mysqlTable("deployment_targets", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  environmentId: varchar("environment_id", { length: 191 }).notNull(),
   providerId: text("provider_id").notNull(),
   label: text("label").notNull(),
   configJson: jsonText("config_json").notNull(),
@@ -442,11 +453,11 @@ export const deploymentTargets = pgTable("deployment_targets", {
     index("idx_deployment_targets_workspace_env").on(t.workspaceId, t.environmentId),
   ]);
 
-export const entries = pgTable("entries", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  type: text("type").notNull(),
-  slug: text("slug").notNull(),
+export const entries = mysqlTable("entries", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  type: varchar("type", { length: 191 }).notNull(),
+  slug: varchar("slug", { length: 191 }).notNull(),
   status: text("status").notNull(),
   title: text("title").notNull(),
   bodyJson: jsonText("body_json"),
@@ -461,23 +472,23 @@ export const entries = pgTable("entries", {
     index("idx_entries_workspace").on(t.workspaceId, t.type),
   ]);
 
-export const entryRefs = pgTable("entry_refs", {
-  id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  sourceEntryId: text("source_entry_id").notNull(),
+export const entryRefs = mysqlTable("entry_refs", {
+  id: bigint("id", { mode: "number" }).autoincrement().primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  sourceEntryId: varchar("source_entry_id", { length: 191 }).notNull(),
   sourceKind: text("source_kind").notNull(),
   fieldPath: text("field_path").notNull(),
-  targetKind: text("target_kind").notNull(),
-  targetId: text("target_id").notNull(),
+  targetKind: varchar("target_kind", { length: 191 }).notNull(),
+  targetId: varchar("target_id", { length: 191 }).notNull(),
 }, (t) => [
     index("idx_entry_refs_source").on(t.workspaceId, t.sourceEntryId),
     index("idx_entry_refs_target").on(t.workspaceId, t.targetKind, t.targetId),
   ]);
 
-export const entryRevisions = pgTable("entry_revisions", {
-  seq: bigint("seq", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
-  entryId: text("entry_id").notNull(),
-  workspaceId: text("workspace_id").notNull(),
+export const entryRevisions = mysqlTable("entry_revisions", {
+  seq: bigint("seq", { mode: "number" }).autoincrement().primaryKey(),
+  entryId: varchar("entry_id", { length: 191 }).notNull(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   op: text("op").notNull(),
   stateJson: jsonText("state_json").notNull(),
   actorId: text("actor_id").notNull(),
@@ -488,24 +499,24 @@ export const entryRevisions = pgTable("entry_revisions", {
     index("idx_entry_revisions_workspace_entry").on(t.workspaceId, t.entryId, t.seq),
   ]);
 
-export const entryTerms = pgTable("entry_terms", {
-  id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  contentType: text("content_type").notNull(),
-  contentId: text("content_id").notNull(),
-  termId: text("term_id").notNull(),
+export const entryTerms = mysqlTable("entry_terms", {
+  id: bigint("id", { mode: "number" }).autoincrement().primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  contentType: varchar("content_type", { length: 191 }).notNull(),
+  contentId: varchar("content_id", { length: 191 }).notNull(),
+  termId: varchar("term_id", { length: 191 }).notNull(),
   addedAt: text("added_at").notNull(),
 }, (t) => [
     uniqueIndex("entry_terms_unique").on(t.workspaceId, t.contentType, t.contentId, t.termId),
   ]);
 
-export const externalMcpServers = pgTable("external_mcp_servers", {
-  workspaceId: text("workspace_id").notNull(),
-  serverId: text("server_id").notNull(),
+export const externalMcpServers = mysqlTable("external_mcp_servers", {
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  serverId: varchar("server_id", { length: 191 }).notNull(),
   label: text("label"),
   provisionedByPluginId: text("provisioned_by_plugin_id"),
   transport: text("transport").notNull(),
-  authMode: text("auth_mode").notNull().default("static_env"),
+  authMode: text("auth_mode").notNull().default(sql`('static_env')`),
   enabled: boolean("enabled").notNull(),
   command: text("command"),
   url: text("url"),
@@ -543,14 +554,14 @@ export const externalMcpServers = pgTable("external_mcp_servers", {
     check("external_mcp_servers_oauth_sealed_shape", sql`(oauth_sealed_key_id IS NULL AND oauth_sealed_ciphertext IS NULL AND oauth_sealed_nonce IS NULL AND oauth_sealed_alg IS NULL) OR (oauth_sealed_key_id IS NOT NULL AND oauth_sealed_ciphertext IS NOT NULL AND oauth_sealed_nonce IS NOT NULL AND oauth_sealed_alg IS NOT NULL)`),
   ]);
 
-export const formDefinitions = pgTable("form_definitions", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const formDefinitions = mysqlTable("form_definitions", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   name: text("name").notNull(),
-  slug: text("slug").notNull(),
+  slug: varchar("slug", { length: 191 }).notNull(),
   fieldsJson: jsonText("fields_json").notNull(),
   notifyJson: jsonText("notify_json").notNull(),
-  status: text("status").notNull().default("active"),
+  status: text("status").notNull().default(sql`('active')`),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
   deletedAt: text("deleted_at"),
@@ -560,13 +571,13 @@ export const formDefinitions = pgTable("form_definitions", {
     index("idx_form_definitions_workspace").on(t.workspaceId),
   ]);
 
-export const formSubmissions = pgTable("form_submissions", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  formDefinitionId: text("form_definition_id").notNull(),
+export const formSubmissions = mysqlTable("form_submissions", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  formDefinitionId: varchar("form_definition_id", { length: 191 }).notNull(),
   dataJson: jsonText("data_json").notNull(),
   sourceIp: text("source_ip").notNull(),
-  submittedAt: text("submitted_at").notNull(),
+  submittedAt: varchar("submitted_at", { length: 191 }).notNull(),
   deletedAt: text("deleted_at"),
   version: bigint("version", { mode: "number" }).notNull().default(1),
 }, (t) => [
@@ -575,8 +586,8 @@ export const formSubmissions = pgTable("form_submissions", {
     index("idx_form_submissions_workspace").on(t.workspaceId),
   ]);
 
-export const gatedMutationTokens = pgTable("gated_mutation_tokens", {
-  confirmationToken: text("confirmation_token").primaryKey(),
+export const gatedMutationTokens = mysqlTable("gated_mutation_tokens", {
+  confirmationToken: varchar("confirmation_token", { length: 191 }).primaryKey(),
   planHash: text("plan_hash").notNull(),
   scopeId: text("scope_id").notNull(),
   confirmerPrincipalId: text("confirmer_principal_id").notNull(),
@@ -585,10 +596,10 @@ export const gatedMutationTokens = pgTable("gated_mutation_tokens", {
   expiresAt: text("expires_at").notNull(),
 });
 
-export const identityUsers = pgTable("identity_users", {
-  principalId: text("principal_id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  username: text("username").notNull(),
+export const identityUsers = mysqlTable("identity_users", {
+  principalId: varchar("principal_id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  username: varchar("username", { length: 191 }).notNull(),
   email: text("email"),
   passwordHash: text("password_hash").notNull(),
   lastLoginAt: text("last_login_at"),
@@ -596,11 +607,11 @@ export const identityUsers = pgTable("identity_users", {
     uniqueIndex("idx_identity_users_workspace_username").on(t.workspaceId, t.username),
   ]);
 
-export const media = pgTable("media", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const media = mysqlTable("media", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   title: text("title").notNull(),
-  slug: text("slug"),
+  slug: varchar("slug", { length: 191 }),
   alt: text("alt").notNull(),
   caption: text("caption").notNull(),
   credit: text("credit").notNull(),
@@ -617,9 +628,9 @@ export const media = pgTable("media", {
     uniqueIndex("idx_media_workspace_slug").on(t.workspaceId, t.slug),
   ]);
 
-export const mediaProviderCredentials = pgTable("media_provider_credentials", {
-  workspaceId: text("workspace_id").notNull(),
-  providerId: text("provider_id").notNull(),
+export const mediaProviderCredentials = mysqlTable("media_provider_credentials", {
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  providerId: varchar("provider_id", { length: 191 }).notNull(),
   baseUrl: text("base_url"),
   model: text("model"),
   sealedKeyId: text("sealed_key_id"),
@@ -636,11 +647,11 @@ export const mediaProviderCredentials = pgTable("media_provider_credentials", {
     check("media_provider_credentials_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL AND key_tail IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL AND key_tail IS NOT NULL)`),
   ]);
 
-export const memberConsents = pgTable("member_consents", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  memberId: text("member_id").notNull(),
-  purpose: text("purpose").notNull(),
+export const memberConsents = mysqlTable("member_consents", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  memberId: varchar("member_id", { length: 191 }).notNull(),
+  purpose: varchar("purpose", { length: 191 }).notNull(),
   status: text("status").notNull(),
   evidenceJson: jsonText("evidence_json").notNull(),
   grantedAt: text("granted_at"),
@@ -652,11 +663,11 @@ export const memberConsents = pgTable("member_consents", {
     uniqueIndex("member_consents_workspace_member_purpose_unique").on(t.workspaceId, t.memberId, t.purpose),
   ]);
 
-export const memberMagicTokens = pgTable("member_magic_tokens", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const memberMagicTokens = mysqlTable("member_magic_tokens", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   memberId: text("member_id").notNull(),
-  tokenHash: text("token_hash").notNull(),
+  tokenHash: varchar("token_hash", { length: 191 }).notNull(),
   purpose: text("purpose").notNull(),
   createdAt: text("created_at").notNull(),
   expiresAt: text("expires_at").notNull(),
@@ -665,12 +676,12 @@ export const memberMagicTokens = pgTable("member_magic_tokens", {
     uniqueIndex("member_magic_tokens_workspace_tokenhash_unique").on(t.workspaceId, t.tokenHash),
   ]);
 
-export const memberRevisions = pgTable("member_revisions", {
-  seq: bigint("seq", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+export const memberRevisions = mysqlTable("member_revisions", {
+  seq: bigint("seq", { mode: "number" }).autoincrement().primaryKey(),
   entityKind: text("entity_kind").notNull(),
   entityId: text("entity_id").notNull(),
-  workspaceId: text("workspace_id").notNull(),
-  memberId: text("member_id").notNull(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  memberId: varchar("member_id", { length: 191 }).notNull(),
   purpose: text("purpose"),
   op: text("op").notNull(),
   beforeJson: jsonText("before_json"),
@@ -681,11 +692,11 @@ export const memberRevisions = pgTable("member_revisions", {
     index("idx_member_revisions_workspace_member").on(t.workspaceId, t.memberId),
   ]);
 
-export const memberSessions = pgTable("member_sessions", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  memberId: text("member_id").notNull(),
-  tokenHash: text("token_hash").notNull(),
+export const memberSessions = mysqlTable("member_sessions", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  memberId: varchar("member_id", { length: 191 }).notNull(),
+  tokenHash: varchar("token_hash", { length: 191 }).notNull(),
   createdAt: text("created_at").notNull(),
   expiresAt: text("expires_at").notNull(),
   revokedAt: text("revoked_at"),
@@ -697,10 +708,10 @@ export const memberSessions = pgTable("member_sessions", {
     index("idx_member_sessions_workspace_member").on(t.workspaceId, t.memberId),
   ]);
 
-export const memberSubscriptions = pgTable("member_subscriptions", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  memberId: text("member_id").notNull(),
+export const memberSubscriptions = mysqlTable("member_subscriptions", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  memberId: varchar("member_id", { length: 191 }).notNull(),
   tierId: text("tier_id").notNull(),
   status: text("status").notNull(),
   source: text("source").notNull(),
@@ -715,11 +726,11 @@ export const memberSubscriptions = pgTable("member_subscriptions", {
     index("idx_member_subscriptions_workspace_member").on(t.workspaceId, t.memberId),
   ]);
 
-export const memberTiers = pgTable("member_tiers", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const memberTiers = mysqlTable("member_tiers", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   name: text("name").notNull(),
-  slug: text("slug").notNull(),
+  slug: varchar("slug", { length: 191 }).notNull(),
   type: text("type").notNull(),
   status: text("status").notNull(),
   description: text("description"),
@@ -736,10 +747,10 @@ export const memberTiers = pgTable("member_tiers", {
     uniqueIndex("member_tiers_workspace_id_unique").on(t.workspaceId, t.id),
   ]);
 
-export const members = pgTable("members", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  email: text("email").notNull(),
+export const members = mysqlTable("members", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  email: varchar("email", { length: 191 }).notNull(),
   name: text("name"),
   emailVerifiedAt: text("email_verified_at"),
   status: text("status").notNull(),
@@ -752,10 +763,10 @@ export const members = pgTable("members", {
     uniqueIndex("members_workspace_email_unique").on(t.workspaceId, t.email),
   ]);
 
-export const menus = pgTable("menus", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  slug: text("slug").notNull(),
+export const menus = mysqlTable("menus", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  slug: varchar("slug", { length: 191 }).notNull(),
   title: text("title").notNull(),
   status: text("status").notNull(),
   docJson: jsonText("doc_json").notNull(),
@@ -767,19 +778,19 @@ export const menus = pgTable("menus", {
     index("idx_menus_workspace").on(t.workspaceId),
   ]);
 
-export const navLocationBindings = pgTable("nav_location_bindings", {
-  workspaceId: text("workspace_id").notNull(),
-  locationKey: text("location_key").notNull(),
-  menuId: text("menu_id").notNull(),
+export const navLocationBindings = mysqlTable("nav_location_bindings", {
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  locationKey: varchar("location_key", { length: 191 }).notNull(),
+  menuId: varchar("menu_id", { length: 191 }).notNull(),
   boundAt: text("bound_at").notNull(),
 }, (t) => [
     uniqueIndex("nav_location_bindings_workspace_location_unique").on(t.workspaceId, t.locationKey),
     index("idx_nav_location_bindings_menu").on(t.workspaceId, t.menuId),
   ]);
 
-export const newsletterCampaignRevisions = pgTable("newsletter_campaign_revisions", {
-  seq: bigint("seq", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
-  campaignId: text("campaign_id").notNull(),
+export const newsletterCampaignRevisions = mysqlTable("newsletter_campaign_revisions", {
+  seq: bigint("seq", { mode: "number" }).autoincrement().primaryKey(),
+  campaignId: varchar("campaign_id", { length: 191 }).notNull(),
   workspaceId: text("workspace_id").notNull(),
   stateJson: jsonText("state_json").notNull(),
   actorId: text("actor_id").notNull(),
@@ -788,9 +799,9 @@ export const newsletterCampaignRevisions = pgTable("newsletter_campaign_revision
     index("idx_newsletter_campaign_revisions_campaign").on(t.campaignId, t.seq),
   ]);
 
-export const newsletterCampaigns = pgTable("newsletter_campaigns", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const newsletterCampaigns = mysqlTable("newsletter_campaigns", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   status: text("status").notNull(),
   subject: text("subject").notNull(),
   preheader: text("preheader"),
@@ -810,9 +821,9 @@ export const newsletterCampaigns = pgTable("newsletter_campaigns", {
     index("idx_newsletter_campaigns_workspace").on(t.workspaceId),
   ]);
 
-export const oauthDeviceAuthorizations = pgTable("oauth_device_authorizations", {
-  workspaceId: text("workspace_id").notNull(),
-  serverId: text("server_id").notNull(),
+export const oauthDeviceAuthorizations = mysqlTable("oauth_device_authorizations", {
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  serverId: varchar("server_id", { length: 191 }).notNull(),
   userCode: text("user_code").notNull(),
   verificationUri: text("verification_uri").notNull(),
   verificationUriComplete: text("verification_uri_complete"),
@@ -828,8 +839,8 @@ export const oauthDeviceAuthorizations = pgTable("oauth_device_authorizations", 
     foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
   ]);
 
-export const oauthPendingAuthorizations = pgTable("oauth_pending_authorizations", {
-  state: text("state").primaryKey(),
+export const oauthPendingAuthorizations = mysqlTable("oauth_pending_authorizations", {
+  state: varchar("state", { length: 191 }).primaryKey(),
   ownerKey: text("owner_key").notNull(),
   providerId: text("provider_id").notNull(),
   sealedKeyId: text("sealed_key_id").notNull(),
@@ -839,39 +850,39 @@ export const oauthPendingAuthorizations = pgTable("oauth_pending_authorizations"
   redirectUri: text("redirect_uri").notNull(),
   scopesJson: jsonText("scopes_json").notNull(),
   createdAt: text("created_at").notNull(),
-  expiresAt: text("expires_at").notNull(),
+  expiresAt: varchar("expires_at", { length: 191 }).notNull(),
 }, (t) => [
     index("idx_oauth_pending_expires_at").on(t.expiresAt),
   ]);
 
-export const originSettings = pgTable("origin_settings", {
-  workspaceId: text("workspace_id").primaryKey(),
+export const originSettings = mysqlTable("origin_settings", {
+  workspaceId: varchar("workspace_id", { length: 191 }).primaryKey(),
   scheme: text("scheme").notNull(),
   host: text("host").notNull(),
   port: bigint("port", { mode: "number" }),
   basePath: text("base_path"),
   verifiedAt: text("verified_at").notNull(),
   source: text("source").notNull(),
-  redirectAllowlistJson: jsonText("redirect_allowlist_json").notNull().default("[]"),
-  egressAllowlistJson: jsonText("egress_allowlist_json").notNull().default("[]"),
+  redirectAllowlistJson: jsonText("redirect_allowlist_json").notNull().default(sql`('[]')`),
+  egressAllowlistJson: jsonText("egress_allowlist_json").notNull().default(sql`('[]')`),
 });
 
-export const outboxEvents = pgTable("outbox_events", {
-  id: text("id").primaryKey(),
+export const outboxEvents = mysqlTable("outbox_events", {
+  id: varchar("id", { length: 191 }).primaryKey(),
   workspaceId: text("workspace_id").notNull(),
   eventJson: jsonText("event_json").notNull(),
-  status: text("status").notNull(),
+  status: varchar("status", { length: 191 }).notNull(),
   attempts: bigint("attempts", { mode: "number" }).notNull().default(0),
-  nextAttemptAt: text("next_attempt_at").notNull(),
+  nextAttemptAt: varchar("next_attempt_at", { length: 191 }).notNull(),
   lastError: text("last_error"),
   createdAt: text("created_at").notNull(),
 }, (t) => [
     index("idx_outbox_events_claim").on(t.status, t.nextAttemptAt),
   ]);
 
-export const pluginActivations = pgTable("plugin_activations", {
-  workspaceId: text("workspace_id").notNull(),
-  pluginId: text("plugin_id").notNull(),
+export const pluginActivations = mysqlTable("plugin_activations", {
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  pluginId: varchar("plugin_id", { length: 191 }).notNull(),
   version: text("version").notNull(),
   enabled: boolean("enabled").notNull(),
   updatedAt: text("updated_at").notNull(),
@@ -882,10 +893,10 @@ export const pluginActivations = pgTable("plugin_activations", {
     uniqueIndex("pk_plugin_activations").on(t.workspaceId, t.pluginId),
   ]);
 
-export const policies = pgTable("policies", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  name: text("name").notNull(),
+export const policies = mysqlTable("policies", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  name: varchar("name", { length: 191 }).notNull(),
   description: text("description"),
   isBuiltin: bigint("is_builtin", { mode: "number" }).notNull(),
   isFrozen: bigint("is_frozen", { mode: "number" }).notNull(),
@@ -893,10 +904,10 @@ export const policies = pgTable("policies", {
     uniqueIndex("idx_policies_workspace_name").on(t.workspaceId, t.name),
   ]);
 
-export const policyPermissions = pgTable("policy_permissions", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  policyId: text("policy_id").notNull(),
+export const policyPermissions = mysqlTable("policy_permissions", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  policyId: varchar("policy_id", { length: 191 }).notNull(),
   permission: text("permission").notNull(),
   resourceType: text("resource_type"),
   constraintJson: jsonText("constraint_json"),
@@ -904,10 +915,10 @@ export const policyPermissions = pgTable("policy_permissions", {
     index("idx_policy_permissions_workspace_policy").on(t.workspaceId, t.policyId),
   ]);
 
-export const postRevisions = pgTable("post_revisions", {
-  id: text("id").primaryKey(),
-  postId: text("post_id").notNull(),
-  workspaceId: text("workspace_id").notNull(),
+export const postRevisions = mysqlTable("post_revisions", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  postId: varchar("post_id", { length: 191 }).notNull(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   seq: bigint("seq", { mode: "number" }).notNull(),
   op: text("op").notNull(),
   stateJson: jsonText("state_json").notNull(),
@@ -921,20 +932,20 @@ export const postRevisions = pgTable("post_revisions", {
     index("idx_post_revisions_workspace_post").on(t.workspaceId, t.postId, t.seq),
   ]);
 
-export const posts = pgTable("posts", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const posts = mysqlTable("posts", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   title: text("title").notNull(),
-  slug: text("slug").notNull(),
+  slug: varchar("slug", { length: 191 }).notNull(),
   bodyJson: jsonText("body_json"),
   status: text("status").notNull(),
-  kind: text("kind").notNull().default("post"),
-  bodyFormat: text("body_format").notNull().default("doc"),
+  kind: text("kind").notNull().default(sql`('post')`),
+  bodyFormat: text("body_format").notNull().default(sql`('doc')`),
   bodyHtml: text("body_html"),
   updatedAt: text("updated_at").notNull(),
   version: bigint("version", { mode: "number" }).notNull(),
   seoExtJson: jsonText("seo_ext_json"),
-  ext: jsonText("ext").notNull().default("{}"),
+  ext: jsonText("ext").notNull().default(sql`('{}')`),
   deletedAt: text("deleted_at"),
   templateChoice: text("template_choice"),
   overridesThemePage: boolean("overrides_theme_page"),
@@ -948,32 +959,32 @@ export const posts = pgTable("posts", {
     index("idx_posts_workspace").on(t.workspaceId),
   ]);
 
-export const presentationSettings = pgTable("presentation_settings", {
-  workspaceId: text("workspace_id").primaryKey(),
+export const presentationSettings = mysqlTable("presentation_settings", {
+  workspaceId: varchar("workspace_id", { length: 191 }).primaryKey(),
   activeThemeId: text("active_theme_id").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
 
-export const principalPolicies = pgTable("principal_policies", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  principalId: text("principal_id").notNull(),
+export const principalPolicies = mysqlTable("principal_policies", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  principalId: varchar("principal_id", { length: 191 }).notNull(),
   policyId: text("policy_id").notNull(),
 }, (t) => [
     index("idx_principal_policies_workspace_principal").on(t.workspaceId, t.principalId),
   ]);
 
-export const principalRoles = pgTable("principal_roles", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  principalId: text("principal_id").notNull(),
+export const principalRoles = mysqlTable("principal_roles", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  principalId: varchar("principal_id", { length: 191 }).notNull(),
   roleId: text("role_id").notNull(),
 }, (t) => [
     index("idx_principal_roles_workspace_principal").on(t.workspaceId, t.principalId),
   ]);
 
-export const principals = pgTable("principals", {
-  id: text("id").primaryKey(),
+export const principals = mysqlTable("principals", {
+  id: varchar("id", { length: 191 }).primaryKey(),
   workspaceId: text("workspace_id").notNull(),
   kind: text("kind").notNull(),
   displayName: text("display_name").notNull(),
@@ -982,11 +993,11 @@ export const principals = pgTable("principals", {
   createdAt: text("created_at").notNull(),
 });
 
-export const publishContentBaselines = pgTable("publish_content_baselines", {
-  workspaceId: text("workspace_id").notNull(),
-  peerPrincipalId: text("peer_principal_id").notNull(),
-  entityType: text("entity_type").notNull(),
-  entityId: text("entity_id").notNull(),
+export const publishContentBaselines = mysqlTable("publish_content_baselines", {
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  peerPrincipalId: varchar("peer_principal_id", { length: 191 }).notNull(),
+  entityType: varchar("entity_type", { length: 191 }).notNull(),
+  entityId: varchar("entity_id", { length: 191 }).notNull(),
   hashAtLastSync: text("hash_at_last_sync").notNull(),
   hashVersion: bigint("hash_version", { mode: "number" }).notNull(),
   syncedAt: text("synced_at").notNull(),
@@ -995,9 +1006,9 @@ export const publishContentBaselines = pgTable("publish_content_baselines", {
     uniqueIndex("publish_content_baselines_unique").on(t.workspaceId, t.peerPrincipalId, t.entityType, t.entityId),
   ]);
 
-export const publishContentBundles = pgTable("publish_content_bundles", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const publishContentBundles = mysqlTable("publish_content_bundles", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   sourcePrincipalId: text("source_principal_id").notNull(),
   artifactFormatVersion: bigint("artifact_format_version", { mode: "number" }).notNull().default(1),
   hashVersion: bigint("hash_version", { mode: "number" }).notNull(),
@@ -1005,15 +1016,15 @@ export const publishContentBundles = pgTable("publish_content_bundles", {
   blobManifestJson: jsonText("blob_manifest_json").notNull(),
   sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
   receivedAt: text("received_at").notNull(),
-  expiresAt: text("expires_at").notNull(),
+  expiresAt: varchar("expires_at", { length: 191 }).notNull(),
 }, (t) => [
     index("idx_publish_content_bundles_workspace").on(t.workspaceId, t.expiresAt),
   ]);
 
-export const publishContentPeers = pgTable("publish_content_peers", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  label: text("label").notNull(),
+export const publishContentPeers = mysqlTable("publish_content_peers", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  label: varchar("label", { length: 191 }).notNull(),
   baseUrl: text("base_url").notNull(),
   remoteWorkspaceId: text("remote_workspace_id").notNull(),
   sealedKeyId: text("sealed_key_id"),
@@ -1029,9 +1040,9 @@ export const publishContentPeers = pgTable("publish_content_peers", {
     uniqueIndex("publish_content_peers_workspace_label_unique").on(t.workspaceId, t.label),
   ]);
 
-export const publishContentRuns = pgTable("publish_content_runs", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const publishContentRuns = mysqlTable("publish_content_runs", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   direction: text("direction").notNull(),
   peerPrincipalId: text("peer_principal_id").notNull(),
   peerLabel: text("peer_label"),
@@ -1039,7 +1050,7 @@ export const publishContentRuns = pgTable("publish_content_runs", {
   restorePointId: text("restore_point_id"),
   changeSetIdsJson: jsonText("change_set_ids_json"),
   actorId: text("actor_id").notNull(),
-  startedAt: text("started_at").notNull(),
+  startedAt: varchar("started_at", { length: 191 }).notNull(),
   finishedAt: text("finished_at"),
   reportJson: jsonText("report_json"),
   itemsJson: jsonText("items_json"),
@@ -1047,11 +1058,11 @@ export const publishContentRuns = pgTable("publish_content_runs", {
     index("idx_publish_content_runs_workspace").on(t.workspaceId, t.startedAt),
   ]);
 
-export const publishCredentialSets = pgTable("publish_credential_sets", {
-  id: text("id").notNull(),
-  workspaceId: text("workspace_id").notNull(),
-  providerId: text("provider_id").notNull(),
-  label: text("label").notNull(),
+export const publishCredentialSets = mysqlTable("publish_credential_sets", {
+  id: varchar("id", { length: 191 }).notNull(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  providerId: varchar("provider_id", { length: 191 }).notNull(),
+  label: varchar("label", { length: 191 }).notNull(),
   sealedKeyId: text("sealed_key_id").notNull(),
   sealedCiphertext: text("sealed_ciphertext").notNull(),
   sealedNonce: text("sealed_nonce").notNull(),
@@ -1066,10 +1077,10 @@ export const publishCredentialSets = pgTable("publish_credential_sets", {
     uniqueIndex("publish_credential_sets_workspace_provider_label_unique").on(t.workspaceId, t.providerId, t.label),
   ]);
 
-export const publishHistory = pgTable("publish_history", {
-  id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  target: text("target").notNull(),
+export const publishHistory = mysqlTable("publish_history", {
+  id: bigint("id", { mode: "number" }).autoincrement().primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  target: varchar("target", { length: 191 }).notNull(),
   url: text("url").notNull(),
   reachable: boolean("reachable").notNull(),
   status: text("status").notNull(),
@@ -1088,22 +1099,22 @@ export const publishHistory = pgTable("publish_history", {
     index("idx_publish_history_workspace_target_id").on(t.workspaceId, t.target, t.id),
   ]);
 
-export const publishTrustRevocations = pgTable("publish_trust_revocations", {
-  sourceInstallationId: text("source_installation_id").primaryKey(),
+export const publishTrustRevocations = mysqlTable("publish_trust_revocations", {
+  sourceInstallationId: varchar("source_installation_id", { length: 191 }).primaryKey(),
   revokedAt: text("revoked_at").notNull(),
   note: text("note"),
 });
 
-export const redirectHits = pgTable("redirect_hits", {
-  redirectId: text("redirect_id").primaryKey(),
+export const redirectHits = mysqlTable("redirect_hits", {
+  redirectId: varchar("redirect_id", { length: 191 }).primaryKey(),
   workspaceId: text("workspace_id").notNull(),
   hitCount: bigint("hit_count", { mode: "number" }).notNull().default(0),
   lastHitAt: text("last_hit_at"),
 });
 
-export const redirectRevisions = pgTable("redirect_revisions", {
-  id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
-  redirectId: text("redirect_id").notNull(),
+export const redirectRevisions = mysqlTable("redirect_revisions", {
+  id: bigint("id", { mode: "number" }).autoincrement().primaryKey(),
+  redirectId: varchar("redirect_id", { length: 191 }).notNull(),
   workspaceId: text("workspace_id").notNull(),
   seq: bigint("seq", { mode: "number" }).notNull(),
   stateJson: jsonText("state_json").notNull(),
@@ -1115,14 +1126,14 @@ export const redirectRevisions = pgTable("redirect_revisions", {
     uniqueIndex("idx_redirect_revisions_redirect_seq").on(t.redirectId, t.seq),
   ]);
 
-export const redirects = pgTable("redirects", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const redirects = mysqlTable("redirects", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   matchType: text("match_type").notNull(),
-  fromPattern: text("from_pattern").notNull(),
+  fromPattern: varchar("from_pattern", { length: 191 }).notNull(),
   toTarget: text("to_target").notNull(),
   statusCode: bigint("status_code", { mode: "number" }).notNull(),
-  status: text("status").notNull(),
+  status: varchar("status", { length: 191 }).notNull(),
   override: bigint("override", { mode: "number" }).notNull(),
   priority: bigint("priority", { mode: "number" }).notNull(),
   source: text("source").notNull(),
@@ -1139,9 +1150,9 @@ export const redirects = pgTable("redirects", {
     index("idx_redirects_workspace_status").on(t.workspaceId, t.status),
   ]);
 
-export const releases = pgTable("releases", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const releases = mysqlTable("releases", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   label: text("label").notNull(),
   sourceKind: text("source_kind").notNull(),
   sourceRepoUrl: text("source_repo_url"),
@@ -1149,7 +1160,7 @@ export const releases = pgTable("releases", {
   sourceUri: text("source_uri"),
   sourceChecksum: text("source_checksum"),
   createdByPrincipalId: text("created_by_principal_id").notNull(),
-  createdAt: text("created_at").notNull(),
+  createdAt: varchar("created_at", { length: 191 }).notNull(),
   version: bigint("version", { mode: "number" }).notNull().default(1),
 }, (t) => [
     foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
@@ -1157,29 +1168,29 @@ export const releases = pgTable("releases", {
     index("idx_releases_workspace_created").on(t.workspaceId, t.createdAt),
   ]);
 
-export const rolePolicies = pgTable("role_policies", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  roleId: text("role_id").notNull(),
+export const rolePolicies = mysqlTable("role_policies", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  roleId: varchar("role_id", { length: 191 }).notNull(),
   policyId: text("policy_id").notNull(),
 }, (t) => [
     index("idx_role_policies_workspace_role").on(t.workspaceId, t.roleId),
   ]);
 
-export const roles = pgTable("roles", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  name: text("name").notNull(),
+export const roles = mysqlTable("roles", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  name: varchar("name", { length: 191 }).notNull(),
   isBuiltin: bigint("is_builtin", { mode: "number" }).notNull(),
 }, (t) => [
     uniqueIndex("idx_roles_workspace_name").on(t.workspaceId, t.name),
   ]);
 
-export const sessions = pgTable("sessions", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const sessions = mysqlTable("sessions", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   principalId: text("principal_id").notNull(),
-  tokenHash: text("token_hash").notNull(),
+  tokenHash: varchar("token_hash", { length: 191 }).notNull(),
   createdAt: text("created_at").notNull(),
   expiresAt: text("expires_at").notNull(),
   revokedAt: text("revoked_at"),
@@ -1189,12 +1200,12 @@ export const sessions = pgTable("sessions", {
     uniqueIndex("idx_sessions_workspace_token_hash").on(t.workspaceId, t.tokenHash),
   ]);
 
-export const settingDefinitions = pgTable("setting_definitions", {
-  settingId: text("setting_id").notNull(),
+export const settingDefinitions = mysqlTable("setting_definitions", {
+  settingId: varchar("setting_id", { length: 191 }).notNull(),
   version: bigint("version", { mode: "number" }).notNull().default(1),
-  workspaceId: text("workspace_id"),
-  namespace: text("namespace").notNull(),
-  key: text("key").notNull(),
+  workspaceId: varchar("workspace_id", { length: 191 }),
+  namespace: varchar("namespace", { length: 191 }).notNull(),
+  key: varchar("key", { length: 191 }).notNull(),
   ownerKind: text("owner_kind").notNull(),
   ownerId: text("owner_id"),
   schemaJson: jsonText("schema_json").notNull(),
@@ -1212,10 +1223,10 @@ export const settingDefinitions = pgTable("setting_definitions", {
     index("idx_def_namespace_key_workspace").on(t.namespace, t.key, t.workspaceId),
   ]);
 
-export const settingRevisions = pgTable("setting_revisions", {
-  seq: bigint("seq", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+export const settingRevisions = mysqlTable("setting_revisions", {
+  seq: bigint("seq", { mode: "number" }).autoincrement().primaryKey(),
   entityKind: text("entity_kind").notNull(),
-  settingId: text("setting_id").notNull(),
+  settingId: varchar("setting_id", { length: 191 }).notNull(),
   scope: text("scope"),
   workspaceId: text("workspace_id"),
   principalId: text("principal_id"),
@@ -1231,10 +1242,10 @@ export const settingRevisions = pgTable("setting_revisions", {
     index("idx_rev_setting").on(t.settingId, t.seq),
   ]);
 
-export const settingValuesGlobal = pgTable("setting_values_global", {
-  settingId: text("setting_id").primaryKey(),
+export const settingValuesGlobal = mysqlTable("setting_values_global", {
+  settingId: varchar("setting_id", { length: 191 }).primaryKey(),
   valueJson: jsonText("value_json"),
-  state: text("state").notNull().default("set"),
+  state: text("state").notNull().default(sql`('set')`),
   defVersion: bigint("def_version", { mode: "number" }).notNull(),
   seq: bigint("seq", { mode: "number" }).notNull(),
   updatedBy: text("updated_by").notNull(),
@@ -1242,12 +1253,12 @@ export const settingValuesGlobal = pgTable("setting_values_global", {
   originPluginId: text("origin_plugin_id"),
 });
 
-export const settingValuesUser = pgTable("setting_values_user", {
-  settingId: text("setting_id").notNull(),
-  workspaceId: text("workspace_id").notNull(),
-  principalId: text("principal_id").notNull(),
+export const settingValuesUser = mysqlTable("setting_values_user", {
+  settingId: varchar("setting_id", { length: 191 }).notNull(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  principalId: varchar("principal_id", { length: 191 }).notNull(),
   valueJson: jsonText("value_json"),
-  state: text("state").notNull().default("set"),
+  state: text("state").notNull().default(sql`('set')`),
   defVersion: bigint("def_version", { mode: "number" }).notNull(),
   seq: bigint("seq", { mode: "number" }).notNull(),
   updatedBy: text("updated_by").notNull(),
@@ -1258,11 +1269,11 @@ export const settingValuesUser = pgTable("setting_values_user", {
     uniqueIndex("pk_setting_values_user").on(t.workspaceId, t.principalId, t.settingId),
   ]);
 
-export const settingValuesWorkspace = pgTable("setting_values_workspace", {
-  settingId: text("setting_id").notNull(),
-  workspaceId: text("workspace_id").notNull(),
+export const settingValuesWorkspace = mysqlTable("setting_values_workspace", {
+  settingId: varchar("setting_id", { length: 191 }).notNull(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   valueJson: jsonText("value_json"),
-  state: text("state").notNull().default("set"),
+  state: text("state").notNull().default(sql`('set')`),
   defVersion: bigint("def_version", { mode: "number" }).notNull(),
   seq: bigint("seq", { mode: "number" }).notNull(),
   updatedBy: text("updated_by").notNull(),
@@ -1273,9 +1284,9 @@ export const settingValuesWorkspace = pgTable("setting_values_workspace", {
     uniqueIndex("pk_setting_values_workspace").on(t.workspaceId, t.settingId),
   ]);
 
-export const siteAssistantCredentials = pgTable("site_assistant_credentials", {
-  workspaceId: text("workspace_id").primaryKey(),
-  provider: text("provider").notNull().default("google"),
+export const siteAssistantCredentials = mysqlTable("site_assistant_credentials", {
+  workspaceId: varchar("workspace_id", { length: 191 }).primaryKey(),
+  provider: text("provider").notNull().default(sql`('google')`),
   baseUrl: text("base_url"),
   model: text("model"),
   sealedKeyId: text("sealed_key_id"),
@@ -1290,16 +1301,16 @@ export const siteAssistantCredentials = pgTable("site_assistant_credentials", {
     check("site_assistant_credentials_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL AND masked IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL AND masked IS NOT NULL)`),
   ]);
 
-export const siteTitlePreexistingWorkspaces = pgTable("site_title_preexisting_workspaces", {
-  workspaceId: text("workspace_id").primaryKey(),
+export const siteTitlePreexistingWorkspaces = mysqlTable("site_title_preexisting_workspaces", {
+  workspaceId: varchar("workspace_id", { length: 191 }).primaryKey(),
   preservedAt: text("preserved_at"),
 });
 
-export const sourceControlCredentialSets = pgTable("source_control_credential_sets", {
-  id: text("id").notNull(),
-  workspaceId: text("workspace_id").notNull(),
-  providerId: text("provider_id").notNull(),
-  label: text("label").notNull(),
+export const sourceControlCredentialSets = mysqlTable("source_control_credential_sets", {
+  id: varchar("id", { length: 191 }).notNull(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  providerId: varchar("provider_id", { length: 191 }).notNull(),
+  label: varchar("label", { length: 191 }).notNull(),
   sealedKeyId: text("sealed_key_id").notNull(),
   sealedCiphertext: text("sealed_ciphertext").notNull(),
   sealedNonce: text("sealed_nonce").notNull(),
@@ -1314,9 +1325,9 @@ export const sourceControlCredentialSets = pgTable("source_control_credential_se
     uniqueIndex("source_control_credential_sets_workspace_provider_label_unique").on(t.workspaceId, t.providerId, t.label),
   ]);
 
-export const taxonomies = pgTable("taxonomies", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const taxonomies = mysqlTable("taxonomies", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   name: text("name").notNull(),
   hierarchical: bigint("hierarchical", { mode: "number" }).notNull(),
   status: text("status").notNull(),
@@ -1326,10 +1337,10 @@ export const taxonomies = pgTable("taxonomies", {
     index("idx_taxonomies_workspace").on(t.workspaceId),
   ]);
 
-export const taxonomyRevisions = pgTable("taxonomy_revisions", {
-  seq: bigint("seq", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  taxonomyId: text("taxonomy_id").notNull(),
+export const taxonomyRevisions = mysqlTable("taxonomy_revisions", {
+  seq: bigint("seq", { mode: "number" }).autoincrement().primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  taxonomyId: varchar("taxonomy_id", { length: 191 }).notNull(),
   op: text("op").notNull(),
   previousStateJson: jsonText("previous_state_json"),
   actorId: text("actor_id").notNull(),
@@ -1338,10 +1349,10 @@ export const taxonomyRevisions = pgTable("taxonomy_revisions", {
     index("idx_taxonomy_revisions_workspace_taxonomy").on(t.workspaceId, t.taxonomyId, t.seq),
   ]);
 
-export const terms = pgTable("terms", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  taxonomyId: text("taxonomy_id").notNull(),
+export const terms = mysqlTable("terms", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  taxonomyId: varchar("taxonomy_id", { length: 191 }).notNull(),
   parentId: text("parent_id"),
   name: text("name").notNull(),
   status: text("status").notNull(),
@@ -1351,10 +1362,10 @@ export const terms = pgTable("terms", {
     index("idx_terms_workspace_taxonomy").on(t.workspaceId, t.taxonomyId),
   ]);
 
-export const transformDefinitions = pgTable("transform_registry", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  name: text("name").notNull(),
+export const transformDefinitions = mysqlTable("transform_registry", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  name: varchar("name", { length: 191 }).notNull(),
   version: bigint("version", { mode: "number" }).notNull(),
   paramsJson: jsonText("params_json").notNull(),
   owner: text("owner").notNull(),
@@ -1363,13 +1374,13 @@ export const transformDefinitions = pgTable("transform_registry", {
     uniqueIndex("idx_transform_registry_lookup").on(t.workspaceId, t.name, t.version),
   ]);
 
-export const trashedItems = pgTable("trashed_items", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  entityType: text("entity_type").notNull(),
-  entityId: text("entity_id").notNull(),
-  trashedAt: text("trashed_at").notNull(),
-  purgeAfter: text("purge_after").notNull(),
+export const trashedItems = mysqlTable("trashed_items", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  entityType: varchar("entity_type", { length: 191 }).notNull(),
+  entityId: varchar("entity_id", { length: 191 }).notNull(),
+  trashedAt: varchar("trashed_at", { length: 191 }).notNull(),
+  purgeAfter: varchar("purge_after", { length: 191 }).notNull(),
   actorPrincipalId: text("actor_principal_id").notNull(),
   actorPluginId: text("actor_plugin_id"),
   displayTitle: text("display_title").notNull(),
@@ -1385,11 +1396,11 @@ export const trashedItems = pgTable("trashed_items", {
     index("idx_trashed_items_workspace_trashed_at").on(t.workspaceId, t.trashedAt),
   ]);
 
-export const vendorCredentialSets = pgTable("vendor_credential_sets", {
-  id: text("id").notNull(),
-  workspaceId: text("workspace_id").notNull(),
-  vendorId: text("vendor_id").notNull(),
-  label: text("label").notNull(),
+export const vendorCredentialSets = mysqlTable("vendor_credential_sets", {
+  id: varchar("id", { length: 191 }).notNull(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  vendorId: varchar("vendor_id", { length: 191 }).notNull(),
+  label: varchar("label", { length: 191 }).notNull(),
   sealedKeyId: text("sealed_key_id").notNull(),
   sealedCiphertext: text("sealed_ciphertext").notNull(),
   sealedNonce: text("sealed_nonce").notNull(),
@@ -1405,16 +1416,16 @@ export const vendorCredentialSets = pgTable("vendor_credential_sets", {
     uniqueIndex("vendor_credential_sets_workspace_vendor_label_unique").on(t.workspaceId, t.vendorId, t.label),
   ]);
 
-export const webhookDeliveries = pgTable("webhook_deliveries", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  subscriptionId: text("subscription_id").notNull(),
-  eventId: text("event_id").notNull(),
+export const webhookDeliveries = mysqlTable("webhook_deliveries", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  subscriptionId: varchar("subscription_id", { length: 191 }).notNull(),
+  eventId: varchar("event_id", { length: 191 }).notNull(),
   topic: text("topic").notNull(),
   payloadJson: jsonText("payload_json"),
-  status: text("status").notNull(),
+  status: varchar("status", { length: 191 }).notNull(),
   attempts: bigint("attempts", { mode: "number" }).notNull(),
-  nextAttemptAt: text("next_attempt_at").notNull(),
+  nextAttemptAt: varchar("next_attempt_at", { length: 191 }).notNull(),
   lastResponseStatus: bigint("last_response_status", { mode: "number" }),
   lastError: text("last_error"),
   signedWithVersion: bigint("signed_with_version", { mode: "number" }),
@@ -1426,9 +1437,9 @@ export const webhookDeliveries = pgTable("webhook_deliveries", {
     index("idx_webhook_deliveries_status_next_attempt").on(t.status, t.nextAttemptAt),
   ]);
 
-export const webhookSubscriptions = pgTable("webhook_subscriptions", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
+export const webhookSubscriptions = mysqlTable("webhook_subscriptions", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
   ownerPrincipalId: text("owner_principal_id").notNull(),
   label: text("label").notNull(),
   targetUrl: text("target_url").notNull(),
@@ -1445,19 +1456,19 @@ export const webhookSubscriptions = pgTable("webhook_subscriptions", {
     index("idx_webhook_subscriptions_workspace").on(t.workspaceId),
   ]);
 
-export const widgetRegionBindings = pgTable("widget_region_bindings", {
-  workspaceId: text("workspace_id").notNull(),
-  regionKey: text("region_key").notNull(),
-  areaEntryId: text("area_entry_id").notNull(),
+export const widgetRegionBindings = mysqlTable("widget_region_bindings", {
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  regionKey: varchar("region_key", { length: 191 }).notNull(),
+  areaEntryId: varchar("area_entry_id", { length: 191 }).notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
     uniqueIndex("widget_region_bindings_workspace_region_unique").on(t.workspaceId, t.regionKey),
     index("idx_widget_region_bindings_area").on(t.workspaceId, t.areaEntryId),
   ]);
 
-export const workspaces = pgTable("workspaces", {
-  id: text("id").primaryKey(),
+export const workspaces = mysqlTable("workspaces", {
+  id: varchar("id", { length: 191 }).primaryKey(),
   name: text("name").notNull(),
-  slug: text("slug").notNull().unique(),
+  slug: varchar("slug", { length: 191 }).notNull().unique(),
   createdAt: text("created_at").notNull(),
 });

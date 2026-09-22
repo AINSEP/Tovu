@@ -9,12 +9,15 @@
  * behavior these checks are guarding against (see that file's own doc for why each proof is executed
  * against a real server, not asserted in the abstract).
  *
- * Why these checks matter even though row copying itself does no dialect conversion for text/JSON
- * columns this round (both stay TEXT — see manifest.ts's `JSON_TEXT_NOTE`/`TIMESTAMP_REPRESENTATION`):
+ * Why these checks matter even though row copying itself does no dialect conversion for text
+ * columns this round (both stay TEXT — see manifest.ts's `TIMESTAMP_REPRESENTATION`; JSON columns are
+ * the exception, native jsonb on Postgres — see `JSON_TEXT_NOTE` and `verifyJsonDocumentCopy`):
  * a byte-for-byte copy is exactly the case where a WRONG value copies perfectly cleanly. Neither
  * dialect's plain text column notices a malformed JSON payload or a timezone-naive timestamp — the
  * type system offers no protection at all here, which is precisely why this semantic layer has to.
  */
+import { isDeepStrictEqual } from "node:util";
+
 import type { SemanticColumnClass } from "./manifest.js";
 
 export interface VerificationFailure {
@@ -213,15 +216,46 @@ export function verifyBooleanCopy(sourceSqliteValue: number, copiedPostgresValue
 }
 
 /**
- * Verifies copy FIDELITY for `plain-text`, `json-text`, and `utc-timestamp-text` — the three classes
- * this round's no-transform TEXT policy applies to (see `manifest.ts`'s `JSON_TEXT_NOTE` /
+ * Verifies copy FIDELITY for a `json-text` column: SQLite stores the document as TEXT, Postgres as
+ * native jsonb (`generate-postgres-schema.ts`'s `JSON_TEXT_DECLARATION`), and jsonb does not preserve
+ * bytes — it reorders object keys, rewrites whitespace, and keeps only the last of duplicate keys. So
+ * this is the one DECLARED transform on a text-family column, and fidelity is JSON-value equality:
+ * both sides parse, then compare deep-equal with object key order ignored and array order, types and
+ * nullness all significant. A copier that substitutes a different-but-valid document (the audited
+ * `{"role":"admin"}` -> `{"role":"member"}`) still fails; jsonb's own normalisation does not.
+ *
+ * Known blind spot: both sides go through `JSON.parse`, so two integers that differ only past 2^53
+ * compare equal. jsonb itself keeps full `numeric` precision; the check is what rounds.
+ */
+export function verifyJsonDocumentCopy(sqliteValue: string | null, postgresValue: string | null): VerificationFailure | null {
+  if (sqliteValue === null && postgresValue === null) return null;
+  if (sqliteValue === null || postgresValue === null) return jsonCopyMismatch(sqliteValue, postgresValue);
+  const source = verifyJsonText(sqliteValue);
+  if (source) return { code: source.code, message: `source ${source.message}` };
+  const destination = verifyJsonText(postgresValue);
+  if (destination) return destination;
+  return isDeepStrictEqual(JSON.parse(sqliteValue), JSON.parse(postgresValue)) ? null : jsonCopyMismatch(sqliteValue, postgresValue);
+}
+
+function jsonCopyMismatch(sqliteValue: string | null, postgresValue: string | null): VerificationFailure {
+  return {
+    code: "JSON_COPY_FIDELITY_MISMATCH",
+    message:
+      `source value ${JSON.stringify(sqliteValue)} is not the same JSON document as the copied value ` +
+      `${JSON.stringify(postgresValue)} (object key order and whitespace are ignored; everything else must match).`,
+  };
+}
+
+/**
+ * Verifies copy FIDELITY for `plain-text` and `utc-timestamp-text` — the classes this round's
+ * no-transform TEXT policy applies to (see `manifest.ts`'s
  * `TIMESTAMP_REPRESENTATION`: both dialects store these as TEXT, byte-for-byte, this round, no
  * conversion of any kind). Exact string equality, not a semantic/structural comparison — no
  * `JSON.parse` + deep-equal that would tolerate key reordering or whitespace differences — because
- * the declared contract is "no transform at all", not "no transform that changes meaning". A future
- * transform (JSON reformatting, timestamp canonicalization to `Z`) must be added here as its own
- * DECLARED, versioned case this dispatcher is taught about, never as a silent exemption from this
- * check.
+ * the declared contract is "no transform at all", not "no transform that changes meaning". A
+ * transform (timestamp canonicalization to `Z`, or jsonb's JSON normalisation — declared as
+ * `verifyJsonDocumentCopy`) must be its own DECLARED case this dispatcher is taught about, never a
+ * silent exemption from this check.
  *
  * Exists because a shape-only check (valid JSON, a UTC-designated string) cannot catch a copier bug
  * that silently substitutes a DIFFERENT but equally well-shaped value — the audited example:
@@ -234,7 +268,7 @@ export function verifyExactTextCopy(sqliteValue: unknown, postgresValue: unknown
     code: "TEXT_COPY_FIDELITY_MISMATCH",
     message:
       `source value ${JSON.stringify(sqliteValue)} does not exactly match the copied value ` +
-      `${JSON.stringify(postgresValue)}. plain-text/json-text/utc-timestamp-text columns have no transform this ` +
+      `${JSON.stringify(postgresValue)}. plain-text/utc-timestamp-text columns have no transform this ` +
       `round — a byte-for-byte copy is the entire contract, and this pair fails it.`,
   };
 }
@@ -242,7 +276,8 @@ export function verifyExactTextCopy(sqliteValue: unknown, postgresValue: unknown
 /**
  * Dispatches one column's copied value to the check(s) its `manifest.ts` classification implies.
  *
- * `json-text` and `utc-timestamp-text` run TWO checks, in order: `verifyExactTextCopy` first (does
+ * `json-text` runs `verifyJsonDocumentCopy`, which compares JSON values (jsonb normalises the text)
+ * and rejects malformed JSON on either side. `utc-timestamp-text` runs TWO checks, in order: `verifyExactTextCopy` first (does
  * the copy match the source at all?), then the destination-shape check (is the matched value
  * well-formed?) — shape alone was the BLOCKER this dispatcher used to ship: it validated only
  * `postgresValue`, so a copier that silently substituted a different-but-valid value for either kind
@@ -267,11 +302,8 @@ export function verifyClassifiedValue(columnClass: SemanticColumnClass, sqliteVa
       if (fidelity) return fidelity;
       return verifyUtcTimestampText(postgresValue as string | null);
     }
-    case "json-text": {
-      const fidelity = verifyExactTextCopy(sqliteValue, postgresValue);
-      if (fidelity) return fidelity;
-      return verifyJsonText(postgresValue as string | null);
-    }
+    case "json-text":
+      return verifyJsonDocumentCopy(sqliteValue as string | null, postgresValue as string | null);
     case "plain-text":
       return verifyExactTextCopy(sqliteValue, postgresValue);
     case "boolean-flag":

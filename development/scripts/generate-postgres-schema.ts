@@ -19,7 +19,9 @@
  * constraints. A generator covering that surface is a few hundred lines, not a second ORM.
  *
  * Those tallies are a point-in-time census and go stale whenever a column lands — they document why
- * the approach is tractable, they are not a contract. The enforced invariants live in
+ * the approach is tractable, they are not a contract. ("No JSON columns" above means no Drizzle
+ * `{ mode: "json" }` column; the `text` columns that HOLD JSON are now emitted as native `jsonb` —
+ * see `JSON_TEXT_DECLARATION`.) The enforced invariants live in
  * `src/platform/db/__tests__/schema-postgres-parity.test.ts`, which derives every count from `schema.ts` at
  * run time; re-measure with `getTableConfig()` rather than trusting a number in this paragraph.
  *
@@ -50,6 +52,7 @@ import path from "node:path";
 import { Column, is, Param, SQL, StringChunk } from "drizzle-orm";
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 
+import { classifyCoreColumn } from "../../apps/website/src/platform/db/migration/manifest.js";
 import * as schema from "../../apps/website/src/platform/db/schema.js";
 
 const OUT_PATH = path.resolve(import.meta.dirname, "../../apps/website/src/platform/db/schema.postgres.ts");
@@ -97,11 +100,11 @@ function collectTables(): Array<{ exportName: string; table: never }> {
  * columns per the census above), which dilutes the true per-row cost well below either number. Re-measure
  * at the actual column count before citing a specific percentage for any one table.
  */
-function columnBuilder(col: SQLiteColumn): string {
+function columnBuilder(col: SQLiteColumn, tableSqlName: string): string {
   const name = JSON.stringify(col.name);
   switch (col.columnType) {
     case "SQLiteText":
-      return `text(${name})`;
+      return isJsonColumn(col, tableSqlName) ? `jsonText(${name})` : `text(${name})`;
     case "SQLiteBoolean":
       // Stored 0/1 in SQLite; PostgreSQL has a native boolean, so the REPRESENTATION changes even
       // though the logical type does not. Row copying must convert, not pass the integer through.
@@ -114,6 +117,60 @@ function columnBuilder(col: SQLiteColumn): string {
           `This generator was written against a measured surface of SQLiteText/SQLiteInteger/SQLiteBoolean. ` +
           `Adding a new kind to schema.ts requires teaching columnBuilder about it first.`
       );
+  }
+}
+
+/**
+ * Which text columns hold JSON documents: exactly the columns the migration manifest classifies
+ * `json-text` (the `_json` naming convention plus its reviewed allowlist for JSON columns that break
+ * the convention, e.g. `posts.ext`). One classification drives both the column type here and the
+ * row-copy verification in `migration/verify.ts`, so the two can never disagree about a column.
+ */
+function isJsonColumn(col: SQLiteColumn, tableSqlName: string): boolean {
+  return col.columnType === "SQLiteText" && classifyCoreColumn(tableSqlName, col).kind === "json-text";
+}
+
+/**
+ * A `json-text` column becomes native `jsonb`, exposed with the same TypeScript type (`string`) the
+ * SQLite schema declares. Repositories already `JSON.stringify` on write and `JSON.parse` on read, so
+ * Drizzle's own `jsonb()` (which stringifies again, and is typed `unknown`) would double-encode and
+ * change every call site. This custom type passes the serialised string through on write — Postgres
+ * parses the text parameter into jsonb — and re-serialises on read, because node-postgres and
+ * postgres.js both hand jsonb back already parsed.
+ *
+ * What changes versus SQLite's TEXT (all are properties of jsonb, not of this mapping):
+ *  - Validity is enforced: a write that is not valid JSON fails (SQLite stores it silently). A string
+ *    containing `\u0000` is also rejected — jsonb cannot store a NUL code point.
+ *  - The stored document is normalised, not byte-preserved: object keys come back in jsonb's own
+ *    order (by key length, then bytewise), insignificant whitespace is dropped and re-emitted as
+ *    `", "`/`": "`, and for duplicate keys only the last value survives. A read therefore returns
+ *    equivalent JSON, never the exact string written — so row-copy verification compares JSON values,
+ *    not bytes (`verifyJsonDocumentCopy` in `migration/verify.ts`).
+ */
+const JSON_TEXT_DECLARATION = `/** Native jsonb column exposed as the same serialised \`string\` the SQLite schema stores. */
+const jsonText = customType<{ data: string; driverData: unknown }>({
+  dataType: () => "jsonb",
+  toDriver: (value) => value,
+  fromDriver: (value) => (typeof value === "string" ? value : JSON.stringify(value)),
+});`;
+
+/**
+ * A JSON column must never be a key. SQLite's (and so this schema's) indexes are plain b-trees over a
+ * scalar; a jsonb document is indexed usefully only by GIN, which is a different, deliberately
+ * designed index — never something to fall into by mechanically translating a b-tree. Anything that
+ * needs filtering/sorting/joining belongs in a real column.
+ */
+function assertNoKeyedJsonColumn(cfg: ReturnType<typeof getTableConfig>, exportName: string): void {
+  const keyed: SQLiteColumn[] = cfg.columns.filter((c) => c.primary || c.isUnique);
+  for (const idx of cfg.indexes) for (const c of idx.config.columns) if (is(c, Column)) keyed.push(c as unknown as SQLiteColumn);
+  for (const pk of cfg.primaryKeys) keyed.push(...pk.columns);
+  for (const fk of cfg.foreignKeys) keyed.push(...(fk.reference().columns as SQLiteColumn[]));
+  const json = keyed.find((c) => isJsonColumn(c, cfg.name));
+  if (json) {
+    throw new Error(
+      `table "${exportName}" keys or indexes JSON column "${json.name}". A jsonb document is not a b-tree key — ` +
+        `index a real column instead, or hand-author a GIN index as a deliberate Postgres-only design.`
+    );
   }
 }
 
@@ -324,7 +381,7 @@ function assertKnownColumnShape(col: SQLiteColumn): void {
 
 function renderColumn(tsName: string, col: SQLiteColumn, tableSqlName: string): string {
   assertKnownColumnShape(col);
-  let out = columnBuilder(col);
+  let out = columnBuilder(col, tableSqlName);
   if (col.primary) {
     // A composite primary key is emitted at table level instead; `.primary` is only true for a
     // single-column PK, so this cannot double up with the composite branch below.
@@ -588,6 +645,7 @@ function renderExtras(
 function renderTable(exportName: string, table: never): string {
   const cfg = getTableConfig(table);
   assertKnownTableConfigShape(cfg, exportName);
+  assertNoKeyedJsonColumn(cfg, exportName);
   const tsNames = tsPropertyNames(table, cfg.columns);
   const columns = cfg.columns.map((c) => renderColumn(tsNames.get(c)!, c, cfg.name)).join("\n");
   const { indexes, composite, checks, foreignKeys } = renderExtras(cfg, exportName, tsNames, table);
@@ -613,7 +671,9 @@ function generate(): string {
  *
  * Tables: ${tables.length}
  */
-import { sql } from "drizzle-orm";\nimport { bigint, boolean, check, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";\nimport { bigint, boolean, check, customType, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
+
+${JSON_TEXT_DECLARATION}
 
 ${body}
 `;
