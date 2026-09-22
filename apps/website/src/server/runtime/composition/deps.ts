@@ -216,6 +216,8 @@ import {
   SqliteTermRepo,
   sqliteStampWatermark,
 } from "#src/features/taxonomy/repo.sqlite";
+import { toTaxonomyOutbox } from "#src/features/taxonomy/index";
+import { createTermPurgeFollowUp, createTaxonomyPurgeFollowUp } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "#src/features/recovery/repo.memory";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
@@ -1149,6 +1151,18 @@ export function createSqliteRouteDeps(
   // build still reads it), and its restore makes the payload active again. `routeDeps` is read at
   // restore time, long after it exists below. T5/T6 add their own entries here (menu/taxonomy
   // revision + event follow-ups) — this map stays the one per-type wiring point (plan §2 T1 item 6).
+  // Hoisted above `trashFollowUpHooks` (needs `findByEntity` for the term/taxonomy purge
+  // follow-ups below) — the constructor takes only `db.$client`, no dependency on
+  // `trashAdapters`/`trash` itself, so this is safe to build early (T6, step 3).
+  const trashRepo = new SqliteTrashRepo(db.$client);
+  // Purge-only audit trail for `term`/`taxonomy` (plan §6 Q2): one `taxonomy_revisions` row plus a
+  // domain event, matching `deleteTerm`/`deleteTaxonomy`'s own writes — see
+  // `taxonomy-trash-follow-ups.ts`'s file header. A second, cheap `SqliteTermRepo`/
+  // `SqliteTaxonomyRevisionRepo` instance each (stateless wrappers over the same tables `termRepo`/
+  // `taxonomyRevisionRepo` below use) rather than hoisting those out of the return object literal.
+  const taxonomyFollowUpTermRepo = new SqliteTermRepo({ db, workspaceId });
+  const taxonomyFollowUpRevisions = new SqliteTaxonomyRevisionRepo({ db, workspaceId });
+  const taxonomyFollowUpOutbox = toTaxonomyOutbox({ outbox, clock, idGen, workspaceId });
   const trashFollowUpHooks = new Map<string, TrashFollowUpHooks>([
     [
       "widget",
@@ -1161,6 +1175,26 @@ export function createSqliteRouteDeps(
       },
     ],
     ["menu", buildMenuTrashFollowUpHooks({ menuRepo, outbox, idGen, clock })],
+    [
+      "term",
+      createTermPurgeFollowUp({
+        termRepo: taxonomyFollowUpTermRepo,
+        trash: trashRepo,
+        revisions: taxonomyFollowUpRevisions,
+        outbox: taxonomyFollowUpOutbox,
+        clock,
+      }),
+    ],
+    [
+      "taxonomy",
+      createTaxonomyPurgeFollowUp({
+        termRepo: taxonomyFollowUpTermRepo,
+        trash: trashRepo,
+        revisions: taxonomyFollowUpRevisions,
+        outbox: taxonomyFollowUpOutbox,
+        clock,
+      }),
+    ],
   ]);
   const trashAdapters = new Map<string, TrashAdapter>([
     [POST_ENTITY_TYPE, createPostTrashAdapter(db.$client)],
@@ -1190,7 +1224,6 @@ export function createSqliteRouteDeps(
       return [entry.entityType, hooks ? withFollowUps({ adapter, hooks }) : adapter] as const;
     }),
   ]);
-  const trashRepo = new SqliteTrashRepo(db.$client);
   // Reentrant: `deletePost` and `tombstoneRedirect` already open their own BEGIN IMMEDIATE around
   // "marker + revision append", and `remove` is called from inside it. Named (not inlined) because
   // the comments moderation service needs the SAME runner to wrap its own two writes.
@@ -1787,6 +1820,11 @@ export function createSqliteRouteDeps(
     entryRepo,
     taxonomyRepo: new SqliteTaxonomyRepo({ db, workspaceId: workspaceId }),
     termRepo: new SqliteTermRepo({ db, workspaceId: workspaceId }),
+    // `removeTerm` is WIDE (carries `"blocked"` — the `term` registry entry declares a
+    // `TERM_HAS_CHILDREN` blocker); `removeTaxonomy` is narrowed the same way as `removeMenu`/
+    // `removeFormSubmission` above (T6, step 3).
+    removeTerm: bindRemoveEntity(trash, "term"),
+    removeTaxonomy: removeEntityWithoutBlocker(bindRemoveEntity(trash, "taxonomy")),
     // Same instance backs both `entryTermRepo` (the certified write-service port, widened with the
     // Mergeable/AssignmentCount additive capabilities) and `entryTermReadRepo` (the new
     // `EntryTermReadPort` read path, `routes/types.ts`'s own doc explains why these are two

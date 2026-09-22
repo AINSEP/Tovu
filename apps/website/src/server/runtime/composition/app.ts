@@ -799,6 +799,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     removeRedirect: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
     removeWidget: removeEntityWithoutBlocker(bindRemoveEntity(trash, "widget")),
     removeMenu: removeEntityWithoutBlocker(bindRemoveEntity(trash, "menu")),
+    // Bound the same way as `composition/deps.ts` (T6, step 3/5). Functionally inert here until
+    // the next agent's step 4 adds real `"term"`/`"taxonomy"` entries to `trashAdapters` above —
+    // nothing in this hermetic composition calls either yet.
+    removeTerm: bindRemoveEntity(trash, "term"),
+    removeTaxonomy: removeEntityWithoutBlocker(bindRemoveEntity(trash, "taxonomy")),
     forgetRemovedMedia: bindForgetRemovedEntity(trashRepo, MEDIA_ENTITY_TYPE),
     forgetRemovedPost: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
     // Present so this root satisfies `TrashDeps`, and harmless: `createApp` never starts the
@@ -994,8 +999,27 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     contentTypeRepo: new InMemoryContentTypeRepo(),
     contentTypeIndexProvisioner: new NoopContentTypeIndexProvisioner(),
     entryRepo,
-    taxonomyRepo: new InMemoryTaxonomyRepo(),
-    termRepo: new InMemoryTermRepo(),
+    // STUB (T6, step 3/5 landed; step 4 — the full hermetic trash-aware repos — is NOT done this
+    // pass). `InMemoryTaxonomyRepo`/`InMemoryTermRepo` (`@jini-ai/cms/taxonomy`) have no
+    // `findForTrash` method at all — `TaxonomyTrashReadPort`/`TermTrashReadPort` are host-only
+    // additions (`routes/types.ts`'s doc) `ContentTaxonomyDeps` now requires. `trashTerm`/
+    // `trashTaxonomy` read through this before ever calling `remove`, so "always not-found" is
+    // inert here — this hermetic root has no route wired to exercise the term/taxonomy trash path
+    // yet, unlike `composition/deps.ts`'s real SQLite repos, which implement `findForTrash` for
+    // real. The next agent replaces both fields with `TrashAwareInMemoryTaxonomyRepo`/
+    // `TrashAwareInMemoryTermRepo` (own-`Map` classes, not a wrapper — T6b handoff item 4) and
+    // removes this stub, along with wiring real `"term"`/`"taxonomy"` entries into `trashAdapters`
+    // above (also not present yet).
+    taxonomyRepo: Object.assign(new InMemoryTaxonomyRepo(), {
+      async findForTrash(): Promise<{ id: string; name: string; version: number } | null> {
+        return null;
+      },
+    }),
+    termRepo: Object.assign(new InMemoryTermRepo(), {
+      async findForTrash(): Promise<{ id: string; name: string; taxonomyName: string; version: number } | null> {
+        return null;
+      },
+    }),
     entryTermRepo: new InMemoryEntryTermRepo(),
     taxonomyRevisionRepo: new InMemoryTaxonomyRevisionRepo(),
     stampWatermark: noopStampWatermark,

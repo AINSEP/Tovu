@@ -123,6 +123,12 @@ import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.j
 import type { LedgerAppendPort } from "../../features/database/gated-hooks.js";
 import type { MergeableEntryTermRepoPort } from "../../features/taxonomy/gated-hooks.js";
 import type { EntryTermReadPort } from "../../features/taxonomy/repo.sqlite.js";
+import type {
+  RemoveTermFn,
+  RemoveTaxonomyFn,
+  TermTrashReadPort,
+  TaxonomyTrashReadPort,
+} from "../../features/taxonomy/trash-term.js";
 import type { WidgetRegionBindingRepoPort, RemoveWidgetFn } from "../../features/widgets/ports.js";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation.js";
@@ -545,8 +551,19 @@ export interface ContentTaxonomyDeps {
    * #1/#2): the same guard-and-cascade atomicity `deleteTerm`/`deleteTaxonomy` need, sourced from
    * whichever one repo instance the route wires up as `deps.transaction` — `taxonomyRepo` is the
    * one both delete flows always have, so it is the canonical source. */
-  taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort & DeletableTaxonomyRepoPort & TransactionalRepoPort;
-  termRepo: TermRepoPort & TermListPort & DeletableTermRepoPort;
+  /** Widened once more with `TaxonomyTrashReadPort` (`findForTrash`, a host-only addition — see
+   *  `EntryTermReadPort`'s doc above for why these are declared directly against `repo.sqlite.js`/
+   *  `trash-term.js` rather than folded into a certified Jini port) for `trashTaxonomy`'s read. */
+  taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort & DeletableTaxonomyRepoPort & TransactionalRepoPort & TaxonomyTrashReadPort;
+  /** Widened once more with `TermTrashReadPort` (`findForTrash`) for `trashTerm`'s read — same
+   *  host-only-addition reasoning as `taxonomyRepo` above. */
+  termRepo: TermRepoPort & TermListPort & DeletableTermRepoPort & TermTrashReadPort;
+  /** Bound at composition to the generic trash pipeline (T6, trash parallel plan §2, owner
+   *  decision 5) — `RemoveTermFn` is WIDE (carries `"blocked"`, the `TERM_HAS_CHILDREN` blocker);
+   *  `RemoveTaxonomyFn` is narrowed, same reasoning as `removeWidget`/`removeMenu` elsewhere in
+   *  this file. */
+  removeTerm: RemoveTermFn;
+  removeTaxonomy: RemoveTaxonomyFn;
   /** Widened this dispatch with `MergeableEntryTermRepoPort` (the `mergeTerm` gated-mutation
    * ceremony's by-term enumeration need — see `features/taxonomy/gated-hooks.ts`). Widened again
    * with `AssignmentCountEntryTermRepoPort` for the `deleteTaxonomy`/`deleteTerm` guard. */
