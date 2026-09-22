@@ -1,5 +1,5 @@
-import { render } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { render as renderWithoutProvider } from "@testing-library/react";
+import type { ReactElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -69,6 +69,13 @@ vi.mock("../../lib/settings-refresh-bus", async (importOriginal) => {
 vi.mock("../../lib/router", () => ({ navigate: vi.fn() }));
 
 import { AssistantDock } from "../AssistantDock/AssistantDock";
+import { FetchQueryProvider } from "../../lib/fetch-query";
+
+/** Every render sits under the app's query-cache provider, as `main.tsx` mounts the real dock:
+ *  `useRuntimeAccess`/`useAgentsPlaceholder` read the agents list through that cache. */
+function render(ui: ReactElement) {
+  return renderWithoutProvider(ui, { wrapper: FetchQueryProvider });
+}
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 
 interface RuntimeAccess {

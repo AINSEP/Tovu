@@ -16,6 +16,8 @@ import { buildSandboxProxyDataUrl } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { navigate } from "@/lib/router";
 import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
+import { readAgentsSnapshot, writeAgentsSnapshot } from "@/lib/assistant-agents-snapshot";
+import { useCachedLoader, type CachedLoader } from "@/lib/fetch-query";
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
 import { publishContentRefresh } from "@/lib/content-refresh-bus";
 import { createTovuAssistantTransport } from "@/lib/assistant-transport";
@@ -912,15 +914,55 @@ export function getResumeCapableAgentIds(): ReadonlySet<string> {
   return resumeCapableAgentIds;
 }
 
+/** A non-2xx `/api/agents` answer. Thrown (not resolved as `[]`) so the query cache never stores
+ *  it; {@link useRuntimeAccess}'s `listAgents` turns it back into `[]` for `ChatPane`. */
+class AgentsResponseNotOkError extends Error {}
+
+/** Records one fresh inventory everywhere that reads it: the resume-capable set the transport
+ *  consults, and the localStorage placeholder for the next cold load. */
+function recordAgents(agents: readonly AgentWithMemoryFlag[]): void {
+  resumeCapableAgentIds = extractResumeCapableAgentIds(agents);
+  writeAgentsSnapshot(agents);
+}
+
 async function fetchAgents(): Promise<ChatPaneAgent[]> {
   const response = await fetch(AGENTS_URL, {
     credentials: "same-origin",
     signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
   });
-  if (!response.ok) return [];
+  if (!response.ok) throw new AgentsResponseNotOkError(`GET ${AGENTS_URL} answered ${response.status}`);
   const { agents } = (await response.json()) as { agents: AgentWithMemoryFlag[] };
-  resumeCapableAgentIds = extractResumeCapableAgentIds(agents);
+  recordAgents(agents);
   return agents;
+}
+
+function emptyOnNotOk(error: unknown): ChatPaneAgent[] {
+  if (error instanceof AgentsResponseNotOkError) return [];
+  throw error;
+}
+
+/**
+ * The client-side cache key for `/api/agents`. `staleTime: Infinity` because the server already
+ * memoizes the inventory for the daemon's lifetime (`apps/website/src/assistant/agents.ts`
+ * `cachedAgents`) — a re-read would return the same list — and the one way to change it, a rescan,
+ * writes its answer straight into this cache.
+ */
+const AGENTS_QUERY_KEY = ["assistant", "agents"] as const;
+
+/** A cache-bypassing GET whose success replaces the cached list; a non-2xx answer resolves `[]`
+ *  without touching the cache, so a failed read never overwrites a good inventory. */
+async function refetchAgentsInto(loader: CachedLoader<ChatPaneAgent[]>): Promise<ChatPaneAgent[]> {
+  try {
+    const agents = await fetchAgents();
+    loader.replace(agents);
+    return agents;
+  } catch (error) {
+    return emptyOnNotOk(error);
+  }
+}
+
+function useAgentsLoader(): CachedLoader<ChatPaneAgent[]> {
+  return useCachedLoader({ key: AGENTS_QUERY_KEY, fetch: fetchAgents, staleTime: Infinity });
 }
 
 /**
@@ -962,34 +1004,57 @@ async function daemonOnline(): Promise<boolean> {
  * (real I/O: all three members are `fetch`-backed) — defaulted to the real hook on
  * `AssistantDockProps`.
  *
- * `rescanAgents` falls back to `listAgents()` (a plain re-fetch of the same `/api/agents` GET)
- * whenever the rescan POST itself does not report success, rather than surfacing an error into the
- * picker — a rescan that could not confirm anything new still leaves the picker with whatever
- * agents are currently known, instead of going blank.
+ * `listAgents` reads through the shared query cache ({@link useAgentsLoader}), so a remounted pane,
+ * a conversation switch, or a second screen gets the inventory without another request; a non-2xx
+ * answer still resolves `[]` but is never cached, so the next mount retries.
+ *
+ * `rescanAgents` writes its answer into that cache. It falls back to a plain re-fetch of the same
+ * `/api/agents` GET whenever the rescan POST itself does not report success, rather than surfacing
+ * an error into the picker — a rescan that could not confirm anything new still leaves the picker
+ * with whatever agents are currently known, instead of going blank.
  *
  * @returns The memoized `{ listAgents, rescanAgents, daemonOnline }` object `ChatPane` reads.
  * @example
  * const runtimeAccess = useRuntimeAccess();
  */
 export function useRuntimeAccess(): ChatPaneRuntimeAccess {
+  const loader = useAgentsLoader();
   return useMemo(
     () => ({
-      listAgents: fetchAgents,
+      listAgents: () => loader.load().catch(emptyOnNotOk),
       rescanAgents: async () => {
         const response = await fetch(`${AGENTS_URL}/rescan`, {
           method: "POST",
           credentials: "same-origin",
           signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
         });
-        if (!response.ok) return fetchAgents();
+        if (!response.ok) return refetchAgentsInto(loader);
         const { agents } = (await response.json()) as { agents: AgentWithMemoryFlag[] };
-        resumeCapableAgentIds = extractResumeCapableAgentIds(agents);
+        recordAgents(agents);
+        loader.replace(agents);
         return agents;
       },
       daemonOnline,
     }),
-    [],
+    [loader],
   );
+}
+
+/**
+ * The inventory `ChatPane` shows before its own `listAgents` call resolves (its `agents` prop, read
+ * once per pane mount): the cached live list when this tab already has one, otherwise the last list
+ * this browser saw (`lib/assistant-agents-snapshot.ts`), otherwise nothing — the pre-existing
+ * "Loading available CLIs" state. Re-read every render so a pane re-keyed by a conversation switch
+ * seeds from the live list rather than the snapshot the dock mounted with.
+ *
+ * @returns The placeholder list, or `undefined` when there is none.
+ * @example
+ * const agentsPlaceholder = useAgentsPlaceholder();
+ */
+export function useAgentsPlaceholder(): readonly ChatPaneAgent[] | undefined {
+  const loader = useAgentsLoader();
+  const [snapshot] = useState(readAgentsSnapshot);
+  return loader.peek() ?? snapshot;
 }
 
 /**
@@ -1622,6 +1687,18 @@ export function useAttachmentValidatorSeam(
 
 export function useRuntimeAccessSeam(override: typeof useRuntimeAccess | undefined): ChatPaneRuntimeAccess {
   return (override ?? useRuntimeAccess)();
+}
+
+function useNoAgentsPlaceholder(): undefined {
+  return undefined;
+}
+
+/** {@link useAgentsPlaceholder} reads the REAL runtime access's cache, so it only applies when that
+ *  real access is in use: an injected `useRuntimeAccess` fake has no cache to seed from. */
+export function useAgentsPlaceholderSeam(
+  runtimeAccessOverride: typeof useRuntimeAccess | undefined,
+): readonly ChatPaneAgent[] | undefined {
+  return (runtimeAccessOverride ? useNoAgentsPlaceholder : useAgentsPlaceholder)();
 }
 
 export function useWorkingDirectoryAccessSeam(

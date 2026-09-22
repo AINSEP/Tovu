@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render as renderWithoutProvider, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { FetchQueryProvider } from "../../lib/fetch-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
@@ -185,3 +187,9 @@ it("hides the assistant dock and chat FAB once the server reports TOVU_ADMIN_ASS
   await waitFor(() => expect(container.querySelector(".chat-fab")).toBeNull());
   expect(container.querySelector('[aria-label="Assistant"]')).toBeNull();
 });
+
+/** `App` mounts the assistant dock, whose agents list reads through the app's query cache — render
+ *  under the same provider `main.tsx` wraps `App` in. */
+function render(ui: ReactElement) {
+  return renderWithoutProvider(ui, { wrapper: FetchQueryProvider });
+}

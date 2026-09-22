@@ -22,6 +22,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import type {
+  CachedLoader,
+  CachedLoaderOptions,
   FetchMutationOptions,
   FetchQueryOptions,
   MutationResult,
@@ -243,6 +245,23 @@ export function useFetchMutation<TInput, TOutput>({
     error: mutation.error ? toError(mutation.error, "request failed") : null,
     reset,
   };
+}
+
+export function useCachedLoader<T>({ key, fetch, staleTime }: CachedLoaderOptions<T>): CachedLoader<T> {
+  const client = useQueryClient();
+  return useMemo(() => {
+    // `gcTime` follows `staleTime` (see `CachedLoaderOptions.staleTime`): `fetchQuery` never
+    // subscribes an observer, so the default 5-minute idle eviction would otherwise drop a value
+    // the caller declared fresh for longer.
+    const lifetime = staleTime === undefined ? {} : { staleTime, gcTime: staleTime };
+    return {
+      peek: () => client.getQueryData<T>(key),
+      load: () => client.fetchQuery({ queryKey: key, queryFn: fetch, ...lifetime }),
+      replace: (value: T) => {
+        client.setQueryData(key, value);
+      },
+    };
+  }, [client, key, fetch, staleTime]);
 }
 
 /** Imperative invalidation for events that arrive from outside React — the

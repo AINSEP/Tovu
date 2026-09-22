@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, renderHook, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 
-import { FetchQueryProvider, useFetchMutation, useFetchQuery, useInvalidate } from "..";
+import { FetchQueryProvider, useCachedLoader, useFetchMutation, useFetchQuery, useInvalidate } from "..";
 
 /**
  * @file Behavioural contract for `lib/fetch-query`.
@@ -488,5 +488,73 @@ describe("useInvalidate", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "push" }));
     await waitFor(() => expect(screen.getByTestId("data")).toHaveTextContent("v2"));
+  });
+});
+
+describe("useCachedLoader", () => {
+  const KEY = ["loader-thing"] as const;
+
+  function renderLoader(fetch: () => Promise<string>, staleTime?: number) {
+    return renderHook(() => useCachedLoader({ key: KEY, fetch, ...(staleTime === undefined ? {} : { staleTime }) }), {
+      wrapper: FetchQueryProvider,
+    });
+  }
+
+  it("shares one in-flight request between concurrent loads and serves the next from cache", async () => {
+    const gate = deferred<string>();
+    const fetch = vi.fn(() => gate.promise);
+    const { result } = renderLoader(fetch, Infinity);
+
+    const first = result.current.load();
+    const second = result.current.load();
+    gate.resolve("v1");
+
+    await expect(Promise.all([first, second])).resolves.toEqual(["v1", "v1"]);
+    await expect(result.current.load()).resolves.toBe("v1");
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("peek() is undefined before a load and the value after", async () => {
+    const { result } = renderLoader(async () => "v1", Infinity);
+
+    expect(result.current.peek()).toBeUndefined();
+    await result.current.load();
+    expect(result.current.peek()).toBe("v1");
+  });
+
+  it("a rejected load is not cached — the next load calls fetch again", async () => {
+    const fetch = vi.fn().mockRejectedValueOnce(new Error("down")).mockResolvedValueOnce("v1");
+    const { result } = renderLoader(fetch, Infinity);
+
+    await expect(result.current.load()).rejects.toThrow("down");
+    await expect(result.current.load()).resolves.toBe("v1");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("replace() overwrites what the next load resolves, without a fetch", async () => {
+    const fetch = vi.fn(async () => "v1");
+    const { result } = renderLoader(fetch, Infinity);
+
+    await result.current.load();
+    result.current.replace("v2");
+
+    await expect(result.current.load()).resolves.toBe("v2");
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an unobserved value past the cache's default 5-minute idle eviction when staleTime says it is fresh", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetch = vi.fn(async () => "v1");
+      const { result } = renderLoader(fetch, Infinity);
+      await result.current.load();
+
+      await vi.advanceTimersByTimeAsync(10 * 60_000);
+
+      expect(result.current.peek()).toBe("v1");
+      expect(fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

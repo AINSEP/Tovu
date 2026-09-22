@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render as renderWithoutProvider, screen, waitFor, within } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { FetchQueryProvider } from "../../lib/fetch-query";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -93,3 +95,9 @@ it("translates the logout confirm's Cancel button under a non-English locale", a
   expect(within(dialog).getByRole("button", { name: "Abbrechen" })).toBeInTheDocument();
   expect(within(dialog).queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
 });
+
+/** `App` mounts the assistant dock, whose agents list reads through the app's query cache — render
+ *  under the same provider `main.tsx` wraps `App` in. */
+function render(ui: ReactElement) {
+  return renderWithoutProvider(ui, { wrapper: FetchQueryProvider });
+}

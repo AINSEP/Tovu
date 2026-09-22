@@ -109,6 +109,7 @@ import {
   useLocalCliSelection,
   useMessagesChangeHandler,
   useRunContext,
+  useAgentsPlaceholder,
   useRuntimeAccess,
   useSelectedAgentPlugins,
   useSelectedPluginChips,
@@ -124,6 +125,8 @@ import {
   saveExecutionConfig,
 } from "../../lib/execution-settings";
 import { publishSettingsRefresh } from "../../lib/settings-refresh-bus";
+import { FetchQueryProvider } from "../../lib/fetch-query";
+import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";
 import {
   emptyComposerCapabilityProjection,
   projectComposerCapabilities,
@@ -1108,7 +1111,7 @@ describe("useRuntimeAccess", () => {
     );
     vi.stubGlobal("fetch", fetchSpy);
 
-    const { result } = renderHook(() => useRuntimeAccess());
+    const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
 
     await expect(result.current.listAgents()).resolves.toEqual([{ id: "claude" }]);
     expect(fetchSpy).toHaveBeenCalledWith("/api/agents", expect.objectContaining({ credentials: "same-origin" }));
@@ -1117,7 +1120,7 @@ describe("useRuntimeAccess", () => {
   it("listAgents returns an empty array, without throwing, when the GET is not ok", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 503 })));
 
-    const { result } = renderHook(() => useRuntimeAccess());
+    const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
 
     await expect(result.current.listAgents()).resolves.toEqual([]);
   });
@@ -1128,7 +1131,7 @@ describe("useRuntimeAccess", () => {
     );
     vi.stubGlobal("fetch", fetchSpy);
 
-    const { result } = renderHook(() => useRuntimeAccess());
+    const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
 
     await expect(result.current.rescanAgents()).resolves.toEqual([{ id: "codex" }]);
     expect(fetchSpy).toHaveBeenCalledWith("/api/agents/rescan", expect.objectContaining({ method: "POST" }));
@@ -1147,7 +1150,7 @@ describe("useRuntimeAccess", () => {
     });
     vi.stubGlobal("fetch", fetchSpy);
 
-    const { result } = renderHook(() => useRuntimeAccess());
+    const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
 
     await expect(result.current.rescanAgents()).resolves.toEqual([{ id: "gemini" }]);
     // Two real fetches: the failed rescan POST, then the listAgents() fallback GET.
@@ -1157,12 +1160,121 @@ describe("useRuntimeAccess", () => {
 
   it("memoizes the returned object across re-renders", () => {
     vi.stubGlobal("fetch", vi.fn());
-    const { result, rerender } = renderHook(() => useRuntimeAccess());
+    const { result, rerender } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
     const first = result.current;
 
     rerender();
 
     expect(result.current).toBe(first);
+  });
+});
+
+/**
+ * The picker's client-side cache (2026-09-22): `listAgents` reads through the shared fetch-query
+ * cache, a rescan writes into it, and `useAgentsPlaceholder` seeds a pane from it (or from the
+ * localStorage snapshot of the last live list) before `listAgents` resolves. Both hooks render
+ * under ONE provider here, the way every screen shares `main.tsx`'s single client.
+ */
+describe("agents cache (useRuntimeAccess + useAgentsPlaceholder)", () => {
+  const okAgents = (agents: readonly { id: string; name: string }[]) =>
+    Promise.resolve(new Response(JSON.stringify({ agents }), { status: 200 }));
+
+  function renderAgents() {
+    return renderHook(() => ({ access: useRuntimeAccess(), placeholder: useAgentsPlaceholder() }), {
+      wrapper: FetchQueryProvider,
+    });
+  }
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it("serves a second listAgents() from the cache without another request", async () => {
+    const fetchSpy = vi.fn(() => okAgents([{ id: "claude", name: "Claude Code" }]));
+    vi.stubGlobal("fetch", fetchSpy);
+    const { result } = renderAgents();
+
+    await result.current.access.listAgents();
+    await expect(result.current.access.listAgents()).resolves.toEqual([{ id: "claude", name: "Claude Code" }]);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not cache a non-ok answer — the next listAgents() asks the server again", async () => {
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockImplementationOnce(() => okAgents([{ id: "codex", name: "Codex" }]));
+    vi.stubGlobal("fetch", fetchSpy);
+    const { result } = renderAgents();
+
+    await expect(result.current.access.listAgents()).resolves.toEqual([]);
+    await expect(result.current.access.listAgents()).resolves.toEqual([{ id: "codex", name: "Codex" }]);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("a successful rescan replaces the cached list", async () => {
+    const fetchSpy = vi.fn((url: string) =>
+      url === "/api/agents/rescan" ? okAgents([{ id: "codex", name: "Codex" }]) : okAgents([{ id: "claude", name: "Claude Code" }]),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    const { result } = renderAgents();
+
+    await result.current.access.listAgents();
+    await result.current.access.rescanAgents();
+
+    await expect(result.current.access.listAgents()).resolves.toEqual([{ id: "codex", name: "Codex" }]);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("a rescan whose POST and fallback GET both fail keeps the cached list", async () => {
+    const fetchSpy = vi
+      .fn()
+      .mockImplementationOnce(() => okAgents([{ id: "claude", name: "Claude Code" }]))
+      .mockResolvedValue(new Response(null, { status: 500 }));
+    vi.stubGlobal("fetch", fetchSpy);
+    const { result } = renderAgents();
+
+    await result.current.access.listAgents();
+    await expect(result.current.access.rescanAgents()).resolves.toEqual([]);
+
+    await expect(result.current.access.listAgents()).resolves.toEqual([{ id: "claude", name: "Claude Code" }]);
+  });
+
+  it("placeholder is undefined with no cache and no stored snapshot", () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const { result } = renderAgents();
+
+    expect(result.current.placeholder).toBeUndefined();
+  });
+
+  it("placeholder falls back to the stored snapshot of the last live list", () => {
+    writeAgentsSnapshot([{ id: "gemini", name: "Gemini CLI" }]);
+    vi.stubGlobal("fetch", vi.fn());
+    const { result } = renderAgents();
+
+    expect(result.current.placeholder).toEqual([{ id: "gemini", name: "Gemini CLI" }]);
+  });
+
+  it("placeholder prefers the cached live list over the snapshot once one has loaded", async () => {
+    writeAgentsSnapshot([{ id: "gemini", name: "Gemini CLI" }]);
+    vi.stubGlobal("fetch", vi.fn(() => okAgents([{ id: "claude", name: "Claude Code" }])));
+    const { result, rerender } = renderAgents();
+
+    await result.current.access.listAgents();
+    rerender();
+
+    expect(result.current.placeholder).toEqual([{ id: "claude", name: "Claude Code" }]);
+  });
+
+  it("a live list is stored as the next cold load's snapshot", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => okAgents([{ id: "claude", name: "Claude Code" }])));
+    const { result } = renderAgents();
+
+    await result.current.access.listAgents();
+
+    const next = renderAgents();
+    expect(next.result.current.placeholder).toEqual([{ id: "claude", name: "Claude Code" }]);
   });
 });
 

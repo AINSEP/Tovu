@@ -50,6 +50,7 @@ import {
   useLocalCliSelectionSeam,
   useMessagesChangeHandler,
   useRunContext,
+  useAgentsPlaceholderSeam,
   useRuntimeAccess,
   useRuntimeAccessSeam,
   useSelectedAgentPlugins,
@@ -424,6 +425,8 @@ export function AssistantDock({
   const uploadAttachments = useAttachmentUploaderSeam(useAttachmentUploaderOverride);
   const validateAttachments = useAttachmentValidatorSeam(useAttachmentValidatorOverride);
   const runtimeAccess = useRuntimeAccessSeam(useRuntimeAccessOverride);
+  // The picker's instant list while `listAgents` is still in flight — see `useAgentsPlaceholder`.
+  const agentsPlaceholder = useAgentsPlaceholderSeam(useRuntimeAccessOverride);
   /**
    * The composer's discovery catalog, projected asynchronously (debate 2, "Composer slash
    * commands") — replaces the pre-2026-08-12 static `TOVU_COMPOSER_DISCOVERY_GROUPS` import. See
@@ -481,6 +484,7 @@ export function AssistantDock({
         key={chats.paneKey}
         transport={transport}
         runtimeAccess={runtimeAccess}
+        {...(agentsPlaceholder ? { agents: agentsPlaceholder } : {})}
         // Fully controlled (`selection`/`onSelectionChange`), not `initialSelection` — see
         // `useLocalCliSelection`'s own doc for why an uncontrolled prop can't be hydrated from
         // the ledger's async load. `useLocalCliSelection` starts at the same `{agentId: "claude"}`

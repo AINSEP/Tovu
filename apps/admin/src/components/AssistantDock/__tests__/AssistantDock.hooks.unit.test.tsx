@@ -22,6 +22,7 @@ import {
   useComposerCapabilities,
   useRuntimeAccess,
 } from "../hooks/AssistantDock.hooks";
+import { FetchQueryProvider } from "../../../lib/fetch-query";
 import {
   createBundledComposerCapabilitySource,
   emptyComposerCapabilityProjection,
@@ -175,7 +176,7 @@ describe("useRuntimeAccess — resume-capable agentId tracking", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const { result } = renderHook(() => useRuntimeAccess());
+    const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
     await result.current.listAgents();
 
     expect(getResumeCapableAgentIds()).toEqual(new Set(["claude"]));
@@ -188,7 +189,7 @@ describe("useRuntimeAccess — resume-capable agentId tracking", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const { result } = renderHook(() => useRuntimeAccess());
+    const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
     await result.current.rescanAgents();
 
     expect(getResumeCapableAgentIds()).toEqual(new Set(["codex"]));
@@ -204,7 +205,7 @@ describe("useRuntimeAccess — resume-capable agentId tracking", () => {
       });
     vi.stubGlobal("fetch", fetchMock);
 
-    const { result } = renderHook(() => useRuntimeAccess());
+    const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
     await result.current.rescanAgents();
 
     expect(getResumeCapableAgentIds()).toEqual(new Set(["amr"]));

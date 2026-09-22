@@ -150,6 +150,35 @@ export interface FetchMutationOptions<TInput, TOutput> {
   invalidates?: readonly QueryKey[];
 }
 
+export interface CachedLoaderOptions<T> {
+  /** Must be a stable reference (a module constant): it is a memo dependency. */
+  key: QueryKey;
+  /** Must REJECT on failure, same contract as {@link FetchQueryOptions.fetch}: a rejection is never
+   *  cached, so the next `load()` retries instead of replaying it. Stable reference required. */
+  fetch: () => Promise<T>;
+  /** How long a loaded value is served from cache without calling `fetch` again, in ms. The value is
+   *  also retained (not evicted) for at least this long while nothing observes it — an imperative
+   *  loader never registers an observer, so without that the value would be dropped after the
+   *  cache's short idle window and the next `load()` would hit the server anyway. */
+  staleTime?: number;
+}
+
+/**
+ * The same cache {@link FetchQueryOptions} reads, exposed as a plain promise-returning loader for a
+ * consumer that cannot take a hook result — a third-party component that accepts a
+ * `() => Promise<T>` callback and owns its own loading state (`@jini-ai/chat`'s `ChatPane`
+ * `runtimeAccess.listAgents` is the first). Concurrent `load()` calls share one in-flight request.
+ */
+export interface CachedLoader<T> {
+  /** The cached value right now, or `undefined`. Not reactive — read it during render only as a
+   *  seed, never as the source of truth for what is displayed afterwards. */
+  peek: () => T | undefined;
+  /** Resolves from cache while fresh, otherwise runs `fetch` and caches its result. */
+  load: () => Promise<T>;
+  /** Overwrites the cached value — for a write whose response IS the new value (a rescan). */
+  replace: (value: T) => void;
+}
+
 /**
  * The dependency-injection surface. One object so the provider, the hooks and
  * the imperative invalidator move together when the implementation is swapped
@@ -161,4 +190,5 @@ export interface FetchQueryAdapter {
     options: FetchMutationOptions<TInput, TOutput>,
   ) => MutationResult<TInput, TOutput>;
   useInvalidate: () => (key: QueryKey) => void;
+  useCachedLoader: <T>(options: CachedLoaderOptions<T>) => CachedLoader<T>;
 }

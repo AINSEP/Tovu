@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render as renderWithoutProvider, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { isValidElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -93,6 +93,14 @@ vi.mock("../../lib/settings-refresh-bus", async (importOriginal) => {
 vi.mock("../../lib/router", () => ({ navigate: vi.fn() }));
 
 import { AssistantDock } from "../AssistantDock/AssistantDock";
+import { FetchQueryProvider } from "../../lib/fetch-query";
+import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";
+
+/** Every render sits under the app's query-cache provider, as `main.tsx` mounts the real dock:
+ *  `useRuntimeAccess`/`useAgentsPlaceholder` read the agents list through that cache. */
+function render(ui: ReactNode) {
+  return renderWithoutProvider(ui, { wrapper: FetchQueryProvider });
+}
 import {
   DEFAULT_EXECUTION_CONFIG,
   createExecutionPort,
@@ -559,6 +567,29 @@ describe("AssistantDock useRuntimeAccess injection", () => {
     render(<AssistantDock useChats={() => fakeChats()} useRuntimeAccess={() => fakeRuntimeAccess} />);
 
     expect(chatPaneSpy).toHaveBeenCalledWith(expect.objectContaining({ runtimeAccess: fakeRuntimeAccess }));
+  });
+
+  it("passes no placeholder agents when the runtime access is injected — a fake has no cache to seed from", () => {
+    writeAgentsSnapshot([{ id: "gemini", name: "Gemini CLI" }]);
+    const fakeRuntimeAccess = {
+      listAgents: vi.fn().mockResolvedValue([]),
+      rescanAgents: vi.fn().mockResolvedValue([]),
+      daemonOnline: vi.fn().mockResolvedValue(true),
+    };
+
+    render(<AssistantDock useChats={() => fakeChats()} useRuntimeAccess={() => fakeRuntimeAccess} />);
+
+    expect(chatPaneSpy.mock.calls.at(-1)?.[0]).not.toHaveProperty("agents");
+    localStorage.clear();
+  });
+
+  it("seeds ChatPane's agents from the last live list this browser stored, before listAgents resolves", () => {
+    writeAgentsSnapshot([{ id: "gemini", name: "Gemini CLI" }]);
+
+    render(<AssistantDock useChats={() => fakeChats()} />);
+
+    expect(chatPaneSpy).toHaveBeenCalledWith(expect.objectContaining({ agents: [{ id: "gemini", name: "Gemini CLI" }] }));
+    localStorage.clear();
   });
 });
 
