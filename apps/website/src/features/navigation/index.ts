@@ -131,6 +131,13 @@ export {
   type RebuildNavLocationBindingsResult,
 } from "@jini-ai/cms/navigation";
 
+/**
+ * `trashMenu`/`RemoveMenuFn` (T5): host-local, not from Jini — the generic trash pipeline's menu
+ * entry point (`trash-menu.ts`). `remove` is an injected structural type, so this stays free of any
+ * `features/trash` import; the composition root binds it.
+ */
+export { trashMenu, type RemoveMenuFn, type TrashMenuInput, type TrashMenuDeps } from "./trash-menu.js";
+
 /** The agent-tool surface for this domain (see the package's `agent-tools.ts` for what is deliberately omitted). */
 export {
   menusAgentToolCatalog,
