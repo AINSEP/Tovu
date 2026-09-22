@@ -11,6 +11,13 @@ import { t } from "./trash-i18n";
 export const KEYS = {
   listRoot: ["trash", "list"] as QueryKey,
   list: (): QueryKey => ["trash", "list", "page-1"],
+  /**
+   * The client-side username resolution table `actorLabel` falls back to when the server omits
+   * `actorUsername` entirely (an older server build — see `actorLabel`'s own doc). Deliberately NOT
+   * nested under `listRoot`: a row write invalidates `listRoot`, but the workspace's user roster does
+   * not change on every delete, so it must not be refetched on that same invalidation.
+   */
+  actorUsernames: (): QueryKey => ["trash", "actor-usernames"],
 };
 
 /**
@@ -55,33 +62,79 @@ export function entityTypeLabel(locale: string, entityType: string): string {
   return label ? t(locale, label) : entityType;
 }
 
+/** Empty default for {@link actorLabel}'s `knownUsernames` parameter — a module-level constant so
+ *  callers that never fetched a users list don't need to pass anything. */
+const NO_KNOWN_USERNAMES: ReadonlyMap<string, string> = new Map();
+
+/** `actorLabel`'s rendered text plus an optional tooltip. See {@link actorLabel}. */
+export interface ActorLabel {
+  label: string;
+  /** The raw plugin/agent id, when one acted — meant for a `title` attribute, not the visible text
+   *  (2026-09-21: the id alone used to BE the visible text; see {@link actorLabel}'s doc). */
+  title?: string;
+}
+
 /**
  * Who deleted it, in words an operator can read — never the raw principal id.
  *
- * Priority: the plugin/agent id when an agent did it (already a readable slug, e.g. `"forms"`),
- * else the username the server resolved for `actorPrincipalId`. Below that, two DIFFERENT server
- * answers must not collapse into one label: an explicit `actorUsername: null` means the server
- * looked the id up and found no user record (account removed, or a non-user system principal) —
- * `"Deleted user"` is true there. `actorUsername` being absent from the response entirely (an
- * older server build that predates username resolution) means the server never told us anything,
- * so claiming the account was deleted would be false — `"Unknown"` instead. Conflating the two
- * showed every row as "Deleted user", including the owner's own account, against a server that
- * simply hadn't picked up the field yet (2026-09-21).
+ * Priority, before an AI actor is layered on top (see below):
+ * 1. the username the server resolved for `actorPrincipalId` (`actorUsername`, a defined string);
+ * 2. failing that, the username THIS CLIENT resolves for `actorPrincipalId` from `knownUsernames`
+ *    (2026-09-21) — but only when `actorUsername` is absent from the response entirely, i.e. an
+ *    older server build that predates username resolution and never sent the field at all. Against
+ *    such a server every row, including the owner's own account, used to read "Unknown" even for the
+ *    owner's own deletions, because nothing server-side had ever resolved `actorPrincipalId` to a
+ *    name. `knownUsernames` is `use-trash.hooks.ts`'s own `listUsers()` call, keyed by principal id —
+ *    resolving against it client-side needs no server change and degrades to "Unknown" if that call
+ *    itself failed (an operator without `user.manage`/`member.manage` gets an empty map, not an
+ *    error — see that hook's doc);
+ * 3. `"System"`, when `actorIsSystem` says so, OR — for an old server that also predates
+ *    `actorIsSystem` — when `actorPrincipalId` is literally `"system"` (`features/widgets/
+ *    write-service.ts`'s `ADOPTION_ACTOR`, the 11 legacy widgets adopted into the Trash at boot);
+ * 4. `"Deleted user"` when the server explicitly resolved no account (`actorUsername: null` — it
+ *    looked the id up and found no user record: account removed, or a non-user system principal),
+ *    else `"Unknown"` when the server never told us anything at all AND neither this list nor
+ *    `knownUsernames` could explain the id either.
  *
- * `actorIsSystem` adds a fourth, distinct state (2026-09-21): the 11 legacy widgets adopted into
- * the Trash at boot (`features/widgets/write-service.ts`'s `ADOPTION_ACTOR`) are recorded with a
- * `system` principal, not a real user — no user account can ever hold that id, so the server can
- * tell the two apart and this label must too. Checked BEFORE the username branches, so a system
- * actor never falls through to "Deleted user": that label means only "a real account that no
- * longer exists".
+ * Two different server answers must not collapse into one label — `null` means "the server checked
+ * and there is no account", absence means "the server never checked" — conflating them showed every
+ * row as "Deleted user", including the owner's own account, against a server that simply hadn't
+ * picked up the `actorUsername` field yet (2026-09-21).
  *
- * @complexity O(1).
+ * On top of that human label: `actorPluginId` being set means an agent/plugin acted (already a
+ * readable slug, e.g. `"forms"`), but it never acted AS NOBODY — some principal's grant let it run.
+ * The label becomes `"<human label> + AI"` so the operator sees WHO's automation did it, not just
+ * that automation did it; the raw plugin id moves to `title`, a tooltip, rather than replacing the
+ * human label outright the way it used to (2026-09-21).
+ *
+ * @complexity O(1) — `knownUsernames` is looked up by key, not scanned.
  */
-export function actorLabel(locale: string, item: AdminTrashItem): string {
-  if (item.actorPluginId != null) return item.actorPluginId;
-  if (item.actorIsSystem) return t(locale, "System");
-  if (item.actorUsername === undefined) return t(locale, "Unknown");
-  return item.actorUsername ?? t(locale, "Deleted user");
+export function actorLabel(
+  locale: string,
+  item: AdminTrashItem,
+  knownUsernames: ReadonlyMap<string, string> = NO_KNOWN_USERNAMES
+): ActorLabel {
+  const human = humanActorLabel(locale, item, knownUsernames);
+  if (item.actorPluginId != null) {
+    return { label: `${human} + ${t(locale, "AI")}`, title: item.actorPluginId };
+  }
+  return { label: human };
+}
+
+/** The human-facing part of {@link actorLabel}, before any AI-actor suffix. @complexity O(1). */
+function humanActorLabel(locale: string, item: AdminTrashItem, knownUsernames: ReadonlyMap<string, string>): string {
+  if (item.actorUsername !== undefined) {
+    if (item.actorUsername != null) return item.actorUsername;
+    // Explicit null: the server checked and found no account. Still let a real "system" actor win
+    // over "Deleted user" — same reasoning the old single-function version documented.
+    return item.actorIsSystem ? t(locale, "System") : t(locale, "Deleted user");
+  }
+  // The server never sent actorUsername at all (an older build) — try resolving it ourselves before
+  // giving up.
+  const resolved = knownUsernames.get(item.actorPrincipalId);
+  if (resolved) return resolved;
+  if (item.actorIsSystem || item.actorPrincipalId === "system") return t(locale, "System");
+  return t(locale, "Unknown");
 }
 
 /**

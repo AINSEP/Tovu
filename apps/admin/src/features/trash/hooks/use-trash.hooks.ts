@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import { describeApiError, type AdminTrashItem } from "@/lib/api";
 import { useFetchQuery, useInvalidate } from "@/lib/fetch-query";
@@ -39,6 +39,14 @@ import type { TrashPort } from "./trash-port.hooks";
  * with `pageSettlement` (`useSettlementGeneration`, same primitive and shape here): `resetMorePages`
  * mints a fresh generation on every reset, superseding any older in-flight page fetch, and a
  * synchronous `loadingMoreRef` lock covers a same-tick double `loadMore` (2026-09-21).
+ *
+ * `actorUsernames` (2026-09-21) is a second, independent `useFetchQuery` (`port.listUsers()`) that
+ * resolves `actorPrincipalId -> username` for `rules.ts`'s `actorLabel`, so a row from an older
+ * server (one that predates the `actorUsername` field entirely) can still read a real name instead
+ * of "Unknown" — the owner's own desktop-app server was exactly that case. Deliberately NOT wired
+ * into `error`/`reloadAfterAction`: a workspace member without `user.manage`/`member.manage` gets a
+ * 403 here, and that must degrade the actor column, never surface as a Trash-screen failure or block
+ * the row list from loading.
  */
 
 export interface TrashController {
@@ -68,6 +76,15 @@ export interface TrashController {
   /** True while a refresh (including the initial load) is in flight — drives "Refreshing…". */
   refreshing: boolean;
 
+  /**
+   * `actorPrincipalId -> username`, for `rules.ts`'s `actorLabel` to resolve a row whose
+   * `actorUsername` the server omitted entirely (an older server build). Empty when the port carries
+   * no `listUsers` method, the call is still in flight, or it failed (2026-09-21) — `actorLabel`
+   * already degrades to "Unknown" for an id this map cannot explain, so an empty map here is a safe
+   * default, not a special case `Trash.tsx` needs to branch on.
+   */
+  actorUsernames: ReadonlyMap<string, string>;
+
   locale: string;
 }
 
@@ -94,6 +111,21 @@ export function useTrash(deps: TrashDependencies): TrashController {
     staleTime: 0,
     refetchOnWindowFocus: true,
   });
+
+  // Loaded once per Trash view, entirely independent of `firstPage` — its failure (missing
+  // `user.manage`/`member.manage`) must never surface as a Trash-screen error, and its data must
+  // never gate the row list. `enabled: false` when the port carries no `listUsers` at all, rather
+  // than calling a method that might not exist.
+  const usersQuery = useFetchQuery({
+    key: KEYS.actorUsernames(),
+    fetch: () => port.listUsers!(),
+    enabled: Boolean(port.listUsers),
+  });
+  const actorUsernames = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const user of usersQuery.data?.users ?? []) map.set(user.principalId, user.username);
+    return map;
+  }, [usersQuery.data]);
 
   const [morePages, setMorePages] = useState<AdminTrashItem[]>([]);
   const [moreCursor, setMoreCursor] = useState<string | null>(null);
@@ -252,6 +284,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
     onPurgeConfirmed,
     refresh,
     refreshing: firstPage.isFetching,
+    actorUsernames,
     locale,
   };
 }

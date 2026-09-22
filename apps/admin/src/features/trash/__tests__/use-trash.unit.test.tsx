@@ -1,7 +1,7 @@
 import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminTrashItem, AdminTrashPage } from "@/lib/api";
+import type { AdminIdentityUser, AdminTrashItem, AdminTrashPage } from "@/lib/api";
 import { FetchQueryProvider, useInvalidate } from "@/lib/fetch-query";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";
@@ -36,6 +36,19 @@ function item(overrides: Partial<AdminTrashItem> = {}): AdminTrashItem {
     actorPrincipalId: "principal-1",
     actorPluginId: null,
     actorUsername: "jdoe",
+    ...overrides,
+  };
+}
+
+function user(overrides: Partial<AdminIdentityUser> = {}): AdminIdentityUser {
+  return {
+    principalId: "principal-1",
+    workspaceId: "ws-1",
+    username: "admin",
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    roleIds: [],
+    policyIds: [],
     ...overrides,
   };
 }
@@ -188,6 +201,60 @@ describe("useTrash", () => {
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.items).toBeNull();
+  });
+});
+
+/**
+ * `actorUsernames` (2026-09-21): the client-side resolution table `rules.ts`'s `actorLabel` falls
+ * back to when a row's `actorUsername` is absent — the owner's-own-deletions-read-'Unknown' report
+ * against the desktop app's older server. Loaded through the SAME injected `port`, so these stay
+ * fakeable exactly like every other call here; no direct `lib/api` reach.
+ */
+describe("useTrash — actorUsernames (2026-09-21)", () => {
+  it("resolves the workspace's users into a principalId -> username map", async () => {
+    const port = createFakeTrashPort({
+      items: [item()],
+      users: [user({ principalId: "principal-owner", username: "admin" }), user({ principalId: "principal-2", username: "jdoe" })],
+    });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
+
+    await waitFor(() => expect(result.current.actorUsernames.get("principal-owner")).toBe("admin"));
+    expect(result.current.actorUsernames.get("principal-2")).toBe("jdoe");
+    expect(port.listUsersCalls).toBe(1);
+  });
+
+  it("degrades to an empty map, without touching `error`, when listUsers fails (an operator without user.manage/member.manage)", async () => {
+    const port = createFakeTrashPort({ items: [item()], listUsersError: new Error("403 forbidden") });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
+
+    await waitFor(() => expect(result.current.items).not.toBeNull());
+    // Give the (failing) actorUsernames query a turn to settle.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(result.current.actorUsernames.size).toBe(0);
+    expect(result.current.error).toBeNull();
+  });
+
+  it("stays an empty map, without calling listUsers, when the port carries no listUsers method at all", async () => {
+    const port = {
+      listCalls: [] as Array<{ cursor?: string }>,
+      async listTrash(options: { cursor?: string }) {
+        this.listCalls.push(options);
+        return { items: [item()], nextCursor: null };
+      },
+      async restoreTrashItems() {
+        return { restored: 0, results: [] };
+      },
+      async purgeTrashItems() {
+        return { purged: 0, results: [] };
+      },
+    };
+
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.items).not.toBeNull());
+
+    expect(result.current.actorUsernames.size).toBe(0);
   });
 });
 

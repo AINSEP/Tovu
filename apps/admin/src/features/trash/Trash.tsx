@@ -49,6 +49,7 @@ function trashColumns(props: {
   onToggle: (id: string) => void;
   onToggleAll: () => void;
   handleForRow: (id: string) => string;
+  actorUsernames: ReadonlyMap<string, string>;
 }): DataTableColumn<AdminTrashItem>[] {
   return [
     {
@@ -100,7 +101,12 @@ function trashColumns(props: {
     {
       key: "actor",
       header: t(props.locale, "Deleted by"),
-      cell: (item) => actorLabel(props.locale, item),
+      cell: (item) => {
+        const actor = actorLabel(props.locale, item, props.actorUsernames);
+        // `title` is the plugin/agent id, as a tooltip — see `rules.ts`'s `actorLabel` doc for why
+        // it no longer replaces the human-readable label outright.
+        return actor.title ? <span title={actor.title}>{actor.label}</span> : actor.label;
+      },
     },
     {
       key: "days",
@@ -190,6 +196,7 @@ function TrashItemsView(props: { controller: TrashController }) {
           onToggle: controller.toggle,
           onToggleAll: controller.toggleAll,
           handleForRow: (id) => handleById.get(id)!,
+          actorUsernames: controller.actorUsernames,
         })}
       />
       {controller.nextCursor ? (

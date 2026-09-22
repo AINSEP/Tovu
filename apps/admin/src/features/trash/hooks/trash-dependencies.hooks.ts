@@ -1,4 +1,10 @@
-import { api, type AdminTrashItem, type AdminTrashPurgeReport, type AdminTrashRestoreReport } from "@/lib/api";
+import {
+  api,
+  type AdminIdentityUser,
+  type AdminTrashItem,
+  type AdminTrashPurgeReport,
+  type AdminTrashRestoreReport,
+} from "@/lib/api";
 import type { TrashPort } from "./trash-port.hooks";
 
 /**
@@ -6,11 +12,13 @@ import type { TrashPort } from "./trash-port.hooks";
  * the split exists.
  */
 
-/** The live implementation, as a module-level singleton. */
+/** The live implementation, as a module-level singleton. Same `listUsers()` the Users screen's own
+ *  `users-dependencies.hooks.ts` wires — see `trash-port.hooks.ts` for why it is used here too. */
 export const defaultTrashPort: TrashPort = {
   listTrash: (options) => api.listTrash(options),
   restoreTrashItems: (input) => api.restoreTrashItems(input),
   purgeTrashItems: (input) => api.purgeTrashItems(input),
+  listUsers: () => api.listUsers(),
 };
 
 /** Seed state for {@link createFakeTrashPort}. */
@@ -23,6 +31,11 @@ export interface FakeTrashPortOptions {
   /** Overrides the default all-succeeded report, for the mixed-outcome cases that matter most. */
   restoreReport?: AdminTrashRestoreReport;
   purgeReport?: AdminTrashPurgeReport;
+  /** The workspace's users, for `listUsers()`. Defaults to an empty roster rather than omitting the
+   *  method — a test that wants "no client-side resolution available" instead uses a hand-rolled
+   *  `TrashPort` literal without `listUsers` at all (see that field's own doc). */
+  users?: AdminIdentityUser[];
+  listUsersError?: Error;
 }
 
 /**
@@ -38,15 +51,20 @@ export function createFakeTrashPort(options: FakeTrashPortOptions = {}): TrashPo
   readonly listCalls: Array<{ cursor?: string }>;
   readonly restoreCalls: Array<{ items: { entityType: string; entityId: string }[] }>;
   readonly purgeCalls: Array<{ ids: string[] }>;
+  readonly listUsersCalls: number;
 } {
   const listCalls: Array<{ cursor?: string }> = [];
   const restoreCalls: Array<{ items: { entityType: string; entityId: string }[] }> = [];
   const purgeCalls: Array<{ ids: string[] }> = [];
+  let listUsersCalls = 0;
 
   return {
     listCalls,
     restoreCalls,
     purgeCalls,
+    get listUsersCalls() {
+      return listUsersCalls;
+    },
     async listTrash(queryOptions) {
       listCalls.push(queryOptions);
       if (options.listError) throw options.listError;
@@ -71,6 +89,11 @@ export function createFakeTrashPort(options: FakeTrashPortOptions = {}): TrashPo
           results: input.ids.map((id) => ({ id, outcome: "purged" as const })),
         }
       );
+    },
+    async listUsers() {
+      listUsersCalls++;
+      if (options.listUsersError) throw options.listUsersError;
+      return { users: options.users ?? [] };
     },
   };
 }

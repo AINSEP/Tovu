@@ -52,6 +52,7 @@ function controller(overrides: Partial<TrashController> = {}): TrashController {
     onPurgeConfirmed: vi.fn(async () => {}),
     refresh: vi.fn(),
     refreshing: false,
+    actorUsernames: new Map<string, string>(),
     locale: "en",
     ...overrides,
   };
@@ -86,15 +87,34 @@ describe("Trash screen", () => {
     expect(screen.queryByText("principal-1")).toBeNull();
   });
 
-  it("shows the plugin/agent id, not the username, when an agent did the deleting", () => {
+  it("shows '<username> + AI' when an agent did the deleting, with the plugin id as a tooltip rather than the visible text", () => {
     render(
       <Trash
         useTrashHook={() => controller({ items: [item({ actorPluginId: "forms", actorUsername: "jdoe" })] })}
       />
     );
 
-    expect(screen.getByText("forms")).toBeTruthy();
-    expect(screen.queryByText("jdoe")).toBeNull();
+    const cell = screen.getByText("jdoe + AI");
+    expect(cell).toBeTruthy();
+    expect(cell.getAttribute("title")).toBe("forms");
+    expect(screen.queryByText("jdoe", { exact: true })).toBeNull();
+    expect(screen.queryByText("forms")).toBeNull();
+  });
+
+  it("resolves the actor via the client-side users map when the server omitted actorUsername entirely", () => {
+    render(
+      <Trash
+        useTrashHook={() =>
+          controller({
+            items: [item({ actorPrincipalId: "principal-owner", actorUsername: undefined })],
+            actorUsernames: new Map([["principal-owner", "admin"]]),
+          })
+        }
+      />
+    );
+
+    expect(screen.getByText("admin")).toBeTruthy();
+    expect(screen.queryByText("Unknown")).toBeNull();
   });
 
   it("both selection actions are disabled until something is selected", () => {

@@ -1,4 +1,4 @@
-import type { AdminTrashPage, AdminTrashPurgeReport, AdminTrashRestoreReport } from "@/lib/api";
+import type { AdminIdentityUser, AdminTrashPage, AdminTrashPurgeReport, AdminTrashRestoreReport } from "@/lib/api";
 
 /**
  * @file What `use-trash.hooks.ts` needs from the outside world, as an interface rather than a
@@ -9,4 +9,15 @@ export interface TrashPort {
   listTrash(options: { cursor?: string }): Promise<AdminTrashPage>;
   restoreTrashItems(input: { items: { entityType: string; entityId: string }[] }): Promise<AdminTrashRestoreReport>;
   purgeTrashItems(input: { ids: string[] }): Promise<AdminTrashPurgeReport>;
+  /**
+   * The workspace's user roster, for `rules.ts`'s `actorLabel` to resolve `actorPrincipalId` against
+   * client-side when a row's `actorUsername` is absent (an older server — see `actorLabel`'s doc).
+   * Optional, deliberately: this is the SAME endpoint the Users screen calls, gated server-side by
+   * `user.manage`/`member.manage` (`routes/users/list.ts`), which not every operator who can view the
+   * Trash necessarily holds — `use-trash.hooks.ts` treats a missing method or a failed call the same
+   * way, as "no client-side resolution available", never as a Trash-screen error. Also optional so
+   * the many hand-rolled `TrashPort` literals already in this feature's tests do not all need to grow
+   * a method they never exercise.
+   */
+  listUsers?(): Promise<{ users: AdminIdentityUser[] }>;
 }
