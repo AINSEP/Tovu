@@ -15,6 +15,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const SEO_DICT: Record<string, Record<string, string>> = {
   es: {
+  "Filter sitemap URLs": "Filtrar URL del mapa del sitio",
   "Cached sitemap": "Mapa del sitio en caché",
   Crawling: "Rastreo",
   "Pages & posts": "Páginas y entradas",
@@ -73,6 +74,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "no se pudieron cargar las entradas",
   },
   id: {
+  "Filter sitemap URLs": "Filter URL peta situs",
   "Cached sitemap": "Peta situs di cache",
   Crawling: "Perayapan",
   "Pages & posts": "Halaman & postingan",
@@ -131,6 +133,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "gagal memuat entri",
   },
   de: {
+  "Filter sitemap URLs": "Sitemap-URLs filtern",
   "Cached sitemap": "Zwischengespeicherte Sitemap",
   Crawling: "Crawling",
   "Pages & posts": "Seiten & Beiträge",
@@ -189,6 +192,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "Einträge konnten nicht geladen werden",
   },
   "zh-CN": {
+  "Filter sitemap URLs": "筛选站点地图网址",
   "Cached sitemap": "缓存的站点地图",
   Crawling: "抓取",
   "Pages & posts": "页面和文章",
@@ -247,6 +251,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "无法加载条目",
   },
   "zh-TW": {
+  "Filter sitemap URLs": "篩選網站地圖網址",
   "Cached sitemap": "快取的網站地圖",
   Crawling: "檢索",
   "Pages & posts": "頁面與文章",
@@ -305,6 +310,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "無法載入項目",
   },
   "pt-BR": {
+  "Filter sitemap URLs": "Filtrar URLs do mapa do site",
   "Cached sitemap": "Sitemap em cache",
   Crawling: "Rastreamento",
   "Pages & posts": "Páginas e publicações",
@@ -363,6 +369,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "falha ao carregar as entradas",
   },
   ru: {
+  "Filter sitemap URLs": "Фильтровать URL карты сайта",
   "Cached sitemap": "Кэшированная карта сайта",
   Crawling: "Сканирование",
   "Pages & posts": "Страницы и записи",
@@ -421,6 +428,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "не удалось загрузить записи",
   },
   fa: {
+  "Filter sitemap URLs": "فیلتر کردن نشانی‌های نقشه سایت",
   "Cached sitemap": "نقشه سایت ذخیره‌شده",
   Crawling: "خزش",
   "Pages & posts": "صفحات و نوشته‌ها",
@@ -479,6 +487,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "بارگذاری موارد ناموفق بود",
   },
   ar: {
+  "Filter sitemap URLs": "تصفية عناوين URL لخريطة الموقع",
   "Cached sitemap": "خريطة الموقع المخزّنة مؤقتًا",
   Crawling: "الزحف",
   "Pages & posts": "الصفحات والمنشورات",
@@ -537,6 +546,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "فشل تحميل الإدخالات",
   },
   ja: {
+  "Filter sitemap URLs": "サイトマップのURLを絞り込む",
   "Cached sitemap": "キャッシュされたサイトマップ",
   Crawling: "クロール",
   "Pages & posts": "ページと投稿",
@@ -595,6 +605,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "エントリーを読み込めませんでした",
   },
   ko: {
+  "Filter sitemap URLs": "사이트맵 URL 필터링",
   "Cached sitemap": "캐시된 사이트맵",
   Crawling: "크롤링",
   "Pages & posts": "페이지 및 게시물",
@@ -653,6 +664,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "항목을 불러오지 못했습니다",
   },
   pl: {
+  "Filter sitemap URLs": "Filtruj adresy URL mapy witryny",
   "Cached sitemap": "Mapa witryny w pamięci podręcznej",
   Crawling: "Indeksowanie",
   "Pages & posts": "Strony i wpisy",
@@ -711,6 +723,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "nie udało się wczytać wpisów",
   },
   hu: {
+  "Filter sitemap URLs": "Webhelytérkép-URL-ek szűrése",
   "Cached sitemap": "Gyorsítótárazott webhelytérkép",
   Crawling: "Feltérképezés",
   "Pages & posts": "Oldalak és bejegyzések",
@@ -769,6 +782,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "nem sikerült betölteni a bejegyzéseket",
   },
   fr: {
+  "Filter sitemap URLs": "Filtrer les URL du plan du site",
   "Cached sitemap": "Sitemap en cache",
   Crawling: "Exploration",
   "Pages & posts": "Pages et articles",
@@ -827,6 +841,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "échec du chargement des entrées",
   },
   uk: {
+  "Filter sitemap URLs": "Фільтрувати URL-адреси карти сайту",
   "Cached sitemap": "Кешована карта сайту",
   Crawling: "Сканування",
   "Pages & posts": "Сторінки та дописи",
@@ -885,6 +900,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "не вдалося завантажити записи",
   },
   tr: {
+  "Filter sitemap URLs": "Site haritası URL'lerini filtrele",
   "Cached sitemap": "Önbelleğe alınmış site haritası",
   Crawling: "Tarama",
   "Pages & posts": "Sayfalar ve gönderiler",
@@ -943,6 +959,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "girdiler yüklenemedi",
   },
   th: {
+  "Filter sitemap URLs": "กรอง URL แผนผังเว็บไซต์",
   "Cached sitemap": "แผนผังเว็บไซต์ที่แคชไว้",
   Crawling: "การรวบรวมข้อมูล",
   "Pages & posts": "หน้าและโพสต์",
@@ -1001,6 +1018,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "โหลดรายการไม่สำเร็จ",
   },
   it: {
+  "Filter sitemap URLs": "Filtra gli URL della mappa del sito",
   "Cached sitemap": "Sitemap nella cache",
   Crawling: "Scansione",
   "Pages & posts": "Pagine e articoli",
@@ -1059,6 +1077,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "impossibile caricare le voci",
   },
   hi: {
+  "Filter sitemap URLs": "साइटमैप URL फ़िल्टर करें",
   "Cached sitemap": "कैश किया गया साइटमैप",
   Crawling: "क्रॉलिंग",
   "Pages & posts": "पेज और पोस्ट",
@@ -1117,6 +1136,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "एंट्री लोड नहीं हो सकीं",
   },
   ur: {
+  "Filter sitemap URLs": "سائٹ میپ کے URL فلٹر کریں",
   "Cached sitemap": "کیش شدہ سائٹ میپ",
   Crawling: "کرالنگ",
   "Pages & posts": "صفحات اور پوسٹس",
@@ -1175,6 +1195,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entries": "اندراجات لوڈ نہ ہو سکیں",
   },
   bn: {
+  "Filter sitemap URLs": "সাইটম্যাপের URL ফিল্টার করুন",
   "Cached sitemap": "ক্যাশ করা সাইটম্যাপ",
   Crawling: "ক্রলিং",
   "Pages & posts": "পেজ ও পোস্ট",

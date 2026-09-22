@@ -134,6 +134,7 @@ function SitemapModalTable({ locale, modal }: { locale: string; modal: SitemapMo
       <input
         type="search"
         className="sitemap-modal-filter"
+        aria-label={t(locale, "Filter sitemap URLs")}
         placeholder={t(locale, "Filter by URL…")}
         value={modal.filter}
         onChange={(e) => modal.setFilter(e.target.value)}
