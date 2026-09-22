@@ -29,6 +29,8 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
   es: {
+    "No API key — model discovery needs the key from this browser.":
+      "Sin clave de API: la detección de modelos necesita la clave desde este navegador.",
     "failed to save the key": "no se pudo guardar la clave",
     "failed to save the settings": "no se pudo guardar la configuración",
     "Could not reach the provider with that key": "No se pudo contactar al proveedor con esa clave",
@@ -137,6 +139,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "No implementado",
   },
   id: {
+    "No API key — model discovery needs the key from this browser.":
+      "Tidak ada kunci API — penemuan model memerlukan kunci dari browser ini.",
     "failed to save the key": "gagal menyimpan kunci",
     "failed to save the settings": "gagal menyimpan pengaturan",
     "Could not reach the provider with that key": "Tidak dapat menghubungi penyedia dengan kunci itu",
@@ -228,6 +232,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Belum diterapkan",
   },
   de: {
+    "No API key — model discovery needs the key from this browser.":
+      "Kein API-Schlüssel — die Modellerkennung benötigt den Schlüssel aus diesem Browser.",
     "failed to save the key": "Schlüssel konnte nicht gespeichert werden",
     "failed to save the settings": "Einstellungen konnten nicht gespeichert werden",
     "Could not reach the provider with that key": "Der Anbieter konnte mit diesem Schlüssel nicht erreicht werden",
@@ -319,6 +325,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Nicht implementiert",
   },
   "zh-CN": {
+    "No API key — model discovery needs the key from this browser.":
+      "没有 API 密钥——模型发现需要来自此浏览器的密钥。",
     "failed to save the key": "无法保存密钥",
     "failed to save the settings": "无法保存设置",
     "Could not reach the provider with that key": "无法使用该密钥连接提供商",
@@ -405,6 +413,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "尚未实现",
   },
   "zh-TW": {
+    "No API key — model discovery needs the key from this browser.":
+      "沒有 API 金鑰——模型探索需要來自此瀏覽器的金鑰。",
     "failed to save the key": "無法儲存金鑰",
     "failed to save the settings": "無法儲存設定",
     "Could not reach the provider with that key": "無法使用該金鑰連線至提供者",
@@ -491,6 +501,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "尚未實作",
   },
   "pt-BR": {
+    "No API key — model discovery needs the key from this browser.":
+      "Sem chave de API — a descoberta de modelos precisa da chave deste navegador.",
     "failed to save the key": "não foi possível salvar a chave",
     "failed to save the settings": "não foi possível salvar as configurações",
     "Could not reach the provider with that key": "Não foi possível alcançar o provedor com essa chave",
@@ -582,6 +594,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Não implementado",
   },
   ru: {
+    "No API key — model discovery needs the key from this browser.":
+      "Нет API-ключа — для поиска моделей нужен ключ из этого браузера.",
     "failed to save the key": "не удалось сохранить ключ",
     "failed to save the settings": "не удалось сохранить настройки",
     "Could not reach the provider with that key": "Не удалось связаться с поставщиком с этим ключом",
@@ -673,6 +687,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Не реализовано",
   },
   fa: {
+    "No API key — model discovery needs the key from this browser.":
+      "کلید API وجود ندارد — کشف مدل‌ها به کلید از همین مرورگر نیاز دارد.",
     "failed to save the key": "ذخیره‌سازی کلید ناموفق بود",
     "failed to save the settings": "ذخیره‌سازی تنظیمات ناموفق بود",
     "Could not reach the provider with that key": "با آن کلید نمی‌توان به ارائه‌دهنده دسترسی یافت",
@@ -763,6 +779,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "پیاده‌سازی نشده",
   },
   ar: {
+    "No API key — model discovery needs the key from this browser.":
+      "لا يوجد مفتاح API — يحتاج اكتشاف النماذج إلى المفتاح من هذا المتصفح.",
     "failed to save the key": "تعذر حفظ المفتاح",
     "failed to save the settings": "تعذر حفظ الإعدادات",
     "Could not reach the provider with that key": "تعذر الوصول إلى المزوّد باستخدام ذلك المفتاح",
@@ -852,6 +870,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "غير منفَّذ",
   },
   ja: {
+    "No API key — model discovery needs the key from this browser.":
+      "API キーがありません — モデルの検出には、このブラウザーからのキーが必要です。",
     "failed to save the key": "キーを保存できませんでした",
     "failed to save the settings": "設定を保存できませんでした",
     "Could not reach the provider with that key": "そのキーではプロバイダーに接続できませんでした",
@@ -940,6 +960,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "未実装",
   },
   ko: {
+    "No API key — model discovery needs the key from this browser.":
+      "API 키가 없습니다 — 모델 검색에는 이 브라우저의 키가 필요합니다.",
     "failed to save the key": "키를 저장하지 못했습니다",
     "failed to save the settings": "설정을 저장하지 못했습니다",
     "Could not reach the provider with that key": "해당 키로 제공업체에 연결할 수 없습니다",
@@ -1028,6 +1050,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "구현되지 않음",
   },
   pl: {
+    "No API key — model discovery needs the key from this browser.":
+      "Brak klucza API — wykrywanie modeli wymaga klucza z tej przeglądarki.",
     "failed to save the key": "nie udało się zapisać klucza",
     "failed to save the settings": "nie udało się zapisać ustawień",
     "Could not reach the provider with that key": "Nie udało się połączyć z dostawcą za pomocą tego klucza",
@@ -1117,6 +1141,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Niewdrożone",
   },
   hu: {
+    "No API key — model discovery needs the key from this browser.":
+      "Nincs API-kulcs — a modellek felderítéséhez a kulcs szükséges ebből a böngészőből.",
     "failed to save the key": "a kulcs mentése nem sikerült",
     "failed to save the settings": "a beállítások mentése nem sikerült",
     "Could not reach the provider with that key": "Ezzel a kulccsal nem sikerült elérni a szolgáltatót",
@@ -1206,6 +1232,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Nincs megvalósítva",
   },
   fr: {
+    "No API key — model discovery needs the key from this browser.":
+      "Aucune clé API — la découverte des modèles nécessite la clé depuis ce navigateur.",
     "failed to save the key": "impossible d’enregistrer la clé",
     "failed to save the settings": "impossible d’enregistrer les paramètres",
     "Could not reach the provider with that key": "Impossible de joindre le fournisseur avec cette clé",
@@ -1295,6 +1323,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Non implémenté",
   },
   uk: {
+    "No API key — model discovery needs the key from this browser.":
+      "Немає API-ключа — для пошуку моделей потрібен ключ із цього браузера.",
     "failed to save the key": "не вдалося зберегти ключ",
     "failed to save the settings": "не вдалося зберегти налаштування",
     "Could not reach the provider with that key": "Не вдалося зв’язатися з постачальником за допомогою цього ключа",
@@ -1383,6 +1413,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Не реалізовано",
   },
   tr: {
+    "No API key — model discovery needs the key from this browser.":
+      "API anahtarı yok — model keşfi için bu tarayıcıdan anahtar gerekiyor.",
     "failed to save the key": "anahtar kaydedilemedi",
     "failed to save the settings": "ayarlar kaydedilemedi",
     "Could not reach the provider with that key": "Bu anahtarla sağlayıcıya ulaşılamadı",
@@ -1472,6 +1504,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Uygulanmadı",
   },
   th: {
+    "No API key — model discovery needs the key from this browser.":
+      "ไม่มีคีย์ API — การค้นหาโมเดลต้องใช้คีย์จากเบราว์เซอร์นี้",
     "failed to save the key": "บันทึกคีย์ไม่สำเร็จ",
     "failed to save the settings": "บันทึกการตั้งค่าไม่สำเร็จ",
     "Could not reach the provider with that key": "ไม่สามารถติดต่อผู้ให้บริการด้วยคีย์นั้นได้",
@@ -1560,6 +1594,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "ยังไม่ได้ใช้งาน",
   },
   it: {
+    "No API key — model discovery needs the key from this browser.":
+      "Nessuna chiave API — il rilevamento dei modelli richiede la chiave da questo browser.",
     "failed to save the key": "impossibile salvare la chiave",
     "failed to save the settings": "impossibile salvare le impostazioni",
     "Could not reach the provider with that key": "Impossibile raggiungere il provider con quella chiave",
@@ -1649,6 +1685,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Non implementato",
   },
   hi: {
+    "No API key — model discovery needs the key from this browser.":
+      "कोई API कुंजी नहीं — मॉडल खोजने के लिए इस ब्राउज़र से कुंजी चाहिए।",
     "failed to save the key": "कुंजी सहेजी नहीं जा सकी",
     "failed to save the settings": "सेटिंग सहेजी नहीं जा सकीं",
     "Could not reach the provider with that key": "उस कुंजी से प्रदाता तक नहीं पहुंचा जा सका",
@@ -1740,6 +1778,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "लागू नहीं किया गया",
   },
   ur: {
+    "No API key — model discovery needs the key from this browser.":
+      "کوئی API کلید نہیں — ماڈلز کی دریافت کے لیے اسی براؤزر سے کلید درکار ہے۔",
     "failed to save the key": "کلید محفوظ نہیں ہو سکی",
     "failed to save the settings": "ترتیبات محفوظ نہیں ہو سکیں",
     "Could not reach the provider with that key": "اس کلید کے ساتھ فراہم کنندہ تک رسائی نہیں ہو سکی",
@@ -1831,6 +1871,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "نافذ نہیں کیا گیا",
   },
   bn: {
+    "No API key — model discovery needs the key from this browser.":
+      "কোনো API কী নেই — মডেল খুঁজে পেতে এই ব্রাউজার থেকে কী প্রয়োজন।",
     "failed to save the key": "কী সংরক্ষণ করা যায়নি",
     "failed to save the settings": "সেটিংস সংরক্ষণ করা যায়নি",
     "Could not reach the provider with that key": "ওই কী দিয়ে প্রদানকারীর কাছে পৌঁছানো যায়নি",

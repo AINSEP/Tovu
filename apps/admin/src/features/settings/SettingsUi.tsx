@@ -140,6 +140,7 @@ import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint"
 import { t as tCapability } from "./settings-capabilities-i18n";
 import { t as tSettingsExecution } from "./settings-execution-i18n";
 import { t as tSettings } from "./settings-i18n";
+import { memoryPanelDictionaries } from "./settings-memory-i18n";
 import { t as tApp } from "../../app-i18n";
 import { SETTINGS_DIALOG_DICTIONARIES as CMS_SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/cms/settings";
 
@@ -578,6 +579,15 @@ export function SettingsUi(props: SettingsUiProps) {
             )}
           </p>
           <div className="settings-ui-inert-control" inert>
+            {/* Nested provider: the outer one's dictionaries lack every memory-panel key (see
+                `settings-memory-i18n.ts`). Keyed on the locale so a change remounts it with the new
+                `initialLocale`. */}
+            <I18nProvider
+              key={settingsLocale}
+              initialLocale={settingsLocale}
+              dictionaries={memoryPanelDictionaries(settingsLocale)}
+              syncDocumentAttributes={false}
+            >
             <MemorySettingsPanel
               enabled
               onToggleEnabled={() => {}}
@@ -608,6 +618,7 @@ export function SettingsUi(props: SettingsUiProps) {
                 onToggleHook: () => {},
               }}
             />
+            </I18nProvider>
           </div>
         </div>
       ),

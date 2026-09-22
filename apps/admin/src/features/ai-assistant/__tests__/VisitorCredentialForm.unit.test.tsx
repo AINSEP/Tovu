@@ -14,6 +14,7 @@ import {
   visitorCredentialSettingsStatusMessage,
   type VisitorCredentialFormController,
 } from "../hooks/use-visitor-credential-form.hooks";
+import { t as translateAiAssistant } from "../ai-assistant-i18n";
 
 /**
  * @file Direct tests for the units pulled out of `VisitorCredentialForm` in the complexity pass
@@ -201,6 +202,20 @@ describe("VisitorCredentialKeyFooter", () => {
   it("renders the discovery error banner when discovery failed", () => {
     render(<VisitorCredentialKeyFooter {...fakeController({ discovery: { status: "error", message: "provider unreachable" } })} />);
     expect(screen.getByText("provider unreachable")).toBeInTheDocument();
+  });
+
+  it("translates the server's no-key model-discovery refusal (it is a dictionary key, not provider text)", () => {
+    const message = "No API key — model discovery needs the key from this browser.";
+    render(
+      <VisitorCredentialKeyFooter
+        {...fakeController({ discovery: { status: "error", message } })}
+        t={(key) => translateAiAssistant("de", key)}
+      />,
+    );
+    expect(
+      screen.getByText("Kein API-Schlüssel — die Modellerkennung benötigt den Schlüssel aus diesem Browser."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
   });
 
   it("renders the save error banner when saving failed", () => {

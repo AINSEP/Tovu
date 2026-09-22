@@ -190,6 +190,27 @@ describe("settings-dialog translation: two dictionary sources", () => {
       ),
     ).toBeInTheDocument();
   });
+
+  /** The embedded `@jini-ai/ui` `MemorySettingsPanel` translates through its own `useT()`; neither
+   *  settings-dialog dictionary carries its keys, so it rendered English in every locale until the
+   *  nested `I18nProvider` fed by `settings-memory-i18n.ts`. */
+  it("renders the embedded Memory panel translated when locale is de", async () => {
+    const user = userEvent.setup();
+    render(<SettingsUi useSettingsUiHook={() => baseController({ language: makeSlice("de") })} />);
+    await goToTab(user, "memory");
+    expect(screen.getByText("Noch keine gespeicherten Erinnerungen")).toBeInTheDocument();
+    expect(
+      screen.getByText("Gespeicherte Fakten, Vorlieben und Projektkontext, die künftigen Chats zur Verfügung stehen."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("No saved memories yet")).not.toBeInTheDocument();
+  });
+
+  it("keeps the embedded Memory panel English when locale is en", async () => {
+    const user = userEvent.setup();
+    render(<SettingsUi useSettingsUiHook={() => baseController({ language: makeSlice("en") })} />);
+    await goToTab(user, "memory");
+    expect(screen.getByText("No saved memories yet")).toBeInTheDocument();
+  });
 });
 
 describe("InstructionsTab onChange landmine", () => {
