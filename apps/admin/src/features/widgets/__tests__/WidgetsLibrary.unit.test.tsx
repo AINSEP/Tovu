@@ -6,10 +6,11 @@ import { WidgetsLibrary, WidgetsLibraryNotices } from "../WidgetsLibrary";
 import { widgetTypeLabel } from "../rules";
 
 /**
- * @file `WidgetsLibrary` — pins the MSG-03 confirm-dialog swap for the force-purge escalation: a
- * `WIDGETS_REFERENCED` 409 used to open a `window.confirm` built from the error body's
- * `referencingLocations`; it now opens the shared `ConfirmDialog` with the same dynamically-built
- * copy, and only a real confirm click retries with `force: true`.
+ * @file `WidgetsLibrary` against the real `useWiredWidgetsLibrary` path (`fetch` stubbed) — pins
+ * the 2026-09-21 trash rewrite: Delete always confirms via "Move to trash?" and moves the widget
+ * through the generic `POST .../trash/items` route (`api.trash`). The widget-specific purge/
+ * force-purge escalation this suite used to pin is gone — the server's widget purge route was
+ * removed, so it 404s if anything still called it.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -21,7 +22,7 @@ const WIDGET = {
   workspaceId: "ws1",
   slug: "hero-banner",
   title: "Hero banner",
-  status: "trash" as const,
+  status: "active" as const,
   widgetType: "text" as const,
   config: {},
   updatedAt: "2026-08-01T00:00:00.000Z",
@@ -32,8 +33,8 @@ let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();
-  // `WidgetsLibrary` now also reads `core.language.locale` (via `useAdminLocale`) to translate its
-  // own chrome — a real `fetch` call this file's tests never queued for. Routed here, ahead of
+  // `WidgetsLibrary` also reads `core.language.locale` (via `useAdminLocale`) to translate its own
+  // chrome — a real `fetch` call this file's tests never queued for. Routed here, ahead of
   // `fetchMock`, so it never consumes a slot from the `mockResolvedValueOnce` sequence every test
   // below still queues on `fetchMock` itself unchanged. An empty settings response resolves
   // `loadLanguage()` to `DEFAULT_LOCALE` ("en"), matching every assertion below.
@@ -50,136 +51,89 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("opens ConfirmDialog with the referencing locations on a WIDGETS_REFERENCED 409, and only force-purges on explicit confirm", async () => {
-  const user = userEvent.setup();
-  const confirmSpy = vi.spyOn(window, "confirm");
-  fetchMock
-    .mockResolvedValueOnce(jsonResponse({ widgets: [WIDGET] }))
-    .mockResolvedValueOnce(
-      jsonResponse(
-        {
-          error: "still referenced",
-          code: "WIDGETS_REFERENCED",
-          details: { referencingLocations: [{ kind: "post", entryId: "p1" }] },
-        },
-        409
-      )
-    );
-
-  render(<WidgetsLibrary />);
-
-  const deleteButton = await screen.findByRole("button", { name: /delete permanently/i });
-  await user.click(deleteButton);
-
-  const purgeDialog = await screen.findByRole("dialog", { name: "Delete permanently?" });
-  await user.click(within(purgeDialog).getByRole("button", { name: "Delete permanently" }));
-
-  expect(confirmSpy).not.toHaveBeenCalled();
-  expect(await screen.findByText(/still used in: post \(p1\)/i)).toBeInTheDocument();
-  expect(screen.getByText(/permanently delete anyway\? this cannot be undone\./i)).toBeInTheDocument();
-
-  // First attempt was force:false — verify before confirming the escalation.
-  expect(fetchMock.mock.calls[1][0]).not.toContain("force=true");
-
-  fetchMock
-    .mockResolvedValueOnce(jsonResponse({ widget: { ...WIDGET, status: "purged" } }))
-    .mockResolvedValueOnce(jsonResponse({ widgets: [] }));
-
-  const stillInUseDialog = screen.getByRole("dialog", { name: "Still in use" });
-  await user.click(within(stillInUseDialog).getByRole("button", { name: /^permanently delete$/i }));
-
-  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
-  const forceCall = fetchMock.mock.calls[2];
-  expect(String(forceCall[0])).toContain("force=true");
-});
-
-it("never opens 'Still in use' when the confirmed purge succeeds outright", async () => {
-  const user = userEvent.setup();
-  fetchMock
-    .mockResolvedValueOnce(jsonResponse({ widgets: [WIDGET] }))
-    .mockResolvedValueOnce(jsonResponse({ widget: { ...WIDGET, status: "purged" } }))
-    .mockResolvedValueOnce(jsonResponse({ widgets: [] }));
-
-  render(<WidgetsLibrary />);
-
-  await user.click(await screen.findByRole("button", { name: /delete permanently/i }));
-  const purgeDialog = await screen.findByRole("dialog", { name: "Delete permanently?" });
-  await user.click(within(purgeDialog).getByRole("button", { name: "Delete permanently" }));
-
-  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-  expect(screen.queryByText(/still used in/i)).not.toBeInTheDocument();
-});
-
-it("Delete permanently on a trashed widget opens a confirm dialog and sends no purge until confirmed", async () => {
+it("Trash opens a confirm dialog and sends no request until confirmed", async () => {
   const user = userEvent.setup();
   fetchMock.mockResolvedValueOnce(jsonResponse({ widgets: [WIDGET] }));
 
   render(<WidgetsLibrary />);
 
-  await user.click(await screen.findByRole("button", { name: /delete permanently/i }));
+  await user.click(await screen.findByRole("button", { name: /trash/i }));
 
-  // Only the initial list GET has fired — no purge request yet.
+  // Only the initial list GET has fired — no trash request yet.
   expect(fetchMock).toHaveBeenCalledTimes(1);
-  const dialog = await screen.findByRole("dialog", { name: "Delete permanently?" });
-  expect(within(dialog).getByText('Permanently delete "Hero banner"? This cannot be undone.')).toBeInTheDocument();
-
-  fetchMock
-    .mockResolvedValueOnce(jsonResponse({ widget: { ...WIDGET, status: "purged" } }))
-    .mockResolvedValueOnce(jsonResponse({ widgets: [] }));
-
-  await user.click(within(dialog).getByRole("button", { name: "Delete permanently" }));
-
-  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-  const purgeCall = fetchMock.mock.calls[1];
-  expect(String(purgeCall[0])).not.toContain("force=true");
+  const dialog = await screen.findByRole("dialog", { name: "Move to trash?" });
+  expect(within(dialog).getByText('Move "Hero banner" to trash?')).toBeInTheDocument();
 });
 
-it("Cancel on the permanent-delete confirm sends no request", async () => {
-  const user = userEvent.setup();
-  fetchMock.mockResolvedValueOnce(jsonResponse({ widgets: [WIDGET] }));
-
-  render(<WidgetsLibrary />);
-
-  await user.click(await screen.findByRole("button", { name: /delete permanently/i }));
-  const dialog = await screen.findByRole("dialog", { name: "Delete permanently?" });
-  await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
-
-  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Delete permanently?" })).not.toBeInTheDocument());
-  expect(fetchMock).toHaveBeenCalledTimes(1);
-});
-
-it("drops a purged row from the list once the reload comes back (server still includes purged rows under includeInactive)", async () => {
-  // `GET .../widgets?includeInactive=true` intentionally returns BOTH `trash` and `purged` rows
-  // (see src/server/routes/admin/widgets/list.ts's doc comment) — purge never hard-deletes the
-  // row (ADR-047 Amendment 4: "never deleted, only active⇄disabled"). So the reload triggered by
-  // a successful purge comes back still carrying the now-`purged` widget; the admin UI is
-  // responsible for not rendering rows in a terminal `purged` state.
+it("confirming Trash POSTs the generic trash/items route exactly once and drops the row", async () => {
   const user = userEvent.setup();
   fetchMock
     .mockResolvedValueOnce(jsonResponse({ widgets: [WIDGET] }))
-    .mockResolvedValueOnce(jsonResponse({ widget: { ...WIDGET, status: "purged" } }))
-    .mockResolvedValueOnce(jsonResponse({ widgets: [{ ...WIDGET, status: "purged" }] }));
+    .mockResolvedValueOnce(jsonResponse({ ok: true, version: 2 }))
+    .mockResolvedValueOnce(jsonResponse({ widgets: [] }));
 
   render(<WidgetsLibrary />);
 
-  await user.click(await screen.findByRole("button", { name: /delete permanently/i }));
-  const dialog = await screen.findByRole("dialog", { name: "Delete permanently?" });
-  await user.click(within(dialog).getByRole("button", { name: "Delete permanently" }));
+  await user.click(await screen.findByRole("button", { name: /trash/i }));
+  const dialog = await screen.findByRole("dialog", { name: "Move to trash?" });
+  await user.click(within(dialog).getByRole("button", { name: "Move to trash" }));
 
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+  const trashCall = fetchMock.mock.calls[1];
+  expect(String(trashCall[0])).toContain("/trash/items");
+  expect(trashCall[1]?.body).toBe(JSON.stringify({ type: "widget", id: "w1" }));
+
   await waitFor(() => expect(screen.queryByText("Hero banner")).not.toBeInTheDocument());
   expect(screen.getByText(/no widgets yet/i)).toBeInTheDocument();
 });
 
-it("keeps trash rows visible — only purged is filtered", async () => {
-  fetchMock.mockResolvedValueOnce(
-    jsonResponse({ widgets: [WIDGET, { ...WIDGET, id: "w2", title: "Purged one", status: "purged" as const }] })
-  );
+it("Cancel on the trash confirm sends no request", async () => {
+  const user = userEvent.setup();
+  fetchMock.mockResolvedValueOnce(jsonResponse({ widgets: [WIDGET] }));
 
   render(<WidgetsLibrary />);
 
-  expect(await screen.findByText("Hero banner")).toBeInTheDocument();
-  expect(screen.queryByText("Purged one")).not.toBeInTheDocument();
+  await user.click(await screen.findByRole("button", { name: /trash/i }));
+  const dialog = await screen.findByRole("dialog", { name: "Move to trash?" });
+  await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Move to trash?" })).not.toBeInTheDocument());
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+it("a 409 TRASH_VERSION_CHANGED shows the reload message", async () => {
+  const user = userEvent.setup();
+  fetchMock
+    .mockResolvedValueOnce(jsonResponse({ widgets: [WIDGET] }))
+    .mockResolvedValueOnce(
+      jsonResponse({ error: "the item changed since it was last read", code: "TRASH_VERSION_CHANGED" }, 409),
+    );
+
+  render(<WidgetsLibrary />);
+
+  await user.click(await screen.findByRole("button", { name: /trash/i }));
+  const dialog = await screen.findByRole("dialog", { name: "Move to trash?" });
+  await user.click(within(dialog).getByRole("button", { name: "Move to trash" }));
+
+  expect(await screen.findByText("This item changed since you loaded it. Reload and try again.")).toBeInTheDocument();
+});
+
+it("a 404 (already gone) shows no error and quietly re-reads the list", async () => {
+  const user = userEvent.setup();
+  fetchMock
+    .mockResolvedValueOnce(jsonResponse({ widgets: [WIDGET] }))
+    .mockResolvedValueOnce(jsonResponse({ error: "item was not found", code: "NOT_FOUND" }, 404))
+    .mockResolvedValueOnce(jsonResponse({ widgets: [] }));
+
+  render(<WidgetsLibrary />);
+
+  await user.click(await screen.findByRole("button", { name: /trash/i }));
+  const dialog = await screen.findByRole("dialog", { name: "Move to trash?" });
+  await user.click(within(dialog).getByRole("button", { name: "Move to trash" }));
+
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+  expect(screen.queryByText(/changed since you loaded it/i)).not.toBeInTheDocument();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });
 
 // The create-type <select> rendered `WIDGET_TYPE_OPTIONS`' raw English labels and an English

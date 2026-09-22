@@ -2,8 +2,13 @@ import { api, type AdminWidget } from "@/lib/api";
 import type { WidgetsPort } from "./widgets-port.hooks";
 
 /**
- * @file The only place under `features/widgets` that reaches `lib/api` for the six `WidgetsPort`
+ * @file The only place under `features/widgets` that reaches `lib/api` for the five `WidgetsPort`
  * (widget-instance) routes — see `widgets-port.hooks.ts` for why the split exists.
+ *
+ * `trashWidget` goes through `api.trash({ type: "widget", id })`, the generic single-item Trash
+ * route every admin delete button now shares, instead of the widget-specific `api.trashWidget`/
+ * `api.purgeWidget` (`POST .../widgets/:id/trash` and the now-removed `.../purge`) — the Trash
+ * screen owns restore/purge from here.
  */
 
 /** The live implementation, as a module-level singleton — matches `redirects-dependencies
@@ -13,8 +18,7 @@ export const defaultWidgetsPort: WidgetsPort = {
   getWidget: (id) => api.getWidget(id),
   createWidget: (input) => api.createWidget(input),
   updateWidget: (target) => api.updateWidget(target),
-  trashWidget: (id) => api.trashWidget(id),
-  purgeWidget: (target, options) => api.purgeWidget(target, options),
+  trashWidget: (id) => api.trash({ type: "widget", id }),
 };
 
 /** Seed state for {@link createFakeWidgetsPort}. */
@@ -22,9 +26,6 @@ export interface FakeWidgetsPortOptions {
   widgets?: AdminWidget[];
   skippedCount?: number;
   whereUsed?: Record<string, { count: number; references: Array<{ kind: "region" | "embed"; sourceEntryId: string; fieldPath: string }> }>;
-  /** Lets a test force a specific `purgeWidget` outcome (e.g. throw a `WIDGETS_REFERENCED`
-   *  `ApiError`) without the fake having to reimplement the server's own reference-tracking. */
-  onPurge?: (id: string, options: { force?: boolean }) => void;
 }
 
 /**
@@ -85,15 +86,7 @@ export function createFakeWidgetsPort(options: FakeWidgetsPortOptions = {}): Wid
       if (index < 0) throw new Error(`fake widget not found: ${id}`);
       const trashed: AdminWidget = { ...widgets[index]!, status: "trash" };
       widgets[index] = trashed;
-      return { widget: trashed };
-    },
-
-    async purgeWidget({ id }, purgeOptions = {}) {
-      options.onPurge?.(id, purgeOptions);
-      const index = widgets.findIndex((w) => w.id === id);
-      if (index < 0) throw new Error(`fake widget not found: ${id}`);
-      widgets[index] = { ...widgets[index]!, status: "purged" };
-      return { purged: true };
+      return { ok: true, version: trashed.version };
     },
   };
 }

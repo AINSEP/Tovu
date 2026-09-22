@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiError, type AdminWidget } from "@/lib/api";
 import {
   buildDraftPlacement,
-  describeReferencingLocations,
   isKnownWidgetType,
   movePlacement,
   resolveEditorWidgetType,
@@ -58,18 +57,6 @@ describe("isKnownWidgetType", () => {
   it("is false for anything else", () => {
     expect(isKnownWidgetType("garbage-nonsense")).toBe(false);
     expect(isKnownWidgetType("")).toBe(false);
-  });
-});
-
-describe("describeReferencingLocations", () => {
-  it("joins each location's kind and entryId", () => {
-    expect(describeReferencingLocations([{ kind: "post", entryId: "p1" }, { kind: "page", entryId: "p2" }])).toBe(
-      "post (p1), page (p2)",
-    );
-  });
-
-  it("falls back to a generic phrase for an empty list", () => {
-    expect(describeReferencingLocations([])).toBe("at least one other place");
   });
 });
 

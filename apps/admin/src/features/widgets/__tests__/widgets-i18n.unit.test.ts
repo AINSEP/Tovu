@@ -62,33 +62,35 @@ describe("WIDGETS_DICT: cross-locale key parity", () => {
     }
   });
 
-  // The keys 7b95b13ba's permanent-delete confirm dialog added or reused from this dict. Without
-  // this block, "added to source, added to zero locales" renders English to 20 locales silently —
-  // the exact regression `media-i18n.unit.test.ts` guards against for its own purge dialog.
-  // `t("Delete permanently")` (the dialog's confirm BUTTON) is deliberately not here: it lives in
-  // `es` only, and is covered by `COMMON_I18N` in all 21 — it renders English in the other 20
-  // until the fallback fix above lands, which is the state the assertion above pins.
-  const PURGE_DIALOG_KEYS = ["Delete permanently?", "Permanently delete", "This cannot be undone."];
+  // The keys the 2026-09-21 trash rewrite's "Move to trash?" confirm dialog added, replacing the
+  // old purge/force-purge escalation's keys. Without this block, "added to source, added to zero
+  // locales" renders English to 20 locales silently — the exact regression
+  // `media-i18n.unit.test.ts` guards against for its own dialogs.
+  const TRASH_DIALOG_KEYS = ["Move to trash?", "Move to trash", 'Move "{title}" to trash?'];
 
-  it.each(PURGE_DIALOG_KEYS)("carries %j in every locale (permanent-delete confirm dialog)", (key) => {
+  it.each(TRASH_DIALOG_KEYS)("carries %j in every locale (move-to-trash confirm dialog)", (key) => {
     for (const locale of locales) {
       expect(WIDGETS_DICT[locale][key], `${locale} is missing ${JSON.stringify(key)}`).toBeTruthy();
+    }
+  });
+
+  it('carries "This item changed since you loaded it. Reload and try again." in every locale (TRASH_VERSION_CHANGED)', () => {
+    for (const locale of locales) {
+      expect(
+        WIDGETS_DICT[locale]["This item changed since you loaded it. Reload and try again."],
+        `${locale} is missing the TRASH_VERSION_CHANGED message`,
+      ).toBeTruthy();
     }
   });
 });
 
 /**
- * Regression for the confirm BUTTON rendering English in 20 of 21 locales (S-I18N fallback fix).
- * `t("Delete permanently")` is `es`-only in `WIDGETS_DICT`; `"Save"` is absent from every locale
- * but `es`. Both are `COMMON_I18N` keys in all 21 locales, so `t` must fall through to
- * `COMMON_I18N` instead of returning the raw English key.
+ * Regression for a confirm BUTTON rendering English in 20 of 21 locales (S-I18N fallback fix).
+ * `"Save"` is absent from every locale but `es` in `WIDGETS_DICT`, and is a `COMMON_I18N` key in
+ * all 21 locales, so `t` must fall through to `COMMON_I18N` instead of returning the raw English
+ * key.
  */
 describe("WIDGETS_DICT: t() falls back to COMMON_I18N", () => {
-  it("translates 'Delete permanently' in German even though WIDGETS_DICT.de never carries it", () => {
-    expect(WIDGETS_DICT.de["Delete permanently"]).toBeUndefined();
-    expect(t("de", "Delete permanently")).toBe(COMMON_I18N.de["Delete permanently"]);
-  });
-
   it("translates 'Save' in German even though WIDGETS_DICT.de never carries it", () => {
     expect(WIDGETS_DICT.de.Save).toBeUndefined();
     expect(t("de", "Save")).toBe(COMMON_I18N.de.Save);

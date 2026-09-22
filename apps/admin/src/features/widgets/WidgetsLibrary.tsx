@@ -11,11 +11,12 @@ import { useWiredWidgetsLibrary } from "./hooks/use-widgets-library.hooks";
  * `/admin/widgets` — markup only. Mirrors `Menus.tsx`'s list-table/status-badge/header-action
  * shape exactly.
  *
- * State, the fetch, and the trash/purge/force-purge escalation live in
- * `hooks/use-widgets-library.hooks.ts`; the shared type-label and referencing-locations
- * derivations live in `rules.ts`. "Delete permanently" on a trashed widget always confirms first
- * (`pendingPurge`/`ConfirmDialog` below) before the trash/purge/force-purge escalation runs — a
- * referenced widget gets TWO confirmations: this generic one, then "Still in use".
+ * State and the fetch live in `hooks/use-widgets-library.hooks.ts`; the shared type-label
+ * derivation lives in `rules.ts`. Delete always confirms first (`pendingTrash`/`ConfirmDialog`
+ * below) and moves the widget to the Trash — there is no purge/force-purge escalation here any
+ * more (2026-09-21, `trash-delete-architecture.md`): the server's widget purge route was removed,
+ * a trashed widget is hidden from this list by the server, and the Trash screen owns
+ * restore/purge from here.
  */
 export interface WidgetsLibraryProps {
   /**
@@ -62,15 +63,11 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
     skippedCount,
     createType,
     setCreateType,
-    pendingForcePurge,
-    cancelForcePurge,
-    forcePurging,
-    confirmForcePurge,
-    pendingPurge,
-    purging,
-    confirmPurge,
-    cancelPurge,
-    trashOrPurge,
+    pendingTrash,
+    trashing,
+    requestTrash,
+    confirmTrash,
+    cancelTrash,
     t,
     locale,
   } = useWidgetsLibraryHook();
@@ -170,55 +167,28 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
             headerLabel: t("Actions"),
             cell: (widget) => (
               <button
-                onClick={() => trashOrPurge(widget)}
-                {...agentHandle(`${rowHandleById.get(widget.id)}-trash-or-purge`, {
+                onClick={() => requestTrash(widget)}
+                {...agentHandle(`${rowHandleById.get(widget.id)}-trash`, {
                   role: "button",
-                  label: widget.status === "active" ? `Move "${widget.title}" to trash` : `Permanently delete "${widget.title}"`,
+                  label: `Move "${widget.title}" to trash`,
                 })}
               >
-                {widget.status === "active" ? t("Trash") : t("Delete permanently")}
+                {t("Trash")}
               </button>
             ),
           },
         ]}
       />
       <ConfirmDialog
-        open={pendingPurge !== null}
-        agentHandle="widgets-purge"
-        title={t("Delete permanently?")}
-        body={
-          pendingPurge ? (
-            <p>
-              {t("Permanently delete")} &quot;{pendingPurge.title}&quot;? {t("This cannot be undone.")}
-            </p>
-          ) : null
-        }
-        confirmLabel={t("Delete permanently")}
+        open={pendingTrash !== null}
+        agentHandle="widgets-trash"
+        title={t("Move to trash?")}
+        body={pendingTrash ? <p>{t('Move "{title}" to trash?').replace("{title}", pendingTrash.title)}</p> : null}
+        confirmLabel={t("Move to trash")}
         destructive
-        pending={purging}
-        onConfirm={confirmPurge}
-        onCancel={cancelPurge}
-      />
-      <ConfirmDialog
-        open={pendingForcePurge !== null}
-        agentHandle="widgets-force-purge"
-        title={t("Still in use")}
-        body={
-          pendingForcePurge ? (
-            <p>
-              {t('"{title}" is still used in: {summary}.')
-                .replace("{title}", pendingForcePurge.widget.title)
-                .replace("{summary}", pendingForcePurge.summary)}
-              <br />
-              {t("Permanently delete anyway? This cannot be undone.")}
-            </p>
-          ) : null
-        }
-        confirmLabel={t("Permanently delete")}
-        destructive
-        pending={forcePurging}
-        onConfirm={confirmForcePurge}
-        onCancel={cancelForcePurge}
+        pending={trashing}
+        onConfirm={confirmTrash}
+        onCancel={cancelTrash}
       />
     </div>
   );

@@ -7,7 +7,7 @@ import type { AdminWidget, AdminWidgetType, AdminWidgetWhereUsed } from "@/lib/a
  * Follows the `useX(dependencies)` / `useWiredX()` pair documented in
  * `development/docs/architecture/wired-hooks-convention.md` and `redirects-port.hooks.ts` (the
  * canonical reference): this file declares, `widgets-dependencies.hooks.ts` binds the real `api`
- * client, and nothing else under `features/widgets` imports `lib/api` for these six routes. One
+ * client, and nothing else under `features/widgets` imports `lib/api` for these five routes. One
  * shared port rather than one per hook — both hooks read/write the same widget-INSTANCE resource
  * (`AdminWidget`); region/placement routes are a different resource, covered by the separate
  * `WidgetRegionsPort` next to `use-widget-region-editor.hooks.ts`/`use-widget-regions.hooks.ts`.
@@ -28,6 +28,9 @@ export interface WidgetsPort {
   createWidget(input: { widgetType: AdminWidgetType; title: string; config: Record<string, unknown> }): Promise<{ widget: AdminWidget }>;
   /** `title` is optional (SPEC-043 ui.spec §4.3): omitted keeps the widget's current title. */
   updateWidget(target: { id: string; baseVersion: number; config: Record<string, unknown>; title?: string }): Promise<{ widget: AdminWidget }>;
-  trashWidget(id: string): Promise<{ widget: AdminWidget }>;
-  purgeWidget(target: { id: string }, options?: { force?: boolean }): Promise<{ purged: true }>;
+  /** Moves a widget instance to the Trash via the generic single-item route
+   *  (`POST .../trash/items`, `api.trash({ type: "widget", id })`) — the same route every other
+   *  admin delete button now goes through (see `trash-delete-architecture.md`). The Trash screen
+   *  owns restore/purge from here; this port no longer has a purge method at all. */
+  trashWidget(id: string): Promise<{ ok: true; version: number | null }>;
 }

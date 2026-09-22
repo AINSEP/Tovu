@@ -58,19 +58,6 @@ export function isKnownWidgetType(widgetType: string): boolean {
   return KNOWN_WIDGET_TYPES.has(widgetType);
 }
 
-/**
- * REQ-42/`ui.spec.md` §4.2's escalation summary — turns a `WIDGETS_REFERENCED` 409's
- * `referencingLocations` into the "still used in: ..." copy `WidgetsLibrary`'s escalation
- * `ConfirmDialog` shows. Falls back to a generic phrase on an empty list (the 409 fired but the
- * server didn't name anything) rather than rendering "still used in: ." with nothing after the
- * colon.
- *
- * @complexity Time/space: O(n) in the number of referencing locations.
- */
-export function describeReferencingLocations(locations: Array<{ kind: string; entryId: string }>): string {
-  return locations.map((l) => `${l.kind} (${l.entryId})`).join(", ") || "at least one other place";
-}
-
 /** The field errors a `WIDGETS_CONFIG_VALIDATION_ERROR` 409 carries, or an empty array for any
  *  other error shape — `WidgetInstanceEditor`'s save path only has field-level copy to show for
  *  this one error code. */
