@@ -200,9 +200,11 @@ import {
   POST_ENTITY_TYPE,
   REDIRECT_ENTITY_TYPE,
   SqliteTrashRepo,
-  type RestoreFollowUp,
+  type RemoveEntity,
   type TrashAdapter,
-  withRestoreFollowUp,
+  type TrashedItemsRef,
+  type TrashFollowUpHooks,
+  withFollowUps,
 } from "#src/features/trash/index";
 import * as contentSchema from "#src/platform/db/schema";
 import { installCommentsDataModule } from "#src/features/comments/data-module-install";
@@ -1132,18 +1134,30 @@ export function createSqliteRouteDeps(
   // loops over every registered entry generically.
   const trashRegistry = buildTrashRegistry({ schema: contentSchema });
   const sqliteTrashDb = createSqliteTrashDb({ db });
-  // A restore its marker column alone cannot finish, per type (`restore-follow-up.ts`). `widget`: an
-  // adopted legacy widget keeps its `purged` payload while in the Trash (an older site build still
-  // reads it), and its restore makes the payload active again. `routeDeps` is read at restore time,
-  // long after it exists below.
-  const trashRestoreFollowUps = new Map<string, RestoreFollowUp>([
+  // Column-only reference to `trashed_items`, shared by every generic entry's adapter — needed only
+  // by a `purgeFirst` cascade that declares `entityType` (`form` -> `form_submission`, `taxonomy` ->
+  // `term`): the phantom-row cleanup, T1 item 5 (`table-adapter.ts`'s `TrashedItemsRef`).
+  const trashedItemsRef: TrashedItemsRef = {
+    table: contentSchema.trashedItems,
+    workspaceId: contentSchema.trashedItems.workspaceId,
+    entityType: contentSchema.trashedItems.entityType,
+    entityId: contentSchema.trashedItems.entityId,
+  };
+  // Finishes a hide/restore/purge a generic marker flip alone cannot (`follow-ups.ts`), per type.
+  // `widget`: an adopted legacy widget keeps its `purged` payload while in the Trash (an older site
+  // build still reads it), and its restore makes the payload active again. `routeDeps` is read at
+  // restore time, long after it exists below. T5/T6 add their own entries here (menu/taxonomy
+  // revision + event follow-ups) — this map stays the one per-type wiring point (plan §2 T1 item 6).
+  const trashFollowUpHooks = new Map<string, TrashFollowUpHooks>([
     [
       "widget",
-      (required) =>
-        restoreWidgetPriorStatus({
-          deps: buildWidgetsDeps(routeDeps),
-          input: { workspaceId: required.workspaceId, widgetInstanceId: required.entityId, priorStatus: required.priorMarker },
-        }),
+      {
+        afterUnhide: (required) =>
+          restoreWidgetPriorStatus({
+            deps: buildWidgetsDeps(routeDeps),
+            input: { workspaceId: required.workspaceId, widgetInstanceId: required.entityId, priorStatus: required.priorMarker },
+          }),
+      },
     ],
   ]);
   const trashAdapters = new Map<string, TrashAdapter>([
@@ -1169,9 +1183,9 @@ export function createSqliteRouteDeps(
     // written once and driven entirely by each entry's own registration, so this line never changes
     // as G2-G4 add more entries.
     ...[...trashRegistry.values()].map((entry) => {
-      const adapter = createTableTrashAdapter({ entry, db: sqliteTrashDb });
-      const followUp = trashRestoreFollowUps.get(entry.entityType);
-      return [entry.entityType, followUp ? withRestoreFollowUp({ adapter, followUp }) : adapter] as const;
+      const adapter = createTableTrashAdapter({ entry, db: sqliteTrashDb, trashedItems: trashedItemsRef });
+      const hooks = trashFollowUpHooks.get(entry.entityType);
+      return [entry.entityType, hooks ? withFollowUps({ adapter, hooks }) : adapter] as const;
     }),
   ]);
   const trashRepo = new SqliteTrashRepo(db.$client);
@@ -1186,9 +1200,30 @@ export function createSqliteRouteDeps(
     transaction: trashTransaction,
   });
 
+  /**
+   * Narrows `bindRemoveEntity`'s result for a type whose registry entry declares no `blocker`
+   * (redirect/comment/form_submission — none of `registry.ts`'s three entries for them sets one).
+   * `TrashMarkerResult` (T1) is generic over every registered kind, so TypeScript cannot see that on
+   * its own; this is the composition-root seam that carries the narrower promise those domains'
+   * OWN structural types (`RemoveRedirectFn`/`RemoveCommentFn`/`RemoveFormSubmissionFn`) still make.
+   * A `"blocked"` result here is a composition bug (a blocker was added to one of these three entries
+   * without updating this call site to match) — fail fast rather than silently drop it.
+   */
+  function removeEntityWithoutBlocker(remove: RemoveEntity): (
+    required: Parameters<RemoveEntity>[0]
+  ) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }> {
+    return async (required) => {
+      const result = await remove(required);
+      if (!result.ok && result.reason === "blocked") {
+        throw new Error(`trash: '${required.id}' reported 'blocked' from a type registered with no blocker — composition bug`);
+      }
+      return result;
+    };
+  }
+
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
-    remove: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
+    remove: removeEntityWithoutBlocker(bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE)),
     db: redirectRepo,
     transaction: (fn) => redirectRepo.transaction(fn),
     matcher: redirectMatcher,
@@ -1289,7 +1324,7 @@ export function createSqliteRouteDeps(
     settingsRepo,
     // Local admin Trash. A comment's "deleted" marker is one value of its moderation status, so the
     // index has to follow both directions of that transition — see `syncRemovalIndex`.
-    remove: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
+    remove: removeEntityWithoutBlocker(bindRemoveEntity(trash, COMMENT_ENTITY_TYPE)),
     forgetRemoved: ({ workspaceId: ws, id }) =>
       trashRepo.deleteByEntity({ workspaceId: ws, entityType: COMMENT_ENTITY_TYPE, entityId: id }),
     runInTransaction: trashTransaction,
@@ -1511,7 +1546,7 @@ export function createSqliteRouteDeps(
     trash,
     // Pre-bound per domain. A delete path receives exactly one of these and therefore cannot reach
     // another domain's entities by passing the wrong string.
-    removePost: bindRemoveEntity(trash, POST_ENTITY_TYPE),
+    removePost: removeEntityWithoutBlocker(bindRemoveEntity(trash, POST_ENTITY_TYPE)),
     removeComment: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
     removeMedia: bindRemoveEntity(trash, MEDIA_ENTITY_TYPE),
     removeRedirect: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
@@ -1732,7 +1767,7 @@ export function createSqliteRouteDeps(
     // `server/app.ts`'s hermetic-test composition's identical construction.
     formDefinitionRepo,
     formSubmissionRepo: new SqliteFormSubmissionRepo(db),
-    removeFormSubmission: bindRemoveEntity(trash, "form_submission"),
+    removeFormSubmission: removeEntityWithoutBlocker(bindRemoveEntity(trash, "form_submission")),
     formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
     // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,
     // just above it so the two process-lifetime rate limiters stay visually paired.

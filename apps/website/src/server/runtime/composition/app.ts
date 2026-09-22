@@ -20,6 +20,7 @@ import {
   MEDIA_ENTITY_TYPE,
   POST_ENTITY_TYPE,
   REDIRECT_ENTITY_TYPE,
+  type RemoveEntity,
   type TrashAdapter,
 } from "#src/features/trash/index";
 import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
@@ -584,9 +585,23 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     transaction: (fn) => fn(),
   });
 
+  // See `composition/deps.ts`'s identically-named/documented helper: narrows `bindRemoveEntity`'s
+  // result for a type whose registry entry declares no `blocker` (redirect/comment/form_submission).
+  function removeEntityWithoutBlocker(remove: RemoveEntity): (
+    required: Parameters<RemoveEntity>[0]
+  ) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }> {
+    return async (required) => {
+      const result = await remove(required);
+      if (!result.ok && result.reason === "blocked") {
+        throw new Error(`trash: '${required.id}' reported 'blocked' from a type registered with no blocker — composition bug`);
+      }
+      return result;
+    };
+  }
+
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
-    remove: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
+    remove: removeEntityWithoutBlocker(bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE)),
     db: redirectRepo,
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,
@@ -632,7 +647,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     idGen,
     spamCheck: new HeuristicSpamCheck(),
     settingsRepo,
-    remove: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
+    remove: removeEntityWithoutBlocker(bindRemoveEntity(trash, COMMENT_ENTITY_TYPE)),
     forgetRemoved: ({ workspaceId: ws, id }) =>
       trashRepo.deleteByEntity({ workspaceId: ws, entityType: COMMENT_ENTITY_TYPE, entityId: id }),
     // Nothing in this composition opens a database transaction; see `createTrashService` above.
@@ -751,8 +766,14 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       deleteWhere: () => {
         throw new Error("trash: this hermetic composition registers no TRASHABLE entries — db must never be called");
       },
+      count: () => {
+        throw new Error("trash: this hermetic composition registers no TRASHABLE entries — db must never be called");
+      },
+      selectIds: () => {
+        throw new Error("trash: this hermetic composition registers no TRASHABLE entries — db must never be called");
+      },
     },
-    removePost: bindRemoveEntity(trash, POST_ENTITY_TYPE),
+    removePost: removeEntityWithoutBlocker(bindRemoveEntity(trash, POST_ENTITY_TYPE)),
     removeComment: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
     removeMedia: bindRemoveEntity(trash, MEDIA_ENTITY_TYPE),
     removeRedirect: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
@@ -934,7 +955,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // per-request) so its fixed-window counts persist across requests within one `createApp()`.
     formDefinitionRepo,
     formSubmissionRepo,
-    removeFormSubmission: bindRemoveEntity(trash, "form_submission"),
+    removeFormSubmission: removeEntityWithoutBlocker(bindRemoveEntity(trash, "form_submission")),
     formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
     // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,
     // matching `server/deps.ts`'s real composition's identical construction.

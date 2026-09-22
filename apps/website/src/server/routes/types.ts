@@ -30,7 +30,7 @@ import type {
 } from "@jini-ai/cms/identity";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin.js";
-import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord } from "../../features/post/index.js";
+import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord, RemovePostFn } from "../../features/post/index.js";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
 import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope.js";
 import type { AgentSessionStore } from "../../assistant/persistence/agent-session-store.js";
@@ -1372,7 +1372,11 @@ export interface PublishTrustRevocationDeps {
  */
 export interface TrashDeps {
   trash: TrashPort;
-  removePost: RemoveEntity;
+  // `RemovePostFn`, not the broad `RemoveEntity`: `deletePost` (`features/post/post.ts`) declares its
+  // own narrower structural type with no `"blocked"` branch (post has no `TrashBlockerSpec`, T1). The
+  // composition root narrows `bindRemoveEntity`'s wider result to match (`removeEntityWithoutBlocker`
+  // in `deps.ts`/`app.ts`) so this field's promise is actually kept.
+  removePost: RemovePostFn;
   removeComment: RemoveEntity;
   removeMedia: RemoveEntity;
   removeRedirect: RemoveEntity;
