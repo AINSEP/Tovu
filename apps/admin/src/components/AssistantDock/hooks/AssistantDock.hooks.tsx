@@ -781,7 +781,7 @@ export function useAssistantTransport(
         // Which Local CLI agentIds carry their own multi-turn memory — see this file's own
         // `getResumeCapableAgentIds` doc, and `assistant-transport.ts`'s
         // `CreateTovuAssistantTransportOptions.getResumeCapableAgentIds` for the full contract.
-        // `fetchAgents`/`useRuntimeAccess`'s `rescanAgents` keep the set it reads current.
+        // `useRuntimeAccess`'s `listAgents`/`rescanAgents` keep the set it reads current.
         getResumeCapableAgentIds,
       }),
     [executionConfigRef, ensureConversationId, persistUserTurn],
@@ -908,7 +908,7 @@ export function resetResumeCapableAgentIds(): void {
  * memoized transport always reads the CURRENT set, not whatever was live when it was built.
  *
  * Exported for the same reason {@link extractResumeCapableAgentIds} is: a test asserting that
- * `fetchAgents`/`rescanAgents` actually populated the module state needs a way to read it back.
+ * `listAgents`/`rescanAgents` actually populated the module state needs a way to read it back.
  */
 export function getResumeCapableAgentIds(): ReadonlySet<string> {
   return resumeCapableAgentIds;
@@ -919,10 +919,13 @@ export function getResumeCapableAgentIds(): ReadonlySet<string> {
 class AgentsResponseNotOkError extends Error {}
 
 /** Records one fresh inventory everywhere that reads it: the resume-capable set the transport
- *  consults, and the localStorage placeholder for the next cold load. */
-function recordAgents(agents: readonly AgentWithMemoryFlag[]): void {
+ *  consults, and the localStorage placeholder for the next cold load. Called on what the cache
+ *  settles on, not inside {@link fetchAgents}: a GET that was in flight across a rescan answers
+ *  with the older list, which must not overwrite what the rescan recorded. */
+function recordAgents<T extends readonly AgentWithMemoryFlag[]>(agents: T): T {
   resumeCapableAgentIds = extractResumeCapableAgentIds(agents);
   writeAgentsSnapshot(agents);
+  return agents;
 }
 
 async function fetchAgents(): Promise<ChatPaneAgent[]> {
@@ -932,7 +935,6 @@ async function fetchAgents(): Promise<ChatPaneAgent[]> {
   });
   if (!response.ok) throw new AgentsResponseNotOkError(`GET ${AGENTS_URL} answered ${response.status}`);
   const { agents } = (await response.json()) as { agents: AgentWithMemoryFlag[] };
-  recordAgents(agents);
   return agents;
 }
 
@@ -953,7 +955,7 @@ const AGENTS_QUERY_KEY = ["assistant", "agents"] as const;
  *  without touching the cache, so a failed read never overwrites a good inventory. */
 async function refetchAgentsInto(loader: CachedLoader<ChatPaneAgent[]>): Promise<ChatPaneAgent[]> {
   try {
-    const agents = await fetchAgents();
+    const agents = recordAgents(await fetchAgents());
     loader.replace(agents);
     return agents;
   } catch (error) {
@@ -1021,7 +1023,7 @@ export function useRuntimeAccess(): ChatPaneRuntimeAccess {
   const loader = useAgentsLoader();
   return useMemo(
     () => ({
-      listAgents: () => loader.load().catch(emptyOnNotOk),
+      listAgents: () => loader.load().then(recordAgents, emptyOnNotOk),
       rescanAgents: async () => {
         const response = await fetch(`${AGENTS_URL}/rescan`, {
           method: "POST",

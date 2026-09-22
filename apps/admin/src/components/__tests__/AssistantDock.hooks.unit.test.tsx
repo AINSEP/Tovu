@@ -110,6 +110,7 @@ import {
   useMessagesChangeHandler,
   useRunContext,
   useAgentsPlaceholder,
+  getResumeCapableAgentIds,
   useRuntimeAccess,
   useSelectedAgentPlugins,
   useSelectedPluginChips,
@@ -1200,6 +1201,23 @@ describe("agents cache (useRuntimeAccess + useAgentsPlaceholder)", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps serving the cached list long after the app-wide 10s staleTime and 5-minute idle eviction", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchSpy = vi.fn(() => okAgents([{ id: "claude", name: "Claude Code" }]));
+      vi.stubGlobal("fetch", fetchSpy);
+      const { result } = renderAgents();
+      await result.current.access.listAgents();
+
+      await vi.advanceTimersByTimeAsync(60 * 60_000);
+
+      await expect(result.current.access.listAgents()).resolves.toEqual([{ id: "claude", name: "Claude Code" }]);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not cache a non-ok answer — the next listAgents() asks the server again", async () => {
     const fetchSpy = vi
       .fn()
@@ -1239,6 +1257,29 @@ describe("agents cache (useRuntimeAccess + useAgentsPlaceholder)", () => {
     await expect(result.current.access.rescanAgents()).resolves.toEqual([]);
 
     await expect(result.current.access.listAgents()).resolves.toEqual([{ id: "claude", name: "Claude Code" }]);
+  });
+
+  it("a rescan that lands while the first GET is still in flight is not overwritten by that GET's older list", async () => {
+    let releaseGet!: () => void;
+    const getGate = new Promise<void>((resolve) => {
+      releaseGet = resolve;
+    });
+    const fetchSpy = vi.fn(async (url: string) => {
+      if (url === "/api/agents/rescan") return okAgents([{ id: "codex", name: "Codex" }]);
+      await getGate;
+      return new Response(JSON.stringify({ agents: [{ id: "claude", name: "Claude Code", carriesOwnMemory: true }] }));
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+    const { result } = renderAgents();
+
+    const firstList = result.current.access.listAgents();
+    await result.current.access.rescanAgents();
+    releaseGet();
+    await firstList;
+
+    await expect(result.current.access.listAgents()).resolves.toEqual([{ id: "codex", name: "Codex" }]);
+    expect(renderAgents().result.current.placeholder).toEqual([{ id: "codex", name: "Codex" }]);
+    expect(getResumeCapableAgentIds()).toEqual(new Set());
   });
 
   it("placeholder is undefined with no cache and no stored snapshot", () => {

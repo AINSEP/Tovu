@@ -175,7 +175,8 @@ export interface CachedLoader<T> {
   peek: () => T | undefined;
   /** Resolves from cache while fresh, otherwise runs `fetch` and caches its result. */
   load: () => Promise<T>;
-  /** Overwrites the cached value — for a write whose response IS the new value (a rescan). */
+  /** Overwrites the cached value — for a write whose response IS the new value (a rescan). A
+   *  `load()` already in flight resolves to this value rather than its own older answer. */
   replace: (value: T) => void;
 }
 

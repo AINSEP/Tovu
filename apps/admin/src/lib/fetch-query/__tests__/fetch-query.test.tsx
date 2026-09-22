@@ -542,6 +542,18 @@ describe("useCachedLoader", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it("a replace() made while a load is in flight is not overwritten when that load's older answer lands", async () => {
+    const gate = deferred<string>();
+    const { result } = renderLoader(() => gate.promise, Infinity);
+
+    const inFlight = result.current.load();
+    result.current.replace("v2");
+    gate.resolve("v1");
+
+    await expect(inFlight).resolves.toBe("v2");
+    expect(result.current.peek()).toBe("v2");
+  });
+
   it("keeps an unobserved value past the cache's default 5-minute idle eviction when staleTime says it is fresh", async () => {
     vi.useFakeTimers();
     try {
