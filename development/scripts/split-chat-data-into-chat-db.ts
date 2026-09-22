@@ -126,7 +126,19 @@ function hashRow(row: Row, spec: TableSpec): string {
   return crypto.createHash("sha256").update(JSON.stringify(values)).digest("hex");
 }
 
+/** Whether `name` exists as a table in `db` right now — needed because `content-db.ts`'s
+ *  `dropEmptyLegacyChatTables` (`fix(db): drop empty legacy chat tables from content.db on open`,
+ *  5a189cb2a) now drops each of these three tables from `content.db` the moment `openContentDb`
+ *  finds it empty. That happens on EVERY open, including a re-open after this very script's own
+ *  prior successful `--apply` emptied them — exactly the "safe to re-run, reports nothing to
+ *  migrate" case this file's header promises. Without this check `readAllRows` would throw
+ *  "no such table" instead of reporting zero rows. */
+function tableExists(db: SqliteDatabase, name: string): boolean {
+  return db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(name) !== undefined;
+}
+
 function readAllRows(db: SqliteDatabase, spec: TableSpec): Row[] {
+  if (!tableExists(db, spec.name)) return [];
   return db.prepare(`SELECT ${spec.columns.join(", ")} FROM ${spec.name}`).all() as Row[];
 }
 
