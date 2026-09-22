@@ -119,9 +119,10 @@ export function visibleIntegrationsError(params: {
   deleteError: Error | null;
   listError: Error | null;
   hasSubscriptions: boolean;
+  locale: string;
 }): string | null {
-  if (params.toggleError) return describeApiError(params.toggleError, "failed to update subscription");
-  if (params.deleteError) return describeApiError(params.deleteError, "failed to delete subscription");
+  if (params.toggleError) return describeApiError(params.toggleError, t(params.locale, "failed to update subscription"));
+  if (params.deleteError) return describeApiError(params.deleteError, t(params.locale, "failed to delete subscription"));
   if (params.hasSubscriptions) return null;
-  return params.listError ? describeApiError(params.listError, "failed to load integrations") : null;
+  return params.listError ? describeApiError(params.listError, t(params.locale, "failed to load integrations")) : null;
 }

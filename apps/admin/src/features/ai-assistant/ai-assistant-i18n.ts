@@ -29,6 +29,14 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
   es: {
+    "failed to save the key": "no se pudo guardar la clave",
+    "failed to save the settings": "no se pudo guardar la configuración",
+    "Could not reach the provider with that key": "No se pudo contactar al proveedor con esa clave",
+    "Connection test failed": "La prueba de conexión falló",
+    "Model discovery failed": "La detección de modelos falló",
+    "You do not have permission to change the AI assistant's settings.": "No tienes permiso para cambiar la configuración del asistente de IA.",
+    "That value was rejected.": "Ese valor fue rechazado.",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "El servidor aún no puede almacenar claves: no tiene una clave maestra de cifrado. Configura TOVU_INTEGRATIONS_ROOT_KEY (hex) en el entorno del servidor y reinícialo. Tu clave no se guardó y no tiene ningún problema.",
     // Page header
     "Turn the visitor-facing assistant on or off for your public site.":
       "Activa o desactiva el asistente de cara al visitante en tu sitio público.",
@@ -129,6 +137,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "No implementado",
   },
   id: {
+    "failed to save the key": "gagal menyimpan kunci",
+    "failed to save the settings": "gagal menyimpan pengaturan",
+    "Could not reach the provider with that key": "Tidak dapat menghubungi penyedia dengan kunci itu",
+    "Connection test failed": "Uji koneksi gagal",
+    "Model discovery failed": "Penemuan model gagal",
+    "You do not have permission to change the AI assistant's settings.": "Anda tidak memiliki izin untuk mengubah pengaturan asisten AI.",
+    "That value was rejected.": "Nilai itu ditolak.",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "Server belum dapat menyimpan kunci: tidak memiliki kunci master enkripsi. Atur TOVU_INTEGRATIONS_ROOT_KEY (hex) di lingkungan server lalu mulai ulang. Kunci Anda tidak disimpan, dan tidak ada yang salah dengannya.",
     // Admin tab — daemon restart
     "Local CLI process": "Proses CLI lokal",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -212,6 +228,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Belum diterapkan",
   },
   de: {
+    "failed to save the key": "Schlüssel konnte nicht gespeichert werden",
+    "failed to save the settings": "Einstellungen konnten nicht gespeichert werden",
+    "Could not reach the provider with that key": "Der Anbieter konnte mit diesem Schlüssel nicht erreicht werden",
+    "Connection test failed": "Verbindungstest fehlgeschlagen",
+    "Model discovery failed": "Modellerkennung fehlgeschlagen",
+    "You do not have permission to change the AI assistant's settings.": "Sie haben keine Berechtigung, die Einstellungen des KI-Assistenten zu ändern.",
+    "That value was rejected.": "Dieser Wert wurde abgelehnt.",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "Der Server kann Schlüssel noch nicht speichern: Es fehlt ein Verschlüsselungs-Hauptschlüssel. Setzen Sie TOVU_INTEGRATIONS_ROOT_KEY (hex) in der Serverumgebung und starten Sie den Server neu. Ihr Schlüssel wurde nicht gespeichert; mit ihm ist nichts falsch.",
     // Admin tab — daemon restart
     "Local CLI process": "Lokaler CLI-Prozess",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -295,6 +319,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Nicht implementiert",
   },
   "zh-CN": {
+    "failed to save the key": "无法保存密钥",
+    "failed to save the settings": "无法保存设置",
+    "Could not reach the provider with that key": "无法使用该密钥连接提供商",
+    "Connection test failed": "连接测试失败",
+    "Model discovery failed": "模型发现失败",
+    "You do not have permission to change the AI assistant's settings.": "您没有权限更改 AI 助手设置。",
+    "That value was rejected.": "该值被拒绝。",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "服务器暂时无法存储密钥：它没有加密主密钥。请在服务器环境中设置 TOVU_INTEGRATIONS_ROOT_KEY (hex) 并重启。您的密钥未被保存，但密钥本身没有问题。",
     // Admin tab — daemon restart
     "Local CLI process": "本地 CLI 进程",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -373,6 +405,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "尚未实现",
   },
   "zh-TW": {
+    "failed to save the key": "無法儲存金鑰",
+    "failed to save the settings": "無法儲存設定",
+    "Could not reach the provider with that key": "無法使用該金鑰連線至提供者",
+    "Connection test failed": "連線測試失敗",
+    "Model discovery failed": "模型探索失敗",
+    "You do not have permission to change the AI assistant's settings.": "您沒有權限變更 AI 助手設定。",
+    "That value was rejected.": "該值被拒絕。",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "伺服器目前無法儲存金鑰：它沒有加密主金鑰。請在伺服器環境中設定 TOVU_INTEGRATIONS_ROOT_KEY (hex) 並重新啟動。您的金鑰未儲存，但金鑰本身沒有問題。",
     // Admin tab — daemon restart
     "Local CLI process": "本機 CLI 程序",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -451,6 +491,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "尚未實作",
   },
   "pt-BR": {
+    "failed to save the key": "não foi possível salvar a chave",
+    "failed to save the settings": "não foi possível salvar as configurações",
+    "Could not reach the provider with that key": "Não foi possível alcançar o provedor com essa chave",
+    "Connection test failed": "O teste de conexão falhou",
+    "Model discovery failed": "A descoberta de modelos falhou",
+    "You do not have permission to change the AI assistant's settings.": "Você não tem permissão para alterar as configurações do assistente de IA.",
+    "That value was rejected.": "Esse valor foi rejeitado.",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "O servidor ainda não pode armazenar chaves: ele não tem uma chave mestra de criptografia. Defina TOVU_INTEGRATIONS_ROOT_KEY (hex) no ambiente do servidor e reinicie-o. Sua chave não foi salva e não há nada de errado com ela.",
     // Admin tab — daemon restart
     "Local CLI process": "Processo da CLI local",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -534,6 +582,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Não implementado",
   },
   ru: {
+    "failed to save the key": "не удалось сохранить ключ",
+    "failed to save the settings": "не удалось сохранить настройки",
+    "Could not reach the provider with that key": "Не удалось связаться с поставщиком с этим ключом",
+    "Connection test failed": "Проверка подключения не удалась",
+    "Model discovery failed": "Не удалось обнаружить модели",
+    "You do not have permission to change the AI assistant's settings.": "У вас нет разрешения изменять настройки ИИ-помощника.",
+    "That value was rejected.": "Это значение было отклонено.",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "Сервер пока не может хранить ключи: у него нет главного ключа шифрования. Укажите TOVU_INTEGRATIONS_ROOT_KEY (hex) в окружении сервера и перезапустите его. Ваш ключ не сохранён, и с ним всё в порядке.",
     // Admin tab — daemon restart
     "Local CLI process": "Процесс локального CLI",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -617,6 +673,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Не реализовано",
   },
   fa: {
+    "failed to save the key": "ذخیره‌سازی کلید ناموفق بود",
+    "failed to save the settings": "ذخیره‌سازی تنظیمات ناموفق بود",
+    "Could not reach the provider with that key": "با آن کلید نمی‌توان به ارائه‌دهنده دسترسی یافت",
+    "Connection test failed": "آزمون اتصال ناموفق بود",
+    "Model discovery failed": "کشف مدل ناموفق بود",
+    "You do not have permission to change the AI assistant's settings.": "اجازه تغییر تنظیمات دستیار هوش مصنوعی را ندارید.",
+    "That value was rejected.": "آن مقدار رد شد.",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "سرور هنوز نمی‌تواند کلیدها را ذخیره کند: کلید اصلی رمزنگاری ندارد. TOVU_INTEGRATIONS_ROOT_KEY (hex) را در محیط سرور تنظیم و آن را راه‌اندازی مجدد کنید. کلید شما ذخیره نشد و مشکلی ندارد.",
     // Admin tab — daemon restart
     "Local CLI process": "فرایند CLI محلی",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -699,6 +763,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "پیاده‌سازی نشده",
   },
   ar: {
+    "failed to save the key": "تعذر حفظ المفتاح",
+    "failed to save the settings": "تعذر حفظ الإعدادات",
+    "Could not reach the provider with that key": "تعذر الوصول إلى المزوّد باستخدام ذلك المفتاح",
+    "Connection test failed": "فشل اختبار الاتصال",
+    "Model discovery failed": "فشل اكتشاف النماذج",
+    "You do not have permission to change the AI assistant's settings.": "ليس لديك إذن لتغيير إعدادات مساعد الذكاء الاصطناعي.",
+    "That value was rejected.": "رُفضت تلك القيمة.",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "لا يستطيع الخادم تخزين المفاتيح بعد: لا يملك مفتاح تشفير رئيسياً. اضبط TOVU_INTEGRATIONS_ROOT_KEY (hex) في بيئة الخادم ثم أعد تشغيله. لم يُحفظ مفتاحك، ولا توجد مشكلة فيه.",
     // Admin tab — daemon restart
     "Local CLI process": "عملية CLI المحلية",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -780,6 +852,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "غير منفَّذ",
   },
   ja: {
+    "failed to save the key": "キーを保存できませんでした",
+    "failed to save the settings": "設定を保存できませんでした",
+    "Could not reach the provider with that key": "そのキーではプロバイダーに接続できませんでした",
+    "Connection test failed": "接続テストに失敗しました",
+    "Model discovery failed": "モデルの検出に失敗しました",
+    "You do not have permission to change the AI assistant's settings.": "AI アシスタントの設定を変更する権限がありません。",
+    "That value was rejected.": "その値は拒否されました。",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "サーバーはまだキーを保存できません。暗号化マスターキーがありません。サーバー環境で TOVU_INTEGRATIONS_ROOT_KEY (hex) を設定して再起動してください。キーは保存されませんでしたが、キー自体に問題はありません。",
     // Admin tab — daemon restart
     "Local CLI process": "ローカル CLI プロセス",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -860,6 +940,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "未実装",
   },
   ko: {
+    "failed to save the key": "키를 저장하지 못했습니다",
+    "failed to save the settings": "설정을 저장하지 못했습니다",
+    "Could not reach the provider with that key": "해당 키로 제공업체에 연결할 수 없습니다",
+    "Connection test failed": "연결 테스트에 실패했습니다",
+    "Model discovery failed": "모델 검색에 실패했습니다",
+    "You do not have permission to change the AI assistant's settings.": "AI 도우미 설정을 변경할 권한이 없습니다.",
+    "That value was rejected.": "해당 값이 거부되었습니다.",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "서버는 아직 키를 저장할 수 없습니다. 암호화 마스터 키가 없습니다. 서버 환경에서 TOVU_INTEGRATIONS_ROOT_KEY (hex)를 설정하고 다시 시작하세요. 키는 저장되지 않았으며 키 자체에는 문제가 없습니다.",
     // Admin tab — daemon restart
     "Local CLI process": "로컬 CLI 프로세스",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -940,6 +1028,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "구현되지 않음",
   },
   pl: {
+    "failed to save the key": "nie udało się zapisać klucza",
+    "failed to save the settings": "nie udało się zapisać ustawień",
+    "Could not reach the provider with that key": "Nie udało się połączyć z dostawcą za pomocą tego klucza",
+    "Connection test failed": "Test połączenia nie powiódł się",
+    "Model discovery failed": "Nie udało się wykryć modeli",
+    "You do not have permission to change the AI assistant's settings.": "Nie masz uprawnień do zmiany ustawień asystenta AI.",
+    "That value was rejected.": "Ta wartość została odrzucona.",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "Serwer nie może jeszcze przechowywać kluczy: nie ma głównego klucza szyfrowania. Ustaw TOVU_INTEGRATIONS_ROOT_KEY (hex) w środowisku serwera i uruchom go ponownie. Twój klucz nie został zapisany i nie ma z nim nic nie tak.",
     // Admin tab — daemon restart
     "Local CLI process": "Proces lokalnego CLI",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -1021,6 +1117,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Niewdrożone",
   },
   hu: {
+    "failed to save the key": "a kulcs mentése nem sikerült",
+    "failed to save the settings": "a beállítások mentése nem sikerült",
+    "Could not reach the provider with that key": "Ezzel a kulccsal nem sikerült elérni a szolgáltatót",
+    "Connection test failed": "A kapcsolati teszt sikertelen volt",
+    "Model discovery failed": "A modellfelderítés sikertelen volt",
+    "You do not have permission to change the AI assistant's settings.": "Nincs jogosultsága az AI-asszisztens beállításainak módosításához.",
+    "That value was rejected.": "Ezt az értéket elutasították.",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "A szerver még nem tud kulcsokat tárolni: nincs titkosítási főkulcsa. Állítsa be a TOVU_INTEGRATIONS_ROOT_KEY (hex) értékét a szerverkörnyezetben, majd indítsa újra. A kulcsa nem lett elmentve, de nincs vele semmi baj.",
     // Admin tab — daemon restart
     "Local CLI process": "Helyi CLI-folyamat",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -1102,6 +1206,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Nincs megvalósítva",
   },
   fr: {
+    "failed to save the key": "impossible d’enregistrer la clé",
+    "failed to save the settings": "impossible d’enregistrer les paramètres",
+    "Could not reach the provider with that key": "Impossible de joindre le fournisseur avec cette clé",
+    "Connection test failed": "Échec du test de connexion",
+    "Model discovery failed": "Échec de la détection des modèles",
+    "You do not have permission to change the AI assistant's settings.": "Vous n’avez pas l’autorisation de modifier les paramètres de l’assistant IA.",
+    "That value was rejected.": "Cette valeur a été refusée.",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "Le serveur ne peut pas encore stocker de clés : il ne possède pas de clé maîtresse de chiffrement. Définissez TOVU_INTEGRATIONS_ROOT_KEY (hex) dans l’environnement du serveur et redémarrez-le. Votre clé n’a pas été enregistrée et elle n’a aucun problème.",
     // Admin tab — daemon restart
     "Local CLI process": "Processus CLI local",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -1183,6 +1295,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Non implémenté",
   },
   uk: {
+    "failed to save the key": "не вдалося зберегти ключ",
+    "failed to save the settings": "не вдалося зберегти налаштування",
+    "Could not reach the provider with that key": "Не вдалося зв’язатися з постачальником за допомогою цього ключа",
+    "Connection test failed": "Не вдалося перевірити підключення",
+    "Model discovery failed": "Не вдалося виявити моделі",
+    "You do not have permission to change the AI assistant's settings.": "У вас немає дозволу змінювати налаштування ШІ-помічника.",
+    "That value was rejected.": "Це значення було відхилено.",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "Сервер поки не може зберігати ключі: у нього немає головного ключа шифрування. Встановіть TOVU_INTEGRATIONS_ROOT_KEY (hex) у середовищі сервера та перезапустіть його. Ваш ключ не збережено, і з ним усе гаразд.",
     // Admin tab — daemon restart
     "Local CLI process": "Процес локального CLI",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -1263,6 +1383,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Не реалізовано",
   },
   tr: {
+    "failed to save the key": "anahtar kaydedilemedi",
+    "failed to save the settings": "ayarlar kaydedilemedi",
+    "Could not reach the provider with that key": "Bu anahtarla sağlayıcıya ulaşılamadı",
+    "Connection test failed": "Bağlantı testi başarısız oldu",
+    "Model discovery failed": "Model keşfi başarısız oldu",
+    "You do not have permission to change the AI assistant's settings.": "Yapay zeka asistanının ayarlarını değiştirme izniniz yok.",
+    "That value was rejected.": "Bu değer reddedildi.",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "Sunucu henüz anahtarları depolayamıyor: şifreleme ana anahtarı yok. Sunucu ortamında TOVU_INTEGRATIONS_ROOT_KEY (hex) ayarlayın ve yeniden başlatın. Anahtarınız kaydedilmedi; anahtarınızda sorun yok.",
     // Admin tab — daemon restart
     "Local CLI process": "Yerel CLI işlemi",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -1344,6 +1472,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Uygulanmadı",
   },
   th: {
+    "failed to save the key": "บันทึกคีย์ไม่สำเร็จ",
+    "failed to save the settings": "บันทึกการตั้งค่าไม่สำเร็จ",
+    "Could not reach the provider with that key": "ไม่สามารถติดต่อผู้ให้บริการด้วยคีย์นั้นได้",
+    "Connection test failed": "การทดสอบการเชื่อมต่อล้มเหลว",
+    "Model discovery failed": "การค้นหารุ่นล้มเหลว",
+    "You do not have permission to change the AI assistant's settings.": "คุณไม่มีสิทธิ์เปลี่ยนการตั้งค่าผู้ช่วย AI",
+    "That value was rejected.": "ค่านั้นถูกปฏิเสธ",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "เซิร์ฟเวอร์ยังเก็บคีย์ไม่ได้: ไม่มีคีย์หลักสำหรับการเข้ารหัส ตั้งค่า TOVU_INTEGRATIONS_ROOT_KEY (hex) ในสภาพแวดล้อมของเซิร์ฟเวอร์แล้วเริ่มต้นใหม่ คีย์ของคุณไม่ได้รับการบันทึก และคีย์นั้นไม่มีปัญหา",
     // Admin tab — daemon restart
     "Local CLI process": "โปรเซส CLI ภายในเครื่อง",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -1424,6 +1560,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "ยังไม่ได้ใช้งาน",
   },
   it: {
+    "failed to save the key": "impossibile salvare la chiave",
+    "failed to save the settings": "impossibile salvare le impostazioni",
+    "Could not reach the provider with that key": "Impossibile raggiungere il provider con quella chiave",
+    "Connection test failed": "Test di connessione non riuscito",
+    "Model discovery failed": "Rilevamento dei modelli non riuscito",
+    "You do not have permission to change the AI assistant's settings.": "Non disponi dell’autorizzazione per modificare le impostazioni dell’assistente IA.",
+    "That value was rejected.": "Quel valore è stato rifiutato.",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "Il server non può ancora archiviare chiavi: non ha una chiave master di crittografia. Imposta TOVU_INTEGRATIONS_ROOT_KEY (hex) nell’ambiente del server e riavvialo. La tua chiave non è stata salvata e non ha nulla che non va.",
     // Admin tab — daemon restart
     "Local CLI process": "Processo CLI locale",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -1505,6 +1649,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Non implementato",
   },
   hi: {
+    "failed to save the key": "कुंजी सहेजी नहीं जा सकी",
+    "failed to save the settings": "सेटिंग सहेजी नहीं जा सकीं",
+    "Could not reach the provider with that key": "उस कुंजी से प्रदाता तक नहीं पहुंचा जा सका",
+    "Connection test failed": "कनेक्शन परीक्षण विफल रहा",
+    "Model discovery failed": "मॉडल खोज विफल रही",
+    "You do not have permission to change the AI assistant's settings.": "आपको AI सहायक की सेटिंग बदलने की अनुमति नहीं है।",
+    "That value was rejected.": "वह मान अस्वीकार कर दिया गया।",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "सर्वर अभी कुंजियां संग्रहीत नहीं कर सकता: उसके पास एन्क्रिप्शन मास्टर कुंजी नहीं है। सर्वर वातावरण में TOVU_INTEGRATIONS_ROOT_KEY (hex) सेट करें और पुनः प्रारंभ करें। आपकी कुंजी सहेजी नहीं गई, और उसमें कोई समस्या नहीं है।",
     // Admin tab — daemon restart
     "Local CLI process": "लोकल CLI प्रोसेस",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -1588,6 +1740,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "लागू नहीं किया गया",
   },
   ur: {
+    "failed to save the key": "کلید محفوظ نہیں ہو سکی",
+    "failed to save the settings": "ترتیبات محفوظ نہیں ہو سکیں",
+    "Could not reach the provider with that key": "اس کلید کے ساتھ فراہم کنندہ تک رسائی نہیں ہو سکی",
+    "Connection test failed": "کنکشن ٹیسٹ ناکام ہو گیا",
+    "Model discovery failed": "ماڈل دریافت کرنا ناکام ہوا",
+    "You do not have permission to change the AI assistant's settings.": "آپ کو AI اسسٹنٹ کی ترتیبات تبدیل کرنے کی اجازت نہیں ہے۔",
+    "That value was rejected.": "وہ قدر مسترد کر دی گئی۔",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "سرور ابھی کلیدیں محفوظ نہیں کر سکتا: اس کے پاس خفیہ کاری کی ماسٹر کلید نہیں ہے۔ سرور کے ماحول میں TOVU_INTEGRATIONS_ROOT_KEY (hex) مقرر کریں اور اسے دوبارہ شروع کریں۔ آپ کی کلید محفوظ نہیں ہوئی، اور اس میں کوئی خرابی نہیں ہے۔",
     // Admin tab — daemon restart
     "Local CLI process": "مقامی CLI پروسیس",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
@@ -1671,6 +1831,14 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "نافذ نہیں کیا گیا",
   },
   bn: {
+    "failed to save the key": "কী সংরক্ষণ করা যায়নি",
+    "failed to save the settings": "সেটিংস সংরক্ষণ করা যায়নি",
+    "Could not reach the provider with that key": "ওই কী দিয়ে প্রদানকারীর কাছে পৌঁছানো যায়নি",
+    "Connection test failed": "সংযোগ পরীক্ষা ব্যর্থ হয়েছে",
+    "Model discovery failed": "মডেল আবিষ্কার ব্যর্থ হয়েছে",
+    "You do not have permission to change the AI assistant's settings.": "AI সহকারীর সেটিংস পরিবর্তন করার অনুমতি আপনার নেই।",
+    "That value was rejected.": "মানটি প্রত্যাখ্যান করা হয়েছে।",
+    "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.": "সার্ভার এখনও কী সংরক্ষণ করতে পারে না: এতে এনক্রিপশন মাস্টার কী নেই। সার্ভার পরিবেশে TOVU_INTEGRATIONS_ROOT_KEY (hex) সেট করে পুনরায় চালু করুন। আপনার কী সংরক্ষিত হয়নি, এবং এতে কোনো সমস্যা নেই।",
     // Admin tab — daemon restart
     "Local CLI process": "লোকাল CLI প্রসেস",
     "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":

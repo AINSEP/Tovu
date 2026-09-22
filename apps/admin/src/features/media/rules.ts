@@ -462,8 +462,8 @@ export function formatByteSize(required: { bytes: number }, options?: { locale?:
 
 /** Alt text fallback chain for a previewed media asset: prefers the operator-set alt, falls back
  *  to the title, and finally a generic label when neither is set. */
-export function mediaAltText(item: AdminMedia): string {
-  return item.alt || item.title || "Untitled asset";
+export function mediaAltText(item: AdminMedia, untitledAsset: string): string {
+  return item.alt || item.title || untitledAsset;
 }
 
 /** Resolves `media.find((m) => m.id === editingId)`, or `null` — the item whose `EditMediaPanel`

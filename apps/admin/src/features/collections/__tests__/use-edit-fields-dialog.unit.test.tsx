@@ -54,7 +54,11 @@ let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();
-  vi.stubGlobal("fetch", fetchMock);
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input.toString();
+    if (url.includes("/settings/effective")) return Promise.resolve(jsonResponse({ data: [] }));
+    return fetchMock(input, init);
+  });
 });
 
 afterEach(() => {

@@ -47,7 +47,7 @@ function AuthenticationCredentialField(props: {
   return (
     <label className="source-config-field" htmlFor={inputId}>
       <span className="source-config-field-label">
-        {props.field.label}
+        {props.t(props.field.label)}
         <span className="source-config-field-required" aria-label={props.t("required")}>
           *
         </span>
@@ -56,14 +56,14 @@ function AuthenticationCredentialField(props: {
         id={inputId}
         type={props.field.kind}
         defaultValue=""
-        placeholder={props.field.placeholder}
+        placeholder={props.t(props.field.placeholder)}
         required={props.field.required}
         autoComplete={props.field.kind === "password" ? "new-password" : "off"}
         spellCheck={false}
         aria-describedby={hintId}
       />
       <span id={hintId} className="jini-field-hint">
-        {props.field.hint}
+        {props.t(props.field.hint)}
       </span>
     </label>
   );

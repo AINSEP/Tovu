@@ -28,6 +28,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Whether OpenTelemetry is on, and where a monitoring provider connection will live.",
   },
   es: {
+    "failed to load observability status": "no se pudo cargar el estado de observabilidad",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry está ACTIVADO — se están registrando trazas.",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry está DESACTIVADO (el valor predeterminado) — no se está registrando nada.",
     "Reporting under the service name": "Informando con el nombre de servicio",
@@ -47,6 +48,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Si OpenTelemetry está activado y dónde estará una conexión de proveedor de monitoreo.",
   },
   id: {
+    "failed to load observability status": "gagal memuat status observabilitas",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry AKTIF — jejak sedang direkam.",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry NONAKTIF (default) — tidak ada yang direkam.",
     "Reporting under the service name": "Melaporkan dengan nama layanan",
@@ -66,6 +68,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Apakah OpenTelemetry aktif, dan tempat koneksi penyedia pemantauan akan berada.",
   },
   de: {
+    "failed to load observability status": "Beobachtbarkeitsstatus konnte nicht geladen werden",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry ist AKTIVIERT — Traces werden aufgezeichnet.",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry ist DEAKTIVIERT (die Standardeinstellung) — es wird nichts aufgezeichnet.",
     "Reporting under the service name": "Meldet unter dem Dienstnamen",
@@ -85,6 +88,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Ob OpenTelemetry aktiviert ist und wo eine Verbindung zu einem Monitoring-Anbieter eingerichtet wird.",
   },
   "zh-CN": {
+    "failed to load observability status": "无法加载可观测性状态",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry 已开启 — 正在记录追踪数据。",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry 已关闭（默认）— 未记录任何数据。",
     "Reporting under the service name": "以服务名称上报",
@@ -104,6 +108,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry 是否已开启，以及监控提供商连接将设置在何处。",
   },
   "zh-TW": {
+    "failed to load observability status": "無法載入可觀測性狀態",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry 已開啟 — 正在記錄追蹤資料。",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry 已關閉（預設）— 未記錄任何資料。",
     "Reporting under the service name": "以服務名稱回報",
@@ -123,6 +128,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry 是否已開啟，以及監控提供者連線將設定在何處。",
   },
   "pt-BR": {
+    "failed to load observability status": "não foi possível carregar o status de observabilidade",
     "OpenTelemetry is ON — traces are being recorded.": "O OpenTelemetry está ATIVADO — os rastros estão sendo registrados.",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "O OpenTelemetry está DESATIVADO (o padrão) — nada está sendo registrado.",
     "Reporting under the service name": "Reportando com o nome de serviço",
@@ -142,6 +148,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Se o OpenTelemetry está ativado e onde ficará uma conexão de provedor de monitoramento.",
   },
   ru: {
+    "failed to load observability status": "не удалось загрузить состояние наблюдаемости",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry ВКЛЮЧЕН — трассировки записываются.",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry ВЫКЛЮЧЕН (по умолчанию) — ничего не записывается.",
     "Reporting under the service name": "Отчёт под именем службы",
@@ -161,6 +168,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Включён ли OpenTelemetry и где будет находиться подключение к поставщику мониторинга.",
   },
   fa: {
+    "failed to load observability status": "بارگیری وضعیت مشاهده‌پذیری ناموفق بود",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry روشن است — ردگیری‌ها در حال ثبت شدن هستند.",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry خاموش است (پیش‌فرض) — چیزی ثبت نمی‌شود.",
     "Reporting under the service name": "گزارش با نام سرویس",
@@ -180,6 +188,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "این‌که OpenTelemetry روشن است یا نه و اتصال ارائه‌دهندهٔ پایش کجا قرار می‌گیرد.",
   },
   ar: {
+    "failed to load observability status": "تعذر تحميل حالة قابلية المراقبة",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry قيد التشغيل — يجري تسجيل التتبعات.",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry متوقف (الافتراضي) — لا يجري تسجيل أي شيء.",
     "Reporting under the service name": "الإبلاغ باسم الخدمة",
@@ -199,6 +208,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "ما إذا كان OpenTelemetry قيد التشغيل ومكان وجود اتصال موفّر المراقبة.",
   },
   ja: {
+    "failed to load observability status": "可観測性の状態を読み込めませんでした",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry はオンです — トレースを記録しています。",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry はオフです（既定）— 何も記録していません。",
     "Reporting under the service name": "サービス名でレポート中",
@@ -218,6 +228,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry がオンかどうか、および監視プロバイダー接続の場所。",
   },
   ko: {
+    "failed to load observability status": "관측 가능성 상태를 불러오지 못했습니다",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry가 켜져 있습니다 — 추적을 기록하고 있습니다.",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry가 꺼져 있습니다(기본값) — 아무것도 기록하지 않습니다.",
     "Reporting under the service name": "서비스 이름으로 보고 중",
@@ -237,6 +248,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry가 켜져 있는지와 모니터링 제공업체 연결이 위치할 곳입니다.",
   },
   pl: {
+    "failed to load observability status": "nie udało się wczytać stanu obserwowalności",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry jest WŁĄCZONE — ślady są rejestrowane.",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry jest WYŁĄCZONE (domyślnie) — nic nie jest rejestrowane.",
     "Reporting under the service name": "Raportowanie pod nazwą usługi",
@@ -256,6 +268,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Czy OpenTelemetry jest włączone oraz gdzie będzie znajdować się połączenie z dostawcą monitorowania.",
   },
   hu: {
+    "failed to load observability status": "nem sikerült betölteni a megfigyelhetőségi állapotot",
     "OpenTelemetry is ON — traces are being recorded.": "Az OpenTelemetry BE VAN KAPCSOLVA — a nyomkövetések rögzítése folyamatban van.",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "Az OpenTelemetry KI VAN KAPCSOLVA (alapértelmezés szerint) — semmi sem kerül rögzítésre.",
     "Reporting under the service name": "Jelentés a szolgáltatás neve alatt",
@@ -275,6 +288,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Be van-e kapcsolva az OpenTelemetry, és hol lesz a megfigyelési szolgáltatói kapcsolat.",
   },
   fr: {
+    "failed to load observability status": "échec du chargement de l’état d’observabilité",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry est ACTIVÉ — les traces sont enregistrées.",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry est DÉSACTIVÉ (par défaut) — rien n’est enregistré.",
     "Reporting under the service name": "Rapporté sous le nom du service",
@@ -294,6 +308,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Si OpenTelemetry est activé et où se trouvera une connexion de fournisseur de surveillance.",
   },
   uk: {
+    "failed to load observability status": "не вдалося завантажити стан спостережуваності",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry УВІМКНЕНО — трасування записуються.",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry ВИМКНЕНО (за замовчуванням) — нічого не записується.",
     "Reporting under the service name": "Звітування під назвою служби",
@@ -313,6 +328,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Чи ввімкнено OpenTelemetry і де буде розташовано підключення до постачальника моніторингу.",
   },
   tr: {
+    "failed to load observability status": "gözlemlenebilirlik durumu yüklenemedi",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry AÇIK — izlemeler kaydediliyor.",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry KAPALI (varsayılan) — hiçbir şey kaydedilmiyor.",
     "Reporting under the service name": "Hizmet adıyla raporlama",
@@ -332,6 +348,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry'nin açık olup olmadığı ve izleme sağlayıcısı bağlantısının bulunacağı yer.",
   },
   th: {
+    "failed to load observability status": "โหลดสถานะการสังเกตการณ์ไม่สำเร็จ",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry เปิดอยู่ — กำลังบันทึกการติดตาม",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry ปิดอยู่ (ค่าเริ่มต้น) — ไม่มีการบันทึกข้อมูล",
     "Reporting under the service name": "รายงานภายใต้ชื่อบริการ",
@@ -351,6 +368,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry เปิดอยู่หรือไม่ และตำแหน่งที่จะมีการเชื่อมต่อผู้ให้บริการตรวจสอบ",
   },
   it: {
+    "failed to load observability status": "impossibile caricare lo stato di osservabilità",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry è ATTIVO — le tracce vengono registrate.",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry è DISATTIVATO (impostazione predefinita) — non viene registrato nulla.",
     "Reporting under the service name": "Segnalazione con il nome del servizio",
@@ -370,6 +388,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Se OpenTelemetry è attivo e dove si troverà una connessione di un provider di monitoraggio.",
   },
   hi: {
+    "failed to load observability status": "अवलोकनीयता स्थिति लोड नहीं हो सकी",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry चालू है — ट्रेस रिकॉर्ड किए जा रहे हैं।",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry बंद है (डिफ़ॉल्ट) — कुछ भी रिकॉर्ड नहीं किया जा रहा है।",
     "Reporting under the service name": "सेवा नाम के अंतर्गत रिपोर्टिंग",
@@ -389,6 +408,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "क्या OpenTelemetry चालू है और निगरानी प्रदाता कनेक्शन कहाँ होगा।",
   },
   ur: {
+    "failed to load observability status": "مشاہدہ پذیری کی حالت لوڈ نہیں ہو سکی",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry آن ہے — ٹریس ریکارڈ ہو رہے ہیں۔",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry آف ہے (طے شدہ) — کچھ بھی ریکارڈ نہیں ہو رہا۔",
     "Reporting under the service name": "سروس نام کے تحت رپورٹنگ",
@@ -408,6 +428,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "آیا OpenTelemetry آن ہے اور نگرانی فراہم کنندہ کا کنکشن کہاں ہوگا۔",
   },
   bn: {
+    "failed to load observability status": "পর্যবেক্ষণযোগ্যতার অবস্থা লোড করা যায়নি",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry চালু আছে — ট্রেস রেকর্ড করা হচ্ছে।",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry বন্ধ আছে (ডিফল্ট) — কিছুই রেকর্ড করা হচ্ছে না।",
     "Reporting under the service name": "পরিষেবার নামে প্রতিবেদন করা হচ্ছে",

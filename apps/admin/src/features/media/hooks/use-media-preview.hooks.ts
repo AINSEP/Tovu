@@ -54,10 +54,14 @@ export interface UseMediaPreviewDependencies {
  * @returns The fallback-chain state and handlers `MediaPreview` renders from.
  * @complexity Time/space: O(1) — one state transition per probe failure, no iteration.
  */
-export function useMediaPreview(item: AdminMedia, { port }: UseMediaPreviewDependencies): MediaPreviewController {
+export function useMediaPreview(
+  item: AdminMedia,
+  { port }: UseMediaPreviewDependencies,
+  t: (key: string) => string = (key) => key,
+): MediaPreviewController {
   const [stage, setStage] = useState<PreviewStage>("image");
   const src = port.mediaOriginalUrl(item.id);
-  const altText = mediaAltText(item);
+  const altText = mediaAltText(item, t("Untitled asset"));
 
   function handleImageError() {
     setStage("video");
@@ -79,6 +83,6 @@ export function useMediaPreview(item: AdminMedia, { port }: UseMediaPreviewDepen
  * @param item - Forwarded to {@link useMediaPreview}.
  * @returns The fallback-chain state and handlers `MediaPreview` renders from.
  */
-export function useWiredMediaPreview(item: AdminMedia): MediaPreviewController {
-  return useMediaPreview(item, { port: defaultMediaPort });
+export function useWiredMediaPreview(item: AdminMedia, t?: (key: string) => string): MediaPreviewController {
+  return useMediaPreview(item, { port: defaultMediaPort }, t);
 }

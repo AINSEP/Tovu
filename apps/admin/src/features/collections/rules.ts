@@ -1,6 +1,7 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import { ApiError, describeApiError, type AdminContentType, type ContentTypeFieldDef } from "../../lib/api";
+import type { Translate } from "../../lib/dictionary-translator";
 import type { QueryKey } from "../../lib/fetch-query";
 import { t as translate } from "./collections-i18n";
 
@@ -74,12 +75,18 @@ export function visibleEntryEditorError(params: {
 const KEY_GRAMMAR = /^[a-z][a-z0-9_]{0,63}$/;
 const RESERVED_KEYS = new Set(["post", "page"]);
 
+type LocaleOrTranslate = string | Translate;
+
+function localize(localeOrTranslate: LocaleOrTranslate, key: string): string {
+  return typeof localeOrTranslate === "function" ? localeOrTranslate(key) : translate(localeOrTranslate, key);
+}
+
 /**
  * @complexity Time/space: O(1) — one regex test, one `Set` lookup.
  */
-export function validateKey(key: string): string | null {
+export function validateKey(key: string, locale = "en"): string | null {
   if (!KEY_GRAMMAR.test(key)) {
-    return "Key must start with a lowercase letter and contain only lowercase letters, digits, and underscores (max 64 chars).";
+    return translate(locale, "Key must start with a lowercase letter and contain only lowercase letters, digits, and underscores (max 64 chars).");
   }
   if (RESERVED_KEYS.has(key)) {
     return `"${key}" is a reserved key (built-in content already uses it).`;
@@ -90,9 +97,9 @@ export function validateKey(key: string): string | null {
 /**
  * @complexity Time/space: O(1) — one regex test.
  */
-export function validateFieldName(name: string): string | null {
+export function validateFieldName(name: string, localeOrTranslate: LocaleOrTranslate = "en"): string | null {
   if (!KEY_GRAMMAR.test(name)) {
-    return "Field name must start with a lowercase letter and contain only lowercase letters, digits, and underscores.";
+    return localize(localeOrTranslate, "Field name must start with a lowercase letter and contain only lowercase letters, digits, and underscores.");
   }
   return null;
 }
@@ -145,9 +152,9 @@ export function stripDraftFieldRowIds(fields: DraftField[]): ContentTypeFieldDef
  *
  * @complexity Time/space: O(n) in `fields.length`, short-circuiting on the first failure.
  */
-export function firstDraftFieldError(fields: DraftField[]): string | null {
+export function firstDraftFieldError(fields: DraftField[], localeOrTranslate: LocaleOrTranslate = "en"): string | null {
   for (const f of fields) {
-    const fieldError = validateFieldName(f.name.trim());
+    const fieldError = validateFieldName(f.name.trim(), localeOrTranslate);
     if (fieldError) return `Field "${f.name || "(unnamed)"}": ${fieldError}`;
   }
   return null;
@@ -160,11 +167,14 @@ export function firstDraftFieldError(fields: DraftField[]): string | null {
  *
  * @complexity Time/space: O(n) in `fields.length`.
  */
-export function validateNewContentTypeDraft(draft: { key: string; label: string; fields: DraftField[] }): string | null {
-  const keyError = validateKey(draft.key.trim());
+export function validateNewContentTypeDraft(
+  draft: { key: string; label: string; fields: DraftField[] },
+  locale = "en",
+): string | null {
+  const keyError = validateKey(draft.key.trim(), locale);
   if (keyError) return keyError;
-  if (!draft.label.trim()) return "Label is required.";
-  return firstDraftFieldError(draft.fields);
+  if (!draft.label.trim()) return translate(locale, "Label is required.");
+  return firstDraftFieldError(draft.fields, locale);
 }
 
 /**
@@ -173,9 +183,9 @@ export function validateNewContentTypeDraft(draft: { key: string; label: string;
  *
  * @complexity Time/space: O(n) in `fields.length`.
  */
-export function validateEditFieldsDraft(fields: DraftField[]): string | null {
-  if (fields.length === 0) return "At least one field is required.";
-  return firstDraftFieldError(fields);
+export function validateEditFieldsDraft(fields: DraftField[], localeOrTranslate: LocaleOrTranslate = "en"): string | null {
+  if (fields.length === 0) return localize(localeOrTranslate, "At least one field is required.");
+  return firstDraftFieldError(fields, localeOrTranslate);
 }
 
 // ---------------------------------------------------------------------------
@@ -194,9 +204,9 @@ export const STALE_VERSION_MESSAGE = "This content type changed since you loaded
  *
  * @complexity Time/space: O(1) — one `instanceof` check.
  */
-export function describeEditFieldsError(e: unknown): string {
+export function describeEditFieldsError(e: unknown, localeOrTranslate: LocaleOrTranslate = "en"): string {
   if (e instanceof ApiError && e.status === 409) return STALE_VERSION_MESSAGE;
-  return describeApiError(e, "Failed to update fields");
+  return describeApiError(e, localize(localeOrTranslate, "Failed to update fields"));
 }
 
 // ---------------------------------------------------------------------------
@@ -215,6 +225,11 @@ export const LIFECYCLE_COPY: Record<LifecycleConfirmOp, { title: string; body: s
     body: "Entries stop being served publicly. This is not reversible from this screen.",
   },
 };
+
+export function lifecycleCopy(op: LifecycleConfirmOp, locale = "en"): { title: string; body: string } {
+  const copy = LIFECYCLE_COPY[op];
+  return { ...copy, title: translate(locale, copy.title) };
+}
 
 /**
  * Tombstone is heavier/less-reversible than an ordinary reset, so — unlike

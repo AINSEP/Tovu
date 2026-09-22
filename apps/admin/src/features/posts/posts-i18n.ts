@@ -62,6 +62,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "Guardar",
     Delete: "Eliminar",
     "Post title": "Título",
+    "Start writing…": "Empieza a escribir…", "publish failed": "Error al publicar", "save failed": "Error al guardar",
     "Loading posts…": "Cargando entradas…",
     "Loading editor…": "Cargando editor…",
     "URL slug": "Slug de URL",
@@ -172,6 +173,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "Simpan",
     Delete: "Hapus",
     "Post title": "Judul",
+    "Start writing…": "Mulai menulis…", "publish failed": "Gagal menerbitkan", "save failed": "Gagal menyimpan", "Exit full screen (Esc)": "Keluar dari layar penuh (Esc)", "Show full screen": "Tampilkan layar penuh", "Exit full screen": "Keluar dari layar penuh",
     "Move this page": "Pindahkan halaman ini",
     "Move this post": "Pindahkan postingan ini",
     "to trash? It will disappear from the site and from the pages list.":
@@ -215,6 +217,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "Speichern",
     Delete: "Löschen",
     "Post title": "Titel",
+    "Start writing…": "Beginnen Sie zu schreiben…", "publish failed": "Veröffentlichen fehlgeschlagen", "save failed": "Speichern fehlgeschlagen", "Exit full screen (Esc)": "Vollbild beenden (Esc)", "Show full screen": "Vollbild anzeigen", "Exit full screen": "Vollbild beenden",
     "Move this page": "Diese Seite verschieben",
     "Move this post": "Diesen Beitrag verschieben",
     "to trash? It will disappear from the site and from the pages list.":
@@ -258,6 +261,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "保存",
     Delete: "删除",
     "Post title": "标题",
+    "Start writing…": "开始写作…", "publish failed": "发布失败", "save failed": "保存失败", "Exit full screen (Esc)": "退出全屏（Esc）", "Show full screen": "显示全屏", "Exit full screen": "退出全屏",
     "Move this page": "移动此页面",
     "Move this post": "移动此文章",
     "to trash? It will disappear from the site and from the pages list.":
@@ -301,6 +305,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "儲存",
     Delete: "刪除",
     "Post title": "標題",
+    "Start writing…": "開始寫作…", "publish failed": "發布失敗", "save failed": "儲存失敗", "Exit full screen (Esc)": "退出全螢幕（Esc）", "Show full screen": "顯示全螢幕", "Exit full screen": "退出全螢幕",
     "Move this page": "移動此頁面",
     "Move this post": "移動此文章",
     "to trash? It will disappear from the site and from the pages list.":
@@ -344,6 +349,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "Salvar",
     Delete: "Excluir",
     "Post title": "Título",
+    "Start writing…": "Comece a escrever…", "publish failed": "Falha ao publicar", "save failed": "Falha ao guardar", "Exit full screen (Esc)": "Sair do ecrã inteiro (Esc)", "Show full screen": "Mostrar em ecrã inteiro", "Exit full screen": "Sair do ecrã inteiro",
     "Move this page": "Mover esta página",
     "Move this post": "Mover esta publicação",
     "to trash? It will disappear from the site and from the pages list.":
@@ -387,6 +393,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "Сохранить",
     Delete: "Удалить",
     "Post title": "Заголовок",
+    "Start writing…": "Начните писать…", "publish failed": "Не удалось опубликовать", "save failed": "Не удалось сохранить", "Exit full screen (Esc)": "Выйти из полноэкранного режима (Esc)", "Show full screen": "Показать во весь экран", "Exit full screen": "Выйти из полноэкранного режима",
     "Move this page": "Переместить эту страницу",
     "Move this post": "Переместить эту запись",
     "to trash? It will disappear from the site and from the pages list.":
@@ -430,6 +437,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "ذخیره",
     Delete: "حذف",
     "Post title": "عنوان",
+    "Start writing…": "شروع به نوشتن کنید…", "publish failed": "انتشار ناموفق بود", "save failed": "ذخیره ناموفق بود", "Exit full screen (Esc)": "خروج از تمام‌صفحه (Esc)", "Show full screen": "نمایش تمام‌صفحه", "Exit full screen": "خروج از تمام‌صفحه",
     "Move this page": "آیا می‌خواهید این صفحه",
     "Move this post": "آیا می‌خواهید این نوشته",
     "to trash? It will disappear from the site and from the pages list.":
@@ -473,6 +481,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "حفظ",
     Delete: "حذف",
     "Post title": "العنوان",
+    "Start writing…": "ابدأ الكتابة…", "publish failed": "فشل النشر", "save failed": "فشل الحفظ", "Exit full screen (Esc)": "الخروج من ملء الشاشة (Esc)", "Show full screen": "إظهار ملء الشاشة", "Exit full screen": "الخروج من ملء الشاشة",
     "Move this page": "هل تريد نقل هذه الصفحة",
     "Move this post": "هل تريد نقل هذا المنشور",
     "to trash? It will disappear from the site and from the pages list.":
@@ -516,6 +525,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "保存",
     Delete: "削除",
     "Post title": "タイトル",
+    "Start writing…": "書き始める…", "publish failed": "公開に失敗しました", "save failed": "保存に失敗しました", "Exit full screen (Esc)": "全画面表示を終了 (Esc)", "Show full screen": "全画面表示", "Exit full screen": "全画面表示を終了",
     "Move this page": "このページ",
     "Move this post": "この投稿",
     "to trash? It will disappear from the site and from the pages list.":
@@ -559,6 +569,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "저장",
     Delete: "삭제",
     "Post title": "제목",
+    "Start writing…": "작성 시작…", "publish failed": "게시하지 못했습니다", "save failed": "저장하지 못했습니다", "Exit full screen (Esc)": "전체 화면 종료 (Esc)", "Show full screen": "전체 화면 표시", "Exit full screen": "전체 화면 종료",
     "Move this page": "이 페이지",
     "Move this post": "이 게시물",
     "to trash? It will disappear from the site and from the pages list.":
@@ -602,6 +613,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "Zapisz",
     Delete: "Usuń",
     "Post title": "Tytuł",
+    "Start writing…": "Zacznij pisać…", "publish failed": "Nie udało się opublikować", "save failed": "Nie udało się zapisać", "Exit full screen (Esc)": "Wyjdź z trybu pełnoekranowego (Esc)", "Show full screen": "Pokaż na pełnym ekranie", "Exit full screen": "Wyjdź z trybu pełnoekranowego",
     "Move this page": "Przenieść tę stronę",
     "Move this post": "Przenieść ten wpis",
     "to trash? It will disappear from the site and from the pages list.":
@@ -645,6 +657,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "Mentés",
     Delete: "Törlés",
     "Post title": "Cím",
+    "Start writing…": "Kezdjen írni…", "publish failed": "A közzététel sikertelen", "save failed": "A mentés sikertelen", "Exit full screen (Esc)": "Kilépés teljes képernyőről (Esc)", "Show full screen": "Teljes képernyő megjelenítése", "Exit full screen": "Kilépés teljes képernyőről",
     "Move this page": "Áthelyezed ezt az oldalt",
     "Move this post": "Áthelyezed ezt a bejegyzést",
     "to trash? It will disappear from the site and from the pages list.":
@@ -688,6 +701,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "Enregistrer",
     Delete: "Supprimer",
     "Post title": "Titre",
+    "Start writing…": "Commencez à écrire…", "publish failed": "Échec de la publication", "save failed": "Échec de l’enregistrement", "Exit full screen (Esc)": "Quitter le plein écran (Esc)", "Show full screen": "Afficher en plein écran", "Exit full screen": "Quitter le plein écran",
     "Move this page": "Déplacer cette page",
     "Move this post": "Déplacer cet article",
     "to trash? It will disappear from the site and from the pages list.":
@@ -731,6 +745,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "Зберегти",
     Delete: "Видалити",
     "Post title": "Заголовок",
+    "Start writing…": "Почніть писати…", "publish failed": "Не вдалося опублікувати", "save failed": "Не вдалося зберегти", "Exit full screen (Esc)": "Вийти з повноекранного режиму (Esc)", "Show full screen": "Показати на весь екран", "Exit full screen": "Вийти з повноекранного режиму",
     "Move this page": "Перемістити цю сторінку",
     "Move this post": "Перемістити цей допис",
     "to trash? It will disappear from the site and from the pages list.":
@@ -774,6 +789,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "Kaydet",
     Delete: "Sil",
     "Post title": "Başlık",
+    "Start writing…": "Yazmaya başlayın…", "publish failed": "Yayınlama başarısız oldu", "save failed": "Kaydetme başarısız oldu", "Exit full screen (Esc)": "Tam ekrandan çık (Esc)", "Show full screen": "Tam ekran göster", "Exit full screen": "Tam ekrandan çık",
     "Move this page": "Bu sayfa",
     "Move this post": "Bu gönderi",
     "to trash? It will disappear from the site and from the pages list.":
@@ -817,6 +833,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "บันทึก",
     Delete: "ลบ",
     "Post title": "ชื่อเรื่อง",
+    "Start writing…": "เริ่มเขียน…", "publish failed": "เผยแพร่ไม่สำเร็จ", "save failed": "บันทึกไม่สำเร็จ", "Exit full screen (Esc)": "ออกจากเต็มหน้าจอ (Esc)", "Show full screen": "แสดงเต็มหน้าจอ", "Exit full screen": "ออกจากเต็มหน้าจอ",
     "Move this page": "ย้ายหน้านี้",
     "Move this post": "ย้ายโพสต์นี้",
     "to trash? It will disappear from the site and from the pages list.":
@@ -860,6 +877,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "Salva",
     Delete: "Elimina",
     "Post title": "Titolo",
+    "Start writing…": "Inizia a scrivere…", "publish failed": "Pubblicazione non riuscita", "save failed": "Salvataggio non riuscito", "Exit full screen (Esc)": "Esci dalla modalità a schermo intero (Esc)", "Show full screen": "Mostra a schermo intero", "Exit full screen": "Esci dalla modalità a schermo intero",
     "Move this page": "Spostare questa pagina",
     "Move this post": "Spostare questo articolo",
     "to trash? It will disappear from the site and from the pages list.":
@@ -903,6 +921,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "सहेजें",
     Delete: "हटाएं",
     "Post title": "शीर्षक",
+    "Start writing…": "लिखना शुरू करें…", "publish failed": "प्रकाशित नहीं हो सका", "save failed": "सहेजना विफल हुआ", "Exit full screen (Esc)": "पूर्ण स्क्रीन से बाहर निकलें (Esc)", "Show full screen": "पूर्ण स्क्रीन दिखाएँ", "Exit full screen": "पूर्ण स्क्रीन से बाहर निकलें",
     "Move this page": "यह पेज",
     "Move this post": "यह पोस्ट",
     "to trash? It will disappear from the site and from the pages list.":
@@ -946,6 +965,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "محفوظ کریں",
     Delete: "حذف کریں",
     "Post title": "عنوان",
+    "Start writing…": "لکھنا شروع کریں…", "publish failed": "اشاعت ناکام ہو گئی", "save failed": "محفوظ کرنا ناکام ہو گیا", "Exit full screen (Esc)": "فل اسکرین سے نکلیں (Esc)", "Show full screen": "فل اسکرین دکھائیں", "Exit full screen": "فل اسکرین سے نکلیں",
     "Move this page": "یہ صفحہ",
     "Move this post": "یہ پوسٹ",
     "to trash? It will disappear from the site and from the pages list.":
@@ -989,6 +1009,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     Save: "সংরক্ষণ করুন",
     Delete: "মুছুন",
     "Post title": "শিরোনাম",
+    "Start writing…": "লেখা শুরু করুন…", "publish failed": "প্রকাশ করা যায়নি", "save failed": "সংরক্ষণ করা যায়নি", "Exit full screen (Esc)": "পূর্ণ পর্দা থেকে বেরিয়ে যান (Esc)", "Show full screen": "পূর্ণ পর্দায় দেখান", "Exit full screen": "পূর্ণ পর্দা থেকে বেরিয়ে যান",
     "Move this page": "এই পেজটি",
     "Move this post": "এই পোস্টটি",
     "to trash? It will disappear from the site and from the pages list.":

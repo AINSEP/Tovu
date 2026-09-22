@@ -118,18 +118,45 @@ describe("SHARED_COMPONENTS_DICT: cross-locale key parity", () => {
     "Widget…",
     "Insert media, a form, a menu, or a widget",
     "Embed",
+    // status-labels.ts
+    "published",
+    "draft",
+    "active",
+    "trashed",
+    "pending",
+    "approved",
+    "spam",
+    "trash",
+    "owner",
+    "recipient",
+    "recipients",
+    "built-in",
+    "site",
+    "tier-1",
+    "tier-2",
+    "tier-3",
+    "valid",
+    "invalid",
+    "success",
+    "disabled",
+    "exact",
+    "prefix",
+    "wildcard",
   ];
 
   it("covers every copy string this commit's wired call sites call t() with, in every locale", () => {
     for (const locale of locales) {
       for (const key of CALL_SITE_KEYS) {
-        expect(SHARED_COMPONENTS_DICT[locale][key], `locale ${locale}, key ${JSON.stringify(key)}`).toBeTruthy();
+        // Not `t()`: it falls back to the key itself, so it is truthy for a missing entry too.
+        const value = SHARED_COMPONENTS_DICT[locale][key] ?? COMMON_I18N[locale]?.[key];
+        expect(value, `locale ${locale}, key ${JSON.stringify(key)}`).toBeTruthy();
       }
     }
   });
 
   it("the call-site key list itself has no accidental duplicates or typos vs. the dictionary", () => {
+    const commonKeys = new Set(Object.keys(COMMON_I18N[locales[0]]));
     const referenceKeys = Object.keys(SHARED_COMPONENTS_DICT[locales[0]]).sort();
-    expect(CALL_SITE_KEYS.slice().sort()).toEqual(referenceKeys);
+    expect(CALL_SITE_KEYS.filter((key) => !commonKeys.has(key)).sort()).toEqual(referenceKeys);
   });
 });

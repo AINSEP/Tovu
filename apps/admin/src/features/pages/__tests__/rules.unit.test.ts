@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AdminPost } from "@/lib/api";
 import {
   DEFAULT_PAGE_SORT,
+  pageVersionConflictMessage,
   buildPageAutosaveDraft,
   buildPageSavePlan,
   comparePagesByStatus,
@@ -50,6 +51,7 @@ const PUBLISHED_PAGE: AdminPost = {
 };
 
 const DRAFT_PAGE: AdminPost = { ...PUBLISHED_PAGE, id: "pg2", title: "Draft Page", status: "draft" };
+const identityT = (key: string): string => key;
 
 function page(overrides: Partial<AdminPost> = {}): AdminPost {
   return { ...PUBLISHED_PAGE, ...overrides };
@@ -200,25 +202,25 @@ describe("comparePagesByUpdated", () => {
 
 describe("updatedPageColumnSortLabel", () => {
   it("states 'not sorted by updated date' and offers newest-first when direction is null", () => {
-    const label = updatedPageColumnSortLabel(null);
+    const label = updatedPageColumnSortLabel(identityT, null);
     expect(label).toMatch(/not sorted by updated date/i);
     expect(label).toMatch(/newest first/i);
   });
 
   it("states 'newest first' and offers oldest-first as the next action when direction is 'desc'", () => {
-    const label = updatedPageColumnSortLabel("desc");
+    const label = updatedPageColumnSortLabel(identityT, "desc");
     expect(label).toMatch(/newest first/i);
     expect(label).toMatch(/oldest first/i);
   });
 
   it("states 'oldest first' and offers newest-first as the next action when direction is 'asc'", () => {
-    const label = updatedPageColumnSortLabel("asc");
+    const label = updatedPageColumnSortLabel(identityT, "asc");
     expect(label).toMatch(/oldest first/i);
     expect(label).toMatch(/newest first/i);
   });
 
   it("all three states produce different labels", () => {
-    expect(new Set([updatedPageColumnSortLabel(null), updatedPageColumnSortLabel("asc"), updatedPageColumnSortLabel("desc")]).size).toBe(3);
+    expect(new Set([updatedPageColumnSortLabel(identityT, null), updatedPageColumnSortLabel(identityT, "asc"), updatedPageColumnSortLabel(identityT, "desc")]).size).toBe(3);
   });
 });
 
@@ -312,25 +314,25 @@ describe("DEFAULT_PAGE_SORT", () => {
 
 describe("pageColumnSortLabel", () => {
   it("states 'not sorted' and names the ascending action when direction is null (the column isn't active)", () => {
-    const label = pageColumnSortLabel("Title", null);
+    const label = pageColumnSortLabel(identityT, "Title", null);
     expect(label).toMatch(/not sorted by title/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("states 'ascending' and offers descending as the next action when direction is 'asc'", () => {
-    const label = pageColumnSortLabel("Title", "asc");
+    const label = pageColumnSortLabel(identityT, "Title", "asc");
     expect(label).toMatch(/sorted by title, ascending/i);
     expect(label).toMatch(/activate to sort descending/i);
   });
 
   it("states 'descending' and offers ascending as the next action when direction is 'desc'", () => {
-    const label = pageColumnSortLabel("Title", "desc");
+    const label = pageColumnSortLabel(identityT, "Title", "desc");
     expect(label).toMatch(/sorted by title, descending/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("all three states produce different labels", () => {
-    expect(new Set([pageColumnSortLabel("Title", null), pageColumnSortLabel("Title", "asc"), pageColumnSortLabel("Title", "desc")]).size).toBe(3);
+    expect(new Set([pageColumnSortLabel(identityT, "Title", null), pageColumnSortLabel(identityT, "Title", "asc"), pageColumnSortLabel(identityT, "Title", "desc")]).size).toBe(3);
   });
 });
 
@@ -518,7 +520,7 @@ describe("pageAutosaveStaleBasisMessage", () => {
     "want to keep first.";
 
   it("names the basis the operator was working from, and states all four facts they cannot infer", () => {
-    const message = pageAutosaveStaleBasisMessage({ baseVersion: 4, draft: {
+    const message = pageAutosaveStaleBasisMessage(identityT, { baseVersion: 4, draft: {
       bodyFormat: "html",
       bodyHtml: "<p>still being typed</p>",
       title: "Landing",
@@ -535,7 +537,7 @@ describe("pageAutosaveStaleBasisMessage", () => {
   });
 
   it("promises no recovery it cannot deliver — the browser-storage mirror is best-effort and unnamed", () => {
-    const message = pageAutosaveStaleBasisMessage({ baseVersion: 4, draft: {
+    const message = pageAutosaveStaleBasisMessage(identityT, { baseVersion: 4, draft: {
       bodyFormat: "html",
       bodyHtml: "<p>still being typed</p>",
       title: "Landing",
@@ -640,5 +642,19 @@ describe("pageRefreshMayHaveUnsavedEdits", () => {
 
   it("is true on the Interactive tab even when dirty reads false, since canvas typing may not have reached html yet", () => {
     expect(pageRefreshMayHaveUnsavedEdits({ dirty: false, view: "interactive" })).toBe(true);
+  });
+});
+
+describe("sort labels and conflict copy are translated, not English passthrough", () => {
+  it("renders German sort labels and a fully German conflict message", async () => {
+    const { t: pagesT } = await import("../pages-i18n");
+    const { t: editorT } = await import("../page-editor-i18n");
+    const deT = (key: string): string => pagesT("de", key);
+    expect(pageColumnSortLabel(deT, deT("Title"), null)).toBe("Nicht nach Titel sortiert. Aktivieren, um aufsteigend zu sortieren.");
+    expect(updatedPageColumnSortLabel(deT, "desc")).toMatch(/^Nach Aktualisierungsdatum sortiert/);
+    const message = pageVersionConflictMessage((key) => editorT("de", key), { expectedVersion: null, currentVersion: 7, attemptedStatus: undefined });
+    expect(message).toContain("die von dir geladene Version");
+    expect(message).toContain("Version 7");
+    expect(message).not.toMatch(/Someone else|version you loaded/);
   });
 });

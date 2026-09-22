@@ -14,9 +14,12 @@ import {
   type DraftField,
 } from "../rules";
 import { useEscapeToCancel } from "./use-escape-to-cancel.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useFocusTrap } from "@/hooks/use-focus-trap.hooks";
+import { t as translate } from "../collections-i18n";
 import { defaultEditFieldsDialogPort } from "./edit-fields-dialog-dependencies.hooks";
 import type { EditFieldsDialogPort } from "./edit-fields-dialog-port.hooks";
+import type { Translate } from "@/lib/dictionary-translator";
 
 /**
  * @file `EditFieldsDialog`'s own state and submit action (SPEC-037 REQ-05 — post-creation
@@ -64,8 +67,10 @@ export function useEditFieldsDialog(
     onSaved: () => void;
     onCancel: () => void;
   },
-  port: EditFieldsDialogPort
+  port: EditFieldsDialogPort,
+  options: { t?: Translate } = {},
 ): EditFieldsDialogController {
+  const t = options.t ?? ((key: string) => key);
   const [fields, setFields] = useState<DraftField[]>(() => draftFieldsFromContentType(props.contentType.fields));
   const [validationError, setValidationError] = useState<string | null>(null);
   const inFlightRef = useRef(false);
@@ -101,7 +106,7 @@ export function useEditFieldsDialog(
     e.preventDefault();
     setValidationError(null);
 
-    const draftError = validateEditFieldsDraft(fields);
+    const draftError = validateEditFieldsDraft(fields, t);
     if (draftError) {
       setValidationError(draftError);
       return;
@@ -123,7 +128,7 @@ export function useEditFieldsDialog(
   }
 
   const saving = updateFieldsMutation.status === "pending";
-  const error = validationError ?? (updateFieldsMutation.error ? describeEditFieldsError(updateFieldsMutation.error) : null);
+  const error = validationError ?? (updateFieldsMutation.error ? describeEditFieldsError(updateFieldsMutation.error, t) : null);
 
   return { fields, updateField, removeField, addField, error, saving, submit, cancel, dialogRef };
 }
@@ -141,5 +146,7 @@ export function useWiredEditFieldsDialog(props: {
   onSaved: () => void;
   onCancel: () => void;
 }): EditFieldsDialogController {
-  return useEditFieldsDialog(props, defaultEditFieldsDialogPort);
+  const locale = useAdminLocale();
+  const t = (key: string): string => translate(locale, key);
+  return useEditFieldsDialog(props, defaultEditFieldsDialogPort, { t });
 }

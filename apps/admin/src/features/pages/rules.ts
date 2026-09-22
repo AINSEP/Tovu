@@ -376,13 +376,10 @@ export function pageAutosaveBannerMessage(savedAt: string, nowMs: number, stale:
  *
  * @complexity Time/space: O(1).
  */
-export function pageAutosaveStaleBasisMessage(staleBasis: StandingDraftStaleBasis): string {
-  return (
-    `Someone else saved this while you were editing — you were working from version ${staleBasis.baseVersion}, ` +
-    "so autosaving has paused and nothing you type now is being stored. Your changes were NOT saved, and are " +
-    "still here in the editor. Reload to pick up their version and resume autosaving; copy anything you want " +
-    "to keep first."
-  );
+export function pageAutosaveStaleBasisMessage(t: Translate, staleBasis: StandingDraftStaleBasis): string {
+  return t(
+    "Someone else saved this while you were editing — you were working from version {baseVersion}, so autosaving has paused and nothing you type now is being stored. Your changes were NOT saved, and are still here in the editor. Reload to pick up their version and resume autosaving; copy anything you want to keep first."
+  ).replace("{baseVersion}", String(staleBasis.baseVersion));
 }
 
 /**
@@ -449,13 +446,16 @@ export function readPageVersionConflict(
  *
  * @complexity Time/space: O(1).
  */
-export function pageVersionConflictMessage(conflict: PageSaveConflict): string {
-  const basis = conflict.expectedVersion === null ? "the version you loaded" : `version ${conflict.expectedVersion}`;
-  const current = conflict.currentVersion === null ? "a newer version" : `version ${conflict.currentVersion}`;
-  return (
-    `Someone else saved this while you were editing — you were working from ${basis}, and ${current} is now stored. ` +
-    "Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
-  );
+export function pageVersionConflictMessage(t: Translate, conflict: PageSaveConflict): string {
+  const basis =
+    conflict.expectedVersion === null ? t("the version you loaded") : t("version {version}").replace("{version}", String(conflict.expectedVersion));
+  const current =
+    conflict.currentVersion === null ? t("a newer version") : t("version {version}").replace("{version}", String(conflict.currentVersion));
+  return t(
+    "Someone else saved this while you were editing — you were working from {basis}, and {current} is now stored. Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
+  )
+    .replace("{basis}", basis)
+    .replace("{current}", current);
 }
 
 /** The save-success message — the one piece of copy in `save` that depends on `canSaveHtml`, split
@@ -635,19 +635,19 @@ export function comparePagesByUpdated(a: AdminPost, b: AdminPost): number {
  *
  * @complexity Time/space: O(1).
  */
-export function pageColumnSortLabel(columnName: string, direction: DataTableSortDirection | null): string {
-  if (direction === null) return `Not sorted by ${columnName}. Activate to sort ascending.`;
+export function pageColumnSortLabel(t: Translate, columnName: string, direction: DataTableSortDirection | null): string {
+  if (direction === null) return t("Not sorted by {columnName}. Activate to sort ascending.").replace("{columnName}", columnName);
   return direction === "asc"
-    ? `Sorted by ${columnName}, ascending. Activate to sort descending.`
-    : `Sorted by ${columnName}, descending. Activate to sort ascending.`;
+    ? t("Sorted by {columnName}, ascending. Activate to sort descending.").replace("{columnName}", columnName)
+    : t("Sorted by {columnName}, descending. Activate to sort ascending.").replace("{columnName}", columnName);
 }
 
 /** Same contract as {@link pageColumnSortLabel}, phrased in the Updated column's own "newest"/
  *  "oldest" vocabulary rather than generic "ascending"/"descending" — mirrors `posts/rules.ts`'s
  *  `updatedColumnSortLabel` verbatim. */
-export function updatedPageColumnSortLabel(direction: DataTableSortDirection | null): string {
-  if (direction === null) return "Not sorted by updated date. Activate to sort newest first.";
+export function updatedPageColumnSortLabel(t: Translate, direction: DataTableSortDirection | null): string {
+  if (direction === null) return t("Not sorted by updated date. Activate to sort newest first.");
   return direction === "desc"
-    ? "Sorted by updated date, newest first. Activate to sort oldest first."
-    : "Sorted by updated date, oldest first. Activate to sort newest first.";
+    ? t("Sorted by updated date, newest first. Activate to sort oldest first.")
+    : t("Sorted by updated date, oldest first. Activate to sort newest first.");
 }

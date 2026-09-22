@@ -702,8 +702,8 @@ export function SettingsUi(props: SettingsUiProps) {
     },
     {
       id: "about",
-      label: t("About"),
-      title: t("About"),
+      label: t("Info"),
+      title: t("Info"),
       subtitle: t("Version and runtime details."),
       icon: (
         <TabIcon>
@@ -762,7 +762,7 @@ export function SettingsUi(props: SettingsUiProps) {
       className={`settings-ui-save is-${s.save.status}`}
       role={s.save.status === "error" ? "alert" : "status"}
     >
-      {describeSaveStatus(s.save)}
+      {t(describeSaveStatus(s.save))}
     </span>
   );
 

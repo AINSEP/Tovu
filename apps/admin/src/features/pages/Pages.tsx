@@ -206,7 +206,7 @@ export function Pages(props: PagesProps) {
                 // onto `DataTable`'s own shared sort mechanism the same day) — `DataTable` now
                 // renders the button, caret, and `aria-sort` itself from this descriptor; only the
                 // domain-specific comparator and label wording stay here (`rules.ts`).
-                sort: { compare: comparePagesByTitle, label: (direction) => pageColumnSortLabel("Title", direction) },
+                sort: { compare: comparePagesByTitle, label: (direction) => pageColumnSortLabel(t, t("Title"), direction) },
                 // The admin editor route (`panels.tsx`'s `/:slug` pattern) is one path segment, so a
                 // Page holding the root slug `"/"` (`pagePublicPath`'s own doc) can't be expressed in
                 // slug form at all — `pageAdminPath` (`rules.ts`) picks slug-vs-id per page so this
@@ -224,7 +224,7 @@ export function Pages(props: PagesProps) {
               {
                 key: "slug",
                 header: "Slug",
-                sort: { compare: comparePagesBySlug, label: (direction) => pageColumnSortLabel("Slug", direction) },
+                sort: { compare: comparePagesBySlug, label: (direction) => pageColumnSortLabel(t, t("Slug"), direction) },
                 // The public site link and its visible text both go through `pagePublicPath` so the
                 // root-slug page reads "/" — a bare `/${page.slug}` template would render "//" and
                 // link nowhere real for that one page.
@@ -242,7 +242,7 @@ export function Pages(props: PagesProps) {
               {
                 key: "status",
                 header: t("Status"),
-                sort: { compare: comparePagesByStatus, label: (direction) => pageColumnSortLabel("Status", direction) },
+                sort: { compare: comparePagesByStatus, label: (direction) => pageColumnSortLabel(t, t("Status"), direction) },
                 cell: (page) => <span className={`status status-${page.status}`}><ServerLabel value={page.status} /></span>,
               },
               {
@@ -250,7 +250,7 @@ export function Pages(props: PagesProps) {
                 header: t("Updated"),
                 // "desc" (newest first) is this column's own starting direction, unlike the other
                 // three's ascending default — unchanged from the pre-existing Updated-only feature.
-                sort: { compare: comparePagesByUpdated, defaultDirection: "desc", label: updatedPageColumnSortLabel },
+                sort: { compare: comparePagesByUpdated, defaultDirection: "desc", label: (direction) => updatedPageColumnSortLabel(t, direction) },
                 cell: (page) => formatTimestamp(page.updatedAt),
               },
               {

@@ -156,15 +156,15 @@ export type ImportPayloadParseResult = { ok: true; rules: RedirectImportRule[] }
  *
  * @complexity Time/space: O(1) beyond `JSON.parse`'s own cost in input length.
  */
-export function parseImportPayload(raw: string): ImportPayloadParseResult {
+export function parseImportPayload(raw: string, translate: (key: string) => string): ImportPayloadParseResult {
   let rules: unknown;
   try {
     rules = JSON.parse(raw);
   } catch {
-    return { ok: false, error: "Not valid JSON." };
+    return { ok: false, error: translate("Not valid JSON.") };
   }
   if (!Array.isArray(rules)) {
-    return { ok: false, error: "Must be a JSON array of rule objects." };
+    return { ok: false, error: translate("Must be a JSON array of rule objects.") };
   }
   // Unchecked by design (see `useImportRedirectsForm`'s `run:` comment). `Array.isArray` narrows
   // `unknown` to `any[]`, which the mutation's input type accepted silently before this

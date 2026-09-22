@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from "react";
+import { useId, useRef, type ReactNode } from "react";
 import type { AdminMedia } from "../../lib/api";
 import { ServerLabel } from "@/components/status-labels";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
@@ -202,7 +202,7 @@ interface MediaPreviewProps {
  * than the exact same placeholder, just bigger. */
 function MediaPreview(props: MediaPreviewProps) {
   const { useMediaPreviewHook = useWiredMediaPreview, t } = props;
-  const { stage, src, altText, handleImageError, handleVideoError } = useMediaPreviewHook(props.item);
+  const { stage, src, altText, handleImageError, handleVideoError } = useMediaPreviewHook(props.item, t);
 
   // Computed ahead of the stage branches (unlike `expandButton` below, which the `"unsupported"`
   // branch never needed) — editing an asset's metadata is meaningful regardless of whether its
@@ -778,6 +778,8 @@ function MediaToolbar({
   fileInputRef,
   altDraft,
   setAltDraft,
+  selectedFileName,
+  onFileChange,
   upload,
   uploading,
   t,
@@ -785,19 +787,35 @@ function MediaToolbar({
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   altDraft: string;
   setAltDraft: (value: string) => void;
+  selectedFileName: string;
+  onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   upload: () => void;
   uploading: boolean;
   t: (key: string) => string;
 }) {
+  const fileInputId = useId();
+
   return (
     <div
       className="toolbar"
       {...agentHandle("media-upload-toolbar", { role: "region", label: "Upload — choose a file, optional alt text, and Upload" })}
     >
       <input
+        id={fileInputId}
         ref={fileInputRef}
         className="file-input"
         type="file"
+        style={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          padding: 0,
+          margin: -1,
+          overflow: "hidden",
+          clip: "rect(0, 0, 0, 0)",
+          whiteSpace: "nowrap",
+          border: 0,
+        }}
         // Hand-copied, not imported — same "kept in sync manually with the server's real ceiling"
         // pattern as `FILE_HANDLER_ALLOWED_MIME_TYPES` (`apps/admin/src/features/posts/hooks/
         // use-post-editor.hooks.ts`) and `IMPORTABLE_CONTENT_TYPES` (`apps/website/src/features/
@@ -808,11 +826,18 @@ function MediaToolbar({
         // the real allowlist server-side regardless of what this lets past the file picker.
         accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm"
         aria-label={t("File to upload")}
+        onChange={onFileChange}
         {...agentHandle("media-upload-file", {
           role: "field",
           label: "The file to upload — image/jpeg, png, webp, gif, avif, mp4 or webm",
         })}
       />
+      <label className="btn-secondary" htmlFor={fileInputId}>
+        {t("Choose file")}
+      </label>
+      <span style={{ color: "var(--fg-2)", fontSize: "var(--text-sm)" }} aria-live="polite">
+        {selectedFileName || t("No file chosen")}
+      </span>
       <input
         value={altDraft}
         onChange={(e) => setAltDraft(e.target.value)}
@@ -1037,6 +1062,8 @@ function MediaLibraryPanel(
     uploading,
     altDraft,
     setAltDraft,
+    selectedFileName,
+    onFileChange,
     fileInputRef,
     upload,
     editingId,
@@ -1064,6 +1091,8 @@ function MediaLibraryPanel(
         fileInputRef={fileInputRef}
         altDraft={altDraft}
         setAltDraft={setAltDraft}
+        selectedFileName={selectedFileName}
+        onFileChange={onFileChange}
         upload={upload}
         uploading={uploading}
         t={t}

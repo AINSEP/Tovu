@@ -33,6 +33,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Saved — restart Tovu to connect": "Guardado — reinicia Tovu para conectar", "Changes apply when Tovu restarts": "Los cambios se aplican al reiniciar Tovu", "Coming soon": "Próximamente", "Nothing below is connected to anything yet.": "Aún no hay nada conectado abajo.", "Webhooks can't fire yet — nothing here is wired up.": "Los webhooks aún no pueden activarse; aquí no hay nada conectado.",
     Integrations: "Integraciones",
     "Add-Ons": "Complementos",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -47,6 +48,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "Obtener clave de API",
   },
   id: {
+    "Saved — restart Tovu to connect": "Tersimpan — mulai ulang Tovu untuk terhubung", "Changes apply when Tovu restarts": "Perubahan berlaku saat Tovu dimulai ulang", "Coming soon": "Segera hadir", "Nothing below is connected to anything yet.": "Belum ada apa pun di bawah yang terhubung.", "Webhooks can't fire yet — nothing here is wired up.": "Webhook belum dapat berjalan — belum ada yang terhubung di sini.",
     Integrations: "Integrasi",
     "Add-Ons": "Pengaya",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -61,6 +63,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "Dapatkan Kunci API",
   },
   de: {
+    "Saved — restart Tovu to connect": "Gespeichert — starten Sie Tovu neu, um eine Verbindung herzustellen", "Changes apply when Tovu restarts": "Änderungen werden beim Neustart von Tovu wirksam", "Coming soon": "Demnächst", "Nothing below is connected to anything yet.": "Unten ist noch nichts verbunden.", "Webhooks can't fire yet — nothing here is wired up.": "Webhooks können noch nicht ausgelöst werden — hier ist noch nichts verbunden.",
     Integrations: "Integrationen",
     "Add-Ons": "Add-ons",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -75,6 +78,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "API-Schlüssel anfordern",
   },
   "zh-CN": {
+    "Saved — restart Tovu to connect": "已保存 — 重启 Tovu 以连接", "Changes apply when Tovu restarts": "重启 Tovu 后将应用更改", "Coming soon": "即将推出", "Nothing below is connected to anything yet.": "下方尚未连接任何内容。", "Webhooks can't fire yet — nothing here is wired up.": "Webhook 还无法触发 — 此处尚未连接任何内容。",
     Integrations: "集成",
     "Add-Ons": "附加组件",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -89,6 +93,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "获取 API 密钥",
   },
   "zh-TW": {
+    "Saved — restart Tovu to connect": "已儲存 — 重新啟動 Tovu 以連線", "Changes apply when Tovu restarts": "重新啟動 Tovu 時會套用變更", "Coming soon": "即將推出", "Nothing below is connected to anything yet.": "下方尚未連線任何內容。", "Webhooks can't fire yet — nothing here is wired up.": "Webhook 尚無法觸發 — 此處尚未連線任何內容。",
     Integrations: "整合",
     "Add-Ons": "附加元件",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -103,6 +108,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "取得 API 金鑰",
   },
   "pt-BR": {
+    "Saved — restart Tovu to connect": "Salvo — reinicie o Tovu para conectar", "Changes apply when Tovu restarts": "As alterações são aplicadas quando o Tovu reinicia", "Coming soon": "Em breve", "Nothing below is connected to anything yet.": "Nada abaixo está conectado a nada ainda.", "Webhooks can't fire yet — nothing here is wired up.": "Os webhooks ainda não podem disparar — nada aqui está conectado.",
     Integrations: "Integrações",
     "Add-Ons": "Complementos",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -117,6 +123,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "Obter chave de API",
   },
   ru: {
+    "Saved — restart Tovu to connect": "Сохранено — перезапустите Tovu для подключения", "Changes apply when Tovu restarts": "Изменения применятся после перезапуска Tovu", "Coming soon": "Скоро", "Nothing below is connected to anything yet.": "Ниже пока ничего не подключено.", "Webhooks can't fire yet — nothing here is wired up.": "Вебхуки пока не могут срабатывать — здесь ничего не подключено.",
     Integrations: "Интеграции",
     "Add-Ons": "Дополнения",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -131,6 +138,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "Получить ключ API",
   },
   fa: {
+    "Saved — restart Tovu to connect": "ذخیره شد — برای اتصال Tovu را راه‌اندازی مجدد کنید", "Changes apply when Tovu restarts": "تغییرات با راه‌اندازی مجدد Tovu اعمال می‌شوند", "Coming soon": "به‌زودی", "Nothing below is connected to anything yet.": "هنوز چیزی در پایین به چیزی متصل نیست.", "Webhooks can't fire yet — nothing here is wired up.": "وب‌هوک‌ها هنوز نمی‌توانند اجرا شوند — چیزی در اینجا متصل نیست.",
     Integrations: "یکپارچه‌سازی‌ها",
     "Add-Ons": "افزودنی‌ها",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -145,6 +153,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "دریافت کلید API",
   },
   ar: {
+    "Saved — restart Tovu to connect": "تم الحفظ — أعد تشغيل Tovu للاتصال", "Changes apply when Tovu restarts": "تُطبّق التغييرات عند إعادة تشغيل Tovu", "Coming soon": "قريبًا", "Nothing below is connected to anything yet.": "لا يوجد شيء أدناه متصل بأي شيء بعد.", "Webhooks can't fire yet — nothing here is wired up.": "لا يمكن لخطافات الويب العمل بعد — لا شيء هنا موصول.",
     Integrations: "عمليات التكامل",
     "Add-Ons": "الوظائف الإضافية",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -159,6 +168,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "احصل على مفتاح API",
   },
   ja: {
+    "Saved — restart Tovu to connect": "保存しました — 接続するには Tovu を再起動してください", "Changes apply when Tovu restarts": "Tovu の再起動時に変更が適用されます", "Coming soon": "近日公開", "Nothing below is connected to anything yet.": "下の項目はまだ何にも接続されていません。", "Webhooks can't fire yet — nothing here is wired up.": "Webhook はまだ発火できません — ここでは何も接続されていません。",
     Integrations: "連携",
     "Add-Ons": "アドオン",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -173,6 +183,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "API キーを取得",
   },
   ko: {
+    "Saved — restart Tovu to connect": "저장됨 — 연결하려면 Tovu를 다시 시작하세요", "Changes apply when Tovu restarts": "Tovu를 다시 시작하면 변경 사항이 적용됩니다", "Coming soon": "곧 제공", "Nothing below is connected to anything yet.": "아래 항목은 아직 아무것에도 연결되어 있지 않습니다.", "Webhooks can't fire yet — nothing here is wired up.": "웹훅은 아직 실행할 수 없습니다 — 여기에는 연결된 항목이 없습니다.",
     Integrations: "통합",
     "Add-Ons": "부가 기능",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -187,6 +198,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "API 키 받기",
   },
   pl: {
+    "Saved — restart Tovu to connect": "Zapisano — uruchom ponownie Tovu, aby się połączyć", "Changes apply when Tovu restarts": "Zmiany zostaną zastosowane po ponownym uruchomieniu Tovu", "Coming soon": "Wkrótce", "Nothing below is connected to anything yet.": "Nic poniżej nie jest jeszcze podłączone.", "Webhooks can't fire yet — nothing here is wired up.": "Webhooki nie mogą jeszcze działać — nic tutaj nie jest podłączone.",
     Integrations: "Integracje",
     "Add-Ons": "Dodatki",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -201,6 +213,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "Uzyskaj klucz API",
   },
   hu: {
+    "Saved — restart Tovu to connect": "Mentve — a csatlakozáshoz indítsa újra a Tovut", "Changes apply when Tovu restarts": "A módosítások a Tovu újraindításakor lépnek életbe", "Coming soon": "Hamarosan", "Nothing below is connected to anything yet.": "Alább még semmi sincs semmihez csatlakoztatva.", "Webhooks can't fire yet — nothing here is wired up.": "A webhookok még nem indíthatók el — itt még semmi sincs bekötve.",
     Integrations: "Integrációk",
     "Add-Ons": "Kiegészítők",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -215,6 +228,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "API-kulcs beszerzése",
   },
   fr: {
+    "Saved — restart Tovu to connect": "Enregistré — redémarrez Tovu pour vous connecter", "Changes apply when Tovu restarts": "Les modifications s’appliquent au redémarrage de Tovu", "Coming soon": "Bientôt disponible", "Nothing below is connected to anything yet.": "Rien ci-dessous n’est encore connecté.", "Webhooks can't fire yet — nothing here is wired up.": "Les webhooks ne peuvent pas encore se déclencher — rien n’est connecté ici.",
     Integrations: "Intégrations",
     "Add-Ons": "Modules complémentaires",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -229,6 +243,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "Obtenir une clé API",
   },
   uk: {
+    "Saved — restart Tovu to connect": "Збережено — перезапустіть Tovu для підключення", "Changes apply when Tovu restarts": "Зміни буде застосовано після перезапуску Tovu", "Coming soon": "Незабаром", "Nothing below is connected to anything yet.": "Нижче ще нічого не підключено.", "Webhooks can't fire yet — nothing here is wired up.": "Вебхуки ще не можуть спрацьовувати — тут нічого не підключено.",
     Integrations: "Інтеграції",
     "Add-Ons": "Додатки",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -243,6 +258,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "Отримати ключ API",
   },
   tr: {
+    "Saved — restart Tovu to connect": "Kaydedildi — bağlanmak için Tovu'yu yeniden başlatın", "Changes apply when Tovu restarts": "Değişiklikler Tovu yeniden başlatıldığında uygulanır", "Coming soon": "Yakında", "Nothing below is connected to anything yet.": "Aşağıda henüz hiçbir şey bağlı değil.", "Webhooks can't fire yet — nothing here is wired up.": "Webhook'lar henüz tetiklenemez — burada hiçbir şey bağlı değil.",
     Integrations: "Entegrasyonlar",
     "Add-Ons": "Uzantılar",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -257,6 +273,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "API Anahtarı Al",
   },
   th: {
+    "Saved — restart Tovu to connect": "บันทึกแล้ว — รีสตาร์ท Tovu เพื่อเชื่อมต่อ", "Changes apply when Tovu restarts": "การเปลี่ยนแปลงจะมีผลเมื่อ Tovu รีสตาร์ท", "Coming soon": "เร็วๆ นี้", "Nothing below is connected to anything yet.": "ด้านล่างยังไม่มีสิ่งใดเชื่อมต่ออยู่", "Webhooks can't fire yet — nothing here is wired up.": "เว็บฮุกยังทำงานไม่ได้ — ที่นี่ยังไม่มีอะไรเชื่อมต่ออยู่",
     Integrations: "การผสานการทำงาน",
     "Add-Ons": "ส่วนเสริม",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -271,6 +288,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "รับคีย์ API",
   },
   it: {
+    "Saved — restart Tovu to connect": "Salvato — riavvia Tovu per connetterti", "Changes apply when Tovu restarts": "Le modifiche vengono applicate al riavvio di Tovu", "Coming soon": "Prossimamente", "Nothing below is connected to anything yet.": "Nulla qui sotto è ancora connesso.", "Webhooks can't fire yet — nothing here is wired up.": "I webhook non possono ancora attivarsi — qui non è collegato nulla.",
     Integrations: "Integrazioni",
     "Add-Ons": "Componenti aggiuntivi",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -285,6 +303,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "Ottieni chiave API",
   },
   hi: {
+    "Saved — restart Tovu to connect": "सहेजा गया — कनेक्ट करने के लिए Tovu को पुनः प्रारंभ करें", "Changes apply when Tovu restarts": "Tovu के पुनः प्रारंभ होने पर बदलाव लागू होंगे", "Coming soon": "जल्द आ रहा है", "Nothing below is connected to anything yet.": "नीचे अभी कुछ भी कनेक्ट नहीं है।", "Webhooks can't fire yet — nothing here is wired up.": "वेबहुक अभी चल नहीं सकते — यहां कुछ भी जुड़ा नहीं है।",
     Integrations: "इंटीग्रेशन",
     "Add-Ons": "ऐड-ऑन",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -299,6 +318,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "API कुंजी प्राप्त करें",
   },
   ur: {
+    "Saved — restart Tovu to connect": "محفوظ ہوگیا — جڑنے کے لیے Tovu دوبارہ شروع کریں", "Changes apply when Tovu restarts": "Tovu دوبارہ شروع ہونے پر تبدیلیاں لاگو ہوں گی", "Coming soon": "جلد آرہا ہے", "Nothing below is connected to anything yet.": "نیچے ابھی کچھ بھی کسی چیز سے منسلک نہیں ہے۔", "Webhooks can't fire yet — nothing here is wired up.": "ویب ہکس ابھی چل نہیں سکتے — یہاں کچھ بھی منسلک نہیں ہے۔",
     Integrations: "انٹیگریشنز",
     "Add-Ons": "ایڈ آنز",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":
@@ -313,6 +333,7 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Get API Key": "API کلید حاصل کریں",
   },
   bn: {
+    "Saved — restart Tovu to connect": "সংরক্ষিত — সংযোগ করতে Tovu পুনরায় চালু করুন", "Changes apply when Tovu restarts": "Tovu পুনরায় চালু হলে পরিবর্তনগুলি প্রয়োগ হবে", "Coming soon": "শীঘ্রই আসছে", "Nothing below is connected to anything yet.": "নিচে এখনও কিছুই সংযুক্ত নেই।", "Webhooks can't fire yet — nothing here is wired up.": "ওয়েবহুক এখনও চালু হতে পারে না — এখানে কিছুই সংযুক্ত নেই।",
     Integrations: "ইন্টিগ্রেশন",
     "Add-Ons": "অ্যাড-অন",
     "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.":

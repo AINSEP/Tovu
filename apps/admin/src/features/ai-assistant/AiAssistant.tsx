@@ -630,7 +630,7 @@ export function VisitorCredentialKeyFooter({
       {/* Save key's status line — see `visitorCredentialSaveStatusMessage`'s own doc comment above
           for the mask/placeholder reasoning, and for why `dirty` is no longer read here. */}
       <p className="assistant-save-line">{visitorCredentialSaveStatusMessage(saveState, stored, t, storedKeyIsForOtherEndpoint)}</p>
-      {saveState.status === "error" ? <div className="save-error">{saveState.message}</div> : null}
+      {saveState.status === "error" ? <div className="save-error">{t(saveState.message)}</div> : null}
     </div>
   );
 }
@@ -671,7 +671,7 @@ export function VisitorCredentialSettingsFooter({
         </button>
       </div>
       {statusLine ? <p className="assistant-save-line">{statusLine}</p> : null}
-      {settingsSaveState.status === "error" ? <div className="save-error">{settingsSaveState.message}</div> : null}
+      {settingsSaveState.status === "error" ? <div className="save-error">{t(settingsSaveState.message)}</div> : null}
     </div>
   );
 }
@@ -835,7 +835,11 @@ export function VisitorCredentialForm({
         onConfigChange={editConfig}
         preset={preset}
         modelDiscovery={discovery}
-        connectionTest={connectionTest}
+        connectionTest={
+          connectionTest.status === "error"
+            ? { ...connectionTest, message: t(connectionTest.message) }
+            : connectionTest
+        }
         onTestConnection={() => void runTestConnection()}
         // Tells the shared form that the empty key field is not a missing required field, so
         // "Test connection" stops being permanently disabled on a screen whose key lives on the

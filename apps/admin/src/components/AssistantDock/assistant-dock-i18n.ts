@@ -259,6 +259,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "Sin título",
     "Show in modal": "Mostrar en modal",
     Close: "Cerrar",
+    "That's not a folder — drop a folder to set it as the working directory.": "Eso no es una carpeta; suelta una carpeta para establecerla como directorio de trabajo.",
+    "That folder couldn't be found. Make sure it still exists and try again.": "No se encontró esa carpeta. Asegúrate de que todavía exista e inténtalo de nuevo.",
+    "Couldn't set the working folder right now. Try again in a moment.": "No se pudo establecer la carpeta de trabajo ahora mismo. Inténtalo de nuevo en un momento.",
     'Delete "{title}"? This cannot be undone.': '¿Eliminar "{title}"? Esta acción no se puede deshacer.',
   },
   id: {
@@ -272,6 +275,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "Tanpa judul",
     "Show in modal": "Tampilkan di modal",
     Close: "Tutup",
+    "That's not a folder — drop a folder to set it as the working directory.": "Itu bukan folder — jatuhkan folder untuk menjadikannya direktori kerja.",
+    "That folder couldn't be found. Make sure it still exists and try again.": "Folder itu tidak ditemukan. Pastikan masih ada, lalu coba lagi.",
+    "Couldn't set the working folder right now. Try again in a moment.": "Folder kerja tidak dapat diatur sekarang. Coba lagi sebentar lagi.",
     'Delete "{title}"? This cannot be undone.': 'Hapus "{title}"? Tindakan ini tidak dapat dibatalkan.',
   },
   de: {
@@ -285,6 +291,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "Unbenannt",
     "Show in modal": "In Modal anzeigen",
     Close: "Schließen",
+    "That's not a folder — drop a folder to set it as the working directory.": "Das ist kein Ordner – legen Sie einen Ordner ab, um ihn als Arbeitsverzeichnis festzulegen.",
+    "That folder couldn't be found. Make sure it still exists and try again.": "Dieser Ordner wurde nicht gefunden. Stellen Sie sicher, dass er noch vorhanden ist, und versuchen Sie es erneut.",
+    "Couldn't set the working folder right now. Try again in a moment.": "Der Arbeitsordner konnte jetzt nicht festgelegt werden. Versuchen Sie es gleich noch einmal.",
     'Delete "{title}"? This cannot be undone.': '„{title}“ löschen? Dies kann nicht rückgängig gemacht werden.',
   },
   "zh-CN": {
@@ -298,6 +307,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "无标题",
     "Show in modal": "在弹窗中显示",
     Close: "关闭",
+    "That's not a folder — drop a folder to set it as the working directory.": "这不是文件夹——请拖放一个文件夹，将其设为工作目录。",
+    "That folder couldn't be found. Make sure it still exists and try again.": "找不到该文件夹。请确认它仍然存在，然后重试。",
+    "Couldn't set the working folder right now. Try again in a moment.": "暂时无法设置工作文件夹。请稍后重试。",
     'Delete "{title}"? This cannot be undone.': '删除“{title}”？此操作无法撤销。',
   },
   "zh-TW": {
@@ -311,6 +323,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "無標題",
     "Show in modal": "在彈窗中顯示",
     Close: "關閉",
+    "That's not a folder — drop a folder to set it as the working directory.": "這不是資料夾——請拖放一個資料夾，將其設為工作目錄。",
+    "That folder couldn't be found. Make sure it still exists and try again.": "找不到該資料夾。請確認它仍然存在，然後再試一次。",
+    "Couldn't set the working folder right now. Try again in a moment.": "目前無法設定工作資料夾。請稍後再試。",
     'Delete "{title}"? This cannot be undone.': '刪除「{title}」？此操作無法復原。',
   },
   "pt-BR": {
@@ -324,6 +339,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "Sem título",
     "Show in modal": "Mostrar em modal",
     Close: "Fechar",
+    "That's not a folder — drop a folder to set it as the working directory.": "Isso não é uma pasta — solte uma pasta para defini-la como diretório de trabalho.",
+    "That folder couldn't be found. Make sure it still exists and try again.": "Essa pasta não foi encontrada. Verifique se ela ainda existe e tente novamente.",
+    "Couldn't set the working folder right now. Try again in a moment.": "Não foi possível definir a pasta de trabalho agora. Tente novamente em instantes.",
     'Delete "{title}"? This cannot be undone.': 'Excluir "{title}"? Isso não pode ser desfeito.',
   },
   ru: {
@@ -337,6 +355,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "Без названия",
     "Show in modal": "Показать в модальном окне",
     Close: "Закрыть",
+    "That's not a folder — drop a folder to set it as the working directory.": "Это не папка — перетащите папку, чтобы назначить её рабочим каталогом.",
+    "That folder couldn't be found. Make sure it still exists and try again.": "Эта папка не найдена. Убедитесь, что она всё ещё существует, и повторите попытку.",
+    "Couldn't set the working folder right now. Try again in a moment.": "Не удалось назначить рабочую папку прямо сейчас. Повторите попытку через некоторое время.",
     'Delete "{title}"? This cannot be undone.': 'Удалить «{title}»? Это действие нельзя отменить.',
   },
   fa: {
@@ -350,6 +371,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "بدون عنوان",
     "Show in modal": "نمایش در پنجره بازشو",
     Close: "بستن",
+    "That's not a folder — drop a folder to set it as the working directory.": "این یک پوشه نیست — برای تنظیم آن به‌عنوان پوشهٔ کاری، یک پوشه رها کنید.",
+    "That folder couldn't be found. Make sure it still exists and try again.": "این پوشه پیدا نشد. مطمئن شوید هنوز وجود دارد و دوباره تلاش کنید.",
+    "Couldn't set the working folder right now. Try again in a moment.": "اکنون نمی‌توان پوشهٔ کاری را تنظیم کرد. کمی بعد دوباره تلاش کنید.",
     'Delete "{title}"? This cannot be undone.': '«{title}» حذف شود؟ این کار قابل بازگشت نیست.',
   },
   ar: {
@@ -363,6 +387,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "بلا عنوان",
     "Show in modal": "إظهار في نافذة منبثقة",
     Close: "إغلاق",
+    "That's not a folder — drop a folder to set it as the working directory.": "هذا ليس مجلدًا — أفلت مجلدًا لتعيينه مجلد العمل.",
+    "That folder couldn't be found. Make sure it still exists and try again.": "تعذر العثور على هذا المجلد. تأكد من أنه لا يزال موجودًا وحاول مرة أخرى.",
+    "Couldn't set the working folder right now. Try again in a moment.": "تعذر تعيين مجلد العمل الآن. حاول مرة أخرى بعد قليل.",
     'Delete "{title}"? This cannot be undone.': 'هل تريد حذف "{title}"؟ لا يمكن التراجع عن هذا الإجراء.',
   },
   ja: {
@@ -376,6 +403,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "無題",
     "Show in modal": "モーダルで表示",
     Close: "閉じる",
+    "That's not a folder — drop a folder to set it as the working directory.": "これはフォルダーではありません。フォルダーをドロップして作業ディレクトリに設定してください。",
+    "That folder couldn't be found. Make sure it still exists and try again.": "そのフォルダーが見つかりません。まだ存在することを確認して、もう一度お試しください。",
+    "Couldn't set the working folder right now. Try again in a moment.": "現在、作業フォルダーを設定できません。しばらくしてからもう一度お試しください。",
     'Delete "{title}"? This cannot be undone.': '「{title}」を削除しますか？ この操作は元に戻せません。',
   },
   ko: {
@@ -389,6 +419,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "제목 없음",
     "Show in modal": "모달로 보기",
     Close: "닫기",
+    "That's not a folder — drop a folder to set it as the working directory.": "폴더가 아닙니다. 폴더를 놓아 작업 디렉터리로 설정하세요.",
+    "That folder couldn't be found. Make sure it still exists and try again.": "해당 폴더를 찾을 수 없습니다. 아직 존재하는지 확인한 후 다시 시도하세요.",
+    "Couldn't set the working folder right now. Try again in a moment.": "지금은 작업 폴더를 설정할 수 없습니다. 잠시 후 다시 시도하세요.",
     'Delete "{title}"? This cannot be undone.': '"{title}"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
   },
   pl: {
@@ -402,6 +435,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "Bez tytułu",
     "Show in modal": "Pokaż w oknie modalnym",
     Close: "Zamknij",
+    "That's not a folder — drop a folder to set it as the working directory.": "To nie jest folder — upuść folder, aby ustawić go jako katalog roboczy.",
+    "That folder couldn't be found. Make sure it still exists and try again.": "Nie znaleziono tego folderu. Upewnij się, że nadal istnieje, i spróbuj ponownie.",
+    "Couldn't set the working folder right now. Try again in a moment.": "Nie można teraz ustawić folderu roboczego. Spróbuj ponownie za chwilę.",
     'Delete "{title}"? This cannot be undone.': 'Usunąć „{title}”? Tej operacji nie można cofnąć.',
   },
   hu: {
@@ -415,6 +451,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "Névtelen",
     "Show in modal": "Megjelenítés modális ablakban",
     Close: "Bezárás",
+    "That's not a folder — drop a folder to set it as the working directory.": "Ez nem mappa — ejtsen ide egy mappát, hogy munkakönyvtárként állítsa be.",
+    "That folder couldn't be found. Make sure it still exists and try again.": "A mappa nem található. Ellenőrizze, hogy még létezik-e, majd próbálja újra.",
+    "Couldn't set the working folder right now. Try again in a moment.": "A munkamappa most nem állítható be. Próbálja újra egy pillanat múlva.",
     'Delete "{title}"? This cannot be undone.': '„{title}” törlése? Ez nem vonható vissza.',
   },
   fr: {
@@ -428,6 +467,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "Sans titre",
     "Show in modal": "Afficher dans une fenêtre modale",
     Close: "Fermer",
+    "That's not a folder — drop a folder to set it as the working directory.": "Ce n’est pas un dossier : déposez un dossier pour le définir comme répertoire de travail.",
+    "That folder couldn't be found. Make sure it still exists and try again.": "Ce dossier est introuvable. Vérifiez qu’il existe toujours, puis réessayez.",
+    "Couldn't set the working folder right now. Try again in a moment.": "Impossible de définir le dossier de travail pour le moment. Réessayez dans un instant.",
     'Delete "{title}"? This cannot be undone.': 'Supprimer « {title} » ? Cette action est irréversible.',
   },
   uk: {
@@ -441,6 +483,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "Без назви",
     "Show in modal": "Показати у модальному вікні",
     Close: "Закрити",
+    "That's not a folder — drop a folder to set it as the working directory.": "Це не папка — перетягніть папку, щоб установити її як робочий каталог.",
+    "That folder couldn't be found. Make sure it still exists and try again.": "Цю папку не знайдено. Переконайтеся, що вона ще існує, і спробуйте знову.",
+    "Couldn't set the working folder right now. Try again in a moment.": "Зараз не вдалося встановити робочу папку. Спробуйте ще раз за мить.",
     'Delete "{title}"? This cannot be undone.': 'Видалити «{title}»? Цю дію не можна скасувати.',
   },
   tr: {
@@ -454,6 +499,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "Adsız",
     "Show in modal": "Modalda göster",
     Close: "Kapat",
+    "That's not a folder — drop a folder to set it as the working directory.": "Bu bir klasör değil — çalışma dizini olarak ayarlamak için bir klasörü bırakın.",
+    "That folder couldn't be found. Make sure it still exists and try again.": "Bu klasör bulunamadı. Hâlâ mevcut olduğundan emin olun ve yeniden deneyin.",
+    "Couldn't set the working folder right now. Try again in a moment.": "Çalışma klasörü şu anda ayarlanamadı. Biraz sonra yeniden deneyin.",
     'Delete "{title}"? This cannot be undone.': '"{title}" silinsin mi? Bu işlem geri alınamaz.',
   },
   th: {
@@ -467,6 +515,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "ไม่มีชื่อ",
     "Show in modal": "แสดงในหน้าต่างโมดัล",
     Close: "ปิด",
+    "That's not a folder — drop a folder to set it as the working directory.": "นี่ไม่ใช่โฟลเดอร์ — วางโฟลเดอร์เพื่อตั้งเป็นไดเรกทอรีทำงาน",
+    "That folder couldn't be found. Make sure it still exists and try again.": "ไม่พบโฟลเดอร์นั้น โปรดตรวจสอบว่ายังมีอยู่แล้วลองอีกครั้ง",
+    "Couldn't set the working folder right now. Try again in a moment.": "ไม่สามารถตั้งค่าโฟลเดอร์ทำงานได้ในขณะนี้ โปรดลองอีกครั้งในอีกสักครู่",
     'Delete "{title}"? This cannot be undone.': 'ลบ "{title}" ใช่หรือไม่ การดำเนินการนี้ไม่สามารถย้อนกลับได้',
   },
   it: {
@@ -480,6 +531,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "Senza titolo",
     "Show in modal": "Mostra in una finestra modale",
     Close: "Chiudi",
+    "That's not a folder — drop a folder to set it as the working directory.": "Quella non è una cartella: rilascia una cartella per impostarla come directory di lavoro.",
+    "That folder couldn't be found. Make sure it still exists and try again.": "Impossibile trovare quella cartella. Verifica che esista ancora e riprova.",
+    "Couldn't set the working folder right now. Try again in a moment.": "Impossibile impostare la cartella di lavoro al momento. Riprova tra poco.",
     'Delete "{title}"? This cannot be undone.': 'Eliminare "{title}"? Questa azione non può essere annullata.',
   },
   hi: {
@@ -493,6 +547,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "बिना शीर्षक",
     "Show in modal": "मोडल में दिखाएं",
     Close: "बंद करें",
+    "That's not a folder — drop a folder to set it as the working directory.": "यह फ़ोल्डर नहीं है — इसे कार्य निर्देशिका के रूप में सेट करने के लिए कोई फ़ोल्डर छोड़ें।",
+    "That folder couldn't be found. Make sure it still exists and try again.": "वह फ़ोल्डर नहीं मिला। सुनिश्चित करें कि वह अभी भी मौजूद है और फिर से प्रयास करें।",
+    "Couldn't set the working folder right now. Try again in a moment.": "अभी कार्य फ़ोल्डर सेट नहीं किया जा सका। थोड़ी देर में फिर से प्रयास करें।",
     'Delete "{title}"? This cannot be undone.': '"{title}" हटाएं? इसे पूर्ववत नहीं किया जा सकता।',
   },
   ur: {
@@ -506,6 +563,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "بلا عنوان",
     "Show in modal": "موڈل میں دکھائیں",
     Close: "بند کریں",
+    "That's not a folder — drop a folder to set it as the working directory.": "یہ فولڈر نہیں ہے — اسے ورکنگ ڈائریکٹری کے طور پر سیٹ کرنے کے لیے ایک فولڈر چھوڑیں۔",
+    "That folder couldn't be found. Make sure it still exists and try again.": "وہ فولڈر نہیں ملا۔ یقینی بنائیں کہ وہ اب بھی موجود ہے اور دوبارہ کوشش کریں۔",
+    "Couldn't set the working folder right now. Try again in a moment.": "اس وقت ورکنگ فولڈر سیٹ نہیں کیا جا سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔",
     'Delete "{title}"? This cannot be undone.': '"{title}" حذف کریں؟ اسے واپس نہیں لایا جا سکتا۔',
   },
   bn: {
@@ -519,6 +579,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Untitled: "শিরোনামহীন",
     "Show in modal": "মোডালে দেখান",
     Close: "বন্ধ করুন",
+    "That's not a folder — drop a folder to set it as the working directory.": "এটি কোনো ফোল্ডার নয় — কাজের ডিরেক্টরি হিসেবে সেট করতে একটি ফোল্ডার ছেড়ে দিন।",
+    "That folder couldn't be found. Make sure it still exists and try again.": "ফোল্ডারটি খুঁজে পাওয়া যায়নি। এটি এখনও আছে কিনা নিশ্চিত করে আবার চেষ্টা করুন।",
+    "Couldn't set the working folder right now. Try again in a moment.": "এখন কাজের ফোল্ডার সেট করা যায়নি। একটু পরে আবার চেষ্টা করুন।",
     'Delete "{title}"? This cannot be undone.': '"{title}" মুছবেন? এটি পূর্বাবস্থায় ফেরানো যাবে না।',
   },
 };

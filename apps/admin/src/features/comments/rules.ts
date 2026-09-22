@@ -10,6 +10,7 @@ import { hasPermission } from "../../lib/permissions";
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { QueryKey } from "../../lib/fetch-query";
 import { t } from "./comments-i18n";
+import { interpolate } from "../../lib/template-i18n";
 
 /**
  * @file Pure logic for the `comments` feature — everything that computes a value rather than
@@ -67,14 +68,18 @@ export function emptyRowState(): RowActionState {
 
 /** REQ-07: a 409 (stale `expectedVersion`) gets its own message instead of the generic fallback,
  * using the route's own `{error, currentVersion}` body when present. */
-export function describeModerationError(e: unknown): string {
+export function describeModerationError(e: unknown, locale = "en"): string {
   if (e instanceof ApiError && e.status === 409) {
     const currentVersion = typeof e.body?.currentVersion === "number" ? e.body.currentVersion : undefined;
-    return `This comment changed since you loaded it${
-      currentVersion !== undefined ? ` (current version ${currentVersion})` : ""
-    } — refresh and try again.`;
+    if (currentVersion !== undefined) {
+      return interpolate(
+        t(locale, "This comment changed since you loaded it (current version {currentVersion}) — refresh and try again."),
+        { currentVersion },
+      );
+    }
+    return t(locale, "This comment changed since you loaded it — refresh and try again.");
   }
-  return describeApiError(e, "Failed to update comment.");
+  return describeApiError(e, t(locale, "Failed to update comment."));
 }
 
 export function truncate(text: string, max: number): string {
@@ -251,9 +256,9 @@ export function buildSettingsPatch(required: { form: FormData; current: Comments
  * error message to show, or `null` when the patch is valid. Split out of `save`'s body (originally
  * an inline `if`) because it is the one piece of that flow that computes a value rather than
  * performing an effect. */
-export function validateSettingsPatch(patch: Partial<CommentsSettings>): string | null {
+export function validateSettingsPatch(patch: Partial<CommentsSettings>, locale = "en"): string | null {
   if (patch.spamAutoRejectScore !== undefined && (patch.spamAutoRejectScore < 0 || patch.spamAutoRejectScore > 1)) {
-    return "Spam auto-reject score must be between 0 and 1.";
+    return t(locale, "Spam auto-reject score must be between 0 and 1.");
   }
   return null;
 }

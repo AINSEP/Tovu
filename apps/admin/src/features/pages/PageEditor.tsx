@@ -322,7 +322,7 @@ function PageVersionConflictBanner({
         label: "Another operator saved this while you were editing — your changes are unsaved and still in the editor",
       })}
     >
-      <p>{pageVersionConflictMessage(saveConflict)}</p>
+      <p>{pageVersionConflictMessage(t, saveConflict)}</p>
       <button
         type="button"
         className="btn-secondary"
@@ -368,7 +368,7 @@ function PageVersionConflictBanner({
  *   a guarantee this component can make on their behalf (`localStorage` throws outright in some
  *   privacy modes). The message tells them to copy their work first and leaves the choice with them.
  */
-function PageAutosaveStaleBanner({ staleBasis }: { staleBasis: StandingDraftStaleBasis }) {
+function PageAutosaveStaleBanner({ staleBasis, t }: { staleBasis: StandingDraftStaleBasis; t: Translate }) {
   return (
     <div
       className="notice warning"
@@ -379,7 +379,7 @@ function PageAutosaveStaleBanner({ staleBasis }: { staleBasis: StandingDraftStal
           "unsaved changes are still here in the editor",
       })}
     >
-      <p>{pageAutosaveStaleBasisMessage(staleBasis)}</p>
+      <p>{pageAutosaveStaleBasisMessage(t, staleBasis)}</p>
     </div>
   );
 }
@@ -483,7 +483,7 @@ function PageEditorNotices({
           t={t}
         />
       ) : null}
-      {autosaveStaleBasis ? <PageAutosaveStaleBanner staleBasis={autosaveStaleBasis} /> : null}
+      {autosaveStaleBasis ? <PageAutosaveStaleBanner staleBasis={autosaveStaleBasis} t={t} /> : null}
       {saveConflict ? (
         <PageVersionConflictBanner saveConflict={saveConflict} onSaveAnyway={onSaveAnyway} onDismiss={onDismissConflict} t={t} />
       ) : null}
@@ -551,7 +551,7 @@ function PageEditorToolbarEnd({
               onClick={() => setDevice(entry.key)}
               {...agentHandle(`page-preview-width-${entry.key}`, { role: "button", label: `Preview at ${entry.label} width` })}
             >
-              {entry.label}
+              {t(entry.label)}
             </button>
           ))}
           <span className="page-editor-width">{PAGE_PREVIEW_WIDTHS[device]}px</span>
@@ -738,7 +738,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
               onClick={() => setView(entry.key)}
               {...agentHandle(`page-view-${entry.key}`, { role: "button", label: `Switch to the ${entry.label} view` })}
             >
-              {entry.label}
+              {t(entry.label)}
             </button>
           ))}
         </div>

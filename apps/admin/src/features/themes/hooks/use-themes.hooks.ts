@@ -178,7 +178,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
         setSettings(r.settings);
       } catch (e) {
         if (!activateSettlement.isCurrent(generation)) return;
-        setError(e instanceof Error ? e.message : "failed to switch theme");
+        setError(e instanceof Error ? e.message : t("failed to switch theme"));
       } finally {
         if (!activateSettlement.isCurrent(generation)) return;
         setBusyTheme(null);

@@ -160,6 +160,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Este tema no tiene un original guardado, así que no se puede restablecer nada.",
     "failed to refresh the theme list": "No se pudo actualizar la lista de temas",
+    "failed to switch theme": "No se pudo cambiar de tema",
   },
   id: {
     "Close preview": "Tutup pratinjau",
@@ -313,6 +314,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Tema ini tidak memiliki salinan asli yang tersimpan, jadi tidak ada yang dapat diatur ulang.",
     "failed to refresh the theme list": "Gagal menyegarkan daftar tema",
+    "failed to switch theme": "Gagal mengganti tema",
   },
   de: {
     "Close preview": "Vorschau schließen",
@@ -466,6 +468,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Dieses Design hat kein gespeichertes Original, daher kann nichts zurückgesetzt werden.",
     "failed to refresh the theme list": "Designliste konnte nicht aktualisiert werden",
+    "failed to switch theme": "Design konnte nicht gewechselt werden",
   },
   "zh-CN": {
     "Close preview": "关闭预览",
@@ -612,6 +615,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{file} isn't in this theme's original, so there's nothing to reset it to.": "{file} 不在此主题的原始版本中，因此没有可重置到的内容。",
     "This theme has no stored original, so nothing can be reset.": "此主题没有保存的原始版本，因此无法重置任何内容。",
     "failed to refresh the theme list": "刷新主题列表失败",
+    "failed to switch theme": "切换主题失败",
   },
   "zh-TW": {
     "Close preview": "關閉預覽",
@@ -762,6 +766,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{file} isn't in this theme's original, so there's nothing to reset it to.": "{file} 不在此佈景主題的原始版本中，因此沒有可重設的內容。",
     "This theme has no stored original, so nothing can be reset.": "此佈景主題沒有儲存的原始版本，因此無法重設任何內容。",
     "failed to refresh the theme list": "重新整理佈景主題清單失敗",
+    "failed to switch theme": "切換佈景主題失敗",
   },
   "pt-BR": {
     "Close preview": "Fechar visualização",
@@ -915,6 +920,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Este tema não tem um original salvo, então nada pode ser redefinido.",
     "failed to refresh the theme list": "Não foi possível atualizar a lista de temas",
+    "failed to switch theme": "Não foi possível trocar de tema",
   },
   ru: {
     "Close preview": "Закрыть предпросмотр",
@@ -1068,6 +1074,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "У этой темы нет сохранённого оригинала, поэтому сбросить ничего нельзя.",
     "failed to refresh the theme list": "Не удалось обновить список тем",
+    "failed to switch theme": "Не удалось переключить тему",
   },
   fa: {
     "Close preview": "بستن پیش‌نمایش",
@@ -1221,6 +1228,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "این پوسته نسخه اصلی ذخیره‌شده‌ای ندارد، بنابراین چیزی قابل بازنشانی نیست.",
     "failed to refresh the theme list": "به‌روزرسانی فهرست پوسته‌ها ناموفق بود",
+    "failed to switch theme": "تغییر پوسته ناموفق بود",
   },
   ar: {
     "Close preview": "إغلاق المعاينة",
@@ -1374,6 +1382,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "لا توجد نسخة أصلية محفوظة لهذا القالب، لذا لا يمكن إعادة تعيين أي شيء.",
     "failed to refresh the theme list": "تعذّر تحديث قائمة القوالب",
+    "failed to switch theme": "تعذّر تبديل القالب",
   },
   ja: {
     "Close preview": "プレビューを閉じる",
@@ -1526,6 +1535,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} はこのテーマのオリジナルに含まれていないため、リセットできません。",
     "This theme has no stored original, so nothing can be reset.": "このテーマには保存されたオリジナルがないため、リセットできるものはありません。",
     "failed to refresh the theme list": "テーマ一覧を更新できませんでした",
+    "failed to switch theme": "テーマを切り替えられませんでした",
   },
   ko: {
     "Close preview": "미리보기 닫기",
@@ -1678,6 +1688,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file}은(는) 이 테마의 원본에 없어 초기화할 대상이 없습니다.",
     "This theme has no stored original, so nothing can be reset.": "이 테마에는 저장된 원본이 없어 초기화할 수 있는 항목이 없습니다.",
     "failed to refresh the theme list": "테마 목록을 새로 고치지 못했습니다",
+    "failed to switch theme": "테마를 전환하지 못했습니다",
   },
   pl: {
     "Close preview": "Zamknij podgląd",
@@ -1831,6 +1842,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Ten motyw nie ma zapisanego oryginału, więc nie można niczego zresetować.",
     "failed to refresh the theme list": "Nie udało się odświeżyć listy motywów",
+    "failed to switch theme": "Nie udało się przełączyć motywu",
   },
   hu: {
     "Close preview": "Előnézet bezárása",
@@ -1984,6 +1996,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Ennek a sablonnak nincs mentett eredetije, ezért semmi sem állítható vissza.",
     "failed to refresh the theme list": "Nem sikerült frissíteni a témák listáját",
+    "failed to switch theme": "Nem sikerült témát váltani",
   },
   fr: {
     "Close preview": "Fermer l'aperçu",
@@ -2137,6 +2150,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Ce thème n'a pas d'original enregistré, rien ne peut donc être réinitialisé.",
     "failed to refresh the theme list": "Impossible d'actualiser la liste des thèmes",
+    "failed to switch theme": "Impossible de changer de thème",
   },
   uk: {
     "Close preview": "Закрити перегляд",
@@ -2290,6 +2304,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Ця тема не має збереженого оригіналу, тому нічого не можна скинути.",
     "failed to refresh the theme list": "Не вдалося оновити список тем",
+    "failed to switch theme": "Не вдалося змінити тему",
   },
   tr: {
     "Close preview": "Önizlemeyi kapat",
@@ -2443,6 +2458,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Bu temanın kaydedilmiş bir orijinali yok, bu yüzden hiçbir şey sıfırlanamaz.",
     "failed to refresh the theme list": "Tema listesi yenilenemedi",
+    "failed to switch theme": "Tema değiştirilemedi",
   },
   th: {
     "Close preview": "ปิดตัวอย่าง",
@@ -2595,6 +2611,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} ไม่มีอยู่ในต้นฉบับของธีมนี้ จึงไม่มีอะไรให้รีเซ็ตกลับไป",
     "This theme has no stored original, so nothing can be reset.": "ธีมนี้ไม่มีต้นฉบับที่บันทึกไว้ จึงรีเซ็ตอะไรไม่ได้",
     "failed to refresh the theme list": "รีเฟรชรายการธีมไม่สำเร็จ",
+    "failed to switch theme": "เปลี่ยนธีมไม่สำเร็จ",
   },
   it: {
     "Close preview": "Chiudi anteprima",
@@ -2748,6 +2765,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Questo tema non ha un originale salvato, quindi non è possibile ripristinare nulla.",
     "failed to refresh the theme list": "Impossibile aggiornare l'elenco dei temi",
+    "failed to switch theme": "Impossibile cambiare tema",
   },
   hi: {
     "Close preview": "पूर्वावलोकन बंद करें",
@@ -2901,6 +2919,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "इस थीम का कोई सहेजा हुआ मूल संस्करण नहीं है, इसलिए कुछ भी रीसेट नहीं किया जा सकता।",
     "failed to refresh the theme list": "थीम सूची रीफ़्रेश नहीं हो सकी",
+    "failed to switch theme": "थीम बदली नहीं जा सकी",
   },
   ur: {
     "Close preview": "پیش نظارہ بند کریں",
@@ -3054,6 +3073,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "اس تھیم کا کوئی محفوظ شدہ اصل نسخہ نہیں ہے، اس لیے کچھ بھی ری سیٹ نہیں کیا جا سکتا۔",
     "failed to refresh the theme list": "تھیمز کی فہرست ریفریش نہیں ہو سکی",
+    "failed to switch theme": "تھیم تبدیل نہیں ہو سکی",
   },
   bn: {
     "Close preview": "প্রিভিউ বন্ধ করুন",
@@ -3207,6 +3227,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "এই থিমের কোনো সংরক্ষিত মূল সংস্করণ নেই, তাই কিছুই রিসেট করা যাবে না।",
     "failed to refresh the theme list": "থিমের তালিকা রিফ্রেশ করা যায়নি",
+    "failed to switch theme": "থিম পরিবর্তন করা যায়নি",
   },
 };
 

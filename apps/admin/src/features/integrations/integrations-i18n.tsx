@@ -51,6 +51,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Última respuesta",
     "Loading delivery log…": "Cargando registro de entregas…",
     "Loading integrations…": "Cargando integraciones…",
+    "failed to update subscription": "no se pudo actualizar la suscripción",
+    "failed to delete subscription": "no se pudo eliminar la suscripción",
+    "failed to load integrations": "no se pudieron cargar las integraciones",
   },
   id: {
     Pause: "Jeda",
@@ -84,6 +87,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Respons terakhir",
     "Loading delivery log…": "Memuat log pengiriman…",
     "Loading integrations…": "Memuat integrasi…",
+    "failed to update subscription": "gagal memperbarui langganan",
+    "failed to delete subscription": "gagal menghapus langganan",
+    "failed to load integrations": "gagal memuat integrasi",
   },
   de: {
     Pause: "Pausieren",
@@ -117,6 +123,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Letzte Antwort",
     "Loading delivery log…": "Zustellprotokoll wird geladen…",
     "Loading integrations…": "Integrationen werden geladen…",
+    "failed to update subscription": "Abonnement konnte nicht aktualisiert werden",
+    "failed to delete subscription": "Abonnement konnte nicht gelöscht werden",
+    "failed to load integrations": "Integrationen konnten nicht geladen werden",
   },
   "zh-CN": {
     Pause: "暂停",
@@ -150,6 +159,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "最近一次响应",
     "Loading delivery log…": "正在加载投递日志…",
     "Loading integrations…": "正在加载集成…",
+    "failed to update subscription": "无法更新订阅",
+    "failed to delete subscription": "无法删除订阅",
+    "failed to load integrations": "无法加载集成",
   },
   "zh-TW": {
     Pause: "暫停",
@@ -183,6 +195,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "上次回應",
     "Loading delivery log…": "正在載入傳送記錄…",
     "Loading integrations…": "正在載入整合…",
+    "failed to update subscription": "無法更新訂閱",
+    "failed to delete subscription": "無法刪除訂閱",
+    "failed to load integrations": "無法載入整合",
   },
   "pt-BR": {
     Pause: "Pausar",
@@ -216,6 +231,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Última resposta",
     "Loading delivery log…": "Carregando registro de entregas…",
     "Loading integrations…": "Carregando integrações…",
+    "failed to update subscription": "não foi possível atualizar a assinatura",
+    "failed to delete subscription": "não foi possível excluir a assinatura",
+    "failed to load integrations": "não foi possível carregar as integrações",
   },
   ru: {
     Pause: "Приостановить",
@@ -249,6 +267,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Последний ответ",
     "Loading delivery log…": "Загрузка журнала доставки…",
     "Loading integrations…": "Загрузка интеграций…",
+    "failed to update subscription": "не удалось обновить подписку",
+    "failed to delete subscription": "не удалось удалить подписку",
+    "failed to load integrations": "не удалось загрузить интеграции",
   },
   fa: {
     Pause: "توقف موقت",
@@ -282,6 +303,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "آخرین پاسخ",
     "Loading delivery log…": "در حال بارگذاری گزارش تحویل…",
     "Loading integrations…": "در حال بارگذاری یکپارچه‌سازی‌ها…",
+    "failed to update subscription": "به‌روزرسانی اشتراک ناموفق بود",
+    "failed to delete subscription": "حذف اشتراک ناموفق بود",
+    "failed to load integrations": "بارگذاری یکپارچه‌سازی‌ها ناموفق بود",
   },
   ar: {
     Pause: "إيقاف مؤقت",
@@ -315,6 +339,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "آخر استجابة",
     "Loading delivery log…": "جارٍ تحميل سجل التسليم…",
     "Loading integrations…": "جارٍ تحميل عمليات التكامل…",
+    "failed to update subscription": "تعذر تحديث الاشتراك",
+    "failed to delete subscription": "تعذر حذف الاشتراك",
+    "failed to load integrations": "تعذر تحميل عمليات التكامل",
   },
   ja: {
     Pause: "一時停止",
@@ -348,6 +375,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "最終レスポンス",
     "Loading delivery log…": "配信ログを読み込み中…",
     "Loading integrations…": "連携を読み込み中…",
+    "failed to update subscription": "サブスクリプションを更新できませんでした",
+    "failed to delete subscription": "サブスクリプションを削除できませんでした",
+    "failed to load integrations": "連携を読み込めませんでした",
   },
   ko: {
     Pause: "일시중지",
@@ -381,6 +411,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "마지막 응답",
     "Loading delivery log…": "전송 기록 로드 중…",
     "Loading integrations…": "통합 로드 중…",
+    "failed to update subscription": "구독을 업데이트하지 못했습니다",
+    "failed to delete subscription": "구독을 삭제하지 못했습니다",
+    "failed to load integrations": "통합을 불러오지 못했습니다",
   },
   pl: {
     Pause: "Wstrzymaj",
@@ -414,6 +447,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Ostatnia odpowiedź",
     "Loading delivery log…": "Wczytywanie dziennika dostarczania…",
     "Loading integrations…": "Wczytywanie integracji…",
+    "failed to update subscription": "nie udało się zaktualizować subskrypcji",
+    "failed to delete subscription": "nie udało się usunąć subskrypcji",
+    "failed to load integrations": "nie udało się wczytać integracji",
   },
   hu: {
     Pause: "Szüneteltetés",
@@ -447,6 +483,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Utolsó válasz",
     "Loading delivery log…": "Kézbesítési napló betöltése…",
     "Loading integrations…": "Integrációk betöltése…",
+    "failed to update subscription": "nem sikerült frissíteni az előfizetést",
+    "failed to delete subscription": "nem sikerült törölni az előfizetést",
+    "failed to load integrations": "nem sikerült betölteni az integrációkat",
   },
   fr: {
     Pause: "Suspendre",
@@ -480,6 +519,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Dernière réponse",
     "Loading delivery log…": "Chargement du journal des livraisons…",
     "Loading integrations…": "Chargement des intégrations…",
+    "failed to update subscription": "impossible de mettre à jour l’abonnement",
+    "failed to delete subscription": "impossible de supprimer l’abonnement",
+    "failed to load integrations": "impossible de charger les intégrations",
   },
   uk: {
     Pause: "Призупинити",
@@ -513,6 +555,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Остання відповідь",
     "Loading delivery log…": "Завантаження журналу доставки…",
     "Loading integrations…": "Завантаження інтеграцій…",
+    "failed to update subscription": "не вдалося оновити підписку",
+    "failed to delete subscription": "не вдалося видалити підписку",
+    "failed to load integrations": "не вдалося завантажити інтеграції",
   },
   tr: {
     Pause: "Duraklat",
@@ -546,6 +591,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Son yanıt",
     "Loading delivery log…": "Teslimat günlüğü yükleniyor…",
     "Loading integrations…": "Entegrasyonlar yükleniyor…",
+    "failed to update subscription": "abonelik güncellenemedi",
+    "failed to delete subscription": "abonelik silinemedi",
+    "failed to load integrations": "entegrasyonlar yüklenemedi",
   },
   th: {
     Pause: "หยุดชั่วคราว",
@@ -579,6 +627,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "การตอบสนองล่าสุด",
     "Loading delivery log…": "กำลังโหลดบันทึกการส่ง…",
     "Loading integrations…": "กำลังโหลดการผสานการทำงาน…",
+    "failed to update subscription": "ไม่สามารถอัปเดตการสมัครสมาชิกได้",
+    "failed to delete subscription": "ไม่สามารถลบการสมัครสมาชิกได้",
+    "failed to load integrations": "ไม่สามารถโหลดการผสานการทำงานได้",
   },
   it: {
     Pause: "Metti in pausa",
@@ -612,6 +663,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Ultima risposta",
     "Loading delivery log…": "Caricamento registro delle consegne…",
     "Loading integrations…": "Caricamento integrazioni…",
+    "failed to update subscription": "impossibile aggiornare l’abbonamento",
+    "failed to delete subscription": "impossibile eliminare l’abbonamento",
+    "failed to load integrations": "impossibile caricare le integrazioni",
   },
   hi: {
     Pause: "रोकें",
@@ -645,6 +699,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "अंतिम प्रतिक्रिया",
     "Loading delivery log…": "डिलीवरी लॉग लोड हो रहा है…",
     "Loading integrations…": "इंटीग्रेशन लोड हो रहे हैं…",
+    "failed to update subscription": "सदस्यता अपडेट नहीं की जा सकी",
+    "failed to delete subscription": "सदस्यता हटाई नहीं जा सकी",
+    "failed to load integrations": "इंटीग्रेशन लोड नहीं किए जा सके",
   },
   ur: {
     Pause: "موقوف کریں",
@@ -678,6 +735,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "آخری جواب",
     "Loading delivery log…": "ترسیل کا لاگ لوڈ ہو رہا ہے…",
     "Loading integrations…": "انٹیگریشنز لوڈ ہو رہی ہیں…",
+    "failed to update subscription": "سبسکرپشن اپ ڈیٹ نہیں ہو سکی",
+    "failed to delete subscription": "سبسکرپشن حذف نہیں ہو سکی",
+    "failed to load integrations": "انٹیگریشنز لوڈ نہیں ہو سکیں",
   },
   bn: {
     Pause: "বিরতি দিন",
@@ -711,6 +771,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "শেষ প্রতিক্রিয়া",
     "Loading delivery log…": "ডেলিভারি লগ লোড হচ্ছে…",
     "Loading integrations…": "ইন্টিগ্রেশন লোড হচ্ছে…",
+    "failed to update subscription": "সাবস্ক্রিপশন আপডেট করা যায়নি",
+    "failed to delete subscription": "সাবস্ক্রিপশন মুছে ফেলা যায়নি",
+    "failed to load integrations": "ইন্টিগ্রেশন লোড করা যায়নি",
   },
 };
 

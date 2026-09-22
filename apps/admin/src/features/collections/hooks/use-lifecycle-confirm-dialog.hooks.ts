@@ -1,6 +1,7 @@
 import { useRef, type RefObject } from "react";
 
-import { LIFECYCLE_COPY, autoFocusCancelForLifecycleOp, type LifecycleConfirmOp } from "../rules";
+import { autoFocusCancelForLifecycleOp, lifecycleCopy, type LifecycleConfirmOp } from "../rules";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useEscapeToCancel } from "./use-escape-to-cancel.hooks";
 import { useFocusTrap } from "@/hooks/use-focus-trap.hooks";
 
@@ -25,13 +26,14 @@ export function useLifecycleConfirmDialog(props: {
   op: LifecycleConfirmOp;
   onCancel: () => void;
 }): LifecycleConfirmDialogController {
+  const locale = useAdminLocale();
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
   useEscapeToCancel(props.onCancel);
   useFocusTrap(dialogRef);
 
   return {
-    copy: LIFECYCLE_COPY[props.op],
+    copy: lifecycleCopy(props.op, locale),
     autoFocusCancel: autoFocusCancelForLifecycleOp(props.op),
     dialogRef,
   };

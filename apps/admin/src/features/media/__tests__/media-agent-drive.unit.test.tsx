@@ -58,6 +58,8 @@ function mediaController(overrides: Partial<MediaController> = {}): MediaControl
     altDraft: "",
     setAltDraft: vi.fn(),
     fileInputRef: { current: null },
+    selectedFileName: "",
+    onFileChange: vi.fn(),
     upload: vi.fn(async () => {}),
     editingId: null,
     setEditingId: vi.fn(),

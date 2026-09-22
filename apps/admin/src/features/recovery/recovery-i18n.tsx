@@ -15,6 +15,8 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const RECOVERY_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Select a restore point from the Restore points tab to begin.": "Selecciona un punto de restauración en la pestaña Puntos de restauración para empezar.",
+    Restore: "Restaurar",
   "Restore points": "Puntos de restauración",
   "Create restore point": "Crear punto de restauración",
   "Failed to create restore point": "No se pudo crear el punto de restauración",
@@ -70,6 +72,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "No se pudo ejecutar la restauración",
   },
   id: {
+    "Select a restore point from the Restore points tab to begin.": "Pilih titik pemulihan dari tab Titik pemulihan untuk memulai.",
+    Restore: "Pulihkan",
   "Restore points": "Titik pemulihan",
   "Create restore point": "Buat titik pemulihan",
   "Failed to create restore point": "Gagal membuat titik pemulihan",
@@ -120,6 +124,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Gagal menjalankan pemulihan",
   },
   de: {
+    "Select a restore point from the Restore points tab to begin.": "Wählen Sie auf der Registerkarte Wiederherstellungspunkte einen Wiederherstellungspunkt aus, um zu beginnen.",
+    Restore: "Wiederherstellen",
   "Restore points": "Wiederherstellungspunkte",
   "Create restore point": "Wiederherstellungspunkt erstellen",
   "Failed to create restore point": "Der Wiederherstellungspunkt konnte nicht erstellt werden",
@@ -170,6 +176,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Die Wiederherstellung konnte nicht ausgeführt werden",
   },
   "zh-CN": {
+    "Select a restore point from the Restore points tab to begin.": "从“还原点”选项卡中选择一个还原点以开始。",
+    Restore: "还原",
   "Restore points": "还原点",
   "Create restore point": "创建还原点",
   "Failed to create restore point": "无法创建还原点",
@@ -220,6 +228,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "无法执行还原",
   },
   "zh-TW": {
+    "Select a restore point from the Restore points tab to begin.": "從「還原點」分頁選取一個還原點以開始。",
+    Restore: "還原",
   "Restore points": "還原點",
   "Create restore point": "建立還原點",
   "Failed to create restore point": "無法建立還原點",
@@ -270,6 +280,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "無法執行還原",
   },
   "pt-BR": {
+    "Select a restore point from the Restore points tab to begin.": "Selecione um ponto de restauração na aba Pontos de restauração para começar.",
+    Restore: "Restaurar",
   "Restore points": "Pontos de restauração",
   "Create restore point": "Criar ponto de restauração",
   "Failed to create restore point": "Falha ao criar o ponto de restauração",
@@ -320,6 +332,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Falha ao executar a restauração",
   },
   ru: {
+    "Select a restore point from the Restore points tab to begin.": "Выберите точку восстановления на вкладке «Точки восстановления», чтобы начать.",
+    Restore: "Восстановить",
   "Restore points": "Точки восстановления",
   "Create restore point": "Создать точку восстановления",
   "Failed to create restore point": "Не удалось создать точку восстановления",
@@ -370,6 +384,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Не удалось выполнить восстановление",
   },
   fa: {
+    "Select a restore point from the Restore points tab to begin.": "برای شروع، یک نقطه بازیابی را از زبانه نقاط بازیابی انتخاب کنید.",
+    Restore: "بازیابی",
   "Restore points": "نقاط بازیابی",
   "Create restore point": "ایجاد نقطه بازیابی",
   "Failed to create restore point": "ایجاد نقطه بازیابی ناموفق بود",
@@ -420,6 +436,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "اجرای بازیابی ناموفق بود",
   },
   ar: {
+    "Select a restore point from the Restore points tab to begin.": "حدّد نقطة استعادة من علامة تبويب نقاط الاستعادة للبدء.",
+    Restore: "استعادة",
   "Restore points": "نقاط الاستعادة",
   "Create restore point": "إنشاء نقطة استعادة",
   "Failed to create restore point": "تعذّر إنشاء نقطة الاستعادة",
@@ -470,6 +488,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "تعذّر تنفيذ الاستعادة",
   },
   ja: {
+    "Select a restore point from the Restore points tab to begin.": "開始するには、復元ポイントタブから復元ポイントを選択してください。",
+    Restore: "復元",
   "Restore points": "復元ポイント",
   "Create restore point": "復元ポイントを作成",
   "Failed to create restore point": "復元ポイントの作成に失敗しました",
@@ -520,6 +540,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "復元の実行に失敗しました",
   },
   ko: {
+    "Select a restore point from the Restore points tab to begin.": "시작하려면 복원 지점 탭에서 복원 지점을 선택하세요.",
+    Restore: "복원",
   "Restore points": "복원 지점",
   "Create restore point": "복원 지점 만들기",
   "Failed to create restore point": "복원 지점을 만들지 못했습니다",
@@ -570,6 +592,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "복원을 실행하지 못했습니다",
   },
   pl: {
+    "Select a restore point from the Restore points tab to begin.": "Aby rozpocząć, wybierz punkt przywracania na karcie Punkty przywracania.",
+    Restore: "Przywróć",
   "Restore points": "Punkty przywracania",
   "Create restore point": "Utwórz punkt przywracania",
   "Failed to create restore point": "Nie udało się utworzyć punktu przywracania",
@@ -620,6 +644,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Nie udało się wykonać przywracania",
   },
   hu: {
+    "Select a restore point from the Restore points tab to begin.": "A kezdéshez válasszon egy visszaállítási pontot a Visszaállítási pontok lapon.",
+    Restore: "Visszaállítás",
   "Restore points": "Visszaállítási pontok",
   "Create restore point": "Visszaállítási pont létrehozása",
   "Failed to create restore point": "Nem sikerült létrehozni a visszaállítási pontot",
@@ -670,6 +696,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Nem sikerült végrehajtani a visszaállítást",
   },
   fr: {
+    "Select a restore point from the Restore points tab to begin.": "Sélectionnez un point de restauration dans l’onglet Points de restauration pour commencer.",
+    Restore: "Restaurer",
   "Restore points": "Points de restauration",
   "Create restore point": "Créer un point de restauration",
   "Failed to create restore point": "Échec de la création du point de restauration",
@@ -720,6 +748,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Échec de l'exécution de la restauration",
   },
   uk: {
+    "Select a restore point from the Restore points tab to begin.": "Щоб почати, виберіть точку відновлення на вкладці «Точки відновлення».",
+    Restore: "Відновити",
   "Restore points": "Точки відновлення",
   "Create restore point": "Створити точку відновлення",
   "Failed to create restore point": "Не вдалося створити точку відновлення",
@@ -770,6 +800,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Не вдалося виконати відновлення",
   },
   tr: {
+    "Select a restore point from the Restore points tab to begin.": "Başlamak için Geri yükleme noktaları sekmesinden bir geri yükleme noktası seçin.",
+    Restore: "Geri yükle",
   "Restore points": "Geri yükleme noktaları",
   "Create restore point": "Geri yükleme noktası oluştur",
   "Failed to create restore point": "Geri yükleme noktası oluşturulamadı",
@@ -820,6 +852,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Geri yükleme çalıştırılamadı",
   },
   th: {
+    "Select a restore point from the Restore points tab to begin.": "เลือกจุดกู้คืนจากแท็บจุดกู้คืนเพื่อเริ่มต้น",
+    Restore: "กู้คืน",
   "Restore points": "จุดกู้คืน",
   "Create restore point": "สร้างจุดกู้คืน",
   "Failed to create restore point": "สร้างจุดกู้คืนไม่สำเร็จ",
@@ -870,6 +904,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "เรียกใช้การกู้คืนไม่สำเร็จ",
   },
   it: {
+    "Select a restore point from the Restore points tab to begin.": "Seleziona un punto di ripristino dalla scheda Punti di ripristino per iniziare.",
+    Restore: "Ripristina",
   "Restore points": "Punti di ripristino",
   "Create restore point": "Crea punto di ripristino",
   "Failed to create restore point": "Impossibile creare il punto di ripristino",
@@ -920,6 +956,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Impossibile eseguire il ripristino",
   },
   hi: {
+    "Select a restore point from the Restore points tab to begin.": "शुरू करने के लिए पुनर्स्थापना बिंदु टैब से एक पुनर्स्थापना बिंदु चुनें।",
+    Restore: "पुनर्स्थापित करें",
   "Restore points": "रीस्टोर पॉइंट",
   "Create restore point": "रीस्टोर पॉइंट बनाएं",
   "Failed to create restore point": "रीस्टोर पॉइंट बनाना विफल रहा",
@@ -970,6 +1008,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "पुनर्स्थापना निष्पादित करना विफल रहा",
   },
   ur: {
+    "Select a restore point from the Restore points tab to begin.": "شروع کرنے کے لیے بحالی پوائنٹس ٹیب سے ایک بحالی پوائنٹ منتخب کریں۔",
+    Restore: "بحال کریں",
   "Restore points": "ری اسٹور پوائنٹس",
   "Create restore point": "ری اسٹور پوائنٹ بنائیں",
   "Failed to create restore point": "ری اسٹور پوائنٹ بنانا ناکام ہوا",
@@ -1020,6 +1060,8 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "بحالی عمل میں لانا ناکام ہوا",
   },
   bn: {
+    "Select a restore point from the Restore points tab to begin.": "শুরু করতে পুনরুদ্ধার পয়েন্ট ট্যাব থেকে একটি পুনরুদ্ধার পয়েন্ট নির্বাচন করুন।",
+    Restore: "পুনরুদ্ধার করুন",
   "Restore points": "রিস্টোর পয়েন্ট",
   "Create restore point": "রিস্টোর পয়েন্ট তৈরি করুন",
   "Failed to create restore point": "রিস্টোর পয়েন্ট তৈরি করা ব্যর্থ হয়েছে",

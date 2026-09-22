@@ -1295,6 +1295,9 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   font-weight: 600; cursor: pointer; transition: background 0.14s;
 }
 .file-input::file-selector-button:hover { background: var(--surface-3); }
+/* Media hides the native input visually and shows a translated <label> as the chooser; keyboard
+   focus still lands on the hidden input, so draw the focus ring on its label. */
+.file-input:focus-visible + label { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 
 .boot-screen { display: grid; place-items: center; height: 100vh; font-size: 1.1rem; color: var(--muted); }
 

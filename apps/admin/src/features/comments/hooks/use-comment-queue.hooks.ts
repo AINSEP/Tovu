@@ -214,7 +214,7 @@ export function useCommentQueue(deps: CommentQueueDependencies): CommentQueueCon
       await port.moderateComment({ commentId: comment.id, action, expectedVersion: comment.version });
       reloadAfterAction();
     } catch (e) {
-      patchRowState(comment.id, { busy: false, error: describeModerationError(e) });
+      patchRowState(comment.id, { busy: false, error: describeModerationError(e, locale) });
     } finally {
       busyRowIdsRef.current.delete(comment.id);
     }

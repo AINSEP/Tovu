@@ -68,6 +68,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "Un registro de contenido comparte la URL de esta página: {title}. Cuál de los dos gana depende del estado de publicación de esta página y de la opción de anulación de ese registro, no solo de este interruptor.",
     "Open {title}": "Abrir {title}",
+    "Not sorted by {columnName}. Activate to sort ascending.": "No ordenado por {columnName}. Actívalo para ordenar de forma ascendente.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Ordenado por {columnName}, ascendente. Actívalo para ordenar de forma descendente.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Ordenado por {columnName}, descendente. Actívalo para ordenar de forma ascendente.",
+    "Not sorted by updated date. Activate to sort newest first.": "No ordenado por fecha de actualización. Actívalo para ordenar de más reciente a más antiguo.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Ordenado por fecha de actualización, de más reciente a más antiguo. Actívalo para ordenar de más antiguo a más reciente.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Ordenado por fecha de actualización, de más antiguo a más reciente. Actívalo para ordenar de más reciente a más antiguo.",
+    "Slug": "Slug",
   },
   id: {
     "Loading pages…": "Memuat halaman…",
@@ -117,6 +124,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "Sebuah catatan konten berbagi URL halaman ini: {title}. Mana yang menang bergantung pada status penerbitan halaman ini dan pilihan penggantian (override) milik catatan itu sendiri, bukan hanya oleh sakelar ini.",
     "Open {title}": "Buka {title}",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Tidak diurutkan menurut {columnName}. Aktifkan untuk mengurutkan naik.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Diurutkan menurut {columnName}, naik. Aktifkan untuk mengurutkan turun.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Diurutkan menurut {columnName}, turun. Aktifkan untuk mengurutkan naik.",
+    "Not sorted by updated date. Activate to sort newest first.": "Tidak diurutkan menurut tanggal pembaruan. Aktifkan untuk mengurutkan dari yang terbaru.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Diurutkan menurut tanggal pembaruan, terbaru dahulu. Aktifkan untuk mengurutkan dari yang terlama.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Diurutkan menurut tanggal pembaruan, terlama dahulu. Aktifkan untuk mengurutkan dari yang terbaru.",
+    "Slug": "Slug",
   },
   de: {
     "Loading pages…": "Seiten werden geladen…",
@@ -166,6 +180,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "Ein Content-Eintrag teilt sich die URL dieser Seite: {title}. Welcher davon gewinnt, hängt vom Veröffentlichungsstatus dieser Seite und der eigenen Override-Entscheidung dieses Eintrags ab, nicht allein von diesem Schalter.",
     "Open {title}": "{title} öffnen",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Nicht nach {columnName} sortiert. Aktivieren, um aufsteigend zu sortieren.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Nach {columnName} sortiert, aufsteigend. Aktivieren, um absteigend zu sortieren.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Nach {columnName} sortiert, absteigend. Aktivieren, um aufsteigend zu sortieren.",
+    "Not sorted by updated date. Activate to sort newest first.": "Nicht nach Aktualisierungsdatum sortiert. Aktivieren, um die neuesten zuerst anzuzeigen.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Nach Aktualisierungsdatum sortiert, neueste zuerst. Aktivieren, um die ältesten zuerst anzuzeigen.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Nach Aktualisierungsdatum sortiert, älteste zuerst. Aktivieren, um die neuesten zuerst anzuzeigen.",
+    "Slug": "Slug",
   },
   "zh-CN": {
     "Loading pages…": "正在加载页面…",
@@ -215,6 +236,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "有一条内容记录与此页面共用同一个网址：{title}。最终由哪一个胜出，取决于此页面的发布状态和该记录自身的覆盖选择，而不仅仅是这个开关。",
     "Open {title}": "打开 {title}",
+    "Not sorted by {columnName}. Activate to sort ascending.": "未按{columnName}排序。激活以升序排序。",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "已按{columnName}升序排序。激活以降序排序。",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "已按{columnName}降序排序。激活以升序排序。",
+    "Not sorted by updated date. Activate to sort newest first.": "未按更新日期排序。激活以按最新优先排序。",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "已按更新日期排序，最新优先。激活以按最早优先排序。",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "已按更新日期排序，最早优先。激活以按最新优先排序。",
+    "Slug": "别名",
   },
   "zh-TW": {
     "Loading pages…": "正在載入頁面…",
@@ -264,6 +292,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "有一筆內容記錄與此頁面共用同一個網址：{title}。最終由哪一個勝出，取決於此頁面的發布狀態和該記錄自身的覆寫選擇，而不只是這個開關。",
     "Open {title}": "開啟 {title}",
+    "Not sorted by {columnName}. Activate to sort ascending.": "未依{columnName}排序。啟用以遞增排序。",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "已依{columnName}遞增排序。啟用以遞減排序。",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "已依{columnName}遞減排序。啟用以遞增排序。",
+    "Not sorted by updated date. Activate to sort newest first.": "未依更新日期排序。啟用以最新優先排序。",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "已依更新日期排序，最新優先。啟用以最舊優先排序。",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "已依更新日期排序，最舊優先。啟用以最新優先排序。",
+    "Slug": "代稱",
   },
   "pt-BR": {
     "Loading pages…": "Carregando páginas…",
@@ -313,6 +348,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "Um registro de conteúdo compartilha a URL desta página: {title}. Qual dos dois vence depende do estado de publicação desta página e da própria escolha de substituição desse registro, não apenas deste botão.",
     "Open {title}": "Abrir {title}",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Não ordenado por {columnName}. Ative para ordenar em ordem crescente.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Ordenado por {columnName}, crescente. Ative para ordenar em ordem decrescente.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Ordenado por {columnName}, decrescente. Ative para ordenar em ordem crescente.",
+    "Not sorted by updated date. Activate to sort newest first.": "Não ordenado por data de atualização. Ative para mostrar os mais recentes primeiro.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Ordenado por data de atualização, mais recentes primeiro. Ative para mostrar os mais antigos primeiro.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Ordenado por data de atualização, mais antigos primeiro. Ative para mostrar os mais recentes primeiro.",
+    "Slug": "Slug",
   },
   ru: {
     "Loading pages…": "Загрузка страниц…",
@@ -362,6 +404,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "Запись контента использует тот же URL, что и эта страница: {title}. Какая из них победит, зависит от статуса публикации этой страницы и собственного выбора переопределения этой записи, а не только от этого переключателя.",
     "Open {title}": "Открыть {title}",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Не отсортировано по столбцу «{columnName}». Активируйте, чтобы отсортировать по возрастанию.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Отсортировано по столбцу «{columnName}», по возрастанию. Активируйте, чтобы отсортировать по убыванию.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Отсортировано по столбцу «{columnName}», по убыванию. Активируйте, чтобы отсортировать по возрастанию.",
+    "Not sorted by updated date. Activate to sort newest first.": "Не отсортировано по дате обновления. Активируйте, чтобы сначала показать новые.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Отсортировано по дате обновления, сначала новые. Активируйте, чтобы сначала показать старые.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Отсортировано по дате обновления, сначала старые. Активируйте, чтобы сначала показать новые.",
+    "Slug": "Ярлык",
   },
   fa: {
     "Loading pages…": "در حال بارگذاری صفحه‌ها…",
@@ -411,6 +460,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "یک رکورد محتوا همین نشانی این صفحه را دارد: {title}. اینکه کدام‌یک برنده می‌شود به وضعیت انتشار این صفحه و انتخاب لغو (override) خودِ آن رکورد بستگی دارد، نه فقط این کلید.",
     "Open {title}": "باز کردن {title}",
+    "Not sorted by {columnName}. Activate to sort ascending.": "بر اساس {columnName} مرتب نشده است. برای مرتب‌سازی صعودی فعال کنید.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "بر اساس {columnName} مرتب شده، صعودی. برای مرتب‌سازی نزولی فعال کنید.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "بر اساس {columnName} مرتب شده، نزولی. برای مرتب‌سازی صعودی فعال کنید.",
+    "Not sorted by updated date. Activate to sort newest first.": "بر اساس تاریخ به‌روزرسانی مرتب نشده است. برای نمایش جدیدترین‌ها در ابتدا فعال کنید.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "بر اساس تاریخ به‌روزرسانی مرتب شده، جدیدترین‌ها در ابتدا. برای نمایش قدیمی‌ترین‌ها در ابتدا فعال کنید.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "بر اساس تاریخ به‌روزرسانی مرتب شده، قدیمی‌ترین‌ها در ابتدا. برای نمایش جدیدترین‌ها در ابتدا فعال کنید.",
+    "Slug": "نامک",
   },
   ar: {
     "Loading pages…": "جارٍ تحميل الصفحات…",
@@ -460,6 +516,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "يشارك سجل محتوى نفس عنوان URL الخاص بهذه الصفحة: {title}. من يفوز يعتمد على حالة نشر هذه الصفحة وخيار التجاوز الخاص بذلك السجل، وليس على هذا المفتاح وحده.",
     "Open {title}": "فتح {title}",
+    "Not sorted by {columnName}. Activate to sort ascending.": "غير مرتّب حسب {columnName}. فعّل للترتيب تصاعديًا.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "مرتّب حسب {columnName}، تصاعديًا. فعّل للترتيب تنازليًا.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "مرتّب حسب {columnName}، تنازليًا. فعّل للترتيب تصاعديًا.",
+    "Not sorted by updated date. Activate to sort newest first.": "غير مرتّب حسب تاريخ التحديث. فعّل لعرض الأحدث أولًا.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "مرتّب حسب تاريخ التحديث، الأحدث أولًا. فعّل لعرض الأقدم أولًا.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "مرتّب حسب تاريخ التحديث، الأقدم أولًا. فعّل لعرض الأحدث أولًا.",
+    "Slug": "الاسم اللطيف",
   },
   ja: {
     "Loading pages…": "ページを読み込み中…",
@@ -509,6 +572,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "コンテンツレコード「{title}」がこのページと同じURLを共有しています。どちらが実際に表示されるかは、このページの公開状態とそのレコード自身の上書き設定によって決まり、このスイッチだけでは決まりません。",
     "Open {title}": "{title} を開く",
+    "Not sorted by {columnName}. Activate to sort ascending.": "{columnName}で並べ替えられていません。有効にすると昇順で並べ替えます。",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "{columnName}で昇順に並べ替え済み。有効にすると降順で並べ替えます。",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "{columnName}で降順に並べ替え済み。有効にすると昇順で並べ替えます。",
+    "Not sorted by updated date. Activate to sort newest first.": "更新日で並べ替えられていません。有効にすると新しい順に並べ替えます。",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "更新日で新しい順に並べ替え済み。有効にすると古い順に並べ替えます。",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "更新日で古い順に並べ替え済み。有効にすると新しい順に並べ替えます。",
+    "Slug": "スラッグ",
   },
   ko: {
     "Loading pages…": "페이지를 불러오는 중…",
@@ -558,6 +628,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "콘텐츠 레코드 “{title}”이(가) 이 페이지와 동일한 URL을 공유합니다. 어느 쪽이 실제로 표시되는지는 이 페이지의 게시 상태와 해당 레코드 자체의 재정의 선택에 따라 달라지며, 이 스위치만으로 결정되지 않습니다.",
     "Open {title}": "{title} 열기",
+    "Not sorted by {columnName}. Activate to sort ascending.": "{columnName} 기준으로 정렬되지 않았습니다. 활성화하면 오름차순으로 정렬합니다.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "{columnName} 기준 오름차순으로 정렬되었습니다. 활성화하면 내림차순으로 정렬합니다.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "{columnName} 기준 내림차순으로 정렬되었습니다. 활성화하면 오름차순으로 정렬합니다.",
+    "Not sorted by updated date. Activate to sort newest first.": "업데이트 날짜 기준으로 정렬되지 않았습니다. 활성화하면 최신순으로 정렬합니다.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "업데이트 날짜 기준 최신순으로 정렬되었습니다. 활성화하면 오래된순으로 정렬합니다.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "업데이트 날짜 기준 오래된순으로 정렬되었습니다. 활성화하면 최신순으로 정렬합니다.",
+    "Slug": "슬러그",
   },
   pl: {
     "Loading pages…": "Wczytywanie stron…",
@@ -607,6 +684,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "Rekord treści współdzieli adres URL z tą stroną: {title}. To, który z nich wygrywa, zależy od stanu publikacji tej strony oraz własnego wyboru zastąpienia tego rekordu, a nie tylko od tego przełącznika.",
     "Open {title}": "Otwórz {title}",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Nieposortowane według kolumny {columnName}. Aktywuj, aby posortować rosnąco.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Posortowane według kolumny {columnName}, rosnąco. Aktywuj, aby posortować malejąco.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Posortowane według kolumny {columnName}, malejąco. Aktywuj, aby posortować rosnąco.",
+    "Not sorted by updated date. Activate to sort newest first.": "Nieposortowane według daty aktualizacji. Aktywuj, aby pokazać najpierw najnowsze.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Posortowane według daty aktualizacji, najpierw najnowsze. Aktywuj, aby pokazać najpierw najstarsze.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Posortowane według daty aktualizacji, najpierw najstarsze. Aktywuj, aby pokazać najpierw najnowsze.",
+    "Slug": "Slug",
   },
   hu: {
     "Loading pages…": "Oldalak betöltése…",
@@ -656,6 +740,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "Egy tartalomrekord osztozik ennek az oldalnak az URL-jén: {title}. Hogy melyik nyer, az az oldal közzétételi állapotától és a rekord saját felülbírálási választásától függ, nem csak ettől a kapcsolótól.",
     "Open {title}": "{title} megnyitása",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Nincs {columnName} szerint rendezve. Aktiválja a növekvő rendezéshez.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "{columnName} szerint rendezve, növekvő sorrendben. Aktiválja a csökkenő rendezéshez.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "{columnName} szerint rendezve, csökkenő sorrendben. Aktiválja a növekvő rendezéshez.",
+    "Not sorted by updated date. Activate to sort newest first.": "Nincs frissítési dátum szerint rendezve. Aktiválja, hogy a legújabbak legyenek elöl.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Frissítési dátum szerint rendezve, a legújabbak elöl. Aktiválja, hogy a legrégebbiek legyenek elöl.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Frissítési dátum szerint rendezve, a legrégebbiek elöl. Aktiválja, hogy a legújabbak legyenek elöl.",
+    "Slug": "Slug",
   },
   fr: {
     "Loading pages…": "Chargement des pages…",
@@ -705,6 +796,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "Un contenu partage l'URL de cette page : {title}. Celui qui l'emporte dépend de l'état de publication de cette page et du choix de remplacement propre à ce contenu, pas uniquement de cet interrupteur.",
     "Open {title}": "Ouvrir {title}",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Non trié par {columnName}. Activez pour trier par ordre croissant.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Trié par {columnName}, ordre croissant. Activez pour trier par ordre décroissant.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Trié par {columnName}, ordre décroissant. Activez pour trier par ordre croissant.",
+    "Not sorted by updated date. Activate to sort newest first.": "Non trié par date de mise à jour. Activez pour afficher les plus récents en premier.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Trié par date de mise à jour, les plus récents en premier. Activez pour afficher les plus anciens en premier.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Trié par date de mise à jour, les plus anciens en premier. Activez pour afficher les plus récents en premier.",
+    "Slug": "Slug",
   },
   uk: {
     "Loading pages…": "Завантаження сторінок…",
@@ -754,6 +852,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "Запис контенту використовує ту саму URL-адресу, що й ця сторінка: {title}. Хто з них переможе, залежить від стану публікації цієї сторінки та власного вибору перевизначення цього запису, а не лише від цього перемикача.",
     "Open {title}": "Відкрити {title}",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Не відсортовано за стовпцем «{columnName}». Активуйте, щоб відсортувати за зростанням.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Відсортовано за стовпцем «{columnName}», за зростанням. Активуйте, щоб відсортувати за спаданням.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Відсортовано за стовпцем «{columnName}», за спаданням. Активуйте, щоб відсортувати за зростанням.",
+    "Not sorted by updated date. Activate to sort newest first.": "Не відсортовано за датою оновлення. Активуйте, щоб спочатку показати нові.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Відсортовано за датою оновлення, спочатку нові. Активуйте, щоб спочатку показати старі.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Відсортовано за датою оновлення, спочатку старі. Активуйте, щоб спочатку показати нові.",
+    "Slug": "Ярлик",
   },
   tr: {
     "Loading pages…": "Sayfalar yükleniyor…",
@@ -803,6 +908,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "Bir içerik kaydı bu sayfayla aynı URL'yi paylaşıyor: {title}. Hangisinin kazanacağı, bu sayfanın yayın durumuna ve o kaydın kendi geçersiz kılma seçimine bağlıdır, yalnızca bu anahtara değil.",
     "Open {title}": "{title} öğesini aç",
+    "Not sorted by {columnName}. Activate to sort ascending.": "{columnName} sütununa göre sıralanmadı. Artan sırada sıralamak için etkinleştirin.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "{columnName} sütununa göre artan sırada sıralandı. Azalan sırada sıralamak için etkinleştirin.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "{columnName} sütununa göre azalan sırada sıralandı. Artan sırada sıralamak için etkinleştirin.",
+    "Not sorted by updated date. Activate to sort newest first.": "Güncellenme tarihine göre sıralanmadı. En yenileri önce göstermek için etkinleştirin.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Güncellenme tarihine göre sıralandı, en yeniler önce. En eskileri önce göstermek için etkinleştirin.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Güncellenme tarihine göre sıralandı, en eskiler önce. En yenileri önce göstermek için etkinleştirin.",
+    "Slug": "Kısa ad",
   },
   th: {
     "Loading pages…": "กำลังโหลดหน้า…",
@@ -852,6 +964,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "มีระเบียนเนื้อหาใช้ URL เดียวกันกับหน้านี้: {title} ฝ่ายใดจะเป็นฝ่ายที่แสดงจริงขึ้นอยู่กับสถานะการเผยแพร่ของหน้านี้และตัวเลือกการแทนที่ของระเบียนนั้นเอง ไม่ใช่แค่สวิตช์นี้เพียงอย่างเดียว",
     "Open {title}": "เปิด {title}",
+    "Not sorted by {columnName}. Activate to sort ascending.": "ไม่ได้เรียงตาม{columnName} เปิดใช้งานเพื่อเรียงจากน้อยไปมาก",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "เรียงตาม{columnName} จากน้อยไปมาก เปิดใช้งานเพื่อเรียงจากมากไปน้อย",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "เรียงตาม{columnName} จากมากไปน้อย เปิดใช้งานเพื่อเรียงจากน้อยไปมาก",
+    "Not sorted by updated date. Activate to sort newest first.": "ไม่ได้เรียงตามวันที่อัปเดต เปิดใช้งานเพื่อเรียงจากใหม่สุดก่อน",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "เรียงตามวันที่อัปเดต ใหม่สุดก่อน เปิดใช้งานเพื่อเรียงจากเก่าสุดก่อน",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "เรียงตามวันที่อัปเดต เก่าสุดก่อน เปิดใช้งานเพื่อเรียงจากใหม่สุดก่อน",
+    "Slug": "Slug",
   },
   it: {
     "Loading pages…": "Caricamento pagine…",
@@ -901,6 +1020,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "Un record di contenuto condivide l'URL di questa pagina: {title}. Chi prevale dipende dallo stato di pubblicazione di questa pagina e dalla scelta di sostituzione propria di quel record, non solo da questo interruttore.",
     "Open {title}": "Apri {title}",
+    "Not sorted by {columnName}. Activate to sort ascending.": "Non ordinato per {columnName}. Attiva per ordinare in modo crescente.",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "Ordinato per {columnName}, in modo crescente. Attiva per ordinare in modo decrescente.",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "Ordinato per {columnName}, in modo decrescente. Attiva per ordinare in modo crescente.",
+    "Not sorted by updated date. Activate to sort newest first.": "Non ordinato per data di aggiornamento. Attiva per mostrare prima i più recenti.",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "Ordinato per data di aggiornamento, prima i più recenti. Attiva per mostrare prima i meno recenti.",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "Ordinato per data di aggiornamento, prima i meno recenti. Attiva per mostrare prima i più recenti.",
+    "Slug": "Slug",
   },
   hi: {
     "Loading pages…": "पेज लोड हो रहे हैं…",
@@ -950,6 +1076,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "एक कंटेंट रिकॉर्ड इस पेज के समान URL साझा करता है: {title}। कौन जीतता है यह इस पेज की प्रकाशन स्थिति और उस रिकॉर्ड की अपनी ओवरराइड पसंद पर निर्भर करता है, केवल इस स्विच पर नहीं।",
     "Open {title}": "{title} खोलें",
+    "Not sorted by {columnName}. Activate to sort ascending.": "{columnName} के अनुसार क्रमबद्ध नहीं है। आरोही क्रम में लगाने के लिए सक्रिय करें।",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "{columnName} के अनुसार आरोही क्रम में क्रमबद्ध। अवरोही क्रम में लगाने के लिए सक्रिय करें।",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "{columnName} के अनुसार अवरोही क्रम में क्रमबद्ध। आरोही क्रम में लगाने के लिए सक्रिय करें।",
+    "Not sorted by updated date. Activate to sort newest first.": "अपडेट की तारीख के अनुसार क्रमबद्ध नहीं है। नवीनतम पहले दिखाने के लिए सक्रिय करें।",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "अपडेट की तारीख के अनुसार क्रमबद्ध, नवीनतम पहले। सबसे पुराने पहले दिखाने के लिए सक्रिय करें।",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "अपडेट की तारीख के अनुसार क्रमबद्ध, सबसे पुराने पहले। नवीनतम पहले दिखाने के लिए सक्रिय करें।",
+    "Slug": "स्लग",
   },
   ur: {
     "Loading pages…": "صفحات لوڈ ہو رہے ہیں…",
@@ -999,6 +1132,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "ایک کنٹینٹ ریکارڈ اس صفحے کے ساتھ وہی URL شیئر کرتا ہے: {title}۔ کون سا حاوی ہوتا ہے یہ اس صفحے کی اشاعت کی حالت اور اس ریکارڈ کے اپنے اوور رائیڈ انتخاب پر منحصر ہے، صرف اس سوئچ پر نہیں۔",
     "Open {title}": "{title} کھولیں",
+    "Not sorted by {columnName}. Activate to sort ascending.": "{columnName} کے مطابق ترتیب نہیں دیا گیا۔ صعودی ترتیب کے لیے فعال کریں۔",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "{columnName} کے مطابق صعودی ترتیب میں۔ نزولی ترتیب کے لیے فعال کریں۔",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "{columnName} کے مطابق نزولی ترتیب میں۔ صعودی ترتیب کے لیے فعال کریں۔",
+    "Not sorted by updated date. Activate to sort newest first.": "اپ ڈیٹ کی تاریخ کے مطابق ترتیب نہیں دیا گیا۔ تازہ ترین پہلے دکھانے کے لیے فعال کریں۔",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "اپ ڈیٹ کی تاریخ کے مطابق ترتیب، تازہ ترین پہلے۔ پرانے پہلے دکھانے کے لیے فعال کریں۔",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "اپ ڈیٹ کی تاریخ کے مطابق ترتیب، پرانے پہلے۔ تازہ ترین پہلے دکھانے کے لیے فعال کریں۔",
+    "Slug": "سلگ",
   },
   bn: {
     "Loading pages…": "পেজ লোড হচ্ছে…",
@@ -1048,6 +1188,13 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
       "একটি কনটেন্ট রেকর্ড এই পৃষ্ঠার সাথে একই URL শেয়ার করে: {title}। কোনটি জিতবে তা নির্ভর করে এই পৃষ্ঠার প্রকাশনার অবস্থা এবং সেই রেকর্ডের নিজস্ব ওভাররাইড পছন্দের উপর, শুধু এই সুইচের উপর নয়।",
     "Open {title}": "{title} খুলুন",
+    "Not sorted by {columnName}. Activate to sort ascending.": "{columnName} অনুযায়ী সাজানো নেই। ঊর্ধ্বক্রমে সাজাতে সক্রিয় করুন।",
+    "Sorted by {columnName}, ascending. Activate to sort descending.": "{columnName} অনুযায়ী ঊর্ধ্বক্রমে সাজানো। অধঃক্রমে সাজাতে সক্রিয় করুন।",
+    "Sorted by {columnName}, descending. Activate to sort ascending.": "{columnName} অনুযায়ী অধঃক্রমে সাজানো। ঊর্ধ্বক্রমে সাজাতে সক্রিয় করুন।",
+    "Not sorted by updated date. Activate to sort newest first.": "হালনাগাদের তারিখ অনুযায়ী সাজানো নেই। নতুনগুলো আগে দেখাতে সক্রিয় করুন।",
+    "Sorted by updated date, newest first. Activate to sort oldest first.": "হালনাগাদের তারিখ অনুযায়ী সাজানো, নতুনগুলো আগে। পুরোনোগুলো আগে দেখাতে সক্রিয় করুন।",
+    "Sorted by updated date, oldest first. Activate to sort newest first.": "হালনাগাদের তারিখ অনুযায়ী সাজানো, পুরোনোগুলো আগে। নতুনগুলো আগে দেখাতে সক্রিয় করুন।",
+    "Slug": "স্লাগ",
   },
 };
 

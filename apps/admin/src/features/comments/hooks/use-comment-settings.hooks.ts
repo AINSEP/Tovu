@@ -109,7 +109,7 @@ export function useCommentSettings(canConfigure: boolean, deps: CommentSettingsD
 
     // REQ-09: client-side validate spamAutoRejectScore before the network call — mirrors the
     // backend's own `validateCommentsSettingsPatch` bound (`src/comments/settings.ts`).
-    const validation = validateSettingsPatch(patch);
+    const validation = validateSettingsPatch(patch, locale);
     if (validation) {
       setValidationError(validation);
       return;

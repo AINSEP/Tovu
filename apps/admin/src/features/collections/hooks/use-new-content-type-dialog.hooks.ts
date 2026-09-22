@@ -111,7 +111,7 @@ export function useNewContentTypeDialog(
     e.preventDefault();
     setValidationError(null);
 
-    const draftError = validateNewContentTypeDraft({ key, label, fields });
+    const draftError = validateNewContentTypeDraft({ key, label, fields }, locale);
     if (draftError) {
       setValidationError(draftError);
       return;

@@ -213,22 +213,22 @@ describe("visibleRedirectsError", () => {
 
 describe("parseImportPayload", () => {
   it("rejects invalid JSON with 'Not valid JSON.'", () => {
-    expect(parseImportPayload("{not json")).toEqual({ ok: false, error: "Not valid JSON." });
+    expect(parseImportPayload("{not json", (key) => key)).toEqual({ ok: false, error: "Not valid JSON." });
   });
 
   it("rejects valid JSON that is not an array", () => {
-    expect(parseImportPayload('{"a":1}')).toEqual({ ok: false, error: "Must be a JSON array of rule objects." });
-    expect(parseImportPayload('"just a string"')).toEqual({ ok: false, error: "Must be a JSON array of rule objects." });
-    expect(parseImportPayload("42")).toEqual({ ok: false, error: "Must be a JSON array of rule objects." });
+    expect(parseImportPayload('{"a":1}', (key) => key)).toEqual({ ok: false, error: "Must be a JSON array of rule objects." });
+    expect(parseImportPayload('"just a string"', (key) => key)).toEqual({ ok: false, error: "Must be a JSON array of rule objects." });
+    expect(parseImportPayload("42", (key) => key)).toEqual({ ok: false, error: "Must be a JSON array of rule objects." });
   });
 
   it("accepts an empty array", () => {
-    expect(parseImportPayload("[]")).toEqual({ ok: true, rules: [] });
+    expect(parseImportPayload("[]", (key) => key)).toEqual({ ok: true, rules: [] });
   });
 
   it("accepts a well-shaped array without validating item contents (server is the real validator)", () => {
     const raw = JSON.stringify([{ matchType: "exact", fromPattern: "/a", toTarget: "/b", statusCode: 301 }]);
-    expect(parseImportPayload(raw)).toEqual({
+    expect(parseImportPayload(raw, (key) => key)).toEqual({
       ok: true,
       rules: [{ matchType: "exact", fromPattern: "/a", toTarget: "/b", statusCode: 301 }],
     });

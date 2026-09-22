@@ -19,6 +19,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
+    Operations: "Operaciones",
     "Source Control": "Control de código fuente",
     Providers: "Proveedores",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -49,6 +50,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'Necesita un token de API de Bitbucket limitado solo al acceso al repositorio (los alcances "read:repository:bitbucket" y "write:repository:bitbucket"), más el nombre de usuario de Bitbucket al que pertenece — Bitbucket autentica el par, no el token por sí solo.',
   },
   id: {
+    Operations: "Operasi",
     "Source Control": "Kontrol Kode Sumber",
     Providers: "Penyedia",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -79,6 +81,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'Memerlukan token API Bitbucket yang dibatasi hanya untuk akses repositori (cakupan "read:repository:bitbucket" dan "write:repository:bitbucket"), ditambah nama pengguna Bitbucket tempat token ini berasal — Bitbucket mengautentikasi pasangan ini, bukan hanya tokennya.',
   },
   de: {
+    Operations: "Vorgänge",
     "Source Control": "Quellcodeverwaltung",
     Providers: "Anbieter",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -109,6 +112,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'Benötigt ein Bitbucket-API-Token, das ausschließlich auf Repository-Zugriff beschränkt ist (die Bereiche "read:repository:bitbucket" und "write:repository:bitbucket"), plus den Bitbucket-Benutzernamen, zu dem es gehört — Bitbucket authentifiziert das Paar, nicht nur das Token.',
   },
   "zh-CN": {
+    Operations: "操作",
     "Source Control": "源代码管理",
     Providers: "提供商",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -138,6 +142,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       '需要一个仅限仓库访问的 Bitbucket API 令牌（"read:repository:bitbucket" 和 "write:repository:bitbucket" 范围），以及其所属的 Bitbucket 用户名——Bitbucket 验证的是这一对信息，而不仅仅是令牌本身。',
   },
   "zh-TW": {
+    Operations: "操作",
     "Source Control": "原始碼管理",
     Providers: "供應商",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -167,6 +172,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       '需要僅限儲存庫存取的 Bitbucket API 權杖（"read:repository:bitbucket" 與 "write:repository:bitbucket" 範圍），以及其所屬的 Bitbucket 使用者名稱——Bitbucket 驗證的是這一對資訊，而非僅是權杖本身。',
   },
   "pt-BR": {
+    Operations: "Operações",
     "Source Control": "Controle de código-fonte",
     Providers: "Provedores",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -197,6 +203,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'Requer um token de API do Bitbucket restrito apenas ao acesso de repositório (os escopos "read:repository:bitbucket" e "write:repository:bitbucket"), além do nome de usuário do Bitbucket ao qual pertence — o Bitbucket autentica o par, não apenas o token.',
   },
   ru: {
+    Operations: "Операции",
     "Source Control": "Управление исходным кодом",
     Providers: "Провайдеры",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -227,6 +234,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'Требуется токен API Bitbucket, ограниченный только доступом к репозиторию (области "read:repository:bitbucket" и "write:repository:bitbucket"), а также имя пользователя Bitbucket, которому он принадлежит — Bitbucket проверяет именно эту пару, а не только токен.',
   },
   fa: {
+    Operations: "عملیات",
     "Source Control": "کنترل کد منبع",
     Providers: "ارائه‌دهندگان",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -257,6 +265,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'به یک توکن API بیت‌باکت نیاز دارد که فقط به دسترسی مخزن محدود شده (محدوده‌های "read:repository:bitbucket" و "write:repository:bitbucket")، به‌همراه نام کاربری Bitbucket که به آن تعلق دارد — Bitbucket این جفت را احراز هویت می‌کند، نه فقط توکن را.',
   },
   ar: {
+    Operations: "العمليات",
     "Source Control": "إدارة الشيفرة المصدرية",
     Providers: "المزوّدون",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -287,6 +296,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'يتطلب رمز API من Bitbucket مقصورًا على الوصول إلى المستودع فقط (نطاقا "read:repository:bitbucket" و"write:repository:bitbucket")، إضافةً إلى اسم مستخدم Bitbucket الذي ينتمي إليه — يتحقق Bitbucket من هذا الزوج معًا، وليس من الرمز وحده.',
   },
   ja: {
+    Operations: "操作",
     "Source Control": "ソースコード管理",
     Providers: "プロバイダー",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -316,6 +326,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'リポジトリへのアクセスのみに限定された Bitbucket API トークン（"read:repository:bitbucket" と "write:repository:bitbucket" スコープ）と、それが属する Bitbucket のユーザー名が必要です — Bitbucket はトークン単体ではなく、この組み合わせを認証します。',
   },
   ko: {
+    Operations: "작업",
     "Source Control": "소스 코드 관리",
     Providers: "제공업체",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -345,6 +356,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       '저장소 접근으로만 범위가 제한된 Bitbucket API 토큰("read:repository:bitbucket" 및 "write:repository:bitbucket" 범위)과, 그것이 속한 Bitbucket 사용자 이름이 필요합니다 — Bitbucket은 토큰 단독이 아니라 이 조합을 인증합니다.',
   },
   pl: {
+    Operations: "Operacje",
     "Source Control": "Kontrola kodu źródłowego",
     Providers: "Dostawcy",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -375,6 +387,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'Wymaga tokenu API Bitbucket ograniczonego wyłącznie do dostępu do repozytorium (zakresy "read:repository:bitbucket" i "write:repository:bitbucket"), a także nazwy użytkownika Bitbucket, do którego należy — Bitbucket uwierzytelnia tę parę, a nie sam token.',
   },
   hu: {
+    Operations: "Műveletek",
     "Source Control": "Forráskód-kezelés",
     Providers: "Szolgáltatók",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -405,6 +418,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'Kizárólag tárolóhozzáférésre korlátozott Bitbucket API-token szükséges ("read:repository:bitbucket" és "write:repository:bitbucket" hatókörök), valamint a Bitbucket felhasználónév, amelyhez tartozik — a Bitbucket ezt a párost hitelesíti, nem csak a tokent.',
   },
   fr: {
+    Operations: "Opérations",
     "Source Control": "Gestion du code source",
     Providers: "Fournisseurs",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -435,6 +449,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'Nécessite un jeton API Bitbucket limité au seul accès aux dépôts (les champs "read:repository:bitbucket" et "write:repository:bitbucket"), ainsi que le nom d\'utilisateur Bitbucket auquel il appartient — Bitbucket authentifie cette paire, pas seulement le jeton.',
   },
   uk: {
+    Operations: "Операції",
     "Source Control": "Керування вихідним кодом",
     Providers: "Провайдери",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -465,6 +480,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'Потрібен токен API Bitbucket, обмежений лише доступом до репозиторію (області "read:repository:bitbucket" та "write:repository:bitbucket"), а також ім\'я користувача Bitbucket, якому він належить — Bitbucket перевіряє саме цю пару, а не лише токен.',
   },
   tr: {
+    Operations: "İşlemler",
     "Source Control": "Kaynak kod yönetimi",
     Providers: "Sağlayıcılar",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -495,6 +511,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'Yalnızca depo erişimiyle sınırlı bir Bitbucket API belirteci ("read:repository:bitbucket" ve "write:repository:bitbucket" kapsamları) ile ait olduğu Bitbucket kullanıcı adı gerekir — Bitbucket yalnızca belirteci değil, bu ikiliyi doğrular.',
   },
   th: {
+    Operations: "การดำเนินการ",
     "Source Control": "การจัดการซอร์สโค้ด",
     Providers: "ผู้ให้บริการ",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -525,6 +542,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'ต้องใช้โทเคน API ของ Bitbucket ที่จำกัดเฉพาะการเข้าถึงที่เก็บโค้ด (ขอบเขต "read:repository:bitbucket" และ "write:repository:bitbucket") พร้อมชื่อผู้ใช้ Bitbucket ที่เป็นเจ้าของ — Bitbucket ตรวจสอบสิทธิ์จากคู่ข้อมูลนี้ ไม่ใช่โทเคนเพียงอย่างเดียว',
   },
   it: {
+    Operations: "Operazioni",
     "Source Control": "Controllo del codice sorgente",
     Providers: "Fornitori",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -555,6 +573,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'Richiede un token API di Bitbucket limitato al solo accesso al repository (gli ambiti "read:repository:bitbucket" e "write:repository:bitbucket"), oltre al nome utente Bitbucket a cui appartiene — Bitbucket autentica la coppia, non solo il token.',
   },
   hi: {
+    Operations: "संचालन",
     "Source Control": "स्रोत कोड नियंत्रण",
     Providers: "प्रदाता",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -585,6 +604,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'इसके लिए केवल रिपॉज़िटरी एक्सेस तक सीमित एक Bitbucket API टोकन ("read:repository:bitbucket" और "write:repository:bitbucket" स्कोप), साथ ही वह Bitbucket उपयोगकर्ता नाम चाहिए जिससे यह संबंधित है — Bitbucket केवल टोकन को नहीं, बल्कि इस जोड़ी को प्रमाणित करता है।',
   },
   ur: {
+    Operations: "عملیات",
     "Source Control": "سورس کوڈ کنٹرول",
     Providers: "فراہم کنندگان",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -615,6 +635,7 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
       'اس کے لیے صرف ریپوزٹری تک رسائی محدود کردہ Bitbucket API ٹوکن ("read:repository:bitbucket" اور "write:repository:bitbucket" اسکوپس)، اور وہ Bitbucket صارف نام درکار ہے جس سے یہ تعلق رکھتا ہے — Bitbucket صرف ٹوکن کی نہیں بلکہ اس جوڑے کی توثیق کرتا ہے۔',
   },
   bn: {
+    Operations: "কার্যক্রম",
     "Source Control": "সোর্স কোড নিয়ন্ত্রণ",
     Providers: "প্রদানকারী",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":

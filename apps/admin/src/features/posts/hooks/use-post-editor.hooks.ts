@@ -429,9 +429,13 @@ function formatSaveSuccessMessage(statusOverride: "draft" | "published" | undefi
  * operator hears "publish failed" rather than the generic "save failed" when the Publish button is
  * what triggered this call.
  */
-function formatSaveErrorMessage(error: unknown, statusOverride: "draft" | "published" | undefined): string {
+function formatSaveErrorMessage(
+  error: unknown,
+  statusOverride: "draft" | "published" | undefined,
+  t: Translate,
+): string {
   if (error instanceof Error) return error.message;
-  return statusOverride === "published" ? "publish failed" : "save failed";
+  return t(statusOverride === "published" ? "publish failed" : "save failed");
 }
 
 /**
@@ -639,7 +643,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // names (`is-empty`/`is-editor-empty`) and data attribute (`data-placeholder`) kept as-is
       // rather than renamed via `.configure()`, since `styles.css`'s `.editor-body .is-empty::before`
       // rule (2026-08-11) targets them directly.
-      Placeholder.configure({ placeholder: "Start writing…" }),
+      Placeholder.configure({ placeholder: t("Start writing…") }),
       CharacterCount,
       // Focus: REMOVED 2026-08-12, the same day it was added as a "low-priority free extra". Its
       // `.has-focus` decoration rendered a left rule on the focused block; the owner saw it live and
@@ -953,7 +957,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         setSaveConflict(conflict);
         return;
       }
-      setError(formatSaveErrorMessage(e, statusOverride));
+      setError(formatSaveErrorMessage(e, statusOverride, t));
     } finally {
       // Same generation check as the two branches above: only the call that is still current should
       // flip the shared `saving` flag back off, or an older call's own settlement could briefly
