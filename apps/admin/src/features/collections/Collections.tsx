@@ -110,7 +110,7 @@ function ContentTypeFieldFieldset({
         />
         {t("Required")}
       </label>
-      <label className="form-checkbox-field" title="Adds a database index; keep this list small.">
+      <label className="form-checkbox-field" title={t("Adds a database index; keep this list small.")}>
         <input
           type="checkbox"
           checked={f.queryable}
@@ -185,7 +185,7 @@ function NewContentTypeDialog({
             id="ct-label"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="e.g. Recipe"
+            placeholder={t("e.g. Recipe")}
             autoFocus
             {...agentHandle("new-content-type-label", { role: "field", label: "This content type's display name" })}
           />
@@ -217,7 +217,7 @@ function NewContentTypeDialog({
               onUpdateField={updateField}
               onRemoveField={removeField}
               showRemoveButton={fields.length > 1}
-              removeButtonLabel="Remove this field from the new content type"
+              removeButtonLabel={t("Remove this field from the new content type")}
               t={t}
             />
           ))}
@@ -319,7 +319,7 @@ function EditFieldsDialog({
               onUpdateField={updateField}
               onRemoveField={removeField}
               showRemoveButton={true}
-              removeButtonLabel="Remove this field from this content type"
+              removeButtonLabel={t("Remove this field from this content type")}
               t={t}
             />
           ))}
@@ -513,7 +513,7 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
   } = useCollectionsHook();
 
   if (error && !types) return <div className="notice error">{error}</div>;
-  if (!types) return <div className="notice">Loading content types…</div>;
+  if (!types) return <div className="notice">{t("Loading content types…")}</div>;
 
   // Content type keys are stable and unique (the server's own primary key for this resource), so
   // they disambiguate one row's entries link from another's — same reasoning as every other list

@@ -403,8 +403,13 @@ function EntryPageActions(props: {
  * entry's slug is an editable field. Split out of `CollectionEntryEditor` alongside the fields
  * section below — both are self-contained "does this thing exist yet" branches that don't need
  * anything else in the parent's scope. */
-function EntrySlugField(props: { entry: { slug: string } | null | undefined; slug: string; onSlugChange: (value: string) => void }) {
-  const { entry, slug, onSlugChange } = props;
+function EntrySlugField(props: {
+  entry: { slug: string } | null | undefined;
+  slug: string;
+  onSlugChange: (value: string) => void;
+  t: (key: string) => string;
+}) {
+  const { entry, slug, onSlugChange, t } = props;
   return (
     <div className="editor-slug">
       /{" "}
@@ -412,7 +417,7 @@ function EntrySlugField(props: { entry: { slug: string } | null | undefined; slu
         <span>{entry.slug}</span>
       ) : (
         <label className="a11y-label-wrap">
-          <span className="visually-hidden">Entry slug</span>
+          <span className="visually-hidden">{t("Entry slug")}</span>
           <input
             value={slug}
             onChange={(e) => onSlugChange(e.target.value)}
@@ -516,9 +521,9 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
   } = useCollectionEntryEditorHook({ contentTypeKey: props.contentTypeKey, entryId: props.entryId });
 
   if (loadError) return <div className="notice error">{loadError}</div>;
-  if (!loaded || contentType === undefined) return <div className="notice">Loading entry…</div>;
-  if (!contentType) return <div className="notice error">Unknown content type "{props.contentTypeKey}".</div>;
-  if (props.entryId && !entry) return <div className="notice error">Entry not found.</div>;
+  if (!loaded || contentType === undefined) return <div className="notice">{t("Loading entry…")}</div>;
+  if (!contentType) return <div className="notice error">{t('Unknown content type "{contentTypeKey}".').replace("{contentTypeKey}", props.contentTypeKey)}</div>;
+  if (props.entryId && !entry) return <div className="notice error">{t("Entry not found.")}</div>;
 
   return (
     <div className="page">
@@ -563,13 +568,13 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
           {...agentHandle("entry-title", { role: "field", label: "This entry's title" })}
         />
       </label>
-      <EntrySlugField entry={entry} slug={slug} onSlugChange={setSlug} />
+      <EntrySlugField entry={entry} slug={slug} onSlugChange={setSlug} t={t} />
 
       <div
         className="editor-shell"
         {...agentHandle("entry-editor-shell", { role: "region", label: "Formatting toolbar and the entry body editor" })}
       >
-        <div className="editor-toolbar" role="toolbar" aria-label="Formatting">
+        <div className="editor-toolbar" role="toolbar" aria-label={t("Formatting")}>
           <div className="grp">
             <WidgetEmbedInsertControl editor={editor} agentHandle="entry-insert-widget" />
           </div>

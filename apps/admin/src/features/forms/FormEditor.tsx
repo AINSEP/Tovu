@@ -120,12 +120,11 @@ function FieldAttributesDialog({
             collapsed view ends after the Tailwind example, on a complete sentence. The
             attribute-name `<datalist>` below already communicates the allowlist implicitly by only
             offering valid names, so this paragraph is reinforcement, not the sole channel. */}
-        <SeeMore lines={2} textClassName="field-attrs-hint" toggleAriaLabel="See more about field attributes">
-          Add CSS classes and HTML attributes to this field&rsquo;s input. Classes are unrestricted — Tailwind
-          utility classes like <code>md:col-span-2</code> or <code>w-1/2</code> work as expected. Attribute names
-          are limited to a safe allowlist (<code>aria-*</code>, <code>data-*</code>, and a fixed list of
-          layout/behavior attributes) — anything else, including event handlers like <code>onclick</code>, is
-          rejected.
+        <SeeMore lines={2} textClassName="field-attrs-hint" toggleAriaLabel={t("See more about field attributes")}>
+          {t("Add CSS classes and HTML attributes to this field’s input. Classes are unrestricted — Tailwind utility classes like ")}
+          <code>md:col-span-2</code> {t("or ")}<code>w-1/2</code>{t(" work as expected. Attribute names are limited to a safe allowlist (")}
+          <code>aria-*</code>{t(", ")}<code>data-*</code>{t(", and a fixed list of layout/behavior attributes) — anything else, including event handlers like ")}
+          <code>onclick</code>{t(", is rejected.")}
         </SeeMore>
 
         <div className="field">
@@ -153,7 +152,7 @@ function FieldAttributesDialog({
           </datalist>
           {rows.map((row, index) => (
             <fieldset key={row._rowId} className="collections-field-row">
-              <legend>Attribute {index + 1}</legend>
+              <legend>{t("Attribute")} {index + 1}</legend>
               <div className="field">
                 <label className="field-label" htmlFor={`field-attrs-name-${row._rowId}`}>
                   {t("Name")}
@@ -177,7 +176,7 @@ function FieldAttributesDialog({
                 <input
                   id={`field-attrs-value-${row._rowId}`}
                   value={row.value}
-                  placeholder="e.g. Enter your work email"
+                  placeholder={t("e.g. Enter your work email")}
                   onChange={(e) => updateRow(row._rowId, { value: e.target.value })}
                   {...agentHandle(`${attrRowHandles[index]}-value`, {
                     role: "field",
@@ -428,7 +427,7 @@ function FormFieldsEditor({
                   <button
                     type="button"
                     disabled={isExisting}
-                    title={isExisting ? "Existing fields cannot be removed once created" : undefined}
+                    title={isExisting ? t("Existing fields cannot be removed once created") : undefined}
                     onClick={() => removeField(index)}
                     {...agentHandle(`${base}-remove`, {
                       role: "button",
@@ -499,7 +498,7 @@ function FormSubmissionDetail({
   });
 
   if (error && !submission) return <div className="notice error">{error}</div>;
-  if (!submission) return <div className="notice">Loading submission…</div>;
+  if (!submission) return <div className="notice">{t("Loading submission…")}</div>;
 
   return (
     // `form-submission-detail` (`styles/forms.css`) — the back button, table, and Delete button
@@ -593,7 +592,7 @@ function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissi
   }
 
   if (error && !submissions) return <div className="notice error">{error}</div>;
-  if (!submissions) return <div className="notice">Loading submissions…</div>;
+  if (!submissions) return <div className="notice">{t("Loading submissions…")}</div>;
   if (submissions.length === 0) return <div className="empty-state">{t("No submissions yet.")}</div>;
 
   // Submission ids are stable and unique, so they're what disambiguates one row's "View" button
@@ -853,7 +852,7 @@ function FormEditorTabStrip(props: {
   if (!showTabs) return null;
 
   return (
-    <div className="form-tabs" role="tablist" aria-label="Form sections" onKeyDown={onTabsKeyDown}>
+    <div className="form-tabs" role="tablist" aria-label={t("Form sections")} onKeyDown={onTabsKeyDown}>
       {FORM_TABS.map((formTab, index) => (
         <button
           key={formTab.id}
@@ -936,7 +935,7 @@ export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor
     t,
   } = useFormEditorHook({ formId, tab });
 
-  if (!isNew && !form && !error) return <div className="notice">Loading form…</div>;
+  if (!isNew && !form && !error) return <div className="notice">{t("Loading form…")}</div>;
   // Previously this was the ONLY guard, and it only covers the pre-error case — once the load
   // failed and set `error`, `!error` here goes false and rendering fell through to the full,
   // empty, live-saveable editor below (audit blocker, exec summary #3: a bogus form id showed

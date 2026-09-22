@@ -45,7 +45,7 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
   const { forms, error, rowSavingId, toggleStatus, pendingDelete, setPendingDelete, removeForm, t } = useFormsListHook();
 
   if (error && !forms) return <div className="notice error">{error}</div>;
-  if (!forms) return <div className="notice">Loading forms…</div>;
+  if (!forms) return <div className="notice">{t("Loading forms…")}</div>;
 
   // Form ids are stable and unique, so they disambiguate one row's edit link from another's —
   // same reasoning as every other list on this workstream. Each row's "Actions" menu (Edit/Disable/
