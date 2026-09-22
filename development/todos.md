@@ -50,7 +50,9 @@ needs a Jini publish + dist rebuild, not just a Tovu commit. That is the real pr
 **Production write:** none. Code-only, ships on the next deploy. It stops recurrence; it does NOT clean the two
 existing production rows — those need their own decision.
 
-**Related, separate UX defects found alongside it (not yet actioned, owner call):**
+**DONE 2026-09-22: `be7c233d6`; `apps/admin/src/features/widgets/WidgetsLibrary.tsx` now carries `skippedIds` and a "Show ids" disclosure.**
+
+**Related, separate UX defects found alongside it (historical notes):**
 - The banner copy. "2 rows could not be displayed", rendered directly above a table, reads as "2 rows are missing from
   this list". The true statement is "2 widget records in this workspace could not be read at all."
   (`apps/admin/src/features/widgets/WidgetsLibrary.tsx:45-51`.)
@@ -286,9 +288,8 @@ detachment or run-state checkpointing. Tracked separately.
 
 ## Desktop shell: one window, project tabs — match Tovu Runner (owner directive, 2026-09-06)
 
-**DONE 2026-09-06** — `204e01a7` (backend/IPC: `openSiteServer` and `openWindow` removed, `start` is
-a real handler) and `9e77a778` (renderer: `TabStrip`, `ProjectWorkspace` with an embedded
-`<webview>`, `useExpandedMode`). Projects open as a tab in one window, not a new `BrowserWindow`.
+**DONE 2026-09-22: `204e01a7b`, `9e77a7784`; `apps/desktop/src/renderer/App.tsx` has `TabStrip` and
+`SiteWorkspace` (not the stale `ProjectWorkspace` name).** Projects open as a tab in one window, not a new `BrowserWindow`.
 
 **READ THIS BEFORE "FIXING" IT BACK.** This deliberately REVERSES `868cfe72`, a same-day ruling from
 13:43 on 2026-09-06 that had switched to a `BrowserWindow` per project. The port manifest and
@@ -348,8 +349,7 @@ Projects grid empty (see the desktop-registry notes) — being fixed separately.
 
 ## Missing tool: import a remote image URL into the media library (found live, 2026-09-06)
 
-**SHIPPED 2026-09-06 — `media_import_from_url`.** `features/media-import/` (`agent-tools.ts`,
-`fetch-image.ts`, `tool-registrations.ts`), commits `b1ce2d0a` / `dd187ece` / `a346b3ec` / `24bdafc1`.
+**DONE 2026-09-22: `apps/website/src/features/media-import/{agent-tools.ts,fetch-image.ts,tool-registrations.ts}`, wired in `server/runtime/composition/{app.ts,deps.ts}`.** `media_import_from_url` is shipped.
 Takes an https URL plus optional `filename`/`alt`/`caption`/`credit`, fetches server-side, and writes
 through the SAME `uploadMedia` a human upload uses — an imported asset is indistinguishable from an
 uploaded or generated one.
@@ -388,9 +388,9 @@ image provider is configured at all, so that tool has nothing to call.
 
 ## Surface federated-MCP tool refusals in the UI, not only the daemon log (found live, 2026-09-06)
 
-**SHIPPED 2026-09-06 — both halves.** Model: `0d9e41d5`. Operator: `37ac1943`.
+**DONE 2026-09-22: `37ac1943c`, `0d9e41d5c`; `apps/admin/src/features/settings/ExternalMcpAdmissionsBanner.tsx`. The delegated-call `INTERNAL_ERROR` collapse is also closed by `c5d10181a`, `d22319d62`, and `apps/website/src/assistant/federated-refusal-diagnosis.ts`.**
 
-**The stated cause was half wrong, and finding out changed the fix.** Refusals did not reach only the
+**Historical investigation:** the stated cause was half wrong, and finding out changed the fix. Refusals did not reach only the
 log. The chain already existed end to end — `bootstrap.ts` -> `GET /api/federation/admissions` ->
 the admin proxy -> `api.getExternalMcpAdmissions()` — and stopped ONE function call short of a
 screen: nothing in `apps/admin/src` ever called that client. This is Phase 4 of
@@ -418,10 +418,9 @@ security mechanism than a restart. The banner therefore offers the existing
 `POST .../system/assistant-daemon/restart` as a button, hidden with the already-translated
 explanation when the principal lacks `system.write`.
 
-**Related, still open:** a refused or blocked tool call surfaces to the model as a bare
-`INTERNAL_ERROR: an internal error occurred` on the delegated-tool path — observed live with an SSRF
-loopback refusal, where the real reason exists in the run detail and collapses to a generic 500. Same
-failure shape as the bug above, different code path, unowned.
+**DONE 2026-09-22:** the related delegated-tool call path no longer collapses refusals to a bare
+`INTERNAL_ERROR`; see `apps/website/src/assistant/federated-refusal-diagnosis.ts` (`c5d10181a`,
+`d22319d62`).
 
 `mcp-federation/trust.ts` refuses a remote tool that declares `readOnlyHint: false` unless the
 operator has ALSO named it in `writeAllowedToolNames` — a second list beyond `allowedToolNames`.
@@ -485,7 +484,7 @@ feature. Don't build a vendor-specific widget. Verified 2026-09-21 by a read-onl
 - **Gap 1: no widget can hold a third-party embed.** `WidgetTypeKey` is a closed union of 5
   (`features/widgets/types.ts:63`). `text` escapes its body, and no kind emits a script or iframe. Needed: ONE generic
   embed widget type (a vendor snippet or URL, rendered through a host allowlist the way the YouTube node is at
-  `render.ts:1394-1408`), not one type per vendor.
+  `features/widgets/resolver-service.ts` / `features/theme/static-render.ts`), not one type per vendor.
 - **Gap 2: plugins can't add widget types or renderers.** Resolvers and renderers are closed maps
   (`features/widgets/resolvers/index.ts:56`, `render.ts:2485`, `resolver-service.ts:1074`). The only plugin-runtime hook
   is `content.entry.beforeSave`, and `features/widgets/registry.ts:5-12` defers plugin widget types to ADR-024 Tier-2/3.
@@ -634,20 +633,27 @@ Three Fable reviewers (architecture/DI, excess-and-dead-code, bugs) ran twice: *
 
 ### Confirmed defects, found and NOT fixed — admin
 
-- [ ] **Four `<button>` nested inside `<a href>`** — `apps/admin/src/features/collections/CollectionEntries.tsx:74`,
+**DONE 2026-09-22:** button-in-anchor ×4 is fixed; `AccessTokensTab.tsx` stops propagation; push-to-talk uses
+`cancelling`; the settlement-guard helper remains partial, with 3 files left: `use-static-publish`, `use-roles`,
+`use-users` (checked 2026-09-22 and intentionally NOT migrated because their generation guards don't fit
+`useSettlementGeneration()`'s contract: the generation is minted by a different call than the one that reads it).
+
+- [x] **Four `<button>` nested inside `<a href>`** — `apps/admin/src/features/collections/CollectionEntries.tsx:74`,
       `collections/CollectionEntryEditor.tsx:361`, `forms/FormsList.tsx:72`, `forms/FormEditor.tsx:971`.
       Blocked on a CSS fix (making the `.btn-*` classes work on a bare `<a>`). **That CSS fix is
       unowned:** `Collections.tsx`'s comment says it is "in flight elsewhere", but two sessions have
       jointly established it belongs to nobody — **the comment is stale and should be corrected when
       someone picks this up.** Fix the CSS first, then the four call sites.
-- [ ] **`security/AccessTokensTab.tsx`'s `TokenRowDefaultIndicator`** — "Make default" is a `<button>`
+- [x] **`security/AccessTokensTab.tsx`'s `TokenRowDefaultIndicator`** — "Make default" is a `<button>`
       inside a `<summary>` with no `stopPropagation`, so clicking it also toggles the row open/closed.
       In-repo fix pattern to copy: `deployment/StaticSiteTab.tsx`'s `CredentialVerifyAction`.
       **Awaiting Leona's call.**
 - [ ] **11 hand-rolled `*GenerationRef = useRef(0)` stale-settlement guards across 10 admin hook
-      files**, with no shared helper. Candidate: a `useSettlementGeneration()` helper adopted on next
-      touch rather than a sweep.
-- [ ] **Push-to-talk leaves the mic live** when the key is released during the browser permission
+      files**, with no shared helper. **PARTLY DONE 2026-09-22:** 3 files left: `use-static-publish`,
+      `use-roles`, `use-users` (checked 2026-09-22 and intentionally NOT migrated because their generation
+      guards don't fit `useSettlementGeneration()`'s contract: the generation is minted by a different call than
+      the one that reads it).
+- [x] **Push-to-talk leaves the mic live** when the key is released during the browser permission
       prompt — `use-push-to-talk.hooks.ts:150-151` no-ops unless already `recording`, and
       `push-to-talk-state.hooks.ts:50-59` has no `requesting-mic:stop`. No test covers it.
 
@@ -1880,9 +1886,11 @@ own fate:
 
 ---
 
-## Plugins screen has no way back to Enabled once a plugin is disabled (found live, 2026-09-10)
+## Plugins screen has no way back to Enabled once a plugin is disabled — RESOLVED (found live, 2026-09-10)
 
-Both `Plugins.tsx` (`.tovu-plugin` family, `b4f2c40d`) and the earlier `AgentPlugins.tsx` correction
+**DONE 2026-09-22: `apps/admin/src/features/plugins/Plugins.tsx` has the disabled-row re-enable path.**
+
+Before the resolution, both `Plugins.tsx` (`.tovu-plugin` family, `b4f2c40d`) and the earlier `AgentPlugins.tsx` correction
 hit the identical shape of gap from the same owner instruction ("Downloaded should have Remove, not
 Enabled/Disabled"). `AgentPlugins.tsx` was fixed to be context-sensitive: Remove on an enabled row,
 Enable (direct, no confirm) on a disabled row — see `9eb2b4ab`/`b65d1695`. **`Plugins.tsx` was NOT
@@ -1928,9 +1936,11 @@ before building, not after.
 
 ---
 
-## `Plugins.tsx` needs its state moved into a hook (caught live, 2026-09-10)
+## `Plugins.tsx` needs its state moved into a hook — RESOLVED (caught live, 2026-09-10)
 
-Owner, watching the `/admin/plugins` rebuild live: "already see apps/admin/src/features/plugins/Plugins.tsx has state and hooks in the code. should be in hooks.tsx." Confirmed at the time: `useState` for `expandedIds` and `pendingRemoveId` sitting directly in the component (~line 170-171), violating this admin's own rule — component logic belongs in `hooks/`, not `.tsx` — that the sibling `AgentPlugins.tsx`/`use-agent-plugins.hooks.ts` split already follows correctly. Flagged directly to the in-flight rebuild agent the same night; if it lands anyway, this is the reminder to catch it in review — re-check `Plugins.tsx` for bare `useState`/`useEffect` and move it into `use-plugins.hooks.ts` or a dedicated hook file before calling that screen done.
+**DONE 2026-09-22: `apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts` owns the screen state.**
+
+Owner, watching the `/admin/plugins` rebuild live: "already see apps/admin/src/features/plugins/Plugins.tsx has state and hooks in the code. should be in hooks.tsx." At the time, `useState` for `expandedIds` and `pendingRemoveId` sat directly in the component (~line 170-171), violating this admin's own rule — component logic belongs in `hooks/`, not `.tsx` — that the sibling `AgentPlugins.tsx`/`use-agent-plugins.hooks.ts` split already follows correctly.
 
 ---
 
