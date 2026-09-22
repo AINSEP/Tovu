@@ -24,6 +24,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+import type { UserRepoPort } from "@jini-ai/cms/identity";
 import type { ToolContributor } from "#src/assistant/index";
 import { getTrashAgentToolCatalog } from "./agent-tools.js";
 import {
@@ -41,6 +42,12 @@ const CATALOG_BY_ID = indexCatalogById(getTrashAgentToolCatalog());
 const DEFAULT_LIST_LIMIT = 25;
 const MAX_LIST_LIMIT = 100;
 
+/** The principal id the boot-time widget adoption writes as its actor
+ *  (`features/widgets/write-service.ts`'s `ADOPTION_ACTOR`) — duplicated from
+ *  `server/inbound/admin-http/routes/trash/list.ts`'s constant of the same name/value rather than
+ *  imported, so this domain-facing tool file carries no back-edge into the admin HTTP layer. */
+const SYSTEM_ACTOR_PRINCIPAL_ID = "system";
+
 /**
  * The exact slice of the route-deps bag Trash's tool handlers read. Declared structurally rather
  * than importing `server/routes/types`, so this module carries no back-edge into the composition
@@ -57,18 +64,48 @@ export interface TrashToolDeps {
   /** `TRASHABLE`, so `trash_restore_item` can resolve a phase-2 kind's permission the same way the
    *  admin HTTP routes do — see `permissions.ts`'s `trashPermissionFor`. */
   registry: TrashRegistry;
+  /** Resolves `deletedBy` to a username instead of the raw principal id — same source the admin
+   *  Trash list route reads (`routes/trash/list.ts`'s `loadUsernamesByPrincipalId`). */
+  userRepo: UserRepoPort;
+}
+
+/**
+ * The human-facing text for who deleted an item, in priority order: the account's username, else
+ * `"system"` for the boot-time adoption actor, else a plain fallback for a removed/unknown account
+ * — never the raw principal id. `" + AI"` is appended when a plugin acted, mirroring the admin
+ * frontend's `rules.ts` `actorLabel()` separator (owner-approved in `ed210c740`), but literal rather
+ * than localized: this is a model-facing JSON field, not UI copy.
+ *
+ * @complexity O(1) — one map lookup.
+ */
+function resolveActorDisplay(item: TrashItem, usernameByPrincipalId: ReadonlyMap<string, string>): string {
+  const username = usernameByPrincipalId.get(item.actorPrincipalId);
+  const human = username ?? (item.actorPrincipalId === SYSTEM_ACTOR_PRINCIPAL_ID ? "system" : "deleted user");
+  return item.actorPluginId != null ? `${human} + AI` : human;
+}
+
+/**
+ * One `userRepo.list` call per `trash_list_items` invocation, not one lookup per row — mirrors
+ * `routes/trash/list.ts`'s `loadUsernamesByPrincipalId` exactly (same "workspace's user count is
+ * already assumed small enough for one in-memory pass" reasoning).
+ *
+ * @complexity O(u) in the workspace's user count, once per call.
+ */
+async function loadUsernamesByPrincipalId(deps: TrashToolDeps): Promise<ReadonlyMap<string, string>> {
+  const users = await deps.userRepo.list({ workspaceId: deps.workspaceId });
+  return new Map(users.map((user) => [user.principalId, user.username]));
 }
 
 /** Model-facing row. Drops `workspaceId` (every call is already scoped to one) and the trash row's
  *  own id, which addresses nothing a tool can call — `trash_restore_item` takes the entity's id. */
-function toTrashToolView(item: TrashItem, now: string) {
+function toTrashToolView(item: TrashItem, now: string, usernameByPrincipalId: ReadonlyMap<string, string>) {
   return {
     entityType: item.entityType,
     entityId: item.entityId,
     title: item.displayTitle,
     subtitle: item.displaySubtitle,
     deletedAt: item.trashedAt,
-    deletedBy: item.actorPluginId ? `${item.actorPrincipalId} (via ${item.actorPluginId})` : item.actorPrincipalId,
+    deletedBy: resolveActorDisplay(item, usernameByPrincipalId),
     permanentlyRemovedAfter: item.purgeAfter,
     daysRemaining: trashDaysRemaining(now, item.purgeAfter),
   };
@@ -123,7 +160,14 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
       });
 
       const visible = await filterVisibleTrashItems(routeDeps, { principalId: ctx.principal.id, items: page.items });
-      return { items: visible.map((item) => toTrashToolView(item, now)), nextCursor: page.nextCursor };
+      // Skip the lookup on an empty page — nothing visible to this principal, or the Trash truly is
+      // empty — same as `routes/trash/list.ts`.
+      const usernameByPrincipalId =
+        visible.length > 0 ? await loadUsernamesByPrincipalId(routeDeps) : new Map<string, string>();
+      return {
+        items: visible.map((item) => toTrashToolView(item, now, usernameByPrincipalId)),
+        nextCursor: page.nextCursor,
+      };
     },
 
     /**

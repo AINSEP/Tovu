@@ -89,6 +89,10 @@ function trashToolDeps() {
     // Empty: this file proves the purge ban, not registry-derived permission resolution — no case
     // here needs a phase-2 kind resolved.
     registry: new Map(),
+    // Only `list` is ever called (username resolution for `trash_list_items`); this proof does not
+    // exercise actor-display wording, so an empty result — falling back to the raw principal id — is
+    // fine here.
+    userRepo: { list: async () => [] },
   };
 }
 

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import type { UserRepoPort, UserRecord } from "@jini-ai/cms/identity";
 
 import * as schema from "#src/platform/db/schema";
 
@@ -48,7 +49,39 @@ interface Harness {
   authorizeCalls: { permission: string; entityType?: string }[];
 }
 
-function harness(optional: { items?: TrashItem[]; granted?: readonly string[]; outcome?: RestoreOutcome } = {}): Harness {
+/** Minimal `UserRepoPort` double — only `list` is ever called from `tool-registrations.ts`'s
+ *  username resolution; the rest exist to satisfy the port's full shape. */
+function fakeUserRepo(users: readonly { principalId: string; username: string }[]): UserRepoPort {
+  const toRecord = (u: { principalId: string; username: string }): UserRecord => ({
+    principalId: u.principalId,
+    workspaceId: WS,
+    username: u.username,
+    passwordHash: "unused-in-tests",
+  });
+  return {
+    async findByPrincipalId(required) {
+      const found = users.find((u) => u.principalId === required.principalId);
+      return found ? toRecord(found) : null;
+    },
+    async findByUsername(required) {
+      const found = users.find((u) => u.username === required.username);
+      return found ? toRecord(found) : null;
+    },
+    async list() {
+      return users.map(toRecord);
+    },
+    async save() {},
+  };
+}
+
+function harness(
+  optional: {
+    items?: TrashItem[];
+    granted?: readonly string[];
+    outcome?: RestoreOutcome;
+    users?: readonly { principalId: string; username: string }[];
+  } = {}
+): Harness {
   const items = optional.items ?? [item({ id: "r1", entityType: "post", entityId: "post-1" })];
   const granted = new Set(
     optional.granted ?? [
@@ -83,6 +116,7 @@ function harness(optional: { items?: TrashItem[]; granted?: readonly string[]; o
     workspaceId: WS,
     clock: { nowIso: () => NOW },
     trash,
+    userRepo: fakeUserRepo(optional.users ?? [{ principalId: "principal-1", username: "alice" }]),
     authorize: async (params) => {
       authorizeCalls.push({ permission: params.permission, entityType: params.entityType });
       return granted.has(params.permission)
@@ -110,7 +144,7 @@ function ctx(input: unknown): ToolExecutionContext {
 const list = (h: Harness, input: unknown = {}) => h.byId.get("trash_list_items")!.handler(ctx(input));
 const restore = (h: Harness, input: unknown) => h.byId.get("trash_restore_item")!.handler(ctx(input));
 
-test("a listed row carries the snapshot, the actor and the days left — never a read of the entity", async () => {
+test("a listed row carries the snapshot, the resolved actor username and the days left — never a read of the entity", async () => {
   const h = harness();
   const result = (await list(h)) as { items: Record<string, unknown>[]; nextCursor: string | null };
 
@@ -121,7 +155,7 @@ test("a listed row carries the snapshot, the actor and the days left — never a
       title: "title of post-1",
       subtitle: null,
       deletedAt: NOW,
-      deletedBy: "principal-1",
+      deletedBy: "alice",
       permanentlyRemovedAfter: "2026-11-19T12:00:00.000Z",
       daysRemaining: 60,
     },
@@ -129,12 +163,30 @@ test("a listed row carries the snapshot, the actor and the days left — never a
   assert.equal(result.nextCursor, "cursor-2");
 });
 
-test("a row deleted by a plugin names the plugin, so a human can tell an agent's delete from their own", async () => {
+test("a row deleted by a plugin names the plugin's human grantor, not the raw principal id", async () => {
   const h = harness({
     items: [item({ id: "r1", entityType: "media", entityId: "m-1", actorPluginId: "some-plugin" })],
   });
   const result = (await list(h)) as { items: { deletedBy: string }[] };
-  assert.equal(result.items[0]!.deletedBy, "principal-1 (via some-plugin)");
+  assert.equal(result.items[0]!.deletedBy, "alice + AI");
+});
+
+test("an actor with no matching user account falls back to a readable label, not the raw UUID", async () => {
+  const h = harness({
+    items: [item({ id: "r1", entityType: "post", entityId: "post-1", actorPrincipalId: "principal-gone" })],
+    users: [],
+  });
+  const result = (await list(h)) as { items: { deletedBy: string }[] };
+  assert.equal(result.items[0]!.deletedBy, "deleted user");
+});
+
+test("a row trashed by the system actor names it 'system', not the raw principal id", async () => {
+  const h = harness({
+    items: [item({ id: "r1", entityType: "post", entityId: "post-1", actorPrincipalId: "system" })],
+    users: [],
+  });
+  const result = (await list(h)) as { items: { deletedBy: string }[] };
+  assert.equal(result.items[0]!.deletedBy, "system");
 });
 
 test("rows the caller could not restore are omitted from the list, kind by kind", async () => {
