@@ -21,7 +21,7 @@ export function Menus({ useMenusHook = useWiredMenus }: MenusProps = {}) {
   const { menus, error, pendingTrash, trashing, requestTrash, confirmTrash, cancelTrash, t } = useMenusHook();
 
   if (error && !menus) return <div className="notice error">{error}</div>;
-  if (!menus) return <div className="notice">Loading menus…</div>;
+  if (!menus) return <div className="notice">{t("Loading menus…")}</div>;
 
   return (
     <div className="page">

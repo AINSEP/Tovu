@@ -72,16 +72,16 @@ export function widgetInstanceGuard(state: {
 
 /** Renders the notice for whichever guard applies — split from `widgetInstanceGuard` itself so the
  *  decision (data in, data out) and the rendering stay separately testable. */
-function WidgetInstanceGuardNotice({ guard }: { guard: WidgetInstanceGuard }) {
+function WidgetInstanceGuardNotice({ guard, t }: { guard: WidgetInstanceGuard; t: (key: string) => string }) {
   switch (guard.kind) {
     case "fetch-error":
       return <div className="notice error">{guard.message}</div>;
     case "loading":
-      return <div className="notice">Loading widget…</div>;
+      return <div className="notice">{t("Loading widget…")}</div>;
     case "no-type":
-      return <div className="notice error">No widget type specified.</div>;
+      return <div className="notice error">{t("No widget type specified.")}</div>;
     case "unknown-type":
-      return <div className="notice error">Unknown widget type "{guard.widgetType}".</div>;
+      return <div className="notice error">{t('Unknown widget type "')}{guard.widgetType}".</div>;
   }
 }
 
@@ -117,7 +117,7 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
   } = useWidgetInstanceEditorHook({ widgetId, widgetType: queryWidgetType });
 
   const guard = widgetInstanceGuard({ error, isNew, widget, loading, widgetType });
-  if (guard) return <WidgetInstanceGuardNotice guard={guard} />;
+  if (guard) return <WidgetInstanceGuardNotice guard={guard} t={t} />;
   // Unreachable in practice — `widgetInstanceGuard`'s "no-type" case already covers a null
   // `widgetType` above — but TS can't see through that opaque function call, so this narrows the
   // type for the JSX below rather than asserting it with `!`.

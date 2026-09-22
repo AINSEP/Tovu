@@ -17,7 +17,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
  * carries, since those are read on every visit, not just an error path.
  */
 
-const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
+const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
     "Source Control": "Control de código fuente",
     Providers: "Proveedores",
@@ -603,6 +603,37 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'শুধুমাত্র রিপোজিটরি অ্যাক্সেসের মধ্যে সীমাবদ্ধ একটি Bitbucket API টোকেন ("read:repository:bitbucket" এবং "write:repository:bitbucket" স্কোপ), এবং যে Bitbucket ব্যবহারকারীর নামের সাথে এটি সম্পর্কিত তা প্রয়োজন — Bitbucket শুধু টোকেন নয়, এই জোড়াটি যাচাই করে।',
   },
 };
+
+const ACCESS_TOKEN_LINK_TRANSLATIONS: Record<string, Record<string, string>> = {
+  es: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "¿Necesitas guardar más de un token, cambiarle el nombre a uno o administrar todas las credenciales guardadas en un solo lugar?", "Create access token": "Crear token de acceso" },
+  id: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Perlu menyimpan lebih dari satu token, mengganti namanya, atau mengelola semua kredensial tersimpan di satu tempat?", "Create access token": "Buat token akses" },
+  de: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Möchten Sie mehr als ein Token speichern, eines umbenennen oder alle gespeicherten Zugangsdaten an einem Ort verwalten?", "Create access token": "Zugriffstoken erstellen" },
+  "zh-CN": { "Need to save more than one token, rename one, or manage every saved credential in one place?": "需要保存多个令牌、重命名令牌，或在一个地方管理所有已保存的凭据吗？", "Create access token": "创建访问令牌" },
+  "zh-TW": { "Need to save more than one token, rename one, or manage every saved credential in one place?": "需要儲存多個權杖、重新命名權杖，或在同一處管理所有已儲存的認證嗎？", "Create access token": "建立存取權杖" },
+  "pt-BR": { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Precisa salvar mais de um token, renomear um ou gerenciar todas as credenciais salvas em um só lugar?", "Create access token": "Criar token de acesso" },
+  ru: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Нужно сохранить несколько токенов, переименовать один или управлять всеми сохранёнными учётными данными в одном месте?", "Create access token": "Создать токен доступа" },
+  fa: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "می‌خواهید بیش از یک توکن ذخیره کنید، نام یکی را تغییر دهید یا همهٔ اعتبارنامه‌های ذخیره‌شده را در یک جا مدیریت کنید؟", "Create access token": "ایجاد توکن دسترسی" },
+  ar: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "هل تحتاج إلى حفظ أكثر من رمز مميز واحد أو إعادة تسمية أحدها أو إدارة كل بيانات الاعتماد المحفوظة في مكان واحد؟", "Create access token": "إنشاء رمز وصول" },
+  ja: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "複数のトークンを保存したり、名前を変更したり、保存済みの認証情報を一か所で管理したりする必要がありますか？", "Create access token": "アクセストークンを作成" },
+  ko: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "토큰을 여러 개 저장하거나 이름을 바꾸거나 저장된 모든 자격 증명을 한곳에서 관리해야 하나요?", "Create access token": "액세스 토큰 만들기" },
+  pl: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Chcesz zapisać więcej niż jeden token, zmienić nazwę tokenu lub zarządzać wszystkimi zapisanymi poświadczeniami w jednym miejscu?", "Create access token": "Utwórz token dostępu" },
+  hu: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Több tokent szeretne menteni, átnevezni egyet, vagy minden mentett hitelesítő adatot egy helyen kezelni?", "Create access token": "Hozzáférési token létrehozása" },
+  fr: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Besoin d’enregistrer plusieurs jetons, d’en renommer un ou de gérer tous les identifiants enregistrés au même endroit ?", "Create access token": "Créer un jeton d’accès" },
+  uk: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Потрібно зберегти кілька токенів, перейменувати один або керувати всіма збереженими обліковими даними в одному місці?", "Create access token": "Створити токен доступу" },
+  tr: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Birden fazla belirteç kaydetmeniz, birinin adını değiştirmeniz veya tüm kayıtlı kimlik bilgilerini tek yerde yönetmeniz mi gerekiyor?", "Create access token": "Erişim belirteci oluştur" },
+  th: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "ต้องการบันทึกโทเค็นมากกว่าหนึ่งรายการ เปลี่ยนชื่อ หรือจัดการข้อมูลรับรองที่บันทึกไว้ทั้งหมดในที่เดียวหรือไม่?", "Create access token": "สร้างโทเค็นการเข้าถึง" },
+  it: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Devi salvare più di un token, rinominarne uno o gestire tutte le credenziali salvate in un unico posto?", "Create access token": "Crea token di accesso" },
+  hi: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "क्या आपको एक से अधिक टोकन सहेजने, किसी का नाम बदलने या सभी सहेजे गए क्रेडेंशियल एक ही जगह प्रबंधित करने हैं?", "Create access token": "एक्सेस टोकन बनाएँ" },
+  ur: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "کیا آپ کو ایک سے زیادہ ٹوکن محفوظ کرنے، کسی کا نام بدلنے، یا تمام محفوظ اسناد ایک جگہ منظم کرنے کی ضرورت ہے؟", "Create access token": "رسائی ٹوکن بنائیں" },
+  bn: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "একাধিক টোকেন সংরক্ষণ, কোনোটি পুনঃনামকরণ বা সব সংরক্ষিত পরিচয়পত্র এক জায়গায় পরিচালনা করতে চান?", "Create access token": "অ্যাক্সেস টোকেন তৈরি করুন" },
+};
+
+const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = Object.fromEntries(
+  Object.entries(SOURCE_CONTROL_TRANSLATIONS).map(([locale, entries]) => [
+    locale,
+    { ...entries, ...(ACCESS_TOKEN_LINK_TRANSLATIONS[locale] ?? {}) },
+  ]),
+);
 
 export const t = createDictionaryTranslator(SOURCE_CONTROL_DICT);
 

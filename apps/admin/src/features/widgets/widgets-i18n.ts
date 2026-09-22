@@ -13,7 +13,7 @@
  */
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
-export const WIDGETS_DICT: Record<string, Record<string, string>> = {
+const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
     "Widget type to create": "Tipo de widget a crear",
     Content: "Contenido",
@@ -1300,6 +1300,37 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = {
     "bind failed": "বাইন্ড ব্যর্থ হয়েছে",
   },
 };
+
+const WIDGETS_AUDIT_STRINGS: Record<string, Record<string, string>> = {
+  es: { "Loading widget…": "Cargando widget…", "No widget type specified.": "No se especificó ningún tipo de widget.", 'Unknown widget type "': 'Tipo de widget desconocido "', "Loading region…": "Cargando región…", "Move up": "Mover arriba", "Move down": "Mover abajo", Remove: "Eliminar", "Loading regions…": "Cargando regiones…", "Loading widgets…": "Cargando widgets…" },
+  id: { "Loading widget…": "Memuat widget…", "No widget type specified.": "Tidak ada jenis widget yang ditentukan.", 'Unknown widget type "': 'Jenis widget tidak dikenal "', "Loading region…": "Memuat wilayah…", "Move up": "Pindahkan ke atas", "Move down": "Pindahkan ke bawah", Remove: "Hapus", "Loading regions…": "Memuat wilayah…", "Loading widgets…": "Memuat widget…" },
+  de: { "Loading widget…": "Widget wird geladen…", "No widget type specified.": "Kein Widget-Typ angegeben.", 'Unknown widget type "': 'Unbekannter Widget-Typ „', "Loading region…": "Bereich wird geladen…", "Move up": "Nach oben", "Move down": "Nach unten", Remove: "Entfernen", "Loading regions…": "Bereiche werden geladen…", "Loading widgets…": "Widgets werden geladen…" },
+  "zh-CN": { "Loading widget…": "正在加载小组件…", "No widget type specified.": "未指定小组件类型。", 'Unknown widget type "': '未知的小组件类型“', "Loading region…": "正在加载区域…", "Move up": "上移", "Move down": "下移", Remove: "移除", "Loading regions…": "正在加载区域…", "Loading widgets…": "正在加载小组件…" },
+  "zh-TW": { "Loading widget…": "正在載入小工具…", "No widget type specified.": "未指定小工具類型。", 'Unknown widget type "': '未知的小工具類型「', "Loading region…": "正在載入區域…", "Move up": "上移", "Move down": "下移", Remove: "移除", "Loading regions…": "正在載入區域…", "Loading widgets…": "正在載入小工具…" },
+  "pt-BR": { "Loading widget…": "Carregando widget…", "No widget type specified.": "Nenhum tipo de widget especificado.", 'Unknown widget type "': 'Tipo de widget desconhecido "', "Loading region…": "Carregando região…", "Move up": "Mover para cima", "Move down": "Mover para baixo", Remove: "Remover", "Loading regions…": "Carregando regiões…", "Loading widgets…": "Carregando widgets…" },
+  ru: { "Loading widget…": "Загрузка виджета…", "No widget type specified.": "Тип виджета не указан.", 'Unknown widget type "': 'Неизвестный тип виджета «', "Loading region…": "Загрузка области…", "Move up": "Переместить вверх", "Move down": "Переместить вниз", Remove: "Удалить", "Loading regions…": "Загрузка областей…", "Loading widgets…": "Загрузка виджетов…" },
+  fa: { "Loading widget…": "در حال بارگیری ویجت…", "No widget type specified.": "نوع ویجت مشخص نشده است.", 'Unknown widget type "': 'نوع ویجت ناشناخته «', "Loading region…": "در حال بارگیری ناحیه…", "Move up": "انتقال به بالا", "Move down": "انتقال به پایین", Remove: "حذف", "Loading regions…": "در حال بارگیری ناحیه‌ها…", "Loading widgets…": "در حال بارگیری ویجت‌ها…" },
+  ar: { "Loading widget…": "جارٍ تحميل الأداة…", "No widget type specified.": "لم يتم تحديد نوع الأداة.", 'Unknown widget type "': 'نوع الأداة غير معروف «', "Loading region…": "جارٍ تحميل المنطقة…", "Move up": "نقل لأعلى", "Move down": "نقل لأسفل", Remove: "إزالة", "Loading regions…": "جارٍ تحميل المناطق…", "Loading widgets…": "جارٍ تحميل الأدوات…" },
+  ja: { "Loading widget…": "ウィジェットを読み込んでいます…", "No widget type specified.": "ウィジェットの種類が指定されていません。", 'Unknown widget type "': '不明なウィジェットの種類「', "Loading region…": "領域を読み込んでいます…", "Move up": "上へ移動", "Move down": "下へ移動", Remove: "削除", "Loading regions…": "領域を読み込んでいます…", "Loading widgets…": "ウィジェットを読み込んでいます…" },
+  ko: { "Loading widget…": "위젯을 불러오는 중…", "No widget type specified.": "위젯 유형이 지정되지 않았습니다.", 'Unknown widget type "': '알 수 없는 위젯 유형 "', "Loading region…": "영역을 불러오는 중…", "Move up": "위로 이동", "Move down": "아래로 이동", Remove: "제거", "Loading regions…": "영역을 불러오는 중…", "Loading widgets…": "위젯을 불러오는 중…" },
+  pl: { "Loading widget…": "Ładowanie widżetu…", "No widget type specified.": "Nie określono typu widżetu.", 'Unknown widget type "': 'Nieznany typ widżetu „', "Loading region…": "Ładowanie regionu…", "Move up": "Przenieś w górę", "Move down": "Przenieś w dół", Remove: "Usuń", "Loading regions…": "Ładowanie regionów…", "Loading widgets…": "Ładowanie widżetów…" },
+  hu: { "Loading widget…": "Modul betöltése…", "No widget type specified.": "Nincs megadva modultípus.", 'Unknown widget type "': 'Ismeretlen modultípus: „', "Loading region…": "Régió betöltése…", "Move up": "Fel", "Move down": "Le", Remove: "Eltávolítás", "Loading regions…": "Régiók betöltése…", "Loading widgets…": "Modulok betöltése…" },
+  fr: { "Loading widget…": "Chargement du widget…", "No widget type specified.": "Aucun type de widget n’est indiqué.", 'Unknown widget type "': 'Type de widget inconnu « ', "Loading region…": "Chargement de la région…", "Move up": "Monter", "Move down": "Descendre", Remove: "Supprimer", "Loading regions…": "Chargement des régions…", "Loading widgets…": "Chargement des widgets…" },
+  uk: { "Loading widget…": "Завантаження віджета…", "No widget type specified.": "Не вказано тип віджета.", 'Unknown widget type "': 'Невідомий тип віджета «', "Loading region…": "Завантаження області…", "Move up": "Перемістити вгору", "Move down": "Перемістити вниз", Remove: "Вилучити", "Loading regions…": "Завантаження областей…", "Loading widgets…": "Завантаження віджетів…" },
+  tr: { "Loading widget…": "Widget yükleniyor…", "No widget type specified.": "Widget türü belirtilmedi.", 'Unknown widget type "': 'Bilinmeyen widget türü "', "Loading region…": "Bölge yükleniyor…", "Move up": "Yukarı taşı", "Move down": "Aşağı taşı", Remove: "Kaldır", "Loading regions…": "Bölgeler yükleniyor…", "Loading widgets…": "Widget'lar yükleniyor…" },
+  th: { "Loading widget…": "กำลังโหลดวิดเจ็ต…", "No widget type specified.": "ไม่ได้ระบุประเภทวิดเจ็ต", 'Unknown widget type "': 'ไม่รู้จักประเภทวิดเจ็ต "', "Loading region…": "กำลังโหลดภูมิภาค…", "Move up": "ย้ายขึ้น", "Move down": "ย้ายลง", Remove: "นำออก", "Loading regions…": "กำลังโหลดภูมิภาค…", "Loading widgets…": "กำลังโหลดวิดเจ็ต…" },
+  it: { "Loading widget…": "Caricamento del widget…", "No widget type specified.": "Nessun tipo di widget specificato.", 'Unknown widget type "': 'Tipo di widget sconosciuto "', "Loading region…": "Caricamento dell’area…", "Move up": "Sposta su", "Move down": "Sposta giù", Remove: "Rimuovi", "Loading regions…": "Caricamento delle aree…", "Loading widgets…": "Caricamento dei widget…" },
+  hi: { "Loading widget…": "विजेट लोड हो रहा है…", "No widget type specified.": "कोई विजेट प्रकार निर्दिष्ट नहीं है।", 'Unknown widget type "': 'अज्ञात विजेट प्रकार "', "Loading region…": "क्षेत्र लोड हो रहा है…", "Move up": "ऊपर ले जाएँ", "Move down": "नीचे ले जाएँ", Remove: "हटाएँ", "Loading regions…": "क्षेत्र लोड हो रहे हैं…", "Loading widgets…": "विजेट लोड हो रहे हैं…" },
+  ur: { "Loading widget…": "وِجٹ لوڈ ہو رہا ہے…", "No widget type specified.": "کوئی وِجٹ قسم متعین نہیں ہے۔", 'Unknown widget type "': 'نامعلوم وِجٹ قسم "', "Loading region…": "علاقہ لوڈ ہو رہا ہے…", "Move up": "اوپر لے جائیں", "Move down": "نیچے لے جائیں", Remove: "ہٹائیں", "Loading regions…": "علاقے لوڈ ہو رہے ہیں…", "Loading widgets…": "وِجٹس لوڈ ہو رہے ہیں…" },
+  bn: { "Loading widget…": "উইজেট লোড হচ্ছে…", "No widget type specified.": "কোনো উইজেটের ধরন নির্দিষ্ট করা হয়নি।", 'Unknown widget type "': 'অজানা উইজেটের ধরন "', "Loading region…": "অঞ্চল লোড হচ্ছে…", "Move up": "উপরে সরান", "Move down": "নিচে সরান", Remove: "সরান", "Loading regions…": "অঞ্চল লোড হচ্ছে…", "Loading widgets…": "উইজেট লোড হচ্ছে…" },
+};
+
+export const WIDGETS_DICT: Record<string, Record<string, string>> = Object.fromEntries(
+  Object.entries(WIDGETS_TRANSLATIONS).map(([locale, entries]) => [
+    locale,
+    { ...entries, ...(WIDGETS_AUDIT_STRINGS[locale] ?? {}) },
+  ]),
+);
 
 /** `WIDGETS_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via `createDictionaryTranslator`
  *  (same fallback `trash-i18n.ts` uses) — a shared word this dict doesn't carry for a locale still

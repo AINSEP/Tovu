@@ -73,7 +73,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
     useWidgetRegionEditorHook(regionKey);
 
   if (error && !area) return <div className="notice error">{error}</div>;
-  if (loading) return <div className="notice">Loading region…</div>;
+  if (loading) return <div className="notice">{t("Loading region…")}</div>;
   if (!area) return null;
 
   // Placement ids are stable and unique, same per-row-handle derivation every other list on this
@@ -124,7 +124,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
                 <button
                   className="tb-btn"
                   onClick={() => moveAt(i, -1)}
-                  title="Move up"
+                  title={t("Move up")}
                   {...agentHandle(`${placementHandles[i]}-move-up`, { role: "button", label: `Move "${placement.widgetTitle}" up` })}
                 >
                   ↑
@@ -132,7 +132,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
                 <button
                   className="tb-btn"
                   onClick={() => moveAt(i, 1)}
-                  title="Move down"
+                  title={t("Move down")}
                   {...agentHandle(`${placementHandles[i]}-move-down`, { role: "button", label: `Move "${placement.widgetTitle}" down` })}
                 >
                   ↓
@@ -140,7 +140,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
                 <button
                   className="tb-btn"
                   onClick={() => removeAt(placement.placementId)}
-                  title="Remove"
+                  title={t("Remove")}
                   {...agentHandle(`${placementHandles[i]}-remove`, { role: "button", label: `Remove "${placement.widgetTitle}" from this region` })}
                 >
                   ✕

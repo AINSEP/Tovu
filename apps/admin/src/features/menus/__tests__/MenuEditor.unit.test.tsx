@@ -284,16 +284,17 @@ describe("targetForKind", () => {
  */
 describe("MenuItemTargetFields", () => {
   const noop = () => {};
+  const t = (key: string) => key;
 
   it("renders a Route name field for a route target, pre-filled from the item", () => {
     render(
-      <MenuItemTargetFields item={{ id: "i1", target: { kind: "route", route: "/dashboard" } }} path={[0]} onChange={noop} />,
+      <MenuItemTargetFields item={{ id: "i1", target: { kind: "route", route: "/dashboard" } }} path={[0]} onChange={noop} t={t} />,
     );
     expect(screen.getByPlaceholderText("route name")).toHaveValue("/dashboard");
   });
 
   it("renders an Entry ID field for an entryRef target, defaulting to empty when absent", () => {
-    render(<MenuItemTargetFields item={{ id: "i1", target: { kind: "entryRef" } }} path={[0]} onChange={noop} />);
+    render(<MenuItemTargetFields item={{ id: "i1", target: { kind: "entryRef" } }} path={[0]} onChange={noop} t={t} />);
     expect(screen.getByPlaceholderText("entry id")).toHaveValue("");
   });
 
@@ -303,6 +304,7 @@ describe("MenuItemTargetFields", () => {
         item={{ id: "i1", target: { kind: "termRef", termId: "t1", taxonomy: "category" } }}
         path={[0]}
         onChange={noop}
+        t={t}
       />,
     );
     expect(screen.getByPlaceholderText("term id")).toHaveValue("t1");

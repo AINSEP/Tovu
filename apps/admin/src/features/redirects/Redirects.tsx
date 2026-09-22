@@ -244,9 +244,9 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
                 defaultValue="exact"
                 {...agentHandle("redirects-create-match-type", { role: "field", label: "New redirect's match type" })}
               >
-                <option value="exact">exact</option>
-                <option value="prefix">prefix</option>
-                <option value="wildcard">wildcard</option>
+                <option value="exact">{t("exact")}</option>
+                <option value="prefix">{t("prefix")}</option>
+                <option value="wildcard">{t("wildcard")}</option>
               </select>
             </div>
             <div className="field">

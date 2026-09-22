@@ -318,7 +318,7 @@ function AssistantChrome(props: {
         hidden={!chatOpen}
         inert={!chatOpen}
         tabIndex={-1}
-        aria-label="Assistant"
+        aria-label={tApp(locale, "Assistant")}
         // SPEC-053: capture phase, on this EXISTING element rather than a new wrapper inside
         // `<AssistantDock>` — a `display: contents` (or any real) div added there is the exact
         // layout trap `data-theme="light"`'s own comment two blocks up already documents for
@@ -527,7 +527,7 @@ export function App(props: AppProps) {
   // See `useCollapsibleNavGroupLabels`'s own doc for which groups collapse and why.
   const collapsibleGroups = useCollapsibleNavGroupLabels(navGroups);
 
-  if (checking) return <div className="boot-screen">Loading Tovu…</div>;
+  if (checking) return <div className="boot-screen">{tApp(navLocale, "Loading Tovu…")}</div>;
   if (!user) return <Login onLogin={handleLogin} />;
 
   const content: ReactNode = renderRoute(route, siteSection);
@@ -551,7 +551,7 @@ export function App(props: AppProps) {
             `#main-content` on `<main>` below, not a route change, so this works identically
             whichever section is currently rendered there. */}
         <a href="#main-content" className="skip-link">
-          Skip to content
+          {tApp(navLocale, "Skip to content")}
         </a>
         {/* `railDefaultCollapsed`: Tovu's admin opens as an icon rail for a first-time operator, so
             the 26-item nav does not claim 232px before anyone has asked it to. It is a DEFAULT, not a
@@ -605,7 +605,7 @@ export function App(props: AppProps) {
               className="admin-topbar-toggle"
               aria-expanded={sidebarOpen}
               aria-controls="admin-sidebar"
-              aria-label={sidebarOpen ? "Close navigation" : "Open navigation"}
+              aria-label={tApp(navLocale, sidebarOpen ? "Close navigation" : "Open navigation")}
               onClick={() => setSidebarOpen((current) => !current)}
             >
               <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">

@@ -7,7 +7,7 @@
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 import { interpolate } from "../../lib/template-i18n";
 
-const USERS_DICT: Record<string, Record<string, string>> = {
+const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
     "You cannot grant a permission you do not hold.": "No puedes otorgar un permiso que no posees.",
@@ -1231,16 +1231,38 @@ const USERS_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-export const t = createDictionaryTranslator(USERS_DICT);
+const PASSWORD_FIELD_TRANSLATIONS: Record<string, Record<string, string>> = {
+  es: { "Confirm new password": "Confirmar nueva contraseña", "Show password": "Mostrar contraseña", "Hide password": "Ocultar contraseña", "Passwords do not match.": "Las contraseñas no coinciden." },
+  id: { "Confirm new password": "Konfirmasi kata sandi baru", "Show password": "Tampilkan kata sandi", "Hide password": "Sembunyikan kata sandi", "Passwords do not match.": "Kata sandi tidak cocok." },
+  de: { "Confirm new password": "Neues Passwort bestätigen", "Show password": "Passwort anzeigen", "Hide password": "Passwort verbergen", "Passwords do not match.": "Die Passwörter stimmen nicht überein." },
+  "zh-CN": { "Confirm new password": "确认新密码", "Show password": "显示密码", "Hide password": "隐藏密码", "Passwords do not match.": "密码不匹配。" },
+  "zh-TW": { "Confirm new password": "確認新密碼", "Show password": "顯示密碼", "Hide password": "隱藏密碼", "Passwords do not match.": "密碼不相符。" },
+  "pt-BR": { "Confirm new password": "Confirmar nova senha", "Show password": "Mostrar senha", "Hide password": "Ocultar senha", "Passwords do not match.": "As senhas não coincidem." },
+  ru: { "Confirm new password": "Подтвердите новый пароль", "Show password": "Показать пароль", "Hide password": "Скрыть пароль", "Passwords do not match.": "Пароли не совпадают." },
+  fa: { "Confirm new password": "تأیید رمز عبور جدید", "Show password": "نمایش رمز عبور", "Hide password": "پنهان کردن رمز عبور", "Passwords do not match.": "رمزهای عبور یکسان نیستند." },
+  ar: { "Confirm new password": "تأكيد كلمة المرور الجديدة", "Show password": "إظهار كلمة المرور", "Hide password": "إخفاء كلمة المرور", "Passwords do not match.": "كلمتا المرور غير متطابقتين." },
+  ja: { "Confirm new password": "新しいパスワードを確認", "Show password": "パスワードを表示", "Hide password": "パスワードを隠す", "Passwords do not match.": "パスワードが一致しません。" },
+  ko: { "Confirm new password": "새 비밀번호 확인", "Show password": "비밀번호 표시", "Hide password": "비밀번호 숨기기", "Passwords do not match.": "비밀번호가 일치하지 않습니다." },
+  pl: { "Confirm new password": "Potwierdź nowe hasło", "Show password": "Pokaż hasło", "Hide password": "Ukryj hasło", "Passwords do not match.": "Hasła nie są zgodne." },
+  hu: { "Confirm new password": "Új jelszó megerősítése", "Show password": "Jelszó megjelenítése", "Hide password": "Jelszó elrejtése", "Passwords do not match.": "A jelszavak nem egyeznek." },
+  fr: { "Confirm new password": "Confirmer le nouveau mot de passe", "Show password": "Afficher le mot de passe", "Hide password": "Masquer le mot de passe", "Passwords do not match.": "Les mots de passe ne correspondent pas." },
+  uk: { "Confirm new password": "Підтвердьте новий пароль", "Show password": "Показати пароль", "Hide password": "Приховати пароль", "Passwords do not match.": "Паролі не збігаються." },
+  tr: { "Confirm new password": "Yeni parolayı doğrula", "Show password": "Parolayı göster", "Hide password": "Parolayı gizle", "Passwords do not match.": "Parolalar eşleşmiyor." },
+  th: { "Confirm new password": "ยืนยันรหัสผ่านใหม่", "Show password": "แสดงรหัสผ่าน", "Hide password": "ซ่อนรหัสผ่าน", "Passwords do not match.": "รหัสผ่านไม่ตรงกัน" },
+  it: { "Confirm new password": "Conferma nuova password", "Show password": "Mostra password", "Hide password": "Nascondi password", "Passwords do not match.": "Le password non corrispondono." },
+  hi: { "Confirm new password": "नया पासवर्ड पुष्टि करें", "Show password": "पासवर्ड दिखाएँ", "Hide password": "पासवर्ड छिपाएँ", "Passwords do not match.": "पासवर्ड मेल नहीं खाते।" },
+  ur: { "Confirm new password": "نئے پاس ورڈ کی تصدیق کریں", "Show password": "پاس ورڈ دکھائیں", "Hide password": "پاس ورڈ چھپائیں", "Passwords do not match.": "پاس ورڈ ایک جیسے نہیں ہیں۔" },
+  bn: { "Confirm new password": "নতুন পাসওয়ার্ড নিশ্চিত করুন", "Show password": "পাসওয়ার্ড দেখান", "Hide password": "পাসওয়ার্ড লুকান", "Passwords do not match.": "পাসওয়ার্ড মিলছে না।" },
+};
 
-// `UserResetPasswordDialog`'s confirm-field + reveal-toggle copy ("Confirm new password",
-// "Show password", "Hide password", "Passwords do not match.") is intentionally NOT added to
-// `USERS_DICT` above — every call site still routes through `t(...)` (`createDictionaryTranslator`'s
-// `featureDict[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` contract), so a missing entry
-// falls back to the English key itself rather than a raw un-translated literal or a dictionary-miss
-// placeholder. Same shape as the "Hook-level notice/error strings" note above for strings that
-// landed English-only in a prior pass — a follow-up localization pass can backfill these four across
-// the other sixteen locales without changing any call site.
+const USERS_DICT: Record<string, Record<string, string>> = Object.fromEntries(
+  Object.entries(USERS_TRANSLATIONS).map(([locale, entries]) => [
+    locale,
+    { ...entries, ...(PASSWORD_FIELD_TRANSLATIONS[locale] ?? {}) },
+  ]),
+);
+
+export const t = createDictionaryTranslator(USERS_DICT);
 
 const PASSWORD_RESET_NOTICE_TEMPLATE: Record<string, string> = {
   en: 'Password reset for "{username}" — every active session for this user was revoked.',

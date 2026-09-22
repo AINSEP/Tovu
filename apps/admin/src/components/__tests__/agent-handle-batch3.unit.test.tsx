@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminMedia } from "../../lib/api";
+import { api, type AdminMedia, type AdminWidget } from "../../lib/api";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import { WidgetAddControl, WidgetPickerDialog } from "../WidgetPickerDialog/WidgetPickerDialog";
 
@@ -17,11 +17,7 @@ import { WidgetAddControl, WidgetPickerDialog } from "../WidgetPickerDialog/Widg
 const AGENT_ELEMENT = "data-agent-element";
 const AGENT_ROLE = "data-agent-role";
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-}
-
-const EXISTING_WIDGET = {
+const EXISTING_WIDGET: AdminWidget = {
   id: "w1",
   workspaceId: "ws1",
   slug: "hero-banner",
@@ -110,7 +106,7 @@ describe("WidgetPickerDialog agentHandle", () => {
   });
 
   it("publishes the existing-instances Select and its submit once instances resolve", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ widgets: [EXISTING_WIDGET] })));
+    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [EXISTING_WIDGET] });
     render(
       <WidgetPickerDialog
         widgetType="text"
@@ -128,7 +124,6 @@ describe("WidgetPickerDialog agentHandle", () => {
       AGENT_ELEMENT,
       "place-widget-existing-submit",
     );
-    vi.unstubAllGlobals();
   });
 });
 

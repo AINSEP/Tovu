@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { A2uiSurfaceCard, type A2uiSurfaceCardProps } from "@jini-ai/chat/react";
+import { A2uiSurfaceCard, useT, type A2uiSurfaceCardProps } from "@jini-ai/chat/react";
 
 import { useRoutedA2uiSurfaceCard } from "./hooks/use-routed-a2ui-surface-card.hooks";
 
@@ -67,6 +67,7 @@ export function RoutedA2uiSurfaceCard({
   useRoutedA2uiSurfaceCardHook = useRoutedA2uiSurfaceCard,
   ...props
 }: RoutedA2uiSurfaceCardProps) {
+  const t = useT();
   const { 
     target, 
     dismissed, 
@@ -83,7 +84,7 @@ export function RoutedA2uiSurfaceCard({
           type="button"
           className="playground-drawn-surface-dismiss"
           onClick={() => setDismissed(true)}
-          aria-label="Remove from canvas"
+          aria-label={t("Remove from canvas")}
         >
           ×
         </button>

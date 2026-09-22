@@ -130,7 +130,7 @@ function NewTermForm({ taxonomy, onCreated, agentBase: base, useNewTermFormHook 
         />
         {taxonomy.taxonomy.hierarchical ? (
           <select
-            aria-label="Parent term"
+        aria-label={t("Parent term")}
             value={parentId}
             onChange={(e) => setParentId(e.target.value)}
             {...agentHandle(`${base}-parent`, {
@@ -195,7 +195,7 @@ function NewTaxonomyForm({ onCreated, useNewTaxonomyFormHook = useWiredNewTaxono
           id="new-taxonomy-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Category"
+          placeholder={t("e.g. Category")}
           {...agentHandle("taxonomy-new-name", { role: "field", label: "The new taxonomy's name" })}
         />
         <label>
@@ -257,7 +257,7 @@ function MergeIdleStep({ otherTerms, intoTermId, setIntoTermId, busy, startPlan,
   return (
     <span className="editor-actions">
       <select
-        aria-label="Merge into"
+        aria-label={t("Merge into")}
         value={intoTermId}
         onChange={(e) => setIntoTermId(e.target.value)}
         {...agentHandle("term-merge-target", {
@@ -590,7 +590,7 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
   const deleteState = { requestDeleteTerm, deleteTermBlocked, requestDeleteTaxonomy, deleteTaxonomyBlocked };
 
   if (error && !taxonomies) return <div className="notice error">{error}</div>;
-  if (!taxonomies) return <div className="notice">Loading taxonomies…</div>;
+  if (!taxonomies) return <div className="notice">{t("Loading taxonomies…")}</div>;
 
   return (
     <div className="page">
@@ -728,7 +728,7 @@ function namespaceList(
             </div>
             {deleteState.deleteTaxonomyBlocked?.taxonomyId === group.taxonomy.id ? (
               <p className="notice error" role="alert">
-                Can&apos;t delete &quot;{group.taxonomy.name}&quot;: {deleteState.deleteTaxonomyBlocked.state.message}
+                {t("Can't delete")} &quot;{group.taxonomy.name}&quot;: {deleteState.deleteTaxonomyBlocked.state.message}
               </p>
             ) : null}
             {group.terms.length === 0 ? (
@@ -840,7 +840,7 @@ function namespaceList(
             )}
             {deleteState.deleteTermBlocked && byId.has(deleteState.deleteTermBlocked.termId) ? (
               <p className="notice error" role="alert">
-                Can&apos;t delete &quot;{byId.get(deleteState.deleteTermBlocked.termId)?.name}&quot;:{" "}
+                {t("Can't delete")} &quot;{byId.get(deleteState.deleteTermBlocked.termId)?.name}&quot;:{" "}
                 {deleteState.deleteTermBlocked.state.message}
               </p>
             ) : null}

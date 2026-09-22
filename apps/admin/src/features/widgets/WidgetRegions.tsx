@@ -25,7 +25,7 @@ export function WidgetRegions({ useWidgetRegionsHook = useWiredWidgetRegions }: 
   const { regions, error, newRegionKey, setNewRegionKey, binding, bind, t } = useWidgetRegionsHook();
 
   if (error && !regions) return <div className="notice error">{error}</div>;
-  if (!regions) return <div className="notice">Loading regions…</div>;
+  if (!regions) return <div className="notice">{t("Loading regions…")}</div>;
 
   // Region keys are stable and unique, same per-row-handle derivation every other list on this
   // workstream uses (`buildAgentListHandles`) — needed because `DataTable`'s `cell` callback only

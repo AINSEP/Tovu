@@ -49,9 +49,9 @@ export interface PostsProps {
  * whole screen — matches Pages.tsx/Media.tsx/Comments.tsx. Mirrors `Pages.tsx`'s identical
  * `pagesListNotice`.
  */
-export function postsListNotice(posts: AdminPost[] | null, error: string | null): ReactNode {
+export function postsListNotice(posts: AdminPost[] | null, error: string | null, t: (key: string) => string): ReactNode {
   if (error && !posts) return <div className="notice error">{error}</div>;
-  if (!posts) return <div className="notice">Loading posts…</div>;
+  if (!posts) return <div className="notice">{t("Loading posts…")}</div>;
   return null;
 }
 
@@ -86,7 +86,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
   // renders the caret/`aria-sort` — see `rules.ts`'s "Column sort" section for what's left here.
   const [sort, setSort] = useState<DataTableSortState>(DEFAULT_POST_SORT);
 
-  const notice = postsListNotice(posts, error);
+  const notice = postsListNotice(posts, error, t);
   if (notice) return notice;
   // Unreachable in practice — `postsListNotice` already returns a non-null notice whenever `posts`
   // is null — but restores the narrowing TS lost by moving that check behind a function call, so

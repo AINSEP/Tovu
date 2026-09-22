@@ -714,7 +714,7 @@ function MediaLightbox(props: MediaLightboxProps) {
               type="button"
               ref={closeRef}
               className="media-lightbox-close"
-              aria-label="Close"
+              aria-label={t("Close")}
               onClick={onClose}
               {...agentHandle("media-lightbox-close", { role: "button", label: "Close the lightbox" })}
             >
@@ -726,7 +726,7 @@ function MediaLightbox(props: MediaLightboxProps) {
               <button
                 type="button"
                 className="media-lightbox-nav media-lightbox-nav-prev"
-                aria-label="Previous asset"
+                aria-label={t("Previous asset")}
                 onClick={goToPrev}
                 {...agentHandle("media-lightbox-prev", { role: "button", label: "Show the previous asset" })}
               >
@@ -746,7 +746,7 @@ function MediaLightbox(props: MediaLightboxProps) {
               <button
                 type="button"
                 className="media-lightbox-nav media-lightbox-nav-next"
-                aria-label="Next asset"
+                aria-label={t("Next asset")}
                 onClick={goToNext}
                 {...agentHandle("media-lightbox-next", { role: "button", label: "Show the next asset" })}
               >
@@ -1239,7 +1239,7 @@ function MediaPageShell({
           landing here for good; see that file's own header for the full move history. It is the
           fourth, LAST tab — "all"/"images"/"videos" are the three content-filter tabs an operator
           reaches for far more often, and read as one group with this one set apart. */}
-      <TabBar ariaLabel="Media" tabs={resolveMediaTabs(t)} activeId={activeTab} onChange={resolveMediaTabChange(setActiveTab)} />
+      <TabBar ariaLabel={t("Media")} tabs={resolveMediaTabs(t)} activeId={activeTab} onChange={resolveMediaTabChange(setActiveTab)} />
 
       {children}
     </div>
@@ -1261,7 +1261,7 @@ export function Media(props: MediaProps) {
   const { activeTab, setActiveTab } = useMediaTabsHook(props.tabId);
 
   if (error && !media) return <div className="notice error">{error}</div>;
-  if (!media) return <div className="notice">Loading media…</div>;
+  if (!media) return <div className="notice">{t("Loading media…")}</div>;
 
   // External Providers renders no grid, no filter, and has no concept of the grid's "empty" state —
   // an early return here (rather than a ternary further down) is what lets `MediaContentTabId`

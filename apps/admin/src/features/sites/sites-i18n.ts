@@ -3,23 +3,35 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 /**
  * @file Copy for the Sites admin screen (`/admin/sites`).
  *
- * **Translations are not authored yet, and that is a disclosed gap rather than a silent one.**
- * `createDictionaryTranslator`'s lookup order is feature dict -> shared `COMMON_I18N` -> the English
- * key itself, so with an empty feature dict every locale still renders correct English copy, and
- * the words this screen shares with the rest of the admin (`Save`, `Cancel`, `Created`, …) still
- * come back translated from `COMMON_I18N` for all 18 locales. Adding a locale here later is purely
- * additive — no call site changes, because in this admin the English copy string IS the key.
- *
- * The alternative considered and rejected was shipping two or three hand-written locales out of the
- * 18 the other feature dictionaries carry: partial coverage would leave the screen visibly
- * half-translated in a way a fully-absent dict does not, while adding 16 more locales of
- * unverifiable machine translation to a screen whose copy is load-bearing (it is the only thing
- * standing between the operator and believing a site switch happened) is a worse trade again.
+ * The English UI copy is the lookup key. Every locale block stays complete for every key it owns;
+ * shared admin vocabulary continues to fall through to `COMMON_I18N`.
  *
  * Every string in this screen is chrome/explanatory copy. The data — folder names, display names,
  * absolute paths, and the server's own `restartInstructions` — is rendered verbatim and never
  * translated, matching how `AdminExternalMcpServer.serverId` is handled elsewhere in this app.
  */
-const SITES_DICT: Record<string, Record<string, string>> = {};
+const SITES_DICT: Record<string, Record<string, string>> = {
+  ar: { "Serve after restart": "التقديم بعد إعادة التشغيل", "No listed sites": "لا توجد مواقع مدرجة", "A folder appears here once Tovu has created it.": "يظهر مجلد هنا بعد أن ينشئه Tovu.", "New site": "موقع جديد", "was created. Activate it to serve after the next restart.": "تم إنشاؤه. فعّله للتقديم بعد إعادة التشغيل التالية.", Sites: "المواقع" },
+  bn: { "Serve after restart": "পুনরায় চালুর পরে পরিবেশন করুন", "No listed sites": "কোনো তালিকাভুক্ত সাইট নেই", "A folder appears here once Tovu has created it.": "Tovu তৈরি করলে এখানে একটি ফোল্ডার দেখা যাবে।", "New site": "নতুন সাইট", "was created. Activate it to serve after the next restart.": "তৈরি হয়েছে। পরবর্তী পুনরায় চালুর পরে পরিবেশন করতে এটি সক্রিয় করুন।", Sites: "সাইট" },
+  de: { "Serve after restart": "Nach Neustart bereitstellen", "No listed sites": "Keine aufgeführten Websites", "A folder appears here once Tovu has created it.": "Ein Ordner erscheint hier, sobald Tovu ihn erstellt hat.", "New site": "Neue Website", "was created. Activate it to serve after the next restart.": "wurde erstellt. Aktivieren Sie sie, damit sie nach dem nächsten Neustart bereitgestellt wird.", Sites: "Websites" },
+  es: { "Serve after restart": "Servir después de reiniciar", "No listed sites": "No hay sitios listados", "A folder appears here once Tovu has created it.": "Aquí aparecerá una carpeta cuando Tovu la haya creado.", "New site": "Nuevo sitio", "was created. Activate it to serve after the next restart.": "se creó. Actívalo para servirlo después del próximo reinicio.", Sites: "Sitios" },
+  fa: { "Serve after restart": "پس از راه‌اندازی مجدد ارائه شود", "No listed sites": "سایتی فهرست نشده است", "A folder appears here once Tovu has created it.": "وقتی Tovu آن را ایجاد کند، پوشه‌ای اینجا ظاهر می‌شود.", "New site": "سایت جدید", "was created. Activate it to serve after the next restart.": "ایجاد شد. آن را فعال کنید تا پس از راه‌اندازی مجدد بعدی ارائه شود.", Sites: "سایت‌ها" },
+  fr: { "Serve after restart": "Servir après le redémarrage", "No listed sites": "Aucun site répertorié", "A folder appears here once Tovu has created it.": "Un dossier apparaît ici une fois que Tovu l’a créé.", "New site": "Nouveau site", "was created. Activate it to serve after the next restart.": "a été créé. Activez-le pour le servir après le prochain redémarrage.", Sites: "Sites" },
+  hi: { "Serve after restart": "रीस्टार्ट के बाद सेवा दें", "No listed sites": "कोई सूचीबद्ध साइट नहीं", "A folder appears here once Tovu has created it.": "Tovu के इसे बनाने पर यहां एक फ़ोल्डर दिखाई देगा।", "New site": "नई साइट", "was created. Activate it to serve after the next restart.": "बनाया गया था। अगले रीस्टार्ट के बाद सेवा देने के लिए इसे सक्रिय करें।", Sites: "साइटें" },
+  hu: { "Serve after restart": "Kiszolgálás újraindítás után", "No listed sites": "Nincsenek felsorolt webhelyek", "A folder appears here once Tovu has created it.": "Itt jelenik meg egy mappa, miután a Tovu létrehozta.", "New site": "Új webhely", "was created. Activate it to serve after the next restart.": "létrejött. Aktiválja, hogy a következő újraindítás után kiszolgálható legyen.", Sites: "Webhelyek" },
+  id: { "Serve after restart": "Sajikan setelah mulai ulang", "No listed sites": "Tidak ada situs terdaftar", "A folder appears here once Tovu has created it.": "Folder akan muncul di sini setelah Tovu membuatnya.", "New site": "Situs baru", "was created. Activate it to serve after the next restart.": "telah dibuat. Aktifkan untuk disajikan setelah mulai ulang berikutnya.", Sites: "Situs" },
+  it: { "Serve after restart": "Servi dopo il riavvio", "No listed sites": "Nessun sito elencato", "A folder appears here once Tovu has created it.": "Qui apparirà una cartella quando Tovu l’avrà creata.", "New site": "Nuovo sito", "was created. Activate it to serve after the next restart.": "è stato creato. Attivalo per servirlo dopo il prossimo riavvio.", Sites: "Siti" },
+  ja: { "Serve after restart": "再起動後に公開", "No listed sites": "一覧にサイトがありません", "A folder appears here once Tovu has created it.": "Tovu が作成すると、ここにフォルダーが表示されます。", "New site": "新しいサイト", "was created. Activate it to serve after the next restart.": "が作成されました。次回の再起動後に公開するには有効化してください。", Sites: "サイト" },
+  ko: { "Serve after restart": "다시 시작한 후 제공", "No listed sites": "등록된 사이트가 없습니다", "A folder appears here once Tovu has created it.": "Tovu가 만들면 여기에 폴더가 표시됩니다.", "New site": "새 사이트", "was created. Activate it to serve after the next restart.": "생성되었습니다. 다음 다시 시작 후 제공하려면 활성화하세요.", Sites: "사이트" },
+  pl: { "Serve after restart": "Udostępnij po ponownym uruchomieniu", "No listed sites": "Brak wymienionych witryn", "A folder appears here once Tovu has created it.": "Folder pojawi się tutaj, gdy Tovu go utworzy.", "New site": "Nowa witryna", "was created. Activate it to serve after the next restart.": "została utworzona. Włącz ją, aby była udostępniana po następnym uruchomieniu.", Sites: "Witryny" },
+  "pt-BR": { "Serve after restart": "Servir após reiniciar", "No listed sites": "Nenhum site listado", "A folder appears here once Tovu has created it.": "Uma pasta aparecerá aqui quando o Tovu a criar.", "New site": "Novo site", "was created. Activate it to serve after the next restart.": "foi criado. Ative-o para servi-lo após a próxima reinicialização.", Sites: "Sites" },
+  ru: { "Serve after restart": "Обслуживать после перезапуска", "No listed sites": "Нет перечисленных сайтов", "A folder appears here once Tovu has created it.": "Папка появится здесь, когда Tovu её создаст.", "New site": "Новый сайт", "was created. Activate it to serve after the next restart.": "создан. Активируйте его, чтобы обслуживать после следующего перезапуска.", Sites: "Сайты" },
+  th: { "Serve after restart": "ให้บริการหลังรีสตาร์ต", "No listed sites": "ไม่มีไซต์ในรายการ", "A folder appears here once Tovu has created it.": "โฟลเดอร์จะปรากฏที่นี่เมื่อ Tovu สร้างแล้ว", "New site": "ไซต์ใหม่", "was created. Activate it to serve after the next restart.": "ถูกสร้างแล้ว เปิดใช้งานเพื่อให้บริการหลังรีสตาร์ตครั้งถัดไป", Sites: "ไซต์" },
+  tr: { "Serve after restart": "Yeniden başlatmadan sonra sun", "No listed sites": "Listelenen site yok", "A folder appears here once Tovu has created it.": "Tovu oluşturduğunda burada bir klasör görünür.", "New site": "Yeni site", "was created. Activate it to serve after the next restart.": "oluşturuldu. Sonraki yeniden başlatmadan sonra sunmak için etkinleştirin.", Sites: "Siteler" },
+  uk: { "Serve after restart": "Обслуговувати після перезапуску", "No listed sites": "Немає перелічених сайтів", "A folder appears here once Tovu has created it.": "Папка з’явиться тут, коли Tovu її створить.", "New site": "Новий сайт", "was created. Activate it to serve after the next restart.": "створено. Активуйте його, щоб обслуговувати після наступного перезапуску.", Sites: "Сайти" },
+  ur: { "Serve after restart": "دوبارہ شروع ہونے کے بعد پیش کریں", "No listed sites": "کوئی درج شدہ سائٹ نہیں", "A folder appears here once Tovu has created it.": "Tovu کے بنانے پر یہاں ایک فولڈر ظاہر ہوگا۔", "New site": "نئی سائٹ", "was created. Activate it to serve after the next restart.": "بن گئی ہے۔ اگلے دوبارہ شروع ہونے کے بعد پیش کرنے کے لیے اسے فعال کریں۔", Sites: "سائٹس" },
+  "zh-CN": { "Serve after restart": "重启后提供服务", "No listed sites": "没有列出的网站", "A folder appears here once Tovu has created it.": "Tovu 创建后，文件夹会显示在这里。", "New site": "新网站", "was created. Activate it to serve after the next restart.": "已创建。请启用它，以便在下次重启后提供服务。", Sites: "网站" },
+  "zh-TW": { "Serve after restart": "重新啟動後提供服務", "No listed sites": "沒有列出的網站", "A folder appears here once Tovu has created it.": "Tovu 建立後，資料夾會顯示在這裡。", "New site": "新網站", "was created. Activate it to serve after the next restart.": "已建立。請啟用它，以便在下次重新啟動後提供服務。", Sites: "網站" },
+};
 
 export const t = createDictionaryTranslator(SITES_DICT);

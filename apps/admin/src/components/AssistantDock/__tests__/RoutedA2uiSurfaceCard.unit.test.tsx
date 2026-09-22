@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const a2uiSurfaceCardSpy = vi.hoisted(() => vi.fn());
 
 vi.mock("@jini-ai/chat/react", () => ({
+  useT: () => (key: string) => key,
   // A real `A2uiSurfaceCard` relays a catalog-validation refusal through `onAgentAction` (see that
   // component's own doc) — simulated here by checking `events` for a marker object the tests below
   // control, rather than driving the real A2UI interpreter just to reach the same call.

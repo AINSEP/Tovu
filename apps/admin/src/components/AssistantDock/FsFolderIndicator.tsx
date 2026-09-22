@@ -1,4 +1,5 @@
 import { Icon } from "@jini-ai/ui";
+import { useT } from "@jini-ai/chat/react";
 
 import { useFsFolderIndicator } from "./FsFolderIndicator.hooks";
 
@@ -22,6 +23,7 @@ import { useFsFolderIndicator } from "./FsFolderIndicator.hooks";
  */
 export function FsFolderIndicator() {
   const state = useFsFolderIndicator();
+  const t = useT();
 
   // Before the initial GET settles, render nothing rather than a flash of "No folder" that would
   // immediately be replaced — `path` is `undefined` only for that first instant (see the hook's
@@ -46,15 +48,15 @@ export function FsFolderIndicator() {
           value={state.draft}
           onChange={(e) => state.setDraft(e.target.value)}
           placeholder="/absolute/path/to/a/folder"
-          aria-label="Folder path for the assistant to read"
+          aria-label={t("Folder path for the assistant to read")}
           autoFocus
           disabled={state.pending}
         />
         <button type="submit" className="tovu-fs-folder-indicator__action" disabled={state.pending || state.draft.trim().length === 0}>
-          Set
+          {t("Set")}
         </button>
         <button type="button" className="tovu-fs-folder-indicator__action" onClick={state.cancelEditing} disabled={state.pending}>
-          Cancel
+          {t("Cancel")}
         </button>
         {state.error ? (
           <span className="tovu-fs-folder-indicator__error" role="alert">
@@ -71,20 +73,20 @@ export function FsFolderIndicator() {
         type="button"
         className="tovu-fs-folder-indicator__chip"
         onClick={state.startEditing}
-        title={state.path ?? "No folder set — click to give the assistant access to one"}
+        title={state.path ?? t("No folder set — click to give the assistant access to one")}
       >
         <span className="tovu-fs-folder-indicator__icon">
           <Icon name="folder" size={14} />
         </span>
-        <span className="tovu-fs-folder-indicator__label">{state.path ? folderBaseName(state.path) : "No folder set"}</span>
+        <span className="tovu-fs-folder-indicator__label">{state.path ? folderBaseName(state.path) : t("No folder set")}</span>
       </button>
       {state.path ? (
         <button
           type="button"
           className="tovu-fs-folder-indicator__action tovu-fs-folder-indicator__remove"
           onClick={state.clear}
-          title="Stop sharing this folder"
-          aria-label="Stop sharing this folder"
+          title={t("Stop sharing this folder")}
+          aria-label={t("Stop sharing this folder")}
         >
           <Icon name="close" size={12} />
         </button>

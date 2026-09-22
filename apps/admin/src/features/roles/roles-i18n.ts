@@ -6,7 +6,7 @@
  */
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
-const ROLES_DICT: Record<string, Record<string, string>> = {
+const ROLES_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
     "You do not have permission to do that.": "No tienes permiso para hacer eso.",
@@ -1253,6 +1253,37 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to add permission": "অনুমতি যোগ করা যায়নি",
   },
 };
+
+const ROLES_AUDIT_STRINGS: Record<string, Record<string, string>> = {
+  es: { Custom: "Personalizado", Permission: "Permiso", Add: "Agregar" },
+  id: { Custom: "Kustom", Permission: "Izin", Add: "Tambah" },
+  de: { Custom: "Benutzerdefiniert", Permission: "Berechtigung", Add: "Hinzufügen" },
+  "zh-CN": { Custom: "自定义", Permission: "权限", Add: "添加" },
+  "zh-TW": { Custom: "自訂", Permission: "權限", Add: "新增" },
+  "pt-BR": { Custom: "Personalizado", Permission: "Permissão", Add: "Adicionar" },
+  ru: { Custom: "Пользовательский", Permission: "Разрешение", Add: "Добавить" },
+  fa: { Custom: "سفارشی", Permission: "مجوز", Add: "افزودن" },
+  ar: { Custom: "مخصص", Permission: "إذن", Add: "إضافة" },
+  ja: { Custom: "カスタム", Permission: "権限", Add: "追加" },
+  ko: { Custom: "사용자 지정", Permission: "권한", Add: "추가" },
+  pl: { Custom: "Niestandardowe", Permission: "Uprawnienie", Add: "Dodaj" },
+  hu: { Custom: "Egyéni", Permission: "Engedély", Add: "Hozzáadás" },
+  fr: { Custom: "Personnalisé", Permission: "Autorisation", Add: "Ajouter" },
+  uk: { Custom: "Користувацький", Permission: "Дозвіл", Add: "Додати" },
+  tr: { Custom: "Özel", Permission: "İzin", Add: "Ekle" },
+  th: { Custom: "กำหนดเอง", Permission: "สิทธิ์", Add: "เพิ่ม" },
+  it: { Custom: "Personalizzato", Permission: "Autorizzazione", Add: "Aggiungi" },
+  hi: { Custom: "कस्टम", Permission: "अनुमति", Add: "जोड़ें" },
+  ur: { Custom: "حسب ضرورت", Permission: "اجازت", Add: "شامل کریں" },
+  bn: { Custom: "কাস্টম", Permission: "অনুমতি", Add: "যোগ করুন" },
+};
+
+const ROLES_DICT: Record<string, Record<string, string>> = Object.fromEntries(
+  Object.entries(ROLES_TRANSLATIONS).map(([locale, entries]) => [
+    locale,
+    { ...entries, ...(ROLES_AUDIT_STRINGS[locale] ?? {}) },
+  ]),
+);
 
 export const t = createDictionaryTranslator(ROLES_DICT);
 

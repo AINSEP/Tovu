@@ -139,6 +139,7 @@ import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
 import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint";
 import { t as tCapability } from "./settings-capabilities-i18n";
 import { t as tSettingsExecution } from "./settings-execution-i18n";
+import { t as tApp } from "../../app-i18n";
 import { SETTINGS_DIALOG_DICTIONARIES as CMS_SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/cms/settings";
 
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data. */
@@ -313,7 +314,7 @@ export function SettingsUi(props: SettingsUiProps) {
     SETTINGS_DIALOG_DICTIONARIES[settingsLocale]?.[key] ??
     SETTINGS_DIALOG_DICTIONARIES.en?.[key] ??
     CMS_SETTINGS_DIALOG_DICTIONARIES[settingsLocale]?.[key] ??
-    key;
+    tApp(settingsLocale, key);
   /** The 8 "no backend yet" capability-status notes below — see `settings-capabilities-i18n.ts`'s
    *  header for why these live in Tovu's own dictionary rather than `SETTINGS_DIALOG_DICTIONARIES`. */
   const tCap = (key: string): string => tCapability(settingsLocale, key);
@@ -337,7 +338,7 @@ export function SettingsUi(props: SettingsUiProps) {
   if (s.loading) {
     return (
       <div className="settings-ui-section">
-        <p className="muted">Loading settings…</p>
+        <p className="muted">{t("Loading settings…")}</p>
       </div>
     );
   }
@@ -821,7 +822,7 @@ export function SettingsUi(props: SettingsUiProps) {
       <div className="settings-ui-section settings-page" data-theme="light">
         {s.loadError ? (
           <p className="settings-ui-load-error" role="alert">
-            Could not load saved settings ({s.loadError}). Showing defaults — edits will still save.
+            {t("Could not load saved settings (")}{s.loadError}{t("). Showing defaults — edits will still save.")}
           </p>
         ) : null}
 

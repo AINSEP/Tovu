@@ -5,6 +5,8 @@ import { insertBlockAtom } from "./block-atom-insert";
 import { useWidgetEmbedNodeView } from "./widget-embed-extension.hooks";
 import { WidgetAddControl, WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
 import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields/WidgetConfigFields";
+import { t as translateApp } from "../app-i18n";
+import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 
 /**
  * @file The shared TipTap `widgetEmbed` node extension (SPEC-043 REQ-18, `ui.spec.md` §3.10/§4.9) —
@@ -49,11 +51,13 @@ export function widgetTypeLabel(widget: AdminWidget | null | undefined): string 
  *  rather than a nested closure, so the branch it owns leaves the parent's scope entirely instead
  *  of only lowering its ESLint per-closure score. Exported for direct testability. */
 export function WidgetEmbedStatus({ widget, isBroken, typeLabel }: { widget: AdminWidget | null | undefined; isBroken: boolean; typeLabel: string }) {
-  if (widget === undefined) return <span className="notice">Loading widget…</span>;
+  const locale = useWiredAdminLocale();
+  const t = (key: string): string => translateApp(locale, key);
+  if (widget === undefined) return <span className="notice">{t("Loading widget…")}</span>;
   if (isBroken) {
     return (
-      <span className="widget-embed-node__broken-label" role="img" aria-label="Broken widget reference">
-        ⚠ Widget unavailable{widget ? ` (${widget.title})` : ""}
+      <span className="widget-embed-node__broken-label" role="img" aria-label={t("Broken widget reference")}>
+        {t("⚠ Widget unavailable")}{widget ? ` (${widget.title})` : ""}
       </span>
     );
   }
@@ -76,16 +80,18 @@ export function WidgetEmbedNodeView(props: NodeViewProps) {
   // State, the (stale-guarded) widget fetch and every handler live in the hook — see
   // `widget-embed-extension.hooks.ts`.
   const view = useWidgetEmbedNodeView(props);
+  const locale = useWiredAdminLocale();
+  const t = (key: string): string => translateApp(locale, key);
 
   return (
     <NodeViewWrapper as="div" className={view.nodeClassName} data-drag-handle contentEditable={false}>
       <WidgetEmbedStatus widget={view.widget} isBroken={view.isBroken} typeLabel={widgetTypeLabel(view.widget)} />
       <span className="widget-embed-node__actions">
         <button type="button" onClick={view.openChange}>
-          Change
+          {t("Change")}
         </button>
         <button type="button" onClick={view.remove}>
-          Remove
+          {t("Remove")}
         </button>
       </span>
       {view.changeDialog ? (
@@ -163,10 +169,19 @@ export function WidgetEmbedInsertControl(props: {
   agentHandle?: string;
 }) {
   if (!props.editor) return null;
+  return <WidgetEmbedInsertControlEnabled editor={props.editor} agentHandle={props.agentHandle} />;
+}
+
+function WidgetEmbedInsertControlEnabled(props: {
+  editor: WidgetEmbedEditor;
+  agentHandle?: string;
+}) {
   const editor = props.editor;
+  const locale = useWiredAdminLocale();
+  const t = (key: string): string => translateApp(locale, key);
   return (
     <WidgetAddControl
-      triggerLabel="Insert widget"
+      triggerLabel={t("Insert widget")}
       onResolved={(widgetInstanceId) => insertWidgetEmbedAtCursor(editor, widgetInstanceId)}
       agentHandle={props.agentHandle}
     />

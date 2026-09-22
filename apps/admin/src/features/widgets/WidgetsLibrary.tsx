@@ -73,7 +73,7 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
   } = useWidgetsLibraryHook();
 
   if (error && !widgets) return <div className="notice error">{error}</div>;
-  if (!widgets) return <div className="notice">Loading widgets…</div>;
+  if (!widgets) return <div className="notice">{t("Loading widgets…")}</div>;
 
   // Widget ids are stable and unique, same per-row-handle derivation every other list on this
   // workstream uses (`buildAgentListHandles`) — the title link and the Trash/Delete button both

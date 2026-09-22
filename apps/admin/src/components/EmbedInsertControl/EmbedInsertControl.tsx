@@ -1,5 +1,7 @@
 import { agentHandle, type AgentElementRole } from "@jini-ai/agentic";
 import type { AdminWidgetType } from "../../lib/api";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { t as sharedComponentsT } from "../shared-components-i18n";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import { WidgetAddControl, WidgetPickerDialog } from "../WidgetPickerDialog/WidgetPickerDialog";
 import { useEmbedInsertControl, type EmbedEditor } from "./EmbedInsertControl.hooks";
@@ -89,12 +91,13 @@ function EmbedMenu(props: {
   onEnterWidgetMode: () => void;
   onWidgetResolved: (widgetInstanceId: string) => void;
   agentHandle?: string;
+  t: (key: string) => string;
 }) {
-  const { open, widgetMode, onPickMedia, onPickForm, onPickMenu, onEnterWidgetMode, onWidgetResolved, agentHandle: base } = props;
+  const { open, widgetMode, onPickMedia, onPickForm, onPickMenu, onEnterWidgetMode, onWidgetResolved, agentHandle: base, t } = props;
   if (!open) return null;
 
   return (
-    <span className="embed-insert-menu" role="menu" aria-label="Insert">
+    <span className="embed-insert-menu" role="menu" aria-label={t("Insert")}>
       {!widgetMode ? (
         <>
           <button
@@ -104,7 +107,7 @@ function EmbedMenu(props: {
             onClick={onPickMedia}
             {...handleSpread(base, "media", { role: "button", label: "Insert an existing media asset" })}
           >
-            Media
+            {t("Media")}
           </button>
           <button
             type="button"
@@ -113,7 +116,7 @@ function EmbedMenu(props: {
             onClick={onPickForm}
             {...handleSpread(base, "form", { role: "button", label: "Insert a contact form" })}
           >
-            Form
+            {t("Form")}
           </button>
           <button
             type="button"
@@ -122,7 +125,7 @@ function EmbedMenu(props: {
             onClick={onPickMenu}
             {...handleSpread(base, "menu", { role: "button", label: "Insert a menu" })}
           >
-            Menu
+            {t("Menu")}
           </button>
           <button
             type="button"
@@ -131,11 +134,11 @@ function EmbedMenu(props: {
             onClick={onEnterWidgetMode}
             {...handleSpread(base, "widget", { role: "button", label: "Insert any other widget type" })}
           >
-            Widget…
+            {t("Widget…")}
           </button>
         </>
       ) : (
-        <WidgetAddControl triggerLabel="Insert widget" onResolved={onWidgetResolved} agentHandle={subHandle(base, "widget-control")} />
+        <WidgetAddControl triggerLabel={t("Insert widget")} onResolved={onWidgetResolved} agentHandle={subHandle(base, "widget-control")} />
       )}
     </span>
   );
@@ -189,6 +192,8 @@ function WidgetShortcutPicker(props: {
  * this control's own elements, or any dialog it opens, are tagged.
  */
 export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHandle: base, ...props }: EmbedInsertControlProps) {
+  const locale = useAdminLocale();
+  const t = (key: string) => sharedComponentsT(locale, key);
   const { open, setOpen, widgetMode, setWidgetMode, mediaPicking, setMediaPicking, formControl, menuControl, insertWidget } =
     useEmbed(props.editor);
 
@@ -200,7 +205,7 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
       <button
         type="button"
         className="tb-btn"
-        title="Insert media, a form, a menu, or a widget"
+        title={t("Insert media, a form, a menu, or a widget")}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => {
@@ -209,7 +214,7 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
         }}
         {...(base ? agentHandle(base, { role: "button", label: "Insert media, a form, a menu, or a widget" }) : {})}
       >
-        Embed
+        {t("Embed")}
       </button>
       <EmbedMenu
         open={open}
@@ -233,6 +238,7 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
           setWidgetMode(false);
         }}
         agentHandle={base}
+        t={t}
       />
 
       {mediaPicking ? (

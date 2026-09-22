@@ -11,7 +11,7 @@ import { interpolate } from "../../lib/template-i18n";
  * header documented); `rules.ts` imports `t` from here directly.
  */
 
-const REDIRECTS_DICT: Record<string, Record<string, string>> = {
+const REDIRECTS_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
   "Loading…": "Cargando…",
   "Load hits": "Cargar visitas",
@@ -643,6 +643,37 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   "Loading redirects…": "রিডাইরেক্ট লোড হচ্ছে…",
   },
 };
+
+const MATCH_TYPE_TRANSLATIONS: Record<string, Record<string, string>> = {
+  ar: { exact: "مطابق تمامًا", prefix: "بادئة", wildcard: "حرف بدل" },
+  bn: { exact: "হুবহু", prefix: "উপসর্গ", wildcard: "ওয়াইল্ডকার্ড" },
+  de: { exact: "genau", prefix: "Präfix", wildcard: "Platzhalter" },
+  es: { exact: "exacta", prefix: "prefijo", wildcard: "comodín" },
+  fa: { exact: "دقیق", prefix: "پیشوند", wildcard: "عام" },
+  fr: { exact: "exacte", prefix: "préfixe", wildcard: "caractère générique" },
+  hi: { exact: "सटीक", prefix: "उपसर्ग", wildcard: "वाइल्डकार्ड" },
+  hu: { exact: "pontos", prefix: "előtag", wildcard: "helyettesítő karakter" },
+  id: { exact: "tepat", prefix: "awalan", wildcard: "karakter pengganti" },
+  it: { exact: "esatta", prefix: "prefisso", wildcard: "carattere jolly" },
+  ja: { exact: "完全一致", prefix: "前方一致", wildcard: "ワイルドカード" },
+  ko: { exact: "정확히 일치", prefix: "접두사", wildcard: "와일드카드" },
+  pl: { exact: "dokładne", prefix: "prefiks", wildcard: "symbol wieloznaczny" },
+  "pt-BR": { exact: "exata", prefix: "prefixo", wildcard: "curinga" },
+  ru: { exact: "точное", prefix: "префикс", wildcard: "подстановочный знак" },
+  th: { exact: "ตรงกันทุกประการ", prefix: "คำนำหน้า", wildcard: "ไวลด์การ์ด" },
+  tr: { exact: "tam", prefix: "önek", wildcard: "joker karakter" },
+  uk: { exact: "точний", prefix: "префікс", wildcard: "символ узагальнення" },
+  ur: { exact: "عین مطابق", prefix: "سابقہ", wildcard: "وائلڈ کارڈ" },
+  "zh-CN": { exact: "精确", prefix: "前缀", wildcard: "通配符" },
+  "zh-TW": { exact: "精確", prefix: "前綴", wildcard: "萬用字元" },
+};
+
+const REDIRECTS_DICT: Record<string, Record<string, string>> = Object.fromEntries(
+  Object.entries(REDIRECTS_TRANSLATIONS).map(([locale, entries]) => [
+    locale,
+    { ...entries, ...(MATCH_TYPE_TRANSLATIONS[locale] ?? {}) },
+  ]),
+);
 
 /** Same two-step fallback every other `t()` in this app uses: translated value, else the English
  *  source string itself — never a raw dictionary-miss placeholder. */

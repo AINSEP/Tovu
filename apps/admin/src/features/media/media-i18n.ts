@@ -16,7 +16,7 @@
  */
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
-export const MEDIA_DICT: Record<string, Record<string, string>> = {
+const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
     Content: "Contenido",
     Media: "Multimedia",
@@ -1460,6 +1460,37 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     "Edit this instance": "এই ইনস্ট্যান্স সম্পাদনা করুন",
   },
 };
+
+const MEDIA_AUDIT_STRINGS: Record<string, Record<string, string>> = {
+  es: { Close: "Cerrar", "Previous asset": "Recurso anterior", "Next asset": "Recurso siguiente", Media: "Medios", "Loading media…": "Cargando medios…" },
+  id: { Close: "Tutup", "Previous asset": "Aset sebelumnya", "Next asset": "Aset berikutnya", Media: "Media", "Loading media…": "Memuat media…" },
+  de: { Close: "Schließen", "Previous asset": "Vorheriges Medium", "Next asset": "Nächstes Medium", Media: "Medien", "Loading media…": "Medien werden geladen…" },
+  "zh-CN": { Close: "关闭", "Previous asset": "上一个资源", "Next asset": "下一个资源", Media: "媒体", "Loading media…": "正在加载媒体…" },
+  "zh-TW": { Close: "關閉", "Previous asset": "上一個素材", "Next asset": "下一個素材", Media: "媒體", "Loading media…": "正在載入媒體…" },
+  "pt-BR": { Close: "Fechar", "Previous asset": "Recurso anterior", "Next asset": "Próximo recurso", Media: "Mídia", "Loading media…": "Carregando mídia…" },
+  ru: { Close: "Закрыть", "Previous asset": "Предыдущий файл", "Next asset": "Следующий файл", Media: "Медиа", "Loading media…": "Загрузка медиа…" },
+  fa: { Close: "بستن", "Previous asset": "دارایی قبلی", "Next asset": "دارایی بعدی", Media: "رسانه", "Loading media…": "در حال بارگیری رسانه…" },
+  ar: { Close: "إغلاق", "Previous asset": "الأصل السابق", "Next asset": "الأصل التالي", Media: "الوسائط", "Loading media…": "جارٍ تحميل الوسائط…" },
+  ja: { Close: "閉じる", "Previous asset": "前のアセット", "Next asset": "次のアセット", Media: "メディア", "Loading media…": "メディアを読み込んでいます…" },
+  ko: { Close: "닫기", "Previous asset": "이전 자산", "Next asset": "다음 자산", Media: "미디어", "Loading media…": "미디어를 불러오는 중…" },
+  pl: { Close: "Zamknij", "Previous asset": "Poprzedni zasób", "Next asset": "Następny zasób", Media: "Media", "Loading media…": "Ładowanie mediów…" },
+  hu: { Close: "Bezárás", "Previous asset": "Előző elem", "Next asset": "Következő elem", Media: "Média", "Loading media…": "Média betöltése…" },
+  fr: { Close: "Fermer", "Previous asset": "Élément précédent", "Next asset": "Élément suivant", Media: "Médias", "Loading media…": "Chargement des médias…" },
+  uk: { Close: "Закрити", "Previous asset": "Попередній файл", "Next asset": "Наступний файл", Media: "Медіа", "Loading media…": "Завантаження медіа…" },
+  tr: { Close: "Kapat", "Previous asset": "Önceki varlık", "Next asset": "Sonraki varlık", Media: "Medya", "Loading media…": "Medya yükleniyor…" },
+  th: { Close: "ปิด", "Previous asset": "ไฟล์ก่อนหน้า", "Next asset": "ไฟล์ถัดไป", Media: "สื่อ", "Loading media…": "กำลังโหลดสื่อ…" },
+  it: { Close: "Chiudi", "Previous asset": "Risorsa precedente", "Next asset": "Risorsa successiva", Media: "Media", "Loading media…": "Caricamento dei media…" },
+  hi: { Close: "बंद करें", "Previous asset": "पिछली संपत्ति", "Next asset": "अगली संपत्ति", Media: "मीडिया", "Loading media…": "मीडिया लोड हो रहा है…" },
+  ur: { Close: "بند کریں", "Previous asset": "پچھلا اثاثہ", "Next asset": "اگلا اثاثہ", Media: "میڈیا", "Loading media…": "میڈیا لوڈ ہو رہا ہے…" },
+  bn: { Close: "বন্ধ করুন", "Previous asset": "আগের অ্যাসেট", "Next asset": "পরের অ্যাসেট", Media: "মিডিয়া", "Loading media…": "মিডিয়া লোড হচ্ছে…" },
+};
+
+export const MEDIA_DICT: Record<string, Record<string, string>> = Object.fromEntries(
+  Object.entries(MEDIA_TRANSLATIONS).map(([locale, entries]) => [
+    locale,
+    { ...entries, ...(MEDIA_AUDIT_STRINGS[locale] ?? {}) },
+  ]),
+);
 
 /** `MEDIA_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via `createDictionaryTranslator`
  *  (same fallback `trash-i18n.ts` uses) — a shared word this dict doesn't carry for a locale still

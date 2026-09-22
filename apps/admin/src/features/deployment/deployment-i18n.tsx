@@ -13,7 +13,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
  * or a webhook's own `label` are rendered verbatim elsewhere in this app.
  */
 
-const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
+const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
     Operations: "Operaciones",
     Deployment: "Despliegue",
@@ -1737,6 +1737,60 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
       "একটি প্রকৃত হোস্ট সংযুক্ত হলে বিল্ড এবং ডিপ্লয়মেন্ট এখানে প্রদর্শিত হবে।",
   },
 };
+
+/** Strings added with the Static Site publishing UI.  Keep this list separate so every locale gets
+ * the same key set; locale-specific entries below deliberately override the English source text. */
+const DEPLOYMENT_AUDIT_STRINGS: Record<string, string> = {
+  "{count} lines": "{count} lines",
+  "Not supported": "Not supported", Supported: "Supported", "No Dockerfile yet": "No Dockerfile yet",
+  "Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.": "Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.",
+  "Its current contents on the server are:": "Its current contents on the server are:", "It was deleted on the server.": "It was deleted on the server.",
+  "Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.": "Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.",
+  "Load the current version": "Load the current version", "Available from a terminal": "Available from a terminal",
+  "Runs on any static host, including free ones. Nothing dynamic survives the export.": "Runs on any static host, including free ones. Nothing dynamic survives the export.",
+  "View Static Site details": "View Static Site details", "Not wired up yet": "Not wired up yet",
+  "Needs a host to run on — provider setup is planned, not wired up yet.": "Needs a host to run on — provider setup is planned, not wired up yet.",
+  "View Full Site details": "View Full Site details", Set: "Set", Routes: "Routes", succeeded: "succeeded", failed: "failed", "Written to": "Written to", "Failed routes": "Failed routes", "Failed assets": "Failed assets",
+  "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu writes every published post, the home page, products and theme pages into the folder you name.",
+  "Copy the export command": "Copy the export command", "Replace <dir> with the folder to write into. It is a required argument — there is no default.": "Replace <dir> with the folder to write into. It is a required argument — there is no default.",
+  "Overwrite existing files in the output folder": "Overwrite existing files in the output folder", "Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.": "Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.",
+  "Exporting…": "Exporting…", "Detected on this server": "Detected on this server", "Not detected on this server": "Not detected on this server", "Checking…": "Checking…", "Getting it online": "Getting it online",
+  "The export is just a folder of files. Pick where it goes, then either let the assistant drive the CLI or publish straight from here.": "The export is just a folder of files. Pick where it goes, then either let the assistant drive the CLI or publish straight from here.",
+  "Publish target": "Publish target", Connected: "Connected", "Fastest — ask the assistant": "Fastest — ask the assistant",
+  "Tovu's assistant runs as a command-line coding agent with its own shell, so it can drive this tool to publish the export for you — nothing to paste here, and no credentials stored.": "Tovu's assistant runs as a command-line coding agent with its own shell, so it can drive this tool to publish the export for you — nothing to paste here, and no credentials stored.",
+  or: "or", "Need to save more than one token, rename one, or manage every saved credential in one place?": "Need to save more than one token, rename one, or manage every saved credential in one place?", "Create access token": "Create access token", "Loading credentials…": "Loading credentials…", "Account ID": "Account ID", "Shown on your Cloudflare dashboard's own sidebar.": "Shown on your Cloudflare dashboard's own sidebar.", connected: "connected as", Verify: "Verify", "Verifying…": "Verifying…", "Which saved token publishes": "Which saved token publishes", "This workspace has more than one saved": "This workspace has more than one saved", "token. Pick which one Tovu publishes with.": "token. Pick which one Tovu publishes with.", "GitHub owner or org": "GitHub owner or org", Repository: "Repository", "Branch (optional)": "Branch (optional)", "Vercel team (optional)": "Vercel team (optional)", "Publishing…": "Publishing…", "This is immediately live on the public internet once it finishes — there is no draft or review step.": "This is immediately live on the public internet once it finishes — there is no draft or review step.", "Where this publish goes": "Where this publish goes", "The account above only proves you're allowed to publish — this says exactly where this one goes.": "The account above only proves you're allowed to publish — this says exactly where this one goes.", "Base path": "Base path", "None — serves from the domain root": "None — serves from the domain root", Credential: "Credential", "Published:": "Published:",
+};
+
+const DEPLOYMENT_AUDIT_ES: Record<string, string> = {
+  "{count} lines": "{count} líneas", "Not supported": "No compatible", Supported: "Compatible", "No Dockerfile yet": "Aún no hay Dockerfile",
+  "Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.": "Otra persona guardó una versión distinta de este Dockerfile mientras editabas; los cambios de abajo NO se guardaron.",
+  "Its current contents on the server are:": "Su contenido actual en el servidor es:", "It was deleted on the server.": "Se eliminó en el servidor.",
+  "Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.": "Tus ediciones de abajo no se modificaron. Compáralas con el contenido actual de arriba, reconcilia los cambios manualmente y vuelve a guardar.",
+  "Load the current version": "Cargar la versión actual", "Available from a terminal": "Disponible desde una terminal",
+  "Runs on any static host, including free ones. Nothing dynamic survives the export.": "Funciona en cualquier alojamiento estático, incluso gratuito. Nada dinámico se conserva al exportar.",
+  "View Static Site details": "Ver detalles del sitio estático", "Not wired up yet": "Aún no está conectado",
+  "Needs a host to run on — provider setup is planned, not wired up yet.": "Necesita un alojamiento para ejecutarse; la configuración del proveedor está prevista, pero aún no está conectada.",
+  "View Full Site details": "Ver detalles del sitio completo", Set: "Configurada", Routes: "Rutas", succeeded: "correctas", failed: "fallidas", "Written to": "Escrito en", "Failed routes": "Rutas fallidas", "Failed assets": "Recursos fallidos",
+  "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu escribe cada publicación publicada, la página de inicio, los productos y las páginas del tema en la carpeta que indiques.",
+  "Copy the export command": "Copiar el comando de exportación", "Replace <dir> with the folder to write into. It is a required argument — there is no default.": "Reemplaza <dir> por la carpeta donde escribir. Es un argumento obligatorio; no hay valor predeterminado.",
+  "Overwrite existing files in the output folder": "Sobrescribir archivos existentes en la carpeta de salida", "Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.": "Está desactivado de forma predeterminada. El exportador no escribe en una carpeta no vacía salvo que se marque esta opción; nunca elimina archivos desconocidos en silencio.",
+  "Exporting…": "Exportando…", "Detected on this server": "Detectado en este servidor", "Not detected on this server": "No detectado en este servidor", "Checking…": "Comprobando…", "Getting it online": "Publicarlo en línea",
+  "The export is just a folder of files. Pick where it goes, then either let the assistant drive the CLI or publish straight from here.": "La exportación es solo una carpeta de archivos. Elige dónde va y deja que el asistente use la CLI o publícala directamente desde aquí.",
+  "Publish target": "Destino de publicación", Connected: "Conectado", "Fastest — ask the assistant": "Lo más rápido: pide al asistente",
+  "Tovu's assistant runs as a command-line coding agent with its own shell, so it can drive this tool to publish the export for you — nothing to paste here, and no credentials stored.": "El asistente de Tovu se ejecuta como agente de programación de línea de comandos con su propia consola, por lo que puede usar esta herramienta para publicar la exportación por ti; no hay nada que pegar ni credenciales almacenadas.",
+  or: "o", "Need to save more than one token, rename one, or manage every saved credential in one place?": "¿Necesitas guardar más de un token, cambiarle el nombre o administrar todas las credenciales guardadas en un lugar?", "Create access token": "Crear token de acceso", "Loading credentials…": "Cargando credenciales…", "Account ID": "ID de cuenta", "Shown on your Cloudflare dashboard's own sidebar.": "Se muestra en la barra lateral de tu panel de Cloudflare.", connected: "conectado como", Verify: "Verificar", "Verifying…": "Verificando…", "Which saved token publishes": "Qué token guardado publica", "This workspace has more than one saved": "Este espacio de trabajo tiene más de un", "token. Pick which one Tovu publishes with.": "token guardado. Elige cuál usa Tovu para publicar.", "GitHub owner or org": "Propietario u organización de GitHub", Repository: "Repositorio", "Branch (optional)": "Rama (opcional)", "Vercel team (optional)": "Equipo de Vercel (opcional)", "Publishing…": "Publicando…", "This is immediately live on the public internet once it finishes — there is no draft or review step.": "Esto estará en Internet públicamente en cuanto termine; no hay borrador ni paso de revisión.", "Where this publish goes": "Dónde se publica", "The account above only proves you're allowed to publish — this says exactly where this one goes.": "La cuenta anterior solo demuestra que puedes publicar; esto indica exactamente dónde se publica.", "Base path": "Ruta base", "None — serves from the domain root": "Ninguna: se sirve desde la raíz del dominio", Credential: "Credencial", "Published:": "Publicado:",
+};
+
+const DEPLOYMENT_DICT: Record<string, Record<string, string>> = Object.fromEntries(
+  Object.entries(DEPLOYMENT_TRANSLATIONS).map(([locale, entries]) => [
+    locale,
+    {
+      ...entries,
+      ...DEPLOYMENT_AUDIT_STRINGS,
+      ...(locale === "es" ? DEPLOYMENT_AUDIT_ES : {}),
+    },
+  ]),
+);
 
 export const t = createDictionaryTranslator(DEPLOYMENT_DICT);
 
