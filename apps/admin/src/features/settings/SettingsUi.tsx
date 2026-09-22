@@ -139,6 +139,7 @@ import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
 import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint";
 import { t as tCapability } from "./settings-capabilities-i18n";
 import { t as tSettingsExecution } from "./settings-execution-i18n";
+import { t as tSettings } from "./settings-i18n";
 import { t as tApp } from "../../app-i18n";
 import { SETTINGS_DIALOG_DICTIONARIES as CMS_SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/cms/settings";
 
@@ -311,6 +312,7 @@ export function SettingsUi(props: SettingsUiProps) {
    */
   const settingsLocale = s.language.value as string;
   const t = (key: string): string =>
+    tSettings(settingsLocale, key) !== key ? tSettings(settingsLocale, key) :
     SETTINGS_DIALOG_DICTIONARIES[settingsLocale]?.[key] ??
     SETTINGS_DIALOG_DICTIONARIES.en?.[key] ??
     CMS_SETTINGS_DIALOG_DICTIONARIES[settingsLocale]?.[key] ??

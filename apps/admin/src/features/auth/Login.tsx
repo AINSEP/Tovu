@@ -1,6 +1,6 @@
 import type { AdminUser } from "../../lib/api";
-import { t as translateApp } from "../../app-i18n";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { t as translateAuth } from "./auth-i18n";
 import { useWiredLogin } from "./hooks/use-login.hooks";
 
 /**
@@ -22,7 +22,7 @@ export interface LoginProps {
 export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
   const { username, setUsername, password, setPassword, error, busy, submit } = useLoginHook({ onLogin });
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateApp(locale, key);
+  const t = (key: string): string => translateAuth(locale, key);
 
   return (
     <div className="login-screen">

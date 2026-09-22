@@ -42,6 +42,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "no se pudo cargar el contenido multimedia",
     "failed to load comments": "no se pudieron cargar los comentarios",
     "failed to load the active theme": "no se pudo cargar el tema activo",
+    "Publish Content": "Publicar contenido",
   },
   id: {
     Overview: "Ringkasan",
@@ -69,6 +70,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "gagal memuat media",
     "failed to load comments": "gagal memuat komentar",
     "failed to load the active theme": "gagal memuat tema aktif",
+    "Publish Content": "Terbitkan konten",
   },
   de: {
     Overview: "Übersicht",
@@ -96,6 +98,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "Medien konnten nicht geladen werden",
     "failed to load comments": "Kommentare konnten nicht geladen werden",
     "failed to load the active theme": "Aktives Theme konnte nicht geladen werden",
+    "Publish Content": "Inhalt veröffentlichen",
   },
   "zh-CN": {
     Overview: "概览",
@@ -123,6 +126,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "媒体加载失败",
     "failed to load comments": "评论加载失败",
     "failed to load the active theme": "当前主题加载失败",
+    "Publish Content": "发布内容",
   },
   "zh-TW": {
     Overview: "總覽",
@@ -150,6 +154,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "媒體載入失敗",
     "failed to load comments": "留言載入失敗",
     "failed to load the active theme": "目前主題載入失敗",
+    "Publish Content": "發佈內容",
   },
   "pt-BR": {
     Overview: "Visão geral",
@@ -177,6 +182,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "falha ao carregar mídia",
     "failed to load comments": "falha ao carregar os comentários",
     "failed to load the active theme": "falha ao carregar o tema ativo",
+    "Publish Content": "Publicar conteúdo",
   },
   ru: {
     Overview: "Обзор",
@@ -204,6 +210,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "не удалось загрузить медиафайл",
     "failed to load comments": "не удалось загрузить комментарии",
     "failed to load the active theme": "не удалось загрузить активную тему",
+    "Publish Content": "Опубликовать содержимое",
   },
   fa: {
     Overview: "نمای کلی",
@@ -231,6 +238,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "بارگذاری رسانه ناموفق بود",
     "failed to load comments": "بارگذاری نظرات ناموفق بود",
     "failed to load the active theme": "بارگذاری پوستهٔ فعال ناموفق بود",
+    "Publish Content": "انتشار محتوا",
   },
   ar: {
     Overview: "نظرة عامة",
@@ -258,6 +266,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "تعذّر تحميل الوسائط",
     "failed to load comments": "تعذّر تحميل التعليقات",
     "failed to load the active theme": "تعذّر تحميل السمة النشطة",
+    "Publish Content": "نشر المحتوى",
   },
   ja: {
     Overview: "概要",
@@ -285,6 +294,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "メディアを読み込めませんでした",
     "failed to load comments": "コメントを読み込めませんでした",
     "failed to load the active theme": "使用中のテーマを読み込めませんでした",
+    "Publish Content": "コンテンツを公開",
   },
   ko: {
     Overview: "개요",
@@ -312,6 +322,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "미디어를 불러오지 못했습니다",
     "failed to load comments": "댓글을 불러오지 못했습니다",
     "failed to load the active theme": "활성 테마를 불러오지 못했습니다",
+    "Publish Content": "콘텐츠 게시",
   },
   pl: {
     Overview: "Przegląd",
@@ -339,6 +350,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "nie udało się wczytać multimediów",
     "failed to load comments": "nie udało się wczytać komentarzy",
     "failed to load the active theme": "nie udało się wczytać aktywnego motywu",
+    "Publish Content": "Opublikuj treść",
   },
   hu: {
     Overview: "Áttekintés",
@@ -366,6 +378,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "nem sikerült betölteni a médiát",
     "failed to load comments": "nem sikerült betölteni a hozzászólásokat",
     "failed to load the active theme": "nem sikerült betölteni az aktív témát",
+    "Publish Content": "Tartalom közzététele",
   },
   fr: {
     Overview: "Vue d'ensemble",
@@ -393,6 +406,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "échec du chargement du média",
     "failed to load comments": "échec du chargement des commentaires",
     "failed to load the active theme": "échec du chargement du thème actif",
+    "Publish Content": "Publier le contenu",
   },
   uk: {
     Overview: "Огляд",
@@ -420,6 +434,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "не вдалося завантажити медіафайл",
     "failed to load comments": "не вдалося завантажити коментарі",
     "failed to load the active theme": "не вдалося завантажити активну тему",
+    "Publish Content": "Опублікувати вміст",
   },
   tr: {
     Overview: "Genel Bakış",
@@ -447,6 +462,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "medya yüklenemedi",
     "failed to load comments": "yorumlar yüklenemedi",
     "failed to load the active theme": "etkin tema yüklenemedi",
+    "Publish Content": "İçeriği yayımla",
   },
   th: {
     Overview: "ภาพรวม",
@@ -474,6 +490,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "โหลดสื่อไม่สำเร็จ",
     "failed to load comments": "โหลดความคิดเห็นไม่สำเร็จ",
     "failed to load the active theme": "โหลดธีมที่ใช้งานไม่สำเร็จ",
+    "Publish Content": "เผยแพร่เนื้อหา",
   },
   it: {
     Overview: "Panoramica",
@@ -501,6 +518,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "impossibile caricare il contenuto multimediale",
     "failed to load comments": "impossibile caricare i commenti",
     "failed to load the active theme": "impossibile caricare il tema attivo",
+    "Publish Content": "Pubblica contenuti",
   },
   hi: {
     Overview: "अवलोकन",
@@ -528,6 +546,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "मीडिया लोड नहीं हो सका",
     "failed to load comments": "टिप्पणियाँ लोड नहीं हो सकीं",
     "failed to load the active theme": "सक्रिय थीम लोड नहीं हो सकी",
+    "Publish Content": "सामग्री प्रकाशित करें",
   },
   ur: {
     Overview: "جائزہ",
@@ -555,6 +574,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "میڈیا لوڈ نہیں ہو سکا",
     "failed to load comments": "تبصرے لوڈ نہیں ہو سکے",
     "failed to load the active theme": "فعال تھیم لوڈ نہیں ہو سکی",
+    "Publish Content": "مواد شائع کریں",
   },
   bn: {
     Overview: "সংক্ষিপ্ত বিবরণ",
@@ -582,6 +602,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "মিডিয়া লোড করা যায়নি",
     "failed to load comments": "মন্তব্য লোড করা যায়নি",
     "failed to load the active theme": "সক্রিয় থিম লোড করা যায়নি",
+    "Publish Content": "কনটেন্ট প্রকাশ করুন",
   },
 };
 
