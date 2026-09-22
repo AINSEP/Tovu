@@ -415,7 +415,13 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTi
       <div className="external-mcp-head">
         <div>
           {showTitle ? <h3>{t("External MCP servers")}</h3> : null}
-          <p className="external-mcp-subtitle">{t("Third-party tools for your coding agent.")}</p>
+          {/* i18n sweep 2026-09-22: this string has no key anywhere in `@jini-ai/ui`'s own
+              `SETTINGS_DIALOG_DICTIONARIES` (what `t` above resolves against via the nearest
+              `I18nProvider` in `Providers.tsx`), so it rendered English in every locale. It is
+              this file's own copy, not the package's, so it now reads through `tDrift`
+              (`external-mcp-i18n.ts`'s `EXTERNAL_MCP_DICT`, which carries all 21 translations)
+              instead of the package's translator. */}
+          <p className="external-mcp-subtitle">{tDrift("Third-party tools for your coding agent.")}</p>
         </div>
         <button
           type="button"

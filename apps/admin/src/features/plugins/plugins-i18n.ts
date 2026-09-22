@@ -9,6 +9,9 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const PLUGINS_DICT: Record<string, Record<string, string>> = {
   es: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    "Portable packages installed for this workspace.": "Paquetes portables instalados para este espacio de trabajo.",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "Esto elimina los archivos del plugin de este sitio. No se puede deshacer; al reinstalar se empieza desde cero.",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "Esto lo desactiva: sus habilidades dejarán de llegar al asistente en la próxima ejecución y desaparecerá de la pestaña Instalados. ",
     "It stays right here on Downloaded and can be enabled again any time.": "Seguirá aquí mismo en Descargados y podrás activarlo de nuevo en cualquier momento.",
@@ -124,6 +127,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "Algunos archivos no aparecen: este paquete supera los límites del visor.",
   },
   id: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "Terpasang",
+    Downloaded: "Diunduh",
+    Marketplace: "Marketplace",
+    "Portable packages installed for this workspace.": "Paket portabel yang terpasang untuk ruang kerja ini.",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "Setiap plugin yang terpasang di ruang kerja ini. Hanya plugin yang diaktifkan yang mencapai prompt asisten.",
     "Remove": "Hapus",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "Ini menghapus berkas plugin dari situs ini. Tindakan ini tidak dapat dibatalkan — pemasangan ulang dimulai dari awal.",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "Ini menonaktifkannya: keterampilannya berhenti menjangkau asisten pada proses berikutnya dan hilang dari tab Terpasang. ",
@@ -183,6 +193,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "Beberapa berkas tidak dicantumkan: paket ini melebihi batas penampil.",
   },
   de: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "Installiert",
+    Downloaded: "Heruntergeladen",
+    Marketplace: "Marktplatz",
+    "Portable packages installed for this workspace.": "Portable Pakete, die für diesen Arbeitsbereich installiert sind.",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "Jedes in diesem Arbeitsbereich installierte Plugin. Nur aktivierte Plugins erreichen den Prompt des Assistenten.",
     "Remove": "Entfernen",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "Dadurch werden die Dateien des Plugins von dieser Website gelöscht. Dies kann nicht rückgängig gemacht werden — eine Neuinstallation beginnt von vorn.",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "Dadurch wird es ausgeschaltet: Seine Skills erreichen den Assistenten beim nächsten Lauf nicht mehr und es verschwindet aus dem Tab Installiert. ",
@@ -242,6 +259,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "Einige Dateien werden nicht aufgeführt: Dieses Paket überschreitet die Grenzen der Ansicht.",
   },
   "zh-CN": {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "已安装",
+    Downloaded: "已下载",
+    Marketplace: "市场",
+    "Portable packages installed for this workspace.": "为此工作区安装的可移植软件包。",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "此工作区中安装的每个插件。只有已启用的插件才能进入助手的提示。",
     "Remove": "移除",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "这会删除该站点上的插件文件。此操作无法撤销——重新安装将从头开始。",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "这会将其关闭：在下次运行时，其技能将不再提供给助手，并会从“已安装”标签中消失。",
@@ -301,6 +325,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "部分文件未列出：此软件包超出了查看器的限制。",
   },
   "zh-TW": {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "已安裝",
+    Downloaded: "已下載",
+    Marketplace: "市集",
+    "Portable packages installed for this workspace.": "為此工作區安裝的可攜式套件。",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "此工作區中已安裝的每個外掛。只有已啟用的外掛才能進入助理的提示。",
     "Remove": "移除",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "這會刪除此網站上的外掛檔案。此動作無法復原——重新安裝會從頭開始。",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "這會將它關閉：下次執行時，其技能不再提供給助理，並會從「已安裝」分頁消失。",
@@ -360,6 +391,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "部分檔案未列出：此套件超出檢視器的限制。",
   },
   "pt-BR": {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "Instalado",
+    Downloaded: "Baixado",
+    Marketplace: "Marketplace",
+    "Portable packages installed for this workspace.": "Pacotes portáteis instalados para este espaço de trabalho.",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "Todos os plugins instalados neste espaço de trabalho. Somente os plugins ativados chegam ao prompt do assistente.",
     "Remove": "Remover",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "Isso exclui os arquivos do plugin deste site. Não é possível desfazer — uma reinstalação começa do zero.",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "Isso o desativa: suas habilidades deixam de chegar ao assistente na próxima execução e ele sai da aba Instalados. ",
@@ -419,6 +457,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "Alguns arquivos não estão listados: este pacote excede os limites do visualizador.",
   },
   ru: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "Установлено",
+    Downloaded: "Загружено",
+    Marketplace: "Маркетплейс",
+    "Portable packages installed for this workspace.": "Портативные пакеты, установленные для этого рабочего пространства.",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "Все плагины, установленные в этом рабочем пространстве. До подсказки помощника доходят только включённые плагины.",
     "Remove": "Удалить",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "Это удалит файлы плагина с этого сайта. Отменить действие нельзя — при повторной установке всё начнётся с нуля.",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "Это отключит его: при следующем запуске его навыки перестанут поступать к помощнику, и он исчезнет со вкладки «Установленные». ",
@@ -478,6 +523,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "Некоторые файлы не показаны: пакет превышает лимиты просмотрщика.",
   },
   fa: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "نصب‌شده",
+    Downloaded: "دانلودشده",
+    Marketplace: "بازارچه",
+    "Portable packages installed for this workspace.": "بسته‌های قابل‌حمل نصب‌شده برای این فضای کاری.",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "هر افزونه نصب‌شده در این فضای کاری. فقط افزونه‌های فعال به دستیار می‌رسند.",
     "Remove": "حذف",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "این کار فایل‌های افزونه را از این سایت حذف می‌کند. این کار قابل بازگشت نیست — نصب دوباره از صفر شروع می‌شود.",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "این کار آن را خاموش می‌کند: مهارت‌هایش از اجرای بعدی دیگر به دستیار نمی‌رسند و از زبانه نصب‌شده حذف می‌شود. ",
@@ -537,6 +589,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "برخی فایل‌ها فهرست نشده‌اند: این بسته از محدودیت‌های نمایشگر بزرگ‌تر است.",
   },
   ar: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "مثبَّت",
+    Downloaded: "تم التنزيل",
+    Marketplace: "المتجر",
+    "Portable packages installed for this workspace.": "حزم قابلة للنقل مثبَّتة لمساحة العمل هذه.",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "كل إضافة مثبَّتة في مساحة العمل هذه. تصل الإضافات المفعّلة فقط إلى المساعد.",
     "Remove": "إزالة",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "سيحذف هذا ملفات الإضافة من هذا الموقع. لا يمكن التراجع عن ذلك — وتبدأ إعادة التثبيت من الصفر.",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "سيؤدي هذا إلى إيقافه: ستتوقف مهاراته عن الوصول إلى المساعد في التشغيل التالي وسيختفي من علامة تبويب المثبّتة. ",
@@ -596,6 +655,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "بعض الملفات غير مدرجة: هذه الحزمة تتجاوز حدود العارض.",
   },
   ja: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "インストール済み",
+    Downloaded: "ダウンロード済み",
+    Marketplace: "マーケットプレイス",
+    "Portable packages installed for this workspace.": "このワークスペース用にインストールされたポータブルパッケージ。",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "このワークスペースにインストールされているすべてのプラグイン。有効なプラグインのみがアシスタントのプロンプトに届きます。",
     "Remove": "削除",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "このサイトからプラグインのファイルを削除します。この操作は元に戻せません。再インストールすると最初からやり直しになります。",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "これをオフにすると、次回の実行からそのスキルはアシスタントに届かなくなり、「インストール済み」タブから外れます。",
@@ -655,6 +721,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "一部のファイルは一覧に含まれていません: このパッケージはビューアーの上限を超えています。",
   },
   ko: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "설치됨",
+    Downloaded: "다운로드됨",
+    Marketplace: "마켓플레이스",
+    "Portable packages installed for this workspace.": "이 워크스페이스에 설치된 이동 가능한 패키지입니다.",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "이 워크스페이스에 설치된 모든 플러그인입니다. 켜져 있는 플러그인만 어시스턴트의 프롬프트에 도달합니다.",
     "Remove": "제거",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "이 사이트에서 플러그인 파일을 삭제합니다. 이 작업은 되돌릴 수 없으며, 다시 설치하면 처음부터 시작됩니다.",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "이 항목을 끕니다. 다음 실행부터 해당 스킬이 어시스턴트에 전달되지 않으며 설치됨 탭에서 사라집니다. ",
@@ -714,6 +787,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "일부 파일이 목록에 없습니다: 이 패키지가 뷰어 한도를 초과합니다.",
   },
   pl: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "Zainstalowane",
+    Downloaded: "Pobrane",
+    Marketplace: "Sklep",
+    "Portable packages installed for this workspace.": "Przenośne pakiety zainstalowane dla tego obszaru roboczego.",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "Każda wtyczka zainstalowana w tym obszarze roboczym. Do polecenia asystenta trafiają tylko włączone wtyczki.",
     "Remove": "Usuń",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "Spowoduje to usunięcie plików wtyczki z tej witryny. Tej operacji nie można cofnąć — ponowna instalacja zacznie się od zera.",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "To ją wyłącza: przy następnym uruchomieniu jej umiejętności przestaną docierać do asystenta, a wtyczka zniknie z karty Zainstalowane. ",
@@ -773,6 +853,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "Niektóre pliki nie są wymienione: ten pakiet przekracza limity podglądu.",
   },
   hu: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "Telepítve",
+    Downloaded: "Letöltve",
+    Marketplace: "Piactér",
+    "Portable packages installed for this workspace.": "Ehhez a munkaterülethez telepített hordozható csomagok.",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "A munkaterületre telepített összes bővítmény. Csak a bekapcsolt bővítmények érik el az asszisztens promptját.",
     "Remove": "Eltávolítás",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "Ez törli a bővítmény fájljait erről a webhelyről. Ez nem vonható vissza — az újratelepítés elölről kezdődik.",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "Ez kikapcsolja: a képességei a következő futtatástól nem jutnak el az asszisztenshez, és lekerül a Telepítve lapról. ",
@@ -832,6 +919,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "Néhány fájl nincs felsorolva: ez a csomag meghaladja a megjelenítő korlátait.",
   },
   fr: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "Installé",
+    Downloaded: "Téléchargé",
+    Marketplace: "Place de marché",
+    "Portable packages installed for this workspace.": "Paquets portables installés pour cet espace de travail.",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "Tous les plugins installés dans cet espace de travail. Seuls les plugins activés atteignent l'invite de l'assistant.",
     "Remove": "Supprimer",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "Cette action supprime les fichiers du plugin de ce site. Elle est irréversible : une réinstallation repart de zéro.",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "Cette action le désactive : ses compétences ne parviendront plus à l’assistant à la prochaine exécution et il disparaîtra de l’onglet Installés. ",
@@ -891,6 +985,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "Certains fichiers ne sont pas listés : ce paquet dépasse les limites de la visionneuse.",
   },
   uk: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "Встановлено",
+    Downloaded: "Завантажено",
+    Marketplace: "Маркетплейс",
+    "Portable packages installed for this workspace.": "Портативні пакети, встановлені для цього робочого простору.",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "Усі плагіни, встановлені в цьому робочому просторі. До підказки асистента доходять лише увімкнені плагіни.",
     "Remove": "Видалити",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "Це видалить файли плагіна з цього сайту. Дію неможливо скасувати — повторне встановлення почнеться з нуля.",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "Це вимкне його: під час наступного запуску його навички перестануть надходити до асистента, і він зникне з вкладки «Встановлені». ",
@@ -950,6 +1051,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "Деякі файли не показано: пакет перевищує ліміти переглядача.",
   },
   tr: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "Yüklü",
+    Downloaded: "İndirildi",
+    Marketplace: "Pazar Yeri",
+    "Portable packages installed for this workspace.": "Bu çalışma alanı için yüklenen taşınabilir paketler.",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "Bu çalışma alanına yüklenen her eklenti. Yalnızca açık olan eklentiler asistanın istemine ulaşır.",
     "Remove": "Kaldır",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "Bu, eklentinin dosyalarını bu siteden siler. Bu işlem geri alınamaz — yeniden yükleme sıfırdan başlar.",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "Bu, eklentiyi kapatır: becerileri sonraki çalıştırmada asistana ulaşmayı bırakır ve Yüklü sekmesinden çıkar. ",
@@ -1009,6 +1117,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "Bazı dosyalar listelenmedi: bu paket görüntüleyicinin sınırlarını aşıyor.",
   },
   th: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "ติดตั้งแล้ว",
+    Downloaded: "ดาวน์โหลดแล้ว",
+    Marketplace: "ตลาดกลาง",
+    "Portable packages installed for this workspace.": "แพ็กเกจแบบพกพาที่ติดตั้งสำหรับพื้นที่ทำงานนี้",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "ปลั๊กอินทุกตัวที่ติดตั้งในพื้นที่ทำงานนี้ มีเพียงปลั๊กอินที่เปิดใช้งานเท่านั้นที่จะไปถึงพรอมป์ของผู้ช่วย",
     "Remove": "ลบ",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "การดำเนินการนี้จะลบไฟล์ของปลั๊กอินออกจากไซต์นี้ และไม่สามารถย้อนกลับได้ — หากติดตั้งใหม่จะเริ่มต้นจากศูนย์",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "การดำเนินการนี้จะปิดปลั๊กอิน: ทักษะของปลั๊กอินจะไม่ส่งถึงผู้ช่วยในการทำงานครั้งถัดไป และปลั๊กอินจะหายไปจากแท็บติดตั้งแล้ว ",
@@ -1068,6 +1183,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "บางไฟล์ไม่ได้แสดงในรายการ: แพ็กเกจนี้เกินขีดจำกัดของตัวแสดง",
   },
   it: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "Installato",
+    Downloaded: "Scaricato",
+    Marketplace: "Marketplace",
+    "Portable packages installed for this workspace.": "Pacchetti portatili installati per questo spazio di lavoro.",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "Ogni plugin installato in questo spazio di lavoro. Solo i plugin attivati raggiungono il prompt dell'assistente.",
     "Remove": "Rimuovi",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "Questa azione elimina i file del plugin da questo sito. Non può essere annullata: una reinstallazione riparte da zero.",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "Questa azione lo disattiva: le sue competenze non raggiungeranno più l'assistente alla prossima esecuzione e scomparirà dalla scheda Installati. ",
@@ -1127,6 +1249,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "Alcuni file non sono elencati: questo pacchetto supera i limiti del visualizzatore.",
   },
   hi: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "इंस्टॉल किया गया",
+    Downloaded: "डाउनलोड किया गया",
+    Marketplace: "मार्केटप्लेस",
+    "Portable packages installed for this workspace.": "इस वर्कस्पेस के लिए इंस्टॉल किए गए पोर्टेबल पैकेज।",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "इस वर्कस्पेस में इंस्टॉल किया गया हर प्लगिन। केवल चालू प्लगिन ही असिस्टेंट के प्रॉम्प्ट तक पहुँचते हैं।",
     "Remove": "हटाएँ",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "यह इस साइट से प्लगइन की फ़ाइलें हटा देगा। इसे पूर्ववत नहीं किया जा सकता — दोबारा इंस्टॉल करने पर शुरुआत से शुरू होगा।",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "यह इसे बंद कर देता है: अगली बार चलने पर इसके कौशल सहायक तक पहुँचना बंद हो जाएँगे और यह इंस्टॉल किए गए टैब से हट जाएगा। ",
@@ -1186,6 +1315,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "कुछ फ़ाइलें सूची में नहीं हैं: यह पैकेज व्यूअर की सीमाओं से बड़ा है।",
   },
   ur: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "انسٹال شدہ",
+    Downloaded: "ڈاؤن لوڈ شدہ",
+    Marketplace: "مارکیٹ پلیس",
+    "Portable packages installed for this workspace.": "اس ورک اسپیس کے لیے انسٹال کیے گئے پورٹیبل پیکجز۔",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "اس ورک اسپیس میں انسٹال ہر پلگ ان۔ صرف آن پلگ اِنز ہی اسسٹنٹ کے پرامپٹ تک پہنچتے ہیں۔",
     "Remove": "ہٹائیں",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "یہ اس سائٹ سے پلگ اِن کی فائلیں حذف کر دے گا۔ اسے واپس نہیں کیا جا سکتا — دوبارہ انسٹال کرنے پر آغاز سے شروع ہوگا۔",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "یہ اسے بند کر دیتا ہے: اگلی بار چلنے پر اس کی اسکلز اسسٹنٹ تک پہنچنا بند ہو جائیں گی اور یہ انسٹال شدہ ٹیب سے ہٹ جائے گا۔ ",
@@ -1245,6 +1381,13 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "کچھ فائلیں فہرست میں نہیں ہیں: یہ پیکیج ویور کی حدود سے بڑا ہے۔",
   },
   bn: {
+    // i18n sweep 2026-09-22: Plugins/Agent Plugins tab labels and copy — previously called
+    // by t() with no dictionary entry in this locale at all.
+    Installed: "ইনস্টল করা",
+    Downloaded: "ডাউনলোড করা হয়েছে",
+    Marketplace: "মার্কেটপ্লেস",
+    "Portable packages installed for this workspace.": "এই ওয়ার্কস্পেসের জন্য ইনস্টল করা পোর্টেবল প্যাকেজ।",
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.": "এই ওয়ার্কস্পেসে ইনস্টল করা প্রতিটি প্লাগইন। শুধুমাত্র চালু থাকা প্লাগইনগুলো সহায়কের প্রম্পটে পৌঁছায়।",
     "Remove": "সরান",
     "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.": "এটি এই সাইট থেকে প্লাগইনের ফাইল মুছে দেবে। এটি পূর্বাবস্থায় ফেরানো যাবে না — আবার ইনস্টল করলে শুরু থেকে শুরু হবে।",
     "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ": "এটি বন্ধ করে দেয়: পরের বার চালানোর সময় এর দক্ষতাগুলো সহকারীর কাছে পৌঁছানো বন্ধ হবে এবং এটি ইনস্টল করা ট্যাব থেকে সরে যাবে। ",

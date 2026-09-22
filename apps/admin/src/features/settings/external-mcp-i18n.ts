@@ -27,8 +27,11 @@
 
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
-const EXTERNAL_MCP_ADMISSION_COPY: Record<string, Record<string, string>> = {
+const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
   es: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Este servidor no publicó un esquema de entrada utilizable para esta herramienta, por lo que Tovu no puede ofrecerla.",
     "This server advertised a tool under a name Tovu will not register.": "Este servidor anunció una herramienta con un nombre que Tovu no registrará.",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "Este servidor anunció el mismo nombre de herramienta dos veces, por lo que Tovu conservó solo la primera.",
@@ -39,59 +42,7 @@ const EXTERNAL_MCP_ADMISSION_COPY: Record<string, Record<string, string>> = {
     "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "Este servidor está desactivado, pero el asistente aún lo ejecuta. Reinicia el asistente para descargarlo.",
     "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "Este servidor se eliminó de tu configuración, pero el asistente aún lo ejecuta. Reinicia el asistente para descargarlo.",
     "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "No se pueden desbloquear las credenciales guardadas de este servidor porque el token del sitio no está disponible. Agrégalo o restáuralo en la pestaña Token del sitio de la página Secretos y luego reinicia el asistente.",
-  },
-  id: {
-    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Server ini tidak menerbitkan skema input yang dapat digunakan untuk alat ini, sehingga Tovu tidak dapat menawarkannya.",
-    "This server advertised a tool under a name Tovu will not register.": "Server ini mengiklankan alat dengan nama yang tidak akan didaftarkan Tovu.",
-    "This server advertised the same tool name twice, so Tovu kept only the first.": "Server ini mengiklankan nama alat yang sama dua kali, sehingga Tovu hanya menyimpan yang pertama.",
-    "This connection has already reached its maximum number of tools, so this one was left out.": "Koneksi ini sudah mencapai jumlah alat maksimalnya, jadi alat ini tidak disertakan.",
-    "The assistant refused this tool at startup.": "Asisten menolak alat ini saat dimulai.",
-    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "Asisten masih menjalankan alat ini, tetapi alat ini tidak lagi ada di allowlist. Mulai ulang asisten untuk membongkarnya.",
-    "The assistant isn't running this server at all. Restart the assistant to load it.": "Asisten sama sekali tidak menjalankan server ini. Mulai ulang asisten untuk memuatnya.",
-    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "Server ini dimatikan, tetapi asisten masih menjalankannya. Mulai ulang asisten untuk membongkarnya.",
-    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "Server ini dihapus dari konfigurasi Anda, tetapi asisten masih menjalankannya. Mulai ulang asisten untuk membongkarnya.",
-    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "Kredensial tersimpan server ini tidak dapat dibuka karena token situs tidak tersedia. Tambahkan atau pulihkan di tab Token Situs pada halaman Rahasia, lalu mulai ulang asisten.",
-  },
-  de: {
-    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Dieser Server hat kein verwendbares Eingabeschema für dieses Werkzeug veröffentlicht; Tovu kann es daher nicht anbieten.",
-    "This server advertised a tool under a name Tovu will not register.": "Dieser Server hat ein Werkzeug unter einem Namen angekündigt, den Tovu nicht registrieren wird.",
-    "This server advertised the same tool name twice, so Tovu kept only the first.": "Dieser Server hat denselben Werkzeugnamen zweimal angekündigt; Tovu hat nur den ersten behalten.",
-    "This connection has already reached its maximum number of tools, so this one was left out.": "Diese Verbindung hat bereits ihre maximale Werkzeuganzahl erreicht; dieses Werkzeug wurde ausgelassen.",
-    "The assistant refused this tool at startup.": "Der Assistent hat dieses Werkzeug beim Start abgelehnt.",
-    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "Der Assistent führt dieses Werkzeug noch aus, aber es steht nicht mehr auf der allowlist. Starten Sie den Assistenten neu, um es zu entladen.",
-    "The assistant isn't running this server at all. Restart the assistant to load it.": "Der Assistent führt diesen Server überhaupt nicht aus. Starten Sie den Assistenten neu, um ihn zu laden.",
-    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "Dieser Server ist ausgeschaltet, aber der Assistent führt ihn noch aus. Starten Sie den Assistenten neu, um ihn zu entladen.",
-    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "Dieser Server wurde aus Ihrer Konfiguration entfernt, aber der Assistent führt ihn noch aus. Starten Sie den Assistenten neu, um ihn zu entladen.",
-    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "Die gespeicherten Zugangsdaten dieses Servers können nicht entsperrt werden, weil das Site-Token nicht verfügbar ist. Fügen Sie es auf der Seite Geheimnisse im Tab Site-Token hinzu oder stellen Sie es wieder her und starten Sie dann den Assistenten neu.",
-  },
-  "zh-CN": {
-    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "此服务器未发布此工具可用的输入架构，因此 Tovu 无法提供它。",
-    "This server advertised a tool under a name Tovu will not register.": "此服务器以 Tovu 不会注册的名称发布了一个工具。",
-    "This server advertised the same tool name twice, so Tovu kept only the first.": "此服务器两次发布了相同的工具名称，因此 Tovu 只保留了第一个。",
-    "This connection has already reached its maximum number of tools, so this one was left out.": "此连接已达到工具数量上限，因此未纳入此工具。",
-    "The assistant refused this tool at startup.": "助手在启动时拒绝了此工具。",
-    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "助手仍在运行此工具，但它已不在 allowlist 中。重启助手以卸载它。",
-    "The assistant isn't running this server at all. Restart the assistant to load it.": "助手根本没有运行此服务器。重启助手以加载它。",
-    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "此服务器已关闭，但助手仍在运行它。重启助手以卸载它。",
-    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "此服务器已从您的配置中移除，但助手仍在运行它。重启助手以卸载它。",
-    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "由于站点令牌不可用，无法解锁此服务器保存的凭据。请在“机密”页面的“站点令牌”标签中添加或恢复它，然后重启助手。",
-  },
-  "zh-TW": {
-    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "此伺服器未發布此工具可用的輸入架構，因此 Tovu 無法提供它。",
-    "This server advertised a tool under a name Tovu will not register.": "此伺服器以 Tovu 不會註冊的名稱發布了一個工具。",
-    "This server advertised the same tool name twice, so Tovu kept only the first.": "此伺服器兩次發布相同的工具名稱，因此 Tovu 只保留第一個。",
-    "This connection has already reached its maximum number of tools, so this one was left out.": "此連線已達到工具數量上限，因此未納入此工具。",
-    "The assistant refused this tool at startup.": "助理在啟動時拒絕了此工具。",
-    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "助理仍在執行此工具，但它已不在 allowlist 中。重新啟動助理以卸載它。",
-    "The assistant isn't running this server at all. Restart the assistant to load it.": "助理根本沒有執行此伺服器。重新啟動助理以載入它。",
-    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "此伺服器已關閉，但助理仍在執行它。重新啟動助理以卸載它。",
-    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "此伺服器已從您的設定中移除，但助理仍在執行它。重新啟動助理以卸載它。",
-    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "由於網站權杖不可用，無法解鎖此伺服器儲存的認證。請在「機密」頁面的「網站權杖」分頁新增或還原它，然後重新啟動助理。",
-  },
-};
-
-const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
-  es: {
+    "Third-party tools for your coding agent.": "Herramientas de terceros para tu agente de código.",
     "may write": "puede escribir",
     "Restarting…": "Reiniciando…",
     "Writes": "Escribe",
@@ -117,6 +68,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Conexión",
   },
   id: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Server ini tidak menerbitkan skema input yang dapat digunakan untuk alat ini, sehingga Tovu tidak dapat menawarkannya.",
+    "This server advertised a tool under a name Tovu will not register.": "Server ini mengiklankan alat dengan nama yang tidak akan didaftarkan Tovu.",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "Server ini mengiklankan nama alat yang sama dua kali, sehingga Tovu hanya menyimpan yang pertama.",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "Koneksi ini sudah mencapai jumlah alat maksimalnya, jadi alat ini tidak disertakan.",
+    "The assistant refused this tool at startup.": "Asisten menolak alat ini saat dimulai.",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "Asisten masih menjalankan alat ini, tetapi alat ini tidak lagi ada di allowlist. Mulai ulang asisten untuk membongkarnya.",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "Asisten sama sekali tidak menjalankan server ini. Mulai ulang asisten untuk memuatnya.",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "Server ini dimatikan, tetapi asisten masih menjalankannya. Mulai ulang asisten untuk membongkarnya.",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "Server ini dihapus dari konfigurasi Anda, tetapi asisten masih menjalankannya. Mulai ulang asisten untuk membongkarnya.",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "Kredensial tersimpan server ini tidak dapat dibuka karena token situs tidak tersedia. Tambahkan atau pulihkan di tab Token Situs pada halaman Rahasia, lalu mulai ulang asisten.",
+    "Third-party tools for your coding agent.": "Alat pihak ketiga untuk agen coding Anda.",
     "may write": "boleh menulis",
     "Restarting…": "Memulai ulang…",
     "Writes": "Menulis",
@@ -142,6 +107,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Koneksi",
   },
   de: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Dieser Server hat kein verwendbares Eingabeschema für dieses Werkzeug veröffentlicht; Tovu kann es daher nicht anbieten.",
+    "This server advertised a tool under a name Tovu will not register.": "Dieser Server hat ein Werkzeug unter einem Namen angekündigt, den Tovu nicht registrieren wird.",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "Dieser Server hat denselben Werkzeugnamen zweimal angekündigt; Tovu hat nur den ersten behalten.",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "Diese Verbindung hat bereits ihre maximale Werkzeuganzahl erreicht; dieses Werkzeug wurde ausgelassen.",
+    "The assistant refused this tool at startup.": "Der Assistent hat dieses Werkzeug beim Start abgelehnt.",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "Der Assistent führt dieses Werkzeug noch aus, aber es steht nicht mehr auf der allowlist. Starten Sie den Assistenten neu, um es zu entladen.",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "Der Assistent führt diesen Server überhaupt nicht aus. Starten Sie den Assistenten neu, um ihn zu laden.",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "Dieser Server ist ausgeschaltet, aber der Assistent führt ihn noch aus. Starten Sie den Assistenten neu, um ihn zu entladen.",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "Dieser Server wurde aus Ihrer Konfiguration entfernt, aber der Assistent führt ihn noch aus. Starten Sie den Assistenten neu, um ihn zu entladen.",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "Die gespeicherten Zugangsdaten dieses Servers können nicht entsperrt werden, weil das Site-Token nicht verfügbar ist. Fügen Sie es auf der Seite Geheimnisse im Tab Site-Token hinzu oder stellen Sie es wieder her und starten Sie dann den Assistenten neu.",
+    "Third-party tools for your coding agent.": "Tools von Drittanbietern für Ihren Coding-Assistenten.",
     "may write": "darf schreiben",
     "Restarting…": "Wird neu gestartet…",
     "Writes": "Schreibt",
@@ -167,6 +146,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Verbindung",
   },
   "zh-CN": {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "此服务器未发布此工具可用的输入架构，因此 Tovu 无法提供它。",
+    "This server advertised a tool under a name Tovu will not register.": "此服务器以 Tovu 不会注册的名称发布了一个工具。",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "此服务器两次发布了相同的工具名称，因此 Tovu 只保留了第一个。",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "此连接已达到工具数量上限，因此未纳入此工具。",
+    "The assistant refused this tool at startup.": "助手在启动时拒绝了此工具。",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "助手仍在运行此工具，但它已不在 allowlist 中。重启助手以卸载它。",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "助手根本没有运行此服务器。重启助手以加载它。",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "此服务器已关闭，但助手仍在运行它。重启助手以卸载它。",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "此服务器已从您的配置中移除，但助手仍在运行它。重启助手以卸载它。",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "由于站点令牌不可用，无法解锁此服务器保存的凭据。请在“机密”页面的“站点令牌”标签中添加或恢复它，然后重启助手。",
+    "Third-party tools for your coding agent.": "适用于您的编程助手的第三方工具。",
     "may write": "允许写入",
     "Restarting…": "正在重启…",
     "Writes": "写入",
@@ -192,6 +185,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "连接",
   },
   "zh-TW": {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "此伺服器未發布此工具可用的輸入架構，因此 Tovu 無法提供它。",
+    "This server advertised a tool under a name Tovu will not register.": "此伺服器以 Tovu 不會註冊的名稱發布了一個工具。",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "此伺服器兩次發布相同的工具名稱，因此 Tovu 只保留第一個。",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "此連線已達到工具數量上限，因此未納入此工具。",
+    "The assistant refused this tool at startup.": "助理在啟動時拒絕了此工具。",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "助理仍在執行此工具，但它已不在 allowlist 中。重新啟動助理以卸載它。",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "助理根本沒有執行此伺服器。重新啟動助理以載入它。",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "此伺服器已關閉，但助理仍在執行它。重新啟動助理以卸載它。",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "此伺服器已從您的設定中移除，但助理仍在執行它。重新啟動助理以卸載它。",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "由於網站權杖不可用，無法解鎖此伺服器儲存的認證。請在「機密」頁面的「網站權杖」分頁新增或還原它，然後重新啟動助理。",
+    "Third-party tools for your coding agent.": "適用於您的程式設計助理的第三方工具。",
     "may write": "允許寫入",
     "Restarting…": "正在重新啟動…",
     "Writes": "寫入",
@@ -217,6 +224,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "連線",
   },
   "pt-BR": {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Este servidor não publicou um esquema de entrada utilizável para esta ferramenta, portanto o Tovu não pode oferecê-la.",
+    "This server advertised a tool under a name Tovu will not register.": "Este servidor anunciou uma ferramenta com um nome que o Tovu não registrará.",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "Este servidor anunciou o mesmo nome de ferramenta duas vezes, então o Tovu manteve apenas a primeira.",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "Esta conexão já atingiu seu número máximo de ferramentas, então esta foi deixada de fora.",
+    "The assistant refused this tool at startup.": "O assistente recusou esta ferramenta na inicialização.",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "O assistente ainda está executando esta ferramenta, mas ela não está mais na allowlist. Reinicie o assistente para descarregá-la.",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "O assistente não está executando este servidor. Reinicie o assistente para carregá-lo.",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "Este servidor está desativado, mas o assistente ainda o está executando. Reinicie o assistente para descarregá-lo.",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "Este servidor foi removido da sua configuração, mas o assistente ainda o está executando. Reinicie o assistente para descarregá-lo.",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "As credenciais salvas deste servidor não podem ser desbloqueadas porque o token do site não está disponível. Adicione-o ou restaure-o na aba Token do Site da página Segredos e, em seguida, reinicie o assistente.",
+    "Third-party tools for your coding agent.": "Ferramentas de terceiros para seu agente de código.",
     "may write": "pode gravar",
     "Restarting…": "Reiniciando…",
     "Writes": "Escreve",
@@ -242,6 +263,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Conexão",
   },
   ru: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Этот сервер не опубликовал пригодную для использования входную схему для этого инструмента, поэтому Tovu не может его предложить.",
+    "This server advertised a tool under a name Tovu will not register.": "Этот сервер объявил инструмент под именем, которое Tovu не будет регистрировать.",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "Этот сервер дважды объявил одно и то же имя инструмента, поэтому Tovu сохранил только первый.",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "Это подключение уже достигло максимального количества инструментов, поэтому данный инструмент был пропущен.",
+    "The assistant refused this tool at startup.": "Ассистент отклонил этот инструмент при запуске.",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "Ассистент всё ещё выполняет этот инструмент, но он больше не входит в allowlist. Перезапустите ассистента, чтобы выгрузить его.",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "Ассистент вообще не запускает этот сервер. Перезапустите ассистента, чтобы загрузить его.",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "Этот сервер отключён, но ассистент всё ещё его выполняет. Перезапустите ассистента, чтобы выгрузить его.",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "Этот сервер был удалён из вашей конфигурации, но ассистент всё ещё его выполняет. Перезапустите ассистента, чтобы выгрузить его.",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "Сохранённые учётные данные этого сервера невозможно разблокировать, поскольку токен сайта недоступен. Добавьте или восстановите его на вкладке «Токен сайта» страницы «Секреты», затем перезапустите ассистента.",
+    "Third-party tools for your coding agent.": "Сторонние инструменты для вашего ассистента по коду.",
     "may write": "может записывать",
     "Restarting…": "Перезапуск…",
     "Writes": "Запись",
@@ -267,6 +302,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Подключение",
   },
   fa: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "این سرور طرحواره ورودی قابل‌استفاده‌ای برای این ابزار منتشر نکرده است، بنابراین Tovu نمی‌تواند آن را ارائه دهد.",
+    "This server advertised a tool under a name Tovu will not register.": "این سرور ابزاری را با نامی معرفی کرده که Tovu آن را ثبت نخواهد کرد.",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "این سرور یک نام ابزار را دو بار معرفی کرده است، بنابراین Tovu فقط اولین را نگه داشت.",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "این اتصال از قبل به حداکثر تعداد ابزارهای خود رسیده است، بنابراین این یکی کنار گذاشته شد.",
+    "The assistant refused this tool at startup.": "دستیار این ابزار را هنگام راه‌اندازی رد کرد.",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "دستیار همچنان این ابزار را اجرا می‌کند، اما دیگر در allowlist نیست. برای خارج‌کردن آن، دستیار را دوباره راه‌اندازی کنید.",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "دستیار اصلاً این سرور را اجرا نمی‌کند. برای بارگذاری آن، دستیار را دوباره راه‌اندازی کنید.",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "این سرور خاموش است، اما دستیار همچنان آن را اجرا می‌کند. برای خارج‌کردن آن، دستیار را دوباره راه‌اندازی کنید.",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "این سرور از پیکربندی شما حذف شده است، اما دستیار همچنان آن را اجرا می‌کند. برای خارج‌کردن آن، دستیار را دوباره راه‌اندازی کنید.",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "اطلاعات ورود ذخیره‌شدهٔ این سرور را نمی‌توان باز کرد زیرا توکن سایت در دسترس نیست. آن را در زبانهٔ توکن سایت در صفحهٔ اسرار اضافه یا بازیابی کنید، سپس دستیار را دوباره راه‌اندازی کنید.",
+    "Third-party tools for your coding agent.": "ابزارهای شخص ثالث برای دستیار کدنویسی شما.",
     "may write": "اجازه نوشتن",
     "Restarting…": "در حال راه‌اندازی مجدد…",
     "Writes": "می‌نویسد",
@@ -292,6 +341,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "اتصال",
   },
   ar: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "لم ينشر هذا الخادم مخطط إدخال قابلاً للاستخدام لهذه الأداة، لذا لا يمكن لـ Tovu تقديمها.",
+    "This server advertised a tool under a name Tovu will not register.": "أعلن هذا الخادم عن أداة باسم لن يسجّله Tovu.",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "أعلن هذا الخادم عن اسم الأداة نفسه مرتين، لذا احتفظ Tovu بالأولى فقط.",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "وصل هذا الاتصال بالفعل إلى الحد الأقصى لعدد الأدوات، لذا تم استبعاد هذه الأداة.",
+    "The assistant refused this tool at startup.": "رفض المساعد هذه الأداة عند بدء التشغيل.",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "لا يزال المساعد يشغّل هذه الأداة، لكنها لم تعد ضمن allowlist. أعد تشغيل المساعد لإلغاء تحميلها.",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "لا يشغّل المساعد هذا الخادم على الإطلاق. أعد تشغيل المساعد لتحميله.",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "هذا الخادم معطّل، لكن المساعد لا يزال يشغّله. أعد تشغيل المساعد لإلغاء تحميله.",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "تمت إزالة هذا الخادم من إعداداتك، لكن المساعد لا يزال يشغّله. أعد تشغيل المساعد لإلغاء تحميله.",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "لا يمكن فتح بيانات الاعتماد المحفوظة لهذا الخادم لأن رمز الموقع غير متاح. أضفه أو استعده من علامة تبويب رمز الموقع في صفحة الأسرار، ثم أعد تشغيل المساعد.",
+    "Third-party tools for your coding agent.": "أدوات من جهات خارجية لوكيل الترميز الخاص بك.",
     "may write": "يمكنه الكتابة",
     "Restarting…": "جارٍ إعادة التشغيل…",
     "Writes": "يكتب",
@@ -317,6 +380,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "الاتصال",
   },
   ja: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "このサーバーはこのツール用の使用可能な入力スキーマを公開しなかったため、Tovu はこれを提供できません。",
+    "This server advertised a tool under a name Tovu will not register.": "このサーバーは Tovu が登録しない名前でツールを公開しました。",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "このサーバーは同じツール名を2回公開したため、Tovu は最初の1つだけを保持しました。",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "この接続はすでにツール数の上限に達しているため、このツールは除外されました。",
+    "The assistant refused this tool at startup.": "アシスタントは起動時にこのツールを拒否しました。",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "アシスタントは引き続きこのツールを実行していますが、allowlist には含まれなくなりました。アンロードするにはアシスタントを再起動してください。",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "アシスタントはこのサーバーをまったく実行していません。読み込むにはアシスタントを再起動してください。",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "このサーバーはオフになっていますが、アシスタントは引き続き実行しています。アンロードするにはアシスタントを再起動してください。",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "このサーバーは設定から削除されましたが、アシスタントは引き続き実行しています。アンロードするにはアシスタントを再起動してください。",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "サイトトークンが利用できないため、このサーバーの保存済み認証情報のロックを解除できません。「シークレット」ページの「サイトトークン」タブで追加または復元してから、アシスタントを再起動してください。",
+    "Third-party tools for your coding agent.": "コーディングエージェント向けのサードパーティ製ツール。",
     "may write": "書き込み可",
     "Restarting…": "再起動中…",
     "Writes": "書き込み",
@@ -342,6 +419,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "接続",
   },
   ko: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "이 서버는 이 도구에 사용할 수 있는 입력 스키마를 게시하지 않았으므로 Tovu가 이를 제공할 수 없습니다.",
+    "This server advertised a tool under a name Tovu will not register.": "이 서버는 Tovu가 등록하지 않을 이름으로 도구를 공개했습니다.",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "이 서버가 동일한 도구 이름을 두 번 공개하여 Tovu는 첫 번째 것만 유지했습니다.",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "이 연결은 이미 최대 도구 수에 도달하여 이 도구는 제외되었습니다.",
+    "The assistant refused this tool at startup.": "어시스턴트가 시작 시 이 도구를 거부했습니다.",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "어시스턴트가 이 도구를 계속 실행 중이지만 더 이상 allowlist에 없습니다. 언로드하려면 어시스턴트를 재시작하세요.",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "어시스턴트가 이 서버를 전혀 실행하고 있지 않습니다. 로드하려면 어시스턴트를 재시작하세요.",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "이 서버는 꺼져 있지만 어시스턴트는 여전히 실행 중입니다. 언로드하려면 어시스턴트를 재시작하세요.",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "이 서버는 구성에서 제거되었지만 어시스턴트는 여전히 실행 중입니다. 언로드하려면 어시스턴트를 재시작하세요.",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "사이트 토큰을 사용할 수 없어 이 서버에 저장된 자격 증명을 잠금 해제할 수 없습니다. 시크릿 페이지의 사이트 토큰 탭에서 추가하거나 복원한 다음 어시스턴트를 재시작하세요.",
+    "Third-party tools for your coding agent.": "코딩 에이전트를 위한 타사 도구입니다.",
     "may write": "쓰기 허용",
     "Restarting…": "다시 시작하는 중…",
     "Writes": "쓰기",
@@ -367,6 +458,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "연결",
   },
   pl: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Ten serwer nie opublikował użytecznego schematu wejściowego dla tego narzędzia, więc Tovu nie może go zaoferować.",
+    "This server advertised a tool under a name Tovu will not register.": "Ten serwer ogłosił narzędzie pod nazwą, której Tovu nie zarejestruje.",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "Ten serwer dwukrotnie ogłosił tę samą nazwę narzędzia, więc Tovu zachował tylko pierwsze.",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "To połączenie osiągnęło już maksymalną liczbę narzędzi, więc to zostało pominięte.",
+    "The assistant refused this tool at startup.": "Asystent odrzucił to narzędzie podczas uruchamiania.",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "Asystent nadal uruchamia to narzędzie, ale nie znajduje się już na allowlist. Uruchom ponownie asystenta, aby je wyładować.",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "Asystent w ogóle nie uruchamia tego serwera. Uruchom ponownie asystenta, aby go załadować.",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "Ten serwer jest wyłączony, ale asystent nadal go uruchamia. Uruchom ponownie asystenta, aby go wyładować.",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "Ten serwer został usunięty z Twojej konfiguracji, ale asystent nadal go uruchamia. Uruchom ponownie asystenta, aby go wyładować.",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "Nie można odblokować zapisanych danych uwierzytelniających tego serwera, ponieważ token witryny jest niedostępny. Dodaj go lub przywróć na karcie Token witryny na stronie Sekrety, a następnie uruchom ponownie asystenta.",
+    "Third-party tools for your coding agent.": "Narzędzia innych firm dla Twojego agenta kodowania.",
     "may write": "może zapisywać",
     "Restarting…": "Ponowne uruchamianie…",
     "Writes": "Zapisuje",
@@ -392,6 +497,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Połączenie",
   },
   hu: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Ez a szerver nem tett közzé használható bemeneti sémát ehhez az eszközhöz, ezért a Tovu nem tudja felkínálni.",
+    "This server advertised a tool under a name Tovu will not register.": "Ez a szerver olyan néven hirdetett meg egy eszközt, amelyet a Tovu nem fog regisztrálni.",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "Ez a szerver kétszer hirdette meg ugyanazt az eszköznevet, ezért a Tovu csak az elsőt tartotta meg.",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "Ez a kapcsolat már elérte az eszközök maximális számát, ezért ez kimaradt.",
+    "The assistant refused this tool at startup.": "Az asszisztens elutasította ezt az eszközt indításkor.",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "Az asszisztens még mindig futtatja ezt az eszközt, de az már nincs az allowlisten. Indítsd újra az asszisztenst az eltávolításához.",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "Az asszisztens egyáltalán nem futtatja ezt a szervert. Indítsd újra az asszisztenst a betöltéséhez.",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "Ez a szerver ki van kapcsolva, de az asszisztens még mindig futtatja. Indítsd újra az asszisztenst az eltávolításához.",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "Ezt a szervert eltávolították a konfigurációdból, de az asszisztens még mindig futtatja. Indítsd újra az asszisztenst az eltávolításához.",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "Ennek a szervernek a mentett hitelesítő adatait nem lehet feloldani, mert a webhely token nem érhető el. Add hozzá vagy állítsd vissza a Titkok oldal Webhelytoken lapján, majd indítsd újra az asszisztenst.",
+    "Third-party tools for your coding agent.": "Külső eszközök a kódoló asszisztensedhez.",
     "may write": "írhat",
     "Restarting…": "Újraindítás…",
     "Writes": "Ír",
@@ -417,6 +536,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Kapcsolat",
   },
   fr: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Ce serveur n'a publié aucun schéma d'entrée utilisable pour cet outil, Tovu ne peut donc pas le proposer.",
+    "This server advertised a tool under a name Tovu will not register.": "Ce serveur a annoncé un outil sous un nom que Tovu n'enregistrera pas.",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "Ce serveur a annoncé deux fois le même nom d'outil, Tovu n'a donc conservé que le premier.",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "Cette connexion a déjà atteint son nombre maximal d'outils, celui-ci a donc été exclu.",
+    "The assistant refused this tool at startup.": "L'assistant a refusé cet outil au démarrage.",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "L'assistant exécute encore cet outil, mais il ne figure plus dans l'allowlist. Redémarrez l'assistant pour le décharger.",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "L'assistant n'exécute pas du tout ce serveur. Redémarrez l'assistant pour le charger.",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "Ce serveur est désactivé, mais l'assistant l'exécute encore. Redémarrez l'assistant pour le décharger.",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "Ce serveur a été supprimé de votre configuration, mais l'assistant l'exécute encore. Redémarrez l'assistant pour le décharger.",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "Les identifiants enregistrés de ce serveur ne peuvent pas être déverrouillés car le jeton du site n'est pas disponible. Ajoutez-le ou restaurez-le dans l'onglet Jeton du site de la page Secrets, puis redémarrez l'assistant.",
+    "Third-party tools for your coding agent.": "Outils tiers pour votre agent de codage.",
     "may write": "peut écrire",
     "Restarting…": "Redémarrage…",
     "Writes": "Écrit",
@@ -442,6 +575,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Connexion",
   },
   uk: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Цей сервер не опублікував придатну для використання вхідну схему для цього інструмента, тому Tovu не може його запропонувати.",
+    "This server advertised a tool under a name Tovu will not register.": "Цей сервер оголосив інструмент під назвою, яку Tovu не реєструватиме.",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "Цей сервер двічі оголосив однакову назву інструмента, тому Tovu залишив лише перший.",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "Це підключення вже досягло максимальної кількості інструментів, тому цей був пропущений.",
+    "The assistant refused this tool at startup.": "Асистент відхилив цей інструмент під час запуску.",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "Асистент досі виконує цей інструмент, але його більше немає в allowlist. Перезапустіть асистента, щоб вивантажити його.",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "Асистент взагалі не запускає цей сервер. Перезапустіть асистента, щоб завантажити його.",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "Цей сервер вимкнено, але асистент досі його виконує. Перезапустіть асистента, щоб вивантажити його.",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "Цей сервер було видалено з вашої конфігурації, але асистент досі його виконує. Перезапустіть асистента, щоб вивантажити його.",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "Збережені облікові дані цього сервера неможливо розблокувати, оскільки токен сайту недоступний. Додайте або відновіть його на вкладці «Токен сайту» сторінки «Секрети», а потім перезапустіть асистента.",
+    "Third-party tools for your coding agent.": "Сторонні інструменти для вашого асистента з кодування.",
     "may write": "може записувати",
     "Restarting…": "Перезапуск…",
     "Writes": "Записує",
@@ -467,6 +614,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Підключення",
   },
   tr: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Bu sunucu bu araç için kullanılabilir bir giriş şeması yayımlamadı, bu yüzden Tovu onu sunamaz.",
+    "This server advertised a tool under a name Tovu will not register.": "Bu sunucu, Tovu'nun kaydetmeyeceği bir adla bir araç duyurdu.",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "Bu sunucu aynı araç adını iki kez duyurdu, bu yüzden Tovu yalnızca ilkini tuttu.",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "Bu bağlantı zaten maksimum araç sayısına ulaştı, bu yüzden bu araç dışarıda bırakıldı.",
+    "The assistant refused this tool at startup.": "Asistan bu aracı başlangıçta reddetti.",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "Asistan bu aracı hâlâ çalıştırıyor, ancak artık allowlist'te değil. Kaldırmak için asistanı yeniden başlatın.",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "Asistan bu sunucuyu hiç çalıştırmıyor. Yüklemek için asistanı yeniden başlatın.",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "Bu sunucu kapalı, ancak asistan onu hâlâ çalıştırıyor. Kaldırmak için asistanı yeniden başlatın.",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "Bu sunucu yapılandırmanızdan kaldırıldı, ancak asistan onu hâlâ çalıştırıyor. Kaldırmak için asistanı yeniden başlatın.",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "Site token'ı kullanılamadığı için bu sunucunun kayıtlı kimlik bilgilerinin kilidi açılamıyor. Sırlar sayfasındaki Site Token sekmesinden ekleyin veya geri yükleyin, ardından asistanı yeniden başlatın.",
+    "Third-party tools for your coding agent.": "Kodlama asistanınız için üçüncü taraf araçlar.",
     "may write": "yazabilir",
     "Restarting…": "Yeniden başlatılıyor…",
     "Writes": "Yazıyor",
@@ -492,6 +653,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Bağlantı",
   },
   th: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "เซิร์ฟเวอร์นี้ไม่ได้เผยแพร่สคีมาอินพุตที่ใช้งานได้สำหรับเครื่องมือนี้ ดังนั้น Tovu จึงไม่สามารถเสนอเครื่องมือนี้ได้",
+    "This server advertised a tool under a name Tovu will not register.": "เซิร์ฟเวอร์นี้ประกาศเครื่องมือภายใต้ชื่อที่ Tovu จะไม่ลงทะเบียน",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "เซิร์ฟเวอร์นี้ประกาศชื่อเครื่องมือเดียวกันสองครั้ง ดังนั้น Tovu จึงเก็บไว้เฉพาะรายการแรก",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "การเชื่อมต่อนี้มีจำนวนเครื่องมือถึงขีดจำกัดสูงสุดแล้ว จึงไม่รวมเครื่องมือนี้ไว้",
+    "The assistant refused this tool at startup.": "ผู้ช่วยปฏิเสธเครื่องมือนี้ตอนเริ่มทำงาน",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "ผู้ช่วยยังคงเรียกใช้เครื่องมือนี้อยู่ แต่ไม่ได้อยู่ใน allowlist อีกต่อไป รีสตาร์ทผู้ช่วยเพื่อยกเลิกการโหลด",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "ผู้ช่วยไม่ได้เรียกใช้เซิร์ฟเวอร์นี้เลย รีสตาร์ทผู้ช่วยเพื่อโหลด",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "เซิร์ฟเวอร์นี้ถูกปิดอยู่ แต่ผู้ช่วยยังคงเรียกใช้อยู่ รีสตาร์ทผู้ช่วยเพื่อยกเลิกการโหลด",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "เซิร์ฟเวอร์นี้ถูกลบออกจากการกำหนดค่าของคุณแล้ว แต่ผู้ช่วยยังคงเรียกใช้อยู่ รีสตาร์ทผู้ช่วยเพื่อยกเลิกการโหลด",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "ไม่สามารถปลดล็อกข้อมูลรับรองที่บันทึกไว้ของเซิร์ฟเวอร์นี้ได้ เนื่องจากไม่มีโทเคนไซต์ ให้เพิ่มหรือกู้คืนในแท็บโทเคนไซต์ของหน้าข้อมูลลับ แล้วรีสตาร์ทผู้ช่วย",
+    "Third-party tools for your coding agent.": "เครื่องมือจากบุคคลที่สามสำหรับผู้ช่วยเขียนโค้ดของคุณ",
     "may write": "เขียนได้",
     "Restarting…": "กำลังรีสตาร์ท…",
     "Writes": "เขียนข้อมูล",
@@ -517,6 +692,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "การเชื่อมต่อ",
   },
   it: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Questo server non ha pubblicato uno schema di input utilizzabile per questo strumento, quindi Tovu non può offrirlo.",
+    "This server advertised a tool under a name Tovu will not register.": "Questo server ha pubblicizzato uno strumento con un nome che Tovu non registrerà.",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "Questo server ha pubblicizzato due volte lo stesso nome di strumento, quindi Tovu ha mantenuto solo il primo.",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "Questa connessione ha già raggiunto il numero massimo di strumenti, quindi questo è stato escluso.",
+    "The assistant refused this tool at startup.": "L'assistente ha rifiutato questo strumento all'avvio.",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "L'assistente sta ancora eseguendo questo strumento, ma non è più nell'allowlist. Riavvia l'assistente per scaricarlo.",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "L'assistente non sta affatto eseguendo questo server. Riavvia l'assistente per caricarlo.",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "Questo server è disattivato, ma l'assistente lo sta ancora eseguendo. Riavvia l'assistente per scaricarlo.",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "Questo server è stato rimosso dalla tua configurazione, ma l'assistente lo sta ancora eseguendo. Riavvia l'assistente per scaricarlo.",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "Le credenziali salvate di questo server non possono essere sbloccate perché il token del sito non è disponibile. Aggiungilo o ripristinalo nella scheda Token del sito della pagina Segreti, quindi riavvia l'assistente.",
+    "Third-party tools for your coding agent.": "Strumenti di terze parti per il tuo agente di coding.",
     "may write": "può scrivere",
     "Restarting…": "Riavvio in corso…",
     "Writes": "Scrive",
@@ -542,6 +731,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Connessione",
   },
   hi: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "इस सर्वर ने इस टूल के लिए उपयोग योग्य इनपुट स्कीमा प्रकाशित नहीं किया, इसलिए Tovu इसे प्रदान नहीं कर सकता।",
+    "This server advertised a tool under a name Tovu will not register.": "इस सर्वर ने एक ऐसे नाम से टूल की घोषणा की जिसे Tovu पंजीकृत नहीं करेगा।",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "इस सर्वर ने एक ही टूल नाम की दो बार घोषणा की, इसलिए Tovu ने केवल पहले वाले को रखा।",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "इस कनेक्शन ने पहले ही अपनी अधिकतम टूल संख्या तक पहुँच चुका है, इसलिए इसे शामिल नहीं किया गया।",
+    "The assistant refused this tool at startup.": "सहायक ने स्टार्टअप पर इस टूल को अस्वीकार कर दिया।",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "सहायक अभी भी इस टूल को चला रहा है, लेकिन यह अब allowlist में नहीं है। इसे अनलोड करने के लिए सहायक को पुनः आरंभ करें।",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "सहायक इस सर्वर को बिल्कुल भी नहीं चला रहा है। इसे लोड करने के लिए सहायक को पुनः आरंभ करें।",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "यह सर्वर बंद है, लेकिन सहायक अभी भी इसे चला रहा है। इसे अनलोड करने के लिए सहायक को पुनः आरंभ करें।",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "यह सर्वर आपके कॉन्फ़िगरेशन से हटा दिया गया है, लेकिन सहायक अभी भी इसे चला रहा है। इसे अनलोड करने के लिए सहायक को पुनः आरंभ करें।",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "इस सर्वर की सहेजी गई क्रेडेंशियल अनलॉक नहीं की जा सकतीं क्योंकि साइट टोकन उपलब्ध नहीं है। इसे सीक्रेट्स पेज के साइट टोकन टैब पर जोड़ें या पुनर्स्थापित करें, फिर सहायक को पुनः आरंभ करें।",
+    "Third-party tools for your coding agent.": "आपके कोडिंग एजेंट के लिए थर्ड-पार्टी टूल।",
     "may write": "लिख सकता है",
     "Restarting…": "पुनः आरंभ हो रहा है…",
     "Writes": "लिखता है",
@@ -567,6 +770,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "कनेक्शन",
   },
   ur: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "اس سرور نے اس ٹول کے لیے کوئی قابلِ استعمال ان پٹ اسکیمہ شائع نہیں کیا، اس لیے Tovu اسے پیش نہیں کر سکتا۔",
+    "This server advertised a tool under a name Tovu will not register.": "اس سرور نے ایسے نام سے ٹول کا اعلان کیا جسے Tovu رجسٹر نہیں کرے گا۔",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "اس سرور نے ایک ہی ٹول کا نام دو بار اعلان کیا، اس لیے Tovu نے صرف پہلا رکھا۔",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "اس کنکشن نے پہلے ہی ٹولز کی زیادہ سے زیادہ تعداد تک پہنچ چکا ہے، اس لیے اسے شامل نہیں کیا گیا۔",
+    "The assistant refused this tool at startup.": "اسسٹنٹ نے آغاز پر اس ٹول کو مسترد کر دیا۔",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "اسسٹنٹ اب بھی یہ ٹول چلا رہا ہے، لیکن یہ اب allowlist میں نہیں ہے۔ اسے ان لوڈ کرنے کے لیے اسسٹنٹ کو دوبارہ شروع کریں۔",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "اسسٹنٹ اس سرور کو بالکل نہیں چلا رہا۔ اسے لوڈ کرنے کے لیے اسسٹنٹ کو دوبارہ شروع کریں۔",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "یہ سرور بند ہے، لیکن اسسٹنٹ اب بھی اسے چلا رہا ہے۔ اسے ان لوڈ کرنے کے لیے اسسٹنٹ کو دوبارہ شروع کریں۔",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "یہ سرور آپ کی کنفیگریشن سے ہٹا دیا گیا ہے، لیکن اسسٹنٹ اب بھی اسے چلا رہا ہے۔ اسے ان لوڈ کرنے کے لیے اسسٹنٹ کو دوبارہ شروع کریں۔",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "اس سرور کی محفوظ شدہ اسناد کو ان لاک نہیں کیا جا سکتا کیونکہ سائٹ ٹوکن دستیاب نہیں ہے۔ اسے سیکرٹس صفحے کے سائٹ ٹوکن ٹیب پر شامل یا بحال کریں، پھر اسسٹنٹ کو دوبارہ شروع کریں۔",
+    "Third-party tools for your coding agent.": "آپ کے کوڈنگ ایجنٹ کے لیے تھرڈ پارٹی ٹولز۔",
     "may write": "لکھ سکتا ہے",
     "Restarting…": "دوبارہ شروع ہو رہا ہے…",
     "Writes": "لکھتا ہے",
@@ -592,6 +809,20 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "کنکشن",
   },
   bn: {
+    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
+    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
+    // alongside it.
+    "This server published no usable input schema for this tool, so Tovu cannot offer it.": "এই সার্ভার এই টুলের জন্য ব্যবহারযোগ্য ইনপুট স্কিমা প্রকাশ করেনি, তাই Tovu এটি প্রদান করতে পারে না।",
+    "This server advertised a tool under a name Tovu will not register.": "এই সার্ভার এমন একটি নামে টুল ঘোষণা করেছে যা Tovu নিবন্ধন করবে না।",
+    "This server advertised the same tool name twice, so Tovu kept only the first.": "এই সার্ভার একই টুলের নাম দুবার ঘোষণা করেছে, তাই Tovu শুধু প্রথমটি রেখেছে।",
+    "This connection has already reached its maximum number of tools, so this one was left out.": "এই সংযোগ ইতিমধ্যে তার সর্বোচ্চ টুল সংখ্যায় পৌঁছেছে, তাই এটি বাদ দেওয়া হয়েছে।",
+    "The assistant refused this tool at startup.": "সহকারী শুরুতেই এই টুলটি প্রত্যাখ্যান করেছে।",
+    "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.": "সহকারী এখনও এই টুলটি চালাচ্ছে, কিন্তু এটি আর allowlist-এ নেই। এটি আনলোড করতে সহকারী পুনরায় চালু করুন।",
+    "The assistant isn't running this server at all. Restart the assistant to load it.": "সহকারী এই সার্ভারটি একেবারেই চালাচ্ছে না। এটি লোড করতে সহকারী পুনরায় চালু করুন।",
+    "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.": "এই সার্ভারটি বন্ধ আছে, কিন্তু সহকারী এখনও এটি চালাচ্ছে। এটি আনলোড করতে সহকারী পুনরায় চালু করুন।",
+    "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.": "এই সার্ভারটি আপনার কনফিগারেশন থেকে সরানো হয়েছে, কিন্তু সহকারী এখনও এটি চালাচ্ছে। এটি আনলোড করতে সহকারী পুনরায় চালু করুন।",
+    "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.": "এই সার্ভারের সংরক্ষিত পরিচয়পত্র আনলক করা যাচ্ছে না কারণ সাইট টোকেন উপলব্ধ নেই। সিক্রেটস পৃষ্ঠার সাইট টোকেন ট্যাবে এটি যোগ করুন বা পুনরুদ্ধার করুন, তারপর সহকারী পুনরায় চালু করুন।",
+    "Third-party tools for your coding agent.": "আপনার কোডিং এজেন্টের জন্য থার্ড-পার্টি টুল।",
     "may write": "লিখতে পারে",
     "Restarting…": "পুনরায় চালু হচ্ছে…",
     "Writes": "লেখে",

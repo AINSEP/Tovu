@@ -247,7 +247,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "APIs & Webhooks": "API и Webhooks",
     "MCP Server": "MCP-сервер",
     Soon: "Скоро",
-    "Webhooks": "Webhooks",
+    "Webhooks": "Вебхуки",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Как другие инструменты взаимодействуют с этим сайтом — исходящие вебхуки и подключение MCP-клиента.",
     "Send webhook notifications to external services when content on this site changes.":
@@ -283,7 +283,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "APIs & Webhooks": "API و Webhooks",
     "MCP Server": "سرور MCP",
     Soon: "به‌زودی",
-    "Webhooks": "Webhooks",
+    "Webhooks": "وب‌هوک",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "چگونه ابزارهای دیگر با این سایت ارتباط برقرار می‌کنند — وب‌هوک‌های خروجی و اتصال یک کلاینت MCP.",
     "Send webhook notifications to external services when content on this site changes.":
@@ -319,7 +319,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "APIs & Webhooks": "API و Webhooks",
     "MCP Server": "خادم MCP",
     Soon: "قريبًا",
-    "Webhooks": "Webhooks",
+    "Webhooks": "ويب هوك",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "كيف تتواصل الأدوات الأخرى مع هذا الموقع — الويب هوك الصادرة، وتوصيل عميل MCP.",
     "Send webhook notifications to external services when content on this site changes.":
@@ -535,7 +535,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "APIs & Webhooks": "API та Webhooks",
     "MCP Server": "MCP-сервер",
     Soon: "Скоро",
-    "Webhooks": "Webhooks",
+    "Webhooks": "Вебхуки",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Як інші інструменти взаємодіють із цим сайтом — вихідні вебхуки та підключення MCP-клієнта.",
     "Send webhook notifications to external services when content on this site changes.":
