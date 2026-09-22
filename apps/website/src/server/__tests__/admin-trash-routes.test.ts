@@ -461,6 +461,44 @@ test("list: resolves the seeded owner/admin account's own deletions to its usern
   assert.equal(row?.actorUsername, owner!.username);
 });
 
+test("list: pins actorIsSystem true for the system actor's own row and false for a human's row", async (t) => {
+  const h = buildTrashHarness();
+  await h.deps.identityReady;
+
+  seedRedirect(h.client, h.deps.workspaceId, "redirect-by-system");
+  seedRedirect(h.client, h.deps.workspaceId, "redirect-by-human");
+
+  const ownerPrincipalId = await h.deps.ownerPrincipalId;
+  for (const [entityId, actorPrincipalId] of [
+    // "system" is the boot-time widget adoption's actor id (`write-service.ts`'s `ADOPTION_ACTOR`)
+    // — no principal or user row exists for it, by design.
+    ["redirect-by-system", "system"],
+    ["redirect-by-human", ownerPrincipalId],
+  ] as const) {
+    const marker = await h.trash.trash({
+      workspaceId: h.deps.workspaceId,
+      entityType: REDIRECT_ENTITY_TYPE,
+      entityId,
+      actor: { principalId: actorPrincipalId },
+      display: { title: entityId },
+      at: AT,
+      expectedVersion: 1,
+    });
+    assert.equal(marker.ok, true, `seeding ${entityId} into the trash`);
+  }
+
+  const baseUrl = await startTestServer(h.app, t);
+  const cookie = await loginWithPermissions(h.deps, baseUrl, ["content.read", "admin.redirects.manage"]);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${h.deps.workspaceId}/trash`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  const body4 = (await res.json()) as { items: { entityId: string; actorIsSystem: boolean }[] };
+  const system = body4.items.find((item) => item.entityId === "redirect-by-system");
+  const human = body4.items.find((item) => item.entityId === "redirect-by-human");
+  assert.equal(system?.actorIsSystem, true, "the system actor's own row must be pinned actorIsSystem:true");
+  assert.equal(human?.actorIsSystem, false, "a real account's row must not be misreported as the system actor");
+});
+
 test("restore: one forbidden item in a mixed selection does not abort the rest", async (t) => {
   const h = buildTrashHarness();
   await trashOneOfEach(h);
