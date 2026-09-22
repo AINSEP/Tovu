@@ -10,8 +10,14 @@
  *    service.ts`) already wrap the adapter call in `deps.transaction`, and this decorator's hooks run
  *    from inside that same call, so a hook backed by the same `ContentDb`/`db.$client` connection
  *    joins it automatically (reentrant, see `db-port.sqlite.ts`'s doc);
- *  - runs only on an OK/`"purged"` result — a no-op outcome (`not-found`, `version-changed`,
- *    `blocked`, `already-gone`) never fires one, because nothing changed;
+ *  - runs only on an OK/`"purged"` result that actually changed something — a no-op outcome
+ *    (`not-found`, `version-changed`, `blocked`, `already-gone`) never fires one, because nothing
+ *    changed, and neither does `hide`/`unhide`'s own idempotent "already in the target state" branch,
+ *    which also reports `ok: true` with no transition; `TrashMarkerResult.noop` (`ports.ts`) is what
+ *    tells that branch apart from a real one, since both otherwise share the same `ok: true` shape
+ *    (T1c, `follow-ups.test.ts` — the two were conflated here until that dispatch's direct test of
+ *    this file caught it: a re-hide/re-unhide of an already-trashed/already-live row used to refire
+ *    the hook);
  *  - propagates a throw, which rolls the whole op back (the state change and the hook are one unit).
  *
  * `afterPurge` is paired with `beforePurge`: the row is gone the instant `purge` reports `"purged"`
@@ -67,8 +73,9 @@ export function withFollowUps(required: { adapter: TrashAdapter; hooks: TrashFol
     async hide(hideRequired) {
       const result = await adapter.hide(hideRequired);
       // Only a REAL transition fires the hook: the idempotent "already trashed" branch reports
-      // `ok: true` too, but nothing changed, so nothing finished.
-      if (result.ok && hooks.afterHide) {
+      // `ok: true` too, but nothing changed, so nothing finished — `result.noop` (`ports.ts`) is the
+      // one signal that tells the two apart, since both otherwise report the same `ok: true`.
+      if (result.ok && !result.noop && hooks.afterHide) {
         await hooks.afterHide({ workspaceId: hideRequired.workspaceId, entityId: hideRequired.entityId, at: hideRequired.at });
       }
       return result;
@@ -77,7 +84,9 @@ export function withFollowUps(required: { adapter: TrashAdapter; hooks: TrashFol
     async unhide(unhideRequired) {
       const result = await adapter.unhide(unhideRequired);
       const { priorMarker } = unhideRequired;
-      if (result.ok && typeof priorMarker === "string" && hooks.afterUnhide) {
+      // Same `noop` guard as `hide` above — the idempotent "already live" branch also reports
+      // `ok: true` with no transition.
+      if (result.ok && !result.noop && typeof priorMarker === "string" && hooks.afterUnhide) {
         await hooks.afterUnhide({
           workspaceId: unhideRequired.workspaceId,
           entityId: unhideRequired.entityId,

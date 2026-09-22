@@ -215,7 +215,8 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
           }
           if (!isMarkerValueLive(entry.marker, before.marker)) {
             // Already trashed -- idempotent success, no write (mirrors `flipMarker`'s fallback branch).
-            return { ok: true, version: entry.versionColumn ? (before.version ?? null) : null };
+            // `noop: true` (ports.ts) tells `withFollowUps` nothing actually changed here.
+            return { ok: true, version: entry.versionColumn ? (before.version ?? null) : null, noop: true };
           }
           if (entry.blocker) {
             const count = await db.count({ table: entry.blocker.table, where: eq(entry.blocker.parentIdColumn, entityId) });
@@ -258,8 +259,9 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
             return { ok: false, reason: "version-changed" };
           }
           if (isMarkerValueLive(entry.marker, before.marker)) {
-            // Already live -- idempotent success, no write.
-            return { ok: true, version: entry.versionColumn ? (before.version ?? null) : null };
+            // Already live -- idempotent success, no write. `noop: true`, same as `hide`'s mirror
+            // branch above.
+            return { ok: true, version: entry.versionColumn ? (before.version ?? null) : null, noop: true };
           }
 
           const set: TrashDbAssignment = {

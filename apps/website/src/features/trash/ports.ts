@@ -59,13 +59,21 @@ export interface TrashActor {
  * ok: true, version: 2 })` depends on that: Node's `assert.deepEqual` treats an extra own-enumerable
  * property, even one valued `undefined`, as a mismatch.
  *
+ * `noop` is OPTIONAL and additive (T1c, `follow-ups.test.ts`): `table-adapter.ts`'s `hide`/`unhide`
+ * set it to `true` on their idempotent "already in the target state" branch — the ONE signal that
+ * distinguishes that branch from a real transition, both of which otherwise report the same
+ * `ok: true`. `withFollowUps` (`follow-ups.ts`) reads it to decide whether a hook actually finished
+ * something. Same leave-the-key-out rule as `priorMarker`: a real transition and every bespoke
+ * adapter (post/comment/media/redirect) never set it, so their pinned exact-shape assertions are
+ * unaffected.
+ *
  * `"blocked"` (T1 item 2, migration-free — no new column) is a THIRD failure reason, alongside
  * `"not-found"`/`"version-changed"`: the row exists and the version matches, but the entry's
  * `TrashBlockerSpec` found rows that must move or be deleted first (a term with child terms). `code`
  * and `count` are always present together on this branch — see `registry.ts`'s `TrashBlockerSpec`.
  */
 export type TrashMarkerResult =
-  | { ok: true; version: number | null; priorMarker?: string | null }
+  | { ok: true; version: number | null; priorMarker?: string | null; noop?: true }
   | { ok: false; reason: "not-found" | "version-changed" }
   | { ok: false; reason: "blocked"; code: string; count: number };
 
