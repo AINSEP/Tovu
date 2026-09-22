@@ -5,33 +5,37 @@ import type { TaxonomyPort } from "./taxonomy-port.hooks";
  * @file The only place under `features/taxonomy/hooks` that reaches `lib/api` for
  * `useTaxonomy`/`useTermDetailPanel`'s four routes — see `taxonomy-port.hooks.ts` for why the
  * split exists.
+ *
+ * `trashTerm`/`trashTaxonomy` (T8b, 2026-09-21) go through `api.trash({ type, id })`, the generic
+ * single-item Trash route every admin delete button now shares, instead of the removed
+ * `deleteTerm`/`deleteTaxonomy` (`DELETE /taxonomy/terms/:id`/`DELETE /taxonomy/:id`) — see
+ * `taxonomy-port.hooks.ts`'s own doc comment.
  */
 
 /** The live implementation, as a module-level singleton — matches `redirects-dependencies.hooks.ts`'s
  *  `defaultRedirectsPort`. */
 export const defaultTaxonomyPort: TaxonomyPort = {
   listTaxonomies: () => api.listTaxonomies(),
-  deleteTerm: (termId) => api.deleteTerm(termId),
-  deleteTaxonomy: (taxonomyId) => api.deleteTaxonomy(taxonomyId),
+  trashTerm: ({ id }) => api.trash({ type: "term", id }),
+  trashTaxonomy: ({ id }) => api.trash({ type: "taxonomy", id }),
   renameTerm: (target) => api.renameTerm(target),
 };
 
 /** Seed state for {@link createFakeTaxonomyPort}. */
 export interface FakeTaxonomyPortOptions {
   groups?: AdminTaxonomyWithTerms[];
-  /** Set to make the next `deleteTerm`/`deleteTaxonomy` call throw a 409-shaped `ApiError`, the
-   *  same shape `describeDeleteBlocked` reads — see that rule for the recognized `code`s. */
-  onDeleteTermBlocked?: (termId: string) => { code: string; assignedCount?: number; childCount?: number } | undefined;
-  onDeleteTaxonomyBlocked?: (
-    taxonomyId: string
-  ) => { code: string; assignedCount?: number; childCount?: number } | undefined;
+  /** Set to make the next `trashTerm` call throw the 409 the generic Trash route sends for a term
+   *  with children (`TERM_HAS_CHILDREN`/`count` — `routes/trash/items.ts`'s only `blocker` today),
+   *  the same shape `describeDeleteBlocked` (rules.ts) reads. Taxonomies have no blocked case at all
+   *  (`registry.ts`: only `term` registers a `blocker`), so there is no taxonomy equivalent here. */
+  onTrashTermBlocked?: (termId: string) => { count: number } | undefined;
 }
 
-/** Builds a real {@link ApiError} for a blocked-delete seed — `describeDeleteBlocked` (rules.ts)
+/** Builds a real {@link ApiError} for a blocked-trash seed — `describeDeleteBlocked` (rules.ts)
  *  narrows on `e instanceof ApiError`, so a plain `Error` with the same fields would silently fall
  *  through to the hard-error branch instead of the blocked one; the fake must throw the real class. */
-function blockedError(fields: { code: string; assignedCount?: number; childCount?: number }): ApiError {
-  return new ApiError(fields.code, 409, fields.code, fields as Record<string, unknown>);
+function blockedError(count: number): ApiError {
+  return new ApiError("TERM_HAS_CHILDREN", 409, "TERM_HAS_CHILDREN", { code: "TERM_HAS_CHILDREN", count });
 }
 
 /**
@@ -61,22 +65,20 @@ export function createFakeTaxonomyPort(options: FakeTaxonomyPortOptions = {}): T
       return { items: [...groups] };
     },
 
-    async deleteTerm(termId) {
-      const blocked = options.onDeleteTermBlocked?.(termId);
-      if (blocked) throw blockedError(blocked);
-      const found = findTerm(termId);
-      if (!found) throw new Error(`fake taxonomy port: unknown term ${termId}`);
-      found.group.terms = found.group.terms.filter((t) => t.id !== termId);
-      return { deletedTermId: termId };
+    async trashTerm({ id }) {
+      const blocked = options.onTrashTermBlocked?.(id);
+      if (blocked) throw blockedError(blocked.count);
+      const found = findTerm(id);
+      if (!found) throw new Error(`fake taxonomy port: unknown term ${id}`);
+      found.group.terms = found.group.terms.filter((t) => t.id !== id);
+      return { ok: true, version: null };
     },
 
-    async deleteTaxonomy(taxonomyId) {
-      const blocked = options.onDeleteTaxonomyBlocked?.(taxonomyId);
-      if (blocked) throw blockedError(blocked);
-      const index = groups.findIndex((g) => g.taxonomy.id === taxonomyId);
-      if (index < 0) throw new Error(`fake taxonomy port: unknown taxonomy ${taxonomyId}`);
-      const [removed] = groups.splice(index, 1);
-      return { deletedTaxonomyId: taxonomyId, deletedTermIds: removed!.terms.map((t) => t.id) };
+    async trashTaxonomy({ id }) {
+      const index = groups.findIndex((g) => g.taxonomy.id === id);
+      if (index < 0) throw new Error(`fake taxonomy port: unknown taxonomy ${id}`);
+      groups.splice(index, 1);
+      return { ok: true, version: null };
     },
 
     async renameTerm({ termId, newName }) {
