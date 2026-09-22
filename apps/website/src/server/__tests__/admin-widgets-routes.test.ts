@@ -68,8 +68,8 @@ async function loginWithPermissions(deps: RouteDeps, baseUrl: string, permission
   return login.headers.get("set-cookie")?.split(";")[0] ?? "";
 }
 
-test("admin widgets routes: create -> list -> get -> update -> trash -> blocked purge -> force purge ladder", async (t) => {
-  const { app } = buildTestApp();
+test("admin widgets routes: create -> list -> get -> update -> trash -> gone from reads -> restore from the Trash", async (t) => {
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const createRes = await fetch(`${baseUrl}${BASE}/widgets`, {
@@ -112,14 +112,35 @@ test("admin widgets routes: create -> list -> get -> update -> trash -> blocked 
   assert.equal(staleRes.status, 409);
 
   const trashRes = await fetch(`${baseUrl}${BASE}/widgets/${widgetId}/trash`, { method: "POST", headers: { cookie } });
-  assert.equal(trashRes.status, 200);
-  const trashed = (await trashRes.json()) as { widget: { status: string } };
-  assert.equal(trashed.widget.status, "trash");
+  assert.equal(trashRes.status, 200, await trashRes.clone().text());
+  const trashed = (await trashRes.json()) as { trashed: boolean; id: string; version: number };
+  assert.equal(trashed.trashed, true);
+  assert.equal(trashed.id, widgetId);
+  assert.equal(typeof trashed.version, "number");
 
+  // In the Trash = gone from every widget read, and a second trash finds nothing to move.
+  const getTrashed = await fetch(`${baseUrl}${BASE}/widgets/${widgetId}`, { headers: { cookie } });
+  assert.equal(getTrashed.status, 404);
+  const listTrashed = (await (await fetch(`${baseUrl}${BASE}/widgets`, { headers: { cookie } })).json()) as { widgets: unknown[] };
+  assert.equal(listTrashed.widgets.length, 0);
+  const trashAgain = await fetch(`${baseUrl}${BASE}/widgets/${widgetId}/trash`, { method: "POST", headers: { cookie } });
+  assert.equal(trashAgain.status, 404);
+
+  // The retired purge route is really gone — a permanent delete is the Trash's job now.
   const purgeRes = await fetch(`${baseUrl}${BASE}/widgets/${widgetId}/purge`, { method: "POST", headers: { cookie } });
-  assert.equal(purgeRes.status, 200);
-  const purged = (await purgeRes.json()) as { purged: boolean };
-  assert.equal(purged.purged, true);
+  assert.equal(purgeRes.status, 404);
+
+  // Restore goes through the Trash port directly: this hermetic root registers no TRASHABLE
+  // entries, so the HTTP restore route has no permission to check a widget against (the SQLite root
+  // does — `features/trash/__tests__/widget-trash-flow.test.ts` covers that path).
+  const restoreOutcome = await deps.trash.restore({ workspaceId: WORKSPACE_ID, entityType: "widget", entityId: widgetId, at: deps.clock.nowIso() });
+  assert.equal(restoreOutcome, "restored");
+
+  const getRestored = await fetch(`${baseUrl}${BASE}/widgets/${widgetId}`, { headers: { cookie } });
+  assert.equal(getRestored.status, 200);
+  const restored = (await getRestored.json()) as { widget: { status: string; config: { body: string } } };
+  assert.equal(restored.widget.status, "active");
+  assert.equal(restored.widget.config.body, "updated", "a restore brings back the widget as it was trashed");
 });
 
 test("admin widgets routes: PUT with a title renames the widget; omitting it keeps the title; a non-string title is 400", async (t) => {
@@ -188,7 +209,7 @@ test("admin widgets routes: invalid config is rejected 400, nothing created; unr
   assert.equal(listed.widgets.length, 0, "neither rejected create may have persisted anything");
 });
 
-test("admin widgets regions: bind -> get -> mutate placements -> regions-list reflects placement count -> purge without force is blocked, referencing region named", async (t) => {
+test("admin widgets regions: bind -> get -> mutate placements -> regions-list reflects placement count -> trashing a placed widget is not blocked and leaves the placement broken", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -237,11 +258,15 @@ test("admin widgets regions: bind -> get -> mutate placements -> regions-list re
   assert.equal(regionsListed.regions.length, 1);
   assert.equal(regionsListed.regions[0].placementCount, 1);
 
-  const blockedPurge = await fetch(`${baseUrl}${BASE}/widgets/${widget.id}/purge`, { method: "POST", headers: { cookie } });
-  assert.equal(blockedPurge.status, 409);
-  const blockedBody = (await blockedPurge.json()) as { code: string; details: { referencingLocations: Array<{ kind: string }> } };
-  assert.equal(blockedBody.code, "WIDGETS_REFERENCED");
-  assert.equal(blockedBody.details.referencingLocations[0].kind, "region");
+  // Trash is never blocked by references (EC-07); the region keeps the placement, now broken.
+  const trashRes = await fetch(`${baseUrl}${BASE}/widgets/${widget.id}/trash`, { method: "POST", headers: { cookie } });
+  assert.equal(trashRes.status, 200, await trashRes.clone().text());
+  const afterTrash = (await (await fetch(`${baseUrl}${BASE}/widgets/regions/footer`, { headers: { cookie } })).json()) as {
+    placements: Array<{ widgetEntryId: string; broken: boolean }>;
+  };
+  assert.equal(afterTrash.placements.length, 1);
+  assert.equal(afterTrash.placements[0].widgetEntryId, widget.id);
+  assert.equal(afterTrash.placements[0].broken, true);
 });
 
 test("Fable adversarial-review fix (2026-07-21, Finding H): region placement mutation rejects malformed placement shapes, duplicate placementIds, and strips unrecognized extra properties instead of persisting them verbatim", async (t) => {
@@ -634,7 +659,7 @@ test("admin widgets agent tools: widgets.create places a new instance in one cal
   assert.equal(placements.length, 2, "both the widgets.create-placed and widgets.place-placed instances must be in the region");
 });
 
-test("AC-28/REQ-40/41: a principal with no widgets.* grants is denied 403 (not silently downgraded) on create/update/trash/purge/place/region-bind/region-mutate, naming the specific permission each time; the correct grant restores access", async (t) => {
+test("AC-28/REQ-40/41: a principal with no widgets.* grants is denied 403 (not silently downgraded) on create/update/trash/place/region-bind/region-mutate, naming the specific permission each time; the correct grant restores access", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
   const bareCookie = await loginWithPermissions(deps, baseUrl, []);
@@ -655,7 +680,7 @@ test("AC-28/REQ-40/41: a principal with no widgets.* grants is denied 403 (not s
   assert.equal(bindDenied.status, 403);
   assert.equal(((await bindDenied.json()) as { details: { permission: string } }).details.permission, "widgets.place");
 
-  // Owner creates a real instance so update/trash/purge have a real target to be denied against.
+  // Owner creates a real instance so update/trash have a real target to be denied against.
   const created = await fetch(`${baseUrl}${BASE}/widgets`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie: ownerCookie },
@@ -674,10 +699,6 @@ test("AC-28/REQ-40/41: a principal with no widgets.* grants is denied 403 (not s
   const trashDenied = await fetch(`${baseUrl}${BASE}/widgets/${widget.id}/trash`, { method: "POST", headers: { cookie: bareCookie } });
   assert.equal(trashDenied.status, 403);
   assert.equal(((await trashDenied.json()) as { details: { permission: string } }).details.permission, "widgets.delete");
-
-  const purgeDenied = await fetch(`${baseUrl}${BASE}/widgets/${widget.id}/purge?force=true`, { method: "POST", headers: { cookie: bareCookie } });
-  assert.equal(purgeDenied.status, 403);
-  assert.equal(((await purgeDenied.json()) as { details: { permission: string } }).details.permission, "widgets.delete.force");
 
   // Round-2 external-audit fix (2026-07-21, codex medium finding R2-WIDGETS-002): this test's own
   // title claimed "place"/"region-mutate" coverage, but only region-BIND (a different route, which
@@ -1298,7 +1319,7 @@ test("admin widgets embed-remove route: rejects wrong workspace and a missing ba
   assert.equal(removeRes.status, 200, await removeRes.clone().text());
 });
 
-test("admin widgets regions-list/region-get: reject wrong workspace and no-permission, 404 an unbound region, tolerate a binding whose area entry is missing or wrong-typed, and surface a force-purged widget's dangling placement as broken", async (t) => {
+test("admin widgets regions-list/region-get: reject wrong workspace and no-permission, 404 an unbound region, tolerate a binding whose area entry is missing or wrong-typed, and surface a trashed widget's dangling placement as broken", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
   const bareCookie = await loginWithPermissions(deps, baseUrl, []);
@@ -1376,32 +1397,32 @@ test("admin widgets regions-list/region-get: reject wrong workspace and no-permi
   assert.equal(getWrongType.status, 404);
   assert.equal(((await getWrongType.json()) as { code: string }).code, "WIDGETS_AREA_NOT_FOUND");
 
-  // A real region holding a placement whose target widget was force-purged out from under it —
-  // REQ-43's documented "dangling reference" outcome. region-get must surface broken:true instead
-  // of throwing (the widget row survives force-purge — status flips to "purged" — so this is the
-  // realistic dangling-reference shape, not a nonexistent-row one the write path already blocks).
+  // A real region holding a placement whose target widget was moved to the Trash out from under
+  // it — REQ-43's documented "dangling reference" outcome. region-get must surface broken:true
+  // instead of throwing (the Trash hides the row from every read, the same shape a purge leaves,
+  // not a nonexistent-id one the write path already blocks).
   const bindRes = await fetch(`${baseUrl}${BASE}/widgets/regions`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie: ownerCookie },
     body: JSON.stringify({ regionKey: "broken-placement-region" }),
   });
   const { area } = (await bindRes.json()) as { area: { version: number } };
-  const purgeTarget = await fetch(`${baseUrl}${BASE}/widgets`, {
+  const trashTarget = await fetch(`${baseUrl}${BASE}/widgets`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie: ownerCookie },
-    body: JSON.stringify({ widgetType: "text", title: "Force-purged widget", config: { body: "gone" } }),
+    body: JSON.stringify({ widgetType: "text", title: "Trashed widget", config: { body: "gone" } }),
   });
-  const { widget: purgeTargetWidget } = (await purgeTarget.json()) as { widget: { id: string } };
+  const { widget: trashTargetWidget } = (await trashTarget.json()) as { widget: { id: string } };
 
   const placeForBroken = await fetch(`${baseUrl}${BASE}/widgets/tools/place`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie: ownerCookie },
-    body: JSON.stringify({ widgetInstanceId: purgeTargetWidget.id, target: { kind: "region", regionKey: "broken-placement-region", baseVersion: area.version } }),
+    body: JSON.stringify({ widgetInstanceId: trashTargetWidget.id, target: { kind: "region", regionKey: "broken-placement-region", baseVersion: area.version } }),
   });
   assert.equal(placeForBroken.status, 200, await placeForBroken.clone().text());
 
-  const forcePurgeRes = await fetch(`${baseUrl}${BASE}/widgets/${purgeTargetWidget.id}/purge?force=true`, { method: "POST", headers: { cookie: ownerCookie } });
-  assert.equal(forcePurgeRes.status, 200, await forcePurgeRes.clone().text());
+  const trashTargetRes = await fetch(`${baseUrl}${BASE}/widgets/${trashTargetWidget.id}/trash`, { method: "POST", headers: { cookie: ownerCookie } });
+  assert.equal(trashTargetRes.status, 200, await trashTargetRes.clone().text());
 
   const getBroken = await fetch(`${baseUrl}${BASE}/widgets/regions/broken-placement-region`, { headers: { cookie: ownerCookie } });
   assert.equal(getBroken.status, 200, await getBroken.clone().text());
@@ -1409,9 +1430,9 @@ test("admin widgets regions-list/region-get: reject wrong workspace and no-permi
     placements: Array<{ broken: boolean; widgetTitle: string | null; widgetType: string | null }>;
   };
   assert.equal(brokenPlacements.length, 1);
-  assert.equal(brokenPlacements[0].broken, true, "a force-purged (status: 'purged') target must be reported broken, even though its row still exists");
-  assert.equal(brokenPlacements[0].widgetTitle, "Force-purged widget", "the row survives force-purge, so title/type are still resolvable — only `broken` flips");
-  assert.equal(brokenPlacements[0].widgetType, "text");
+  assert.equal(brokenPlacements[0].broken, true, "a trashed target must be reported broken");
+  assert.equal(brokenPlacements[0].widgetTitle, null, "the Trash hides the row, so there is no title/type to surface");
+  assert.equal(brokenPlacements[0].widgetType, null);
 });
 
 /**

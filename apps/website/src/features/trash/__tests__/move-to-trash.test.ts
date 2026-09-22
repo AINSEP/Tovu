@@ -73,7 +73,7 @@ function seedForm(h: Harness, id: string, overrides: { deletedAt?: string | null
 test("an unregistered kind is refused before any read or authorize call", async () => {
   const h = harness();
   const outcome = await moveToTrash(
-    { workspaceId: WS, entityType: "widget", entityId: "w-1", actor: { principalId: "p-1" } },
+    { workspaceId: WS, entityType: "gizmo", entityId: "g-1", actor: { principalId: "p-1" } },
     { registry: h.registry, trash: h.trash, db: createSqliteTrashDb({ db: h.db }), authorize: h.authorize, clock: { nowIso: () => AT } }
   );
   assert.deepEqual(outcome, { ok: false, reason: "unknown-type" });

@@ -157,7 +157,7 @@ test("rows the caller could not restore are omitted from the list, kind by kind"
 });
 
 test("an unknown kind is never listed — a phase-2 domain has to opt in, not opt out", async () => {
-  const h = harness({ items: [item({ id: "r1", entityType: "widget", entityId: "w-1" })] });
+  const h = harness({ items: [item({ id: "r1", entityType: "gizmo", entityId: "g-1" })] });
   const result = (await list(h)) as { items: unknown[] };
   assert.deepEqual(result.items, []);
 });
@@ -188,7 +188,7 @@ test("a denied restore throws and never reaches the port", async () => {
 
 test("restoring a kind the Trash does not own is refused by name, not silently attempted", async () => {
   const h = harness();
-  await assert.rejects(() => restore(h, { entityType: "widget", entityId: "w-1" }), /not a kind the Trash can restore/);
+  await assert.rejects(() => restore(h, { entityType: "gizmo", entityId: "g-1" }), /not a kind the Trash can restore/);
   assert.deepEqual(h.restoreCalls, []);
 });
 
