@@ -174,11 +174,13 @@ export interface PluginRemoveConfirmCopy {
  *
  * @complexity Time/space: O(1) — no iteration.
  */
-export function buildPluginRemoveConfirmCopy(params: { name: string }): PluginRemoveConfirmCopy {
+export function buildPluginRemoveConfirmCopy(
+  params: { name: string },
+  translate: Translate = (key) => key,
+): PluginRemoveConfirmCopy {
   return {
     title: `Remove "${params.name}" from this site?`,
-    body:
-      "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.",
+    body: translate("This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch."),
   };
 }
 
@@ -358,22 +360,22 @@ export interface AgentPluginDisableConfirmCopy {
  *
  * @complexity Time/space: O(1) — one ternary, no iteration.
  */
-export function buildAgentPluginDisableConfirmCopy(params: {
-  name: string;
-  variant: "disable" | "remove";
-}): AgentPluginDisableConfirmCopy {
+export function buildAgentPluginDisableConfirmCopy(
+  params: { name: string; variant: "disable" | "remove" },
+  translate: Translate = (key) => key,
+): AgentPluginDisableConfirmCopy {
   const bundledFact = "This package ships with Tovu — it can't be deleted outright, only turned off.";
   if (params.variant === "remove") {
     return {
       title: `Remove ${params.name}?`,
       body:
-        "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. " +
-        `It stays right here on Downloaded and can be enabled again any time. ${bundledFact}`,
+        translate("This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ") +
+        `${translate("It stays right here on Downloaded and can be enabled again any time.")} ${translate(bundledFact)}`,
     };
   }
   return {
     title: `Disable ${params.name} for this site?`,
-    body: `Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again. ${bundledFact}`,
+    body: `${translate("Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.")} ${translate(bundledFact)}`,
   };
 }
 

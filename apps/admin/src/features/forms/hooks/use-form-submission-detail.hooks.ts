@@ -2,7 +2,9 @@ import { useState } from "react";
 
 import { describeApiError, type AdminFormSubmission } from "@/lib/api";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-query";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { KEYS, describeTrashError } from "../rules";
+import { t as translate } from "../forms-i18n";
 import { defaultFormSubmissionsPort } from "./form-submissions-dependencies.hooks";
 import type { FormSubmissionsPort } from "./form-submissions-port.hooks";
 
@@ -61,9 +63,14 @@ export function useFormSubmissionDetail(
     formId: string;
     submissionId: string;
     onDeleted: () => void;
+    /** Bound translator — see `use-forms-list.hooks.ts`'s own header for why this arrives via
+     *  injection rather than this hook calling `useAdminLocale()` itself. Optional (defaults to
+     *  identity) so existing callers/tests that don't pass one keep seeing the raw English copy. */
+    t?: (key: string) => string;
   },
   port: FormSubmissionsPort
 ): FormSubmissionDetailController {
+  const t = props.t ?? ((key: string) => key);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const invalidate = useInvalidate();
 
@@ -97,7 +104,7 @@ export function useFormSubmissionDetail(
       await deleteMutation.mutate(undefined);
       props.onDeleted();
     } catch (e) {
-      if (describeTrashError(e instanceof Error ? e : null, "delete failed").alreadyGone) {
+      if (describeTrashError(e instanceof Error ? e : null, "delete failed", t("This item changed since you loaded it. Reload and try again.")).alreadyGone) {
         invalidate(KEYS.submissionsList(props.formId));
         props.onDeleted();
       }
@@ -113,7 +120,7 @@ export function useFormSubmissionDetail(
   // a different complexity-gate weight for the same branch count.
   let error: string | null = null;
   if (deleteMutation.error) {
-    error = describeTrashError(deleteMutation.error, "delete failed").message;
+    error = describeTrashError(deleteMutation.error, "delete failed", t("This item changed since you loaded it. Reload and try again.")).message;
   } else if (list.error) {
     error = describeApiError(list.error, "failed to load submission");
   }
@@ -142,5 +149,7 @@ export function useWiredFormSubmissionDetail(props: {
   submissionId: string;
   onDeleted: () => void;
 }): FormSubmissionDetailController {
-  return useFormSubmissionDetail(props, defaultFormSubmissionsPort);
+  const locale = useAdminLocale();
+  const t = (key: string): string => translate(locale, key);
+  return useFormSubmissionDetail({ ...props, t }, defaultFormSubmissionsPort);
 }

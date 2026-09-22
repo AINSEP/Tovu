@@ -9,8 +9,8 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
  * only, mirroring that exact same file's own documented "partial-coverage precedent" for its two
  * newest, most-recently-added error templates: an English banner in an otherwise-translated screen
  * degrades legibly (falls back through `createDictionaryTranslator`'s own `?? key` chain), it does
- * not break. The one-off "already saved, reload" duplicate-label string below follows the identical
- * precedent for the identical reason (an edge case, not core page copy).
+ * not break. The duplicate-label and generic-error strings are fully translated because they show
+ * directly in credential rows.
  *
  * Every OTHER string here — headings, field labels, hints, the three providers' scope-guidance
  * sentences — gets the full locale set this app's nav and every other stable feature dictionary
@@ -39,6 +39,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "token guardado, cifrado",
     saved: "guardado",
     "Replace token": "Reemplazar token",
+    "This connection was already saved — reload the page and try again.": "Esta conexión ya estaba guardada; recarga la página e inténtalo de nuevo.",
+    "unknown error": "error desconocido",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Necesita un token de acceso personal detallado, limitado únicamente a este repositorio, con el permiso Contents en Lectura y escritura. Un token clásico con el alcance "repo" también funciona, pero da acceso a todos los repositorios que esta cuenta pueda alcanzar — usa el token detallado siempre que puedas.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -67,6 +69,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "token tersimpan, terenkripsi",
     saved: "disimpan",
     "Replace token": "Ganti token",
+    "This connection was already saved — reload the page and try again.": "Koneksi ini sudah disimpan — muat ulang halaman dan coba lagi.",
+    "unknown error": "kesalahan tidak diketahui",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Memerlukan token akses pribadi terperinci yang dibatasi hanya untuk repositori ini, dengan izin Contents diatur ke Read and write. Token klasik dengan cakupan "repo" juga berfungsi, tetapi menjangkau semua repositori yang dapat diakses akun ini — gunakan token terperinci jika memungkinkan.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -95,6 +99,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "Token gespeichert, verschlüsselt",
     saved: "gespeichert",
     "Replace token": "Token ersetzen",
+    "This connection was already saved — reload the page and try again.": "Diese Verbindung wurde bereits gespeichert — laden Sie die Seite neu und versuchen Sie es erneut.",
+    "unknown error": "unbekannter Fehler",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Benötigt ein feingranulares persönliches Zugriffstoken, das auf nur dieses Repository beschränkt ist, mit der Berechtigung Contents auf Lesen und Schreiben. Ein klassisches Token mit dem Bereich "repo" funktioniert auch, erreicht aber jedes Repository, auf das dieses Konto zugreifen kann — bevorzuge nach Möglichkeit das feingranulare Token.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -122,6 +128,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "令牌已存储，已加密",
     saved: "已保存于",
     "Replace token": "更换令牌",
+    "This connection was already saved — reload the page and try again.": "此连接已保存，请重新加载页面后重试。",
+    "unknown error": "未知错误",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       '需要一个精细令牌，仅限访问此仓库，并将 Contents 权限设为读写。具有 "repo" 范围的经典令牌也可以使用，但会访问该账户可访问的所有仓库——请尽可能使用精细令牌。',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -149,6 +157,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "權杖已儲存，已加密",
     saved: "已儲存於",
     "Replace token": "更換權杖",
+    "This connection was already saved — reload the page and try again.": "此連線已儲存，請重新載入頁面後再試一次。",
+    "unknown error": "未知錯誤",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       '需要精細權杖，僅限存取此儲存庫，並將 Contents 權限設為讀寫。具有 "repo" 範圍的傳統權杖也可使用，但會存取此帳戶可存取的每個儲存庫——請盡量使用精細權杖。',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -177,6 +187,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "token salvo, criptografado",
     saved: "salvo em",
     "Replace token": "Substituir token",
+    "This connection was already saved — reload the page and try again.": "Esta conexão já foi salva — recarregue a página e tente novamente.",
+    "unknown error": "erro desconhecido",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Requer um token de acesso pessoal refinado, restrito apenas a este repositório, com a permissão Contents definida como Leitura e escrita. Um token clássico com o escopo "repo" também funciona, mas alcança todos os repositórios que esta conta pode acessar — prefira o token refinado sempre que possível.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -205,6 +217,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "токен сохранён, зашифрован",
     saved: "сохранено",
     "Replace token": "Заменить токен",
+    "This connection was already saved — reload the page and try again.": "Это подключение уже сохранено — перезагрузите страницу и попробуйте снова.",
+    "unknown error": "неизвестная ошибка",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Требуется детализированный персональный токен доступа, ограниченный только этим репозиторием, с правом Contents на чтение и запись. Классический токен с областью "repo" тоже подходит, но даёт доступ ко всем репозиториям, доступным этому аккаунту — по возможности используйте детализированный токен.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -233,6 +247,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "توکن ذخیره شد، رمزگذاری‌شده",
     saved: "ذخیره‌شده در",
     "Replace token": "جایگزینی توکن",
+    "This connection was already saved — reload the page and try again.": "این اتصال قبلاً ذخیره شده است — صفحه را دوباره بارگیری کنید و دوباره تلاش کنید.",
+    "unknown error": "خطای ناشناخته",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'به یک توکن دسترسی شخصی دقیق نیاز دارد که فقط به این مخزن محدود شده باشد، با مجوز Contents تنظیم‌شده روی خواندن و نوشتن. یک توکن کلاسیک با محدوده "repo" هم کار می‌کند، اما به هر مخزنی که این حساب به آن دسترسی دارد می‌رسد — در صورت امکان از توکن دقیق استفاده کنید.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -261,6 +277,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "الرمز محفوظ، مشفّر",
     saved: "تم الحفظ في",
     "Replace token": "استبدال الرمز",
+    "This connection was already saved — reload the page and try again.": "تم حفظ هذا الاتصال بالفعل — أعد تحميل الصفحة وحاول مرة أخرى.",
+    "unknown error": "خطأ غير معروف",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'يتطلب رمز وصول شخصي دقيقًا مقصورًا على هذا المستودع فقط، بصلاحية Contents مضبوطة على القراءة والكتابة. يعمل أيضًا رمز تقليدي بنطاق "repo"، لكنه يصل إلى كل مستودع يمكن لهذا الحساب الوصول إليه — يُفضَّل استخدام الرمز الدقيق كلما أمكن.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -288,6 +306,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "トークン保存済み・暗号化済み",
     saved: "保存日時",
     "Replace token": "トークンを置き換える",
+    "This connection was already saved — reload the page and try again.": "この接続はすでに保存されています。ページを再読み込みしてもう一度お試しください。",
+    "unknown error": "不明なエラー",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'このリポジトリだけに限定された、きめ細かい個人アクセストークンが必要です。Contents 権限を読み書きに設定してください。"repo" スコープを持つクラシックなトークンでも動作しますが、このアカウントがアクセスできるすべてのリポジトリに届いてしまいます — 可能な限りきめ細かいトークンを優先してください。',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -315,6 +335,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "토큰 저장됨, 암호화됨",
     saved: "저장 시각",
     "Replace token": "토큰 교체",
+    "This connection was already saved — reload the page and try again.": "이 연결은 이미 저장되었습니다. 페이지를 새로고침한 후 다시 시도하세요.",
+    "unknown error": "알 수 없는 오류",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       '이 저장소에만 국한된 세분화된 개인 액세스 토큰이 필요하며, Contents 권한을 읽기/쓰기로 설정해야 합니다. "repo" 범위를 가진 클래식 토큰도 작동하지만 이 계정이 접근할 수 있는 모든 저장소에 도달합니다 — 가능하면 세분화된 토큰을 우선하세요.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -343,6 +365,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "token zapisany, zaszyfrowany",
     saved: "zapisano",
     "Replace token": "Zastąp token",
+    "This connection was already saved — reload the page and try again.": "To połączenie zostało już zapisane — odśwież stronę i spróbuj ponownie.",
+    "unknown error": "nieznany błąd",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Wymaga precyzyjnego osobistego tokenu dostępu ograniczonego wyłącznie do tego repozytorium, z uprawnieniem Contents ustawionym na odczyt i zapis. Klasyczny token o zakresie "repo" również działa, ale obejmuje każde repozytorium dostępne dla tego konta — jeśli to możliwe, preferuj token precyzyjny.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -371,6 +395,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "token elmentve, titkosítva",
     saved: "mentve",
     "Replace token": "Token cseréje",
+    "This connection was already saved — reload the page and try again.": "Ez a kapcsolat már mentve van — töltse újra az oldalt, és próbálja újra.",
+    "unknown error": "ismeretlen hiba",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Finomhangolt személyes hozzáférési token szükséges, amely kizárólag erre a tárolóra korlátozódik, a Contents jogosultsággal olvasásra és írásra állítva. A klasszikus, "repo" hatókörű token is működik, de eléri a fiók által elérhető összes tárolót — lehetőség szerint a finomhangolt tokent részesítsd előnyben.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -399,6 +425,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "jeton enregistré, chiffré",
     saved: "enregistré le",
     "Replace token": "Remplacer le jeton",
+    "This connection was already saved — reload the page and try again.": "Cette connexion a déjà été enregistrée — rechargez la page et réessayez.",
+    "unknown error": "erreur inconnue",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Nécessite un jeton d\'accès personnel fin, limité à ce seul dépôt, avec la permission Contents réglée sur lecture et écriture. Un jeton classique avec le champ "repo" fonctionne aussi, mais donne accès à tous les dépôts que ce compte peut atteindre — préférez le jeton fin quand c\'est possible.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -427,6 +455,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "токен збережено, зашифровано",
     saved: "збережено",
     "Replace token": "Замінити токен",
+    "This connection was already saved — reload the page and try again.": "Це підключення вже збережено — перезавантажте сторінку та спробуйте ще раз.",
+    "unknown error": "невідома помилка",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Потрібен деталізований особистий токен доступу, обмежений лише цим репозиторієм, із правом Contents на читання й запис. Класичний токен з областю "repo" також підходить, але надає доступ до кожного репозиторію, доступного цьому обліковому запису — за можливості віддавайте перевагу деталізованому токену.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -455,6 +485,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "belirteç kaydedildi, şifrelendi",
     saved: "kaydedildi",
     "Replace token": "Belirteci değiştir",
+    "This connection was already saved — reload the page and try again.": "Bu bağlantı zaten kaydedildi — sayfayı yeniden yükleyin ve tekrar deneyin.",
+    "unknown error": "bilinmeyen hata",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Yalnızca bu depoyla sınırlı, ayrıntılı bir kişisel erişim belirteci gerekir; Contents izni Okuma ve yazma olarak ayarlanmalıdır. "repo" kapsamına sahip klasik bir belirteç de çalışır, ancak bu hesabın erişebildiği her depoya ulaşır — mümkünse ayrıntılı belirteci tercih edin.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -483,6 +515,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "บันทึกโทเคนแล้ว เข้ารหัสแล้ว",
     saved: "บันทึกเมื่อ",
     "Replace token": "แทนที่โทเคน",
+    "This connection was already saved — reload the page and try again.": "บันทึกการเชื่อมต่อนี้แล้ว — โหลดหน้าใหม่แล้วลองอีกครั้ง",
+    "unknown error": "ข้อผิดพลาดที่ไม่ทราบสาเหตุ",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'ต้องใช้โทเคนการเข้าถึงส่วนบุคคลแบบละเอียดที่จำกัดเฉพาะที่เก็บโค้ดนี้เท่านั้น โดยตั้งสิทธิ์ Contents เป็นอ่านและเขียน โทเคนแบบคลาสสิกที่มีขอบเขต "repo" ก็ใช้ได้เช่นกัน แต่จะเข้าถึงทุกที่เก็บโค้ดที่บัญชีนี้เข้าถึงได้ — ควรเลือกใช้โทเคนแบบละเอียดเมื่อทำได้',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -511,6 +545,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "token salvato, cifrato",
     saved: "salvato il",
     "Replace token": "Sostituisci token",
+    "This connection was already saved — reload the page and try again.": "Questa connessione è già stata salvata: ricarica la pagina e riprova.",
+    "unknown error": "errore sconosciuto",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Richiede un token di accesso personale granulare, limitato a questo solo repository, con il permesso Contents impostato su Lettura e scrittura. Funziona anche un token classico con l\'ambito "repo", ma raggiunge ogni repository a cui questo account può accedere — preferisci il token granulare quando possibile.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -539,6 +575,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "टोकन सहेजा गया, एन्क्रिप्टेड",
     saved: "सहेजा गया",
     "Replace token": "टोकन बदलें",
+    "This connection was already saved — reload the page and try again.": "यह कनेक्शन पहले से सहेजा गया है — पेज रीफ़्रेश करके फिर से कोशिश करें।",
+    "unknown error": "अज्ञात त्रुटि",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'इसके लिए केवल इसी रिपॉज़िटरी तक सीमित एक बारीक व्यक्तिगत एक्सेस टोकन चाहिए, जिसमें Contents अनुमति पढ़ने और लिखने पर सेट हो। "repo" स्कोप वाला क्लासिक टोकन भी काम करता है, लेकिन यह उन सभी रिपॉज़िटरी तक पहुँच देता है जिन तक यह खाता पहुँच सकता है — जब संभव हो, बारीक टोकन को प्राथमिकता दें।',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -567,6 +605,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "ٹوکن محفوظ، خفیہ کاری شدہ",
     saved: "محفوظ کیا گیا",
     "Replace token": "ٹوکن تبدیل کریں",
+    "This connection was already saved — reload the page and try again.": "یہ کنکشن پہلے ہی محفوظ ہے — صفحہ دوبارہ لوڈ کریں اور دوبارہ کوشش کریں۔",
+    "unknown error": "نامعلوم خرابی",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'اس کے لیے صرف اسی ریپوزٹری تک محدود ایک باریک ذاتی رسائی ٹوکن درکار ہے، جس میں Contents اجازت پڑھنے اور لکھنے پر سیٹ ہو۔ "repo" اسکوپ کے ساتھ کلاسک ٹوکن بھی کام کرتا ہے، لیکن یہ ہر اس ریپوزٹری تک رسائی دیتا ہے جس تک یہ اکاؤنٹ پہنچ سکتا ہے — جب ممکن ہو باریک ٹوکن کو ترجیح دیں۔',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -595,6 +635,8 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "token stored, encrypted": "টোকেন সংরক্ষিত, এনক্রিপ্টেড",
     saved: "সংরক্ষিত হয়েছে",
     "Replace token": "টোকেন প্রতিস্থাপন করুন",
+    "This connection was already saved — reload the page and try again.": "এই সংযোগটি ইতিমধ্যেই সংরক্ষিত আছে — পৃষ্ঠাটি পুনরায় লোড করে আবার চেষ্টা করুন।",
+    "unknown error": "অজানা ত্রুটি",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'শুধুমাত্র এই রিপোজিটরির মধ্যে সীমাবদ্ধ একটি সূক্ষ্ম ব্যক্তিগত অ্যাক্সেস টোকেন প্রয়োজন, যেখানে Contents অনুমতি Read and write-এ সেট করা থাকবে। "repo" স্কোপ সহ একটি ক্লাসিক টোকেনও কাজ করে, তবে এটি এই অ্যাকাউন্ট যত রিপোজিটরিতে পৌঁছাতে পারে সবগুলোতে পৌঁছায় — যখনই সম্ভব সূক্ষ্ম টোকেনটি ব্যবহার করুন।',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':

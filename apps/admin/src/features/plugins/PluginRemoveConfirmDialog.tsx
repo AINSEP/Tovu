@@ -44,7 +44,7 @@ export function PluginRemoveConfirmDialog({
   t,
   usePluginRemoveConfirmHook = usePluginRemoveConfirm,
 }: PluginRemoveConfirmDialogProps) {
-  const { copy, dialogRef } = usePluginRemoveConfirmHook({ name, onCancel });
+  const { copy, dialogRef } = usePluginRemoveConfirmHook({ name, onCancel, t });
   const titleId = `${agentHandleBase}-remove-confirm-title`;
 
   return (

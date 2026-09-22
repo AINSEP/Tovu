@@ -28,17 +28,18 @@ function form(overrides: Partial<AdminFormDefinition> = {}): AdminFormDefinition
 }
 
 describe("describeTrashError", () => {
+  const versionChangedMessage = "This item changed since you loaded it. Reload and try again.";
   it("returns no message and alreadyGone: false for a null error", () => {
-    expect(describeTrashError(null, "failed to delete form")).toEqual({ alreadyGone: false, message: null });
+    expect(describeTrashError(null, "failed to delete form", versionChangedMessage)).toEqual({ alreadyGone: false, message: null });
   });
 
   it("classifies a 404 as already-gone with no banner message — a quiet refetch, not an error", () => {
-    const result = describeTrashError(new ApiError("not found", 404, "NOT_FOUND"), "failed to delete form");
+    const result = describeTrashError(new ApiError("not found", 404, "NOT_FOUND"), "failed to delete form", versionChangedMessage);
     expect(result).toEqual({ alreadyGone: true, message: null });
   });
 
   it("classifies a 409 TRASH_VERSION_CHANGED with the specific reload-and-retry copy", () => {
-    const result = describeTrashError(new ApiError("changed", 409, "TRASH_VERSION_CHANGED"), "failed to delete form");
+    const result = describeTrashError(new ApiError("changed", 409, "TRASH_VERSION_CHANGED"), "failed to delete form", versionChangedMessage);
     expect(result).toEqual({
       alreadyGone: false,
       message: "This item changed since you loaded it. Reload and try again.",
@@ -46,20 +47,26 @@ describe("describeTrashError", () => {
   });
 
   it("falls through to the generic fallback for any other ApiError", () => {
-    const result = describeTrashError(new ApiError("nope", 403, "FORBIDDEN"), "failed to delete form");
+    const result = describeTrashError(new ApiError("nope", 403, "FORBIDDEN"), "failed to delete form", versionChangedMessage);
     expect(result.alreadyGone).toBe(false);
     expect(result.message).toBe("nope");
   });
 
   it("falls through to the fallback for a non-ApiError failure (e.g. a network error)", () => {
-    const result = describeTrashError(new Error("network down"), "failed to delete form");
+    const result = describeTrashError(new Error("network down"), "failed to delete form", versionChangedMessage);
     expect(result).toEqual({ alreadyGone: false, message: "network down" });
   });
 });
 
 describe("formsListError", () => {
+  const copy = {
+    deleteFallback: "failed to delete form",
+    statusUpdateFallback: "failed to update form status",
+    loadFormsFallback: "failed to load forms",
+    versionChangedMessage: "This item changed since you loaded it. Reload and try again.",
+  };
   it("is null when nothing failed and forms are loaded", () => {
-    expect(formsListError({ toggleError: null, deleteError: null, listError: null, hasForms: true })).toBeNull();
+    expect(formsListError({ toggleError: null, deleteError: null, listError: null, hasForms: true, ...copy })).toBeNull();
   });
 
   it("a delete's own version-changed failure outranks the toggle and list errors", () => {
@@ -68,6 +75,7 @@ describe("formsListError", () => {
       deleteError: new ApiError("changed", 409, "TRASH_VERSION_CHANGED"),
       listError: new Error("list failed"),
       hasForms: true,
+      ...copy,
     });
     expect(message).toBe("This item changed since you loaded it. Reload and try again.");
   });
@@ -78,17 +86,18 @@ describe("formsListError", () => {
       deleteError: new ApiError("gone", 404, "NOT_FOUND"),
       listError: null,
       hasForms: true,
+      ...copy,
     });
     expect(message).toBe("toggle failed");
   });
 
   it("falls back to the list error only once forms have never loaded", () => {
-    const message = formsListError({ toggleError: null, deleteError: null, listError: new Error("boom"), hasForms: false });
+    const message = formsListError({ toggleError: null, deleteError: null, listError: new Error("boom"), hasForms: false, ...copy });
     expect(message).toBe("boom");
   });
 
   it("a background list-refresh failure is suppressed once forms have already loaded", () => {
-    const message = formsListError({ toggleError: null, deleteError: null, listError: new Error("boom"), hasForms: true });
+    const message = formsListError({ toggleError: null, deleteError: null, listError: new Error("boom"), hasForms: true, ...copy });
     expect(message).toBeNull();
   });
 });

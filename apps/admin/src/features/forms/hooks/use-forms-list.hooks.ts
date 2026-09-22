@@ -133,7 +133,7 @@ export function useFormsList(deps: { port: FormsPort; t: (key: string) => string
       await deleteMutation.mutate(form);
       setPendingDelete(null);
     } catch (e) {
-      if (describeTrashError(e instanceof Error ? e : null, "failed to delete form").alreadyGone) {
+      if (describeTrashError(e instanceof Error ? e : null, t("failed to delete form"), t("This item changed since you loaded it. Reload and try again.")).alreadyGone) {
         invalidateList();
       }
       setPendingDelete(null);
@@ -148,6 +148,10 @@ export function useFormsList(deps: { port: FormsPort; t: (key: string) => string
     deleteError: deleteMutation.error,
     listError: list.error,
     hasForms: forms !== null,
+    deleteFallback: t("failed to delete form"),
+    statusUpdateFallback: t("failed to update form status"),
+    loadFormsFallback: t("failed to load forms"),
+    versionChangedMessage: t("This item changed since you loaded it. Reload and try again."),
   });
 
   return { forms, error, rowSavingId, toggleStatus, pendingDelete, setPendingDelete, removeForm, t };

@@ -71,14 +71,17 @@ export function visibleFormEditorError(params: {
   statusError: Error | null;
   listError: Error | null;
   hasForm: boolean;
+  saveFallback: string;
+  statusUpdateFallback: string;
+  loadFormFallback: string;
 }): string | null {
   // Two distinct fallback strings, matching the pre-migration `handleSave`/`handleStatusToggle`
   // catch blocks verbatim ("save failed" vs "status update failed") — not one shared string.
-  if (params.updateError) return describeApiError(params.updateError, "save failed");
-  if (params.createError) return describeApiError(params.createError, "save failed");
-  if (params.statusError) return describeApiError(params.statusError, "status update failed");
+  if (params.updateError) return describeApiError(params.updateError, params.saveFallback);
+  if (params.createError) return describeApiError(params.createError, params.saveFallback);
+  if (params.statusError) return describeApiError(params.statusError, params.statusUpdateFallback);
   if (params.hasForm) return null;
-  return params.listError ? describeApiError(params.listError, "failed to load form") : null;
+  return params.listError ? describeApiError(params.listError, params.loadFormFallback) : null;
 }
 
 /**
@@ -96,16 +99,20 @@ export function formsListError(params: {
   deleteError: Error | null;
   listError: Error | null;
   hasForms: boolean;
+  deleteFallback: string;
+  statusUpdateFallback: string;
+  loadFormsFallback: string;
+  versionChangedMessage: string;
 }): string | null {
   // The delete's own failure outranks both the toggle's and a background list-refresh failure —
   // same precedence tier `use-posts.hooks.ts`'s `removePost` gives its own delete, and a 404
   // "already gone" resolves to `message: null` here so it never reaches this banner at all (see
   // `describeTrashError`'s own doc for why).
-  const deleteMessage = describeTrashError(params.deleteError, "failed to delete form").message;
+  const deleteMessage = describeTrashError(params.deleteError, params.deleteFallback, params.versionChangedMessage).message;
   if (deleteMessage) return deleteMessage;
-  if (params.toggleError) return describeApiError(params.toggleError, "failed to update form status");
+  if (params.toggleError) return describeApiError(params.toggleError, params.statusUpdateFallback);
   if (params.hasForms) return null;
-  return params.listError ? describeApiError(params.listError, "failed to load forms") : null;
+  return params.listError ? describeApiError(params.listError, params.loadFormsFallback) : null;
 }
 
 /**
@@ -124,12 +131,16 @@ export function formsListError(params: {
  *
  * @complexity O(1) — one `instanceof` check plus two fixed comparisons.
  */
-export function describeTrashError(e: Error | null, fallback: string): { alreadyGone: boolean; message: string | null } {
+export function describeTrashError(
+  e: Error | null,
+  fallback: string,
+  versionChangedMessage: string,
+): { alreadyGone: boolean; message: string | null } {
   if (!e) return { alreadyGone: false, message: null };
   if (e instanceof ApiError) {
     if (e.status === 404) return { alreadyGone: true, message: null };
     if (e.code === "TRASH_VERSION_CHANGED") {
-      return { alreadyGone: false, message: "This item changed since you loaded it. Reload and try again." };
+      return { alreadyGone: false, message: versionChangedMessage };
     }
   }
   return { alreadyGone: false, message: describeApiError(e, fallback) };

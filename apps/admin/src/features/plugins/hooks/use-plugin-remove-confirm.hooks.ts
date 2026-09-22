@@ -1,6 +1,7 @@
 import { useEffect, useRef, type RefObject } from "react";
 
 import { useFocusTrap } from "@/hooks/use-focus-trap.hooks";
+import type { Translate } from "@/lib/dictionary-translator";
 import { buildPluginRemoveConfirmCopy, type PluginRemoveConfirmCopy } from "../rules";
 
 /**
@@ -31,7 +32,7 @@ export interface PluginRemoveConfirmController {
   dialogRef: RefObject<HTMLDivElement | null>;
 }
 
-export function usePluginRemoveConfirm(props: { name: string; onCancel: () => void }): PluginRemoveConfirmController {
+export function usePluginRemoveConfirm(props: { name: string; onCancel: () => void; t?: Translate }): PluginRemoveConfirmController {
   const { onCancel } = props;
   const dialogRef = useRef<HTMLDivElement | null>(null);
   useFocusTrap(dialogRef);
@@ -45,5 +46,5 @@ export function usePluginRemoveConfirm(props: { name: string; onCancel: () => vo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onCancel]);
 
-  return { copy: buildPluginRemoveConfirmCopy({ name: props.name }), dialogRef };
+  return { copy: buildPluginRemoveConfirmCopy({ name: props.name }, props.t), dialogRef };
 }

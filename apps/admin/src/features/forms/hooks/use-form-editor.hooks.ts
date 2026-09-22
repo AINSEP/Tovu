@@ -218,6 +218,9 @@ export function useFormEditor(
     statusError: statusMutation.error,
     listError: list.error,
     hasForm: form !== null,
+    saveFallback: t("save failed"),
+    statusUpdateFallback: t("status update failed"),
+    loadFormFallback: t("failed to load form"),
   });
 
   // Navigates to `/forms/:formId` or `/forms/:formId/submissions` (ADR-063) — `panels.tsx`'s

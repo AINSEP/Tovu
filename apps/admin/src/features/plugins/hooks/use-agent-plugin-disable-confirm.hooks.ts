@@ -1,6 +1,7 @@
 import { useEffect, useRef, type RefObject } from "react";
 
 import { useFocusTrap } from "@/hooks/use-focus-trap.hooks";
+import type { Translate } from "@/lib/dictionary-translator";
 import { buildAgentPluginDisableConfirmCopy, type AgentPluginDisableConfirmCopy } from "../rules";
 
 /**
@@ -30,6 +31,7 @@ export function useAgentPluginDisableConfirm(props: {
   name: string;
   variant: "disable" | "remove";
   onCancel: () => void;
+  t?: Translate;
 }): AgentPluginDisableConfirmController {
   const { onCancel } = props;
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -44,5 +46,5 @@ export function useAgentPluginDisableConfirm(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onCancel]);
 
-  return { copy: buildAgentPluginDisableConfirmCopy({ name: props.name, variant: props.variant }), dialogRef };
+  return { copy: buildAgentPluginDisableConfirmCopy({ name: props.name, variant: props.variant }, props.t), dialogRef };
 }

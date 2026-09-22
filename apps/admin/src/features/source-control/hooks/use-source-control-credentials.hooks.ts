@@ -101,7 +101,7 @@ function sourceControlCredentialSubmitErrorMessage(err: unknown, t: Translate, l
   const classified = classifySourceControlCredentialSubmitError(err);
   if (classified.kind === "duplicate-label") return t("This connection was already saved — reload the page and try again.");
   if (classified.kind === "validation") return sourceControlCredentialSaveErrorMessage(locale, classified.detail);
-  return sourceControlCredentialSaveErrorMessage(locale, describeApiError(err, "unknown error"));
+  return sourceControlCredentialSaveErrorMessage(locale, describeApiError(err, t("unknown error")));
 }
 
 export function useSourceControlCredentials(
@@ -122,7 +122,7 @@ export function useSourceControlCredentials(
     setCredentials(query.data.credentials);
   }, [query.status, query.data]);
 
-  const loadError = query.error ? sourceControlCredentialsLoadErrorMessage(locale, describeApiError(query.error, "unknown error")) : null;
+  const loadError = query.error ? sourceControlCredentialsLoadErrorMessage(locale, describeApiError(query.error, t("unknown error"))) : null;
 
   const [formStates, setFormStates] = useState<Record<AdminSourceControlProviderId, RowFormState>>(initialRowFormStates);
 
