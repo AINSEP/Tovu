@@ -112,6 +112,28 @@ test("writeSitesMcpLauncher rewrites a stale launcher rather than leaving it", (
   assert.ok(script.includes(LAUNCHER_INPUT.electronPath));
 });
 
+test("writeSitesMcpLauncher writes nothing on win32 and returns electronPath itself", () => {
+  const userDataDir = tempDir();
+
+  const result = writeSitesMcpLauncher({ ...LAUNCHER_INPUT, userDataDir, platform: "win32" });
+
+  // A `.cmd` file cannot be spawned by `adapter.stdio.ts`'s shell-less `spawn()` (this file's header,
+  // constraint 1's win32 corollary), so no launcher is written at all — `buildSitesMcpRegistration`
+  // registers `electronPath` directly instead. Proven here by absence: nothing appears in what would
+  // have been the launcher's directory.
+  assert.equal(result, LAUNCHER_INPUT.electronPath);
+  assert.deepEqual(fs.readdirSync(userDataDir), []);
+});
+
+test("writeSitesMcpLauncher still writes the POSIX launcher when platform is omitted (default is process.platform)", () => {
+  const userDataDir = tempDir();
+
+  const launcherPath = writeSitesMcpLauncher({ ...LAUNCHER_INPUT, userDataDir });
+
+  assert.equal(launcherPath, path.join(userDataDir, SITES_MCP_LAUNCHER_NAME));
+  assert.equal(fs.existsSync(launcherPath), true);
+});
+
 test("the registration allowlists every published tool", () => {
   const body = buildSitesMcpRegistration({ launcherPath: "/x/launcher.sh" });
 
@@ -167,6 +189,49 @@ test("the registration sends stdio + authMode none + an EMPTY args string", () =
   assert.equal(body.args, "");
   // Empty string, not omitted: omitted means "keep stored credentials" to the PUT route
   // (`put.ts:88-89`). This connection must never carry any.
+  assert.equal(body.env, "");
+});
+
+test("on win32, the registration commands electronPath directly with the bridge and userData in args/env", () => {
+  // win32 has no launcher script (see `writeSitesMcpLauncher`), so `launcherPath` here IS
+  // `electronPath` itself — {@link writeSitesMcpLauncher}'s own win32 return value — and the bridge
+  // path plus `--user-data-dir` travel in `args` instead of being embedded in a script.
+  const body = buildSitesMcpRegistration({
+    launcherPath: "/Applications/Tovu.app/Contents/MacOS/Tovu",
+    platform: "win32",
+    bridgePath: "C:\\Program Files\\Tovu\\resources\\app\\bin\\mcp-bridge.ts",
+    userDataDir: "C:\\Users\\Operator\\AppData\\Roaming\\tovu-desktop",
+  });
+
+  assert.equal(body.command, "/Applications/Tovu.app/Contents/MacOS/Tovu");
+  assert.equal(body.args, "C:\\Program Files\\Tovu\\resources\\app\\bin\\mcp-bridge.ts --user-data-dir C:\\Users\\Operator\\AppData\\Roaming\\tovu-desktop");
+  // The launcher script's own `export ELECTRON_RUN_AS_NODE` line has no equivalent when electron is
+  // invoked directly, so the same effect travels as an `env` line instead — `NAME=VALUE`,
+  // `external-mcp-store.ts`'s `parseEnvBlock` format.
+  assert.equal(body.env, "ELECTRON_RUN_AS_NODE=1");
+});
+
+test("buildSitesMcpRegistration refuses a win32 registration missing bridgePath or userDataDir", () => {
+  assert.throws(
+    () => buildSitesMcpRegistration({ launcherPath: "/x/electron", platform: "win32" }),
+    /bridgePath and userDataDir are required/,
+  );
+  assert.throws(
+    () => buildSitesMcpRegistration({ launcherPath: "/x/electron", platform: "win32", bridgePath: "/x/bridge.ts" }),
+    /bridgePath and userDataDir are required/,
+  );
+});
+
+test("an explicit non-win32 platform ignores bridgePath/userDataDir, same as the default", () => {
+  const body = buildSitesMcpRegistration({
+    launcherPath: "/x/launcher.sh",
+    platform: "darwin",
+    bridgePath: "/would/be/ignored/bridge.ts",
+    userDataDir: "/would/be/ignored/userData",
+  });
+
+  assert.equal(body.command, "/x/launcher.sh");
+  assert.equal(body.args, "");
   assert.equal(body.env, "");
 });
 
@@ -288,6 +353,43 @@ test("registerSitesMcpServer reads the existing row, then PUTs as the site sessi
   }
   assert.equal(write.headers["content-type"], "application/json");
   assert.equal(JSON.parse(write.body).command, "/x/launcher.sh");
+});
+
+test("registerSitesMcpServer forwards platform/bridgePath/userDataDir into the PUT body on win32", async () => {
+  const net = fakeNet([NO_EXISTING_ROW, { status: 200 }]);
+
+  await registerSitesMcpServer({
+    net,
+    session: {},
+    adminUrl: "http://127.0.0.1:3601/admin/",
+    workspaceId: "ws-7",
+    launcherPath: "C:\\Users\\Operator\\AppData\\Local\\Programs\\tovu-desktop\\Tovu.exe",
+    platform: "win32",
+    bridgePath: "C:\\Users\\Operator\\AppData\\Local\\Programs\\tovu-desktop\\resources\\app\\bin\\mcp-bridge.ts",
+    userDataDir: "C:\\Users\\Operator\\AppData\\Roaming\\tovu-desktop",
+  });
+
+  const body = JSON.parse(net.calls[1]!.body);
+  assert.equal(body.command, "C:\\Users\\Operator\\AppData\\Local\\Programs\\tovu-desktop\\Tovu.exe");
+  assert.match(body.args, /mcp-bridge\.ts --user-data-dir C:\\Users\\Operator\\AppData\\Roaming\\tovu-desktop$/);
+  assert.equal(body.env, "ELECTRON_RUN_AS_NODE=1");
+});
+
+test("registerSitesMcpServer omitting platform/bridgePath/userDataDir keeps the unchanged POSIX body", async () => {
+  const net = fakeNet([NO_EXISTING_ROW, { status: 200 }]);
+
+  await registerSitesMcpServer({
+    net,
+    session: {},
+    adminUrl: "http://127.0.0.1:3601/admin/",
+    workspaceId: "ws-7",
+    launcherPath: "/x/launcher.sh",
+  });
+
+  const body = JSON.parse(net.calls[1]!.body);
+  assert.equal(body.command, "/x/launcher.sh");
+  assert.equal(body.args, "");
+  assert.equal(body.env, "");
 });
 
 test("a brand-new row is created ENABLED", async () => {

@@ -79,12 +79,25 @@ interface WriteLauncherInput {
   userDataDir: string;
   electronPath: string;
   bridgePath: string;
+  /** Test seam: injects the OS platform this branches on. Defaults to the real `process.platform`;
+   *  production never passes this. See {@link writeSitesMcpLauncher}'s own doc for what win32 does
+   *  instead of writing a script. */
+  platform?: NodeJS.Platform;
 }
 
 /** {@link buildSitesMcpRegistration}'s input. */
 interface BuildRegistrationInput {
   launcherPath: string;
   enabled?: boolean;
+  /** Test seam: injects the OS platform this branches on. Defaults to the real `process.platform`;
+   *  production never passes this explicitly — {@link registerSitesMcpServer} forwards whatever its
+   *  own caller gave it, which is nothing on POSIX. */
+  platform?: NodeJS.Platform;
+  /** win32 only: the bridge script's absolute path. Required when `platform` is `"win32"` (see this
+   *  function's own doc for why); ignored on every other platform. */
+  bridgePath?: string;
+  /** win32 only: the userData directory. Required when `platform` is `"win32"`; ignored elsewhere. */
+  userDataDir?: string;
 }
 
 /** The PUT body {@link buildSitesMcpRegistration} returns — the wire shape `put.ts` reads. */
@@ -228,10 +241,20 @@ function buildSitesMcpLauncherScript({ electronPath, bridgePath, userDataDir }: 
  * stale launcher pointing at a deleted Electron binary fails at connect time with an error that
  * names neither cause.
  *
- * @returns the launcher's absolute path, for {@link buildSitesMcpRegistration}'s `command`.
+ * **win32 writes nothing.** A `.cmd`/`.bat` file cannot be executed by `adapter.stdio.ts`'s
+ * `spawn(spec.command, [...spec.args], {env, stdio})` — that call never sets `shell: true`, and
+ * Node's own hardening (CVE-2024-27980) refuses to exec a batch file without one. There is no
+ * script format this daemon's spawn call can run on win32, so none is written; the returned value
+ * is `electronPath` itself, and {@link buildSitesMcpRegistration} registers it directly with the
+ * bridge and userData path carried in `args`/`env` instead of embedded in a script.
+ *
+ * @param platform test seam; see {@link WriteLauncherInput}.
+ * @returns the launcher's absolute path on POSIX, for {@link buildSitesMcpRegistration}'s `command`;
+ *   `electronPath` unchanged on win32, for the same field's direct-electron branch.
  * @complexity O(1).
  */
-function writeSitesMcpLauncher({ userDataDir, electronPath, bridgePath }: WriteLauncherInput): string {
+function writeSitesMcpLauncher({ userDataDir, electronPath, bridgePath, platform = process.platform }: WriteLauncherInput): string {
+  if (platform === "win32") return electronPath;
   const script = buildSitesMcpLauncherScript({ electronPath, bridgePath, userDataDir });
   const launcherPath = path.join(userDataDir, SITES_MCP_LAUNCHER_NAME);
   fs.mkdirSync(userDataDir, { recursive: true });
@@ -257,12 +280,33 @@ function writeSitesMcpLauncher({ userDataDir, electronPath, bridgePath }: WriteL
  *   `assertWriteAllowlistSubset` rejects the save outright if this list is not a subset of the
  *   first — so deriving both from one source is what keeps the two rules satisfied at once.
  *
- * `args` is empty ON PURPOSE and must stay empty: see this file's header, constraint 2.
+ * `args` is empty ON PURPOSE and must stay empty ON POSIX: see this file's header, constraint 2.
  *
+ * **win32 is the one exception**, because {@link writeSitesMcpLauncher} writes no script there —
+ * `launcherPath` IS `electronPath` on that platform, so this function commands it directly and
+ * carries `bridgePath` plus `--user-data-dir <userDataDir>` in `args`, and `ELECTRON_RUN_AS_NODE=1`
+ * in `env` (`NAME=VALUE`, the format `external-mcp-store.ts`'s `parseEnvBlock` reads) — the same two
+ * facts the POSIX launcher script states in its own `exec` line and `export`. This reintroduces, on
+ * win32 only, the exact space-in-path risk constraint 2 describes for POSIX (`parseArgs` splits on
+ * whitespace with no quoting); there is no script to hide the path inside on that platform, so it is
+ * accepted rather than silently mishandled.
+ *
+ * @throws {Error} on win32 without both `bridgePath` and `userDataDir` — there is nothing to put in
+ *   `args` otherwise, and a half-registered connection is worse than none.
  * @complexity O(n) in the tool count.
  */
-function buildSitesMcpRegistration({ launcherPath, enabled = true }: BuildRegistrationInput): SitesMcpRegistrationBody {
+function buildSitesMcpRegistration({
+  launcherPath,
+  enabled = true,
+  platform = process.platform,
+  bridgePath,
+  userDataDir,
+}: BuildRegistrationInput): SitesMcpRegistrationBody {
   const writeTools = SITES_MCP_TOOLS.filter((tool) => tool.annotations.readOnlyHint === false);
+  const isWin32 = platform === "win32";
+  if (isWin32 && (!bridgePath || !userDataDir)) {
+    throw new Error("sites-mcp-registration: bridgePath and userDataDir are required to build a win32 registration");
+  }
   return {
     label: SITES_MCP_LABEL,
     transport: "stdio",
@@ -285,14 +329,15 @@ function buildSitesMcpRegistration({ launcherPath, enabled = true }: BuildRegist
      */
     enabled,
     command: launcherPath,
-    args: "",
+    args: isWin32 ? `${bridgePath} --user-data-dir ${userDataDir}` : "",
     allowedToolNames: SITES_MCP_TOOLS.map((tool) => tool.name).join(","),
     writeAllowedToolNames: writeTools.map((tool) => tool.name).join(","),
     // Sent as the empty string rather than omitted, which are DIFFERENT things to the PUT route
     // (`put.ts:88-89`): omitted keeps whatever credentials are stored, empty clears them. This
     // connection must never carry credentials, so every re-assert states that rather than
-    // inheriting whatever a previous row happened to hold.
-    env: "",
+    // inheriting whatever a previous row happened to hold. win32's one line is the launcher
+    // script's `export ELECTRON_RUN_AS_NODE` line, restated as an env var since there is no script.
+    env: isWin32 ? "ELECTRON_RUN_AS_NODE=1" : "",
   };
 }
 
@@ -420,6 +465,9 @@ async function readSitesMcpEnabled<TSession>(deps: RegistrationDeps<TSession>): 
  *   (`apps/website/src/platform/site-dir/resolve-workspace.ts`) picks the single or oldest workspace
  *   row and an operator can serve a different one with `--workspace`, so assuming the id would 404
  *   through `guardExternalMcpRequest`'s workspace check on exactly the sites that differ.
+ * @param deps.platform, deps.bridgePath, deps.userDataDir forwarded verbatim into
+ *   {@link buildSitesMcpRegistration} — see that function's own doc for the win32 branch they drive.
+ *   All three are optional and unused on POSIX, matching that function's own defaults.
  * **Read before write, specifically to preserve one field.** {@link readSitesMcpEnabled} runs first
  * so an operator who DISABLED this connection in Settings keeps it disabled — the re-assert exists
  * to repair a stale `command` or allowlist, never to reverse a choice they made. When that read
@@ -432,7 +480,12 @@ async function readSitesMcpEnabled<TSession>(deps: RegistrationDeps<TSession>): 
  * @complexity O(1) — two requests.
  */
 async function registerSitesMcpServer<TSession>(
-  deps: RegistrationDeps<TSession> & { launcherPath: string }
+  deps: RegistrationDeps<TSession> & {
+    launcherPath: string;
+    platform?: NodeJS.Platform;
+    bridgePath?: string;
+    userDataDir?: string;
+  }
 ): Promise<{ ok: boolean; status?: number; reason?: string; skipped?: boolean }> {
   const existing = await readSitesMcpEnabled(deps);
   if (existing.state === "unknown") {
@@ -447,6 +500,9 @@ async function registerSitesMcpServer<TSession>(
         launcherPath: deps.launcherPath,
         // `absent` is a first registration; `present` carries the operator's own value forward.
         enabled: existing.state === "absent" ? true : existing.enabled,
+        platform: deps.platform,
+        bridgePath: deps.bridgePath,
+        userDataDir: deps.userDataDir,
       }),
     ),
   });

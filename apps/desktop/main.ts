@@ -719,12 +719,11 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
  */
 function announceDesktopToolsToSite(server: TovuServerHandle, partition: string): void {
   try {
-    const launcherPath = writeSitesMcpLauncher({
-      userDataDir: app.getPath("userData"),
-      // Read live, never persisted as truth — see this function's own note on staleness.
-      electronPath: process.execPath,
-      bridgePath: path.join(__dirname, "bin", "mcp-bridge.ts"),
-    });
+    // Read live, never persisted as truth — see this function's own note on staleness.
+    const electronPath = process.execPath;
+    const bridgePath = path.join(__dirname, "bin", "mcp-bridge.ts");
+    const userDataDir = app.getPath("userData");
+    const launcherPath = writeSitesMcpLauncher({ userDataDir, electronPath, bridgePath });
     void registerSitesMcpServer({
       net,
       session: session.fromPartition(partition),
@@ -734,6 +733,11 @@ function announceDesktopToolsToSite(server: TovuServerHandle, partition: string)
       // `--workspace` can name another, so an assumed id would 404 on exactly the sites that differ.
       workspaceId: server.workspaceId,
       launcherPath,
+      // Unused on POSIX (`writeSitesMcpLauncher` already embedded them in the launcher script);
+      // on win32, where that call wrote no script and `launcherPath` is `electronPath` itself,
+      // `registerSitesMcpServer`/`buildSitesMcpRegistration` need these to build `args`/`env`.
+      bridgePath,
+      userDataDir,
     }).then((result) => {
       if (!result.ok) console.warn(`tovu-desktop: the assistant's desktop tools are unavailable for this site — ${result.reason}`);
     });
