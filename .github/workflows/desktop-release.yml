@@ -101,9 +101,7 @@ jobs:
         run: node scripts/verify-package.ts --asar "${{ matrix.asar }}"
       - name: Native-module smoke (runs the shipped binary on this CPU)
         working-directory: apps/desktop
-        # TODO(S3): scripts/smoke-native.ts does not exist yet. This step will fail (file not
-        # found) until S3 writes it. Referenced here exactly as the design doc (§4) names it.
-        run: node scripts/smoke-native.ts --platform-dir release     # slice S3
+        run: node scripts/smoke-native.ts --platform-dir release
       - if: runner.os == 'macOS'
         name: App is signed, notarized, stapled, right arch
         working-directory: apps/desktop
@@ -122,10 +120,6 @@ jobs:
       - if: runner.os == 'macOS'
         name: verify-package on the SHIPPED dmg
         working-directory: apps/desktop
-        # TODO(S2): this re-runs scripts/verify-package.ts against the MOUNTED dmg rather than the
-        # unpacked build dir. That mode is not written/proven yet (S2). Referenced here exactly as
-        # the design doc (§4) names it; the script itself already exists for the unpacked-build
-        # case above.
         run: |
           hdiutil attach -readonly -nobrowse -mountpoint "$RUNNER_TEMP/dmg" "release/${{ matrix.out }}"
           node scripts/verify-package.ts --asar "$RUNNER_TEMP/dmg/Tovu.app/Contents/Resources/app.asar"
@@ -134,10 +128,7 @@ jobs:
       - if: runner.os == 'Windows'
         name: verify-package on the SHIPPED installer
         working-directory: apps/desktop
-        # TODO(S2): same as the dmg step above — verify-package.ts against an EXTRACTED nsis
-        # installer is not written/proven yet (S2). Referenced here exactly as the design doc
-        # (§4) names it. Also currently unreachable: the win-x64 matrix row above is commented
-        # out until S6.
+        # Currently unreachable: the win-x64 matrix row above is commented out until S6.
         run: |
           7z x "release/${{ matrix.out }}" -o"$RUNNER_TEMP/nsis" -y
           7z x "$RUNNER_TEMP/nsis/\$PLUGINSDIR/app-64.7z" -o"$RUNNER_TEMP/app" -y
