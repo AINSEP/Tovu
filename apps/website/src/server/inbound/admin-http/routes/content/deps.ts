@@ -92,6 +92,12 @@ export type ContentRouteDeps = Pick<
   | "transformDefinitionRepo"
   | "menuRepo"
   | "mediaContentTypeStore"
+  // C5 (collections plan, 2026-09-23): `renderViaTemplate` now runs `finishStaticTierDocument`,
+  // whose `TemplateRenderDeps` widened with `contentTypeRepo` for `resolveCollectionListsForRender`'s
+  // content-type lookup. Same "this route needs the render pipeline's full dependency set" reasoning
+  // as the `entryRepo`/`mediaRepo`/… group directly above — a template preview with a `collection`
+  // marker needs this too, or it would silently diverge from the live site's own resolution.
+  | "contentTypeRepo"
 >;
 
 export type ContentRouteRegistrar = (app: Express, deps: ContentRouteDeps) => void;

@@ -103,7 +103,20 @@ export {
   type StaticMenuItem,
   type StaticPostPreview,
   type PostTemplateResolution,
+  // C5 (collections plan, 2026-09-23): the route layer (`pages.ts`'s
+  // `resolveCollectionListsForRender`) needs the same per-marker identity key and inner-content
+  // splitter `injectCollectionEmbeds` uses, so both sides agree on how a `collection` marker is
+  // addressed and how its authored `<template>` is found.
+  collectionMarkerKey,
+  splitCollectionMarkerInner,
+  type StaticCollectionList,
 } from "./static-render.js";
+
+// C5 (collections plan, 2026-09-23) — the pure entry-list renderer `pages.ts`'s
+// `resolveCollectionListsForRender` calls once per distinct `collection` marker config, plus the
+// item/field shapes it builds to feed that renderer. No I/O lives here (see `entry-list-render.ts`'s
+// own `@file` doc); the route layer supplies already-fetched, already-formatted values.
+export { renderEntryList, type EntryListItem, type EntryListFieldValue, type EntryListRenderOptions } from "./entry-list-render.js";
 
 // 2026-08-16 (export<->server decoupling follow-up) — "given discovered themes + a candidate id,
 // which theme renders" query, moved here from `server/routes/site/pages.ts` so `export/

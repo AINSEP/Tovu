@@ -32,11 +32,26 @@ import {
   resolveActiveTheme,
   tokenStylesheetSentinel,
   isStandaloneThemePage,
+  collectionMarkerKey,
+  splitCollectionMarkerInner,
+  renderEntryList,
   type DiscoveredTheme,
   type StaticMenuItem,
   type StaticPostPreview,
+  type EntryListItem,
+  type EntryListFieldValue,
 } from "#src/features/theme/index";
-import { markersOfType, substituteMarkers, withInnerContentFinal, MENU_MARKER_TYPE } from "#src/contracts/core/embeds/marker";
+import {
+  markersOfType,
+  substituteMarkers,
+  withInnerContentFinal,
+  MENU_MARKER_TYPE,
+  COLLECTION_MARKER_TYPE,
+  type EmbedMarker,
+} from "#src/contracts/core/embeds/marker";
+import type { ContentTypeFieldDef } from "#src/features/content-types/index";
+import type { EntryRecord } from "#src/features/entries/index";
+import { parseCollectionListConfig, humanizeFieldName, entryPublicHref } from "#src/features/entries/public-list";
 import {
   resolveHtmlPageEmbeds,
   resolvePageWidgets,
@@ -528,9 +543,12 @@ export async function resolveStaticMenusForRender(
  * 4. {@link resolvePostPreviewsForRender} scans the SAME assembled html — not `theme.pages[pageId]`/
  *    a raw, unassembled template alone — for a `post-previews` marker, so one authored inside a
  *    Page's own body or a partial is found too.
- * 5. `renderStaticPage` applies every remaining static-tier treatment (token injection, asset-path
- *    rewrite, its own idempotent `expandPartials` re-pass, `menu`/`post-previews` injection, link
- *    rewrite) on top, exactly as it always has.
+ * 5. {@link resolveCollectionListsForRender} (C5, 2026-09-23) scans the same assembled html for every
+ *    distinct `{"type":"collection"}` marker config and resolves each to a rendered entry list, same
+ *    "scan the assembled document, not the raw template" reasoning as step 4.
+ * 6. `renderStaticPage` applies every remaining static-tier treatment (token injection, asset-path
+ *    rewrite, its own idempotent `expandPartials` re-pass, `menu`/`post-previews`/`collection`
+ *    injection, link rewrite) on top, exactly as it always has.
  *
  * `input.html` is always supplied to `renderStaticPage` as `htmlOverride`, so its `source ===
  * undefined` null case — reachable only when BOTH `htmlOverride` and `theme.pages[pageId]` are
@@ -542,7 +560,8 @@ export async function resolveStaticMenusForRender(
  * @complexity One `resolveHtmlPageEmbeds` pass (bounded by `MAX_HTML_EMBEDS_PER_PAGE`) plus, only
  * when the assembled html names a menu `input.staticMenus` does not already carry, one additional
  * `resolveStaticMenusForRender` call bounded to exactly those missing ids — never a full theme-wide
- * re-scan.
+ * re-scan — plus one `resolveCollectionListsForRender` pass bounded to at most
+ * `MAX_DISTINCT_COLLECTION_MARKERS_PER_PAGE` distinct marker configs.
  */
 export async function finishStaticTierDocument(
   deps: TemplateRenderDeps,
@@ -597,7 +616,159 @@ export async function finishStaticTierDocument(
     ? await resolvePostPreviewsForRender(deps, postPreviewsAccess.resolver, postPreviewsAccess.context, assembled)
     : undefined;
 
-  return renderStaticPage({ theme, pageId, htmlOverride: assembled, menus, postPreviews }) ?? "";
+  // C5 (collections plan, 2026-09-23) — the SAME assembled html post-previews just scanned, so a
+  // `{"type":"collection"}` marker authored in a Page/Post body or a partial resolves here too, not
+  // only one hand-authored directly into a theme file.
+  const collectionLists = await resolveCollectionListsForRender(deps, assembled);
+
+  return renderStaticPage({ theme, pageId, htmlOverride: assembled, menus, postPreviews, collectionLists }) ?? "";
+}
+
+/**
+ * The most distinct `{"type":"collection"}` marker configs one page's `resolveCollectionListsForRender`
+ * call will resolve. A theme/page author authors a small, fixed number of collection markers per page
+ * (this is layout, not user-collection-sized data); a page that somehow carries more than this is
+ * almost certainly an authoring mistake (e.g. a template loop that duplicated a marker with a
+ * per-iteration filter), not a legitimate design, so the excess configs are left on their authored
+ * fallback rather than firing an unbounded number of content-type/entry queries per request.
+ */
+const MAX_DISTINCT_COLLECTION_MARKERS_PER_PAGE = 10;
+
+/**
+ * Reads one custom field's value out of an entry's namespaced `fields.ext.site.<name>` bag, the
+ * route-layer twin of `repo.sqlite.ts`'s `json_extract($.ext.site.<name>)` and
+ * `trash-aware-memory-repo.ts`'s own private `siteFieldValue` — duplicated rather than imported
+ * because both of those live inside `features/entries/`'s repo-adapter internals with no barrel
+ * re-export, and this route-level display mapping must not deep-import across that feature boundary
+ * just to read a value out of a record it already has in hand.
+ *
+ * @complexity O(1).
+ */
+function collectionEntryFieldValue(row: EntryRecord, field: string): unknown {
+  const fields = row.fieldsJson as { ext?: { site?: Record<string, unknown> } } | null | undefined;
+  return fields?.ext?.site?.[field];
+}
+
+/**
+ * Reduces one fetched {@link EntryRecord} plus the content type's resolved display fields
+ * (`parseCollectionListConfig`'s `display.fields`, already validated and ordered) into the
+ * {@link EntryListItem} `entry-list-render.ts`'s pure renderer needs. `href` is always `null` (D1:
+ * entry pages are off) via {@link entryPublicHref}'s seam; `dateIso`/`dateLabel` prefer
+ * `publishedAt`, falling back to `updatedAt` for the rare row with no `publishedAt` yet (draft rows
+ * never reach here — `listPublishedForDisplay` only returns published entries — but a defensive
+ * fallback costs nothing and matches `formatPostPreviewDate`'s own "degrade, don't throw" posture).
+ *
+ * @complexity O(f) over `fields`' length — one `collectionEntryFieldValue` lookup per displayed
+ * field, f being the content type's own declared/authored field count, never user-collection-sized.
+ */
+function toCollectionEntryListItem(row: EntryRecord, fields: readonly ContentTypeFieldDef[]): EntryListItem {
+  const dateIso = row.publishedAt ?? row.updatedAt;
+  return {
+    title: row.title,
+    href: entryPublicHref(row.type, row.slug),
+    dateIso,
+    dateLabel: formatPostPreviewDate(dateIso),
+    fields: fields.map(
+      (field): EntryListFieldValue => ({
+        name: field.name,
+        label: humanizeFieldName(field.name),
+        kind: field.kind,
+        value: collectionEntryFieldValue(row, field.name),
+      })
+    ),
+  };
+}
+
+/**
+ * Resolves one already-deduplicated `{"type":"collection"}` marker to its rendered entry-list markup,
+ * or `undefined` for every kind of miss: no string `typeKey`, an unknown/system/tombstoned content
+ * type (`parseCollectionListConfig`'s own rejections, which include D8's `SYSTEM_CONTENT_TYPES`), an
+ * invalid config (unknown `where`/`sort`/`fields` name, non-scalar `where` value), or zero matching
+ * published entries (`renderEntryList`'s own "no data ⇒ nothing to substitute" contract). Every
+ * rejection is a `console.warn`, not a thrown error — one bad marker must never fail the whole page
+ * render, matching this file's existing `[theme]` warning convention.
+ *
+ * @complexity One `contentTypeRepo.findByKey` plus, only when that succeeds and the config parses,
+ * one bounded `entryRepo.listPublishedForDisplay` query (capped at the marker's own clamped `limit`,
+ * `parseCollectionListConfig`'s own resource bound) — never an unbounded scan.
+ */
+async function resolveOneCollectionMarker(
+  deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo">,
+  marker: EmbedMarker
+): Promise<string | undefined> {
+  const typeKey = marker.config.typeKey;
+  if (typeof typeKey !== "string" || typeKey.length === 0) {
+    console.warn('[collection] marker is missing a string "typeKey"; leaving its authored fallback content');
+    return undefined;
+  }
+
+  const contentType = await deps.contentTypeRepo.findByKey({ workspaceId: deps.workspaceId, key: typeKey });
+  if (contentType === null) {
+    console.warn(`[collection] no content type registered for typeKey "${typeKey}"; leaving its authored fallback content`);
+    return undefined;
+  }
+
+  const parsed = parseCollectionListConfig(marker.config, contentType);
+  if (!parsed.ok) {
+    console.warn(`[collection] rejected marker config for typeKey "${typeKey}": ${parsed.reason}; leaving its authored fallback content`);
+    return undefined;
+  }
+
+  const rows = await deps.entryRepo.listPublishedForDisplay({ workspaceId: deps.workspaceId, query: parsed.query });
+  const items = rows.map((row) => toCollectionEntryListItem(row, parsed.display.fields));
+  const { template } = splitCollectionMarkerInner(marker.inner);
+  return renderEntryList(items, { template, columns: parsed.display.columns, layout: parsed.display.layout, typeKey });
+}
+
+/**
+ * Collection-marker resolution (C5, 2026-09-23) — resolves every distinct `{"type":"collection"}`
+ * marker config found in `html` into the `ReadonlyMap<string, string | undefined>`
+ * {@link renderStaticPage}'s own `collectionLists` param expects, keyed by {@link collectionMarkerKey}
+ * so `static-render.ts`'s `injectCollectionEmbeds` (the other half of this contract) can look each
+ * one back up by the identical key.
+ *
+ * Two or more markers sharing the exact same config (the common case: one marker repeated, or two
+ * authored identically) resolve as ONE query, not one per occurrence — `collectionMarkerKey` is the
+ * de-dup key precisely so a page cannot multiply its query cost by how many times a marker happens to
+ * be pasted. Every distinct config beyond {@link MAX_DISTINCT_COLLECTION_MARKERS_PER_PAGE} is left
+ * out of the returned map entirely (not queried at all) with one `console.warn`, which
+ * `injectCollectionEmbeds` reads exactly like any other miss — its own authored fallback survives.
+ *
+ * A distinct config's own {@link resolveOneCollectionMarker} result — including `undefined` for a
+ * miss — is always recorded under its key, per {@link StaticCollectionList}'s own doc: this lets the
+ * caller (and any future re-scan) tell "already resolved, nothing to show" apart from "never looked
+ * at", even though this route layer, only ever building the map once per request, has no re-scan of
+ * its own that would need the distinction today.
+ *
+ * @complexity O(m) `collectionMarkerKey` computations over `m` markers found by `markersOfType`, plus
+ * up to `MAX_DISTINCT_COLLECTION_MARKERS_PER_PAGE` independent `resolveOneCollectionMarker` calls run
+ * concurrently via `Promise.all` — never one query per marker OCCURRENCE, only per distinct config.
+ */
+async function resolveCollectionListsForRender(
+  deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo">,
+  html: string
+): Promise<ReadonlyMap<string, string | undefined>> {
+  const markers = markersOfType(html, COLLECTION_MARKER_TYPE);
+  if (markers.length === 0) return new Map();
+
+  const distinctByKey = new Map<string, EmbedMarker>();
+  for (const marker of markers) {
+    const key = collectionMarkerKey(marker);
+    if (!distinctByKey.has(key)) distinctByKey.set(key, marker);
+  }
+
+  const withinCap = Array.from(distinctByKey.entries()).slice(0, MAX_DISTINCT_COLLECTION_MARKERS_PER_PAGE);
+  if (distinctByKey.size > withinCap.length) {
+    console.warn(
+      `[collection] page carries ${distinctByKey.size} distinct collection marker configs; only the first ${withinCap.length} are resolved, the rest keep their authored fallback content`
+    );
+  }
+
+  const resolvedEntries = await Promise.all(
+    withinCap.map(async ([key, marker]): Promise<readonly [string, string | undefined]> => [key, await resolveOneCollectionMarker(deps, marker)])
+  );
+
+  return new Map(resolvedEntries);
 }
 
 /**
@@ -707,6 +878,9 @@ export type TemplateRenderDeps = Pick<
   | "themes"
   | "mediaContentTypeStore"
   | "entryTermReadRepo"
+  // C5 (collections plan, 2026-09-23) — `resolveCollectionListsForRender`'s content-type lookup for
+  // a `{"type":"collection"}` marker's `typeKey`, threaded through `finishStaticTierDocument`.
+  | "contentTypeRepo"
 >;
 
 /**
