@@ -678,16 +678,24 @@ function PostEditorHeader({
             for its post-delete redirect just below — bug found during the page-header pass: this
             link used to be hardcoded to "/admin/posts"/"← Posts" even while editing a *page*, so
             it silently returned an operator to the wrong list. Deriving both from `kindLabel`
-            (not two independent ternaries) is what stops them drifting apart again. */}
+            (not two independent ternaries) is what stops them drifting apart again.
+
+            Visible label shortened to a plain "← Back" (owner, 2026-09-22 — every editor's back
+            button reads the same short way now). `aria-label` keeps the kind-aware destination —
+            "Back: Pages"/"Back: Posts", colon-joined rather than concatenated into a sentence so
+            it needs no new per-locale phrase key and still starts with the exact visible text
+            (WCAG 2.5.3 Label in Name). `agentHandle`'s own `label` (a stable, untranslated
+            identifier — never live text) is unchanged. */}
         <a
           className="btn-secondary"
           href={`/admin/${kindLabel}s`}
           onClick={(e) => {
             if (!confirmLeave()) e.preventDefault();
           }}
+          aria-label={`${t("Back")}: ${kindLabel === "page" ? t("Pages") : t("Posts")}`}
           {...agentHandle("post-back-to-list", { role: "link", label: `Back to the list of all ${kindLabel}s` })}
         >
-          ← {kindLabel === "page" ? t("Pages") : t("Posts")}
+          ← {t("Back")}
         </a>
       </div>
       <div className="page-header-text">

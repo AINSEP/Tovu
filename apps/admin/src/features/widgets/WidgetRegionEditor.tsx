@@ -21,11 +21,18 @@ export interface WidgetRegionEditorProps {
   useWidgetRegionEditorHook?: typeof useWiredWidgetRegionEditor;
 }
 
-/** The page header's actions cluster — the "back to regions" link, the save-status message/error,
- *  and the Save button — pulled out of `WidgetRegionEditor`'s own render body as a top-level
- *  component under the tightened ≤9/≤9 pass. Each of the three spans below is its own independent
- *  conditional (a save succeeded, a save failed, the save is in flight); extracting the whole
- *  cluster moves all three out of the parent's own scope at once. */
+/** The page header's Save-side actions cluster — the save-status message/error and the Save
+ *  button — pulled out of `WidgetRegionEditor`'s own render body as a top-level component under
+ *  the tightened ≤9/≤9 pass. Each of the three spans below is its own independent conditional (a
+ *  save succeeded, a save failed, the save is in flight); extracting the whole cluster moves all
+ *  three out of the parent's own scope at once.
+ *
+ * The "back to regions" link used to live in this same cluster (both sat together at the header's
+ * right edge). It moved out to `WidgetRegionEditor`'s own `.page-header-lead` (2026-09-22, split
+ * header pass — see that render's own comment) because the split header needs the back link and
+ * this actions cluster on OPPOSITE rails, not adjacent — a single component can't render into two
+ * non-adjacent grid cells with the title between them without breaking DOM/tab order, so the
+ * cluster shed the one piece that had to move. */
 export function WidgetRegionEditorHeaderActions({
   message,
   error,
@@ -42,14 +49,7 @@ export function WidgetRegionEditorHeaderActions({
   t?: (key: string) => string;
 }) {
   return (
-    <div className="page-actions">
-      <a
-        className="btn-secondary"
-        href="/admin/widgets/regions"
-        {...agentHandle("widget-region-editor-back", { role: "link", label: "Back to Widget Regions" })}
-      >
-        ← {t("Regions")}
-      </a>
+    <div className="page-header-actions page-actions">
       {message ? <span className="save-ok">{message}</span> : null}
       {error ? (
         <span className="save-error" role="alert">
@@ -85,7 +85,33 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
 
   return (
     <div className="page">
-      <div className="page-header">
+      {/* `page-header-split` (`styles.css`) — same shared idiom Pages/Posts/Forms already use:
+          back link alone at the left rail, title block centred. Widget Regions never grew a
+          separate `.editor-action-row` below a toolbar, so Save/status (`.page-header-actions`)
+          stay IN the header instead of an empty third rail (owner, 2026-09-22: "put the back
+          button on the left, like the other editors" — see `WidgetRegionEditorHeaderActions`'s own
+          comment for why the back link moved out of that component). */}
+      <div
+        className="page-header page-header-split"
+        {...agentHandle("widget-region-editor-header", {
+          role: "region",
+          label: "Widget region editor header — the back link, the region's title, and the Save button",
+        })}
+      >
+        <div className="page-header-lead">
+          {/* Visible label shortened to a plain "← Back" (owner, 2026-09-22 — every editor's back
+              button reads the same short way now). `aria-label` keeps "Back: Regions" —
+              colon-joined rather than concatenated into a sentence so it needs no new per-locale
+              phrase key and still starts with the exact visible text (WCAG 2.5.3 Label in Name). */}
+          <a
+            className="btn-secondary"
+            href="/admin/widgets/regions"
+            aria-label={`${t("Back")}: ${t("Regions")}`}
+            {...agentHandle("widget-region-editor-back", { role: "link", label: "Back to Widget Regions" })}
+          >
+            ← {t("Back")}
+          </a>
+        </div>
         <div className="page-header-text">
           <p className="page-kicker">{t("Content")}</p>
           <h1 className="page-title">{t("Region:")} {regionKey}</h1>

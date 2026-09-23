@@ -15,6 +15,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
+    Back: "Atrás",
     "Widget type to create": "Tipo de widget a crear",
     Content: "Contenido",
     // rules.ts's widgetTypeLabel — WIDGET_TYPE_OPTIONS's five known v1 type names.
@@ -91,6 +92,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "no se pudo vincular",
   },
   id: {
+    Back: "Kembali",
     "Widget type to create": "Jenis widget yang akan dibuat",
     Content: "Konten",
     Text: "Teks",
@@ -153,6 +155,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "gagal mengikat",
   },
   de: {
+    Back: "Zurück",
     "Widget type to create": "Zu erstellender Widget-Typ",
     Content: "Inhalt",
     Text: "Text",
@@ -215,6 +218,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "Binden fehlgeschlagen",
   },
   "zh-CN": {
+    Back: "返回",
     "Widget type to create": "要创建的小组件类型",
     Content: "内容",
     Text: "文本",
@@ -274,6 +278,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "绑定失败",
   },
   "zh-TW": {
+    Back: "返回",
     "Widget type to create": "要建立的小工具類型",
     Content: "內容",
     Text: "文字",
@@ -333,6 +338,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "繫結失敗",
   },
   "pt-BR": {
+    Back: "Voltar",
     "Widget type to create": "Tipo de widget a criar",
     Content: "Conteúdo",
     Text: "Texto",
@@ -395,6 +401,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "falha ao vincular",
   },
   ru: {
+    Back: "Назад",
     "Widget type to create": "Тип создаваемого виджета",
     Content: "Контент",
     Text: "Текст",
@@ -457,6 +464,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "не удалось привязать",
   },
   fa: {
+    Back: "بازگشت",
     "Widget type to create": "نوع ابزارکی که ساخته می‌شود",
     Content: "محتوا",
     Text: "متن",
@@ -519,6 +527,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "اتصال ناموفق بود",
   },
   ar: {
+    Back: "رجوع",
     "Widget type to create": "نوع الودجة المراد إنشاؤها",
     Content: "المحتوى",
     Text: "نص",
@@ -580,6 +589,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "تعذّر الربط",
   },
   ja: {
+    Back: "戻る",
     "Widget type to create": "作成するウィジェットの種類",
     Content: "コンテンツ",
     Text: "テキスト",
@@ -641,6 +651,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "バインドに失敗しました",
   },
   ko: {
+    Back: "뒤로",
     "Widget type to create": "만들 위젯 유형",
     Content: "콘텐츠",
     Text: "텍스트",
@@ -702,6 +713,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "바인딩하지 못했습니다",
   },
   pl: {
+    Back: "Wstecz",
     "Widget type to create": "Typ widżetu do utworzenia",
     Content: "Treść",
     Text: "Tekst",
@@ -764,6 +776,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "powiązanie nie powiodło się",
   },
   hu: {
+    Back: "Vissza",
     "Widget type to create": "Létrehozandó modul típusa",
     Content: "Tartalom",
     Text: "Szöveg",
@@ -826,6 +839,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "a hozzákötés sikertelen",
   },
   fr: {
+    Back: "Retour",
     "Widget type to create": "Type de widget à créer",
     Content: "Contenu",
     Text: "Texte",
@@ -888,6 +902,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "échec de la liaison",
   },
   uk: {
+    Back: "Назад",
     "Widget type to create": "Тип віджета для створення",
     Content: "Вміст",
     Text: "Текст",
@@ -950,6 +965,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "не вдалося прив'язати",
   },
   tr: {
+    Back: "Geri",
     "Widget type to create": "Oluşturulacak widget türü",
     Content: "İçerik",
     Text: "Metin",
@@ -1012,6 +1028,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "bağlama başarısız oldu",
   },
   th: {
+    Back: "ย้อนกลับ",
     "Widget type to create": "ประเภทวิดเจ็ตที่จะสร้าง",
     Content: "เนื้อหา",
     Text: "ข้อความ",
@@ -1073,6 +1090,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "เชื่อมโยงไม่สำเร็จ",
   },
   it: {
+    Back: "Indietro",
     "Widget type to create": "Tipo di widget da creare",
     Content: "Contenuto",
     Text: "Testo",
@@ -1135,6 +1153,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "collegamento non riuscito",
   },
   hi: {
+    Back: "पीछे",
     "Widget type to create": "बनाए जाने वाले विजेट का प्रकार",
     Content: "कंटेंट",
     Text: "टेक्स्ट",
@@ -1197,6 +1216,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "बाइंड विफल रहा",
   },
   ur: {
+    Back: "پیچھے",
     "Widget type to create": "بنائے جانے والے ویجٹ کی قسم",
     Content: "کنٹینٹ",
     Text: "ٹیکسٹ",
@@ -1259,6 +1279,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "bind failed": "باندھنا ناکام رہا",
   },
   bn: {
+    Back: "ফিরে যান",
     "Widget type to create": "যে ধরনের উইজেট তৈরি করবেন",
     Content: "কন্টেন্ট",
     Text: "টেক্সট",

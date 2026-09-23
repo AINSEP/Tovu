@@ -25,6 +25,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 export const POSTS_DICT: Record<string, Record<string, string>> = {
   es: {
+    Back: "Atrás",
     Restore: "Restaurar",
     Discard: "Descartar",
     "Save anyway": "Guardar de todos modos",
@@ -146,6 +147,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Acciones para \"{title}\"",
   },
   id: {
+    Back: "Kembali",
     Restore: "Pulihkan",
     Discard: "Buang",
     "Save anyway": "Tetap simpan",
@@ -198,6 +200,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Tindakan untuk \"{title}\"",
   },
   de: {
+    Back: "Zurück",
     Restore: "Wiederherstellen",
     Discard: "Verwerfen",
     "Save anyway": "Trotzdem speichern",
@@ -250,6 +253,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Aktionen für \"{title}\"",
   },
   "zh-CN": {
+    Back: "返回",
     Restore: "恢复",
     Discard: "放弃",
     "Save anyway": "仍然保存",
@@ -302,6 +306,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "\"{title}\"的操作",
   },
   "zh-TW": {
+    Back: "返回",
     Restore: "還原",
     Discard: "捨棄",
     "Save anyway": "仍要儲存",
@@ -354,6 +359,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "\"{title}\"的操作",
   },
   "pt-BR": {
+    Back: "Voltar",
     Restore: "Restaurar",
     Discard: "Descartar",
     "Save anyway": "Salvar mesmo assim",
@@ -406,6 +412,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Ações para \"{title}\"",
   },
   ru: {
+    Back: "Назад",
     Restore: "Восстановить",
     Discard: "Отбросить",
     "Save anyway": "Всё равно сохранить",
@@ -458,6 +465,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Действия для \"{title}\"",
   },
   fa: {
+    Back: "بازگشت",
     Restore: "بازیابی",
     Discard: "دور انداختن",
     "Save anyway": "به‌هرحال ذخیره کن",
@@ -510,6 +518,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "عملیات مربوط به \"{title}\"",
   },
   ar: {
+    Back: "رجوع",
     Restore: "استعادة",
     Discard: "تجاهل",
     "Save anyway": "الحفظ على أي حال",
@@ -562,6 +571,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "إجراءات لـ\"{title}\"",
   },
   ja: {
+    Back: "戻る",
     Restore: "復元",
     Discard: "破棄",
     "Save anyway": "それでも保存",
@@ -614,6 +624,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "\"{title}\"の操作",
   },
   ko: {
+    Back: "뒤로",
     Restore: "복원",
     Discard: "버리기",
     "Save anyway": "그래도 저장",
@@ -666,6 +677,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "\"{title}\" 작업",
   },
   pl: {
+    Back: "Wstecz",
     Restore: "Przywróć",
     Discard: "Odrzuć",
     "Save anyway": "Zapisz mimo to",
@@ -718,6 +730,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Działania dla \"{title}\"",
   },
   hu: {
+    Back: "Vissza",
     Restore: "Visszaállítás",
     Discard: "Elvetés",
     "Save anyway": "Mentés mindenképp",
@@ -770,6 +783,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Műveletek: \"{title}\"",
   },
   fr: {
+    Back: "Retour",
     Restore: "Restaurer",
     Discard: "Abandonner",
     "Save anyway": "Enregistrer quand même",
@@ -822,6 +836,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Actions pour \"{title}\"",
   },
   uk: {
+    Back: "Назад",
     Restore: "Відновити",
     Discard: "Відкинути",
     "Save anyway": "Усе одно зберегти",
@@ -874,6 +889,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Дії для \"{title}\"",
   },
   tr: {
+    Back: "Geri",
     Restore: "Geri yükle",
     Discard: "Vazgeç",
     "Save anyway": "Yine de kaydet",
@@ -926,6 +942,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "\"{title}\" için işlemler",
   },
   th: {
+    Back: "ย้อนกลับ",
     Restore: "กู้คืน",
     Discard: "ทิ้ง",
     "Save anyway": "บันทึกต่อไป",
@@ -978,6 +995,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "การดำเนินการสำหรับ \"{title}\"",
   },
   it: {
+    Back: "Indietro",
     Restore: "Ripristina",
     Discard: "Scarta",
     "Save anyway": "Salva comunque",
@@ -1030,6 +1048,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Azioni per \"{title}\"",
   },
   hi: {
+    Back: "पीछे",
     Restore: "पुनर्स्थापित करें",
     Discard: "छोड़ दें",
     "Save anyway": "फिर भी सहेजें",
@@ -1082,6 +1101,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "\"{title}\" के लिए कार्रवाइयां",
   },
   ur: {
+    Back: "پیچھے",
     Restore: "بحال کریں",
     Discard: "رد کریں",
     "Save anyway": "پھر بھی محفوظ کریں",
@@ -1134,6 +1154,7 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "\"{title}\" کے لیے کارروائیاں",
   },
   bn: {
+    Back: "ফিরে যান",
     Restore: "পুনরুদ্ধার করুন",
     Discard: "বাদ দিন",
     "Save anyway": "তবুও সংরক্ষণ করুন",

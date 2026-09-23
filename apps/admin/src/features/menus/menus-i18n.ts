@@ -9,6 +9,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 export const MENUS_DICT: Record<string, Record<string, string>> = {
   es: {
+    Back: "Atrás",
     "Build navigation menus for your theme's header and footer.":
       "Crea menús de navegación para el encabezado y el pie de página de tu tema.",
     Advanced: "Avanzado",
@@ -47,6 +48,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Agregar elemento",
   },
   id: {
+    Back: "Kembali",
     "Build navigation menus for your theme's header and footer.":
       "Buat menu navigasi untuk header dan footer tema Anda.",
     Advanced: "Lanjutan",
@@ -77,6 +79,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Tambah item",
   },
   de: {
+    Back: "Zurück",
     "Build navigation menus for your theme's header and footer.":
       "Erstellen Sie Navigationsmenüs für Kopf- und Fußzeile Ihres Themes.",
     Advanced: "Erweitert",
@@ -108,6 +111,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Element hinzufügen",
   },
   "zh-CN": {
+    Back: "返回",
     "Build navigation menus for your theme's header and footer.": "为主题的页眉和页脚创建导航菜单。",
     Advanced: "高级",
     "CSS class": "CSS 类",
@@ -137,6 +141,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ 添加项目",
   },
   "zh-TW": {
+    Back: "返回",
     "Build navigation menus for your theme's header and footer.": "為主題的頁首和頁尾建立導覽選單。",
     Advanced: "進階",
     "CSS class": "CSS 類別",
@@ -166,6 +171,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ 新增項目",
   },
   "pt-BR": {
+    Back: "Voltar",
     "Build navigation menus for your theme's header and footer.":
       "Crie menus de navegação para o cabeçalho e o rodapé do seu tema.",
     Advanced: "Avançado",
@@ -196,6 +202,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Adicionar item",
   },
   ru: {
+    Back: "Назад",
     "Build navigation menus for your theme's header and footer.":
       "Создавайте меню навигации для шапки и подвала вашей темы.",
     Advanced: "Дополнительно",
@@ -227,6 +234,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Добавить пункт",
   },
   fa: {
+    Back: "بازگشت",
     "Build navigation menus for your theme's header and footer.": "برای سرصفحه و پاورقی قالب خود منوهای پیمایش بسازید.",
     Advanced: "پیشرفته",
     "CSS class": "کلاس CSS",
@@ -256,6 +264,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ افزودن مورد",
   },
   ar: {
+    Back: "رجوع",
     "Build navigation menus for your theme's header and footer.": "أنشئ قوائم تنقّل لرأس قالبك وتذييله.",
     Advanced: "متقدم",
     "CSS class": "فئة CSS",
@@ -285,6 +294,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ إضافة عنصر",
   },
   ja: {
+    Back: "戻る",
     "Build navigation menus for your theme's header and footer.": "テーマのヘッダーとフッター用のナビゲーションメニューを作成します。",
     Advanced: "詳細設定",
     "CSS class": "CSS クラス",
@@ -314,6 +324,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ 項目を追加",
   },
   ko: {
+    Back: "뒤로",
     "Build navigation menus for your theme's header and footer.": "테마의 헤더와 푸터에 사용할 탐색 메뉴를 만드세요.",
     Advanced: "고급",
     "CSS class": "CSS 클래스",
@@ -343,6 +354,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ 항목 추가",
   },
   pl: {
+    Back: "Wstecz",
     "Build navigation menus for your theme's header and footer.":
       "Twórz menu nawigacyjne dla nagłówka i stopki motywu.",
     Advanced: "Zaawansowane",
@@ -374,6 +386,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Dodaj pozycję",
   },
   hu: {
+    Back: "Vissza",
     "Build navigation menus for your theme's header and footer.":
       "Hozzon létre navigációs menüket a téma fejlécéhez és láblécéhez.",
     Advanced: "Speciális",
@@ -405,6 +418,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Elem hozzáadása",
   },
   fr: {
+    Back: "Retour",
     "Build navigation menus for your theme's header and footer.":
       "Créez des menus de navigation pour l’en-tête et le pied de page de votre thème.",
     Advanced: "Avancé",
@@ -435,6 +449,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Ajouter un élément",
   },
   uk: {
+    Back: "Назад",
     "Build navigation menus for your theme's header and footer.":
       "Створюйте навігаційні меню для шапки та підвалу вашої теми.",
     Advanced: "Додатково",
@@ -466,6 +481,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Додати пункт",
   },
   tr: {
+    Back: "Geri",
     "Build navigation menus for your theme's header and footer.":
       "Temanızın üst ve alt bilgi alanları için gezinme menüleri oluşturun.",
     Advanced: "Gelişmiş",
@@ -497,6 +513,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Öğe ekle",
   },
   th: {
+    Back: "ย้อนกลับ",
     "Build navigation menus for your theme's header and footer.": "สร้างเมนูนำทางสำหรับส่วนหัวและส่วนท้ายของธีมของคุณ",
     Advanced: "ขั้นสูง",
     "CSS class": "คลาส CSS",
@@ -526,6 +543,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ เพิ่มรายการ",
   },
   it: {
+    Back: "Indietro",
     "Build navigation menus for your theme's header and footer.":
       "Crea menu di navigazione per l’intestazione e il piè di pagina del tuo tema.",
     Advanced: "Avanzate",
@@ -556,6 +574,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Aggiungi voce",
   },
   hi: {
+    Back: "पीछे",
     "Build navigation menus for your theme's header and footer.":
       "अपने थीम के हेडर और फ़ुटर के लिए नेविगेशन मेनू बनाएं।",
     Advanced: "उन्नत",
@@ -592,6 +611,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ आइटम जोड़ें",
   },
   ur: {
+    Back: "پیچھے",
     "Build navigation menus for your theme's header and footer.":
       "اپنے تھیم کے ہیڈر اور فوٹر کے لیے نیویگیشن مینوز بنائیں۔",
     Advanced: "اعلیٰ ترتیبات",
@@ -628,6 +648,7 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ آئٹم شامل کریں",
   },
   bn: {
+    Back: "ফিরে যান",
     "Build navigation menus for your theme's header and footer.":
       "আপনার থিমের হেডার ও ফুটারের জন্য নেভিগেশন মেনু তৈরি করুন।",
     Advanced: "উন্নত",

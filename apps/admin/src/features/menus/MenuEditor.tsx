@@ -362,30 +362,57 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
 
   return (
     <div className="page">
-      <div className="page-header">
+      {/* `page-header-split` (`styles.css`) — same shared idiom Pages/Posts/Forms already use:
+          back link alone at the left rail, title block centred. Menus (like Widgets) never grew a
+          separate `.editor-action-row` below a toolbar, so Save/status stay IN the header instead
+          of an empty third rail — `.page-header-actions` (`styles.css`) pins that rail to the
+          right and gives it its own narrow-container stacking row alongside the back link (owner,
+          2026-09-22: "put the back button on the left, like the other editors" — this used to be a
+          plain `.page-header`/`.page-actions` row with Back and Save both crowded at the right). */}
+      <div
+        className="page-header page-header-split"
+        {...agentHandle("menu-editor-header", {
+          role: "region",
+          label: "Menu editor header — the back link, the menu's title, and the Save button",
+        })}
+      >
+        <div className="page-header-lead">
+          {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
+              edits — confirmed live on this exact screen. `preventDefault()` here also stops
+              `router.ts`'s document-level click interceptor from firing `navigate()`, since that
+              listener's first check is `event.defaultPrevented` — no change to `router.ts` needed.
+              Plain `<a className="btn-secondary">`, not a `<button>` nested inside an `<a>`
+              (invalid HTML) — same fix Pages/Posts/Forms' own back links already made; this one
+              still carried the old nested-button markup.
+
+              Visible label shortened to a plain "← Back" (owner, 2026-09-22 — every editor's back
+              button reads the same short way now). `aria-label` keeps "Back: Menus" — colon-joined
+              rather than concatenated into a sentence so it needs no new per-locale phrase key and
+              still starts with the exact visible text (WCAG 2.5.3 Label in Name). */}
+          <a
+            className="btn-secondary"
+            href="/admin/menus"
+            onClick={(e) => {
+              if (!confirmLeave()) e.preventDefault();
+            }}
+            aria-label={`${t("Back")}: ${t("Menus")}`}
+            {...agentHandle("menu-editor-back", { role: "link", label: "Back to the list of all menus" })}
+          >
+            ← {t("Back")}
+          </a>
+        </div>
         <div className="page-header-text">
           <p className="page-kicker">{t("Content")}</p>
           <h1 className="page-title">{t(isNew ? "New menu" : "Edit menu")}</h1>
           <p className="page-description">{t("Build this menu's items and where each one links to.")}</p>
         </div>
-        <div className="page-actions">
-          {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
-              edits — confirmed live on this exact screen. `preventDefault()` here also stops
-              `router.ts`'s document-level click interceptor from firing `navigate()`, since that
-              listener's first check is `event.defaultPrevented` — no change to `router.ts` needed. */}
-          <a
-            href="/admin/menus"
-            onClick={(e) => {
-              if (!confirmLeave()) e.preventDefault();
-            }}
-          >
-            <button type="button" className="btn-secondary">
-              ← {t("Menus")}
-            </button>
-          </a>
+        <div
+          className="page-header-actions page-actions"
+          {...agentHandle("menu-editor-actions", { role: "region", label: "Save status and the Save button" })}
+        >
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? <span className="save-error">{error}</span> : null}
-          <button onClick={save} disabled={saving}>
+          <button onClick={save} disabled={saving} {...agentHandle("menu-editor-save", { role: "button", label: "Save this menu" })}>
             {t("Save")}
           </button>
         </div>

@@ -511,9 +511,10 @@ function FormSubmissionDetail({
         type="button"
         className="btn-secondary"
         onClick={onBack}
+        aria-label={t("Back to submissions")}
         {...agentHandle("form-submission-back", { role: "link", label: "Back to this form's list of submissions" })}
       >
-        &larr; {t("Back to submissions")}
+        &larr; {t("Back")}
       </button>
       {error ? <div className="notice error">{error}</div> : null}
       <div className="table-scroll">
@@ -999,14 +1000,21 @@ export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor
           {/* Plain `<a className="btn-secondary">`, not a `<button>` nested inside an `<a>`
               (invalid HTML, undefined activation behaviour) — same `a.btn-*` mechanism
               `Dashboard.tsx`'s "View site ↗" already uses. Arrow sits outside `t()`, matching
-              `FormSubmissionDetail`'s own `&larr; {t("Back to submissions")}` below — the glyph
-              is not part of the translated string, so no locale block needs to change. */}
+              `FormSubmissionDetail`'s own `&larr; {t("Back")}` below — the glyph is not part of
+              the translated string, so no locale block needs to change.
+
+              Visible label shortened to a plain "← Back" (owner, 2026-09-22 — every editor's back
+              button reads the same short way now). The destination stays legible: `aria-label`
+              carries the full "Back to forms" phrase for screen readers, and `agentHandle`'s own
+              `label` (a stable, untranslated identifier — never live text, see `handle.ts`) already
+              said "Back to the list of all forms" for agents, unchanged by this. */}
           <a
             className="btn-secondary"
             href="/admin/forms"
+            aria-label={t("Back to forms")}
             {...agentHandle("form-editor-back", { role: "link", label: "Back to the list of all forms" })}
           >
-            &larr; {t("Back to forms")}
+            &larr; {t("Back")}
           </a>
         </div>
         <FormEditorHeaderText isNew={isNew} name={name} t={t} />

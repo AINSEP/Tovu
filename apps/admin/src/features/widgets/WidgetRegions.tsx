@@ -38,10 +38,34 @@ export function WidgetRegions({ useWidgetRegionsHook = useWiredWidgetRegions }: 
 
   return (
     <div className="page">
-      <a href="/admin/widgets" {...agentHandle("widget-regions-back", { role: "link", label: "Back to Widgets" })}>
-        ← {t("Widgets")}
-      </a>
-      <div className="page-header">
+      {/* `page-header-split` (`styles.css`) — same shared idiom every editor with a back button
+          now uses: back link alone at the left rail, title block centred. This screen's own
+          right-rail action isn't a Save button but the bind-a-region control (input + Bind
+          button); `.page-header-actions` treats it exactly the same way (owner, 2026-09-22 — the
+          back link used to float above the header entirely, uncoordinated with the title, and
+          read "← Widgets"; it now reads the shared "← Back" every other editor got in the same
+          pass). */}
+      <div
+        className="page-header page-header-split"
+        {...agentHandle("widget-regions-header", {
+          role: "region",
+          label: "Widget Regions header — the back link, the screen's title, and the bind-a-region control",
+        })}
+      >
+        <div className="page-header-lead">
+          {/* Visible label shortened to a plain "← Back" (owner, 2026-09-22 — every editor's back
+              button reads the same short way now). `aria-label` keeps "Back: Widgets" —
+              colon-joined rather than concatenated into a sentence so it needs no new per-locale
+              phrase key and still starts with the exact visible text (WCAG 2.5.3 Label in Name). */}
+          <a
+            className="btn-secondary"
+            href="/admin/widgets"
+            aria-label={`${t("Back")}: ${t("Widgets")}`}
+            {...agentHandle("widget-regions-back", { role: "link", label: "Back to Widgets" })}
+          >
+            ← {t("Back")}
+          </a>
+        </div>
         <div className="page-header-text">
           <p className="page-kicker">{t("Content")}</p>
           <h1 className="page-title">{t("Widget Regions")}</h1>
@@ -51,7 +75,7 @@ export function WidgetRegions({ useWidgetRegionsHook = useWiredWidgetRegions }: 
             )}
           </p>
         </div>
-        <div className="page-actions">
+        <div className="page-header-actions page-actions">
           <input
             value={newRegionKey}
             onChange={(e) => setNewRegionKey(e.target.value)}

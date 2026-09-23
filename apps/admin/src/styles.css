@@ -1013,22 +1013,59 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
   grid-template-columns: 1fr auto 1fr;
   align-items: start;
 }
-/* Explicit placement, because the third rail is now EMPTY: the status/Save/Delete group moved out
-   of this header into `.editor-action-row` below. Without pinning the columns, auto-placement would
-   drop these two children into columns 1 and 2 and the title would sit left of centre; naming the
-   columns keeps the unoccupied third rail reserved so the title stays at true centre. */
-.page-header-split .page-header-lead { grid-column: 1; display: flex; align-items: center; }
+/* Explicit placement, because the third rail is EMPTY on the toolbar editors (Pages/Posts/Forms —
+   the status/Save/Delete group moved out of this header into `.editor-action-row` below) but
+   OCCUPIED on the editors that never grew a separate action row (Widgets/Menus — see
+   `.page-header-actions` below). Without pinning the columns, auto-placement would drop these
+   children into columns 1 and 2 and the title would sit left of centre; naming the columns keeps
+   the third rail reserved (empty or not) so the title stays at true centre either way. */
+.page-header-split .page-header-lead { grid-column: 1; display: flex; align-items: center; white-space: nowrap; }
 .page-header-split .page-header-text { grid-column: 2; align-items: center; text-align: center; }
+/* Third rail, for the editors that keep Save/status IN the header instead of a separate
+   `.editor-action-row` (Widgets, Menus — 2026-09-22). `grid-column: 3` because column 2's own
+   `justify-items` isn't set to `end`; `justify-self: end` then pins this rail to the column's own
+   right edge instead of stretching across it. Bare `.page-actions` (used on the non-split
+   `.page-header` elsewhere) needs neither — it is already the grid's last auto-placed child there. */
+.page-header-split .page-header-actions { grid-column: 3; justify-self: end; }
 
-/* Three columns stop fitting well before the shell's own 900px breakpoint here, because the right
-   rail is four controls wide: the title's centre column gets squeezed to its longest word while the
-   two rails do the growing. Stack into one centred column instead — the same answer
-   `.page-title-row` (`styles/pages.css`) and `.editor-title-row` already give at their own
-   breakpoint, one tier up because this row carries more controls than either of those. */
-@media (max-width: 900px) {
+/* CONTAINER query, not `@media (max-width: 900px)` (replaced 2026-09-22 — same swap
+   `.agent-plugin-rows` made above, same reason): 900px keyed on the VIEWPORT, and the thing that
+   actually squeezes this row is the workspace chat dock, which takes width from `.admin-content`
+   while leaving the viewport exactly as wide as it was. Measured live with the chat dock open at a
+   1440px viewport: `.page` renders ~560px wide — comfortably past the point the row needs to
+   stack — while the media query, seeing 1440, never fired, and the back link wrapped onto four
+   lines fighting the grid for room instead.
+
+   `container-type` sits on `.page:has(.page-header-split)` rather than bare `.page` (~39 other
+   screens share that class for layouts a size-contained ancestor could break — e.g. a
+   `position: fixed`/`absolute` descendant would get re-anchored to this box instead of the
+   viewport). Scoping to `:has(.page-header-split)` — the same selector idiom the chat-dock rule
+   above already uses on a shared ancestor — means only the handful of editor screens that opt into
+   this header modifier pay for the new containing block, and every other `.page` is untouched.
+
+   620px (not 900px): the container is `.page`'s own inline size, which is already narrower than
+   the viewport by the sidebar (232px) and `.admin-content`'s padding (2 × 2.5rem) even with the
+   chat dock closed — the viewport figure this replaces was never the row's real budget, that
+   offset was. */
+.page:has(.page-header-split) { container-type: inline-size; }
+@container (max-width: 620px) {
   .page-header-split { grid-template-columns: minmax(0, 1fr); }
   .page-header-split .page-header-lead { grid-column: 1; justify-content: center; }
   .page-header-split .page-header-text { grid-column: 1; }
+
+  /* Widgets/Menus (`:has(.page-header-actions)`) keep Save in the header rather than a separate
+     `.editor-action-row` below a toolbar, so collapsing to one plain stacked column would put Back
+     above the title above Save — three rows for what the owner already approved as two (title,
+     then one button row) on the narrow widget editor before this pass. Two columns instead, so
+     Back and Save can share the second row: title spans both (row 1), Back sits left and Save
+     right on row 2 — same idiom as the wide layout's three rails, just folded from 3 columns × 1
+     row into 2 columns × 2 rows instead of 1 column × 3 rows. The toolbar editors (Pages/Posts/
+     Forms) have no `.page-header-actions` at all, so this block never matches them and their
+     existing Back-then-title stack above is untouched. */
+  .page-header-split:has(.page-header-actions) { grid-template-columns: 1fr 1fr; }
+  .page-header-split:has(.page-header-actions) .page-header-text { grid-column: 1 / -1; grid-row: 1; }
+  .page-header-split:has(.page-header-actions) .page-header-lead { grid-column: 1; grid-row: 2; justify-content: flex-start; }
+  .page-header-split:has(.page-header-actions) .page-header-actions { grid-column: 2; grid-row: 2; justify-self: end; }
 }
 
 /* Second half of the same 2026-09-06 experiment (owner: "put the published save and delete buttons

@@ -41,7 +41,7 @@ const pageEditorMarkupTranslations: Record<string, Record<string, string>> = {
 };
 
 const postEditorKeys = new Set([
-  "Pages", "Content", "Edit page", "Draft", "Published", "Publish", "Restore", "Discard",
+  "Back", "Pages", "Content", "Edit page", "Draft", "Published", "Publish", "Restore", "Discard",
   "Save anyway", "Keep editing", "Template", "No template chosen", "No templates for this theme",
   "Loading editor…", "URL slug", "view ↗", "Move to trash?", "Move to trash",
   "to trash? It will disappear from the site and from this list.", "Exit full screen (Esc)",

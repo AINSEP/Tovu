@@ -11,6 +11,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 export const FORMS_DICT: Record<string, Record<string, string>> = {
   es: {
+    Back: "Atrás",
     Content: "Contenido",
     Forms: "Formularios",
     "Manage the forms embedded across the site and their submissions.":
@@ -79,6 +80,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Acciones para el formulario \"{name}\"",
   },
   id: {
+    Back: "Kembali",
     Content: "Konten",
     Forms: "Formulir",
     "Manage the forms embedded across the site and their submissions.":
@@ -129,6 +131,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Tindakan untuk formulir \"{name}\"",
   },
   de: {
+    Back: "Zurück",
     Content: "Inhalt",
     Forms: "Formulare",
     "Manage the forms embedded across the site and their submissions.":
@@ -181,6 +184,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Aktionen für Formular \"{name}\"",
   },
   "zh-CN": {
+    Back: "返回",
     Content: "内容",
     Forms: "表单",
     "Manage the forms embedded across the site and their submissions.": "管理站点中嵌入的表单及其提交内容。",
@@ -230,6 +234,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "表单\"{name}\"的操作",
   },
   "zh-TW": {
+    Back: "返回",
     Content: "內容",
     Forms: "表單",
     "Manage the forms embedded across the site and their submissions.": "管理站台中嵌入的表單及其提交內容。",
@@ -279,6 +284,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "表單\"{name}\"的操作",
   },
   "pt-BR": {
+    Back: "Voltar",
     Content: "Conteúdo",
     Forms: "Formulários",
     "Manage the forms embedded across the site and their submissions.":
@@ -330,6 +336,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Ações para o formulário \"{name}\"",
   },
   ru: {
+    Back: "Назад",
     Content: "Контент",
     Forms: "Формы",
     "Manage the forms embedded across the site and their submissions.":
@@ -381,6 +388,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Действия для формы \"{name}\"",
   },
   fa: {
+    Back: "بازگشت",
     Content: "محتوا",
     Forms: "فرم‌ها",
     "Manage the forms embedded across the site and their submissions.":
@@ -431,6 +439,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "عملیات مربوط به فرم \"{name}\"",
   },
   ar: {
+    Back: "رجوع",
     Content: "المحتوى",
     Forms: "النماذج",
     "Manage the forms embedded across the site and their submissions.": "أدر النماذج المضمّنة عبر الموقع وعمليات إرسالها.",
@@ -480,6 +489,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "إجراءات لنموذج \"{name}\"",
   },
   ja: {
+    Back: "戻る",
     Content: "コンテンツ",
     Forms: "フォーム",
     "Manage the forms embedded across the site and their submissions.":
@@ -530,6 +540,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "フォーム\"{name}\"の操作",
   },
   ko: {
+    Back: "뒤로",
     Content: "콘텐츠",
     Forms: "양식",
     "Manage the forms embedded across the site and their submissions.": "사이트 전체에 삽입된 양식과 제출 내용을 관리하세요.",
@@ -579,6 +590,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "양식 \"{name}\" 작업",
   },
   pl: {
+    Back: "Wstecz",
     Content: "Treść",
     Forms: "Formularze",
     "Manage the forms embedded across the site and their submissions.":
@@ -630,6 +642,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Działania dla formularza \"{name}\"",
   },
   hu: {
+    Back: "Vissza",
     Content: "Tartalom",
     Forms: "Űrlapok",
     "Manage the forms embedded across the site and their submissions.":
@@ -682,6 +695,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Műveletek: űrlap \"{name}\"",
   },
   fr: {
+    Back: "Retour",
     Content: "Contenu",
     Forms: "Formulaires",
     "Manage the forms embedded across the site and their submissions.":
@@ -734,6 +748,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Actions pour le formulaire \"{name}\"",
   },
   uk: {
+    Back: "Назад",
     Content: "Вміст",
     Forms: "Форми",
     "Manage the forms embedded across the site and their submissions.":
@@ -785,6 +800,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Дії для форми \"{name}\"",
   },
   tr: {
+    Back: "Geri",
     Content: "İçerik",
     Forms: "Formlar",
     "Manage the forms embedded across the site and their submissions.":
@@ -836,6 +852,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "\"{name}\" formu için işlemler",
   },
   th: {
+    Back: "ย้อนกลับ",
     Content: "เนื้อหา",
     Forms: "แบบฟอร์ม",
     "Manage the forms embedded across the site and their submissions.":
@@ -886,6 +903,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "การดำเนินการสำหรับแบบฟอร์ม \"{name}\"",
   },
   it: {
+    Back: "Indietro",
     Content: "Contenuto",
     Forms: "Moduli",
     "Manage the forms embedded across the site and their submissions.": "Gestisci i moduli incorporati nel sito e i relativi invii.",
@@ -936,6 +954,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Azioni per il modulo \"{name}\"",
   },
   hi: {
+    Back: "पीछे",
     Content: "सामग्री",
     Forms: "फ़ॉर्म",
     "Manage the forms embedded across the site and their submissions.":
@@ -997,6 +1016,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "फ़ॉर्म \"{name}\" के लिए कार्रवाइयां",
   },
   ur: {
+    Back: "پیچھے",
     Content: "مواد",
     Forms: "فارمز",
     "Manage the forms embedded across the site and their submissions.":
@@ -1058,6 +1078,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "فارم \"{name}\" کے لیے کارروائیاں",
   },
   bn: {
+    Back: "ফিরে যান",
     Content: "কন্টেন্ট",
     Forms: "ফর্ম",
     "Manage the forms embedded across the site and their submissions.":

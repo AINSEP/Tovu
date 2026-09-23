@@ -133,20 +133,42 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
 
   return (
     <div className="page">
-      <div className="page-header">
+      {/* `page-header-split` (`styles.css`) — same shared idiom Pages/Posts/Forms already use:
+          back link alone at the left rail, title block centred. Widgets never grew a separate
+          `.editor-action-row` below a toolbar, so Save/status stay IN the header instead of an
+          empty third rail — `.page-header-actions` (`styles.css`) pins that rail to the right and
+          gives it its own narrow-container stacking row alongside the back link (owner,
+          2026-09-22: "put the back button on the left, like the other editors" — this used to be a
+          plain `.page-header`/`.page-actions` row with Back and Save both crowded at the right;
+          the narrow-viewport "title, then a button row underneath" layout it already had is kept
+          as-is, since that's the layout the owner said they liked). */}
+      <div
+        className="page-header page-header-split"
+        {...agentHandle("widget-instance-header", {
+          role: "region",
+          label: "Widget editor header — the back link, the widget's title, and the Save button",
+        })}
+      >
+        <div className="page-header-lead">
+          {/* Visible label shortened to a plain "← Back" (owner, 2026-09-22 — every editor's back
+              button reads the same short way now). `aria-label` keeps "Back: Widgets" —
+              colon-joined rather than concatenated into a sentence so it needs no new per-locale
+              phrase key and still starts with the exact visible text (WCAG 2.5.3 Label in Name). */}
+          <a
+            className="btn-secondary"
+            href="/admin/widgets"
+            aria-label={`${t("Back")}: ${t("Widgets")}`}
+            {...agentHandle("widget-instance-back", { role: "link", label: "Back to Widgets" })}
+          >
+            ← {t("Back")}
+          </a>
+        </div>
         <div className="page-header-text">
           <p className="page-kicker">{t("Content")}</p>
           <h1 className="page-title">{t(isNew ? "New widget" : "Edit widget")}</h1>
           <p className="page-description">{t("Configure this widget's title and settings.")}</p>
         </div>
-        <div className="page-actions">
-          <a
-            className="btn-secondary"
-            href="/admin/widgets"
-            {...agentHandle("widget-instance-back", { role: "link", label: "Back to Widgets" })}
-          >
-            ← {t("Widgets")}
-          </a>
+        <div className="page-header-actions page-actions">
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? (
             <span className="save-error" role="alert">

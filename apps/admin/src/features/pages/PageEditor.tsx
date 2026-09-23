@@ -106,16 +106,28 @@ function PageEditorHeader({ confirmLeave, t }: { confirmLeave: () => boolean; t:
           visually, so tab order and the reading order match what is on screen. */}
       <div className="page-header-lead">
         {/* Guards an in-app navigation away from unsaved work — the same protection the agent's
-            own navigation gate is meant to apply, applied here to a human click. */}
+            own navigation gate is meant to apply, applied here to a human click.
+
+            Visible label shortened to a plain "← Back" (owner, 2026-09-22 — every editor's back
+            button reads the same short way now, styles.css's own `.page-header-lead` comment on
+            the container-query pass explains why it also needed `white-space: nowrap`). The
+            destination stays legible: `aria-label` composes this dictionary's own translated
+            "Back"/"Pages" as "Back: Pages" — colon-joined rather than concatenated into a
+            sentence, so it needs no new per-locale phrase key AND still starts with the exact
+            visible text (WCAG 2.5.3 Label in Name — a screen-reader/speech-input user saying
+            "click Back" must match the accessible name). `agentHandle`'s own `label` (a stable,
+            untranslated identifier — never live text, see `handle.ts`) already said "Back to the
+            list of all pages" for agents, unchanged. */}
         <a
           className="btn-secondary"
           href="/admin/pages"
           onClick={(e) => {
             if (!confirmLeave()) e.preventDefault();
           }}
+          aria-label={`${t("Back")}: ${t("Pages")}`}
           {...agentHandle("page-back-to-list", { role: "link", label: "Back to the list of all pages" })}
         >
-          ← {t("Pages")}
+          ← {t("Back")}
         </a>
       </div>
       <div className="page-header-text">
