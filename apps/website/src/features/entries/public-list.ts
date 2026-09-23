@@ -1,6 +1,6 @@
 import type { ContentTypeFieldDef, ContentTypeFieldKind, ContentTypeRecord } from "#src/features/content-types/index";
 import { NAV_MENU_CONTENT_TYPE } from "#src/features/navigation/index";
-import type { EntryRecord } from "./index.js";
+import type { EntryRecord, EntryStatus } from "./index.js";
 
 /**
  * @file Collections plan C1 (`collections-exec-plan-2026-09-23.md` lines 125-148) — the pure
@@ -83,6 +83,31 @@ export interface EntryDisplayListPort {
   listPublishedForDisplay(params: {
     readonly workspaceId: string;
     readonly query: CollectionListQuery;
+  }): Promise<EntryRecord[]>;
+}
+
+/**
+ * Review fix 3b (`2026-09-23-review-E4-R1-report.md`): the legacy (no-`collection`) Recent
+ * Entries path used to run `EntryListPort.listByWorkspace` bounded to the registered clamp and
+ * only THEN filter {@link SYSTEM_CONTENT_TYPES} rows out — so a batch of system rows newer than
+ * real content could fill the limited query result and crowd out (or fully replace) the real
+ * entries the widget should show. This port excludes those types INSIDE the query instead, so the
+ * `limit` only ever counts rows that could actually be shown. It is a new, local port (not a
+ * change to `@jini-ai/cms`'s `EntryListPort`) — both entry repos (`repo.sqlite.ts`,
+ * `trash-aware-memory-repo.ts`) implement it structurally, the same pattern
+ * {@link EntryDisplayListPort} already established for C2.
+ */
+export interface EntryListExcludingTypesPort {
+  /** @returns non-trashed entries whose `type` is NOT one of `excludeTypes`, matching `status`
+   * (when given), ordered by `orderBy`/`orderDirection`, bounded to `limit` — the exclusion is
+   * applied before `limit`, never after. */
+  listByWorkspaceExcludingTypes(params: {
+    readonly workspaceId: string;
+    readonly excludeTypes: readonly string[];
+    readonly status?: EntryStatus;
+    readonly orderBy?: "updatedAt";
+    readonly orderDirection?: "asc" | "desc";
+    readonly limit?: number;
   }): Promise<EntryRecord[]>;
 }
 

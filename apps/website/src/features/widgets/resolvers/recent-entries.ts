@@ -1,5 +1,12 @@
 import type { ContentTypeFieldDef, ContentTypeRecord } from "#src/features/content-types/index";
-import { entryPublicHref, parseCollectionListConfig, humanizeFieldName, SYSTEM_CONTENT_TYPES, type EntryDisplayListPort } from "#src/features/entries/public-list";
+import {
+  entryPublicHref,
+  parseCollectionListConfig,
+  humanizeFieldName,
+  SYSTEM_CONTENT_TYPES,
+  type EntryDisplayListPort,
+  type EntryListExcludingTypesPort,
+} from "#src/features/entries/public-list";
 import type { EntryListPort, EntryRecord } from "../../entries/index.js";
 import { getWidgetTypeRegistration } from "../registry.js";
 import type { JsonObject } from "@jini-ai/cms/core";
@@ -16,11 +23,15 @@ import type { WidgetInstanceView, WidgetResolveResult, WidgetResolver } from "..
  * Two independent per-instance paths, split by whether `config.collection` names a content type:
  *
  * - **No `collection` (D7, the historical/default shape):** unchanged from before this plan —
- *   ONE shared bounded `listByWorkspace` query for the whole batch (`status: 'published'`,
- *   `orderBy: 'updatedAt' desc`, `limit: registryMax` — REQ-24/REQ-25, fixed 2026-07-21), across
- *   every content type. The one new step is dropping `SYSTEM_CONTENT_TYPES` rows (D8) — `widget`/
- *   `widget_area`/nav-menu entries were never meant to appear in a "recent entries" feed; nothing
- *   else about this path's query or ordering changed. `layout`/`columns` are still read from the
+ *   ONE shared bounded query for the whole batch (`status: 'published'`, `orderBy: 'updatedAt'
+ *   desc`, `limit: registryMax` — REQ-24/REQ-25, fixed 2026-07-21), across every content type
+ *   except `SYSTEM_CONTENT_TYPES` (D8) — `widget`/`widget_area`/nav-menu entries were never meant
+ *   to appear in a "recent entries" feed. That exclusion runs `EntryListExcludingTypesPort.
+ *   listByWorkspaceExcludingTypes` (review fix 3b, `public-list.ts`) INSIDE the query, not as an
+ *   in-memory filter on an already limit-bounded `listByWorkspace` result — the earlier
+ *   filter-after-limit shape could return fewer entries than asked for, or none, whenever
+ *   `registryMax` system rows were newer than the real content. Nothing else about this path's
+ *   ordering changed. `layout`/`columns` are still read from the
  *   instance's own config (new, additive keys — an old config never set them, so they fall back to
  *   `"list"`/`3`, byte-identical to before), but `where`/`sort`/`fields` don't apply — there is no
  *   single content type here to validate field names against.
@@ -61,7 +72,7 @@ export interface ContentTypeLookup {
 }
 
 export interface RecentEntriesResolverDeps {
-  entryList: EntryListPort & EntryDisplayListPort;
+  entryList: EntryListPort & EntryDisplayListPort & EntryListExcludingTypesPort;
   contentTypes: ContentTypeLookup;
 }
 
@@ -171,14 +182,18 @@ async function resolveLegacyInstances(
 ): Promise<void> {
   if (instances.length === 0) return;
 
-  const published = await deps.entryList.listByWorkspace({
+  // Review fix 3b: SYSTEM_CONTENT_TYPES is excluded IN the query (via
+  // listByWorkspaceExcludingTypes), not filtered out of an already limit-bounded result — a batch
+  // of system rows newer than real content used to be able to fill the bounded query and leave
+  // nothing (or fewer than asked for) once filtered afterward.
+  const visible = await deps.entryList.listByWorkspaceExcludingTypes({
     workspaceId,
+    excludeTypes: SYSTEM_CONTENT_TYPES,
     status: "published",
     orderBy: "updatedAt",
     orderDirection: "desc",
     limit: registryMax,
   });
-  const visible = published.filter((entry) => !SYSTEM_CONTENT_TYPES.includes(entry.type));
 
   for (const instance of instances) {
     const configuredMax = typeof instance.config.maxItems === "number" ? instance.config.maxItems : registryMax;

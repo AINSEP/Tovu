@@ -1,4 +1,4 @@
-import type { EntryDisplayListPort } from "#src/features/entries/public-list";
+import type { EntryDisplayListPort, EntryListExcludingTypesPort } from "#src/features/entries/public-list";
 import type { EntryListPort } from "../../entries/index.js";
 import type { FormDefinitionRepoPort } from "../../forms/index.js";
 import type { NavMenuReadModel } from "../../navigation/index.js";
@@ -20,9 +20,11 @@ import { createRecentEntriesResolver, type ContentTypeLookup } from "./recent-en
 export interface CoreResolverDeps {
   /** Widened by collections plan R1 with `EntryDisplayListPort` — the `recent-entries` widget's
    * "Collection list" mode shares `EntryDisplayListPort.listPublishedForDisplay` with the
-   * `{"type":"collection"}` marker (C2). Both composition roots' real `entryRepo` already implements
-   * it (`server/runtime/composition/{app,deps}.ts`'s `TrashAwareInMemoryEntryRepo`/`SqliteEntryRepo`). */
-  entryList: EntryListPort & EntryDisplayListPort;
+   * `{"type":"collection"}` marker (C2). Widened again by review fix 3b with
+   * `EntryListExcludingTypesPort`, the legacy (no-`collection`) path's query-level
+   * `SYSTEM_CONTENT_TYPES` exclusion. Both composition roots' real `entryRepo` already implements
+   * all three (`server/runtime/composition/{app,deps}.ts`'s `TrashAwareInMemoryEntryRepo`/`SqliteEntryRepo`). */
+  entryList: EntryListPort & EntryDisplayListPort & EntryListExcludingTypesPort;
   navMenuReadModel: NavMenuReadModel;
   formDefinitionRepo: FormDefinitionRepoPort;
   /** R1 addition — resolves a `collection` config's target content type. See `recent-entries.ts`'s

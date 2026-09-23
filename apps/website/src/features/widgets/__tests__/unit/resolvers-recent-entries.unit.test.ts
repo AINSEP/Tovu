@@ -142,10 +142,13 @@ test("D8: system content types (widget/widget_area/nav-menu) never appear when n
   assert.deepEqual(titles, ["Real Post"], "every system-content-type entry must be dropped, not just clamped past");
 });
 
-test("REQ-25: the legacy-path query itself is bounded/sorted/filtered — not a full unbounded scan truncated in memory afterward", async () => {
+test("REQ-25/3b: the legacy-path query itself is bounded/sorted/filtered — not a full unbounded scan truncated in memory afterward, and system types are excluded IN the query, not after its limit", async () => {
   const calls: unknown[] = [];
   const spyEntryList = {
-    async listByWorkspace(params: unknown) {
+    async listByWorkspace(): Promise<EntryRecord[]> {
+      throw new Error("must not be called — the legacy path must use listByWorkspaceExcludingTypes so the limit never counts excluded rows");
+    },
+    async listByWorkspaceExcludingTypes(params: unknown) {
       calls.push(params);
       return [] as EntryRecord[];
     },
@@ -160,11 +163,34 @@ test("REQ-25: the legacy-path query itself is bounded/sorted/filtered — not a 
   assert.equal(calls.length, 1, "exactly one query for the whole batch (REQ-24)");
   assert.deepEqual(calls[0], {
     workspaceId: WORKSPACE_ID,
+    excludeTypes: SYSTEM_CONTENT_TYPES,
     status: "published",
     orderBy: "updatedAt",
     orderDirection: "desc",
     limit: 20,
   });
+});
+
+test("3b: 20+ newer system-type rows cannot crowd a real entry out of the legacy-path result (RED before the query-level exclusion fix)", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  await repo.save(entryRow({ id: "post-1", type: "post", slug: "post-1", title: "Real Post", updatedAt: "2026-01-01T00:00:00.000Z" }));
+  for (let i = 0; i < 25; i++) {
+    await repo.save(
+      entryRow({ id: `sys-${i}`, type: "widget", slug: `sys-${i}`, title: `System widget ${i}`, updatedAt: "2026-01-02T00:00:00.000Z" })
+    );
+  }
+
+  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes: noContentTypes() });
+  const results = await resolver.resolveMany([instance("w-1")], CTX);
+  const result = results.get("w-1");
+  assert.ok(result?.ok);
+  if (!result.ok) return;
+  const titles = result.ir.children?.map((c) => (c.props as { title: string }).title);
+  assert.deepEqual(
+    titles,
+    ["Real Post"],
+    "the real entry must survive even though 25 system rows are newer than it and the clamp is only 20"
+  );
 });
 
 // ---------------------------------------------------------------------------

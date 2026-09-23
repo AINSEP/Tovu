@@ -1,6 +1,6 @@
 import { EntrySlugConflictError, InMemoryEntryRepo } from "./index.js";
 import type { EntryListPort, EntryRecord, EntryRepoPort, EntryRevisionInput, EntryStatus } from "./index.js";
-import type { CollectionListQuery, CollectionSortBy, EntryDisplayListPort } from "./public-list.js";
+import type { CollectionListQuery, CollectionSortBy, EntryDisplayListPort, EntryListExcludingTypesPort } from "./public-list.js";
 
 /**
  * @file The in-memory twin of `repo.sqlite.ts`'s Trash rules, for the hermetic composition
@@ -64,7 +64,7 @@ function compareSortKeys(a: unknown, b: unknown): number {
   return 0;
 }
 
-export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayListPort {
+export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayListPort, EntryListExcludingTypesPort {
   private readonly inner = new InMemoryEntryRepo();
   /** id → when it was trashed. */
   private readonly deletedAt = new Map<string, string>();
@@ -117,6 +117,29 @@ export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort
     const { limit, ...rest } = params;
     const live = (await this.inner.listByWorkspace(rest)).filter((row) => !this.deletedAt.has(row.id));
     return typeof limit === "number" ? live.slice(0, limit) : live;
+  }
+
+  /**
+   * Review fix 3b — the in-memory twin of `SqliteEntryRepo.listByWorkspaceExcludingTypes`:
+   * `excludeTypes` and the trash filter are both applied to the FULL scan before `limit` slices
+   * it, so newer system rows can never crowd real content out of a bounded result (the bug this
+   * method replaces: the old call site applied its own type filter after `listByWorkspace`'s own
+   * `limit` had already run).
+   * @complexity O(n log n) over the workspace's live rows when ordered (see `listByWorkspace`).
+   */
+  async listByWorkspaceExcludingTypes(params: {
+    workspaceId: string;
+    excludeTypes: readonly string[];
+    status?: EntryStatus;
+    orderBy?: "updatedAt";
+    orderDirection?: "asc" | "desc";
+    limit?: number;
+  }): Promise<EntryRecord[]> {
+    const { workspaceId, excludeTypes, status, orderBy, orderDirection, limit } = params;
+    const rows = (await this.inner.listByWorkspace({ workspaceId, status, orderBy, orderDirection })).filter(
+      (row) => !this.deletedAt.has(row.id) && !excludeTypes.includes(row.type)
+    );
+    return typeof limit === "number" ? rows.slice(0, limit) : rows;
   }
 
   /** Trash seam: the row whether or not it is trashed. @complexity O(1). */
