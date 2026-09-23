@@ -122,6 +122,19 @@ describe("useExternalMcp — fetchSources / toItem", () => {
     ]);
   });
 
+  it("double-quotes an arg containing a space so a re-save splits it back into ONE arg", async () => {
+    // The desktop shell's win32 row: a username with a space in it. `parseArgs` on the server reads
+    // `"..."` as one argument; a bare join would re-save it as two broken ones.
+    listExternalMcpServers.mockResolvedValue({
+      servers: [server({ args: ["C:\\Users\\John Smith\\bridge.ts", "--user-data-dir", "C:\\Users\\John Smith\\ud"] })],
+    });
+    const { result } = renderHook(() => useExternalMcp());
+
+    const items = await result.current.dependencies.port.fetchSources();
+
+    expect(items[0]!.fields.args).toBe('"C:\\Users\\John Smith\\bridge.ts" --user-data-dir "C:\\Users\\John Smith\\ud"');
+  });
+
   it("joins writeAllowedToolNames the same way as allowedToolNames, comma-separated", async () => {
     listExternalMcpServers.mockResolvedValue({
       servers: [server({ allowedToolNames: ["read_file", "generate_image"], writeAllowedToolNames: ["generate_image"] })],

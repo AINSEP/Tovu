@@ -62,6 +62,14 @@ import { mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, validateExterna
  * returns a stored client secret either.
  */
 
+/** Joins stored argv back into the one-line field the operator edits, double-quoting any argument
+ *  that contains whitespace — the one quoting form the server's `parseArgs` reads — so a re-save
+ *  (e.g. toggling `enabled`) splits it back into the same arguments instead of breaking a path like
+ *  `C:\\Users\\John Smith\\...` in two. @complexity O(n) in the total arg length. */
+function joinArgs(args: readonly string[]): string {
+  return args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg)).join(" ");
+}
+
 function toItem(server: AdminExternalMcpServer): SourceConfigItem {
   return {
     id: server.serverId,
@@ -72,7 +80,7 @@ function toItem(server: AdminExternalMcpServer): SourceConfigItem {
       transport: server.transport,
       command: server.command,
       url: server.url ?? "",
-      args: server.args.join(" "),
+      args: joinArgs(server.args),
       allowedToolNames: server.allowedToolNames.join(", "),
       // The operator's second, write-authorization list — same join convention as
       // `allowedToolNames` immediately above, and round-tripped the same way (never blanked, unlike

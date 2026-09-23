@@ -204,11 +204,36 @@ test("on win32, the registration commands electronPath directly with the bridge 
   });
 
   assert.equal(body.command, "/Applications/Tovu.app/Contents/MacOS/Tovu");
-  assert.equal(body.args, "C:\\Program Files\\Tovu\\resources\\app\\bin\\mcp-bridge.ts --user-data-dir C:\\Users\\Operator\\AppData\\Roaming\\tovu-desktop");
+  // Each path is double-quoted: `external-mcp-store.ts`'s `parseArgs` splits on whitespace, and
+  // "Program Files" alone would otherwise arrive as two broken arguments.
+  assert.equal(body.args, '"C:\\Program Files\\Tovu\\resources\\app\\bin\\mcp-bridge.ts" --user-data-dir "C:\\Users\\Operator\\AppData\\Roaming\\tovu-desktop"');
   // The launcher script's own `export ELECTRON_RUN_AS_NODE` line has no equivalent when electron is
   // invoked directly, so the same effect travels as an `env` line instead — `NAME=VALUE`,
   // `external-mcp-store.ts`'s `parseEnvBlock` format.
   assert.equal(body.env, "ELECTRON_RUN_AS_NODE=1");
+});
+
+test("on win32, a username with a space quotes both paths so each stays one argument", () => {
+  const body = buildSitesMcpRegistration({
+    launcherPath: "C:\\Users\\John Smith\\AppData\\Local\\Programs\\Tovu\\Tovu.exe",
+    platform: "win32",
+    bridgePath: "C:\\Users\\John Smith\\AppData\\Local\\Programs\\Tovu\\resources\\app\\bin\\mcp-bridge.ts",
+    userDataDir: "C:\\Users\\John Smith\\AppData\\Roaming\\tovu-desktop",
+  });
+
+  assert.equal(
+    body.args,
+    '"C:\\Users\\John Smith\\AppData\\Local\\Programs\\Tovu\\resources\\app\\bin\\mcp-bridge.ts"' +
+      ' --user-data-dir "C:\\Users\\John Smith\\AppData\\Roaming\\tovu-desktop"',
+  );
+});
+
+test("buildSitesMcpRegistration refuses a win32 path containing a double quote", () => {
+  // No quoting scheme `parseArgs` reads can carry a literal `"` inside a quoted argument.
+  assert.throws(
+    () => buildSitesMcpRegistration({ launcherPath: "/x/electron", platform: "win32", bridgePath: '/x/a"b.ts', userDataDir: "/x/u" }),
+    /cannot contain a double quote/,
+  );
 });
 
 test("buildSitesMcpRegistration refuses a win32 registration missing bridgePath or userDataDir", () => {
@@ -371,7 +396,7 @@ test("registerSitesMcpServer forwards platform/bridgePath/userDataDir into the P
 
   const body = JSON.parse(net.calls[1]!.body);
   assert.equal(body.command, "C:\\Users\\Operator\\AppData\\Local\\Programs\\tovu-desktop\\Tovu.exe");
-  assert.match(body.args, /mcp-bridge\.ts --user-data-dir C:\\Users\\Operator\\AppData\\Roaming\\tovu-desktop$/);
+  assert.match(body.args, /mcp-bridge\.ts" --user-data-dir "C:\\Users\\Operator\\AppData\\Roaming\\tovu-desktop"$/);
   assert.equal(body.env, "ELECTRON_RUN_AS_NODE=1");
 });
 

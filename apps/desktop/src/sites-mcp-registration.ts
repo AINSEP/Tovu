@@ -16,11 +16,12 @@
  *    `external-mcp-store.ts:1380-1391`'s credential sealing, which fails the whole save with
  *    `SECRET_STORE_UNCONFIGURED` on any site that has no keyring root key.
  *
- * 2. **`args` cannot carry a path containing a space.** `external-mcp-store.ts:441`'s `parseArgs`
- *    is `raw.split(/\s+/)` with no quoting whatsoever, and the value that must reach the bridge is
- *    `~/Library/Application Support/tovu-desktop` — which would arrive as two broken arguments.
- *    This is why {@link buildSitesMcpRegistration} sends an EMPTY `args` and the userData path
- *    travels inside the launcher, properly quoted, instead.
+ * 2. **`args` splits on whitespace.** `external-mcp-store.ts`'s `parseArgs` splits on whitespace
+ *    and honours exactly one quoting form (a token that starts and ends with `"`), and the value that
+ *    must reach the bridge is `~/Library/Application Support/tovu-desktop` — unquoted, two broken
+ *    arguments. On POSIX {@link buildSitesMcpRegistration} sends an EMPTY `args` and the userData
+ *    path travels inside the launcher, properly quoted, instead; on win32, where no launcher can be
+ *    exec'd, it sends both paths in that `"..."` form.
  *
  * So the launcher is not a convenience wrapper; it is the only place both facts can be satisfied at
  * once. It is generated, never hand-written, and rewritten on every launch so it cannot drift from
@@ -263,6 +264,17 @@ function writeSitesMcpLauncher({ userDataDir, electronPath, bridgePath, platform
   return launcherPath;
 }
 
+/** Wraps one win32 path for {@link buildSitesMcpRegistration}'s `args`, in the only quoting form
+ *  `external-mcp-store.ts`'s `parseArgs` reads: `"..."` with no escapes.
+ *  @throws {Error} when the path itself contains a `"`, which that form cannot carry.
+ *  @complexity O(n) in the path length. */
+function quoteArg(value: string): string {
+  if (value.includes('"')) {
+    throw new Error(`sites-mcp-registration: a win32 path cannot contain a double quote: ${value}`);
+  }
+  return `"${value}"`;
+}
+
 /**
  * The PUT body that registers this shell's tools with one site.
  *
@@ -286,13 +298,15 @@ function writeSitesMcpLauncher({ userDataDir, electronPath, bridgePath, platform
  * `launcherPath` IS `electronPath` on that platform, so this function commands it directly and
  * carries `bridgePath` plus `--user-data-dir <userDataDir>` in `args`, and `ELECTRON_RUN_AS_NODE=1`
  * in `env` (`NAME=VALUE`, the format `external-mcp-store.ts`'s `parseEnvBlock` reads) — the same two
- * facts the POSIX launcher script states in its own `exec` line and `export`. This reintroduces, on
- * win32 only, the exact space-in-path risk constraint 2 describes for POSIX (`parseArgs` splits on
- * whitespace with no quoting); there is no script to hide the path inside on that platform, so it is
- * accepted rather than silently mishandled.
+ * facts the POSIX launcher script states in its own `exec` line and `export`. Each path is wrapped
+ * in double quotes, the one quoting rule `external-mcp-store.ts`'s `parseArgs` honours, so a
+ * username or install directory with a space in it (`C:\\Users\\John Smith\\...`) still arrives as
+ * a single argument — constraint 2's POSIX workaround (hide the path in a script) has no win32
+ * equivalent, so the store reads quotes instead.
  *
  * @throws {Error} on win32 without both `bridgePath` and `userDataDir` — there is nothing to put in
- *   `args` otherwise, and a half-registered connection is worse than none.
+ *   `args` otherwise, and a half-registered connection is worse than none — or when either contains a
+ *   `"`, which `parseArgs` has no way to carry inside a quoted argument (and no Windows path can hold).
  * @complexity O(n) in the tool count.
  */
 function buildSitesMcpRegistration({
@@ -329,7 +343,7 @@ function buildSitesMcpRegistration({
      */
     enabled,
     command: launcherPath,
-    args: isWin32 ? `${bridgePath} --user-data-dir ${userDataDir}` : "",
+    args: isWin32 ? `${quoteArg(bridgePath!)} --user-data-dir ${quoteArg(userDataDir!)}` : "",
     allowedToolNames: SITES_MCP_TOOLS.map((tool) => tool.name).join(","),
     writeAllowedToolNames: writeTools.map((tool) => tool.name).join(","),
     // Sent as the empty string rather than omitted, which are DIFFERENT things to the PUT route
