@@ -2353,6 +2353,11 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    10px is the value he actually signed off on, not the 6px `image` settled on, so don't unify the
    two values without asking again. */
 .media-embed-node__actions { display: inline-flex; gap: 10px; }
+/* Owner-reported (2026-09-22): a widget/form embed's "Change"/"Remove" buttons
+   (`lib/widget-embed-extension.tsx`'s `.widget-embed-node__actions`) touched each other and the
+   widget label. Same `inline-flex` + 10px `gap` as the media node's actions above, plus a left
+   margin so the label and the buttons don't run together. */
+.widget-embed-node__actions { display: inline-flex; gap: 10px; margin-left: 12px; vertical-align: middle; }
 /* `font-size`/`color` made explicit here (found while measuring the real default for the toolbar's
    font-size select, 2026-08-11) — without them, the FIRST paragraph of every post's body collided
    with the legacy `.admin-content h1 + p` rule (this file, "Page headings + intro copy"): the
