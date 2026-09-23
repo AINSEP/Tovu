@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
@@ -180,6 +180,69 @@ describe("useThemeCanvasStyling", () => {
       status: "ready",
       styling: { stylesheets: ["/theme-assets/basic/css/theme.css"], css: tokensToCanvasCss(DARK, undefined) },
     });
+  });
+});
+
+describe("useThemeCanvasStyling — bounded pending state (Bug B, Slice B2)", () => {
+  // Repro 2 in the pages-redo plan: `/theme-assets/*/tokens.json` hanging (API restarting behind the
+  // Vite proxy) left the tab on "Loading the theme's styles…" forever, because the `Promise.all` this
+  // hook races had no timeout. This bounds it — a hung fetch degrades to the same "no canvas styling"
+  // outcome a fetch REJECTION already produced, just after a fixed wait instead of never.
+  it("resolves to no canvas styling after the 8s timeout when the token fetch never settles", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const port = {
+        ...createFakeThemeCanvasPort(),
+        // Never resolves or rejects — simulates the API hanging behind the dev proxy.
+        fetchThemeTokens: () => new Promise<never>(() => {}),
+      };
+      const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+      expect(result.current).toEqual({ status: "pending" });
+
+      // Just under the bound: still pending, so the timeout isn't firing early.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(7999);
+      });
+      expect(result.current).toEqual({ status: "pending" });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(result.current).toEqual({ status: "ready", styling: {} });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not let a token fetch that resolves right after the timeout override the timed-out state — the timeout is final for that mount", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let resolveTokens: (tokens: typeof DARK) => void = () => {};
+      const port = {
+        ...createFakeThemeCanvasPort(),
+        fetchThemeTokens: () => new Promise<typeof DARK>((resolve) => (resolveTokens = resolve)),
+      };
+      const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(8000);
+      });
+      expect(result.current).toEqual({ status: "ready", styling: {} });
+
+      await act(async () => {
+        resolveTokens(DARK);
+        await Promise.resolve();
+      });
+      expect(result.current).toEqual({ status: "ready", styling: {} });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('resolves immediately to ready with no styling when themeId is "" — a loaded presentation with no theme configured, not "still loading"', () => {
+    const port = createFakeThemeCanvasPort();
+    const { result } = renderHook(() => useThemeCanvasStyling("", 2, port));
+    expect(result.current).toEqual({ status: "ready", styling: {} });
   });
 });
 
