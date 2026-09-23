@@ -704,6 +704,13 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     applyLoadedPage(fresh, { setPage, setTitle, setSlug, setStatus, setTemplateChoice, setSavedTemplateChoice, setHtml, setSavedHtml });
     setDraftHtml(prettifyHtml(pageEditableHtml(fresh)));
     setSaveConflict(null);
+    // Bug B, Slice B3 (dev-only instrumentation, pages-redo plan): this bump remounts the Interactive
+    // surface (`PageEditorPane`'s `key={contentRevision}`) with no loading state of its own — logged so
+    // a future "renders wrong"/"flashes" report can be tied back to an external write instead of
+    // guessed at. Removed once Bug B is closed; not covered by a test for that reason (logging only).
+    if (import.meta.env.DEV) {
+      console.debug("[page-editor] interactive", { phase: "contentRevision:increment", ms: Math.round(performance.now()) });
+    }
     setContentRevision((n) => n + 1);
   }, []);
 

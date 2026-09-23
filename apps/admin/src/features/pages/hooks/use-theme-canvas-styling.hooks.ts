@@ -173,6 +173,18 @@ const NO_CANVAS_STYLING: ThemeCanvasStylingState = { status: "ready", styling: {
  *  instead of an error. */
 const CANVAS_STYLING_TIMEOUT_MS = 8000;
 
+/** Bug B, Slice B3 (pages-redo plan): dev-only, temporary instrumentation for the "sometimes doesn't
+ *  render, or renders late" reports that were not reproducible under a healthy API — logs every time
+ *  {@link useThemeCanvasStyling}'s state settles (empty theme, timeout, resolved styling, or a fetch
+ *  failure), so the next occurrence is diagnosable from the console instead of guessed at. Removed
+ *  once Bug B is closed; not covered by a test for that reason — it is logging only, with no behavior
+ *  for a test to assert. */
+function logCanvasStylingSettle(phase: string): void {
+  if (import.meta.env.DEV) {
+    console.debug("[page-editor] interactive", { phase, ms: Math.round(performance.now()) });
+  }
+}
+
 /**
  * Fetches the active theme's tokens and pairs them with its stylesheet URL, as the `canvasStyling`
  * `@jini-ai/ui`'s `InteractiveHtmlEditor` accepts.
@@ -254,6 +266,7 @@ export function useThemeCanvasStyling(
       // Presentation settings have landed but no theme is configured (`themeId === ""`) — there is
       // nothing to fetch, so this resolves immediately instead of sitting `pending` until the Slice B2
       // timeout below, which exists to bound a real in-flight fetch, not an empty theme id.
+      logCanvasStylingSettle("styling:empty-theme");
       setState(NO_CANVAS_STYLING);
       return;
     }
@@ -271,6 +284,7 @@ export function useThemeCanvasStyling(
       if (cancelled || settled) return;
       settled = true;
       // Same outcome a fetch REJECTION already produces — see `CANVAS_STYLING_TIMEOUT_MS`'s own doc.
+      logCanvasStylingSettle("styling:timeout");
       setState(NO_CANVAS_STYLING);
     }, CANVAS_STYLING_TIMEOUT_MS);
     // `null` (no fetch at all) for "no template chosen" — resolved immediately rather than left out of
@@ -298,12 +312,14 @@ export function useThemeCanvasStyling(
         clearTimeout(timeoutId);
         const css = tokensToCanvasCss(tokens, lightTokens);
         if (!css) {
+          logCanvasStylingSettle("styling:no-usable-tokens");
           setState(NO_CANVAS_STYLING);
           return;
         }
         // `null` covers both "no template chosen" and "the fetch/derivation above found nothing
         // usable" — both fall back to no wrapper identically, per this function's own doc.
         const contentWrapper = markup ? (deriveContentWrapperChain(markup) ?? undefined) : undefined;
+        logCanvasStylingSettle("styling:ready");
         setState({
           status: "ready",
           styling: { stylesheets: [themeStylesheetUrl(themeId, apiVersion)], css, contentWrapper },
@@ -313,6 +329,7 @@ export function useThemeCanvasStyling(
         if (cancelled || settled) return;
         settled = true;
         clearTimeout(timeoutId);
+        logCanvasStylingSettle("styling:fetch-error");
         setState(NO_CANVAS_STYLING);
       });
     return () => {

@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import { useEffect, type RefObject } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { InteractiveHtmlEditor, type CanvasEmbedPlaceholderDescriptor } from "@jini-ai/ui/html-editor";
@@ -904,6 +904,16 @@ function PageEditorPane({
   embedPlaceholderDescriber: (el: Element) => CanvasEmbedPlaceholderDescriptor | undefined;
 }) {
   const surface = pageEditorSurface(view, canvasStyling);
+  // Bug B, Slice B3 (dev-only instrumentation, pages-redo plan): logs which surface this pane renders,
+  // keyed on `surface.kind` alone — not the whole `surface` object, which carries a fresh `styling`
+  // reference every render — so this fires once per actual surface change, not once per render (this
+  // component also re-renders on every `draftHtml` keystroke while `view === "html"`). Removed once
+  // Bug B is closed; not covered by a test for that reason (logging only, no behavior to assert).
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.debug("[page-editor] interactive", { phase: `surface:${surface.kind}`, ms: Math.round(performance.now()) });
+    }
+  }, [surface.kind]);
   if (surface.kind === "preview") {
     return (
       <PagePreview
