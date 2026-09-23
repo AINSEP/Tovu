@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+
+import type { CanvasEmbedPlaceholderDescriptor } from "@jini-ai/ui/html-editor";
 
 import type { AdminPost } from "@/lib/api";
 import {
@@ -20,6 +22,7 @@ import {
   type StandingDraftStaleBasis,
 } from "@/hooks/use-standing-draft-autosave.hooks";
 import { t as defaultT } from "../page-editor-i18n";
+import { createEmbedPlaceholderDescriber } from "../lib/embed-placeholder";
 import { prettifyHtml } from "../lib/prettify-html";
 import {
   buildPageAutosaveDraft,
@@ -65,7 +68,10 @@ import {
 /** The three things the editor's main pane can show. Preview is the default — the HTML source is
  *  for when the operator wants to see or hand-edit what the assistant produced, and Interactive is
  *  a GrapesJS-backed surface for clicking into rendered text and editing it in place (text editing
- *  and basic formatting only — see `@jini-ai/admin/react`'s `InteractiveHtmlEditor`). */
+ *  and basic formatting only — see `@jini-ai/ui/html-editor`'s generic `InteractiveHtmlEditor`,
+ *  mounted directly by `PageEditor.tsx` since 2026-09-23 with this feature's own
+ *  `embedPlaceholderDescriber` supplied above, rather than through `@jini-ai/admin/react`'s
+ *  Tovu-specific adapter). */
 export type PageEditorView = "preview" | "html" | "interactive";
 
 export interface PageEditorController {
@@ -136,6 +142,14 @@ export interface PageEditorController {
   saving: boolean;
   /** Bound page-editor translator for the markup surface. */
   t: Translate;
+  /**
+   * Bug A (2026-09-23 interactive-bugs plan, Slice A3) — the Interactive tab's placeholder-card
+   * describer, built once here (see this hook's own `embedPlaceholderDescriber` local for why) and
+   * handed to `@jini-ai/ui/html-editor`'s `InteractiveHtmlEditor` as `describeEmbedPlaceholder` by
+   * `PageEditorPane`. Recognizes a `data-embed-config` marker and labels it from the shared
+   * `@tovu/embed-marker` target rule, instead of the id-only label Jini's own adapter produced.
+   */
+  embedPlaceholderDescriber: (el: Element) => CanvasEmbedPlaceholderDescriptor | undefined;
   /**
    * Whether the working copy differs from what was last loaded or saved.
    *
@@ -556,7 +570,19 @@ export interface PageEditorDependencies {
  */
 export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): PageEditorController {
   const { port, themeCanvasPort, navigate, t, locale } = deps;
-  const boundT: Translate = (key) => t(locale, key);
+  // Memoized (not a plain `const` closure) so `embedPlaceholderDescriber` below has a stable
+  // dependency to key its own `useMemo` off: `deps.t` is a stable module-level singleton in
+  // production (see this function's own doc), so this identity only changes when `locale` does.
+  const boundT: Translate = useMemo(() => (key: string) => t(locale, key), [t, locale]);
+  /**
+   * Bug A (2026-09-23 interactive-bugs plan, Slice A3): built once here, not in `PageEditor.tsx`, so
+   * the `.tsx` stays markup-only (this feature's own "no logic in `.tsx`" rule — see
+   * `lib/embed-placeholder.ts`'s own file header). `InteractiveHtmlEditor` (`@jini-ai/ui/html-editor`)
+   * reads `describeEmbedPlaceholder` once, at mount, and never reacts to a later prop change (same
+   * mount-once contract as `html`/`canvasStyling`), so this identity changing on a locale switch is
+   * harmless — the NEXT mount (a fresh Interactive-tab visit) picks up the new translator.
+   */
+  const embedPlaceholderDescriber = useMemo(() => createEmbedPlaceholderDescriber(boundT), [boundT]);
   const [page, setPage] = useState<AdminPost | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -1023,6 +1049,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     paneWidth,
     saving,
     t: boundT,
+    embedPlaceholderDescriber,
     // HTML changes only count when they're actually savable (see `save()`'s `canSaveHtml`) — for a
     // doc-format Page, `html` never reflects real persisted content, so comparing it to `savedHtml`
     // would report edits as dirty (or, worse, as clean) independent of anything actually saveable.
