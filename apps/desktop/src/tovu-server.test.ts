@@ -530,8 +530,63 @@ test("on win32, the boot-timeout escalation calls the injected killTree(pid) ins
   setTimeout(() => child.emit("exit", null, "SIGTERM"), 40);
 
   await assert.rejects(started, /did not report a port within 20ms/);
-  assert.deepEqual(child.killed, ["SIGTERM"], "the polite signal is unchanged on win32");
-  assert.deepEqual(killTreeCalls, [child.pid], "win32 must escalate via killTree(pid), not process.kill(-pid) — Windows has no process groups");
+  // On win32 `child.kill("SIGTERM")` is a forced TerminateProcess of the direct child only, so it
+  // is never sent: the tree kill goes first (see the next test for why).
+  assert.deepEqual(child.killed, [], "win32 never sends the direct-child-only kill");
+  assert.deepEqual(killTreeCalls, [child.pid], "win32 must stop via killTree(pid), not process.kill(-pid) — Windows has no process groups");
+});
+
+test("on win32, the tree kill runs even when the direct child dies at once, as it does on Windows", async () => {
+  // Node on Windows ignores the signal name and terminates the child immediately. If stop sent that
+  // first, `exit` would fire, the escalation timer would be cleared, and the agent-daemon grandchild
+  // would be orphaned — the exact W7 failure S7 exists to remove.
+  const child = fakeChild();
+  child.kill = (signal) => {
+    child.killed.push(signal!);
+    queueMicrotask(() => child.emit("exit", null, "SIGTERM"));
+    return true;
+  };
+  const killTreeCalls: number[] = [];
+  const started = startTovuServer({
+    repoRoot: makeTempRepo(),
+    siteDir: "/tmp/site",
+    port: 3601,
+    baseEnv: {},
+    mirror: silentMirror(),
+    spawnFn: () => child,
+    readyTimeoutMs: 20,
+    stopGraceMs: 200,
+    platform: "win32",
+    killTree: (pid) => {
+      killTreeCalls.push(pid);
+      queueMicrotask(() => child.emit("exit", null, "SIGTERM"));
+    },
+  });
+
+  await assert.rejects(started, /did not report a port within 20ms/);
+  assert.deepEqual(killTreeCalls, [child.pid]);
+});
+
+test("on win32, a failing tree kill falls back to killing the direct child", async () => {
+  const child = fakeChild();
+  const started = startTovuServer({
+    repoRoot: makeTempRepo(),
+    siteDir: "/tmp/site",
+    port: 3601,
+    baseEnv: {},
+    mirror: silentMirror(),
+    spawnFn: () => child,
+    readyTimeoutMs: 20,
+    stopGraceMs: 20,
+    platform: "win32",
+    killTree: () => {
+      throw new Error("taskkill: not found");
+    },
+  });
+  setTimeout(() => child.emit("exit", null, "SIGTERM"), 40);
+
+  await assert.rejects(started, /did not report a port within 20ms/);
+  assert.deepEqual(child.killed, ["SIGTERM"]);
 });
 
 test("on posix (the default), the boot-timeout escalation never calls an injected killTree", async () => {
