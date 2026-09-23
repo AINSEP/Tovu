@@ -127,6 +127,18 @@ test("DELIBERATE CORRUPTION: one entry rewritten in place, same length, differen
   }
 });
 
+test("a checked prefix with NOTHING shipped under it is a mismatch, not a partial pass", async () => {
+  // The past incident: `bin/` left out of `files:` shipped an app whose launcher named a missing
+  // bridge. `src` alone still yields a non-zero checkedCount, so only a per-prefix check catches it.
+  const { root, asarPath } = await buildFixture();
+  try {
+    const { mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "main.ts", "dist"]);
+    assert.deepEqual(mismatches, [{ relPath: "dist", reason: "nothing under this checked prefix is in app.asar" }]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("a file present in the archive but deleted from source is reported as missing, not silently skipped", async () => {
   const { root, asarPath, files } = await buildFixture();
   try {

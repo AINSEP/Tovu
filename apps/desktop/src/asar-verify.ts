@@ -166,14 +166,19 @@ export function formatMismatchReport(mismatches: AsarMismatch[]): string {
  * @param asarPath path to the built `app.asar`.
  * @param sourceRoot the source tree root the archive should match (`apps/desktop` in production).
  * @param prefixes top-level archive entries to check, e.g. `["src", "bin", "main.ts"]`.
- * @returns `{ checkedCount, mismatches }` — `mismatches` is `[]` when every file matched.
+ * @returns `{ checkedCount, mismatches }` — `mismatches` is `[]` when every file matched. A prefix
+ *   with no file under it in the archive is itself a mismatch (named by the prefix), so a whole
+ *   directory left out of `files:` fails the gate instead of shrinking what it checks.
  * @complexity O(n) in files checked, each a full read of both copies.
  */
 export function verifyAsarAgainstSource(asarPath: string, sourceRoot: string, prefixes: string[]): AsarVerification {
   const { header } = getRawHeader(asarPath);
   const relPaths = filesUnderPrefixes(header.files, prefixes);
 
-  const mismatches: AsarMismatch[] = [];
+  // Per prefix, not just in total: a whole missing `bin/` hides behind a non-zero count from `src`.
+  const mismatches: AsarMismatch[] = prefixes
+    .filter((prefix) => filesUnderPrefixes(header.files, [prefix]).length === 0)
+    .map((prefix) => ({ relPath: prefix, reason: "nothing under this checked prefix is in app.asar" }));
   for (const relPath of relPaths) {
     const sourcePath = path.join(sourceRoot, relPath);
     let sourceBuf: Buffer;
