@@ -526,3 +526,114 @@ test("GET /:slug (template branch): the plan's documented `{\"type\":\"collectio
   assert.match(html, /Widget Alpha/);
   assert.doesNotMatch(html, /No gadgets yet/, "an id-keyed marker must resolve, not fall back");
 });
+
+// ---------------------------------------------------------------------------------------------
+// E4 (D2, 2026-09-23): the static-tier home `index.html` (no Page claiming `/`) and the themed 404
+// go through the SAME `finishStaticTierDocument` pipeline every other static-tier surface uses.
+// Before this, `GET /`'s fallback branch reached `renderSite` -> `renderStaticTierHomePage`, which
+// only ever substituted `menu`/`partial` markers via `renderStaticPage` directly -- a widget or
+// post-previews marker authored straight into `index.html` silently never resolved. The themed 404
+// had the identical gap: `handlePostNotFoundOnSlugRoute` called `renderStaticPage` directly, with no
+// `resolveHtmlPageEmbeds` pass at all.
+// ---------------------------------------------------------------------------------------------
+
+/** A separate fixture from `themeWithEmbedsEverywhere()`/`themeForCollectionMarkers()` above: its
+ *  ONLY markers live in `pages.index` and `pages["404"]`, the two surfaces under test here, so a
+ *  regression in either shows up without interference from the other suites' fixtures. `index`
+ *  carries a widget marker, a post-previews marker, AND an id-less `{"type":"content"}` marker (D4)
+ *  -- the exact shape the plan's own note describes: "the theme's index.html has
+ *  `{"type":"content","header":false}` with no id". `404` carries a menu marker (already resolved by
+ *  the OLD direct `renderStaticPage` call -- kept here as a regression check) plus a widget marker
+ *  (the new gap this slice closes). */
+function themeWithHomeAndNotFoundMarkers(): DiscoveredTheme {
+  const widgetMarker = `<div data-embed-config='{"type":"widget","slug":"${WIDGET_SLUG}"}'>fallback widget text</div>`;
+  const postPreviewsMarker = `<div data-embed-config='{"type":"post-previews","limit":2}'></div>`;
+  const idlessContentMarker = `<div data-embed-config='{"type":"content","header":false}'></div>`;
+  const menuMarker = `<div data-embed-config='{"type":"menu","id":"${MENU_SLUG}"}'></div>`;
+  return {
+    manifest: {
+      id: "home-404-test-theme",
+      name: "Home And 404 Test Theme",
+      version: "1.0.0",
+      tier: "static",
+      engine: 1,
+      templates: [],
+      publishedPages: [],
+    },
+    dir: "/nonexistent/home-404-test-theme",
+    tokens: {},
+    tokensLight: {},
+    templates: {},
+    liquidTemplates: {},
+    handlebarsTemplates: {},
+    pages: {
+      index: `<html><body>${widgetMarker}${postPreviewsMarker}<main>${idlessContentMarker}</main></body></html>`,
+      "404": `<html><body>${menuMarker}${widgetMarker}<main>Not found</main></body></html>`,
+    },
+    partials: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+  } as unknown as DiscoveredTheme;
+}
+
+test("GET / (no Page claims `/`): the static theme's own index.html widget and post-previews markers resolve, and its id-less content marker stays as written", async (t) => {
+  const entryRepo = new InMemoryEntryRepo();
+  await seedTextWidget(entryRepo, WIDGET_SLUG, "Home widget body text");
+  const postA = templatedPost({ id: "home-post-a", slug: "home-post-a", title: "Home Post A" });
+  const postB = templatedPost({ id: "home-post-b", slug: "home-post-b", title: "Home Post B" });
+  const { server, baseUrl } = await startServer({
+    themes: [themeWithHomeAndNotFoundMarkers()],
+    postRepo: new InMemoryPostRepo([postA, postB]),
+    entryRepo,
+  });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.match(
+    html,
+    /Home widget body text/,
+    "a widget marker authored directly in the theme's index.html must resolve -- the static-tier home route never ran resolveHtmlPageEmbeds before this fix"
+  );
+  assert.doesNotMatch(html, /fallback widget text/, "the real widget body must replace the theme's authored fallback");
+  assert.match(html, /Home Post A/, "a post-previews marker in index.html must resolve to real post cards");
+  assert.match(html, /Home Post B/);
+  assert.match(
+    html,
+    /data-embed-config='\{"type":"content","header":false\}'/,
+    "D4: an id-less content/post marker has no current entity to bind to on the home route and must be left exactly as authored, not degraded to the REQ-28 placeholder"
+  );
+});
+
+test("themed 404: still returns 404, its menu marker still renders (regression), and it now also resolves a widget marker", async (t) => {
+  const entryRepo = new InMemoryEntryRepo();
+  await seedTextWidget(entryRepo, WIDGET_SLUG, "404 widget body text");
+  const { server, baseUrl } = await startServer({
+    themes: [themeWithHomeAndNotFoundMarkers()],
+    postRepo: new InMemoryPostRepo([]),
+    menuRepo: new InMemoryMenuRepo([footerNavMenu()]),
+    entryRepo,
+  });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/this-page-does-not-exist-xyz`);
+  assert.equal(res.status, 404, "a themed 404 must still answer with HTTP 404, not 200");
+  const html = await res.text();
+  assert.match(html, /Docs Home Link/, "regression: the 404 page's own menu marker must keep resolving to real menu items");
+  assert.match(
+    html,
+    /404 widget body text/,
+    "a widget marker on the themed 404 must resolve too -- the old direct renderStaticPage call never ran resolveHtmlPageEmbeds"
+  );
+  assert.doesNotMatch(html, /fallback widget text/, "the real widget body must replace the theme's authored fallback on the 404 page too");
+  // The widget marker's own wrapper div (and its `data-embed-config`) is fully replaced on a hit --
+  // same "hit path strips the marker" contract as every other widget test in this file. The menu
+  // marker's `data-embed-config` legitimately survives (pre-existing, unrelated to E4: `renderStaticPage`'s
+  // own menu substitution replaces only the marker's CONTENT, not its wrapper attributes -- see
+  // `static-menu-embed-resolution.test.ts`, which never asserts otherwise), so this checks the widget
+  // marker specifically rather than a blanket "no data-embed-config anywhere" claim.
+  assert.doesNotMatch(html, /data-embed-config='\{"type":"widget"/, "the widget marker's own data-embed-config must be gone on a hit");
+});
