@@ -681,7 +681,7 @@ function toCollectionEntryListItem(row: EntryRecord, fields: readonly ContentTyp
 
 /**
  * Resolves one already-deduplicated `{"type":"collection"}` marker to its rendered entry-list markup,
- * or `undefined` for every kind of miss: no string `typeKey`, an unknown/system/tombstoned content
+ * or `undefined` for every kind of miss: no content-type key, an unknown/system/tombstoned content
  * type (`parseCollectionListConfig`'s own rejections, which include D8's `SYSTEM_CONTENT_TYPES`), an
  * invalid config (unknown `where`/`sort`/`fields` name, non-scalar `where` value), or zero matching
  * published entries (`renderEntryList`'s own "no data ⇒ nothing to substitute" contract). Every
@@ -692,13 +692,27 @@ function toCollectionEntryListItem(row: EntryRecord, fields: readonly ContentTyp
  * one bounded `entryRepo.listPublishedForDisplay` query (capped at the marker's own clamped `limit`,
  * `parseCollectionListConfig`'s own resource bound) — never an unbounded scan.
  */
+/**
+ * The content-type key a `{"type":"collection"}` marker names. `id` is the documented form (the
+ * collections plan, the admin "Copy embed code" snippet and the docs page all write
+ * `{"type":"collection","id":"<typeKey>"}`, the same `id` every other marker type uses for its
+ * target); `typeKey` is accepted as an alias because early markers and tests were written with it.
+ * `undefined` when neither is a non-empty string. @complexity O(1).
+ */
+function collectionMarkerTypeKey(config: Readonly<Record<string, unknown>>): string | undefined {
+  for (const candidate of [config.id, config.typeKey]) {
+    if (typeof candidate === "string" && candidate.length > 0) return candidate;
+  }
+  return undefined;
+}
+
 async function resolveOneCollectionMarker(
   deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo">,
   marker: EmbedMarker
 ): Promise<string | undefined> {
-  const typeKey = marker.config.typeKey;
-  if (typeof typeKey !== "string" || typeKey.length === 0) {
-    console.warn('[collection] marker is missing a string "typeKey"; leaving its authored fallback content');
+  const typeKey = collectionMarkerTypeKey(marker.config);
+  if (typeKey === undefined) {
+    console.warn('[collection] marker names no content type (a string "id"); leaving its authored fallback content');
     return undefined;
   }
 

@@ -505,3 +505,24 @@ test("GET /:slug (template branch): the marker element's own wrapper attributes 
   assert.doesNotMatch(html, /data-embed-config/, "data-embed-config is stripped on the hit path so a re-scan can never re-resolve it");
   assert.match(html, /Widget Gamma/);
 });
+
+test("GET /:slug (template branch): the plan's documented `{\"type\":\"collection\",\"id\":<typeKey>}` marker form resolves too", async (t) => {
+  const contentTypeRepo = await seededContentTypeRepo([gadgetContentType()]);
+  const entryRepo = await seededEntryRepo(threePublishedGadgetsPlusOneDraft());
+  const post = templatedPost({
+    bodyHtml: `<div data-embed-config='{"type":"collection","id":"${GADGET_TYPE_KEY}"}'>No gadgets yet</div>`,
+  });
+  const { server, baseUrl } = await startServer({
+    themes: [themeForCollectionMarkers("")],
+    postRepo: new InMemoryPostRepo([post]),
+    contentTypeRepo,
+    entryRepo,
+  });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/${post.slug}`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.match(html, /Widget Alpha/);
+  assert.doesNotMatch(html, /No gadgets yet/, "an id-keyed marker must resolve, not fall back");
+});

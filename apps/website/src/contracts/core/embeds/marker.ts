@@ -446,7 +446,7 @@ export const POST_PREVIEWS_MARKER_TYPE = "post-previews";
  * "duplicated, not imported" reason its own doc gives for the other three.
  *
  * Config shape (validated by `entries/public-list.ts`'s `parseCollectionListConfig`, not by this
- * module): `{"type":"collection","typeKey":"recipe", …}` plus the type's own filter/sort/limit/layout
+ * module): `{"type":"collection","id":"recipe", …}` (`typeKey` accepted as an alias) plus the type's own filter/sort/limit/layout
  * keys. Unlike {@link POST_PREVIEWS_MARKER_TYPE}, a resolved collection marker's wrapper is stripped
  * of `data-embed-config` on the hit path ({@link withInnerContentFinal}) so a later re-scan of the
  * same output can never rediscover and re-resolve it.
