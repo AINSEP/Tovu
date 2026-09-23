@@ -500,6 +500,34 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 :root[data-theme="light"] .post-detail-body { --prose-link: #2563eb; }
 .post-detail-body a:not(.post-mention):not([class*="btn"]) { color: var(--prose-link); text-decoration: underline; text-underline-offset: 3px; }
 
+/* Assigned terms ("filed under" footer, `renderAssignedTermsBlock` in render.ts) — a sibling of
+   `.post-detail-body`, not nested in it: that function concatenates `<div class="entry-terms">`
+   onto the already-closed body div rather than splicing inside it. A muted, bordered-off block
+   below the body, same idiom as `.post-meta`'s label + `.post-card .tag`'s chip for the values
+   themselves, so a term reads the same here as it does on a post card. */
+.entry-terms {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  font-size: 13px;
+}
+.entry-terms__group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.entry-terms__taxonomy { color: var(--muted); }
+.entry-terms__term {
+  display: inline-block;
+  font: 11px/1 var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent);
+  background: color-mix(in oklch, var(--accent) 10%, transparent);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
 /* ---------- about ---------- */
 .about-hero { padding: 88px 0 56px; }
 .about-hero h1 { font-size: clamp(36px, 5vw, 56px); max-width: 16ch; margin-bottom: 20px; }
