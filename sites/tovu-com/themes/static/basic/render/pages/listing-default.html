@@ -37,7 +37,21 @@
        animation, it leaves the whole page body permanently invisible. This wrapper holds author
        content, so its height is unbounded and 0 (an unset threshold) is the only value that is
        satisfiable at every height. See NOTICE.md, "Why the page wrappers carry no threshold:". -->
-  <section class="wrap post-detail" data-kui="fade-up 600ms expo-out distance:18px on:enter">
+  <!-- `padding-bottom: 0` (2026-09-23) — `.post-detail`'s shared theme.css rule carries
+       `padding-block: 72px 96px`, a 96px trailing gap meant for the space before the footer on
+       every OTHER template that uses this class (pages-default.html, posts-default.html,
+       posts-sidebar.html — where `.post-detail` really is the last thing before the footer
+       partial). On this template it isn't: the "Latest posts" section right below is more of the
+       same authored content, not the footer, so that 96px stacked on top of `.latest-posts .live-
+       example`'s own 20px top margin (theme.css) produced ~134px of dead space above the gold
+       frame instead of the ~20px gap every other paragraph-to-live-example transition gets (see
+       the "That marker, live:" example higher up this same page, where the paragraph's margin and
+       the live-example's margin collapse together normally). Zeroing just the bottom padding here
+       — inline, scoped to this one section, not the shared `.post-detail` rule other templates
+       still rely on — lets the trailing paragraph's own margin collapse through `.post-detail` and
+       into `.latest-posts`'s top margin exactly like it does everywhere else, matching normal
+       paragraph spacing instead of adding a synthetic 96px section gap. -->
+  <section class="wrap post-detail" style="padding-bottom: 0;" data-kui="fade-up 600ms expo-out distance:18px on:enter">
     <div data-embed-config='{"type":"content"}'></div>
   </section>
 
