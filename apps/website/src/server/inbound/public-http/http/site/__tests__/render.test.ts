@@ -1320,6 +1320,55 @@ test("recent-entries: zero items renders the same 'No entries yet.' fallback reg
   assert.equal(cardsEmpty, listEmpty);
 });
 
+/**
+ * Review fix 3a (2026-09-23-review-E4-R1-report.md): the default `.entry-list`/`.entry-card` style
+ * used to be injected only by `static-render.ts`'s `renderStaticPage` (the static-tier pipeline) —
+ * `pageShell`, which every templated/handlebars/declarative theme (and no-theme) render goes
+ * through, never called `withEntryListStyleOnce` at all, so a cards-layout Collection list widget
+ * rendered as unstyled div soup on any non-static theme.
+ */
+test("renderSite (pageShell, declarative tier): a recent-entries cards-layout widget gets the shared entry-list/entry-card style injected into <head> — review fix 3a", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [{ type: "region", key: "footer" }] });
+  const ir: WidgetRenderIR[] = [
+    {
+      componentId: "recent-entries",
+      props: { layout: "cards", columns: 3, typeKey: "recipe" },
+      children: [
+        { componentId: "entry-list-item", props: { title: "Pasta", href: null, dateIso: "2026-01-01T00:00:00.000Z", dateLabel: "Jan 1, 2026", fields: [] } },
+      ],
+    },
+  ];
+  const html = await renderSite({
+    theme,
+    route: "home",
+    siteTitle: "Cards Demo",
+    posts: [],
+    widgets: widgetsResult({ regions: { footer: ir } }),
+  });
+  assert.match(html, /<style data-tovu-entry-list>/);
+  assert.ok(html.indexOf("<style data-tovu-entry-list>") < html.indexOf("</head>"), "the style must land inside <head>");
+});
+
+/**
+ * The trap this same fix had to avoid (review 3a): declarative themes already use the plain
+ * `entry-list`/`entry-list--<route>` classes for their OWN built-in post/product index
+ * (`productEntryList`, exercised here via the fallback body since this theme declares no `products`
+ * template). Wiring `withEntryListStyleOnce` into `pageShell` must never turn that unrelated
+ * vertical list into a grid.
+ */
+test("renderSite (pageShell, declarative tier): the theme's own built-in entry-list (unrelated to collections) never triggers the collection card style — review fix 3a trap", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [{ type: "region", key: "footer" }] });
+  const html = await renderSite({
+    theme,
+    route: "products",
+    siteTitle: "No Grid Here",
+    posts: [],
+    products: [],
+  });
+  assert.match(html, /class="entry-list entry-list--products"/, "sanity: the built-in product index still uses the entry-list class");
+  assert.doesNotMatch(html, /data-tovu-entry-list/, "an unrelated entry-list class must never trigger the collection card style");
+});
+
 test("menu widget: authored cssClass/rel/openInNewTab/icon/description reach the rendered <li>/<a> — previously silently dropped (the resolver already attaches NavItemAttrs to every ResolvedNavItem; only static-tier themes' tree variant read it)", () => {
   const html = renderWidgetIr({
     componentId: "menu",

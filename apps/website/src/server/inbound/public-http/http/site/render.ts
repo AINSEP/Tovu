@@ -7,6 +7,7 @@ import {
   resolveHandlebarsTemplateId,
   renderStaticPage,
   renderEntryList,
+  withEntryListStyleOnce,
   type EntryListItem,
   type EntryListFieldValue,
 } from "#src/features/theme/index";
@@ -2174,8 +2175,13 @@ function toEntryListItem(props: JsonObject): EntryListItem {
  *
  * `"cards"` layout (the one genuinely new display mode this plan adds) delegates entirely to C3's
  * `renderEntryList`, so field display (`<dl>`) and the shared `.entry-list`/`.entry-card` styling
- * (`withEntryListStyleOnce`, already wired into `finishStaticTierDocument`'s page-assembly pass) work
- * identically to the `{"type":"collection"}` marker — no second implementation.
+ * work identically to the `{"type":"collection"}` marker — no second implementation. Review fix 3a
+ * (2026-09-23): `withEntryListStyleOnce` is called from ONE place per tier — `static-render.ts`'s
+ * `renderStaticPage` (used by `finishStaticTierDocument`) for a static theme, and this file's own
+ * `pageShell` for every other tier — not from here; this renderer only has to produce the
+ * `[data-tovu-entry-list]`-marked markup {@link withEntryListStyleOnce} looks for. Before this fix,
+ * `pageShell` never called it at all, so a cards-layout widget on a templated/handlebars/
+ * declarative theme (or no theme) rendered with no styling.
  *
  * `"list"` layout (the historical default, D7 — every pre-existing widget config has no `layout` key
  * and lands here) keeps its own exact `ul.widget.widget-recent-entries` / `li.widget-entry-summary`
@@ -3089,7 +3095,7 @@ function pageShell(required: {
   const themeFontLink = theme ? fontLink(theme) : "";
   const themeStyle = theme ? `${tokensToCss(theme.tokens)}${theme.css}` : "";
   const themeAttr = theme ? ` data-theme="${escapeHtml(theme.manifest.id)}"` : "";
-  return `<!doctype html>
+  const document = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
@@ -3105,6 +3111,15 @@ ${siteAssistant.head}
 ${siteAssistant.body}
 </body>
 </html>`;
+  // Review fix 3a: the same once-per-page default style `finishStaticTierDocument`'s
+  // `renderStaticPage` call already injects for a static theme's own `{"type":"collection"}`
+  // marker (`static-render.ts`'s `renderStaticPage`) — this was the missing half, so a
+  // `recent-entries` cards-layout widget on a templated/handlebars/declarative theme (or no theme)
+  // used to render its `.entry-card` markup with no styling at all. Safe to call unconditionally:
+  // `withEntryListStyleOnce` only ever matches its OWN `[data-tovu-entry-list]` wrapper attribute,
+  // never a theme's own unrelated `.entry-list`-classed markup (`entryList`/`productEntryList`
+  // below both use that class for the built-in post/product index).
+  return withEntryListStyleOnce(document);
 }
 
 // ---------------------------------------------------------------------------

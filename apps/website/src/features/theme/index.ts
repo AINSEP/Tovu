@@ -117,7 +117,13 @@ export {
 // `resolveCollectionListsForRender` calls once per distinct `collection` marker config, plus the
 // item/field shapes it builds to feed that renderer. No I/O lives here (see `entry-list-render.ts`'s
 // own `@file` doc); the route layer supplies already-fetched, already-formatted values.
-export { renderEntryList, type EntryListItem, type EntryListFieldValue, type EntryListRenderOptions } from "./entry-list-render.js";
+export {
+  renderEntryList,
+  withEntryListStyleOnce,
+  type EntryListItem,
+  type EntryListFieldValue,
+  type EntryListRenderOptions,
+} from "./entry-list-render.js";
 
 // 2026-08-16 (export<->server decoupling follow-up) — "given discovered themes + a candidate id,
 // which theme renders" query, moved here from `server/routes/site/pages.ts` so `export/

@@ -80,7 +80,7 @@ test("renderStaticPage: a hit replaces inner content, keeps the marker's own cla
   const rendered = renderStaticPage({
     theme,
     pageId: "recipes",
-    collectionLists: new Map([[key, '<div class="entry-list"><h3>Chili</h3></div>']]),
+    collectionLists: new Map([[key, '<div class="entry-list" data-tovu-entry-list><h3>Chili</h3></div>']]),
   });
 
   assert.ok(rendered?.includes('id="recipe-list"'), "id survives");
@@ -103,7 +103,7 @@ test("renderStaticPage: multiple differently-keyed collection markers resolve in
   const rendered = renderStaticPage({
     theme,
     pageId: "home",
-    collectionLists: new Map([[recipeKey, '<div class="entry-list">Chili</div>']]),
+    collectionLists: new Map([[recipeKey, '<div class="entry-list" data-tovu-entry-list>Chili</div>']]),
   });
 
   assert.ok(rendered?.includes("Chili"), "the matching key resolves");
@@ -124,13 +124,13 @@ test("renderStaticPage: the entry-list style is injected exactly once even with 
     theme,
     pageId: "home",
     collectionLists: new Map([
-      [keyA, '<div class="entry-list">Chili</div>'],
-      [keyB, '<div class="entry-list">Widgets</div>'],
+      [keyA, '<div class="entry-list" data-tovu-entry-list>Chili</div>'],
+      [keyB, '<div class="entry-list" data-tovu-entry-list>Widgets</div>'],
     ]),
   });
 
-  const occurrences = rendered?.split("data-tovu-entry-list").length ?? 0;
-  assert.equal(occurrences, 2, "the style block must appear exactly once (one split -> two segments)");
+  const styleTagOccurrences = rendered?.split("<style data-tovu-entry-list>").length ?? 0;
+  assert.equal(styleTagOccurrences, 2, "the style tag must appear exactly once (one split -> two segments)");
 });
 
 test("renderStaticPage: no style is injected when no collection marker resolves to entry-list markup", () => {
