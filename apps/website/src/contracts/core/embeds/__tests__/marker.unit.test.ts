@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  embedMarkerTarget,
   formatMarkerAttributes,
   hasAuthoredAttributes,
+  parseEmbedMarkerConfig,
   parseMarkerAttributes,
   scanEmbedMarkers,
   substituteMarkers,
@@ -381,4 +383,96 @@ test("scanEmbedMarkers: thousands of unbalanced markers scan in linear, not quad
   assert.equal(markers.length, 8000);
   assert.equal(markers[1].whole, `<div data-embed-config='{"type":"widget","id":"x"}'><div>x</div>`);
   assert.ok(elapsedMs < 1500, `scan took ${elapsedMs.toFixed(0)} ms`);
+});
+
+/**
+ * @file Bug A (2026-09-23 interactive-bugs plan, Slice A1): `parseEmbedMarkerConfig` is the exported
+ * form of the same config-parsing rule `scanEmbedMarkers` already applies to every marker it finds,
+ * and `embedMarkerTarget` is the ONE per-type "which key names the target" rule shared by the server's
+ * four page-embed resolvers (`resolver-service.ts`'s widget/media/post/content) and the two
+ * theme-owned types with no target at all — the fact that used to live only inside those resolvers,
+ * unreachable from the admin's own placeholder describer.
+ */
+
+test("parseEmbedMarkerConfig: valid JSON object with a type returns { config }", () => {
+  const result = parseEmbedMarkerConfig('{"type":"widget","slug":"x"}');
+
+  assert.deepEqual(result, { config: { type: "widget", slug: "x" } });
+});
+
+test("parseEmbedMarkerConfig: invalid JSON returns the same rejection kind scanEmbedMarkers emits", () => {
+  const result = parseEmbedMarkerConfig("{not json");
+
+  assert.ok("problem" in result);
+  assert.equal(result.problem.kind, "invalid-json");
+});
+
+test("parseEmbedMarkerConfig: a non-object (array) returns not-an-object", () => {
+  const result = parseEmbedMarkerConfig("[1,2,3]");
+
+  assert.ok("problem" in result);
+  assert.equal(result.problem.kind, "not-an-object");
+});
+
+test("parseEmbedMarkerConfig: an object missing type returns missing-type", () => {
+  const result = parseEmbedMarkerConfig('{"id":"x"}');
+
+  assert.ok("problem" in result);
+  assert.equal(result.problem.kind, "missing-type");
+});
+
+test("embedMarkerTarget: widget, media, post, content resolve by slug when no id is present", () => {
+  assert.deepEqual(embedMarkerTarget("widget", { slug: "contact-form" }), { key: "slug", value: "contact-form" });
+  assert.deepEqual(embedMarkerTarget("media", { slug: "hero-video" }), { key: "slug", value: "hero-video" });
+  assert.deepEqual(embedMarkerTarget("post", { slug: "hello-world" }), { key: "slug", value: "hello-world" });
+  assert.deepEqual(embedMarkerTarget("content", { slug: "about" }), { key: "slug", value: "about" });
+});
+
+test("embedMarkerTarget: id wins over slug when both are present", () => {
+  assert.deepEqual(embedMarkerTarget("widget", { id: "abc", slug: "x" }), { key: "id", value: "abc" });
+});
+
+test("embedMarkerTarget: collection resolves by typeKey, and ignores slug entirely", () => {
+  assert.deepEqual(embedMarkerTarget("collection", { typeKey: "recipes" }), { key: "typeKey", value: "recipes" });
+  assert.equal(embedMarkerTarget("collection", { slug: "x" }), undefined);
+});
+
+test("embedMarkerTarget: collection with both slug and typeKey resolves to typeKey (slug is never consulted)", () => {
+  assert.deepEqual(embedMarkerTarget("collection", { slug: "x", typeKey: "recipes" }), { key: "typeKey", value: "recipes" });
+});
+
+test("embedMarkerTarget: collection id wins over typeKey when both are present", () => {
+  assert.deepEqual(embedMarkerTarget("collection", { id: "recipes-id", typeKey: "recipes" }), { key: "id", value: "recipes-id" });
+});
+
+test("embedMarkerTarget: menu and partial resolve only by id, never by slug", () => {
+  assert.equal(embedMarkerTarget("menu", { slug: "x" }), undefined);
+  assert.deepEqual(embedMarkerTarget("menu", { id: "main" }), { key: "id", value: "main" });
+  assert.equal(embedMarkerTarget("partial", { slug: "x" }), undefined);
+  assert.deepEqual(embedMarkerTarget("partial", { id: "main" }), { key: "id", value: "main" });
+});
+
+test('embedMarkerTarget: post-previews needs no target at all — a distinct "none" outcome, not "missing"', () => {
+  assert.deepEqual(embedMarkerTarget("post-previews", {}), { key: "none" });
+});
+
+test("embedMarkerTarget: an empty string, a non-string value, or an overlong value counts as absent", () => {
+  assert.equal(embedMarkerTarget("widget", { id: "" }), undefined);
+  assert.equal(embedMarkerTarget("widget", { id: 123 }), undefined);
+  assert.equal(embedMarkerTarget("widget", { id: "x".repeat(201) }), undefined);
+  assert.deepEqual(embedMarkerTarget("widget", { id: "x".repeat(200) }), { key: "id", value: "x".repeat(200) });
+});
+
+test("embedMarkerTarget: falls through to the next key when the first is absent", () => {
+  assert.deepEqual(embedMarkerTarget("widget", { id: "", slug: "contact-form" }), { key: "slug", value: "contact-form" });
+  assert.deepEqual(embedMarkerTarget("widget", { id: 123, slug: "contact-form" }), { key: "slug", value: "contact-form" });
+});
+
+test("embedMarkerTarget: the type is compared lower-cased", () => {
+  assert.deepEqual(embedMarkerTarget("Widget", { slug: "contact-form" }), { key: "slug", value: "contact-form" });
+});
+
+test("embedMarkerTarget: an unknown type resolves only by id", () => {
+  assert.deepEqual(embedMarkerTarget("mystery", { id: "x" }), { key: "id", value: "x" });
+  assert.equal(embedMarkerTarget("mystery", { slug: "x" }), undefined);
 });

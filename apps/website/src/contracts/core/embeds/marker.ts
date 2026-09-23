@@ -178,8 +178,13 @@ function requireGroupRange(indices: RegExpIndicesArray, group: number): readonly
  * Validate one marker's raw attribute text. Split out from {@link scanEmbedMarkers} so the scan stays
  * a plain loop: all three rejection branches live here, and the caller only chooses which list to
  * push onto.
+ *
+ * EXPORTED (2026-09-23, Bug A / interactive-bugs plan Slice A1) so a consumer that only has the raw
+ * `data-embed-config` string in hand — the admin's canvas placeholder describer, which reads an
+ * already-authored DOM attribute rather than re-running {@link scanEmbedMarkers} — can apply the exact
+ * same parse-and-reject rule `scanEmbedMarkers` itself uses, instead of growing its own copy of it.
  */
-function parseMarkerConfig(raw: string): { config: Record<string, unknown> } | { problem: EmbedMarkerProblem } {
+export function parseEmbedMarkerConfig(raw: string): { config: Record<string, unknown> } | { problem: EmbedMarkerProblem } {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -368,7 +373,7 @@ export function scanEmbedMarkers(html: string): ScanEmbedMarkersResult {
     const attrs = html.slice(...attrsRange);
     const raw = html.slice(...rawRange);
     const inner = html.slice(openTagEnd, closeStart);
-    const result = parseMarkerConfig(raw);
+    const result = parseEmbedMarkerConfig(raw);
 
     if ("problem" in result) {
       rejected.push({ problem: result.problem, occurrence, index });
@@ -452,6 +457,100 @@ export const POST_PREVIEWS_MARKER_TYPE = "post-previews";
  * same output can never rediscover and re-resolve it.
  */
 export const COLLECTION_MARKER_TYPE = "collection";
+
+/**
+ * The longest a target value ({@link embedMarkerTarget}'s `id`/`slug`/`typeKey`) may be before it
+ * counts as absent rather than a usable reference. A duplicate of `features/widgets/html-embeds.ts`'s
+ * `MAX_EMBED_ID_LENGTH` (same number, same reasoning: a bound too long to safely carry into a
+ * `Map`/`Set` key or an `entry_refs` row), not a shared import — this module stays import-free (see
+ * {@link maskNonRenderableRegions}'s file header and `marker-target-parity.unit.test.ts`'s boundary
+ * assertion), the same "duplicated fact, disclosed in a comment" tradeoff {@link MENU_MARKER_TYPE} and
+ * {@link PARTIAL_MARKER_TYPE} already document for their own server-side twins.
+ */
+const MAX_TARGET_VALUE_LENGTH = 200;
+
+/**
+ * One marker type's `data-embed-config` keys that can name its resolution target, in the exact
+ * precedence order the server tries them — `embedMarkerTarget` returns the FIRST of these keys with a
+ * usable string value. This is the "which key names the target" rule Bug A's root cause report
+ * (2026-09-23 interactive-bugs plan) found spread across four different resolvers
+ * (`resolver-service.ts`'s widget/media/post/content, `routes/site/pages.ts`'s collection) with no
+ * single shared table — the admin's own placeholder describer could not reuse it because nothing here
+ * exposed it. Hoisting it as data (not a switch statement) is what lets both the server's own resolvers
+ * and the admin's UI-only describer read the identical precedence rule.
+ *
+ * - `widget`/`media`/`post`/`content`: `id`, else `slug` — the four types registered in
+ *   `resolver-service.ts`'s `HTML_EMBED_RESOLVERS` (see `marker-target-parity.unit.test.ts`, which fails
+ *   loudly if a future registered type is added here without `"slug"`).
+ * - {@link COLLECTION_MARKER_TYPE}: `id`, else `typeKey` — `routes/site/pages.ts`'s
+ *   `collectionMarkerTypeKey` tries `config.id` before `config.typeKey`; `slug` is never consulted.
+ * - {@link MENU_MARKER_TYPE} / {@link PARTIAL_MARKER_TYPE}: `id` only — `static-render.ts` resolves
+ *   both purely by id.
+ * - {@link POST_PREVIEWS_MARKER_TYPE}: no keys at all — this marker needs no target
+ *   ({@link embedMarkerTarget} reports that as its own `{ key: "none" }` outcome, never `undefined`,
+ *   which means "target missing").
+ *
+ * An unknown type (not a key of this table) is not a member of it; {@link embedMarkerTarget} falls back
+ * to `["id"]` for that case rather than treating an unrecognized type as needing no target — a display
+ * must never claim a slug resolves for a type no resolver has ever registered.
+ */
+export const EMBED_MARKER_TARGET_KEYS: Readonly<Record<string, readonly ("id" | "slug" | "typeKey")[]>> = {
+  widget: ["id", "slug"],
+  media: ["id", "slug"],
+  post: ["id", "slug"],
+  content: ["id", "slug"],
+  [COLLECTION_MARKER_TYPE]: ["id", "typeKey"],
+  [MENU_MARKER_TYPE]: ["id"],
+  [PARTIAL_MARKER_TYPE]: ["id"],
+  [POST_PREVIEWS_MARKER_TYPE]: [],
+};
+
+/** The default target-key list for a type absent from {@link EMBED_MARKER_TARGET_KEYS} — an unknown
+ *  or typo'd type is assumed id-addressable like most types, but never slug-addressable: no resolver
+ *  has ever registered to read a slug for it, so claiming one would resolve is always wrong. */
+const UNKNOWN_TYPE_TARGET_KEYS: readonly ("id" | "slug" | "typeKey")[] = ["id"];
+
+/**
+ * One marker's resolved target, from {@link embedMarkerTarget}: either a key/value pair naming what
+ * the marker points at, or the `"none"` marker for a type that needs no target at all. Kept distinct
+ * from `undefined` (target missing) — see {@link embedMarkerTarget}'s own doc.
+ */
+export type EmbedMarkerTarget = { readonly key: "id" | "slug" | "typeKey"; readonly value: string } | { readonly key: "none" };
+
+/** `value` trimmed down to a usable target string, or `undefined` if it is not a non-empty string of
+ *  at most {@link MAX_TARGET_VALUE_LENGTH} characters — the same absent-vs-present rule
+ *  `features/widgets/html-embeds.ts`'s `normalizeEmbedId`/`normalizeEmbedSlug` apply to their own
+ *  config reads. @complexity O(1). */
+function normalizeTargetValue(value: unknown): string | undefined {
+  if (typeof value !== "string" || value.length === 0 || value.length > MAX_TARGET_VALUE_LENGTH) return undefined;
+  return value;
+}
+
+/**
+ * Which `data-embed-config` key names `type`'s resolution target, and that key's value, per
+ * {@link EMBED_MARKER_TARGET_KEYS}'s precedence order. Three distinct outcomes:
+ *
+ * - `{ key, value }` — the first target key present with a usable string value.
+ * - `{ key: "none" }` — this type ({@link POST_PREVIEWS_MARKER_TYPE}) needs no target; a caller must
+ *   never read this as "target missing".
+ * - `undefined` — the type has one or more target keys, but the marker's config supplies none of them
+ *   (or only with an unusable value per {@link normalizeTargetValue}) — "target missing".
+ *
+ * `type` is compared lower-cased, matching `toEmbedRef`'s own `marker.type.toLowerCase()` in
+ * `resolver-service.ts` — a hand-authored `"Widget"` must resolve exactly as `"widget"` does.
+ *
+ * @complexity O(k) in the number of candidate keys for `type` (at most 2 today) — independent of the
+ * surrounding document's size.
+ */
+export function embedMarkerTarget(type: string, config: Readonly<Record<string, unknown>>): EmbedMarkerTarget | undefined {
+  const keys = EMBED_MARKER_TARGET_KEYS[type.toLowerCase()] ?? UNKNOWN_TYPE_TARGET_KEYS;
+  if (keys.length === 0) return { key: "none" };
+  for (const key of keys) {
+    const value = normalizeTargetValue(config[key]);
+    if (value !== undefined) return { key, value };
+  }
+  return undefined;
+}
 
 /**
  * Rebuild a marker's element around new inner content, keeping its own tag and every authored
