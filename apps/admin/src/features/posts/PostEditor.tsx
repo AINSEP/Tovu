@@ -1271,6 +1271,7 @@ function PostEditorTemplateModalGate({
   activeThemeTier,
   activeThemeApiVersion,
   onClose,
+  confirmLeave,
   t,
 }: {
   show: boolean;
@@ -1279,6 +1280,7 @@ function PostEditorTemplateModalGate({
   activeThemeTier: ThemeTier | null;
   activeThemeApiVersion: 2 | undefined;
   onClose: () => void;
+  confirmLeave: () => boolean;
   t: Translate;
 }) {
   if (!show || !templateChoice || !activeThemeId) return null;
@@ -1289,6 +1291,7 @@ function PostEditorTemplateModalGate({
       themeApiVersion={activeThemeApiVersion}
       templateFilename={templateChoice}
       onClose={onClose}
+      confirmLeave={confirmLeave}
       t={t}
     />
   );
@@ -1639,6 +1642,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         activeThemeTier={activeThemeTier}
         activeThemeApiVersion={activeThemeApiVersion}
         onClose={onCloseTemplateModal}
+        confirmLeave={confirmLeave}
         t={t}
       />
     </div>

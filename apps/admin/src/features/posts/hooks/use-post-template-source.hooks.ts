@@ -39,6 +39,31 @@ export function templateAssetUrl(themeId: string, templateFilename: string, apiV
 }
 
 /**
+ * Route path (not a full URL — matches this app's `navigate()`, see `apps/admin/src/lib/router.ts`)
+ * for the Theme Explore screen with this template preselected — `PostTemplateModal`'s "Edit" button
+ * target (owner ask, 2026-09-22). The viewer stays read-only; this only ever points the operator at
+ * Explore, which is where the real edit happens.
+ *
+ * Reuses `resolveThemeLayout` the same way {@link templateAssetUrl} does, so the two can never
+ * resolve a different `pages`/`render/pages` folder for the same theme. Built with `URLSearchParams`
+ * — matching `theme-explore-url.hooks.ts`'s own `writeThemeExploreSelectionToUrl` encoding, not a
+ * hand-written template literal — so `pagesDir`'s `/` and anything unusual in `templateFilename`
+ * round-trip through Explore's own `?file=` reader (`resolveThemeExploreSelectionValue`) the same way
+ * a value Explore wrote itself would.
+ *
+ * @param themeId - The active theme id.
+ * @param templateFilename - The selected template's filename.
+ * @param apiVersion - The active theme's manifest `apiVersion` — see {@link templateAssetUrl}.
+ * @returns A `/themes/explore?theme=...&file=...` route path.
+ * @complexity O(1).
+ */
+export function templateEditUrl(themeId: string, templateFilename: string, apiVersion: 2 | undefined): string {
+  const { pagesDir } = resolveThemeLayout(apiVersion);
+  const params = new URLSearchParams({ theme: themeId, file: `${pagesDir}/${templateFilename}` });
+  return `/themes/explore?${params.toString()}`;
+}
+
+/**
  * Fetches a static-tier theme's template source as plain text via the injected `port`. Kept out
  * of the component body so the three outcomes (loading/loaded/error) are the function's only
  * branches — no theme-tier decision in here, that gate lives in the caller
