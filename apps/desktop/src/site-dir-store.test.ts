@@ -464,7 +464,11 @@ test("initSiteDir keeps an operator-set TOVU_SITE_DIR instead of replacing it", 
 });
 
 test("initSiteDir creates a real, servable site through Tovu's actual CLI", async () => {
-  const repoRoot = "/Users/la/Programming/Tovu";
+  // The checkout's own root (src -> apps/desktop -> apps -> repo), not a literal path: a
+  // machine-specific absolute path exists on one laptop and nowhere else, CI runners included. This
+  // test needs the root CLI built (`npm run build` at the repo root) — the release workflow's gates
+  // job builds it before `npm run gates` for exactly this reason.
+  const repoRoot = path.resolve(import.meta.dirname, "..", "..", "..");
   const target = path.join(tempDir(), "created-site");
   await initSiteDir({ repoRoot, dir: target, name: "Created By Test" });
 
