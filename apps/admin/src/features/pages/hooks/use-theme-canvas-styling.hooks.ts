@@ -186,10 +186,11 @@ const NO_CANVAS_STYLING: ThemeCanvasStylingState = { status: "ready", styling: {
  *   wrapper rather than failing the whole canvas: `contentWrapper` is optional on `CanvasStyling`, and
  *   its absence reproduces the exact pre-existing "no wrapper" canvas.
  * @returns The current {@link ThemeCanvasStylingState}.
- * @complexity Two-or-three requests per theme (three when `templateChoice` is set, up to four when it
- *   is the page-shell shim's primary candidate and the active theme only ships the legacy one), no
- *   unbounded retry; O(n) in the token count to build the CSS, O(m) in the template markup's size to
- *   derive the wrapper.
+ * @complexity Three-or-four requests per theme (token, light-token, and stylesheet-warm always; plus
+ *   template markup when `templateChoice` is set, up to two when it is the page-shell shim's primary
+ *   candidate and the active theme only ships the legacy one), no unbounded retry; O(n) in the token
+ *   count to build the CSS, O(m) in the template markup's size to derive the wrapper. The stylesheet
+ *   warm (Bug B, Slice B1) is fire-and-forget and never affects this count's success/failure outcome.
  */
 /**
  * Fetches `templateChoice`'s markup, same single request as before, UNLESS `templateChoice` is
@@ -252,6 +253,13 @@ export function useThemeCanvasStyling(
       // A theme with no light variant is normal, not an error — see `themeLightTokensUrl`.
       port.fetchThemeTokens(themeLightTokensUrl(themeId)).catch(() => undefined),
       templateMarkup,
+      // Fire-and-forget (Bug B, Slice B1): warms the browser's HTTP cache for the SAME stylesheet URL
+      // `InteractiveHtmlEditor` is about to link into its canvas, so that request has a better chance
+      // of resolving fast instead of the canvas showing browser-default styling until it does. Belt-
+      // and-braces `.catch` alongside the real port's own internal swallow (`ThemeCanvasPort.
+      // warmStylesheet`'s doc) — a rejection here must never turn a perfectly good token+CSS resolution
+      // into "no canvas styling at all".
+      port.warmStylesheet(themeStylesheetUrl(themeId, apiVersion)).catch(() => undefined),
     ])
       .then(([tokens, lightTokens, markup]) => {
         if (cancelled) return;

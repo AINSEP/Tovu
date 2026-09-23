@@ -153,6 +153,34 @@ describe("useThemeCanvasStyling", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  // Bug B, Slice B1 (pages-redo plan): every Interactive mount re-links the theme stylesheet fresh
+  // (served `cache-control: public, max-age=0`), so this hook fires a best-effort warm-up request for
+  // the SAME URL in parallel with its own token fetches, ahead of `InteractiveHtmlEditor` linking it.
+  it("warms the theme's stylesheet URL in parallel with the token fetches (Bug B, Slice B1)", async () => {
+    const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
+    const warmSpy = vi.spyOn(port, "warmStylesheet");
+    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(warmSpy).toHaveBeenCalledWith("/theme-assets/basic/css/theme.css");
+  });
+
+  it("still resolves ready styling when the stylesheet warm-up request rejects — it is fire-and-forget, never fatal", async () => {
+    const port = {
+      ...createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } }),
+      warmStylesheet: async () => {
+        throw new Error("warm-up network failure");
+      },
+    };
+    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(result.current).toEqual({
+      status: "ready",
+      styling: { stylesheets: ["/theme-assets/basic/css/theme.css"], css: tokensToCanvasCss(DARK, undefined) },
+    });
+  });
 });
 
 describe("resolveCanvasTemplateChoice (Interactive-tab page-shell fallback)", () => {

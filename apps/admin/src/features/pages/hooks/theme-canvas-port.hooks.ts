@@ -29,4 +29,15 @@ export interface ThemeCanvasPort {
    *  never as fatal — a template a canvas can't derive a wrapper from is the pre-existing, fully
    *  working "no wrapper" behavior, not a load failure. */
   fetchTemplateMarkup(url: string): Promise<string>;
+  /**
+   * Best-effort request for `url` (built by `themeStylesheetUrl`) that exists ONLY to populate the
+   * browser's HTTP cache before `@jini-ai/ui`'s `InteractiveHtmlEditor` links the same URL into its
+   * GrapesJS canvas (Bug B, Slice B1, this repo's `pages-redo` plan — every Interactive mount re-links
+   * that stylesheet fresh, and it is served `cache-control: public, max-age=0`, so each mount
+   * revalidates through the dev proxy to the API). Its resolution value is never read and a rejection
+   * must never fail canvas styling as a whole — the real port swallows every failure internally, and
+   * the caller (`use-theme-canvas-styling.hooks.ts`) also guards the call, belt-and-braces, in case a
+   * future port implementation forgets to.
+   */
+  warmStylesheet(url: string): Promise<void>;
 }
