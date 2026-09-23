@@ -437,6 +437,23 @@ export const PARTIAL_MARKER_TYPE = "partial";
 export const POST_PREVIEWS_MARKER_TYPE = "post-previews";
 
 /**
+ * The collection marker type (2026-09-23) — a theme/page marker that renders a bounded, filtered,
+ * sorted list of entries from one custom content type wherever it appears. Same ownership shape as
+ * {@link MENU_MARKER_TYPE}/{@link PARTIAL_MARKER_TYPE}/{@link POST_PREVIEWS_MARKER_TYPE} immediately
+ * above: resolved end-to-end by `features/theme/static-render.ts`'s `injectCollectionEmbeds`, never
+ * registered in `widgets/resolver-service.ts`'s `HTML_EMBED_RESOLVERS` — see that file's
+ * `THEME_OWNED_MARKER_TYPES`, which carries a matching literal entry for the same disclosed
+ * "duplicated, not imported" reason its own doc gives for the other three.
+ *
+ * Config shape (validated by `entries/public-list.ts`'s `parseCollectionListConfig`, not by this
+ * module): `{"type":"collection","typeKey":"recipe", …}` plus the type's own filter/sort/limit/layout
+ * keys. Unlike {@link POST_PREVIEWS_MARKER_TYPE}, a resolved collection marker's wrapper is stripped
+ * of `data-embed-config` on the hit path ({@link withInnerContentFinal}) so a later re-scan of the
+ * same output can never rediscover and re-resolve it.
+ */
+export const COLLECTION_MARKER_TYPE = "collection";
+
+/**
  * Rebuild a marker's element around new inner content, keeping its own tag and every authored
  * attribute (`class`, `aria-label`, …). The counterpart to a wholesale replace: a menu marker keeps
  * its `<nav class="docs-nav">` wrapper and only swaps what's inside, whereas a partial slot marker

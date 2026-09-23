@@ -1,4 +1,5 @@
 import {
+  COLLECTION_MARKER_TYPE,
   markersOfType,
   MENU_MARKER_TYPE,
   PARTIAL_MARKER_TYPE,
@@ -7,7 +8,10 @@ import {
   withAddedId,
   withElementKeptIfAttributed,
   withInnerContent,
+  withInnerContentFinal,
+  type EmbedMarker,
 } from "#src/contracts/core/embeds/marker";
+import { withEntryListStyleOnce } from "./entry-list-render.js";
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";
 import { DEFAULT_THEME_SLOTS, type DiscoveredTheme, type ThemeSlotDescriptor, type ThemeTokens } from "./theme.js";
 
@@ -492,6 +496,83 @@ export function scanPostPreviewsLimit(html: string): number | undefined {
   return markers.reduce((widest, marker) => Math.max(widest, clampPostPreviewsLimit(marker.config.limit)), 0);
 }
 
+/**
+ * One collection marker's already-rendered entry list, keyed by {@link collectionMarkerKey}. The
+ * route layer (`pages.ts`'s `resolveCollectionListsForRender`, C5) builds these — one query per
+ * distinct marker config found on the page, run through `entry-list-render.ts`'s `renderEntryList` —
+ * and hands the result to {@link renderStaticPage} as a `ReadonlyMap<string, string | undefined>`.
+ * `html` is `undefined` for a marker this file's caller looked up but found nothing to show for
+ * (unknown type, invalid config, or zero matching entries): the map still records the key so
+ * {@link injectCollectionEmbeds} treats it as a deliberate miss rather than re-querying, but the
+ * marker's authored fallback survives either way (`collectionLists`'s own contract, same as
+ * `postPreviews`'s "absent input, absent effect").
+ */
+export interface StaticCollectionList {
+  /** {@link collectionMarkerKey}'s output for the marker this list answers. */
+  readonly key: string;
+  readonly html: string;
+}
+
+/**
+ * A stable identity for one `{"type":"collection",…}` marker's config, so a page with several
+ * differently-configured collection markers (or the same config repeated) can be resolved as
+ * independent entries in a `Map` — the same per-marker addressing `withAddedId`'s own `id` field
+ * gives markers that need one, done here via the WHOLE config instead because two collection markers
+ * can differ in `typeKey`/`sort`/`where`/`limit` without either carrying an `id`. `JSON.stringify` of
+ * the parsed config as-is (no key filtering) is deterministic for a given authored marker: both this
+ * file's {@link injectCollectionEmbeds} and the route layer's map-builder parse the identical marker
+ * text into the identical `config` object, so they always agree on the key.
+ *
+ * @complexity O(k) over the config's own key count — independent of the surrounding document.
+ */
+export function collectionMarkerKey(marker: EmbedMarker): string {
+  return JSON.stringify(marker.config);
+}
+
+/**
+ * Splits a collection marker's authored inner content into an optional per-item `template` (the
+ * first `<template>…</template>` found, exclusive of the tags themselves) and the remaining
+ * `fallback` markup (everything else, shown untouched on a miss — see {@link injectCollectionEmbeds}).
+ * A marker authored with no `<template>` returns its whole inner content as `fallback` and no
+ * `template`, which routes the route layer's renderer into its built-in cards/list markup instead of
+ * per-item template mode (`entry-list-render.ts`'s `EntryListRenderOptions.template`).
+ *
+ * @complexity O(n) over `inner`'s length for the two substring scans plus the slice/concat.
+ */
+export function splitCollectionMarkerInner(inner: string): { template?: string; fallback: string } {
+  const openTag = "<template>";
+  const closeTag = "</template>";
+  const start = inner.indexOf(openTag);
+  if (start === -1) return { fallback: inner };
+  const end = inner.indexOf(closeTag, start + openTag.length);
+  if (end === -1) return { fallback: inner };
+  const template = inner.slice(start + openTag.length, end);
+  const fallback = inner.slice(0, start) + inner.slice(end + closeTag.length);
+  return { template, fallback };
+}
+
+/**
+ * Substitutes each `{"type":"collection"}` marker with its pre-resolved, pre-rendered entry list from
+ * `lists` (looked up by {@link collectionMarkerKey}), preserving the marker element's own tag and
+ * authored attributes but stripping `data-embed-config` on the hit path so a later re-scan of the
+ * same output can never rediscover and re-resolve it (D3: matches the widget rule via
+ * {@link withInnerContentFinal}, unlike {@link injectPostPreviewsEmbeds}'s `withInnerContent`). A miss
+ * — no entry in `lists` for this marker's key, or an entry whose `html` is `undefined` — leaves the
+ * marker exactly as authored, so its fallback/empty-state markup survives untouched (same "absent
+ * input, absent effect" contract {@link injectMenuEmbeds}/{@link injectPostPreviewsEmbeds} already
+ * establish for their own marker types).
+ *
+ * @complexity O(n) over `html`'s length — one `substituteMarkers` scan-and-splice pass, plus O(1)
+ * per collection marker for the map lookup.
+ */
+function injectCollectionEmbeds(html: string, lists: ReadonlyMap<string, string | undefined>): string {
+  return substituteMarkers(html, (marker) => {
+    if (marker.type !== COLLECTION_MARKER_TYPE) return undefined;
+    const rendered = lists.get(collectionMarkerKey(marker));
+    return rendered === undefined ? undefined : withInnerContentFinal(marker, rendered);
+  });
+}
+
 /** Escape a manifest-supplied string so it matches literally inside a constructed `RegExp`. */
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -623,6 +704,12 @@ function injectColorMode(html: string, defaultMode: string | undefined): string 
  * docs for how it decides whether to fetch anything at all. Omitted (or empty) leaves every
  * `{"type":"post-previews"}` marker's authored fallback untouched, see
  * {@link injectPostPreviewsEmbeds} — same "absent input, absent effect" contract `menus` already has.
+ *
+ * `collectionLists` (collection marker, 2026-09-23): the route layer's already-resolved,
+ * already-rendered entry lists, one per distinct marker config — see {@link StaticCollectionList}'s
+ * own doc for how a miss is recorded. Omitted (or a miss for a given marker) leaves that
+ * `{"type":"collection"}` marker's authored fallback untouched, see {@link injectCollectionEmbeds} —
+ * same "absent input, absent effect" contract `menus`/`postPreviews` already have.
  */
 export function renderStaticPage(
   required: {
@@ -631,10 +718,11 @@ export function renderStaticPage(
     htmlOverride?: string;
     menus?: Readonly<Record<string, readonly StaticMenuItem[]>>;
     postPreviews?: readonly StaticPostPreview[];
+    collectionLists?: ReadonlyMap<string, string | undefined>;
   },
   _optional: Record<string, never> = {}
 ): string | null {
-  const { theme, pageId, htmlOverride, menus, postPreviews } = required;
+  const { theme, pageId, htmlOverride, menus, postPreviews, collectionLists } = required;
   const source = htmlOverride ?? theme.pages[pageId];
   if (source === undefined) return null;
 
@@ -664,6 +752,8 @@ export function renderStaticPage(
   html = expandPartials(html, theme);
   html = injectMenuEmbeds(html, menus ?? {});
   html = injectPostPreviewsEmbeds(html, postPreviews ?? []);
+  html = injectCollectionEmbeds(html, collectionLists ?? new Map());
+  html = withEntryListStyleOnce(html);
   html = rewritePageLinks(html);
   return html;
 }

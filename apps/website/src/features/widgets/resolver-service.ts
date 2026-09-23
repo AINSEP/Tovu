@@ -1168,8 +1168,12 @@ const HTML_EMBED_RESOLVERS: Readonly<Record<string, HtmlEmbedResolver>> = {
  * `static-render.ts`'s `injectPostPreviewsEmbeds`, AFTER this stage, on every static-tier page
  * render that reaches `renderStaticPage` — same duplicated-literal debt as the other two entries
  * (see `POST_PREVIEWS_MARKER_TYPE`, `core/embeds/marker.ts`), not yet hoisted for the same reason.
+ *
+ * `"collection"` (2026-09-23) joins the set for the identical reason: it is resolved by
+ * `static-render.ts`'s `injectCollectionEmbeds`, AFTER this stage — same duplicated-literal debt as
+ * the other three entries (see `COLLECTION_MARKER_TYPE`, `core/embeds/marker.ts`).
  */
-const THEME_OWNED_MARKER_TYPES: ReadonlySet<string> = new Set(["partial", "menu", "post-previews"]);
+const THEME_OWNED_MARKER_TYPES: ReadonlySet<string> = new Set(["partial", "menu", "post-previews", "collection"]);
 
 /**
  * Does the page-embed stage OWN this marker type — i.e. is a REQ-28 placeholder the honest answer

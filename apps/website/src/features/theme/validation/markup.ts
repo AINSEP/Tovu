@@ -15,13 +15,22 @@ import type { ThemeValidationIssue } from "./profiles.js";
  * marker naming it is now an error here, not a silent pass-through.
  */
 
-/** The complete, current `data-embed-config` `type` vocabulary — seven values, kept in sync with
+/** The complete, current `data-embed-config` `type` vocabulary — eight values, kept in sync with
  * `resolver-service.ts`'s `HTML_EMBED_RESOLVERS` (widget/media/post/content) plus
- * `THEME_OWNED_MARKER_TYPES` (menu/partial/post-previews). Duplicated here rather than imported: both are
- * `resolver-service.ts`-internal (`const`, not exported), and this validator is a different feature's
- * territory to own — same reasoning `THEME_OWNED_MARKER_TYPES`'s own doc gives for its own,
- * independent duplication of the same literals. Re-verify against current `HEAD` if this drifts. */
-const KNOWN_EMBED_TYPES: ReadonlySet<string> = new Set(["widget", "media", "post", "content", "menu", "partial", "post-previews"]);
+ * `THEME_OWNED_MARKER_TYPES` (menu/partial/post-previews/collection). Duplicated here rather than
+ * imported: both are `resolver-service.ts`-internal (`const`, not exported), and this validator is a
+ * different feature's territory to own — same reasoning `THEME_OWNED_MARKER_TYPES`'s own doc gives for
+ * its own, independent duplication of the same literals. Re-verify against current `HEAD` if this drifts. */
+const KNOWN_EMBED_TYPES: ReadonlySet<string> = new Set([
+  "widget",
+  "media",
+  "post",
+  "content",
+  "menu",
+  "partial",
+  "post-previews",
+  "collection",
+]);
 
 /** Tolerant pre-scan for `data-embed-config` written with a quote style the REAL runtime scanner
  * (`core/embeds/marker.ts`'s `MARKER_PATTERN`) does not recognize — double-quoted or unquoted. The
