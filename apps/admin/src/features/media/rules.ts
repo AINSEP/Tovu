@@ -131,8 +131,30 @@ export function parseOptionalPixelSize(value: string): number | null {
  * Picked for the owner's stated near-term uses (animations, custom WebMCP hooks) plus the standard
  * `<img>`/`<video>` attributes those uses actually need; extend this list, not the parser, when a
  * new one is needed.
+ *
+ * Widened 2026-09-23 (widget-attrs plan §2) to match the shared server parser
+ * (`apps/website/src/contracts/core/embeds/html-attributes.ts`'s `EMBED_HTML_ATTRIBUTE_ALLOWED_NAMES`,
+ * this list's twin — see that file's own header for why it is a separate copy, not a shared import
+ * across the browser/Node boundary) one-for-one: `class`/`id`/`style`/`title`/`role`/`tabindex`/
+ * `lang`/`dir`/`hidden`/`translate`/`draggable` are global attributes any element can carry
+ * (styling/animation/a11y an embed author needs), kept in the SAME flat list as the pre-existing
+ * `<img>`/`<video>` extras rather than one list per element — the owner rejected per-element name
+ * filtering (an extra `loading` on a `<div>` wrapper is harmless).
  */
 export const MEDIA_HTML_ATTRIBUTE_ALLOWED_NAMES = [
+  // Global attributes (2026-09-23).
+  "class",
+  "id",
+  "style",
+  "title",
+  "role",
+  "tabindex",
+  "lang",
+  "dir",
+  "hidden",
+  "translate",
+  "draggable",
+  // Pre-existing <img>/<video> extras, kept everywhere (one list, not one per element).
   "loading",
   "decoding",
   "playsinline",
@@ -174,9 +196,11 @@ export function isAllowedMediaHtmlAttributeName(name: string): boolean {
 }
 
 /** Why one parsed attribute token was rejected — see {@link parseMediaHtmlAttributes}'s own doc for
- *  why `event-handler`/`javascript-url` are checked, and reported, ahead of plain allowlist
- *  membership. */
-export type MediaHtmlAttributeRejectionReason = "disallowed-name" | "event-handler" | "javascript-url" | "malformed";
+ *  why `event-handler`/`unsafe-url` are checked, and reported, ahead of plain allowlist membership.
+ *  `unsafe-url` replaces the old `javascript-url` name (2026-09-23: it now also covers
+ *  `vbscript:`/`data:` schemes, not just `javascript:`) — the i18n message key for it is unchanged.
+ *  `unsafe-style` is new: a `style` value carrying a known CSS injection/escape vector. */
+export type MediaHtmlAttributeRejectionReason = "disallowed-name" | "event-handler" | "unsafe-url" | "unsafe-style" | "malformed";
 
 export interface MediaHtmlAttributeError {
   reason: MediaHtmlAttributeRejectionReason;
@@ -187,13 +211,18 @@ export interface MediaHtmlAttributeError {
 }
 
 export interface ParsedMediaHtmlAttributes {
-  /** Lowercased attribute name -> value. A boolean attribute (`muted`, written with no
-   *  `="..."`) maps to `""` — recording only that it was present; how a valueless attribute gets
-   *  emitted onto the real tag is the future renderer's decision, not this parser's. */
+  /** Lowercased attribute name -> value, for every token that WAS accepted. Never all-or-nothing
+   *  except on `malformed` (see {@link parseMediaHtmlAttributes}'s own header): a rejected token
+   *  (2026-09-23) is simply absent here while every other accepted token in the same string still
+   *  lands. A boolean attribute (`muted`, written with no `="..."`) maps to `""`. */
   attributes: Record<string, string>;
-  /** `null` when every token in the input is allowed and safe; otherwise the FIRST rejection found
-   *  scanning left to right — one specific, visible reason at a time, not a batch of every problem
-   *  in the string. */
+  /** Every rejection found, in the order encountered — zero or more (2026-09-23). Unlike
+   *  `attributes`, this is never reset to empty except that a `malformed` entry is always the last
+   *  one recorded (parsing stops there). */
+  errors: MediaHtmlAttributeError[];
+  /** The FIRST rejection in {@link errors}, or `null` when every token was accepted — kept as its
+   *  own field for the existing single-reason hint consumers (`MediaEditDialog.hooks.tsx`,
+   *  `use-edit-media-panel.hooks.ts`) that only ever show one reason at a time. */
   error: MediaHtmlAttributeError | null;
 }
 
@@ -202,69 +231,133 @@ export interface ParsedMediaHtmlAttributes {
  *  would naturally reach for. */
 const HTML_ATTRIBUTE_TOKEN = /([^\s="']+)(?:=(?:"([^"]*)"|'([^']*)'|([^\s"']+)))?/g;
 
+/** The highest ASCII code point {@link isUnsafeMediaUrlValue} strips: every C0 control character
+ *  plus the ordinary space, i.e. code points `0`-`32` inclusive. Named rather than written as an
+ *  inline regex control-character range so the linter never has to reason about a literal control
+ *  character inside a pattern. Ported from the shared server parser, `html-attributes.ts`. */
+const ASCII_WHITESPACE_OR_CONTROL_MAX_CODE_POINT = 0x20;
+
+/**
+ * Whether `value`'s scheme, once every ASCII whitespace/control character (code points `0`-`32`) is
+ * stripped and the result lowercased, starts with `javascript:`, `vbscript:` or `data:` — the three
+ * schemes a browser will still execute or navigate to even when the URL carries interior whitespace
+ * a naive end-trim (the old `.trim()`-only check) would miss, e.g. `java\tscript:x`: browsers strip
+ * tabs and newlines from inside a URL before parsing its scheme, so this check must too. Ported
+ * 2026-09-23 from the shared server parser's `isUnsafeUrlValue` (`html-attributes.ts`).
+ *
+ * @complexity O(n) in the value's length (one filter pass, one prefix test).
+ */
+function isUnsafeMediaUrlValue(value: string): boolean {
+  let stripped = "";
+  for (const char of value) {
+    if ((char.codePointAt(0) ?? 0) > ASCII_WHITESPACE_OR_CONTROL_MAX_CODE_POINT) stripped += char;
+  }
+  stripped = stripped.toLowerCase();
+  return stripped.startsWith("javascript:") || stripped.startsWith("vbscript:") || stripped.startsWith("data:");
+}
+
+/**
+ * Whether a `style` value carries a known CSS injection or CSS-escape-bypass vector:
+ * `expression(...)` (legacy IE script-in-CSS), a `javascript:`/`vbscript:` value inside a CSS
+ * `url(...)`, `-moz-binding`/`behavior:` (XBL/HTC script bindings), `@import` (pulls in a second,
+ * unvetted stylesheet), or ANY backslash — a CSS escape sequence (`\65` is `e`) can respell any of
+ * the above past a plain substring check, so a backslash anywhere in the value is rejected outright.
+ * Plain `url(...)` values (background images) are otherwise allowed. Ported 2026-09-23 from the
+ * shared server parser's `isUnsafeStyleValue` (`html-attributes.ts`).
+ *
+ * @complexity O(n) in the value's length (one regex test).
+ */
+const UNSAFE_MEDIA_STYLE_PATTERN = /expression\(|javascript:|vbscript:|-moz-binding|behavior:|@import|\\/i;
+function isUnsafeMediaStyleValue(value: string): boolean {
+  return UNSAFE_MEDIA_STYLE_PATTERN.test(value);
+}
+
 /** Classifies one already-tokenized `name`/`value` pair. Split out of {@link parseMediaHtmlAttributes}
  *  so each rejection reason is its own directly testable branch, and so the loop below reads as
  *  "tokenize, then classify" rather than one function doing both.
  *
- * Order matters: `on*`/`javascript:` are checked BEFORE allowlist membership, so a rejected
- * `onerror="..."` always reports as `event-handler` (the more specific, more actionable reason)
- * rather than the generic `disallowed-name` — both this repo's XSS threat model and the owner's own
- * framing single out event handlers and `javascript:` values as the attributes worth naming
- * precisely, not lumping in with "not on the list".
+ * Order matters (ported 2026-09-23 from the shared server parser's `classifyEmbedHtmlAttributeToken`):
+ * `on*` is checked FIRST (so an `onerror` always reports as `event-handler`, the more actionable
+ * reason, never the generic `disallowed-name`), then the URL-scheme check runs against EVERY value
+ * regardless of name (matching the pre-existing `javascript:` check this is ported from), then
+ * allowlist membership, then — only for an already-allowed `style` — the CSS-specific unsafe-value
+ * check.
  *
- * @complexity O(1) — three fixed checks against one already-extracted token.
+ * @complexity O(1) — four fixed checks against one already-extracted token; each check's own O(n) in
+ * the token's length is linear, not nested.
  */
 function classifyMediaHtmlAttributeToken(name: string, value: string): MediaHtmlAttributeError | null {
   if (name.startsWith("on")) return { reason: "event-handler", attribute: name };
-  if (value.trim().toLowerCase().startsWith("javascript:")) return { reason: "javascript-url", attribute: name };
+  if (isUnsafeMediaUrlValue(value)) return { reason: "unsafe-url", attribute: name };
   if (!isAllowedMediaHtmlAttributeName(name)) return { reason: "disallowed-name", attribute: name };
+  if (name === "style" && isUnsafeMediaStyleValue(value)) return { reason: "unsafe-style", attribute: name };
   return null;
 }
 
 /**
  * Parses the `HTML attributes` field's free text (`name="value" name2="value2"`, or a bare
- * boolean `name`) into a validated attribute map, rejecting anything not on the allowlist.
+ * boolean `name`) into a validated attribute map, per-token (ported 2026-09-23 from the shared
+ * server parser, `html-attributes.ts`'s `parseEmbedHtmlAttributes`): an accepted token lands in
+ * `attributes`, a rejected one lands in `errors` and is simply omitted — this string never fails
+ * closed as a whole EXCEPT when the tokenizer itself loses sync (a stray quote or other unparseable
+ * fragment), in which case `attributes` is `{}` and the sole entry in `errors` has
+ * `reason: "malformed"` (token boundaries downstream of a sync loss cannot be trusted — value text
+ * could re-parse as a name — so that one case still discards everything).
  *
  * This is a SECURITY boundary, not a syntax convenience: media metadata is authored in this admin
  * but rendered on the public site, so a free-text HTML-attribute passthrough is a stored-XSS vector
- * (`onerror`, `onclick`, `style`, `href="javascript:"`, any `on*` handler) the moment it reaches a
- * public page. The allowlist in {@link isAllowedMediaHtmlAttributeName} is therefore the ONLY path
- * to acceptance — nothing here tries to sanitize or escape an otherwise-disallowed name into
- * something safe, it is rejected outright, and the caller must show the reason (not silently drop
- * it) so an operator can tell a typo from a hard "no". NOTE: this validator runs in the admin only —
- * see this repo's media-admin-ui report for where the write and render paths that would actually
- * persist and emit this attribute still need the SAME allowlist enforced server-side (a client-only
- * check is not a control, since the API accepts whatever a caller sends).
+ * (`onerror`, `onclick`, `href="javascript:"`, any `on*` handler, an unsafe `style` value) the
+ * moment it reaches a public page. The allowlist in {@link isAllowedMediaHtmlAttributeName} is
+ * therefore the ONLY path to acceptance — nothing here tries to sanitize or escape an otherwise-
+ * disallowed name or value into something safe; it is rejected outright, and the caller must show
+ * the reason (not silently drop it) so an operator can tell a typo from a hard "no". NOTE: this
+ * validator runs in the admin only — see this repo's media-admin-ui report for where the write and
+ * render paths that would actually persist and emit this attribute still need the SAME allowlist
+ * enforced server-side (a client-only check is not a control, since the API accepts whatever a
+ * caller sends).
  *
- * @complexity Time O(n) in `text`'s length (one regex pass over it), space O(k) for k parsed
- *   attributes.
+ * @complexity Time O(n) in `text`'s length (one regex pass over it), space O(k) for k accepted
+ *   attributes plus O(e) for e rejected tokens.
  */
 export function parseMediaHtmlAttributes(text: string): ParsedMediaHtmlAttributes {
   const trimmed = text.trim();
-  if (trimmed === "") return { attributes: {}, error: null };
+  if (trimmed === "") return { attributes: {}, errors: [], error: null };
 
   const attributes: Record<string, string> = {};
+  const errors: MediaHtmlAttributeError[] = [];
   HTML_ATTRIBUTE_TOKEN.lastIndex = 0;
   let consumed = 0;
-  let match: RegExpExecArray | null;
-  while ((match = HTML_ATTRIBUTE_TOKEN.exec(trimmed)) !== null) {
+  // A `for` loop (rather than `while ((match = …exec(trimmed)) !== null)`) keeps every assignment
+  // to `match` in statement position, never inside the loop's own test expression.
+  for (let match = HTML_ATTRIBUTE_TOKEN.exec(trimmed); match !== null; match = HTML_ATTRIBUTE_TOKEN.exec(trimmed)) {
     // Non-whitespace text between the previous match and this one is a fragment the token pattern
-    // could not parse as a name (e.g. a stray quote) — reported once, at the first gap, rather
-    // than silently skipped.
+    // could not parse as a name (e.g. a stray quote) — the tokenizer has lost sync, so everything
+    // parsed so far is discarded rather than trusted.
     const skipped = trimmed.slice(consumed, match.index);
-    if (skipped.trim() !== "") return { attributes: {}, error: { reason: "malformed", attribute: skipped.trim() } };
+    if (skipped.trim() !== "") {
+      const malformed: MediaHtmlAttributeError = { reason: "malformed", attribute: skipped.trim() };
+      errors.push(malformed);
+      return { attributes: {}, errors, error: malformed };
+    }
     consumed = match.index + match[0].length;
 
     const name = match[1]!.toLowerCase();
     const value = match[2] ?? match[3] ?? match[4] ?? "";
     const rejection = classifyMediaHtmlAttributeToken(name, value);
-    if (rejection) return { attributes: {}, error: rejection };
+    if (rejection) {
+      errors.push(rejection);
+      continue;
+    }
     attributes[name] = value;
   }
 
   const trailing = trimmed.slice(consumed);
-  if (trailing.trim() !== "") return { attributes: {}, error: { reason: "malformed", attribute: trailing.trim() } };
-  return { attributes, error: null };
+  if (trailing.trim() !== "") {
+    const malformed: MediaHtmlAttributeError = { reason: "malformed", attribute: trailing.trim() };
+    errors.push(malformed);
+    return { attributes: {}, errors, error: malformed };
+  }
+  return { attributes, errors, error: errors[0] ?? null };
 }
 
 /** Formats a {@link MediaHtmlAttributeError} into the specific, visible message the edit form
@@ -280,8 +373,13 @@ export function describeMediaHtmlAttributeError(error: MediaHtmlAttributeError, 
   if (error.reason === "event-handler") {
     return t("Event handler attributes like '{attribute}' are not allowed.").replace(ATTRIBUTE_PLACEHOLDER, error.attribute);
   }
-  if (error.reason === "javascript-url") {
+  if (error.reason === "unsafe-url") {
+    // Message text unchanged across the 2026-09-23 `javascript-url` -> `unsafe-url` rename (plan
+    // §2) — every locale already carries this key.
     return t("'{attribute}' cannot use a javascript: value.").replace(ATTRIBUTE_PLACEHOLDER, error.attribute);
+  }
+  if (error.reason === "unsafe-style") {
+    return t("'{attribute}' cannot use an unsafe style value.").replace(ATTRIBUTE_PLACEHOLDER, error.attribute);
   }
   if (error.reason === "malformed") {
     return t("Could not parse HTML attributes near '{fragment}'.").replace("{fragment}", error.attribute);

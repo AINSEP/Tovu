@@ -40,6 +40,12 @@ describe("isAllowedMediaHtmlAttributeName", () => {
     }
   });
 
+  it("allows the global styling/a11y attributes added 2026-09-23 (widget-attrs plan §2)", () => {
+    for (const name of ["class", "id", "style", "title", "role", "tabindex", "lang", "dir", "hidden", "translate", "draggable"]) {
+      expect(isAllowedMediaHtmlAttributeName(name), `${name} must be allowed`).toBe(true);
+    }
+  });
+
   it("is case-insensitive in both directions", () => {
     expect(isAllowedMediaHtmlAttributeName("DATA-FOO")).toBe(true);
     expect(isAllowedMediaHtmlAttributeName("ARIA-LABEL")).toBe(true);
@@ -47,9 +53,11 @@ describe("isAllowedMediaHtmlAttributeName", () => {
   });
 
   it("rejects a name that is not on the allowlist", () => {
-    expect(isAllowedMediaHtmlAttributeName("style")).toBe(false);
+    // `style` moved to the allowed list 2026-09-23 (widget-attrs plan §2) — see the dedicated
+    // "allows the global styling/a11y attributes" case above; these three stay rejected.
     expect(isAllowedMediaHtmlAttributeName("href")).toBe(false);
     expect(isAllowedMediaHtmlAttributeName("srcdoc")).toBe(false);
+    expect(isAllowedMediaHtmlAttributeName("formaction")).toBe(false);
     // Not a data-/aria- prefix, and not on the exact list — a prefix check that matched a
     // substring anywhere in the name (rather than anchored at the start) would wrongly admit this.
     expect(isAllowedMediaHtmlAttributeName("x-data-foo")).toBe(false);
@@ -63,13 +71,14 @@ describe("isAllowedMediaHtmlAttributeName", () => {
 
 describe("parseMediaHtmlAttributes", () => {
   it("returns no attributes and no error for an empty (or whitespace-only) draft", () => {
-    expect(parseMediaHtmlAttributes("")).toEqual({ attributes: {}, error: null });
-    expect(parseMediaHtmlAttributes("   ")).toEqual({ attributes: {}, error: null });
+    expect(parseMediaHtmlAttributes("")).toEqual({ attributes: {}, errors: [], error: null });
+    expect(parseMediaHtmlAttributes("   ")).toEqual({ attributes: {}, errors: [], error: null });
   });
 
   it("parses one allowed quoted attribute", () => {
     expect(parseMediaHtmlAttributes('data-motion="fade-in"')).toEqual({
       attributes: { "data-motion": "fade-in" },
+      errors: [],
       error: null,
     });
   });
@@ -78,17 +87,30 @@ describe("parseMediaHtmlAttributes", () => {
     const result = parseMediaHtmlAttributes(`data-motion="fade-in" aria-label='hello' loading=lazy`);
     expect(result).toEqual({
       attributes: { "data-motion": "fade-in", "aria-label": "hello", loading: "lazy" },
+      errors: [],
       error: null,
     });
   });
 
   it("parses a bare boolean attribute (no value) as present with an empty string value", () => {
-    expect(parseMediaHtmlAttributes("muted")).toEqual({ attributes: { muted: "" }, error: null });
+    expect(parseMediaHtmlAttributes("muted")).toEqual({ attributes: { muted: "" }, errors: [], error: null });
   });
 
   it("lowercases attribute names on the way in", () => {
     expect(parseMediaHtmlAttributes('DATA-Motion="Fade"')).toEqual({
       attributes: { "data-motion": "Fade" },
+      errors: [],
+      error: null,
+    });
+  });
+
+  it("accepts style, id and the other global attributes now on the allowlist", () => {
+    // Flipped 2026-09-23 (widget-attrs plan §2): a post/media author styling an embed needs these —
+    // `style`/`id` used to be hard-rejected as `disallowed-name`; the allowlist now widens to the
+    // same global-attribute list the shared server parser (`html-attributes.ts`) uses.
+    expect(parseMediaHtmlAttributes('style="color:red" id="hero"')).toEqual({
+      attributes: { style: "color:red", id: "hero" },
+      errors: [],
       error: null,
     });
   });
@@ -96,6 +118,7 @@ describe("parseMediaHtmlAttributes", () => {
   it("rejects an on* handler with the specific event-handler reason, naming the attribute", () => {
     expect(parseMediaHtmlAttributes('onerror="alert(1)"')).toEqual({
       attributes: {},
+      errors: [{ reason: "event-handler", attribute: "onerror" }],
       error: { reason: "event-handler", attribute: "onerror" },
     });
   });
@@ -103,48 +126,77 @@ describe("parseMediaHtmlAttributes", () => {
   it("rejects on* case-insensitively", () => {
     expect(parseMediaHtmlAttributes('OnClick="doThing()"')).toEqual({
       attributes: {},
+      errors: [{ reason: "event-handler", attribute: "onclick" }],
       error: { reason: "event-handler", attribute: "onclick" },
     });
   });
 
-  it("rejects a javascript: value on an otherwise-allowed name", () => {
+  it("rejects a javascript: value on an otherwise-allowed name, as unsafe-url", () => {
     // `poster` is a real, allowed <video> attribute — the value, not the name, is what's dangerous
-    // here, so this must report `javascript-url`, not let the allowed name mask the bad value.
+    // here, so this must report `unsafe-url` (renamed 2026-09-23 from `javascript-url`), not let the
+    // allowed name mask the bad value.
     expect(parseMediaHtmlAttributes('poster="javascript:alert(1)"')).toEqual({
       attributes: {},
-      error: { reason: "javascript-url", attribute: "poster" },
+      errors: [{ reason: "unsafe-url", attribute: "poster" }],
+      error: { reason: "unsafe-url", attribute: "poster" },
     });
   });
 
   it("catches a javascript: value regardless of case or leading whitespace", () => {
     expect(parseMediaHtmlAttributes('poster="  JavaScript:alert(1)"')).toEqual({
       attributes: {},
-      error: { reason: "javascript-url", attribute: "poster" },
+      errors: [{ reason: "unsafe-url", attribute: "poster" }],
+      error: { reason: "unsafe-url", attribute: "poster" },
+    });
+  });
+
+  it("catches a javascript: scheme even with a tab hidden inside it (interior-whitespace bypass)", () => {
+    // Hardening (widget-attrs plan §2): the old check only trimmed the ends, so `java\tscript:` slid
+    // through — browsers strip tabs/newlines from inside a URL before reading its scheme, so this
+    // parser must too.
+    expect(parseMediaHtmlAttributes('poster="java\tscript:alert(1)"')).toEqual({
+      attributes: {},
+      errors: [{ reason: "unsafe-url", attribute: "poster" }],
+      error: { reason: "unsafe-url", attribute: "poster" },
+    });
+  });
+
+  it("rejects an unsafe style value even though style itself is now allowed", () => {
+    expect(parseMediaHtmlAttributes('style="expression(alert(1))"')).toEqual({
+      attributes: {},
+      errors: [{ reason: "unsafe-style", attribute: "style" }],
+      error: { reason: "unsafe-style", attribute: "style" },
     });
   });
 
   it("rejects a name that is not on the allowlist, naming it", () => {
-    expect(parseMediaHtmlAttributes('style="color:red"')).toEqual({
+    expect(parseMediaHtmlAttributes('formaction="/x"')).toEqual({
       attributes: {},
-      error: { reason: "disallowed-name", attribute: "style" },
+      errors: [{ reason: "disallowed-name", attribute: "formaction" }],
+      error: { reason: "disallowed-name", attribute: "formaction" },
     });
   });
 
-  it("reports the FIRST rejection when several tokens would each fail, not a batch", () => {
-    // `style` (disallowed) comes before `onerror` (event handler) in the input — the first offender
-    // scanning left to right must win, proving this doesn't silently continue past a rejection.
-    expect(parseMediaHtmlAttributes('style="color:red" onerror="alert(1)"')).toEqual({
+  it("records every rejection in errors, in order, while error stays the FIRST one", () => {
+    // `formaction` (disallowed) comes before `onerror` (event handler) — both must be recorded, in
+    // that order, but `error` (the existing single-reason hint consumers read) stays the first.
+    expect(parseMediaHtmlAttributes('formaction="/x" onerror="alert(1)"')).toEqual({
       attributes: {},
-      error: { reason: "disallowed-name", attribute: "style" },
+      errors: [
+        { reason: "disallowed-name", attribute: "formaction" },
+        { reason: "event-handler", attribute: "onerror" },
+      ],
+      error: { reason: "disallowed-name", attribute: "formaction" },
     });
   });
 
-  it("stops at the first bad token even when good tokens came before it", () => {
-    // Adversarial: an operator (or an attacker relying on a reviewer skimming only the start of the
-    // string) could front-load safe-looking attributes before a smuggled one. Every already-parsed
-    // attribute must be discarded, not partially accepted.
-    expect(parseMediaHtmlAttributes('data-motion="fade-in" loading="lazy" onerror="alert(1)"')).toEqual({
-      attributes: {},
+  it("keeps every already-accepted token even when a later token is rejected", () => {
+    // Flipped 2026-09-23: one bad token now drops only that token — every good token around it must
+    // still land in `attributes`, not be discarded wholesale.
+    const result = parseMediaHtmlAttributes('data-motion="fade-in" loading="lazy" onerror="alert(1)"');
+    expect(result).toEqual({
+      attributes: { "data-motion": "fade-in", loading: "lazy" },
+      errors: [{ reason: "event-handler", attribute: "onerror" }],
       error: { reason: "event-handler", attribute: "onerror" },
     });
   });
@@ -154,6 +206,15 @@ describe("parseMediaHtmlAttributes", () => {
     expect(result.attributes).toEqual({});
     expect(result.error?.reason).toBe("malformed");
   });
+
+  it("fails the WHOLE string closed on malformed input, discarding tokens already accepted", () => {
+    // `malformed` is the one rejection that still fails closed (the tokenizer lost sync, so token
+    // boundaries downstream cannot be trusted), unlike every per-token rejection above.
+    const result = parseMediaHtmlAttributes('loading="lazy" "stray-quote"');
+    expect(result.attributes).toEqual({});
+    expect(result.error?.reason).toBe("malformed");
+    expect(result.errors).toEqual([result.error]);
+  });
 });
 
 describe("describeMediaHtmlAttributeError", () => {
@@ -161,12 +222,16 @@ describe("describeMediaHtmlAttributeError", () => {
     expect(describeMediaHtmlAttributeError({ reason: "event-handler", attribute: "onerror" }, "en")).toContain("onerror");
   });
 
-  it("names the rejected attribute in the javascript-url message", () => {
-    expect(describeMediaHtmlAttributeError({ reason: "javascript-url", attribute: "poster" }, "en")).toContain("poster");
+  it("names the rejected attribute in the unsafe-url message (same wording as the old javascript-url reason)", () => {
+    expect(describeMediaHtmlAttributeError({ reason: "unsafe-url", attribute: "poster" }, "en")).toContain("poster");
+  });
+
+  it("names the rejected attribute in the unsafe-style message", () => {
+    expect(describeMediaHtmlAttributeError({ reason: "unsafe-style", attribute: "style" }, "en")).toContain("style");
   });
 
   it("names the rejected attribute in the disallowed-name message", () => {
-    expect(describeMediaHtmlAttributeError({ reason: "disallowed-name", attribute: "style" }, "en")).toContain("style");
+    expect(describeMediaHtmlAttributeError({ reason: "disallowed-name", attribute: "formaction" }, "en")).toContain("formaction");
   });
 
   it("names the unparsable fragment in the malformed message", () => {
@@ -176,9 +241,9 @@ describe("describeMediaHtmlAttributeError", () => {
   it("falls back to the English source string for a locale with no translation yet", () => {
     // Same `MEDIA_DICT[locale]?.[key] ?? key` fallback every other `t()` in this feature uses — a
     // brand-new field ships English-first, not blank, for a locale that hasn't been translated yet.
-    expect(describeMediaHtmlAttributeError({ reason: "disallowed-name", attribute: "style" }, "xx-not-a-real-locale")).toContain(
-      "style"
-    );
+    expect(
+      describeMediaHtmlAttributeError({ reason: "disallowed-name", attribute: "formaction" }, "xx-not-a-real-locale")
+    ).toContain("formaction");
   });
 });
 
