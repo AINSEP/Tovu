@@ -218,7 +218,7 @@ test("D1: a collection-path item's href is also null (entry pages are off)", asy
   const result = results.get("w-1");
   assert.ok(result?.ok);
   if (!result.ok) return;
-  assert.equal((result.ir.children?.[0]?.props as { href: unknown }).href, null);
+  assert.equal(result.ir.children?.[0]?.props.href, null, "an empty result must fail here too (undefined !== null)");
 });
 
 test("REQ-25: the registered clamp (20) still wins over a collection instance's own maxItems, defense in depth", async () => {
@@ -239,4 +239,22 @@ test("REQ-25: the registered clamp (20) still wins over a collection instance's 
 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].limit, 20, "must never exceed the registered clamp regardless of the instance's own (schema-legal) maxItems");
+});
+
+test("D7: a collection-configured instance with no `layout` key defaults to the widget's own \"list\" layout, not the collection marker's \"cards\" default", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  await repo.save(entryRow({ id: "r-1", type: "recipe", slug: "r-1", title: "Pasta" }));
+  const contentTypes = fixedContentTypeLookup({ recipe: [field("cuisine")] });
+  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes });
+  const results = await resolver.resolveMany(
+    [instance("w-default", { maxItems: 5, collection: "recipe" }), instance("w-cards", { maxItems: 5, collection: "recipe", layout: "cards" })],
+    CTX
+  );
+
+  const defaulted = results.get("w-default");
+  const cards = results.get("w-cards");
+  assert.ok(defaulted?.ok && cards?.ok);
+  if (!defaulted.ok || !cards.ok) return;
+  assert.equal(defaulted.ir.props.layout, "list", "D7: absent layout means the widget's historical list layout");
+  assert.equal(cards.ir.props.layout, "cards", "an explicit cards layout is still honoured");
 });

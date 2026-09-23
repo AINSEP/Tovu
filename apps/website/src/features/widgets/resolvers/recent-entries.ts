@@ -135,10 +135,12 @@ const LEGACY_MIN_COLUMNS = 1;
 const LEGACY_MAX_COLUMNS = 6;
 const LEGACY_DEFAULT_COLUMNS = 3;
 
-/** Display-only, unvalidated-against-any-content-type knobs for the legacy path — new, additive
- *  keys an old config never set, so absence falls back to the pre-existing visual shape (D7).
+/** Display-only, unvalidated-against-any-content-type knobs — new, additive keys an old config never
+ *  set, so absence falls back to the pre-existing visual shape (D7). `widgetLayout` applies on BOTH
+ *  paths: the widget's layout default is "list" even with `collection` set (D7), unlike the
+ *  collection marker's own "cards" default that `parseCollectionListConfig` applies.
  *  @complexity O(1). */
-function legacyLayout(config: WidgetInstanceView["config"]): "list" | "cards" {
+function widgetLayout(config: WidgetInstanceView["config"]): "list" | "cards" {
   return config.layout === "cards" ? "cards" : LEGACY_DEFAULT_LAYOUT;
 }
 function legacyColumns(config: WidgetInstanceView["config"]): number {
@@ -186,7 +188,7 @@ async function resolveLegacyInstances(
       ok: true,
       ir: {
         componentId: "recent-entries",
-        props: { layout: legacyLayout(instance.config), columns: legacyColumns(instance.config), typeKey: "recent-entries" },
+        props: { layout: widgetLayout(instance.config), columns: legacyColumns(instance.config), typeKey: "recent-entries" },
         children: entries.map((entry) => toItemIr(toLegacyItemProps(entry))),
       },
       dependencyKeys: entries.map((entry) => entry.id),
@@ -223,7 +225,9 @@ async function resolveCollectionInstance(
     ok: true,
     ir: {
       componentId: "recent-entries",
-      props: { layout: parsed.display.layout, columns: parsed.display.columns, typeKey },
+      // D7: the widget's own layout default is "list" — `parsed.display.layout` carries the
+      // collection MARKER's "cards" default for an absent key, so it is not used here.
+      props: { layout: widgetLayout(instance.config), columns: parsed.display.columns, typeKey },
       children: rows.map((row) => toItemIr(toCollectionItemProps(row, parsed.display.fields))),
     },
     dependencyKeys: rows.map((row) => row.id),
