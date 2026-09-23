@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import path from "node:path";
 
 import {
   buildInitializeParams,
@@ -252,7 +253,7 @@ export async function connectMcpStdioSession(deps: { channel: McpStdioChannel; r
  * the daemon's own `process.env` holds `TOVU_AGENT_DAEMON_TOKEN` (`daemon-auth.ts`), and handing
  * that to a third-party vendor's child process would give it Tovu's own daemon credential — the
  * exact inversion of the `mcp-injection.ts` grant, and a far worse one. A federated server receives
- * what `config.ts` explicitly puts in `env`, plus {@link INHERITED_ENV_VARS} and nothing else.
+ * what `config.ts` explicitly puts in `env`, plus what {@link buildMcpChildEnv} inherits and nothing else.
  *
  * @complexity O(n) in bytes received.
  * @overallScore 100
@@ -260,7 +261,7 @@ export async function connectMcpStdioSession(deps: { channel: McpStdioChannel; r
 export function spawnMcpStdioChannel(spec: McpStdioLaunchSpec): McpStdioChannel {
   const child = spawn(spec.command, [...spec.args], {
     cwd: spec.cwd,
-    env: { ...inheritedEnv(), ...spec.env },
+    env: buildMcpChildEnv({ command: spec.command, specEnv: spec.env }),
     stdio: ["pipe", "pipe", "pipe"],
   });
 
@@ -323,7 +324,8 @@ export function spawnMcpStdioChannel(spec: McpStdioLaunchSpec): McpStdioChannel 
 }
 
 /**
- * The ONLY parent environment variables a federated server inherits — an explicit allowlist, so
+ * The parent environment variables a federated server inherits on EVERY platform (win32 adds
+ * {@link WIN32_INHERITED_ENV_VARS}) — an explicit allowlist, so
  * adding to it is a visible decision rather than a default.
  *
  * Not merely `PATH`: the Supabase preset launches via `npx`, which resolves its package cache under
@@ -338,13 +340,91 @@ export function spawnMcpStdioChannel(spec: McpStdioLaunchSpec): McpStdioChannel 
  */
 const INHERITED_ENV_VARS = ["PATH", "HOME", "TMPDIR"] as const;
 
-function inheritedEnv(): Record<string, string> {
+/**
+ * win32 only: the further parent variables a Windows child needs to start at all. None carries a
+ * secret — each names a system or per-user directory, or the executable-extension list.
+ *
+ * Without them a Windows child can fail in ways that name none of these: `SystemRoot`/`windir` are
+ * read by Winsock and the C runtime during process start (a Node or Python child cannot open a
+ * socket without `SystemRoot`), `ComSpec` and `PATHEXT` are how a child resolves and runs other
+ * programs, `USERPROFILE`/`APPDATA`/`LOCALAPPDATA` are Windows' `HOME` (npm's prefix and cache live
+ * under them), and `TEMP`/`TMP` are Windows' `TMPDIR`.
+ */
+const WIN32_INHERITED_ENV_VARS = [
+  "SystemRoot",
+  "windir",
+  "ComSpec",
+  "PATHEXT",
+  "USERPROFILE",
+  "APPDATA",
+  "LOCALAPPDATA",
+  "TEMP",
+  "TMP",
+] as const;
+
+/** Electron's run-as-Node switch. Env-only: Electron has no command-line flag for it. */
+const ELECTRON_RUN_AS_NODE = "ELECTRON_RUN_AS_NODE";
+
+/** {@link buildMcpChildEnv}'s input. Everything past `specEnv` is a test seam that defaults to the
+ *  real process; production passes only `command` and `specEnv`. */
+interface McpChildEnvInput {
+  /** The child's `command`, compared against `execPath` on win32. */
+  readonly command: string;
+  /** The connection's own `env`, which wins over anything inherited. */
+  readonly specEnv: Readonly<Record<string, string>>;
+  readonly platform?: NodeJS.Platform;
+  readonly parentEnv?: NodeJS.ProcessEnv;
+  readonly execPath?: string;
+}
+
+/**
+ * The complete environment one federated MCP child is spawned with.
+ *
+ * On every platform: {@link INHERITED_ENV_VARS} from the parent, then the connection's own `env`
+ * over the top. On darwin and linux that is ALL — byte-identical to what this adapter has always
+ * sent.
+ *
+ * On win32, two additions:
+ *
+ * 1. {@link WIN32_INHERITED_ENV_VARS}, which Windows programs need to start.
+ * 2. `ELECTRON_RUN_AS_NODE`, but ONLY when the child's `command` is this process's own executable
+ *    and this process itself runs with it set. Tovu Desktop registers its own Electron binary as the
+ *    command of its `tovu-desktop` connection on win32, where no launcher script can be exec'd, and
+ *    without this variable that binary opens a second GUI app instead of running the bridge script.
+ *    Carrying it here rather than in the connection's `env` matters: a row's `env` is sealed with the
+ *    site's root key, so a flag in it fails the whole save with `SECRET_STORE_UNCONFIGURED` on a
+ *    site that has none. The rule is narrow on purpose — "a child that is this very binary runs in
+ *    the mode this binary runs in" — so no third-party child ever has its runtime mode changed.
+ *
+ * Empty parent values are skipped, as they always were.
+ *
+ * @complexity O(k) in the number of inherited names.
+ */
+export function buildMcpChildEnv({
+  command,
+  specEnv,
+  platform = process.platform,
+  parentEnv = process.env,
+  execPath = process.execPath,
+}: McpChildEnvInput): Record<string, string> {
+  const isWin32 = platform === "win32";
+  const names: readonly string[] = isWin32 ? [...INHERITED_ENV_VARS, ...WIN32_INHERITED_ENV_VARS] : INHERITED_ENV_VARS;
   const inherited: Record<string, string> = {};
-  for (const name of INHERITED_ENV_VARS) {
-    const value = process.env[name];
+  for (const name of names) {
+    const value = parentEnv[name];
     if (typeof value === "string" && value.length > 0) inherited[name] = value;
   }
-  return inherited;
+  const runMode = parentEnv[ELECTRON_RUN_AS_NODE];
+  if (isWin32 && typeof runMode === "string" && runMode.length > 0 && isSameWin32Path(command, execPath)) {
+    inherited[ELECTRON_RUN_AS_NODE] = runMode;
+  }
+  return { ...inherited, ...specEnv };
+}
+
+/** Whether two win32 paths name the same file: resolved, then compared case-insensitively, as
+ *  Windows' own file system does. @complexity O(n) in the path length. */
+function isSameWin32Path(a: string, b: string): boolean {
+  return path.win32.resolve(a).toLowerCase() === path.win32.resolve(b).toLowerCase();
 }
 
 /** Best-effort JSON-RPC parse of one inbound line, or `null` for anything that does not parse.
