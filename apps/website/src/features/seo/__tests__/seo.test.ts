@@ -497,6 +497,46 @@ test("getEntryMeta: decodes numeric hex and decimal html entities, and preserves
   assert.equal(meta.description, `It's "great" <rock> & &unknown;`);
 });
 
+test("getEntryMeta: decodes typographic named entities (live /media + /forms regression: `&mdash;` surfaced as a literal)", async () => {
+  const deps = await makeDeps([
+    seedPost({
+      kind: "page",
+      bodyFormat: "html",
+      bodyHtml: "<p>Upload &mdash; JPEG &ndash; &ldquo;once&rdquo; &lsquo;x&rsquo; &hellip; &copy; &trade;</p>",
+    }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, "Upload — JPEG – “once” ‘x’ … © ™");
+});
+
+test("getEntryMeta: a nested element inside `post-detail-header` does not end the stripped block early", async () => {
+  const deps = await makeDeps([
+    seedPost({
+      kind: "page",
+      bodyFormat: "html",
+      bodyHtml:
+        '<div class="post-detail-header"><div class="post-meta"><time>Sep 3, 2026</time></div><h1>Media</h1></div>' +
+        '<div class="post-detail-body"><p>Media is where…</p></div>',
+    }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, "Media is where…");
+});
+
+test("getEntryMeta: the production `renderPostDetailHeader` shape (nested `.post-meta` div) is stripped whole", async () => {
+  const deps = await makeDeps([
+    seedPost({
+      kind: "page",
+      bodyFormat: "html",
+      bodyHtml:
+        '<div class="post-detail-header"><h1>What Is Tovu?</h1><div class="post-meta"><time datetime="2026-09-04T02:04:06.038Z">Sep 3, 2026</time></div></div>' +
+        '<div class="post-detail-body"><p>Tovu is a content platform.</p></div>',
+    }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, "Tovu is a content platform.");
+});
+
 test("getEntryMeta: all openGraph and twitter field overrides are respected", async () => {
   const deps = await makeDeps([
     seedPost({
