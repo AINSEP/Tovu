@@ -85,9 +85,9 @@ export type ParseCollectionListConfigResult =
  * {@link parseCollectionListConfig} can propagate a rejection from any of them with one `if`. */
 type SubParseResult<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly reason: string };
 
-/** Type guard for "a JSON object, not an array and not null" — the shape every authored config
- * sub-object (`where`) must have to be read at all; anything else is treated as absent rather
- * than rejected, matching how `limit`/`columns`/`layout` fall back to their defaults below.
+/** Type guard for "a JSON object, not an array and not null" — the shape the whole config and its
+ * `where` sub-object must have to be read at all (see {@link parseWhereClauses} for why a
+ * misshapen `where` is rejected rather than treated as absent).
  * @complexity O(1) */
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -118,15 +118,18 @@ function parseLayout(raw: unknown): "cards" | "list" {
 
 /** Validates and converts the raw `where` config (an authored `{field: value}` map, the natural
  * JSON shape for a marker's `data-embed-config` attribute) into {@link CollectionWhereClause}s.
- * Rejects on the first unknown field name or non-scalar value; a missing/malformed `where`
- * container itself is not a rejection — it degrades to "no filter", matching every other optional
- * key in this parser.
+ * Rejects on the first unknown field name or non-scalar value. An absent or `null` `where` means
+ * "no filter"; any other non-object (an array of clauses, a string) is REJECTED, not read as "no
+ * filter" — unlike the display-only keys, a misshapen filter must never widen the list.
  * @complexity O(w) where w is the number of authored where-keys; each does one O(f) field lookup
  * against the content type's f fields. w and f are both operator-authored/schema-sized, never
  * user-collection-sized. */
 function parseWhereClauses(rawWhere: unknown, contentType: ContentTypeRecord): SubParseResult<readonly CollectionWhereClause[]> {
-  if (!isPlainRecord(rawWhere)) {
+  if (rawWhere === undefined || rawWhere === null) {
     return { ok: true, value: [] };
+  }
+  if (!isPlainRecord(rawWhere)) {
+    return { ok: false, reason: "where must be an object of {field: value} pairs" };
   }
   const clauses: CollectionWhereClause[] = [];
   for (const [fieldName, value] of Object.entries(rawWhere)) {

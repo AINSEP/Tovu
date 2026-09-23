@@ -235,3 +235,20 @@ test("humanizeFieldName: converts snake_case field names into a capitalized labe
   assert.equal(humanizeFieldName("serves"), "Serves");
   assert.equal(humanizeFieldName("vegetarian"), "Vegetarian");
 });
+
+test("parseCollectionListConfig: a where that is present but not a {field: value} object is rejected, never read as 'no filter'", () => {
+  // The list-of-clauses shape an author (or agent) might copy from CollectionListQuery.where must not
+  // silently turn a filtered list into an unfiltered one.
+  const asClauseList = parseCollectionListConfig({ where: [{ field: "vegetarian", value: true }] }, RECIPE_CONTENT_TYPE);
+  const asString = parseCollectionListConfig({ where: "vegetarian=true" }, RECIPE_CONTENT_TYPE);
+
+  assert.deepEqual(asClauseList, { ok: false, reason: "where must be an object of {field: value} pairs" });
+  assert.deepEqual(asString, { ok: false, reason: "where must be an object of {field: value} pairs" });
+});
+
+test("parseCollectionListConfig: a null where means no filter, like an absent one", () => {
+  const result = parseCollectionListConfig({ where: null }, RECIPE_CONTENT_TYPE);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.ok && result.query.where, []);
+});
