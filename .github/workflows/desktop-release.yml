@@ -94,8 +94,8 @@ jobs:
         env:
           CSC_LINK: ${{ runner.os == 'macOS' && secrets.CSC_LINK || '' }}
           CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.CSC_KEY_PASSWORD || '' }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_ID: ${{ runner.os == 'macOS' && secrets.APPLE_API_KEY_ID || '' }}
+          APPLE_API_ISSUER: ${{ runner.os == 'macOS' && secrets.APPLE_API_ISSUER || '' }}
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ runner.os == 'Windows' && 'false' || 'true' }}
         run: npx electron-builder ${{ matrix.eb }} --publish never
       - name: verify-package (unpacked build)
@@ -109,16 +109,27 @@ jobs:
         working-directory: apps/desktop
         run: |
           codesign --verify --deep --strict --verbose=2 "${{ matrix.app }}"
-          spctl -a -vv -t exec "${{ matrix.app }}" 2>&1 | tee /dev/stderr | grep -q "source=Notarized Developer ID"
+          # Captured, not piped: `grep -q` exiting early can SIGPIPE a `tee` under pipefail. A non-zero
+          # spctl fails the assignment itself under `bash -e`.
+          out="$(spctl -a -vv -t exec "${{ matrix.app }}" 2>&1)"; echo "$out"
+          grep -q "source=Notarized Developer ID" <<<"$out"
           xcrun stapler validate "${{ matrix.app }}"
           test "$(lipo -archs "${{ matrix.app }}/Contents/MacOS/Tovu")" = "${{ matrix.lipo }}"
       - if: runner.os == 'macOS'
         name: Notarize + staple the dmg itself
         working-directory: apps/desktop/release
+        env: { KID: "${{ secrets.APPLE_API_KEY_ID }}", ISS: "${{ secrets.APPLE_API_ISSUER }}" }
+        # `notarytool submit --wait` can exit 0 on an `Invalid` submission, so its exit code is not
+        # the verdict: the stapled ticket (`stapler validate`) and spctl's `source=` line are.
         run: |
-          xcrun notarytool submit "${{ matrix.out }}" --key "$APPLE_API_KEY" --key-id "${{ secrets.APPLE_API_KEY_ID }}" --issuer "${{ secrets.APPLE_API_ISSUER }}" --wait
+          xcrun notarytool submit "${{ matrix.out }}" --key "$APPLE_API_KEY" --key-id "$KID" --issuer "$ISS" --wait
           xcrun stapler staple "${{ matrix.out }}"
-          spctl -a -vv -t open --context context:primary-signature "${{ matrix.out }}"
+          xcrun stapler validate "${{ matrix.out }}"
+          out="$(spctl -a -vv -t open --context context:primary-signature "${{ matrix.out }}" 2>&1)"; echo "$out"
+          grep -q "source=Notarized Developer ID" <<<"$out"
+      - if: always() && runner.os == 'macOS'
+        name: Remove the App Store Connect key file
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8"
       - if: runner.os == 'macOS'
         name: verify-package on the SHIPPED dmg
         working-directory: apps/desktop
@@ -136,7 +147,9 @@ jobs:
           node scripts/verify-package.ts --asar "$RUNNER_TEMP/app/resources/app.asar"
       - name: Checksum
         working-directory: apps/desktop/release
-        run: shasum -a 256 "${{ matrix.out }}" > "${{ matrix.out }}.sha256"
+        # Node, not shasum/sha256sum: the same tool and output format (`<hex>  <name>`) on all runners.
+        run: >-
+          node -e "const f=process.argv[1];const h=require('crypto').createHash('sha256').update(require('fs').readFileSync(f)).digest('hex');require('fs').writeFileSync(f+'.sha256',h+'  '+f+'\\n')" "${{ matrix.out }}"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with: { name: "${{ matrix.id }}", path: "apps/desktop/release/${{ matrix.out }}*", retention-days: 7, if-no-files-found: error }
 
@@ -151,12 +164,16 @@ jobs:
         env: { GH_TOKEN: "${{ github.token }}", GH_REPO: "${{ github.repository }}" }
         # dist/Tovu-windows-x64-setup.exe now exists — the win-x64 matrix row builds it and
         # electron-builder.yml's nsis.artifactName names it exactly this.
+        # A re-run may refresh a DRAFT's assets, never a published release's: those are what the
+        # stable `releases/latest/download/...` URLs already serve.
         run: |
           cat dist/*.sha256 > dist/SHA256SUMS.txt
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/Tovu-* dist/SHA256SUMS.txt --clobber
+          assets=(dist/Tovu-mac-arm64.dmg dist/Tovu-mac-x64.dmg dist/Tovu-windows-x64-setup.exe dist/SHA256SUMS.txt)
+          if draft="$(gh release view "$TAG" --json isDraft -q .isDraft 2>/dev/null)"; then
+            test "$draft" = "true" || { echo "release $TAG is already published; refusing to replace its assets"; exit 1; }
+            gh release upload "$TAG" "${assets[@]}" --clobber
           else
             gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "Tovu Desktop ${TAG#desktop-v}" \
               --notes "Mac: notarized. Windows: unsigned — SmartScreen: More info → Run anyway." \
-              dist/Tovu-mac-arm64.dmg dist/Tovu-mac-x64.dmg dist/Tovu-windows-x64-setup.exe dist/SHA256SUMS.txt
+              "${assets[@]}"
           fi
