@@ -1,11 +1,10 @@
 import type { ComponentType } from "react";
 
-import type { PagePreviewDevice } from "../features/pages/hooks/use-page-editor.hooks";
+import type { DevicePreviewDevice } from "./DevicePreview/DevicePreview.hooks";
 
 /**
- * @file Icons for the device-width preview toggle (`PageEditor.tsx` and `ThemeExplore.tsx` both
- * render `{ key: PagePreviewDevice; label: string }[]` segmented controls over the same
- * `PAGE_PREVIEW_WIDTHS` — see that constant's doc). The toggle used to show the translated word
+ * @file Icons for the device-width preview toggle (`DevicePreview/DevicePreviewToggle.tsx`, shared by
+ * the Pages, Posts and Themes editors over `DEVICE_PREVIEW_WIDTHS` — see that constant's doc). The toggle used to show the translated word
  * itself ("Desktop"/"Tablet"/"Mobile") as the button's visible text; the word is now icon-only
  * chrome — an `aria-label`/`title` carried by the caller from the same `t(entry.label)` call this
  * file has no opinion on — and these three glyphs are what replace it (2026-09-22 owner ask, device
@@ -67,13 +66,13 @@ function SmartphonePreviewIcon() {
 }
 
 /**
- * Looks up the icon component for a preview device by {@link PagePreviewDevice} key, so both
- * callers render `<Icon />` off the same `DEVICES.map` they already have instead of each carrying
+ * Looks up the icon component for a preview device by {@link DevicePreviewDevice} key, so the
+ * toggle renders `<Icon />` off its own `DEVICE_PREVIEW_OPTIONS.map` instead of carrying
  * its own `key === "desktop" ? ... : ...` branch.
  *
  * @complexity O(1) — fixed three-entry lookup table.
  */
-export const DEVICE_PREVIEW_ICONS: Readonly<Record<PagePreviewDevice, ComponentType>> = {
+export const DEVICE_PREVIEW_ICONS: Readonly<Record<DevicePreviewDevice, ComponentType>> = {
   desktop: LaptopPreviewIcon,
   tablet: TabletPreviewIcon,
   mobile: SmartphonePreviewIcon,

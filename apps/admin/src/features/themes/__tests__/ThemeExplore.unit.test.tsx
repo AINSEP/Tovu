@@ -18,7 +18,7 @@ import type { ThemeExploreController, ThemeExploreFile } from "../hooks/use-them
  * - Partials now preview standalone (`/theme-explore/{theme}/partial/{id}`) instead of showing "no
  *   standalone preview" — a partial is complete, styled markup the moment its CSS loads.
  * - The Preview pane has a Desktop/Tablet/Mobile width control (reusing `PageEditor.tsx`'s own
- *   `PAGE_PREVIEW_WIDTHS`) plus a fullscreen affordance, keyboard-dismissible via Escape.
+ *   `DEVICE_PREVIEW_WIDTHS`) plus a fullscreen affordance, keyboard-dismissible via Escape.
  */
 
 const FILES: ThemeExploreFile[] = [
@@ -259,7 +259,7 @@ describe("device width control", () => {
     expect(screen.queryByRole("button", { name: /view preview fullscreen/i })).not.toBeInTheDocument();
   });
 
-  it("defaults to Desktop pressed and shows its pixel width, matching PAGE_PREVIEW_WIDTHS.desktop", () => {
+  it("defaults to Desktop pressed and shows its pixel width, matching DEVICE_PREVIEW_WIDTHS.desktop", () => {
     renderExplore({ view: "preview" });
     expect(screen.getByRole("button", { name: "Desktop" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("1280px")).toBeInTheDocument();
@@ -274,7 +274,7 @@ describe("device width control", () => {
     expect(screen.getByText("834px")).toBeInTheDocument();
   });
 
-  it("clicking Mobile updates the readout to PAGE_PREVIEW_WIDTHS.mobile", async () => {
+  it("clicking Mobile updates the readout to DEVICE_PREVIEW_WIDTHS.mobile", async () => {
     const user = userEvent.setup();
     renderExplore({ view: "preview" });
     await user.click(screen.getByRole("button", { name: "Mobile" }));

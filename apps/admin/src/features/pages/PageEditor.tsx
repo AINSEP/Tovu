@@ -3,7 +3,9 @@ import { ConfirmDialog, InteractiveHtmlEditor } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBar.hooks";
-import { DEVICE_PREVIEW_ICONS } from "../../components/device-preview-icons";
+import { DEVICE_PREVIEW_WIDTHS, type DevicePreviewDevice } from "../../components/DevicePreview/DevicePreview.hooks";
+import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
+import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
 import type { Translate } from "../../lib/dictionary-translator";
 import { siteUrl } from "../../lib/site-url";
 import type {
@@ -11,9 +13,7 @@ import type {
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
 import {
-  PAGE_PREVIEW_WIDTHS,
   useWiredPageEditor,
-  type PagePreviewDevice,
   type PageEditorView,
 } from "./hooks/use-page-editor.hooks";
 import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
@@ -56,12 +56,6 @@ export interface PageEditorProps {
   /** DI seam for tests — same convention as `Pages.tsx`'s `usePagesHook`. */
   usePageEditorHook?: typeof useWiredPageEditor;
 }
-
-const DEVICES: ReadonlyArray<{ key: PagePreviewDevice; label: string }> = [
-  { key: "desktop", label: "Desktop" },
-  { key: "tablet", label: "Tablet" },
-  { key: "mobile", label: "Mobile" },
-];
 
 const VIEWS: ReadonlyArray<{ key: PageEditorView; label: string }> = [
   { key: "html", label: "HTML" },
@@ -531,8 +525,8 @@ function PageEditorToolbarEnd({
   t,
 }: {
   view: PageEditorView;
-  device: PagePreviewDevice;
-  setDevice: (value: PagePreviewDevice) => void;
+  device: DevicePreviewDevice;
+  setDevice: (value: DevicePreviewDevice) => void;
   bodyFormat: "doc" | "html" | undefined;
   availableTemplates: string[];
   templateChoice: string | null;
@@ -542,26 +536,7 @@ function PageEditorToolbarEnd({
   return (
     <div className="page-editor-toolbar-end">
       {view === "preview" ? (
-        <div className="segmented" role="group" aria-label={t("Preview width")}>
-          {DEVICES.map((entry) => {
-            const DeviceIcon = DEVICE_PREVIEW_ICONS[entry.key];
-            return (
-              <button
-                key={entry.key}
-                type="button"
-                aria-pressed={device === entry.key}
-                aria-label={t(entry.label)}
-                title={t(entry.label)}
-                className={device === entry.key ? "is-active" : undefined}
-                onClick={() => setDevice(entry.key)}
-                {...agentHandle(`page-preview-width-${entry.key}`, { role: "button", label: `Preview at ${entry.label} width` })}
-              >
-                <DeviceIcon />
-              </button>
-            );
-          })}
-          <span className="page-editor-width">{PAGE_PREVIEW_WIDTHS[device]}px</span>
-        </div>
+        <DevicePreviewToggle device={device} setDevice={setDevice} t={t} handlePrefix="page-preview-width" />
       ) : null}
       {bodyFormat === "html" ? (
         <div className="editor-template-picker">
@@ -873,7 +848,7 @@ function PageEditorPane({
   /** Per-tab scroll memory, Preview half — see `PageEditorController.onPreviewFrameLoad`'s own doc.
    *  Threaded straight through to `PagePreview` below; this dispatcher does not call it itself. */
   onPreviewFrameLoad: (iframe: HTMLIFrameElement) => void;
-  device: PagePreviewDevice;
+  device: DevicePreviewDevice;
   slug: string;
   /** The loaded row's current version — see `PagePreviewFrame`'s own doc for why the live-site src
    *  is cache-busted with it. */
@@ -903,7 +878,7 @@ function PageEditorPane({
     return (
       <PagePreview
         html={html}
-        width={PAGE_PREVIEW_WIDTHS[device]}
+        width={DEVICE_PREVIEW_WIDTHS[device]}
         slug={slug}
         version={version}
         status={status}
@@ -952,7 +927,7 @@ function PageEditorPane({
  * Renders the page at a fixed viewport width and scales the whole thing down to fit the pane.
  *
  * The scale is a CSS transform on a fixed-width box, not a responsive iframe, and that difference is
- * the entire point — see `PAGE_PREVIEW_WIDTHS`. The wrapper's height is scaled to match so the
+ * the entire point — see `DEVICE_PREVIEW_WIDTHS`. The wrapper's height is scaled to match so the
  * transformed content does not leave a gap or overflow underneath it. Both branches below fill this
  * same scaled box identically (`.page-preview-iframe` sets `width/height: 100%` on either element),
  * so `3ac885e`'s live pane-width tracking and the toolbar-to-preview spacing are unaffected by which
@@ -1009,7 +984,7 @@ function PageEditorPane({
  * here — nothing in this component depends on reaching into it.
  *
  * Preview fullscreen (2026-09-16). Expanding widens the PANE, never the previewed page: the
- * Desktop/Tablet/Mobile choice (`PAGE_PREVIEW_WIDTHS`, the `page-preview-width-*` buttons) is the
+ * Desktop/Tablet/Mobile choice (`DEVICE_PREVIEW_WIDTHS`, the `page-preview-width-*` buttons) is the
  * operator's statement about which viewport they are inspecting, so it is carried into the expanded
  * panel unchanged rather than overridden to Desktop. Overriding would silently discard a selection
  * they just made and would make the single most useful thing this control can do — look at the
@@ -1070,13 +1045,6 @@ function PagePreview({
   onFrameLoad: (iframe: HTMLIFrameElement) => void;
   t: Translate;
 }) {
-  // Floored above zero, not just capped at 1: `paneWidth` is whatever `ResizeObserver` last reported
-  // for the frame, and a zero-width observation (the frame measured during a paint where its column
-  // has no width yet) would make the expanded scaler's height `calc(100% / 0)` — not a big number
-  // but an INVALID declaration, which CSS drops entirely, silently reverting the height to `auto`.
-  // The floor keeps that expression well-formed. It cannot affect the ordinary path: any real
-  // measurement is orders of magnitude above it.
-  const scale = Math.max(0.01, Math.min(1, paneWidth / width));
   const canShowLiveSite = status === "published" && !dirty;
 
   const pane = (
@@ -1086,40 +1054,20 @@ function PagePreview({
           {pagePreviewNotice({ status, contentDirty })}
         </p>
       )}
-      {/* Collapsed the frame is a fixed `900 * scale` box, exactly as it has always been. Expanded
-          it takes its height from the flex column instead (`pages.css`'s
-          `.page-preview-expanded .page-preview-frame`), so no inline height is written at all —
-          an inline height would beat that rule and pin the panel back to 900px.
-
-          The scaler's own height follows from that: `calc(100% / scale)` of a frame that is `H`
-          tall renders, after `scale(scale)`, as exactly `H` — i.e. the previewed viewport gets
-          TALLER as the panel does, which is the whole point of going full screen. Collapsed it
-          stays the literal `900px` it has always been (which is the same number this formula
-          would produce there, since `H` is `900 * scale` — written as a constant anyway so the
-          collapsed pane cannot drift on a rounding change). No measurement is needed for either:
-          the percentage resolves against the flex item's own used height. */}
-      <div
-        ref={frameRef}
-        className="page-preview-frame"
-        style={expanded ? undefined : { height: `${900 * scale}px` }}
-      >
-        <div
-          className="page-preview-scaler"
-          style={{ width: `${width}px`, height: expanded ? `calc(100% / ${scale})` : "900px", transform: `scale(${scale})` }}
-        >
-          <PagePreviewFrame
-            canShowLiveSite={canShowLiveSite}
-            slug={slug}
-            version={version}
-            html={html}
-            templatePreviewUrl={templatePreviewUrl}
-            previewFormRef={previewFormRef}
-            previewFormTarget={previewFormTarget}
-            onFrameLoad={onFrameLoad}
-            t={t}
-          />
-        </div>
-      </div>
+      {/* Collapsed vs. expanded frame/scaler heights: see `devicePreviewFrameStyles`. */}
+      <DevicePreviewFrame width={width} frameRef={frameRef} paneWidth={paneWidth} expanded={expanded}>
+        <PagePreviewFrame
+          canShowLiveSite={canShowLiveSite}
+          slug={slug}
+          version={version}
+          html={html}
+          templatePreviewUrl={templatePreviewUrl}
+          previewFormRef={previewFormRef}
+          previewFormTarget={previewFormTarget}
+          onFrameLoad={onFrameLoad}
+          t={t}
+        />
+      </DevicePreviewFrame>
     </>
   );
 

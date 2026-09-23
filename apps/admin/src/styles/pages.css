@@ -164,7 +164,7 @@
 
 /*
  * The preview renders at a FIXED viewport width and is scaled down to fit — see
- * `use-page-editor.hooks.ts`'s `PAGE_PREVIEW_WIDTHS`. `overflow: hidden` on the frame is what keeps
+ * `components/DevicePreview/DevicePreview.hooks.ts`'s `DEVICE_PREVIEW_WIDTHS`. `overflow: hidden` on the frame is what keeps
  * the scaled box from spilling past the pane, and `transform-origin` at the top-left is what makes
  * the scale shrink toward the corner instead of the centre (which would crop both sides).
  */
