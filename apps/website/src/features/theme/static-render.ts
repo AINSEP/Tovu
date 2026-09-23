@@ -5,6 +5,7 @@ import {
   POST_PREVIEWS_MARKER_TYPE,
   substituteMarkers,
   withAddedId,
+  withElementKeptIfAttributed,
   withInnerContent,
 } from "#src/contracts/core/embeds/marker";
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";
@@ -533,8 +534,13 @@ function resolveSlotMarker(
 
 /**
  * Replace every `{"type":"partial"}` marker with the root partial the theme's `theme.json` `slots`
- * block maps that key to. Unlike a menu marker, the marker element itself disappears — it is
- * scaffolding, and the partial is a complete `<nav>`/`<footer>` of its own.
+ * block maps that key to. A BARE marker's own element disappears entirely — it is scaffolding, and
+ * the partial is a complete `<nav>`/`<footer>` of its own — but one carrying any authored attribute
+ * besides `data-embed-config` keeps that element (minus the marker config) around the resolved
+ * partial ({@link withElementKeptIfAttributed}, D3 of the 2026-09-23 collections/embeds plan): the
+ * same keep-if-attributed rule the `widget` marker type already followed. A survey of every shipped
+ * theme found no attributed partial marker in the wild, so this is additive — every existing bare
+ * marker keeps disappearing exactly as before.
  *
  * Manifest-driven rather than the hardcoded `nav`/`footer` pair this carried before 2026-08-10; that
  * pair now lives in {@link DEFAULT_THEME_SLOTS} and is used verbatim for a theme declaring no
@@ -553,8 +559,25 @@ function resolveSlots(
     if (marker.type !== PARTIAL_MARKER_TYPE || marker.id === undefined) return undefined;
     const descriptor = slots[marker.id];
     if (descriptor === undefined) return undefined;
-    return resolveSlotMarker(descriptor, partials, marker.config);
+    return withElementKeptIfAttributed(marker, resolveSlotMarker(descriptor, partials, marker.config));
   });
+}
+
+/**
+ * Partial-slot expansion as its OWN exported step (E2, 2026-09-23), so a caller can run it standalone
+ * over already-assembled HTML rather than only as the inline step {@link renderStaticPage} below
+ * still takes. Exists for D2's `finishStaticTierDocument` pipeline (`pages.ts`), which expands
+ * partials first and only then scans the assembled result for widget/media/post/content/menu/
+ * post-previews markers a partial itself might carry.
+ *
+ * Equivalent to {@link resolveSlots} called with the theme's own partials and declared (or default)
+ * slots — no new behavior, just a named entry point for a caller that only has a `theme`, not the
+ * two separate `partials`/`slots` arguments.
+ *
+ * @complexity Same as {@link resolveSlots}: O(n) over `html`'s length.
+ */
+export function expandPartials(html: string, theme: DiscoveredTheme): string {
+  return resolveSlots(html, theme.partials, theme.manifest.slots ?? DEFAULT_THEME_SLOTS);
 }
 
 /**
@@ -638,7 +661,7 @@ export function renderStaticPage(
     );
   }
   html = injectColorMode(html, theme.manifest.defaultMode);
-  html = resolveSlots(html, theme.partials, theme.manifest.slots ?? DEFAULT_THEME_SLOTS);
+  html = expandPartials(html, theme);
   html = injectMenuEmbeds(html, menus ?? {});
   html = injectPostPreviewsEmbeds(html, postPreviews ?? []);
   html = rewritePageLinks(html);

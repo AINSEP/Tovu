@@ -1708,6 +1708,14 @@ const HTML_EMBED_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeho
 export function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbedsResult | undefined): string {
   return substituteHtmlEmbeds(html, (ref, occurrence) => {
     if (!isPageEmbedType(ref.type)) return undefined;
+    // D4 guard (2026-09-23): a "content"/"post" marker naming neither an id nor a slug has no
+    // current entity to resolve against at all — e.g. the static theme's own `index.html`, whose
+    // `{"type":"content","header":false}` marker names no id because D2's `finishStaticTierDocument`
+    // runs this stage over assembled HTML, not a per-entity render. Leave it exactly as authored
+    // (return `undefined`, `substituteMarkers`' own "leave as written" contract) instead of
+    // degrading to the REQ-28 placeholder, which is the right answer only when an id/slug WAS
+    // named but failed to resolve.
+    if ((ref.type === "content" || ref.type === "post") && ref.id === null && ref.slug === null) return undefined;
     const lookupKey = ref.id ?? ref.slug;
     const ir = (lookupKey !== null ? resolved?.get(ref.type)?.get(lookupKey) : undefined) ?? HTML_EMBED_PLACEHOLDER_IR;
     return renderWidgetIr(withOccurrenceMediaAttributes(withOccurrenceHeader(ir, ref), ref, occurrence));
