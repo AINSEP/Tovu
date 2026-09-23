@@ -2352,6 +2352,13 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    `inline-flex`-with-`gap` approach; owner asked for 5px first, then 10px after seeing it live —
    10px is the value he actually signed off on, not the 6px `image` settled on, so don't unify the
    two values without asking again. */
+/* Owner-reported (2026-09-22): a `media` block holding a video rendered at native size, overflowing
+   the editor column (cut off on the right, taller than the screen); `img` previews were unaffected
+   since `.editor-body .tiptap img` above already constrains them. Same `max-width`/`height: auto`
+   approach extended to `.media-embed-node__preview` (`lib/media-embed-extension.tsx`, covers both the
+   `<video>` and `<img>` preview elements), plus a `max-height` so a tall/portrait video can't fill the
+   viewport, and `margin-bottom` so the actions row below sits off the preview instead of touching it. */
+.media-embed-node__preview { display: block; max-width: 100%; max-height: 60vh; width: auto; height: auto; margin-bottom: 10px; }
 .media-embed-node__actions { display: inline-flex; gap: 10px; }
 /* Owner-reported (2026-09-22): a widget/form embed's "Change"/"Remove" buttons
    (`lib/widget-embed-extension.tsx`'s `.widget-embed-node__actions`) touched each other and the
