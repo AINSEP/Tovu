@@ -12,7 +12,7 @@
  * OFF the card and into the ⋮ menu (their reason is misclicks — a destructive control beside a
  * button pressed often is too easy to hit), and Start/Stop wears the header's "Create website"
  * style instead of its own look. Both are asserted below from source text, the same way the ⋮/trash
- * placement was before. The live check in `scripts/verify-site-power.mjs` covers what only a real
+ * placement was before. The live check in `scripts/verify-site-power.ts` covers what only a real
  * DOM can prove — computed style equality, and that clicking the menu entry actually opens the
  * confirm overlay rather than deleting.
  *
