@@ -898,17 +898,17 @@ function FormEditorMainPanel(props: {
   const { isNew, tab, formId, fieldsBody, t } = props;
 
   if (isNew) {
-    return <div className="card">{fieldsBody}</div>;
+    return <div className="form-editor-panel">{fieldsBody}</div>;
   }
   if (tab === "fields") {
     return (
-      <div className="card" role="tabpanel" id="form-panel-fields" aria-labelledby="form-tab-fields">
+      <div className="form-editor-panel" role="tabpanel" id="form-panel-fields" aria-labelledby="form-tab-fields">
         {fieldsBody}
       </div>
     );
   }
   return (
-    <div className="card" role="tabpanel" id="form-panel-submissions" aria-labelledby="form-tab-submissions">
+    <div className="form-editor-panel" role="tabpanel" id="form-panel-submissions" aria-labelledby="form-tab-submissions">
       <FormSubmissions formId={formId} t={t} />
     </div>
   );
@@ -985,7 +985,7 @@ export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor
     <div className="page">
       {/* `page-header-split` (the same modifier `PageEditorHeader`/`PostEditor` use on the shared
           `.page-header`, `styles.css`) — back link alone at the far left, title block centred.
-          Forms has no Save/Delete group living in this header (that's inside the fields card
+          Forms has no Save/Delete group living in this header (that's inside the fields panel
           below), so the header's third rail just stays empty, same as the editors' post-move
           state. */}
       <div
