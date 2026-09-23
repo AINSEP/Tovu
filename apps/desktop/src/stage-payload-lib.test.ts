@@ -23,6 +23,7 @@ import {
   assertClosureComplete,
   diskBytes,
   newestMtime,
+  parseNpmLsPaths,
   prebuildTarget,
   pruneNativePrebuilds,
   resolveNpmLsCommand,
@@ -726,4 +727,14 @@ test("resolveNpmLsCommand: falls back to npm through the platform shell on win32
     args: ["ls", "--omit=dev", "--parseable", "--all"],
     shell: true,
   });
+});
+
+test("parseNpmLsPaths reads LF output: unique, sorted, relative to node_modules, other lines ignored", () => {
+  const stdout = ["/repo", "/repo/node_modules/zod", "/repo/node_modules/@scope/pkg", "/repo/node_modules/zod", ""].join("\n");
+  assert.deepEqual(parseNpmLsPaths(stdout, "/repo/node_modules", "/"), ["@scope/pkg", "zod"]);
+});
+
+test("parseNpmLsPaths reads CRLF output (npm on Windows) without a trailing carriage return on any name", () => {
+  const stdout = ["C:\\repo", "C:\\repo\\node_modules\\zod", "C:\\repo\\node_modules\\@scope\\pkg", ""].join("\r\n");
+  assert.deepEqual(parseNpmLsPaths(stdout, "C:\\repo\\node_modules", "\\"), ["@scope\\pkg", "zod"]);
 });

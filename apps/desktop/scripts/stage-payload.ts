@@ -50,6 +50,7 @@ import {
   diskBytes,
   isExcluded,
   newestMtime,
+  parseNpmLsPaths,
   stageDir,
   pruneNativePrebuilds,
   resolveNpmLsCommand,
@@ -136,8 +137,7 @@ function productionDependencyPaths(): string[] {
     // `as`: `execFileSync`'s thrown error carries the same `stdout` it would have returned.
     stdout = (err as { stdout?: string }).stdout ?? "";
   }
-  const prefix = `${repoModulesDir}${path.sep}`;
-  const names = [...new Set(stdout.split("\n").filter((line) => line.startsWith(prefix)).map((line) => line.slice(prefix.length)))].sort();
+  const names = parseNpmLsPaths(stdout, repoModulesDir, path.sep);
   if (names.length === 0) {
     fail(`npm ls listed no packages under ${repoModulesDir}. Has \`npm install\` run at the repo root?`);
   }

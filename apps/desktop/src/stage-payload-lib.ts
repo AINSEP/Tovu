@@ -511,3 +511,24 @@ export function newestMtime(abs: string): number {
   }
   return newest;
 }
+
+/**
+ * The package paths in `npm ls --parseable` output that live under `modulesDir`, relative to it,
+ * de-duplicated and sorted.
+ *
+ * Splits on `/\r?\n/`, not `"\n"`: npm on Windows can end lines with CRLF, and a `"\n"` split
+ * would leave a `\r` on every name — a path that does not exist, so the package would silently
+ * fail to stage.
+ *
+ * @param sep the platform path separator between `modulesDir` and each package path; production
+ *   passes `path.sep`, tests pass either platform's.
+ * @complexity O(n log n) in the number of lines.
+ */
+export function parseNpmLsPaths(stdout: string, modulesDir: string, sep: string): string[] {
+  const prefix = `${modulesDir}${sep}`;
+  const names = stdout
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith(prefix))
+    .map((line) => line.slice(prefix.length));
+  return [...new Set(names)].sort();
+}
