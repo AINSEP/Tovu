@@ -374,9 +374,11 @@ function navTargetToRouteTarget(target: NavTarget): RouteTarget {
  * A theme marker now names a real stored menu `id` directly (e.g. `data-embed-id="menu-header-nav"`)
  * — the same `data-embed-type`/`data-embed-id` convention posts already use (`injectCurrentEntityContentId`) —
  * rather than a theme-independent named location resolved through `nav_location_bindings`. This
- * intentionally leaves `resolveForLocation`, `navLocationBindingRepo`, and the Menus admin screen's
- * "Assign location" feature in place but UNUSED for static-tier header/footer rendering specifically:
- * they are not deleted (other tiers or a future deprecation may still want them), simply no longer
+ * intentionally leaves `resolveForLocation`, `navLocationBindingRepo`, and the admin `assign-location`
+ * API route (`admin-http/routes/menus/assign-location.ts`) in place but UNUSED for static-tier
+ * header/footer rendering specifically — the Menus admin screen itself has no "assign location" UI;
+ * the theme alone decides where each menu goes, via the `data-embed-id` slug markers above. These are
+ * not deleted (other tiers or a future deprecation may still want them), simply no longer
  * on this call path. `resolveMenuDoc` (`navigation`) is the doc-level building block
  * `resolveForLocation` itself composed on top of a location lookup — called directly here per
  * referenced menu id instead. It still needs the same injected `resolveTargetHref` seam `routing`'s
