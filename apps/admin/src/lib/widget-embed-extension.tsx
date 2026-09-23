@@ -127,11 +127,13 @@ export const WidgetEmbed = Node.create({
       widgetEntryId: { default: null },
       // Per-instance style override (2026-09-23, W2 — owner ask: "widget embed attributes pass
       // through like the other types"), same two field names/shape as the `media` node's own
-      // `cssClass`/`htmlAttributes` (`media-embed-extension.tsx`). The editor UI is the Style
-      // action (`WidgetEmbedNodeView`); render-time, `htmlAttributes` is additionally restricted to
-      // only `data-*`/`aria-*` names (D5) — narrower than what the reused media validator itself
-      // allows, since a widget's own DOM structure is not the operator's to attach `style`/`id`/
-      // arbitrary attributes onto.
+      // `cssClass`/`htmlAttributes` (`media-embed-extension.tsx`). The editor UI (the Style action,
+      // `WidgetEmbedNodeView`) mirrors the media node's Edit dialog exactly — no extra client-side
+      // filtering or warning on attribute names. What the render-time allowlist actually keeps is a
+      // server-side decision (`render.ts`), out of this admin-only slice's scope, and is expected to
+      // change (2026-09-23 owner correction: `data-*`/`aria-*`-only was too narrow — `class`/`id`/
+      // `style`/animation attributes are meant to stay, same as media; only `on*`/`javascript:` stay
+      // blocked).
       cssClass: { default: null },
       htmlAttributes: { default: null },
     };

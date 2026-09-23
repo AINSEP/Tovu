@@ -102,10 +102,6 @@ export function MediaEditDialog({ initial, onSave, onCancel, showAlt = true, use
             aria-invalid={htmlAttributesError ? true : undefined}
           />
           {htmlAttributesError ? <p className="field-error">{htmlAttributesError}</p> : null}
-          {/* Widget's own extra restriction (D5): the render-time allowlist here is narrower than
-              what `parseMediaHtmlAttributes`/`htmlAttributesError` itself validates against, so this
-              static note (not gated on any draft state) is the only place that boundary is visible. */}
-          {!showAlt ? <p className="field-hint">{t("Only data-* and aria-* attributes are kept.")}</p> : null}
         </div>
 
         <div className="widget-picker-footer">

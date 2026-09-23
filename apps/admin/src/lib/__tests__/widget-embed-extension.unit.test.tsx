@@ -305,7 +305,6 @@ describe("WidgetEmbedNodeView", () => {
     expect(screen.getByLabelText("CSS class (optional)")).toHaveValue("hero");
     expect(screen.getByLabelText("HTML attributes (optional)")).toHaveValue('data-kui="x"');
     expect(screen.queryByLabelText(/Alt text/)).not.toBeInTheDocument();
-    expect(screen.getByText("Only data-* and aria-* attributes are kept.")).toBeInTheDocument();
   });
 
   it("Style is available even before the widget has resolved, unlike Change", () => {

@@ -163,23 +163,24 @@ describe("MediaEditDialog — showAlt (2026-09-23, W2: the widgetEmbed node's St
     expect(screen.getByLabelText("Alt text (optional)")).toBeInTheDocument();
   });
 
-  it("showAlt={false} shows the data-*/aria-* hint that the default (media) dialog does not", () => {
-    const useDialog: typeof useWiredMediaEditDialog = () => fakeController();
-    const { rerender } = render(
-      <MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />
-    );
-    expect(screen.queryByText("Only data-* and aria-* attributes are kept.")).not.toBeInTheDocument();
-
-    rerender(
+  it("with showAlt={false}, the dialog otherwise mirrors media's exactly: no extra client-side hint or filtering on attribute names", () => {
+    const useDialog: typeof useWiredMediaEditDialog = () => fakeController({ htmlAttributes: 'style="color:red"' });
+    render(
       <MediaEditDialog
-        initial={{ alt: null, cssClass: null, htmlAttributes: null }}
+        initial={{ alt: null, cssClass: null, htmlAttributes: 'style="color:red"' }}
         onSave={vi.fn()}
         onCancel={vi.fn()}
         showAlt={false}
         useDialog={useDialog}
       />
     );
-    expect(screen.getByText("Only data-* and aria-* attributes are kept.")).toBeInTheDocument();
+
+    // Only the fields showAlt itself governs differ from the default dialog — no additional
+    // static warning about which attribute names survive (2026-09-23 owner correction: the
+    // data-*/aria-*-only framing was a mistake; the server-side allowlist is being widened
+    // separately, and the UI must not pre-empt that with its own client-side message).
+    expect(screen.getByLabelText("HTML attributes (optional)")).toHaveValue('style="color:red"');
+    expect(screen.queryByText(/data-\*/)).not.toBeInTheDocument();
   });
 
   it("with showAlt={false}, Save still returns the initial alt untouched even though no field can change it (real hook)", async () => {
