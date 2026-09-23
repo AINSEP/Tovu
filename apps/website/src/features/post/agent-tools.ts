@@ -289,14 +289,17 @@ const TIPTAP_TEXT_NODE_SCHEMA = {
  * `description` below for the full guidance published to the model, and `render.ts`'s
  * `renderDocMedia` for the actual dispatch.
  *
- * `attrs.cssClass`/`attrs.htmlAttributes` (2026-09-11, per-post styling): both OPTIONAL, same two
- * field names and raw-text shape as the asset's own metadata fields, layered over them per field at
- * render time (`render.ts`'s `mediaNodeStyleOverride` — node value wins when set, asset value
- * otherwise). `htmlAttributes` is re-validated at render time against the SAME allowlist the admin
- * asset-level field uses (`@jini-ai/cms/media`'s `parseMediaHtmlAttributes`) — a disallowed name
- * (an `on*` handler, a `javascript:` value, anything not on the allowlist) is silently omitted from
- * the rendered tag rather than rejected up front here, so this schema does not re-encode the
- * allowlist itself; the `description` strings below just tell the model what tends to be accepted.
+ * `attrs.cssClass`/`attrs.htmlAttributes` (2026-09-11, per-post styling; widened 2026-09-23 by the
+ * widget-attrs plan's S1): both OPTIONAL, same two field names and raw-text shape as the asset's own
+ * metadata fields, layered over them per field at render time (`render.ts`'s
+ * `mediaNodeStyleOverride` — node value wins when set, asset value otherwise). `htmlAttributes` is
+ * re-validated at render time against the shared allowlist
+ * (`#src/contracts/core/embeds/html-attributes`'s `parseEmbedHtmlAttributes`) — class/id/style/
+ * data- prefix/aria- prefix and more are kept; on-prefixed handlers, javascript:/vbscript:/data:
+ * URLs and unsafe style values are dropped per token (every other accepted token in the same string
+ * still lands); malformed text drops all. Rejected/dropped tokens are silently omitted from the tag
+ * rather than rejected up front here, so this schema does not re-encode the allowlist itself; the
+ * `description` strings below just tell the model what tends to be accepted.
  *
  * `image` — this schema's OWN entry for it, added earlier the same 2026-09-11 session (the incident
  * this file's header describes) — was removed from THIS SCHEMA later that same session, owner
@@ -526,9 +529,11 @@ export const TIPTAP_DOC_SCHEMA = {
                 htmlAttributes: {
                   type: "string",
                   description:
-                    "Optional extra HTML attributes applied to the rendered tag for THIS post only, e.g. 'data-kui=\"hero\"' or a " +
-                    "bare boolean attribute like 'muted'. Wins over the asset's own htmlAttributes when both are set. Event handler " +
-                    "attributes (onclick, onerror, …) and javascript: values are never emitted, silently dropped at render time. " +
+                    "Optional extra HTML attributes applied to the rendered tag for THIS post only, e.g. 'style=\"opacity:0\"', " +
+                    "'id=\"hero\"', 'data-kui=\"hero\"', or a bare boolean attribute like 'muted'. Wins over the asset's own " +
+                    "htmlAttributes when both are set. class/id/style/data-*/aria-* and more are kept; event handler attributes " +
+                    "(onclick, onerror, …), javascript:/vbscript:/data: URLs and unsafe style values are dropped one at a time at " +
+                    "render time (every other attribute in the string still lands); malformed text drops the whole string. " +
                     "Omit to inherit the asset's own attributes, if any.",
                 },
               },
@@ -585,9 +590,10 @@ export const TIPTAP_DOC_SCHEMA = {
             "A block-level widget embed reference (see this schema's own top-level doc). Read-and-recognize only through this tool — author new embeds via widgets_insert_embed, not by hand-writing this node. " +
             "The node MAY also carry attrs.cssClass/attrs.htmlAttributes (2026-09-23, per-post styling, same two optional raw-text fields the media node supports — see media's own description above): " +
             "render.ts's renderDocWidgetEmbed wraps the rendered widget in a <div class=\"widget-embed …\"> carrying them when set, or renders unwrapped when both are absent. htmlAttributes is re-validated " +
-            "at render time against the SAME allowlist the media node uses, further restricted to only data-*/aria-* names. An allowlisted non-data/aria name (like loading) is dropped on its own; " +
-            "any disallowed token (an on* handler, a javascript: value, style, malformed text) drops ALL of the node's htmlAttributes, silently, rather than being rejected up front here. Not listed in this node's own properties above (additionalProperties: false) because authoring still goes through " +
-            "widgets_insert_embed, not this tool — this description exists only so the model recognizes and does not strip these attrs when it re-encounters a node that already carries them.",
+            "at render time against the SAME shared allowlist the media node uses (2026-09-23 widget-attrs plan, S1) — class/id/style/data-*/aria-* and more are kept; on* handlers, javascript:/vbscript:/data: " +
+            "URLs and unsafe style values are dropped one token at a time (every other accepted token in the same htmlAttributes string still lands, e.g. data-x and style survive even when onclick is present); " +
+            "malformed text drops the whole string. Rejected tokens are silently omitted rather than rejected up front here. Not listed in this node's own properties above (additionalProperties: false) because " +
+            "authoring still goes through widgets_insert_embed, not this tool — this description exists only so the model recognizes and does not strip these attrs when it re-encounters a node that already carries them.",
         },
       ],
     },
