@@ -21,6 +21,7 @@ import {
 import { resolveActiveThemeId } from "#src/features/presentation/index";
 import {
   renderStaticPage,
+  expandPartials,
   injectCurrentEntityContentId,
   injectPageTitle,
   resolveTemplate,
@@ -35,7 +36,7 @@ import {
   type StaticMenuItem,
   type StaticPostPreview,
 } from "#src/features/theme/index";
-import { markersOfType, substituteMarkers, withInnerContentFinal } from "#src/contracts/core/embeds/marker";
+import { markersOfType, substituteMarkers, withInnerContentFinal, MENU_MARKER_TYPE } from "#src/contracts/core/embeds/marker";
 import {
   resolveHtmlPageEmbeds,
   resolvePageWidgets,
@@ -397,6 +398,14 @@ function navTargetToRouteTarget(target: NavTarget): RouteTarget {
  * @complexity One `menuRepo.findById` + `resolveMenuDoc` pair per distinct menu id the theme's
  * markup references (bounded in practice to the small, fixed set an author wrote into the theme's
  * own files), run concurrently.
+ *
+ * `extraMenuIds` (E3, 2026-09-23, D2's `finishStaticTierDocument`) — additional ids to resolve
+ * alongside the theme's own file scan, unioned via `Set` so an id present in both is fetched once,
+ * not twice. Exists because `scanMenuEmbedIds(theme)` only ever sees the theme's OWN pages/partials;
+ * a menu marker authored directly in a Page/Post's own body (never in a theme file) is invisible to
+ * it, so `finishStaticTierDocument` scans the fully assembled document for menu ids `staticMenus`
+ * (this function's own FIRST, no-`extraMenuIds` call at the top of the request) does not already
+ * carry, and passes exactly those here. Omitted, every pre-existing call site is unaffected.
  */
 /**
  * The one reserved `data-embed-id` a static theme's docs-sidebar marker can carry to mean "this
@@ -427,11 +436,12 @@ export async function resolveStaticMenusForRender(
   deps: TemplateRenderDeps,
   /** `null` when the operator turned the theme off — no theme, no theme-owned menu embeds. */
   theme: DiscoveredTheme | null,
-  currentPath: string
+  currentPath: string,
+  extraMenuIds?: readonly string[]
 ): Promise<Readonly<Record<string, readonly StaticMenuItem[]>>> {
   if (theme === null || theme.manifest.tier !== "static") return {};
 
-  const menuIds = scanMenuEmbedIds(theme);
+  const menuIds = Array.from(new Set([...scanMenuEmbedIds(theme), ...(extraMenuIds ?? [])]));
   if (menuIds.length === 0) return {};
 
   const resolveTargetHref: ResolveTargetHrefFn = async (target) => {
@@ -490,6 +500,104 @@ export async function resolveStaticMenusForRender(
   return Object.fromEntries(
     entries.filter((entry): entry is readonly [string, readonly StaticMenuItem[]] => entry !== undefined)
   );
+}
+
+/**
+ * D2's single static-tier document pipeline (E3, 2026-09-23) — the one sequence every static-tier
+ * surface (a template-rendered post/page via {@link renderViaTemplate}, a theme marketing page via
+ * {@link resolveMarketingPageOrOverride}, and — E4 — the theme's own `index.html` and themed `404`)
+ * now runs, so a marker embedded in ANY of the three places a static theme assembles content from —
+ * a Page/Post's own authored body, the theme's raw page/marketing-page file, or a partial included
+ * into either — resolves the same way regardless of which surface it landed on.
+ *
+ * Order is fixed and matters:
+ * 1. {@link expandPartials} runs FIRST, so a widget/media/post/content/menu/post-previews marker
+ *    authored inside a partial (`nav.html`, `footer.html`, …) is physically present in the html
+ *    before anything below ever scans it. Before this, a partial's own markers were invisible to
+ *    every resolver here, because `renderStaticPage`'s own partial expansion ran strictly AFTER the
+ *    embed-resolution stage on every pre-existing call path.
+ * 2. `resolveHtmlPageEmbeds` + `renderHtmlPageBody` resolve every widget/media/post/content marker
+ *    now present in the expanded html. `menu`/`post-previews` are theme-owned marker types this
+ *    stage never touches (`THEME_OWNED_MARKER_TYPES`), so they survive into the steps below by
+ *    design, not by omission.
+ * 3. Any `menu` marker left in the assembled html whose id is not already a key of `input.staticMenus`
+ *    (the caller's own theme-FILE-only scan — {@link resolveStaticMenusForRender}'s first,
+ *    no-`extraMenuIds` call at the top of the request) is fetched now. This is what lets a menu
+ *    marker authored directly in a Page/Post's own body — never in a theme file, so
+ *    `scanMenuEmbedIds` could never see it — resolve at all.
+ * 4. {@link resolvePostPreviewsForRender} scans the SAME assembled html — not `theme.pages[pageId]`/
+ *    a raw, unassembled template alone — for a `post-previews` marker, so one authored inside a
+ *    Page's own body or a partial is found too.
+ * 5. `renderStaticPage` applies every remaining static-tier treatment (token injection, asset-path
+ *    rewrite, its own idempotent `expandPartials` re-pass, `menu`/`post-previews` injection, link
+ *    rewrite) on top, exactly as it always has.
+ *
+ * `input.html` is always supplied to `renderStaticPage` as `htmlOverride`, so its `source ===
+ * undefined` null case — reachable only when BOTH `htmlOverride` and `theme.pages[pageId]` are
+ * undefined — can never fire here. The `?? ""` below is the same proven-unreachable fallback
+ * `renderViaTemplate`'s own pre-existing calls already carry (see that function's own comment for
+ * the full proof); not narrowed here for the same out-of-scope reason (the real fix narrows
+ * `renderStaticPage`'s return type in static-render.ts).
+ *
+ * @complexity One `resolveHtmlPageEmbeds` pass (bounded by `MAX_HTML_EMBEDS_PER_PAGE`) plus, only
+ * when the assembled html names a menu `input.staticMenus` does not already carry, one additional
+ * `resolveStaticMenusForRender` call bounded to exactly those missing ids — never a full theme-wide
+ * re-scan.
+ */
+export async function finishStaticTierDocument(
+  deps: TemplateRenderDeps,
+  input: {
+    readonly theme: DiscoveredTheme;
+    readonly pageId: string;
+    readonly html: string;
+    readonly currentPath: string;
+    readonly staticMenus: StaticMenuMap | undefined;
+    readonly postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext };
+    /** Threaded straight through to `resolveHtmlPageEmbeds`'s identically-shaped deps field — see
+     *  {@link ResolveHtmlPageEmbedsDeps.pendingContentOverride}'s own doc for the full rationale. */
+    readonly pendingContentOverride?: {
+      readonly id: string;
+      readonly title: string;
+      readonly slug: string;
+      readonly updatedAt: string;
+      readonly bodyJson: JsonObject;
+    };
+  }
+): Promise<string> {
+  const { theme, pageId, html, currentPath, staticMenus, postPreviewsAccess, pendingContentOverride } = input;
+
+  const expanded = expandPartials(html, theme);
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: {
+      entryRepo: deps.entryRepo,
+      postRepo: deps.postRepo,
+      mediaRepo: deps.mediaRepo,
+      transformRepo: deps.transformDefinitionRepo,
+      mediaContentTypeStore: deps.mediaContentTypeStore,
+      ...(pendingContentOverride !== undefined ? { pendingContentOverride } : {}),
+    },
+    input: { workspaceId: deps.workspaceId, html: expanded },
+  });
+  const assembled = renderHtmlPageBody(expanded, resolved);
+
+  const knownMenuIds = new Set(Object.keys(staticMenus ?? {}));
+  const missingMenuIds = Array.from(
+    new Set(
+      markersOfType(assembled, MENU_MARKER_TYPE)
+        .map((marker) => marker.id)
+        .filter((id): id is string => id !== undefined && !knownMenuIds.has(id))
+    )
+  );
+  const menus =
+    missingMenuIds.length === 0
+      ? staticMenus
+      : { ...staticMenus, ...(await resolveStaticMenusForRender(deps, theme, currentPath, missingMenuIds)) };
+
+  const postPreviews = postPreviewsAccess
+    ? await resolvePostPreviewsForRender(deps, postPreviewsAccess.resolver, postPreviewsAccess.context, assembled)
+    : undefined;
+
+  return renderStaticPage({ theme, pageId, htmlOverride: assembled, menus, postPreviews }) ?? "";
 }
 
 /**
@@ -889,20 +997,22 @@ export async function renderViaTemplate(
   // the template's own `<article>`/content wrapper (whatever marker `bodyResolvedHtml` replaced),
   // never outside it, since it's concatenated onto that exact string before the template splice.
   const bodyWithTerms = bodyResolvedHtml + renderAssignedTermsBlock(await resolveAssignedTermsForRender(deps, post));
-  // Post-previews marker (2026-09-03) — scanned off the THEME's own raw template (`rawTemplate`,
-  // unchanged by every resolution step above: `content`/`widget`/`media`/`post` markers are the only
-  // ones those steps touch, and `post-previews` is theme-owned, see `THEME_OWNED_MARKER_TYPES`),
-  // not off `bodyWithTerms` — scanning either finds the same marker, but `rawTemplate` is available
-  // before the other I/O above and lets this run without waiting on it.
-  const postPreviews = postPreviewsAccess
-    ? await resolvePostPreviewsForRender(deps, postPreviewsAccess.resolver, postPreviewsAccess.context, rawTemplate)
-    : undefined;
-  // Same unreachable-`?? ""` situation as the diagnostic branch above: `bodyResolvedHtml` is
-  // `renderHtmlPageBody`'s `string` return, never `undefined`, so `renderStaticPage`'s own
-  // `source === undefined` null case can't fire here either. See that branch's comment for the
-  // full proof; not fixed here for the same out-of-scope reason (the real fix narrows
-  // `renderStaticPage`'s return type in static-render.ts, outside this file).
-  const rendered = renderStaticPage({ theme, pageId, htmlOverride: bodyWithTerms, menus: staticMenus, postPreviews }) ?? "";
+  // D2's single static-tier pipeline (E3, 2026-09-23) — `finishStaticTierDocument` runs the SAME
+  // expand-partials / resolve-embeds / resolve-post-previews / render sequence every other
+  // static-tier surface now runs. Called on `bodyWithTerms`, not the raw, unassembled template: the
+  // body stage above already ran, so widget/media/post/content markers are already consumed (this
+  // second pass is a no-op for them) and it now ALSO picks up any marker that came from a partial
+  // (invisible before `expandPartials` ran) or was authored directly in `post`'s own `body_html`
+  // (the fixed live bug — `post-previews`/`menu` used to be scanned off `rawTemplate` alone, which
+  // could never see either).
+  const rendered = await finishStaticTierDocument(deps, {
+    theme,
+    pageId,
+    html: bodyWithTerms,
+    currentPath: postPublicPath(post.slug),
+    staticMenus,
+    postPreviewsAccess,
+  });
   return injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(rendered, extraHead), siteAssistantEnabled);
 }
 
@@ -1192,13 +1302,25 @@ export async function resolveMarketingPageOrOverride(
     return { kind: "overridingPost", post: candidate.post };
   }
 
+  // A theme page NOT in `theme.pages` at all is unreachable in practice — `isMarketingPageSlug`
+  // (checked above) already confirmed `slug` is a standalone theme page — but `theme.pages` is
+  // typed as a partial record, so this stays an explicit fallthrough rather than a non-null
+  // assertion, same defensive shape the pre-existing `renderStaticPage` return-value check had.
   const pageHtml = theme.pages[slug];
-  const postPreviews =
-    postPreviewsAccess && pageHtml !== undefined
-      ? await resolvePostPreviewsForRender(deps, postPreviewsAccess.resolver, postPreviewsAccess.context, pageHtml)
-      : undefined;
-  const staticHtml = renderStaticPage({ theme, pageId: slug, menus: staticMenus, postPreviews });
-  if (!staticHtml) return { kind: "fallthrough" };
+  if (pageHtml === undefined) return { kind: "fallthrough" };
+
+  // D2's single static-tier pipeline (E3, 2026-09-23) — `finishStaticTierDocument` runs the SAME
+  // expand-partials / resolve-embeds / resolve-post-previews / render sequence every other
+  // static-tier surface now runs, so a widget/media/post/content marker on this marketing page or
+  // inside a partial it references — never resolved here before this fix — resolves too.
+  const staticHtml = await finishStaticTierDocument(deps, {
+    theme,
+    pageId: slug,
+    html: pageHtml,
+    currentPath: postPublicPath(slug),
+    staticMenus,
+    postPreviewsAccess,
+  });
 
   // SPEC-008 T045 gap fix, part 2 (2026-08-19) — this branch renders a theme's own marketing
   // page directly via `renderStaticPage`, the same `pageShell`-bypassing shape the static-tier

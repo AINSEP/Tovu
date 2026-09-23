@@ -88,6 +88,7 @@ export {
 export {
   renderStaticPage,
   renderStaticPartial,
+  expandPartials,
   injectCurrentEntityContentId,
   injectPageTitle,
   resolveTemplate,
