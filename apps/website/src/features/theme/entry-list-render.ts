@@ -121,31 +121,103 @@ function resolvePlaceholderRawValue(key: string, item: EntryListItem): string {
 }
 
 const PLACEHOLDER_PATTERN = /\{\{([a-zA-Z0-9_.]+)\}\}/g;
-const HREF_OR_SRC_ATTRIBUTE_PATTERN = /((?:href|src)\s*=\s*)"([^"]*)"/g;
+
+/** One pass over a template: an opening tag (quote-aware, so a `>` inside a quoted attribute value
+ * does not end it) or a text-context placeholder. Matching both in ONE `replace` pass means a
+ * substituted value is never rescanned, so a value that itself contains `{{...}}` is never re-expanded. */
+const QUOTED_VALUE_SOURCE = `"[^"]*"|'[^']*'`;
+const PLACEHOLDER_SOURCE = String.raw`\{\{([a-zA-Z0-9_.]+)\}\}`;
+const TEMPLATE_TAG_OR_PLACEHOLDER = new RegExp(`<[a-zA-Z][^>"']*(?:(?:${QUOTED_VALUE_SOURCE})[^>"']*)*>|${PLACEHOLDER_SOURCE}`, "g");
+
+/** Inside one opening tag: a `name=value` attribute (double-, single- or un-quoted value) or a
+ * placeholder standing in an attribute-name position. */
+const TAG_ATTRIBUTE_OR_PLACEHOLDER = new RegExp(
+  String.raw`([^\s"'=<>/\x60]+)(\s*=\s*)(${QUOTED_VALUE_SOURCE}|[^\s"'=<>\x60]+)|${PLACEHOLDER_SOURCE}`,
+  "g"
+);
+
+/** Attributes whose value a browser follows or loads as a URL, so an entry value placed in one gets
+ * the {@link safeHref} scheme allowlist. */
+const URL_ATTRIBUTE_NAMES: ReadonlySet<string> = new Set(["href", "src", "action", "formaction", "poster", "cite", "background", "data", "xlink:href"]);
+
+/** Non-global twin of {@link PLACEHOLDER_PATTERN} for a stateless "does this contain one" test. */
+const HAS_PLACEHOLDER = /\{\{[a-zA-Z0-9_.]+\}\}/;
+
+type PlaceholderEscape = (raw: string) => string;
 
 /** Substitutes every `{{...}}` placeholder in `text` with its resolved raw value for `item`, each
- * passed through `transform` before insertion. Both template passes below share this: one for the
- * inside of an `href=`/`src=` attribute value (`transform` applies `safeHref` before escaping), one
- * for everything else (`transform` only escapes). */
-function substitutePlaceholders(text: string, item: EntryListItem, transform: (raw: string) => string): string {
+ * passed through `transform` before insertion. One `replace` pass, so inserted text is never rescanned. */
+function substitutePlaceholders(text: string, item: EntryListItem, transform: PlaceholderEscape): string {
   return text.replace(PLACEHOLDER_PATTERN, (_match, key: string) => transform(resolvePlaceholderRawValue(key, item)));
 }
 
+/** Entity-encodes the characters that end or split an UNQUOTED attribute value (whitespace, `=`,
+ * backtick) on top of {@link escapeHtml}, so an entry value there cannot start a second attribute. */
+function escapeForUnquotedAttribute(raw: string): string {
+  return escapeHtml(raw).replace(/[\s=`]/g, (char) => `&#${char.codePointAt(0)};`);
+}
+
 /**
- * Renders one item through an operator-authored `template` string. A placeholder that lands inside an
- * `href=`/`src=` attribute's value is sanitized with {@link safeHref} before escaping — the same rule
- * `safeHref`'s own doc states for menu links — so an entry field value can never smuggle a
- * `javascript:` (or other unsafe-scheme) URL into an authored template. Every other placeholder is
- * HTML-escaped only. No Tovu card/list markup is added around the template's own content.
+ * A URL attribute's value with its placeholders filled. The COMPOSED url (author text plus raw entry
+ * values) must pass {@link safeHref}, else the whole value becomes `#` — checking the composed value,
+ * not each placeholder alone, keeps `https://x.test/{{fields.id}}` working while still catching an
+ * entry value that sets the scheme. The author's own literal text is never re-escaped.
  *
- * @complexity O(n) over `template`'s length for each of the two placeholder-substitution passes.
+ * @complexity O(n) over the value's length (two placeholder passes).
+ */
+function renderUrlAttributeValue(value: string, item: EntryListItem, escapeValue: PlaceholderEscape): string {
+  const composed = substitutePlaceholders(value, item, (raw) => raw);
+  if (safeHref(composed) !== composed.trim()) return "#";
+  return substitutePlaceholders(value, item, escapeValue);
+}
+
+/**
+ * One `name=value` attribute of an opening tag, placeholders filled by context: dropped inside an
+ * `on*` handler or `srcdoc` (both re-parse the entity-decoded value as script/HTML, so escaping
+ * cannot make an entry value safe there), scheme-checked in a {@link URL_ATTRIBUTE_NAMES} attribute,
+ * HTML-escaped otherwise — with the extra unquoted-value encoding when the author left it unquoted.
+ * An attribute with no placeholder is returned exactly as the author wrote it.
+ *
+ * @complexity O(n) over the attribute's length.
+ */
+function renderTemplateAttribute(attribute: { name: string; equals: string; value: string }, item: EntryListItem): string {
+  const { name, equals, value } = attribute;
+  const quote = value.startsWith('"') || value.startsWith("'") ? value.charAt(0) : "";
+  const inner = quote === "" ? value : value.slice(1, -1);
+  const escapeValue: PlaceholderEscape = quote === "" ? escapeForUnquotedAttribute : escapeHtml;
+  return `${name}${equals}${quote}${fillAttributeValue(name.toLowerCase(), inner, item, escapeValue)}${quote}`;
+}
+
+/** {@link renderTemplateAttribute}'s per-name rule, split out to keep each function's branching small. */
+function fillAttributeValue(lowerName: string, inner: string, item: EntryListItem, escapeValue: PlaceholderEscape): string {
+  if (lowerName.startsWith("on") || lowerName === "srcdoc") return substitutePlaceholders(inner, item, () => "");
+  if (URL_ATTRIBUTE_NAMES.has(lowerName) && HAS_PLACEHOLDER.test(inner)) return renderUrlAttributeValue(inner, item, escapeValue);
+  return substitutePlaceholders(inner, item, escapeValue);
+}
+
+/** Fills one opening tag's placeholders attribute by attribute ({@link renderTemplateAttribute}); a
+ * placeholder in an attribute-name position gets the unquoted-value encoding. @complexity O(n). */
+function renderTemplateTag(tag: string, item: EntryListItem): string {
+  return tag.replace(
+    TAG_ATTRIBUTE_OR_PLACEHOLDER,
+    (_match, name: string | undefined, equals: string, value: string, key: string | undefined) =>
+      key === undefined ? renderTemplateAttribute({ name: name ?? "", equals, value }, item) : escapeForUnquotedAttribute(resolvePlaceholderRawValue(key, item))
+  );
+}
+
+/**
+ * Renders one item through an operator-authored `template` string. Entry values are attacker-shaped
+ * (see this file's header), so each placeholder is filled for the context it lands in: text is
+ * HTML-escaped; inside a tag, {@link renderTemplateTag} applies the attribute rules (URL scheme check
+ * for every URL attribute and quote style, dropped inside `on*`/`srcdoc`, unquoted values cannot
+ * break out). No Tovu card/list markup is added around the template's own content.
+ *
+ * @complexity O(n) over `template`'s length — one pass, plus one pass per opening tag over that tag.
  */
 function renderTemplateItem(template: string, item: EntryListItem): string {
-  const withHrefAndSrcResolved = template.replace(HREF_OR_SRC_ATTRIBUTE_PATTERN, (_match, prefix: string, attributeValue: string) => {
-    const resolved = substitutePlaceholders(attributeValue, item, (raw) => escapeHtml(safeHref(raw)));
-    return `${prefix}"${resolved}"`;
-  });
-  return substitutePlaceholders(withHrefAndSrcResolved, item, escapeHtml);
+  return template.replace(TEMPLATE_TAG_OR_PLACEHOLDER, (match, key: string | undefined) =>
+    key === undefined ? renderTemplateTag(match, item) : escapeHtml(resolvePlaceholderRawValue(key, item))
+  );
 }
 
 /**
