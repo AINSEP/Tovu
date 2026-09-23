@@ -37,10 +37,11 @@ find the existing one first.
 4. Download the draft release's artifacts and smoke-test each one before publishing.
 5. Publish the draft. The stable `releases/latest/download/<fixed name>` URLs only resolve to
    real files once a release is published — they 404 against a draft.
-6. The three fixed asset names, unchanged release to release:
+6. The fixed asset names, unchanged release to release:
    - `Tovu-mac-arm64.dmg`
    - `Tovu-mac-x64.dmg`
    - `Tovu-windows-x64-setup.exe`
+   - `SHA256SUMS.txt` (one `<sha256>  <name>` line per installer above)
 7. Testers report problems as GitHub Issues on this repo. Point them at the exact asset name
    and version they installed.
 
