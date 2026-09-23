@@ -493,6 +493,12 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
    always-on so the link doesn't visually compete with the "@" it already carries as its own signal. */
 .post-detail-body .post-mention { color: var(--accent-text); font-weight: 600; }
 .post-detail-body .post-mention:hover { text-decoration: underline; }
+/* Prose links — the `a` reset near the top makes content links look like plain text, so links
+   inside post/page bodies get an explicit blue + underline (owner call 2026-09-22: "obvious it's a
+   hyperlink", everywhere for consistency). Mentions and button-styled links keep their own look. */
+.post-detail-body { --prose-link: #60a5fa; }
+:root[data-theme="light"] .post-detail-body { --prose-link: #2563eb; }
+.post-detail-body a:not(.post-mention):not([class*="btn"]) { color: var(--prose-link); text-decoration: underline; text-underline-offset: 3px; }
 
 /* ---------- about ---------- */
 .about-hero { padding: 88px 0 56px; }
