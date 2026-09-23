@@ -432,7 +432,12 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .post-detail-header .post-meta { font-size: 13px; }
 .post-detail-body { font-size: 17px; line-height: 1.7; max-width: 66ch; }
 .post-detail-body h2 { font-size: 26px; margin: 40px 0 16px; letter-spacing: -0.01em; }
-.post-detail-body h3 { font-size: 20px; margin: 32px 0 12px; letter-spacing: -0.01em; }
+/* Section divider (2026-09-23) — a docs page like /embeds lists one h3 per marker type
+   back-to-back; without a rule between them the previous section's live example runs straight
+   into the next heading. Border + extra top spacing reads as a clear break; applies wherever
+   `.post-detail-body` renders (not just /embeds) since any adjacent h3 subsections read better
+   separated the same way. */
+.post-detail-body h3 { font-size: 20px; margin: 40px 0 12px; letter-spacing: -0.01em; border-top: 1px solid var(--border); padding-top: 28px; }
 .post-detail-body p { margin-bottom: 18px; }
 .post-detail-body ul, .post-detail-body ol { margin: 0 0 18px 22px; }
 .post-detail-body li { margin-bottom: 6px; }
@@ -441,6 +446,14 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .post-detail-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; white-space: pre-wrap; overflow-wrap: anywhere; position: relative; }
 .post-detail-body pre.has-copy-btn { padding-right: 48px; }
 .post-detail-body pre code { border: none; background: none; padding: 0; }
+/* Live example frame (docs pages, 2026-09-23) — wraps a rendered marker's live output (a
+   `.live-example` div around the marker element) so it reads as a distinct demo instead of
+   blending into the surrounding doc prose. The "Live example" text is `content` on `::before`,
+   not a real element, so a docs page body only needs the wrapper div, never its own label markup.
+   Tokens only (`--surface`/`--border`/`--muted`/`--font-mono`) so both themes stay correct with no
+   separate dark-mode branch. */
+.post-detail-body .live-example { position: relative; margin: 20px 0; padding: 30px 20px 20px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.post-detail-body .live-example::before { content: "Live example"; position: absolute; top: 10px; left: 16px; font: 11px/1 var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 
 /* ---------- code block copy button ---------- */
 /* Shared by both `pre` contexts above (`.docs-main pre`, `.post-detail-body pre`) — the button is
