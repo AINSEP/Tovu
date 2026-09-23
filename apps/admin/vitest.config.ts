@@ -64,6 +64,8 @@ export default defineConfig({
       // are independent, and a missing entry fails in a different way in each: a type error, a
       // build-time resolution failure, and "Failed to resolve import" with no tests run.
       "@tovu/publish-content-ui": path.resolve(__dirname, "../website/src/features/publish-content/ui/index.ts"),
+      // Mirrors `vite.config.ts`'s identical alias — see that file's own comment.
+      "@tovu/embed-marker": path.resolve(__dirname, "../website/src/contracts/core/embeds/marker.ts"),
     },
   },
   test: {

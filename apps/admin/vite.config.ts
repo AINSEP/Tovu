@@ -151,6 +151,13 @@ export default defineConfig({
       // Paired with `apps/admin/tsconfig.json`'s `paths` + `include` entries. BOTH are required —
       // a tsconfig path satisfies the typechecker and resolves nothing at build time.
       "@tovu/publish-content-ui": path.resolve(__dirname, "../website/src/features/publish-content/ui/index.ts"),
+      // Fourth instance of the same cross-runtime pattern (2026-09-23, Bug A / interactive-bugs plan
+      // Slice A2): `contracts/core/embeds/marker.ts` is PURE and import-free (its own file header),
+      // so the admin's canvas placeholder describer can read the exact same "which key names this
+      // marker type's target" rule (`embedMarkerTarget`) the server's own page-embed resolvers use,
+      // instead of growing a second, drifting copy of it (`marker-target-parity.unit.test.ts` is what
+      // keeps this alias safe: it fails if marker.ts ever grows an import).
+      "@tovu/embed-marker": path.resolve(__dirname, "../website/src/contracts/core/embeds/marker.ts"),
     },
   },
   server: {
