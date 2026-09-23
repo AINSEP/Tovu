@@ -45,11 +45,20 @@
        theme.json `templates`/`/articles`'s own template binding). The fallback below is what shows
        while zero posts are published (today's actual state) or on a theme with the marker not wired
        at all — `injectPostPreviewsEmbeds`'s "no data, authored fallback survives" contract (static-
-       render.ts) — so it must stay an honest empty state, never fictional post cards. -->
-  <section class="wrap" style="padding-bottom: 96px;">
-    <section class="blog-grid" data-embed-config='{"type":"post-previews","limit":6}'>
-      <p style="color: var(--muted);">No articles published yet.</p>
-    </section>
+       render.ts) — so it must stay an honest empty state, never fictional post cards.
+
+       `max-width: 720px` (2026-09-23) matches `.post-detail`'s own column width so this grid lines
+       up under the article text above instead of stretching to `.wrap`'s full `--container`
+       (1120px) — an inline style on this one wrapper, not a theme.css rule, since only this
+       template's `.wrap` needs narrowing and no other page shares it. `.latest-posts` exists only
+       so the `.live-example` frame below can be scoped to this template (theme.css) without
+       widening `.post-detail-body .live-example`'s existing reach. -->
+  <section class="wrap latest-posts" style="max-width: 720px; padding-bottom: 96px;">
+    <div class="live-example">
+      <section class="blog-grid" data-embed-config='{"type":"post-previews","limit":6}'>
+        <p style="color: var(--muted);">No articles published yet.</p>
+      </section>
+    </div>
   </section>
 </main>
 
