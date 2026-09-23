@@ -1439,6 +1439,26 @@ function renderDocMention(node: JsonObject): string {
   return `<a class="post-mention" href="/${escapeHtml(id)}">@${escapeHtml(label)}</a>`;
 }
 
+/**
+ * Renders a `widgetEmbed` node — REQ-18/REQ-21 (see inline comment below) — through the resolved
+ * widget IR, optionally wrapped in a `<div class="widget-embed …">` carrying the node's own
+ * `attrs.cssClass`/`attrs.htmlAttributes` (D5, 2026-09-23 embed-attributes-everywhere plan), the
+ * SAME two per-node style fields {@link renderDocMedia} already supports. A bare node (neither
+ * field set, the common case today) renders BYTE-IDENTICAL to before this task — no wrapper at
+ * all — so every existing page keeps its exact output.
+ *
+ * `htmlAttributes` reuses the exact media allowlist boundary ({@link resolveMediaHtmlAttributes}):
+ * ANY disallowed token (an `on*` handler, a `javascript:` value, a name off the allowlist,
+ * malformed syntax) fails the WHOLE string closed — the same all-or-nothing behavior
+ * {@link renderDocMedia}'s own `onerror` guard already exercises, never a partial pass-through of
+ * only the bad token. On top of that shared boundary, this wrapper keeps only `data-*`/`aria-*`
+ * names ({@link restrictToDataAriaAttributes}): the base allowlist's few `<img>`/`<video>`-specific
+ * extras (`loading`, `muted`, …) carry no meaning on a `<div>` wrapper, so they are dropped even
+ * when individually "valid" on the shared allowlist.
+ *
+ * @complexity O(n) in `attrs.htmlAttributes`'s length (one allowlist parse), O(k) in its resulting
+ * attribute count for the data-/aria- filter and formatting.
+ */
 function renderDocWidgetEmbed(node: JsonObject, _content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
   // REQ-18/REQ-21: a block-level atom node carrying a single widget-instance reference,
   // resolved server-side (by `resolvePageWidgets`, threaded in via `inlineResolved`) before this
@@ -1448,7 +1468,28 @@ function renderDocWidgetEmbed(node: JsonObject, _content: JsonValue[] | undefine
   const attrs = isObject(node.attrs) ? node.attrs : {};
   const placementId = typeof attrs.placementId === "string" ? attrs.placementId : undefined;
   const ir = placementId ? deps.inlineResolved.get(placementId) : undefined;
-  return renderWidgetIr(ir ?? WIDGET_PLACEHOLDER_IR);
+  const widgetHtml = renderWidgetIr(ir ?? WIDGET_PLACEHOLDER_IR);
+
+  const nodeCssClass = typeof attrs.cssClass === "string" && attrs.cssClass ? attrs.cssClass : null;
+  const nodeHtmlAttributes = typeof attrs.htmlAttributes === "string" && attrs.htmlAttributes ? attrs.htmlAttributes : null;
+  if (!nodeCssClass && !nodeHtmlAttributes) return widgetHtml;
+
+  const classAttr = nodeCssClass ? ` ${escapeHtml(nodeCssClass)}` : "";
+  const dataAriaAttributes = restrictToDataAriaAttributes(resolveMediaHtmlAttributes(nodeHtmlAttributes));
+  return `<div class="widget-embed${classAttr}"${formatHtmlAttributes(dataAriaAttributes)}>${widgetHtml}</div>`;
+}
+
+/**
+ * Filters an already-allowlist-validated attribute map ({@link resolveMediaHtmlAttributes}) down to
+ * the `data-*`/`aria-*` families — {@link renderDocWidgetEmbed}'s own extra restriction (D5) beyond
+ * the base media allowlist, which also accepts a short list of `<img>`/`<video>`-specific names
+ * (`loading`, `muted`, …) that carry no meaning on a widget's `<div>` wrapper.
+ *
+ * @param attributes - Already name-allowlisted, value-untouched attribute map.
+ * @complexity O(k) in the number of entries.
+ */
+function restrictToDataAriaAttributes(attributes: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(attributes).filter(([name]) => name.startsWith("data-") || name.startsWith("aria-")));
 }
 
 /** {@link renderDocNode}'s own `content` extraction, pulled out so the ternary is counted once here

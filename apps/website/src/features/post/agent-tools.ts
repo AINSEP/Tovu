@@ -582,7 +582,12 @@ export const TIPTAP_DOC_SCHEMA = {
             },
           },
           description:
-            "A block-level widget embed reference (see this schema's own top-level doc). Read-and-recognize only through this tool — author new embeds via widgets_insert_embed, not by hand-writing this node.",
+            "A block-level widget embed reference (see this schema's own top-level doc). Read-and-recognize only through this tool — author new embeds via widgets_insert_embed, not by hand-writing this node. " +
+            "The node MAY also carry attrs.cssClass/attrs.htmlAttributes (2026-09-23, per-post styling, same two optional raw-text fields the media node supports — see media's own description above): " +
+            "render.ts's renderDocWidgetEmbed wraps the rendered widget in a <div class=\"widget-embed …\"> carrying them when set, or renders unwrapped when both are absent. htmlAttributes is re-validated " +
+            "at render time against the SAME allowlist the media node uses, further restricted to only data-*/aria-* names — anything else (an on* handler, a javascript: value, style, or a non-data/aria name " +
+            "like loading) is silently omitted rather than rejected up front here. Not listed in this node's own properties above (additionalProperties: false) because authoring still goes through " +
+            "widgets_insert_embed, not this tool — this description exists only so the model recognizes and does not strip these attrs when it re-encounters a node that already carries them.",
         },
       ],
     },

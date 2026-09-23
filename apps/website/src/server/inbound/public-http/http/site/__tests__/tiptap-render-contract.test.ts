@@ -819,11 +819,45 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
     html: "<p></p>",
   },
   {
-    label: "widgetEmbed, resolved through inlineResolved",
+    label: "widgetEmbed, resolved through inlineResolved — a bare node (no cssClass/htmlAttributes) is byte-identical to before W1 (D5, 2026-09-23 embed-attributes-everywhere plan): no wrapper div at all",
     types: ["widgetEmbed"],
     doc: { type: "doc", content: [{ type: "widgetEmbed", attrs: { placementId: "p1", widgetEntryId: "w1" } }] },
     inlineResolved: new Map<string, WidgetRenderIR>([["p1", { componentId: "text", props: { body: "Hello widget" } }]]),
     html: '<div class="widget widget-text">Hello widget</div>',
+  },
+  {
+    label: "widgetEmbed with cssClass (D5/W1, like the media node's own cssClass): wrapped in a widget-embed div carrying the base class plus the node's own escaped class",
+    types: ["widgetEmbed"],
+    doc: { type: "doc", content: [{ type: "widgetEmbed", attrs: { placementId: "p-class", widgetEntryId: "w-class", cssClass: "a b" } }] },
+    inlineResolved: new Map<string, WidgetRenderIR>([["p-class", { componentId: "text", props: { body: "Styled" } }]]),
+    html: '<div class="widget-embed a b"><div class="widget widget-text">Styled</div></div>',
+  },
+  {
+    label: "widgetEmbed with htmlAttributes (D5/W1): only data-*/aria-* names survive — a name the base media allowlist accepts (loading) but that isn't data-*/aria-* is still dropped, the widget wrapper's own extra restriction beyond media's allowlist",
+    types: ["widgetEmbed"],
+    doc: {
+      type: "doc",
+      content: [{ type: "widgetEmbed", attrs: { placementId: "p-attrs", widgetEntryId: "w-attrs", htmlAttributes: 'data-x="1" aria-label="L" loading="lazy"' } }],
+    },
+    inlineResolved: new Map<string, WidgetRenderIR>([["p-attrs", { componentId: "text", props: { body: "Attrs" } }]]),
+    html: '<div class="widget-embed" data-x="1" aria-label="L"><div class="widget widget-text">Attrs</div></div>',
+  },
+  {
+    label:
+      "widgetEmbed security guard (D5/W1): an htmlAttributes string carrying an on* handler/style fails the SAME batch allowlist parse the media node uses (render.ts:758's own onerror precedent) — the WHOLE string is rejected, never a partial pass-through of just the bad token, so even data-x is dropped here",
+    types: ["widgetEmbed"],
+    doc: {
+      type: "doc",
+      content: [{ type: "widgetEmbed", attrs: { placementId: "p-bad", widgetEntryId: "w-bad", htmlAttributes: 'data-x="1" onclick="alert(1)" style="color:red"' } }],
+    },
+    inlineResolved: new Map<string, WidgetRenderIR>([["p-bad", { componentId: "text", props: { body: "Guarded" } }]]),
+    html: '<div class="widget-embed"><div class="widget widget-text">Guarded</div></div>',
+  },
+  {
+    label: "widgetEmbed missing widget (D5/W1): an unresolved placementId still falls back to the placeholder, and the placeholder is still wrapped when the node itself carries cssClass",
+    types: ["widgetEmbed"],
+    doc: { type: "doc", content: [{ type: "widgetEmbed", attrs: { placementId: "missing", widgetEntryId: "w-missing", cssClass: "featured" } }] },
+    html: '<div class="widget-embed featured"><div class="widget widget-placeholder" aria-hidden="true"></div></div>',
   },
   {
     label: "title node — deliberately contributes NOTHING to a generic doc walk (post.title prints separately elsewhere; see the post-content table below for the node's real render target)",
