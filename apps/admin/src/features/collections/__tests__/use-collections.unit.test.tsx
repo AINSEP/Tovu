@@ -248,4 +248,46 @@ describe("injected port (useWiredX conversion coverage)", () => {
     });
     expect(result.current.copiedKey).toBeNull();
   });
+
+  // Review of A2 (2026-09-23): a denied clipboard write used to be swallowed with no visible
+  // result — the row shows no snippet text, so the click was a dead end. The failure now exposes
+  // the snippet for manual selection, and a later successful copy clears it.
+  it("copyEmbedCode: a rejected clipboard write exposes the snippet as copyFallback instead of failing silently", async () => {
+    const writeText = vi.fn().mockRejectedValue(new DOMException("denied", "NotAllowedError"));
+    vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
+    const port = createFakeCollectionsPort({ types: [TYPE] });
+
+    const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.types).not.toBeNull());
+    expect(result.current.copyFallback).toBeNull();
+
+    await act(async () => {
+      await result.current.copyEmbedCode(TYPE);
+    });
+    expect(result.current.copiedKey).toBeNull();
+    expect(result.current.copyFallback).toEqual({
+      key: "recipe",
+      snippet: '<div data-embed-config=\'{"type":"collection","id":"recipe"}\'></div>',
+    });
+
+    writeText.mockResolvedValue(undefined);
+    await act(async () => {
+      await result.current.copyEmbedCode(TYPE);
+    });
+    expect(result.current.copyFallback).toBeNull();
+    expect(result.current.copiedKey).toBe("recipe");
+  });
+
+  it("copyEmbedCode: no Clipboard API at all (insecure context) also exposes the snippet", async () => {
+    vi.stubGlobal("navigator", { ...window.navigator, clipboard: undefined });
+    const port = createFakeCollectionsPort({ types: [TYPE] });
+
+    const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.types).not.toBeNull());
+
+    await act(async () => {
+      await result.current.copyEmbedCode(TYPE);
+    });
+    expect(result.current.copyFallback?.key).toBe("recipe");
+  });
 });

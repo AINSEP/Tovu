@@ -134,6 +134,7 @@ describe("addressing the collections list", () => {
       load: vi.fn(),
       runLifecycle: vi.fn(async () => {}),
       copiedKey: null,
+      copyFallback: null,
       copyEmbedCode: vi.fn(async () => {}),
       t: (key: string) => key,
       locale: "en",

@@ -510,6 +510,7 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
     load,
     runLifecycle,
     copiedKey,
+    copyFallback,
     copyEmbedCode,
     t,
     locale,
@@ -601,16 +602,20 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
             key: "embed",
             header: t("Embed"),
             cell: (ct, index) => (
-              <button
-                type="button"
-                onClick={() => void copyEmbedCode(ct)}
-                {...agentHandle(`${rowHandles[index]}-copy-embed`, {
-                  role: "button",
-                  label: `Copy the embed code for content type "${ct.label}"`,
-                })}
-              >
-                {copiedKey === ct.key ? t("Copied") : t("Copy embed code")}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => void copyEmbedCode(ct)}
+                  {...agentHandle(`${rowHandles[index]}-copy-embed`, {
+                    role: "button",
+                    label: `Copy the embed code for content type "${ct.label}"`,
+                  })}
+                >
+                  {/* aria-live so the swap to "Copied" is announced, as StaticSiteTab's copy button does. */}
+                  <span aria-live="polite">{copiedKey === ct.key ? t("Copied") : t("Copy embed code")}</span>
+                </button>
+                {copyFallback?.key === ct.key && <code translate="no">{copyFallback.snippet}</code>}
+              </>
             ),
           },
           {

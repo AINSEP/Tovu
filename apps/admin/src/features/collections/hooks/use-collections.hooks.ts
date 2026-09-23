@@ -62,10 +62,14 @@ export interface CollectionsController {
    *  `null` once the transient window elapses. Keyed by `key`, not a single boolean, so only the
    *  row that was actually clicked shows "Copied". */
   copiedKey: string | null;
+  /** Set when the most recent copy attempt could not reach the clipboard (denied permission, or no
+   *  Clipboard API in an insecure context): the row it names shows `snippet` as selectable text so
+   *  the operator can copy it by hand instead of getting a silent dead click. `null` otherwise; a
+   *  later successful copy clears it. */
+  copyFallback: { key: string; snippet: string } | null;
   /** Writes `collectionEmbedSnippet(contentType.key)` to the clipboard and flips `copiedKey` for
-   *  1.5s, mirroring `use-edit-media-panel.hooks.ts`'s `copyHash`/`copyUrl` precedent. A denied
-   *  clipboard permission is swallowed — this row has no visible snippet text to fall back to
-   *  selecting by hand, so a denied write just leaves nothing copied. */
+   *  1.5s, mirroring `use-edit-media-panel.hooks.ts`'s `copyHash`/`copyUrl` precedent. A failed
+   *  write sets {@link copyFallback} instead — this row has no visible snippet text of its own. */
   copyEmbedCode: (contentType: AdminContentType) => Promise<void>;
   /** Bound translator — `Collections.tsx`'s and its three dialogs' only source of UI copy; see this
    *  file's own header for why it arrives via the hook rather than direct `useAdminLocale()`. */
@@ -101,6 +105,7 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
     contentType: AdminContentType;
   } | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [copyFallback, setCopyFallback] = useState<{ key: string; snippet: string } | null>(null);
 
   const lifecycleMutation = useFetchMutation({
     run: (input: { key: string; op: "deprecate" | "reactivate" | "tombstone"; expectedVersion: number }) =>
@@ -118,13 +123,16 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
   }
 
   async function copyEmbedCode(contentType: AdminContentType): Promise<void> {
+    const snippet = collectionEmbedSnippet(contentType.key);
     try {
-      await navigator.clipboard.writeText(collectionEmbedSnippet(contentType.key));
+      await navigator.clipboard.writeText(snippet);
+      setCopyFallback(null);
       setCopiedKey(contentType.key);
       setTimeout(() => setCopiedKey(null), 1500);
     } catch {
-      // Clipboard access denied (insecure context, blocked permission) — see this field's own doc
-      // comment on `CollectionsController.copyEmbedCode` above.
+      // Clipboard access denied, or `navigator.clipboard` absent (insecure context) — show the
+      // snippet for manual selection; see `CollectionsController.copyFallback`.
+      setCopyFallback({ key: contentType.key, snippet });
     }
   }
 
@@ -147,6 +155,7 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
     load: list.refetch,
     runLifecycle,
     copiedKey,
+    copyFallback,
     copyEmbedCode,
     t,
     locale,

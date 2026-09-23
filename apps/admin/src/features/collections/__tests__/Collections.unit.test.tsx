@@ -88,6 +88,7 @@ function collectionsController(overrides: Partial<CollectionsController> = {}): 
     load: vi.fn(),
     runLifecycle: vi.fn(async () => {}),
     copiedKey: null,
+    copyFallback: null,
     copyEmbedCode: vi.fn(async () => {}),
     // Identity `t` + "en" locale — matches what the pre-`useWiredX` component got from a real,
     // unmocked `useAdminLocale()` call in this render-only test (defaults to `DEFAULT_LOCALE`
@@ -201,6 +202,13 @@ describe("Copy embed code", () => {
     const c = renderCollections({ types: [TYPE] });
     await user.click(screen.getByRole("button", { name: "Copy embed code" }));
     expect(c.copyEmbedCode).toHaveBeenCalledWith(TYPE);
+  });
+
+  it("shows the snippet as selectable text on the failed row only, when the clipboard write failed", () => {
+    const snippet = '<div data-embed-config=\'{"type":"collection","id":"recipe"}\'></div>';
+    renderCollections({ types: [TYPE, DEPRECATED_TYPE], copyFallback: { key: "recipe", snippet } });
+    expect(screen.getByText(snippet)).toBeInTheDocument();
+    expect(screen.getAllByText(/data-embed-config/)).toHaveLength(1);
   });
 
   it("shows Copied only for the row whose key matches copiedKey", () => {
