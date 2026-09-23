@@ -32,15 +32,9 @@ function renderScreen(node: React.ReactElement) {
 }
 
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
-/** What the stubbed `/system/mail-status` read reports — a real mailer by default, so every test
- *  that predates the "greyed out until mail works" state keeps its enabled notify controls. */
-let mailDeliveryAvailable: boolean;
-let mailStatusRequested: boolean;
 
 beforeEach(() => {
   fetchMock = vi.fn();
-  mailDeliveryAvailable = true;
-  mailStatusRequested = false;
   // `FormEditor` now also reads `core.language.locale` (via `useAdminLocale`) to translate its own
   // chrome — a real `fetch` call this file's tests never queued for. Routed here, ahead of
   // `fetchMock`, so it never consumes a slot from the `mockResolvedValueOnce` sequence every test
@@ -49,12 +43,6 @@ beforeEach(() => {
     const url = typeof input === "string" ? input : input.toString();
     if (url.includes("/settings/effective")) {
       return Promise.resolve(jsonResponse({ data: [] }));
-    }
-    // Same reasoning as the locale read above: the mail-status read must not consume a
-    // `fetchMock` slot the older tests queue in order.
-    if (url.includes("/system/mail-status")) {
-      mailStatusRequested = true;
-      return Promise.resolve(jsonResponse({ mailDeliveryAvailable }));
     }
     return fetchMock(input, init);
   });
@@ -200,12 +188,17 @@ describe("field attributes modal", () => {
 /**
  * @file (cont'd) Direct coverage for `FormEditorFieldsBody`, `FormEditorTabStrip`, and
  * `FormEditorMainPanel` — extracted out of `FormEditor` by the complexity-ceiling pass. None of
- * these branches (notify recipients reveal, the Enable/Disable status toggle, the Fields/
- * Submissions tab switch, and the new-form "Create form" vs existing-form "Save" label) were
- * exercised by the tests above, which only drove the load-error guards and the field-attributes
- * modal. Added per the refactor brief's "every extracted unit gets its own direct unit test" rule.
+ * these branches (the Enable/Disable status toggle, the Fields/Submissions tab switch, and the
+ * new-form "Create form" vs existing-form "Save" label) were exercised by the tests above, which
+ * only drove the load-error guards and the field-attributes modal. Added per the refactor brief's
+ * "every extracted unit gets its own direct unit test" rule.
+ *
+ * The notify checkbox/recipients-input UI this describe block used to also cover was removed
+ * (owner ask 2026-09-22 — dead until an outside mail integration exists; see
+ * `use-form-editor.hooks.ts`'s own `notify` state comment for the pass-through that replaced it,
+ * pinned by `use-form-editor.unit.test.tsx`'s "preserves an existing form's notify setting" test).
  */
-describe("new form — no tabs, Create form label, notify recipients reveal", () => {
+describe("new form — no tabs, Create form label", () => {
   it("renders no tab strip for a new form, and the Save button reads 'Create form'", async () => {
     renderScreen(<FormEditor formId="new" tab="fields" />);
 
@@ -213,54 +206,12 @@ describe("new form — no tabs, Create form label, notify recipients reveal", ()
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
 
-  it("reveals the recipients input only once notify is enabled", async () => {
-    const user = userEvent.setup();
+  it("never renders the removed notify checkbox or recipients input", async () => {
     renderScreen(<FormEditor formId="new" tab="fields" />);
 
+    await screen.findByRole("button", { name: /create form/i });
+    expect(screen.queryByRole("checkbox", { name: /notification/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/recipients/i)).not.toBeInTheDocument();
-    await user.click(screen.getByRole("checkbox", { name: /enable email notification/i }));
-    expect(screen.getByLabelText(/recipients/i)).toBeInTheDocument();
-  });
-});
-
-describe("email notification — greyed out until the site can send mail", () => {
-  it("disables the notify checkbox and shows the coming-soon note when mail delivery is unavailable", async () => {
-    mailDeliveryAvailable = false;
-    renderScreen(<FormEditor formId="new" tab="fields" />);
-
-    expect(await screen.findByText("Email notifications are coming soon.")).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: /enable email notification/i })).toBeDisabled();
-  });
-
-  it("keeps a stored notify setting visible but disables its recipients input when mail is unavailable", async () => {
-    mailDeliveryAvailable = false;
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        data: {
-          id: "f1",
-          name: "Contact",
-          slug: "contact",
-          status: "active",
-          fields: [],
-          notify: { enabled: true, recipients: ["owner@example.com"] },
-        },
-      })
-    );
-    renderScreen(<FormEditor formId="f1" tab="fields" />);
-
-    const recipients = await screen.findByLabelText(/recipients/i);
-    await screen.findByText("Email notifications are coming soon.");
-    expect(recipients).toBeDisabled();
-    expect(recipients).toHaveValue("owner@example.com");
-    expect(screen.getByRole("checkbox", { name: /enable email notification/i })).toBeChecked();
-  });
-
-  it("leaves the notify checkbox enabled with no note when mail delivery is available", async () => {
-    renderScreen(<FormEditor formId="new" tab="fields" />);
-
-    await waitFor(() => expect(mailStatusRequested).toBe(true));
-    expect(screen.getByRole("checkbox", { name: /enable email notification/i })).toBeEnabled();
-    expect(screen.queryByText("Email notifications are coming soon.")).not.toBeInTheDocument();
   });
 });
 

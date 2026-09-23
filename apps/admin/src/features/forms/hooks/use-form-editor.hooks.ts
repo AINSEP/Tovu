@@ -4,7 +4,7 @@ import type { AdminFormDefinition, AdminFormField, AdminFormNotify } from "@/lib
 import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { FORM_TABS, KEYS, blankField, existingFieldIdsOf, nextTabIndex, parseRecipients, visibleFormEditorError } from "../rules";
+import { FORM_TABS, KEYS, blankField, existingFieldIdsOf, nextTabIndex, visibleFormEditorError } from "../rules";
 import { t as translate } from "../forms-i18n";
 import { defaultFormsPort } from "./forms-dependencies.hooks";
 import type { FormsPort } from "./forms-port.hooks";
@@ -48,19 +48,21 @@ import type { FormsPort } from "./forms-port.hooks";
  *
  * `lib/fetch-query` migration (2026-08-12): the load is one `useFetchQuery` keyed on
  * `KEYS.form(formId)` (disabled for `isNew`, matching the original `if (isNew) return;` early-out).
- * `form`/`name`/`slug`/`fields`/`notify`/`recipientsText` stay local `useState` — the operator edits
- * them — and are seeded from `list.data` exactly once per `formId` via `seededFormIdRef`, the same
- * shape `collections/hooks/use-collection-entry-editor.hooks.ts`'s `seededIdentityRef` establishes
- * (see that file's header for the regression it guards against: a background refetch of the SAME
- * identity must not clobber in-progress edits). `handleSave`/`handleStatusToggle` set `form` (and,
- * for save, the rest of the seeded fields) directly from each MUTATION's own response, and neither
- * mutation invalidates this hook's OWN `KEYS.form(formId)` read (only the sibling `KEYS.list`) —
- * mirroring `save()`/`toggleLifecycle()` in that same collections hook, which invalidate only the
- * sibling `KEYS.entries(...)`, never their own `KEYS.entry(...)`, for the identical reason: a
- * response already in hand needs no redundant background refetch of itself. This eliminates the
- * load race an external audit flagged at this file's old line 117 (`useEffect(load, [props.formId,
- * port])` with no cancellation guard, so a formId change mid-flight could commit a stale response):
- * a keyed query cannot commit a response belonging to a prior key, by construction.
+ * `form`/`name`/`slug`/`fields`/`notify` stay local `useState` — the operator edits `name`/`slug`/
+ * `fields`; `notify` has no UI of its own (owner ask 2026-09-22 removed the notify checkbox/
+ * recipients input — see this file's own `notify` state comment) and is only ever carried through
+ * unchanged. All are seeded from `list.data` exactly once per `formId` via `seededFormIdRef`, the
+ * same shape `collections/hooks/use-collection-entry-editor.hooks.ts`'s `seededIdentityRef`
+ * establishes (see that file's header for the regression it guards against: a background refetch of
+ * the SAME identity must not clobber in-progress edits). `handleSave`/`handleStatusToggle` set `form`
+ * (and, for save, the rest of the seeded fields) directly from each MUTATION's own response, and
+ * neither mutation invalidates this hook's OWN `KEYS.form(formId)` read (only the sibling
+ * `KEYS.list`) — mirroring `save()`/`toggleLifecycle()` in that same collections hook, which
+ * invalidate only the sibling `KEYS.entries(...)`, never their own `KEYS.entry(...)`, for the
+ * identical reason: a response already in hand needs no redundant background refetch of itself. This
+ * eliminates the load race an external audit flagged at this file's old line 117 (`useEffect(load,
+ * [props.formId, port])` with no cancellation guard, so a formId change mid-flight could commit a
+ * stale response): a keyed query cannot commit a response belonging to a prior key, by construction.
  */
 
 export interface FormEditorController {
@@ -74,15 +76,6 @@ export interface FormEditorController {
   setSlug: (value: string) => void;
   fields: AdminFormField[];
   setFields: (fields: AdminFormField[]) => void;
-  notify: AdminFormNotify;
-  setNotify: (notify: AdminFormNotify) => void;
-  recipientsText: string;
-  setRecipientsText: (value: string) => void;
-  /** `false` only once the server confirms it cannot send email (console mailer) — the view then
-   *  disables the notify controls and shows a "coming soon" note. Display-only: the stored
-   *  `notify` value is never cleared. Stays `true` while loading or if the read fails, so an
-   *  unknown state never hides a working feature. */
-  notifyAvailable: boolean;
   tab: "fields" | "submissions";
   /** Navigates to this form's Fields or Submissions route — real `navigate()`, not local state
    *  (ADR-063: Submissions has its own independent fetch, so a tab switch is a genuine route
@@ -121,18 +114,22 @@ export function useFormEditor(
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [fields, setFields] = useState<AdminFormField[]>([blankField()]);
+  // No UI edits this (owner ask 2026-09-22 removed the notify checkbox/recipients input from the
+  // Fields tab — a future outside mail integration will design its own way to set it). Seeded from
+  // the loaded form and carried through unchanged on every save, so an operator saving a form never
+  // wipes out a `notify` setting that predates this UI removal. Stays local `useState`, not a
+  // `const`, only so `handleSave`'s existing-form branch can resync it from the write's own response
+  // exactly like `form`/`name`/`slug`/`fields` already do below.
   const [notify, setNotify] = useState<AdminFormNotify>({ enabled: false, recipients: [] });
-  const [recipientsText, setRecipientsText] = useState("");
   // Roving-tabindex focus targets for the tab strip below, indexed the same as `FORM_TABS` — see
   // `nextTabIndex`'s doc comment for why the index math itself lives outside the component.
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const list = useFetchQuery({ key: KEYS.form(props.formId), fetch: () => port.getForm(props.formId), enabled: !isNew });
-  const mailStatus = useFetchQuery({ key: KEYS.mailStatus, fetch: () => port.getMailStatus() });
 
-  // Seeds `form`/`name`/`slug`/`fields`/`notify`/`recipientsText` from `list.data` exactly once per
-  // `formId` — see this file's own header for the regression this guards against (a background
-  // refetch of the SAME formId must not clobber in-progress edits).
+  // Seeds `form`/`name`/`slug`/`fields`/`notify` from `list.data` exactly once per `formId` — see
+  // this file's own header for the regression this guards against (a background refetch of the SAME
+  // formId must not clobber in-progress edits).
   const seededFormIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (seededFormIdRef.current !== props.formId) seededFormIdRef.current = null;
@@ -146,7 +143,6 @@ export function useFormEditor(
     setSlug(loaded.slug);
     setFields(loaded.fields);
     setNotify(loaded.notify);
-    setRecipientsText(loaded.notify.recipients.join(", "));
   }, [props.formId, isNew, list.status, list.data]);
 
   // None of these invalidate `KEYS.form(props.formId)` — only `KEYS.list`. `handleSave`/
@@ -179,25 +175,28 @@ export function useFormEditor(
   });
 
   async function handleSave() {
-    const notifyPayload = { ...notify, recipients: parseRecipients(recipientsText) };
     try {
       if (isNew) {
-        const created = await createMutation.mutate({ name, slug, fields, notify: notifyPayload });
+        // `notify` here is always this hook's own blank default — a new form has no earlier value
+        // to carry through, and there is no UI on this screen to set one instead.
+        const created = await createMutation.mutate({ name, slug, fields, notify });
         // Slug, not id — see this hook's own file header / `get-by-id.ts` for the id-or-slug
         // resolution this now lands on (ui-fixes-backlog.md #8).
         navigate(`/forms/${created.data.slug}`);
       } else {
+        // `notify` is the value this hook seeded from the loaded form and has never changed since —
+        // sent back unchanged so saving name/slug/field edits can never wipe a stored notify setting
+        // (see this hook's own `notify` state comment).
         // Set directly from the write's own response — `updateMutation` doesn't invalidate this
         // hook's own `KEYS.form(id)` read (see the mutations' own comment above), so there is no
         // background refetch to wait for or to accidentally clobber an in-progress edit with.
         // Mirrors `use-collection-entry-editor.hooks.ts`'s `save()`.
-        const { data: updated } = await updateMutation.mutate({ name, fields, notify: notifyPayload });
+        const { data: updated } = await updateMutation.mutate({ name, fields, notify });
         setForm(updated);
         setName(updated.name);
         setSlug(updated.slug);
         setFields(updated.fields);
         setNotify(updated.notify);
-        setRecipientsText(updated.notify.recipients.join(", "));
       }
     } catch {
       // already surfaced through updateMutation.error/createMutation.error -> error below
@@ -254,11 +253,6 @@ export function useFormEditor(
     setSlug,
     fields,
     setFields,
-    notify,
-    setNotify,
-    recipientsText,
-    setRecipientsText,
-    notifyAvailable: mailStatus.data?.mailDeliveryAvailable !== false,
     tab,
     onTabChange,
     error,

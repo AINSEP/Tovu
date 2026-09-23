@@ -110,6 +110,30 @@ describe("useFormEditor — injected port + navigate + t", () => {
     expect(result.current.form?.name).toBe("Contact (renamed)");
   });
 
+  it("preserves an existing form's notify setting on save, even though the Fields tab no longer has any UI to edit it (owner ask 2026-09-22)", async () => {
+    const port = createFakeFormsPort({
+      forms: [formFixture({ notify: { enabled: true, recipients: ["owner@example.com"] } })],
+    });
+    const navigate = vi.fn();
+    const { result } = renderHook(
+      () => useFormEditor({ formId: "f1", tab: "fields" }, { port, navigate, t: (key: string) => key }),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.form).not.toBeNull());
+
+    // A save that only touches name/slug/fields must not go anywhere near `notify` — there is no
+    // `setNotify`/`recipientsText` on this controller for the view to call any more.
+    act(() => {
+      result.current.setName("Contact (renamed)");
+    });
+    await act(async () => {
+      await result.current.handleSave();
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.form?.notify).toEqual({ enabled: true, recipients: ["owner@example.com"] });
+  });
+
   it("handleStatusToggle flips status through the port for an existing form", async () => {
     const port = createFakeFormsPort({ forms: [formFixture({ status: "active" })] });
     const navigate = vi.fn();

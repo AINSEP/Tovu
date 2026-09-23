@@ -41,7 +41,6 @@ export const FORMS_LIST_RESOURCE = "forms";
 export const KEYS = {
   list: ["forms", "list"] as QueryKey,
   form: (id: string): QueryKey => ["forms", "detail", id],
-  mailStatus: ["forms", "mail-status"] as QueryKey,
   submissionsList: (formId: string): QueryKey => ["form-submissions", "list", formId],
   submissionDetail: (formId: string, submissionId: string): QueryKey => [
     "form-submissions",
@@ -240,19 +239,6 @@ export function removeFormField(fields: AdminFormField[], index: number): AdminF
  *  (form not loaded yet, or the "new form" case) has no existing ids. */
 export function existingFieldIdsOf(form: AdminFormDefinition | null): string[] {
   return form ? form.fields.map((f) => f.id) : [];
-}
-
-/**
- * Splits the notification recipients textarea into the trimmed, non-empty address list
- * `api.createForm`/`api.updateForm` expect.
- *
- * @complexity O(n) in `recipientsText.length`.
- */
-export function parseRecipients(recipientsText: string): string[] {
-  return recipientsText
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
 }
 
 // ---------------------------------------------------------------------------

@@ -3,7 +3,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { SeeMore } from "../../components/SeeMore/SeeMore";
 import "../../styles/form-field-attrs.css";
 
-import type { AdminFormDefinition, AdminFormField, AdminFormNotify } from "../../lib/api";
+import type { AdminFormDefinition, AdminFormField } from "../../lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { ATTRIBUTE_NAME_SUGGESTIONS, FIELD_TYPES, FORM_TABS, fieldDisplayName } from "./rules";
 import { useFieldAttributesDialog } from "./hooks/use-field-attributes-dialog.hooks";
@@ -55,8 +55,7 @@ import { useWiredFormEditor } from "./hooks/use-form-editor.hooks";
  * ## Markup only
  *
  * Every component's state now lives in its own `hooks/use-<thing>.hooks.ts`; pure logic (field-list
- * transforms, tab-index math, the attribute allowlist check, recipients parsing) lives in
- * `rules.ts`.
+ * transforms, tab-index math, the attribute allowlist check) lives in `rules.ts`.
  */
 
 // ---------------------------------------------------------------------------
@@ -662,8 +661,8 @@ export interface FormEditorProps {
   useFormEditorHook?: typeof useWiredFormEditor;
 }
 
-/** The name/slug fields, the field-definition table, the notify checkbox + recipients, and the
- * status-toggle/save action row — shared verbatim between the "new form" view (no tabs) and the
+/** The name/slug fields, the field-definition table, and the status-toggle/save action row —
+ * shared verbatim between the "new form" view (no tabs) and the
  * "existing form, Fields tab" view (see `FormEditor`'s own `fieldsBody` comment for why it's one
  * JSX value rather than two copies). Split into its own top-level component, not just a local
  * `const`, because a `const` assigned inside `FormEditor` still executes in that function's own
@@ -677,12 +676,6 @@ function FormEditorFieldsBody(props: {
   fields: AdminFormField[];
   existingFieldIds: string[];
   onFieldsChange: (fields: AdminFormField[]) => void;
-  notify: AdminFormNotify;
-  onNotifyChange: (notify: AdminFormNotify) => void;
-  recipientsText: string;
-  onRecipientsTextChange: (value: string) => void;
-  /** See `FormEditorController.notifyAvailable`. */
-  notifyAvailable: boolean;
   form: AdminFormDefinition | null;
   saving: boolean;
   onStatusToggle: () => void;
@@ -699,11 +692,6 @@ function FormEditorFieldsBody(props: {
     fields,
     existingFieldIds,
     onFieldsChange,
-    notify,
-    onNotifyChange,
-    recipientsText,
-    onRecipientsTextChange,
-    notifyAvailable,
     form,
     saving,
     onStatusToggle,
@@ -748,40 +736,6 @@ function FormEditorFieldsBody(props: {
         <div className="table-scroll">
           <FormFieldsEditor fields={fields} existingFieldIds={existingFieldIds} onChange={onFieldsChange} t={t} />
         </div>
-      </div>
-
-      <div className={notifyAvailable ? "field-group" : "field-group form-notify-unavailable"}>
-        <label className="form-checkbox-field">
-          <input
-            type="checkbox"
-            checked={notify.enabled}
-            disabled={!notifyAvailable}
-            onChange={(e) => onNotifyChange({ ...notify, enabled: e.target.checked })}
-            {...agentHandle("form-editor-notify-enabled", {
-              role: "checkbox",
-              label: "Whether an email is sent to the recipients below on every new submission",
-            })}
-          />
-          {t("Enable email notification")}
-        </label>
-        {notifyAvailable ? null : <p className="field-hint">{t("Email notifications are coming soon.")}</p>}
-        {notify.enabled ? (
-          <div className="field">
-            <label className="field-label" htmlFor="form-recipients">
-              {t("Recipients (comma-separated)")}
-            </label>
-            <input
-              id="form-recipients"
-              value={recipientsText}
-              disabled={!notifyAvailable}
-              onChange={(e) => onRecipientsTextChange(e.target.value)}
-              {...agentHandle("form-editor-notify-recipients", {
-                role: "field",
-                label: "Comma-separated email addresses notified on every new submission",
-              })}
-            />
-          </div>
-        ) : null}
       </div>
 
       {/* `form-actions` is a spacing-only hook layered on top of the shared `.editor-actions`
@@ -925,11 +879,6 @@ export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor
     setSlug,
     fields,
     setFields,
-    notify,
-    setNotify,
-    recipientsText,
-    setRecipientsText,
-    notifyAvailable,
     tab: activeTab,
     onTabChange,
     error,
@@ -969,11 +918,6 @@ export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor
       fields={fields}
       existingFieldIds={existingFieldIds}
       onFieldsChange={setFields}
-      notify={notify}
-      onNotifyChange={setNotify}
-      recipientsText={recipientsText}
-      onRecipientsTextChange={setRecipientsText}
-      notifyAvailable={notifyAvailable}
       form={form}
       saving={saving}
       onStatusToggle={handleStatusToggle}

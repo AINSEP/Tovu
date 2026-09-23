@@ -64,8 +64,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Loading…": "Cargando…",
     "No submissions yet.": "Aún no hay envíos.",
     // FormEditorFieldsBody
-    "Enable email notification": "Activar notificación por correo",
-    "Recipients (comma-separated)": "Destinatarios (separados por comas)",
     "Create form": "Crear formulario",
     // FormEditorHeaderText
     Form: "Formulario",
@@ -119,8 +117,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "Muat lebih banyak",
     "Loading…": "Memuat…",
     "No submissions yet.": "Belum ada kiriman.",
-    "Enable email notification": "Aktifkan notifikasi email",
-    "Recipients (comma-separated)": "Penerima (dipisahkan koma)",
     "Create form": "Buat formulir",
     Form: "Formulir",
     "Configure a new form's fields and email notifications.": "Konfigurasikan bidang dan notifikasi email formulir baru.",
@@ -171,8 +167,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "Mehr laden",
     "Loading…": "Wird geladen…",
     "No submissions yet.": "Noch keine Einsendungen.",
-    "Enable email notification": "E-Mail-Benachrichtigung aktivieren",
-    "Recipients (comma-separated)": "Empfänger (durch Komma getrennt)",
     "Create form": "Formular erstellen",
     Form: "Formular",
     "Configure a new form's fields and email notifications.":
@@ -222,8 +216,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "加载更多",
     "Loading…": "加载中…",
     "No submissions yet.": "暂无提交内容。",
-    "Enable email notification": "启用电子邮件通知",
-    "Recipients (comma-separated)": "收件人(以逗号分隔)",
     "Create form": "创建表单",
     Form: "表单",
     "Configure a new form's fields and email notifications.": "配置新表单的字段和电子邮件通知。",
@@ -272,8 +264,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "載入更多",
     "Loading…": "載入中…",
     "No submissions yet.": "尚無提交內容。",
-    "Enable email notification": "啟用電子郵件通知",
-    "Recipients (comma-separated)": "收件者(以逗號分隔)",
     "Create form": "建立表單",
     Form: "表單",
     "Configure a new form's fields and email notifications.": "設定新表單的欄位與電子郵件通知。",
@@ -323,8 +313,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "Carregar mais",
     "Loading…": "Carregando…",
     "No submissions yet.": "Ainda não há envios.",
-    "Enable email notification": "Ativar notificação por e-mail",
-    "Recipients (comma-separated)": "Destinatários (separados por vírgula)",
     "Create form": "Criar formulário",
     Form: "Formulário",
     "Configure a new form's fields and email notifications.":
@@ -375,8 +363,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "Загрузить ещё",
     "Loading…": "Загрузка…",
     "No submissions yet.": "Пока нет отправок.",
-    "Enable email notification": "Включить уведомление по эл. почте",
-    "Recipients (comma-separated)": "Получатели (через запятую)",
     "Create form": "Создать форму",
     Form: "Форма",
     "Configure a new form's fields and email notifications.":
@@ -427,8 +413,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "بارگذاری بیشتر",
     "Loading…": "در حال بارگذاری…",
     "No submissions yet.": "هنوز ارسالی وجود ندارد.",
-    "Enable email notification": "فعال‌سازی اعلان ایمیل",
-    "Recipients (comma-separated)": "گیرندگان (با کاما جدا شده)",
     "Create form": "ایجاد فرم",
     Form: "فرم",
     "Configure a new form's fields and email notifications.": "فیلدها و اعلان‌های ایمیل فرم جدید را پیکربندی کنید.",
@@ -477,8 +461,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "تحميل المزيد",
     "Loading…": "جارٍ التحميل…",
     "No submissions yet.": "لا توجد إرسالات بعد.",
-    "Enable email notification": "تفعيل إشعار البريد الإلكتروني",
-    "Recipients (comma-separated)": "المستلمون (مفصولون بفواصل)",
     "Create form": "إنشاء نموذج",
     Form: "نموذج",
     "Configure a new form's fields and email notifications.": "اضبط حقول النموذج الجديد وإشعارات البريد الإلكتروني.",
@@ -528,8 +510,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "さらに読み込む",
     "Loading…": "読み込み中…",
     "No submissions yet.": "送信内容はまだありません。",
-    "Enable email notification": "メール通知を有効にする",
-    "Recipients (comma-separated)": "受信者(カンマ区切り)",
     "Create form": "フォームを作成",
     Form: "フォーム",
     "Configure a new form's fields and email notifications.": "新規フォームのフィールドとメール通知を設定します。",
@@ -578,8 +558,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "더 불러오기",
     "Loading…": "로딩 중…",
     "No submissions yet.": "아직 제출된 내용이 없습니다.",
-    "Enable email notification": "이메일 알림 사용",
-    "Recipients (comma-separated)": "수신자(쉼표로 구분)",
     "Create form": "양식 만들기",
     Form: "양식",
     "Configure a new form's fields and email notifications.": "새 양식의 필드와 이메일 알림을 구성하세요.",
@@ -629,8 +607,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "Wczytaj więcej",
     "Loading…": "Wczytywanie…",
     "No submissions yet.": "Brak zgłoszeń.",
-    "Enable email notification": "Włącz powiadomienie e-mail",
-    "Recipients (comma-separated)": "Odbiorcy (rozdzieleni przecinkami)",
     "Create form": "Utwórz formularz",
     Form: "Formularz",
     "Configure a new form's fields and email notifications.":
@@ -682,8 +658,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "Továbbiak betöltése",
     "Loading…": "Betöltés…",
     "No submissions yet.": "Még nincs beküldés.",
-    "Enable email notification": "E-mail-értesítés engedélyezése",
-    "Recipients (comma-separated)": "Címzettek (vesszővel elválasztva)",
     "Create form": "Űrlap létrehozása",
     Form: "Űrlap",
     "Configure a new form's fields and email notifications.":
@@ -735,8 +709,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "Charger plus",
     "Loading…": "Chargement…",
     "No submissions yet.": "Aucune soumission pour le moment.",
-    "Enable email notification": "Activer la notification par e-mail",
-    "Recipients (comma-separated)": "Destinataires (séparés par des virgules)",
     "Create form": "Créer le formulaire",
     Form: "Formulaire",
     "Configure a new form's fields and email notifications.":
@@ -787,8 +759,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "Завантажити ще",
     "Loading…": "Завантаження…",
     "No submissions yet.": "Поки немає надсилань.",
-    "Enable email notification": "Увімкнути сповіщення електронною поштою",
-    "Recipients (comma-separated)": "Отримувачі (через кому)",
     "Create form": "Створити форму",
     Form: "Форма",
     "Configure a new form's fields and email notifications.":
@@ -839,8 +809,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "Daha fazla yükle",
     "Loading…": "Yükleniyor…",
     "No submissions yet.": "Henüz gönderim yok.",
-    "Enable email notification": "E-posta bildirimini etkinleştir",
-    "Recipients (comma-separated)": "Alıcılar (virgülle ayrılmış)",
     "Create form": "Form oluştur",
     Form: "Form",
     "Configure a new form's fields and email notifications.":
@@ -891,8 +859,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "โหลดเพิ่มเติม",
     "Loading…": "กำลังโหลด…",
     "No submissions yet.": "ยังไม่มีข้อมูลที่ส่ง",
-    "Enable email notification": "เปิดใช้งานการแจ้งเตือนทางอีเมล",
-    "Recipients (comma-separated)": "ผู้รับ (คั่นด้วยจุลภาค)",
     "Create form": "สร้างแบบฟอร์ม",
     Form: "แบบฟอร์ม",
     "Configure a new form's fields and email notifications.": "กำหนดค่าฟิลด์และการแจ้งเตือนทางอีเมลของแบบฟอร์มใหม่",
@@ -941,8 +907,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "Carica altro",
     "Loading…": "Caricamento…",
     "No submissions yet.": "Ancora nessun invio.",
-    "Enable email notification": "Abilita notifica e-mail",
-    "Recipients (comma-separated)": "Destinatari (separati da virgola)",
     "Create form": "Crea modulo",
     Form: "Modulo",
     "Configure a new form's fields and email notifications.":
@@ -1003,8 +967,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "और लोड करें",
     "Loading…": "लोड हो रहा है…",
     "No submissions yet.": "अभी तक कोई सबमिशन नहीं है।",
-    "Enable email notification": "ईमेल सूचना सक्षम करें",
-    "Recipients (comma-separated)": "प्राप्तकर्ता (अल्पविराम से अलग)",
     "Create form": "फ़ॉर्म बनाएं",
     Form: "फ़ॉर्म",
     "Configure a new form's fields and email notifications.":
@@ -1065,8 +1027,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "مزید لوڈ کریں",
     "Loading…": "لوڈ ہو رہا ہے…",
     "No submissions yet.": "ابھی تک کوئی اندراج نہیں ہے۔",
-    "Enable email notification": "ای میل اطلاع فعال کریں",
-    "Recipients (comma-separated)": "وصول کنندگان (کوما سے الگ)",
     "Create form": "فارم بنائیں",
     Form: "فارم",
     "Configure a new form's fields and email notifications.":
@@ -1127,8 +1087,6 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Load more": "আরও লোড করুন",
     "Loading…": "লোড হচ্ছে…",
     "No submissions yet.": "এখনও কোনো জমা নেই।",
-    "Enable email notification": "ইমেইল বিজ্ঞপ্তি সক্ষম করুন",
-    "Recipients (comma-separated)": "প্রাপক (কমা দ্বারা পৃথক)",
     "Create form": "ফর্ম তৈরি করুন",
     Form: "ফর্ম",
     "Configure a new form's fields and email notifications.":
@@ -1165,32 +1123,6 @@ const FORMS_AUDIT_I18N: Record<string, Record<string, string>> = {
   bn: { "See more about field attributes": "ফিল্ড বৈশিষ্ট্য সম্পর্কে আরও দেখুন", "Add CSS classes and HTML attributes to this field’s input. Classes are unrestricted — Tailwind utility classes like ": "এই ফিল্ডের ইনপুটে CSS ক্লাস এবং HTML বৈশিষ্ট্য যোগ করুন। ক্লাসে কোনো সীমাবদ্ধতা নেই — Tailwind ইউটিলিটি ক্লাস যেমন ", "or ": "বা ", " work as expected. Attribute names are limited to a safe allowlist (": "প্রত্যাশামতো কাজ করে। বৈশিষ্ট্যের নাম নিরাপদ অনুমতি তালিকায় সীমিত (", ", ": ", ", ", and a fixed list of layout/behavior attributes) — anything else, including event handlers like ": "এবং লেআউট/আচরণ বৈশিষ্ট্যের একটি নির্দিষ্ট তালিকা) — ইভেন্ট হ্যান্ডলারের মতো অন্য সবকিছু, যেমন ", ", is rejected.": ", প্রত্যাখ্যান করা হয়।", Attribute: "বৈশিষ্ট্য", "e.g. Enter your work email": "যেমন, আপনার কর্মস্থলের ইমেল লিখুন", "Existing fields cannot be removed once created": "তৈরি হওয়ার পর বিদ্যমান ফিল্ড সরানো যায় না", "Loading submission…": "জমা লোড হচ্ছে…", "Loading submissions…": "জমাগুলো লোড হচ্ছে…", "Form sections": "ফর্মের বিভাগ", "Loading form…": "ফর্ম লোড হচ্ছে…", "Loading forms…": "ফর্মগুলো লোড হচ্ছে…" },
 };
 
-/** Owner ask 2026-09-22: the notify controls are greyed out with this note while the site cannot
- *  send mail (`useFormEditor`'s `notifyAvailable`). */
-const FORMS_MAIL_STATUS_I18N: Record<string, Record<string, string>> = {
-  es: { "Email notifications are coming soon.": "Las notificaciones por correo llegarán pronto." },
-  id: { "Email notifications are coming soon.": "Notifikasi email segera hadir." },
-  de: { "Email notifications are coming soon.": "E-Mail-Benachrichtigungen kommen bald." },
-  "zh-CN": { "Email notifications are coming soon.": "电子邮件通知即将推出。" },
-  "zh-TW": { "Email notifications are coming soon.": "電子郵件通知即將推出。" },
-  "pt-BR": { "Email notifications are coming soon.": "Notificações por e-mail em breve." },
-  ru: { "Email notifications are coming soon.": "Уведомления по электронной почте скоро появятся." },
-  fa: { "Email notifications are coming soon.": "اعلان‌های ایمیلی به‌زودی ارائه می‌شوند." },
-  ar: { "Email notifications are coming soon.": "إشعارات البريد الإلكتروني قادمة قريبًا." },
-  ja: { "Email notifications are coming soon.": "メール通知は近日公開予定です。" },
-  ko: { "Email notifications are coming soon.": "이메일 알림은 곧 제공될 예정입니다." },
-  pl: { "Email notifications are coming soon.": "Powiadomienia e-mail już wkrótce." },
-  hu: { "Email notifications are coming soon.": "Az e-mail-értesítések hamarosan érkeznek." },
-  fr: { "Email notifications are coming soon.": "Les notifications par e-mail arrivent bientôt." },
-  uk: { "Email notifications are coming soon.": "Сповіщення електронною поштою незабаром з’являться." },
-  tr: { "Email notifications are coming soon.": "E-posta bildirimleri yakında geliyor." },
-  th: { "Email notifications are coming soon.": "การแจ้งเตือนทางอีเมลจะมาเร็ว ๆ นี้" },
-  it: { "Email notifications are coming soon.": "Le notifiche via email arriveranno presto." },
-  hi: { "Email notifications are coming soon.": "ईमेल सूचनाएँ जल्द आ रही हैं।" },
-  ur: { "Email notifications are coming soon.": "ای میل اطلاعات جلد آ رہی ہیں۔" },
-  bn: { "Email notifications are coming soon.": "ইমেল বিজ্ঞপ্তি শীঘ্রই আসছে।" },
-};
-
 function mergeDictionaryTranslations(
   dictionary: Record<string, Record<string, string>>,
   translationsByLocale: Record<string, Record<string, string>>,
@@ -1201,7 +1133,6 @@ function mergeDictionaryTranslations(
 }
 
 mergeDictionaryTranslations(FORMS_DICT, FORMS_AUDIT_I18N);
-mergeDictionaryTranslations(FORMS_DICT, FORMS_MAIL_STATUS_I18N);
 
 /** `FORMS_DICT` had no exported `t` at all before this fix — both `use-form-editor.hooks.ts` and
  *  `use-forms-list.hooks.ts` built their own no-fallback `FORMS_DICT[locale]?.[key] ?? key` inline,
