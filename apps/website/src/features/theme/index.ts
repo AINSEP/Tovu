@@ -93,6 +93,7 @@ export {
   injectPageTitle,
   resolveTemplate,
   isEligibleForTemplateBranch,
+  isBarePageChoice,
   resolveStaticTierPageShellFallback,
   resolveTemplateBranchChoice,
   type TemplateBranchChoice,

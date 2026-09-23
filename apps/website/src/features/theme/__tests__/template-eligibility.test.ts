@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isEligibleForTemplateBranch } from "../static-render.js";
+import { isBarePageChoice, isEligibleForTemplateBranch } from "../static-render.js";
 import type { DiscoveredTheme } from "../theme.js";
 
 /**
@@ -99,15 +99,23 @@ test("DEMO GUARD: our-story — a doc-format Page with an explicit templateChoic
   );
 });
 
-test("a doc-format Page with templateChoice \"\" (explicit opt-out) IS eligible", () => {
-  // Eligible for the branch — resolveTemplate itself then routes "" to the diagnostic page, the same
-  // tri-state behavior Posts get. The gate's job is only to keep the null/undefined fallback arm away
-  // from Pages, not to reinterpret "" for them.
+test("BARE PAGE: a doc-format Page with templateChoice \"\" is NOT eligible for the template branch", () => {
+  // Owner ruling 2026-09-23: "" now means a bare page (the Page's own HTML, no theme chrome) rather
+  // than the diagnostic page. isBarePageChoice is what identifies it; this gate must keep it OUT of
+  // the template branch entirely, in every body format.
   const theme = makeTheme({ templates: ["blog-post.html"] });
-  assert.equal(
-    isEligibleForTemplateBranch({ theme, post: { kind: "page", bodyFormat: "doc", templateChoice: "" } }),
-    true
-  );
+  const post = { kind: "page" as const, bodyFormat: "doc" as const, templateChoice: "" };
+  assert.equal(isEligibleForTemplateBranch({ theme, post }), false);
+  assert.equal(isBarePageChoice(post), true);
+});
+
+test("a Post with templateChoice \"\" stays eligible — isBarePageChoice is Page-only", () => {
+  // The bare-page ruling is scoped to kind: "page". A Post's "" keeps routing through this branch to
+  // resolveTemplate's own diagnostic-page arm, unchanged.
+  const theme = makeTheme({ templates: ["blog-post.html"] });
+  const post = { kind: "post" as const, bodyFormat: "doc" as const, templateChoice: "" };
+  assert.equal(isEligibleForTemplateBranch({ theme, post }), true);
+  assert.equal(isBarePageChoice(post), false);
 });
 
 test("an html-format Page with an explicit templateChoice IS eligible", () => {
@@ -121,15 +129,15 @@ test("an html-format Page with an explicit templateChoice IS eligible", () => {
   );
 });
 
-test("DIVERGENCE (preserved, not unified): an html-format Page with templateChoice \"\" is NOT eligible — collapses to the same 'render own body' outcome as null, unlike a doc-format Page", () => {
-  // Deliberate divergence, predates the 2026-08-11 unification and is preserved verbatim: an
-  // html-format Page's "no template" IS its normal working behavior, so "" must not route to the
-  // diagnostic page the way it does for a doc-format Page/Post.
+test("BARE PAGE: an html-format Page with templateChoice \"\" is NOT eligible either — no more doc/html divergence", () => {
+  // Before the owner's 2026-09-23 ruling this was a documented DIVERGENCE: a doc-format Page's ""
+  // was eligible (diagnostic page, like a Post) while an html-format Page's "" was already ineligible
+  // (matching null). The ruling gave "" a Page-only bare-page meaning that both formats must now
+  // honor identically.
   const theme = makeTheme({ templates: ["legal-page.html"] });
-  assert.equal(
-    isEligibleForTemplateBranch({ theme, post: { kind: "page", bodyFormat: "html", templateChoice: "" } }),
-    false
-  );
+  const post = { kind: "page" as const, bodyFormat: "html" as const, templateChoice: "" };
+  assert.equal(isEligibleForTemplateBranch({ theme, post }), false);
+  assert.equal(isBarePageChoice(post), true);
 });
 
 test("REGRESSION GUARD: an html-format Page with templateChoice null is NOT eligible — no fallback arm for Pages", () => {

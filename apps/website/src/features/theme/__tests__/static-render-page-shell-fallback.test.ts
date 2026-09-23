@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveStaticTierPageShellFallback } from "../static-render.js";
+import { resolveStaticTierPageShellFallback, resolveTemplateBranchChoice } from "../static-render.js";
 import type { DiscoveredTheme, ThemeTier } from "../theme.js";
 
 /**
@@ -130,6 +130,49 @@ test("a page-shell.html carrying no content slot resolves nothing", () => {
   assert.equal(
     resolveStaticTierPageShellFallback({ theme, post: { kind: "page", bodyFormat: "html" } }),
     undefined
+  );
+});
+
+test("BARE PAGE: an html-format Page with templateChoice \"\" resolves nothing — never hand a bare Page the shell", () => {
+  // Owner ruling 2026-09-23: "" means a bare page (no theme chrome at all), and a page shell IS theme
+  // chrome. Only "" is bare — null keeps resolving the shell (see the tests below).
+  assert.equal(
+    resolveStaticTierPageShellFallback({
+      theme: makeTheme(),
+      post: { kind: "page", bodyFormat: "html", templateChoice: "" },
+    }),
+    undefined
+  );
+});
+
+test("BARE PAGE: a doc-format Page with templateChoice \"\" also resolves nothing", () => {
+  assert.equal(
+    resolveStaticTierPageShellFallback({
+      theme: makeTheme(),
+      post: { kind: "page", bodyFormat: "doc", templateChoice: "" },
+    }),
+    undefined
+  );
+});
+
+test("a Page with templateChoice null still resolves the shell — only \"\" is bare", () => {
+  assert.equal(
+    resolveStaticTierPageShellFallback({
+      theme: makeTheme(),
+      post: { kind: "page", bodyFormat: "html", templateChoice: null },
+    }),
+    "page-shell.html"
+  );
+});
+
+test("resolveTemplateBranchChoice: a bare Page (templateChoice \"\") is ineligible, never routed to the page shell", () => {
+  // Composed-function guard: even though resolveStaticTierPageShellFallback alone already refuses a
+  // bare Page, this proves the caller-facing composition (`renderTemplateBranchIfEligible`'s own
+  // dependency) agrees — a bare Page must reach "ineligible", not "page-shell".
+  const theme = makeTheme();
+  assert.deepEqual(
+    resolveTemplateBranchChoice({ theme, post: { kind: "page", bodyFormat: "html", templateChoice: "" } }),
+    { kind: "ineligible" }
   );
 });
 
