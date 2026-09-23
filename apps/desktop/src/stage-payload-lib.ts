@@ -32,6 +32,15 @@ interface HostInfo {
   arch: string;
 }
 
+/** The fields {@link resolveNpmLsCommand} reads off its `host` argument — real callers pass
+ *  `process` itself (whose `execPath`/`platform`/`env` all satisfy this shape structurally), tests
+ *  pass a plain object. */
+interface NpmLsHost {
+  execPath: string;
+  platform: string;
+  env: { npm_execpath?: string };
+}
+
 /** Byte/count tally shared by {@link stripGeneratedFiles} and {@link stripCoverageReports}, returned
  *  from {@link stripNonRuntimeFiles}. */
 interface StripTally {
@@ -396,6 +405,28 @@ export function resolveTargets(env: NodeJS.ProcessEnv, host: HostInfo): Target[]
   const arch = env.TOVU_TARGET_ARCH || host.arch;
   if (arch === "universal") return [{ platform, arch: "x64" }, { platform, arch: "arm64" }];
   return [{ platform, arch }];
+}
+
+/**
+ * How to invoke `npm ls`, portably. Plain `execFileSync("npm", …)` fails on Windows: the real
+ * binary is `npm.cmd`, which `execFileSync` cannot exec directly (ENOENT), and even a shell-less
+ * `.cmd` throws EINVAL on Node >= 18.20 without `shell: true`.
+ *
+ * Preferred, on every platform: when npm invoked this script as an npm script, npm has already set
+ * `npm_execpath` to ITS OWN `npm-cli.js` — a plain JS file, not a `.cmd`/`.sh` wrapper — so
+ * re-invoking that same file under this process's own `execPath` needs no shell at all.
+ *
+ * Fallback, only reached with no `npm_execpath` (e.g. this script run directly with
+ * `node scripts/stage-payload.ts`, outside npm): run `npm` through the platform shell on win32,
+ * where a shell is what resolves `npm` to `npm.cmd`. Elsewhere a shell changes nothing, since a
+ * bare `npm` already execs directly — so it stays off there rather than added for no reason.
+ *
+ * @complexity O(1).
+ */
+export function resolveNpmLsCommand(host: NpmLsHost): { command: string; args: string[]; shell: boolean } {
+  const lsArgs = ["ls", "--omit=dev", "--parseable", "--all"];
+  if (host.env.npm_execpath) return { command: host.execPath, args: [host.env.npm_execpath, ...lsArgs], shell: false };
+  return { command: "npm", args: lsArgs, shell: host.platform === "win32" };
 }
 
 /**
