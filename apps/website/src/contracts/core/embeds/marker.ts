@@ -95,22 +95,27 @@ export interface ScanEmbedMarkersResult {
 }
 
 /**
- * Matches one element carrying `data-embed-config`, capturing its tag, attributes, and inner content
- * up to the matching close tag. The backreferenced closing tag (`<\/\1>`) is safe for a marker with
- * no same-named descendant — true for every marker convention in this codebase, and the same
- * assumption `injectMenuEmbed` documented before this module existed.
+ * Matches the OPEN tag of one element carrying `data-embed-config`, capturing its tag name and its
+ * attribute text. It stops at the open tag's own `>` and makes no assumption about what closes it —
+ * {@link scanEmbedMarkers} locates the matching close tag separately, via {@link findBalancedClose}'s
+ * depth count over the masked html.
  *
- * Inner content is captured (rather than requiring an empty element) because a theme marker's
- * authored content is a real fallback that must survive when nothing resolves. The widgets pipeline
- * previously required `<div ...></div>` with nothing between the tags, which is exactly why it could
- * not be used for theme markers; unifying on the permissive form removes that split.
+ * Before 2026-09-23 this pattern captured inner content itself, up to a backreferenced `<\/\1>`. That
+ * was only safe for a marker with no same-named descendant — true for every marker convention in this
+ * codebase at the time, and the same assumption `injectMenuEmbed` documented before this module
+ * existed — but it meant `<div data-embed-config='...'><div>…</div></div>` (an inner element sharing
+ * the marker's own tag name) closed at the FIRST `</div>`, truncating the marker's real inner content.
+ * {@link findBalancedClose} removes that assumption by counting depth instead of matching nearest text.
+ *
+ * The tag name pattern (`[a-z][a-z0-9-]*`) accepts any HTML element name, including a custom element
+ * (`<my-card>`), not just the historical letters-only set.
  *
  * Carries the `d` (`hasIndices`) flag so {@link scanEmbedMarkers} can read every field back out of
  * the ORIGINAL html at each capture group's own offsets, rather than out of whatever string was
  * actually scanned (see {@link maskNonRenderableRegions}) — see that function's doc for why the two
  * must never be the same string.
  */
-const MARKER_PATTERN = /<([a-z]+)((?:\s+[^>]*?)?\sdata-embed-config='([^']*)'(?:\s+[^>]*?)?)\s*>([\s\S]*?)<\/\1>/gid;
+const MARKER_PATTERN = /<([a-z][a-z0-9-]*)((?:\s+[^>]*?)?\sdata-embed-config='([^']*)'(?:\s+[^>]*?)?)\s*>/gid;
 
 /** Every character of `text` replaced by a space, except newlines (left alone so a masked span
  * cannot change how many lines the surrounding string has). Same length in, same length out. */
@@ -192,13 +197,61 @@ function parseMarkerConfig(raw: string): { config: Record<string, unknown> } | {
 }
 
 /**
+ * The `[start, end)` span (in `masked`) of the close tag that balances `tagName`'s open tag, whose
+ * own open-tag match ended at `fromIndex`. Counts every `<tagName`/`</tagName` token in `masked` from
+ * `fromIndex` onward — the boundary lookahead (`[\s/>]`) stops `<my-card` matching a longer name like
+ * `<my-card-extra` — to find the DEPTH-BALANCED close rather than the nearest textual one. This is the
+ * fix {@link MARKER_PATTERN}'s doc describes: `<div><div>…</div></div>` now closes at the tag that
+ * actually balances the one already open, not at the first `</div>` found.
+ *
+ * Falls back to the first `</tagName>` span found when the region never rebalances (a genuinely
+ * unclosed inner tag) — the same result the old backreferenced pattern produced, preserved on purpose
+ * so a malformed document degrades exactly as it did before, rather than swallowing everything after
+ * it. With no close at all, returns `[masked.length, masked.length]` so the caller's `whole`/`inner`
+ * end at the string's end instead of throwing or scanning forever.
+ *
+ * Runs against the MASKED copy only, so a tag written inside a comment or a `<script>`/`<style>`
+ * element's raw text (already blanked by {@link maskNonRenderableRegions}) is invisible to this
+ * count, exactly as it is invisible to {@link MARKER_PATTERN} itself.
+ *
+ * @complexity O(n) over the remaining length of `masked` from `fromIndex` — one regex pass, no
+ * backtracking beyond the boundary lookahead.
+ */
+function findBalancedClose(masked: string, tagName: string, fromIndex: number): readonly [number, number] {
+  const token = new RegExp(`<(/?)${tagName}(?=[\\s/>])`, "gi");
+  token.lastIndex = fromIndex;
+  let depth = 1;
+  let firstClose: readonly [number, number] | undefined;
+  let match: RegExpExecArray | null;
+  while ((match = token.exec(masked)) !== null) {
+    const closeAngle = masked.indexOf(">", match.index);
+    if (closeAngle === -1) break; // trailing malformed tag with no `>` at all; stop and fall back below
+    const tagEnd = closeAngle + 1;
+    if (match[1] === "/") {
+      firstClose ??= [match.index, tagEnd];
+      depth -= 1;
+      if (depth === 0) return [match.index, tagEnd];
+    } else {
+      depth += 1;
+    }
+    token.lastIndex = tagEnd;
+  }
+  return firstClose ?? [masked.length, masked.length];
+}
+
+/**
  * Locate and parse every embed marker in `html`. Pure; allocates one result per marker.
  *
  * Scans {@link maskNonRenderableRegions}'s masked copy so a marker sitting inside an HTML comment or
- * a `<script>`/`<style>` element's raw text is never matched, but every field on the resulting
- * {@link EmbedMarker} (`whole`, `tag`, `attrs`, `inner`, the parsed config) is read back out of the
- * ORIGINAL `html` at that match's own offsets — masking only decides which spans are eligible to be
- * a marker, it must never change what an eligible marker's own fields report.
+ * a `<script>`/`<style>` element's raw text is never matched, and so tags inside either are invisible
+ * to {@link findBalancedClose}'s depth count too. Every field on the resulting {@link EmbedMarker}
+ * (`whole`, `tag`, `attrs`, `inner`, the parsed config) is read back out of the ORIGINAL `html` at
+ * that match's own offsets — masking only decides which spans are eligible to be a marker or to count
+ * toward a close tag's depth, it must never change what an eligible marker's own fields report.
+ *
+ * Uses a private copy of {@link MARKER_PATTERN} (same source/flags) for the `exec` loop below, rather
+ * than mutating the shared module-level regex's `lastIndex` directly — this function is PURE, and a
+ * shared mutable scan cursor would corrupt a reentrant or recursive call.
  */
 export function scanEmbedMarkers(html: string): ScanEmbedMarkersResult {
   const markers: EmbedMarker[] = [];
@@ -206,21 +259,25 @@ export function scanEmbedMarkers(html: string): ScanEmbedMarkersResult {
   let occurrence = 0;
 
   const masked = maskNonRenderableRegions(html);
-  for (const match of masked.matchAll(MARKER_PATTERN)) {
+  const pattern = new RegExp(MARKER_PATTERN.source, MARKER_PATTERN.flags);
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(masked)) !== null) {
     occurrence += 1;
-    const indices = (match as RegExpMatchArray & { indices: RegExpIndicesArray }).indices;
-    const [wholeStart, wholeEnd] = requireGroupRange(indices, 0);
+    const indices = (match as RegExpExecArray & { indices: RegExpIndicesArray }).indices;
+    const [wholeStart, openTagEnd] = requireGroupRange(indices, 0);
     const tagRange = requireGroupRange(indices, 1);
     const attrsRange = requireGroupRange(indices, 2);
     const rawRange = requireGroupRange(indices, 3);
-    const innerRange = requireGroupRange(indices, 4);
+    const tag = html.slice(...tagRange);
+
+    const [closeStart, closeEnd] = findBalancedClose(masked, tag, openTagEnd);
+    pattern.lastIndex = closeEnd; // resume past this marker's whole balanced span, never re-entering it
 
     const index = wholeStart;
-    const whole = html.slice(wholeStart, wholeEnd);
-    const tag = html.slice(...tagRange);
+    const whole = html.slice(wholeStart, closeEnd);
     const attrs = html.slice(...attrsRange);
     const raw = html.slice(...rawRange);
-    const inner = html.slice(...innerRange);
+    const inner = html.slice(openTagEnd, closeStart);
     const result = parseMarkerConfig(raw);
 
     if ("problem" in result) {

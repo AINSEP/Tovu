@@ -266,3 +266,80 @@ test("withElementKeptIfAttributed: a bare marker returns inner alone; an attribu
   assert.equal(withElementKeptIfAttributed(bare, "resolved"), "resolved");
   assert.equal(withElementKeptIfAttributed(attributed, "resolved"), `<div style="max-width: 600px;">resolved</div>`);
 });
+
+/**
+ * @file Nesting-aware close: {@link scanEmbedMarkers} finds a marker's own close tag by depth count
+ * rather than by nearest textual `</tag>`, so a same-named descendant (`<div><div>…</div></div>`) no
+ * longer truncates the marker at the first inner close.
+ */
+
+test("scanEmbedMarkers: a marker's inner is everything between its outer tags, even with nested elements of other names", () => {
+  const html =
+    `<div data-embed-config='{"type":"collection","id":"x"}'>` +
+    `<template><div>{{title}}</div></template><div>none</div>` +
+    `</div>`;
+
+  const { markers } = scanEmbedMarkers(html);
+
+  assert.equal(markers.length, 1);
+  assert.equal(markers[0].type, "collection");
+  assert.equal(markers[0].inner, `<template><div>{{title}}</div></template><div>none</div>`);
+  assert.equal(markers[0].whole, html);
+});
+
+test("scanEmbedMarkers: same-name nesting three deep closes at the balanced tag, not the first close", () => {
+  const html = `<div data-embed-config='{"type":"collection","id":"x"}'><div><div>deep</div></div></div>`;
+
+  const { markers } = scanEmbedMarkers(html);
+
+  assert.equal(markers.length, 1);
+  assert.equal(markers[0].inner, `<div><div>deep</div></div>`);
+  assert.equal(markers[0].whole, html);
+});
+
+test("scanEmbedMarkers: an unbalanced inner <div> falls back to the first </div>, matching today's behaviour, without swallowing the rest of the document", () => {
+  const html = `<div data-embed-config='{"type":"collection","id":"x"}'><div>oops</div><p>after</p>`;
+
+  const { markers } = scanEmbedMarkers(html);
+
+  assert.equal(markers.length, 1);
+  assert.equal(markers[0].inner, `<div>oops`);
+  assert.equal(markers[0].whole, `<div data-embed-config='{"type":"collection","id":"x"}'><div>oops</div>`);
+});
+
+test("scanEmbedMarkers: a marker nested inside another marker's inner is not reported separately", () => {
+  const html =
+    `<div data-embed-config='{"type":"outer","id":"o"}'>` +
+    `<div data-embed-config='{"type":"inner","id":"i"}'>x</div>` +
+    `</div>`;
+
+  const { markers } = scanEmbedMarkers(html);
+
+  assert.equal(markers.length, 1);
+  assert.equal(markers[0].type, "outer");
+  assert.equal(markers[0].inner, `<div data-embed-config='{"type":"inner","id":"i"}'>x</div>`);
+});
+
+test("scanEmbedMarkers: comment/style masking hides a marker written inside them, and hides tags inside those regions from the balanced-close depth count", () => {
+  const html =
+    `<div data-embed-config='{"type":"collection","id":"x"}'>` +
+    `<!-- <div> --><div>real</div>` +
+    `</div>` +
+    `<style>.x{} <div data-embed-config='{"type":"style-fake"}'></div></style>`;
+
+  const { markers } = scanEmbedMarkers(html);
+
+  assert.equal(markers.length, 1);
+  assert.equal(markers[0].type, "collection");
+  assert.equal(markers[0].inner, `<!-- <div> --><div>real</div>`);
+});
+
+test("scanEmbedMarkers: recognises a marker on an <h2> and on a custom element like <my-card>", () => {
+  const h2 = scanEmbedMarkers(`<h2 data-embed-config='{"type":"widget","id":"w"}'>fallback</h2>`).markers;
+  const custom = scanEmbedMarkers(`<my-card data-embed-config='{"type":"widget","id":"w"}'>fallback</my-card>`).markers;
+
+  assert.equal(h2.length, 1);
+  assert.equal(h2[0].tag, "h2");
+  assert.equal(custom.length, 1);
+  assert.equal(custom[0].tag, "my-card");
+});
