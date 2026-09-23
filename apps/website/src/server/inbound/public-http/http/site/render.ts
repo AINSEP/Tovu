@@ -2402,6 +2402,18 @@ function readMediaAssetMetadata(value: JsonValue | undefined): ReadonlyMap<strin
   return entries.length > 0 ? new Map(entries) : EMPTY_MEDIA_ASSET_METADATA;
 }
 
+/** Rebuilds the `placementId -> WidgetRenderIR` map `renderDocNode`'s `widgetEmbed` case needs from
+ *  the plain JSON `resolver-service.ts`'s `resolvePostContentWidgetContext` stashes into
+ *  `props.inlineWidgets` (2026-09-22 — before it, every inline widget in a template-rendered post was
+ *  the placeholder). A malformed entry is skipped, so its node degrades to the placeholder. */
+function readInlineWidgets(value: JsonValue | undefined): ReadonlyMap<string, WidgetRenderIR> {
+  if (!isObject(value)) return EMPTY_INLINE_RESOLVED;
+  const entries = Object.entries(value).filter(
+    (entry): entry is [string, JsonObject] => isObject(entry[1]) && typeof entry[1].componentId === "string" && isObject(entry[1].props)
+  );
+  return entries.length > 0 ? new Map(entries.map(([id, ir]) => [id, ir as unknown as WidgetRenderIR])) : EMPTY_INLINE_RESOLVED;
+}
+
 /**
  * Owner-reported bug (2026-08-12): a ref-based image dropped into a post's body rendered as a
  * labelled placeholder box showing the filename — everywhere this function's output reaches (the
@@ -2470,9 +2482,10 @@ function renderWidgetPostContent(props: JsonObject): string {
     titleNode !== null ? `<h1${styleForAlign(titleNode.align)}>${titleNode.html}</h1>` : `<h1>${escapeHtml(title)}</h1>`;
   const mediaTransformVersions = readMediaTransformVersions(props.mediaTransformVersions as JsonValue | undefined);
   const mediaAssetMetadata = readMediaAssetMetadata(props.mediaAssetMetadata as JsonValue | undefined);
+  const inlineWidgets = readInlineWidgets(props.inlineWidgets as JsonValue | undefined);
   return (
     renderPostDetailHeader(showHeader, titleHtml, dateLabel, updatedAt) +
-    `<div class="post-detail-body">${renderDocNode(bodyJson, EMPTY_INLINE_RESOLVED, mediaTransformVersions, mediaAssetMetadata)}</div>`
+    `<div class="post-detail-body">${renderDocNode(bodyJson, inlineWidgets, mediaTransformVersions, mediaAssetMetadata)}</div>`
   );
 }
 

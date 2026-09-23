@@ -259,12 +259,20 @@ export async function resolvePageWidgets(required: ResolvePageWidgetsRequired): 
   }
 
   // 7. Assemble placementId -> IR for inline embeds.
+  return { regions, inlineResolved: assembleInlineResolved(inlineEmbeds, resolvedById) };
+}
+
+/** placementId -> IR for every inline embed; a missing/trashed/failed widget degrades to the REQ-28
+ *  placeholder IR. Shared by {@link resolvePageWidgets} and {@link resolvePostContentWidgetContext}. */
+function assembleInlineResolved(
+  inlineEmbeds: readonly InlineEmbedRef[],
+  resolvedById: ReadonlyMap<UUID, WidgetResolveResult>
+): Map<UUID, WidgetRenderIR> {
   const inlineResolved = new Map<UUID, WidgetRenderIR>();
   for (const embed of inlineEmbeds) {
     inlineResolved.set(embed.placementId, toRenderIr(resolvedById.get(embed.widgetEntryId)));
   }
-
-  return { regions, inlineResolved };
+  return inlineResolved;
 }
 
 // ---------------------------------------------------------------------------
@@ -831,6 +839,47 @@ async function resolvePostContentMediaContext(
 }
 
 /**
+ * Owner-reported bug (2026-09-22) — the inline-widget half of a "post-content" IR's render context,
+ * the sibling of {@link resolvePostContentMediaContext}. A `widgetEmbed` node in the embedded body
+ * used to render as the placeholder on every template-rendered post, because `render.ts`'s
+ * `renderWidgetPostContent` had no `inlineResolved` map to look its `placementId` up in. Resolves
+ * through the SAME `collectWidgetEmbeds`/`resolveWidgetInstances`/`assembleInlineResolved` chain
+ * `resolvePageWidgets` uses for the non-template path, and returns plain JSON
+ * (`placementId -> WidgetRenderIR`) for the same layering reason that function's doc gives;
+ * `render.ts`'s `readInlineWidgets` rebuilds the `Map`.
+ *
+ * @complexity O(w) over the body's `widgetEmbed` nodes plus, only when there is at least one, one
+ * batched widget-instance load and one `resolveWidgetType` call per distinct type (REQ-24).
+ */
+async function resolvePostContentWidgetContext(
+  deps: ResolveHtmlPageEmbedsDeps,
+  bodyJson: JsonObject,
+  context: WidgetResolveContext
+): Promise<{ inlineWidgets: JsonObject }> {
+  const inlineEmbeds: InlineEmbedRef[] = [];
+  collectWidgetEmbeds(bodyJson, inlineEmbeds);
+  if (inlineEmbeds.length === 0) return { inlineWidgets: {} };
+  const referencedIds = new Set(inlineEmbeds.map((embed) => embed.widgetEntryId));
+  const resolvedById = await resolveWidgetInstances(deps, context.workspaceId, referencedIds, context);
+  const inlineResolved = assembleInlineResolved(inlineEmbeds, resolvedById);
+  return { inlineWidgets: Object.fromEntries(inlineResolved) as unknown as JsonObject };
+}
+
+/** Everything a "post-content" IR's embedded body needs to render beyond the body itself — media
+ *  context plus inline widgets — spread into the IR's `props` by all three "post-content" builders. */
+async function resolvePostContentRenderContext(
+  deps: ResolveHtmlPageEmbedsDeps,
+  bodyJson: JsonObject,
+  context: WidgetResolveContext
+): Promise<JsonObject> {
+  const [mediaContext, widgetContext] = await Promise.all([
+    resolvePostContentMediaContext(deps, bodyJson, context),
+    resolvePostContentWidgetContext(deps, bodyJson, context),
+  ]);
+  return { ...mediaContext, ...widgetContext };
+}
+
+/**
  * `data-embed-type="post"` resolver — the post-template-picker feature (post-template.md's own
  * design conversation, first shipped 2026-08-10). `data-embed-id` is the post's stored id, exactly
  * like `media` (still id-only — no `slug` column exists to resolve against). `widget` gained a
@@ -891,10 +940,10 @@ async function resolvePostTypeEmbeds(
         });
         return;
       }
-      const mediaContext = await resolvePostContentMediaContext(deps, post.bodyJson, context);
+      const renderContext = await resolvePostContentRenderContext(deps, post.bodyJson, context);
       resolved.set(ref.id, {
         componentId: "post-content",
-        props: { title: post.title, slug: post.slug, updatedAt: post.updatedAt, bodyJson: post.bodyJson, ...mediaContext },
+        props: { title: post.title, slug: post.slug, updatedAt: post.updatedAt, bodyJson: post.bodyJson, ...renderContext },
       });
     })
   );
@@ -998,7 +1047,7 @@ async function resolveContentTypeEmbeds(
       // `renderWidgetPostContent` -> `renderDocNode`) is the SAME code the saved-body path runs,
       // never a second, parallel render path with its own escaping rules.
       if (pendingContentOverride && ref.id === pendingContentOverride.id) {
-        const mediaContext = await resolvePostContentMediaContext(deps, pendingContentOverride.bodyJson, context);
+        const renderContext = await resolvePostContentRenderContext(deps, pendingContentOverride.bodyJson, context);
         resolved.set(ref.id, {
           componentId: "post-content",
           props: {
@@ -1007,7 +1056,7 @@ async function resolveContentTypeEmbeds(
             updatedAt: pendingContentOverride.updatedAt,
             bodyJson: pendingContentOverride.bodyJson,
             header: ref.header,
-            ...mediaContext,
+            ...renderContext,
           },
         });
         return;
@@ -1032,7 +1081,7 @@ async function resolveContentTypeEmbeds(
         );
         return;
       }
-      const mediaContext = await resolvePostContentMediaContext(deps, entity.bodyJson, context);
+      const renderContext = await resolvePostContentRenderContext(deps, entity.bodyJson, context);
       resolved.set(ref.id, {
         componentId: "post-content",
         props: {
@@ -1041,7 +1090,7 @@ async function resolveContentTypeEmbeds(
           updatedAt: entity.updatedAt,
           bodyJson: entity.bodyJson,
           header: ref.header,
-          ...mediaContext,
+          ...renderContext,
         },
       });
     })
