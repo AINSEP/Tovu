@@ -343,3 +343,42 @@ test("scanEmbedMarkers: recognises a marker on an <h2> and on a custom element l
   assert.equal(custom.length, 1);
   assert.equal(custom[0].tag, "my-card");
 });
+
+test("scanEmbedMarkers: a marker with no close tag at all (a void <img>) is just its open tag and never swallows the rest of the document", () => {
+  const open = `<img data-embed-config='{"type":"media","id":"asset-1"}' class="hero">`;
+  const html = `<p>before</p>${open}<p>rest of the page</p><div>more</div>`;
+
+  const { markers } = scanEmbedMarkers(html);
+
+  assert.equal(markers.length, 1);
+  assert.equal(markers[0].whole, open);
+  assert.equal(markers[0].inner, "");
+  assert.equal(markers[0].index, `<p>before</p>`.length);
+});
+
+test("scanEmbedMarkers: a </div> inside a <script> in a marker's inner is not counted toward its balanced close", () => {
+  const html =
+    `<div data-embed-config='{"type":"collection","id":"x"}'>` +
+    `<script>document.write("</div>")</script><div>real</div>` +
+    `</div><p>after</p>`;
+
+  const { markers } = scanEmbedMarkers(html);
+
+  assert.equal(markers.length, 1);
+  assert.equal(markers[0].inner, `<script>document.write("</div>")</script><div>real</div>`);
+});
+
+test("scanEmbedMarkers: thousands of unbalanced markers scan in linear, not quadratic, time", () => {
+  // Each marker opens a <div>, closes an inner one, and never closes itself, so a per-marker depth
+  // count that runs to the end of the document on every marker is O(markers x length). 8000 of them
+  // (~520 KB) took ~16 s that way; a linear scan takes a few tens of milliseconds.
+  const html = `<div data-embed-config='{"type":"widget","id":"x"}'><div>x</div>\n`.repeat(8000);
+
+  const started = performance.now();
+  const { markers } = scanEmbedMarkers(html);
+  const elapsedMs = performance.now() - started;
+
+  assert.equal(markers.length, 8000);
+  assert.equal(markers[1].whole, `<div data-embed-config='{"type":"widget","id":"x"}'><div>x</div>`);
+  assert.ok(elapsedMs < 1500, `scan took ${elapsedMs.toFixed(0)} ms`);
+});

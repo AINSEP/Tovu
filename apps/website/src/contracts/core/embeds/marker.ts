@@ -196,47 +196,133 @@ function parseMarkerConfig(raw: string): { config: Record<string, unknown> } | {
   return { config };
 }
 
+/** A tag token's `[start, end)` span in the masked html — from its `<` through its first `>`. */
+type TagSpan = readonly [number, number];
+
 /**
- * The `[start, end)` span (in `masked`) of the close tag that balances `tagName`'s open tag, whose
- * own open-tag match ended at `fromIndex`. Counts every `<tagName`/`</tagName` token in `masked` from
- * `fromIndex` onward — the boundary lookahead (`[\s/>]`) stops `<my-card` matching a longer name like
- * `<my-card-extra` — to find the DEPTH-BALANCED close rather than the nearest textual one. This is the
- * fix {@link MARKER_PATTERN}'s doc describes: `<div><div>…</div></div>` now closes at the tag that
- * actually balances the one already open, not at the first `</div>` found.
- *
- * Falls back to the first `</tagName>` span found when the region never rebalances (a genuinely
- * unclosed inner tag) — the same result the old backreferenced pattern produced, preserved on purpose
- * so a malformed document degrades exactly as it did before, rather than swallowing everything after
- * it. With no close at all, returns `[masked.length, masked.length]` so the caller's `whole`/`inner`
- * end at the string's end instead of throwing or scanning forever.
+ * Every `<tagName`/`</tagName` token in `masked` from `fromIndex` onward, in document order. The
+ * boundary lookahead (`[\s/>]`) stops `<my-card` matching a longer name like `<my-card-extra`; each
+ * token ends at its first `>`, and the scan resumes there, so a token's own attribute text is never
+ * re-read as another token. Stops at a trailing malformed tag with no `>` at all.
  *
  * Runs against the MASKED copy only, so a tag written inside a comment or a `<script>`/`<style>`
- * element's raw text (already blanked by {@link maskNonRenderableRegions}) is invisible to this
- * count, exactly as it is invisible to {@link MARKER_PATTERN} itself.
+ * element's raw text (already blanked by {@link maskNonRenderableRegions}) is invisible here,
+ * exactly as it is invisible to {@link MARKER_PATTERN} itself.
  *
- * @complexity O(n) over the remaining length of `masked` from `fromIndex` — one regex pass, no
- * backtracking beyond the boundary lookahead.
+ * @complexity O(n) over the remaining length of `masked`.
  */
-function findBalancedClose(masked: string, tagName: string, fromIndex: number): readonly [number, number] {
+function* tagTokens(masked: string, tagName: string, fromIndex: number): Generator<{ readonly isClose: boolean; readonly span: TagSpan }> {
   const token = new RegExp(`<(/?)${tagName}(?=[\\s/>])`, "gi");
   token.lastIndex = fromIndex;
-  let depth = 1;
-  let firstClose: readonly [number, number] | undefined;
-  let match: RegExpExecArray | null;
-  while ((match = token.exec(masked)) !== null) {
+  for (let match = token.exec(masked); match !== null; match = token.exec(masked)) {
     const closeAngle = masked.indexOf(">", match.index);
-    if (closeAngle === -1) break; // trailing malformed tag with no `>` at all; stop and fall back below
-    const tagEnd = closeAngle + 1;
-    if (match[1] === "/") {
-      firstClose ??= [match.index, tagEnd];
-      depth -= 1;
-      if (depth === 0) return [match.index, tagEnd];
-    } else {
-      depth += 1;
-    }
-    token.lastIndex = tagEnd;
+    if (closeAngle === -1) return;
+    yield { isClose: match[1] === "/", span: [match.index, closeAngle + 1] };
+    token.lastIndex = closeAngle + 1;
   }
-  return firstClose ?? [masked.length, masked.length];
+}
+
+/**
+ * The depth-balanced close for the open tag whose match ended at `fromIndex`, by counting
+ * {@link tagTokens} from there: `<div><div>…</div></div>` closes at the tag that actually balances the
+ * one already open, not at the first `</div>` found. Falls back to the first close found when the
+ * region never rebalances (a genuinely unclosed inner tag) — the result the old backreferenced pattern
+ * produced, so malformed markup degrades as it did before. `null` when there is no close at all.
+ *
+ * Only {@link findBalancedClose}'s fallback for an open tag {@link indexTagTokens} tokenized
+ * differently (its JSON config holds a `>`); every other lookup is answered from that index.
+ *
+ * @complexity O(n) over the remaining length of `masked`.
+ */
+function scanForBalancedClose(masked: string, tagName: string, fromIndex: number): TagSpan | null {
+  let depth = 1;
+  let firstClose: TagSpan | null = null;
+  for (const { isClose, span } of tagTokens(masked, tagName, fromIndex)) {
+    if (!isClose) {
+      depth += 1;
+      continue;
+    }
+    firstClose ??= span;
+    depth -= 1;
+    if (depth === 0) return span;
+  }
+  return firstClose;
+}
+
+/** One tag name's tokens over the whole masked html, paired once with a stack. */
+interface TagTokenIndex {
+  /** Each open token's start → the span of the close that balances it, or `null` if none does. */
+  readonly partners: ReadonlyMap<number, TagSpan | null>;
+  /** Every close token's span, in document order (so sorted by start). */
+  readonly closes: readonly TagSpan[];
+}
+
+/**
+ * Pairs every `<tagName`/`</tagName` token in `masked` in ONE pass. Stack pairing gives each open the
+ * same close {@link scanForBalancedClose}'s depth count from that open would find (both match a close
+ * with the nearest still-open tag), but for every open at once — so a page of k unbalanced markers
+ * costs O(n), not the O(k·n) of rescanning to the end of the document once per marker.
+ *
+ * @complexity O(n) time, O(t) space for t tokens.
+ */
+function indexTagTokens(masked: string, tagName: string): TagTokenIndex {
+  const partners = new Map<number, TagSpan | null>();
+  const closes: TagSpan[] = [];
+  const openStarts: number[] = [];
+  for (const { isClose, span } of tagTokens(masked, tagName, 0)) {
+    if (!isClose) {
+      partners.set(span[0], null);
+      openStarts.push(span[0]);
+      continue;
+    }
+    closes.push(span);
+    const opener = openStarts.pop();
+    if (opener !== undefined) partners.set(opener, span);
+  }
+  return { partners, closes };
+}
+
+/** The first span in `closes` (sorted by start) starting at or after `fromIndex`, or `null`.
+ * @complexity O(log c) — binary search. */
+function firstCloseFrom(closes: readonly TagSpan[], fromIndex: number): TagSpan | null {
+  let low = 0;
+  let high = closes.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (closes[mid][0] < fromIndex) low = mid + 1;
+    else high = mid;
+  }
+  return closes[low] ?? null;
+}
+
+/**
+ * The `[start, end)` span (in `masked`) of the close tag that balances the marker open tag spanning
+ * `[openStart, openEnd)` — see {@link scanForBalancedClose} for the balancing and first-close
+ * fallback rules — or `null` when no close exists at all (a void element such as `<img>`, or an
+ * unclosed marker): the caller then treats the open tag alone as the whole marker, rather than
+ * letting it swallow the rest of the document.
+ *
+ * Answers from a per-tag-name {@link indexTagTokens} built once per scan and kept in `cache`. When
+ * that index tokenized this open tag differently from the marker pattern (the index ends a tag at its
+ * first `>`, and a `>` inside the JSON config ends it early), it falls back to the exact linear count.
+ *
+ * @complexity O(log c) amortized once the tag name's O(n) index exists; O(n) on the fallback.
+ */
+function findBalancedClose(
+  masked: string,
+  tag: { readonly name: string; readonly openStart: number; readonly openEnd: number },
+  cache: Map<string, TagTokenIndex>,
+): TagSpan | null {
+  const key = tag.name.toLowerCase();
+  let index = cache.get(key);
+  if (index === undefined) {
+    index = indexTagTokens(masked, key);
+    cache.set(key, index);
+  }
+  const partner = index.partners.get(tag.openStart);
+  const aligned = partner !== undefined && masked.indexOf(">", tag.openStart) + 1 === tag.openEnd;
+  if (!aligned) return scanForBalancedClose(masked, key, tag.openEnd);
+  return partner ?? firstCloseFrom(index.closes, tag.openEnd);
 }
 
 /**
@@ -260,8 +346,8 @@ export function scanEmbedMarkers(html: string): ScanEmbedMarkersResult {
 
   const masked = maskNonRenderableRegions(html);
   const pattern = new RegExp(MARKER_PATTERN.source, MARKER_PATTERN.flags);
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(masked)) !== null) {
+  const closeIndexCache = new Map<string, TagTokenIndex>();
+  for (let match = pattern.exec(masked); match !== null; match = pattern.exec(masked)) {
     occurrence += 1;
     const indices = (match as RegExpExecArray & { indices: RegExpIndicesArray }).indices;
     const [wholeStart, openTagEnd] = requireGroupRange(indices, 0);
@@ -270,7 +356,11 @@ export function scanEmbedMarkers(html: string): ScanEmbedMarkersResult {
     const rawRange = requireGroupRange(indices, 3);
     const tag = html.slice(...tagRange);
 
-    const [closeStart, closeEnd] = findBalancedClose(masked, tag, openTagEnd);
+    // No close at all (a void `<img>` marker): the open tag alone is the whole marker, inner empty.
+    const [closeStart, closeEnd] = findBalancedClose(masked, { name: tag, openStart: wholeStart, openEnd: openTagEnd }, closeIndexCache) ?? [
+      openTagEnd,
+      openTagEnd,
+    ];
     pattern.lastIndex = closeEnd; // resume past this marker's whole balanced span, never re-entering it
 
     const index = wholeStart;
