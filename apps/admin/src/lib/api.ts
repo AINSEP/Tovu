@@ -462,6 +462,12 @@ export interface AdminObservabilityStatus {
   serviceName: string | null;
 }
 
+/** `GET /system/mail-status` (`apps/website/src/server/inbound/admin-http/routes/system/mail-status.ts`)
+ *  — `false` while the site only logs outbound mail (the console fallback, no mail credential). */
+export interface AdminMailStatus {
+  mailDeliveryAvailable: boolean;
+}
+
 /** One row of the admin Sites screen — mirrors `SiteListEntry` in
  *  `apps/website/src/platform/site-dir/site-registry.ts`. Only directories carrying a valid
  *  `.site-meta.json` commit marker appear; see {@link AdminSiteBinding.listed} for why that matters. */
@@ -3812,6 +3818,8 @@ export const api = {
    *  name — never the OTLP endpoint value itself. See {@link AdminObservabilityStatus}. */
   getObservabilityStatus: () =>
     request<AdminObservabilityStatus>(`/workspaces/${WORKSPACE_ID}/system/observability-status`),
+  /** Whether outbound email really sends — the form editor greys out its notify settings when not. */
+  getMailStatus: () => request<AdminMailStatus>(`/workspaces/${WORKSPACE_ID}/system/mail-status`),
 
   // Sites panel (`apps/website/src/server/inbound/admin-http/routes/system/sites.ts`) — list is
   // `system.read`, create/activate are `system.write` AND additionally refused with

@@ -78,6 +78,11 @@ export interface FormEditorController {
   setNotify: (notify: AdminFormNotify) => void;
   recipientsText: string;
   setRecipientsText: (value: string) => void;
+  /** `false` only once the server confirms it cannot send email (console mailer) — the view then
+   *  disables the notify controls and shows a "coming soon" note. Display-only: the stored
+   *  `notify` value is never cleared. Stays `true` while loading or if the read fails, so an
+   *  unknown state never hides a working feature. */
+  notifyAvailable: boolean;
   tab: "fields" | "submissions";
   /** Navigates to this form's Fields or Submissions route — real `navigate()`, not local state
    *  (ADR-063: Submissions has its own independent fetch, so a tab switch is a genuine route
@@ -123,6 +128,7 @@ export function useFormEditor(
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const list = useFetchQuery({ key: KEYS.form(props.formId), fetch: () => port.getForm(props.formId), enabled: !isNew });
+  const mailStatus = useFetchQuery({ key: KEYS.mailStatus, fetch: () => port.getMailStatus() });
 
   // Seeds `form`/`name`/`slug`/`fields`/`notify`/`recipientsText` from `list.data` exactly once per
   // `formId` — see this file's own header for the regression this guards against (a background
@@ -252,6 +258,7 @@ export function useFormEditor(
     setNotify,
     recipientsText,
     setRecipientsText,
+    notifyAvailable: mailStatus.data?.mailDeliveryAvailable !== false,
     tab,
     onTabChange,
     error,

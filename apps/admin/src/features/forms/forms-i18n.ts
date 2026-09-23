@@ -1144,6 +1144,32 @@ const FORMS_AUDIT_I18N: Record<string, Record<string, string>> = {
   bn: { "See more about field attributes": "ফিল্ড বৈশিষ্ট্য সম্পর্কে আরও দেখুন", "Add CSS classes and HTML attributes to this field’s input. Classes are unrestricted — Tailwind utility classes like ": "এই ফিল্ডের ইনপুটে CSS ক্লাস এবং HTML বৈশিষ্ট্য যোগ করুন। ক্লাসে কোনো সীমাবদ্ধতা নেই — Tailwind ইউটিলিটি ক্লাস যেমন ", "or ": "বা ", " work as expected. Attribute names are limited to a safe allowlist (": "প্রত্যাশামতো কাজ করে। বৈশিষ্ট্যের নাম নিরাপদ অনুমতি তালিকায় সীমিত (", ", ": ", ", ", and a fixed list of layout/behavior attributes) — anything else, including event handlers like ": "এবং লেআউট/আচরণ বৈশিষ্ট্যের একটি নির্দিষ্ট তালিকা) — ইভেন্ট হ্যান্ডলারের মতো অন্য সবকিছু, যেমন ", ", is rejected.": ", প্রত্যাখ্যান করা হয়।", Attribute: "বৈশিষ্ট্য", "e.g. Enter your work email": "যেমন, আপনার কর্মস্থলের ইমেল লিখুন", "Existing fields cannot be removed once created": "তৈরি হওয়ার পর বিদ্যমান ফিল্ড সরানো যায় না", "Loading submission…": "জমা লোড হচ্ছে…", "Loading submissions…": "জমাগুলো লোড হচ্ছে…", "Form sections": "ফর্মের বিভাগ", "Loading form…": "ফর্ম লোড হচ্ছে…", "Loading forms…": "ফর্মগুলো লোড হচ্ছে…" },
 };
 
+/** Owner ask 2026-09-22: the notify controls are greyed out with this note while the site cannot
+ *  send mail (`useFormEditor`'s `notifyAvailable`). */
+const FORMS_MAIL_STATUS_I18N: Record<string, Record<string, string>> = {
+  es: { "Email notifications are coming soon.": "Las notificaciones por correo llegarán pronto." },
+  id: { "Email notifications are coming soon.": "Notifikasi email segera hadir." },
+  de: { "Email notifications are coming soon.": "E-Mail-Benachrichtigungen kommen bald." },
+  "zh-CN": { "Email notifications are coming soon.": "电子邮件通知即将推出。" },
+  "zh-TW": { "Email notifications are coming soon.": "電子郵件通知即將推出。" },
+  "pt-BR": { "Email notifications are coming soon.": "Notificações por e-mail em breve." },
+  ru: { "Email notifications are coming soon.": "Уведомления по электронной почте скоро появятся." },
+  fa: { "Email notifications are coming soon.": "اعلان‌های ایمیلی به‌زودی ارائه می‌شوند." },
+  ar: { "Email notifications are coming soon.": "إشعارات البريد الإلكتروني قادمة قريبًا." },
+  ja: { "Email notifications are coming soon.": "メール通知は近日公開予定です。" },
+  ko: { "Email notifications are coming soon.": "이메일 알림은 곧 제공될 예정입니다." },
+  pl: { "Email notifications are coming soon.": "Powiadomienia e-mail już wkrótce." },
+  hu: { "Email notifications are coming soon.": "Az e-mail-értesítések hamarosan érkeznek." },
+  fr: { "Email notifications are coming soon.": "Les notifications par e-mail arrivent bientôt." },
+  uk: { "Email notifications are coming soon.": "Сповіщення електронною поштою незабаром з’являться." },
+  tr: { "Email notifications are coming soon.": "E-posta bildirimleri yakında geliyor." },
+  th: { "Email notifications are coming soon.": "การแจ้งเตือนทางอีเมลจะมาเร็ว ๆ นี้" },
+  it: { "Email notifications are coming soon.": "Le notifiche via email arriveranno presto." },
+  hi: { "Email notifications are coming soon.": "ईमेल सूचनाएँ जल्द आ रही हैं।" },
+  ur: { "Email notifications are coming soon.": "ای میل اطلاعات جلد آ رہی ہیں۔" },
+  bn: { "Email notifications are coming soon.": "ইমেল বিজ্ঞপ্তি শীঘ্রই আসছে।" },
+};
+
 function mergeDictionaryTranslations(
   dictionary: Record<string, Record<string, string>>,
   translationsByLocale: Record<string, Record<string, string>>,
@@ -1154,6 +1180,7 @@ function mergeDictionaryTranslations(
 }
 
 mergeDictionaryTranslations(FORMS_DICT, FORMS_AUDIT_I18N);
+mergeDictionaryTranslations(FORMS_DICT, FORMS_MAIL_STATUS_I18N);
 
 /** `FORMS_DICT` had no exported `t` at all before this fix — both `use-form-editor.hooks.ts` and
  *  `use-forms-list.hooks.ts` built their own no-fallback `FORMS_DICT[locale]?.[key] ?? key` inline,

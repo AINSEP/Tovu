@@ -252,6 +252,7 @@ import { createAnalyticsModule } from "./modules/analytics.js";
 import { createCommerceModule } from "./modules/commerce.js";
 import { registerAdminModuleStatusRoute } from "../../inbound/admin-http/routes/system/module-status.js";
 import { registerAdminObservabilityStatusRoute } from "../../inbound/admin-http/routes/system/observability-status.js";
+import { registerAdminMailStatusRoute } from "../../inbound/admin-http/routes/system/mail-status.js";
 import { registerAdminAssistantDaemonRoutes } from "../../inbound/admin-http/routes/system/assistant-daemon.js";
 import { registerAdminDeploymentOverviewRoute } from "../../inbound/admin-http/routes/system/deployment-overview.js";
 import { registerAdminSitesRoutes } from "../../inbound/admin-http/routes/system/sites.js";
@@ -1530,6 +1531,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // Observability admin page, Overview tab (`development/todos.md` 2026-09-09 owner ask) — same
   // `system.read`-gated shape as the module-status route just above.
   registerAdminObservabilityStatusRoute(app, routeDeps);
+  // Whether outbound mail really sends (not the console fallback) — the form editor greys out its
+  // notification settings when it does not.
+  registerAdminMailStatusRoute(app, routeDeps);
   // Admin "Restart assistant" action (`system.write`-gated) — the manual recovery seam for the
   // locally-spawned agent daemon, sibling to the on-demand recovery `server/modules/assistant.ts`'s
   // daemon-proxy code now triggers automatically on a known-failed request. See that route file's

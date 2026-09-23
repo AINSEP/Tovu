@@ -41,6 +41,7 @@ export const FORMS_LIST_RESOURCE = "forms";
 export const KEYS = {
   list: ["forms", "list"] as QueryKey,
   form: (id: string): QueryKey => ["forms", "detail", id],
+  mailStatus: ["forms", "mail-status"] as QueryKey,
   submissionsList: (formId: string): QueryKey => ["form-submissions", "list", formId],
   submissionDetail: (formId: string, submissionId: string): QueryKey => [
     "form-submissions",

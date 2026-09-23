@@ -32,9 +32,15 @@ function renderScreen(node: React.ReactElement) {
 }
 
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
+/** What the stubbed `/system/mail-status` read reports — a real mailer by default, so every test
+ *  that predates the "greyed out until mail works" state keeps its enabled notify controls. */
+let mailDeliveryAvailable: boolean;
+let mailStatusRequested: boolean;
 
 beforeEach(() => {
   fetchMock = vi.fn();
+  mailDeliveryAvailable = true;
+  mailStatusRequested = false;
   // `FormEditor` now also reads `core.language.locale` (via `useAdminLocale`) to translate its own
   // chrome — a real `fetch` call this file's tests never queued for. Routed here, ahead of
   // `fetchMock`, so it never consumes a slot from the `mockResolvedValueOnce` sequence every test
@@ -43,6 +49,12 @@ beforeEach(() => {
     const url = typeof input === "string" ? input : input.toString();
     if (url.includes("/settings/effective")) {
       return Promise.resolve(jsonResponse({ data: [] }));
+    }
+    // Same reasoning as the locale read above: the mail-status read must not consume a
+    // `fetchMock` slot the older tests queue in order.
+    if (url.includes("/system/mail-status")) {
+      mailStatusRequested = true;
+      return Promise.resolve(jsonResponse({ mailDeliveryAvailable }));
     }
     return fetchMock(input, init);
   });
@@ -208,6 +220,47 @@ describe("new form — no tabs, Create form label, notify recipients reveal", ()
     expect(screen.queryByLabelText(/recipients/i)).not.toBeInTheDocument();
     await user.click(screen.getByRole("checkbox", { name: /enable email notification/i }));
     expect(screen.getByLabelText(/recipients/i)).toBeInTheDocument();
+  });
+});
+
+describe("email notification — greyed out until the site can send mail", () => {
+  it("disables the notify checkbox and shows the coming-soon note when mail delivery is unavailable", async () => {
+    mailDeliveryAvailable = false;
+    renderScreen(<FormEditor formId="new" tab="fields" />);
+
+    expect(await screen.findByText("Email notifications are coming soon.")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /enable email notification/i })).toBeDisabled();
+  });
+
+  it("keeps a stored notify setting visible but disables its recipients input when mail is unavailable", async () => {
+    mailDeliveryAvailable = false;
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          id: "f1",
+          name: "Contact",
+          slug: "contact",
+          status: "active",
+          fields: [],
+          notify: { enabled: true, recipients: ["owner@example.com"] },
+        },
+      })
+    );
+    renderScreen(<FormEditor formId="f1" tab="fields" />);
+
+    const recipients = await screen.findByLabelText(/recipients/i);
+    await screen.findByText("Email notifications are coming soon.");
+    expect(recipients).toBeDisabled();
+    expect(recipients).toHaveValue("owner@example.com");
+    expect(screen.getByRole("checkbox", { name: /enable email notification/i })).toBeChecked();
+  });
+
+  it("leaves the notify checkbox enabled with no note when mail delivery is available", async () => {
+    renderScreen(<FormEditor formId="new" tab="fields" />);
+
+    await waitFor(() => expect(mailStatusRequested).toBe(true));
+    expect(screen.getByRole("checkbox", { name: /enable email notification/i })).toBeEnabled();
+    expect(screen.queryByText("Email notifications are coming soon.")).not.toBeInTheDocument();
   });
 });
 

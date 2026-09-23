@@ -112,6 +112,16 @@
   margin-top: var(--space-5);
 }
 
+/* Notify settings while the site cannot send mail (`FormEditor.tsx`, owner ask 2026-09-22): the
+   controls are `disabled`, but neither the checkbox label nor a disabled text input has a greyed
+   look of its own here, so the group is dimmed as a whole. The "coming soon" hint is left at full
+   strength so the reason stays readable. */
+.form-notify-unavailable .form-checkbox-field,
+.form-notify-unavailable .field {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* `FormSubmissionDetail` (`FormEditor.tsx`) — the back button, the submission table, and the
    Delete button are plain flex/block siblings with no gap of their own, so they rendered flush
    against each other (owner: "pad the buttons"). Same `flex-direction: column` + `gap` idiom

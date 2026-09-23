@@ -14,11 +14,14 @@ export const defaultFormsPort: FormsPort = {
   createForm: (input, options) => api.createForm(input, options),
   updateForm: (target, options) => api.updateForm(target, options),
   trashForm: (id) => api.trash({ type: "form", id }),
+  getMailStatus: () => api.getMailStatus(),
 };
 
 /** Seed state for {@link createFakeFormsPort}. */
 export interface FakeFormsPortOptions {
   forms?: AdminFormDefinition[];
+  /** What `getMailStatus` reports; defaults to `true` (a real mailer is configured). */
+  mailDeliveryAvailable?: boolean;
 }
 
 function blankNotify(): AdminFormNotify {
@@ -82,6 +85,10 @@ export function createFakeFormsPort(options: FakeFormsPortOptions = {}): FormsPo
       if (index < 0) throw new Error(`fake forms port: unknown form ${id}`);
       forms.splice(index, 1);
       return { ok: true, version: null };
+    },
+
+    async getMailStatus() {
+      return { mailDeliveryAvailable: options.mailDeliveryAvailable ?? true };
     },
   };
 }

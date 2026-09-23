@@ -680,6 +680,8 @@ function FormEditorFieldsBody(props: {
   onNotifyChange: (notify: AdminFormNotify) => void;
   recipientsText: string;
   onRecipientsTextChange: (value: string) => void;
+  /** See `FormEditorController.notifyAvailable`. */
+  notifyAvailable: boolean;
   form: AdminFormDefinition | null;
   saving: boolean;
   onStatusToggle: () => void;
@@ -700,6 +702,7 @@ function FormEditorFieldsBody(props: {
     onNotifyChange,
     recipientsText,
     onRecipientsTextChange,
+    notifyAvailable,
     form,
     saving,
     onStatusToggle,
@@ -746,11 +749,12 @@ function FormEditorFieldsBody(props: {
         </div>
       </div>
 
-      <div className="field-group">
+      <div className={notifyAvailable ? "field-group" : "field-group form-notify-unavailable"}>
         <label className="form-checkbox-field">
           <input
             type="checkbox"
             checked={notify.enabled}
+            disabled={!notifyAvailable}
             onChange={(e) => onNotifyChange({ ...notify, enabled: e.target.checked })}
             {...agentHandle("form-editor-notify-enabled", {
               role: "checkbox",
@@ -759,6 +763,7 @@ function FormEditorFieldsBody(props: {
           />
           {t("Enable email notification")}
         </label>
+        {notifyAvailable ? null : <p className="field-hint">{t("Email notifications are coming soon.")}</p>}
         {notify.enabled ? (
           <div className="field">
             <label className="field-label" htmlFor="form-recipients">
@@ -767,6 +772,7 @@ function FormEditorFieldsBody(props: {
             <input
               id="form-recipients"
               value={recipientsText}
+              disabled={!notifyAvailable}
               onChange={(e) => onRecipientsTextChange(e.target.value)}
               {...agentHandle("form-editor-notify-recipients", {
                 role: "field",
@@ -922,6 +928,7 @@ export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor
     setNotify,
     recipientsText,
     setRecipientsText,
+    notifyAvailable,
     tab: activeTab,
     onTabChange,
     error,
@@ -965,6 +972,7 @@ export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor
       onNotifyChange={setNotify}
       recipientsText={recipientsText}
       onRecipientsTextChange={setRecipientsText}
+      notifyAvailable={notifyAvailable}
       form={form}
       saving={saving}
       onStatusToggle={handleStatusToggle}
