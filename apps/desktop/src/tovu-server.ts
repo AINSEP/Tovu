@@ -432,6 +432,31 @@ function buildServeEnv(input: BuildServeEnvInput): NodeJS.ProcessEnv {
     env.TOVU_AGENT_CWD = input.siteDir;
   }
 
+  applyRepoRootDefaults(env, repoRoot);
+
+  // Set LAST and only when the caller resolved a live dev server (`admin-dev-proxy.ts` probes; a
+  // packaged app yields no candidate at all). `admin-static.ts`'s precedence makes this override
+  // `TOVU_ADMIN_DIST` above rather than sit beside it — the dev-proxy branch returns before the
+  // static branch is reached — which is exactly the point: the built bundle is what goes stale.
+  // Omitted by every caller that passes nothing, so the child env is unchanged for them.
+  if (typeof input.adminDevProxyUrl === "string" && input.adminDevProxyUrl !== "") {
+    env.TOVU_ADMIN_DEV_PROXY_URL = input.adminDevProxyUrl;
+  }
+
+  return env;
+}
+
+/**
+ * The repo-root-derived defaults {@link buildServeEnv} layers onto the child env: the built admin
+ * and site-chat bundles (only when they exist on disk) and `TOVU_REPO_ROOT` itself. Every one of
+ * them yields to a value the operator already set. Split out of `buildServeEnv` only to keep that
+ * function under the complexity ceiling; the rules are unchanged.
+ *
+ * @param env the env being built, mutated in place.
+ * @param repoRoot the repo root the defaults are resolved against.
+ * @complexity O(1); two `existsSync` probes.
+ */
+function applyRepoRootDefaults(env: NodeJS.ProcessEnv, repoRoot: string): void {
   const adminDist = path.join(repoRoot, "apps", "admin", "dist");
   if (!env.TOVU_ADMIN_DIST && fs.existsSync(adminDist)) {
     env.TOVU_ADMIN_DIST = adminDist;
@@ -454,17 +479,6 @@ function buildServeEnv(input: BuildServeEnvInput): NodeJS.ProcessEnv {
   if (!env.TOVU_REPO_ROOT) {
     env.TOVU_REPO_ROOT = repoRoot;
   }
-
-  // Set LAST and only when the caller resolved a live dev server (`admin-dev-proxy.ts` probes; a
-  // packaged app yields no candidate at all). `admin-static.ts`'s precedence makes this override
-  // `TOVU_ADMIN_DIST` above rather than sit beside it — the dev-proxy branch returns before the
-  // static branch is reached — which is exactly the point: the built bundle is what goes stale.
-  // Omitted by every caller that passes nothing, so the child env is unchanged for them.
-  if (typeof input.adminDevProxyUrl === "string" && input.adminDevProxyUrl !== "") {
-    env.TOVU_ADMIN_DEV_PROXY_URL = input.adminDevProxyUrl;
-  }
-
-  return env;
 }
 
 /**
