@@ -509,6 +509,8 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
     actionError,
     load,
     runLifecycle,
+    copiedKey,
+    copyEmbedCode,
     t,
     locale,
   } = useCollectionsHook();
@@ -593,6 +595,22 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
               >
                 {t("Manage entries")}
               </a>
+            ),
+          },
+          {
+            key: "embed",
+            header: t("Embed"),
+            cell: (ct, index) => (
+              <button
+                type="button"
+                onClick={() => void copyEmbedCode(ct)}
+                {...agentHandle(`${rowHandles[index]}-copy-embed`, {
+                  role: "button",
+                  label: `Copy the embed code for content type "${ct.label}"`,
+                })}
+              >
+                {copiedKey === ct.key ? t("Copied") : t("Copy embed code")}
+              </button>
             ),
           },
           {

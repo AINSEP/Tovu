@@ -47,6 +47,34 @@ export const KEYS = {
 };
 
 /**
+ * Content types this screen never lists as a user-manageable collection: `widget`/`widget_area`
+ * back the widget-placement system, and `menu` is `NAV_MENU_CONTENT_TYPE`
+ * (`node_modules/@jini-ai/cms/dist/navigation/types.js:10`). This is the admin-side copy of the
+ * server's own system-type list — admin cannot import website code, the same accepted
+ * duplication the media accept-lists already carry.
+ */
+export const ADMIN_SYSTEM_CONTENT_TYPES = ["widget", "widget_area", "menu"];
+
+/**
+ * @complexity Time/space: O(1) — one `Array.includes` over a fixed 3-item list.
+ */
+export function isUserCollection(key: string): boolean {
+  return !ADMIN_SYSTEM_CONTENT_TYPES.includes(key);
+}
+
+/**
+ * The embeddable marker for "list this content type's entries here" — `id` carries the content
+ * type's own key, never a row's UUID (the collection marker reads `id` first, `typeKey` as a
+ * fallback, per the fix landed in `a9ab19c4f`). Keeps the wrapper `<div data-embed-config='...'>`
+ * shape every other embeddable type already uses.
+ *
+ * @complexity Time/space: O(1) — one template string.
+ */
+export function collectionEmbedSnippet(key: string): string {
+  return `<div data-embed-config='{"type":"collection","id":"${key}"}'></div>`;
+}
+
+/**
  * `useCollectionEntryEditor`'s `error` banner, extracted out of that hook (`refactor/fetch-query`
  * complexity pass, 2026-08-12 — the hook's own precedence chain over three independent mutations
  * pushed it to complexity 12 against a ceiling of 9). `update`/`create` share ONE fallback string,

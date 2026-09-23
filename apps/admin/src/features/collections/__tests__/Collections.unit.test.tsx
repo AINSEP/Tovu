@@ -87,6 +87,8 @@ function collectionsController(overrides: Partial<CollectionsController> = {}): 
     actionError: null,
     load: vi.fn(),
     runLifecycle: vi.fn(async () => {}),
+    copiedKey: null,
+    copyEmbedCode: vi.fn(async () => {}),
     // Identity `t` + "en" locale — matches what the pre-`useWiredX` component got from a real,
     // unmocked `useAdminLocale()` call in this render-only test (defaults to `DEFAULT_LOCALE`
     // synchronously; `COLLECTIONS_DICT` has no "en" entries, so every lookup already fell through
@@ -190,6 +192,21 @@ describe("empty and populated list", () => {
     expect(screen.getByText("1")).toBeInTheDocument(); // queryable count
     expect(screen.getByText("active")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Manage entries" })).toHaveAttribute("href", "/admin/collections/recipe");
+  });
+});
+
+describe("Copy embed code", () => {
+  it("renders a Copy embed code button per row and calls copyEmbedCode(ct) on click", async () => {
+    const user = userEvent.setup();
+    const c = renderCollections({ types: [TYPE] });
+    await user.click(screen.getByRole("button", { name: "Copy embed code" }));
+    expect(c.copyEmbedCode).toHaveBeenCalledWith(TYPE);
+  });
+
+  it("shows Copied only for the row whose key matches copiedKey", () => {
+    renderCollections({ types: [TYPE, DEPRECATED_TYPE], copiedKey: "recipe" });
+    expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy embed code" })).toBeInTheDocument();
   });
 });
 

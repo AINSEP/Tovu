@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { describeApiError, type AdminContentType } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
-import { KEYS, type LifecycleConfirmOp } from "../rules";
+import { collectionEmbedSnippet, isUserCollection, KEYS, type LifecycleConfirmOp } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { lifecycleFailureMessage, t as translate } from "../collections-i18n";
 import { defaultCollectionsPort } from "./collections-dependencies.hooks";
@@ -58,6 +58,15 @@ export interface CollectionsController {
   actionError: string | null;
   load: () => void;
   runLifecycle: (contentType: AdminContentType, op: "deprecate" | "reactivate" | "tombstone") => Promise<void>;
+  /** The content-type key whose "Copy embed code" button most recently wrote to the clipboard —
+   *  `null` once the transient window elapses. Keyed by `key`, not a single boolean, so only the
+   *  row that was actually clicked shows "Copied". */
+  copiedKey: string | null;
+  /** Writes `collectionEmbedSnippet(contentType.key)` to the clipboard and flips `copiedKey` for
+   *  1.5s, mirroring `use-edit-media-panel.hooks.ts`'s `copyHash`/`copyUrl` precedent. A denied
+   *  clipboard permission is swallowed — this row has no visible snippet text to fall back to
+   *  selecting by hand, so a denied write just leaves nothing copied. */
+  copyEmbedCode: (contentType: AdminContentType) => Promise<void>;
   /** Bound translator — `Collections.tsx`'s and its three dialogs' only source of UI copy; see this
    *  file's own header for why it arrives via the hook rather than direct `useAdminLocale()`. */
   t: (key: string) => string;
@@ -76,7 +85,9 @@ export interface CollectionsDependencies {
 export function useCollections(deps: CollectionsDependencies): CollectionsController {
   const { port, locale, t } = deps;
   const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listContentTypes() });
-  const types = list.data?.items ?? null;
+  // System types (`widget`/`widget_area`/`menu`) back platform mechanics, not a collection an
+  // operator manages here — never shown on this screen.
+  const types = list.data?.items ? list.data.items.filter((ct) => isUserCollection(ct.key)) : null;
 
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [pendingLifecycle, setPendingLifecycle] = useState<{ op: LifecycleConfirmOp; contentType: AdminContentType } | null>(null);
@@ -89,6 +100,7 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
     op: "deprecate" | "reactivate" | "tombstone";
     contentType: AdminContentType;
   } | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const lifecycleMutation = useFetchMutation({
     run: (input: { key: string; op: "deprecate" | "reactivate" | "tombstone"; expectedVersion: number }) =>
@@ -102,6 +114,17 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
       await lifecycleMutation.mutate({ key: contentType.key, op, expectedVersion: contentType.version });
     } catch {
       // already surfaced through lifecycleMutation.error -> actionError below
+    }
+  }
+
+  async function copyEmbedCode(contentType: AdminContentType): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(collectionEmbedSnippet(contentType.key));
+      setCopiedKey(contentType.key);
+      setTimeout(() => setCopiedKey(null), 1500);
+    } catch {
+      // Clipboard access denied (insecure context, blocked permission) — see this field's own doc
+      // comment on `CollectionsController.copyEmbedCode` above.
     }
   }
 
@@ -123,6 +146,8 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
     actionError,
     load: list.refetch,
     runLifecycle,
+    copiedKey,
+    copyEmbedCode,
     t,
     locale,
   };

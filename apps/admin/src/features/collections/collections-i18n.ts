@@ -1321,6 +1321,34 @@ function mergeDictionaryTranslations(
 
 mergeDictionaryTranslations(COLLECTIONS_DICT, COLLECTIONS_AUDIT_I18N);
 
+// A2 (2026-09-23): the list screen's new "Embed" column — hand-translated across all 21 locales
+// this dict already carries, same `mergeDictionaryTranslations` extension pattern as
+// `COLLECTIONS_AUDIT_I18N` above (adds keys without re-touching the giant per-locale blocks).
+const COLLECTIONS_EMBED_I18N: Record<string, Record<string, string>> = {
+  es: { Embed: "Insertar", "Copy embed code": "Copiar código de inserción", Copied: "Copiado" },
+  id: { Embed: "Sematkan", "Copy embed code": "Salin kode sematan", Copied: "Disalin" },
+  de: { Embed: "Einbetten", "Copy embed code": "Einbettungscode kopieren", Copied: "Kopiert" },
+  "zh-CN": { Embed: "嵌入", "Copy embed code": "复制嵌入代码", Copied: "已复制" },
+  "zh-TW": { Embed: "嵌入", "Copy embed code": "複製嵌入代碼", Copied: "已複製" },
+  "pt-BR": { Embed: "Incorporar", "Copy embed code": "Copiar código de incorporação", Copied: "Copiado" },
+  ru: { Embed: "Встраивание", "Copy embed code": "Скопировать код для вставки", Copied: "Скопировано" },
+  fa: { Embed: "جای‌گذاری", "Copy embed code": "کپی کد جای‌گذاری", Copied: "کپی شد" },
+  ar: { Embed: "التضمين", "Copy embed code": "نسخ كود التضمين", Copied: "تم النسخ" },
+  ja: { Embed: "埋め込み", "Copy embed code": "埋め込みコードをコピー", Copied: "コピーしました" },
+  ko: { Embed: "임베드", "Copy embed code": "임베드 코드 복사", Copied: "복사됨" },
+  pl: { Embed: "Osadzanie", "Copy embed code": "Skopiuj kod umieszczenia", Copied: "Skopiowano" },
+  hu: { Embed: "Beágyazás", "Copy embed code": "Beágyazási kód másolása", Copied: "Másolva" },
+  fr: { Embed: "Intégration", "Copy embed code": "Copier le code d'intégration", Copied: "Copié" },
+  uk: { Embed: "Вбудовування", "Copy embed code": "Скопіювати код вставки", Copied: "Скопійовано" },
+  tr: { Embed: "Yerleştirme", "Copy embed code": "Yerleştirme kodunu kopyala", Copied: "Kopyalandı" },
+  th: { Embed: "การฝัง", "Copy embed code": "คัดลอกโค้ดฝัง", Copied: "คัดลอกแล้ว" },
+  it: { Embed: "Incorporamento", "Copy embed code": "Copia il codice di incorporamento", Copied: "Copiato" },
+  hi: { Embed: "एम्बेड", "Copy embed code": "एम्बेड कोड कॉपी करें", Copied: "कॉपी किया गया" },
+  ur: { Embed: "ایمبیڈ", "Copy embed code": "ایمبیڈ کوڈ کاپی کریں", Copied: "کاپی ہو گیا" },
+  bn: { Embed: "এম্বেড", "Copy embed code": "এমবেড কোড কপি করুন", Copied: "কপি হয়েছে" },
+};
+mergeDictionaryTranslations(COLLECTIONS_DICT, COLLECTIONS_EMBED_I18N);
+
 /** `COLLECTIONS_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via
  *  `createDictionaryTranslator` (same fallback `trash-i18n.ts` uses) — a shared word this dict
  *  doesn't carry for a locale still renders translated instead of falling straight to English.
