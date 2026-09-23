@@ -10,14 +10,15 @@ import { describe, expect, it } from "vitest";
  * a full-height panel. That is what shipped before `a380c716` added
  * `.post-preview-expanded .editor-shell { display: flex; flex-direction: column }`.
  *
- * The expanded iframe takes its height from `flex: 1`, which only resolves against a flex parent
- * that itself has a resolved height. So the height is handed down an unbroken chain of four rules,
- * root to leaf, and deleting ANY link silently collapses the iframe:
+ * The expanded device frame takes its height from `flex: 1`, which only resolves against a flex
+ * parent that itself has a resolved height. So the height is handed down an unbroken chain of four
+ * rules, root to leaf, and deleting ANY link silently collapses the preview (the iframe itself fills
+ * the frame's scaler, whose `calc(100% / scale)` height `devicePreviewFrameStyles` writes inline):
  *
  *   `.post-preview-expanded`                     flex column, `position: absolute; inset: 0`
  *     -> `.post-preview-surface`                 flex column, `flex: 1; min-height: 0`
  *       -> `.editor-shell`                       flex column, `flex: 1; min-height: 0`
- *         -> `.editor-preview-iframe`            `flex: 1` (overriding its own fixed `32rem`)
+ *         -> `.page-preview-frame`               `flex: 1; min-height: 0` (no inline height expanded)
  *
  * `.editor-shell` is the fragile link — it is a SHARED class (`styles.css:2017`) that is not a flex
  * column anywhere else in the admin, so the override exists only here and reads like an orphan to
@@ -89,10 +90,10 @@ describe("expanded post-preview flex chain (an empty white panel is the symptom 
     expect(rule).toMatch(/flex-direction\s*:\s*column/);
   });
 
-  it("lets the expanded iframe grow instead of holding its fixed 32rem pane height", () => {
-    const rule = declarationsFor(".post-preview-expanded .editor-preview-iframe");
-    expect(rule).toMatch(/height\s*:\s*auto/);
+  it("lets the expanded device frame grow to fill .editor-shell (2026-09-22 device-width preview)", () => {
+    const rule = declarationsFor(".post-preview-expanded .page-preview-frame");
     expect(rule).toMatch(/flex\s*:\s*1/);
+    expect(rule).toMatch(/min-height\s*:\s*0/);
   });
 });
 

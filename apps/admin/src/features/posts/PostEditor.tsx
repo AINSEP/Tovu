@@ -5,6 +5,9 @@ import DragHandle from "@tiptap/extension-drag-handle-react";
 import { agentHandle } from "@jini-ai/agentic";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 
+import { usePreviewPaneWidth, useDevicePreviewDevice, type DevicePreviewDevice } from "../../components/DevicePreview/DevicePreview.hooks";
+import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
+import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
 import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedInsertControl";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBar.hooks";
 import type { AdminPost, ThemeTier } from "../../lib/api";
@@ -974,9 +977,35 @@ function PostEditorActions({
 }
 
 /**
- * The toolbar's right-hand group — the post-template picker (Posts has no device-width control the
- * way `features/pages/PageEditor.tsx`'s `PageEditorToolbarEnd` does; this is the Post-only
- * equivalent of that same extraction).
+ * The toolbar's right-hand group: the Desktop/Tablet/Mobile preview-width toggle (shared
+ * `DevicePreviewToggle`, Preview tab only — same as `PageEditor.tsx`'s own `PageEditorToolbarEnd`,
+ * 2026-09-22 owner ask) followed by the post-template picker (`PostEditorTemplatePicker` below).
+ *
+ * @complexity O(1).
+ */
+function PostEditorToolbarEnd({
+  view,
+  device,
+  setDevice,
+  ...pickerProps
+}: {
+  view: PostEditorView;
+  device: DevicePreviewDevice;
+  setDevice: (value: DevicePreviewDevice) => void;
+} & Parameters<typeof PostEditorTemplatePicker>[0]) {
+  return (
+    <div className="page-editor-toolbar-end">
+      {view === "preview" ? (
+        <DevicePreviewToggle device={device} setDevice={setDevice} t={pickerProps.t} handlePrefix="post-preview-width" />
+      ) : null}
+      <PostEditorTemplatePicker {...pickerProps} />
+    </div>
+  );
+}
+
+/**
+ * The post-template picker in the toolbar's right-hand group (`PostEditorToolbarEnd` above renders
+ * it after the device-width toggle).
  *
  * Extracted out of `PostEditor` (complexity-ceiling pass, 2026-08-20) because this is where most of
  * that component's remaining branching lived once `PostEditorHeader` had already absorbed the header
@@ -1006,7 +1035,7 @@ function PostEditorActions({
  * Rendered regardless of `view` — same as Pages' own picker — because the template choice is a
  * publish-time setting, not something specific to either tab.
  */
-function PostEditorToolbarEnd({
+function PostEditorTemplatePicker({
   bodyFormat,
   availableTemplates,
   templateChoice,
@@ -1023,74 +1052,72 @@ function PostEditorToolbarEnd({
 }) {
   if ((bodyFormat ?? "doc") !== "doc") return null;
   return (
-    <div className="page-editor-toolbar-end">
-      <div className="editor-template-picker">
-        <label className="a11y-label-wrap">
-          <span className="visually-hidden">{t("Template")}</span>
-        </label>
-        {availableTemplates.length > 0 ? (
-          <>
-            {/* Read-only inspection, not editing (`PostTemplateModal.tsx`'s own file header —
-                "I just wanna see it" is the owner's own framing). Disabled rather than hidden
-                when nothing is chosen: an operator who opted out via "No template chosen" (`""`)
-                still sees the control, just inert, matching this screen's own precedent for the
-                theme-with-zero-templates `<select>` below rather than the row disappearing.
-                Icon-only (2026-09-22 owner ask, moved left of the picker): the visible word is
-                gone, but `aria-label`/`title` still carry `t("View Template")` so the accessible
-                name and translation key are unchanged from the old text button. */}
-            <button
-              type="button"
-              className="view-template-btn"
-              disabled={!templateChoice}
-              onClick={onViewTemplateClick}
-              aria-label={t("View Template")}
-              title={t("View Template")}
-              {...agentHandle("post-view-template", {
-                role: "button",
-                label: "Open a read-only view of the selected template's HTML source. Nothing here is editable.",
-              })}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            </button>
-            <select
-              value={templateChoice ?? ""}
-              // `e.target.value`, NOT `|| null` — "No template chosen" must persist as `""`
-              // (explicitly opted out), which `resolveTemplate` treats differently from `null`
-              // (never chosen → falls back to the first template). Coercing to `null` here is what
-              // made the two indistinguishable and served 15 posts a diagnostic page.
-              onChange={(e) => setTemplateChoice(e.target.value)}
-              {...agentHandle("post-template-choice", {
-                role: "field",
-                label:
-                  "Which theme page template this post renders through on the public site. " +
-                  "Setting this to \"No template chosen\" shows a diagnostic page instead of the post, " +
-                  "not a silent fallback to generic rendering.",
-              })}
-            >
-              {availableTemplates.map((template) => (
-                <option key={template} value={template}>
-                  {template}
-                </option>
-              ))}
-              <option value="">{t("No template chosen")}</option>
-            </select>
-          </>
-        ) : (
-          <select
-            disabled
-            value=""
-            {...agentHandle("post-template-choice", {
-              role: "field",
-              label: "The active theme declares no post templates, so there is nothing to choose here.",
+    <div className="editor-template-picker">
+      <label className="a11y-label-wrap">
+        <span className="visually-hidden">{t("Template")}</span>
+      </label>
+      {availableTemplates.length > 0 ? (
+        <>
+          {/* Read-only inspection, not editing (`PostTemplateModal.tsx`'s own file header —
+              "I just wanna see it" is the owner's own framing). Disabled rather than hidden
+              when nothing is chosen: an operator who opted out via "No template chosen" (`""`)
+              still sees the control, just inert, matching this screen's own precedent for the
+              theme-with-zero-templates `<select>` below rather than the row disappearing.
+              Icon-only (2026-09-22 owner ask, moved left of the picker): the visible word is
+              gone, but `aria-label`/`title` still carry `t("View Template")` so the accessible
+              name and translation key are unchanged from the old text button. */}
+          <button
+            type="button"
+            className="view-template-btn"
+            disabled={!templateChoice}
+            onClick={onViewTemplateClick}
+            aria-label={t("View Template")}
+            title={t("View Template")}
+            {...agentHandle("post-view-template", {
+              role: "button",
+              label: "Open a read-only view of the selected template's HTML source. Nothing here is editable.",
             })}
           >
-            <option value="">{t("No templates for this theme")}</option>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+          <select
+            value={templateChoice ?? ""}
+            // `e.target.value`, NOT `|| null` — "No template chosen" must persist as `""`
+            // (explicitly opted out), which `resolveTemplate` treats differently from `null`
+            // (never chosen → falls back to the first template). Coercing to `null` here is what
+            // made the two indistinguishable and served 15 posts a diagnostic page.
+            onChange={(e) => setTemplateChoice(e.target.value)}
+            {...agentHandle("post-template-choice", {
+              role: "field",
+              label:
+                "Which theme page template this post renders through on the public site. " +
+                "Setting this to \"No template chosen\" shows a diagnostic page instead of the post, " +
+                "not a silent fallback to generic rendering.",
+            })}
+          >
+            {availableTemplates.map((template) => (
+              <option key={template} value={template}>
+                {template}
+              </option>
+            ))}
+            <option value="">{t("No template chosen")}</option>
           </select>
-        )}
-      </div>
+        </>
+      ) : (
+        <select
+          disabled
+          value=""
+          {...agentHandle("post-template-choice", {
+            role: "field",
+            label: "The active theme declares no post templates, so there is nothing to choose here.",
+          })}
+        >
+          <option value="">{t("No templates for this theme")}</option>
+        </select>
+      )}
     </div>
   );
 }
@@ -1424,6 +1451,9 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
   // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
   // lint even though this one holds no state of its own.
   const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard(VIEW_TABS, view, (id) => setView(id as PostEditorView));
+  // Preview width (2026-09-22) — pure view chrome with nothing to inject, kept out of the injected
+  // controller the same way `ThemeExplore.tsx`'s own `device` is.
+  const { device, setDevice, width: previewWidth } = useDevicePreviewDevice();
 
   if (error && !post) return <div className="notice error">{error}</div>;
   if (!post) return <div className="notice">{t("Loading editor…")}</div>;
@@ -1532,6 +1562,9 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         {/* Template picker (Post-template-picker feature, 2026-08-10) — see `PostEditorToolbarEnd`'s
             own doc for the full eligibility/ordering/empty-theme rules this extracts. */}
         <PostEditorToolbarEnd
+          view={view}
+          device={device}
+          setDevice={setDevice}
           bodyFormat={post.bodyFormat}
           availableTemplates={availableTemplates}
           templateChoice={templateChoice}
@@ -1579,6 +1612,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
           previewFormRef={previewFormRef}
           previewFormTarget={previewFormTarget}
           t={t}
+          width={previewWidth}
           expanded={previewExpanded}
           onToggleExpanded={togglePreviewExpanded}
         />
@@ -1680,10 +1714,9 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
  * (`rules.ts`) existed only to patch that raw branch's own YouTube-embed bug and is removed alongside
  * it, along with its now-fully-unused `SrcDocSandbox` import (grep confirms no other admin caller).
  *
- * No device-width scaling here (unlike `PagePreview`) — that machinery exists so an operator can
- * preview a page at Desktop/Tablet/Mobile widths, which nothing in this dispatch asked for on the
- * Post side; the frame simply fills the pane at its natural width, same as the Tiptap editor above
- * it always has.
+ * Device-width scaling (2026-09-22 owner ask): all three branches render inside the shared
+ * `DevicePreviewFrame`, at the toolbar's Desktop/Tablet/Mobile width scaled to fit the pane — the
+ * same mechanism as `PagePreview`.
  */
 function PostPreview({
   bodyJson,
@@ -1695,6 +1728,7 @@ function PostPreview({
   previewFormRef,
   previewFormTarget,
   t,
+  width,
   expanded,
   onToggleExpanded,
 }: {
@@ -1717,6 +1751,8 @@ function PostPreview({
   previewFormRef: RefObject<HTMLFormElement | null>;
   /** The hidden form's `target` and the iframe's `name` it submits into — must match at submit time. */
   previewFormTarget: string;
+  /** The selected device's viewport width (`DEVICE_PREVIEW_WIDTHS`) the iframe renders at. */
+  width: number;
   /** Preview fullscreen, Level 1 (2026-09-15) — `usePostEditor`'s `previewExpanded`. See
    *  `PostEditorController.previewExpanded`'s own doc for the full lifetime/containment reasoning;
    *  this component only decides what to render given the value. */
@@ -1731,6 +1767,8 @@ function PostPreview({
   // `resolvePostPreviewBranches`. `PostPreviewFrame` needs only the first two flags: the
   // pending-content surface is its unconditional final case.
   const { canShowLiveSite, canShowTemplatePreview } = resolvePostPreviewBranches({ status, dirty, contentDirty });
+  // Component-scoped like `ThemeExplorePreview`'s: the frame mounts/unmounts with this tab.
+  const { frameRef, paneWidth } = usePreviewPaneWidth();
 
   const pane = (
     <>
@@ -1738,16 +1776,18 @@ function PostPreview({
         <p className="editor-preview-notice">{t(postPreviewNotice({ canShowTemplatePreview }))}</p>
       )}
       <div className="editor-shell post-editor-pane">
-        <PostPreviewFrame
-          canShowLiveSite={canShowLiveSite}
-          canShowTemplatePreview={canShowTemplatePreview}
-          bodyJson={bodyJson}
-          slug={slug}
-          templatePreviewUrl={templatePreviewUrl}
-          previewFormRef={previewFormRef}
-          previewFormTarget={previewFormTarget}
-          t={t}
-        />
+        <DevicePreviewFrame width={width} frameRef={frameRef} paneWidth={paneWidth} expanded={expanded}>
+          <PostPreviewFrame
+            canShowLiveSite={canShowLiveSite}
+            canShowTemplatePreview={canShowTemplatePreview}
+            bodyJson={bodyJson}
+            slug={slug}
+            templatePreviewUrl={templatePreviewUrl}
+            previewFormRef={previewFormRef}
+            previewFormTarget={previewFormTarget}
+            t={t}
+          />
+        </DevicePreviewFrame>
       </div>
     </>
   );
@@ -1847,7 +1887,7 @@ function PostPreviewFrame({
 }) {
   if (canShowLiveSite) {
     return (
-      <iframe src={siteUrl(`/${slug}`)} title={t("Post preview")} className="editor-preview-iframe" referrerPolicy="no-referrer" />
+      <iframe src={siteUrl(`/${slug}`)} title={t("Post preview")} className="page-preview-iframe" referrerPolicy="no-referrer" />
     );
   }
   if (canShowTemplatePreview) {
@@ -1855,7 +1895,7 @@ function PostPreviewFrame({
       <iframe
         src={templatePreviewUrl}
         title={t("Post preview")}
-        className="editor-preview-iframe"
+        className="page-preview-iframe"
         referrerPolicy="no-referrer"
       />
     );
@@ -1869,7 +1909,7 @@ function PostPreviewFrame({
       <form ref={previewFormRef} method="post" target={previewFormTarget} action={templatePreviewUrl} hidden>
         <input type="hidden" name="bodyJson" value={JSON.stringify(bodyJson)} />
       </form>
-      <iframe name={previewFormTarget} title={t("Post preview")} className="editor-preview-iframe" referrerPolicy="no-referrer" />
+      <iframe name={previewFormTarget} title={t("Post preview")} className="page-preview-iframe" referrerPolicy="no-referrer" />
     </>
   );
 }

@@ -1092,6 +1092,50 @@ describe("Edit/Preview toolbar", () => {
 });
 
 /**
+ * Preview width toggle (2026-09-22 owner ask) — the shared `DevicePreviewToggle`/`DevicePreviewFrame`
+ * the Pages editor already had. Device state is local view state in `PostEditor` (not the injected
+ * controller), so a real click re-renders the iframe's scaler at the new width under this DI seam.
+ */
+describe("Preview width toggle", () => {
+  it("is absent on the Editor tab", () => {
+    renderPostEditor({ view: "edit" });
+    expect(screen.queryByRole("group", { name: "Preview width" })).not.toBeInTheDocument();
+  });
+
+  it("shows on the Preview tab, Desktop pressed at 1280px", () => {
+    renderPostEditor({ view: "preview" });
+    expect(screen.getByRole("group", { name: "Preview width" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Desktop" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("1280px")).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="post-preview-width-mobile"]')).toBeInTheDocument();
+  });
+
+  it.each([
+    ["Tablet", "834px"],
+    ["Mobile", "390px"],
+    ["Desktop", "1280px"],
+  ])("clicking %s renders the preview iframe at %s", async (label, width) => {
+    const user = userEvent.setup();
+    renderPostEditor({ view: "preview" });
+    if (label === "Desktop") await user.click(screen.getByRole("button", { name: "Mobile" }));
+    await user.click(screen.getByRole("button", { name: label }));
+    const scaler = screen.getByTitle("Post preview").parentElement as HTMLElement;
+    expect(scaler).toHaveClass("page-preview-scaler");
+    expect(scaler.style.width).toBe(width);
+    expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("scales every preview branch, including the pending-content form POST iframe", async () => {
+    const user = userEvent.setup();
+    renderPostEditor({ view: "preview", status: "draft", contentDirty: true });
+    await user.click(screen.getByRole("button", { name: "Mobile" }));
+    const iframe = screen.getByTitle("Post preview");
+    expect(iframe).toHaveAttribute("name", "post-preview-pending-p1");
+    expect((iframe.parentElement as HTMLElement).style.width).toBe("390px");
+  });
+});
+
+/**
  * Preview fullscreen, Level 1 (2026-09-15) — `ADS-memory/.local-artifacts/handoffs/
  * 2026-09-15-preview-fullscreen-PLAN.md` §1.4, as revised by `a380c716`. `previewExpanded`/
  * `togglePreviewExpanded` themselves are `usePostEditor`'s own state (covered in
