@@ -166,7 +166,7 @@ export interface StaticMenuItem {
   readonly children: readonly StaticMenuItem[];
 }
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -217,7 +217,7 @@ const SAFE_HREF_RESOLUTION_ORIGIN = new URL(SAFE_HREF_RESOLUTION_BASE).origin;
  * `renderMenuLinks`'s `.filter()` and `renderMenuItem`'s `linkable` both already apply) — adding a
  * second, always-false null guard here would be untestable dead code, not defense in depth.
  */
-function safeHref(value: string): string {
+export function safeHref(value: string): string {
   const href = value.trim();
   if (href.startsWith("#")) return href;
   if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) return href;
