@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
 import { InMemoryFormDefinitionRepo } from "#src/features/forms/repo.memory";
 import type { NavMenuEntry, NavMenuReadModel } from "#src/features/navigation/index";
 import { createCoreResolvers } from "../../resolvers/create-core-resolvers.js";
+import type { ContentTypeLookup } from "../../resolvers/recent-entries.js";
 
 /**
  * @file `createCoreResolvers` — the pure assembly step `resolvers/index.ts`'s `wireCoreResolvers`
@@ -17,6 +18,14 @@ import { createCoreResolvers } from "../../resolvers/create-core-resolvers.js";
  * present in the returned map with a real, callable `resolveMany`, keyed by the exact type keys
  * `resolveWidgetType`'s dispatch (`CORE_RESOLVERS[registration.resolverId]`) looks up.
  */
+
+function noContentTypes(): ContentTypeLookup {
+  return {
+    async findByKey() {
+      return null;
+    },
+  };
+}
 
 function fakeMenuReadModel(menu: NavMenuEntry | null): NavMenuReadModel {
   return {
@@ -37,9 +46,10 @@ function fakeMenuReadModel(menu: NavMenuEntry | null): NavMenuReadModel {
 
 test("createCoreResolvers: returns exactly the 3 v1 dynamic resolver type keys, each with a callable resolveMany", () => {
   const resolvers = createCoreResolvers({
-    entryList: new InMemoryEntryRepo(),
+    entryList: new TrashAwareInMemoryEntryRepo(),
     navMenuReadModel: fakeMenuReadModel(null),
     formDefinitionRepo: new InMemoryFormDefinitionRepo(),
+    contentTypes: noContentTypes(),
   });
 
   assert.deepEqual(Object.keys(resolvers).sort(), ["contact-form", "menu", "recent-entries"]);
@@ -49,7 +59,7 @@ test("createCoreResolvers: returns exactly the 3 v1 dynamic resolver type keys, 
 });
 
 test("createCoreResolvers: each assembled resolver is wired to the deps it was given, not a shared/global default", async () => {
-  const entryList = new InMemoryEntryRepo();
+  const entryList = new TrashAwareInMemoryEntryRepo();
   await entryList.save({
     id: "entry-1",
     workspaceId: "ws-1",
@@ -69,6 +79,7 @@ test("createCoreResolvers: each assembled resolver is wired to the deps it was g
     entryList,
     navMenuReadModel: fakeMenuReadModel(null),
     formDefinitionRepo: new InMemoryFormDefinitionRepo(),
+    contentTypes: noContentTypes(),
   });
 
   const results = await resolvers["recent-entries"]!.resolveMany(

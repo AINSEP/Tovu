@@ -1216,15 +1216,17 @@ test("renderSite: an image node embedded in a real post body renders the placeho
   assert.doesNotMatch(html, /base64,AAAA/);
 });
 
-test("renderSite: every v1 widget componentId renders correctly and escapes untrusted props (text/social-links/recent-entries+entry-summary/menu/contact-form/unknown->placeholder)", async () => {
+test("renderSite: every v1 widget componentId renders correctly and escapes untrusted props (text/social-links/recent-entries+entry-list-item/menu/contact-form/unknown->placeholder)", async () => {
   const theme = declarativeTheme({ type: "doc", content: [{ type: "region", key: "footer" }] });
   const ir: WidgetRenderIR[] = [
     { componentId: "text", props: { body: "<script>alert(1)</script>" } },
     { componentId: "social-links", props: { links: [{ platform: "<X>", url: "javascript:alert(1)" }] } },
     {
       componentId: "recent-entries",
-      props: {},
-      children: [{ componentId: "entry-summary", props: { id: "e1", title: "<Post>", slug: "post-1" } }],
+      props: { layout: "list", columns: 3, typeKey: "recent-entries" },
+      children: [
+        { componentId: "entry-list-item", props: { title: "<Post>", href: "/post-1", dateIso: "2026-01-01T00:00:00.000Z", dateLabel: "Jan 1, 2026", fields: [] } },
+      ],
     },
     { componentId: "menu", props: { title: "Main", items: [{ label: "Home", href: "/", available: true }, { label: "Hidden", available: false }] } },
     { componentId: "contact-form", props: { slug: "contact", fields: [{ id: "email", label: "Email", type: "email", required: true }], successMessage: null } },
@@ -1248,7 +1250,7 @@ test("renderSite: every v1 widget componentId renders correctly and escapes untr
   assert.match(html, /&lt;X&gt;/);
   assert.doesNotMatch(html, /href="javascript:/);
 
-  // recent-entries -> entry-summary child, escaped title, real slug link
+  // recent-entries -> entry-list-item child, escaped title, real resolved link
   assert.match(html, /widget-recent-entries/);
   assert.match(html, /&lt;Post&gt;/);
   assert.match(html, /href="\/post-1"/);
@@ -1266,6 +1268,56 @@ test("renderSite: every v1 widget componentId renders correctly and escapes untr
   // unknown componentId -> the same public-safe placeholder, no secret leaked
   assert.match(html, /widget-placeholder/);
   assert.doesNotMatch(html, /leak-me/);
+});
+
+/**
+ * Collections plan R1 — "Recent Entries" becomes "Collection list". D7: list layout is the
+ * historical default and must keep its exact old classes; the only visible change to an old config
+ * is a `null` href (D1, entry pages off) rendering as plain text instead of the old dead
+ * `href="/<slug>"` link.
+ */
+test("recent-entries (list layout): a null href renders plain text, not a link — and the legacy widget/widget-entry-summary classes are unchanged", () => {
+  const html = renderWidgetIr({
+    componentId: "recent-entries",
+    props: { layout: "list", columns: 3, typeKey: "recent-entries" },
+    children: [
+      { componentId: "entry-list-item", props: { title: "No Page Yet", href: null, dateIso: "2026-01-01T00:00:00.000Z", dateLabel: "Jan 1, 2026", fields: [] } },
+    ],
+  });
+  assert.match(html, /<ul class="widget widget-recent-entries">/);
+  assert.match(html, /<li class="widget-entry-summary">No Page Yet<\/li>/);
+  assert.doesNotMatch(html, /<a /, `expected plain text, no link, got: ${html}`);
+});
+
+test("recent-entries (cards layout): delegates to C3's renderEntryList — entry-list/entry-card classes and field <dl> appear", () => {
+  const html = renderWidgetIr({
+    componentId: "recent-entries",
+    props: { layout: "cards", columns: 2, typeKey: "recipe" },
+    children: [
+      {
+        componentId: "entry-list-item",
+        props: {
+          title: "Pasta",
+          href: null,
+          dateIso: "2026-01-01T00:00:00.000Z",
+          dateLabel: "Jan 1, 2026",
+          fields: [{ name: "cuisine", label: "Cuisine", kind: "text", value: "Italian" }],
+        },
+      },
+    ],
+  });
+  assert.match(html, /class="entry-list entry-list--recipe"/);
+  assert.match(html, /class="entry-card"/);
+  assert.match(html, /<h3 class="entry-card__title">Pasta<\/h3>/);
+  assert.match(html, /<dt>Cuisine<\/dt><dd>Italian<\/dd>/);
+  assert.doesNotMatch(html, /<a /, `title has no href, must not be a link, got: ${html}`);
+});
+
+test("recent-entries: zero items renders the same 'No entries yet.' fallback regardless of layout", () => {
+  const listEmpty = renderWidgetIr({ componentId: "recent-entries", props: { layout: "list", columns: 3, typeKey: "recent-entries" }, children: [] });
+  const cardsEmpty = renderWidgetIr({ componentId: "recent-entries", props: { layout: "cards", columns: 3, typeKey: "recent-entries" }, children: [] });
+  assert.equal(listEmpty, '<ul class="widget widget-recent-entries"><li class="widget-empty">No entries yet.</li></ul>');
+  assert.equal(cardsEmpty, listEmpty);
 });
 
 test("menu widget: authored cssClass/rel/openInNewTab/icon/description reach the rendered <li>/<a> — previously silently dropped (the resolver already attaches NavItemAttrs to every ResolvedNavItem; only static-tier themes' tree variant read it)", () => {

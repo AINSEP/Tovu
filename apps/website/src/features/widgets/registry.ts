@@ -80,6 +80,15 @@ const SOCIAL_LINKS_REGISTRATION = {
  * `maxItems?: number` — letting `getWidgetTypeRegistration("recent-entries")` (registry.ts) return
  * a type that's honestly non-optional for THIS registration, without lying for the other four
  * (`text`/`social-links`/`menu`/`contact-form`) that genuinely have no maxItems clamp.
+ *
+ * Collections plan R1 (2026-09-23): this widget becomes "Collection list" — it now accepts the
+ * same `collection`/`where`/`sort`/`fields`/`layout`/`columns` config keys the `{"type":"collection"}`
+ * marker does (`resolvers/recent-entries.ts` shares C1's `parseCollectionListConfig` parser for
+ * them). `maxItems` stays required and the type key stays `"recent-entries"` — no data migration —
+ * so every existing config (just `{maxItems}`, optionally `categoryTermId`) still validates and
+ * still means exactly what it meant before (D7): no `collection` set means "every user content
+ * type", `sort` defaults to `"updated"`. This write-time schema only checks shape (type/bounds);
+ * `parseCollectionListConfig` does the real field-name/value validation at resolve time.
  */
 const RECENT_ENTRIES_REGISTRATION = {
   typeKey: "recent-entries",
@@ -91,6 +100,14 @@ const RECENT_ENTRIES_REGISTRATION = {
       // REQ-32/EC-03: a taxonomy-term-target soft reference, extracted into entry_refs with
       // targetKind 'term' (no safe-delete guarantee) — see core/entry-refs/extractor.ts.
       categoryTermId: { type: "string", "x-ref-target": "term" },
+      // Collections plan R1 additions — shape-only here; `parseCollectionListConfig` (shared with
+      // the `collection` marker, C1) validates field names/values against the named content type.
+      collection: { type: "string" },
+      where: { type: "object" },
+      sort: { type: "string" },
+      fields: { type: "array", maxItems: 20, items: { type: "string" } },
+      layout: { type: "string" },
+      columns: { type: "integer", minimum: 1, maximum: 6 },
     },
     required: ["maxItems"],
     additionalProperties: false,
