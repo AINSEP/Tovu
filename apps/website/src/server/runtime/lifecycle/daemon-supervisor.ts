@@ -50,7 +50,7 @@
  *   to the same worst-case frequency the internal backoff already accepts as safe — traffic-driven
  *   and time-driven retries end up governed by the same ceiling instead of two different ones.
  */
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import path from "node:path";
 
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "./readiness-state.js";
@@ -93,6 +93,13 @@ export interface DaemonSupervisorDeps {
    *  running or scheduled (see this file's own header). Defaults to 30s, matching the backoff
    *  ladder's own cap — traffic-driven and time-driven retries then share one worst-case ceiling. */
   onDemandCooldownMs?: number;
+  /** Injectable OS platform — real `process.platform` in production, injected in tests to exercise
+   *  the win32 branch of `killCurrentChild` on any host. */
+  platform?: NodeJS.Platform;
+  /** win32-only tree-kill used by `killCurrentChild` instead of the POSIX process-group signal
+   *  (`process.kill(-pid, "SIGTERM")`), which Windows has no equivalent for. Defaults to
+   *  {@link taskkillTree} (`taskkill /pid <pid> /T /F`); never called on POSIX. */
+  killTree?: (pid: number) => void;
 }
 
 /** Returned by both `restart()` and `ensureStarted()` — `reason` is present only when `ok` is
@@ -133,6 +140,22 @@ export interface DaemonSupervisor {
   shutdown(): void;
 }
 
+/**
+ * Default win32 tree-kill for `killCurrentChild`: `taskkill /pid <pid> /T /F`.
+ *
+ * Windows has no process groups — `spawnRealDaemonProcessFor`'s `detached: true` binds no group
+ * there the way it does on POSIX, so the POSIX `process.kill(-pid, "SIGTERM")` signal below has
+ * nothing to target. On a real Windows host that call throws (caught) and falls through to
+ * `currentChild.kill("SIGTERM")`, which only reaches the immediate `npx`/`tsx` hop and orphans the
+ * daemon underneath it — the exact leak this replaces. `/T` walks the whole tree instead.
+ *
+ * @param pid the child's own pid (never negated — there is no process-group id to negate on win32).
+ * @complexity O(1); delegates to the OS via a synchronous child process.
+ */
+function taskkillTree(pid: number): void {
+  execFileSync("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore" });
+}
+
 /** Same reasoning `index.ts` used for EADDRINUSE specifically: naming the real cause here is what
  *  turns an unexplained "exited unexpectedly (code 1)" into something an operator can act on. */
 function computeExitReasonCode(code: number | null, signal: NodeJS.Signals | null, daemonPort: string): string {
@@ -168,6 +191,8 @@ export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSuperv
   const daemonPort = deps.daemonPort ?? process.env.JINI_AGENT_DAEMON_PORT ?? "4319";
   const clock = deps.now ?? Date.now;
   const onDemandCooldownMs = deps.onDemandCooldownMs ?? 30_000;
+  const platform = deps.platform ?? process.platform;
+  const killTree = deps.killTree ?? taskkillTree;
 
   let currentChild: SpawnedDaemonProcess | undefined;
   let childHasExited = false;
@@ -251,15 +276,19 @@ export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSuperv
     });
   }
 
-  /** Process-group kill, falling back to the direct child — identical shape to `index.ts`'s
-   *  original `reap()`, just reading `currentChild`/`childHasExited` instead of closed-over
-   *  `child`/`pid` locals. */
+  /** Process-group kill on POSIX, `killTree` on win32 (see {@link taskkillTree}), falling back to
+   *  the direct child either way — identical shape to `index.ts`'s original `reap()`, just reading
+   *  `currentChild`/`childHasExited` instead of closed-over `child`/`pid` locals. */
   function killCurrentChild(): void {
     if (currentChild === undefined || childHasExited) return;
     const pid = currentChild.pid;
     if (pid === undefined) return;
     try {
-      process.kill(-pid, "SIGTERM");
+      if (platform === "win32") {
+        killTree(pid);
+      } else {
+        process.kill(-pid, "SIGTERM");
+      }
     } catch {
       try {
         currentChild.kill("SIGTERM");
@@ -368,6 +397,8 @@ export function resolveDaemonScriptPath(): string {
  * - `stdio: ["ignore", "pipe", "pipe"]` plus manual piping, not `"inherit"`: keeps this process's
  *   own stdout/stderr fds from ever being shared with an orphaned daemon (see git history on
  *   `index.ts` for the concrete Playwright-teardown hang this was fixed to prevent).
+ * - `windowsHide: true` (new): without it, Windows pops a console window for this detached child
+ *   (plan item W6). Inert on POSIX, where there is no console window to hide.
  */
 export interface DaemonSpawnEnvInput {
   workspaceId: string;
@@ -458,8 +489,8 @@ function spawnRealDaemonProcessFor(input: DaemonSpawnEnvInput): SpawnedDaemonPro
   const args = buildDaemonSpawnArgs({ daemonPath, workspaceId: input.workspaceId });
 
   const child = isCompiled
-    ? spawn(process.execPath, args, { stdio: ["ignore", "pipe", "pipe"], env, detached: true })
-    : spawn("npx", ["tsx", ...args], { stdio: ["ignore", "pipe", "pipe"], env, detached: true });
+    ? spawn(process.execPath, args, { stdio: ["ignore", "pipe", "pipe"], env, detached: true, windowsHide: true })
+    : spawn("npx", ["tsx", ...args], { stdio: ["ignore", "pipe", "pipe"], env, detached: true, windowsHide: true });
 
   // Relays the daemon's own output through this process instead of inheriting its fds — preserves
   // the existing `[agent-daemon] ...` log visibility during dev/test without sharing the pipe itself.

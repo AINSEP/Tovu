@@ -16,7 +16,7 @@
 import net from "node:net";
 import path from "node:path";
 import fs from "node:fs";
-import { spawn as nodeSpawn } from "node:child_process";
+import { spawn as nodeSpawn, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
 import type { SpawnOptions } from "node:child_process";
@@ -505,24 +505,55 @@ interface SpawnedChild {
 }
 
 /**
+ * Default win32 tree-kill escalation: `taskkill /pid <pid> /T /F`.
+ *
+ * Windows has no process groups — the `detached: true` spawn binds no group there the way it does
+ * on POSIX, so {@link stopChild}'s POSIX `process.kill(-pid, "SIGKILL")` escalation has nothing to
+ * target and would only ever reach the immediate `tovu serve` process, orphaning its agent-daemon
+ * grandchild exactly the way plan item W7 describes. `/T` walks the whole tree taskkill itself
+ * spawned, the same intent as the negative-pid signal on POSIX; `/F` forces it, matching SIGKILL.
+ *
+ * @param pid the child's own pid (never negated — there is no process-group id to negate on win32).
+ * @complexity O(1); delegates to the OS via a synchronous child process.
+ */
+function taskkillTree(pid: number): void {
+  execFileSync("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore" });
+}
+
+/**
  * Terminate a spawned `tovu serve` and everything it spawned, then resolve once it is really gone.
  *
  * SIGTERM goes to the child itself, because `serve.ts` handles it with a real graceful drain
  * (BR-07: stop accepting, finish in-flight, `shutdownAssistantDaemon()`, close the sqlite handle) —
  * that path also reaps the agent daemon, so the polite signal is the *complete* one. SIGKILL is the
  * escalation, and it goes to the process **group** (`-pid`, which the `detached: true` spawn makes
- * available): a `tovu serve` wedged badly enough to ignore SIGTERM has not run its own shutdown, so
- * its daemon child is exactly what would be left behind.
+ * available) on POSIX: a `tovu serve` wedged badly enough to ignore SIGTERM has not run its own
+ * shutdown, so its daemon child is exactly what would be left behind. On win32 there is no process
+ * group to signal, so the escalation calls the injected `killTree(pid)` instead (production default:
+ * {@link taskkillTree}) — same reap-the-whole-tree intent, different OS primitive.
  *
+ * @param platform selects the escalation primitive; defaults to the real `process.platform`. Test
+ *   seam so the win32 branch is exercised on any host.
+ * @param killTree win32-only tree-kill, defaulting to {@link taskkillTree}. Never called on POSIX.
  * @complexity O(1); bounded by `graceMs`.
  */
-function stopChild(child: SpawnedChild, graceMs: number): Promise<void> {
+function stopChild(
+  child: SpawnedChild,
+  graceMs: number,
+  platform: NodeJS.Platform = process.platform,
+  killTree: (pid: number) => void = taskkillTree,
+): Promise<void> {
   if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
 
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
       try {
-        process.kill(-child.pid!, "SIGKILL"); // `!`: `stopChild` only runs on an already-spawned child, so it has a pid.
+        // `!`: `stopChild` only runs on an already-spawned child, so it has a pid.
+        if (platform === "win32") {
+          killTree(child.pid!);
+        } else {
+          process.kill(-child.pid!, "SIGKILL");
+        }
       } catch {
         // Already reaped between the timer firing and this call — nothing to kill.
       }
@@ -625,6 +656,12 @@ interface StartTovuServerInput {
   adminDevProxyUrl?: string | null;
   baseEnv?: NodeJS.ProcessEnv;
   emitBootToken?: boolean;
+  /** Test seam: injects the OS platform {@link stopChild} branches its kill escalation on. Defaults
+   *  to the real `process.platform`; production never passes this. */
+  platform?: NodeJS.Platform;
+  /** Test seam: win32-only tree-kill passed through to {@link stopChild}. Defaults to `taskkill /pid
+   *  <pid> /T /F`; production never passes this. */
+  killTree?: (pid: number) => void;
 }
 
 /** What a resolved {@link startTovuServer} call hands back. */
@@ -664,6 +701,9 @@ interface TovuServerHandle {
  *   `admin-dev-proxy.ts`'s `resolveAdminDevProxyUrl` — which probes, and yields nothing when
  *   packaged — rather than passing a bare URL, since an unreachable origin turns `/admin/` into a
  *   502 rather than falling back. Omit to serve the built bundle exactly as before.
+ * @param input.platform test seam forwarded to {@link stopChild}; defaults to `process.platform`.
+ * @param input.killTree win32-only test seam forwarded to {@link stopChild}; defaults to
+ *   {@link taskkillTree}.
  * @returns `{ port, pid, origin, adminUrl, workspaceId, schemaVersion, stop(), onExit(cb) }` —
  *   `onExit` is the post-ready liveness signal a supervisor needs; see {@link createExitSignal}.
  * @throws {Error} when the CLI is unbuilt/missing, the boot line times out, or the child exits early.
@@ -698,6 +738,9 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
       // `tovu serve` spawns rather than just the immediate child. Same reason
       // `development/scripts/dev.mjs` and `daemon-supervisor.ts` both detach.
       detached: true,
+      // Windows pops a console window for every detached child otherwise (plan item W6) — inert on
+      // POSIX, where a hidden console window does not exist to suppress.
+      windowsHide: true,
     },
   );
 
@@ -749,7 +792,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
             // — no second wait and no timing window. `null` whenever `--emit-boot-token` was not
             // passed, which is every caller but the desktop shell.
             bootToken: parseBootToken(output),
-            stop: () => stopChild(child, stopGraceMs),
+            stop: () => stopChild(child, stopGraceMs, input.platform, input.killTree),
             onExit: exitSignal.onExit,
           }),
         );
@@ -765,7 +808,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
       finish(() => reject(new Error(describeBootFailure(redactBootToken(output), `tovu serve exited (code ${code ?? signal ?? "none"}) before reporting a port.`))));
     });
   }).catch(async (error) => {
-    await stopChild(child, stopGraceMs);
+    await stopChild(child, stopGraceMs, input.platform, input.killTree);
     throw error;
   });
 }

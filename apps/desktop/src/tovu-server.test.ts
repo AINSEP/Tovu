@@ -377,6 +377,9 @@ test("startTovuServer passes the site dir and port through as `serve <dir> --por
   ]);
   // Own process group, so the SIGKILL escalation can reap the agent daemon `tovu serve` spawns.
   assert.equal(recorded!.options.detached, true);
+  // Windows pops a console window for every detached child without this (plan item W6); inert on
+  // POSIX, so this assertion is the same on every platform this test runs on.
+  assert.equal(recorded!.options.windowsHide, true);
 });
 
 // The sink, not the primitive. `buildServeEnv` returning the right value proves nothing on its own:
@@ -502,6 +505,55 @@ test("startTovuServer times out and kills the child when no boot line ever arriv
 
   await assert.rejects(started, /did not report a port within 20ms/);
   assert.deepEqual(child.killed, ["SIGTERM"]);
+});
+
+// win32 has no process groups (plan §3, W7): `process.kill(-pid, "SIGKILL")` would throw there
+// (caught, but the agent-daemon grandchild is left orphaned). The two tests below inject the
+// platform so both branches are exercised on this Mac, proving `stopChild`'s escalation actually
+// branches on `platform` rather than always doing the same thing regardless of what is passed.
+test("on win32, the boot-timeout escalation calls the injected killTree(pid) instead of the POSIX process-group signal", async () => {
+  const child = fakeChild();
+  const killTreeCalls: number[] = [];
+  const started = startTovuServer({
+    repoRoot: makeTempRepo(),
+    siteDir: "/tmp/site",
+    port: 3601,
+    baseEnv: {},
+    mirror: silentMirror(),
+    spawnFn: () => child,
+    readyTimeoutMs: 20,
+    stopGraceMs: 20,
+    platform: "win32",
+    killTree: (pid) => killTreeCalls.push(pid),
+  });
+  // The stop path waits for a real exit; grant one so the rejection is not gated on the escalation.
+  setTimeout(() => child.emit("exit", null, "SIGTERM"), 40);
+
+  await assert.rejects(started, /did not report a port within 20ms/);
+  assert.deepEqual(child.killed, ["SIGTERM"], "the polite signal is unchanged on win32");
+  assert.deepEqual(killTreeCalls, [child.pid], "win32 must escalate via killTree(pid), not process.kill(-pid) — Windows has no process groups");
+});
+
+test("on posix (the default), the boot-timeout escalation never calls an injected killTree", async () => {
+  const child = fakeChild();
+  const killTreeCalls: number[] = [];
+  const started = startTovuServer({
+    repoRoot: makeTempRepo(),
+    siteDir: "/tmp/site",
+    port: 3601,
+    baseEnv: {},
+    mirror: silentMirror(),
+    spawnFn: () => child,
+    readyTimeoutMs: 20,
+    stopGraceMs: 20,
+    // No `platform` passed — defaults to the real `process.platform`, which is POSIX on every host
+    // this suite runs on.
+    killTree: (pid) => killTreeCalls.push(pid),
+  });
+  setTimeout(() => child.emit("exit", null, "SIGTERM"), 40);
+
+  await assert.rejects(started, /did not report a port within 20ms/);
+  assert.deepEqual(killTreeCalls, [], "posix must keep using the process-group signal, never the injected killTree");
 });
 
 test("the handle's stop() sends SIGTERM so serve.ts runs its own graceful drain", async () => {
