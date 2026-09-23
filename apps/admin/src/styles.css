@@ -2064,6 +2064,21 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    padding from making it taller than the select and pushing it out of vertical alignment. */
 .editor-template-picker { display: flex; align-items: center; gap: 0.5rem; }
 .editor-template-picker select { width: 14rem; font-size: 0.85rem; }
+/* Icon-only "View Template" trigger (2026-09-22 owner ask, moved left of the picker and reduced
+   from a `.btn-secondary` text button to an eye glyph). `width`/`height: 37px` matches the shared
+   `input, select, textarea { min-height: 37px }` rule exactly (not the 2rem/32px
+   `.theme-explore-fullscreen-trigger` uses elsewhere) so the square button lines up flush against
+   the select's own edge instead of a couple pixels short. Colors are `.btn-secondary`'s own
+   (`--surface`/`--fg-2`/`--border-strong`), since this button carried that class before and the
+   owner's ask was icon-vs-word, not a restyle. */
+.view-template-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 37px; height: 37px; padding: 0; flex-shrink: 0;
+  background: var(--surface); color: var(--fg-2); border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+}
+.view-template-btn svg { width: 16px; height: 16px; }
+.view-template-btn:hover { background: var(--surface-2); color: var(--fg-1); opacity: 1; }
+.view-template-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 /* Small screens (2026-08-09 live feedback): the slug row was overflowing — the template picker got
    clipped off the right edge instead of wrapping to its own line, and the id block (no visible
    divider, see the JSX comment on `.editor-id`'s markup for why) sat crowded against "view". Stack

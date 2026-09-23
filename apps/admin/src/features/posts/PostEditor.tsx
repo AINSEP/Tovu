@@ -1030,6 +1030,31 @@ function PostEditorToolbarEnd({
         </label>
         {availableTemplates.length > 0 ? (
           <>
+            {/* Read-only inspection, not editing (`PostTemplateModal.tsx`'s own file header —
+                "I just wanna see it" is the owner's own framing). Disabled rather than hidden
+                when nothing is chosen: an operator who opted out via "No template chosen" (`""`)
+                still sees the control, just inert, matching this screen's own precedent for the
+                theme-with-zero-templates `<select>` below rather than the row disappearing.
+                Icon-only (2026-09-22 owner ask, moved left of the picker): the visible word is
+                gone, but `aria-label`/`title` still carry `t("View Template")` so the accessible
+                name and translation key are unchanged from the old text button. */}
+            <button
+              type="button"
+              className="view-template-btn"
+              disabled={!templateChoice}
+              onClick={onViewTemplateClick}
+              aria-label={t("View Template")}
+              title={t("View Template")}
+              {...agentHandle("post-view-template", {
+                role: "button",
+                label: "Open a read-only view of the selected template's HTML source. Nothing here is editable.",
+              })}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
             <select
               value={templateChoice ?? ""}
               // `e.target.value`, NOT `|| null` — "No template chosen" must persist as `""`
@@ -1052,23 +1077,6 @@ function PostEditorToolbarEnd({
               ))}
               <option value="">{t("No template chosen")}</option>
             </select>
-            {/* Read-only inspection, not editing (`PostTemplateModal.tsx`'s own file header —
-                "I just wanna see it" is the owner's own framing). Disabled rather than hidden
-                when nothing is chosen: an operator who opted out via "No template chosen" (`""`)
-                still sees the control, just inert, matching this screen's own precedent for the
-                theme-with-zero-templates `<select>` below rather than the row disappearing. */}
-            <button
-              type="button"
-              className="btn-secondary"
-              disabled={!templateChoice}
-              onClick={onViewTemplateClick}
-              {...agentHandle("post-view-template", {
-                role: "button",
-                label: "Open a read-only view of the selected template's HTML source. Nothing here is editable.",
-              })}
-            >
-              {t("View Template")}
-            </button>
           </>
         ) : (
           <select
