@@ -1,0 +1,12 @@
+{
+  // Typecheck-only pass for the opt-in live Playwright verifiers (`scripts/verify-find-in-page.ts`,
+  // `scripts/verify-site-power.ts`). Same strict settings as `tsconfig.main.json`, plus the DOM lib
+  // their `page.evaluate` callbacks need — those callbacks run in the renderer, not in Node. Kept
+  // out of `tsconfig.main.json` so main-process code never gains DOM globals.
+  "extends": "./tsconfig.main.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"]
+  },
+  "include": ["scripts/verify-find-in-page.ts", "scripts/verify-site-power.ts"],
+  "exclude": []
+}

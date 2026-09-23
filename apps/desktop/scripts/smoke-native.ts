@@ -26,46 +26,51 @@ import { buildSmokeScript, parseSmokeOutput, resolveSmokeTargets } from "../src/
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-function main(): void {
-  const argv = process.argv.slice(2);
+type SmokeTargets = ReturnType<typeof resolveSmokeTargets>;
+
+/** Prints `message` to stderr and exits 1. */
+function fail(message: string): never {
+  process.stderr.write(`${message}\n`);
+  process.exit(1);
+}
+
+/** Resolves `--platform-dir` against the desktop root, or exits when it is missing. */
+function platformDirFromArgv(argv: readonly string[]): string {
   const flagAt = argv.indexOf("--platform-dir");
   const platformDirArg = flagAt !== -1 ? argv[flagAt + 1] : undefined;
-  if (!platformDirArg) {
-    process.stderr.write("smoke-native: --platform-dir <dir> is required\n");
-    process.exit(1);
-    return;
-  }
-  const platformDir = path.resolve(DESKTOP_ROOT, platformDirArg);
+  if (!platformDirArg) fail("smoke-native: --platform-dir <dir> is required");
+  return path.resolve(DESKTOP_ROOT, platformDirArg);
+}
 
+/** Locates the packaged executable and its staged `node_modules` under `platformDir`, exiting with
+ *  a specific reason when either cannot be found. */
+function locateTargets(platformDir: string): SmokeTargets {
   let entryNames: string[];
   try {
     entryNames = readdirSync(platformDir);
   } catch (error) {
-    process.stderr.write(`smoke-native: cannot read ${platformDir}: ${(error as Error).message}\n`);
-    process.exit(1);
-    return;
+    fail(`smoke-native: cannot read ${platformDir}: ${(error as Error).message}`);
   }
 
-  let targets;
+  let targets: SmokeTargets;
   try {
     targets = resolveSmokeTargets(platformDir, entryNames);
   } catch (error) {
-    process.stderr.write(`${(error as Error).message}\n`);
-    process.exit(1);
-    return;
+    fail((error as Error).message);
   }
 
   if (!existsSync(targets.executablePath)) {
-    process.stderr.write(`smoke-native: resolved executable does not exist: ${targets.executablePath}\n`);
-    process.exit(1);
-    return;
+    fail(`smoke-native: resolved executable does not exist: ${targets.executablePath}`);
   }
   if (!existsSync(targets.nodeModulesDir)) {
-    process.stderr.write(`smoke-native: resolved node_modules dir does not exist: ${targets.nodeModulesDir}\n`);
-    process.exit(1);
-    return;
+    fail(`smoke-native: resolved node_modules dir does not exist: ${targets.nodeModulesDir}`);
   }
+  return targets;
+}
 
+/** Spawns the packaged binary as Node, echoes its output, and returns the child's raw stdout —
+ *  exiting when the spawn itself fails. */
+function spawnSmoke(targets: SmokeTargets): string {
   process.stdout.write(`smoke-native: running against ${targets.executablePath}\n`);
   const script = buildSmokeScript(targets.nodeModulesDir);
   const spawned = spawnSync(targets.executablePath, ["-e", script], {
@@ -74,26 +79,26 @@ function main(): void {
   });
 
   if (spawned.error) {
-    process.stderr.write(`smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}\n`);
-    process.exit(1);
-    return;
+    fail(`smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}`);
   }
   if (spawned.stdout) process.stdout.write(spawned.stdout);
   if (spawned.stderr) process.stderr.write(spawned.stderr);
+  return spawned.stdout ?? "";
+}
 
-  let result;
+function main(): void {
+  const targets = locateTargets(platformDirFromArgv(process.argv.slice(2)));
+  const stdout = spawnSmoke(targets);
+
+  let result: ReturnType<typeof parseSmokeOutput>;
   try {
-    result = parseSmokeOutput(spawned.stdout ?? "");
+    result = parseSmokeOutput(stdout);
   } catch (error) {
-    process.stderr.write(`${(error as Error).message}\n`);
-    process.exit(1);
-    return;
+    fail((error as Error).message);
   }
 
   if (!result.ok) {
-    process.stderr.write("smoke-native: one or more native modules failed inside the packaged binary\n");
-    process.exit(1);
-    return;
+    fail("smoke-native: one or more native modules failed inside the packaged binary");
   }
   process.stdout.write("smoke-native: OK — better-sqlite3, sharp, and argon2 all round-tripped\n");
 }

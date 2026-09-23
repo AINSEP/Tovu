@@ -1,6 +1,9 @@
 import type { RefObject } from "react";
-import { ConfirmDialog, InteractiveHtmlEditor } from "@jini-ai/admin/react";
+import { ConfirmDialog } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
+import { InteractiveHtmlEditor, type CanvasEmbedPlaceholderDescriptor } from "@jini-ai/ui/html-editor";
+
+import { isProtectedEmbedElement } from "./lib/embed-placeholder";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBar.hooks";
 import { DEVICE_PREVIEW_WIDTHS, type DevicePreviewDevice } from "../../components/DevicePreview/DevicePreview.hooks";
@@ -35,7 +38,11 @@ import {
  * **There is no Tiptap here, and there never will be.** A Page is a bespoke HTML document; the
  * editing surfaces are the rendered preview, the raw HTML behind it, and — the "Interactive" tab —
  * a GrapesJS-backed visual surface for clicking into rendered text and editing it in place
- * (`@jini-ai/admin/react`'s `InteractiveHtmlEditor`). GrapesJS does not contradict the "no Tiptap"
+ * (`@jini-ai/ui/html-editor`'s generic `InteractiveHtmlEditor`, mounted directly here since
+ * 2026-09-23 with this feature's own `isProtectedEmbedElement`/`embedPlaceholderDescriber` supplied
+ * below — Bug A / interactive-bugs plan Slice A3 — rather than through `@jini-ai/admin/react`'s
+ * Tovu-specific adapter, which could not describe a marker addressed by `slug`/`typeKey`). GrapesJS
+ * does not contradict the "no Tiptap"
  * invariant: it edits and exports raw HTML directly, `html`/`setHtml` above stay the single source
  * of truth, and there is no parallel structured-document format the way Tiptap's `bodyJson` would
  * be — text editing and basic formatting only this pass, not Gutenberg-style block manipulation.
@@ -646,6 +653,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     dismissExternalChange,
     contentRevision,
     t,
+    embedPlaceholderDescriber,
   } = usePageEditorHook(routeSlug);
   // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
   // lint even though this one holds no state of its own.
@@ -788,6 +796,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         previewExpanded={previewExpanded}
         onTogglePreviewExpanded={togglePreviewExpanded}
         t={t}
+        embedPlaceholderDescriber={embedPlaceholderDescriber}
       />
 
       <ConfirmDialog
@@ -821,6 +830,11 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
  * its own surface rather than a skipped loading flash: mounting an unstyled canvas could never pick
  * the theme up afterwards. The wait is normally invisible — `preview` is this screen's default tab,
  * so the theme's token files have already loaded by the time anyone clicks Interactive.
+ *
+ * `embedPlaceholderDescriber` (Bug A / interactive-bugs plan Slice A3) is the same mount-once
+ * contract: `usePageEditor` rebuilds it whenever the bound translator changes, but
+ * `InteractiveHtmlEditor` only reads `describeEmbedPlaceholder` at construction, so a later identity
+ * change (a locale switch mid-session) takes effect on the NEXT Interactive-tab mount, not live.
  */
 function PageEditorPane({
   view,
@@ -847,6 +861,7 @@ function PageEditorPane({
   previewExpanded,
   onTogglePreviewExpanded,
   t,
+  embedPlaceholderDescriber,
 }: {
   view: PageEditorView;
   canvasStyling: ThemeCanvasStylingState;
@@ -884,6 +899,9 @@ function PageEditorPane({
   previewExpanded: boolean;
   onTogglePreviewExpanded: () => void;
   t: Translate;
+  /** Bug A / interactive-bugs plan Slice A3 — see `PageEditorController.embedPlaceholderDescriber`'s
+   *  own doc. Passed straight through to the `interactive` surface below. */
+  embedPlaceholderDescriber: (el: Element) => CanvasEmbedPlaceholderDescriptor | undefined;
 }) {
   const surface = pageEditorSurface(view, canvasStyling);
   if (surface.kind === "preview") {
@@ -932,7 +950,16 @@ function PageEditorPane({
   if (surface.kind === "interactive-pending") {
     return <div className="notice">{t("Loading the theme's styles…")}</div>;
   }
-  return <InteractiveHtmlEditor key={contentRevision} html={html} onChange={setHtml} canvasStyling={surface.styling} />;
+  return (
+    <InteractiveHtmlEditor
+      key={contentRevision}
+      html={html}
+      onChange={setHtml}
+      canvasStyling={surface.styling}
+      isProtectedElement={isProtectedEmbedElement}
+      describeEmbedPlaceholder={embedPlaceholderDescriber}
+    />
+  );
 }
 
 /**

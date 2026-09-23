@@ -138,6 +138,9 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     loadExternalChange: vi.fn(),
     dismissExternalChange: vi.fn(),
     contentRevision: 0,
+    // Bug A / interactive-bugs plan Slice A3 — no pre-existing test drives the Interactive surface's
+    // placeholder card, so an inert stub is enough; a test that needs a real descriptor overrides it.
+    embedPlaceholderDescriber: () => undefined,
     ...overrides,
   };
 }

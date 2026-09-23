@@ -1726,9 +1726,18 @@ export async function handlePostNotFoundOnSlugRoute(
   if (await tryRedirectPhase("post_content", req.path, deps.workspaceId, res)) return;
 
   // A static theme that ships its own pages/404.html gets a themed not-found page instead of
-  // the bare fallback below — same renderStaticPage path the marketing-page routes above use.
+  // the bare fallback below — E4 (D2, 2026-09-23) runs it through the SAME
+  // `finishStaticTierDocument` pipeline every other static-tier surface uses, so a widget or
+  // collection marker on the 404 page (or a partial it references) resolves too, not only its menu
+  // markers (the one thing the old direct `renderStaticPage` call already substituted).
   if (theme && theme.manifest.tier === "static" && theme.pages["404"] !== undefined) {
-    const staticHtml = renderStaticPage({ theme, pageId: "404", menus: staticMenus });
+    const staticHtml = await finishStaticTierDocument(deps, {
+      theme,
+      pageId: "404",
+      html: theme.pages["404"],
+      currentPath: req.path,
+      staticMenus,
+    });
     if (staticHtml) {
       res.status(404).type("html").send(staticHtml);
       return;
@@ -2077,6 +2086,33 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         buildExtraHead(deps, "home", siteTitle, undefined),
         resolveStaticMenusForRender(deps, theme, "/"),
       ]);
+
+      // E4 (D2, 2026-09-23) — a static theme's own `index.html` goes through the SAME
+      // `finishStaticTierDocument` pipeline every other static-tier surface uses (E3), instead of
+      // `renderSite`'s `renderStaticTierHomePage`, which only ever substituted `menu`/`partial`
+      // markers via `renderStaticPage` directly and never ran `resolveHtmlPageEmbeds` or
+      // `resolvePostPreviewsForRender` at all — a widget, post-previews, or collection marker
+      // authored straight into `index.html` (or a partial it references) silently never resolved.
+      // `renderStaticTierHomePage` stays in place for its one other caller
+      // (`middleware/theme-page-preview.ts`'s admin preview route, which never reaches this handler).
+      if (theme !== null && theme.manifest.tier === "static" && theme.pages.index !== undefined) {
+        const rendered = await finishStaticTierDocument(deps, {
+          theme,
+          pageId: "index",
+          html: theme.pages.index,
+          currentPath: "/",
+          staticMenus,
+          postPreviewsAccess: { resolver: memberAccessResolver, context: memberContext },
+        });
+        const homeHtml = injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(rendered, extraHead), siteAssistantEnabled);
+        const homePerVisitor = resolvePerVisitorResponse(req, res);
+        res
+          .set("Cache-Control", homePerVisitor.cacheControl)
+          .type("html")
+          .send(injectFormSubmissionResultIntoHtml(homeHtml, homePerVisitor.result));
+        return;
+      }
+
       const html = await renderSite({
         theme,
         route: "home",

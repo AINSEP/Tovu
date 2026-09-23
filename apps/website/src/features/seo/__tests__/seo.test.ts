@@ -228,6 +228,54 @@ test("getEntryMeta: html-format description truncates at the same length and wit
   assert.equal(meta.description, `${"A".repeat(160)}…`);
 });
 
+test("getEntryMeta: html-format description skips a `post-detail-header` block instead of doubling the title (/media regression)", async () => {
+  const deps = await makeDeps([
+    seedPost({
+      kind: "page",
+      bodyFormat: "html",
+      bodyHtml:
+        '<header class="post-detail-header"><h1>Media</h1><p>Sep 3, 2026</p></header>' +
+        '<div class="post-detail-body"><p>Media is where…</p></div>',
+    }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.ok(
+    meta.description?.startsWith("Media is where"),
+    `expected description to start with "Media is where", got: ${meta.description}`
+  );
+});
+
+test("getEntryMeta: html-format description is unchanged when there is no `post-detail-header` block", async () => {
+  const deps = await makeDeps([
+    seedPost({ kind: "page", bodyFormat: "html", bodyHtml: "<p>Plain content with no header block.</p>" }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, "Plain content with no header block.");
+});
+
+test("getEntryMeta: doc-format description is unchanged by the post-detail-header stripping (bodyHtml path not taken)", async () => {
+  const deps = await makeDeps([seedPost()]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, "An excerpt body.");
+});
+
+test("getEntryMeta: html-format `post-detail-header` block is skipped even with extra classes alongside it", async () => {
+  const deps = await makeDeps([
+    seedPost({
+      kind: "page",
+      bodyFormat: "html",
+      bodyHtml:
+        '<header class="post-detail-header foo"><h1>Media</h1><p>Sep 3, 2026</p></header>' +
+        '<div class="post-detail-body"><p>Media is where…</p></div>',
+    }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.ok(
+    meta.description?.startsWith("Media is where"),
+    `expected description to start with "Media is where", got: ${meta.description}`
+  );
+});
+
 test("getEntryMeta: an explicit description override still wins over the derived html excerpt", async () => {
   const deps = await makeDeps([
     seedPost({
@@ -447,6 +495,46 @@ test("getEntryMeta: decodes numeric hex and decimal html entities, and preserves
   ]);
   const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
   assert.equal(meta.description, `It's "great" <rock> & &unknown;`);
+});
+
+test("getEntryMeta: decodes typographic named entities (live /media + /forms regression: `&mdash;` surfaced as a literal)", async () => {
+  const deps = await makeDeps([
+    seedPost({
+      kind: "page",
+      bodyFormat: "html",
+      bodyHtml: "<p>Upload &mdash; JPEG &ndash; &ldquo;once&rdquo; &lsquo;x&rsquo; &hellip; &copy; &trade;</p>",
+    }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, "Upload — JPEG – “once” ‘x’ … © ™");
+});
+
+test("getEntryMeta: a nested element inside `post-detail-header` does not end the stripped block early", async () => {
+  const deps = await makeDeps([
+    seedPost({
+      kind: "page",
+      bodyFormat: "html",
+      bodyHtml:
+        '<div class="post-detail-header"><div class="post-meta"><time>Sep 3, 2026</time></div><h1>Media</h1></div>' +
+        '<div class="post-detail-body"><p>Media is where…</p></div>',
+    }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, "Media is where…");
+});
+
+test("getEntryMeta: the production `renderPostDetailHeader` shape (nested `.post-meta` div) is stripped whole", async () => {
+  const deps = await makeDeps([
+    seedPost({
+      kind: "page",
+      bodyFormat: "html",
+      bodyHtml:
+        '<div class="post-detail-header"><h1>What Is Tovu?</h1><div class="post-meta"><time datetime="2026-09-04T02:04:06.038Z">Sep 3, 2026</time></div></div>' +
+        '<div class="post-detail-body"><p>Tovu is a content platform.</p></div>',
+    }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, "Tovu is a content platform.");
 });
 
 test("getEntryMeta: all openGraph and twitter field overrides are respected", async () => {

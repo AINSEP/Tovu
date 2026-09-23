@@ -14,10 +14,11 @@
       "@/*": ["./src/*"],
       "@tovu/headless": ["../website/src/contracts/headless/index.ts"],
       "@tovu/theme-layout": ["../website/src/features/theme/theme-layout.ts"],
-      "@tovu/publish-content-ui": ["../website/src/features/publish-content/ui/index.ts"]
+      "@tovu/publish-content-ui": ["../website/src/features/publish-content/ui/index.ts"],
+      "@tovu/embed-marker": ["../website/src/contracts/core/embeds/marker.ts"]
     }
   },
-  "include": ["src", "vite.config.ts", "../website/src/contracts/headless/**/*.ts", "../website/src/features/theme/theme-layout.ts", "../website/src/features/publish-content/ui/index.ts"],
+  "include": ["src", "vite.config.ts", "../website/src/contracts/headless/**/*.ts", "../website/src/features/theme/theme-layout.ts", "../website/src/features/publish-content/ui/index.ts", "../website/src/contracts/core/embeds/marker.ts"],
   "exclude": [
     "node_modules"
   ]

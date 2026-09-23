@@ -50,41 +50,51 @@ const MAX_SUGGESTIONS = 5;
  */
 export function buildSpellCheckMenuTemplate(
   params: SpellCheckContextMenuParams,
-  handlers: {
-    replace: (word: string) => void;
-    addToDictionary: (word: string) => void;
-    cut: () => void;
-    copy: () => void;
-    paste: () => void;
-    selectAll: () => void;
-  },
+  handlers: SpellCheckMenuHandlers,
 ): MenuItemConstructorOptions[] {
-  const template: MenuItemConstructorOptions[] = [];
+  const spelling = spellingItems(params, handlers);
+  if (!params.isEditable) return spelling;
+  const separator: MenuItemConstructorOptions[] = spelling.length > 0 ? [{ type: "separator" }] : [];
+  return [...spelling, ...separator, ...editItems(params, handlers)];
+}
 
-  if (params.misspelledWord.length > 0) {
-    const suggestions = params.dictionarySuggestions.slice(0, MAX_SUGGESTIONS);
-    if (suggestions.length === 0) {
-      template.push({ label: "No suggestions", enabled: false });
-    } else {
-      for (const suggestion of suggestions) {
-        template.push({ label: suggestion, click: () => handlers.replace(suggestion) });
-      }
-    }
-    template.push({ type: "separator" }, { label: "Add to Dictionary", click: () => handlers.addToDictionary(params.misspelledWord) });
-  }
+/** The actions a spell-check menu item can trigger — see {@link buildSpellCheckMenuTemplate}. */
+export interface SpellCheckMenuHandlers {
+  replace: (word: string) => void;
+  addToDictionary: (word: string) => void;
+  cut: () => void;
+  copy: () => void;
+  paste: () => void;
+  selectAll: () => void;
+}
 
-  if (params.isEditable) {
-    if (template.length > 0) template.push({ type: "separator" });
-    template.push(
-      { label: "Cut", enabled: params.editFlags.canCut, click: () => handlers.cut() },
-      { label: "Copy", enabled: params.editFlags.canCopy, click: () => handlers.copy() },
-      { label: "Paste", enabled: params.editFlags.canPaste, click: () => handlers.paste() },
-      { type: "separator" },
-      { label: "Select All", enabled: params.editFlags.canSelectAll, click: () => handlers.selectAll() },
-    );
-  }
+/** The spelling half of the menu: up to {@link MAX_SUGGESTIONS} suggestions (or a disabled "No
+ *  suggestions"), then "Add to Dictionary". `[]` when the click was not on a misspelled word.
+ *  @complexity O(k) in the offered suggestion count. */
+function spellingItems(params: SpellCheckContextMenuParams, handlers: SpellCheckMenuHandlers): MenuItemConstructorOptions[] {
+  if (params.misspelledWord.length === 0) return [];
+  const suggestions = params.dictionarySuggestions.slice(0, MAX_SUGGESTIONS);
+  const suggestionItems: MenuItemConstructorOptions[] =
+    suggestions.length === 0
+      ? [{ label: "No suggestions", enabled: false }]
+      : suggestions.map((suggestion) => ({ label: suggestion, click: () => handlers.replace(suggestion) }));
+  return [
+    ...suggestionItems,
+    { type: "separator" },
+    { label: "Add to Dictionary", click: () => handlers.addToDictionary(params.misspelledWord) },
+  ];
+}
 
-  return template;
+/** The ordinary edit commands, each enabled per Chromium's own `editFlags`.
+ *  @complexity O(1). */
+function editItems(params: SpellCheckContextMenuParams, handlers: SpellCheckMenuHandlers): MenuItemConstructorOptions[] {
+  return [
+    { label: "Cut", enabled: params.editFlags.canCut, click: () => handlers.cut() },
+    { label: "Copy", enabled: params.editFlags.canCopy, click: () => handlers.copy() },
+    { label: "Paste", enabled: params.editFlags.canPaste, click: () => handlers.paste() },
+    { type: "separator" },
+    { label: "Select All", enabled: params.editFlags.canSelectAll, click: () => handlers.selectAll() },
+  ];
 }
 
 /** The slice of a `webContents` {@link registerSpellCheckContextMenu} drives — real or faked in

@@ -8,7 +8,7 @@
  *
  *   cd apps/desktop
  *   npm run build:renderer            # the window loads dist/, never src/
- *   node scripts/verify-find-in-page.mjs
+ *   node scripts/verify-find-in-page.ts
  *
  * It always launches an ISOLATED instance with its own `TOVU_DESKTOP_USER_DATA_DIR`, so it never
  * touches a running app's session (this app takes no single-instance lock). Exits non-zero on the
@@ -42,6 +42,7 @@
  * never hit this because by then the capture window from its own site's start had long since closed.
  */
 import { _electron as electron } from 'playwright';
+import type { ElectronApplication, Page } from 'playwright';
 import path from 'node:path';
 import fs from 'node:fs';
 
@@ -50,15 +51,21 @@ const REPO = path.resolve(DESKTOP, '../..');
 const SHOT_DIR = process.env.FIND_SHOT_DIR ?? path.join(REPO, 'ADS-memory/.local-artifacts/find-enter-fix-screenshots-2026-09-18');
 const USER_DATA = process.env.FIND_VERIFY_USERDATA ?? fs.mkdtempSync(path.join(process.env.TMPDIR ?? '/tmp', 'tovu-find-verify-'));
 
-const failures = [];
+/** The find bar's `"N of M"` counter, parsed. */
+interface Count {
+  ordinal: number;
+  total: number;
+}
+
+const failures: string[] = [];
 let shotN = 0;
 
-function check(name, ok, detail) {
+function check(name: string, ok: boolean, detail: string): void {
   console.log(`${ok ? 'PASS' : 'FAIL'}:: ${name} — ${detail}`);
   if (!ok) failures.push(`${name}: ${detail}`);
 }
 
-async function shot(win, name) {
+async function shot(win: Page, name: string): Promise<string> {
   shotN += 1;
   const file = path.join(SHOT_DIR, `${String(shotN).padStart(2, '0')}-${name}.png`);
   await win.screenshot({ path: file });
@@ -66,16 +73,23 @@ async function shot(win, name) {
 }
 
 /** `"3 of 17"` -> `{ ordinal: 3, total: 17 }`; anything else -> `null` (no result, or "No results"). */
-function parseCount(text) {
+function parseCount(text: string | null | undefined): Count | null {
   const match = /^(\d+) of (\d+)$/.exec((text ?? '').trim());
   return match ? { ordinal: Number(match[1]), total: Number(match[2]) } : null;
 }
 
-const countText = (win) => win.evaluate(() => document.querySelector('.findbar__count')?.textContent ?? '');
+/** The ordinal one forward `find` should land on from `count`, wrapping `total -> 1`; `null` when
+ *  there was no count to advance from. */
+function nextOrdinal(count: Count | null): number | null {
+  return count === null ? null : (count.ordinal % count.total) + 1;
+}
+
+const countText = (win: Page): Promise<string> =>
+  win.evaluate(() => document.querySelector('.findbar__count')?.textContent ?? '');
 
 /** The counter arrives asynchronously (`found-in-page` -> relay -> renderer), so the first read
  *  after typing has to wait for it rather than assume it has landed. */
-async function waitForCount(win, timeoutMs = 6000) {
+async function waitForCount(win: Page, timeoutMs = 6000): Promise<Count | null> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     const parsed = parseCount(await countText(win));
@@ -83,17 +97,17 @@ async function waitForCount(win, timeoutMs = 6000) {
     await win.waitForTimeout(250);
   }
 }
-const barOpen = (win) => win.evaluate(() => !!document.querySelector('.findbar'));
-const inputState = (win) =>
+const barOpen = (win: Page): Promise<boolean> => win.evaluate(() => !!document.querySelector('.findbar'));
+const inputState = (win: Page): Promise<{ active: string; value: string | null }> =>
   win.evaluate(() => ({
     active: document.activeElement?.className || document.activeElement?.tagName || 'none',
-    value: document.querySelector('.findbar__input')?.value ?? null,
+    value: document.querySelector<HTMLInputElement>('.findbar__input')?.value ?? null,
   }));
 
 /** Opens the bar the way the app menu does — `find-menu.ts` just sends this channel. A real
  *  `Meta+F` only reaches a menu accelerator when the app owns the OS focus, which a headed test
  *  run cannot assume. Targets `homeWindowId` — see this file's header — not `getAllWindows()[0]`. */
-async function openBar(app, win, homeWindowId) {
+async function openBar(app: ElectronApplication, win: Page, homeWindowId: number): Promise<void> {
   await app.evaluate(
     ({ BrowserWindow }, id) => BrowserWindow.fromId(id)?.webContents.send('runner:find:toggle'),
     homeWindowId,
@@ -109,7 +123,7 @@ async function openBar(app, win, homeWindowId) {
  *   focus-reclaim always wins its race before the next key, which is fine for the phases pinning
  *   OTHER behaviour (cycling, Escape, the Chromium anchor). `verifyColdGuest` passes a human-speed
  *   80ms instead, because that race is exactly what it exists to catch. */
-async function typeQuery(win, text, msPerKey = 350) {
+async function typeQuery(win: Page, text: string, msPerKey = 350): Promise<void> {
   for (const character of text) {
     await win.keyboard.type(character);
     await win.waitForTimeout(msPerKey);
@@ -119,8 +133,12 @@ async function typeQuery(win, text, msPerKey = 350) {
 /** Presses Enter `times` times with no re-focus, collecting the counter after each — and, when
  *  `shotName` is given, a screenshot per press, since "the counter advanced" is a claim worth
  *  being able to look at rather than take on trust. */
-async function pressEnter(win, times, { modifier = '', shotName = null } = {}) {
-  const seen = [];
+async function pressEnter(
+  win: Page,
+  times: number,
+  { modifier = '', shotName = null }: { modifier?: string; shotName?: string | null } = {},
+): Promise<(Count | null)[]> {
+  const seen: (Count | null)[] = [];
   for (let i = 0; i < times; i += 1) {
     await win.keyboard.press(modifier ? `${modifier}+Enter` : 'Enter');
     await win.waitForTimeout(450);
@@ -131,7 +149,7 @@ async function pressEnter(win, times, { modifier = '', shotName = null } = {}) {
 }
 
 /** Every step is `previous + 1`, wrapping `total -> 1`. */
-function advancesEveryStep(start, steps, total) {
+function advancesEveryStep(start: number, steps: readonly (Count | null)[], total: number): boolean {
   let expected = start;
   return steps.every((step) => {
     expected = (expected % total) + 1;
@@ -139,7 +157,57 @@ function advancesEveryStep(start, steps, total) {
   });
 }
 
-async function verifyTopLevel(app, win, homeWindowId) {
+/** Enter cycles forward three times, then Shift+Enter steps back one — on whatever surface the bar
+ *  is currently open over. */
+async function verifyCycling(win: Page, start: Count): Promise<void> {
+  const forward = await pressEnter(win, 3, { shotName: 'projects-enter' });
+  check('ENTER_ADVANCES', advancesEveryStep(start.ordinal, forward, start.total), `${start.ordinal} -> ${forward.map((s) => s?.ordinal).join(' -> ')} of ${start.total}`);
+  const here = parseCount(await countText(win));
+  const [back] = await pressEnter(win, 1, { modifier: 'Shift', shotName: 'projects-shift-enter' });
+  const expectedBack = here === null ? null : ((here.ordinal - 2 + here.total) % here.total) + 1;
+  check('SHIFT_ENTER_GOES_BACK', back != null && back.ordinal === expectedBack, `${here?.ordinal} -> ${back?.ordinal} (expected ${expectedBack}) of ${here?.total}`);
+}
+
+/** Re-focuses the find input, optionally clears the document selection, issues a raw
+ *  `findInPage(findNext: false)` and returns the counter before and after. */
+async function rawFindFromInput(
+  app: ElectronApplication,
+  win: Page,
+  homeWindowId: number,
+  { query, clearSelection }: { query: string; clearSelection: boolean },
+): Promise<{ before: Count | null; after: Count | null }> {
+  await win.evaluate(() => document.querySelector<HTMLInputElement>('.findbar__input')?.focus());
+  await win.waitForTimeout(250);
+  const before = parseCount(await countText(win));
+  if (clearSelection) await win.evaluate(() => document.getSelection()?.removeAllRanges());
+  await app.evaluate(
+    ({ BrowserWindow }, { id, findText }) => {
+      BrowserWindow.fromId(id)?.webContents.findInPage(findText, { forward: true, findNext: false });
+    },
+    { id: homeWindowId, findText: query },
+  );
+  await win.waitForTimeout(500);
+  return { before, after: parseCount(await countText(win)) };
+}
+
+/** CHROMIUM_ANCHOR: the platform behaviour the fix compensates for, pinned both ways. */
+async function verifyChromiumAnchor(app: ElectronApplication, win: Page, homeWindowId: number, query: string): Promise<void> {
+  const anchored = await rawFindFromInput(app, win, homeWindowId, { query, clearSelection: false });
+  check(
+    'CHROMIUM_ANCHOR_STILL_BITES',
+    anchored.after !== null && anchored.after.ordinal !== nextOrdinal(anchored.before),
+    `caret in the input: ${anchored.before?.ordinal} -> ${anchored.after?.ordinal} (a plain follow-up find must NOT advance; if it does, Chromium changed and runFind's selection clearing can go)`,
+  );
+
+  const cleared = await rawFindFromInput(app, win, homeWindowId, { query, clearSelection: true });
+  check(
+    'CLEARING_THE_SELECTION_IS_WHAT_FIXES_IT',
+    cleared.after !== null && cleared.after.ordinal === nextOrdinal(cleared.before),
+    `selection cleared first: ${cleared.before?.ordinal} -> ${cleared.after?.ordinal} of ${cleared.before?.total}`,
+  );
+}
+
+async function verifyTopLevel(app: ElectronApplication, win: Page, homeWindowId: number): Promise<void> {
   await shot(win, 'projects-before-find');
   await openBar(app, win, homeWindowId);
   check('BAR_OPENS', await barOpen(win), 'find bar present after the menu channel fired');
@@ -153,50 +221,13 @@ async function verifyTopLevel(app, win, homeWindowId) {
   check('EVERY_KEYSTROKE_LANDS', afterTyping.value === query, `input value = ${JSON.stringify(afterTyping.value)}, typed ${JSON.stringify(query)}`);
 
   const start = await waitForCount(win);
-  check('COUNTER_SHOWS_MATCHES', start !== null && start.total >= 3, `counter = ${JSON.stringify(await countText(win))}`);
+  const enoughMatches = start !== null && start.total >= 3;
+  check('COUNTER_SHOWS_MATCHES', enoughMatches, `counter = ${JSON.stringify(await countText(win))}`);
   await shot(win, 'projects-typed');
-  if (start === null || start.total < 3) return;
+  if (start === null || !enoughMatches) return;
 
-  const forward = await pressEnter(win, 3, { shotName: 'projects-enter' });
-  check('ENTER_ADVANCES', advancesEveryStep(start.ordinal, forward, start.total), `${start.ordinal} -> ${forward.map((s) => s?.ordinal).join(' -> ')} of ${start.total}`);
-  const here = parseCount(await countText(win));
-  const [back] = await pressEnter(win, 1, { modifier: 'Shift', shotName: 'projects-shift-enter' });
-  const expectedBack = ((here.ordinal - 2 + here.total) % here.total) + 1;
-  check('SHIFT_ENTER_GOES_BACK', back !== null && back.ordinal === expectedBack, `${here.ordinal} -> ${back?.ordinal} (expected ${expectedBack}) of ${here.total}`);
-
-  // --- CHROMIUM_ANCHOR: the platform behaviour the fix compensates for, pinned both ways. ---
-  const rawFind = (text) =>
-    app.evaluate(
-      ({ BrowserWindow }, { id, findText }) => {
-        BrowserWindow.fromId(id)?.webContents.findInPage(findText, { forward: true, findNext: false });
-      },
-      { id: homeWindowId, findText: text },
-    );
-
-  await win.evaluate(() => document.querySelector('.findbar__input')?.focus());
-  await win.waitForTimeout(250);
-  const anchored = parseCount(await countText(win));
-  await rawFind(query);
-  await win.waitForTimeout(500);
-  const afterAnchoredFind = parseCount(await countText(win));
-  check(
-    'CHROMIUM_ANCHOR_STILL_BITES',
-    afterAnchoredFind !== null && afterAnchoredFind.ordinal !== ((anchored.ordinal % anchored.total) + 1),
-    `caret in the input: ${anchored.ordinal} -> ${afterAnchoredFind?.ordinal} (a plain follow-up find must NOT advance; if it does, Chromium changed and runFind's selection clearing can go)`,
-  );
-
-  await win.evaluate(() => document.querySelector('.findbar__input')?.focus());
-  await win.waitForTimeout(250);
-  const cleared = parseCount(await countText(win));
-  await win.evaluate(() => document.getSelection()?.removeAllRanges());
-  await rawFind(query);
-  await win.waitForTimeout(500);
-  const afterClearedFind = parseCount(await countText(win));
-  check(
-    'CLEARING_THE_SELECTION_IS_WHAT_FIXES_IT',
-    afterClearedFind !== null && afterClearedFind.ordinal === (cleared.ordinal % cleared.total) + 1,
-    `selection cleared first: ${cleared.ordinal} -> ${afterClearedFind?.ordinal} of ${cleared.total}`,
-  );
+  await verifyCycling(win, start);
+  await verifyChromiumAnchor(app, win, homeWindowId, query);
 
   await win.keyboard.press('Escape');
   await win.waitForTimeout(400);
@@ -208,7 +239,7 @@ async function verifyTopLevel(app, win, homeWindowId) {
  *  `src`. Shared by the cold and warm guest phases, so neither duplicates the start-button/attach
  *  poll. `available: false` means there was no card to click at all — a different failure from
  *  `attached: false` (a card existed but its guest never came up). */
-async function openGuestTab(win) {
+async function openGuestTab(win: Page): Promise<{ available: boolean; attached: boolean }> {
   const card = win.locator('.card.is-openable').first();
   if ((await card.count()) === 0) return { available: false, attached: false };
   await card.click();
@@ -226,7 +257,7 @@ async function openGuestTab(win) {
   let attached = false;
   for (let i = 0; i < 60; i += 1) {
     attached = await win.evaluate(() => {
-      const guest = document.querySelector('webview');
+      const guest = document.querySelector<HTMLElement & { src: string }>('webview');
       return !!guest && !!guest.getAttribute('src') && guest.src !== 'about:blank';
     });
     if (attached) break;
@@ -246,7 +277,7 @@ async function openGuestTab(win) {
  * catch this regression: the bug leaves the host document still reporting the find input as its
  * active element even after Chromium has moved keyboard focus into the guest frame.
  */
-async function verifyColdGuest(app, win, homeWindowId) {
+async function verifyColdGuest(app: ElectronApplication, win: Page, homeWindowId: number): Promise<void> {
   const { available, attached } = await openGuestTab(win);
   check('COLD_GUEST_TAB_AVAILABLE', available, 'an openable project card exists in this profile');
   if (!available) return;
@@ -274,7 +305,7 @@ async function verifyColdGuest(app, win, homeWindowId) {
   );
   check(
     'COLD_GUEST_DOCUMENT_HAS_FOCUS',
-    hasFocus === true,
+    hasFocus,
     `document.hasFocus() = ${hasFocus} — activeElement alone does not catch a guest theft, since the host keeps reporting the input as active even after losing page focus`,
   );
   await shot(win, 'cold-tab-typed');
@@ -306,7 +337,7 @@ async function verifyColdGuest(app, win, homeWindowId) {
   }
 }
 
-async function verifyGuest(app, win, homeWindowId) {
+async function verifyGuest(app: ElectronApplication, win: Page, homeWindowId: number): Promise<void> {
   const { available, attached } = await openGuestTab(win);
   check('GUEST_TAB_AVAILABLE', available, 'an openable project card exists in this profile — the guest path went unverified');
   if (!available) return;
@@ -327,9 +358,10 @@ async function verifyGuest(app, win, homeWindowId) {
   // which the match total below establishes: the Projects screen alone reports ~12 for this query.
   await app.evaluate(({ BrowserWindow }, id) => {
     const contents = BrowserWindow.fromId(id)?.webContents;
-    globalThis.__topLevelFinds = 0;
+    const counter = globalThis as { __topLevelFinds?: number };
+    counter.__topLevelFinds = 0;
     contents?.on('found-in-page', () => {
-      globalThis.__topLevelFinds += 1;
+      counter.__topLevelFinds = (counter.__topLevelFinds ?? 0) + 1;
     });
   }, homeWindowId);
 
@@ -346,7 +378,7 @@ async function verifyGuest(app, win, homeWindowId) {
 
   const forward = await pressEnter(win, 3, { shotName: 'tab-enter' });
   check('GUEST_ENTER_ADVANCES', advancesEveryStep(start.ordinal, forward, start.total), `${start.ordinal} -> ${forward.map((s) => s?.ordinal).join(' -> ')} of ${start.total}`);
-  const topLevelFinds = await app.evaluate(() => globalThis.__topLevelFinds ?? -1);
+  const topLevelFinds = await app.evaluate(() => (globalThis as { __topLevelFinds?: number }).__topLevelFinds ?? -1);
   const here = parseCount(await countText(win));
   check(
     'GUEST_CONTENT_IS_SEARCHED',
@@ -355,7 +387,15 @@ async function verifyGuest(app, win, homeWindowId) {
   );
 }
 
-async function main() {
+/** Waits (bounded) for the shell to render any text at all before the phases start. */
+async function waitForShellText(win: Page): Promise<void> {
+  for (let i = 0; i < 30; i += 1) {
+    if ((await win.evaluate(() => document.body.innerText)).trim().length > 0) return;
+    await win.waitForTimeout(800);
+  }
+}
+
+async function main(): Promise<void> {
   fs.mkdirSync(SHOT_DIR, { recursive: true });
   fs.mkdirSync(USER_DATA, { recursive: true });
   console.log('USER_DATA::', USER_DATA);
@@ -371,16 +411,14 @@ async function main() {
     const win = await app.firstWindow();
     win.on('pageerror', (error) => console.log('PAGEERROR::', error.message));
     await win.waitForLoadState('domcontentloaded');
-    for (let i = 0; i < 30; i += 1) {
-      if ((await win.evaluate(() => document.body.innerText)).trim().length > 0) break;
-      await win.waitForTimeout(800);
-    }
+    await waitForShellText(win);
     // Captured once, here, while this is still the only window — see this file's header doc for why
     // every later `BrowserWindow` lookup targets this id instead of `getAllWindows()[0]`.
-    const homeWindowId = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].id);
-    if (process.env.FIND_VERIFY_SKIP_GUEST !== '1') await verifyColdGuest(app, win, homeWindowId);
+    const homeWindowId = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.id ?? -1);
+    const includeGuest = process.env.FIND_VERIFY_SKIP_GUEST !== '1';
+    if (includeGuest) await verifyColdGuest(app, win, homeWindowId);
     await verifyTopLevel(app, win, homeWindowId);
-    if (process.env.FIND_VERIFY_SKIP_GUEST !== '1') await verifyGuest(app, win, homeWindowId);
+    if (includeGuest) await verifyGuest(app, win, homeWindowId);
   } finally {
     await app.close();
   }
@@ -393,7 +431,7 @@ async function main() {
   console.log('\nVERIFY_OK:: every check passed');
 }
 
-main().catch((error) => {
+main().catch((error: unknown) => {
   console.error('SCRIPT_FAILED::', error);
   process.exitCode = 1;
 });

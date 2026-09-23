@@ -1,6 +1,6 @@
 {
   "name": "tovu-desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "Electron shell around the same Tovu the web mode serves. Additive: nothing outside this directory knows it exists.",
@@ -12,7 +12,7 @@
     "build:preload": "rm -rf dist/preload dist/contracts dist/speech && tsc -p tsconfig.preload.json",
     "build:renderer": "vite build",
     "watch:renderer": "vite build --watch",
-    "typecheck": "tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json && tsc -p tsconfig.main.json",
+    "typecheck": "tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json && tsc -p tsconfig.main.json && tsc -p tsconfig.live-verify.json",
     "test": "node --test \"src/*.test.ts\" \"src/!(renderer|contracts)/**/*.test.ts\" && node --import tsx --test \"src/renderer/**/*.test.ts\" \"src/contracts/**/*.test.ts\"",
     "gates": "node scripts/check-gates.ts",
     "stage": "node scripts/stage-payload.ts",
