@@ -202,6 +202,24 @@ test("a doc-format reference is left untouched for the registry resolver, not co
   })();
 });
 
+// S3 (2026-09-23 widget-attrs plan) — the html-format pre-pass previously collected `m.id` only, so a
+// slug-only reference to an html-format page fell through to the registry resolver, which bails for
+// html-format entities (`resolveContentTypeEmbeds`'s own doc), rendering the REQ-28 placeholder
+// instead of the real spliced content. This pins the fix at the seam that was missing the slug key.
+test("a slug-only reference to an html-format page is spliced by this recursive pass, the same as an id-based one", async () => {
+  const { repo } = countingPostRepo([postRecord({ id: "a", slug: "our-story", bodyHtml: "<p>Real spliced content</p>" })]);
+
+  const result = await resolveHtmlFormatContentMarkers(
+    deps(repo),
+    `<main data-embed-config='{"type":"content","slug":"our-story"}'></main>`,
+    0,
+    { remaining: MAX_CONTENT_EMBED_FETCHES }
+  );
+
+  assert.ok(result.includes("Real spliced content"), "a slug-addressed html-format reference must resolve exactly like an id-addressed one");
+  assert.ok(!result.includes("data-embed-config"), "the resolved marker must be inert to a later re-scan (withInnerContentFinal)");
+});
+
 test("a mixed body -- one resolvable content marker, one referencing an id that doesn't exist at all, and one non-content marker type -- only splices the resolvable one", async () => {
   // Exercises three branches the single-marker tests above never reach together:
   //   - `!entity` (the `missing-id` marker's `findPublishedPostById` call returns null outright,

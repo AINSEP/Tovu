@@ -23,8 +23,8 @@ import type { JsonObject, UUID } from "@jini-ai/cms/core";
 import type { EntryListPort, EntryRecord, EntryRepoPort } from "../entries/index.js";
 import { CORE_PUBLIC_TRANSFORM_NAME, findMediaByIdOrSlug, getLatestTransformDefinition } from "../media/index.js";
 import type { MediaContentTypeStorePort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
-import type { PostRepoPort } from "../post/index.js";
-import { findPublishedPostById } from "../post/index.js";
+import type { PostRecord, PostRepoPort } from "../post/index.js";
+import { findPublishedPostById, findPublishedPostBySlug } from "../post/index.js";
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload.js";
 import { scanHtmlEmbeds } from "./html-embeds.js";
 import type { PageHtmlEmbedRef } from "./html-embeds.js";
@@ -880,14 +880,43 @@ async function resolvePostContentRenderContext(
 }
 
 /**
+ * Resolves a post/page row by whichever key a {@link PageHtmlEmbedRef} carries — `id` authoritative
+ * when present, `slug` consulted only for a ref with no `id` at all. Same order
+ * {@link resolveWidgetTypeEmbeds}'s slug fallback and `resolveMediaTypeEmbeds`'s `parseMediaEmbedRef`
+ * already use for `widget`/`media` markers (S3, 2026-09-23 widget-attrs plan — `post`/`content` gain
+ * the identical treatment those two got in 2026-08-31/2026-09-16, deliberately deferred until now;
+ * see the retired paragraph this replaces in git history for why it was left out of those passes).
+ * `posts.slug` is unique per workspace (`posts_workspace_slug_unique`), so — like the widget/media
+ * cases — there is no "more than one match" branch to hedge against.
+ *
+ * Shared by {@link resolvePostTypeEmbeds} and {@link resolveContentTypeEmbeds} so both go through the
+ * ONE id-else-slug lookup, via the identical visibility guard ({@link findPublishedPostById}/
+ * {@link findPublishedPostBySlug}), rather than two copies that could drift apart.
+ *
+ * Non-throwing: `null` means "not found, not visible, or the ref carries neither key" — the same
+ * REQ-27 degrade-to-placeholder contract every resolver in this registry follows.
+ *
+ * @complexity O(1) — one guarded repo lookup (by id or by slug, never both), no iteration.
+ */
+async function findPublishedPostByRef(
+  postRepo: PostRepoPort,
+  ref: Pick<PageHtmlEmbedRef, "id" | "slug">,
+  context: WidgetResolveContext
+): Promise<PostRecord | null> {
+  if (ref.id !== null) {
+    return findPublishedPostById({ deps: { repo: postRepo }, input: { workspaceId: context.workspaceId, id: ref.id } });
+  }
+  if (ref.slug !== null) {
+    return findPublishedPostBySlug({ deps: { repo: postRepo }, input: { workspaceId: context.workspaceId, slug: ref.slug } });
+  }
+  return null;
+}
+
+/**
  * `data-embed-type="post"` resolver — the post-template-picker feature (post-template.md's own
- * design conversation, first shipped 2026-08-10). `data-embed-id` is the post's stored id, exactly
- * like `media` (still id-only — no `slug` column exists to resolve against). `widget` gained a
- * `slug` fallback 2026-08-31 ({@link resolveWidgetTypeEmbeds}'s own doc) because `entries.slug` is
- * unique per `(workspaceId, type)`; `posts.slug` is equally unique (`posts_workspace_slug_unique`)
- * and `PostRepoPort.findBySlug` already exists, so `post`/`content` could gain the identical
- * treatment cheaply — deliberately left out of that pass to keep it scoped to the one type the
- * concrete ask (a form embed) needed; not a statement that slug support is wrong for these two.
+ * design conversation, first shipped 2026-08-10). `data-embed-id`/`data-embed-slug` name the post's
+ * stored id or its unique slug, resolved by {@link findPublishedPostByRef} immediately above (id
+ * authoritative when both are present).
  *
  * Returns RAW post data (title/bodyJson/updatedAt/slug), not rendered HTML — this file (`widgets/`)
  * must not depend on `server/http/site/render.ts` (that module sits above this one in the codebase's
@@ -926,22 +955,23 @@ async function resolvePostTypeEmbeds(
 
   await Promise.all(
     refs.map(async (ref) => {
-      if (ref.id === null) {
-        console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "post" reference — missing or invalid "id" in data-embed-config', {
+      const key = ref.id ?? ref.slug;
+      if (key === null) {
+        console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "post" reference — missing or invalid "id"/"slug" in data-embed-config', {
           workspaceId: context.workspaceId,
         });
         return;
       }
-      const post = await findPublishedPostById({ deps: { repo: postRepo }, input: { workspaceId: context.workspaceId, id: ref.id } });
+      const post = await findPublishedPostByRef(postRepo, ref, context);
       if (!post) {
         console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "post" reference — no such published post', {
           workspaceId: context.workspaceId,
-          postId: ref.id,
+          postId: key,
         });
         return;
       }
       const renderContext = await resolvePostContentRenderContext(deps, post.bodyJson, context);
-      resolved.set(ref.id, {
+      resolved.set(key, {
         componentId: "post-content",
         props: { title: post.title, slug: post.slug, updatedAt: post.updatedAt, bodyJson: post.bodyJson, ...renderContext },
       });
@@ -975,18 +1005,23 @@ async function resolvePostTypeEmbeds(
  * is not in this change's file list); a follow-up rename to a kind-neutral label is low-priority tech
  * debt, disclosed rather than silently left unmentioned.
  *
- * Visibility-filtered via {@link findPublishedPostById} (guard 2, the highest-risk part of the
- * unified-marker design): an id supplied by an author, OR auto-filled by `injectCurrentEntityContentId`
- * for the entity the route already resolved, can in principle name ANY row — this is the one place in
- * the new marker's resolution chain that decides whether that row is allowed to reach the public page.
+ * Visibility-filtered via {@link findPublishedPostByRef} (guard 2, the highest-risk part of the
+ * unified-marker design): an id OR slug supplied by an author, OR an id auto-filled by
+ * `injectCurrentEntityContentId` for the entity the route already resolved (never a slug —
+ * `injectCurrentEntityContentId` skips any marker already carrying a `slug`, its own doc explains
+ * why), can in principle name ANY row — this is the one place in the new marker's resolution chain
+ * that decides whether that row is allowed to reach the public page. The guard is on the ROW
+ * {@link findPublishedPostByRef} returns, identical regardless of which key found it.
  *
- * `pendingContentOverride` (2026-08-12) bypasses this specific `findPublishedPostById` call, but NOT
- * the visibility guard's intent: it only ever matches ONE id — the exact row
- * `routes/admin/posts/template-preview.ts` already fetched (any status, but through its own
- * `content.read`-authorized, session-gated lookup) and is previewing back to the SAME authenticated
- * operator who owns that unsaved edit. It can never be used to inject content for a DIFFERENT id than
- * the one the caller resolved and authorized — see the override's own doc on
- * {@link ResolveHtmlPageEmbedsDeps.pendingContentOverride}.
+ * `pendingContentOverride` (2026-08-12; slug matching added S3 2026-09-23) bypasses this specific
+ * `findPublishedPostByRef` call, but NOT the visibility guard's intent: it only ever matches ONE
+ * row — the exact one `routes/admin/posts/template-preview.ts` already fetched (any status, but
+ * through its own `content.read`-authorized, session-gated lookup) and is previewing back to the
+ * SAME authenticated operator who owns that unsaved edit. It matches by `id` when the ref carries
+ * one (never falling through to `slug` for that same ref — the identical authoritative-when-present
+ * order {@link findPublishedPostByRef} uses below), by `slug` only for a slug-only ref. It can never
+ * be used to inject content for a DIFFERENT row than the one the caller resolved and authorized —
+ * see the override's own doc on {@link ResolveHtmlPageEmbedsDeps.pendingContentOverride}.
  *
  * `ref.header` (2026-09-04, {@link PageHtmlEmbedRef.header}'s own doc) is threaded into IR
  * `props.header` unchanged in BOTH branches below — the DB lookup and the `pendingContentOverride`
@@ -1033,22 +1068,25 @@ async function resolveContentTypeEmbeds(
 
   await Promise.all(
     refs.map(async (ref) => {
-      if (ref.id === null) {
-        console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id" in data-embed-config', {
+      const key = ref.id ?? ref.slug;
+      if (key === null) {
+        console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id"/"slug" in data-embed-config', {
           workspaceId: context.workspaceId,
         });
         return;
       }
 
       // Preview override, checked BEFORE any DB call (see `pendingContentOverride`'s own doc):
-      // the operator's pending, unsaved body for this exact id, never a fetch. Routes through the
-      // identical `"post-content"` IR/props shape the DB branch below builds, so this substitutes
-      // only the DATA SOURCE — every downstream render/sanitization step (`render.ts`'s
-      // `renderWidgetPostContent` -> `renderDocNode`) is the SAME code the saved-body path runs,
-      // never a second, parallel render path with its own escaping rules.
-      if (pendingContentOverride && ref.id === pendingContentOverride.id) {
+      // the operator's pending, unsaved body for this exact row, never a fetch. Matches by `id` when
+      // the ref carries one (id authoritative, same order `findPublishedPostByRef` uses below), by
+      // `slug` only for a slug-only ref. Routes through the identical `"post-content"` IR/props shape
+      // the DB branch below builds, so this substitutes only the DATA SOURCE — every downstream
+      // render/sanitization step (`render.ts`'s `renderWidgetPostContent` -> `renderDocNode`) is the
+      // SAME code the saved-body path runs, never a second, parallel render path with its own
+      // escaping rules.
+      if (pendingContentOverride && (ref.id !== null ? ref.id === pendingContentOverride.id : ref.slug === pendingContentOverride.slug)) {
         const renderContext = await resolvePostContentRenderContext(deps, pendingContentOverride.bodyJson, context);
-        resolved.set(ref.id, {
+        resolved.set(key, {
           componentId: "post-content",
           props: {
             title: pendingContentOverride.title,
@@ -1062,27 +1100,27 @@ async function resolveContentTypeEmbeds(
         return;
       }
 
-      // No DB source for this id (postRepo absent) and it didn't match the override above: nothing
+      // No DB source for this ref (postRepo absent) and it didn't match the override above: nothing
       // safe to do but leave it unresolved — degrades to the REQ-28 placeholder like any other miss.
       if (!postRepo) return;
 
-      const entity = await findPublishedPostById({ deps: { repo: postRepo }, input: { workspaceId: context.workspaceId, id: ref.id } });
+      const entity = await findPublishedPostByRef(postRepo, ref, context);
       if (!entity) {
         console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity', {
           workspaceId: context.workspaceId,
-          entityId: ref.id,
+          entityId: key,
         });
         return;
       }
       if (entity.bodyFormat === "html") {
         console.warn(
           '[widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render)',
-          { workspaceId: context.workspaceId, entityId: ref.id }
+          { workspaceId: context.workspaceId, entityId: key }
         );
         return;
       }
       const renderContext = await resolvePostContentRenderContext(deps, entity.bodyJson, context);
-      resolved.set(ref.id, {
+      resolved.set(key, {
         componentId: "post-content",
         props: {
           title: entity.title,

@@ -75,6 +75,13 @@ function rewritePageLinks(html: string): string {
  *
  * A marker that ALREADY carries an id (an author's explicit reference to some OTHER entity) is left
  * completely untouched — this function only ever fills a gap, never overwrites an explicit choice.
+ * The same rule applies to a marker carrying a `slug` instead of an `id` (S3, 2026-09-23 widget-attrs
+ * plan): `{"type":"content","slug":"some-other-entity"}` is just as much an explicit reference to
+ * some OTHER entity as an id-carrying marker is — filling in the CURRENT entity's id here would win
+ * over that authored `slug` (`resolveContentTypeEmbeds`'s id-authoritative-when-present order) and
+ * silently redirect the marker to the wrong row. Checking `marker.id === undefined` alone would miss
+ * this — a slug-only marker also has no `id` yet, but for a completely different reason than "this
+ * means the current entity".
  * The old `blog-post.html`/`page-shell.html` split (one marker type per kind) is gone: BOTH doc-format
  * Posts and Pages, and html-format Pages, use this exact same function now, since the row's
  * `bodyFormat` — not the marker's type — is what decides how the referenced content actually renders
@@ -91,7 +98,7 @@ function rewritePageLinks(html: string): string {
  */
 export function injectCurrentEntityContentId(html: string, entityId: string): string {
   return substituteMarkers(html, (marker) => {
-    if (marker.type !== "content" || marker.id !== undefined) return undefined;
+    if (marker.type !== "content" || marker.id !== undefined || typeof marker.config.slug === "string") return undefined;
     return withAddedId(marker, entityId);
   });
 }

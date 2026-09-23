@@ -7,6 +7,7 @@ export {
   getAdminPostByIdOrSlug,
   getPublishedPostBySlug,
   findPublishedPostById,
+  findPublishedPostBySlug,
   listAdminPages,
   listAdminPosts,
   listPublishedPosts,

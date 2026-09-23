@@ -1673,6 +1673,27 @@ export async function findPublishedPostById(
 }
 
 /**
+ * Slug-addressed sibling of {@link findPublishedPostById} — identical trashed/status visibility
+ * guard (guard 2), same non-throwing REQ-27 contract, only the lookup key differs. Added (S3,
+ * 2026-09-23 widget-attrs plan) so a `content`/`post` embed marker can address a row by
+ * `posts_workspace_slug_unique` the same way `{"type":"widget","slug":...}"`/`{"type":"media",
+ * "slug":...}"` markers already address theirs (`entries`/media's own slug columns) — see
+ * `resolver-service.ts`'s `findPublishedPostByRef` for the id-authoritative-when-present caller that
+ * consults this.
+ *
+ * @complexity O(1) — one indexed `findBySlug` call plus two field comparisons, no iteration.
+ */
+export async function findPublishedPostBySlug(
+  required: GetPostBySlugRequired,
+  _optional: GetPostOptional = {}
+): Promise<PostRecord | null> {
+  const { workspaceId, slug } = required.input;
+  const post = await required.deps.repo.findBySlug({ workspaceId, slug });
+  if (!post || isTrashed(post) || post.status !== "published") return null;
+  return post;
+}
+
+/**
  * Admin-facing lookup that accepts either a record's slug or its id — same trash-blind 404 as
  * {@link getAdminPostById}. **Slug first, id second** (2026-08-11).
  *

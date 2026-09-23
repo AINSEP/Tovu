@@ -5,6 +5,7 @@ import type { PostRecord } from "#src/features/post/index";
 import {
   getPublishedPostBySlug,
   findPublishedPostById,
+  findPublishedPostBySlug,
   listPublishedPosts,
   listPublishedPostPreviews,
   PostNotFoundError,
@@ -966,6 +967,72 @@ export type RenderContextResolutionDeps = Pick<
  * markers.test.ts`) — the testability seam this function's own dependency shape
  * ({@link ContentMarkerResolutionDeps}) was narrowed for.
  */
+/** A `{"type":"content"}` marker's authored `slug`, or `undefined` when absent/non-string/empty —
+ * the marker-scan-side counterpart to `resolver-service.ts`'s `normalizeEmbedSlug`, needed here
+ * because `EmbedMarker` (this file's `markersOfType`) projects only `id` as a top-level field; `slug`
+ * lives in `marker.config` alongside every other authored key. */
+function slugOf(marker: EmbedMarker): string | undefined {
+  const slug = marker.config.slug;
+  return typeof slug === "string" && slug.length > 0 ? slug : undefined;
+}
+
+/** A `{"type":"content"}` marker's resolution key for {@link resolveHtmlFormatContentMarkers} — `id`
+ * when the marker carries one, else its own `slug` (S3, 2026-09-23 widget-attrs plan: the same
+ * id-authoritative-when-present order `resolver-service.ts`'s `findPublishedPostByRef` uses for the
+ * later registry-resolver stage). `undefined` for a marker with neither key — nothing here to key a
+ * replacement by, same as the pre-existing `id === undefined` skip this generalizes. */
+function contentMarkerKey(marker: EmbedMarker): string | undefined {
+  return marker.id ?? slugOf(marker);
+}
+
+/** One `{"type":"content"}` marker's id-or-slug reference — a discriminated union, not two optional
+ * fields, so the id-authoritative-when-present rule (`id` tried first, `slug` consulted only for a
+ * ref with none — the identical order `resolver-service.ts`'s `findPublishedPostByRef` uses) is
+ * enforced by the TYPE: {@link fetchHtmlFormatBody} branches on `by` and gets a real `string` on
+ * either side, no non-null assertion and no way for the two fields to silently drift out of sync. */
+type ContentMarkerRef = { readonly key: string; readonly by: "id"; readonly id: string } | { readonly key: string; readonly by: "slug"; readonly slug: string };
+
+function toContentMarkerRef(marker: EmbedMarker): ContentMarkerRef | undefined {
+  if (marker.id !== undefined) return { key: marker.id, by: "id", id: marker.id };
+  const slug = slugOf(marker);
+  return slug === undefined ? undefined : { key: slug, by: "slug", slug };
+}
+
+/** Every DISTINCT `{"type":"content"}` reference in `html`, deduped by {@link ContentMarkerRef.key}
+ * — the direct generalization of the pre-existing `[...new Set(markersOfType(...).map(id))]` dedup to
+ * also cover a slug-only marker. Preserves that dedup's own guarantee (one fetch per distinct
+ * reference, first-occurrence order) for the id-only case unchanged, which is what guard 3's own
+ * fetch-count tests pin. */
+function distinctContentMarkerRefs(html: string): ContentMarkerRef[] {
+  const seen = new Map<string, ContentMarkerRef>();
+  for (const marker of markersOfType(html, "content")) {
+    const ref = toContentMarkerRef(marker);
+    if (ref !== undefined && !seen.has(ref.key)) seen.set(ref.key, ref);
+  }
+  return [...seen.values()];
+}
+
+/** Resolves one reference's own html-format body — `id` authoritative when present, `slug`
+ * consulted only for a ref with none — mirroring {@link resolveHtmlFormatContentMarkers}'s
+ * pre-existing id-only branch. `undefined` means "leave this reference for the final
+ * `resolveHtmlPageEmbeds` pass": missing, unpublished (guard 2), or `"doc"`-format — a `"doc"`-format
+ * target has nothing here to recurse into, and an unresolved reference degrades to the same REQ-28
+ * placeholder that pass already produces for any other miss.
+ */
+async function fetchHtmlFormatBody(
+  deps: ContentMarkerResolutionDeps,
+  ref: ContentMarkerRef,
+  pendingHtmlOverride?: { id: string; bodyHtml: string }
+): Promise<string | undefined> {
+  if (pendingHtmlOverride && ref.by === "id" && ref.id === pendingHtmlOverride.id) return pendingHtmlOverride.bodyHtml;
+  const entity =
+    ref.by === "id"
+      ? await findPublishedPostById({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, id: ref.id } })
+      : await findPublishedPostBySlug({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, slug: ref.slug } });
+  if (!entity || entity.bodyFormat !== "html") return undefined;
+  return entity.bodyHtml ?? "";
+}
+
 export async function resolveHtmlFormatContentMarkers(
   deps: ContentMarkerResolutionDeps,
   html: string,
@@ -975,25 +1042,16 @@ export async function resolveHtmlFormatContentMarkers(
 ): Promise<string> {
   if (depth >= MAX_CONTENT_EMBED_DEPTH || budget.remaining <= 0) return html;
 
-  const ids = [...new Set(markersOfType(html, "content").map((m) => m.id).filter((id): id is string => id !== undefined))];
-  if (ids.length === 0) return html;
-  const idsToFetch = ids.slice(0, budget.remaining);
-  budget.remaining -= idsToFetch.length;
+  const refs = distinctContentMarkerRefs(html);
+  if (refs.length === 0) return html;
+  const refsToFetch = refs.slice(0, budget.remaining);
+  budget.remaining -= refsToFetch.length;
 
   const replacements = new Map<string, string>();
   await Promise.all(
-    idsToFetch.map(async (id) => {
-      let ownBody: string;
-      if (pendingHtmlOverride && id === pendingHtmlOverride.id) {
-        ownBody = pendingHtmlOverride.bodyHtml;
-      } else {
-        const entity = await findPublishedPostById({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, id } });
-        // Missing/unpublished, or `"doc"`-format: leave this id for the final `resolveHtmlPageEmbeds`
-        // pass — a `"doc"`-format target has nothing here to recurse into, and an unresolved id (guard
-        // 2) degrades to the same REQ-28 placeholder that pass already produces for any other miss.
-        if (!entity || entity.bodyFormat !== "html") return;
-        ownBody = entity.bodyHtml ?? "";
-      }
+    refsToFetch.map(async (ref) => {
+      const ownBody = await fetchHtmlFormatBody(deps, ref, pendingHtmlOverride);
+      if (ownBody === undefined) return;
       // No `pendingHtmlOverride` threaded into this recursive call — see this function's own doc on
       // why the override must never follow into a nested entity's own embeds.
       const nestedHtml = await resolveHtmlFormatContentMarkers(deps, ownBody, depth + 1, budget);
@@ -1007,14 +1065,15 @@ export async function resolveHtmlFormatContentMarkers(
         },
         input: { workspaceId: deps.workspaceId, html: nestedHtml },
       });
-      replacements.set(id, renderHtmlPageBody(nestedHtml, nestedResolved));
+      replacements.set(ref.key, renderHtmlPageBody(nestedHtml, nestedResolved));
     })
   );
   if (replacements.size === 0) return html;
 
   return substituteMarkers(html, (marker) => {
-    if (marker.type !== "content" || marker.id === undefined) return undefined;
-    const replacement = replacements.get(marker.id);
+    if (marker.type !== "content") return undefined;
+    const key = contentMarkerKey(marker);
+    const replacement = key === undefined ? undefined : replacements.get(key);
     return replacement === undefined ? undefined : withInnerContentFinal(marker, replacement);
   });
 }

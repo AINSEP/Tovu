@@ -885,6 +885,109 @@ test('GUARD 2 NEGATIVE VERIFICATION: a published row DOES resolve via "content" 
 });
 
 // ---------------------------------------------------------------------------
+// `slug` (S3, 2026-09-23 widget-attrs plan) — `content`/`post` markers accept "slug" the same way
+// `widget`/`media` already do (2026-08-31/2026-09-16 precedents above): `id` stays authoritative when
+// a marker carries both, and a slug that resolves to a DRAFT or TRASHED row must refuse identically to
+// guard 2's id-based check — the visibility guard is on the ROW `findPublishedPostBySlug` returns, not
+// on which key was used to find it.
+// ---------------------------------------------------------------------------
+
+test('resolveHtmlPageEmbeds: a "content" embed addressed by SLUG resolves the same published row an id-addressed embed would, keyed by the slug', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecord({ kind: "page" })]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","slug":"a-published-entity"}'></div>` },
+  });
+
+  assert.equal(resolved.get("content")?.has("entity-1"), false, "must not be keyed by the resolved id — the marker never typed it");
+  const ir = resolved.get("content")?.get("a-published-entity");
+  assert.equal(ir?.componentId, "post-content");
+  assert.equal(ir?.props.title, "A published entity");
+});
+
+test('resolveHtmlPageEmbeds: a "post" embed addressed by SLUG resolves the same way "content" does', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecord()]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"post","slug":"a-published-entity"}'></div>` },
+  });
+
+  const ir = resolved.get("post")?.get("a-published-entity");
+  assert.equal(ir?.componentId, "post-content");
+  assert.equal(ir?.props.title, "A published entity");
+});
+
+test('GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed by a slug naming a DRAFT row never resolves', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecord({ id: "draft-1", slug: "draft-slug", status: "draft" })]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","slug":"draft-slug"}'></div>` },
+  });
+
+  assert.equal(resolved.get("content")?.has("draft-slug"), false, "a draft must not leak onto a public page via its slug either");
+});
+
+test('GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed by a slug naming a TRASHED row never resolves', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([
+    postRecord({ id: "trashed-1", slug: "trashed-slug", status: "published", deletedAt: "2026-08-11T00:00:00.000Z" }),
+  ]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","slug":"trashed-slug"}'></div>` },
+  });
+
+  assert.equal(resolved.get("content")?.has("trashed-slug"), false);
+});
+
+test('resolveHtmlPageEmbeds: a "content" embed with both id and slug uses id and never consults slug — same precedent as the media/widget resolvers', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([
+    postRecord({ id: "entity-1", slug: "entity-one-slug", title: "Entity One" }),
+    postRecord({ id: "entity-2", slug: "entity-two-slug", title: "Entity Two" }),
+  ]);
+
+  // Only entity-1's own id key is populated; if this fell back to slug for a marker carrying both, it
+  // would surface entity-2's data instead of entity-1's.
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: {
+      workspaceId: WORKSPACE_ID_POST,
+      html: `<div data-embed-config='{"type":"content","id":"entity-1","slug":"entity-two-slug"}'></div>`,
+    },
+  });
+
+  const ir = resolved.get("content")?.get("entity-1");
+  assert.equal(ir?.props.title, "Entity One", "id must win — entity-2's slug is never even consulted");
+});
+
+test("resolveHtmlPageEmbeds: pendingContentOverride matches a slug-only ref by override.slug, the same way it already matches an id-only ref by override.id", async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const pending = {
+    id: "entity-1",
+    title: "Unsaved Title",
+    slug: "a-published-entity",
+    updatedAt: "2026-09-23T00:00:00.000Z",
+    bodyJson: { type: "doc" as const, content: [] },
+  };
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, pendingContentOverride: pending },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","slug":"a-published-entity"}'></div>` },
+  });
+
+  const ir = resolved.get("content")?.get("a-published-entity");
+  assert.equal(ir?.props.title, "Unsaved Title", "the override's unsaved data must win, matched by slug just like the id branch already does");
+});
+
+// ---------------------------------------------------------------------------
 // Owner-reported bug (2026-08-12): a ref-based `image` node inside a "content"/"post" embed's own
 // bodyJson rendered as a filename-labelled placeholder — everywhere this IR reaches (the editor's
 // own "Preview" tab AND the published public page), even with the referenced asset, its "public"
