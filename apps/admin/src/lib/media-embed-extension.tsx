@@ -3,7 +3,7 @@ import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tip
 import { MediaPickerDialog } from "../components/MediaPickerDialog/MediaPickerDialog";
 import { MediaEditDialog } from "../components/MediaEditDialog/MediaEditDialog";
 import { insertBlockAtom } from "./block-atom-insert";
-import { useWiredMediaEmbedNodeView } from "./media-embed-extension.hooks";
+import { useWiredMediaEmbedNodeView, type MediaPreviewKind } from "./media-embed-extension.hooks";
 
 /**
  * @file `Media` — the generic media doc node (2026-09-11, owner-directed: "don't add a `video` node
@@ -25,21 +25,20 @@ import { useWiredMediaEmbedNodeView } from "./media-embed-extension.hooks";
  * URLs (ADR-027 §4), and unlike `image` this node has no legacy shape to carry forward, since it did
  * not exist before this task.
  *
- * **The NodeView's own content-type problem, and why it's solved client-side instead of with a new
- * API call.** Once inserted, `assetId`/`transformName` are all this node's attrs ever carry — no
- * `contentType` hint is stored (storing one would be redundant, author-invisible state that could
- * only ever drift from the real asset, for zero rendering benefit: the SERVER already resolves the
- * real type at render time from the asset's actual bytes, which is the whole point of this being one
- * dispatching node rather than a per-kind node). That means the in-editor preview does not know ahead
- * of time whether `assetId` names an image or a video, and `lib/api.ts` has no single-asset-by-id
- * fetch to ask (only `listMedia`, which the picker below already used to select this exact item — a
- * fact the NodeView has no access to once mounted from stored `bodyJson`, e.g. re-opening a
- * previously-saved post). Rather than add a new admin API endpoint for a preview-only concern,
- * {@link MediaEmbedNodeView} asks the BROWSER the same way the server asks `sniffContentType`: it
- * renders a `<video>` first and falls back to `<img>` on that element's own `onError` (fired when the
- * browser cannot decode the source as video) — the same "resolve from the real bytes, never guess"
- * discipline this whole feature is built on, just running client-side against the same
- * `/original` byte-passthrough URL the public `<video>` tag also points at.
+ * **The NodeView's own content-type problem.** Once inserted, `assetId`/`transformName` are all this
+ * node's attrs ever carry — no `contentType` hint is stored (storing one would be redundant,
+ * author-invisible state that could only ever drift from the real asset: the SERVER already resolves
+ * the real type at render time from the asset's actual bytes, which is the whole point of this being
+ * one dispatching node rather than a per-kind node). So the in-editor preview asks the server the
+ * same question at mount: `api.mediaContentType` sends a `HEAD` to the asset's `/original` route and
+ * reads the `Content-Type` it sniffed from the stored bytes, and the preview shows `<video>` for
+ * `video/*` and `<img>` for anything else — `renderDocMedia`'s own rule, so the editor and the
+ * published post always agree. Nothing renders until that answer arrives.
+ *
+ * History (2026-09-22): this used to render `<video>` first and fall back to `<img>` on the video
+ * element's `onError`. Chrome never fires that error for an image served to a `<video>` — the
+ * element sits at `networkState` LOADING / `readyState` 0 indefinitely — so every image in a saved
+ * post previewed as an empty black video player. Don't reintroduce a decode-probe here.
  */
 
 declare module "@tiptap/core" {
@@ -70,8 +69,7 @@ export function MediaEmbedNodeView(props: NodeViewProps) {
           previewSrc: view.previewSrc,
           alt: view.alt,
           assetId: view.assetId,
-          videoFailed: view.videoFailed,
-          onVideoError: view.onVideoError,
+          previewKind: view.previewKind,
         })
       ) : (
         <span className="media-embed-node__broken-label" role="img" aria-label={view.t("Broken media reference")}>
@@ -99,24 +97,19 @@ export function MediaEmbedNodeView(props: NodeViewProps) {
   );
 }
 
-/** The resolved-ref preview itself — video-first, `<img>` fallback on decode failure (see this
- *  file's header). Split to a top-level function so {@link MediaEmbedNodeView}'s own branch count
- *  stays at "resolved vs. broken" (one `if`), matching this codebase's complexity-ceiling precedent
- *  ({@link MediaImageNodeView}, `widget-embed-extension.tsx`'s `WidgetEmbedStatus`, both split their
- *  own multi-way preview rendering out the same way). `key={assetId}` gives each asset a fresh
- *  `<video>` element, so a stale browser-internal error state never survives a Replace. */
-function renderPreview(props: {
-  previewSrc: string;
-  alt: string;
-  assetId: string;
-  videoFailed: boolean;
-  onVideoError: () => void;
-}) {
-  if (props.videoFailed) {
-    return <img className="media-embed-node__preview" src={props.previewSrc} alt={props.alt} />;
+/** The resolved-ref preview itself — `<video>` or `<img>` by the asset's real content type, nothing
+ *  while that is still being looked up (see this file's header). Split to a top-level function so
+ *  {@link MediaEmbedNodeView}'s own branch count stays at "resolved vs. broken" (one `if`), matching
+ *  this codebase's complexity-ceiling precedent ({@link MediaImageNodeView},
+ *  `widget-embed-extension.tsx`'s `WidgetEmbedStatus`). `key={assetId}` gives each asset a fresh
+ *  element, so a Replace never reuses the previous asset's media element. */
+function renderPreview(props: { previewSrc: string; alt: string; assetId: string; previewKind: MediaPreviewKind }) {
+  if (props.previewKind === "pending") return null;
+  if (props.previewKind === "image") {
+    return <img key={props.assetId} className="media-embed-node__preview" src={props.previewSrc} alt={props.alt} />;
   }
   return (
-    <video key={props.assetId} className="media-embed-node__preview" src={props.previewSrc} controls onError={props.onVideoError}>
+    <video key={props.assetId} className="media-embed-node__preview" src={props.previewSrc} controls>
       {props.alt || "Your browser does not support the video tag."}
     </video>
   );

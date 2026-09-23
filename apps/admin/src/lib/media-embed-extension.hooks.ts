@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { NodeViewProps } from "@tiptap/react";
 
 import { api } from "./api";
@@ -47,6 +47,41 @@ export function readMediaEmbedAttrs(attrs: Record<string, unknown>): MediaEmbedA
   };
 }
 
+export type MediaPreviewKind = "pending" | "image" | "video";
+
+/**
+ * Maps an asset's `Content-Type` to the element that previews it — `video/*` is a video, anything
+ * else (including `""` from a failed lookup) is an `<img>`, matching `renderDocMedia`'s own rule.
+ *
+ * @param contentType - The asset's `Content-Type` header value, possibly with parameters.
+ * @returns `"video"` or `"image"`.
+ * @complexity O(1).
+ */
+export function mediaPreviewKind(contentType: string): "image" | "video" {
+  return contentType.trim().toLowerCase().startsWith("video/") ? "video" : "image";
+}
+
+/**
+ * Resolves the preview kind for `assetId` from its real `Content-Type`; `"pending"` while the lookup
+ * is in flight, and again whenever `assetId` changes (a Replace), so one asset's verdict never
+ * carries over to the next. A failed lookup previews as an image.
+ */
+function usePreviewKind(assetId: string, contentTypeOf: (assetId: string) => Promise<string>): MediaPreviewKind {
+  const [resolved, setResolved] = useState<{ assetId: string; kind: "image" | "video" } | null>(null);
+  useEffect(() => {
+    if (!assetId) return;
+    let live = true;
+    contentTypeOf(assetId).then(
+      (contentType) => live && setResolved({ assetId, kind: mediaPreviewKind(contentType) }),
+      () => live && setResolved({ assetId, kind: "image" })
+    );
+    return () => {
+      live = false;
+    };
+  }, [assetId, contentTypeOf]);
+  return resolved?.assetId === assetId ? resolved.kind : "pending";
+}
+
 /** Everything `MediaEmbedNodeView` renders from. */
 export interface MediaEmbedNodeViewController {
   assetId: string;
@@ -56,16 +91,16 @@ export interface MediaEmbedNodeViewController {
   previewSrc: string;
   /** Seeds `MediaEditDialog` from the node's current per-instance attrs. */
   editInitial: MediaEditDialogValue;
-  /** `true` once the `<video>` probe failed to decode the asset — the preview falls back to `<img>`.
-   *  See `media-embed-extension.tsx`'s header for why the kind is probed client-side. */
-  videoFailed: boolean;
-  onVideoError: () => void;
+  /** Which element previews the asset: `"pending"` until its real `Content-Type` is known, then
+   *  `"video"` for `video/*` and `"image"` for anything else — the same rule the public renderer's
+   *  `renderDocMedia` applies. See `media-embed-extension.tsx`'s header. */
+  previewKind: MediaPreviewKind;
   /** Replace's `MediaPickerDialog` is open. Separate from {@link editing}: each button only flips
    *  its own flag, so the two dialogs can never be open together. */
   picking: boolean;
   openPicker: () => void;
   closePicker: () => void;
-  /** Points the node at the picked asset, re-arms the video probe for it, and closes the picker. */
+  /** Points the node at the picked asset and closes the picker. */
   replaceWith: (item: { id: string; alt: string; title: string }) => void;
   editing: boolean;
   openEdit: () => void;
@@ -78,35 +113,36 @@ export interface MediaEmbedNodeViewController {
 }
 
 /**
- * Owns `MediaEmbedNodeView`'s two dialog toggles, the video-probe flag, and the handlers that write
- * back into the node through `props.updateAttributes`/`props.deleteNode`.
+ * Owns `MediaEmbedNodeView`'s two dialog toggles, the asset's preview kind, and the handlers that
+ * write back into the node through `props.updateAttributes`/`props.deleteNode`.
  *
  * @param props - The TipTap node-view props for one `media` node.
- * @param deps - `deps.locale` drives the returned `t`.
+ * @param deps - `deps.locale` drives the returned `t`; `deps.contentTypeOf` looks up an asset's real
+ *   `Content-Type` (`api.mediaContentType` when wired). Pass a stable function.
  * @returns See {@link MediaEmbedNodeViewController}.
  * @complexity O(1) per render.
  */
-export function useMediaEmbedNodeView(props: NodeViewProps, deps: { locale: string }): MediaEmbedNodeViewController {
+export function useMediaEmbedNodeView(
+  props: NodeViewProps,
+  deps: { locale: string; contentTypeOf: (assetId: string) => Promise<string> }
+): MediaEmbedNodeViewController {
   const { assetId, transformName, alt, cssClass, htmlAttributes } = readMediaEmbedAttrs(props.node.attrs);
   const [picking, setPicking] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [videoFailed, setVideoFailed] = useState(false);
   const isRef = assetId.length > 0 && transformName.length > 0;
+  const previewKind = usePreviewKind(isRef ? assetId : "", deps.contentTypeOf);
 
   return {
     assetId,
     alt,
     previewSrc: isRef ? api.mediaOriginalUrl(assetId) : "",
     editInitial: { alt, cssClass, htmlAttributes },
-    videoFailed,
-    onVideoError: () => setVideoFailed(true),
+    previewKind,
     picking,
     openPicker: () => setPicking(true),
     closePicker: () => setPicking(false),
     replaceWith: (item) => {
       props.updateAttributes({ assetId: item.id, transformName: "public", alt: item.alt || item.title });
-      // A new asset must be probed afresh, not inherit the previous asset's image/video verdict.
-      setVideoFailed(false);
       setPicking(false);
     },
     editing,
@@ -121,8 +157,8 @@ export function useMediaEmbedNodeView(props: NodeViewProps, deps: { locale: stri
   };
 }
 
-/** Binds the real `useAdminLocale()` — what `MediaEmbedNodeView` composes. */
+/** Binds the real `useAdminLocale()` and `api.mediaContentType` — what `MediaEmbedNodeView` composes. */
 export function useWiredMediaEmbedNodeView(props: NodeViewProps): MediaEmbedNodeViewController {
   const locale = useAdminLocale();
-  return useMediaEmbedNodeView(props, { locale });
+  return useMediaEmbedNodeView(props, { locale, contentTypeOf: api.mediaContentType });
 }

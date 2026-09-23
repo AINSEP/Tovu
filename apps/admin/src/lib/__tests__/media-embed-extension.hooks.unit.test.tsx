@@ -1,9 +1,9 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type { NodeViewProps } from "@tiptap/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { api } from "../api";
-import { readMediaEmbedAttrs, useMediaEmbedNodeView } from "../media-embed-extension.hooks";
+import { mediaPreviewKind, readMediaEmbedAttrs, useMediaEmbedNodeView } from "../media-embed-extension.hooks";
 
 /**
  * @file `useMediaEmbedNodeView` — the `media` node view's attr reads, dialog toggles, video-probe
@@ -17,6 +17,21 @@ function fakeProps(attrs: Record<string, unknown>) {
   const props = { node: { attrs }, updateAttributes, deleteNode } as unknown as NodeViewProps;
   return { props, updateAttributes, deleteNode };
 }
+
+const imageType = vi.fn(async (_assetId: string) => "image/png");
+function deps(locale: string, contentTypeOf: (assetId: string) => Promise<string> = imageType) {
+  return { locale, contentTypeOf };
+}
+
+describe("mediaPreviewKind", () => {
+  it("video/* is a video; images, octet-stream and a failed lookup ('') are images", () => {
+    expect(mediaPreviewKind("video/mp4")).toBe("video");
+    expect(mediaPreviewKind("Video/WebM; codecs=vp9")).toBe("video");
+    expect(mediaPreviewKind("image/png")).toBe("image");
+    expect(mediaPreviewKind("application/octet-stream")).toBe("image");
+    expect(mediaPreviewKind("")).toBe("image");
+  });
+});
 
 describe("readMediaEmbedAttrs", () => {
   it("reads string attrs through unchanged", () => {
@@ -38,38 +53,62 @@ describe("readMediaEmbedAttrs", () => {
 
 describe("useMediaEmbedNodeView", () => {
   it("a complete ref previews api.mediaOriginalUrl(assetId); an incomplete one previews nothing", () => {
-    const complete = renderHook(() => useMediaEmbedNodeView(fakeProps({ assetId: "a1", transformName: "public" }).props, { locale: "en" }));
+    const complete = renderHook(() => useMediaEmbedNodeView(fakeProps({ assetId: "a1", transformName: "public" }).props, deps("en")));
     expect(complete.result.current.previewSrc).toBe(api.mediaOriginalUrl("a1"));
 
-    const incomplete = renderHook(() => useMediaEmbedNodeView(fakeProps({ assetId: "a1" }).props, { locale: "en" }));
+    const incomplete = renderHook(() => useMediaEmbedNodeView(fakeProps({ assetId: "a1" }).props, deps("en")));
     expect(incomplete.result.current.previewSrc).toBe("");
   });
 
   it("seeds the Edit dialog from the node's current alt/cssClass/htmlAttributes", () => {
     const { result } = renderHook(() =>
-      useMediaEmbedNodeView(fakeProps({ assetId: "a1", transformName: "public", alt: "A cat", cssClass: "hero" }).props, { locale: "en" })
+      useMediaEmbedNodeView(fakeProps({ assetId: "a1", transformName: "public", alt: "A cat", cssClass: "hero" }).props, deps("en"))
     );
     expect(result.current.editInitial).toEqual({ alt: "A cat", cssClass: "hero", htmlAttributes: null });
   });
 
-  it("Replace writes the picked ref, re-arms the video probe and closes the picker", () => {
-    const { props, updateAttributes } = fakeProps({ assetId: "a1", transformName: "public" });
-    const { result } = renderHook(() => useMediaEmbedNodeView(props, { locale: "en" }));
+  it("previewKind is pending until the content type resolves, then follows it; a failed lookup previews as an image", async () => {
+    const video = renderHook(() =>
+      useMediaEmbedNodeView(fakeProps({ assetId: "v1", transformName: "public" }).props, deps("en", async () => "video/mp4"))
+    );
+    expect(video.result.current.previewKind).toBe("pending");
+    await waitFor(() => expect(video.result.current.previewKind).toBe("video"));
 
-    act(() => result.current.onVideoError());
+    const failed = renderHook(() =>
+      useMediaEmbedNodeView(fakeProps({ assetId: "x1", transformName: "public" }).props, deps("en", () => Promise.reject(new Error("offline"))))
+    );
+    await waitFor(() => expect(failed.result.current.previewKind).toBe("image"));
+  });
+
+  it("an incomplete ref never looks up a content type", () => {
+    const contentTypeOf = vi.fn(async () => "image/png");
+    renderHook(() => useMediaEmbedNodeView(fakeProps({ assetId: "a1" }).props, deps("en", contentTypeOf)));
+    expect(contentTypeOf).not.toHaveBeenCalled();
+  });
+
+  it("Replace writes the picked ref and closes the picker; the new asset's kind is looked up afresh", async () => {
+    const contentTypeOf = vi.fn(async (id: string) => (id === "a2" ? "video/mp4" : "image/png"));
+    const initial = fakeProps({ assetId: "a1", transformName: "public" });
+    const { result, rerender } = renderHook((p: NodeViewProps) => useMediaEmbedNodeView(p, deps("en", contentTypeOf)), {
+      initialProps: initial.props,
+    });
+    await waitFor(() => expect(result.current.previewKind).toBe("image"));
+
     act(() => result.current.openPicker());
-    expect(result.current.videoFailed).toBe(true);
     expect(result.current.picking).toBe(true);
-
     act(() => result.current.replaceWith({ id: "a2", alt: "", title: "New pick" }));
-    expect(updateAttributes).toHaveBeenCalledWith({ assetId: "a2", transformName: "public", alt: "New pick" });
-    expect(result.current.videoFailed).toBe(false);
+    expect(initial.updateAttributes).toHaveBeenCalledWith({ assetId: "a2", transformName: "public", alt: "New pick" });
     expect(result.current.picking).toBe(false);
+
+    rerender(fakeProps({ assetId: "a2", transformName: "public" }).props);
+    expect(result.current.previewKind).toBe("pending");
+    await waitFor(() => expect(result.current.previewKind).toBe("video"));
+    expect(contentTypeOf).toHaveBeenLastCalledWith("a2");
   });
 
   it("Save in the Edit dialog writes all three fields and closes it", () => {
     const { props, updateAttributes } = fakeProps({ assetId: "a1", transformName: "public" });
-    const { result } = renderHook(() => useMediaEmbedNodeView(props, { locale: "en" }));
+    const { result } = renderHook(() => useMediaEmbedNodeView(props, deps("en")));
 
     act(() => result.current.openEdit());
     expect(result.current.editing).toBe(true);
@@ -81,7 +120,7 @@ describe("useMediaEmbedNodeView", () => {
 
   it("closeEdit and closePicker close without writing; remove deletes the node", () => {
     const { props, updateAttributes, deleteNode } = fakeProps({ assetId: "a1", transformName: "public" });
-    const { result } = renderHook(() => useMediaEmbedNodeView(props, { locale: "en" }));
+    const { result } = renderHook(() => useMediaEmbedNodeView(props, deps("en")));
 
     act(() => result.current.openEdit());
     act(() => result.current.closeEdit());
@@ -96,7 +135,7 @@ describe("useMediaEmbedNodeView", () => {
   });
 
   it("t translates the node view's copy for deps.locale", () => {
-    const { result } = renderHook(() => useMediaEmbedNodeView(fakeProps({}).props, { locale: "es" }));
+    const { result } = renderHook(() => useMediaEmbedNodeView(fakeProps({}).props, deps("es")));
     expect(result.current.t("Edit")).toBe("Editar");
     expect(result.current.t("Replace")).toBe("Reemplazar");
     expect(result.current.t("Remove")).toBe("Quitar");

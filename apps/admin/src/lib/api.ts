@@ -2957,6 +2957,16 @@ export const api = {
    *  sniffed HTML/SVG is deliberately served as a non-rendering attachment) — see `Media.tsx`'s
    *  `MediaPreview` for how the client discovers which element type an asset actually needs. */
   mediaOriginalUrl: (id: string) => `${BASE}/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/original`,
+  /** The asset's real, server-sniffed `Content-Type`, read from a `HEAD` of {@link mediaOriginalUrl}
+   *  (no body transferred) — the same value the public renderer dispatches `<img>` vs `<video>` on.
+   *  Resolves `""` when the route answers non-2xx or sends no header. */
+  mediaContentType: async (id: string): Promise<string> => {
+    const res = await fetch(api.mediaOriginalUrl(id), {
+      method: "HEAD",
+      credentials: "same-origin",
+    });
+    return res.ok ? (res.headers.get("content-type") ?? "") : "";
+  },
   uploadMedia: (
     input: { filename: string; contentType: string; dataBase64: string },
     options: { alt?: string; caption?: string; credit?: string } = {}

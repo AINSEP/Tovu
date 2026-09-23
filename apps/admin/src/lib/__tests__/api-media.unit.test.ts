@@ -128,6 +128,20 @@ test("mediaOriginalUrl builds the byte-serving URL directly — not routed throu
   expect(api.mediaOriginalUrl("asset-1")).toBe(`${BASE}/media/asset-1/original`);
 });
 
+// --- mediaContentType ---------------------------------------------------------------
+
+test("mediaContentType HEADs the byte-serving URL and resolves its Content-Type header", async () => {
+  const { calls } = stubFetchCapturing(new Response(null, { status: 200, headers: { "Content-Type": "image/png" } }));
+  expect(await api.mediaContentType("asset-1")).toBe("image/png");
+  expect(calls[0].url).toBe(`${BASE}/media/asset-1/original`);
+  expect(calls[0].init?.method).toBe("HEAD");
+});
+
+test("mediaContentType resolves '' for a non-2xx answer", async () => {
+  stubFetchCapturing(new Response(null, { status: 404, headers: { "Content-Type": "application/json" } }));
+  expect(await api.mediaContentType("missing")).toBe("");
+});
+
 // --- uploadMedia ---------------------------------------------------------------
 
 test("uploadMedia POSTs to the media collection and resolves the created record", async () => {
