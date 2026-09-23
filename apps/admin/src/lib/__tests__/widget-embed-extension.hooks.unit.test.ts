@@ -34,7 +34,7 @@ const ACTIVE_WIDGET = {
 type GetWidgetResult = Awaited<ReturnType<typeof api.getWidget>>;
 
 function fakeProps(
-  attrs: { widgetEntryId?: string; placementId?: string },
+  attrs: { widgetEntryId?: string; placementId?: string; cssClass?: string | null; htmlAttributes?: string | null },
   overrides: Partial<NodeViewProps> = {},
 ): NodeViewProps {
   return {
@@ -236,5 +236,57 @@ describe("useWidgetEmbedNodeView — Change dialog and Remove", () => {
     result.current.remove();
 
     expect(deleteNode).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Style dialog (2026-09-23, W2): mirrors `media-embed-extension.hooks.ts`'s own Edit dialog, minus
+// `alt`, which the widget node has no concept of.
+describe("useWidgetEmbedNodeView — Style dialog", () => {
+  it("styleInitial reflects the node's current cssClass/htmlAttributes, with alt always null", () => {
+    vi.spyOn(api, "getWidget").mockReturnValue(new Promise(() => {}));
+    const { result } = renderView(fakeProps({ widgetEntryId: "w1", cssClass: "hero", htmlAttributes: 'data-kui="x"' }));
+
+    expect(result.current.styleInitial).toEqual({ alt: null, cssClass: "hero", htmlAttributes: 'data-kui="x"' });
+  });
+
+  it("defaults styleInitial's cssClass/htmlAttributes to null when the node has neither set", () => {
+    vi.spyOn(api, "getWidget").mockReturnValue(new Promise(() => {}));
+    const { result } = renderView(fakeProps({ widgetEntryId: "w1" }));
+
+    expect(result.current.styleInitial).toEqual({ alt: null, cssClass: null, htmlAttributes: null });
+  });
+
+  it("is not gated on the widget having resolved: styling starts false and opens on demand regardless", () => {
+    vi.spyOn(api, "getWidget").mockReturnValue(new Promise(() => {}));
+    const { result } = renderView(fakeProps({ widgetEntryId: "w1" }));
+    expect(result.current.styling).toBe(false);
+
+    act(() => result.current.openStyle());
+
+    expect(result.current.styling).toBe(true);
+  });
+
+  it("closeStyle closes the dialog without updating the node", () => {
+    vi.spyOn(api, "getWidget").mockReturnValue(new Promise(() => {}));
+    const updateAttributes = vi.fn();
+    const { result } = renderView(fakeProps({ widgetEntryId: "w1" }, { updateAttributes }));
+    act(() => result.current.openStyle());
+
+    act(() => result.current.closeStyle());
+
+    expect(result.current.styling).toBe(false);
+    expect(updateAttributes).not.toHaveBeenCalled();
+  });
+
+  it("saveStyle writes cssClass and htmlAttributes onto the node (never alt) and closes the dialog", () => {
+    vi.spyOn(api, "getWidget").mockReturnValue(new Promise(() => {}));
+    const updateAttributes = vi.fn();
+    const { result } = renderView(fakeProps({ widgetEntryId: "w1" }, { updateAttributes }));
+    act(() => result.current.openStyle());
+
+    act(() => result.current.saveStyle({ alt: "ignored", cssClass: "hero", htmlAttributes: 'data-kui="x"' }));
+
+    expect(updateAttributes).toHaveBeenCalledWith({ cssClass: "hero", htmlAttributes: 'data-kui="x"' });
+    expect(result.current.styling).toBe(false);
   });
 });

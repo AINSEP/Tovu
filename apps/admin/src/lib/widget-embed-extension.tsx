@@ -3,6 +3,7 @@ import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tip
 import type { AdminWidget } from "./api";
 import { insertBlockAtom } from "./block-atom-insert";
 import { useWidgetEmbedNodeView } from "./widget-embed-extension.hooks";
+import { MediaEditDialog } from "../components/MediaEditDialog/MediaEditDialog";
 import { WidgetAddControl, WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
 import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields/WidgetConfigFields";
 import { t as translateApp } from "../app-i18n";
@@ -87,6 +88,9 @@ export function WidgetEmbedNodeView(props: NodeViewProps) {
     <NodeViewWrapper as="div" className={view.nodeClassName} data-drag-handle contentEditable={false}>
       <WidgetEmbedStatus widget={view.widget} isBroken={view.isBroken} typeLabel={widgetTypeLabel(view.widget)} />
       <span className="widget-embed-node__actions">
+        <button type="button" onClick={view.openStyle}>
+          {t("Style")}
+        </button>
         <button type="button" onClick={view.openChange}>
           {t("Change")}
         </button>
@@ -94,6 +98,9 @@ export function WidgetEmbedNodeView(props: NodeViewProps) {
           {t("Remove")}
         </button>
       </span>
+      {view.styling ? (
+        <MediaEditDialog initial={view.styleInitial} onSave={view.saveStyle} onCancel={view.closeStyle} showAlt={false} />
+      ) : null}
       {view.changeDialog ? (
         <WidgetPickerDialog
           widgetType={view.changeDialog.widgetType}
@@ -118,6 +125,15 @@ export const WidgetEmbed = Node.create({
     return {
       placementId: { default: null },
       widgetEntryId: { default: null },
+      // Per-instance style override (2026-09-23, W2 — owner ask: "widget embed attributes pass
+      // through like the other types"), same two field names/shape as the `media` node's own
+      // `cssClass`/`htmlAttributes` (`media-embed-extension.tsx`). The editor UI is the Style
+      // action (`WidgetEmbedNodeView`); render-time, `htmlAttributes` is additionally restricted to
+      // only `data-*`/`aria-*` names (D5) — narrower than what the reused media validator itself
+      // allows, since a widget's own DOM structure is not the operator's to attach `style`/`id`/
+      // arbitrary attributes onto.
+      cssClass: { default: null },
+      htmlAttributes: { default: null },
     };
   },
 
