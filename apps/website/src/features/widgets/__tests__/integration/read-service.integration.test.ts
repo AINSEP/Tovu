@@ -88,6 +88,44 @@ test("getWidgetInstance 404s for an unknown id, not a crash", async () => {
   );
 });
 
+// URL-uses-slug (2026-09-22): the admin widget editor's URL now carries the widget's slug
+// (`WidgetsLibrary.tsx`'s row link, `use-widget-instance-editor.hooks.ts`'s create-navigate), so
+// this route param may itself BE that slug rather than the widget's real id — same slug-first/
+// id-second resolution as posts' `getAdminPostByIdOrSlug` and forms' `resolveFormDefinitionByIdOrSlug`.
+test("REQ-04: getWidgetInstance resolves by slug, and still resolves an old bookmark's raw id", async () => {
+  const repos = makeRepos();
+  const { instance: created } = await createWidgetInstance({
+    deps: writeDeps(repos),
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetType: "text", title: "Footer note", config: { body: "hi" } },
+  });
+
+  const bySlug = await getWidgetInstance({
+    deps: readDeps(repos),
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetInstanceId: created.slug },
+  });
+  assert.equal(bySlug.instance.id, created.id);
+
+  const byId = await getWidgetInstance({
+    deps: readDeps(repos),
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetInstanceId: created.id },
+  });
+  assert.equal(byId.instance.id, created.id);
+});
+
+test("REQ-04: a trashed widget's slug 404s too, not just its id — the slug lookup doesn't leak trashed rows", async () => {
+  const repos = makeRepos();
+  const { instance: created } = await createWidgetInstance({
+    deps: writeDeps(repos),
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetType: "text", title: "Footer note", config: { body: "hi" } },
+  });
+  await trashWidgetInstance({ deps: writeDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetInstanceId: created.id } });
+
+  await assert.rejects(
+    getWidgetInstance({ deps: readDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetInstanceId: created.slug } }),
+    { name: "WidgetInstanceNotFoundError" }
+  );
+});
+
 test("REQ-40/41: a principal lacking widgets.read is rejected — INV-07 applies to reads too, not only mutations", async () => {
   const repos = makeRepos();
   const { instance: created } = await createWidgetInstance({

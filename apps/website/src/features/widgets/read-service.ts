@@ -49,7 +49,14 @@ export interface GetWidgetInstanceRequired {
 /** REQ-04: read a widget instance's current state (+ revision history — see this file's header for
  * the disclosed gap on that half). Returns any status (`active`/`trash`/`purged`) — the caller
  * decides whether a non-`active` instance is presentable (e.g. an admin editor still shows a
- * trashed instance so it can be restored/inspected). */
+ * trashed instance so it can be restored/inspected).
+ *
+ * `widgetInstanceId` is resolved slug-first, id-second — same order/rationale as posts'
+ * `getAdminPostByIdOrSlug` (`src/features/post/post.ts`) and forms'
+ * `resolveFormDefinitionByIdOrSlug` (`server/inbound/admin-http/routes/forms/resolve-definition.ts`):
+ * the admin widget editor's URL now carries the widget's slug (`WidgetsLibrary.tsx`'s row link,
+ * `use-widget-instance-editor.hooks.ts`'s create-navigate), so this param may itself BE that slug.
+ * An old id-based bookmark/link still resolves via the `findById` fallback. */
 export async function getWidgetInstance(required: GetWidgetInstanceRequired): Promise<{ instance: WidgetInstanceEntry; revisions: [] }> {
   const { deps, input } = required;
   await requireWidgetPermission({
@@ -59,7 +66,12 @@ export async function getWidgetInstance(required: GetWidgetInstanceRequired): Pr
     permission: "widgets.read",
   });
 
-  const entry = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.widgetInstanceId });
+  const bySlug = await deps.entryRepo.findBySlug({
+    workspaceId: input.workspaceId,
+    type: WIDGET_CONTENT_TYPE,
+    slug: input.widgetInstanceId.trim().toLowerCase(),
+  });
+  const entry = bySlug ?? (await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.widgetInstanceId }));
   if (!entry || entry.type !== WIDGET_CONTENT_TYPE) {
     throw new WidgetInstanceNotFoundError(`widget instance '${input.widgetInstanceId}' was not found`);
   }

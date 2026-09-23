@@ -7,6 +7,7 @@ import {
   movePlacement,
   resolveEditorWidgetType,
   widgetConfigFieldErrors,
+  widgetSlugRedirectPath,
   widgetTypeLabel,
 } from "../rules";
 
@@ -146,5 +147,26 @@ describe("buildDraftPlacement", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("widgetSlugRedirectPath", () => {
+  const WIDGET_UUID = "b7e6c8a0-1f2d-4e3a-9c5b-6a7d8e9f0a1b";
+  const WIDGET = { id: WIDGET_UUID, slug: "hero-banner" };
+
+  it("returns null when the URL already carries the widget's slug", () => {
+    expect(widgetSlugRedirectPath({ requestedId: "hero-banner", widget: WIDGET })).toBeNull();
+  });
+
+  it("returns the slug path when the URL carries the widget's raw (UUID-shaped) id", () => {
+    expect(widgetSlugRedirectPath({ requestedId: WIDGET_UUID, widget: WIDGET })).toBe("/widgets/hero-banner");
+  });
+
+  it("returns null for a string that differs from the slug but isn't UUID-shaped (not recognizably an id link)", () => {
+    expect(widgetSlugRedirectPath({ requestedId: "some-other-slug", widget: WIDGET })).toBeNull();
+  });
+
+  it("returns null for a UUID-shaped string that isn't actually this widget's own id", () => {
+    expect(widgetSlugRedirectPath({ requestedId: "00000000-0000-0000-0000-000000000000", widget: WIDGET })).toBeNull();
   });
 });

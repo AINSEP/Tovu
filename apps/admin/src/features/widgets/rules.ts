@@ -172,3 +172,31 @@ export function resolveWidgetRegionSaveError(
   }
   return describeApiError(e, translate(locale, "save failed"));
 }
+
+/** RFC 4122 shape (`randomUUID()`'s output — every entries-table id, per `server/runtime
+ *  /composition/{app,deps}.ts`'s `idGen`) — used only by {@link widgetSlugRedirectPath} to decide
+ *  whether a `/widgets/:widgetId` URL segment is an old id-based link rather than the current slug.
+ *  A widget's own slug (`slugify(title)-${8 hex chars}`, `write-service.ts`) never matches this
+ *  shape, so the check can't misfire on a legitimate slug that merely differs from a stale local
+ *  copy of the record. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The path `use-widget-instance-editor.hooks.ts`'s load effect replace-navigates to once a widget
+ * has loaded, when the URL segment that resolved it was the widget's raw id rather than its slug —
+ * mirrors `FormEditor.tsx`/`FormsList.tsx`'s `/forms/:slug` convention, now extended to widgets
+ * (the server's `getWidgetInstance` resolves either, `read-service.ts`).
+ *
+ * Returns `null` when no redirect is needed: `requestedId` already IS the widget's current slug, or
+ * `requestedId` doesn't look like that widget's own id (a slug that happens to differ from a stale
+ * local copy — e.g. a background refetch after a rename elsewhere — must not be treated as an old
+ * id link and redirected out from under the operator).
+ *
+ * @complexity Time/space: O(1).
+ */
+export function widgetSlugRedirectPath(params: { requestedId: string; widget: Pick<AdminWidget, "id" | "slug"> }): string | null {
+  const { requestedId, widget } = params;
+  if (requestedId === widget.slug) return null;
+  if (requestedId !== widget.id || !UUID_RE.test(requestedId)) return null;
+  return `/widgets/${widget.slug}`;
+}

@@ -52,9 +52,11 @@ export function createFakeWidgetsPort(options: FakeWidgetsPortOptions = {}): Wid
     },
 
     async getWidget(id) {
-      const widget = widgets.find((w) => w.id === id);
+      // Slug-or-id, mirroring the real `getWidgetInstance` (`read-service.ts`, 2026-09-22) — a test
+      // that seeds a widget and loads it by its `slug` needs the same resolution the server gives.
+      const widget = widgets.find((w) => w.slug === id) ?? widgets.find((w) => w.id === id);
       if (!widget) throw new Error(`fake widget not found: ${id}`);
-      return { widget, whereUsed: options.whereUsed?.[id] ?? { count: 0, references: [] } };
+      return { widget, whereUsed: options.whereUsed?.[widget.id] ?? { count: 0, references: [] } };
     },
 
     async createWidget(input) {

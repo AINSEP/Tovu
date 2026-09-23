@@ -149,7 +149,10 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
             header: t("Title"),
             cell: (widget) => (
               <a
-                href={`/admin/widgets/${widget.id}`}
+                // Slug, not id (2026-09-22, URL-uses-slug — mirrors `FormsList.tsx`'s
+                // `/admin/forms/${form.slug}` row link): the editor resolves either
+                // (`read-service.ts`'s `getWidgetInstance`), but the slug is the readable one.
+                href={`/admin/widgets/${widget.slug}`}
                 {...agentHandle(`${rowHandleById.get(widget.id)}-edit`, { role: "link", label: `Edit the "${widget.title}" widget` })}
               >
                 {widget.title}
@@ -162,11 +165,17 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
             cell: (widget) => widgetTypeLabel(widget.widgetType, locale),
           },
           {
+            key: "slug",
+            header: t("Slug"),
+            // Monospace like Collections' "Key" column (`Collections.tsx`) — a slug is an
+            // identifier, not prose.
+            cell: (widget) => <code>{widget.slug}</code>,
+          },
+          {
             key: "status",
             header: t("Status"),
             cell: (widget) => <span className={`status status-${widget.status}`}><ServerLabel value={widget.status} /></span>,
           },
-          { key: "version", header: "v", cell: (widget) => widget.version },
           {
             key: "actions",
             // Not converted to a `RowMenu` — this is the row's only action (see report: a menu

@@ -190,3 +190,32 @@ it("uses the plural phrasing for more than one unreadable widget record", () => 
   render(<WidgetsLibraryNotices error={null} skippedCount={3} />);
   expect(screen.getByText("3 widget records in this workspace could not be read.")).toBeInTheDocument();
 });
+
+// 2026-09-22: dropped the version ("v") column, added a Slug column as the 3rd (Title, Type, Slug,
+// Status, then the Trash action) — owner report, ADS-memory/.local-artifacts/owner-screenshots-2026-09-22/
+// widgets-list-v-column.png.
+it("shows Title/Type/Slug/Status columns (no version column), with the slug in monospace", async () => {
+  fetchMock.mockResolvedValueOnce(jsonResponse({ widgets: [WIDGET] }));
+
+  render(<WidgetsLibrary />);
+
+  // The Actions column has no visible header text (`headerLabel`, an aria-only label) — same as
+  // before this change; only Title/Type/Slug/Status are visible column headers.
+  const headers = (await screen.findAllByRole("columnheader")).map((h) => h.textContent);
+  expect(headers).toEqual(["Title", "Type", "Slug", "Status", ""]);
+  expect(headers).not.toContain("v");
+
+  const slugCell = await screen.findByText("hero-banner", { selector: "code" });
+  expect(slugCell.tagName).toBe("CODE");
+});
+
+// URL-uses-slug (2026-09-22): the title link now points at the widget's slug URL, not its id
+// (`use-widget-instance-editor.hooks.ts`/`read-service.ts`'s `getWidgetInstance` resolve either).
+it("links the title to the widget's slug URL, not its id", async () => {
+  fetchMock.mockResolvedValueOnce(jsonResponse({ widgets: [WIDGET] }));
+
+  render(<WidgetsLibrary />);
+
+  const link = await screen.findByRole("link", { name: /hero banner/i });
+  expect(link).toHaveAttribute("href", "/admin/widgets/hero-banner");
+});

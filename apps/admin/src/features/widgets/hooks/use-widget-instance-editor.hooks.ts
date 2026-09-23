@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { describeApiError, type AdminWidget, type AdminWidgetType, type AdminWidgetWhereUsed } from "@/lib/api";
 import { navigate as realNavigate } from "@/lib/router";
 import { defaultWidgetConfig } from "@/components/WidgetConfigFields/WidgetConfigFields";
-import { resolveEditorWidgetType, resolveWidgetSaveError } from "../rules";
+import { resolveEditorWidgetType, resolveWidgetSaveError, widgetSlugRedirectPath } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../widgets-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
@@ -36,7 +36,10 @@ import type { WidgetsPort } from "./widgets-port.hooks";
 export interface WidgetInstanceEditorDependencies {
   port: WidgetsPort;
   locale: string;
-  navigate: (path: string) => void;
+  /** `options.replace` (2026-09-22, URL-uses-slug): the load effect below replace-navigates a
+   *  raw-id URL to the widget's slug once it resolves — see `widgetSlugRedirectPath` (`../rules.ts`)
+   *  — which must not grow a Back-button stop for a link the operator never actually followed. */
+  navigate: (path: string, options?: { replace?: boolean }) => void;
   t: Translate;
 }
 
@@ -137,6 +140,14 @@ export function useWidgetInstanceEditor(
         setTitle(r.widget.title);
         setConfig(r.widget.config);
         setWhereUsed(r.whereUsed);
+        // URL-uses-slug (2026-09-22): `props.widgetId` reached this widget by whatever the URL
+        // held — its current slug (the common case) or a raw id from an old bookmark/link, since
+        // `getWidgetInstance` (`read-service.ts`) now resolves either. Only the id case needs a
+        // history update; see `widgetSlugRedirectPath`'s own doc comment for why it returns `null`
+        // otherwise. `replace`, not a pushed entry: the operator never chose to visit the id URL as
+        // a distinct step, so Back shouldn't stop there either.
+        const redirectPath = widgetSlugRedirectPath({ requestedId: props.widgetId as string, widget: r.widget });
+        if (redirectPath) navigate(redirectPath, { replace: true });
       })
       .catch((e) => {
         if (cancelled) return;
@@ -175,7 +186,10 @@ export function useWidgetInstanceEditor(
     try {
       if (isNew) {
         const { widget: created } = await port.createWidget({ widgetType, title, config });
-        navigate(`/widgets/${created.id}`);
+        // Slug, not id (2026-09-22 — mirrors `use-form-editor.hooks.ts`'s identical create-navigate,
+        // see `get-by-id.ts`'s forms equivalent, `resolve-definition.ts`, for the id-or-slug
+        // resolution this now lands on for widgets too, `read-service.ts`).
+        navigate(`/widgets/${created.slug}`);
         return;
       }
       if (!widget) return;
