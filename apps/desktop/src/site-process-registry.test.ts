@@ -164,6 +164,15 @@ test("readProcessCommand reads a live process's own argv, and null once it is go
   assert.equal(readProcessCommand(child.pid!), null);
 });
 
+test("readProcessCommand short-circuits to null on win32 without ever invoking ps", () => {
+  // `process.pid` (this very test process) is guaranteed alive, so a non-null result on the default
+  // platform proves `ps` really ran; getting null for that SAME live pid when `platform` is injected
+  // as "win32" can only mean the win32 branch returned before calling `ps` at all — there is no `ps`
+  // on Windows, and orphan reaping is a documented no-op there (plan item W9).
+  assert.notEqual(readProcessCommand(process.pid), null, "sanity: the POSIX path must still call ps");
+  assert.equal(readProcessCommand(process.pid, "win32"), null);
+});
+
 test("isServeProcessForSite requires BOTH the site dir and the exact --port token", () => {
   const row = { siteDir: "/fake/site/marker-2", port: 4002 };
   assert.equal(isServeProcessForSite("node cli.js serve /fake/site/marker-2 --port 4002", row), true);
@@ -226,6 +235,14 @@ test("readProcessParentPid reports the real parent, and null once the pid is gon
   }
   assert.equal(readProcessParentPid(child.pid!), null);
   assert.equal(isOrphanedProcess(child.pid!), false, "a pid that is gone cannot be proven orphaned");
+});
+
+test("readProcessParentPid short-circuits to null on win32 without ever invoking ps", () => {
+  // Same proof shape as readProcessCommand's own win32 test: this process's real parent is
+  // provably readable via `ps` on the default platform, so `null` for the identical pid under an
+  // injected "win32" platform can only come from a short-circuit before `ps` runs.
+  assert.notEqual(readProcessParentPid(process.pid), null, "sanity: the POSIX path must still call ps");
+  assert.equal(readProcessParentPid(process.pid, "win32"), null);
 });
 
 test("isOrphanedProcess is true for a process whose parent has exited", async () => {

@@ -363,11 +363,18 @@ function isProcessAlive(pid: number): boolean {
  * codebase for exactly that reason. `ps`'s plain `command=` column is argv only, never env, so
  * nothing sensitive can leak through this call.
  *
+ * **win32 has no `ps`**, so this returns `null` immediately without spawning anything (plan item
+ * W9). Every caller already treats `null` as "cannot confirm identity" and skips reaping rather
+ * than erroring — the same fallback a genuinely-gone pid takes — so orphan reaping is a documented
+ * no-op on Windows v1: a leak (an orphan is left running), never a crash or a wrongful kill.
+ *
+ * @param platform test seam; defaults to the real `process.platform`. Production never passes this.
  * @returns the command line, or `null` once the pid is gone (a race between {@link isProcessAlive}
- *   and this call, or the row's pid was never real).
- * @complexity O(1); one subprocess call.
+ *   and this call, or the row's pid was never real) — or unconditionally on win32.
+ * @complexity O(1); one subprocess call, skipped entirely on win32.
  */
-function readProcessCommand(pid: number): string | null {
+function readProcessCommand(pid: number, platform: NodeJS.Platform = process.platform): string | null {
+  if (platform === "win32") return null;
   try {
     const output = execFileSync("ps", ["-o", "command=", "-p", String(pid)], { encoding: "utf8" });
     return output.trim() || null;
@@ -380,10 +387,17 @@ function readProcessCommand(pid: number): string | null {
  * A live process's parent pid, read the same argv-only way as {@link readProcessCommand} (`ps`'s
  * plain `ppid=` column is a number, never environment, so nothing sensitive can leak through it).
  *
- * @returns the parent pid, or `null` once the pid is gone or `ps` prints something unparseable.
- * @complexity O(1); one subprocess call.
+ * **win32 has no `ps`** either — same no-op documented on {@link readProcessCommand}, and for the
+ * same reason (plan item W9): every caller of this function already treats `null` as "cannot tell,"
+ * which is the correct answer on a platform this cannot check.
+ *
+ * @param platform test seam; defaults to the real `process.platform`. Production never passes this.
+ * @returns the parent pid, or `null` once the pid is gone or `ps` prints something unparseable — or
+ *   unconditionally on win32.
+ * @complexity O(1); one subprocess call, skipped entirely on win32.
  */
-function readProcessParentPid(pid: number): number | null {
+function readProcessParentPid(pid: number, platform: NodeJS.Platform = process.platform): number | null {
+  if (platform === "win32") return null;
   try {
     const parsed = Number.parseInt(execFileSync("ps", ["-o", "ppid=", "-p", String(pid)], { encoding: "utf8" }).trim(), 10);
     return Number.isNaN(parsed) ? null : parsed;
