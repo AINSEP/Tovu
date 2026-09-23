@@ -1,0 +1,171 @@
+name: Desktop Release
+
+# Cuts a Tovu Desktop release build. STANDALONE: this workflow does not touch `ci.yml` or
+# `desktop.yml`, does not re-enable either of them, and shares no jobs with them. It only
+# triggers on `workflow_dispatch` or a `desktop-v*` tag push — no `pull_request` and no
+# `pull_request_target` — so a fork can never reach its secrets.
+#
+# Secrets (all five live in the `desktop-release` GitHub Actions environment, Mac jobs only):
+#   CSC_LINK, CSC_KEY_PASSWORD, APPLE_API_KEY_P8, APPLE_API_KEY_ID, APPLE_API_ISSUER
+# See `apps/desktop/RELEASING.md` for where each one already lives and how to find it again —
+# do not create new ones; that doc explains why and where electron-builder skips notarization
+# SILENTLY if one of the five is empty (the preflight step below exists to fail loud instead).
+#
+# Owner's publish step: this workflow only ever creates/updates a DRAFT release (`gh release
+# create --draft` / `gh release upload --clobber`). Nothing here publishes it. A human downloads
+# the draft's artifacts, smoke-tests them, and clicks Publish by hand — see
+# `apps/desktop/RELEASING.md` ("How a release is cut") for the full sequence, including why the
+# stable `releases/latest/download/...` URLs stay 404 until that publish click happens.
+#
+# win-x64 matrix row is commented out until S6 (Windows signing not wired up yet). Until then the
+# `release` job's fallback `gh release create` line below still names
+# `dist/Tovu-windows-x64-setup.exe`, unchanged from the design doc — see the TODO next to it.
+#
+# `uses:` steps are pinned to commit SHAs (resolved from each action's `v4` tag on 2026-09-23),
+# not floating version tags.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag: { description: "Release tag, e.g. desktop-v0.1.0", required: true, type: string }
+  push:
+    tags: ["desktop-v*"]
+permissions: { contents: read }
+concurrency: { group: "desktop-release-${{ github.ref }}", cancel-in-progress: false }
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  gates:                                   # gates run on Linux only, once
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: 24, cache: npm, cache-dependency-path: "package-lock.json\napps/desktop/package-lock.json" }
+      - run: npm ci && npm ci --prefix apps/desktop
+      - run: npm run gates
+        working-directory: apps/desktop
+      - name: Tag matches desktop version
+        run: test "$TAG" = "desktop-v$(node -p "require('./apps/desktop/package.json').version")"
+
+  build:
+    needs: gates
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: mac-arm64, os: macos-15,       arch: arm64, eb: "--mac --arm64", out: "Tovu-mac-arm64.dmg",       asar: "release/mac-arm64/Tovu.app/Contents/Resources/app.asar", app: "release/mac-arm64/Tovu.app", lipo: arm64 }
+          - { id: mac-x64,   os: macos-15-intel, arch: x64,   eb: "--mac --x64",   out: "Tovu-mac-x64.dmg",         asar: "release/mac/Tovu.app/Contents/Resources/app.asar",       app: "release/mac/Tovu.app",       lipo: x86_64 }
+          # win-x64 disabled until S6 — Windows signing not wired up yet.
+          # - { id: win-x64,   os: windows-2025,   arch: x64,   eb: "--win --x64",   out: "Tovu-windows-x64-setup.exe", asar: "release/win-unpacked/resources/app.asar" }
+    runs-on: ${{ matrix.os }}
+    environment: desktop-release           # secrets live here; optional required reviewer
+    defaults: { run: { shell: bash } }
+    steps:
+      - if: runner.os == 'Windows'
+        run: git config --global core.longpaths true                      # long paths on the Windows runner
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: 24 }
+      - if: runner.os == 'Windows'
+        run: npm config set script-shell "C:\\Program Files\\Git\\bin\\bash.exe"   # npm scripts assume bash
+      - name: Runner arch is the target arch (never cross-build)
+        run: test "$(node -p process.arch)" = "${{ matrix.arch }}"
+      - name: Build Tovu payload inputs
+        run: |
+          npm ci && npm run build
+          (cd apps/admin && npm ci && npx vite build)
+          (cd apps/site-chat && npm ci && npx vite build)
+          npm ci --prefix apps/desktop
+      - name: Build + stage desktop
+        working-directory: apps/desktop
+        run: npm run build && TOVU_TARGET_ARCH=${{ matrix.arch }} npm run stage
+      - if: runner.os == 'macOS'
+        name: Preflight signing + notarization secrets (electron-builder skips SILENTLY)
+        env: { CSC_LINK: "${{ secrets.CSC_LINK }}", CSC_KEY_PASSWORD: "${{ secrets.CSC_KEY_PASSWORD }}", P8: "${{ secrets.APPLE_API_KEY_P8 }}", KID: "${{ secrets.APPLE_API_KEY_ID }}", ISS: "${{ secrets.APPLE_API_ISSUER }}" }
+        run: |
+          for v in CSC_LINK CSC_KEY_PASSWORD P8 KID ISS; do test -n "${!v}" || { echo "missing $v"; exit 1; }; done
+          printf '%s' "$P8" > "$RUNNER_TEMP/AuthKey.p8"
+          echo "APPLE_API_KEY=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+      - name: electron-builder
+        working-directory: apps/desktop
+        env:
+          CSC_LINK: ${{ runner.os == 'macOS' && secrets.CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.CSC_KEY_PASSWORD || '' }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ runner.os == 'Windows' && 'false' || 'true' }}
+        run: npx electron-builder ${{ matrix.eb }} --publish never
+      - name: verify-package (unpacked build)
+        working-directory: apps/desktop
+        run: node scripts/verify-package.ts --asar "${{ matrix.asar }}"
+      - name: Native-module smoke (runs the shipped binary on this CPU)
+        working-directory: apps/desktop
+        # TODO(S3): scripts/smoke-native.ts does not exist yet. This step will fail (file not
+        # found) until S3 writes it. Referenced here exactly as the design doc (§4) names it.
+        run: node scripts/smoke-native.ts --platform-dir release     # slice S3
+      - if: runner.os == 'macOS'
+        name: App is signed, notarized, stapled, right arch
+        working-directory: apps/desktop
+        run: |
+          codesign --verify --deep --strict --verbose=2 "${{ matrix.app }}"
+          spctl -a -vv -t exec "${{ matrix.app }}" 2>&1 | tee /dev/stderr | grep -q "source=Notarized Developer ID"
+          xcrun stapler validate "${{ matrix.app }}"
+          test "$(lipo -archs "${{ matrix.app }}/Contents/MacOS/Tovu")" = "${{ matrix.lipo }}"
+      - if: runner.os == 'macOS'
+        name: Notarize + staple the dmg itself
+        working-directory: apps/desktop/release
+        run: |
+          xcrun notarytool submit "${{ matrix.out }}" --key "$APPLE_API_KEY" --key-id "${{ secrets.APPLE_API_KEY_ID }}" --issuer "${{ secrets.APPLE_API_ISSUER }}" --wait
+          xcrun stapler staple "${{ matrix.out }}"
+          spctl -a -vv -t open --context context:primary-signature "${{ matrix.out }}"
+      - if: runner.os == 'macOS'
+        name: verify-package on the SHIPPED dmg
+        working-directory: apps/desktop
+        # TODO(S2): this re-runs scripts/verify-package.ts against the MOUNTED dmg rather than the
+        # unpacked build dir. That mode is not written/proven yet (S2). Referenced here exactly as
+        # the design doc (§4) names it; the script itself already exists for the unpacked-build
+        # case above.
+        run: |
+          hdiutil attach -readonly -nobrowse -mountpoint "$RUNNER_TEMP/dmg" "release/${{ matrix.out }}"
+          node scripts/verify-package.ts --asar "$RUNNER_TEMP/dmg/Tovu.app/Contents/Resources/app.asar"
+          test "$(lipo -archs "$RUNNER_TEMP/dmg/Tovu.app/Contents/MacOS/Tovu")" = "${{ matrix.lipo }}"
+          hdiutil detach "$RUNNER_TEMP/dmg"
+      - if: runner.os == 'Windows'
+        name: verify-package on the SHIPPED installer
+        working-directory: apps/desktop
+        # TODO(S2): same as the dmg step above — verify-package.ts against an EXTRACTED nsis
+        # installer is not written/proven yet (S2). Referenced here exactly as the design doc
+        # (§4) names it. Also currently unreachable: the win-x64 matrix row above is commented
+        # out until S6.
+        run: |
+          7z x "release/${{ matrix.out }}" -o"$RUNNER_TEMP/nsis" -y
+          7z x "$RUNNER_TEMP/nsis/\$PLUGINSDIR/app-64.7z" -o"$RUNNER_TEMP/app" -y
+          node scripts/verify-package.ts --asar "$RUNNER_TEMP/app/resources/app.asar"
+      - name: Checksum
+        working-directory: apps/desktop/release
+        run: shasum -a 256 "${{ matrix.out }}" > "${{ matrix.out }}.sha256"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with: { name: "${{ matrix.id }}", path: "apps/desktop/release/${{ matrix.out }}*", retention-days: 7, if-no-files-found: error }
+
+  release:                                  # one job creates ONE draft (no 3-way race)
+    needs: build
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with: { path: dist, merge-multiple: true }
+      - name: Draft release
+        env: { GH_TOKEN: "${{ github.token }}", GH_REPO: "${{ github.repository }}" }
+        # TODO(S6): dist/Tovu-windows-x64-setup.exe won't exist while the win-x64 matrix row
+        # above stays commented out — this fallback `gh release create` line will fail on a
+        # brand-new tag until S6 restores that row. Left exactly as the design doc (§4) writes it.
+        run: |
+          cat dist/*.sha256 > dist/SHA256SUMS.txt
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/Tovu-* dist/SHA256SUMS.txt --clobber
+          else
+            gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "Tovu Desktop ${TAG#desktop-v}" \
+              --notes "Mac: notarized. Windows: unsigned — SmartScreen: More info → Run anyway." \
+              dist/Tovu-mac-arm64.dmg dist/Tovu-mac-x64.dmg dist/Tovu-windows-x64-setup.exe dist/SHA256SUMS.txt
+          fi

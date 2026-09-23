@@ -25,6 +25,8 @@ find the existing one first.
   notarization silently when a credential is missing (`MacTargetHelper.js:264`). That result
   means a credential problem, **not** that notarization was never set up. Do not "solve" it by
   provisioning fresh credentials.
+- The Developer ID Application certificate expires 2027-02-01; renew it and replace
+  `CSC_LINK`/`CSC_KEY_PASSWORD` before then.
 
 ## How a release is cut
 
