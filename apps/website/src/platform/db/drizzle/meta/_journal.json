@@ -512,6 +512,13 @@
       "when": 1799841600005,
       "tag": "0072_entries_submissions_trashed_items_trash",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "6",
+      "when": 1799841600006,
+      "tag": "0073_page_empty_template_choice_to_null",
+      "breakpoints": true
     }
   ]
 }

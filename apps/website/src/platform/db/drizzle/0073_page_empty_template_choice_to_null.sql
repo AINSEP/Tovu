@@ -1,0 +1,21 @@
+-- Custom SQL migration file, put your code below! --
+-- Owner ruling 2026-09-23: "No template chosen" (an html Page's `template_choice = ''`) is about to
+-- change meaning, from "render exactly like the theme's default page shell" to "serve the Page's own
+-- HTML with no theme wrapper at all" (see
+-- ADS-memory/.local-artifacts/no-template-bare-plan-2026-09-23.md section 0). Any row written under the
+-- OLD meaning must not silently pick up the NEW behavior. `NULL` already means "theme default" today
+-- and keeps that exact meaning after the switch, so this migration reclassifies every PRE-EXISTING `''`
+-- html Page as `NULL` before the behavior switch ships. From that point on, `''` can only mean "bare".
+--
+-- Scoped narrowly on purpose:
+--  - `kind = 'page'`: a Post's `template_choice` is a different feature entirely
+--    (`features/post/post.ts`'s post-template picker) and must never be touched here.
+--  - `body_format = 'html'`: a `doc`-format Page's `''` predates this feature and is untouched.
+--  - `template_choice = ''`: a `NULL` row is already "theme default" (no change needed), and a real
+--    filename (e.g. `pages-default.html`) is an explicit choice that must not move.
+--
+-- On `sites/tovu-com/content.db` this matches 0 rows (inventory taken 2026-09-23, before this
+-- migration existed): every untemplated live and trashed Page there is already `NULL`. The statement
+-- still ships for every other install (desktop users' own sites) that this data-only migration reaches
+-- and a per-site admin-API backfill never would.
+UPDATE `posts` SET `template_choice` = NULL WHERE `kind` = 'page' AND `body_format` = 'html' AND `template_choice` = '';
