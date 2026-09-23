@@ -8,7 +8,7 @@ import test from "node:test";
 import { createApp } from "#src/server/runtime/composition/app";
 import { createSqliteRouteDeps } from "#src/server/runtime/composition/deps";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import * as schema from "#src/platform/db/schema";
+import * as schema from "#src/platform/db/schema.sqlite";
 
 /**
  * @file Task 4 of the publish-content (Publish Content) feature —
@@ -287,6 +287,19 @@ async function loginAsOwner(baseUrl: string): Promise<string> {
 }
 
 test("GET .../publish-content/export never leaks a row from any sensitive table, even for the most-privileged (wildcard) caller", async (t) => {
+  // `createApp` → `createCoreModule` → `deriveInstallationId` (publish-trust, `112153842`,
+  // 2026-09-19 — one day AFTER this test was written) now derives an installation credential from
+  // the real root key on every boot, via `EnvOrFileKeyring`. This test must never read the
+  // machine's own key (or write `~/.tovu/integrations-root-key.hex`), so it sets a throwaway
+  // synthetic one for its own process only — the same pattern
+  // `root-key-boot-notice.unit.test.ts` uses — and restores whatever was there before.
+  const rootKeyBefore = process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  process.env.TOVU_INTEGRATIONS_ROOT_KEY = "a".repeat(64);
+  t.after(() => {
+    if (rootKeyBefore === undefined) delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+    else process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyBefore;
+  });
+
   const db = openContentDb(":memory:");
   plantCanaries(db);
   const deps = createSqliteRouteDeps(undefined, { db, workspaceId: WORKSPACE });

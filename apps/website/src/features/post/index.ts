@@ -7,10 +7,12 @@ export {
   getAdminPostByIdOrSlug,
   getPublishedPostBySlug,
   findPublishedPostById,
+  findPublishedPostBySlug,
   listAdminPages,
   listAdminPosts,
   listPublishedPosts,
   listPublishedPostPreviews,
+  restorePostForward,
   updatePost,
   DEFAULT_BODY_JSON,
   MAX_SLUG_LENGTH,
@@ -29,6 +31,8 @@ export {
   type BeforeSaveHookPort,
   type UpdatePostInput,
   type PostAutosaveSnapshot,
+  type ForgetRemovedPostFn,
+  type RemovePostFn,
 } from "./post.js";
 // The optimistic-concurrency boundary, shared by the admin HTTP route and the `content_post_update`
 // agent tool — see `expected-version.ts` for why it is a module of its own rather than a copy in

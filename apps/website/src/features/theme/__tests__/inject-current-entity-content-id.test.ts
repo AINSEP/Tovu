@@ -71,3 +71,21 @@ test("a marker carrying extra config keys keeps them, alongside the added id", (
   assert.ok(out.includes('"variant":"card"'));
   assert.ok(out.includes('"id":"post-123"'));
 });
+
+// S3 (2026-09-23 widget-attrs plan) — the silent-wrong-entity trap this function's own doc names: a
+// slug-only marker means "this OTHER entity, addressed by slug", not "no id yet". Filling in the
+// CURRENT entity's id here would silently redirect it to the current page/post instead of the one the
+// author named, exactly the hazard the pre-existing id-carrying-marker guard above already exists to
+// avoid — this is that same guard's slug-shaped twin.
+test("REGRESSION GUARD: a slug-only content marker is left completely untouched — it names another entity, not an empty slot", () => {
+  const template = '<div data-embed-config=\'{"type":"content","slug":"some-other-entity"}\'></div>';
+  assert.equal(injectCurrentEntityContentId(template, "post-123"), template);
+});
+
+// Review of S3 (2026-09-23): an EMPTY slug names no entity — every resolver stage treats `""` as
+// absent (`normalizeEmbedSlug`), so the injection guard must too, or `{"type":"content","slug":""}`
+// (which filled the current entity before S3) now renders the unresolved placeholder.
+test("a content marker with an EMPTY slug is still an empty slot and gets the current entity's id", () => {
+  const template = '<main data-embed-config=\'{"type":"content","slug":""}\'></main>';
+  assert.ok(injectCurrentEntityContentId(template, "post-123").includes('"id":"post-123"'));
+});

@@ -37,7 +37,21 @@
        animation, it leaves the whole page body permanently invisible. This wrapper holds author
        content, so its height is unbounded and 0 (an unset threshold) is the only value that is
        satisfiable at every height. See NOTICE.md, "Why the page wrappers carry no threshold:". -->
-  <section class="wrap post-detail" data-kui="fade-up 600ms expo-out distance:18px on:enter">
+  <!-- `padding-bottom: 0` (2026-09-23) — `.post-detail`'s shared theme.css rule carries
+       `padding-block: 72px 96px`, a 96px trailing gap meant for the space before the footer on
+       every OTHER template that uses this class (pages-default.html, posts-default.html,
+       posts-sidebar.html — where `.post-detail` really is the last thing before the footer
+       partial). On this template it isn't: the "Latest posts" section right below is more of the
+       same authored content, not the footer, so that 96px stacked on top of `.latest-posts .live-
+       example`'s own 20px top margin (theme.css) produced ~134px of dead space above the gold
+       frame instead of the ~20px gap every other paragraph-to-live-example transition gets (see
+       the "That marker, live:" example higher up this same page, where the paragraph's margin and
+       the live-example's margin collapse together normally). Zeroing just the bottom padding here
+       — inline, scoped to this one section, not the shared `.post-detail` rule other templates
+       still rely on — lets the trailing paragraph's own margin collapse through `.post-detail` and
+       into `.latest-posts`'s top margin exactly like it does everywhere else, matching normal
+       paragraph spacing instead of adding a synthetic 96px section gap. -->
+  <section class="wrap post-detail" style="padding-bottom: 0;" data-kui="fade-up 600ms expo-out distance:18px on:enter">
     <div data-embed-config='{"type":"content"}'></div>
   </section>
 
@@ -45,11 +59,20 @@
        theme.json `templates`/`/articles`'s own template binding). The fallback below is what shows
        while zero posts are published (today's actual state) or on a theme with the marker not wired
        at all — `injectPostPreviewsEmbeds`'s "no data, authored fallback survives" contract (static-
-       render.ts) — so it must stay an honest empty state, never fictional post cards. -->
-  <section class="wrap" style="padding-bottom: 96px;">
-    <section class="blog-grid" data-embed-config='{"type":"post-previews","limit":6}'>
-      <p style="color: var(--muted);">No articles published yet.</p>
-    </section>
+       render.ts) — so it must stay an honest empty state, never fictional post cards.
+
+       `max-width: 720px` (2026-09-23) matches `.post-detail`'s own column width so this grid lines
+       up under the article text above instead of stretching to `.wrap`'s full `--container`
+       (1120px) — an inline style on this one wrapper, not a theme.css rule, since only this
+       template's `.wrap` needs narrowing and no other page shares it. `.latest-posts` exists only
+       so the `.live-example` frame below can be scoped to this template (theme.css) without
+       widening `.post-detail-body .live-example`'s existing reach. -->
+  <section class="wrap latest-posts" style="max-width: 720px; padding-bottom: 96px;">
+    <div class="live-example">
+      <section class="blog-grid" data-embed-config='{"type":"post-previews","limit":6}'>
+        <p style="color: var(--muted);">No articles published yet.</p>
+      </section>
+    </div>
   </section>
 </main>
 

@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api } from "../api";
+import { ApiError, REQUEST_TIMEOUT_CODE, api } from "../api";
 
 /**
  * @file `getAssistantDaemonReadyz()` — regression coverage for the 2026-08-17 source-control-ui
@@ -70,4 +70,33 @@ test("a response with no Content-Type header at all rejects the same clean way a
 
   expect(error).toBeInstanceOf(Error);
   expect((error as Error).message).toBe("Could not check the assistant's status (unexpected response, HTTP 404).");
+});
+
+// The status check read `/readyz` with a bare `fetch` and no signal, so when long-lived SSE
+// connections had exhausted the browser's per-origin connection budget the request queued forever
+// and the "checking" state never ended. It now goes through the same bounded fetch as every
+// `request()` call, so it gets the same timeout and the same REQUEST_TIMEOUT error.
+test("the request is bounded by an abort signal, not left to queue forever", async () => {
+  const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+    new Response(JSON.stringify({ ready: true }), { status: 200, headers: { "Content-Type": "application/json" } }),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+
+  await api.getAssistantDaemonReadyz();
+
+  const [url, init] = fetchMock.mock.calls[0]!;
+  expect(url).toBe("/readyz");
+  expect(init?.signal).toBeInstanceOf(AbortSignal);
+  expect(init?.credentials).toBe("same-origin");
+});
+
+test("a request that times out rejects with the shared REQUEST_TIMEOUT ApiError, not a raw DOMException", async () => {
+  stubFetch(async () => {
+    throw new DOMException("signal timed out", "TimeoutError");
+  });
+
+  const error = await api.getAssistantDaemonReadyz().catch((e: unknown) => e);
+
+  expect(error).toBeInstanceOf(ApiError);
+  expect((error as ApiError).code).toBe(REQUEST_TIMEOUT_CODE);
 });

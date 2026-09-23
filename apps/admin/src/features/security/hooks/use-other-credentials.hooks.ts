@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { describeApiError, type AdminMediaProviderMap } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useSerialWrites } from "@/hooks/use-serial-writes.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 import { t as defaultT, accessTokensLoadErrorMessage, accessTokenSaveErrorMessage } from "../security-i18n";
 import {
@@ -153,7 +154,7 @@ async function readMediaProviders(port: OtherCredentialsPort): Promise<RawStoreI
  *  (`getConnectorStatuses`), names from the static catalog (`listConnectors`, no live call) — see
  *  `other-credentials-port.hooks.ts`'s own doc for why two reads beat one heavier live refetch here.
  *  @complexity O(c) in Composio's own (small) connector catalog size. */
-async function readComposioConnectors(port: OtherCredentialsPort): Promise<RawStoreItem[]> {
+async function readComposioConnectors(port: OtherCredentialsPort, t: Translate): Promise<RawStoreItem[]> {
   const [{ connectors }, statuses] = await Promise.all([port.listConnectors(), port.getConnectorStatuses()]);
   const nameById = new Map(connectors.map((connector) => [connector.id, connector.name]));
   return Object.entries(statuses)
@@ -161,18 +162,18 @@ async function readComposioConnectors(port: OtherCredentialsPort): Promise<RawSt
     .map(([connectorId, status]) => ({
       itemId: connectorId,
       name: nameById.get(connectorId) ?? connectorId,
-      valueFact: connectedAsFact(status.accountLabel),
+      valueFact: connectedAsFact(status.accountLabel, t),
       updatedAt: null,
     }));
 }
 /** Every configured external MCP server — @complexity O(s) in this workspace's own (small) server
  *  count. */
-async function readExternalMcpServers(port: OtherCredentialsPort): Promise<RawStoreItem[]> {
+async function readExternalMcpServers(port: OtherCredentialsPort, t: Translate): Promise<RawStoreItem[]> {
   const { servers } = await port.listExternalMcpServers();
   return servers.map((server) => ({
     itemId: server.serverId,
     name: server.label || server.serverId,
-    valueFact: envNamesFact(server.envNames),
+    valueFact: envNamesFact(server.envNames, t),
     updatedAt: null,
   }));
 }
@@ -180,7 +181,7 @@ async function readExternalMcpServers(port: OtherCredentialsPort): Promise<RawSt
 /** Dispatches one store's read by id — the one place `OtherCredentialStoreId` is switched over for
  *  reads, mirroring `rules.ts`'s `buildAccessTokenConnectionInput` dispatch-by-kind pattern.
  *  @complexity O(1) plus whichever reader's own complexity. */
-function readStore(port: OtherCredentialsPort, store: OtherCredentialStoreInfo): Promise<RawStoreItem[]> {
+function readStore(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, t: Translate): Promise<RawStoreItem[]> {
   switch (store.id) {
     case "site-assistant":
       return readSiteAssistant(port, store);
@@ -191,26 +192,37 @@ function readStore(port: OtherCredentialsPort, store: OtherCredentialStoreInfo):
     case "composio-project":
       return readComposioProject(port, store);
     case "composio-connector":
-      return readComposioConnectors(port);
+      return readComposioConnectors(port, t);
     case "external-mcp":
-      return readExternalMcpServers(port);
+      return readExternalMcpServers(port, t);
   }
 }
 
 /** Builds the full `{apiKey?, baseUrl?, model?}` map to PUT back for a media-provider Replace/Remove
- *  — every OTHER provider's entry is included as `{}` (blank `apiKey` PRESERVES the stored key,
- *  `put-providers.ts`'s own doc), and the target provider carries either its new key (Replace) or is
- *  omitted entirely (Remove, which the caller expresses by passing `nextApiKey: undefined` AND
- *  `remove: true` — see {@link replaceMediaProviderKey}/{@link removeMediaProviderKey}).
- *  @complexity O(p) in this workspace's own (small) configured-provider count. */
+ *  — every OTHER provider's entry is carried through with no `apiKey` (a blank `apiKey` PRESERVES the
+ *  stored key, `put-providers.ts`'s own doc) but WITH its own `baseUrl`/`model`: the server writes
+ *  those two from the submitted entry, not the stored row (`provider-credential-store.ts`'s
+ *  `buildProviderUpsertRow`), so sending `{}` used to null them on every other provider. The target
+ *  provider carries its new key plus its own `baseUrl`/`model` (Replace) or is omitted entirely
+ *  (Remove). @complexity O(p) in this workspace's own (small) configured-provider count. */
 function rebuildMediaProviderMap(current: AdminMediaProviderMap, providerId: string, patch: { apiKey: string } | { remove: true }): AdminMediaProviderMap {
   const next: AdminMediaProviderMap = {};
-  for (const id of Object.keys(current)) {
+  for (const [id, credentials] of Object.entries(current)) {
     if (id === providerId) continue;
-    next[id] = {};
+    next[id] = keptMediaProviderSettings(credentials);
   }
-  if (!("remove" in patch)) next[providerId] = { apiKey: patch.apiKey };
+  if (!("remove" in patch)) next[providerId] = { apiKey: patch.apiKey, ...keptMediaProviderSettings(current[providerId]) };
   return next;
+}
+
+/** The writable, non-secret settings of one provider's GET view — `baseUrl`/`model` when present,
+ *  never the read-only markers (`apiKeyConfigured`/`apiKeyTail`/`source`), which are view facts the
+ *  PUT does not take. @complexity O(1). */
+function keptMediaProviderSettings(credentials: AdminMediaProviderMap[string] | undefined): AdminMediaProviderMap[string] {
+  return {
+    ...(credentials?.baseUrl !== undefined ? { baseUrl: credentials.baseUrl } : {}),
+    ...(credentials?.model !== undefined ? { model: credentials.model } : {}),
+  };
 }
 
 /** Translates a rejected Tier-2 write into the same save-error string Tier 1 uses — no
@@ -243,7 +255,7 @@ export function useOtherCredentials(
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     for (const store of OTHER_CREDENTIAL_STORES) {
-      readStore(port, store)
+      readStore(port, store, t)
         .then((items) => setStoreStates((prev) => ({ ...prev, [store.id]: { items, loadError: null } })))
         .catch((err: unknown) =>
           setStoreStates((prev) => ({
@@ -254,28 +266,43 @@ export function useOtherCredentials(
     }
   }, []);
 
+  // One lane for every Tier-2 write from this controller: a media-provider write is GET map →
+  // rebuild → PUT the WHOLE map, so two writes in flight at once would both rebuild from the same
+  // snapshot and the second PUT would re-create whatever the first one removed. The shared lane makes
+  // each write read the map only after the previous write (and its refetch) settled. Tab-local by
+  // nature — two browser sessions still race; closing that needs a server-side concurrency check.
+  const writes = useSerialWrites();
+
   function setDraftToken(key: string, value: string): void {
     setDrafts((prev) => ({ ...prev, [key]: { token: value, saving: prev[key]?.saving ?? false, error: prev[key]?.error ?? null } }));
   }
 
-  async function replace(row: OtherCredentialRowState): Promise<void> {
+  function replace(row: OtherCredentialRowState): Promise<void> {
+    return writes.run(() => replaceNow(row));
+  }
+
+  async function replaceNow(row: OtherCredentialRowState): Promise<void> {
     const draft = drafts[row.key];
     const token = draft?.token.trim() ?? "";
     if (token === "" || !row.store.supportsReplace) return;
     setDrafts((prev) => ({ ...prev, [row.key]: { token, saving: true, error: null } }));
     try {
       await writeReplace(port, row.store.id, row.itemId, token);
-      await refetchOne(port, row.store, setStoreStates);
+      await refetchOne(port, row.store, setStoreStates, t);
       setDrafts((prev) => ({ ...prev, [row.key]: { token: "", saving: false, error: null } }));
     } catch (err) {
       setDrafts((prev) => ({ ...prev, [row.key]: { token, saving: false, error: otherCredentialSaveErrorMessage(err, t, locale) } }));
     }
   }
 
-  async function remove(row: OtherCredentialRowState): Promise<void> {
+  function remove(row: OtherCredentialRowState): Promise<void> {
+    return writes.run(() => removeNow(row));
+  }
+
+  async function removeNow(row: OtherCredentialRowState): Promise<void> {
     try {
       await writeRemove(port, row.store.id, row.itemId);
-      await refetchOne(port, row.store, setStoreStates);
+      await refetchOne(port, row.store, setStoreStates, t);
     } catch (err) {
       setDrafts((prev) => ({ ...prev, [row.key]: { token: prev[row.key]?.token ?? "", saving: false, error: otherCredentialSaveErrorMessage(err, t, locale) } }));
     }
@@ -338,9 +365,10 @@ function buildGroup(
 async function refetchOne(
   port: OtherCredentialsPort,
   store: OtherCredentialStoreInfo,
-  setStoreStates: (updater: (prev: Record<string, StoreState>) => Record<string, StoreState>) => void
+  setStoreStates: (updater: (prev: Record<string, StoreState>) => Record<string, StoreState>) => void,
+  t: Translate
 ): Promise<void> {
-  const items = await readStore(port, store);
+  const items = await readStore(port, store, t);
   setStoreStates((prev) => ({ ...prev, [store.id]: { items, loadError: null } }));
 }
 

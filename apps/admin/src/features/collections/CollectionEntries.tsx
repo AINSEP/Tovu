@@ -3,6 +3,7 @@ import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { useWiredCollectionEntries } from "./hooks/use-collection-entries.hooks";
+import { ServerLabel } from "@/components/status-labels";
 
 /**
  * @file Collections' entries list (design-spec.md §1.4) — the `/admin/collections/{typeKey}` route.
@@ -24,7 +25,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
   const { contentType, entries, error, t } = useCollectionEntriesHook({ contentTypeKey });
 
   if (error && !entries) return <div className="notice error">{error}</div>;
-  if (!entries || contentType === undefined) return <div className="notice">Loading entries…</div>;
+  if (!entries || contentType === undefined) return <div className="notice">{t("Loading entries…")}</div>;
   // `contentType === null` means the lookup finished and found nothing — a bogus/typo'd
   // `contentTypeKey` (e.g. a stale bookmark). Previously nothing checked this case, so the screen
   // fell through to rendering a real, empty, creatable collection — indistinguishable from a
@@ -32,7 +33,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
   // `CollectionEntryEditor.tsx:266` one route deeper already gets this right — matching its exact
   // copy here rather than inventing a second wording for the same situation).
   if (contentType === null) {
-    return <div className="notice error">Unknown content type "{contentTypeKey}".</div>;
+    return <div className="notice error">{t('Unknown content type "{contentTypeKey}".').replace("{contentTypeKey}", contentTypeKey)}</div>;
   }
 
   const label = contentType.label;
@@ -114,7 +115,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
           {
             key: "status",
             header: t("Status"),
-            cell: (entry) => <span className={`status status-${entry.status}`}>{entry.status}</span>,
+            cell: (entry) => <span className={`status status-${entry.status}`}><ServerLabel value={entry.status} /></span>,
           },
           { key: "updated", header: t("Updated"), cell: (entry) => formatTimestamp(entry.updatedAt) },
         ]}

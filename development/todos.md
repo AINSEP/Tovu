@@ -22,6 +22,136 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## Entries envelope owner is a per-caller parameter, not a property of the content type (found 2026-09-19)
+
+**The defect.** `createEntry` takes `input.owner` (`@jini-ai/cms` `entries/write-service.ts:125`) and feeds it to
+`validateFieldsAgainstSchema` at `:156`, defaulting to `"site"`. The widgets feature passes `owner: "widget"`. The
+generic route never passes one — `routes/entries/create.ts:66-79` spreads `...parsedBody`, and `parseCreateEntryBody`
+(`:29-41`) only returns `type/slug/title/fieldsJson/bodyJson`, defaulting `fieldsJson` to `{ext:{site:{}}}` at `:38`.
+
+So `POST /api/admin/v1/entries {type:"widget", fieldsJson:{ext:{site:{payload:"probe"}}}}` **validates successfully**
+against the `widget` content type — that type declares one required text field `payload`, validation looks for it under
+`site`, finds it, passes — and writes a row that the widgets feature can then never read. This is exactly how the two
+probe rows on production were minted on 2026-08-03 (see the widgets "N rows could not be displayed" investigation).
+
+**The fix.** Not per-route type validation — that hardcodes a widgets fact into a generic route. The real gap is that
+the content-type record carries no owner at all (no `owner` anywhere in `@jini-ai/cms` `content-types/types.ts`). Make
+the namespace a property of the registered type and have `createEntry`/`updateEntry` derive it from `contentType`
+instead of from the caller: one source of truth, every caller correct by construction. Registration site is
+`entry-payload.ts:204-223`.
+
+**Breakage:** none expected. Types registered without an owner keep the `"site"` default byte-for-byte; only
+`widget`/`widget_area` would declare one, and every real widget row already uses `ext.widget`. It also fixes
+`PUT /api/admin/v1/entries/:id`, which today cannot write a widget envelope at all.
+
+**Cost to be honest about:** the change lives in `@jini-ai/cms`, a SEPARATE repo (`/Users/la/Programming/Jini`), so it
+needs a Jini publish + dist rebuild, not just a Tovu commit. That is the real price of this fix.
+
+**Production write:** none. Code-only, ships on the next deploy. It stops recurrence; it does NOT clean the two
+existing production rows — those need their own decision.
+
+**DONE 2026-09-22: `be7c233d6`; `apps/admin/src/features/widgets/WidgetsLibrary.tsx` now carries `skippedIds` and a "Show ids" disclosure.**
+
+**Related, separate UX defects found alongside it (historical notes):**
+- The banner copy. "2 rows could not be displayed", rendered directly above a table, reads as "2 rows are missing from
+  this list". The true statement is "2 widget records in this workspace could not be read at all."
+  (`apps/admin/src/features/widgets/WidgetsLibrary.tsx:45-51`.)
+- The notice is unactionable: it names no ids, and `getWidgetInstance` throws on those same ids so the editor cannot
+  open them either. The ids exist only in a server-side `console.warn` (`read-service.ts:115`) no operator will see.
+- The count itself is CORRECT as written and should be left alone: it counts before the `widgetType`/`includeInactive`
+  filters (`read-service.ts:122-123`) because both of those live inside the payload that failed to parse. A skipped row
+  has no knowable type or status; a "filtered" count would silently become a count of rows it could read, which is the
+  silent-skip bug the counter was added to kill.
+
+---
+
+## Plugin install (local folder / zip) — plan ready, first milestone scoped (owner call, 2026-09-22)
+
+**Plan saved:** `ADS-memory/.local-artifacts/terra-runs/sol/plugin-install-plan.md` (Opus 5.5,
+2026-09-22). Owner deferred to the plan's recommended defaults:
+- **D1** — agent plugins install deferred (per-workspace store conflicts with install-once-per-site).
+- **D2** — reuse `admin.plugins.enable` rather than a new permission.
+- **D3** — URL install deferred (SSRF risk + unverifiable publisher).
+- **D4** — no assistant install tool.
+- **D5** — dev-link installs stay env-gated, with integrity checks kept.
+- **D6** — local folder and zip installs allowed, behind a consent screen (plugin code runs
+  in-process with full machine access — ADR-024 Tier-3).
+
+**First milestone:** local folder install — `tovu plugin install <dir>` CLI command plus an
+env-gated admin route. Depends on Plugin Trash (shipped 2026-09-22).
+
+---
+
+## Jini publishes owed — committed but not released (found 2026-09-22)
+
+Changes already committed in the separate `Jini` repo (`/Users/la/Programming/Jini`) that Tovu's
+registry-installed `@jini-ai/*` packages will NOT get until a version bump + publish:
+- **`@jini-ai/agent-runtime`** — live Claude model discovery without an API key
+  (`claude-code-models.ts`, `probeAgentModels`). Tovu's live model picker depends on this.
+- **`@jini-ai/ui`** — BYOK connection-test/discovery messages translated (commit `d5ae98d7`).
+- **`@jini-ai/cms`** — media upload cap, commits `23d652a4`, `754b0ff9`.
+
+No Tovu code change needed here; this is a reminder that a Jini publish + dist rebuild is owed
+before registry installs pick these up. See also the Jini-publish note in the "Entries envelope
+owner" section above (line ~48), a separate instance of the same publish debt.
+
+---
+
+
+## 🔜 SOON — make the MCP Server real, starting with the desktop app (owner call, 2026-09-19)
+
+**Owner directive:** get MCP working. Scoped **Soon**, and **desktop app first**.
+
+**Current state: the "MCP Server" tab is a demo stub on every install — local, desktop, and
+production alike.** Found 2026-09-19 while answering the owner's question "should we hide the MCP
+server on production?". Verified:
+
+- `apps/admin/src/features/providers/Providers.tsx:311` renders
+  `<IntegrationsTab serverName="tovu" agentHandle="settings-mcp-server" />` with **no `port` prop**, so
+  it falls back to `createFakeMcpIntegrationsPort()` (Jini `packages/ui/src/features/integrations/dependencies.ts:11-19`).
+  That fake returns the literal placeholder `{command: "node", args: ["/path/to/cli.js", "mcp"]}` —
+  byte-for-byte the install command the admin shows today. The comment above the render call says so
+  outright: wiring a real `McpIntegrationsPort` to Tovu's daemon "remains its own piece of work."
+- Every snippet builder in the integrations `rules.ts` (`buildClaudeCliSnippet`, `buildCodexTomlSnippet`,
+  `buildVsCodeSnippet`, …) emits **stdio subprocess config only** (`command`/`args`/`env` — spawn a local
+  process by absolute path). There is **no HTTP/SSE MCP transport** in that package.
+  (`apps/website/src/features/mcp-federation/adapter.http.ts` is the OUTBOUND External MCP client — unrelated.)
+
+**Why desktop first is the right scope (not an arbitrary preference).** The mechanism is inherently
+local-machine: an MCP client spawns `node <path> mcp` on the machine it is running on. That works when
+the client and the Tovu install share a filesystem — the desktop app, or local dev. It can never work
+against a Fly-hosted production instance as built. So desktop is not merely the easiest target, it is
+the only one this transport can serve.
+
+**Work, cheapest correct order:**
+1. Wire a real `McpIntegrationsPort` to Tovu's daemon and thread it into `Providers.tsx` so the tab
+   reports the actual server, binary path, and status instead of the fake.
+2. Emit a **real** install command — the resolved CLI path for this install, not `/path/to/cli.js`.
+   Until this lands, the tab hands users a copy-pasteable command that looks real and does nothing.
+3. Decide production's behavior. A `runtimeMode` (`"production" | "local"`) signal already exists
+   server-side (`apps/website/src/contracts/core/runtime-mode.ts:23`, from `TOVU_RUNTIME_MODE`, defaulting
+   safely to `"local"`) and already reaches two admin screens:
+   `apps/admin/src/features/security/SiteTokenTab.tsx:104` and
+   `apps/admin/src/features/deployment/OverviewTab.tsx:213` (+ `rules.ts:641` `runtimeModeLabelKey`).
+   Deployment Overview's `AdminDeploymentOverview.mode` is the natural source to reuse — it needs a
+   lighter permission than Site Token. Gate the tab on that, or replace it with an honest
+   "not available on hosted production" notice.
+
+**Open owner question (parked 2026-09-19):** until step 1 lands, should the tab be hidden everywhere,
+or shown with a "not wired up yet" label? Hiding it on production ALONE is the one option to avoid —
+it leaves the fake command visible on desktop and local, which is the worse failure.
+
+**Do not confuse with the External MCP tab** (`ExternalMcpSettingsPanel.tsx`), which is correctly
+ungated: it is about this site connecting OUT to third-party MCP servers, which behaves the same
+whether Tovu is local or hosted.
+
+**2026-09-22: verified still open.** `apps/admin/src/features/providers/Providers.tsx` ~:323 still
+falls back to `createFakeMcpIntegrationsPort()`; no real `McpIntegrationsPort` exists anywhere in
+Tovu source. Next step: an Opus plan (not written yet).
+
+---
+
+
 ## WebMCP: let Chrome's agent operate the admin and the published site (owner call, 2026-09-17)
 
 **Goal.** If a user asks a browser agent (Chrome's, or any WebMCP client), it can talk to and
@@ -93,13 +223,116 @@ as the spec evolves. Why not now, verified 2026-09-17:
 - [ ] **Later: migrate `data-agent-*` → WebMCP `tool*`** once the spec covers non-form elements
       and leaves the origin trial.
 
+**OWNER DECISION 2026-09-22: WebMCP ON BY DEFAULT (with an opt-out).** Resolves the open default
+question above ("off until enabled (recommended) vs on by default"). Verified still fully
+unstarted: the `AssistantDock` webmcp switch is off, and the theme validator still uses
+`data-tovu-agent`. Next: an Opus plan (not written yet).
+
 ---
+
+## Media `createdBy` / provenance field — deferred, needs a schema change (owner call, 2026-09-11)
+
+**Decision: not now.** Wanted, but it needs a migration and the owner deliberately parked it.
+
+**What's missing:** the `media` table has NO provenance field. Columns today are `id`,
+`workspace_id`, `title`, `alt`, `caption`, `credit`, `source_sha256`, `status`, `created_at`,
+`updated_at`, `version`, `width`, `height`, `css_class`, `slug`, `html_attributes`. Nothing records
+who or what created an asset.
+
+**Why `credit` is not the answer.** Both Higgsfield-generated rows currently read
+`credit = "Generated with Higgsfield (z_image)"`, which looks like provenance but is not:
+
+- it is free text the *agent chose to write* — nothing guarantees the next tool writes anything;
+- it is an editorial display field a human can edit at any time;
+- it is unstructured, so it cannot be sorted, filtered, or grouped on.
+
+Reading provenance out of it would be inferring a fact from a field that does not promise it.
+
+**The issues to settle before building:**
+
+1. **What is being recorded — actor or producer?** "Created by Leona" and "created by
+   `higgsfield/z_image`" are different questions. An upload has a human actor and no model; an agent
+   generation has both (the principal who asked, and the tool that made it). Decide whether this is
+   one column or two before writing either.
+2. **Migration risk.** A new column means a Drizzle migration, and regenerating migrations in this
+   repo has broken migration hashes and caused partial applies before. Write the migration
+   deliberately; do not let it fall out of a schema regen.
+3. **Existing rows.** Leave them NULL (honest "unknown"), or backfill by parsing `credit` where it
+   matches a known shape? Backfill invents structured data from prose and will be wrong for
+   hand-edited rows. NULL is the safer default; decide explicitly rather than by accident.
+4. **Every write path must populate it or it is worthless.** At minimum `media_import_from_url`,
+   the admin upload path, and any seed/import path. A provenance column that is NULL for half the
+   library cannot be filtered on — this repo's recurring failure is exactly this: the right
+   primitive with an unwired call site. Audit the sinks before shipping.
+5. **Only then is it a UI dimension.** Filtering or grouping the Media grid by creator depends on
+   the column being reliably populated. Not before.
+
+**Related, already shipped 2026-09-11:** media list ordering (`SqliteMediaRepo.list()` now orders
+newest-first — nothing ordered it before), and an admin "Order by" control (created / alphabetical).
+Neither depends on this field.
+
+## ⭐ HIGH PRIORITY (not critical) — add assistant-ui ALONGSIDE Jini chat and run them side by side (owner call, 2026-09-11)
+
+**Decision:** defer. Prototype and migrate the chat UI to
+[assistant-ui](https://www.assistant-ui.com) at a later date. High priority, deliberately **not**
+critical — nothing is blocked on it, and the defects that prompted the question are being fixed in
+Tovu code instead (see the lifecycle-repair work below/adjacent).
+
+**Do NOT adopt the Vercel AI SDK for the model/transport layer.** Two independent recon passes
+(Sonnet 5, and GPT-5.6-Terra via codex, both with repo + web access) converged on this. AI SDK's
+core abstraction is a single model-endpoint generate/stream call; Tovu's agent-runtime spawns a
+**local CLI that owns its own tool loop, skills and sub-agents** across 24 adapters
+(`Jini/packages/agent-runtime/src/registry.ts:48-71`). Adopting it means either black-boxing each
+CLI run as one opaque turn or hand-writing a proxy provider per CLI — rewriting what already exists.
+AI SDK is worth revisiting only as a *separate* direct-provider (BYOK/hosted) mode, never as a
+replacement for the daemon.
+
+**Owner directive (explicit, 2026-09-11): ADD assistant-ui, do NOT delete the Jini chat we have
+now. Run both side by side and compare.** This is an additive experiment, not a migration. Nothing
+under `@jini-ai/chat` or `apps/admin/src/components/AssistantDock` gets removed until a side-by-side
+comparison on real usage says the replacement is actually better. Treat any plan that opens with
+"retire the old chat" as out of scope.
+
+**assistant-ui is separable and low-risk**, because it does not require AI SDK: its
+`ExternalStoreRuntime` / custom `ChatModelAdapter` can wire onto Tovu's existing SSE stream — which
+is also exactly what makes running both at once cheap. Both surfaces read the same daemon, the same
+SSE stream and the same `chat.db`; only the React tree differs. Put the new one behind a flag or a
+second route so either can be opened against the same conversation, and keep the Jini daemon, agent
+runtime and agentic bridge untouched under both.
+
+For scale, the surface being compared against is roughly 19k lines (`@jini-ai/chat` +
+`apps/admin/src/components/AssistantDock`). That number is what a *future* retirement would remove —
+it is not a goal of this task.
+
+**Known cost when we pick this up:** ~3–6 engineer-weeks for the UI swap retaining Jini execution,
+attachments, conversation history, MCP forms and A2UI. Licensing is clear (assistant-ui MIT,
+AI SDK Apache-2.0). Dependency weight is non-trivial (Radix, Zustand, Zod, its runtime/store/tap);
+exact bundle impact is **unverified** without a locked proof-of-concept build.
+
+**The one gotcha, and the recon passes disagreed about it** — trust the more specific reading:
+assistant-ui ships a native MCP Apps renderer for `ui://` resources, but it expects MCP metadata on
+a **tool-call part** and fetches the resource through a host route, whereas Jini emits an inline
+`mcp-ui` event (`apps/admin/src/components/AssistantDock/AssistantDock.tsx:63`). Our `ui://` HTML and
+the authenticated redemption endpoint survive; the transport between them does not. Budget a
+translation/resource-host layer — it is not a drop-in.
+
+**Reports (read both before starting):**
+`ADS-memory/reports/2026-09-11-chat-stack-recon-sonnet.md`,
+`ADS-memory/reports/2026-09-11-chat-stack-recon-codex-terra.md`.
+
+**Separately, and NOT deferred:** run durability. A daemon respawn kills every in-flight run and the
+result is indistinguishable from a chat that "just stopped answering" — the supervisor's own comment
+at `apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts:216-222` says so, from the
+2026-09-06 chat-death investigation. No library choice fixes that; it needs process-group
+detachment or run-state checkpointing. Tracked separately.
+
+**2026-09-22: parked for a while — don't pick up.**
+
 
 ## Desktop shell: one window, project tabs — match Tovu Runner (owner directive, 2026-09-06)
 
-**DONE 2026-09-06** — `204e01a7` (backend/IPC: `openSiteServer` and `openWindow` removed, `start` is
-a real handler) and `9e77a778` (renderer: `TabStrip`, `ProjectWorkspace` with an embedded
-`<webview>`, `useExpandedMode`). Projects open as a tab in one window, not a new `BrowserWindow`.
+**DONE 2026-09-22: `204e01a7b`, `9e77a7784`; `apps/desktop/src/renderer/App.tsx` has `TabStrip` and
+`SiteWorkspace` (not the stale `ProjectWorkspace` name).** Projects open as a tab in one window, not a new `BrowserWindow`.
 
 **READ THIS BEFORE "FIXING" IT BACK.** This deliberately REVERSES `868cfe72`, a same-day ruling from
 13:43 on 2026-09-06 that had switched to a `BrowserWindow` per project. The port manifest and
@@ -159,8 +392,7 @@ Projects grid empty (see the desktop-registry notes) — being fixed separately.
 
 ## Missing tool: import a remote image URL into the media library (found live, 2026-09-06)
 
-**SHIPPED 2026-09-06 — `media_import_from_url`.** `features/media-import/` (`agent-tools.ts`,
-`fetch-image.ts`, `tool-registrations.ts`), commits `b1ce2d0a` / `dd187ece` / `a346b3ec` / `24bdafc1`.
+**DONE 2026-09-22: `apps/website/src/features/media-import/{agent-tools.ts,fetch-image.ts,tool-registrations.ts}`, wired in `server/runtime/composition/{app.ts,deps.ts}`.** `media_import_from_url` is shipped.
 Takes an https URL plus optional `filename`/`alt`/`caption`/`credit`, fetches server-side, and writes
 through the SAME `uploadMedia` a human upload uses — an imported asset is indistinguishable from an
 uploaded or generated one.
@@ -199,9 +431,9 @@ image provider is configured at all, so that tool has nothing to call.
 
 ## Surface federated-MCP tool refusals in the UI, not only the daemon log (found live, 2026-09-06)
 
-**SHIPPED 2026-09-06 — both halves.** Model: `0d9e41d5`. Operator: `37ac1943`.
+**DONE 2026-09-22: `37ac1943c`, `0d9e41d5c`; `apps/admin/src/features/settings/ExternalMcpAdmissionsBanner.tsx`. The delegated-call `INTERNAL_ERROR` collapse is also closed by `c5d10181a`, `d22319d62`, and `apps/website/src/assistant/federated-refusal-diagnosis.ts`.**
 
-**The stated cause was half wrong, and finding out changed the fix.** Refusals did not reach only the
+**Historical investigation:** the stated cause was half wrong, and finding out changed the fix. Refusals did not reach only the
 log. The chain already existed end to end — `bootstrap.ts` -> `GET /api/federation/admissions` ->
 the admin proxy -> `api.getExternalMcpAdmissions()` — and stopped ONE function call short of a
 screen: nothing in `apps/admin/src` ever called that client. This is Phase 4 of
@@ -229,10 +461,9 @@ security mechanism than a restart. The banner therefore offers the existing
 `POST .../system/assistant-daemon/restart` as a button, hidden with the already-translated
 explanation when the principal lacks `system.write`.
 
-**Related, still open:** a refused or blocked tool call surfaces to the model as a bare
-`INTERNAL_ERROR: an internal error occurred` on the delegated-tool path — observed live with an SSRF
-loopback refusal, where the real reason exists in the run detail and collapses to a generic 500. Same
-failure shape as the bug above, different code path, unowned.
+**DONE 2026-09-22:** the related delegated-tool call path no longer collapses refusals to a bare
+`INTERNAL_ERROR`; see `apps/website/src/assistant/federated-refusal-diagnosis.ts` (`c5d10181a`,
+`d22319d62`).
 
 `mcp-federation/trust.ts` refuses a remote tool that declares `readOnlyHint: false` unless the
 operator has ALSO named it in `writeAllowedToolNames` — a second list beyond `allowedToolNames`.
@@ -284,6 +515,88 @@ Runner's own chat, per-site vs per-fleet daemon) are now settled in two ADRs:
 repo already manufactured an unnecessary redesign once.
 
 ---
+
+## Third-party embeds (Calendly-class): capability gaps (owner call, 2026-09-21)
+
+Owner: *"we should have the ability to have widgets like Calendly."* This means the platform gap, NOT a Calendly
+feature. Don't build a vendor-specific widget. Verified 2026-09-21 by a read-only recon, with file:line spot-checked:
+
+- **Works today:** paste a vendor's embed snippet into an html-format Page in the admin HTML editor. Page HTML is stored
+  unsanitized by design (`server/inbound/admin-http/routes/pages/update-html.ts:127-133`, `pages.edit_html` = admin and owner
+  only), and public pages send no CSP.
+- **Gap 1: no widget can hold a third-party embed.** `WidgetTypeKey` is a closed union of 5
+  (`features/widgets/types.ts:63`). `text` escapes its body, and no kind emits a script or iframe. Needed: ONE generic
+  embed widget type (a vendor snippet or URL, rendered through a host allowlist the way the YouTube node is at
+  `features/widgets/resolver-service.ts` / `features/theme/static-render.ts`), not one type per vendor.
+- **Gap 2: plugins can't add widget types or renderers.** Resolvers and renderers are closed maps
+  (`features/widgets/resolvers/index.ts:56`, `render.ts:2485`, `resolver-service.ts:1074`). The only plugin-runtime hook
+  is `content.entry.beforeSave`, and `features/widgets/registry.ts:5-12` defers plugin widget types to ADR-024 Tier-2/3.
+- **Gap 3: the assistant won't place vendor embeds.** Its page-writing instructions ban `<script src>`
+  (`features/pages/agent-tools.ts:61`), so "add my Calendly" fails in chat even though pasting works.
+- **Gap 4: markers don't resolve everywhere.** A static theme's standalone pages, the static-tier home page and the
+  404 page go through `renderStaticPage` (`pages.ts:1193-1198`, `render.ts:3121`, `pages.ts:1357`).
+- **If a public CSP is ever added,** it must allowlist each embed host (for Calendly: `assets.calendly.com` in
+  script-src and `calendly.com` in frame-src).
+- **Vendor side, for later:** Calendly runs an official hosted MCP at `https://mcp.calendly.com` (OAuth 2.1 + PKCE +
+  dynamic client registration; scopes `mcp:scheduling:read`/`write`; https://developer.calendly.com/calendly-mcp-server).
+  A Calendly agent plugin would likely be just an `mcp.json` entry with `tovuAuthMode: "oauth"` plus a skill, like
+  `content/agent-plugins/supabase` (unverified; their docs don't state the transport, and Tovu supports streamable-http
+  only).
+- **Side findings, unfixed:**
+  - `features/theme/validation/markup.ts:24` `KNOWN_EMBED_TYPES` omits `post-previews`.
+  - `update-html.ts:131` says the authoring preview is a sandboxed `srcdoc`, but the preview iframes at
+    `apps/admin/src/features/pages/PageEditor.tsx:1208,1228` have no `sandbox` attribute. It's unverified whether script in
+    the preview runs with the admin origin.
+
+**2026-09-22: owner confirms this is definitely wanted, scheduled for later.** Verified no migration
+is needed — the widget/field/menu types involved are app-code unions, not DB schema, and their data
+is stored as JSON-in-text columns.
+
+## Raw-HTML authoring for forms, menus, widgets — way + admin UI (owner call, 2026-09-21)
+
+Owner: *"do we have in the todo to have a way and the ui to build raw html forms, menus, widgets, etc? i dont wanna
+do it now so having a todo for it is best."* Verified 2026-09-21 by a read-only recon, file:line spot-checked. This is
+about authoring your OWN markup for these three block types — the "Third-party embeds" section above (Calendly-class)
+is about embedding someone else's vendor snippet; related but a different gap.
+
+- **Works today:** raw HTML authoring exists for exactly one type — html-format Pages, via the admin HTML editor
+  (`server/inbound/admin-http/routes/pages/update-html.ts:127-133`, `pages.edit_html`, admin/owner only, stored
+  unsanitized by design).
+- **Gap — Forms:** `FieldType` is a closed 4-value union (`text`/`email`/`textarea`/`checkbox`,
+  `features/forms/types.ts:18`); no raw-HTML field or raw-HTML form body. A form is embedded on a page as a WIDGET
+  (`{"type":"widget","id":"<contact-form widget entry id>"}`, `resolver-service.ts:1070-1072`), so `src/forms/` itself
+  is untouched by this ask. Open question: if the form's markup is hand-written, how does it still route submissions
+  through the existing Forms backend (`submit-service.ts`) without the structured `FieldDescriptor` list generating
+  the field names/`action`?
+- **Gap — Menus:** `AdminMenuItem` is a structured tree (link/label/target/children, edited via `MenuEditor.tsx`); no
+  raw-HTML item kind. Menus render through their own reserved marker type, deliberately excluded from the generic
+  resolver map and handled separately by `injectMenuEmbeds` (`features/theme/static-render.ts:355,642`) — a raw-HTML
+  menu would need a new authoring/render path, not just a new resolver registration.
+- **Gap — Widgets:** already tracked above (Gap 1) — `WidgetTypeKey` closed union of 5 (`features/widgets/types.ts:63`),
+  no kind emits raw/script HTML. The generic embed widget type proposed there would likely cover this ask too.
+- **Same trust question as Pages:** any raw-HTML surface here would be admin/owner-only and unsanitized by design,
+  same posture as `update-html.ts` today — not a new security decision, just inheriting the existing one.
+- **Not now — owner deferred 2026-09-21.**
+
+**Follow-up asks, same day, still deferred:**
+- **One config shape for every embeddable block.** Owner's sketch: `data-embed-config={type="form|widget|menu"
+  render="json|html" ...other args}`. `data-embed-config` holding JSON is already the single live marker
+  (`contracts/core/embeds/marker.ts:20-23`, `type` + `id`), so what's new is a `render: "json" | "html"` key plus
+  per-type extra args. The sketch's `type="form"` conflicts with the 2026-08-31 decision above (`form` removed,
+  forms stay `{"type":"widget","id":"<contact-form widget entry id>"}`) — open, not resolved here.
+- **Preserve authored inner children** (`<div data-embed-config='...'><p>text</p></div>` — owner expected the `<p>`
+  inside the rendered output). Today it doesn't: `withInnerContentFinal` (`marker.ts:344-347`) rebuilds
+  `<tag attrs-minus-marker>{resolved}</tag>`, discarding the authored inner; it currently survives only as the
+  fallback when resolution returns `undefined` (`substituteMarkers`, `marker.ts:358-361`). Wrapper handling varies
+  per type: `post`/`content` keep their wrapper (`WRAPPER_PRESERVING_EMBED_TYPES`, `html-embeds.ts:338`), `media`
+  has its own branch, `widget` only when the author attributed it (`withElementKeptIfAttributed`, `marker.ts:496`),
+  menus via `static-render.ts`'s `withInnerContent`; a bare widget marker still whole-element replaces. Open:
+  where authored children go relative to resolved output; how that interacts with the fallback-on-missing reuse
+  of the same children; the `<form>`-in-`<form>` / bare-`<li>`-needs-`<ul>` nesting hazards (`html-embeds.ts:322-336`).
+
+**2026-09-22: owner confirms this is definitely wanted, scheduled for later.** Verified no migration
+is needed — forms/menus/widgets are app-code unions, not DB schema, and their data is stored as
+JSON-in-text columns.
 
 ## Open remainder — SPEC-005 (plugins) + SPEC-006 (identity/authorization) gates
 
@@ -371,20 +684,27 @@ Three Fable reviewers (architecture/DI, excess-and-dead-code, bugs) ran twice: *
 
 ### Confirmed defects, found and NOT fixed — admin
 
-- [ ] **Four `<button>` nested inside `<a href>`** — `apps/admin/src/features/collections/CollectionEntries.tsx:74`,
+**DONE 2026-09-22:** button-in-anchor ×4 is fixed; `AccessTokensTab.tsx` stops propagation; push-to-talk uses
+`cancelling`; the settlement-guard helper remains partial, with 3 files left: `use-static-publish`, `use-roles`,
+`use-users` (checked 2026-09-22 and intentionally NOT migrated because their generation guards don't fit
+`useSettlementGeneration()`'s contract: the generation is minted by a different call than the one that reads it).
+
+- [x] **Four `<button>` nested inside `<a href>`** — `apps/admin/src/features/collections/CollectionEntries.tsx:74`,
       `collections/CollectionEntryEditor.tsx:361`, `forms/FormsList.tsx:72`, `forms/FormEditor.tsx:971`.
       Blocked on a CSS fix (making the `.btn-*` classes work on a bare `<a>`). **That CSS fix is
       unowned:** `Collections.tsx`'s comment says it is "in flight elsewhere", but two sessions have
       jointly established it belongs to nobody — **the comment is stale and should be corrected when
       someone picks this up.** Fix the CSS first, then the four call sites.
-- [ ] **`security/AccessTokensTab.tsx`'s `TokenRowDefaultIndicator`** — "Make default" is a `<button>`
+- [x] **`security/AccessTokensTab.tsx`'s `TokenRowDefaultIndicator`** — "Make default" is a `<button>`
       inside a `<summary>` with no `stopPropagation`, so clicking it also toggles the row open/closed.
       In-repo fix pattern to copy: `deployment/StaticSiteTab.tsx`'s `CredentialVerifyAction`.
       **Awaiting Leona's call.**
 - [ ] **11 hand-rolled `*GenerationRef = useRef(0)` stale-settlement guards across 10 admin hook
-      files**, with no shared helper. Candidate: a `useSettlementGeneration()` helper adopted on next
-      touch rather than a sweep.
-- [ ] **Push-to-talk leaves the mic live** when the key is released during the browser permission
+      files**, with no shared helper. **PARTLY DONE 2026-09-22:** 3 files left: `use-static-publish`,
+      `use-roles`, `use-users` (checked 2026-09-22 and intentionally NOT migrated because their generation
+      guards don't fit `useSettlementGeneration()`'s contract: the generation is minted by a different call than
+      the one that reads it).
+- [x] **Push-to-talk leaves the mic live** when the key is released during the browser permission
       prompt — `use-push-to-talk.hooks.ts:150-151` no-ops unless already `recording`, and
       `push-to-talk-state.hooks.ts:50-59` has no `requesting-mic:stop`. No test covers it.
 
@@ -1419,7 +1739,7 @@ deliberately deferred.
 `/(?<!\.)\bjson\b(?!\.(?:stringify|parse)\b)/i` in
 `apps/website/src/platform/db/__tests__/migration-manifest.test.ts`
 matches `"non-JSON"`, `"JSON Web Token (JWT)"`, `"JSON:API"`, `"GeoJSON-style … NOT parsed JSON"`.
-No such phrasing exists in `schema.ts` today (grep-confirmed). It fails **loud** — the suite breaks
+No such phrasing exists in `schema.sqlite.ts` today (grep-confirmed). It fails **loud** — the suite breaks
 and someone rewords a comment or adds a `REVIEWED_JSON_COLUMNS` entry — so it cannot pass bad data
 silently. Same accepted risk class as the `theme.json` filename false positive the `(?<!\.)`
 lookbehind already handles. *Fix only if actually hit*, with a narrow `(?<!non-)` exclusion.
@@ -1538,6 +1858,143 @@ on screen, rather than silently listing a subset as if it were everything.
 
 ---
 
+## Observability (OpenTelemetry) — extend the existing port to the uncovered surfaces (owner priority, 2026-09-09)
+
+Owner's words: fairly high priority, but not the highest. An Operations nav page + its own settings
+system landed the same night (see the admin section immediately below) — this entry is the actual
+instrumentation work behind it.
+
+**Not greenfield — extend what already exists.** A provider-agnostic `ObservabilityPort` shipped
+2026-08-28 at `apps/website/src/platform/observability/{ports,config,noop,otel,index}.ts`: one method
+(`trackRequest`), a noop adapter by default, a real OTel adapter lazy-loaded only when
+`OTEL_EXPORTER_OTLP_ENDPOINT` is set, wired into `createApp()` (`app.ts:898`, before the site-serving
+gate and all routes). Root `package.json` already carries the real `@opentelemetry/*` dependencies. A
+table-driven contract test (`platform/observability/__tests__/unit/contract.unit.test.ts`) proves both
+adapters satisfy the port identically — that IS the template for adding a Datadog/Grafana adapter
+later, not something to design from scratch.
+
+**What is actually missing**, per the full recon (`ADS-memory/reports/2026-09-09-observability-otel-recon.md`,
+commit `2267e98e` — read it before starting, do not re-derive):
+1. `trackDbQuery`/`trackOutboundCall`/`trackAgentRun` — named in `ports.ts` as the port's natural next
+   additions, zero call sites today.
+2. Admin client-side timing/correlation — `apps/admin/src/lib/api.ts`'s `request<T>()`, fan-in 191 (the
+   highest in the project), zero instrumentation today. Single highest-leverage seam in admin.
+3. Frontend Web Vitals — zero anywhere. `renderStaticPage` bypasses `pageShell()` entirely, so a
+   site-wide perf beacon needs the same two-injection-site treatment the SEO fold and the site-assistant
+   widget already needed. RUM only works for live-served pages, not statically-exported/S3-published
+   sites (no same-origin process to POST to) — a product decision, not a wiring gap, and worth saying
+   on screen rather than pretending it works everywhere.
+
+**Do NOT treat dropped/failed chat runs as an instrumentation gap.** The recon traced that to an
+existing, separate correctness bug — a failed run gets persisted as **succeeded** — documented in
+`ADS-memory/reports/2026-09-06-chat-death-investigation.md`. Telemetry would not have caught it because
+the system was confidently reporting success; it needs its own fix, not a trace.
+
+---
+
+## Recovery vs Database's Restore Points tab — real overlap, not a true duplicate (owner, 2026-09-10)
+
+Owner asked whether `/admin/recovery` and `/admin/database?tab=restore-points` are the same screen.
+Verified: **not the same**, but the split is a real design smell worth fixing eventually.
+- Database's Restore Points tab (`Database.tsx`'s `RestorePointsSection`) — **list + create only**. No
+  restore/execute action anywhere in it.
+- Recovery (`Recovery.tsx`) — lists the SAME restore points, but its only job is the restore
+  **ceremony**: select one, plan/confirm/execute, physically swaps `content.db`, restart required. No
+  create action.
+
+So it's create-here, restore-there, both showing the same list. `Recovery` is deliberate, not an
+accident — ADR-045/`design-spec.md §4` explicitly rejected folding it into another screen ("one
+screen, two views... never a separate 'Backups' route"), so removing it outright would reverse a named
+decision, not just tidy nav.
+
+**SUPERSEDED same morning.** Owner's revised call: Recovery should own ALL restore-point functionality
+— tabbed to hold both create+list and the restore ceremony — and Database should NOT have a restore-points
+tab at all ("it shouldnt be a database [concern]"). Direction is the opposite of "leave as-is": move
+`RestorePointsSection`'s create+list capability OUT of `Database.tsx` and into `Recovery.tsx`, organized
+as tabs matching this app's established `SettingsDialogShell` convention (Plugins/AgentPlugins/Security
+already use it; Recovery currently does not — it's a single inline list⇄restore-flow swap). Remove the
+`restore-points` tab from `Database.tsx`'s `DATABASE_TAB_IDS` entirely once the capability has a real
+home in Recovery. Dispatched 2026-09-10 morning.
+
+**Visual design of the restore-ceremony view — REJECTED TWICE, still open.** Two agents redesigned
+this screen (Sonnet `c2c8b218`, then Opus `2b1f5bca`) and the owner rejected both live ("holy shit",
+"you cant be serious"). The Opus pass's own report is genuinely well-reasoned (a real missing
+`--danger-ink` token, measured contrast ratios, structural argument for one continuous card) but the
+RESULT was the one rejected — do not treat that report as evidence the screen is fixed. Owner ended
+this session and handed off to a separately-started subagent to take it from here; whoever picks this
+up should start from `f9e5d870` (last state before either redesign attempt), not build on `2b1f5bca`.
+
+Three legitimate, narrow findings from the rejected pass, worth keeping regardless of the redesign's
+own fate:
+- `apps/admin/src/features/database/Taxonomy.tsx:411` has the same stretched-full-width `.status`
+  pill bug the Opus pass fixed for Recovery (a `.settings-layer-cell` flex-stretch defect) — not
+  fixed there because it means touching the shared rule, out of that dispatch's scope.
+- `apps/admin/src/features/recovery/recovery-i18n.tsx` still carries ~21 dead `"Restore capability:"`
+  translation keys left over from `f9e5d870`'s removal of that badge — safe, mechanical cleanup.
+- `DegradedBannerView`'s plain-text treatment (`.notice.recovery-plain-notice`) was deliberately left
+  alone by both redesign passes — correct, that was a separate, already-settled owner instruction from
+  earlier the same day, not part of either redesign's brief.
+
+---
+
+## Plugins screen has no way back to Enabled once a plugin is disabled — RESOLVED (found live, 2026-09-10)
+
+**DONE 2026-09-22: `apps/admin/src/features/plugins/Plugins.tsx` has the disabled-row re-enable path.**
+
+Before the resolution, both `Plugins.tsx` (`.tovu-plugin` family, `b4f2c40d`) and the earlier `AgentPlugins.tsx` correction
+hit the identical shape of gap from the same owner instruction ("Downloaded should have Remove, not
+Enabled/Disabled"). `AgentPlugins.tsx` was fixed to be context-sensitive: Remove on an enabled row,
+Enable (direct, no confirm) on a disabled row — see `9eb2b4ab`/`b65d1695`. **`Plugins.tsx` was NOT
+given this same fix** — its dispatch predated that correction, so Downloaded's action there is an
+unconditional Remove. With Installed pre-filtered to `enabled: true` and Downloaded's slot fully given
+to Remove, there is currently no control anywhere on this screen to re-enable a plugin once disabled
+(including a quarantined one) short of removing and reinstalling it. The rebuild agent flagged this
+itself, correctly, as a direct consequence of the instruction rather than a bug it introduced — it did
+not invent a workaround.
+
+**Fix**: apply the exact same context-sensitive split `AgentPlugins.tsx`/`AgentPluginRow.tsx` already
+has to `Plugins.tsx`/`PluginRow.tsx` — Remove (confirm-gated, real DELETE) on an enabled row, Enable
+(direct `onToggleEnabled`, no confirm) on a disabled row. The underlying `onToggleEnabled(enabled:
+true)` codepath is untouched and already covered in `use-plugins.hooks.unit.test.ts` — this is a UI
+wiring fix on `PluginRow.tsx`'s action slot, not new plumbing.
+
+---
+
+## Observability admin page — Operations nav entry + settings shell (owner, 2026-09-09)
+
+Owner: "It should be in operations under the operations nav... its own system... a simple page with
+tabs that matches the rest of the admin." She does not yet know how OpenTelemetry works end-to-end —
+the page's first tab should explain it in plain language (what a "provider" is, whether a key/endpoint
+is needed) rather than assume the operator already knows.
+
+**Scope for the FIRST pass, deliberately smaller than full provider wiring:**
+- A real (not `soon:true`), clickable Operations nav entry, same enabled shape the `agent-plugins` row
+  just moved to tonight (`panels.tsx`) — not a disabled preview.
+- A tabbed page matching the `SettingsDialogShell` shape `AgentPlugins.tsx`/`Plugins.tsx` already use.
+- One tab that honestly reports current state by reading the existing port/config (is
+  `OTEL_EXPORTER_OTLP_ENDPOINT` set right now — yes/no — and what that means), in plain language.
+- A second tab for provider options (Datadog, Grafana, etc.) — **owner's own words: "let's set that up
+  with another subagent."** Build this tab as an honest not-yet-built state (same tone as Agent
+  Plugins' Marketplace tab: "does not fetch, install, or configure a provider yet"), not a functional
+  form — actually wiring a saved provider credential + having the daemon send real metrics through it
+  is separate, larger, later work, not part of this pass.
+
+**Open design question for whoever picks up the SECOND (provider-wiring) pass:** whether a
+Datadog/Grafana OTLP endpoint + auth header should be modeled as another row in the SAME
+`custom-credentials` system already used for `fly.io`/`github`/`name.com` tonight (label
+`"datadog"`/`"grafana"`, storing endpoint + key), rather than a new credential table. Worth deciding
+before building, not after.
+
+---
+
+## `Plugins.tsx` needs its state moved into a hook — RESOLVED (caught live, 2026-09-10)
+
+**DONE 2026-09-22: `apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts` owns the screen state.**
+
+Owner, watching the `/admin/plugins` rebuild live: "already see apps/admin/src/features/plugins/Plugins.tsx has state and hooks in the code. should be in hooks.tsx." At the time, `useState` for `expandedIds` and `pendingRemoveId` sat directly in the component (~line 170-171), violating this admin's own rule — component logic belongs in `hooks/`, not `.tsx` — that the sibling `AgentPlugins.tsx`/`use-agent-plugins.hooks.ts` split already follows correctly.
+
+---
+
 ## HTML-format Pages render in the fallback shell, not the theme — RESOLVED (re-measured 2026-09-06)
 
 Filed 2026-08-30 from a live admin-assistant session auditing tovu-com. **Re-measured 2026-09-06
@@ -1556,7 +2013,7 @@ in the system"**.
 
 **The stated cause was already false when written, and is verified false today.** A `templateChoice`
 column exists and is threaded end to end — all five citations confirmed by line 2026-09-06:
-`platform/db/schema.ts:107` (`templateChoice: text("template_choice")`), mirrored at
+`platform/db/schema.sqlite.ts:107` (`templateChoice: text("template_choice")`), mirrored at
 `schema.postgres.ts:871`; threaded through `features/post/post.ts` (`:101`, `:332`, `:958`); exposed
 on the headless contract at `contracts/headless/contracts.ts:53`; resolved by
 `features/theme/static-render.ts` (`resolveTemplate`, `isEligibleForTemplateBranch`,

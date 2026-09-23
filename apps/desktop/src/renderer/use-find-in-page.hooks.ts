@@ -20,11 +20,21 @@
  * needs the bridge.
  *
  * **The top-level target searches the document this bar is IN, so the bar's own caret is in the
- * way.** Chromium anchors a find on the frame's live selection when there is one, and then clears
- * it — blurring whatever held it. With a caret in the find input that meant every search restarted
- * from the bar's own position (Enter never advanced) and the input lost focus after the first
- * keystroke (every later character was dropped). {@link runFind} clears the selection itself, first,
- * for that target only. A `<webview>` guest searches its own document and is unaffected.
+ * way as a search ANCHOR — not, it turns out, as the cause of the focus loss below.** Chromium
+ * anchors a find on the frame's live selection when there is one; with a caret sitting in the find
+ * input, every search re-anchored on the bar's own position instead of advancing past the previous
+ * match, so Enter appeared to do nothing. {@link runFind} clears the selection itself, first, for
+ * that target only — a `<webview>` guest searches its own document, which this frame's selection
+ * has no bearing on.
+ *
+ * **Every match steals keyboard focus, and that is `TextFinder::FindInternal`'s own doing, not a
+ * side effect of clearing the selection.** Chromium's finder runs `ClearFocusedElement()` then
+ * `SetFocusedFrame()` on the searched frame unconditionally, on every match, whichever target. For
+ * a top-level match that blurs the find input, which lives in the very document being searched. For
+ * a guest match it moves keyboard focus into the GUEST frame instead — same mechanism, same result:
+ * the host input loses focus. A focused text input always holds a selection (a caret is one), so
+ * there is no way to keep focus through the search either way; {@link restoreFindInputFocus}
+ * restores it after.
  *
  * **A guest's find does not always stay in the guest, and that is Chromium's doing, not ours.**
  * `WebContents::GetFindRequestManager` walks UP the outer-WebContents chain and reuses the first
@@ -35,9 +45,10 @@
  * nothing; after a single `webContents.findInPage` on the window, the identical guest find reports
  * on the WINDOW and the guest's event never fires. Nothing in the renderer can opt out, so this
  * file tolerates both: {@link runFind} clears this frame's selection for either target, results are
- * subscribed from both sources whenever a guest is the target, and focus is restored by whichever
- * source actually reported — see {@link restoreFocusAfterWindowResult}. Left unhandled, the counter
- * stayed blank and the input lost focus the moment a tab was searched after the Projects screen was.
+ * subscribed from both sources whenever a guest is the target, and focus is restored for EVERY
+ * reported result regardless of which source carried it — see {@link subscribeToFindResults}'s
+ * `onReported`. Left unhandled on the guest's own event, the bar took exactly one keystroke before
+ * every later character fell through to whatever frame Chromium had just focused.
  *
  * **`findNext`'s meaning is Electron's own, and it reads backwards.** `true` begins a NEW search
  * session (the right value for a fresh or changed query); `false` is a follow-up within the current
@@ -136,15 +147,17 @@ export function resolveFindTarget(input: {
  * nothing to recover: the next query change or keypress tries again against whatever is mounted by
  * then.
  *
- * **The top-level target must have NO document selection when Chromium reads it.** The find bar's
- * input lives in the very document that target searches, so a caret sitting in it IS this frame's
- * selection — and Chromium's find takes a live selection as the search's anchor, then clears it,
- * which also blurs whatever owned it. Both halves broke the bar: every search re-resolved from the
- * find bar's own position in the DOM instead of advancing past the previous match (Enter appeared
- * to do nothing), and the blur dropped focus so the second keystroke onwards never reached the
- * input at all. Clearing the selection ourselves first leaves Chromium continuing from the previous
- * match — and, verified live, leaves focus where it is. Only the `top` target needs this: a guest
- * searches its own document, which this one's selection has no bearing on.
+ * **The top-level target must have NO document selection when Chromium reads it, so the search
+ * ANCHORS on the previous match instead of the find bar itself.** The find bar's input lives in
+ * the very document that target searches, so a caret sitting in it IS this frame's selection, and
+ * Chromium's find takes a live selection as the search's anchor. Left in place, every search
+ * re-resolved from the find bar's own position in the DOM instead of advancing past the previous
+ * match, so Enter appeared to do nothing. Clearing the selection ourselves first leaves Chromium
+ * continuing from the previous match instead. This is NOT what causes the focus loss — that is
+ * `ClearFocusedElement()`/`SetFocusedFrame()`, which Chromium runs unconditionally on every match
+ * regardless of any selection; see this file's header and {@link restoreFindInputFocus}. Only the
+ * `top` target needs the selection clear: a guest searches its own document, which this one's
+ * selection has no bearing on.
  *
  * @param options.findNext Electron's own meaning, not the button's: `true` begins a NEW session
  *   (pass it for a query CHANGE), `false` is a follow-up within the current one (pass it for
@@ -182,25 +195,44 @@ export function runFind(
 }
 
 /**
- * Puts focus back in the find input after a result that arrived on the WINDOW's own
- * `found-in-page` — the one source whose search took focus away.
+ * Puts focus back in the find input after ANY reported find result — every one of them means
+ * Chromium just moved keyboard focus somewhere else.
  *
- * A search reported by this window's own webContents ran in the very document this bar lives in,
- * and Chromium's find clears that frame's selection before searching, which blurs whatever held it.
- * A focused text input ALWAYS holds a selection (a caret is one), so there is no way to keep focus
- * through the search; it has to be restored after. Without this the bar accepts exactly one
- * character and Enter reaches nobody.
+ * `TextFinder::FindInternal` runs unconditionally on a match, whichever frame it is in:
+ * `ClearFocusedElement()` on the frame that was searched, then `SetFocusedFrame()` onto it. For a
+ * top-level match that blurs the find input, which lives in the same document. For a guest match
+ * it does the same to the GUEST frame, which — because a focused text input always holds a
+ * selection (a caret is one) — takes keyboard focus away from the host input the identical way.
+ * There is no way to keep focus through the search either way; it has to be restored after.
+ * Without this the bar accepts exactly one character and Enter reaches nobody.
  *
- * Keyed on where the result CAME FROM rather than on which target was asked, because those two
- * come apart: a guest's find is rerouted to the window's own find manager once that manager
- * exists, and then it is the window that reports — and the window that blurred the input. A result
- * arriving on the `<webview>` element's own event took nothing away and needs nothing restored,
- * which is why only this path calls it.
+ * Not keyed on which target was asked, because that and where the result reports come apart: a
+ * guest's find is rerouted to the window's own find manager once that manager exists, and only
+ * then does the window report instead of the guest. Both sources took focus, so both call this —
+ * see {@link subscribeToFindResults}'s `onReported`.
  *
  * @complexity O(1).
  */
-export function restoreFocusAfterWindowResult(input: { focus(): void } | null): void {
+export function restoreFindInputFocus(input: { focus(): void } | null): void {
   input?.focus();
+}
+
+/** How long after ISSUING a find a blur on the find input is treated as Chromium's own focus
+ *  theft rather than the user genuinely clicking away — see {@link shouldReclaimFindFocus}. */
+export const FIND_FOCUS_RECLAIM_MS = 1000;
+
+/**
+ * Whether a blur on the find input, while the bar is `open`, should be undone because it is
+ * almost certainly Chromium's `ClearFocusedElement`/`SetFocusedFrame` reaction to a find this file
+ * just issued — not the user clicking away. `false` once {@link FIND_FOCUS_RECLAIM_MS} has passed
+ * since the last issued find (a genuine click-away has to stick), `false` when no find has been
+ * issued yet (`lastFindAt: null`), and `false` when the bar is already closed.
+ *
+ * @complexity O(1).
+ */
+export function shouldReclaimFindFocus(input: { open: boolean; lastFindAt: number | null; now: number }): boolean {
+  if (!input.open || input.lastFindAt === null) return false;
+  return input.now - input.lastFindAt < FIND_FOCUS_RECLAIM_MS;
 }
 
 /**
@@ -255,21 +287,26 @@ export function formatMatchCount(result: FindInPageResult | null): string {
  * which one reports is Chromium's choice and not observable from here.
  *
  * @param handlers.onResult every reported result, whichever source carried it.
- * @param handlers.onWindowResult called first, and only for a result the WINDOW reported — the one
- *   source whose search blurred the find input. See {@link restoreFocusAfterWindowResult}.
+ * @param handlers.onReported called first, for EVERY reported result whichever source carried
+ *   it — Chromium moves keyboard focus for a guest match exactly as it does for a top-level one
+ *   (`ClearFocusedElement`/`SetFocusedFrame`), so both sources need the same restore. See
+ *   {@link restoreFindInputFocus}.
  * @complexity O(1); at most two listeners, both removed by the returned cleanup.
  */
 export function subscribeToFindResults(
   target: FindTarget,
   bridge: FindBridge | undefined,
-  handlers: { onResult: (result: FindInPageResult) => void; onWindowResult: () => void },
+  handlers: { onResult: (result: FindInPageResult) => void; onReported: () => void },
 ): () => void {
   const unsubscribeWindow = bridge?.onFindResult((result) => {
-    handlers.onWindowResult();
+    handlers.onReported();
     handlers.onResult(result);
   });
   if (target.kind !== 'guest') return () => unsubscribeWindow?.();
-  const onFound = (event: WebviewFoundInPageEvent) => handlers.onResult(event.result);
+  const onFound = (event: WebviewFoundInPageEvent) => {
+    handlers.onReported();
+    handlers.onResult(event.result);
+  };
   target.element.addEventListener('found-in-page', onFound);
   return () => {
     target.element.removeEventListener('found-in-page', onFound);
@@ -309,6 +346,13 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
   // at the moment a search actually runs, never rendered.
   const guests = useRef(new Map<string, FindableGuest>()).current;
   const inputElement = useRef<HTMLInputElement | null>(null);
+  // When the last find was ISSUED (not when a result was reported) — see `issueFind` and
+  // {@link shouldReclaimFindFocus}. A ref, not state: recording it must never itself trigger a
+  // render.
+  const lastFindAt = useRef<number | null>(null);
+  // The pending deferred reclaim (see the blur listener below), so `close`/unmount can cancel one
+  // scheduled for a bar that is no longer open by the time it would run.
+  const reclaimTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const registerGuest = useCallback(
     (projectId: string, element: FindableGuest | null) => {
@@ -319,6 +363,24 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
   );
 
   const target = resolveFindTarget({ activeGuestId, guests, bridge });
+
+  // Runs a find and records WHEN, so a blur shortly after can be told apart from the user clicking
+  // away — see {@link shouldReclaimFindFocus}. Every call site that starts or steps a search goes
+  // through this instead of calling `runFind` directly.
+  const issueFind = useCallback(
+    (text: string, options: { forward: boolean; findNext: boolean }) => {
+      lastFindAt.current = performance.now();
+      runFind(target, bridge, text, options);
+    },
+    [target, bridge],
+  );
+
+  const clearReclaimTimer = useCallback(() => {
+    if (reclaimTimer.current !== null) {
+      clearTimeout(reclaimTimer.current);
+      reclaimTimer.current = null;
+    }
+  }, []);
 
   // The app menu's Find (Cmd+F): open (or, if already open, bump `focusNonce` so the effect below
   // refocuses even though `open` itself does not change).
@@ -340,7 +402,7 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
   useEffect(() => {
     if (!state.open || state.query === '') return undefined;
     return subscribeToFindResults(target, bridge, {
-      onWindowResult: () => restoreFocusAfterWindowResult(inputElement.current),
+      onReported: () => restoreFindInputFocus(inputElement.current),
       onResult: (result) => dispatch({ type: 'result', result }),
     });
     // `target` is a fresh object every render (`resolveFindTarget` builds one), so this depends on
@@ -358,7 +420,7 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
       stopFind(target, bridge);
       return;
     }
-    runFind(target, bridge, state.query, { forward: true, findNext: true });
+    issueFind(state.query, { forward: true, findNext: true });
     // biome-ignore lint/correctness/useExhaustiveDependencies: depends on target's stable inputs (activeGuestId), not the fresh `target`/`bridge` objects themselves.
   }, [state.query, state.open, activeGuestId]);
 
@@ -381,7 +443,50 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
     // biome-ignore lint/correctness/useExhaustiveDependencies: keys on activeGuestId's stable identity only, matching this file's other target-derived effects above.
   }, [activeGuestId]);
 
+  // Reclaims focus the moment Chromium takes it, BEFORE the result round trip — on a big page that
+  // trip can take long enough for a fast typist's next letters to reach the guest. A native `blur`
+  // listener, not React's `onBlur`: the theft is a PAGE-level focus loss (`document.activeElement`
+  // stays the input), which does not fire through React's root `focusout` delegation the way a real
+  // blur-to-another-element does (memory `component_logic_belongs_hooks` — this stays in the hook,
+  // not `App.tsx`). Deferred with `setTimeout(0)` rather than refocusing inline: the host-side blur
+  // fires SYNCHRONOUSLY inside Chromium's own find, so an inline refocus would fight it. Never calls
+  // `issueFind`/`runFind`/`stopFind` from here — Chromium steals focus once per issued find, so one
+  // reclaim per find settles it; re-running the search on refocus is the focus-fight loop a guest
+  // theft can otherwise trigger.
+  const attachBlurReclaim = useCallback(
+    (node: HTMLInputElement) => {
+      const onBlur = () => {
+        clearReclaimTimer();
+        reclaimTimer.current = setTimeout(() => {
+          reclaimTimer.current = null;
+          // Re-reads `inputElement.current`, not the closed-over `node`: the bar may have closed
+          // (and unmounted the input) by the time this deferred callback runs.
+          if (shouldReclaimFindFocus({ open: inputElement.current !== null, lastFindAt: lastFindAt.current, now: performance.now() })) {
+            restoreFindInputFocus(inputElement.current);
+          }
+        }, 0);
+      };
+      node.addEventListener('blur', onBlur);
+      return () => node.removeEventListener('blur', onBlur);
+    },
+    [clearReclaimTimer],
+  );
+
+  // Detaches the previous node's blur listener before attaching the next one, so a remount (or the
+  // bar closing) never leaves a stale listener on a detached node.
+  const detachBlurReclaim = useRef<(() => void) | null>(null);
+  const inputRef = useCallback(
+    (node: HTMLInputElement | null) => {
+      detachBlurReclaim.current?.();
+      detachBlurReclaim.current = null;
+      inputElement.current = node;
+      if (node) detachBlurReclaim.current = attachBlurReclaim(node);
+    },
+    [attachBlurReclaim],
+  );
+
   const close = () => {
+    clearReclaimTimer();
     stopFind(target, bridge);
     dispatch({ type: 'close' });
   };
@@ -391,13 +496,11 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
     query: state.query,
     result: state.result,
     countLabel: formatMatchCount(state.result),
-    inputRef: (node) => {
-      inputElement.current = node;
-    },
+    inputRef,
     setQuery: (text) => dispatch({ type: 'set-query', query: text }),
     // Follow-up requests within the current session — `findNext: false` — never a new one.
-    next: () => runFind(target, bridge, state.query, { forward: true, findNext: false }),
-    previous: () => runFind(target, bridge, state.query, { forward: false, findNext: false }),
+    next: () => issueFind(state.query, { forward: true, findNext: false }),
+    previous: () => issueFind(state.query, { forward: false, findNext: false }),
     close,
     registerGuest,
   };

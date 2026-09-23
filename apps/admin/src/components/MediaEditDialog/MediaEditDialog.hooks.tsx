@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 import { t as mediaT } from "../../features/media/media-i18n";
 import { describeMediaHtmlAttributeError, parseMediaHtmlAttributes } from "../../features/media/rules";
@@ -61,6 +61,10 @@ export interface MediaEditDialogController {
   /** Translates the dialog's own copy (`media-i18n.ts`, keyed by the English string) for the same
    *  locale the validation hint uses, so the component never reads the locale itself. */
   t: (key: string) => string;
+  /** Attach to the Alt input — see this hook's own focus-management doc comment. Always present
+   *  regardless of draft state, same reasoning `MediaPickerDialogController`'s `cancelRef` gives
+   *  for its own always-available focus target. */
+  altRef: RefObject<HTMLInputElement | null>;
 }
 
 /**
@@ -76,6 +80,11 @@ export interface MediaEditDialogController {
  * @returns The dialog's full render-time contract — see {@link MediaEditDialogController}.
  * @complexity Time/space O(n) in the `htmlAttributes` draft's length (one validation parse per
  *   keystroke, same cost {@link parseMediaHtmlAttributes} itself documents).
+ * @sideeffects On mount, captures whatever had focus (the node view's `Edit` button) and moves
+ *   focus onto the Alt input; on unmount, restores focus to what was captured — same technique
+ *   `MediaPickerDialog.hooks.tsx`'s `useMediaPickerDialog` uses for its own `cancelRef`. Without
+ *   this, opening the dialog left focus on the trigger button underneath it (nothing moved into
+ *   the now-modal dialog), and closing it left focus on `<body>`.
  */
 export function useMediaEditDialog(
   initial: MediaEditDialogValue,
@@ -86,6 +95,21 @@ export function useMediaEditDialog(
   const [alt, setAlt] = useState(initial.alt ?? "");
   const [cssClass, setCssClass] = useState(initial.cssClass ?? "");
   const [htmlAttributes, setHtmlAttributes] = useState(initial.htmlAttributes ?? "");
+  const altRef = useRef<HTMLInputElement | null>(null);
+  // Captured at mount, before focus moves onto Alt below — the element that had focus then is, by
+  // construction, whatever opened this dialog (the node view's `Edit` button). Restored on
+  // unmount. This component is only ever rendered while the dialog is open (the caller
+  // conditionally mounts it, per `MediaEditDialog.tsx`'s own doc comment), so mount/unmount IS the
+  // open/close transition — same technique `useMediaPickerDialog`'s `triggerRef` uses.
+  const triggerRef = useRef<Element | null>(null);
+
+  useEffect(() => {
+    triggerRef.current = document.activeElement;
+    altRef.current?.focus();
+    return () => {
+      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
+    };
+  }, []);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -109,7 +133,7 @@ export function useMediaEditDialog(
 
   const t = (key: string) => mediaT(deps.locale, key);
 
-  return { alt, cssClass, htmlAttributes, setAlt, setCssClass, setHtmlAttributes, htmlAttributesError, save, t };
+  return { alt, cssClass, htmlAttributes, setAlt, setCssClass, setHtmlAttributes, htmlAttributesError, save, t, altRef };
 }
 
 /**

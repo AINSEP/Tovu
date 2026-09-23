@@ -1,0 +1,239 @@
+/**
+ * @file Trash's agent-tool wiring: `trash_list_items` and `trash_restore_item`, and nothing else.
+ *
+ * Read `agent-tools.ts`'s header first — it carries the deliberate absence of a purge tool, and why
+ * `trash_item` is built in `trash-item-tool.ts` rather than here.
+ *
+ * Authorization shape: `TrashService` takes no `authorize` dependency at all, so, like Redirects,
+ * this is the layer that gates (ADR-021 §2's single evaluator, located at the handler). The
+ * permission is not one Trash permission but **the permission that domain's own delete tool
+ * already required**, resolved per row. Restoring a post is undoing `content_post_delete`;
+ * anything weaker than the gate on the delete would make the Trash a way around it.
+ */
+import {
+  type AuthorizeFn,
+  buildDomainRegistrations,
+  indexCatalogById,
+  optionalNumber,
+  optionalString,
+  requireInputRecord,
+  requireString,
+  requireToolPermission,
+  type AgentToolSideEffect,
+  type DerivedRiskByToolId,
+  type ToolHandler,
+  type ToolRegistration,
+} from "@jini-ai/cms/core";
+import type { UserRepoPort } from "@jini-ai/cms/identity";
+import type { ToolContributor } from "#src/assistant/index";
+import { getTrashAgentToolCatalog } from "./agent-tools.js";
+import {
+  filterVisibleTrashItems,
+  trashDaysRemaining,
+  trashPermissionFor,
+  TRASH_PERMISSION_BY_ENTITY_TYPE,
+  TRASH_READ_PERMISSION,
+} from "./permissions.js";
+import type { TrashEntityType, TrashItem, TrashPort } from "./ports.js";
+import type { TrashRegistry } from "./registry.js";
+
+const CATALOG_BY_ID = indexCatalogById(getTrashAgentToolCatalog());
+
+const DEFAULT_LIST_LIMIT = 25;
+const MAX_LIST_LIMIT = 100;
+
+/** The principal id the boot-time widget adoption writes as its actor
+ *  (`features/widgets/write-service.ts`'s `ADOPTION_ACTOR`) — duplicated from
+ *  `server/inbound/admin-http/routes/trash/list.ts`'s constant of the same name/value rather than
+ *  imported, so this domain-facing tool file carries no back-edge into the admin HTTP layer. */
+const SYSTEM_ACTOR_PRINCIPAL_ID = "system";
+
+/**
+ * The exact slice of the route-deps bag Trash's tool handlers read. Declared structurally rather
+ * than importing `server/routes/types`, so this module carries no back-edge into the composition
+ * root; `RouteDeps` satisfies it as-is.
+ *
+ * `trash` is the whole {@link TrashPort} — including `purgeSelected`, which no handler below calls
+ * and which `__tests__/tool-registrations.purge-ban.test.ts` proves no handler anywhere reaches.
+ */
+export interface TrashToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  trash: TrashPort;
+  clock: { nowIso(): string };
+  /** `TRASHABLE`, so `trash_restore_item` can resolve a phase-2 kind's permission the same way the
+   *  admin HTTP routes do — see `permissions.ts`'s `trashPermissionFor`. */
+  registry: TrashRegistry;
+  /** Resolves `deletedBy` to a username instead of the raw principal id — same source the admin
+   *  Trash list route reads (`routes/trash/list.ts`'s `loadUsernamesByPrincipalId`). */
+  userRepo: UserRepoPort;
+}
+
+/**
+ * The human-facing text for who deleted an item, in priority order: the account's username, else
+ * `"system"` for the boot-time adoption actor, else a plain fallback for a removed/unknown account
+ * — never the raw principal id. `" + AI"` is appended when a plugin acted, mirroring the admin
+ * frontend's `rules.ts` `actorLabel()` separator (owner-approved in `ed210c740`), but literal rather
+ * than localized: this is a model-facing JSON field, not UI copy.
+ *
+ * @complexity O(1) — one map lookup.
+ */
+function resolveActorDisplay(item: TrashItem, usernameByPrincipalId: ReadonlyMap<string, string>): string {
+  const username = usernameByPrincipalId.get(item.actorPrincipalId);
+  const human = username ?? (item.actorPrincipalId === SYSTEM_ACTOR_PRINCIPAL_ID ? "system" : "deleted user");
+  return item.actorPluginId != null ? `${human} + AI` : human;
+}
+
+/**
+ * One `userRepo.list` call per `trash_list_items` invocation, not one lookup per row — mirrors
+ * `routes/trash/list.ts`'s `loadUsernamesByPrincipalId` exactly (same "workspace's user count is
+ * already assumed small enough for one in-memory pass" reasoning).
+ *
+ * @complexity O(u) in the workspace's user count, once per call.
+ */
+async function loadUsernamesByPrincipalId(deps: TrashToolDeps): Promise<ReadonlyMap<string, string>> {
+  const users = await deps.userRepo.list({ workspaceId: deps.workspaceId });
+  return new Map(users.map((user) => [user.principalId, user.username]));
+}
+
+/** Model-facing row. Drops `workspaceId` (every call is already scoped to one) and the trash row's
+ *  own id, which addresses nothing a tool can call — `trash_restore_item` takes the entity's id. */
+function toTrashToolView(item: TrashItem, now: string, usernameByPrincipalId: ReadonlyMap<string, string>) {
+  return {
+    entityType: item.entityType,
+    entityId: item.entityId,
+    title: item.displayTitle,
+    subtitle: item.displaySubtitle,
+    deletedAt: item.trashedAt,
+    deletedBy: resolveActorDisplay(item, usernameByPrincipalId),
+    permanentlyRemovedAfter: item.purgeAfter,
+    daysRemaining: trashDaysRemaining(now, item.purgeAfter),
+  };
+}
+
+/**
+ * Trash's independent classification of what its own handlers do, compared for equality against
+ * the catalog's self-declaration at build time (`assertToolIsWirable`).
+ *
+ * `purgeSelected` appears in neither map and in no catalog, so there is no id a future edit could
+ * add here that would wire it by accident — it would have to add a catalog entry and a handler too.
+ */
+export const trashDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+  // `TrashPort.list` is a single indexed read of `trashed_items`. It touches no entity at all.
+  ["trash_list_items", "none"],
+  // Clears the domain marker and drops the index row. Reversible by deleting the item again, so
+  // `mutates-durable-state` rather than `deletes-durable-state`: nothing is removed.
+  ["trash_restore_item", "mutates-durable-state"],
+]);
+
+/**
+ * Builds Trash's registrations.
+ *
+ * @param routeDeps the structural slice above; `server/routes/*` passes its `RouteDeps` unchanged.
+ * @returns the two registrations. Never a third.
+ * @complexity O(1) to build.
+ */
+export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistration[] {
+  const handlers: Record<string, ToolHandler> = {
+    /**
+     * One page of the Trash, filtered to the kinds this principal could restore.
+     *
+     * The filter runs AFTER the page is fetched rather than as a narrowed `entityTypes` argument,
+     * so a page can come back short. That is the honest shape: `nextCursor` still points at the
+     * next row in the real keyset, and hiding rows by shrinking the query would make the cursor
+     * skip rows the caller IS allowed to see when their permissions change mid-scan.
+     */
+    trash_list_items: async (ctx) => {
+      const input = ctx.input === undefined ? {} : requireInputRecord(ctx.input);
+      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: TRASH_READ_PERMISSION });
+
+      const requested = readEntityTypes(input);
+      const limit = Math.min(optionalNumber(input, "limit") ?? DEFAULT_LIST_LIMIT, MAX_LIST_LIMIT);
+      const now = routeDeps.clock.nowIso();
+
+      const page = await routeDeps.trash.list({
+        workspaceId: routeDeps.workspaceId,
+        now,
+        entityTypes: requested,
+        limit,
+        cursor: optionalString(input, "cursor") ?? null,
+      });
+
+      const visible = await filterVisibleTrashItems(routeDeps, { principalId: ctx.principal.id, items: page.items });
+      // Skip the lookup on an empty page — nothing visible to this principal, or the Trash truly is
+      // empty — same as `routes/trash/list.ts`.
+      const usernameByPrincipalId =
+        visible.length > 0 ? await loadUsernamesByPrincipalId(routeDeps) : new Map<string, string>();
+      return {
+        items: visible.map((item) => toTrashToolView(item, now, usernameByPrincipalId)),
+        nextCursor: page.nextCursor,
+      };
+    },
+
+    /**
+     * Undoes one delete.
+     *
+     * No confirmation dialog, deliberately: unlike every delete tool, restoring destroys nothing
+     * and is itself undone by deleting the item again. Gating it behind a human dialog would make
+     * recovering from a mistaken delete harder than making one.
+     */
+    trash_restore_item: async (ctx) => {
+      const input = requireInputRecord(ctx.input);
+      const entityType = requireString(input, "entityType");
+      const entityId = requireString(input, "entityId");
+
+      const permission = trashPermissionFor(entityType, routeDeps);
+      if (!permission) {
+        throw new Error(
+          `trash_restore_item: '${entityType}' is not a kind the Trash can restore. Expected one of: ` +
+            `${[...TRASH_PERMISSION_BY_ENTITY_TYPE.keys(), ...routeDeps.registry.keys()].join(", ")}.`
+        );
+      }
+      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission, entityType, entityId });
+
+      const outcome = await routeDeps.trash.restore({
+        workspaceId: routeDeps.workspaceId,
+        entityType,
+        entityId,
+        at: routeDeps.clock.nowIso(),
+      });
+      return outcome === "restored"
+        ? { restored: true, entityType, entityId }
+        : { restored: false, reason: outcome, entityType, entityId, note: RESTORE_FAILURE_NOTES[outcome] };
+    },
+  };
+
+  return buildDomainRegistrations({
+    domain: "trash",
+    catalogModule: "trash/agent-tools.ts",
+    catalog: CATALOG_BY_ID,
+    handlers,
+    derivedRisk: trashDerivedRisk,
+  });
+}
+
+/** What each non-`restored` outcome means, in the words a model should relay rather than re-guess. */
+const RESTORE_FAILURE_NOTES: Record<string, string> = {
+  "not-found": "That item is not in the Trash. It may have been restored already, or permanently removed.",
+  "version-changed": "The item changed since it was deleted, so nothing was touched. Read it again and retry.",
+  "adapter-unavailable":
+    "The plugin that owns this kind of item is no longer installed, so it cannot be restored until it is reinstalled. It is still listed.",
+};
+
+/** Reads and validates the optional `entityTypes` filter. @complexity O(n) in the filter's length. */
+function readEntityTypes(input: Record<string, unknown>): TrashEntityType[] | undefined {
+  const raw = input.entityTypes;
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw) || raw.some((value) => typeof value !== "string")) {
+    throw new Error("trash_list_items: 'entityTypes' must be an array of strings when it is given.");
+  }
+  return raw as TrashEntityType[];
+}
+
+/**
+ * Contributes Trash's two tools to the assistant's catalog — called once by
+ * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`.
+ */
+export function contributeTrashTools(): ToolContributor {
+  return { domain: "trash", build: buildTrashRegistrations, risk: trashDerivedRisk };
+}

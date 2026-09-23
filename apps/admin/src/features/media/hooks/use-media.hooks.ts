@@ -5,7 +5,7 @@ import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-quer
 import { KEYS, MEDIA_RESOURCE, findEditingItem, readFileAsBase64, visibleMediaError, type MediaOrderBy } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { MEDIA_DICT, t as translate } from "../media-i18n";
+import { t as translate } from "../media-i18n";
 import { defaultMediaPort } from "./media-dependencies.hooks";
 import type { MediaPort } from "./media-port.hooks";
 
@@ -73,6 +73,8 @@ export interface MediaController {
   altDraft: string;
   setAltDraft: (value: string) => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
+  selectedFileName: string;
+  onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   upload: () => Promise<void>;
   /** The id of the media item whose `EditMediaPanel` is expanded, or `null` when none is. */
   editingId: string | null;
@@ -134,6 +136,10 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   // the new control sees exactly today's order, unchanged.
   const [orderBy, setOrderBy] = useState<MediaOrderBy>("created");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFileName, setSelectedFileName] = useState("");
+  const onFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedFileName(event.currentTarget.files?.[0]?.name ?? "");
+  }, []);
 
   const uploadMutation = useFetchMutation({
     run: (input: { filename: string; contentType: string; dataBase64: string; alt?: string }) =>
@@ -161,6 +167,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
       await uploadMutation.mutate({ filename: file.name, contentType: file.type, dataBase64, alt: altDraft.trim() || undefined });
       setAltDraft("");
       if (fileInputRef.current) fileInputRef.current.value = "";
+      setSelectedFileName("");
     } catch {
       // already surfaced through uploadMutation.error -> error below
     }
@@ -234,6 +241,8 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     altDraft,
     setAltDraft,
     fileInputRef,
+    selectedFileName,
+    onFileChange,
     upload,
     editingId,
     setEditingId,
@@ -263,6 +272,6 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
  */
 export function useWiredMedia(): MediaController {
   const locale = useAdminLocale();
-  const t = (key: string): string => MEDIA_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useMedia({ port: defaultMediaPort, locale, t });
 }

@@ -24,7 +24,7 @@ import test from "node:test";
 
 import type { JsonObject } from "@jini-ai/cms/core";
 
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaRepo, type MediaRecord } from "#src/features/media/index";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
 import { renderDocNode, type MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render";
 
 import { importMediaEntity, type ImportMediaEntityDeps } from "../import-media-entity.js";
@@ -34,8 +34,8 @@ const SOURCE_BYTES = new TextEncoder().encode("a real imported photo's bytes");
 // Real sha256 of SOURCE_BYTES — computed once and pinned, same discipline as the sibling test file.
 const SOURCE_SHA256 = "86d9075d85c1cce55da0605a557dceaea6c27f18df8702ce86accccce8a41aa9";
 
-function makeDeps(): ImportMediaEntityDeps & { mediaRepo: InMemoryMediaRepo } {
-  const mediaRepo = new InMemoryMediaRepo();
+function makeDeps(): ImportMediaEntityDeps & { mediaRepo: InMemoryVersionedMediaRepo } {
+  const mediaRepo = new InMemoryVersionedMediaRepo();
   return {
     mediaRepo,
     assetBlobRepo: new InMemoryAssetBlobRepo(),
@@ -71,7 +71,7 @@ test("importMediaEntity + renderDocNode: an image node authored against the SOUR
 
   const importResult = await importMediaEntity({
     deps,
-    input: { workspaceId: WORKSPACE_ID, record: sourceRecord, bytes: SOURCE_BYTES, blobCreatedByPrincipal: "importer-1" },
+    input: { workspaceId: WORKSPACE_ID, record: sourceRecord, bytes: SOURCE_BYTES, blobCreatedByPrincipal: "importer-1", baseVersion: null },
   });
   assert.equal(importResult.status, "imported");
 

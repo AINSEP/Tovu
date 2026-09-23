@@ -125,7 +125,7 @@ function fakeRouteDeps(): { deps: PluginsToolDeps } {
     discoverPlugins: async () => [],
     onPluginEnabled: async () => undefined,
     onPluginDisabled: () => undefined,
-    onPluginUninstalled: async () => undefined,
+    removePlugin: async () => ({ ok: true, version: null }),
     externalMcpServerRepo,
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,

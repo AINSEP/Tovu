@@ -6,7 +6,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { WIDGETS_REGIONS_RESOURCE } from "../rules";
-import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
+import { t as translate } from "../widgets-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
 import { defaultWidgetRegionsPort } from "./widget-regions-dependencies.hooks";
 import type { WidgetRegionsPort } from "./widget-regions-port.hooks";
@@ -117,6 +117,6 @@ export function useWidgetRegions({ port, locale, navigate, t }: WidgetRegionsDep
  */
 export function useWiredWidgetRegions(): WidgetRegionsController {
   const locale = useAdminLocale();
-  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useWidgetRegions({ port: defaultWidgetRegionsPort, locale, navigate: realNavigate, t });
 }

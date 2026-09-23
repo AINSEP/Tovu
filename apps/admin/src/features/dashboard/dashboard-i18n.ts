@@ -1,14 +1,16 @@
 /**
  * @file Spanish dictionary for `Dashboard.tsx` — the admin landing screen's own chrome (header,
- * stat card labels, activity/appearance panels). Same `DICT[locale]?.[key] ?? key` shape
- * `SettingsUi.tsx`'s own `const t` uses.
+ * stat card labels, activity/appearance panels). `t()` falls back to `COMMON_I18N` via
+ * `createDictionaryTranslator`, same as `trash-i18n.ts`.
  *
- * Deliberately does NOT cover `rules.ts`'s `postsStatMeta`/`pagesStatMeta`/`commentsStatMeta` —
- * pure, independently-tested helpers (`rules.unit.test.ts` asserts their exact English return
- * values with no locale parameter), same boundary applied to every other feature's loading/error
- * guard functions and `widgetTypeLabel`. Their stat-card meta lines ("5 published", "1 draft", …)
- * stay English for now.
+ * Also covers `rules.ts`'s `postsStatMeta`/`pagesStatMeta`/`commentsStatMeta` stat-card meta lines
+ * ("{count} published", "{count} draft"/"{count} drafts", "nothing to review"/"awaiting
+ * moderation") — these used to render hardcoded English regardless of locale (a browser sweep,
+ * 2026-09-22, caught it); the three functions now take a `Translate` and interpolate `{count}` the
+ * same way `pages/rules.ts`'s column-sort labels do.
  */
+import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+
 export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
   es: {
     Overview: "Resumen",
@@ -40,6 +42,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "no se pudo cargar el contenido multimedia",
     "failed to load comments": "no se pudieron cargar los comentarios",
     "failed to load the active theme": "no se pudo cargar el tema activo",
+    "Publish Content": "Publicar contenido",
+    "{count} published": "{count} publicados",
+    "{count} draft": "{count} borrador",
+    "{count} drafts": "{count} borradores",
+    "nothing to review": "nada que revisar",
+    "awaiting moderation": "esperando moderación",
   },
   id: {
     Overview: "Ringkasan",
@@ -67,6 +75,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "gagal memuat media",
     "failed to load comments": "gagal memuat komentar",
     "failed to load the active theme": "gagal memuat tema aktif",
+    "Publish Content": "Terbitkan konten",
+    "{count} published": "{count} diterbitkan",
+    "{count} draft": "{count} draf",
+    "{count} drafts": "{count} draf",
+    "nothing to review": "tidak ada yang perlu ditinjau",
+    "awaiting moderation": "menunggu moderasi",
   },
   de: {
     Overview: "Übersicht",
@@ -94,6 +108,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "Medien konnten nicht geladen werden",
     "failed to load comments": "Kommentare konnten nicht geladen werden",
     "failed to load the active theme": "Aktives Theme konnte nicht geladen werden",
+    "Publish Content": "Inhalt veröffentlichen",
+    "{count} published": "{count} veröffentlicht",
+    "{count} draft": "{count} Entwurf",
+    "{count} drafts": "{count} Entwürfe",
+    "nothing to review": "nichts zu überprüfen",
+    "awaiting moderation": "wartet auf Moderation",
   },
   "zh-CN": {
     Overview: "概览",
@@ -121,6 +141,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "媒体加载失败",
     "failed to load comments": "评论加载失败",
     "failed to load the active theme": "当前主题加载失败",
+    "Publish Content": "发布内容",
+    "{count} published": "已发布 {count} 篇",
+    "{count} draft": "{count} 篇草稿",
+    "{count} drafts": "{count} 篇草稿",
+    "nothing to review": "没有需要审核的内容",
+    "awaiting moderation": "等待审核",
   },
   "zh-TW": {
     Overview: "總覽",
@@ -148,6 +174,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "媒體載入失敗",
     "failed to load comments": "留言載入失敗",
     "failed to load the active theme": "目前主題載入失敗",
+    "Publish Content": "發佈內容",
+    "{count} published": "已發布 {count} 篇",
+    "{count} draft": "{count} 篇草稿",
+    "{count} drafts": "{count} 篇草稿",
+    "nothing to review": "沒有需要審核的內容",
+    "awaiting moderation": "等待審核",
   },
   "pt-BR": {
     Overview: "Visão geral",
@@ -175,6 +207,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "falha ao carregar mídia",
     "failed to load comments": "falha ao carregar os comentários",
     "failed to load the active theme": "falha ao carregar o tema ativo",
+    "Publish Content": "Publicar conteúdo",
+    "{count} published": "{count} publicados",
+    "{count} draft": "{count} rascunho",
+    "{count} drafts": "{count} rascunhos",
+    "nothing to review": "nada para revisar",
+    "awaiting moderation": "aguardando moderação",
   },
   ru: {
     Overview: "Обзор",
@@ -202,6 +240,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "не удалось загрузить медиафайл",
     "failed to load comments": "не удалось загрузить комментарии",
     "failed to load the active theme": "не удалось загрузить активную тему",
+    "Publish Content": "Опубликовать содержимое",
+    "{count} published": "Опубликовано: {count}",
+    "{count} draft": "{count} черновик",
+    "{count} drafts": "{count} черновиков",
+    "nothing to review": "нечего проверять",
+    "awaiting moderation": "ожидает модерации",
   },
   fa: {
     Overview: "نمای کلی",
@@ -229,6 +273,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "بارگذاری رسانه ناموفق بود",
     "failed to load comments": "بارگذاری نظرات ناموفق بود",
     "failed to load the active theme": "بارگذاری پوستهٔ فعال ناموفق بود",
+    "Publish Content": "انتشار محتوا",
+    "{count} published": "{count} منتشرشده",
+    "{count} draft": "{count} پیش‌نویس",
+    "{count} drafts": "{count} پیش‌نویس",
+    "nothing to review": "چیزی برای بررسی نیست",
+    "awaiting moderation": "در انتظار بررسی",
   },
   ar: {
     Overview: "نظرة عامة",
@@ -256,6 +306,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "تعذّر تحميل الوسائط",
     "failed to load comments": "تعذّر تحميل التعليقات",
     "failed to load the active theme": "تعذّر تحميل السمة النشطة",
+    "Publish Content": "نشر المحتوى",
+    "{count} published": "{count} منشور",
+    "{count} draft": "{count} مسودة",
+    "{count} drafts": "{count} مسودات",
+    "nothing to review": "لا شيء للمراجعة",
+    "awaiting moderation": "بانتظار المراجعة",
   },
   ja: {
     Overview: "概要",
@@ -283,6 +339,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "メディアを読み込めませんでした",
     "failed to load comments": "コメントを読み込めませんでした",
     "failed to load the active theme": "使用中のテーマを読み込めませんでした",
+    "Publish Content": "コンテンツを公開",
+    "{count} published": "公開済み {count} 件",
+    "{count} draft": "{count} 件の下書き",
+    "{count} drafts": "{count} 件の下書き",
+    "nothing to review": "確認が必要な項目はありません",
+    "awaiting moderation": "承認待ち",
   },
   ko: {
     Overview: "개요",
@@ -310,6 +372,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "미디어를 불러오지 못했습니다",
     "failed to load comments": "댓글을 불러오지 못했습니다",
     "failed to load the active theme": "활성 테마를 불러오지 못했습니다",
+    "Publish Content": "콘텐츠 게시",
+    "{count} published": "게시됨 {count}개",
+    "{count} draft": "{count}개의 임시글",
+    "{count} drafts": "{count}개의 임시글",
+    "nothing to review": "검토할 항목 없음",
+    "awaiting moderation": "승인 대기 중",
   },
   pl: {
     Overview: "Przegląd",
@@ -337,6 +405,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "nie udało się wczytać multimediów",
     "failed to load comments": "nie udało się wczytać komentarzy",
     "failed to load the active theme": "nie udało się wczytać aktywnego motywu",
+    "Publish Content": "Opublikuj treść",
+    "{count} published": "Opublikowano: {count}",
+    "{count} draft": "{count} szkic",
+    "{count} drafts": "{count} szkiców",
+    "nothing to review": "nic do sprawdzenia",
+    "awaiting moderation": "oczekuje na moderację",
   },
   hu: {
     Overview: "Áttekintés",
@@ -364,6 +438,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "nem sikerült betölteni a médiát",
     "failed to load comments": "nem sikerült betölteni a hozzászólásokat",
     "failed to load the active theme": "nem sikerült betölteni az aktív témát",
+    "Publish Content": "Tartalom közzététele",
+    "{count} published": "{count} közzétéve",
+    "{count} draft": "{count} piszkozat",
+    "{count} drafts": "{count} piszkozat",
+    "nothing to review": "nincs mit ellenőrizni",
+    "awaiting moderation": "moderálásra vár",
   },
   fr: {
     Overview: "Vue d'ensemble",
@@ -391,6 +471,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "échec du chargement du média",
     "failed to load comments": "échec du chargement des commentaires",
     "failed to load the active theme": "échec du chargement du thème actif",
+    "Publish Content": "Publier le contenu",
+    "{count} published": "{count} publiés",
+    "{count} draft": "{count} brouillon",
+    "{count} drafts": "{count} brouillons",
+    "nothing to review": "rien à examiner",
+    "awaiting moderation": "en attente de modération",
   },
   uk: {
     Overview: "Огляд",
@@ -418,6 +504,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "не вдалося завантажити медіафайл",
     "failed to load comments": "не вдалося завантажити коментарі",
     "failed to load the active theme": "не вдалося завантажити активну тему",
+    "Publish Content": "Опублікувати вміст",
+    "{count} published": "Опубліковано: {count}",
+    "{count} draft": "{count} чернетка",
+    "{count} drafts": "{count} чернеток",
+    "nothing to review": "нічого перевіряти",
+    "awaiting moderation": "очікує модерації",
   },
   tr: {
     Overview: "Genel Bakış",
@@ -445,6 +537,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "medya yüklenemedi",
     "failed to load comments": "yorumlar yüklenemedi",
     "failed to load the active theme": "etkin tema yüklenemedi",
+    "Publish Content": "İçeriği yayımla",
+    "{count} published": "{count} yayınlandı",
+    "{count} draft": "{count} taslak",
+    "{count} drafts": "{count} taslak",
+    "nothing to review": "incelenecek bir şey yok",
+    "awaiting moderation": "onay bekliyor",
   },
   th: {
     Overview: "ภาพรวม",
@@ -472,6 +570,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "โหลดสื่อไม่สำเร็จ",
     "failed to load comments": "โหลดความคิดเห็นไม่สำเร็จ",
     "failed to load the active theme": "โหลดธีมที่ใช้งานไม่สำเร็จ",
+    "Publish Content": "เผยแพร่เนื้อหา",
+    "{count} published": "เผยแพร่แล้ว {count} รายการ",
+    "{count} draft": "{count} ฉบับร่าง",
+    "{count} drafts": "{count} ฉบับร่าง",
+    "nothing to review": "ไม่มีสิ่งที่ต้องตรวจสอบ",
+    "awaiting moderation": "รอการตรวจสอบ",
   },
   it: {
     Overview: "Panoramica",
@@ -499,6 +603,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "impossibile caricare il contenuto multimediale",
     "failed to load comments": "impossibile caricare i commenti",
     "failed to load the active theme": "impossibile caricare il tema attivo",
+    "Publish Content": "Pubblica contenuti",
+    "{count} published": "{count} pubblicati",
+    "{count} draft": "{count} bozza",
+    "{count} drafts": "{count} bozze",
+    "nothing to review": "niente da controllare",
+    "awaiting moderation": "in attesa di moderazione",
   },
   hi: {
     Overview: "अवलोकन",
@@ -526,6 +636,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "मीडिया लोड नहीं हो सका",
     "failed to load comments": "टिप्पणियाँ लोड नहीं हो सकीं",
     "failed to load the active theme": "सक्रिय थीम लोड नहीं हो सकी",
+    "Publish Content": "सामग्री प्रकाशित करें",
+    "{count} published": "{count} प्रकाशित",
+    "{count} draft": "{count} ड्राफ़्ट",
+    "{count} drafts": "{count} ड्राफ़्ट",
+    "nothing to review": "समीक्षा के लिए कुछ नहीं",
+    "awaiting moderation": "मॉडरेशन की प्रतीक्षा में",
   },
   ur: {
     Overview: "جائزہ",
@@ -553,6 +669,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "میڈیا لوڈ نہیں ہو سکا",
     "failed to load comments": "تبصرے لوڈ نہیں ہو سکے",
     "failed to load the active theme": "فعال تھیم لوڈ نہیں ہو سکی",
+    "Publish Content": "مواد شائع کریں",
+    "{count} published": "{count} شائع شدہ",
+    "{count} draft": "{count} ڈرافٹ",
+    "{count} drafts": "{count} ڈرافٹ",
+    "nothing to review": "جائزے کے لیے کچھ نہیں",
+    "awaiting moderation": "منظوری کے منتظر",
   },
   bn: {
     Overview: "সংক্ষিপ্ত বিবরণ",
@@ -580,14 +702,18 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "failed to load media": "মিডিয়া লোড করা যায়নি",
     "failed to load comments": "মন্তব্য লোড করা যায়নি",
     "failed to load the active theme": "সক্রিয় থিম লোড করা যায়নি",
+    "Publish Content": "কনটেন্ট প্রকাশ করুন",
+    "{count} published": "{count} প্রকাশিত",
+    "{count} draft": "{count} খসড়া",
+    "{count} drafts": "{count} খসড়া",
+    "nothing to review": "পর্যালোচনার জন্য কিছু নেই",
+    "awaiting moderation": "মডারেশনের অপেক্ষায়",
   },
 };
 
-/** Same two-step fallback every other `t()` in this app uses: translated value, else the English
- *  source string itself — never a raw dictionary-miss placeholder. Exported so
- *  `use-dashboard.hooks.ts` (which has no JSX and builds its own `t` closure the way
- *  `Dashboard.tsx` does) can call it directly instead of duplicating the
- *  `DASHBOARD_DICT[locale]?.[key] ?? key` lookup. */
-export function t(locale: string, key: string): string {
-  return DASHBOARD_DICT[locale]?.[key] ?? key;
-}
+/** `DASHBOARD_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via
+ *  `createDictionaryTranslator` (same fallback `trash-i18n.ts` uses) — a shared word this dict
+ *  doesn't carry for a locale still renders translated instead of falling straight to English.
+ *  Exported so `use-dashboard.hooks.ts` (which has no JSX and builds its own `t` closure the way
+ *  `Dashboard.tsx` does) can call it directly instead of duplicating the lookup. */
+export const t = createDictionaryTranslator(DASHBOARD_DICT);

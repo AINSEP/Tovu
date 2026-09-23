@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from "react";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/core";
-import { ConfirmDialog, Sidebar, useSidebar } from "@jini-ai/admin/react";
+import { ConfirmDialog, ConfirmDialogDefaultsProvider, Sidebar, useSidebar } from "@jini-ai/admin/react";
 import { Toast } from "@jini-ai/ui";
 import { useRouteLocation } from "./lib/router";
 import { getNav } from "./nav";
@@ -203,8 +203,10 @@ function SidebarLogoutButton(props: { onLogout: () => void; locale: string }) {
  * own label) rather than a second copy of the same English string in the new `app-i18n.ts` — see
  * that file's own header for why the title/body live there instead. `cancelLabel` is left unset,
  * matching every other `ConfirmDialog` caller in this app (none override it — see this component's
- * own commit for the survey) — `ConfirmDialog`'s own default "Cancel" is what every one of them
- * shows today, in every locale.
+ * own commit for the survey): its translated "Cancel" comes from the `ConfirmDialogDefaultsProvider`
+ * `App` mounts around its whole tree (see that provider's own call site below), not a per-dialog
+ * prop — `ConfirmDialog`'s own built-in English "Cancel" is only ever a fallback for a host that
+ * mounts no provider at all.
  */
 function LogoutConfirmDialog(props: { logoutConfirm: UseLogoutConfirm; locale: string }) {
   const { logoutConfirm, locale } = props;
@@ -316,7 +318,7 @@ function AssistantChrome(props: {
         hidden={!chatOpen}
         inert={!chatOpen}
         tabIndex={-1}
-        aria-label="Assistant"
+        aria-label={tApp(locale, "Assistant")}
         // SPEC-053: capture phase, on this EXISTING element rather than a new wrapper inside
         // `<AssistantDock>` — a `display: contents` (or any real) div added there is the exact
         // layout trap `data-theme="light"`'s own comment two blocks up already documents for
@@ -525,128 +527,139 @@ export function App(props: AppProps) {
   // See `useCollapsibleNavGroupLabels`'s own doc for which groups collapse and why.
   const collapsibleGroups = useCollapsibleNavGroupLabels(navGroups);
 
-  if (checking) return <div className="boot-screen">Loading Tovu…</div>;
+  if (checking) return <div className="boot-screen">{tApp(navLocale, "Loading Tovu…")}</div>;
   if (!user) return <Login onLogin={handleLogin} />;
 
   const content: ReactNode = renderRoute(route, siteSection);
 
   return (
-    <div className="admin-layout">
-      {/* First focusable element in the app, deliberately before `<Sidebar>` — the auditor
-          measured 26 Tab presses to reach main content from a fresh load, because every route
-          repeats the full sidebar first, paid on every navigation by a keyboard/screen-reader
-          operator. Visually hidden until focused (`.skip-link` in styles.css); the target is
-          `#main-content` on `<main>` below, not a route change, so this works identically
-          whichever section is currently rendered there. */}
-      <a href="#main-content" className="skip-link">
-        Skip to content
-      </a>
-      {/* `railDefaultCollapsed`: Tovu's admin opens as an icon rail for a first-time operator, so
-          the 26-item nav does not claim 232px before anyone has asked it to. It is a DEFAULT, not a
-          forced state — anyone who toggles the rail has their choice persisted under
-          `SIDEBAR_RAIL_STORAGE_KEY` and that stored value wins on every later load. */}
-      <Sidebar
-        activeId={currentPanelId(route)}
-        open={sidebarOpen}
-        railStorageKey={SIDEBAR_RAIL_STORAGE_KEY}
-        railDefaultCollapsed
-      >
-        <Sidebar.MobileHeader onClose={() => setSidebarOpen(false)} />
-        {/* The nav is rendered in two calls so the rail toggle can sit directly under "AI
-            Assistant" instead of down in the footer — the operator wants the collapse control
-            beside the sections it collapses, not adrift at the bottom of a 26-item list.
-            `getNav()[0]` is the ungrouped top row (Overview + Sites + AI Assistant, in that order —
-            Sites ranks above AI Assistant per the owner's 2026-09-05 call; see `panels.tsx:109`),
-            and every later group is a labelled section starting with CONTENT. Sites is absent from
-            that row on a deployment that has no Sites section (`withoutSiteSection` above); Overview
-            and AI Assistant are not, so the row itself always exists and this index is stable.
+    // Sets the translated "Cancel" once for every `ConfirmDialog` mounted anywhere beneath this
+    // tree (`@jini-ai/admin/react`'s `ConfirmDialogDefaultsProvider`) — the ~22 features that build
+    // a confirm dialog on that shared component (`Roles.tsx`, `Media.tsx`, `Trash.tsx`, this file's
+    // own `LogoutConfirmDialog`, …) all inherit it instead of each passing `cancelLabel` itself, so
+    // a future dialog is translated for free too. `navLocale`/`tApp` are already computed above for
+    // this file's own dialog copy; `tApp(navLocale, "Cancel")` resolves through `tApp`'s fallback to
+    // `COMMON_I18N` (`lib/i18n-common.ts`, `"Cancel"` already covers all 21 locales) since
+    // `app-i18n.ts`'s own `APP_DICT` defines no `"Cancel"` key of its own — see
+    // `createDictionaryTranslator`'s doc comment in `lib/dictionary-translator.ts`.
+    <ConfirmDialogDefaultsProvider cancelLabel={tApp(navLocale, "Cancel")}>
+      <div className="admin-layout">
+        {/* First focusable element in the app, deliberately before `<Sidebar>` — the auditor
+            measured 26 Tab presses to reach main content from a fresh load, because every route
+            repeats the full sidebar first, paid on every navigation by a keyboard/screen-reader
+            operator. Visually hidden until focused (`.skip-link` in styles.css); the target is
+            `#main-content` on `<main>` below, not a route change, so this works identically
+            whichever section is currently rendered there. */}
+        <a href="#main-content" className="skip-link">
+          {tApp(navLocale, "Skip to content")}
+        </a>
+        {/* `railDefaultCollapsed`: Tovu's admin opens as an icon rail for a first-time operator, so
+            the 26-item nav does not claim 232px before anyone has asked it to. It is a DEFAULT, not a
+            forced state — anyone who toggles the rail has their choice persisted under
+            `SIDEBAR_RAIL_STORAGE_KEY` and that stored value wins on every later load. */}
+        <Sidebar
+          activeId={currentPanelId(route)}
+          open={sidebarOpen}
+          railStorageKey={SIDEBAR_RAIL_STORAGE_KEY}
+          railDefaultCollapsed
+        >
+          <Sidebar.MobileHeader onClose={() => setSidebarOpen(false)} />
+          {/* The nav is rendered in two calls so the rail toggle can sit directly under "AI
+              Assistant" instead of down in the footer — the operator wants the collapse control
+              beside the sections it collapses, not adrift at the bottom of a 26-item list.
+              `getNav()[0]` is the ungrouped top row (Overview + Sites + AI Assistant, in that order —
+              Sites ranks above AI Assistant per the owner's 2026-09-05 call; see `panels.tsx:109`),
+              and every later group is a labelled section starting with CONTENT. Sites is absent from
+              that row on a deployment that has no Sites section (`withoutSiteSection` above); Overview
+              and AI Assistant are not, so the row itself always exists and this index is stable.
 
-            Splitting is safe precisely because `Sidebar.Nav` renders a bare fragment of
-            `.cms-section` divs — no wrapper element, no ids, no internal indexing across groups —
-            so two calls produce exactly the DOM one call would, with the toggle spliced between.
-            Doing it here also keeps this a host-only layout choice: `@jini-ai/admin` is unchanged,
-            so no package rebuild is involved and no other host inherits Tovu's arrangement. */}
-        <Sidebar.Nav groups={navGroups.slice(0, 1)} soonLabel={navSoonLabel} />
-        <Sidebar.RailToggle />
-        {/* Collapsible sections (owner-directed, 2026-08-06 — piloted on PEOPLE, then widened to
-            all six). `collapsibleGroups` defaults to empty in `@jini-ai/admin`, so this opt-in is
-            what turns the headings into controls; other hosts embedding the admin are unaffected.
-            Open/closed state persists per section via `useNavSections` (localStorage), survives
-            reload and navigation, and syncs across tabs. */}
-        <Sidebar.Nav groups={navGroups.slice(1)} collapsibleGroups={collapsibleGroups} soonLabel={navSoonLabel} />
-        <Sidebar.Footer>
-          <SidebarLogoutButton onLogout={logoutConfirm.request} locale={navLocale} />
-        </Sidebar.Footer>
-      </Sidebar>
-      <LogoutConfirmDialog logoutConfirm={logoutConfirm} locale={navLocale} />
-      {/* Mobile-only backdrop behind the open drawer (`styles.css` hides `.cms-nav`'s off-canvas
-          behavior above 900px, so this has nothing to sit behind there either — conditionally
-          rendered rather than CSS-hidden since it would otherwise sit invisibly over the whole
-          page, intercepting clicks, whenever the drawer is closed). */}
-      {sidebarOpen ? <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} /> : null}
-      <div className="admin-main-col">
-        {/* Hidden above the tablet breakpoint (desktop keeps the always-visible sidebar) — see
-            `.admin-topbar` in styles.css. */}
-        <div className="admin-topbar">
-          <button
-            type="button"
-            className="admin-topbar-toggle"
-            aria-expanded={sidebarOpen}
-            aria-controls="admin-sidebar"
-            aria-label={sidebarOpen ? "Close navigation" : "Open navigation"}
-            onClick={() => setSidebarOpen((current) => !current)}
-          >
-            <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-              <path d="M2.5 5h13M2.5 9h13M2.5 13h13" strokeLinecap="round" />
-            </svg>
-          </button>
-          <span className="admin-topbar-title">Tovu</span>
+              Splitting is safe precisely because `Sidebar.Nav` renders a bare fragment of
+              `.cms-section` divs — no wrapper element, no ids, no internal indexing across groups —
+              so two calls produce exactly the DOM one call would, with the toggle spliced between.
+              Doing it here also keeps this a host-only layout choice: `@jini-ai/admin` is unchanged,
+              so no package rebuild is involved and no other host inherits Tovu's arrangement. */}
+          <Sidebar.Nav groups={navGroups.slice(0, 1)} soonLabel={navSoonLabel} />
+          <Sidebar.RailToggle />
+          {/* Collapsible sections (owner-directed, 2026-08-06 — piloted on PEOPLE, then widened to
+              all six). `collapsibleGroups` defaults to empty in `@jini-ai/admin`, so this opt-in is
+              what turns the headings into controls; other hosts embedding the admin are unaffected.
+              Open/closed state persists per section via `useNavSections` (localStorage), survives
+              reload and navigation, and syncs across tabs. */}
+          <Sidebar.Nav groups={navGroups.slice(1)} collapsibleGroups={collapsibleGroups} soonLabel={navSoonLabel} />
+          <Sidebar.Footer>
+            <SidebarLogoutButton onLogout={logoutConfirm.request} locale={navLocale} />
+          </Sidebar.Footer>
+        </Sidebar>
+        <LogoutConfirmDialog logoutConfirm={logoutConfirm} locale={navLocale} />
+        {/* Mobile-only backdrop behind the open drawer (`styles.css` hides `.cms-nav`'s off-canvas
+            behavior above 900px, so this has nothing to sit behind there either — conditionally
+            rendered rather than CSS-hidden since it would otherwise sit invisibly over the whole
+            page, intercepting clicks, whenever the drawer is closed). */}
+        {sidebarOpen ? <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} /> : null}
+        <div className="admin-main-col">
+          {/* Hidden above the tablet breakpoint (desktop keeps the always-visible sidebar) — see
+              `.admin-topbar` in styles.css. */}
+          <div className="admin-topbar">
+            <button
+              type="button"
+              className="admin-topbar-toggle"
+              aria-expanded={sidebarOpen}
+              aria-controls="admin-sidebar"
+              aria-label={tApp(navLocale, sidebarOpen ? "Close navigation" : "Open navigation")}
+              onClick={() => setSidebarOpen((current) => !current)}
+            >
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+                <path d="M2.5 5h13M2.5 9h13M2.5 13h13" strokeLinecap="round" />
+              </svg>
+            </button>
+            <span className="admin-topbar-title">Tovu</span>
+          </div>
+          {/* `data-agent-page` is how the page driver reports where it is: `page.find_elements` tags
+              every handle with its nearest `[data-agent-page]` ancestor, and `page.navigate` reads it
+              back to say which page it left and which it landed on. `agentPageId`, not
+              `currentPanelId` — they agree for every route but widget regions, where the published
+              page id and the highlighted sidebar row are genuinely different things. */}
+          {/* `tabIndex={-1}` — without it, activating the skip link above scrolls `<main>` into
+              view but does not actually move keyboard focus there, since a plain `<main>` isn't
+              natively focusable; the skip link would then satisfy the letter of "skip navigation"
+              while missing the actual point (the next Tab press would resume from wherever focus
+              really was, not from main content). Not in the normal Tab order either way, since -1
+              only allows *programmatic* focus (the skip link's own `href` jump). */}
+          <main id="main-content" className="admin-content" ref={setContentEl} tabIndex={-1} data-agent-page={agentPageId(route)}>
+            {content}
+          </main>
         </div>
-        {/* `data-agent-page` is how the page driver reports where it is: `page.find_elements` tags
-            every handle with its nearest `[data-agent-page]` ancestor, and `page.navigate` reads it
-            back to say which page it left and which it landed on. `agentPageId`, not
-            `currentPanelId` — they agree for every route but widget regions, where the published
-            page id and the highlighted sidebar row are genuinely different things. */}
-        {/* `tabIndex={-1}` — without it, activating the skip link above scrolls `<main>` into
-            view but does not actually move keyboard focus there, since a plain `<main>` isn't
-            natively focusable; the skip link would then satisfy the letter of "skip navigation"
-            while missing the actual point (the next Tab press would resume from wherever focus
-            really was, not from main content). Not in the normal Tab order either way, since -1
-            only allows *programmatic* focus (the skip link's own `href` jump). */}
-        <main id="main-content" className="admin-content" ref={setContentEl} tabIndex={-1} data-agent-page={agentPageId(route)}>
-          {content}
-        </main>
-      </div>
-      {/* See `AssistantChrome`'s own doc comment for why this is unconditional — `enabled` is what
-          decides, not a ternary here. */}
-      <AssistantChrome
-        enabled={adminAssistantEnabled}
-        chatOpen={chatOpen}
-        setChatOpen={setChatOpen}
-        sheetExpanded={sheetExpanded}
-        setSheetExpanded={setSheetExpanded}
-        isSheetMode={isSheetMode}
-        sheetHeightPx={sheetHeightPx}
-        dockWidthPx={dockWidthPx}
-        chatDockRef={chatDockRef}
-        chatFabRef={chatFabRef}
-        onDockDropCapture={handleDockDropCapture}
-        publishDropCapture={publishDropCapture}
-        agentBridge={agentBridge}
-        dockT={dockT}
-        locale={navLocale}
-      />
-      {/* Rendered unconditionally on `chatOpen`, deliberately: the assistant can capture a
-          screenshot while the panel is collapsed (a background run in flight), and the operator must
-          see the announcement either way — see `screenshotAnnounced`'s own comment above. */}
-      {screenshotAnnounced ? (
-        <Toast
-          message={dockT("The assistant just captured a screenshot of this screen.")}
-          tone="default"
-          ttlMs={5000}
-          onDismiss={dismissScreenshotAnnouncement}
+        {/* See `AssistantChrome`'s own doc comment for why this is unconditional — `enabled` is what
+            decides, not a ternary here. */}
+        <AssistantChrome
+          enabled={adminAssistantEnabled}
+          chatOpen={chatOpen}
+          setChatOpen={setChatOpen}
+          sheetExpanded={sheetExpanded}
+          setSheetExpanded={setSheetExpanded}
+          isSheetMode={isSheetMode}
+          sheetHeightPx={sheetHeightPx}
+          dockWidthPx={dockWidthPx}
+          chatDockRef={chatDockRef}
+          chatFabRef={chatFabRef}
+          onDockDropCapture={handleDockDropCapture}
+          publishDropCapture={publishDropCapture}
+          agentBridge={agentBridge}
+          dockT={dockT}
+          locale={navLocale}
         />
-      ) : null}
-    </div>
+        {/* Rendered unconditionally on `chatOpen`, deliberately: the assistant can capture a
+            screenshot while the panel is collapsed (a background run in flight), and the operator must
+            see the announcement either way — see `screenshotAnnounced`'s own comment above. */}
+        {screenshotAnnounced ? (
+          <Toast
+            message={dockT("The assistant just captured a screenshot of this screen.")}
+            tone="default"
+            ttlMs={5000}
+            onDismiss={dismissScreenshotAnnouncement}
+          />
+        ) : null}
+      </div>
+    </ConfirmDialogDefaultsProvider>
   );
 }

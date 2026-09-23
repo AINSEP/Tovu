@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MEDIA_DICT } from "../media-i18n";
+import { COMMON_I18N } from "@/lib/i18n-common";
+import { MEDIA_DICT, t } from "../media-i18n";
 
 /**
  * @file `MEDIA_DICT` cross-locale coverage — the exact gap a live audit caught 2026-09-07: `Media.tsx`
@@ -47,5 +48,23 @@ describe("MEDIA_DICT: cross-locale key parity", () => {
     for (const locale of locales) {
       expect(MEDIA_DICT[locale]["Uploaded videos appear here once you add them."], `locale ${locale}`).toBeTruthy();
     }
+  });
+});
+
+/**
+ * S-I18N fallback fix (same shape as `widgets`/`forms`/`collections`/`taxonomy`, see those
+ * dictionaries' own `t() falls back to COMMON_I18N` tests): `media-i18n.ts`'s `t` was a bare
+ * `MEDIA_DICT[locale]?.[key] ?? key` with no shared-dictionary fallback. Every key `Media.tsx`
+ * currently calls `t()` with happens to already be duplicated into `MEDIA_DICT` for all 21 locales
+ * (confirmed by the parity test above), so this dictionary's OWN copy never rendered raw English —
+ * but the exported `t`/`translate` is also called directly by `rules.ts` and `use-media.hooks.ts`
+ * for any future key, and a generic `COMMON_I18N` word this dictionary doesn't carry (it never
+ * needed to, since it duplicates Save/Cancel/Delete permanently locally) still fell straight to
+ * English instead of the shared translation.
+ */
+describe("MEDIA_DICT: t() falls back to COMMON_I18N", () => {
+  it("translates 'Kind' in German even though MEDIA_DICT.de never carries it", () => {
+    expect(MEDIA_DICT.de.Kind).toBeUndefined();
+    expect(t("de", "Kind")).toBe(COMMON_I18N.de.Kind);
   });
 });

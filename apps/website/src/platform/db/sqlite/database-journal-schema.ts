@@ -9,7 +9,7 @@ import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqli
  * requires to live OUTSIDE `content.db`, in a physically separate SQLite file, so that restoring
  * `content.db` from a snapshot never erases the incident record that snapshot restore is supposed
  * to narrate, and boot recovery can append a `migration.interrupted` row even when `content.db`
- * itself won't open. This is a DIFFERENT physical database from `src/platform/db/schema.ts`
+ * itself won't open. This is a DIFFERENT physical database from `src/platform/db/schema.sqlite.ts`
  * (`content.db`'s schema) — generated via its own `drizzle.database-journal.config.ts` into
  * `src/platform/db/drizzle-database-journal/`, never merged into the `content.db` migration stream.
  *

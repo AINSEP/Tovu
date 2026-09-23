@@ -155,3 +155,155 @@ describe("useMembers — content refresh bus", () => {
     expect(result.current.members).toEqual([disabled]);
   });
 });
+
+/**
+ * C7 (plan-access.md §8, N2, terra review triage 2026-09-20): `onToggleDetail`'s `catch`/`finally`
+ * settle `detailError`/`detailLoadingId` with no key — expanding row A (slow, then failing), then
+ * row B, lets A's `finally` blank B's "Loading detail…" indicator and lets A's failure paint onto
+ * B's now-open panel (`Members.tsx` renders `detailError` unkeyed too). Same bug shape as C2
+ * (`use-roles.hooks.ts`'s `loadPermissions` callers).
+ */
+describe("useMembers — a slow row's detail settle does not blank or error another row's panel (C7)", () => {
+  it("rejecting a slow-loading row's detail after a different row was expanded leaves the new row's panel alone", async () => {
+    vi.stubGlobal("fetch", stubFetchWithLocale("en"));
+    const MEMBER_A: AdminMember = { ...MEMBER, id: "mA" };
+    const MEMBER_B: AdminMember = { ...MEMBER, id: "mB", email: "bob@example.com" };
+    const port = createFakeMembersPort({ members: [MEMBER_A, MEMBER_B] });
+
+    let rejectA!: (e: unknown) => void;
+    vi.spyOn(port, "getMember")
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => (rejectA = reject)))
+      // B's load is left pending — this finding is about A's LATE settle, not B's own outcome.
+      .mockImplementationOnce(() => new Promise<{ member: AdminMember }>(() => {}));
+
+    const { result } = renderHook(() => useMembers({ port }));
+    await waitFor(() => expect(result.current.members).toEqual([MEMBER_A, MEMBER_B]));
+
+    let pA!: Promise<void>;
+    act(() => {
+      pA = result.current.onToggleDetail(MEMBER_A);
+    });
+    act(() => {
+      void result.current.onToggleDetail(MEMBER_B);
+    });
+
+    rejectA(new Error("boom-A"));
+    await act(async () => {
+      await pA;
+    });
+
+    // Fails today: A's unconditional catch/finally paint onto B's open panel — detailError gets
+    // A's message, and detailLoadingId is blanked to null instead of staying B.id.
+    expect(result.current.detailError).toBeNull();
+    expect(result.current.detailLoadingId).toBe(MEMBER_B.id);
+  });
+
+  // a3-review-6 (2026-09-21): collapsing must clear `expandedIdRef` too. Dropping that one line left
+  // every members test green, yet the row could then never be reopened: the third click read the
+  // stale ref as "already open" and collapsed again.
+  it("a row collapsed and clicked again reopens", async () => {
+    vi.stubGlobal("fetch", stubFetchWithLocale("en"));
+    const port = createFakeMembersPort({ members: [MEMBER] });
+
+    const { result } = renderHook(() => useMembers({ port }));
+    await waitFor(() => expect(result.current.members).toEqual([MEMBER]));
+
+    await act(async () => {
+      await result.current.onToggleDetail(MEMBER);
+    });
+    expect(result.current.expandedId).toBe(MEMBER.id);
+    await act(async () => {
+      await result.current.onToggleDetail(MEMBER);
+    });
+    expect(result.current.expandedId).toBeNull();
+    await act(async () => {
+      await result.current.onToggleDetail(MEMBER);
+    });
+    expect(result.current.expandedId).toBe(MEMBER.id);
+  });
+
+  // a3-review-6 (2026-09-21): the row-id key cannot tell two loads of the SAME row apart. Open A,
+  // close it, and open it again before the first load settles: when that first load fails, its
+  // error lands on A's panel and its `finally` clears the spinner while the second load is still
+  // running. `MemberDetailPanel` checks `detailError` before `detail`, so the stale error keeps
+  // hiding the detail even after the second load succeeds.
+  it("the first load of a closed-and-reopened row failing late does not error or un-spin the reopened panel", async () => {
+    vi.stubGlobal("fetch", stubFetchWithLocale("en"));
+    const port = createFakeMembersPort({ members: [MEMBER] });
+
+    let rejectFirst!: (e: unknown) => void;
+    let resolveSecond!: (v: { member: AdminMember }) => void;
+    vi.spyOn(port, "getMember")
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => (rejectFirst = reject)))
+      .mockImplementationOnce(() => new Promise<{ member: AdminMember }>((resolve) => (resolveSecond = resolve)));
+
+    const { result } = renderHook(() => useMembers({ port }));
+    await waitFor(() => expect(result.current.members).toEqual([MEMBER]));
+
+    let first!: Promise<void>;
+    act(() => {
+      first = result.current.onToggleDetail(MEMBER);
+    });
+    act(() => {
+      void result.current.onToggleDetail(MEMBER);
+    });
+    let second!: Promise<void>;
+    act(() => {
+      second = result.current.onToggleDetail(MEMBER);
+    });
+    expect(result.current.expandedId).toBe(MEMBER.id);
+
+    rejectFirst(new Error("boom-first"));
+    await act(async () => {
+      await first;
+    });
+    expect(result.current.detailError).toBeNull();
+    expect(result.current.detailLoadingId).toBe(MEMBER.id);
+
+    await act(async () => {
+      resolveSecond({ member: MEMBER });
+      await second;
+    });
+    expect(result.current.detailError).toBeNull();
+    expect(result.current.detailLoadingId).toBeNull();
+    expect(result.current.detailById[MEMBER.id]).toEqual(MEMBER);
+  });
+
+  // Moving to an ALREADY-loaded row starts no new load, so only the `expandedIdRef` check (not the
+  // load generation) keeps a late failure off that row's panel.
+  it("a slow row failing after the operator moved to an already-loaded row leaves that row's panel alone", async () => {
+    vi.stubGlobal("fetch", stubFetchWithLocale("en"));
+    const MEMBER_A: AdminMember = { ...MEMBER, id: "mA" };
+    const MEMBER_B: AdminMember = { ...MEMBER, id: "mB", email: "bob@example.com" };
+    const port = createFakeMembersPort({ members: [MEMBER_A, MEMBER_B] });
+
+    let rejectA!: (e: unknown) => void;
+    vi.spyOn(port, "getMember")
+      .mockImplementationOnce(() => Promise.resolve({ member: MEMBER_B }))
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => (rejectA = reject)));
+
+    const { result } = renderHook(() => useMembers({ port }));
+    await waitFor(() => expect(result.current.members).toEqual([MEMBER_A, MEMBER_B]));
+
+    await act(async () => {
+      await result.current.onToggleDetail(MEMBER_B);
+    });
+    expect(result.current.detailById[MEMBER_B.id]).toEqual(MEMBER_B);
+
+    let pA!: Promise<void>;
+    act(() => {
+      pA = result.current.onToggleDetail(MEMBER_A);
+    });
+    await act(async () => {
+      await result.current.onToggleDetail(MEMBER_B);
+    });
+    expect(result.current.expandedId).toBe(MEMBER_B.id);
+
+    rejectA(new Error("boom-A"));
+    await act(async () => {
+      await pA;
+    });
+    expect(result.current.detailError).toBeNull();
+    expect(result.current.detailLoadingId).toBeNull();
+  });
+});

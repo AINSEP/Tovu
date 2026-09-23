@@ -80,14 +80,11 @@
  * and `PostPreview`'s frame) so the toolbar-to-pane gap is identical whichever tab is active. */
 .post-editor-pane { margin-top: calc(-1 * var(--space-6)); }
 
-/* The Preview tab's iframe — either the live public site (`siteUrl`) or `SrcDocSandbox`'s sandboxed
- * `srcDoc` render of the editor buffer; see `PostPreview`'s own doc comment in `PostEditor.tsx` for
- * which and when. No device-width scaling transform here (unlike Pages' `.page-preview-scaler`) —
- * nothing asked for a Desktop/Tablet/Mobile toggle on this screen, so the frame just fills its
- * `.editor-shell` at natural width. `32rem` matches Pages' own HTML/Interactive tab height
- * (`.page-html-source`/`.interactive-html-editor`, `styles/pages.css`) for the same reason those two
- * chose one shared number: visual parity between the two editors' panes. */
-.editor-preview-iframe { width: 100%; height: 32rem; border: 0; display: block; background: var(--surface); }
+/* The Preview tab's iframe renders inside the shared device-width `DevicePreviewFrame`
+ * (`.page-preview-frame`/`.page-preview-scaler`/`.page-preview-iframe`, `styles/pages.css`) — see
+ * `PostPreview`'s own doc comment in `PostEditor.tsx`. The surrounding `.editor-shell` already draws
+ * the card's border, radius and clipping, so the frame's own are dropped here to avoid a double edge. */
+.post-editor-pane > .page-preview-frame { border: 0; border-radius: 0; }
 
 /* Preview fullscreen, Level 1 (2026-09-15 — `ADS-memory/.local-artifacts/handoffs/
    2026-09-15-preview-fullscreen-PLAN.md`). `position: absolute; inset: 0` against `.admin-main-col`
@@ -103,10 +100,12 @@
    the mobile sheet dock's `z-index: 55` (`styles.css`'s own sheet-mode block), so the sheet still
    slides up over this on narrow viewports exactly as it already does over `<main>`. */
 .post-preview-expanded { position: absolute; inset: 0; z-index: 25; display: flex; flex-direction: column; background: var(--surface); }
-/* Overrides `.editor-preview-iframe`'s own fixed `32rem` (just above) — expanded, the iframe fills
-   whatever height `.post-preview-expanded`'s flex column actually has instead of a fixed pane
-   height. */
-.post-preview-expanded .editor-preview-iframe { height: auto; flex: 1; }
+/* Expanded, the device frame gets no inline height (`devicePreviewFrameStyles`) and fills whatever
+   height `.post-preview-expanded`'s flex column actually has; its scaler then fills the frame. Same
+   as Pages' `.page-preview-expanded .page-preview-frame`, including centring a narrower-than-pane
+   device (Mobile) instead of leaving it pinned to the corner. */
+.post-preview-expanded .page-preview-frame { flex: 1; min-height: 0; background: var(--surface-2); }
+.post-preview-expanded .page-preview-scaler { margin-inline: auto; }
 .post-preview-expanded .editor-shell { flex: 1; min-height: 0; border: 0; border-radius: 0; box-shadow: none; }
 /* The `-space-6` gap fix `.post-editor-pane` applies below the toolbar (see that rule's own comment)
    is meaningless here — there is no toolbar directly above this pane once expanded. */
@@ -121,7 +120,7 @@
 /* `MenuEditor.tsx`'s per-item `<details class="menu-item-advanced">` (cssClass/description/icon/rel/
  * openInNewTab) — lives here rather than `styles.css` (that file's own `.menu-item-fields` etc. are
  * currently owned by another agent's concurrent edit; see this file's header for the same reasoning
- * `.editor-preview-iframe` above already follows). Indented to sit under the row it belongs to, same
+ * the Preview-tab rules above already follow). Indented to sit under the row it belongs to, same
  * `.menu-item-row[style*="margin-left"]` left-border convention `styles.css` uses for nested rows. */
 .menu-item-advanced { margin: 0.35rem 0 0; font-size: 0.85rem; }
 .menu-item-advanced > summary { cursor: pointer; color: var(--muted); width: fit-content; }

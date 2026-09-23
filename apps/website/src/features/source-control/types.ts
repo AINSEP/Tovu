@@ -4,12 +4,12 @@ import type { SealedSecret } from "../webhooks/index.js";
 
 /**
  * @file Domain types for named, workspace-scoped source-control identity connections
- * (`source_control_credential_sets`, `src/platform/db/schema.ts`). Structurally mirrors
+ * (`source_control_credential_sets`, `src/platform/db/schema.sqlite.ts`). Structurally mirrors
  * `features/deployments/publish-credentials/types.ts` — see that file's own header for the design
  * this one copies verbatim — but is its OWN closed provider union, deliberately not reusing
  * `PublishProviderId`: that type is a deploy-target id by design (aliased to
  * `AdminStaticPublishTargetId` so the two can never drift), and none of GitLab, Bitbucket, or a
- * *source* GitHub account is a static-publish target. See `src/platform/db/schema.ts`'s
+ * *source* GitHub account is a static-publish target. See `src/platform/db/schema.sqlite.ts`'s
  * `sourceControlCredentialSets` doc comment for the full "why a second table, not a wider union"
  * reasoning.
  *
@@ -50,7 +50,7 @@ export interface BitbucketSourceControlConnectionInput {
 
 /** Closed discriminated union — see this file's header. This whole object is what gets serialized
  *  to JSON and sealed as ONE ciphertext blob per credential set (never per-field columns — see
- *  `src/platform/db/schema.ts`'s `sourceControlCredentialSets` header for why). */
+ *  `src/platform/db/schema.sqlite.ts`'s `sourceControlCredentialSets` header for why). */
 export type SourceControlConnectionInput =
   | GitHubSourceControlConnectionInput
   | GitLabSourceControlConnectionInput
@@ -66,10 +66,10 @@ export interface SourceControlCredentialSetRecord {
   readonly label: string;
   readonly sealed: SealedSecret;
   /** At most one `TRUE` per `(workspaceId, providerId)`, maintained by `store.ts`'s write path —
-   *  see `src/platform/db/schema.ts`'s `sourceControlCredentialSets.isDefault` doc. */
+   *  see `src/platform/db/schema.sqlite.ts`'s `sourceControlCredentialSets.isDefault` doc. */
   readonly isDefault: boolean;
   /** Migration `0044` (2026-08-16) — the verified GitHub `login`, held in the clear (never sealed) —
-   *  see `src/platform/db/schema.ts`'s `sourceControlCredentialSets.accountLabel` doc for the full reasoning.
+   *  see `src/platform/db/schema.sqlite.ts`'s `sourceControlCredentialSets.accountLabel` doc for the full reasoning.
    *  `null` for `gitlab`/`bitbucket` connections (no reviewed identity extractor exists for either
    *  yet) and for a `github` connection whose save-time identity probe failed or timed out. */
   readonly accountLabel: string | null;

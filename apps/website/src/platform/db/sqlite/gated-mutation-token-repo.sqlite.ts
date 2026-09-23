@@ -1,6 +1,6 @@
 import { count, eq } from "drizzle-orm";
 
-import { gatedMutationTokens } from "../schema.js";
+import { gatedMutationTokens } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 import { isRedeemable } from "#src/contracts/core/gated-mutations/token";
 import type { ConfirmationTokenRecord, TokenStorePort } from "#src/contracts/core/gated-mutations/token";

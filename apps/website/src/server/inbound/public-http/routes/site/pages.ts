@@ -5,6 +5,7 @@ import type { PostRecord } from "#src/features/post/index";
 import {
   getPublishedPostBySlug,
   findPublishedPostById,
+  findPublishedPostBySlug,
   listPublishedPosts,
   listPublishedPostPreviews,
   PostNotFoundError,
@@ -21,6 +22,7 @@ import {
 import { resolveActiveThemeId } from "#src/features/presentation/index";
 import {
   renderStaticPage,
+  expandPartials,
   injectCurrentEntityContentId,
   injectPageTitle,
   resolveTemplate,
@@ -31,11 +33,26 @@ import {
   resolveActiveTheme,
   tokenStylesheetSentinel,
   isStandaloneThemePage,
+  collectionMarkerKey,
+  splitCollectionMarkerInner,
+  renderEntryList,
   type DiscoveredTheme,
   type StaticMenuItem,
   type StaticPostPreview,
+  type EntryListItem,
+  type EntryListFieldValue,
 } from "#src/features/theme/index";
-import { markersOfType, substituteMarkers, withInnerContentFinal } from "#src/contracts/core/embeds/marker";
+import {
+  markersOfType,
+  substituteMarkers,
+  withInnerContentFinal,
+  MENU_MARKER_TYPE,
+  COLLECTION_MARKER_TYPE,
+  type EmbedMarker,
+} from "#src/contracts/core/embeds/marker";
+import type { ContentTypeFieldDef } from "#src/features/content-types/index";
+import type { EntryRecord } from "#src/features/entries/index";
+import { parseCollectionListConfig, humanizeFieldName, entryPublicHref } from "#src/features/entries/public-list";
 import {
   resolveHtmlPageEmbeds,
   resolvePageWidgets,
@@ -374,9 +391,11 @@ function navTargetToRouteTarget(target: NavTarget): RouteTarget {
  * A theme marker now names a real stored menu `id` directly (e.g. `data-embed-id="menu-header-nav"`)
  * — the same `data-embed-type`/`data-embed-id` convention posts already use (`injectCurrentEntityContentId`) —
  * rather than a theme-independent named location resolved through `nav_location_bindings`. This
- * intentionally leaves `resolveForLocation`, `navLocationBindingRepo`, and the Menus admin screen's
- * "Assign location" feature in place but UNUSED for static-tier header/footer rendering specifically:
- * they are not deleted (other tiers or a future deprecation may still want them), simply no longer
+ * intentionally leaves `resolveForLocation`, `navLocationBindingRepo`, and the admin `assign-location`
+ * API route (`admin-http/routes/menus/assign-location.ts`) in place but UNUSED for static-tier
+ * header/footer rendering specifically — the Menus admin screen itself has no "assign location" UI;
+ * the theme alone decides where each menu goes, via the `data-embed-id` slug markers above. These are
+ * not deleted (other tiers or a future deprecation may still want them), simply no longer
  * on this call path. `resolveMenuDoc` (`navigation`) is the doc-level building block
  * `resolveForLocation` itself composed on top of a location lookup — called directly here per
  * referenced menu id instead. It still needs the same injected `resolveTargetHref` seam `routing`'s
@@ -395,6 +414,14 @@ function navTargetToRouteTarget(target: NavTarget): RouteTarget {
  * @complexity One `menuRepo.findById` + `resolveMenuDoc` pair per distinct menu id the theme's
  * markup references (bounded in practice to the small, fixed set an author wrote into the theme's
  * own files), run concurrently.
+ *
+ * `extraMenuIds` (E3, 2026-09-23, D2's `finishStaticTierDocument`) — additional ids to resolve
+ * alongside the theme's own file scan, unioned via `Set` so an id present in both is fetched once,
+ * not twice. Exists because `scanMenuEmbedIds(theme)` only ever sees the theme's OWN pages/partials;
+ * a menu marker authored directly in a Page/Post's own body (never in a theme file) is invisible to
+ * it, so `finishStaticTierDocument` scans the fully assembled document for menu ids `staticMenus`
+ * (this function's own FIRST, no-`extraMenuIds` call at the top of the request) does not already
+ * carry, and passes exactly those here. Omitted, every pre-existing call site is unaffected.
  */
 /**
  * The one reserved `data-embed-id` a static theme's docs-sidebar marker can carry to mean "this
@@ -425,11 +452,12 @@ export async function resolveStaticMenusForRender(
   deps: TemplateRenderDeps,
   /** `null` when the operator turned the theme off — no theme, no theme-owned menu embeds. */
   theme: DiscoveredTheme | null,
-  currentPath: string
+  currentPath: string,
+  extraMenuIds?: readonly string[]
 ): Promise<Readonly<Record<string, readonly StaticMenuItem[]>>> {
   if (theme === null || theme.manifest.tier !== "static") return {};
 
-  const menuIds = scanMenuEmbedIds(theme);
+  const menuIds = Array.from(new Set([...scanMenuEmbedIds(theme), ...(extraMenuIds ?? [])]));
   if (menuIds.length === 0) return {};
 
   const resolveTargetHref: ResolveTargetHrefFn = async (target) => {
@@ -488,6 +516,274 @@ export async function resolveStaticMenusForRender(
   return Object.fromEntries(
     entries.filter((entry): entry is readonly [string, readonly StaticMenuItem[]] => entry !== undefined)
   );
+}
+
+/**
+ * D2's single static-tier document pipeline (E3, 2026-09-23) — the one sequence every static-tier
+ * surface (a template-rendered post/page via {@link renderViaTemplate}, a theme marketing page via
+ * {@link resolveMarketingPageOrOverride}, and — E4 — the theme's own `index.html` and themed `404`)
+ * now runs, so a marker embedded in ANY of the three places a static theme assembles content from —
+ * a Page/Post's own authored body, the theme's raw page/marketing-page file, or a partial included
+ * into either — resolves the same way regardless of which surface it landed on.
+ *
+ * Order is fixed and matters:
+ * 1. {@link expandPartials} runs FIRST, so a widget/media/post/content/menu/post-previews marker
+ *    authored inside a partial (`nav.html`, `footer.html`, …) is physically present in the html
+ *    before anything below ever scans it. Before this, a partial's own markers were invisible to
+ *    every resolver here, because `renderStaticPage`'s own partial expansion ran strictly AFTER the
+ *    embed-resolution stage on every pre-existing call path.
+ * 2. `resolveHtmlPageEmbeds` + `renderHtmlPageBody` resolve every widget/media/post/content marker
+ *    now present in the expanded html. `menu`/`post-previews` are theme-owned marker types this
+ *    stage never touches (`THEME_OWNED_MARKER_TYPES`), so they survive into the steps below by
+ *    design, not by omission.
+ * 3. Any `menu` marker left in the assembled html whose id is not already a key of `input.staticMenus`
+ *    (the caller's own theme-FILE-only scan — {@link resolveStaticMenusForRender}'s first,
+ *    no-`extraMenuIds` call at the top of the request) is fetched now. This is what lets a menu
+ *    marker authored directly in a Page/Post's own body — never in a theme file, so
+ *    `scanMenuEmbedIds` could never see it — resolve at all.
+ * 4. {@link resolvePostPreviewsForRender} scans the SAME assembled html — not `theme.pages[pageId]`/
+ *    a raw, unassembled template alone — for a `post-previews` marker, so one authored inside a
+ *    Page's own body or a partial is found too.
+ * 5. {@link resolveCollectionListsForRender} (C5, 2026-09-23) scans the same assembled html for every
+ *    distinct `{"type":"collection"}` marker config and resolves each to a rendered entry list, same
+ *    "scan the assembled document, not the raw template" reasoning as step 4.
+ * 6. `renderStaticPage` applies every remaining static-tier treatment (token injection, asset-path
+ *    rewrite, its own idempotent `expandPartials` re-pass, `menu`/`post-previews`/`collection`
+ *    injection, link rewrite) on top, exactly as it always has.
+ *
+ * `input.html` is always supplied to `renderStaticPage` as `htmlOverride`, so its `source ===
+ * undefined` null case — reachable only when BOTH `htmlOverride` and `theme.pages[pageId]` are
+ * undefined — can never fire here. The `?? ""` below is the same proven-unreachable fallback
+ * `renderViaTemplate`'s own pre-existing calls already carry (see that function's own comment for
+ * the full proof); not narrowed here for the same out-of-scope reason (the real fix narrows
+ * `renderStaticPage`'s return type in static-render.ts).
+ *
+ * @complexity One `resolveHtmlPageEmbeds` pass (bounded by `MAX_HTML_EMBEDS_PER_PAGE`) plus, only
+ * when the assembled html names a menu `input.staticMenus` does not already carry, one additional
+ * `resolveStaticMenusForRender` call bounded to exactly those missing ids — never a full theme-wide
+ * re-scan — plus one `resolveCollectionListsForRender` pass bounded to at most
+ * `MAX_DISTINCT_COLLECTION_MARKERS_PER_PAGE` distinct marker configs.
+ */
+export async function finishStaticTierDocument(
+  deps: TemplateRenderDeps,
+  input: {
+    readonly theme: DiscoveredTheme;
+    readonly pageId: string;
+    readonly html: string;
+    readonly currentPath: string;
+    readonly staticMenus: StaticMenuMap | undefined;
+    readonly postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext };
+    /** Threaded straight through to `resolveHtmlPageEmbeds`'s identically-shaped deps field — see
+     *  {@link ResolveHtmlPageEmbedsDeps.pendingContentOverride}'s own doc for the full rationale. */
+    readonly pendingContentOverride?: {
+      readonly id: string;
+      readonly title: string;
+      readonly slug: string;
+      readonly updatedAt: string;
+      readonly bodyJson: JsonObject;
+    };
+  }
+): Promise<string> {
+  const { theme, pageId, html, currentPath, staticMenus, postPreviewsAccess, pendingContentOverride } = input;
+
+  const expanded = expandPartials(html, theme);
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: {
+      entryRepo: deps.entryRepo,
+      postRepo: deps.postRepo,
+      mediaRepo: deps.mediaRepo,
+      transformRepo: deps.transformDefinitionRepo,
+      mediaContentTypeStore: deps.mediaContentTypeStore,
+      ...(pendingContentOverride !== undefined ? { pendingContentOverride } : {}),
+    },
+    input: { workspaceId: deps.workspaceId, html: expanded },
+  });
+  const assembled = renderHtmlPageBody(expanded, resolved);
+
+  const knownMenuIds = new Set(Object.keys(staticMenus ?? {}));
+  const missingMenuIds = Array.from(
+    new Set(
+      markersOfType(assembled, MENU_MARKER_TYPE)
+        .map((marker) => marker.id)
+        .filter((id): id is string => id !== undefined && !knownMenuIds.has(id))
+    )
+  );
+  const menus =
+    missingMenuIds.length === 0
+      ? staticMenus
+      : { ...staticMenus, ...(await resolveStaticMenusForRender(deps, theme, currentPath, missingMenuIds)) };
+
+  const postPreviews = postPreviewsAccess
+    ? await resolvePostPreviewsForRender(deps, postPreviewsAccess.resolver, postPreviewsAccess.context, assembled)
+    : undefined;
+
+  // C5 (collections plan, 2026-09-23) — the SAME assembled html post-previews just scanned, so a
+  // `{"type":"collection"}` marker authored in a Page/Post body or a partial resolves here too, not
+  // only one hand-authored directly into a theme file.
+  const collectionLists = await resolveCollectionListsForRender(deps, assembled);
+
+  return renderStaticPage({ theme, pageId, htmlOverride: assembled, menus, postPreviews, collectionLists }) ?? "";
+}
+
+/**
+ * The most distinct `{"type":"collection"}` marker configs one page's `resolveCollectionListsForRender`
+ * call will resolve. A theme/page author authors a small, fixed number of collection markers per page
+ * (this is layout, not user-collection-sized data); a page that somehow carries more than this is
+ * almost certainly an authoring mistake (e.g. a template loop that duplicated a marker with a
+ * per-iteration filter), not a legitimate design, so the excess configs are left on their authored
+ * fallback rather than firing an unbounded number of content-type/entry queries per request.
+ */
+const MAX_DISTINCT_COLLECTION_MARKERS_PER_PAGE = 10;
+
+/**
+ * Reads one custom field's value out of an entry's namespaced `fields.ext.site.<name>` bag, the
+ * route-layer twin of `repo.sqlite.ts`'s `json_extract($.ext.site.<name>)` and
+ * `trash-aware-memory-repo.ts`'s own private `siteFieldValue` — duplicated rather than imported
+ * because both of those live inside `features/entries/`'s repo-adapter internals with no barrel
+ * re-export, and this route-level display mapping must not deep-import across that feature boundary
+ * just to read a value out of a record it already has in hand.
+ *
+ * @complexity O(1).
+ */
+function collectionEntryFieldValue(row: EntryRecord, field: string): unknown {
+  const fields = row.fieldsJson as { ext?: { site?: Record<string, unknown> } } | null | undefined;
+  return fields?.ext?.site?.[field];
+}
+
+/**
+ * Reduces one fetched {@link EntryRecord} plus the content type's resolved display fields
+ * (`parseCollectionListConfig`'s `display.fields`, already validated and ordered) into the
+ * {@link EntryListItem} `entry-list-render.ts`'s pure renderer needs. `href` is always `null` (D1:
+ * entry pages are off) via {@link entryPublicHref}'s seam; `dateIso`/`dateLabel` prefer
+ * `publishedAt`, falling back to `updatedAt` for the rare row with no `publishedAt` yet (draft rows
+ * never reach here — `listPublishedForDisplay` only returns published entries — but a defensive
+ * fallback costs nothing and matches `formatPostPreviewDate`'s own "degrade, don't throw" posture).
+ *
+ * @complexity O(f) over `fields`' length — one `collectionEntryFieldValue` lookup per displayed
+ * field, f being the content type's own declared/authored field count, never user-collection-sized.
+ */
+function toCollectionEntryListItem(row: EntryRecord, fields: readonly ContentTypeFieldDef[]): EntryListItem {
+  const dateIso = row.publishedAt ?? row.updatedAt;
+  return {
+    title: row.title,
+    href: entryPublicHref(row.type, row.slug),
+    dateIso,
+    dateLabel: formatPostPreviewDate(dateIso),
+    fields: fields.map(
+      (field): EntryListFieldValue => ({
+        name: field.name,
+        label: humanizeFieldName(field.name),
+        kind: field.kind,
+        value: collectionEntryFieldValue(row, field.name),
+      })
+    ),
+  };
+}
+
+/**
+ * Resolves one already-deduplicated `{"type":"collection"}` marker to its rendered entry-list markup,
+ * or `undefined` for every kind of miss: no content-type key, an unknown/system/tombstoned content
+ * type (`parseCollectionListConfig`'s own rejections, which include D8's `SYSTEM_CONTENT_TYPES`), an
+ * invalid config (unknown `where`/`sort`/`fields` name, non-scalar `where` value), or zero matching
+ * published entries (`renderEntryList`'s own "no data ⇒ nothing to substitute" contract). Every
+ * rejection is a `console.warn`, not a thrown error — one bad marker must never fail the whole page
+ * render, matching this file's existing `[theme]` warning convention.
+ *
+ * @complexity One `contentTypeRepo.findByKey` plus, only when that succeeds and the config parses,
+ * one bounded `entryRepo.listPublishedForDisplay` query (capped at the marker's own clamped `limit`,
+ * `parseCollectionListConfig`'s own resource bound) — never an unbounded scan.
+ */
+/**
+ * The content-type key a `{"type":"collection"}` marker names. `id` is the documented form (the
+ * collections plan, the admin "Copy embed code" snippet and the docs page all write
+ * `{"type":"collection","id":"<typeKey>"}`, the same `id` every other marker type uses for its
+ * target); `typeKey` is accepted as an alias because early markers and tests were written with it.
+ * `undefined` when neither is a non-empty string. @complexity O(1).
+ */
+function collectionMarkerTypeKey(config: Readonly<Record<string, unknown>>): string | undefined {
+  for (const candidate of [config.id, config.typeKey]) {
+    if (typeof candidate === "string" && candidate.length > 0) return candidate;
+  }
+  return undefined;
+}
+
+async function resolveOneCollectionMarker(
+  deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo">,
+  marker: EmbedMarker
+): Promise<string | undefined> {
+  const typeKey = collectionMarkerTypeKey(marker.config);
+  if (typeKey === undefined) {
+    console.warn('[collection] marker names no content type (a string "id"); leaving its authored fallback content');
+    return undefined;
+  }
+
+  const contentType = await deps.contentTypeRepo.findByKey({ workspaceId: deps.workspaceId, key: typeKey });
+  if (contentType === null) {
+    console.warn(`[collection] no content type registered for typeKey "${typeKey}"; leaving its authored fallback content`);
+    return undefined;
+  }
+
+  const parsed = parseCollectionListConfig(marker.config, contentType);
+  if (!parsed.ok) {
+    console.warn(`[collection] rejected marker config for typeKey "${typeKey}": ${parsed.reason}; leaving its authored fallback content`);
+    return undefined;
+  }
+
+  const rows = await deps.entryRepo.listPublishedForDisplay({ workspaceId: deps.workspaceId, query: parsed.query });
+  const items = rows.map((row) => toCollectionEntryListItem(row, parsed.display.fields));
+  const { template } = splitCollectionMarkerInner(marker.inner);
+  return renderEntryList(items, { template, columns: parsed.display.columns, layout: parsed.display.layout, typeKey });
+}
+
+/**
+ * Collection-marker resolution (C5, 2026-09-23) — resolves every distinct `{"type":"collection"}`
+ * marker config found in `html` into the `ReadonlyMap<string, string | undefined>`
+ * {@link renderStaticPage}'s own `collectionLists` param expects, keyed by {@link collectionMarkerKey}
+ * so `static-render.ts`'s `injectCollectionEmbeds` (the other half of this contract) can look each
+ * one back up by the identical key.
+ *
+ * Two or more markers sharing the exact same config (the common case: one marker repeated, or two
+ * authored identically) resolve as ONE query, not one per occurrence — `collectionMarkerKey` is the
+ * de-dup key precisely so a page cannot multiply its query cost by how many times a marker happens to
+ * be pasted. Every distinct config beyond {@link MAX_DISTINCT_COLLECTION_MARKERS_PER_PAGE} is left
+ * out of the returned map entirely (not queried at all) with one `console.warn`, which
+ * `injectCollectionEmbeds` reads exactly like any other miss — its own authored fallback survives.
+ *
+ * A distinct config's own {@link resolveOneCollectionMarker} result — including `undefined` for a
+ * miss — is always recorded under its key, per {@link StaticCollectionList}'s own doc: this lets the
+ * caller (and any future re-scan) tell "already resolved, nothing to show" apart from "never looked
+ * at", even though this route layer, only ever building the map once per request, has no re-scan of
+ * its own that would need the distinction today.
+ *
+ * @complexity O(m) `collectionMarkerKey` computations over `m` markers found by `markersOfType`, plus
+ * up to `MAX_DISTINCT_COLLECTION_MARKERS_PER_PAGE` independent `resolveOneCollectionMarker` calls run
+ * concurrently via `Promise.all` — never one query per marker OCCURRENCE, only per distinct config.
+ */
+async function resolveCollectionListsForRender(
+  deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo">,
+  html: string
+): Promise<ReadonlyMap<string, string | undefined>> {
+  const markers = markersOfType(html, COLLECTION_MARKER_TYPE);
+  if (markers.length === 0) return new Map();
+
+  const distinctByKey = new Map<string, EmbedMarker>();
+  for (const marker of markers) {
+    const key = collectionMarkerKey(marker);
+    if (!distinctByKey.has(key)) distinctByKey.set(key, marker);
+  }
+
+  const withinCap = Array.from(distinctByKey.entries()).slice(0, MAX_DISTINCT_COLLECTION_MARKERS_PER_PAGE);
+  if (distinctByKey.size > withinCap.length) {
+    console.warn(
+      `[collection] page carries ${distinctByKey.size} distinct collection marker configs; only the first ${withinCap.length} are resolved, the rest keep their authored fallback content`
+    );
+  }
+
+  const resolvedEntries = await Promise.all(
+    withinCap.map(async ([key, marker]): Promise<readonly [string, string | undefined]> => [key, await resolveOneCollectionMarker(deps, marker)])
+  );
+
+  return new Map(resolvedEntries);
 }
 
 /**
@@ -597,6 +893,9 @@ export type TemplateRenderDeps = Pick<
   | "themes"
   | "mediaContentTypeStore"
   | "entryTermReadRepo"
+  // C5 (collections plan, 2026-09-23) — `resolveCollectionListsForRender`'s content-type lookup for
+  // a `{"type":"collection"}` marker's `typeKey`, threaded through `finishStaticTierDocument`.
+  | "contentTypeRepo"
 >;
 
 /**
@@ -615,6 +914,74 @@ export type RenderContextResolutionDeps = Pick<
   RouteDeps,
   "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "widgetBindingRepo" | "mediaContentTypeStore"
 >;
+
+/** A `{"type":"content"}` marker's authored `slug`, or `undefined` when absent/non-string/empty —
+ * the marker-scan-side counterpart to `resolver-service.ts`'s `normalizeEmbedSlug`, needed here
+ * because `EmbedMarker` (this file's `markersOfType`) projects only `id` as a top-level field; `slug`
+ * lives in `marker.config` alongside every other authored key. */
+function slugOf(marker: EmbedMarker): string | undefined {
+  const slug = marker.config.slug;
+  return typeof slug === "string" && slug.length > 0 ? slug : undefined;
+}
+
+/** A `{"type":"content"}` marker's resolution key for {@link resolveHtmlFormatContentMarkers} — `id`
+ * when the marker carries one, else its own `slug` (S3, 2026-09-23 widget-attrs plan: the same
+ * id-authoritative-when-present order `resolver-service.ts`'s `findPublishedPostByRef` uses for the
+ * later registry-resolver stage). `undefined` for a marker with neither key — nothing here to key a
+ * replacement by, same as the pre-existing `id === undefined` skip this generalizes. */
+function contentMarkerKey(marker: EmbedMarker): string | undefined {
+  return marker.id ?? slugOf(marker);
+}
+
+/** One `{"type":"content"}` marker's id-or-slug reference — a discriminated union, not two optional
+ * fields, so the id-authoritative-when-present rule (`id` tried first, `slug` consulted only for a
+ * ref with none — the identical order `resolver-service.ts`'s `findPublishedPostByRef` uses) is
+ * enforced by the TYPE: {@link fetchHtmlFormatBody} branches on `by` and gets a real `string` on
+ * either side, no non-null assertion and no way for the two fields to silently drift out of sync. */
+type ContentMarkerRef = { readonly key: string; readonly by: "id"; readonly id: string } | { readonly key: string; readonly by: "slug"; readonly slug: string };
+
+function toContentMarkerRef(marker: EmbedMarker): ContentMarkerRef | undefined {
+  if (marker.id !== undefined) return { key: marker.id, by: "id", id: marker.id };
+  const slug = slugOf(marker);
+  return slug === undefined ? undefined : { key: slug, by: "slug", slug };
+}
+
+/** Every DISTINCT `{"type":"content"}` reference in `html`, deduped by {@link ContentMarkerRef.key}
+ * — the direct generalization of the pre-existing `[...new Set(markersOfType(...).map(id))]` dedup to
+ * also cover a slug-only marker. Preserves that dedup's own guarantee (one fetch per distinct
+ * reference, first-occurrence order) for the id-only case unchanged, which is what guard 3's own
+ * fetch-count tests pin. */
+function distinctContentMarkerRefs(html: string): ContentMarkerRef[] {
+  const seen = new Map<string, ContentMarkerRef>();
+  for (const marker of markersOfType(html, "content")) {
+    const ref = toContentMarkerRef(marker);
+    if (ref !== undefined && !seen.has(ref.key)) seen.set(ref.key, ref);
+  }
+  return [...seen.values()];
+}
+
+/** Resolves one reference's own html-format body — `id` authoritative when present, `slug`
+ * consulted only for a ref with none — mirroring {@link resolveHtmlFormatContentMarkers}'s
+ * pre-existing id-only branch. `undefined` means "leave this reference for the final
+ * `resolveHtmlPageEmbeds` pass": missing, unpublished (guard 2), or `"doc"`-format — a `"doc"`-format
+ * target has nothing here to recurse into, and an unresolved reference degrades to the same REQ-28
+ * placeholder that pass already produces for any other miss.
+ */
+async function fetchHtmlFormatBody(
+  deps: ContentMarkerResolutionDeps,
+  ref: ContentMarkerRef,
+  pendingHtmlOverride?: { id: string; slug: string; bodyHtml: string }
+): Promise<string | undefined> {
+  if (pendingHtmlOverride && (ref.by === "id" ? ref.id === pendingHtmlOverride.id : ref.slug === pendingHtmlOverride.slug)) {
+    return pendingHtmlOverride.bodyHtml;
+  }
+  const entity =
+    ref.by === "id"
+      ? await findPublishedPostById({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, id: ref.id } })
+      : await findPublishedPostBySlug({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, slug: ref.slug } });
+  if (!entity || entity.bodyFormat !== "html") return undefined;
+  return entity.bodyHtml ?? "";
+}
 
 /**
  * Recursively resolves every `{"type":"content","id":...}` marker in `html` whose target is an
@@ -648,7 +1015,8 @@ export type RenderContextResolutionDeps = Pick<
  * `"doc"`-format body's `bodyJson`, but that override is only checked by the LATER
  * `resolveHtmlPageEmbeds` pass, which this `"html"`-format pass runs strictly before and never
  * reaches for an id this pass already consumed). Checked BEFORE {@link findPublishedPostById} for a
- * matching id, same order `pendingContentOverride` uses and for the same reason: an authenticated,
+ * matching id — or, for a slug-only ref, a matching `slug` (review of S3, 2026-09-23; never by slug
+ * for a ref carrying an id) — same order `pendingContentOverride` uses and for the same reason: an authenticated,
  * `content.read`-authorized caller (`routes/admin/posts/template-preview.ts`) previewing their own
  * unsaved edit to a row they already fetched by id should see that pending body, whether the row is
  * published or not — this is the one bypass of `findPublishedPostById`'s visibility guard, scoped to
@@ -673,29 +1041,20 @@ export async function resolveHtmlFormatContentMarkers(
   html: string,
   depth: number,
   budget: { remaining: number },
-  pendingHtmlOverride?: { id: string; bodyHtml: string }
+  pendingHtmlOverride?: { id: string; slug: string; bodyHtml: string }
 ): Promise<string> {
   if (depth >= MAX_CONTENT_EMBED_DEPTH || budget.remaining <= 0) return html;
 
-  const ids = [...new Set(markersOfType(html, "content").map((m) => m.id).filter((id): id is string => id !== undefined))];
-  if (ids.length === 0) return html;
-  const idsToFetch = ids.slice(0, budget.remaining);
-  budget.remaining -= idsToFetch.length;
+  const refs = distinctContentMarkerRefs(html);
+  if (refs.length === 0) return html;
+  const refsToFetch = refs.slice(0, budget.remaining);
+  budget.remaining -= refsToFetch.length;
 
   const replacements = new Map<string, string>();
   await Promise.all(
-    idsToFetch.map(async (id) => {
-      let ownBody: string;
-      if (pendingHtmlOverride && id === pendingHtmlOverride.id) {
-        ownBody = pendingHtmlOverride.bodyHtml;
-      } else {
-        const entity = await findPublishedPostById({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, id } });
-        // Missing/unpublished, or `"doc"`-format: leave this id for the final `resolveHtmlPageEmbeds`
-        // pass — a `"doc"`-format target has nothing here to recurse into, and an unresolved id (guard
-        // 2) degrades to the same REQ-28 placeholder that pass already produces for any other miss.
-        if (!entity || entity.bodyFormat !== "html") return;
-        ownBody = entity.bodyHtml ?? "";
-      }
+    refsToFetch.map(async (ref) => {
+      const ownBody = await fetchHtmlFormatBody(deps, ref, pendingHtmlOverride);
+      if (ownBody === undefined) return;
       // No `pendingHtmlOverride` threaded into this recursive call — see this function's own doc on
       // why the override must never follow into a nested entity's own embeds.
       const nestedHtml = await resolveHtmlFormatContentMarkers(deps, ownBody, depth + 1, budget);
@@ -709,14 +1068,15 @@ export async function resolveHtmlFormatContentMarkers(
         },
         input: { workspaceId: deps.workspaceId, html: nestedHtml },
       });
-      replacements.set(id, renderHtmlPageBody(nestedHtml, nestedResolved));
+      replacements.set(ref.key, renderHtmlPageBody(nestedHtml, nestedResolved));
     })
   );
   if (replacements.size === 0) return html;
 
   return substituteMarkers(html, (marker) => {
-    if (marker.type !== "content" || marker.id === undefined) return undefined;
-    const replacement = replacements.get(marker.id);
+    if (marker.type !== "content") return undefined;
+    const key = contentMarkerKey(marker);
+    const replacement = key === undefined ? undefined : replacements.get(key);
     return replacement === undefined ? undefined : withInnerContentFinal(marker, replacement);
   });
 }
@@ -865,7 +1225,7 @@ export async function renderViaTemplate(
     withCurrentId,
     0,
     { remaining: MAX_CONTENT_EMBED_FETCHES },
-    pendingBodyHtml !== undefined ? { id: post.id, bodyHtml: pendingBodyHtml } : undefined
+    pendingBodyHtml !== undefined ? { id: post.id, slug: post.slug, bodyHtml: pendingBodyHtml } : undefined
   );
   const resolved = await resolveHtmlPageEmbeds({
     deps: {
@@ -887,20 +1247,22 @@ export async function renderViaTemplate(
   // the template's own `<article>`/content wrapper (whatever marker `bodyResolvedHtml` replaced),
   // never outside it, since it's concatenated onto that exact string before the template splice.
   const bodyWithTerms = bodyResolvedHtml + renderAssignedTermsBlock(await resolveAssignedTermsForRender(deps, post));
-  // Post-previews marker (2026-09-03) — scanned off the THEME's own raw template (`rawTemplate`,
-  // unchanged by every resolution step above: `content`/`widget`/`media`/`post` markers are the only
-  // ones those steps touch, and `post-previews` is theme-owned, see `THEME_OWNED_MARKER_TYPES`),
-  // not off `bodyWithTerms` — scanning either finds the same marker, but `rawTemplate` is available
-  // before the other I/O above and lets this run without waiting on it.
-  const postPreviews = postPreviewsAccess
-    ? await resolvePostPreviewsForRender(deps, postPreviewsAccess.resolver, postPreviewsAccess.context, rawTemplate)
-    : undefined;
-  // Same unreachable-`?? ""` situation as the diagnostic branch above: `bodyResolvedHtml` is
-  // `renderHtmlPageBody`'s `string` return, never `undefined`, so `renderStaticPage`'s own
-  // `source === undefined` null case can't fire here either. See that branch's comment for the
-  // full proof; not fixed here for the same out-of-scope reason (the real fix narrows
-  // `renderStaticPage`'s return type in static-render.ts, outside this file).
-  const rendered = renderStaticPage({ theme, pageId, htmlOverride: bodyWithTerms, menus: staticMenus, postPreviews }) ?? "";
+  // D2's single static-tier pipeline (E3, 2026-09-23) — `finishStaticTierDocument` runs the SAME
+  // expand-partials / resolve-embeds / resolve-post-previews / render sequence every other
+  // static-tier surface now runs. Called on `bodyWithTerms`, not the raw, unassembled template: the
+  // body stage above already ran, so widget/media/post/content markers are already consumed (this
+  // second pass is a no-op for them) and it now ALSO picks up any marker that came from a partial
+  // (invisible before `expandPartials` ran) or was authored directly in `post`'s own `body_html`
+  // (the fixed live bug — `post-previews`/`menu` used to be scanned off `rawTemplate` alone, which
+  // could never see either).
+  const rendered = await finishStaticTierDocument(deps, {
+    theme,
+    pageId,
+    html: bodyWithTerms,
+    currentPath: postPublicPath(post.slug),
+    staticMenus,
+    postPreviewsAccess,
+  });
   return injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(rendered, extraHead), siteAssistantEnabled);
 }
 
@@ -1190,13 +1552,25 @@ export async function resolveMarketingPageOrOverride(
     return { kind: "overridingPost", post: candidate.post };
   }
 
+  // A theme page NOT in `theme.pages` at all is unreachable in practice — `isMarketingPageSlug`
+  // (checked above) already confirmed `slug` is a standalone theme page — but `theme.pages` is
+  // typed as a partial record, so this stays an explicit fallthrough rather than a non-null
+  // assertion, same defensive shape the pre-existing `renderStaticPage` return-value check had.
   const pageHtml = theme.pages[slug];
-  const postPreviews =
-    postPreviewsAccess && pageHtml !== undefined
-      ? await resolvePostPreviewsForRender(deps, postPreviewsAccess.resolver, postPreviewsAccess.context, pageHtml)
-      : undefined;
-  const staticHtml = renderStaticPage({ theme, pageId: slug, menus: staticMenus, postPreviews });
-  if (!staticHtml) return { kind: "fallthrough" };
+  if (pageHtml === undefined) return { kind: "fallthrough" };
+
+  // D2's single static-tier pipeline (E3, 2026-09-23) — `finishStaticTierDocument` runs the SAME
+  // expand-partials / resolve-embeds / resolve-post-previews / render sequence every other
+  // static-tier surface now runs, so a widget/media/post/content marker on this marketing page or
+  // inside a partial it references — never resolved here before this fix — resolves too.
+  const staticHtml = await finishStaticTierDocument(deps, {
+    theme,
+    pageId: slug,
+    html: pageHtml,
+    currentPath: postPublicPath(slug),
+    staticMenus,
+    postPreviewsAccess,
+  });
 
   // SPEC-008 T045 gap fix, part 2 (2026-08-19) — this branch renders a theme's own marketing
   // page directly via `renderStaticPage`, the same `pageShell`-bypassing shape the static-tier

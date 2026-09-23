@@ -2,6 +2,7 @@ import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
+import { interpolate } from "../../lib/template-i18n";
 import type { TabBarTab } from "../../components/TabBar";
 import { siteRegistration, siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";
 import { AllSitesIcon, NewSiteIcon } from "./sites-visuals";
@@ -50,6 +51,14 @@ export function resolveActivateDisabled(args: {
   snapshot: AdminSitesSnapshot;
 }): boolean {
   return !args.switchingEnabled || args.activatingName !== null || siteRowState(args.site, args.snapshot) === "serving";
+}
+
+/** One row's Activate accessible name — the site's own name inside translated copy, so a screen reader
+ *  or a browser agent reading the accessibility tree can tell one card's button from another's in
+ *  any locale. Also the row's `agentHandle` label, so the two channels never drift.
+ *  @complexity Time/space: O(1). */
+export function resolveActivateAriaLabel(siteName: string, t: Translate): string {
+  return interpolate(t("Save {name} as the site to serve after the next restart"), { name: siteName });
 }
 
 /** `Sites`'s own per-row agent handles. Folder names are unique under `sites/` (they ARE the

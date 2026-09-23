@@ -676,7 +676,11 @@ export async function consumeByokStream(
       ctx.finish();
       return;
     }
+    // Error THEN finish, same order and same reason as `subscribeToRun`'s `end` listener: reporting
+    // alone left the turn unsettled (no `onDone`, so the events collected before the failure were
+    // never persisted), and finishing first would record the dead run as succeeded.
     ctx.handlers.onError(error instanceof Error ? error : new Error(String(error)));
+    ctx.finish();
   }
 }
 
@@ -1122,7 +1126,9 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
       // path (which wraps the daemon specifically) to intercept there — the toggle only ever
       // diverts the Local CLI branch below.
       if (options.getAgUiEnabled?.()) {
-        return startAgUiRun(input, handlers);
+        // `historyForTranscript` here rather than inside `startAgUiRun`: that module importing this
+        // one would be a cycle, and this is its only caller. Same rule as the BYOK and Local CLI paths.
+        return startAgUiRun({ ...input, history: historyForTranscript(input.history as ChatMessage[]) }, handlers);
       }
 
       // Local CLI path below. `resolveLocalCliPrompt`'s own doc has the full contract for why an
@@ -1192,12 +1198,18 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
       if (isAgUiRunId(runId)) {
         return stopAgUiRun(runId);
       }
-      await fetch(`${RUNS_URL}/${encodeURIComponent(runId)}/cancel`, {
+      const response = await fetch(`${RUNS_URL}/${encodeURIComponent(runId)}/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
         body: JSON.stringify({ runId }),
       });
+      // `fetch` resolves on any status: without this a refused cancel (401/403/500) resolved exactly
+      // like a successful one while the run kept executing. `useRunStream` logs a rejection here.
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        throw new Error(`cancelling agent run failed (${response.status})${detail ? `: ${detail.slice(0, 300)}` : ""}`);
+      }
     },
   };
 }

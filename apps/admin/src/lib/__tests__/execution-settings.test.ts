@@ -505,6 +505,65 @@ describe("saveExecutionConfig — the ADR-028 §6 boundary, and the write-only c
     expect(setSetting).not.toHaveBeenCalled();
     expect(written).toEqual([]);
   });
+
+  // The keys are separate rows written one at a time, and a Local CLI switch changes two of them.
+  // Without a rollback, a failure on the second leaves the new agent paired with the old model in
+  // the ledger, and the next load hands that model to an agent that may not support it.
+  const claudeToCodex = (): { previous: ExecutionConfig; next: ExecutionConfig } => {
+    const previous: ExecutionConfig = {
+      ...DEFAULT_EXECUTION_CONFIG,
+      localCli: { agentId: "claude", modelByAgentId: { claude: "claude-x" } },
+    };
+    const next: ExecutionConfig = {
+      ...previous,
+      localCli: { agentId: "codex", modelByAgentId: { claude: "claude-x", codex: "gpt-x" } },
+    };
+    return { previous, next };
+  };
+  const writtenPairs = () =>
+    setSetting.mock.calls.map(([input]) => [input.key, (input as { valueJson: unknown }).valueJson]);
+
+  it("a write that fails mid-sequence rolls back the keys already written, then rethrows the original error", async () => {
+    const { previous, next } = claudeToCodex();
+    const failure = new Error("HTTP 500");
+    setSetting
+      .mockImplementationOnce(async (input: { key: string; valueJson: unknown }) => ({
+        key: input.key,
+        scope: "workspace" as const,
+        value: input.valueJson,
+        revisionSeq: 1,
+      }))
+      .mockRejectedValueOnce(failure);
+
+    await expect(saveExecutionConfig(next, previous)).rejects.toBe(failure);
+
+    expect(writtenPairs()).toEqual([
+      ["localCli.agentId", "codex"],
+      ["localCli.model", "gpt-x"],
+      ["localCli.agentId", "claude"],
+    ]);
+  });
+
+  it("a rollback write that also fails still rethrows the ORIGINAL error, not the rollback's", async () => {
+    const { previous, next } = claudeToCodex();
+    const failure = new Error("HTTP 500");
+    setSetting
+      .mockImplementationOnce(async (input: { key: string; valueJson: unknown }) => ({
+        key: input.key,
+        scope: "workspace" as const,
+        value: input.valueJson,
+        revisionSeq: 1,
+      }))
+      .mockRejectedValueOnce(failure)
+      .mockRejectedValueOnce(new Error("rollback also failed"));
+
+    await expect(saveExecutionConfig(next, previous)).rejects.toBe(failure);
+    expect(writtenPairs()).toEqual([
+      ["localCli.agentId", "codex"],
+      ["localCli.model", "gpt-x"],
+      ["localCli.agentId", "claude"],
+    ]);
+  });
 });
 
 describe("readLegacyLocalCredential / clearLegacyLocalCredential — migration-only, read/clear never upload", () => {

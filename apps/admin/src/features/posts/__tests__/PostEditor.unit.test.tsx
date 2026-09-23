@@ -208,6 +208,19 @@ describe("Publish", () => {
     await screen.findByRole("button", { name: /^save$/i });
     expect(screen.queryByRole("button", { name: /^publish$/i })).not.toBeInTheDocument();
   });
+
+  /**
+   * M4 — neither button disabled while a save was in flight, unlike the Pages editor's twin. Drives
+   * the DI seam directly (`renderPostEditor`/`postController`) rather than `fetch`, since this is
+   * `PostEditorActions`' own wiring of `saving`, not `usePostEditor`'s internals (those are covered
+   * in `use-post-editor.hooks.unit.test.tsx`).
+   */
+  it("disables Publish and Save while a save is in flight", () => {
+    renderPostEditor({ status: "draft", saving: true });
+
+    expect(screen.getByRole("button", { name: /^publish$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled();
+  });
 });
 
 describe("Delete confirmation", () => {
@@ -829,6 +842,10 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     togglePreviewExpanded: vi.fn(),
     message: null,
     error: null,
+    // M4 (2026-09-20) — `false` by default so every pre-existing test in this file (written before
+    // this field existed) keeps seeing enabled Save/Publish buttons; the dedicated test below
+    // overrides it.
+    saving: false,
     confirmingDelete: false,
     setConfirmingDelete,
     deleting: false,
@@ -894,6 +911,41 @@ describe("Edit/Preview toolbar", () => {
     const { ctrl } = renderPostEditor({ view: "preview" });
     await user.click(screen.getByRole("tab", { name: "Editor" }));
     expect(ctrl.setView).toHaveBeenCalledWith("edit");
+  });
+
+  /** This `.segmented` row is hand-rolled `role="tablist"`/`role="tab"` markup, not a `<TabBar>`,
+   *  same shape as `PageEditor.tsx`'s own view row (3da7686cc) — no `onKeyDown` on the tablist and
+   *  both buttons sat in the native Tab order. */
+  it("ArrowRight moves to the next view tab and takes focus with it", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ view: "edit" });
+
+    screen.getByRole("tab", { name: "Editor" }).focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(ctrl.setView).toHaveBeenCalledWith("preview");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Preview" }));
+  });
+
+  it("End moves to the last view tab and Home back to the first", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ view: "edit" });
+
+    screen.getByRole("tab", { name: "Editor" }).focus();
+    await user.keyboard("{End}");
+    expect(ctrl.setView).toHaveBeenLastCalledWith("preview");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Preview" }));
+
+    await user.keyboard("{Home}");
+    expect(ctrl.setView).toHaveBeenLastCalledWith("edit");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Editor" }));
+  });
+
+  it("keeps one roving tab stop: only the active view tab is in the native Tab order", () => {
+    renderPostEditor({ view: "preview" });
+
+    expect(screen.getByRole("tab", { name: "Preview" })).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("tab", { name: "Editor" })).toHaveAttribute("tabindex", "-1");
   });
 
   it("renders the Tiptap body editor, not the preview iframe, in edit view", () => {
@@ -1036,6 +1088,50 @@ describe("Edit/Preview toolbar", () => {
     renderPostEditor({ view: "edit" });
     expect(document.querySelector('[data-agent-element="post-view-edit"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="post-view-preview"]')).toBeInTheDocument();
+  });
+});
+
+/**
+ * Preview width toggle (2026-09-22 owner ask) — the shared `DevicePreviewToggle`/`DevicePreviewFrame`
+ * the Pages editor already had. Device state is local view state in `PostEditor` (not the injected
+ * controller), so a real click re-renders the iframe's scaler at the new width under this DI seam.
+ */
+describe("Preview width toggle", () => {
+  it("is absent on the Editor tab", () => {
+    renderPostEditor({ view: "edit" });
+    expect(screen.queryByRole("group", { name: "Preview width" })).not.toBeInTheDocument();
+  });
+
+  it("shows on the Preview tab, Desktop pressed at 1280px", () => {
+    renderPostEditor({ view: "preview" });
+    expect(screen.getByRole("group", { name: "Preview width" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Desktop" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("1280px")).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="post-preview-width-mobile"]')).toBeInTheDocument();
+  });
+
+  it.each([
+    ["Tablet", "834px"],
+    ["Mobile", "390px"],
+    ["Desktop", "1280px"],
+  ])("clicking %s renders the preview iframe at %s", async (label, width) => {
+    const user = userEvent.setup();
+    renderPostEditor({ view: "preview" });
+    if (label === "Desktop") await user.click(screen.getByRole("button", { name: "Mobile" }));
+    await user.click(screen.getByRole("button", { name: label }));
+    const scaler = screen.getByTitle("Post preview").parentElement as HTMLElement;
+    expect(scaler).toHaveClass("page-preview-scaler");
+    expect(scaler.style.width).toBe(width);
+    expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("scales every preview branch, including the pending-content form POST iframe", async () => {
+    const user = userEvent.setup();
+    renderPostEditor({ view: "preview", status: "draft", contentDirty: true });
+    await user.click(screen.getByRole("button", { name: "Mobile" }));
+    const iframe = screen.getByTitle("Post preview");
+    expect(iframe).toHaveAttribute("name", "post-preview-pending-p1");
+    expect((iframe.parentElement as HTMLElement).style.width).toBe("390px");
   });
 });
 

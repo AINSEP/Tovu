@@ -6,7 +6,7 @@ import type { GatedConfirmResult, GatedPlanResult, MergeTermPlanDetails } from "
  *
  * A separate port from `taxonomy-port.hooks.ts` rather than folding in: the merge ceremony's three
  * routes (`planMergeTerm`/`confirmMergeTerm`/`executeMergeTerm`) share no method with
- * `TaxonomyPort`'s four (`listTaxonomies`/`deleteTerm`/`deleteTaxonomy`/`renameTerm`) — narrowing
+ * `TaxonomyPort`'s four (`listTaxonomies`/`trashTerm`/`trashTaxonomy`/`renameTerm`) — narrowing
  * to what this hook actually consumes, per `page-editor-port.hooks.ts`'s "narrowing here is not a
  * shared contract, it is this hook's own consumption" reasoning, rather than forcing a shared
  * shape neither hook's contract needs.

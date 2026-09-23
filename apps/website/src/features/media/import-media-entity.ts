@@ -1,7 +1,7 @@
 import { bytesMatchSha256, isValidSha256Hex } from "#src/features/publish-content/blob-staging";
 
-import { MediaSourceImmutableError, resolveWriteOnceSource } from "./index.js";
-import type { AssetBlobRecord, AssetBlobRepoPort, BlobStorePort, MediaRecord, MediaRepoPort } from "./index.js";
+import { MediaConflictError, MediaSourceImmutableError, resolveWriteOnceSource } from "./index.js";
+import type { AssetBlobRecord, AssetBlobRepoPort, BlobStorePort, MediaRecord, VersionedMediaRepoPort } from "./index.js";
 
 /**
  * @file Task 12 of the publish-content (Publish Content) feature —
@@ -55,6 +55,13 @@ import type { AssetBlobRecord, AssetBlobRepoPort, BlobStorePort, MediaRecord, Me
  *    silently overwrite an existing blob's original attribution with the importing operator's every
  *    time a second media row happens to dedup onto the same bytes. This function calls
  *    `assetBlobRepo.save` ONLY when `findByHash` finds nothing.
+ * 5. **The media row write is a compare-and-set on {@link ImportMediaEntityInput.baseVersion}, not a
+ *    blind `save()`.** `publish-content.ts`'s own Guard 1 compares a version read several `await`s
+ *    (real blob-store I/O) before this command's write — two concurrent importers can both pass that
+ *    compare and, before this fix, both land a `mediaRepo.save()` unconditionally, silently erasing
+ *    whichever wrote second. `baseVersion` travels the compare INTO the write: `null` calls
+ *    `VersionedMediaRepoPort.insertIfAbsent`, a number calls `saveIfVersion({ifVersion: baseVersion})`,
+ *    and either miss comes back as `{status: "conflict"}` rather than a silent last-write-wins.
  */
 
 /** Dependencies `importMediaEntity` needs, bound by a composition root. Named to match this
@@ -62,7 +69,7 @@ import type { AssetBlobRecord, AssetBlobRepoPort, BlobStorePort, MediaRecord, Me
  *  threading real deps through (e.g. `features/media/publish-content.ts`'s `apply()`) has nothing to
  *  rename. */
 export interface ImportMediaEntityDeps {
-  readonly mediaRepo: MediaRepoPort;
+  readonly mediaRepo: VersionedMediaRepoPort;
   readonly assetBlobRepo: AssetBlobRepoPort;
   readonly blobStore: BlobStorePort;
   readonly clock: { nowIso(): string };
@@ -93,6 +100,15 @@ export interface ImportMediaEntityInput {
    * not exist yet, since "brand new at this destination" has no prior attribution to protect.
    */
   readonly blobCreatedByPrincipal: string;
+  /**
+   * The destination media row's version this import was decided against — `null` means the import
+   * expects NO existing row (a fresh create). Required rather than optional, so no future caller can
+   * skip the compare-and-set guard (safety property 5 above) by omitting it. `publish-content.ts`
+   * passes `input.expectedVersion ?? null` — its own Guard 1 already compares the same basis, and
+   * this field is what carries that same compare INTO the atomic write instead of leaving it
+   * check-then-write.
+   */
+  readonly baseVersion: number | null;
 }
 
 /**
@@ -107,7 +123,83 @@ export type ImportMediaEntityBlockedCode = "missing-blob" | "slug-taken" | "prec
 
 export type ImportMediaEntityResult =
   | { readonly status: "imported"; readonly id: string; readonly blobWritten: boolean }
-  | { readonly status: "blocked"; readonly code: ImportMediaEntityBlockedCode; readonly reason: string };
+  | { readonly status: "blocked"; readonly code: ImportMediaEntityBlockedCode; readonly reason: string }
+  /** The media row's `baseVersion` basis was superseded by a concurrent writer — either caught
+   *  early (before any write) or discovered by a failed compare-and-set write. Never a partial
+   *  write: nothing is left half-applied on this outcome, mirroring `blocked`'s own guarantee. */
+  | { readonly status: "conflict"; readonly reason: string };
+
+/**
+ * Compares the caller's `baseVersion` claim against `current`'s real state. Returns `null` when
+ * they agree (nothing to refuse: `baseVersion === null` with `current === null`, or
+ * `current.version === baseVersion`). Otherwise returns exactly one of three messages, byte-
+ * identical to the tails of `publish-content.ts`'s own Guard 1 conflict messages — the SAME words
+ * describe the SAME condition whether Guard 1 catches it early (before any write is attempted) or
+ * this function's caller catches it here (a concurrent writer won the race between Guard 1's read
+ * and this command's own compare-and-set write).
+ *
+ * @complexity O(1).
+ */
+function describeVersionMismatch(baseVersion: number | null, current: MediaRecord | null): string | null {
+  if (baseVersion === null) {
+    return current === null ? null : `expected no existing row, found version ${current.version}`;
+  }
+  if (current === null) return `expected version ${baseVersion}, but the row is gone`;
+  return current.version === baseVersion ? null : `expected version ${baseVersion}, found version ${current.version}`;
+}
+
+/**
+ * Performs the compare-and-set media write — `insertIfAbsent` when `baseVersion` is `null` (no row
+ * expected), `saveIfVersion` otherwise (safety property 5) — and returns the refusal result when it
+ * did not land, or `null` on a successful write.
+ *
+ * Two distinct misses are handled:
+ * - **A version miss** (`applied: false`, no thrown error): a concurrent writer moved or removed the
+ *   row between this command's precondition reads and this write. Re-reads to phrase the exact
+ *   mismatch; if the id was raced onto a NEW row exactly at `baseVersion` in that same window
+ *   (an ABA case `describeVersionMismatch` cannot see, since the re-read now again matches), falls
+ *   back to a generic conflict message rather than silently reporting `null`/no mismatch.
+ * - **A slug race** (`MediaConflictError` thrown by the repo's own unique index): a DIFFERENT id
+ *   landed under this record's slug between the earlier `findBySlug` precondition read and this
+ *   write. Re-reads the real holder and reports `blocked`/`slug-taken` — the same code the
+ *   precondition check above reports, just discovered one step later.
+ *
+ * Pulled out of {@link importMediaEntity} to stay under this repo's complexity ceiling (memory
+ * `complexity_ceiling_ten.md`).
+ *
+ * @complexity O(1) — one repo write, plus at most one re-read on either refusal path.
+ */
+async function writeMediaRowConditionally(
+  deps: ImportMediaEntityDeps,
+  row: MediaRecord,
+  baseVersion: number | null
+): Promise<ImportMediaEntityResult | null> {
+  let applied: boolean;
+  try {
+    const outcome =
+      baseVersion === null
+        ? await deps.mediaRepo.insertIfAbsent(row)
+        : await deps.mediaRepo.saveIfVersion({ record: row, ifVersion: baseVersion });
+    applied = outcome.applied;
+  } catch (error) {
+    if (!(error instanceof MediaConflictError)) throw error;
+    const holder = await deps.mediaRepo.findBySlug({ workspaceId: row.workspaceId, slug: row.slug });
+    return {
+      status: "blocked",
+      code: "slug-taken",
+      reason: `slug '${row.slug}' is already held by a different media ('${holder?.id ?? "unknown"}')`,
+    };
+  }
+  if (applied) return null;
+
+  const current = await deps.mediaRepo.findById({ workspaceId: row.workspaceId, id: row.id });
+  const reason =
+    describeVersionMismatch(baseVersion, current) ??
+    (baseVersion === null
+      ? "expected no existing row, but the id is already in use"
+      : `expected version ${baseVersion}, but a concurrent write landed first`);
+  return { status: "conflict", reason };
+}
 
 /**
  * Imports one media entity, preserving its source `id`. See this file's header for the full safety
@@ -121,7 +213,7 @@ export async function importMediaEntity(required: {
   readonly input: ImportMediaEntityInput;
 }): Promise<ImportMediaEntityResult> {
   const { deps, input } = required;
-  const { workspaceId, record, bytes, blobCreatedByPrincipal } = input;
+  const { workspaceId, record, bytes, blobCreatedByPrincipal, baseVersion } = input;
 
   if (bytes === null) {
     return {
@@ -152,6 +244,12 @@ export async function importMediaEntity(required: {
     // because `post.slug` is `NOT NULL` and always meaningful there).
     record.slug ? deps.mediaRepo.findBySlug({ workspaceId, slug: record.slug }) : Promise.resolve(null),
   ]);
+
+  // Safety property 5 (compare-and-set basis) — checked before the slug check, so a caller whose
+  // basis is already stale gets `conflict` (this row changed on the destination) rather than a
+  // `blocked`/`slug-taken` that describes a state the caller was never even importing against.
+  const mismatch = describeVersionMismatch(baseVersion, existingById);
+  if (mismatch) return { status: "conflict", reason: mismatch };
 
   // Safety property 2 (slug collision) — before any write.
   if (slugHolder && slugHolder.id !== record.id) {
@@ -193,16 +291,21 @@ export async function importMediaEntity(required: {
     blobWritten = true;
   }
 
-  await deps.mediaRepo.save({
+  const row: MediaRecord = {
     ...record,
     workspaceId,
     source: resolvedSource,
-    version: (existingById?.version ?? 0) + 1,
+    version: (baseVersion ?? 0) + 1,
     // createdAt is write-once, same convention `posts.createdByPrincipalId`/`createdAt` establish
-    // (`platform/db/schema.ts`) — an existing row keeps its own; a brand-new row takes the source's.
+    // (`platform/db/schema.sqlite.ts`) — an existing row keeps its own; a brand-new row takes the source's.
     createdAt: existingById?.createdAt ?? record.createdAt,
     updatedAt: deps.clock.nowIso(),
-  });
+  };
+
+  // Safety property 5 (compare-and-set write) — the version compare traveled INTO this write via
+  // `baseVersion`; see this function's own header and `writeMediaRowConditionally`'s doc.
+  const refusal = await writeMediaRowConditionally(deps, row, baseVersion);
+  if (refusal) return refusal;
 
   return { status: "imported", id: record.id, blobWritten };
 }

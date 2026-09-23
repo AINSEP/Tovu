@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
-import { outboxEvents } from "#src/platform/db/schema";
+import { outboxEvents } from "#src/platform/db/schema.sqlite";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { createWidgetInstance, type WidgetWriteServiceDeps } from "#src/features/widgets/write-service";
 

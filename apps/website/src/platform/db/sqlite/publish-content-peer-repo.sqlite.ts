@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import type { PublishContentPeerRecord, PublishContentPeerRepoPort } from "#src/features/publish-content/peers";
-import { publishContentPeers } from "../schema.js";
+import { publishContentPeers } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
 /**
@@ -9,7 +9,7 @@ import type { ContentDb } from "./content-db.js";
  * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 10.
  *
  * Real SQLite `PublishContentPeerRepoPort` adapter over `publish_content_peers`
- * (`platform/db/schema.ts`). Mirrors `publish-credential-repo.sqlite.ts`: the four `sealed_*`
+ * (`platform/db/schema.sqlite.ts`). Mirrors `publish-credential-repo.sqlite.ts`: the four `sealed_*`
  * columns are read and written as ONE opaque group, never field-by-field, so a partially-written
  * ciphertext is not representable here.
  *

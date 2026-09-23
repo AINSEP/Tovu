@@ -7,8 +7,14 @@
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 import { interpolate } from "../../lib/template-i18n";
 
-const USERS_DICT: Record<string, Record<string, string>> = {
+const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "No puedes otorgar un permiso que no posees.",
+    "You do not have permission to do that.": "No tienes permiso para hacer eso.",
+    "That username is already in use.": "Ese nombre de usuario ya está en uso.",
+    "The workspace must keep at least one active owner.": "El espacio de trabajo debe conservar al menos un propietario activo.",
+    "Please correct the highlighted fields.": "Corrige los campos resaltados.",
   People: "Personas",
   Users: "Usuarios",
   "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -64,6 +70,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
   "failed to change status": "no se pudo cambiar el estado",
   },
   id: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "Anda tidak dapat memberikan izin yang tidak Anda miliki.",
+    "You do not have permission to do that.": "Anda tidak memiliki izin untuk melakukan itu.",
+    "That username is already in use.": "Nama pengguna itu sudah digunakan.",
+    "The workspace must keep at least one active owner.": "Ruang kerja harus mempertahankan setidaknya satu pemilik aktif.",
+    "Please correct the highlighted fields.": "Perbaiki kolom yang ditandai.",
     People: "Orang",
     Users: "Pengguna",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -116,6 +128,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "gagal mengubah status",
   },
   de: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "Sie können keine Berechtigung erteilen, die Sie selbst nicht besitzen.",
+    "You do not have permission to do that.": "Sie haben keine Berechtigung dafür.",
+    "That username is already in use.": "Dieser Benutzername wird bereits verwendet.",
+    "The workspace must keep at least one active owner.": "Der Arbeitsbereich muss mindestens einen aktiven Inhaber behalten.",
+    "Please correct the highlighted fields.": "Bitte korrigieren Sie die markierten Felder.",
     People: "Personen",
     Users: "Benutzer",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -168,6 +186,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "Status konnte nicht geändert werden",
   },
   "zh-CN": {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "您不能授予您自己都不具备的权限。",
+    "You do not have permission to do that.": "您没有执行此操作的权限。",
+    "That username is already in use.": "该用户名已被使用。",
+    "The workspace must keep at least one active owner.": "工作区必须保留至少一位活跃所有者。",
+    "Please correct the highlighted fields.": "请更正高亮显示的字段。",
     People: "人员",
     Users: "用户",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -220,6 +244,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "更改状态失败",
   },
   "zh-TW": {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "您不能授予您自己都不具備的權限。",
+    "You do not have permission to do that.": "您沒有執行此操作的權限。",
+    "That username is already in use.": "該使用者名稱已被使用。",
+    "The workspace must keep at least one active owner.": "工作區必須保留至少一位活躍擁有者。",
+    "Please correct the highlighted fields.": "請更正醒目提示的欄位。",
     People: "人員",
     Users: "使用者",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -272,6 +302,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "變更狀態失敗",
   },
   "pt-BR": {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "Você não pode conceder uma permissão que você mesmo não possui.",
+    "You do not have permission to do that.": "Você não tem permissão para fazer isso.",
+    "That username is already in use.": "Esse nome de usuário já está em uso.",
+    "The workspace must keep at least one active owner.": "O workspace deve manter pelo menos um proprietário ativo.",
+    "Please correct the highlighted fields.": "Corrija os campos destacados.",
     People: "Pessoas",
     Users: "Usuários",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -324,6 +360,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "não foi possível alterar o status",
   },
   ru: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "Вы не можете предоставить право, которого у вас самих нет.",
+    "You do not have permission to do that.": "У вас нет прав для этого действия.",
+    "That username is already in use.": "Это имя пользователя уже используется.",
+    "The workspace must keep at least one active owner.": "В рабочей области должен остаться хотя бы один активный владелец.",
+    "Please correct the highlighted fields.": "Исправьте выделенные поля.",
     People: "Люди",
     Users: "Пользователи",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -335,7 +377,7 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     Password: "Пароль",
     "Create user": "Создать пользователя",
 
-    Email: "Email",
+    Email: "Эл. почта",
     "(none)": "(нет)",
     "Save email": "Сохранить email",
     "Assign role": "Назначить роль",
@@ -376,6 +418,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "не удалось изменить статус",
   },
   fa: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "شما نمی‌توانید مجوزی را که خودتان ندارید، اعطا کنید.",
+    "You do not have permission to do that.": "شما مجوز انجام این کار را ندارید.",
+    "That username is already in use.": "این نام کاربری قبلاً استفاده شده است.",
+    "The workspace must keep at least one active owner.": "فضای کاری باید حداقل یک مالک فعال داشته باشد.",
+    "Please correct the highlighted fields.": "لطفاً فیلدهای برجسته‌شده را اصلاح کنید.",
     People: "افراد",
     Users: "کاربران",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -428,6 +476,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "تغییر وضعیت ناموفق بود",
   },
   ar: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "لا يمكنك منح إذن لا تملكه أنت نفسك.",
+    "You do not have permission to do that.": "ليس لديك إذن للقيام بذلك.",
+    "That username is already in use.": "اسم المستخدم هذا مستخدم بالفعل.",
+    "The workspace must keep at least one active owner.": "يجب أن تحتفظ مساحة العمل بمالك نشط واحد على الأقل.",
+    "Please correct the highlighted fields.": "يرجى تصحيح الحقول المميزة.",
     People: "الأشخاص",
     Users: "المستخدمون",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -480,6 +534,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "تعذّر تغيير الحالة",
   },
   ja: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "自分が持っていない権限を付与することはできません。",
+    "You do not have permission to do that.": "この操作を行う権限がありません。",
+    "That username is already in use.": "そのユーザー名は既に使用されています。",
+    "The workspace must keep at least one active owner.": "ワークスペースには少なくとも1人のアクティブなオーナーが必要です。",
+    "Please correct the highlighted fields.": "強調表示されている項目を修正してください。",
     People: "アカウント",
     Users: "ユーザー",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -532,6 +592,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "ステータスの変更に失敗しました",
   },
   ko: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "본인이 가지고 있지 않은 권한은 부여할 수 없습니다.",
+    "You do not have permission to do that.": "이 작업을 수행할 권한이 없습니다.",
+    "That username is already in use.": "해당 사용자 이름은 이미 사용 중입니다.",
+    "The workspace must keep at least one active owner.": "워크스페이스에는 활성 소유자가 최소 한 명 있어야 합니다.",
+    "Please correct the highlighted fields.": "강조 표시된 항목을 수정해 주세요.",
     People: "계정",
     Users: "사용자",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -584,6 +650,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "상태를 변경하지 못했습니다",
   },
   pl: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "Nie możesz nadać uprawnienia, którego sam nie posiadasz.",
+    "You do not have permission to do that.": "Nie masz uprawnień, aby to zrobić.",
+    "That username is already in use.": "Ta nazwa użytkownika jest już zajęta.",
+    "The workspace must keep at least one active owner.": "Przestrzeń robocza musi mieć co najmniej jednego aktywnego właściciela.",
+    "Please correct the highlighted fields.": "Popraw zaznaczone pola.",
     People: "Osoby",
     Users: "Użytkownicy",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -636,6 +708,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "nie udało się zmienić statusu",
   },
   hu: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "Nem adhat olyan jogosultságot, amellyel Ön maga nem rendelkezik.",
+    "You do not have permission to do that.": "Nincs jogosultsága ehhez a művelethez.",
+    "That username is already in use.": "Ez a felhasználónév már foglalt.",
+    "The workspace must keep at least one active owner.": "A munkaterületnek legalább egy aktív tulajdonossal kell rendelkeznie.",
+    "Please correct the highlighted fields.": "Javítsa a kiemelt mezőket.",
     People: "Személyek",
     Users: "Felhasználók",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -688,6 +766,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "az állapot módosítása sikertelen",
   },
   fr: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "Vous ne pouvez pas accorder une permission que vous ne possédez pas vous-même.",
+    "You do not have permission to do that.": "Vous n'avez pas la permission de faire cela.",
+    "That username is already in use.": "Ce nom d'utilisateur est déjà utilisé.",
+    "The workspace must keep at least one active owner.": "L'espace de travail doit conserver au moins un propriétaire actif.",
+    "Please correct the highlighted fields.": "Veuillez corriger les champs mis en évidence.",
     People: "Personnes",
     Users: "Utilisateurs",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -740,6 +824,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "échec de la modification du statut",
   },
   uk: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "Ви не можете надати право, якого немає у вас самих.",
+    "You do not have permission to do that.": "У вас немає прав для цієї дії.",
+    "That username is already in use.": "Це ім'я користувача вже використовується.",
+    "The workspace must keep at least one active owner.": "У робочій області має залишитися принаймні один активний власник.",
+    "Please correct the highlighted fields.": "Виправте виділені поля.",
     People: "Люди",
     Users: "Користувачі",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -792,6 +882,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "не вдалося змінити статус",
   },
   tr: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "Kendinizde bulunmayan bir izni veremezsiniz.",
+    "You do not have permission to do that.": "Bunu yapmak için izniniz yok.",
+    "That username is already in use.": "Bu kullanıcı adı zaten kullanımda.",
+    "The workspace must keep at least one active owner.": "Çalışma alanının en az bir aktif sahibi olmalıdır.",
+    "Please correct the highlighted fields.": "Lütfen vurgulanan alanları düzeltin.",
     People: "Kişiler",
     Users: "Kullanıcılar",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -844,6 +940,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "durum değiştirilemedi",
   },
   th: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "คุณไม่สามารถให้สิทธิ์ที่คุณเองไม่มีได้",
+    "You do not have permission to do that.": "คุณไม่มีสิทธิ์ทำสิ่งนี้",
+    "That username is already in use.": "ชื่อผู้ใช้นี้ถูกใช้งานแล้ว",
+    "The workspace must keep at least one active owner.": "พื้นที่ทำงานต้องมีเจ้าของที่ใช้งานอยู่อย่างน้อยหนึ่งคน",
+    "Please correct the highlighted fields.": "โปรดแก้ไขช่องที่ไฮไลต์",
     People: "บุคคล",
     Users: "ผู้ใช้",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -896,6 +998,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "เปลี่ยนสถานะไม่สำเร็จ",
   },
   it: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "Non puoi concedere un permesso che tu stesso non possiedi.",
+    "You do not have permission to do that.": "Non hai il permesso di farlo.",
+    "That username is already in use.": "Questo nome utente è già in uso.",
+    "The workspace must keep at least one active owner.": "L'area di lavoro deve mantenere almeno un proprietario attivo.",
+    "Please correct the highlighted fields.": "Correggi i campi evidenziati.",
     People: "Persone",
     Users: "Utenti",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -948,6 +1056,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "impossibile modificare lo stato",
   },
   hi: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "आप वह अनुमति प्रदान नहीं कर सकते जो आपके पास स्वयं नहीं है।",
+    "You do not have permission to do that.": "आपके पास ऐसा करने की अनुमति नहीं है।",
+    "That username is already in use.": "वह उपयोगकर्ता नाम पहले से उपयोग में है।",
+    "The workspace must keep at least one active owner.": "वर्कस्पेस में कम से कम एक सक्रिय स्वामी होना आवश्यक है।",
+    "Please correct the highlighted fields.": "कृपया हाइलाइट किए गए फ़ील्ड ठीक करें।",
     People: "लोग",
     Users: "उपयोगकर्ता",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -1000,6 +1114,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "स्थिति नहीं बदली जा सकी",
   },
   ur: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "آپ وہ اجازت نہیں دے سکتے جو خود آپ کے پاس نہیں ہے۔",
+    "You do not have permission to do that.": "آپ کو یہ کرنے کی اجازت نہیں ہے۔",
+    "That username is already in use.": "یہ صارف نام پہلے سے استعمال میں ہے۔",
+    "The workspace must keep at least one active owner.": "ورک اسپیس میں کم از کم ایک فعال مالک کا ہونا ضروری ہے۔",
+    "Please correct the highlighted fields.": "براہ کرم نمایاں کردہ خانوں کو درست کریں۔",
     People: "افراد",
     Users: "صارفین",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -1052,6 +1172,12 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to change status": "حیثیت تبدیل نہ ہو سکی",
   },
   bn: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You cannot grant a permission you do not hold.": "আপনার নিজের কাছে নেই এমন অনুমতি আপনি দিতে পারবেন না।",
+    "You do not have permission to do that.": "আপনার এটি করার অনুমতি নেই।",
+    "That username is already in use.": "সেই ব্যবহারকারীর নাম ইতিমধ্যে ব্যবহৃত হচ্ছে।",
+    "The workspace must keep at least one active owner.": "ওয়ার্কস্পেসে কমপক্ষে একজন সক্রিয় মালিক থাকা আবশ্যক।",
+    "Please correct the highlighted fields.": "অনুগ্রহ করে হাইলাইট করা ফিল্ডগুলো সংশোধন করুন।",
     People: "ব্যক্তি",
     Users: "ব্যবহারকারী",
     "Operator accounts with access to this admin — assign roles and policies, or disable access.":
@@ -1105,16 +1231,38 @@ const USERS_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-export const t = createDictionaryTranslator(USERS_DICT);
+const PASSWORD_FIELD_TRANSLATIONS: Record<string, Record<string, string>> = {
+  es: { "Confirm new password": "Confirmar nueva contraseña", "Show password": "Mostrar contraseña", "Hide password": "Ocultar contraseña", "Passwords do not match.": "Las contraseñas no coinciden." },
+  id: { "Confirm new password": "Konfirmasi kata sandi baru", "Show password": "Tampilkan kata sandi", "Hide password": "Sembunyikan kata sandi", "Passwords do not match.": "Kata sandi tidak cocok." },
+  de: { "Confirm new password": "Neues Passwort bestätigen", "Show password": "Passwort anzeigen", "Hide password": "Passwort verbergen", "Passwords do not match.": "Die Passwörter stimmen nicht überein." },
+  "zh-CN": { "Confirm new password": "确认新密码", "Show password": "显示密码", "Hide password": "隐藏密码", "Passwords do not match.": "密码不匹配。" },
+  "zh-TW": { "Confirm new password": "確認新密碼", "Show password": "顯示密碼", "Hide password": "隱藏密碼", "Passwords do not match.": "密碼不相符。" },
+  "pt-BR": { "Confirm new password": "Confirmar nova senha", "Show password": "Mostrar senha", "Hide password": "Ocultar senha", "Passwords do not match.": "As senhas não coincidem." },
+  ru: { "Confirm new password": "Подтвердите новый пароль", "Show password": "Показать пароль", "Hide password": "Скрыть пароль", "Passwords do not match.": "Пароли не совпадают." },
+  fa: { "Confirm new password": "تأیید رمز عبور جدید", "Show password": "نمایش رمز عبور", "Hide password": "پنهان کردن رمز عبور", "Passwords do not match.": "رمزهای عبور یکسان نیستند." },
+  ar: { "Confirm new password": "تأكيد كلمة المرور الجديدة", "Show password": "إظهار كلمة المرور", "Hide password": "إخفاء كلمة المرور", "Passwords do not match.": "كلمتا المرور غير متطابقتين." },
+  ja: { "Confirm new password": "新しいパスワードを確認", "Show password": "パスワードを表示", "Hide password": "パスワードを隠す", "Passwords do not match.": "パスワードが一致しません。" },
+  ko: { "Confirm new password": "새 비밀번호 확인", "Show password": "비밀번호 표시", "Hide password": "비밀번호 숨기기", "Passwords do not match.": "비밀번호가 일치하지 않습니다." },
+  pl: { "Confirm new password": "Potwierdź nowe hasło", "Show password": "Pokaż hasło", "Hide password": "Ukryj hasło", "Passwords do not match.": "Hasła nie są zgodne." },
+  hu: { "Confirm new password": "Új jelszó megerősítése", "Show password": "Jelszó megjelenítése", "Hide password": "Jelszó elrejtése", "Passwords do not match.": "A jelszavak nem egyeznek." },
+  fr: { "Confirm new password": "Confirmer le nouveau mot de passe", "Show password": "Afficher le mot de passe", "Hide password": "Masquer le mot de passe", "Passwords do not match.": "Les mots de passe ne correspondent pas." },
+  uk: { "Confirm new password": "Підтвердьте новий пароль", "Show password": "Показати пароль", "Hide password": "Приховати пароль", "Passwords do not match.": "Паролі не збігаються." },
+  tr: { "Confirm new password": "Yeni parolayı doğrula", "Show password": "Parolayı göster", "Hide password": "Parolayı gizle", "Passwords do not match.": "Parolalar eşleşmiyor." },
+  th: { "Confirm new password": "ยืนยันรหัสผ่านใหม่", "Show password": "แสดงรหัสผ่าน", "Hide password": "ซ่อนรหัสผ่าน", "Passwords do not match.": "รหัสผ่านไม่ตรงกัน" },
+  it: { "Confirm new password": "Conferma nuova password", "Show password": "Mostra password", "Hide password": "Nascondi password", "Passwords do not match.": "Le password non corrispondono." },
+  hi: { "Confirm new password": "नया पासवर्ड पुष्टि करें", "Show password": "पासवर्ड दिखाएँ", "Hide password": "पासवर्ड छिपाएँ", "Passwords do not match.": "पासवर्ड मेल नहीं खाते।" },
+  ur: { "Confirm new password": "نئے پاس ورڈ کی تصدیق کریں", "Show password": "پاس ورڈ دکھائیں", "Hide password": "پاس ورڈ چھپائیں", "Passwords do not match.": "پاس ورڈ ایک جیسے نہیں ہیں۔" },
+  bn: { "Confirm new password": "নতুন পাসওয়ার্ড নিশ্চিত করুন", "Show password": "পাসওয়ার্ড দেখান", "Hide password": "পাসওয়ার্ড লুকান", "Passwords do not match.": "পাসওয়ার্ড মিলছে না।" },
+};
 
-// `UserResetPasswordDialog`'s confirm-field + reveal-toggle copy ("Confirm new password",
-// "Show password", "Hide password", "Passwords do not match.") is intentionally NOT added to
-// `USERS_DICT` above — every call site still routes through `t(...)` (`createDictionaryTranslator`'s
-// `featureDict[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` contract), so a missing entry
-// falls back to the English key itself rather than a raw un-translated literal or a dictionary-miss
-// placeholder. Same shape as the "Hook-level notice/error strings" note above for strings that
-// landed English-only in a prior pass — a follow-up localization pass can backfill these four across
-// the other sixteen locales without changing any call site.
+const USERS_DICT: Record<string, Record<string, string>> = Object.fromEntries(
+  Object.entries(USERS_TRANSLATIONS).map(([locale, entries]) => [
+    locale,
+    { ...entries, ...(PASSWORD_FIELD_TRANSLATIONS[locale] ?? {}) },
+  ]),
+);
+
+export const t = createDictionaryTranslator(USERS_DICT);
 
 const PASSWORD_RESET_NOTICE_TEMPLATE: Record<string, string> = {
   en: 'Password reset for "{username}" — every active session for this user was revoked.',

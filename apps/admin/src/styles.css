@@ -1013,22 +1013,59 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
   grid-template-columns: 1fr auto 1fr;
   align-items: start;
 }
-/* Explicit placement, because the third rail is now EMPTY: the status/Save/Delete group moved out
-   of this header into `.editor-action-row` below. Without pinning the columns, auto-placement would
-   drop these two children into columns 1 and 2 and the title would sit left of centre; naming the
-   columns keeps the unoccupied third rail reserved so the title stays at true centre. */
-.page-header-split .page-header-lead { grid-column: 1; display: flex; align-items: center; }
+/* Explicit placement, because the third rail is EMPTY on the toolbar editors (Pages/Posts/Forms —
+   the status/Save/Delete group moved out of this header into `.editor-action-row` below) but
+   OCCUPIED on the editors that never grew a separate action row (Widgets/Menus — see
+   `.page-header-actions` below). Without pinning the columns, auto-placement would drop these
+   children into columns 1 and 2 and the title would sit left of centre; naming the columns keeps
+   the third rail reserved (empty or not) so the title stays at true centre either way. */
+.page-header-split .page-header-lead { grid-column: 1; display: flex; align-items: center; white-space: nowrap; }
 .page-header-split .page-header-text { grid-column: 2; align-items: center; text-align: center; }
+/* Third rail, for the editors that keep Save/status IN the header instead of a separate
+   `.editor-action-row` (Widgets, Menus — 2026-09-22). `grid-column: 3` because column 2's own
+   `justify-items` isn't set to `end`; `justify-self: end` then pins this rail to the column's own
+   right edge instead of stretching across it. Bare `.page-actions` (used on the non-split
+   `.page-header` elsewhere) needs neither — it is already the grid's last auto-placed child there. */
+.page-header-split .page-header-actions { grid-column: 3; justify-self: end; }
 
-/* Three columns stop fitting well before the shell's own 900px breakpoint here, because the right
-   rail is four controls wide: the title's centre column gets squeezed to its longest word while the
-   two rails do the growing. Stack into one centred column instead — the same answer
-   `.page-title-row` (`styles/pages.css`) and `.editor-title-row` already give at their own
-   breakpoint, one tier up because this row carries more controls than either of those. */
-@media (max-width: 900px) {
+/* CONTAINER query, not `@media (max-width: 900px)` (replaced 2026-09-22 — same swap
+   `.agent-plugin-rows` made above, same reason): 900px keyed on the VIEWPORT, and the thing that
+   actually squeezes this row is the workspace chat dock, which takes width from `.admin-content`
+   while leaving the viewport exactly as wide as it was. Measured live with the chat dock open at a
+   1440px viewport: `.page` renders ~560px wide — comfortably past the point the row needs to
+   stack — while the media query, seeing 1440, never fired, and the back link wrapped onto four
+   lines fighting the grid for room instead.
+
+   `container-type` sits on `.page:has(.page-header-split)` rather than bare `.page` (~39 other
+   screens share that class for layouts a size-contained ancestor could break — e.g. a
+   `position: fixed`/`absolute` descendant would get re-anchored to this box instead of the
+   viewport). Scoping to `:has(.page-header-split)` — the same selector idiom the chat-dock rule
+   above already uses on a shared ancestor — means only the handful of editor screens that opt into
+   this header modifier pay for the new containing block, and every other `.page` is untouched.
+
+   620px (not 900px): the container is `.page`'s own inline size, which is already narrower than
+   the viewport by the sidebar (232px) and `.admin-content`'s padding (2 × 2.5rem) even with the
+   chat dock closed — the viewport figure this replaces was never the row's real budget, that
+   offset was. */
+.page:has(.page-header-split) { container-type: inline-size; }
+@container (max-width: 620px) {
   .page-header-split { grid-template-columns: minmax(0, 1fr); }
   .page-header-split .page-header-lead { grid-column: 1; justify-content: center; }
   .page-header-split .page-header-text { grid-column: 1; }
+
+  /* Widgets/Menus (`:has(.page-header-actions)`) keep Save in the header rather than a separate
+     `.editor-action-row` below a toolbar, so collapsing to one plain stacked column would put Back
+     above the title above Save — three rows for what the owner already approved as two (title,
+     then one button row) on the narrow widget editor before this pass. Two columns instead, so
+     Back and Save can share the second row: title spans both (row 1), Back sits left and Save
+     right on row 2 — same idiom as the wide layout's three rails, just folded from 3 columns × 1
+     row into 2 columns × 2 rows instead of 1 column × 3 rows. The toolbar editors (Pages/Posts/
+     Forms) have no `.page-header-actions` at all, so this block never matches them and their
+     existing Back-then-title stack above is untouched. */
+  .page-header-split:has(.page-header-actions) { grid-template-columns: 1fr 1fr; }
+  .page-header-split:has(.page-header-actions) .page-header-text { grid-column: 1 / -1; grid-row: 1; }
+  .page-header-split:has(.page-header-actions) .page-header-lead { grid-column: 1; grid-row: 2; justify-content: flex-start; }
+  .page-header-split:has(.page-header-actions) .page-header-actions { grid-column: 2; grid-row: 2; justify-self: end; }
 }
 
 /* Second half of the same 2026-09-06 experiment (owner: "put the published save and delete buttons
@@ -1295,6 +1332,9 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   font-weight: 600; cursor: pointer; transition: background 0.14s;
 }
 .file-input::file-selector-button:hover { background: var(--surface-3); }
+/* Media hides the native input visually and shows a translated <label> as the chooser; keyboard
+   focus still lands on the hidden input, so draw the focus ring on its label. */
+.file-input:focus-visible + label { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 
 .boot-screen { display: grid; place-items: center; height: 100vh; font-size: 1.1rem; color: var(--muted); }
 
@@ -2061,6 +2101,21 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    padding from making it taller than the select and pushing it out of vertical alignment. */
 .editor-template-picker { display: flex; align-items: center; gap: 0.5rem; }
 .editor-template-picker select { width: 14rem; font-size: 0.85rem; }
+/* Icon-only "View Template" trigger (2026-09-22 owner ask, moved left of the picker and reduced
+   from a `.btn-secondary` text button to an eye glyph). `width`/`height: 37px` matches the shared
+   `input, select, textarea { min-height: 37px }` rule exactly (not the 2rem/32px
+   `.theme-explore-fullscreen-trigger` uses elsewhere) so the square button lines up flush against
+   the select's own edge instead of a couple pixels short. Colors are `.btn-secondary`'s own
+   (`--surface`/`--fg-2`/`--border-strong`), since this button carried that class before and the
+   owner's ask was icon-vs-word, not a restyle. */
+.view-template-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 37px; height: 37px; padding: 0; flex-shrink: 0;
+  background: var(--surface); color: var(--fg-2); border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+}
+.view-template-btn svg { width: 16px; height: 16px; }
+.view-template-btn:hover { background: var(--surface-2); color: var(--fg-1); opacity: 1; }
+.view-template-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 /* Small screens (2026-08-09 live feedback): the slug row was overflowing — the template picker got
    clipped off the right edge instead of wrapping to its own line, and the id block (no visible
    divider, see the JSX comment on `.editor-id`'s markup for why) sat crowded against "view". Stack
@@ -2349,7 +2404,19 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    `inline-flex`-with-`gap` approach; owner asked for 5px first, then 10px after seeing it live —
    10px is the value he actually signed off on, not the 6px `image` settled on, so don't unify the
    two values without asking again. */
+/* Owner-reported (2026-09-22): a `media` block holding a video rendered at native size, overflowing
+   the editor column (cut off on the right, taller than the screen); `img` previews were unaffected
+   since `.editor-body .tiptap img` above already constrains them. Same `max-width`/`height: auto`
+   approach extended to `.media-embed-node__preview` (`lib/media-embed-extension.tsx`, covers both the
+   `<video>` and `<img>` preview elements), plus a `max-height` so a tall/portrait video can't fill the
+   viewport, and `margin-bottom` so the actions row below sits off the preview instead of touching it. */
+.media-embed-node__preview { display: block; max-width: 100%; max-height: 60vh; width: auto; height: auto; margin-bottom: 10px; }
 .media-embed-node__actions { display: inline-flex; gap: 10px; }
+/* Owner-reported (2026-09-22): a widget/form embed's "Change"/"Remove" buttons
+   (`lib/widget-embed-extension.tsx`'s `.widget-embed-node__actions`) touched each other and the
+   widget label. Same `inline-flex` + 10px `gap` as the media node's actions above, plus a left
+   margin so the label and the buttons don't run together. */
+.widget-embed-node__actions { display: inline-flex; gap: 10px; margin-left: 12px; vertical-align: middle; }
 /* `font-size`/`color` made explicit here (found while measuring the real default for the toolbar's
    font-size select, 2026-08-11) — without them, the FIRST paragraph of every post's body collided
    with the legacy `.admin-content h1 + p` rule (this file, "Page headings + intro copy"): the
@@ -2568,6 +2635,14 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .tab-bar-item[aria-selected="true"] { color: var(--accent-text); border-bottom-color: var(--accent-text); }
 .tab-bar-count { margin-left: 0.4rem; font-size: var(--text-2xs); color: var(--faint); font-variant-numeric: tabular-nums; }
 .tab-bar-item[aria-selected="true"] .tab-bar-count { color: var(--accent-text); opacity: 0.75; }
+/* `TabBarTab.tag`'s pill — same shape as the admin sidebar's own `.cms-item .soon` badge (uppercase,
+   bordered, muted), just scoped to a tab-bar button instead of a nav row so the app has one "Soon"
+   look rather than two. */
+.tab-bar-tag {
+  margin-left: 0.4rem; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--faint); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px;
+}
+.tab-bar-item[aria-selected="true"] .tab-bar-tag { color: var(--accent-text); opacity: 0.75; }
 /* The "this one has something configured" signifier (`TabBarTab.dot`'s own doc) — a small filled
    circle, not a colored ring or outline, so it reads clearly at 6px. `--ok` (the same green
    `.status-ok` uses) rather than `--primary`: this is a fact about STATE ("connected"), not a
@@ -2648,6 +2723,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .settings-detail-panel h2 { margin: 0; font-family: var(--font-mono); font-size: 1rem; }
 .settings-layer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 0.7rem; }
 .settings-layer-cell { display: flex; flex-direction: column; gap: 0.2rem; background: var(--surface-2); border-radius: var(--r-md); padding: 0.5rem 0.6rem; font-size: 0.85rem; }
+.taxonomy-term-detail .settings-layer-cell > .status { align-self: flex-start; }
 .settings-layer-effective { border: 1.5px solid var(--accent-text); }
 .settings-layer-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--faint); }
 /* Groups Workspace's read-only ID/Created facts with the rename form above them (nested inside the
@@ -2914,9 +2990,9 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    `.settings-layer-grid`/`-cell`/`-label` are no longer used by this screen at all (they stay
    untouched for Workspace/Taxonomy). Dropping them also fixes a real defect visible in the
    before-screenshot: `.settings-layer-cell` is a stretch-aligned flex column, which blew the
-   "Fast restore" `.status` pill out into a full-width green BAR. Taxonomy.tsx:411 still has that
-   same bug; fixing it there means touching the shared rule, which is out of this dispatch's
-   scope — flagged in the report instead. */
+   "Fast restore" `.status` pill out into a full-width green BAR. Taxonomy's equivalent status
+   pill opts out locally with `.taxonomy-term-detail .settings-layer-cell > .status`, preserving
+   the shared layout for Workspace and every other non-pill cell. */
 .recovery-restore-docket { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 /* Pulls the ghost button's own left padding back so its label optically aligns with the card edge
    below it, rather than sitting indented by a padding it doesn't visually own. */

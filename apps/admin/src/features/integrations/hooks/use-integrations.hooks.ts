@@ -165,6 +165,7 @@ export function useIntegrations(port: IntegrationsPort, t: (key: string) => stri
     deleteError: deleteMutation.error,
     listError: list.error,
     hasSubscriptions: subscriptions !== null,
+    locale,
   });
 
   return {

@@ -202,6 +202,24 @@ test("a doc-format reference is left untouched for the registry resolver, not co
   })();
 });
 
+// S3 (2026-09-23 widget-attrs plan) — the html-format pre-pass previously collected `m.id` only, so a
+// slug-only reference to an html-format page fell through to the registry resolver, which bails for
+// html-format entities (`resolveContentTypeEmbeds`'s own doc), rendering the REQ-28 placeholder
+// instead of the real spliced content. This pins the fix at the seam that was missing the slug key.
+test("a slug-only reference to an html-format page is spliced by this recursive pass, the same as an id-based one", async () => {
+  const { repo } = countingPostRepo([postRecord({ id: "a", slug: "our-story", bodyHtml: "<p>Real spliced content</p>" })]);
+
+  const result = await resolveHtmlFormatContentMarkers(
+    deps(repo),
+    `<main data-embed-config='{"type":"content","slug":"our-story"}'></main>`,
+    0,
+    { remaining: MAX_CONTENT_EMBED_FETCHES }
+  );
+
+  assert.ok(result.includes("Real spliced content"), "a slug-addressed html-format reference must resolve exactly like an id-addressed one");
+  assert.ok(!result.includes("data-embed-config"), "the resolved marker must be inert to a later re-scan (withInnerContentFinal)");
+});
+
 test("a mixed body -- one resolvable content marker, one referencing an id that doesn't exist at all, and one non-content marker type -- only splices the resolvable one", async () => {
   // Exercises three branches the single-marker tests above never reach together:
   //   - `!entity` (the `missing-id` marker's `findPublishedPostById` call returns null outright,
@@ -228,4 +246,54 @@ test("a mixed body -- one resolvable content marker, one referencing an id that 
     result.includes(`data-embed-config='{"type":"menu","id":"some-menu"}'`),
     "a non-content marker type must be left completely untouched by this content-only pass"
   );
+});
+
+// Review of S3 (2026-09-23): the doc-format sibling override (`pendingContentOverride`) matches a
+// slug-only ref by the previewed row's slug, but this html-format pass's `pendingHtmlOverride`
+// matched by id only — so the template preview of an html-format page showed the SAVED body for a
+// slug-only marker naming that same page, while a doc-format page showed the pending edit.
+test("pendingHtmlOverride matches a slug-only ref by the previewed row's slug, the same way pendingContentOverride does", async () => {
+  const { repo } = countingPostRepo([postRecord({ id: "a", slug: "our-story", bodyHtml: "<p>Saved body</p>" })]);
+
+  const result = await resolveHtmlFormatContentMarkers(
+    deps(repo),
+    `<main data-embed-config='{"type":"content","slug":"our-story"}'></main>`,
+    0,
+    { remaining: MAX_CONTENT_EMBED_FETCHES },
+    { id: "a", slug: "our-story", bodyHtml: "<p>Pending unsaved body</p>" }
+  );
+
+  assert.ok(result.includes("Pending unsaved body"), "the operator's pending body must win for a slug-only ref naming the previewed row");
+  assert.ok(!result.includes("Saved body"));
+});
+
+test("pendingHtmlOverride never matches by slug a marker that carries an id — id stays authoritative", async () => {
+  const { repo } = countingPostRepo([
+    postRecord({ id: "a", slug: "our-story", bodyHtml: "<p>Row A</p>" }),
+    postRecord({ id: "b", slug: "other", bodyHtml: "<p>Row B</p>" }),
+  ]);
+
+  const result = await resolveHtmlFormatContentMarkers(
+    deps(repo),
+    `<main data-embed-config='{"type":"content","id":"b","slug":"our-story"}'></main>`,
+    0,
+    { remaining: MAX_CONTENT_EMBED_FETCHES },
+    { id: "a", slug: "our-story", bodyHtml: "<p>Pending A</p>" }
+  );
+
+  assert.ok(result.includes("Row B"));
+  assert.ok(!result.includes("Pending A"));
+});
+
+test("GUARD 2 (slug twin): a slug naming a DRAFT html-format page is not spliced by this pass", async () => {
+  const { repo } = countingPostRepo([postRecord({ id: "d", slug: "draft-page", status: "draft", bodyHtml: "<p>Draft secret</p>" })]);
+
+  const result = await resolveHtmlFormatContentMarkers(
+    deps(repo),
+    `<main data-embed-config='{"type":"content","slug":"draft-page"}'></main>`,
+    0,
+    { remaining: MAX_CONTENT_EMBED_FETCHES }
+  );
+
+  assert.ok(!result.includes("Draft secret"));
 });

@@ -4,6 +4,10 @@ import type { MenusPort } from "./menus-port.hooks";
 /**
  * @file The only place under `features/menus` that reaches `lib/api` for the five `MenusPort`
  * routes — see `menus-port.hooks.ts` for why the split exists.
+ *
+ * `trash` goes through `api.trash({ type: "menu", id })`, the generic single-item Trash route
+ * every admin delete button now shares. The Trash screen owns restoration and permanent removal
+ * from here.
  */
 
 /** The live implementation, as a module-level singleton — matches `redirects-dependencies
@@ -13,7 +17,7 @@ export const defaultMenusPort: MenusPort = {
   getMenu: (id) => api.getMenu(id),
   createMenu: (input, options) => api.createMenu(input, options),
   updateMenuTree: (target, options) => api.updateMenuTree(target, options),
-  deleteMenu: (target, options) => api.deleteMenu(target, options),
+  trash: ({ id }) => api.trash({ type: "menu", id }),
 };
 
 /** Seed state for {@link createFakeMenusPort}. */
@@ -75,16 +79,12 @@ export function createFakeMenusPort(options: FakeMenusPortOptions = {}): MenusPo
       return { menu: updated };
     },
 
-    async deleteMenu({ id }, deleteOptions) {
+    async trash({ id }) {
       const index = menus.findIndex((m) => m.id === id);
       if (index < 0) throw new Error(`fake menu not found: ${id}`);
-      if (!deleteOptions.force) {
-        const trashed: AdminMenu = { ...menus[index]!, status: "trash" };
-        menus[index] = trashed;
-        return { menu: trashed, purged: false };
-      }
-      menus.splice(index, 1);
-      return { menu: null, purged: true };
+      const trashed: AdminMenu = { ...menus[index]!, status: "trash" };
+      menus[index] = trashed;
+      return { ok: true, version: trashed.version };
     },
   };
 }

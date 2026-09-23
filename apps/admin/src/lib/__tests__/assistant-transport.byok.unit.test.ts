@@ -206,8 +206,20 @@ describe("consumeByokStream — the stream-consumer loop, extracted from startBy
     expect(c.finish).toHaveBeenCalledTimes(1);
   });
 
-  test("a stream error while not aborted is reported via onError, not treated as cancellation", async () => {
+  test("a stream error while not aborted is reported via onError, THEN settles the turn through finish()", async () => {
     const c = ctx();
+    // Order matters, not just presence: `useRunStream`'s `onDone` keeps an existing `'error'`
+    // status, so onError-then-finish records a failed run WITH its collected events, while the
+    // reverse order would record it as succeeded. Same contract as `subscribeToRun`'s `end` listener.
+    const order: string[] = [];
+    const reportError = c.handlers.onError;
+    c.handlers.onError = (error: Error) => {
+      order.push("onError");
+      reportError(error);
+    };
+    c.finish.mockImplementation(() => {
+      order.push("finish");
+    });
     const body = new ReadableStream<Uint8Array>({
       pull(controller) {
         controller.error(new Error("connection reset"));
@@ -217,7 +229,7 @@ describe("consumeByokStream — the stream-consumer loop, extracted from startBy
     await consumeByokStream(body, c);
 
     expect(c.handlers.errors.map((e) => e.message)).toEqual(["connection reset"]);
-    expect(c.finish).not.toHaveBeenCalled();
+    expect(order).toEqual(["onError", "finish"]);
   });
 
   test("a stream error after abort() is swallowed as an expected cancellation, and finish is still called", async () => {
@@ -512,6 +524,30 @@ describe("startByokRun — SSE frame streaming (readSseFrames + the consumer arr
     await flushMicrotasks();
 
     expect(doneCalls).toBe(1);
+  });
+
+  test("a stream that dies mid-turn reports the error AND still hands onDone the events collected before it died", async () => {
+    const encoder = new TextEncoder();
+    let pulls = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1;
+        if (pulls === 1) controller.enqueue(encoder.encode(frame("agent", { type: "text_delta", delta: "partial" })));
+        else controller.error(new Error("connection reset"));
+      },
+    });
+    fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const transport = createTovuAssistantTransport({ getExecutionConfig: () => byokConfig() });
+    const h = handlers();
+
+    await transport.startRun({ history: HISTORY, signal: new AbortController().signal }, h);
+    await flushMicrotasks();
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    expect(h.errors.map((e) => e.message)).toEqual(["connection reset"]);
+    expect(h.done).toEqual([{ kind: "text", text: "partial" }]);
   });
 
   test("a thrown parse/stream error after abort() is treated as an expected cancellation, not reported via onError", async () => {

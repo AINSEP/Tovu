@@ -2,6 +2,7 @@ import { useEffect, useState, type ComponentProps } from "react";
 import type { NodeViewProps } from "@tiptap/react";
 
 import { api, describeApiError, type AdminWidget } from "./api";
+import type { MediaEditDialogValue } from "../components/MediaEditDialog/MediaEditDialog.hooks";
 import type { WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
 
 /**
@@ -47,6 +48,20 @@ export interface WidgetEmbedNodeViewController {
   remove: () => void;
   /** Non-`null` exactly when the Change dialog should render — see {@link WidgetEmbedChangeDialog}. */
   changeDialog: WidgetEmbedChangeDialog | null;
+  /** The node's current `cssClass`/`htmlAttributes`, seeding the Style dialog (D5) — `alt` is
+   *  always `null` since {@link MediaEditDialog} renders with `showAlt={false}` here and never
+   *  reads it back. */
+  styleInitial: MediaEditDialogValue;
+  /** Whether the Style dialog should render — unlike {@link changeDialog}, not gated on the widget
+   *  having resolved: styling only touches node attrs, not the referenced widget. */
+  styling: boolean;
+  /** Opens the Style dialog. */
+  openStyle: () => void;
+  /** Closes the Style dialog without writing anything. */
+  closeStyle: () => void;
+  /** Writes the dialog's `cssClass`/`htmlAttributes` onto the node (never `alt`, which this dialog
+   *  never exposes) and closes it — same shape as `media-embed-extension.hooks.ts`'s `saveEdit`. */
+  saveStyle: (value: MediaEditDialogValue) => void;
 }
 
 /**
@@ -60,9 +75,12 @@ export interface WidgetEmbedNodeViewController {
 export function useWidgetEmbedNodeView(props: NodeViewProps): WidgetEmbedNodeViewController {
   const widgetEntryId = String(props.node.attrs.widgetEntryId ?? "");
   const placementId = String(props.node.attrs.placementId ?? "");
+  const cssClass = (props.node.attrs.cssClass as string | null | undefined) ?? null;
+  const htmlAttributes = (props.node.attrs.htmlAttributes as string | null | undefined) ?? null;
   const [widget, setWidget] = useState<AdminWidget | null | undefined>(undefined);
   const [isBroken, setIsBroken] = useState(false);
   const [changing, setChanging] = useState(false);
+  const [styling, setStyling] = useState(false);
 
   useEffect(() => {
     if (!widgetEntryId) {
@@ -102,6 +120,14 @@ export function useWidgetEmbedNodeView(props: NodeViewProps): WidgetEmbedNodeVie
     nodeClassName: `widget-embed-node${isBroken ? " widget-embed-node--broken" : ""}`,
     openChange: () => setChanging(true),
     remove: () => props.deleteNode(),
+    styleInitial: { alt: null, cssClass, htmlAttributes },
+    styling,
+    openStyle: () => setStyling(true),
+    closeStyle: () => setStyling(false),
+    saveStyle: (value) => {
+      props.updateAttributes({ cssClass: value.cssClass, htmlAttributes: value.htmlAttributes });
+      setStyling(false);
+    },
     changeDialog:
       changing && widget
         ? {

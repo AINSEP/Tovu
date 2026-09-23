@@ -49,5 +49,12 @@
     -->
     <key>com.apple.security.cs.allow-jit</key>
     <true/>
+    <!--
+      Under hardened runtime, mic capture is refused without this entitlement — admin's
+      `mic-capture.ts` calls `getUserMedia` for voice input in the editor, and without this key
+      that call is denied before the NSMicrophoneUsageDescription prompt ever shows.
+    -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
   </dict>
 </plist>

@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  embedMarkerTarget,
   formatMarkerAttributes,
   hasAuthoredAttributes,
+  parseEmbedMarkerConfig,
   parseMarkerAttributes,
   scanEmbedMarkers,
   substituteMarkers,
@@ -265,4 +267,212 @@ test("withElementKeptIfAttributed: a bare marker returns inner alone; an attribu
 
   assert.equal(withElementKeptIfAttributed(bare, "resolved"), "resolved");
   assert.equal(withElementKeptIfAttributed(attributed, "resolved"), `<div style="max-width: 600px;">resolved</div>`);
+});
+
+/**
+ * @file Nesting-aware close: {@link scanEmbedMarkers} finds a marker's own close tag by depth count
+ * rather than by nearest textual `</tag>`, so a same-named descendant (`<div><div>…</div></div>`) no
+ * longer truncates the marker at the first inner close.
+ */
+
+test("scanEmbedMarkers: a marker's inner is everything between its outer tags, even with nested elements of other names", () => {
+  const html =
+    `<div data-embed-config='{"type":"collection","id":"x"}'>` +
+    `<template><div>{{title}}</div></template><div>none</div>` +
+    `</div>`;
+
+  const { markers } = scanEmbedMarkers(html);
+
+  assert.equal(markers.length, 1);
+  assert.equal(markers[0].type, "collection");
+  assert.equal(markers[0].inner, `<template><div>{{title}}</div></template><div>none</div>`);
+  assert.equal(markers[0].whole, html);
+});
+
+test("scanEmbedMarkers: same-name nesting three deep closes at the balanced tag, not the first close", () => {
+  const html = `<div data-embed-config='{"type":"collection","id":"x"}'><div><div>deep</div></div></div>`;
+
+  const { markers } = scanEmbedMarkers(html);
+
+  assert.equal(markers.length, 1);
+  assert.equal(markers[0].inner, `<div><div>deep</div></div>`);
+  assert.equal(markers[0].whole, html);
+});
+
+test("scanEmbedMarkers: an unbalanced inner <div> falls back to the first </div>, matching today's behaviour, without swallowing the rest of the document", () => {
+  const html = `<div data-embed-config='{"type":"collection","id":"x"}'><div>oops</div><p>after</p>`;
+
+  const { markers } = scanEmbedMarkers(html);
+
+  assert.equal(markers.length, 1);
+  assert.equal(markers[0].inner, `<div>oops`);
+  assert.equal(markers[0].whole, `<div data-embed-config='{"type":"collection","id":"x"}'><div>oops</div>`);
+});
+
+test("scanEmbedMarkers: a marker nested inside another marker's inner is not reported separately", () => {
+  const html =
+    `<div data-embed-config='{"type":"outer","id":"o"}'>` +
+    `<div data-embed-config='{"type":"inner","id":"i"}'>x</div>` +
+    `</div>`;
+
+  const { markers } = scanEmbedMarkers(html);
+
+  assert.equal(markers.length, 1);
+  assert.equal(markers[0].type, "outer");
+  assert.equal(markers[0].inner, `<div data-embed-config='{"type":"inner","id":"i"}'>x</div>`);
+});
+
+test("scanEmbedMarkers: comment/style masking hides a marker written inside them, and hides tags inside those regions from the balanced-close depth count", () => {
+  const html =
+    `<div data-embed-config='{"type":"collection","id":"x"}'>` +
+    `<!-- <div> --><div>real</div>` +
+    `</div>` +
+    `<style>.x{} <div data-embed-config='{"type":"style-fake"}'></div></style>`;
+
+  const { markers } = scanEmbedMarkers(html);
+
+  assert.equal(markers.length, 1);
+  assert.equal(markers[0].type, "collection");
+  assert.equal(markers[0].inner, `<!-- <div> --><div>real</div>`);
+});
+
+test("scanEmbedMarkers: recognises a marker on an <h2> and on a custom element like <my-card>", () => {
+  const h2 = scanEmbedMarkers(`<h2 data-embed-config='{"type":"widget","id":"w"}'>fallback</h2>`).markers;
+  const custom = scanEmbedMarkers(`<my-card data-embed-config='{"type":"widget","id":"w"}'>fallback</my-card>`).markers;
+
+  assert.equal(h2.length, 1);
+  assert.equal(h2[0].tag, "h2");
+  assert.equal(custom.length, 1);
+  assert.equal(custom[0].tag, "my-card");
+});
+
+test("scanEmbedMarkers: a marker with no close tag at all (a void <img>) is just its open tag and never swallows the rest of the document", () => {
+  const open = `<img data-embed-config='{"type":"media","id":"asset-1"}' class="hero">`;
+  const html = `<p>before</p>${open}<p>rest of the page</p><div>more</div>`;
+
+  const { markers } = scanEmbedMarkers(html);
+
+  assert.equal(markers.length, 1);
+  assert.equal(markers[0].whole, open);
+  assert.equal(markers[0].inner, "");
+  assert.equal(markers[0].index, `<p>before</p>`.length);
+});
+
+test("scanEmbedMarkers: a </div> inside a <script> in a marker's inner is not counted toward its balanced close", () => {
+  const html =
+    `<div data-embed-config='{"type":"collection","id":"x"}'>` +
+    `<script>document.write("</div>")</script><div>real</div>` +
+    `</div><p>after</p>`;
+
+  const { markers } = scanEmbedMarkers(html);
+
+  assert.equal(markers.length, 1);
+  assert.equal(markers[0].inner, `<script>document.write("</div>")</script><div>real</div>`);
+});
+
+test("scanEmbedMarkers: thousands of unbalanced markers scan in linear, not quadratic, time", () => {
+  // Each marker opens a <div>, closes an inner one, and never closes itself, so a per-marker depth
+  // count that runs to the end of the document on every marker is O(markers x length). 8000 of them
+  // (~520 KB) took ~16 s that way; a linear scan takes a few tens of milliseconds.
+  const html = `<div data-embed-config='{"type":"widget","id":"x"}'><div>x</div>\n`.repeat(8000);
+
+  const started = performance.now();
+  const { markers } = scanEmbedMarkers(html);
+  const elapsedMs = performance.now() - started;
+
+  assert.equal(markers.length, 8000);
+  assert.equal(markers[1].whole, `<div data-embed-config='{"type":"widget","id":"x"}'><div>x</div>`);
+  assert.ok(elapsedMs < 1500, `scan took ${elapsedMs.toFixed(0)} ms`);
+});
+
+/**
+ * @file Bug A (2026-09-23 interactive-bugs plan, Slice A1): `parseEmbedMarkerConfig` is the exported
+ * form of the same config-parsing rule `scanEmbedMarkers` already applies to every marker it finds,
+ * and `embedMarkerTarget` is the ONE per-type "which key names the target" rule shared by the server's
+ * four page-embed resolvers (`resolver-service.ts`'s widget/media/post/content) and the two
+ * theme-owned types with no target at all — the fact that used to live only inside those resolvers,
+ * unreachable from the admin's own placeholder describer.
+ */
+
+test("parseEmbedMarkerConfig: valid JSON object with a type returns { config }", () => {
+  const result = parseEmbedMarkerConfig('{"type":"widget","slug":"x"}');
+
+  assert.deepEqual(result, { config: { type: "widget", slug: "x" } });
+});
+
+test("parseEmbedMarkerConfig: invalid JSON returns the same rejection kind scanEmbedMarkers emits", () => {
+  const result = parseEmbedMarkerConfig("{not json");
+
+  assert.ok("problem" in result);
+  assert.equal(result.problem.kind, "invalid-json");
+});
+
+test("parseEmbedMarkerConfig: a non-object (array) returns not-an-object", () => {
+  const result = parseEmbedMarkerConfig("[1,2,3]");
+
+  assert.ok("problem" in result);
+  assert.equal(result.problem.kind, "not-an-object");
+});
+
+test("parseEmbedMarkerConfig: an object missing type returns missing-type", () => {
+  const result = parseEmbedMarkerConfig('{"id":"x"}');
+
+  assert.ok("problem" in result);
+  assert.equal(result.problem.kind, "missing-type");
+});
+
+test("embedMarkerTarget: widget, media, post, content resolve by slug when no id is present", () => {
+  assert.deepEqual(embedMarkerTarget("widget", { slug: "contact-form" }), { key: "slug", value: "contact-form" });
+  assert.deepEqual(embedMarkerTarget("media", { slug: "hero-video" }), { key: "slug", value: "hero-video" });
+  assert.deepEqual(embedMarkerTarget("post", { slug: "hello-world" }), { key: "slug", value: "hello-world" });
+  assert.deepEqual(embedMarkerTarget("content", { slug: "about" }), { key: "slug", value: "about" });
+});
+
+test("embedMarkerTarget: id wins over slug when both are present", () => {
+  assert.deepEqual(embedMarkerTarget("widget", { id: "abc", slug: "x" }), { key: "id", value: "abc" });
+});
+
+test("embedMarkerTarget: collection resolves by typeKey, and ignores slug entirely", () => {
+  assert.deepEqual(embedMarkerTarget("collection", { typeKey: "recipes" }), { key: "typeKey", value: "recipes" });
+  assert.equal(embedMarkerTarget("collection", { slug: "x" }), undefined);
+});
+
+test("embedMarkerTarget: collection with both slug and typeKey resolves to typeKey (slug is never consulted)", () => {
+  assert.deepEqual(embedMarkerTarget("collection", { slug: "x", typeKey: "recipes" }), { key: "typeKey", value: "recipes" });
+});
+
+test("embedMarkerTarget: collection id wins over typeKey when both are present", () => {
+  assert.deepEqual(embedMarkerTarget("collection", { id: "recipes-id", typeKey: "recipes" }), { key: "id", value: "recipes-id" });
+});
+
+test("embedMarkerTarget: menu and partial resolve only by id, never by slug", () => {
+  assert.equal(embedMarkerTarget("menu", { slug: "x" }), undefined);
+  assert.deepEqual(embedMarkerTarget("menu", { id: "main" }), { key: "id", value: "main" });
+  assert.equal(embedMarkerTarget("partial", { slug: "x" }), undefined);
+  assert.deepEqual(embedMarkerTarget("partial", { id: "main" }), { key: "id", value: "main" });
+});
+
+test('embedMarkerTarget: post-previews needs no target at all — a distinct "none" outcome, not "missing"', () => {
+  assert.deepEqual(embedMarkerTarget("post-previews", {}), { key: "none" });
+});
+
+test("embedMarkerTarget: an empty string, a non-string value, or an overlong value counts as absent", () => {
+  assert.equal(embedMarkerTarget("widget", { id: "" }), undefined);
+  assert.equal(embedMarkerTarget("widget", { id: 123 }), undefined);
+  assert.equal(embedMarkerTarget("widget", { id: "x".repeat(201) }), undefined);
+  assert.deepEqual(embedMarkerTarget("widget", { id: "x".repeat(200) }), { key: "id", value: "x".repeat(200) });
+});
+
+test("embedMarkerTarget: falls through to the next key when the first is absent", () => {
+  assert.deepEqual(embedMarkerTarget("widget", { id: "", slug: "contact-form" }), { key: "slug", value: "contact-form" });
+  assert.deepEqual(embedMarkerTarget("widget", { id: 123, slug: "contact-form" }), { key: "slug", value: "contact-form" });
+});
+
+test("embedMarkerTarget: the type is compared lower-cased", () => {
+  assert.deepEqual(embedMarkerTarget("Widget", { slug: "contact-form" }), { key: "slug", value: "contact-form" });
+});
+
+test("embedMarkerTarget: an unknown type resolves only by id", () => {
+  assert.deepEqual(embedMarkerTarget("mystery", { id: "x" }), { key: "id", value: "x" });
+  assert.equal(embedMarkerTarget("mystery", { slug: "x" }), undefined);
 });

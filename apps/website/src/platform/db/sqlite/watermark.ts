@@ -4,7 +4,7 @@ import type { OpenTransactionHandle } from "#src/contracts/core/gated-mutations/
 import { stampWatermark } from "#src/contracts/core/gated-mutations/watermark";
 import type { MirrorStorePort } from "#src/contracts/core/gated-mutations/ports";
 import type { ContentDb } from "./content-db.js";
-import * as schema from "../schema.js";
+import * as schema from "../schema.sqlite.js";
 
 /**
  * @file SPEC-016 C-004 / U-002 / U-004 / REQ-01 / REQ-04 / REQ-05 / INV-01 — the SQLite-concrete

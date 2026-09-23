@@ -17,8 +17,9 @@ import {
   DEFAULT_POST_SORT,
 } from "./rules";
 import { useWiredPosts } from "./hooks/use-posts.hooks";
+import { ServerLabel } from "@/components/status-labels";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { POSTS_DICT } from "./posts-i18n";
+import { t as translate } from "./posts-i18n";
 
 /**
  * @file The Posts list screen — markup only.
@@ -49,9 +50,9 @@ export interface PostsProps {
  * whole screen — matches Pages.tsx/Media.tsx/Comments.tsx. Mirrors `Pages.tsx`'s identical
  * `pagesListNotice`.
  */
-export function postsListNotice(posts: AdminPost[] | null, error: string | null): ReactNode {
+export function postsListNotice(posts: AdminPost[] | null, error: string | null, t: (key: string) => string): ReactNode {
   if (error && !posts) return <div className="notice error">{error}</div>;
-  if (!posts) return <div className="notice">Loading posts…</div>;
+  if (!posts) return <div className="notice">{t("Loading posts…")}</div>;
   return null;
 }
 
@@ -64,12 +65,12 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
     pendingDelete,
     setPendingDelete,
     createPost,
-    disablePost,
+    togglePostPublish,
     removePost,
     rowMenuHandleById,
   } = usePostsHook();
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => POSTS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   // Owner ruling (2026-08-14): pure interactive DOM-chrome state — a client-side sort toggle with
   // no I/O behind it — stays LOCAL rather than moving into `use-posts.hooks.ts`, unlike every other
   // piece of state on this screen. The line to draw: async/API/data state always moves into the
@@ -86,7 +87,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
   // renders the caret/`aria-sort` — see `rules.ts`'s "Column sort" section for what's left here.
   const [sort, setSort] = useState<DataTableSortState>(DEFAULT_POST_SORT);
 
-  const notice = postsListNotice(posts, error);
+  const notice = postsListNotice(posts, error, t);
   if (notice) return notice;
   // Unreachable in practice — `postsListNotice` already returns a non-null notice whenever `posts`
   // is null — but restores the narrowing TS lost by moving that check behind a function call, so
@@ -133,7 +134,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
             // migrated onto `DataTable`'s own shared sort mechanism 2026-09-02) — `DataTable` now
             // renders the button, caret, and `aria-sort` itself from this descriptor; only the
             // domain-specific comparator and label wording stay here (`rules.ts`).
-            sort: { compare: comparePostsByTitle, label: (direction) => postColumnSortLabel("Title", direction) },
+            sort: { compare: comparePostsByTitle, label: (direction) => postColumnSortLabel(t, t("Title"), direction) },
             cell: (post) => (
               <a
                 href={`/admin/posts/${post.slug}`}
@@ -146,7 +147,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           {
             key: "slug",
             header: "Slug",
-            sort: { compare: comparePostsBySlug, label: (direction) => postColumnSortLabel("Slug", direction) },
+            sort: { compare: comparePostsBySlug, label: (direction) => postColumnSortLabel(t, t("Slug"), direction) },
             cell: (post) => (
               <a
                 href={siteUrl(`/${post.slug}`)}
@@ -161,15 +162,15 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           {
             key: "status",
             header: t("Status"),
-            sort: { compare: comparePostsByStatus, label: (direction) => postColumnSortLabel("Status", direction) },
-            cell: (post) => <span className={`status status-${post.status}`}>{post.status}</span>,
+            sort: { compare: comparePostsByStatus, label: (direction) => postColumnSortLabel(t, t("Status"), direction) },
+            cell: (post) => <span className={`status status-${post.status}`}><ServerLabel value={post.status} /></span>,
           },
           {
             key: "updated",
             header: t("Updated"),
             // "desc" (newest first) is this column's own starting direction, unlike the other
             // three's ascending default — unchanged from the pre-existing Updated-only feature.
-            sort: { compare: comparePostsByUpdated, defaultDirection: "desc", label: updatedColumnSortLabel },
+            sort: { compare: comparePostsByUpdated, defaultDirection: "desc", label: (direction) => updatedColumnSortLabel(t, direction) },
             cell: (post) => formatTimestamp(post.updatedAt),
           },
           {
@@ -177,13 +178,13 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
             header: t("More"),
             cell: (post) => (
               <RowMenu
-                triggerLabel={`Actions for "${post.title}"`}
+                triggerLabel={t('Actions for "{title}"').replace("{title}", post.title)}
                 agentHandle={`${rowMenuHandleById.get(post.id)}-menu`}
                 items={postRowMenuItems(
                   post,
                   {
                     onEdit: (p) => navigate(`/posts/${p.slug}`),
-                    onDisable: disablePost,
+                    onTogglePublish: togglePostPublish,
                     onDelete: setPendingDelete,
                   },
                   locale,

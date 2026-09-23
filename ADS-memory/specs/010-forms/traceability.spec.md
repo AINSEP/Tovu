@@ -32,9 +32,9 @@ through to implementation and test. All rows are `PENDING` — expected at spec 
 | AC-03 (REQ-02) | `type: "date"` rejected, nothing created | P1 | pending | pending | pending | pending | PENDING |
 | REQ-03 | Enforce workspace-unique slug | — | pending | pending | pending | pending | PENDING |
 | AC-04 (REQ-03) | Duplicate slug rejected with FORMS_SLUG_CONFLICT | P1 | pending | pending | pending | pending | PENDING |
-| REQ-04 | Read/update/disable definition; never hard-delete | — | pending | pending | pending | pending | PENDING |
+| REQ-04 | Read/update/disable definition; permanent delete only via Trash purge | — | pending | pending | pending | pending | PENDING |
 | AC-05 (REQ-04) | Disable stops new submissions; GET still shows disabled | P1 | pending | pending | pending | pending | PENDING |
-| AC-06 (REQ-04) | No delete endpoint exists for definitions | P1 | pending | pending | pending | pending | PENDING |
+| AC-06 (REQ-04) | SUPERSEDED (2026-09-21 owner ruling — forms deleted via the Trash): no delete endpoint on the definition write routes | P1 | pending | pending | pending | pending | PENDING |
 | REQ-05 | Public unauthenticated submit endpoint | — | pending | pending | pending | pending | PENDING |
 | AC-07 (REQ-05) | No Authorization header required, 201 | P1 | pending | pending | pending | pending | PENDING |
 | REQ-06 | Validate submission against field vocabulary | — | pending | pending | pending | pending | PENDING |
@@ -57,7 +57,7 @@ through to implementation and test. All rows are `PENDING` — expected at spec 
 | AC-18 (REQ-12) | Notify disabled → send() never invoked | P2 | pending | pending | pending | pending | PENDING |
 | REQ-13 | List/view submissions with read permission | — | pending | pending | pending | pending | PENDING |
 | AC-19 (REQ-13) | Returns every non-deleted submission, newest first | P1 | pending | pending | pending | pending | PENDING |
-| REQ-14 | Permanently delete a submission | — | pending | pending | pending | pending | PENDING |
+| REQ-14 | Delete a submission — moves it to the Trash; only a purge deletes it permanently | — | pending | pending | pending | pending | PENDING |
 | AC-20 (REQ-14) | Deleted submission 404s and disappears from list | P1 | pending | pending | pending | pending | PENDING |
 | REQ-15 | Reject unauthorized definition/submission actions | — | pending | pending | pending | pending | PENDING |
 | AC-21 (REQ-15) | Definition write without admin.forms.manage → FORBIDDEN | P1 | pending | pending | pending | pending | PENDING |
@@ -79,7 +79,7 @@ through to implementation and test. All rows are `PENDING` — expected at spec 
 | INV-05 | Public endpoint never blocks on mail/webhook completion | pending | pending | PENDING |
 | INV-06 | No admin action bypasses its permission check | pending | pending | PENDING |
 | INV-07 | form.submission.received emitted for every accepted submission, only those | pending | pending | PENDING |
-| INV-08 | Form definitions are never hard-deleted | pending | pending | PENDING |
+| INV-08 | Form definition permanently deleted only by a Trash purge; deleting moves it to the Trash, restore brings it back with its submissions | pending | pending | PENDING |
 
 ---
 

@@ -2,10 +2,10 @@ import type { Express } from "express";
 
 import { normalizePeerBaseUrl } from "#src/features/publish-content/peer-url";
 import {
-  removeConnectedDestination,
-  saveConnectedDestination,
-  type PublishContentPeerSummary,
-} from "#src/features/publish-content/peers";
+  connectAndRecordDestination,
+  disconnectAndForgetDestination,
+} from "#src/features/publish-content/connect-destination";
+import { selectConnectedDestination, type PublishContentPeerSummary } from "#src/features/publish-content/peers";
 import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
 import {
   connectDestination,
@@ -90,7 +90,7 @@ function siteLabelFor(baseUrl: string): string {
  */
 async function connectedSite(deps: PublishContentRouteDeps): Promise<PublishContentPeerSummary | null> {
   const rows = await deps.publishContentPeerRepo.listByWorkspace({ workspaceId: deps.workspaceId });
-  const match = rows.find((row) => row.sealed === null);
+  const match = selectConnectedDestination(rows);
   return match
     ? {
         id: match.id,
@@ -213,25 +213,22 @@ export function registerPublishContentDestinationRoutes(
         return;
       }
 
-      const connected = await connectDestination(
+      const trustDeps = {
+        httpClient: deps.publishContentPeerHttpClient,
+        keyring: deps.siteAssistantSecretKeyring,
+        provisioning: own.provisioning,
+        clock: deps.clock,
+        workspaceId: deps.workspaceId,
+      };
+      const { site, grant } = await connectAndRecordDestination(
         {
-          httpClient: deps.publishContentPeerHttpClient,
-          keyring: deps.siteAssistantSecretKeyring,
-          provisioning: own.provisioning,
+          repo: deps.publishContentPeerRepo,
           clock: deps.clock,
-          workspaceId: deps.workspaceId,
+          idGen: deps.idGen,
+          connectGrant: (input) => connectDestination(trustDeps, input),
+          reverseGrant: () => disconnectDestination(trustDeps),
         },
-        { baseUrl: normalized.baseUrl, entityTypes }
-      );
-
-      const site = await saveConnectedDestination(
-        { repo: deps.publishContentPeerRepo, clock: deps.clock, idGen: deps.idGen },
-        {
-          workspaceId: deps.workspaceId,
-          label: siteLabelFor(connected.baseUrl),
-          baseUrl: connected.baseUrl,
-          remoteWorkspaceId: connected.identity.workspaceId,
-        }
+        { workspaceId: deps.workspaceId, baseUrl: normalized.baseUrl, entityTypes }
       );
 
       const view: PublishDestinationView = {
@@ -239,7 +236,7 @@ export function registerPublishContentDestinationRoutes(
         site,
         candidateUrl: null,
         message: `This computer publishes to ${site.label}.`,
-        nextStep: connected.nextStep,
+        nextStep: grant.nextStep,
       };
       res.status(201).json(view);
     } catch (err) {
@@ -250,13 +247,21 @@ export function registerPublishContentDestinationRoutes(
   app.post(`${base}/disconnect`, async (req, res) => {
     try {
       if (!(await guard(req, res))) return;
-      const site = await connectedSite(deps);
-      const removed = await disconnectDestination({
-        keyring: deps.siteAssistantSecretKeyring,
-        provisioning: own.provisioning,
-        workspaceId: deps.workspaceId,
-      });
-      if (site) await removeConnectedDestination({ repo: deps.publishContentPeerRepo }, { workspaceId: deps.workspaceId, baseUrl: site.baseUrl });
+      const removed = await disconnectAndForgetDestination(
+        {
+          repo: deps.publishContentPeerRepo,
+          clock: deps.clock,
+          idGen: deps.idGen,
+          reverseGrant: () =>
+            disconnectDestination({
+              keyring: deps.siteAssistantSecretKeyring,
+              provisioning: own.provisioning,
+              workspaceId: deps.workspaceId,
+            }),
+        },
+        { workspaceId: deps.workspaceId }
+      );
+      const site = removed.site;
 
       const view: PublishDestinationView = {
         connected: false,
@@ -265,7 +270,7 @@ export function registerPublishContentDestinationRoutes(
         message: site ? `This computer no longer publishes to ${site.label}.` : "This computer was not publishing anywhere.",
         // Takes effect on the next deploy — the destination-side deny list is the immediate one,
         // and it is a separate action on the SITE, not on this computer.
-        nextStep: removed.changed ? removed.target.nextStep : null,
+        nextStep: removed.changed ? (removed.target?.nextStep ?? null) : null,
       };
       res.json(view);
     } catch (err) {

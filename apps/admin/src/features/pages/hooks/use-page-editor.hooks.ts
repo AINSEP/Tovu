@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 
 import type { AdminPost } from "@/lib/api";
+import {
+  useDevicePreviewDevice,
+  usePreviewPaneWidth,
+  type DevicePreviewDevice,
+} from "@/components/DevicePreview/DevicePreview.hooks";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
 import { useAgentScreenEntry } from "@/hooks/use-agent-screen-context.hooks";
+import type { Translate } from "@/lib/dictionary-translator";
 import { useExternalEntryRefresh } from "@/hooks/use-external-entry-refresh.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import {
@@ -21,6 +27,7 @@ import {
   pageAcceptsHtmlBody,
   pageDirtyGuardBaseline,
   pageEditableHtml,
+  pagePartialSaveMessage,
   pagePreviewFormTarget,
   pageSaveSuccessMessage,
   PAGES_RESOURCE,
@@ -61,19 +68,6 @@ import {
  *  and basic formatting only — see `@jini-ai/admin/react`'s `InteractiveHtmlEditor`). */
 export type PageEditorView = "preview" | "html" | "interactive";
 
-/**
- * Viewport widths the preview renders AT, independent of how much room the pane actually has.
- *
- * This is the point of the whole preview mechanism, not a nice-to-have. With the assistant dock
- * open the editor pane is well under half the window, so a preview rendered at its container's real
- * width would show a layout at ~900px that ships at 1280+ — the operator would be judging, and
- * asking the model to fix, breakpoints nobody will ever see. The document is rendered at the chosen
- * width and scaled down to fit instead.
- */
-export const PAGE_PREVIEW_WIDTHS = { desktop: 1280, tablet: 834, mobile: 390 } as const;
-
-export type PagePreviewDevice = keyof typeof PAGE_PREVIEW_WIDTHS;
-
 export interface PageEditorController {
   /** `null` until the initial load settles. */
   page: AdminPost | null;
@@ -110,8 +104,8 @@ export interface PageEditorController {
   setDraftHtml: (value: string) => void;
   view: PageEditorView;
   setView: (value: PageEditorView) => void;
-  device: PagePreviewDevice;
-  setDevice: (value: PagePreviewDevice) => void;
+  device: DevicePreviewDevice;
+  setDevice: (value: DevicePreviewDevice) => void;
   /**
    * Preview fullscreen (2026-09-16) — whether the Preview tab's own pane is expanded to fill
    * `.admin-main-col` (see `PageEditor.tsx`'s `.page-preview-expanded` wrapper). The Pages-side
@@ -130,16 +124,18 @@ export interface PageEditorController {
   togglePreviewExpanded: () => void;
   /**
    * `PagePreview`'s own frame element and its live-measured width (moved here from `PagePreview`,
-   * 2026-08-11 complexity-ceiling pass — see the measuring effect below for the full "why ResizeObserver
+   * 2026-08-11 complexity-ceiling pass — see `usePreviewPaneWidth` (`components/DevicePreview`) for the full "why ResizeObserver
    * instead of a guessed constant" reasoning this used to carry in that component). `PageEditor.tsx`
    * passes both straight through as props; `PagePreview` attaches `frameRef` to the element it wants
    * measured (`<div ref={frameRef}>` — React accepts a callback ref directly, same call site a
    * `RefObject` would use) and reads `paneWidth` back to compute its scale. A CALLBACK ref, not a
-   * `RefObject` — see the measuring effect below for why that distinction is load-bearing here.
+   * `RefObject` — see `usePreviewPaneWidth` for why that distinction is load-bearing here.
    */
   frameRef: (node: HTMLDivElement | null) => void;
   paneWidth: number;
   saving: boolean;
+  /** Bound page-editor translator for the markup surface. */
+  t: Translate;
   /**
    * Whether the working copy differs from what was last loaded or saved.
    *
@@ -443,24 +439,85 @@ async function writePage(
 ): Promise<AdminPost> {
   const { post: updated } = await port.updatePost({ id: pageId }, plan.updatePostPayload);
   if (!plan.canSaveHtml) return updated;
-  const { post: withBody } = await port.updatePageHtml(pageId, html);
-  return withBody;
+  try {
+    const { post: withBody } = await port.updatePageHtml(pageId, html);
+    return withBody;
+  } catch (e) {
+    // The metadata write above already landed — losing that fact here is exactly the partial-success
+    // bug this wraps against (H1, 2026-09-20). See `PageBodyWriteError`'s own doc and
+    // `applySaveFailure`'s handling of it.
+    throw new PageBodyWriteError(updated, e);
+  }
+}
+
+/** Thrown by {@link writePage} when the metadata write landed but the body write then failed. Carries
+ *  `savedRow` — the metadata write's own response, the only successful outcome to have happened by
+ *  the time this is thrown — so `applySaveFailure` can apply it without a second round-trip, and
+ *  `reason`, whatever the body write itself threw, for the message shown to the operator. */
+class PageBodyWriteError extends Error {
+  constructor(
+    readonly savedRow: AdminPost,
+    readonly reason: unknown,
+  ) {
+    super("page body write failed after its metadata write already landed");
+  }
+}
+
+/** `applySaveFailure`'s own "apply what already succeeded" step for a {@link PageBodyWriteError} —
+ *  the metadata write's response, applied EXCEPT `setSavedHtml`, so the body stays dirty and the next
+ *  Save (or the operator noticing the banner) retries writing it rather than the editor quietly
+ *  treating an unsaved body as saved. Deliberately narrower than {@link applySavedPage}: no
+ *  `setMessage` (the caller shows the partial-failure text instead, via `pagePartialSaveMessage`) and
+ *  no `nextStatus` override (the metadata write already wrote whatever status this attempt asked
+ *  for, since it is what succeeded). */
+function applyPartialSave(
+  updated: AdminPost,
+  form: { templateChoice: string | null },
+  setters: {
+    setPage: (page: AdminPost) => void;
+    setSlug: (slug: string) => void;
+    setStatus: (status: "draft" | "published") => void;
+    setSavedTemplateChoice: (value: string | null) => void;
+  },
+): void {
+  setters.setPage(updated);
+  setters.setSlug(updated.slug);
+  setters.setStatus(updated.status);
+  setters.setSavedTemplateChoice(form.templateChoice);
 }
 
 /** `runSave`'s own catch arm, named out of its body for the same complexity-ceiling reason
  *  {@link applySavedPage} above documents.
  *
- *  The version conflict is NOT folded into the generic error line. The two need opposite reactions
- *  from the operator (a slug collision or a network blip: fix it and press Save again; this:
- *  pressing Save again replaces somebody's page), and the whole point of the route's distinct `code`
- *  is that the client no longer has to guess which it got — see `readPageVersionConflict`. */
+ *  A {@link PageBodyWriteError} is handled FIRST and separately from the version conflict below: it
+ *  is not a rejected save at all but a partial one, so it gets `applyPartialSave` plus
+ *  `pagePartialSaveMessage` rather than either the conflict banner or the generic error line — see
+ *  H1's own writeup (`ADS-memory/.local-artifacts/terra-admin-review-2026-09-20/plan-content.md`).
+ *
+ *  The version conflict is NOT folded into the generic error line either. The two need opposite
+ *  reactions from the operator (a slug collision or a network blip: fix it and press Save again;
+ *  this: pressing Save again replaces somebody's page), and the whole point of the route's distinct
+ *  `code` is that the client no longer has to guess which it got — see `readPageVersionConflict`. */
 function applySaveFailure(
   e: unknown,
   attemptedStatus: "draft" | "published" | undefined,
-  setters: { setSaveConflict: (value: PageSaveConflict) => void; setError: (value: string) => void },
+  form: { templateChoice: string | null },
+  setters: {
+    setPage: (page: AdminPost) => void;
+    setSlug: (slug: string) => void;
+    setStatus: (status: "draft" | "published") => void;
+    setSavedTemplateChoice: (value: string | null) => void;
+    setSaveConflict: (value: PageSaveConflict) => void;
+    setError: (value: string) => void;
+  },
   t: (locale: string, key: string) => string,
   locale: string,
 ): void {
+  if (e instanceof PageBodyWriteError) {
+    applyPartialSave(e.savedRow, form, setters);
+    setters.setError(pagePartialSaveMessage(t, locale, e.reason));
+    return;
+  }
   const conflict = readPageVersionConflict(e, attemptedStatus);
   if (conflict) {
     setters.setSaveConflict(conflict);
@@ -499,6 +556,7 @@ export interface PageEditorDependencies {
  */
 export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): PageEditorController {
   const { port, themeCanvasPort, navigate, t, locale } = deps;
+  const boundT: Translate = (key) => t(locale, key);
   const [page, setPage] = useState<AdminPost | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -519,7 +577,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const [html, setHtml] = useState("");
   const [savedHtml, setSavedHtml] = useState("");
   const [view, setView] = useState<PageEditorView>("preview");
-  const [device, setDevice] = useState<PagePreviewDevice>("desktop");
+  const { device, setDevice } = useDevicePreviewDevice();
   // Preview fullscreen (2026-09-16) — see `PageEditorController.previewExpanded`'s own doc for why
   // this lives here instead of `App.tsx` or a bus. `false` by default: opening a Page must never
   // itself land on the expanded surface, even though `view` DOES default to "preview" here (unlike
@@ -660,51 +718,9 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     setPreviewExpanded((on) => !on);
   }
 
-  // `PagePreview`'s frame element and its REAL rendered width, measured live via `ResizeObserver`
-  // rather than a guessed constant — a flat `880` here would mean the scale computed once and stayed
-  // frozen across a window resize, a sidebar collapse, or the assistant dock opening/closing (this is
-  // the bug `ThemeExplore.tsx`'s own `ThemeExplorePreview` copied verbatim from here, then fixed live —
-  // see that file's `fd26d93`). `880` survives only as the pre-measurement default so the first paint
-  // still has a sane scale instead of `Infinity`/`NaN` from a zero-width ref.
-  //
-  // `frameNode`/`setFrameNode` is a CALLBACK ref (a piece of state plus its setter, handed to JSX as
-  // `ref={setFrameNode}`), NOT a plain `useRef` — and the effect below is keyed off the NODE itself,
-  // NOT `[view]`. That `useRef`-plus-`[view]` shape was this effect's ORIGINAL form, and it hid a real
-  // bug: on an ordinary page load, `page` starts `null` and `PageEditor.tsx` renders only a loading
-  // notice, so `PagePreview` — and the frame div `frameRef` attaches to — does not exist yet on this
-  // hook's FIRST render. A `[view]`-keyed effect runs once at that first render, finds `frameRef.current`
-  // still `null`, and bails out; since `view` never changes across the loading-to-loaded transition, the
-  // effect never runs again for the rest of the session. The observer was simply never attached, and
-  // `paneWidth` stayed frozen at the `880` fallback forever — measured live on a real page: a 1131px-wide
-  // pane rendering at the `880/1280` scale factor instead of the correct `1131/1280`. A `useRef` has no
-  // way to notify anything when React actually attaches a DOM node to it; a callback ref does — React
-  // calls it exactly when the node mounts, however late that turns out to be — so keying the effect off
-  // the node it receives (rather than some unrelated piece of state) fires it right then instead of
-  // waiting for `view`, or anything else, to change first.
-  //
-  // This still reproduces the exact "fresh observer per mount" lifecycle the old `[view]` dependency was
-  // written to preserve: `PagePreview` only renders while `view === "preview"`, so `frameNode` reverts to
-  // `null` (React calls a callback ref with `null` on unmount) every time the operator tabs away, and a
-  // fresh node — a fresh call to `setFrameNode`, a fresh effect run — arrives every time they tab back.
-  // Keying off the node is a strict superset of keying off `view`: it reruns on every mount/unmount
-  // `view` would have caught, PLUS the one case `view` could never catch — the frame's very first,
-  // possibly-late, mount.
-  //
-  // jsdom implements no `ResizeObserver` at all (`__tests__/setup.ts`'s own comment — deliberately left
-  // unstubbed, so a test can't pass without the measurement ever happening) — guarded exactly like
-  // `SeeMore.hooks.tsx`'s own `typeof ResizeObserver !== "function"` check, so this still renders (at
-  // the `880` default) in every existing/new unit test that doesn't stub one in.
-  const [frameNode, setFrameNode] = useState<HTMLDivElement | null>(null);
-  const [paneWidth, setPaneWidth] = useState(880);
-  useEffect(() => {
-    if (!frameNode || typeof ResizeObserver !== "function") return;
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry) setPaneWidth(entry.contentRect.width);
-    });
-    observer.observe(frameNode);
-    return () => observer.disconnect();
-  }, [frameNode]);
+  // `PagePreview`'s frame element and its live-measured width — see `usePreviewPaneWidth`'s own doc
+  // for why this is a callback ref keyed off the node (the late-mount bug it fixed was found here).
+  const { frameRef, paneWidth } = usePreviewPaneWidth();
 
   /**
    * Persists the working copy against a specific basis row — the version-guarded core both
@@ -763,7 +779,14 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         void autosave.clearStandingDraft();
       } catch (e) {
         if (!settlement.isCurrent(generation)) return;
-        applySaveFailure(e, nextStatus, { setSaveConflict, setError }, t, locale);
+        applySaveFailure(
+          e,
+          nextStatus,
+          { templateChoice },
+          { setPage, setSlug, setStatus, setSavedTemplateChoice, setSaveConflict, setError },
+          t,
+          locale,
+        );
       } finally {
         // Same generation check as the two branches above: only the call that is still current
         // should flip the shared `saving` flag back off, or an older call's own settlement could
@@ -996,9 +1019,10 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     setDevice,
     previewExpanded,
     togglePreviewExpanded,
-    frameRef: setFrameNode,
+    frameRef,
     paneWidth,
     saving,
+    t: boundT,
     // HTML changes only count when they're actually savable (see `save()`'s `canSaveHtml`) — for a
     // doc-format Page, `html` never reflects real persisted content, so comparing it to `savedHtml`
     // would report edits as dirty (or, worse, as clean) independent of anything actually saveable.

@@ -102,11 +102,14 @@ import {
   PostNotFoundError,
   PostValidationError,
   PostVersionConflictError,
+  restorePostForward,
   type PostKind,
   type PostRecord,
   type PostRepoPort,
   type PostStatus,
   type BeforeSaveHookPort,
+  type ForgetRemovedPostFn,
+  type RemovePostFn,
 } from "./post.js";
 // The SAME boundary `server/inbound/admin-http/routes/posts/update.ts` uses — imported, not copied.
 // The two arms diverged in the first place because only one of them had this logic at all.
@@ -158,6 +161,19 @@ export interface PostToolDeps {
   postRepo: PostRepoPort;
   postSearch: PostSearchPort;
   pluginBeforeSaveHook: BeforeSaveHookPort;
+  /**
+   * The pre-bound removal `content_post_delete` hands `deletePost` — see `post.ts`'s
+   * {@link import("./post.js").RemovePostFn}. Structurally typed, so this file also imports nothing
+   * from `features/trash`; a `RouteDeps` satisfies it by having the field.
+   */
+  removePost: RemovePostFn;
+  /**
+   * The undo half of {@link removePost}: both rollbacks in this file restore a post through
+   * `restorePostForward`, and an undone delete must drop the Trash index row the removal wrote.
+   * Structurally typed for the same reason — see `post.ts`'s
+   * {@link import("./post.js").ForgetRemovedPostFn}.
+   */
+  forgetRemovedPost: ForgetRemovedPostFn;
   /**
    * OPTIONAL — `content_duplicate`'s `"post"`/`"page"` resource handlers
    * ({@link duplicatePostOrPage}) are the only consumers in this domain that need it. Kept optional
@@ -325,6 +341,11 @@ function requireBodyJson(input: Record<string, unknown>, key: string): JsonObjec
 
 /** Shared dependency bag for `core/commands`'s `executeCommand` — identical shape to the one
  * `posts/create.ts`/`posts/update.ts`/`pages/create.ts`/`pages/update.ts` each build inline. */
+/** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
+ *  imported, the same "structurally typed, no `features/trash` import" convention
+ *  {@link RemovePostFn}'s own doc already follows. */
+const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
+
 function postCommandDeps(routeDeps: PostToolDeps) {
   return {
     clock: routeDeps.clock,
@@ -744,7 +765,22 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
               }),
             captureEntityVersion: (r) => r.post.version,
             rollback: async () => {
-              if (priorPost) await routeDeps.postRepo.save(priorPost);
+              if (!priorPost) return;
+              await restorePostForward({
+                deps: {
+                  repo: routeDeps.postRepo,
+                  clock: routeDeps.clock,
+                  outbox: routeDeps.outbox,
+                  forgetRemoved: routeDeps.forgetRemovedPost,
+                },
+                input: {
+                  prior: priorPost,
+                  actorId: ctx.principal.id,
+                  // Same delegatedBy* attribution the forward write above records.
+                  delegatedByWorkspaceId: routeDeps.workspaceId,
+                  delegatedById: ctx.principal.id,
+                },
+              });
             },
           },
         });
@@ -879,11 +915,12 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
             },
             execute: () =>
               deletePost({
-                deps: { repo: routeDeps.postRepo, clock: routeDeps.clock, outbox: routeDeps.outbox },
+                deps: { repo: routeDeps.postRepo, clock: routeDeps.clock, outbox: routeDeps.outbox, remove: routeDeps.removePost },
                 input: {
                   workspaceId: routeDeps.workspaceId,
                   id,
                   actorId: ctx.principal.id,
+                  actorPluginId: ASSISTANT_ACTOR_PLUGIN_ID,
                   // See content_post_create's identical delegatedBy* comment above.
                   delegatedByWorkspaceId: routeDeps.workspaceId,
                   delegatedById: ctx.principal.id,
@@ -891,7 +928,22 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
               }),
             captureEntityVersion: (r) => r.post.version,
             rollback: async () => {
-              if (priorPost) await routeDeps.postRepo.save(priorPost);
+              if (!priorPost) return;
+              await restorePostForward({
+                deps: {
+                  repo: routeDeps.postRepo,
+                  clock: routeDeps.clock,
+                  outbox: routeDeps.outbox,
+                  forgetRemoved: routeDeps.forgetRemovedPost,
+                },
+                input: {
+                  prior: priorPost,
+                  actorId: ctx.principal.id,
+                  // Same delegatedBy* attribution the forward write above records.
+                  delegatedByWorkspaceId: routeDeps.workspaceId,
+                  delegatedById: ctx.principal.id,
+                },
+              });
             },
           },
         });

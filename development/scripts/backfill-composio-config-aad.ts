@@ -42,7 +42,7 @@ import path from "node:path";
 
 import { and, eq } from "drizzle-orm";
 
-import { composioConfig } from "../../apps/website/src/platform/db/schema.js";
+import { composioConfig } from "../../apps/website/src/platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { buildComposioConfigAad } from "../../apps/website/src/platform/connectors/composio-config-aad.js";
 

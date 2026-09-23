@@ -207,6 +207,12 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "supabase-connect",
     "taxonomy",
     "themes",
+    // 2026-09-20: the local admin Trash â€” `trash_list_items` and `trash_restore_item`, and
+    // deliberately nothing else. A NEW domain (`features/trash`), not an entry in the 25-domain
+    // rollout. There is no purge tool and there must never be one: permanent deletion is
+    // human-only, from the Trash screen's confirm modal. See its own `agent-tools.ts` header and
+    // `features/trash/__tests__/tool-registrations.purge-ban.test.ts`.
+    "trash",
     "widgets",
     "workspace",
   ]);

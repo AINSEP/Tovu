@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { agentHandle } from "@jini-ai/agentic";
-import { tabHandleProps } from "./TabBar.hooks";
+import { resolveTabBarTabIndex, tabHandleProps, useTabBarKeyboard } from "./TabBar.hooks";
 
 /**
  * @file A generic horizontal tab row — id/label pairs, an active id, a change callback. No routing,
@@ -33,6 +33,13 @@ export interface TabBarTab {
   readonly icon?: ReactNode;
   /** Shown next to the label when present (e.g. a theme count per tier). Omit to show none. */
   readonly count?: number;
+  /** Small pill rendered after the label — e.g. "Soon" for a tab whose feature exists but isn't
+   *  live yet. Same visual language as `@jini-ai/admin/react`'s own `Sidebar.tsx` nav `.soon` badge
+   *  (an uppercase, bordered, muted pill), reused here rather than invented fresh so the app has one
+   *  "Soon" look, not two. Unlike {@link disabled}, a tab with `tag` set stays fully clickable —
+   *  built for the Providers page's MCP Server tab, which still opens to an honest status message
+   *  rather than nothing. Omit for a plain, untagged tab. */
+  readonly tag?: string;
   /**
    * Renders this tab greyed out and non-interactive: no `onChange` call, not part of the tab
    * order (native `disabled`), `aria-disabled` set for assistive tech. For scaffolding a future
@@ -108,7 +115,17 @@ function tabDotAccessibleSuffix(tab: TabBarTab) {
  *  {@link tabDotAccessibleSuffix} below take the same treatment one level further, since even this
  *  component alone still counted over budget with every branch inlined. No behavior moved, only
  *  where the branches are counted. */
-function TabBarButton({ tab, active, onChange }: { tab: TabBarTab; active: boolean; onChange: (id: string) => void }) {
+function TabBarButton({
+  tab,
+  active,
+  tabIndex,
+  onChange,
+}: {
+  tab: TabBarTab;
+  active: boolean;
+  tabIndex: 0 | -1;
+  onChange: (id: string) => void;
+}) {
   return (
     <button
       type="button"
@@ -117,6 +134,7 @@ function TabBarButton({ tab, active, onChange }: { tab: TabBarTab; active: boole
       aria-selected={active}
       aria-disabled={tab.disabled || undefined}
       disabled={tab.disabled}
+      tabIndex={tabIndex}
       onClick={tab.disabled ? undefined : () => onChange(tab.id)}
       {...tabHandleProps(tab)}
     >
@@ -128,21 +146,30 @@ function TabBarButton({ tab, active, onChange }: { tab: TabBarTab; active: boole
       ) : null}
       {tab.label}
       {tabDotAccessibleSuffix(tab)}
+      {tab.tag ? <span className="tab-bar-tag">{tab.tag}</span> : null}
       {tab.count !== undefined ? <span className="tab-bar-count">{tab.count}</span> : null}
     </button>
   );
 }
 
 export function TabBar({ tabs, activeId, onChange, ariaLabel, containerHandle }: TabBarProps) {
+  const { onKeyDown } = useTabBarKeyboard(tabs, activeId, onChange);
   return (
     <div
       className="tab-bar"
       role="tablist"
       aria-label={ariaLabel}
+      onKeyDown={onKeyDown}
       {...(containerHandle ? agentHandle(containerHandle, { role: "region", label: ariaLabel }) : {})}
     >
       {tabs.map((tab) => (
-        <TabBarButton key={tab.id} tab={tab} active={activeId === tab.id} onChange={onChange} />
+        <TabBarButton
+          key={tab.id}
+          tab={tab}
+          active={activeId === tab.id}
+          tabIndex={resolveTabBarTabIndex(tabs, activeId, tab)}
+          onChange={onChange}
+        />
       ))}
     </div>
   );

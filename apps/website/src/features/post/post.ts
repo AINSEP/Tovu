@@ -193,7 +193,7 @@ export interface BeforeSaveEntryDraft {
 export type BeforeSaveHookPort = (entry: BeforeSaveEntryDraft) => Promise<JsonObject>;
 
 /**
- * One row `appendRevision` writes to `post_revisions` (`platform/db/schema.ts`, migration
+ * One row `appendRevision` writes to `post_revisions` (`platform/db/schema.sqlite.ts`, migration
  * `0064_famous_omega_sentinel.sql`) — the full `PostRecord` snapshot, not the narrower shape
  * `postUpdateReverter`'s inverse payload captures (`reverters.ts` — that inverse drops
  * `seoExtJson`, `memberAccessJson`, `bodyHtml`/`bodyFormat`, `kind`, `deletedAt`, a documented,
@@ -206,7 +206,7 @@ export type PostRevisionOp = "create" | "update" | "delete" | "restore";
  * `appendRevision`'s write contract. `seq` is `PostRecord.version` AFTER the write this revision
  * captures — the caller (`createPost`/`updatePost`/`deletePost` below) already has that value in
  * hand from building the record, so it travels in rather than being independently recomputed by
- * the repo (one fact, one name — see `schema.ts`'s `postRevisions.seq` doc).
+ * the repo (one fact, one name — see `schema.sqlite.ts`'s `postRevisions.seq` doc).
  */
 export interface PostRevisionInput {
   postId: UUID;
@@ -305,6 +305,13 @@ export interface PostRepoPort {
    * `updatedAt`/`version` travel with the marker because a trash is a state change like any other:
    * the version must advance so the command gateway's revert guard (`appliers.ts`'s
    * `currentVersion`) can tell a restored row from the trashed one it replaced.
+   *
+   * 2026-09-20: `deletePost` no longer calls this. Trashing now goes through {@link DeletePostDeps}'s
+   * injected `remove`, which stamps the same three columns AND writes the Trash index row inside one
+   * transaction — the two could not be made atomic while they were separate calls. This method
+   * remains the port's narrow marker write (both adapters still implement it identically, and its
+   * rule-of-two contract tests still run) and is what a test harness or an in-memory composition
+   * binds `remove` to; nothing in the serving path reaches it any more.
    */
   softDelete(required: {
     workspaceId: UUID;
@@ -313,6 +320,31 @@ export interface PostRepoPort {
     updatedAt: string;
     version: number;
   }): Promise<void>;
+  /**
+   * Physically REMOVES one row, with the revision ledger and the parked autosave that belong to it.
+   * The opposite of {@link softDelete} in every respect: nothing survives, nothing can be restored,
+   * and the slug is released.
+   *
+   * Two callers, both of which need removal rather than a marker and neither of which is an
+   * ordinary content delete:
+   *
+   *  - **the compensation for a failed CREATE.** A create has no pre-image, so the only correct
+   *    undo is for the row never to have existed. Trashing it instead (what this path did before
+   *    this method existed) leaves a row a user can find and restore, recording a creation that the
+   *    system decided had not happened.
+   *  - **the Trash purge**, once retention has expired or a user asks for permanent deletion. The
+   *    ledger goes with the row deliberately, and for the same reason the durable purge already
+   *    cascades it: `post_revisions` holds a full copy of every version, so keeping it would make
+   *    "permanently deleted" false.
+   *
+   * A no-op for an unknown id or another workspace's row — like {@link softDelete}, and unlike a
+   * throw, because both callers race a concurrent removal and "already gone" is the outcome they
+   * both want.
+   *
+   * NOT reachable from any ordinary delete path: `deletePost` trashes, and the Trash screen's
+   * restore depends on the row still being there. See {@link PostRecord.deletedAt}.
+   */
+  hardDelete(required: { workspaceId: UUID; id: UUID }): Promise<void>;
   /**
    * Reads the standing-draft autosave snapshot for one row, or `null` when none is parked — the
    * common case, and also what a caller gets after {@link clearAutosave} or once a
@@ -527,6 +559,10 @@ export interface UpdatePostRequired {
 export interface UpdatePostOptional {}
 
 export interface DeletePostInput {
+  /** The assistant's AI marker on the Trash row's `actor.pluginId` (2026-09-21, trash T4c) — unset
+   *  by every non-assistant caller (the admin HTTP delete route), so a human's own delete stays
+   *  human-only. See {@link RemovePostFn}'s `actor.pluginId`. */
+  actorPluginId?: string | null;
   workspaceId: UUID;
   id: UUID;
   /** Same optional-with-fallback contract as {@link CreatePostInput.actorId}. */
@@ -536,6 +572,28 @@ export interface DeletePostInput {
   /** See {@link CreatePostInput.delegatedByWorkspaceId}. */
   delegatedById?: UUID | null;
 }
+
+/**
+ * The delete primitive this domain is handed, rather than one it implements.
+ *
+ * Structurally typed ON PURPOSE — this file imports nothing from `features/trash`, and must not.
+ * The composition root binds the real implementation (which stamps the marker AND indexes the item
+ * for the Trash screen, as one transaction) and hands it in already bound to this domain's entity
+ * type, so `deletePost` never learns that a Trash exists. The only thing it knows is that removal
+ * is somebody else's single, atomic write.
+ *
+ * `display` is REQUIRED because the caller already holds the record — it loaded it for its own
+ * not-found check — so the two strings the Trash screen shows come from columns, with no second
+ * read and no payload parse. That is what keeps a post with unparseable `body_json` deletable.
+ */
+export type RemovePostFn = (required: {
+  workspaceId: string;
+  id: string;
+  display: { title: string; subtitle?: string | null };
+  at: string;
+  expectedVersion: number | null;
+  actor: { principalId: string; pluginId?: string | null };
+}) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }>;
 
 export interface DeletePostDeps {
   clock: ClockPort;
@@ -547,6 +605,8 @@ export interface DeletePostDeps {
    * this reuses `classifyStatusTransition` rather than inventing an `entry.deleted` name.
    */
   outbox: OutboxPort;
+  /** See {@link RemovePostFn}. Replaces this function's former direct `repo.softDelete` call. */
+  remove: RemovePostFn;
 }
 
 export interface DeletePostRequired {
@@ -596,17 +656,25 @@ export async function deletePost(
   const version = existing.version + 1;
   const post: PostRecord = { ...existing, deletedAt: now, updatedAt: now, version };
 
-  // The softDelete write and its revision-ledger append are one atomic unit (see
-  // `PostRepoPort.transaction`'s own doc) — a revision must never be recorded for a trash that
-  // didn't really land, and a trash must never land unaccompanied by its revision.
+  // The removal and its revision-ledger append are one atomic unit (see `PostRepoPort.transaction`'s
+  // own doc) — a revision must never be recorded for a trash that didn't really land, and a trash
+  // must never land unaccompanied by its revision. `deps.remove` joins this transaction rather than
+  // opening its own, so the marker, the Trash index row and the revision are all-or-nothing.
   const { id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
-    await deps.repo.softDelete({
+    const removed = await deps.remove({
       workspaceId: input.workspaceId,
       id: input.id,
-      deletedAt: now,
-      updatedAt: now,
-      version,
+      // From columns the `findById` above already returned — no second read, no payload parse.
+      display: { title: existing.title, subtitle: existing.slug },
+      at: now,
+      expectedVersion: existing.version,
+      actor: { principalId: input.actorId ?? SYSTEM_ACTOR_ID, pluginId: input.actorPluginId ?? null },
     });
+    if (!removed.ok) {
+      // `not-found` can only mean the row was removed between the read above and this write.
+      if (removed.reason === "not-found") throw new PostNotFoundError(`post '${input.id}' was not found`);
+      throw new PostConflictError(`post '${input.id}' changed while it was being deleted`);
+    }
     return deps.repo.appendRevision({
       postId: post.id,
       workspaceId: post.workspaceId,
@@ -1267,6 +1335,163 @@ export async function updatePost(
   return { post, revisionId, previousRevisionId };
 }
 
+/** A trashed row is "not public" whatever its stored `status` still says — the same framing
+ *  {@link deletePost} applies when it classifies a trash as a move to `"draft"`. @complexity O(1). */
+function publicFacingStatus(post: PostRecord): PostStatus {
+  return isTrashed(post) ? "draft" : post.status;
+}
+
+/**
+ * Drops whatever index row some other owner wrote when this post's removal was recorded.
+ *
+ * Structurally typed and injected, exactly like {@link RemovePostFn}, so this domain still imports
+ * nothing from the module that owns that index. A no-op for an entity that was never indexed, so a
+ * caller that cannot tell never has to decide.
+ */
+export type ForgetRemovedPostFn = (required: { workspaceId: string; id: string }) => Promise<void>;
+
+export interface RestorePostForwardRequired {
+  deps: {
+    repo: PostRepoPort;
+    clock: ClockPort;
+    outbox: OutboxPort;
+    /**
+     * REQUIRED, not optional, and required at EVERY call site including the ones that only ever
+     * undo an update: an optional dependency is how a compensation ends up wired at three call
+     * sites out of four. Whether it actually fires is decided here, from the two records, not by
+     * the caller remembering which kind of write it is undoing.
+     */
+    forgetRemoved: ForgetRemovedPostFn;
+  };
+  input: {
+    /** The exact pre-`execute` record, as the mutation's own `captureInverse` read it. */
+    prior: PostRecord;
+    actorId?: string;
+    delegatedByWorkspaceId?: UUID | null;
+    delegatedById?: UUID | null;
+  };
+}
+
+export interface RestorePostForwardOptional {}
+
+/**
+ * The compensating undo every `CommandMutation.rollback` over a post calls — one definition of
+ * "put this post back" for the command gateway's unit-of-work guarantee (SPEC-001
+ * REQ-01 / EC-08 / AC-17, INV-01: no mutation survives without a change-set record).
+ *
+ * Restores the prior state as a NEW version instead of rewriting the row in place, pairs that write
+ * with its own `"restore"` revision inside one {@link PostRepoPort.transaction} — the same atomic
+ * pairing `createPost`/`updatePost`/`deletePost` use — and then announces the status transition the
+ * undo actually is, so a subscriber that already saw the undone write's event is told the truth
+ * rather than left believing it.
+ *
+ * ## Deliberate deviation from `@jini-ai/cms` `core/commands/command.ts:77-86`
+ *
+ * That contract (line 81, the clause the 2026-09-20 peer review cites as `command.ts:82`) requires
+ * `rollback` to restore "the entity to its exact pre-`execute` state (verbatim, **including
+ * `version`**)". This function does not: the restored row carries
+ * `current.version + 1`, so an undo moves the version FORWARD.
+ *
+ * Why this path departs from it: the forward write is not a row write. `updatePost`, `deletePost`
+ * and `importPostEntity` each write the row and append an immutable `post_revisions` row as one
+ * transaction, and {@link PostRepoPort.appendRevision} is append-only by contract — the revision
+ * the undone write appended cannot be removed. A verbatim restore therefore puts `version` back
+ * onto a `seq` that ghost revision already occupies, and `post_revisions` carries only
+ * `idx_post_revisions_workspace_post` (`platform/db/schema.sqlite.ts`) — an INDEX, not a unique constraint
+ * — so the next real write silently appends a SECOND row at that same `seq` rather than erroring.
+ * The ledger would then record two different states under one sequence number with nothing to tell
+ * a reader which one the row ever actually held. Restoring forward keeps every `seq` mapped to
+ * exactly one state, and makes the undo a recorded event instead of an erasure.
+ * (sol peer review 2026-09-20, High finding 3; recorded in
+ * `ADS-memory/reports/2026-09-20-post-rollback-forward-restore.md`.)
+ *
+ * What would have to change to remove the deviation: the transactional path `command.ts:82-83`
+ * already anticipates — "On the SQLite adapter (RT-004) a real transaction replaces this and `rollback`
+ * becomes a no-op" — enrolling the feature write, its revision AND the change-set insert in ONE
+ * transaction. With that in place nothing is ever appended that needs undoing, and this function
+ * plus all of its call sites can be deleted outright rather than reconciled.
+ *
+ * Callers must pass the record their `captureInverse` captured, never a freshly re-read one: a
+ * re-read row is the post-`execute` state, so restoring it restores nothing.
+ *
+ * ## Undoing a trash also forgets its index row
+ *
+ * `deletePost` writes the trash marker AND an index row through {@link DeletePostDeps.remove}, as
+ * one transaction. Clearing the marker here without dropping that row leaves a live, published post
+ * listed for permanent deletion by whatever screen reads the index — so when (and only when) the
+ * write being undone was a trash, {@link ForgetRemovedPostFn} runs inside the same transaction as
+ * the restore. This is a compensation rather than a prevention because the failure it answers is
+ * the change-set insert failing AFTER the delete transaction committed; enrolling that insert in
+ * the delete's transaction would remove the need for this function entirely (see the deviation note
+ * above), and is the strictly better fix whenever the gateway gains a transactional path.
+ *
+ * @returns the restored record and its revision id, or `null` when there is nothing to compensate:
+ * the row has since been removed, the write never landed (`current.version <= prior.version`), or
+ * another writer moved the row on while this compensation was being assembled. Clobbering that
+ * writer would itself be an unrecorded mutation — the exact failure INV-01 exists to prevent — so
+ * this stands down instead of forcing the write.
+ * @complexity O(r) over one post's revision ledger (a single `listRevisions` read, to name the
+ * revision being restored from), plus one conditional row write, one append, and — only when the
+ * undone write was a trash — one index-row delete. Failure path only.
+ */
+export async function restorePostForward(
+  required: RestorePostForwardRequired,
+  _optional: RestorePostForwardOptional = {}
+): Promise<{ post: PostRecord; revisionId: string } | null> {
+  const { deps, input } = required;
+  const { prior } = input;
+
+  const current = await deps.repo.findById({ workspaceId: prior.workspaceId, id: prior.id });
+  if (!current || current.version <= prior.version) return null;
+
+  const restored: PostRecord = { ...prior, updatedAt: deps.clock.nowIso(), version: current.version + 1 };
+  // The write being undone was a trash exactly when the row is trashed NOW and was not before.
+  // Read from the two records rather than taken from the caller, so an update rollback cannot
+  // forget an index row that a trash it knows nothing about legitimately owns.
+  const undoesATrash = isTrashed(current) && !isTrashed(prior);
+
+  // `restoredFrom` is what makes a `"restore"` row auditable — without it the ledger says an undo
+  // happened but not back to what. The ledger reads oldest-first, so the state being restored is
+  // the LAST row at the prior version (a pre-fix rollback may have left more than one there).
+  const ledger = await deps.repo.listRevisions({ workspaceId: prior.workspaceId, postId: prior.id });
+  const restoredFrom = [...ledger].reverse().find((row) => row.seq === prior.version)?.id ?? null;
+
+  const revisionId = await deps.repo.transaction(async () => {
+    // Conditional on the version this compensation was assembled against, not unconditional: a
+    // writer that landed in between owns the row now, and overwriting it would replace one
+    // unrecorded mutation with another.
+    const { applied } = await deps.repo.saveIfVersion({ record: restored, ifVersion: current.version });
+    if (!applied) return null;
+    const appended = await deps.repo.appendRevision({
+      postId: restored.id,
+      workspaceId: restored.workspaceId,
+      seq: restored.version,
+      op: "restore",
+      stateJson: restored,
+      actorId: input.actorId ?? SYSTEM_ACTOR_ID,
+      delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
+      delegatedById: input.delegatedById ?? null,
+      restoredFrom,
+      recordedAt: restored.updatedAt,
+    });
+    // Inside the transaction, not after it: on SQLite both writes run on the one connection this
+    // transaction already opened, so the marker and the index row move together or not at all. A
+    // compensation that can itself half-fail is not a compensation.
+    if (undoesATrash) await deps.forgetRemoved({ workspaceId: restored.workspaceId, id: restored.id });
+    return appended.id;
+  });
+  if (revisionId === null) return null;
+
+  await emitStatusTransitionEvent(
+    deps.outbox,
+    publicFacingStatus(current),
+    publicFacingStatus(restored),
+    restored
+  );
+
+  return { post: restored, revisionId };
+}
+
 /**
  * ADR-PIPE-008 Decision §5 / INV-010 — the 4-row status-transition table,
  * certified in isolation by `post.transition-events.test.ts` (T004) before
@@ -1443,6 +1668,27 @@ export async function findPublishedPostById(
 ): Promise<PostRecord | null> {
   const { workspaceId, id } = required.input;
   const post = await required.deps.repo.findById({ workspaceId, id });
+  if (!post || isTrashed(post) || post.status !== "published") return null;
+  return post;
+}
+
+/**
+ * Slug-addressed sibling of {@link findPublishedPostById} — identical trashed/status visibility
+ * guard (guard 2), same non-throwing REQ-27 contract, only the lookup key differs. Added (S3,
+ * 2026-09-23 widget-attrs plan) so a `content`/`post` embed marker can address a row by
+ * `posts_workspace_slug_unique` the same way `{"type":"widget","slug":...}"`/`{"type":"media",
+ * "slug":...}"` markers already address theirs (`entries`/media's own slug columns) — see
+ * `resolver-service.ts`'s `findPublishedPostByRef` for the id-authoritative-when-present caller that
+ * consults this.
+ *
+ * @complexity O(1) — one indexed `findBySlug` call plus two field comparisons, no iteration.
+ */
+export async function findPublishedPostBySlug(
+  required: GetPostBySlugRequired,
+  _optional: GetPostOptional = {}
+): Promise<PostRecord | null> {
+  const { workspaceId, slug } = required.input;
+  const post = await required.deps.repo.findBySlug({ workspaceId, slug });
   if (!post || isTrashed(post) || post.status !== "published") return null;
   return post;
 }

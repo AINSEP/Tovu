@@ -18,15 +18,15 @@ import type { PostsListPort } from "./posts-list-port.hooks";
  * reachable from `renderHook` with no table, no `RowMenu`, and no portal.
  *
  * The doc comments below moved WITH the functions they describe. Several are decision records —
- * why the delete copy says what it says, why "Disable" is not gated behind a confirm — and a
- * comment separated from its code stops being read.
+ * why the delete copy says what it says, why the Publish/Unpublish toggle is not gated behind a
+ * confirm — and a comment separated from its code stops being read.
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts` and `hooks/use-dirty-guard.hooks.ts`:
  * `use-<thing>.hooks.ts`. Feature-local because nothing outside `features/posts` needs it; promote
  * to `src/hooks/` only when a second feature actually does.
  *
  * `port`/`navigate` are injected — see `posts-list-port.hooks.ts` — rather than reaching `lib/api`/
- * `lib/router` directly, so a test can describe load/create/disable/delete outcomes against
+ * `lib/router` directly, so a test can describe load/create/publish-toggle/delete outcomes against
  * `createFakePostsListPort` instead of stubbing global `fetch`. `useWiredPosts` below is the
  * zero-argument pair `Posts.tsx` actually mounts. No `locale`/`useAdminLocale` here — every error
  * string in this file is hardcoded English, matching its twin `use-pages.hooks.ts`. Named
@@ -62,13 +62,13 @@ export interface PostsController {
   posts: AdminPost[] | null;
   error: string | null;
   creating: boolean;
-  /** In-flight row action (Disable, or the confirmed Delete) — one at a time. */
+  /** In-flight row action (Publish/Unpublish, or the confirmed Delete) — one at a time. */
   rowSavingId: string | null;
   /** The post a `RowMenu` "Delete" selection is asking to confirm; `null` when the dialog is shut. */
   pendingDelete: AdminPost | null;
   setPendingDelete: (post: AdminPost | null) => void;
   createPost: () => Promise<void>;
-  disablePost: (post: AdminPost) => Promise<void>;
+  togglePostPublish: (post: AdminPost) => Promise<void>;
   removePost: () => Promise<void>;
   /** Row-menu `agentHandle` lookup, keyed by post id rather than render position — see
    *  {@link usePostRowMenuHandleMap}'s own doc for why. */
@@ -99,7 +99,7 @@ export function usePosts(deps: PostsListDependencies): PostsController {
   const [posts, setPosts] = useState<AdminPost[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  // In-flight row action (Disable or the confirmed Delete) — one at a time, same `rowSavingId`
+  // In-flight row action (Publish/Unpublish or the confirmed Delete) — one at a time, same `rowSavingId`
   // convention `Roles.tsx`'s `onDeleteRole` already uses, per `ConfirmButton`'s own doc comment.
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
   // The post a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
@@ -153,29 +153,54 @@ export function usePosts(deps: PostsListDependencies): PostsController {
     }
   }
 
-  /** Unpublishes so the row is no longer publicly viewable — a reversible, access-affecting
-   *  action (not destructive: no `ConfirmDialog`, matching `ConfirmButton`'s own warning-vs-
-   *  destructive distinction). Only ever called for a `status === "published"` row — `RowMenu`'s
-   *  item list in the view omits "Disable" entirely once a post is already a draft, rather than
-   *  rendering it disabled with no explanation.
+  /** Flips a row's publish status — Unpublish (-> draft) for a published row, Publish (-> published)
+   *  for a draft, matching `postRowMenuItems`'s own label for whichever direction applies. A
+   *  reversible, access-affecting action (not destructive: no `ConfirmDialog`, matching
+   *  `ConfirmButton`'s own warning-vs-destructive distinction).
+   *
+   * Owner rename (2026-09-22) from the old `disablePost`, which only ever flipped published ->
+   * draft (`RowMenu`'s item list omitted "Disable" entirely for an already-draft row, rather than
+   * rendering it disabled) — a draft post had no way to publish from this list at all, only from
+   * the full editor.
+   *
+   * Sends the row's own `title`/`slug`/`bodyJson` alongside the flipped `status` and
+   * `expectedVersion` — `PUT /posts/:id`'s `validateUpdatePostInput` (`features/post/post.ts`)
+   * treats a missing `title`/`slug` as `""` and rejects the request with "title is required" before
+   * ever reaching the version check, and requires `bodyJson` to be a JSON object (a Post is always
+   * `bodyFormat: "doc"` — see this file's own header). That is exactly what the OLD
+   * `{ status, expectedVersion }`-only payload hit (owner screenshot, 2026-09-22): every click
+   * 500'd on that validation, regardless of the row's status, and never reached the version guard
+   * at all. Round-tripping the row's own already-loaded fields here is safe specifically because
+   * they are read from the SAME `post` this call's `expectedVersion` is about to check — a stale
+   * basis fails that compare-and-set before any of these fields would actually be written back, so
+   * this can never silently overwrite a concurrent edit to title/slug/body.
    *
    * `expectedVersion: post.version` (2026-09-18, multi-author hardening, Task 14a) — this row's
-   * `version` as THIS LIST last loaded it. Before this, the request carried no basis at all, so a
-   * concurrent save elsewhere (the full editor, or another operator's own list) was silently
+   * `version` as THIS LIST last loaded it. Before that fix, the request carried no basis at all, so
+   * a concurrent save elsewhere (the full editor, or another operator's own list) was silently
    * overwritten by whichever request landed last, with no error and no trace — this action always
    * won regardless of the row's real current state. Now it races the same shared post exactly as
    * `usePostEditor.save()` already does, and a stale basis surfaces as the same `409
    * VERSION_CONFLICT` (caught below, same as any other failure) instead of a silent overwrite. */
-  async function disablePost(post: AdminPost) {
+  async function togglePostPublish(post: AdminPost) {
+    const nextStatus: AdminPost["status"] = post.status === "published" ? "draft" : "published";
     setRowSavingId(post.id);
     setError(null);
     try {
-      const { post: updated } = await port.updatePost({ id: post.id }, { status: "draft", expectedVersion: post.version });
+      const { post: updated } = await port.updatePost(
+        { id: post.id },
+        { title: post.title, slug: post.slug, bodyJson: post.bodyJson, status: nextStatus, expectedVersion: post.version }
+      );
       setPosts((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to disable post");
+      setError(e instanceof Error ? e.message : `failed to ${nextStatus === "published" ? "publish" : "unpublish"} post`);
     } finally {
-      setRowSavingId(null);
+      // Only clear THIS row's lock — `rowSavingId` is shared with `removePost`'s delete-in-flight
+      // lock (2026-09-20, S4b hardening). An unconditional `setRowSavingId(null)` here would wipe a
+      // DIFFERENT row's delete lock if that row's `ConfirmDialog` confirm landed while this toggle
+      // was still in flight, making the dialog read as settled (dismissable, re-confirmable) while
+      // the delete is still on the wire.
+      setRowSavingId((cur) => (cur === post.id ? null : cur));
     }
   }
 
@@ -206,7 +231,9 @@ export function usePosts(deps: PostsListDependencies): PostsController {
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to delete post");
     } finally {
-      setRowSavingId(null);
+      // Symmetric guard to `togglePostPublish`'s — see its comment. Keeps this correct regardless of
+      // which of the two in-flight actions settles first.
+      setRowSavingId((cur) => (cur === post.id ? null : cur));
       setPendingDelete(null);
     }
   }
@@ -219,7 +246,7 @@ export function usePosts(deps: PostsListDependencies): PostsController {
     pendingDelete,
     setPendingDelete,
     createPost,
-    disablePost,
+    togglePostPublish,
     removePost,
     rowMenuHandleById,
   };

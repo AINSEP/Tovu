@@ -17,11 +17,14 @@ import { useCallback, useMemo, type ReactNode } from "react";
 import {
   QueryClient,
   QueryClientProvider,
+  hashKey,
   useMutation,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
 import type {
+  CachedLoader,
+  CachedLoaderOptions,
   FetchMutationOptions,
   FetchQueryOptions,
   MutationResult,
@@ -158,12 +161,19 @@ export function resolveFetchQueryError(rawError: unknown, disabled: boolean, has
   return toError(rawError, "request failed");
 }
 
-export function useFetchQuery<T>({ key, fetch, enabled = true, staleTime }: FetchQueryOptions<T>): QueryResult<T> {
+export function useFetchQuery<T>({
+  key,
+  fetch,
+  enabled = true,
+  staleTime,
+  refetchOnWindowFocus,
+}: FetchQueryOptions<T>): QueryResult<T> {
   const query = useQuery({
     queryKey: key,
     queryFn: fetch,
     enabled,
     ...(staleTime === undefined ? {} : { staleTime }),
+    ...(refetchOnWindowFocus === undefined ? {} : { refetchOnWindowFocus }),
   });
 
   const disabled = !enabled;
@@ -236,6 +246,47 @@ export function useFetchMutation<TInput, TOutput>({
     error: mutation.error ? toError(mutation.error, "request failed") : null,
     reset,
   };
+}
+
+/** Per client and key, how many `replace()` calls have landed — how an in-flight `load()` learns
+ *  that a newer value was written while its request was out. Shared across every loader instance
+ *  on the same key, since each hook call builds its own. */
+const replaceCounts = new WeakMap<QueryClient, Map<string, number>>();
+
+function replaceCount(client: QueryClient, hash: string): number {
+  return replaceCounts.get(client)?.get(hash) ?? 0;
+}
+
+function countReplace(client: QueryClient, hash: string): void {
+  const byKey = replaceCounts.get(client) ?? new Map<string, number>();
+  byKey.set(hash, replaceCount(client, hash) + 1);
+  replaceCounts.set(client, byKey);
+}
+
+export function useCachedLoader<T>({ key, fetch, staleTime }: CachedLoaderOptions<T>): CachedLoader<T> {
+  const client = useQueryClient();
+  return useMemo(() => {
+    // `gcTime` follows `staleTime` (see `CachedLoaderOptions.staleTime`): `fetchQuery` never
+    // subscribes an observer, so the default 5-minute idle eviction would otherwise drop a value
+    // the caller declared fresh for longer.
+    const lifetime = staleTime === undefined ? {} : { staleTime, gcTime: staleTime };
+    const hash = hashKey(key);
+    // TanStack writes a fetch's result over whatever is cached when it lands, so a request started
+    // before a `replace()` would otherwise overwrite the newer value with its older answer.
+    const fetchUnlessReplaced = async (): Promise<T> => {
+      const before = replaceCount(client, hash);
+      const value = await fetch();
+      return replaceCount(client, hash) === before ? value : (client.getQueryData<T>(key) as T);
+    };
+    return {
+      peek: () => client.getQueryData<T>(key),
+      load: () => client.fetchQuery({ queryKey: key, queryFn: fetchUnlessReplaced, ...lifetime }),
+      replace: (value: T) => {
+        countReplace(client, hash);
+        client.setQueryData(key, value);
+      },
+    };
+  }, [client, key, fetch, staleTime]);
 }
 
 /** Imperative invalidation for events that arrive from outside React — the

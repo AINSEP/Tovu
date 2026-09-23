@@ -139,6 +139,9 @@ import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
 import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint";
 import { t as tCapability } from "./settings-capabilities-i18n";
 import { t as tSettingsExecution } from "./settings-execution-i18n";
+import { t as tSettings } from "./settings-i18n";
+import { memoryPanelDictionaries } from "./settings-memory-i18n";
+import { t as tApp } from "../../app-i18n";
 import { SETTINGS_DIALOG_DICTIONARIES as CMS_SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/cms/settings";
 
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data. */
@@ -310,10 +313,11 @@ export function SettingsUi(props: SettingsUiProps) {
    */
   const settingsLocale = s.language.value as string;
   const t = (key: string): string =>
+    tSettings(settingsLocale, key) !== key ? tSettings(settingsLocale, key) :
     SETTINGS_DIALOG_DICTIONARIES[settingsLocale]?.[key] ??
     SETTINGS_DIALOG_DICTIONARIES.en?.[key] ??
     CMS_SETTINGS_DIALOG_DICTIONARIES[settingsLocale]?.[key] ??
-    key;
+    tApp(settingsLocale, key);
   /** The 8 "no backend yet" capability-status notes below — see `settings-capabilities-i18n.ts`'s
    *  header for why these live in Tovu's own dictionary rather than `SETTINGS_DIALOG_DICTIONARIES`. */
   const tCap = (key: string): string => tCapability(settingsLocale, key);
@@ -337,7 +341,7 @@ export function SettingsUi(props: SettingsUiProps) {
   if (s.loading) {
     return (
       <div className="settings-ui-section">
-        <p className="muted">Loading settings…</p>
+        <p className="muted">{t("Loading settings…")}</p>
       </div>
     );
   }
@@ -575,6 +579,15 @@ export function SettingsUi(props: SettingsUiProps) {
             )}
           </p>
           <div className="settings-ui-inert-control" inert>
+            {/* Nested provider: the outer one's dictionaries lack every memory-panel key (see
+                `settings-memory-i18n.ts`). Keyed on the locale so a change remounts it with the new
+                `initialLocale`. */}
+            <I18nProvider
+              key={settingsLocale}
+              initialLocale={settingsLocale}
+              dictionaries={memoryPanelDictionaries(settingsLocale)}
+              syncDocumentAttributes={false}
+            >
             <MemorySettingsPanel
               enabled
               onToggleEnabled={() => {}}
@@ -605,6 +618,7 @@ export function SettingsUi(props: SettingsUiProps) {
                 onToggleHook: () => {},
               }}
             />
+            </I18nProvider>
           </div>
         </div>
       ),
@@ -699,8 +713,8 @@ export function SettingsUi(props: SettingsUiProps) {
     },
     {
       id: "about",
-      label: t("About"),
-      title: t("About"),
+      label: t("Info"),
+      title: t("Info"),
       subtitle: t("Version and runtime details."),
       icon: (
         <TabIcon>
@@ -759,7 +773,7 @@ export function SettingsUi(props: SettingsUiProps) {
       className={`settings-ui-save is-${s.save.status}`}
       role={s.save.status === "error" ? "alert" : "status"}
     >
-      {describeSaveStatus(s.save)}
+      {t(describeSaveStatus(s.save))}
     </span>
   );
 
@@ -821,7 +835,7 @@ export function SettingsUi(props: SettingsUiProps) {
       <div className="settings-ui-section settings-page" data-theme="light">
         {s.loadError ? (
           <p className="settings-ui-load-error" role="alert">
-            Could not load saved settings ({s.loadError}). Showing defaults — edits will still save.
+            {t("Could not load saved settings (")}{s.loadError}{t("). Showing defaults — edits will still save.")}
           </p>
         ) : null}
 

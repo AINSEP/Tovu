@@ -49,7 +49,14 @@ export interface GetWidgetInstanceRequired {
 /** REQ-04: read a widget instance's current state (+ revision history — see this file's header for
  * the disclosed gap on that half). Returns any status (`active`/`trash`/`purged`) — the caller
  * decides whether a non-`active` instance is presentable (e.g. an admin editor still shows a
- * trashed instance so it can be restored/inspected). */
+ * trashed instance so it can be restored/inspected).
+ *
+ * `widgetInstanceId` is resolved slug-first, id-second — same order/rationale as posts'
+ * `getAdminPostByIdOrSlug` (`src/features/post/post.ts`) and forms'
+ * `resolveFormDefinitionByIdOrSlug` (`server/inbound/admin-http/routes/forms/resolve-definition.ts`):
+ * the admin widget editor's URL now carries the widget's slug (`WidgetsLibrary.tsx`'s row link,
+ * `use-widget-instance-editor.hooks.ts`'s create-navigate), so this param may itself BE that slug.
+ * An old id-based bookmark/link still resolves via the `findById` fallback. */
 export async function getWidgetInstance(required: GetWidgetInstanceRequired): Promise<{ instance: WidgetInstanceEntry; revisions: [] }> {
   const { deps, input } = required;
   await requireWidgetPermission({
@@ -59,7 +66,12 @@ export async function getWidgetInstance(required: GetWidgetInstanceRequired): Pr
     permission: "widgets.read",
   });
 
-  const entry = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.widgetInstanceId });
+  const bySlug = await deps.entryRepo.findBySlug({
+    workspaceId: input.workspaceId,
+    type: WIDGET_CONTENT_TYPE,
+    slug: input.widgetInstanceId.trim().toLowerCase(),
+  });
+  const entry = bySlug ?? (await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.widgetInstanceId }));
   if (!entry || entry.type !== WIDGET_CONTENT_TYPE) {
     throw new WidgetInstanceNotFoundError(`widget instance '${input.widgetInstanceId}' was not found`);
   }
@@ -85,7 +97,7 @@ export interface ListWidgetInstancesRequired {
 
 export async function listWidgetInstances(
   required: ListWidgetInstancesRequired
-): Promise<{ instances: WidgetInstanceEntry[]; skippedCount: number }> {
+): Promise<{ instances: WidgetInstanceEntry[]; skippedCount: number; skippedIds: string[] }> {
   const { deps, input } = required;
   await requireWidgetPermission({
     authorize: deps.authorize,
@@ -97,6 +109,7 @@ export async function listWidgetInstances(
   const rows = await deps.entryRepo.listByWorkspace({ workspaceId: input.workspaceId, type: WIDGET_CONTENT_TYPE });
   const instances: WidgetInstanceEntry[] = [];
   let skippedCount = 0;
+  const skippedIds: string[] = [];
   for (const row of rows) {
     let instance: WidgetInstanceEntry;
     try {
@@ -109,7 +122,7 @@ export async function listWidgetInstances(
       // 2026-08-03 (dossier C5 follow-up): the skip itself was silent — nothing recorded that a row
       // never reached the caller, so a genuinely corrupted widget could vanish from the library with
       // zero trace. Kept the skip (a malformed row must not 500 the whole screen), added a
-      // server-side log line and a returned count so it's observable instead of invisible.
+      // server-side log line plus returned count and IDs so it's observable instead of invisible.
       // Deliberately logs only `row.id`/`workspaceId`, never `row.fieldsJson` — a malformed payload
       // may hold arbitrary caller-supplied content, and this line is not the place to disclose it.
       console.warn("[widgets] listWidgetInstances: skipping malformed widget-instance row", {
@@ -117,11 +130,12 @@ export async function listWidgetInstances(
         workspaceId: input.workspaceId,
       });
       skippedCount += 1;
+      skippedIds.push(row.id);
       continue;
     }
     if (input.widgetType && instance.widgetType !== input.widgetType) continue;
     if (!input.includeInactive && instance.status !== "active") continue;
     instances.push(instance);
   }
-  return { instances, skippedCount };
+  return { instances, skippedCount, skippedIds };
 }

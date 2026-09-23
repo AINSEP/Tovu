@@ -284,6 +284,80 @@ describe("usePublishCredentials — save, provider not yet connected (create)", 
     expect(row.accountId).toBe("");
     expect(row.saving).toBe(false);
   });
+
+  // terra review 2026-09-20, finding 4's sibling: the token inputs stay editable while a save is in
+  // flight (only Save disables), so a success must not blank a token typed after the click — the
+  // operator would read "Connected" and believe the NEW token was the one saved.
+  it("keeps a token typed while the save was in flight, and clears only what was actually sent", async () => {
+    const created: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-cf", providerId: "cloudflare-pages" };
+    let resolveCreate!: (value: AdminPublishCredentialSummary) => void;
+    const port = createFakePublishCredentialsPort({ createCredential: () => new Promise((resolve) => (resolveCreate = resolve)) });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    act(() => result.current.setToken("cloudflare-pages", "cf_first"));
+    act(() => result.current.setAccountId("cloudflare-pages", "acct-1"));
+    let savePromise!: Promise<void>;
+    act(() => {
+      savePromise = result.current.save("cloudflare-pages");
+    });
+    act(() => result.current.setToken("cloudflare-pages", "cf_second"));
+    await act(async () => {
+      resolveCreate(created);
+      await savePromise;
+    });
+
+    const row = result.current.rows!.find((r) => r.providerId === "cloudflare-pages")!;
+    expect(row.saved?.id).toBe("cred-cf");
+    expect(row.token).toBe("cf_second");
+    expect(row.accountId).toBe("acct-1");
+    expect(row.saving).toBe(false);
+    expect(row.error).toBeNull();
+  });
+});
+
+describe("usePublishCredentials — save, duplicate submit (terra #5's sibling)", () => {
+  it("a second save() for the same row while the first is in flight sends nothing — no second create to collide on its label", async () => {
+    const created: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-cf", providerId: "cloudflare-pages" };
+    const createCredential = vi.fn().mockResolvedValue(created);
+    const port = createFakePublishCredentialsPort({ createCredential });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+    act(() => result.current.setToken("cloudflare-pages", "cf_tok"));
+    act(() => result.current.setAccountId("cloudflare-pages", "acct-1"));
+
+    let firstCall!: Promise<void>;
+    let secondCall!: Promise<void>;
+    act(() => {
+      firstCall = result.current.save("cloudflare-pages");
+      secondCall = result.current.save("cloudflare-pages");
+    });
+    await act(async () => {
+      await firstCall;
+      await secondCall;
+    });
+
+    expect(createCredential).toHaveBeenCalledTimes(1);
+    const row = result.current.rows!.find((r) => r.providerId === "cloudflare-pages")!;
+    expect(row.saved?.id).toBe("cred-cf");
+    expect(row.error).toBeNull();
+  });
+
+  it("guards per row — saving one provider does not block saving another", async () => {
+    const createCredential = vi.fn((input: { connection: { providerId: string } }) =>
+      Promise.resolve({ ...GH_CREDENTIAL, id: `cred-${input.connection.providerId}`, providerId: input.connection.providerId } as AdminPublishCredentialSummary),
+    );
+    const port = createFakePublishCredentialsPort({ createCredential });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+    act(() => result.current.setToken("vercel", "v_tok"));
+    act(() => result.current.setToken("netlify", "n_tok"));
+
+    await act(async () => {
+      await Promise.all([result.current.save("vercel"), result.current.save("netlify")]);
+    });
+    expect(createCredential).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("usePublishCredentials — save, provider already connected (update)", () => {
@@ -458,6 +532,125 @@ describe("usePublishCredentials — selectCredential (the Static Site token-pick
       await result.current.selectCredential("github-pages", "cred-1");
     });
     expect(sentId).toBe("cred-1");
+  });
+});
+
+// terra review 2026-09-20, finding 1 (Critical). The server resolves a publish's credential as
+// whichever row is `isDefault` WHEN the publish POST lands (`static-publish/adapter.ts`'s
+// `resolvePublishCredentialForSite`) — the request carries no credential id. So a promotion or a
+// connection replacement that is still in flight is a publish to the wrong account waiting to
+// happen, and one that failed silently leaves the screen naming a token the server is not using.
+describe("usePublishCredentials — a credential change must be observable until it settles (terra #1)", () => {
+  const BACKUP: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "backup", isDefault: false };
+
+  function githubRow(rows: readonly { providerId: string }[] | undefined) {
+    return rows!.find((row) => row.providerId === "github-pages") as NonNullable<ReturnType<typeof usePublishCredentials>["rows"]>[number];
+  }
+
+  it("reports the promotion as pending — on the row and controller-wide — until the write settles", async () => {
+    let resolveUpdate: (value: AdminPublishCredentialSummary) => void = () => {};
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL, BACKUP], executionMode: "self-hosted-cli" }),
+      updateCredential: () =>
+        new Promise((resolve) => {
+          resolveUpdate = resolve;
+        }),
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+    expect(result.current.credentialChangePending).toBe(false);
+
+    let pending: Promise<void> = Promise.resolve();
+    act(() => {
+      pending = result.current.selectCredential("github-pages", "cred-2");
+    });
+
+    expect(result.current.credentialChangePending).toBe(true);
+    expect(githubRow(result.current.rows).selectingCredentialId).toBe("cred-2");
+
+    await act(async () => {
+      resolveUpdate({ ...BACKUP, isDefault: true });
+      await pending;
+    });
+    expect(result.current.credentialChangePending).toBe(false);
+    expect(githubRow(result.current.rows).selectingCredentialId).toBeNull();
+  });
+
+  it("a rejected promotion resolves, puts the exact error on that row, and leaves the old default showing", async () => {
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL, BACKUP], executionMode: "self-hosted-cli" }),
+      updateCredential: () => Promise.reject(new Error("network down")),
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    await act(async () => {
+      await result.current.selectCredential("github-pages", "cred-2");
+    });
+
+    const row = githubRow(result.current.rows);
+    expect(row.selectError).toBe("Could not switch the publishing token (network down). Publishing still uses the one shown.");
+    expect(row.saved?.id).toBe("cred-1");
+    expect(row.selectingCredentialId).toBeNull();
+    expect(result.current.credentialChangePending).toBe(false);
+  });
+
+  it("a promotion that landed shows the new default even when the refetch after it fails — the server already switched", async () => {
+    let listCalls = 0;
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => {
+        listCalls += 1;
+        return listCalls === 1
+          ? Promise.resolve({ credentials: [GH_CREDENTIAL, BACKUP], executionMode: "self-hosted-cli" })
+          : Promise.reject(new Error("network down"));
+      },
+      updateCredential: () => Promise.resolve({ ...BACKUP, isDefault: true }),
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    await act(async () => {
+      await result.current.selectCredential("github-pages", "cred-2");
+    });
+
+    expect(listCalls).toBe(2);
+    const row = githubRow(result.current.rows);
+    expect(row.saved?.id).toBe("cred-2");
+    expect(row.selectError).toBeNull();
+    // The sibling the server un-defaulted is un-defaulted here too, not left claiming it as well.
+    expect(result.current.credentialsForProvider("github-pages").filter((c) => c.isDefault).map((c) => c.id)).toEqual(["cred-2"]);
+  });
+
+  it("a second pick while one promotion is still in flight sends nothing — the first must settle first", async () => {
+    const updateCredential = vi.fn(() => new Promise<AdminPublishCredentialSummary>(() => {}));
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL, BACKUP], executionMode: "self-hosted-cli" }),
+      updateCredential,
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    // Same synchronous tick, same stale closure — exactly what a state-only guard cannot see.
+    act(() => {
+      void result.current.selectCredential("github-pages", "cred-2");
+      void result.current.selectCredential("github-pages", "cred-2");
+    });
+    expect(updateCredential).toHaveBeenCalledTimes(1);
+  });
+
+  it("a connection replacement still in flight also counts — it changes which token the default row publishes with", async () => {
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
+      updateCredential: () => new Promise(() => {}),
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    act(() => result.current.setToken("github-pages", "ghp_new"));
+    act(() => {
+      void result.current.save("github-pages");
+    });
+    expect(result.current.credentialChangePending).toBe(true);
   });
 });
 

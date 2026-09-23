@@ -1,4 +1,4 @@
-import { DEFAULT_PROVIDER_PRESETS, isProviderConfigured, type ByokConfig } from "@jini-ai/ui";
+import { DEFAULT_PROVIDER_PRESETS, isProviderConfigured, type ApiProtocol, type ByokConfig } from "@jini-ai/ui";
 
 import { ApiError, describeApiError as describeApiErrorDefault, type SiteAssistantCredential } from "../../lib/api";
 
@@ -93,4 +93,34 @@ export function isPresetSuppliedEndpoint(baseUrl: string): boolean {
  */
 export function configuredPresetIds(config: ByokConfig): Set<string> {
   return new Set(DEFAULT_PROVIDER_PRESETS.filter((p) => isProviderConfigured(config, p)).map((p) => p.id));
+}
+
+/**
+ * The form's config after hydration from the server's stored view — `protocol`/`providerId` as well as
+ * `baseUrl`/`model`.
+ *
+ * `saveVisitorSettings` writes `provider: config.protocol`, so a hydration that skipped the provider
+ * left an Anthropic (or any non-Google) credential under the form's Google default, and the next
+ * model-only "Save settings" relabelled the stored row Google. The server keeps no preset id, so
+ * `providerId` is recovered from the endpoint: the preset whose protocol and base URL both match, else
+ * the preset of that protocol whose URL the operator supplies (Azure), else `null` — the custom
+ * endpoint, which is what an endpoint no preset owns is. A `provider` string that is not a protocol
+ * this form knows leaves protocol and preset as they were rather than guessing.
+ *
+ * @complexity Time: O(p) in the number of provider presets; space: O(1).
+ */
+export function hydrateVisitorCredentialConfig(current: ByokConfig, stored: SiteAssistantCredential): ByokConfig {
+  const baseUrl = stored.baseUrl ?? current.baseUrl;
+  const model = stored.model ?? current.model;
+  const protocol = knownProtocol(stored.provider);
+  if (protocol === null) return { ...current, baseUrl, model };
+  const presets = DEFAULT_PROVIDER_PRESETS.filter((p) => !p.custom && p.protocol === protocol);
+  const preset = presets.find((p) => p.baseUrl === baseUrl) ?? presets.find((p) => p.baseUrl === "");
+  return { ...current, protocol, providerId: preset?.id ?? null, baseUrl, model };
+}
+
+/** `provider` as an {@link ApiProtocol} when some preset speaks it, else `null`.
+ *  @complexity Time: O(p) in the number of provider presets; space: O(1). */
+function knownProtocol(provider: string): ApiProtocol | null {
+  return DEFAULT_PROVIDER_PRESETS.find((p) => p.protocol === provider)?.protocol ?? null;
 }

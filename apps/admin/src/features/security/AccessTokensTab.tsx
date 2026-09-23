@@ -1,17 +1,17 @@
 import { forwardRef, useRef } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBar.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { formatTimestamp } from "../../lib/format-timestamp";
-import { pickPlural } from "../../lib/template-i18n";
 import type { Translate } from "../../lib/dictionary-translator";
 import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle } from "./security-i18n";
 import {
   ACCESS_TOKEN_CATEGORIES,
-  accessTokenProviderMatchesQuery,
-  accessTokenReplaceReadyToSave,
+  accessTokenExistingRowReadyToSave,
   accessTokenRowProviderInfo,
   accessTokenRowReadyToSave,
+  accessTokensCountText,
   invalidAdditionalHostsEntries,
   providerGroupHandleLabel,
   tokenRowHandleLabel,
@@ -32,8 +32,8 @@ import type {
 } from "./hooks/use-access-tokens.hooks";
 import { useWiredOtherCredentials } from "./hooks/use-other-credentials.hooks";
 import type { OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
-import { OtherCredentialsSection } from "./OtherCredentialsSection";
-import { useRemoveConfirmDialog, useAddCustomCredentialDialog } from "./AccessTokensTab.hooks";
+import { OtherCredentialEntry } from "./OtherCredentialsSection";
+import { useRemoveConfirmDialog, useAddCustomCredentialDialog, useMergedSecretsOrder } from "./AccessTokensTab.hooks";
 
 /**
  * @file The Access Tokens tab — `Security.tsx`'s one tab and this feature's actual content. One
@@ -56,7 +56,7 @@ import { useRemoveConfirmDialog, useAddCustomCredentialDialog } from "./AccessTo
  *
  * ## Search
  *
- * Matches a provider's/store's brand label, its purpose subtitle ("Publishing"/"Source Control"/
+ * Matches a provider's/store's brand label, its purpose subtitle ("Hosting"/"Source control"/
  * "AI"/… — the disambiguation `rules.ts`'s header calls "the two-store GitHub trap" for Tier 1, and
  * the same subtitle Tier 2 rows carry next to their own name), and a saved item's own name. A group
  * renders when EITHER its own info matches the query OR it has at least one matching saved row — so
@@ -119,9 +119,15 @@ export function AccessTokensTab(props: AccessTokensTabProps) {
  *  gate, same reasoning `SourceControlCredentialsList` documents in `ProvidersTab.tsx`. Waits for
  *  BOTH tiers' first load: rendering Tier 1's list before Tier 2 has resolved would put the category
  *  filter and the row list on screen a beat before Tier 2's own rows could ever appear under it,
- *  which reads as those rows being silently absent rather than still loading. */
+ *  which reads as those rows being silently absent rather than still loading.
+ *
+ * `useMergedSecretsOrder` (a hook) is called unconditionally, ahead of every early return below —
+ * Rules of Hooks — even though its result is only rendered once the loading/error gates pass; it
+ * tolerates either controller's `groups` still being `undefined` internally (`AccessTokensTab.hooks.tsx`'s
+ * own doc), so calling it early costs nothing. */
 function AccessTokensBody({ controller, otherController }: { controller: AccessTokensController; otherController: OtherCredentialsController }) {
   const addCustomDialogRef = useRef<HTMLDialogElement>(null);
+  const merged = useMergedSecretsOrder(controller, otherController, controller.query);
   if (controller.loadError) {
     return (
       <p className="notice error" role="status" {...agentHandle("security-access-tokens-load-error", { role: "status", label: "Shows the error when saved access tokens could not be loaded" })}>
@@ -144,10 +150,13 @@ function AccessTokensBody({ controller, otherController }: { controller: AccessT
       <AccessTokensSearch controller={controller} otherController={otherController} />
       <AccessTokensCategoryFilter controller={controller} onAddCustomProvider={() => addCustomDialogRef.current?.showModal()} />
       <div className="access-tokens-tier">
-        {controller.groups.map((group) => (
-          <MaybeProviderGroup key={`${group.info.kind}:${group.info.providerId}`} group={group} controller={controller} query={controller.query} />
-        ))}
-        <OtherCredentialsSection controller={otherController} query={controller.query} />
+        {merged.map((entry) =>
+          entry.kind === "provider" ? (
+            <ProviderGroup key={entry.key} group={entry.group} controller={controller} />
+          ) : (
+            <OtherCredentialEntry key={entry.key} store={entry.store} row={entry.row} controller={otherController} />
+          )
+        )}
       </div>
       <AddCustomCredentialDialog ref={addCustomDialogRef} controller={controller} t={controller.t} />
     </>
@@ -165,11 +174,18 @@ function AccessTokensBody({ controller, otherController }: { controller: AccessT
  *  function would otherwise exceed. */
 function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { controller: AccessTokensController; onAddCustomProvider: () => void }) {
   const translate = controller.t;
+  // Reuses `TabBar.hooks.tsx`'s WAI-ARIA tabs keyboard helpers rather than reimplementing them —
+  // `ACCESS_TOKEN_CATEGORIES`'s `{ id, label }` shape structurally satisfies `TabBarTab`, and none
+  // of these categories are ever disabled. `[role="tab"]` scoping already skips the non-tab
+  // "+ Add custom provider" button below (this file's own header on why that button stays out of
+  // the tablist's tab order).
+  const { onKeyDown } = useTabBarKeyboard(ACCESS_TOKEN_CATEGORIES, controller.category, (id) => controller.setCategory(id as AccessTokenCategoryId));
   return (
     <div
       className="access-tokens-category-filter"
       role="tablist"
       aria-label={translate("Filter by category")}
+      onKeyDown={onKeyDown}
       {...agentHandle("security-access-tokens-category-filter", { role: "region", label: "Filter the credential list by category" })}
     >
       {ACCESS_TOKEN_CATEGORIES.map((c) => (
@@ -179,6 +195,7 @@ function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { contr
           role="tab"
           className="access-tokens-category-filter-item"
           aria-selected={controller.category === c.id}
+          tabIndex={resolveTabBarTabIndex(ACCESS_TOKEN_CATEGORIES, controller.category, c)}
           onClick={() => controller.setCategory(c.id as AccessTokenCategoryId)}
           {...agentHandle(`security-access-tokens-category-${c.id}`, { role: "button", label: `Filter the credential list to ${c.label}` })}
         >
@@ -197,32 +214,20 @@ function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { contr
   );
 }
 
-/** Renders {@link ProviderGroup} only when this group is a search match — a provider's OWN
- *  info matching (found by name even with zero saved rows) OR at least one already-filtered row
- *  present (`use-access-tokens.hooks.ts` already filters `group.rows` by the query). Split out purely
- *  for the complexity gate. */
-function MaybeProviderGroup({ group, controller, query }: { group: AccessTokenProviderGroupState; controller: AccessTokensController; query: string }) {
-  const visible = accessTokenProviderMatchesQuery(group.info, query) || group.rows.length > 0;
-  if (!visible) return null;
-  return <ProviderGroup group={group} controller={controller} />;
-}
-
 /** The search box and its own match-count line — counts are the SUM of both tiers'
  *  `totalCount`/`matchCount` (this file's header on why the combined count stays a GLOBAL fact,
- *  unaffected by the category filter below it). "tokens" stays the noun even though the count now
+ *  unaffected by the category filter below it). "token(s)" stays the noun even though the count now
  *  spans Tier 2's keys/credentials too — the existing e2e suite pins the exact string
  *  (`development/e2e/access-tokens.spec.ts`'s `/^0 tokens saved$/`), and nothing in this pass asked
  *  for new copy here; a person calling a Composio key a "token" loosely is the same shorthand this
- *  page's own tab name already uses for the whole install. */
+ *  page's own tab name already uses for the whole install. The line itself is `rules.ts`'s
+ *  `accessTokensCountText` — a whole translated sentence per plural form, not fragments glued in
+ *  English word order (see that function's own doc for why). */
 function AccessTokensSearch({ controller, otherController }: { controller: AccessTokensController; otherController: OtherCredentialsController }) {
   const translate = controller.t;
   const totalCount = controller.totalCount + otherController.totalCount;
   const matchCount = controller.matchCount + otherController.matchCount;
-  const tokenWord = pickPlural(totalCount, { one: translate("token"), other: translate("tokens") });
-  const countText =
-    controller.query.trim() === ""
-      ? `${totalCount} ${tokenWord} ${translate("saved")}`
-      : `${matchCount} ${translate("of")} ${totalCount} ${tokenWord} ${translate("matching")} “${controller.query}”`;
+  const countText = accessTokensCountText(totalCount, matchCount, controller.query, translate);
   return (
     <div className="access-tokens-search">
       <label className="visually-hidden" htmlFor="access-tokens-search">
@@ -547,7 +552,7 @@ function ExistingTokenFields({
     accountId: state.accountId,
     username: state.username,
   };
-  const readyToSave = accessTokenReplaceReadyToSave(fields, state.row.name);
+  const readyToSave = accessTokenExistingRowReadyToSave(fields, state.row);
   return (
     <>
       <TokenInputFields

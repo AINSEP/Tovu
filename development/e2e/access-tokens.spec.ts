@@ -19,7 +19,7 @@ test.describe("Access Tokens tab", () => {
     await expect(page.getByRole("tab", { name: /Access Tokens/ })).toBeVisible();
 
     // "GitHub" alone is deliberately excluded from this loop — it is a substring of BOTH "GitHub
-    // Pages · Publishing" and "GitHub · Source Control" (`rules.ts`'s own "two-store GitHub trap"),
+    // Pages · Hosting" and "GitHub · Source Control" (`rules.ts`'s own "two-store GitHub trap"),
     // so both are checked explicitly below instead.
     const providerLabels = ["GitHub Pages", "Vercel", "Netlify", "Cloudflare Pages", "GitLab", "Bitbucket"];
     for (const label of providerLabels) {
@@ -35,7 +35,7 @@ test.describe("Access Tokens tab", () => {
     await loginAsAdmin(page);
     await page.goto("/admin/access-tokens", { waitUntil: "domcontentloaded" });
 
-    // Scope to the GitHub Pages · Publishing group specifically — "GitHub" alone would also match
+    // Scope to the GitHub Pages · Hosting group specifically — "GitHub" alone would also match
     // the GitHub · Source Control group further down (this page's own "two-store GitHub trap"
     // guard, `rules.ts`'s header).
     const githubPagesGroup = page.locator(".access-tokens-provider-group", { has: page.getByRole("heading", { name: /^GitHub Pages/ }) });

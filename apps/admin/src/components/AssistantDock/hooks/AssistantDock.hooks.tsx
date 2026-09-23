@@ -16,6 +16,8 @@ import { buildSandboxProxyDataUrl } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { navigate } from "@/lib/router";
 import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
+import { readAgentsSnapshot, writeAgentsSnapshot } from "@/lib/assistant-agents-snapshot";
+import { useCachedLoader, type CachedLoader } from "@/lib/fetch-query";
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
 import { publishContentRefresh } from "@/lib/content-refresh-bus";
 import { createTovuAssistantTransport } from "@/lib/assistant-transport";
@@ -41,7 +43,7 @@ import {
   resolveTovuComposerDiscoveryRoute,
   type ComposerCapabilityProjection,
 } from "@/features/plugins/composer-capabilities";
-import { ASSISTANT_DOCK_DICT, createChatI18nAdapter } from "../assistant-dock-i18n";
+import { t as translateAssistantDockLabel, createChatI18nAdapter } from "../assistant-dock-i18n";
 import type { SelectedAgentPluginChip } from "../SelectedAgentPluginTray";
 import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@/features/fs-files/hooks/use-folder-drop.hooks";
 
@@ -779,7 +781,7 @@ export function useAssistantTransport(
         // Which Local CLI agentIds carry their own multi-turn memory — see this file's own
         // `getResumeCapableAgentIds` doc, and `assistant-transport.ts`'s
         // `CreateTovuAssistantTransportOptions.getResumeCapableAgentIds` for the full contract.
-        // `fetchAgents`/`useRuntimeAccess`'s `rescanAgents` keep the set it reads current.
+        // `useRuntimeAccess`'s `listAgents`/`rescanAgents` keep the set it reads current.
         getResumeCapableAgentIds,
       }),
     [executionConfigRef, ensureConversationId, persistUserTurn],
@@ -803,8 +805,31 @@ export function useAssistantTransport(
  * @example
  * const uploadAttachments = useAttachmentUploader();
  */
+/**
+ * Mirrors the website daemon's own per-file/per-turn caps so a rejection surfaces here, before any
+ * bytes are sent, rather than only after the daemon's own enforcement rejects them. `apps/admin` is
+ * a separate browser bundle from `apps/website` (no shared import today — see `tsconfig.json`'s
+ * `@tovu/*` aliases for the narrow, dependency-free exceptions that DO cross that boundary), so
+ * these are duplicated literals, not an import, matching this codebase's existing convention for a
+ * client-side check that mirrors a server-side one it cannot reach (see `rules.ts`'s
+ * `MEDIA_HTML_ATTRIBUTE_ALLOWED_NAMES` doc for the same "keep identical, by hand" pattern).
+ *
+ * Owner-directed (2026-09-21): must stay equal to `apps/website/src/features/media/upload-limits.ts`'s
+ * `TOVU_MAX_UPLOAD_BYTES` (50 MiB) and `agent-daemon-server.ts`'s `ATTACHMENT_MAX_BATCH_BYTES`
+ * (100 MiB, `TOVU_MAX_UPLOAD_BYTES * 2`) — update both together if either changes.
+ */
+const CHAT_ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024;
+const CHAT_ATTACHMENT_MAX_BATCH_BYTES = CHAT_ATTACHMENT_MAX_BYTES * 2;
+
 export function useAttachmentUploader(): ReturnType<typeof createDaemonAttachmentUploader> {
-  return useMemo(() => createDaemonAttachmentUploader(""), []);
+  return useMemo(
+    () =>
+      createDaemonAttachmentUploader("", {
+        maxAttachmentBytes: CHAT_ATTACHMENT_MAX_BYTES,
+        maxBatchBytes: CHAT_ATTACHMENT_MAX_BATCH_BYTES,
+      }),
+    [],
+  );
 }
 
 /**
@@ -883,10 +908,24 @@ export function resetResumeCapableAgentIds(): void {
  * memoized transport always reads the CURRENT set, not whatever was live when it was built.
  *
  * Exported for the same reason {@link extractResumeCapableAgentIds} is: a test asserting that
- * `fetchAgents`/`rescanAgents` actually populated the module state needs a way to read it back.
+ * `listAgents`/`rescanAgents` actually populated the module state needs a way to read it back.
  */
 export function getResumeCapableAgentIds(): ReadonlySet<string> {
   return resumeCapableAgentIds;
+}
+
+/** A non-2xx `/api/agents` answer. Thrown (not resolved as `[]`) so the query cache never stores
+ *  it; {@link useRuntimeAccess}'s `listAgents` turns it back into `[]` for `ChatPane`. */
+class AgentsResponseNotOkError extends Error {}
+
+/** Records one fresh inventory everywhere that reads it: the resume-capable set the transport
+ *  consults, and the localStorage placeholder for the next cold load. Called on what the cache
+ *  settles on, not inside {@link fetchAgents}: a GET that was in flight across a rescan answers
+ *  with the older list, which must not overwrite what the rescan recorded. */
+function recordAgents<T extends readonly AgentWithMemoryFlag[]>(agents: T): T {
+  resumeCapableAgentIds = extractResumeCapableAgentIds(agents);
+  writeAgentsSnapshot(agents);
+  return agents;
 }
 
 async function fetchAgents(): Promise<ChatPaneAgent[]> {
@@ -894,10 +933,38 @@ async function fetchAgents(): Promise<ChatPaneAgent[]> {
     credentials: "same-origin",
     signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
   });
-  if (!response.ok) return [];
+  if (!response.ok) throw new AgentsResponseNotOkError(`GET ${AGENTS_URL} answered ${response.status}`);
   const { agents } = (await response.json()) as { agents: AgentWithMemoryFlag[] };
-  resumeCapableAgentIds = extractResumeCapableAgentIds(agents);
   return agents;
+}
+
+function emptyOnNotOk(error: unknown): ChatPaneAgent[] {
+  if (error instanceof AgentsResponseNotOkError) return [];
+  throw error;
+}
+
+/**
+ * The client-side cache key for `/api/agents`. `staleTime: Infinity` because the server already
+ * memoizes the inventory for the daemon's lifetime (`apps/website/src/assistant/agents.ts`
+ * `cachedAgents`) — a re-read would return the same list — and the one way to change it, a rescan,
+ * writes its answer straight into this cache.
+ */
+const AGENTS_QUERY_KEY = ["assistant", "agents"] as const;
+
+/** A cache-bypassing GET whose success replaces the cached list; a non-2xx answer resolves `[]`
+ *  without touching the cache, so a failed read never overwrites a good inventory. */
+async function refetchAgentsInto(loader: CachedLoader<ChatPaneAgent[]>): Promise<ChatPaneAgent[]> {
+  try {
+    const agents = recordAgents(await fetchAgents());
+    loader.replace(agents);
+    return agents;
+  } catch (error) {
+    return emptyOnNotOk(error);
+  }
+}
+
+function useAgentsLoader(): CachedLoader<ChatPaneAgent[]> {
+  return useCachedLoader({ key: AGENTS_QUERY_KEY, fetch: fetchAgents, staleTime: Infinity });
 }
 
 /**
@@ -939,34 +1006,57 @@ async function daemonOnline(): Promise<boolean> {
  * (real I/O: all three members are `fetch`-backed) — defaulted to the real hook on
  * `AssistantDockProps`.
  *
- * `rescanAgents` falls back to `listAgents()` (a plain re-fetch of the same `/api/agents` GET)
- * whenever the rescan POST itself does not report success, rather than surfacing an error into the
- * picker — a rescan that could not confirm anything new still leaves the picker with whatever
- * agents are currently known, instead of going blank.
+ * `listAgents` reads through the shared query cache ({@link useAgentsLoader}), so a remounted pane,
+ * a conversation switch, or a second screen gets the inventory without another request; a non-2xx
+ * answer still resolves `[]` but is never cached, so the next mount retries.
+ *
+ * `rescanAgents` writes its answer into that cache. It falls back to a plain re-fetch of the same
+ * `/api/agents` GET whenever the rescan POST itself does not report success, rather than surfacing
+ * an error into the picker — a rescan that could not confirm anything new still leaves the picker
+ * with whatever agents are currently known, instead of going blank.
  *
  * @returns The memoized `{ listAgents, rescanAgents, daemonOnline }` object `ChatPane` reads.
  * @example
  * const runtimeAccess = useRuntimeAccess();
  */
 export function useRuntimeAccess(): ChatPaneRuntimeAccess {
+  const loader = useAgentsLoader();
   return useMemo(
     () => ({
-      listAgents: fetchAgents,
+      listAgents: () => loader.load().then(recordAgents, emptyOnNotOk),
       rescanAgents: async () => {
         const response = await fetch(`${AGENTS_URL}/rescan`, {
           method: "POST",
           credentials: "same-origin",
           signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
         });
-        if (!response.ok) return fetchAgents();
+        if (!response.ok) return refetchAgentsInto(loader);
         const { agents } = (await response.json()) as { agents: AgentWithMemoryFlag[] };
-        resumeCapableAgentIds = extractResumeCapableAgentIds(agents);
+        recordAgents(agents);
+        loader.replace(agents);
         return agents;
       },
       daemonOnline,
     }),
-    [],
+    [loader],
   );
+}
+
+/**
+ * The inventory `ChatPane` shows before its own `listAgents` call resolves (its `agents` prop, read
+ * once per pane mount): the cached live list when this tab already has one, otherwise the last list
+ * this browser saw (`lib/assistant-agents-snapshot.ts`), otherwise nothing — the pre-existing
+ * "Loading available CLIs" state. Re-read every render so a pane re-keyed by a conversation switch
+ * seeds from the live list rather than the snapshot the dock mounted with.
+ *
+ * @returns The placeholder list, or `undefined` when there is none.
+ * @example
+ * const agentsPlaceholder = useAgentsPlaceholder();
+ */
+export function useAgentsPlaceholder(): readonly ChatPaneAgent[] | undefined {
+  const loader = useAgentsLoader();
+  const [snapshot] = useState(readAgentsSnapshot);
+  return loader.peek() ?? snapshot;
 }
 
 /**
@@ -1483,8 +1573,8 @@ export interface AssistantDockChrome {
    *  `useWiredAdminLocale`'s real fetched value. */
   locale: string;
   /** Translates this component's OWN pane chrome (eyebrow, title fallback, composer placeholder) —
-   *  `ASSISTANT_DOCK_DICT[locale]?.[key] ?? key`, the same bounded-dictionary-with-passthrough
-   *  shape every other `*-i18n.ts` file in this app uses. Recomputed each render (cheap: one
+   *  `assistant-dock-i18n.ts`'s own `t`, which falls back to `COMMON_I18N` via
+   *  `createDictionaryTranslator` before returning the raw key. Recomputed each render (cheap: one
    *  object lookup), not memoized — matches this closure's pre-extraction behavior exactly. */
   t: (key: string) => string;
   /** The `I18nAdapter` `<JiniChatProvider i18n={...}>` takes — `@jini-ai/chat/react`'s OWN
@@ -1538,7 +1628,7 @@ export interface AssistantDockChrome {
  */
 export function useAssistantDockChrome(useAdminLocaleOverride: (() => string) | undefined): AssistantDockChrome {
   const locale = (useAdminLocaleOverride ?? useWiredAdminLocale)();
-  const t = (key: string): string => ASSISTANT_DOCK_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translateAssistantDockLabel(locale, key);
   const chatI18n = useChatI18n(locale);
   return { locale, t, chatI18n };
 }
@@ -1599,6 +1689,18 @@ export function useAttachmentValidatorSeam(
 
 export function useRuntimeAccessSeam(override: typeof useRuntimeAccess | undefined): ChatPaneRuntimeAccess {
   return (override ?? useRuntimeAccess)();
+}
+
+function useNoAgentsPlaceholder(): undefined {
+  return undefined;
+}
+
+/** {@link useAgentsPlaceholder} reads the REAL runtime access's cache, so it only applies when that
+ *  real access is in use: an injected `useRuntimeAccess` fake has no cache to seed from. */
+export function useAgentsPlaceholderSeam(
+  runtimeAccessOverride: typeof useRuntimeAccess | undefined,
+): readonly ChatPaneAgent[] | undefined {
+  return (runtimeAccessOverride ? useNoAgentsPlaceholder : useAgentsPlaceholder)();
 }
 
 export function useWorkingDirectoryAccessSeam(

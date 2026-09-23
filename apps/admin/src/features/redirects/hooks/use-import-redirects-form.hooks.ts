@@ -78,7 +78,7 @@ export function useImportRedirectsForm(
     setResult(null);
     importRules.reset();
 
-    const parsed = parseImportPayload(raw);
+    const parsed = parseImportPayload(raw, t);
     if (!parsed.ok) {
       setParseError(parsed.error);
       return;

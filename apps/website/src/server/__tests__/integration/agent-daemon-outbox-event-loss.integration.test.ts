@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import type { DomainEvent } from "@jini-ai/cms/core";
 
 import { processOutbox } from "#src/contracts/core/events/index";
-import { outboxEvents } from "#src/platform/db/schema";
+import { outboxEvents } from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createAgentDaemonRouteDeps } from "../../runtime/composition/agent-daemon-deps.js";
 import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";

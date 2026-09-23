@@ -1,4 +1,6 @@
 import type { AdminUser } from "../../lib/api";
+import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { t as translateAuth } from "./auth-i18n";
 import { useWiredLogin } from "./hooks/use-login.hooks";
 
 /**
@@ -19,22 +21,24 @@ export interface LoginProps {
 
 export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
   const { username, setUsername, password, setPassword, error, busy, submit } = useLoginHook({ onLogin });
+  const locale = useWiredAdminLocale();
+  const t = (key: string): string => translateAuth(locale, key);
 
   return (
     <div className="login-screen">
       <form className="login-card" onSubmit={submit}>
         <h1>Tovu</h1>
-        <p>Sign in to your workspace</p>
+        <p>{t("Sign in to your workspace")}</p>
         <label>
-          Username
+          {t("Username")}
           <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
         </label>
         <label>
-          Password
+          {t("Password")}
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
         {error ? <div className="login-error">{error}</div> : null}
-        <button disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
+        <button disabled={busy}>{busy ? t("Signing in…") : t("Sign in")}</button>
       </form>
     </div>
   );

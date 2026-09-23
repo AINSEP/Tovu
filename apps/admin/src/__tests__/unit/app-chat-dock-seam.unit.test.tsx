@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { fireEvent, render, waitFor } from "@testing-library/react";
+import { fireEvent, render as renderWithoutProvider, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { FetchQueryProvider } from "../../lib/fetch-query";
 import type { DragEvent } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -116,3 +118,9 @@ it("a drop on the dock <aside> reaches useChatDock's handleDockDropCapture (capt
   expect(notPrevented).toBe(false);
   await waitFor(() => expect(publishDropCapture).toHaveBeenCalledWith(expect.any(Function)));
 });
+
+/** `App` mounts the assistant dock, whose agents list reads through the app's query cache — render
+ *  under the same provider `main.tsx` wraps `App` in. */
+function render(ui: ReactElement) {
+  return renderWithoutProvider(ui, { wrapper: FetchQueryProvider });
+}

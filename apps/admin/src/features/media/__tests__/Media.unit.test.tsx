@@ -146,12 +146,8 @@ describe("page header", () => {
 });
 
 describe("upload toolbar accessible names (regression: agent-driveability audit)", () => {
-  // Both fields used to carry ONLY this file's own `agentHandle(..., { label })` — a
-  // `data-agent-label` attribute, Tovu's own convention, invisible to a real screen reader or a
-  // generic browser agent reading the accessibility tree. The file picker had no visible `<label>`
-  // at all, and the alt-text field's `placeholder` is not a substitute for one (a placeholder drops
-  // out of the accessible name the moment the field has a value). Asserted via `getByRole` — what a
-  // consumer actually queries — not by checking the attribute string is present in the markup.
+  // Both fields need names beyond this file's own `agentHandle(..., { label })`: a
+  // `data-agent-label` attribute is invisible to a real screen reader or a generic browser agent.
   it("the file picker has a real accessible name, not just an agentHandle label", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     renderScreen();
@@ -164,6 +160,21 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
     // that only succeeds via a genuine label mechanism (never by reading the attribute string off
     // the markup).
     expect(screen.getByLabelText("File to upload")).toBeInTheDocument();
+  });
+
+  it("replaces browser chooser copy with the localized chooser and selected-file status", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    renderScreen();
+
+    await screen.findByRole("heading", { name: "Media" });
+    expect(screen.getByText("No file chosen")).toBeInTheDocument();
+    expect(screen.getByText("Choose file")).toHaveAttribute("for", screen.getByLabelText("File to upload").id);
+
+    fireEvent.change(screen.getByLabelText("File to upload"), {
+      target: { files: [new File(["image"], "sunset.png", { type: "image/png" })] },
+    });
+
+    expect(screen.getByText("sunset.png")).toBeInTheDocument();
   });
 
   it("the alt-text field has a real accessible name beyond its placeholder", async () => {

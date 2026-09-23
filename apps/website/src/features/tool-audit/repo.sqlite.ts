@@ -21,7 +21,7 @@
  */
 import { and, eq, lt, sql } from "drizzle-orm";
 
-import { agentToolAttempts } from "../../platform/db/schema.js";
+import { agentToolAttempts } from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import type { ToolAttemptAuditSink, ToolAttemptEvent } from "./types.js";
 

@@ -13,7 +13,14 @@ import os from "node:os";
 import path from "node:path";
 import { createPackageWithOptions } from "@electron/asar";
 
-import { VERIFIED_PREFIXES, filesUnderPrefixes, formatMismatchReport, verifyAsarAgainstSource } from "./asar-verify.ts";
+import {
+  VERIFIED_PREFIXES,
+  filesUnderPrefixes,
+  formatMismatchReport,
+  isEmptyVerification,
+  toArchiveEntryPath,
+  verifyAsarAgainstSource,
+} from "./asar-verify.ts";
 
 // --- filesUnderPrefixes: pure tree-walk, no real archive involved --------------------------------
 
@@ -115,6 +122,18 @@ test("DELIBERATE CORRUPTION: one entry rewritten in place, same length, differen
     assert.equal(checkedCount, Object.keys(files).length, "corruption must not change which files are checked");
     assert.equal(mismatches.length, 1, "exactly one file was corrupted — exactly one mismatch must be reported");
     assert.equal(mismatches[0]!.relPath, target, "the gate must name the actual corrupted file");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a checked prefix with NOTHING shipped under it is a mismatch, not a partial pass", async () => {
+  // The past incident: `bin/` left out of `files:` shipped an app whose launcher named a missing
+  // bridge. `src` alone still yields a non-zero checkedCount, so only a per-prefix check catches it.
+  const { root, asarPath } = await buildFixture();
+  try {
+    const { mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "main.ts", "dist"]);
+    assert.deepEqual(mismatches, [{ relPath: "dist", reason: "nothing under this checked prefix is in app.asar" }]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -272,4 +291,36 @@ test("a stale dist/ file left behind by an incremental build (no current .ts sou
   } finally {
     teardown();
   }
+});
+
+// --- isEmptyVerification: pure decision, no fs -------------------------------------------------
+// W5 (release plan): "false-green risk if asar path separators misbehave and 0 files get checked" —
+// checkedCount === 0 must be a hard failure in scripts/verify-package.ts, never a silent pass.
+
+test("isEmptyVerification is true only when checkedCount is exactly 0", () => {
+  assert.equal(isEmptyVerification(0), true);
+  assert.equal(isEmptyVerification(1), false);
+  assert.equal(isEmptyVerification(4), false);
+});
+
+// --- toArchiveEntryPath: pure separator conversion, no fs ---------------------------------------
+// `extractFile`'s own `searchNodeFromDirectory` splits the path it is given on the HOST OS's
+// `path.sep` (see the doc comment on the `extractFile` call in verifyAsarAgainstSource). Every
+// relPath this module produces is POSIX (`filesUnderPrefixes` always joins with "/"), so on a win32
+// host that string has no backslash to split on and the lookup finds nothing — this function is the
+// fix, and it is injectable-separator so the win32 branch is provable on any host OS.
+
+test("toArchiveEntryPath is a no-op for POSIX separators (the default on this host)", () => {
+  assert.equal(toArchiveEntryPath("src/sub/b.js", "/"), "src/sub/b.js");
+});
+
+test("toArchiveEntryPath converts every POSIX segment separator to the given separator (win32 simulation)", () => {
+  assert.equal(toArchiveEntryPath("src/sub/b.js", "\\"), "src\\sub\\b.js");
+  assert.equal(toArchiveEntryPath("main.ts", "\\"), "main.ts", "a path with no separator is unchanged either way");
+});
+
+test("toArchiveEntryPath defaults to the real host path.sep when none is passed", () => {
+  // On this test's host (macOS/Linux CI), path.sep is "/", so the default call must equal the
+  // explicit POSIX case above — pins the default without hard-coding which OS the suite runs on.
+  assert.equal(toArchiveEntryPath("src/a.js"), path.sep === "/" ? "src/a.js" : "src\\a.js");
 });

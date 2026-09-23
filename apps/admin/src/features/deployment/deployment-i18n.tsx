@@ -13,7 +13,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
  * or a webhook's own `label` are rendered verbatim elsewhere in this app.
  */
 
-const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
+const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
     Operations: "Operaciones",
     Deployment: "Despliegue",
@@ -98,6 +98,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.":
       "Todavía no existe un Dockerfile. Escribe uno a continuación y luego guarda para crearlo.",
     "No deploys yet": "Aún no hay despliegues",
+    "Not wired up yet": "Aún no conectado",
+    "What you keep": "Lo que conservas",
+    "What it needs": "Lo que necesita",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "Un alojamiento que pueda ejecutar un contenedor y conservar un disco — la pestaña Dockerfile contiene la imagen desde la que se ejecuta.",
+    "View the Dockerfile": "Ver el Dockerfile",
+    "None connectable yet": "Aún no se puede conectar ninguno",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "Aún no hay campos de credenciales — esta instancia no tiene backend para almacenarlas, así que no se puede conectar nada desde esta pantalla.",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "No se ha desplegado nada desde esta pantalla — y todavía no puede hacerse. Cuando se conecte un alojamiento, aquí aparecerán todas las compilaciones y despliegues con su resultado.",
+    "See how to publish today": "Consulta cómo publicar hoy",
+    "What a static export gives you": "Lo que te ofrece una exportación estática",
+    "Available from a terminal": "Disponible desde una terminal",
+    "What survives the export": "Qué se conserva en la exportación",
+    "Where it runs": "Dónde se ejecuta",
+    "The output is a plain folder of files — any static host will serve it.": "La salida es una carpeta sencilla de archivos — cualquier alojamiento estático puede servirla.",
     "Builds and deploys will show up here once a real host is wired up.":
       "Las compilaciones y despliegues aparecerán aquí una vez que se conecte un alojamiento real.",
   },
@@ -185,6 +199,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.":
       "Belum ada Dockerfile. Tulis satu di bawah ini, lalu simpan untuk membuatnya.",
     "No deploys yet": "Belum ada deployment",
+    "Not wired up yet": "Belum terhubung",
+    "What you keep": "Yang tetap Anda miliki",
+    "What it needs": "Yang dibutuhkannya",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "Host yang dapat menjalankan kontainer dan menyimpan disk — tab Dockerfile berisi image yang dijalankan.",
+    "View the Dockerfile": "Lihat Dockerfile",
+    "None connectable yet": "Belum ada yang dapat dihubungkan",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "Belum ada kolom kredensial — instans ini tidak memiliki backend untuk menyimpannya, jadi tidak ada yang dapat dihubungkan dari layar ini.",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "Belum ada yang di-deploy dari layar ini — dan belum bisa. Setelah host terhubung, setiap build dan deploy akan tercantum di sini beserta hasilnya.",
+    "See how to publish today": "Lihat cara menerbitkan hari ini",
+    "What a static export gives you": "Yang diberikan ekspor statis",
+    "Available from a terminal": "Tersedia dari terminal",
+    "What survives the export": "Yang tetap ada setelah ekspor",
+    "Where it runs": "Tempat berjalan",
+    "The output is a plain folder of files — any static host will serve it.": "Hasilnya adalah folder berisi file biasa — host statis apa pun dapat menyajikannya.",
     "Builds and deploys will show up here once a real host is wired up.":
       "Build dan deployment akan muncul di sini setelah hosting sungguhan terhubung.",
   },
@@ -272,6 +300,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.":
       "Es existiert noch kein Dockerfile. Schreibe eines unten und speichere es, um es zu erstellen.",
     "No deploys yet": "Noch keine Deployments",
+    "Not wired up yet": "Noch nicht verbunden",
+    "What you keep": "Was Sie behalten",
+    "What it needs": "Was es benötigt",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "Ein Host, der einen Container ausführen und einen Datenträger behalten kann — der Dockerfile-Tab enthält das Image, aus dem dies läuft.",
+    "View the Dockerfile": "Dockerfile anzeigen",
+    "None connectable yet": "Noch keines verbindbar",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "Noch keine Anmeldedatenfelder — diese Instanz hat kein Backend zum Speichern, daher kann von diesem Bildschirm nichts verbunden werden.",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "Von diesem Bildschirm wurde noch nichts bereitgestellt — und es ist noch nicht möglich. Sobald ein Host verbunden ist, werden hier alle Builds und Bereitstellungen mit ihrem Ergebnis aufgeführt.",
+    "See how to publish today": "So veröffentlichen Sie heute",
+    "What a static export gives you": "Was ein statischer Export bietet",
+    "Available from a terminal": "Über ein Terminal verfügbar",
+    "What survives the export": "Was den Export übersteht",
+    "Where it runs": "Wo es läuft",
+    "The output is a plain folder of files — any static host will serve it.": "Die Ausgabe ist ein einfacher Ordner mit Dateien — jeder statische Host kann ihn bereitstellen.",
     "Builds and deploys will show up here once a real host is wired up.":
       "Builds und Deployments erscheinen hier, sobald ein echter Host angebunden ist.",
   },
@@ -352,6 +394,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Building is a terminal command (docker build …), not a button here.":
       "构建镜像是一条终端命令(docker build …),而不是此处的按钮。",
     "No deploys yet": "尚无部署记录",
+    "Not wired up yet": "尚未连接",
+    "What you keep": "保留的内容",
+    "What it needs": "所需条件",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "能够运行容器并保留磁盘的托管环境——Dockerfile 标签页包含其运行所用的镜像。",
+    "View the Dockerfile": "查看 Dockerfile",
+    "None connectable yet": "暂时没有可连接的项",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "尚无凭据字段——此实例没有用于存储凭据的后端，因此无法从此屏幕连接任何内容。",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "尚未从此屏幕部署任何内容——目前也还不能部署。连接托管环境后，每次构建和部署都会连同结果列在这里。",
+    "See how to publish today": "了解当前发布方式",
+    "What a static export gives you": "静态导出提供的内容",
+    "Available from a terminal": "可从终端使用",
+    "What survives the export": "导出后保留的内容",
+    "Where it runs": "运行位置",
+    "The output is a plain folder of files — any static host will serve it.": "输出是一个普通文件夹——任何静态托管服务都可以提供它。",
     "Builds and deploys will show up here once a real host is wired up.":
       "接入真实主机后,构建和部署记录将显示在此处。",
   },
@@ -432,6 +488,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Building is a terminal command (docker build …), not a button here.":
       "建置映像檔是終端機指令(docker build …),而非此處的按鈕。",
     "No deploys yet": "尚無部署紀錄",
+    "Not wired up yet": "尚未連線",
+    "What you keep": "保留的內容",
+    "What it needs": "所需條件",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "可執行容器並保留磁碟的主機——Dockerfile 分頁包含其執行所用的映像。",
+    "View the Dockerfile": "檢視 Dockerfile",
+    "None connectable yet": "目前沒有可連線的項目",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "尚無憑證欄位——此執行個體沒有可儲存憑證的後端，因此無法從此畫面連線任何項目。",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "尚未從此畫面部署任何內容——目前也還不能部署。連接主機後，每次建置與部署都會連同結果列在這裡。",
+    "See how to publish today": "查看今天如何發佈",
+    "What a static export gives you": "靜態匯出提供的內容",
+    "Available from a terminal": "可從終端機使用",
+    "What survives the export": "匯出後保留的內容",
+    "Where it runs": "執行位置",
+    "The output is a plain folder of files — any static host will serve it.": "輸出是一個普通檔案資料夾——任何靜態主機都能提供它。",
     "Builds and deploys will show up here once a real host is wired up.":
       "接上真實主機後,建置與部署紀錄將顯示於此。",
   },
@@ -519,6 +589,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.":
       "Ainda não existe um Dockerfile. Escreva um abaixo e depois salve para criá-lo.",
     "No deploys yet": "Ainda não há implantações",
+    "Not wired up yet": "Ainda não conectado",
+    "What you keep": "O que você mantém",
+    "What it needs": "Do que precisa",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "Uma hospedagem que possa executar um contêiner e manter um disco — a aba Dockerfile tem a imagem usada para isso.",
+    "View the Dockerfile": "Ver o Dockerfile",
+    "None connectable yet": "Nenhum conectável ainda",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "Ainda não há campos de credenciais — esta instância não tem backend para armazená-las, então nada pode ser conectado por esta tela.",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "Nada foi implantado por esta tela — e ainda não pode ser. Quando uma hospedagem for conectada, cada build e implantação será listado aqui com seu resultado.",
+    "See how to publish today": "Veja como publicar hoje",
+    "What a static export gives you": "O que uma exportação estática oferece",
+    "Available from a terminal": "Disponível em um terminal",
+    "What survives the export": "O que permanece após a exportação",
+    "Where it runs": "Onde é executado",
+    "The output is a plain folder of files — any static host will serve it.": "A saída é uma pasta simples de arquivos — qualquer hospedagem estática pode servi-la.",
     "Builds and deploys will show up here once a real host is wired up.":
       "Builds e implantações aparecerão aqui assim que uma hospedagem real for conectada.",
   },
@@ -599,6 +683,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Building is a terminal command (docker build …), not a button here.":
       "Сборка образа — это команда терминала (docker build …), а не кнопка здесь.",
     "No deploys yet": "Развёртываний пока нет",
+    "Not wired up yet": "Ещё не подключено",
+    "What you keep": "Что сохраняется",
+    "What it needs": "Что требуется",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "Хостинг, который может запускать контейнер и сохранять диск — на вкладке Dockerfile есть образ, из которого это запускается.",
+    "View the Dockerfile": "Открыть Dockerfile",
+    "None connectable yet": "Пока ничего нельзя подключить",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "Полей для учётных данных пока нет — у этого экземпляра нет бэкенда для их хранения, поэтому с этого экрана ничего подключить нельзя.",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "С этого экрана ещё ничего не развёрнуто — и пока это невозможно. После подключения хостинга здесь будут показаны каждая сборка и развёртывание с результатом.",
+    "See how to publish today": "Как опубликовать сегодня",
+    "What a static export gives you": "Что даёт статический экспорт",
+    "Available from a terminal": "Доступно из терминала",
+    "What survives the export": "Что сохраняется при экспорте",
+    "Where it runs": "Где это работает",
+    "The output is a plain folder of files — any static host will serve it.": "Результат — обычная папка с файлами; её может обслуживать любой статический хостинг.",
     "Builds and deploys will show up here once a real host is wired up.":
       "Сборки и развёртывания появятся здесь после подключения реального хостинга.",
   },
@@ -679,6 +777,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Building is a terminal command (docker build …), not a button here.":
       "ساخت ایمیج یک دستور ترمینال است (docker build …)، نه دکمه‌ای در اینجا.",
     "No deploys yet": "هنوز استقراری انجام نشده",
+    "Not wired up yet": "هنوز متصل نشده",
+    "What you keep": "آنچه حفظ می‌کنید",
+    "What it needs": "آنچه نیاز دارد",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "یک میزبان که بتواند کانتینر را اجرا و دیسک را نگه دارد — زبانه Dockerfile تصویر مورد استفاده را دارد.",
+    "View the Dockerfile": "مشاهده Dockerfile",
+    "None connectable yet": "هنوز هیچ‌کدام قابل اتصال نیست",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "هنوز فیلدی برای اعتبارنامه وجود ندارد — این نمونه بک‌اندی برای ذخیره آن‌ها ندارد، بنابراین هیچ‌چیز از این صفحه قابل اتصال نیست.",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "هنوز چیزی از این صفحه مستقر نشده — و فعلاً هم نمی‌تواند شود. پس از اتصال میزبان، همه ساخت‌ها و استقرارها با نتیجه‌شان اینجا فهرست می‌شوند.",
+    "See how to publish today": "نحوه انتشار امروز را ببینید",
+    "What a static export gives you": "خروجی ایستا چه چیزی به شما می‌دهد",
+    "Available from a terminal": "از ترمینال در دسترس است",
+    "What survives the export": "آنچه پس از خروجی باقی می‌ماند",
+    "Where it runs": "محل اجرا",
+    "The output is a plain folder of files — any static host will serve it.": "خروجی یک پوشه ساده از فایل‌ها است — هر میزبان ایستا می‌تواند آن را ارائه کند.",
     "Builds and deploys will show up here once a real host is wired up.":
       "ساخت‌ها و استقرارها پس از اتصال یک میزبان واقعی اینجا نمایش داده می‌شوند.",
   },
@@ -759,6 +871,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Building is a terminal command (docker build …), not a button here.":
       "بناء الصورة هو أمر طرفية (docker build …)، وليس زرًا هنا.",
     "No deploys yet": "لا عمليات نشر بعد",
+    "Not wired up yet": "لم يتم التوصيل بعد",
+    "What you keep": "ما تحتفظ به",
+    "What it needs": "ما يحتاجه",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "استضافة يمكنها تشغيل حاوية والاحتفاظ بقرص — تحتوي علامة تبويب Dockerfile على الصورة التي يعمل منها.",
+    "View the Dockerfile": "عرض Dockerfile",
+    "None connectable yet": "لا يوجد ما يمكن توصيله بعد",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "لا توجد حقول بيانات اعتماد بعد — ليس لدى هذه النسخة خلفية لتخزينها، لذا لا يمكن توصيل أي شيء من هذه الشاشة.",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "لم يتم نشر أي شيء من هذه الشاشة — ولا يمكن ذلك بعد. عند توصيل استضافة، ستُدرج هنا كل عملية بناء ونشر مع نتيجتها.",
+    "See how to publish today": "اطلع على كيفية النشر اليوم",
+    "What a static export gives you": "ما الذي يقدمه التصدير الثابت",
+    "Available from a terminal": "متاح من الطرفية",
+    "What survives the export": "ما يبقى بعد التصدير",
+    "Where it runs": "مكان التشغيل",
+    "The output is a plain folder of files — any static host will serve it.": "المخرجات مجلد عادي من الملفات — يمكن لأي استضافة ثابتة تقديمه.",
     "Builds and deploys will show up here once a real host is wired up.":
       "ستظهر عمليات البناء والنشر هنا بمجرد ربط مضيف حقيقي.",
   },
@@ -839,6 +965,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Building is a terminal command (docker build …), not a button here.":
       "イメージのビルドはターミナルコマンド(docker build …)であり、ここにあるボタンではありません。",
     "No deploys yet": "デプロイはまだありません",
+    "Not wired up yet": "まだ接続されていません",
+    "What you keep": "維持されるもの",
+    "What it needs": "必要なもの",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "コンテナを実行しディスクを保持できるホストが必要です。Dockerfile タブにはこれが実行元とするイメージがあります。",
+    "View the Dockerfile": "Dockerfile を表示",
+    "None connectable yet": "まだ接続できるものはありません",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "認証情報の欄はまだありません。このインスタンスには保存用バックエンドがないため、この画面からは何も接続できません。",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "この画面からはまだ何もデプロイされておらず、まだ実行もできません。ホストを接続すると、すべてのビルドとデプロイが結果とともにここに表示されます。",
+    "See how to publish today": "今日公開する方法を見る",
+    "What a static export gives you": "静的エクスポートで得られるもの",
+    "Available from a terminal": "ターミナルから利用可能",
+    "What survives the export": "エクスポート後に残るもの",
+    "Where it runs": "実行場所",
+    "The output is a plain folder of files — any static host will serve it.": "出力は通常のファイルフォルダーです。どの静的ホストでも配信できます。",
     "Builds and deploys will show up here once a real host is wired up.":
       "実際のホストが接続されると、ビルドとデプロイがここに表示されます。",
   },
@@ -919,6 +1059,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Building is a terminal command (docker build …), not a button here.":
       "이미지 빌드는 터미널 명령(docker build …)이며, 이곳의 버튼이 아닙니다.",
     "No deploys yet": "아직 배포 없음",
+    "Not wired up yet": "아직 연결되지 않음",
+    "What you keep": "유지되는 항목",
+    "What it needs": "필요한 항목",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "컨테이너를 실행하고 디스크를 유지할 수 있는 호스트가 필요합니다. Dockerfile 탭에 이 항목이 실행하는 이미지가 있습니다.",
+    "View the Dockerfile": "Dockerfile 보기",
+    "None connectable yet": "아직 연결할 수 있는 항목 없음",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "아직 자격 증명 필드가 없습니다. 이 인스턴스에는 이를 저장할 백엔드가 없으므로 이 화면에서는 아무것도 연결할 수 없습니다.",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "이 화면에서 아직 배포된 항목이 없고 현재는 배포할 수도 없습니다. 호스트가 연결되면 모든 빌드와 배포가 결과와 함께 여기에 표시됩니다.",
+    "See how to publish today": "오늘 게시하는 방법 보기",
+    "What a static export gives you": "정적 내보내기가 제공하는 것",
+    "Available from a terminal": "터미널에서 사용 가능",
+    "What survives the export": "내보낸 뒤에도 유지되는 항목",
+    "Where it runs": "실행 위치",
+    "The output is a plain folder of files — any static host will serve it.": "출력은 일반 파일 폴더이며 어떤 정적 호스트에서도 제공할 수 있습니다.",
     "Builds and deploys will show up here once a real host is wired up.":
       "실제 호스트가 연결되면 빌드와 배포가 이곳에 표시됩니다.",
   },
@@ -999,6 +1153,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Building is a terminal command (docker build …), not a button here.":
       "Budowanie obrazu to polecenie terminala (docker build …), a nie przycisk tutaj.",
     "No deploys yet": "Jeszcze brak wdrożeń",
+    "Not wired up yet": "Jeszcze nie podłączono",
+    "What you keep": "Co zachowujesz",
+    "What it needs": "Czego potrzebuje",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "Hosting, który może uruchomić kontener i zachować dysk — karta Dockerfile zawiera obraz, z którego to działa.",
+    "View the Dockerfile": "Wyświetl Dockerfile",
+    "None connectable yet": "Na razie nic nie można podłączyć",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "Nie ma jeszcze pól poświadczeń — ta instancja nie ma backendu do ich przechowywania, więc z tego ekranu nie można nic podłączyć.",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "Z tego ekranu nic jeszcze nie wdrożono — i na razie nie jest to możliwe. Po podłączeniu hostingu każda kompilacja i wdrożenie będą tu wymienione z wynikiem.",
+    "See how to publish today": "Zobacz, jak opublikować dziś",
+    "What a static export gives you": "Co daje eksport statyczny",
+    "Available from a terminal": "Dostępne z terminala",
+    "What survives the export": "Co pozostaje po eksporcie",
+    "Where it runs": "Gdzie działa",
+    "The output is a plain folder of files — any static host will serve it.": "Wynik to zwykły folder plików — każdy hosting statyczny może go obsłużyć.",
     "Builds and deploys will show up here once a real host is wired up.":
       "Kompilacje i wdrożenia pojawią się tutaj, gdy zostanie podłączony prawdziwy host.",
   },
@@ -1079,6 +1247,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Building is a terminal command (docker build …), not a button here.":
       "A build egy terminálparancs (docker build …), nem egy gomb itt.",
     "No deploys yet": "Még nincs telepítés",
+    "Not wired up yet": "Még nincs csatlakoztatva",
+    "What you keep": "Amit megtart",
+    "What it needs": "Amire szüksége van",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "Olyan hoszt, amely képes konténert futtatni és megőrizni egy lemezt — a Dockerfile lapon található az ehhez használt lemezkép.",
+    "View the Dockerfile": "Dockerfile megtekintése",
+    "None connectable yet": "Még semmi sem csatlakoztatható",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "Még nincsenek hitelesítőadat-mezők — ennek a példánynak nincs háttérszolgáltatása a tárolásukhoz, ezért erről a képernyőről semmi sem csatlakoztatható.",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "Erről a képernyőről még semmit sem telepítettek — és ez még nem is lehetséges. A hoszt csatlakoztatása után minden build és telepítés itt jelenik meg az eredményével.",
+    "See how to publish today": "Nézze meg, hogyan tehet közzé ma",
+    "What a static export gives you": "Mit nyújt a statikus export",
+    "Available from a terminal": "Terminálból elérhető",
+    "What survives the export": "Mi marad meg az exportban",
+    "Where it runs": "Hol fut",
+    "The output is a plain folder of files — any static host will serve it.": "A kimenet egy egyszerű fájlmappa — bármely statikus tárhely kiszolgálhatja.",
     "Builds and deploys will show up here once a real host is wired up.":
       "A buildek és telepítések itt jelennek majd meg, ha egy valódi host csatlakoztatva lesz.",
   },
@@ -1166,6 +1348,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.":
       "Aucun Dockerfile n'existe encore. Écrivez-en un ci-dessous, puis enregistrez pour le créer.",
     "No deploys yet": "Aucun déploiement pour le moment",
+    "Not wired up yet": "Pas encore connecté",
+    "What you keep": "Ce que vous conservez",
+    "What it needs": "Ce dont il a besoin",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "Un hébergement capable d'exécuter un conteneur et de conserver un disque — l'onglet Dockerfile contient l'image utilisée.",
+    "View the Dockerfile": "Voir le Dockerfile",
+    "None connectable yet": "Aucun élément connectable pour le moment",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "Aucun champ d'identifiants pour le moment — cette instance n'a pas de backend pour les stocker, donc rien ne peut être connecté depuis cet écran.",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "Rien n'a été déployé depuis cet écran — et ce n'est pas encore possible. Une fois un hébergement connecté, chaque build et déploiement sera listé ici avec son résultat.",
+    "See how to publish today": "Découvrez comment publier aujourd'hui",
+    "What a static export gives you": "Ce qu'offre une exportation statique",
+    "Available from a terminal": "Disponible depuis un terminal",
+    "What survives the export": "Ce qui reste après l'exportation",
+    "Where it runs": "Où cela s'exécute",
+    "The output is a plain folder of files — any static host will serve it.": "La sortie est un simple dossier de fichiers — tout hébergement statique peut le servir.",
     "Builds and deploys will show up here once a real host is wired up.":
       "Les builds et déploiements apparaîtront ici une fois un hébergeur réel connecté.",
   },
@@ -1246,6 +1442,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Building is a terminal command (docker build …), not a button here.":
       "Збірка образу — це команда терміналу (docker build …), а не кнопка тут.",
     "No deploys yet": "Розгортань поки немає",
+    "Not wired up yet": "Ще не підключено",
+    "What you keep": "Що ви зберігаєте",
+    "What it needs": "Що потрібно",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "Хостинг, який може запускати контейнер і зберігати диск — на вкладці Dockerfile є образ, з якого це запускається.",
+    "View the Dockerfile": "Переглянути Dockerfile",
+    "None connectable yet": "Поки нічого не можна підключити",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "Полів облікових даних ще немає — цей екземпляр не має бекенду для їх зберігання, тому з цього екрана нічого не можна підключити.",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "З цього екрана ще нічого не розгорнуто — і поки це неможливо. Після підключення хостингу тут буде наведено кожну збірку й розгортання з результатом.",
+    "See how to publish today": "Дізнайтеся, як опублікувати сьогодні",
+    "What a static export gives you": "Що дає статичний експорт",
+    "Available from a terminal": "Доступно з термінала",
+    "What survives the export": "Що зберігається після експорту",
+    "Where it runs": "Де це працює",
+    "The output is a plain folder of files — any static host will serve it.": "Результат — звичайна папка з файлами; її може обслуговувати будь-який статичний хостинг.",
     "Builds and deploys will show up here once a real host is wired up.":
       "Збірки та розгортання з'являться тут після підключення реального хостингу.",
   },
@@ -1326,6 +1536,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Building is a terminal command (docker build …), not a button here.":
       "İmajı oluşturmak bir terminal komutudur (docker build …), buradaki bir düğme değildir.",
     "No deploys yet": "Henüz dağıtım yok",
+    "Not wired up yet": "Henüz bağlanmadı",
+    "What you keep": "Koruduklarınız",
+    "What it needs": "Gereksinimleri",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "Bir kapsayıcıyı çalıştırabilen ve diski koruyabilen bir barındırma gerekir — Dockerfile sekmesinde bunun çalıştığı imaj bulunur.",
+    "View the Dockerfile": "Dockerfile'ı görüntüle",
+    "None connectable yet": "Henüz bağlanabilir öğe yok",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "Henüz kimlik bilgisi alanı yok — bu örnekte onları saklayacak bir arka uç olmadığından bu ekrandan hiçbir şey bağlanamaz.",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "Bu ekrandan henüz hiçbir şey dağıtılmadı — ve henüz dağıtılamaz. Bir barındırma bağlandığında her derleme ve dağıtım sonucu ile burada listelenir.",
+    "See how to publish today": "Bugün nasıl yayımlayacağınızı görün",
+    "What a static export gives you": "Statik dışa aktarmanın sundukları",
+    "Available from a terminal": "Terminalden kullanılabilir",
+    "What survives the export": "Dışa aktarmada kalanlar",
+    "Where it runs": "Çalıştığı yer",
+    "The output is a plain folder of files — any static host will serve it.": "Çıktı düz bir dosya klasörüdür — herhangi bir statik barındırma bunu sunabilir.",
     "Builds and deploys will show up here once a real host is wired up.":
       "Gerçek bir sunucu bağlandığında derlemeler ve dağıtımlar burada görünecek.",
   },
@@ -1406,6 +1630,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Building is a terminal command (docker build …), not a button here.":
       "การสร้างอิมเมจเป็นคำสั่งเทอร์มินัล (docker build …) ไม่ใช่ปุ่มที่นี่",
     "No deploys yet": "ยังไม่มีการปรับใช้",
+    "Not wired up yet": "ยังไม่ได้เชื่อมต่อ",
+    "What you keep": "สิ่งที่คงอยู่",
+    "What it needs": "สิ่งที่ต้องใช้",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "โฮสต์ที่เรียกใช้คอนเทนเนอร์และเก็บดิสก์ไว้ได้ — แท็บ Dockerfile มีอิมเมจที่ใช้เรียกใช้สิ่งนี้",
+    "View the Dockerfile": "ดู Dockerfile",
+    "None connectable yet": "ยังไม่มีรายการที่เชื่อมต่อได้",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "ยังไม่มีช่องข้อมูลรับรอง — อินสแตนซ์นี้ไม่มีแบ็กเอนด์สำหรับจัดเก็บ จึงไม่สามารถเชื่อมต่ออะไรจากหน้าจอนี้ได้",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "ยังไม่มีการปรับใช้จากหน้าจอนี้ และยังทำไม่ได้ เมื่อเชื่อมต่อโฮสต์แล้ว ทุกการบิลด์และการปรับใช้จะแสดงที่นี่พร้อมผลลัพธ์",
+    "See how to publish today": "ดูวิธีเผยแพร่วันนี้",
+    "What a static export gives you": "สิ่งที่การส่งออกแบบคงที่มอบให้",
+    "Available from a terminal": "ใช้ได้จากเทอร์มินัล",
+    "What survives the export": "สิ่งที่ยังคงอยู่หลังการส่งออก",
+    "Where it runs": "ตำแหน่งที่ทำงาน",
+    "The output is a plain folder of files — any static host will serve it.": "ผลลัพธ์คือโฟลเดอร์ไฟล์ธรรมดา — โฮสต์แบบคงที่ใดก็ให้บริการได้",
     "Builds and deploys will show up here once a real host is wired up.":
       "การสร้างและการปรับใช้จะปรากฏที่นี่เมื่อมีการเชื่อมต่อโฮสต์จริง",
   },
@@ -1493,6 +1731,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.":
       "Non esiste ancora un Dockerfile. Scrivine uno qui sotto, poi salva per crearlo.",
     "No deploys yet": "Ancora nessuna distribuzione",
+    "Not wired up yet": "Non ancora collegato",
+    "What you keep": "Ciò che mantieni",
+    "What it needs": "Di cosa ha bisogno",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "Un hosting che possa eseguire un contenitore e mantenere un disco — la scheda Dockerfile contiene l'immagine da cui viene eseguito.",
+    "View the Dockerfile": "Visualizza il Dockerfile",
+    "None connectable yet": "Nessuno collegabile per ora",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "Non ci sono ancora campi delle credenziali — questa istanza non ha un backend per archiviarle, quindi da questa schermata non si può collegare nulla.",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "Da questa schermata non è stato distribuito nulla — e non è ancora possibile. Quando un hosting sarà collegato, qui appariranno tutte le build e le distribuzioni con il loro esito.",
+    "See how to publish today": "Scopri come pubblicare oggi",
+    "What a static export gives you": "Cosa offre un'esportazione statica",
+    "Available from a terminal": "Disponibile da un terminale",
+    "What survives the export": "Cosa rimane dopo l'esportazione",
+    "Where it runs": "Dove viene eseguito",
+    "The output is a plain folder of files — any static host will serve it.": "L'output è una semplice cartella di file — qualsiasi hosting statico può servirla.",
     "Builds and deploys will show up here once a real host is wired up.":
       "Build e distribuzioni appariranno qui una volta collegato un host reale.",
   },
@@ -1573,6 +1825,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Building is a terminal command (docker build …), not a button here.":
       "इमेज बनाना एक टर्मिनल कमांड है (docker build …), यहां का बटन नहीं।",
     "No deploys yet": "अभी तक कोई डिप्लॉयमेंट नहीं",
+    "Not wired up yet": "अभी तक कनेक्ट नहीं किया गया",
+    "What you keep": "जो बना रहता है",
+    "What it needs": "जिसकी इसे ज़रूरत है",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "ऐसा होस्ट जो कंटेनर चला सके और डिस्क को बनाए रख सके — Dockerfile टैब में वह इमेज है जिससे यह चलता है।",
+    "View the Dockerfile": "Dockerfile देखें",
+    "None connectable yet": "अभी कोई कनेक्ट करने योग्य नहीं",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "अभी क्रेडेंशियल फ़ील्ड नहीं हैं — इस इंस्टेंस में उन्हें संग्रहीत करने के लिए बैकएंड नहीं है, इसलिए इस स्क्रीन से कुछ भी कनेक्ट नहीं किया जा सकता।",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "इस स्क्रीन से अभी कुछ भी डिप्लॉय नहीं किया गया है — और अभी किया भी नहीं जा सकता। होस्ट कनेक्ट होने पर हर बिल्ड और डिप्लॉयमेंट उसके परिणाम सहित यहाँ दिखेगा।",
+    "See how to publish today": "आज प्रकाशित करने का तरीका देखें",
+    "What a static export gives you": "स्थिर एक्सपोर्ट से क्या मिलता है",
+    "Available from a terminal": "टर्मिनल से उपलब्ध",
+    "What survives the export": "एक्सपोर्ट के बाद क्या रहता है",
+    "Where it runs": "जहाँ यह चलता है",
+    "The output is a plain folder of files — any static host will serve it.": "आउटपुट फ़ाइलों का एक साधारण फ़ोल्डर है — कोई भी स्थिर होस्ट इसे उपलब्ध करा सकता है।",
     "Builds and deploys will show up here once a real host is wired up.":
       "वास्तविक होस्ट जुड़ने के बाद बिल्ड और डिप्लॉयमेंट यहां दिखाई देंगे।",
   },
@@ -1653,6 +1919,20 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Building is a terminal command (docker build …), not a button here.":
       "امیج بنانا ایک ٹرمینل کمانڈ ہے (docker build …)، یہاں کا بٹن نہیں۔",
     "No deploys yet": "ابھی تک کوئی ڈیپلائے منٹ نہیں",
+    "Not wired up yet": "ابھی تک منسلک نہیں",
+    "What you keep": "جو آپ برقرار رکھتے ہیں",
+    "What it needs": "جس کی اسے ضرورت ہے",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "ایسا ہوسٹ جو کنٹینر چلا سکے اور ڈسک کو برقرار رکھ سکے — Dockerfile ٹیب میں وہ امیج ہے جس سے یہ چلتا ہے۔",
+    "View the Dockerfile": "Dockerfile دیکھیں",
+    "None connectable yet": "ابھی کوئی قابلِ اتصال نہیں",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "ابھی اسناد کے خانے نہیں ہیں — اس انسٹینس کے پاس انہیں ذخیرہ کرنے کے لیے بیک اینڈ نہیں، اس لیے اس اسکرین سے کچھ بھی منسلک نہیں ہو سکتا۔",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "اس اسکرین سے ابھی کچھ بھی ڈیپلائے نہیں ہوا — اور ابھی ہو بھی نہیں سکتا۔ ہوسٹ منسلک ہونے پر ہر بلڈ اور ڈیپلائے منٹ نتیجے کے ساتھ یہاں درج ہوگا۔",
+    "See how to publish today": "آج شائع کرنے کا طریقہ دیکھیں",
+    "What a static export gives you": "جامد ایکسپورٹ کیا دیتا ہے",
+    "Available from a terminal": "ٹرمینل سے دستیاب",
+    "What survives the export": "ایکسپورٹ کے بعد کیا باقی رہتا ہے",
+    "Where it runs": "جہاں یہ چلتا ہے",
+    "The output is a plain folder of files — any static host will serve it.": "آؤٹ پٹ فائلوں کا ایک سادہ فولڈر ہے — کوئی بھی جامد ہوسٹ اسے پیش کر سکتا ہے۔",
     "Builds and deploys will show up here once a real host is wired up.":
       "حقیقی میزبان جڑنے کے بعد بلڈز اور ڈیپلائے منٹس یہاں ظاہر ہوں گے۔",
   },
@@ -1733,10 +2013,232 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Building is a terminal command (docker build …), not a button here.":
       "ইমেজ তৈরি করা একটি টার্মিনাল কমান্ড (docker build …), এখানকার বাটন নয়।",
     "No deploys yet": "এখনও কোনো ডিপ্লয়মেন্ট নেই",
+    "Not wired up yet": "এখনও সংযুক্ত নয়",
+    "What you keep": "যা বজায় থাকে",
+    "What it needs": "যা প্রয়োজন",
+    "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.": "এমন একটি হোস্ট যা কনটেইনার চালাতে এবং ডিস্ক ধরে রাখতে পারে — Dockerfile ট্যাবে এটি যে ইমেজ থেকে চলে তা আছে।",
+    "View the Dockerfile": "Dockerfile দেখুন",
+    "None connectable yet": "এখনও কিছু সংযুক্ত করা যায় না",
+    "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.": "এখনও কোনো শংসাপত্র ক্ষেত্র নেই — এই ইনস্ট্যান্সে সেগুলি সংরক্ষণের ব্যাকএন্ড নেই, তাই এই স্ক্রিন থেকে কিছুই সংযুক্ত করা যায় না।",
+    "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.": "এই স্ক্রিন থেকে এখনও কিছু ডিপ্লয় করা হয়নি — এবং এখনও করা যায় না। হোস্ট সংযুক্ত হলে প্রতিটি বিল্ড ও ডিপ্লয় তার ফলাফলসহ এখানে তালিকাভুক্ত হবে।",
+    "See how to publish today": "আজ কীভাবে প্রকাশ করবেন দেখুন",
+    "What a static export gives you": "স্ট্যাটিক এক্সপোর্ট যা দেয়",
+    "Available from a terminal": "টার্মিনাল থেকে উপলভ্য",
+    "What survives the export": "এক্সপোর্টের পর যা থাকে",
+    "Where it runs": "যেখানে এটি চলে",
+    "The output is a plain folder of files — any static host will serve it.": "আউটপুট হলো ফাইলের একটি সাধারণ ফোল্ডার — যেকোনো স্ট্যাটিক হোস্ট এটি পরিবেশন করতে পারে।",
     "Builds and deploys will show up here once a real host is wired up.":
       "একটি প্রকৃত হোস্ট সংযুক্ত হলে বিল্ড এবং ডিপ্লয়মেন্ট এখানে প্রদর্শিত হবে।",
   },
 };
+
+/** Strings added with the Static Site publishing UI.  Keep this list separate so every locale gets
+ * the same key set; locale-specific entries below deliberately override the English source text. */
+const DEPLOYMENT_AUDIT_STRINGS: Record<string, string> = {
+  "{count} lines": "{count} lines",
+  "Not supported": "Not supported", Supported: "Supported", "No Dockerfile yet": "No Dockerfile yet",
+  "Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.": "Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.",
+  "Its current contents on the server are:": "Its current contents on the server are:", "It was deleted on the server.": "It was deleted on the server.",
+  "Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.": "Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.",
+  "Load the current version": "Load the current version", "Available from a terminal": "Available from a terminal",
+  "Runs on any static host, including free ones. Nothing dynamic survives the export.": "Runs on any static host, including free ones. Nothing dynamic survives the export.",
+  "View Static Site details": "View Static Site details", "Not wired up yet": "Not wired up yet",
+  "Needs a host to run on — provider setup is planned, not wired up yet.": "Needs a host to run on — provider setup is planned, not wired up yet.",
+  "View Full Site details": "View Full Site details", Set: "Set", Routes: "Routes", succeeded: "succeeded", failed: "failed", "Written to": "Written to", "Failed routes": "Failed routes", "Failed assets": "Failed assets",
+  "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu writes every published post, the home page, products and theme pages into the folder you name.",
+  "Copy the export command": "Copy the export command", "Replace <dir> with the folder to write into. It is a required argument — there is no default.": "Replace <dir> with the folder to write into. It is a required argument — there is no default.",
+  "Overwrite existing files in the output folder": "Overwrite existing files in the output folder", "Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.": "Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.",
+  "Exporting…": "Exporting…", "Detected on this server": "Detected on this server", "Not detected on this server": "Not detected on this server", "Checking…": "Checking…", "Getting it online": "Getting it online",
+  "The export is just a folder of files. Pick where it goes, then either let the assistant drive the CLI or publish straight from here.": "The export is just a folder of files. Pick where it goes, then either let the assistant drive the CLI or publish straight from here.",
+  "Publish target": "Publish target", Connected: "Connected", "Fastest — ask the assistant": "Fastest — ask the assistant",
+  "Tovu's assistant runs as a command-line coding agent with its own shell, so it can drive this tool to publish the export for you — nothing to paste here, and no credentials stored.": "Tovu's assistant runs as a command-line coding agent with its own shell, so it can drive this tool to publish the export for you — nothing to paste here, and no credentials stored.",
+  or: "or", "Need to save more than one token, rename one, or manage every saved credential in one place?": "Need to save more than one token, rename one, or manage every saved credential in one place?", "Create access token": "Create access token", "Loading credentials…": "Loading credentials…", "Account ID": "Account ID", "Shown on your Cloudflare dashboard's own sidebar.": "Shown on your Cloudflare dashboard's own sidebar.", connected: "connected as", Verify: "Verify", "Verifying…": "Verifying…", "Which saved token publishes": "Which saved token publishes", "This workspace has more than one saved": "This workspace has more than one saved", "token. Pick which one Tovu publishes with.": "token. Pick which one Tovu publishes with.", "GitHub owner or org": "GitHub owner or org", Repository: "Repository", "Branch (optional)": "Branch (optional)", "Vercel team (optional)": "Vercel team (optional)", "Publishing…": "Publishing…", "This is immediately live on the public internet once it finishes — there is no draft or review step.": "This is immediately live on the public internet once it finishes — there is no draft or review step.", "Where this publish goes": "Where this publish goes", "The account above only proves you're allowed to publish — this says exactly where this one goes.": "The account above only proves you're allowed to publish — this says exactly where this one goes.", "Base path": "Base path", "None — serves from the domain root": "None — serves from the domain root", Credential: "Credential", "Published:": "Published:",
+};
+
+const DEPLOYMENT_AUDIT_ES: Record<string, string> = {
+  "{count} lines": "{count} líneas", "Not supported": "No compatible", Supported: "Compatible", "No Dockerfile yet": "Aún no hay Dockerfile",
+  "Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.": "Otra persona guardó una versión distinta de este Dockerfile mientras editabas; los cambios de abajo NO se guardaron.",
+  "Its current contents on the server are:": "Su contenido actual en el servidor es:", "It was deleted on the server.": "Se eliminó en el servidor.",
+  "Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.": "Tus ediciones de abajo no se modificaron. Compáralas con el contenido actual de arriba, reconcilia los cambios manualmente y vuelve a guardar.",
+  "Load the current version": "Cargar la versión actual", "Available from a terminal": "Disponible desde una terminal",
+  "Runs on any static host, including free ones. Nothing dynamic survives the export.": "Funciona en cualquier alojamiento estático, incluso gratuito. Nada dinámico se conserva al exportar.",
+  "View Static Site details": "Ver detalles del sitio estático", "Not wired up yet": "Aún no está conectado",
+  "Needs a host to run on — provider setup is planned, not wired up yet.": "Necesita un alojamiento para ejecutarse; la configuración del proveedor está prevista, pero aún no está conectada.",
+  "View Full Site details": "Ver detalles del sitio completo", Set: "Configurada", Routes: "Rutas", succeeded: "correctas", failed: "fallidas", "Written to": "Escrito en", "Failed routes": "Rutas fallidas", "Failed assets": "Recursos fallidos",
+  "Tovu writes every published post, the home page, products and theme pages into the folder you name.": "Tovu escribe cada publicación publicada, la página de inicio, los productos y las páginas del tema en la carpeta que indiques.",
+  "Copy the export command": "Copiar el comando de exportación", "Replace <dir> with the folder to write into. It is a required argument — there is no default.": "Reemplaza <dir> por la carpeta donde escribir. Es un argumento obligatorio; no hay valor predeterminado.",
+  "Overwrite existing files in the output folder": "Sobrescribir archivos existentes en la carpeta de salida", "Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently.": "Está desactivado de forma predeterminada. El exportador no escribe en una carpeta no vacía salvo que se marque esta opción; nunca elimina archivos desconocidos en silencio.",
+  "Exporting…": "Exportando…", "Detected on this server": "Detectado en este servidor", "Not detected on this server": "No detectado en este servidor", "Checking…": "Comprobando…", "Getting it online": "Publicarlo en línea",
+  "The export is just a folder of files. Pick where it goes, then either let the assistant drive the CLI or publish straight from here.": "La exportación es solo una carpeta de archivos. Elige dónde va y deja que el asistente use la CLI o publícala directamente desde aquí.",
+  "Publish target": "Destino de publicación", Connected: "Conectado", "Fastest — ask the assistant": "Lo más rápido: pide al asistente",
+  "Tovu's assistant runs as a command-line coding agent with its own shell, so it can drive this tool to publish the export for you — nothing to paste here, and no credentials stored.": "El asistente de Tovu se ejecuta como agente de programación de línea de comandos con su propia consola, por lo que puede usar esta herramienta para publicar la exportación por ti; no hay nada que pegar ni credenciales almacenadas.",
+  or: "o", "Need to save more than one token, rename one, or manage every saved credential in one place?": "¿Necesitas guardar más de un token, cambiarle el nombre o administrar todas las credenciales guardadas en un lugar?", "Create access token": "Crear token de acceso", "Loading credentials…": "Cargando credenciales…", "Account ID": "ID de cuenta", "Shown on your Cloudflare dashboard's own sidebar.": "Se muestra en la barra lateral de tu panel de Cloudflare.", connected: "conectado como", Verify: "Verificar", "Verifying…": "Verificando…", "Which saved token publishes": "Qué token guardado publica", "This workspace has more than one saved": "Este espacio de trabajo tiene más de un", "token. Pick which one Tovu publishes with.": "token guardado. Elige cuál usa Tovu para publicar.", "GitHub owner or org": "Propietario u organización de GitHub", Repository: "Repositorio", "Branch (optional)": "Rama (opcional)", "Vercel team (optional)": "Equipo de Vercel (opcional)", "Publishing…": "Publicando…", "This is immediately live on the public internet once it finishes — there is no draft or review step.": "Esto estará en Internet públicamente en cuanto termine; no hay borrador ni paso de revisión.", "Where this publish goes": "Dónde se publica", "The account above only proves you're allowed to publish — this says exactly where this one goes.": "La cuenta anterior solo demuestra que puedes publicar; esto indica exactamente dónde se publica.", "Base path": "Ruta base", "None — serves from the domain root": "Ninguna: se sirve desde la raíz del dominio", Credential: "Credencial", "Published:": "Publicado:",
+};
+
+/**
+ * Locale-specific values for the publishing UI additions above.  Keeping the values in the same
+ * order as DEPLOYMENT_AUDIT_STRINGS makes it much harder for a future addition to miss a locale;
+ * auditTranslationEntries rejects an incomplete row during module initialisation instead of
+ * silently falling back to English.
+ */
+function auditTranslationEntries(entries: readonly string[]): Record<string, string> {
+  const keys = Object.keys(DEPLOYMENT_AUDIT_STRINGS);
+  if (entries.length !== keys.length) {
+    throw new Error(`Deployment audit translation has ${entries.length} entries; expected ${keys.length}.`);
+  }
+  return Object.fromEntries(keys.map((key, index) => [key, entries[index]]));
+}
+
+const DEPLOYMENT_AUDIT_TRANSLATIONS: Record<string, Record<string, string>> = {
+  en: DEPLOYMENT_AUDIT_STRINGS,
+  es: DEPLOYMENT_AUDIT_ES,
+  id: auditTranslationEntries([
+    "{count} baris", "Tidak didukung", "Didukung", "Belum ada Dockerfile", "Orang lain menyimpan versi Dockerfile yang berbeda saat Anda mengedit — perubahan Anda di bawah TIDAK disimpan.", "Isi saat ini di server adalah:", "File itu dihapus di server.", "Suntingan Anda di bawah tidak berubah. Bandingkan dengan isi saat ini di atas, selaraskan secara manual, lalu Simpan lagi.", "Muat versi saat ini", "Tersedia dari terminal", "Berjalan di host statis apa pun, termasuk yang gratis. Tidak ada yang dinamis yang bertahan setelah ekspor.", "Lihat detail Situs Statis", "Belum terhubung", "Memerlukan host untuk berjalan — penyiapan penyedia direncanakan, tetapi belum terhubung.", "Lihat detail Situs Lengkap", "Diatur", "Rute", "berhasil", "gagal", "Ditulis ke", "Rute gagal", "Aset gagal", "Tovu menulis setiap pos yang diterbitkan, halaman utama, produk, dan halaman tema ke dalam folder yang Anda namai.", "Salin perintah ekspor", "Ganti <dir> dengan folder tujuan penulisan. Ini argumen wajib — tidak ada nilai bawaan.", "Timpa file yang ada di folder keluaran", "Nonaktif secara bawaan. Pengekspor menolak menulis ke folder yang tidak kosong kecuali ini dicentang — ia tidak pernah menghapus file yang tidak dikenal secara diam-diam.", "Mengekspor…", "Terdeteksi di server ini", "Tidak terdeteksi di server ini", "Memeriksa…", "Membawanya online", "Ekspor hanyalah folder berisi file. Pilih tujuannya, lalu biarkan asisten menjalankan CLI atau terbitkan langsung dari sini.", "Target publikasi", "Terhubung", "Paling cepat — tanyakan asisten", "Asisten Tovu berjalan sebagai agen pemrograman baris perintah dengan shell sendiri, sehingga dapat menjalankan alat ini untuk menerbitkan ekspor bagi Anda — tidak perlu menempelkan apa pun di sini, dan tidak ada kredensial yang disimpan.", "atau", "Perlu menyimpan lebih dari satu token, mengganti namanya, atau mengelola semua kredensial tersimpan di satu tempat?", "Buat token akses", "Memuat kredensial…", "ID akun", "Ditampilkan di bilah sisi dasbor Cloudflare Anda sendiri.", "terhubung sebagai", "Verifikasi", "Memverifikasi…", "Token tersimpan mana yang menerbitkan", "Ruang kerja ini memiliki lebih dari satu", "token tersimpan. Pilih token yang digunakan Tovu untuk menerbitkan.", "Pemilik atau organisasi GitHub", "Repositori", "Branch (opsional)", "Tim Vercel (opsional)", "Menerbitkan…", "Ini langsung aktif di internet publik setelah selesai — tidak ada tahap draf atau peninjauan.", "Tujuan publikasi ini", "Akun di atas hanya membuktikan bahwa Anda diizinkan menerbitkan — ini menjelaskan tepatnya tujuan publikasi ini.", "Jalur dasar", "Tidak ada — disajikan dari akar domain", "Kredensial", "Diterbitkan:" 
+  ]),
+  de: auditTranslationEntries([
+    "{count} Zeilen", "Nicht unterstützt", "Unterstützt", "Noch kein Dockerfile", "Während Sie dieses Dockerfile bearbeitet haben, hat jemand anderes eine andere Version gespeichert — Ihre Änderungen unten wurden NICHT gespeichert.", "Der aktuelle Inhalt auf dem Server ist:", "Es wurde auf dem Server gelöscht.", "Ihre eigenen Änderungen unten sind unverändert. Vergleichen Sie sie mit dem aktuellen Inhalt oben, führen Sie sie von Hand zusammen und speichern Sie dann erneut.", "Aktuelle Version laden", "Über ein Terminal verfügbar", "Läuft auf jedem statischen Host, auch auf kostenlosen. Beim Export bleibt nichts Dynamisches erhalten.", "Details der statischen Website anzeigen", "Noch nicht verbunden", "Benötigt einen Host zum Ausführen — die Anbieter-Einrichtung ist geplant, aber noch nicht verbunden.", "Details der vollständigen Website anzeigen", "Festgelegt", "Routen", "erfolgreich", "fehlgeschlagen", "Geschrieben nach", "Fehlgeschlagene Routen", "Fehlgeschlagene Assets", "Tovu schreibt jeden veröffentlichten Beitrag, die Startseite, Produkte und Themenseiten in den von Ihnen benannten Ordner.", "Exportbefehl kopieren", "Ersetzen Sie <dir> durch den Ordner, in den geschrieben werden soll. Dies ist ein Pflichtargument — es gibt keinen Standardwert.", "Vorhandene Dateien im Ausgabeordner überschreiben", "Standardmäßig aus. Der Exporter weigert sich, in einen nicht leeren Ordner zu schreiben, solange dies nicht aktiviert ist — unbekannte Dateien werden niemals stillschweigend gelöscht.", "Wird exportiert…", "Auf diesem Server erkannt", "Auf diesem Server nicht erkannt", "Wird geprüft…", "Online bringen", "Der Export ist nur ein Ordner mit Dateien. Wählen Sie sein Ziel und lassen Sie entweder den Assistenten die CLI steuern oder veröffentlichen Sie direkt von hier.", "Veröffentlichungsziel", "Verbunden", "Am schnellsten — fragen Sie den Assistenten", "Tovus Assistent läuft als programmierender Befehlszeilen-Agent mit eigener Shell und kann dieses Werkzeug nutzen, um den Export für Sie zu veröffentlichen — hier ist nichts einzufügen und es werden keine Zugangsdaten gespeichert.", "oder", "Möchten Sie mehr als einen Token speichern, einen umbenennen oder alle gespeicherten Zugangsdaten an einem Ort verwalten?", "Zugriffstoken erstellen", "Zugangsdaten werden geladen…", "Konto-ID", "Wird in der eigenen Seitenleiste Ihres Cloudflare-Dashboards angezeigt.", "verbunden als", "Überprüfen", "Wird überprüft…", "Welcher gespeicherte Token veröffentlicht", "Dieser Arbeitsbereich hat mehr als einen gespeicherten", "Token. Wählen Sie, welchen Tovu zum Veröffentlichen verwendet.", "GitHub-Inhaber oder -Organisation", "Repository", "Branch (optional)", "Vercel-Team (optional)", "Wird veröffentlicht…", "Sobald dies fertig ist, ist es sofort im öffentlichen Internet verfügbar — es gibt keinen Entwurfs- oder Prüfschritt.", "Wohin diese Veröffentlichung geht", "Das Konto oben beweist nur, dass Sie veröffentlichen dürfen — dies zeigt genau, wohin diese Veröffentlichung geht.", "Basispfad", "Keiner — wird vom Stammverzeichnis der Domain bereitgestellt", "Zugangsdaten", "Veröffentlicht:"
+  ]),
+  fr: auditTranslationEntries([
+    "{count} lignes", "Non pris en charge", "Pris en charge", "Pas encore de Dockerfile", "Quelqu’un d’autre a enregistré une version différente de ce Dockerfile pendant que vous le modifiiez — vos modifications ci-dessous n’ont PAS été enregistrées.", "Son contenu actuel sur le serveur est :", "Il a été supprimé sur le serveur.", "Vos propres modifications ci-dessous sont intactes. Comparez-les au contenu actuel ci-dessus, réconciliez-les à la main, puis enregistrez à nouveau.", "Charger la version actuelle", "Disponible depuis un terminal", "Fonctionne sur n’importe quel hébergeur statique, y compris gratuit. Rien de dynamique ne survit à l’exportation.", "Voir les détails du site statique", "Pas encore connecté", "Nécessite un hébergeur pour fonctionner — la configuration du fournisseur est prévue, mais pas encore connectée.", "Voir les détails du site complet", "Défini", "Routes", "réussi", "échoué", "Écrit dans", "Routes échouées", "Ressources échouées", "Tovu écrit chaque publication, la page d’accueil, les produits et les pages de thème publiés dans le dossier que vous indiquez.", "Copier la commande d’exportation", "Remplacez <dir> par le dossier dans lequel écrire. C’est un argument obligatoire — il n’y a pas de valeur par défaut.", "Écraser les fichiers existants dans le dossier de sortie", "Désactivé par défaut. L’exportateur refuse d’écrire dans un dossier non vide sauf si cette option est cochée — il ne supprime jamais silencieusement des fichiers inconnus.", "Exportation…", "Détecté sur ce serveur", "Non détecté sur ce serveur", "Vérification…", "Mettre en ligne", "L’exportation n’est qu’un dossier de fichiers. Choisissez où elle va, puis laissez l’assistant piloter la CLI ou publiez directement depuis ici.", "Cible de publication", "Connecté", "Le plus rapide — demandez à l’assistant", "L’assistant de Tovu s’exécute comme un agent de programmation en ligne de commande avec son propre shell ; il peut donc utiliser cet outil pour publier l’exportation pour vous — rien à coller ici et aucun identifiant stocké.", "ou", "Besoin d’enregistrer plus d’un jeton, d’en renommer un ou de gérer tous les identifiants enregistrés au même endroit ?", "Créer un jeton d’accès", "Chargement des identifiants…", "ID de compte", "Affiché dans la barre latérale de votre propre tableau de bord Cloudflare.", "connecté en tant que", "Vérifier", "Vérification…", "Quel jeton enregistré publie", "Cet espace de travail contient plus d’un", "jeton enregistré. Choisissez celui que Tovu utilise pour publier.", "Propriétaire ou organisation GitHub", "Dépôt", "Branche (facultatif)", "Équipe Vercel (facultatif)", "Publication…", "Ce sera immédiatement en ligne sur Internet public une fois terminé — il n’y a aucune étape de brouillon ou de révision.", "Où va cette publication", "Le compte ci-dessus prouve seulement que vous êtes autorisé à publier — ceci indique exactement où va celle-ci.", "Chemin de base", "Aucun — servi depuis la racine du domaine", "Identifiant", "Publié :"
+  ]),
+  it: auditTranslationEntries([
+    "{count} righe", "Non supportato", "Supportato", "Nessun Dockerfile ancora", "Qualcun altro ha salvato una versione diversa di questo Dockerfile mentre lo modificavi — le modifiche qui sotto NON sono state salvate.", "Il contenuto attuale sul server è:", "È stato eliminato sul server.", "Le tue modifiche qui sotto sono intatte. Confrontale con il contenuto attuale sopra, riconciliale a mano, quindi salva di nuovo.", "Carica la versione attuale", "Disponibile da un terminale", "Funziona su qualsiasi host statico, inclusi quelli gratuiti. Nulla di dinamico sopravvive all’esportazione.", "Visualizza i dettagli del sito statico", "Non ancora collegato", "Richiede un host su cui eseguire — la configurazione del provider è pianificata, ma non ancora collegata.", "Visualizza i dettagli del sito completo", "Impostato", "Percorsi", "riuscito", "non riuscito", "Scritto in", "Percorsi non riusciti", "Risorse non riuscite", "Tovu scrive ogni post pubblicato, la home page, i prodotti e le pagine del tema nella cartella che indichi.", "Copia il comando di esportazione", "Sostituisci <dir> con la cartella in cui scrivere. È un argomento obbligatorio — non esiste un valore predefinito.", "Sovrascrivi i file esistenti nella cartella di output", "Disattivato per impostazione predefinita. L’esportatore rifiuta di scrivere in una cartella non vuota a meno che questa opzione non sia selezionata — non elimina mai silenziosamente file sconosciuti.", "Esportazione…", "Rilevato su questo server", "Non rilevato su questo server", "Verifica…", "Mettilo online", "L’esportazione è solo una cartella di file. Scegli dove va, poi lascia che l’assistente gestisca la CLI oppure pubblica direttamente da qui.", "Destinazione di pubblicazione", "Connesso", "Più veloce — chiedi all’assistente", "L’assistente di Tovu funziona come agente di programmazione da riga di comando con una shell propria, quindi può usare questo strumento per pubblicare l’esportazione per te — qui non c’è nulla da incollare e non vengono salvate credenziali.", "oppure", "Devi salvare più di un token, rinominarne uno o gestire tutte le credenziali salvate in un unico posto?", "Crea token di accesso", "Caricamento credenziali…", "ID account", "Mostrato nella barra laterale della tua dashboard Cloudflare.", "connesso come", "Verifica", "Verifica in corso…", "Quale token salvato pubblica", "Questo spazio di lavoro ha più di un", "token salvato. Scegli quale usa Tovu per pubblicare.", "Proprietario o organizzazione GitHub", "Repository", "Ramo (facoltativo)", "Team Vercel (facoltativo)", "Pubblicazione…", "Sarà immediatamente online su Internet pubblico al termine — non esiste una fase di bozza o revisione.", "Dove va questa pubblicazione", "L’account sopra dimostra solo che puoi pubblicare — questo indica esattamente dove va questa pubblicazione.", "Percorso di base", "Nessuno — servito dalla radice del dominio", "Credenziale", "Pubblicato:"
+  ]),
+  "pt-BR": auditTranslationEntries([
+    "{count} linhas", "Não compatível", "Compatível", "Ainda não há Dockerfile", "Outra pessoa salvou uma versão diferente deste Dockerfile enquanto você editava — suas alterações abaixo NÃO foram salvas.", "O conteúdo atual no servidor é:", "Ele foi excluído no servidor.", "Suas próprias edições abaixo permanecem intactas. Compare-as com o conteúdo atual acima, reconcilie manualmente e salve novamente.", "Carregar a versão atual", "Disponível em um terminal", "Funciona em qualquer hospedagem estática, inclusive gratuita. Nada dinâmico sobrevive à exportação.", "Ver detalhes do site estático", "Ainda não conectado", "Precisa de uma hospedagem para executar — a configuração do provedor está planejada, mas ainda não está conectada.", "Ver detalhes do site completo", "Definido", "Rotas", "bem-sucedido", "falhou", "Gravado em", "Rotas com falha", "Recursos com falha", "O Tovu grava cada post publicado, a página inicial, os produtos e as páginas do tema na pasta que você nomear.", "Copiar o comando de exportação", "Substitua <dir> pela pasta onde gravar. É um argumento obrigatório — não há padrão.", "Substituir arquivos existentes na pasta de saída", "Desativado por padrão. O exportador se recusa a gravar em uma pasta não vazia a menos que isto seja marcado — ele nunca exclui arquivos desconhecidos silenciosamente.", "Exportando…", "Detectado neste servidor", "Não detectado neste servidor", "Verificando…", "Colocar online", "A exportação é apenas uma pasta de arquivos. Escolha para onde ela vai e deixe o assistente controlar a CLI ou publique diretamente daqui.", "Destino de publicação", "Conectado", "Mais rápido — peça ao assistente", "O assistente do Tovu funciona como um agente de programação de linha de comando com seu próprio shell, por isso pode usar esta ferramenta para publicar a exportação para você — nada para colar aqui e nenhuma credencial armazenada.", "ou", "Precisa salvar mais de um token, renomear um ou gerenciar todas as credenciais salvas em um só lugar?", "Criar token de acesso", "Carregando credenciais…", "ID da conta", "Exibido na própria barra lateral do seu painel do Cloudflare.", "conectado como", "Verificar", "Verificando…", "Qual token salvo publica", "Este espaço de trabalho tem mais de um", "token salvo. Escolha qual o Tovu usa para publicar.", "Proprietário ou organização do GitHub", "Repositório", "Branch (opcional)", "Equipe Vercel (opcional)", "Publicando…", "Isto fica imediatamente ativo na internet pública quando termina — não há etapa de rascunho ou revisão.", "Para onde vai esta publicação", "A conta acima apenas prova que você tem permissão para publicar — isto informa exatamente para onde esta publicação vai.", "Caminho base", "Nenhum — servido a partir da raiz do domínio", "Credencial", "Publicado:"
+  ]),
+  "zh-CN": auditTranslationEntries([
+    "{count} 行", "不支持", "支持", "尚无 Dockerfile", "您编辑此 Dockerfile 时，其他人保存了不同版本——您下方的更改未保存。", "服务器上的当前内容为：", "它已在服务器上删除。", "您下方的编辑未受影响。请与上方当前内容比较，手动协调后再次保存。", "加载当前版本", "可在终端中使用", "可在任何静态主机上运行，包括免费主机。导出后不会保留任何动态内容。", "查看静态站点详情", "尚未连接", "需要主机才能运行——已计划配置提供商，但尚未连接。", "查看完整站点详情", "已设置", "路由", "成功", "失败", "写入到", "失败的路由", "失败的资源", "Tovu 会将每篇已发布文章、主页、产品和主题页面写入您指定的文件夹。", "复制导出命令", "将 <dir> 替换为要写入的文件夹。这是必填参数——没有默认值。", "覆盖输出文件夹中的现有文件", "默认关闭。除非选中此项，否则导出器拒绝写入非空文件夹——它绝不会悄悄删除未知文件。", "正在导出…", "已在此服务器上检测到", "未在此服务器上检测到", "正在检查…", "上线发布", "导出只是一个文件夹。选择其去向，然后让助手操作 CLI，或直接在此发布。", "发布目标", "已连接", "最快方式——询问助手", "Tovu 的助手作为拥有自己 shell 的命令行编程代理运行，因此它可以操作此工具为您发布导出内容——这里无需粘贴任何内容，也不会存储凭据。", "或", "需要保存多个令牌、重命名令牌，或在一处管理所有已保存凭据？", "创建访问令牌", "正在加载凭据…", "账户 ID", "显示在您自己的 Cloudflare 仪表板侧边栏中。", "连接为", "验证", "正在验证…", "哪个已保存令牌用于发布", "此工作区保存了多个", "令牌。请选择 Tovu 用于发布的令牌。", "GitHub 所有者或组织", "仓库", "分支（可选）", "Vercel 团队（可选）", "正在发布…", "完成后会立即在公共互联网上上线——没有草稿或审核步骤。", "此次发布的去向", "上方账户仅证明您有发布权限——这里明确说明此次发布的确切去向。", "基础路径", "无——从域名根目录提供服务", "凭据", "已发布："
+  ]),
+  "zh-TW": auditTranslationEntries([
+    "{count} 行", "不支援", "支援", "尚無 Dockerfile", "您編輯此 Dockerfile 時，其他人儲存了不同版本——您下方的變更未儲存。", "伺服器上的目前內容為：", "它已在伺服器上刪除。", "您下方的編輯未受影響。請與上方目前內容比較，手動協調後再次儲存。", "載入目前版本", "可從終端機使用", "可在任何靜態主機上執行，包括免費主機。匯出後不會保留任何動態內容。", "檢視靜態網站詳細資料", "尚未連線", "需要主機才能執行——已規劃設定供應商，但尚未連線。", "檢視完整網站詳細資料", "已設定", "路由", "成功", "失敗", "寫入至", "失敗的路由", "失敗的資源", "Tovu 會將每篇已發佈文章、首頁、產品和佈景主題頁面寫入您指定的資料夾。", "複製匯出命令", "將 <dir> 替換為要寫入的資料夾。這是必要引數——沒有預設值。", "覆寫輸出資料夾中的現有檔案", "預設為關閉。除非勾選此項，否則匯出工具會拒絕寫入非空資料夾——它絕不會悄悄刪除未知檔案。", "正在匯出…", "已在此伺服器上偵測到", "未在此伺服器上偵測到", "正在檢查…", "上線發佈", "匯出只是一個檔案資料夾。選擇其去向，然後讓助理操作 CLI，或直接從這裡發佈。", "發佈目標", "已連線", "最快方式——詢問助理", "Tovu 的助理以擁有自己 shell 的命令列程式設計代理身分執行，因此可以操作此工具為您發佈匯出內容——這裡無需貼上任何內容，也不會儲存憑證。", "或", "需要儲存多個權杖、重新命名權杖，或在一處管理所有已儲存憑證嗎？", "建立存取權杖", "正在載入憑證…", "帳戶 ID", "顯示在您自己的 Cloudflare 儀表板側邊欄中。", "連線身分", "驗證", "正在驗證…", "哪個已儲存權杖用於發佈", "此工作區儲存了多個", "權杖。請選擇 Tovu 用於發佈的權杖。", "GitHub 擁有者或組織", "儲存庫", "分支（選用）", "Vercel 團隊（選用）", "正在發佈…", "完成後會立即在公開網際網路上線——沒有草稿或審核步驟。", "此次發佈的去向", "上方帳戶僅證明您有發佈權限——這裡明確說明此次發佈的確切去向。", "基礎路徑", "無——從網域根目錄提供服務", "憑證", "已發佈："
+  ]),
+  ja: auditTranslationEntries([
+    "{count} 行", "非対応", "対応", "Dockerfile はまだありません", "編集中に別のユーザーがこの Dockerfile の別バージョンを保存しました。下の変更は保存されていません。", "サーバー上の現在の内容:", "サーバー上で削除されました。", "下の編集内容はそのままです。上の現在の内容と比較して手動で調整し、もう一度保存してください。", "現在のバージョンを読み込む", "ターミナルから利用可能", "無料のものを含む任意の静的ホストで動作します。エクスポート後に動的な機能は残りません。", "静的サイトの詳細を見る", "まだ接続されていません", "実行するにはホストが必要です。プロバイダー設定は予定されていますが、まだ接続されていません。", "完全なサイトの詳細を見る", "設定済み", "ルート", "成功", "失敗", "書き込み先", "失敗したルート", "失敗したアセット", "Tovu は公開済みの各投稿、ホームページ、商品、テーマページを指定したフォルダーに書き出します。", "エクスポートコマンドをコピー", "<dir> を書き込み先フォルダーに置き換えてください。必須の引数で、既定値はありません。", "出力フォルダー内の既存ファイルを上書きする", "既定ではオフです。これを選択しない限り、エクスポーターは空でないフォルダーへの書き込みを拒否します。不明なファイルを黙って削除することはありません。", "エクスポート中…", "このサーバーで検出", "このサーバーでは未検出", "確認中…", "オンラインにする", "エクスポートは単なるファイルフォルダーです。保存先を選び、アシスタントに CLI を操作させるか、ここから直接公開します。", "公開先", "接続済み", "最速 — アシスタントに依頼", "Tovu のアシスタントは専用シェルを持つコマンドラインのコーディングエージェントとして動作するため、このツールでエクスポートを公開できます。ここに貼り付けるものはなく、資格情報も保存されません。", "または", "複数のトークンを保存、名前変更、または保存済み資格情報を一か所で管理しますか？", "アクセストークンを作成", "資格情報を読み込み中…", "アカウント ID", "Cloudflare ダッシュボードのサイドバーに表示されます。", "接続先", "検証", "検証中…", "どの保存済みトークンで公開するか", "このワークスペースには複数の保存済み", "トークンがあります。Tovu が公開に使うものを選んでください。", "GitHub 所有者または組織", "リポジトリ", "ブランチ（任意）", "Vercel チーム（任意）", "公開中…", "完了するとすぐに公開インターネット上で公開されます。下書きやレビューの手順はありません。", "この公開先", "上のアカウントは公開の権限を示すだけです。ここでは今回の公開先を正確に指定します。", "ベースパス", "なし — ドメインのルートから提供", "資格情報", "公開済み:"
+  ]),
+  ko: auditTranslationEntries([
+    "{count}줄", "지원되지 않음", "지원됨", "Dockerfile이 아직 없습니다", "편집하는 동안 다른 사용자가 이 Dockerfile의 다른 버전을 저장했습니다. 아래 변경 사항은 저장되지 않았습니다.", "서버의 현재 내용:", "서버에서 삭제되었습니다.", "아래의 편집 내용은 그대로입니다. 위의 현재 내용과 비교하여 수동으로 조정한 후 다시 저장하세요.", "현재 버전 불러오기", "터미널에서 사용 가능", "무료 호스트를 포함한 모든 정적 호스트에서 실행됩니다. 내보낸 뒤에는 동적 기능이 남지 않습니다.", "정적 사이트 세부 정보 보기", "아직 연결되지 않음", "실행하려면 호스트가 필요합니다. 제공업체 설정은 계획되어 있지만 아직 연결되지 않았습니다.", "전체 사이트 세부 정보 보기", "설정됨", "경로", "성공", "실패", "작성 위치", "실패한 경로", "실패한 자산", "Tovu는 게시된 모든 글, 홈 페이지, 제품 및 테마 페이지를 지정한 폴더에 씁니다.", "내보내기 명령 복사", "<dir>을 쓸 폴더로 바꾸세요. 필수 인수이며 기본값은 없습니다.", "출력 폴더의 기존 파일 덮어쓰기", "기본적으로 꺼져 있습니다. 이를 선택하지 않으면 내보내기가 비어 있지 않은 폴더에 쓰기를 거부하며, 알 수 없는 파일을 조용히 삭제하지 않습니다.", "내보내는 중…", "이 서버에서 감지됨", "이 서버에서 감지되지 않음", "확인 중…", "온라인으로 게시", "내보내기는 파일 폴더일 뿐입니다. 위치를 선택한 후 도우미가 CLI를 실행하게 하거나 여기에서 바로 게시하세요.", "게시 대상", "연결됨", "가장 빠른 방법 — 도우미에게 요청", "Tovu 도우미는 자체 셸을 가진 명령줄 코딩 에이전트로 실행되므로 이 도구를 사용해 내보내기를 게시할 수 있습니다. 여기에 붙여 넣을 내용도 없고 자격 증명도 저장되지 않습니다.", "또는", "토큰을 둘 이상 저장하거나 이름을 바꾸거나, 저장된 모든 자격 증명을 한 곳에서 관리해야 하나요?", "액세스 토큰 만들기", "자격 증명 불러오는 중…", "계정 ID", "Cloudflare 대시보드의 자체 사이드바에 표시됩니다.", "다음으로 연결됨", "확인", "확인 중…", "어떤 저장된 토큰으로 게시할지", "이 작업 공간에는 저장된", "토큰이 둘 이상 있습니다. Tovu가 게시에 사용할 토큰을 선택하세요.", "GitHub 소유자 또는 조직", "리포지토리", "브랜치(선택 사항)", "Vercel 팀(선택 사항)", "게시 중…", "완료되면 즉시 공개 인터넷에 게시됩니다. 초안이나 검토 단계는 없습니다.", "이번 게시의 대상", "위 계정은 게시 권한이 있음을 증명할 뿐입니다. 여기에서 이번 게시가 정확히 어디로 가는지 지정합니다.", "기본 경로", "없음 — 도메인 루트에서 제공", "자격 증명", "게시됨:"
+  ]),
+};
+
+/** Runtime dictionary keys returned by deployment rules and hooks. */
+const DEPLOYMENT_CANDIDATE_GAP_STRINGS: Record<string, string> = {
+  "This connection was already saved — reload the page and try again.": "This connection was already saved — reload the page and try again.",
+  "Unknown error": "Unknown error",
+  "Pages, posts & products": "Pages, posts & products",
+  "Checkout & orders": "Checkout & orders",
+  "Admin panel, online": "Admin panel, online",
+  "AI assistant": "AI assistant",
+  "Commit message": "Commit message",
+  "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Used as the commit message when Tovu pushes the export to the gh-pages branch.",
+  "Vercel project name": "Vercel project name",
+  "Vercel finds or creates a project with this name on every publish.": "Vercel finds or creates a project with this name on every publish.",
+  "Site name": "Site name",
+  "Netlify finds or creates a site with this name on every publish.": "Netlify finds or creates a site with this name on every publish.",
+  "Project name": "Project name",
+  "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages finds or creates a project with this name on every publish.",
+  "Not started": "Not started",
+  "Export failed": "Export failed",
+  "Finished with failures": "Finished with failures",
+  "Export finished": "Export finished",
+  "Publish failed": "Publish failed",
+  "Creates the repo, pushes the exported folder, and switches GitHub Pages on.": "Creates the repo, pushes the exported folder, and switches GitHub Pages on.",
+  "Deploys the exported folder straight to Vercel.": "Deploys the exported folder straight to Vercel.",
+  "Copy this request to the assistant (GitHub CLI)": "Copy this request to the assistant (GitHub CLI)",
+  "Copy this request to the assistant (Vercel CLI)": "Copy this request to the assistant (Vercel CLI)",
+  'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.': 'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.',
+  "An access token from your Vercel account.": "An access token from your Vercel account.",
+  "A personal access token from your Netlify account.": "A personal access token from your Netlify account.",
+  "Needs an API token with Cloudflare Pages Edit permission, plus the account ID shown on your Cloudflare dashboard's own sidebar — Cloudflare cannot resolve a project without it.": "Needs an API token with Cloudflare Pages Edit permission, plus the account ID shown on your Cloudflare dashboard's own sidebar — Cloudflare cannot resolve a project without it.",
+  "This workspace can't use your computer's terminal — connecting here is the only way to publish.": "This workspace can't use your computer's terminal — connecting here is the only way to publish.",
+  "Save a personal access token so Tovu can publish on your behalf.": "Save a personal access token so Tovu can publish on your behalf.",
+};
+
+function candidateGapTranslationEntries(entries: readonly string[]): Record<string, string> {
+  const keys = Object.keys(DEPLOYMENT_CANDIDATE_GAP_STRINGS);
+  if (entries.length !== keys.length) {
+    throw new Error(`Deployment candidate translation has ${entries.length} entries; expected ${keys.length}.`);
+  }
+  return Object.fromEntries(keys.map((key, index) => [key, entries[index]]));
+}
+
+const DEPLOYMENT_CANDIDATE_GAP_TRANSLATIONS: Record<string, Record<string, string>> = {
+  en: DEPLOYMENT_CANDIDATE_GAP_STRINGS,
+  es: candidateGapTranslationEntries([
+    "Esta conexión ya se guardó; recarga la página e inténtalo de nuevo.", "Error desconocido", "Páginas, publicaciones y productos", "Pago y pedidos", "Panel de administración, en línea", "Asistente de IA", "Mensaje de confirmación", "Se usa como mensaje de confirmación cuando Tovu envía la exportación a la rama gh-pages.", "Nombre del proyecto de Vercel", "Vercel busca o crea un proyecto con este nombre en cada publicación.", "Nombre del sitio", "Netlify busca o crea un sitio con este nombre en cada publicación.", "Nombre del proyecto", "Cloudflare Pages busca o crea un proyecto con este nombre en cada publicación.", "Sin iniciar", "La exportación falló", "Terminó con errores", "La exportación terminó", "La publicación falló", "Crea el repositorio, envía la carpeta exportada y activa GitHub Pages.", "Publica la carpeta exportada directamente en Vercel.", "Copiar esta solicitud al asistente (GitHub CLI)", "Copiar esta solicitud al asistente (Vercel CLI)", "Necesita un token de acceso personal clásico con el alcance \"repo\", o un token de granularidad fina con permisos Contents y Pages configurados en Read and write.", "Un token de acceso de tu cuenta de Vercel.", "Un token de acceso personal de tu cuenta de Netlify.", "Necesita un token de API con permiso Cloudflare Pages Edit, además del ID de cuenta que aparece en la barra lateral de tu panel de Cloudflare; Cloudflare no puede resolver un proyecto sin él.", "Este espacio de trabajo no puede usar el terminal de tu computadora; conectarte aquí es la única forma de publicar.", "Guarda un token de acceso personal para que Tovu pueda publicar en tu nombre."
+  ]),
+  id: candidateGapTranslationEntries([
+    "Koneksi ini sudah disimpan — muat ulang halaman dan coba lagi.", "Kesalahan tidak diketahui", "Halaman, pos & produk", "Checkout & pesanan", "Panel admin, online", "Asisten AI", "Pesan commit", "Digunakan sebagai pesan commit saat Tovu mendorong ekspor ke branch gh-pages.", "Nama proyek Vercel", "Vercel menemukan atau membuat proyek dengan nama ini setiap kali menerbitkan.", "Nama situs", "Netlify menemukan atau membuat situs dengan nama ini setiap kali menerbitkan.", "Nama proyek", "Cloudflare Pages menemukan atau membuat proyek dengan nama ini setiap kali menerbitkan.", "Belum dimulai", "Ekspor gagal", "Selesai dengan kegagalan", "Ekspor selesai", "Publikasi gagal", "Membuat repo, mendorong folder hasil ekspor, dan menyalakan GitHub Pages.", "Menerapkan folder hasil ekspor langsung ke Vercel.", "Salin permintaan ini ke asisten (GitHub CLI)", "Salin permintaan ini ke asisten (Vercel CLI)", "Memerlukan token akses pribadi klasik dengan cakupan \"repo\", atau token terperinci dengan izin Contents dan Pages yang disetel ke Read and write.", "Token akses dari akun Vercel Anda.", "Token akses pribadi dari akun Netlify Anda.", "Memerlukan token API dengan izin Cloudflare Pages Edit, serta ID akun yang ditampilkan di sidebar dasbor Cloudflare Anda — Cloudflare tidak dapat menentukan proyek tanpa itu.", "Ruang kerja ini tidak dapat menggunakan terminal komputer Anda — menghubungkan di sini adalah satu-satunya cara untuk menerbitkan.", "Simpan token akses pribadi agar Tovu dapat menerbitkan atas nama Anda."
+  ]),
+  de: candidateGapTranslationEntries([
+    "Diese Verbindung wurde bereits gespeichert — laden Sie die Seite neu und versuchen Sie es erneut.", "Unbekannter Fehler", "Seiten, Beiträge und Produkte", "Checkout und Bestellungen", "Admin-Bereich, online", "KI-Assistent", "Commit-Nachricht", "Wird als Commit-Nachricht verwendet, wenn Tovu den Export in den Branch gh-pages pusht.", "Vercel-Projektname", "Vercel findet oder erstellt bei jeder Veröffentlichung ein Projekt mit diesem Namen.", "Website-Name", "Netlify findet oder erstellt bei jeder Veröffentlichung eine Website mit diesem Namen.", "Projektname", "Cloudflare Pages findet oder erstellt bei jeder Veröffentlichung ein Projekt mit diesem Namen.", "Nicht gestartet", "Export fehlgeschlagen", "Mit Fehlern beendet", "Export abgeschlossen", "Veröffentlichung fehlgeschlagen", "Erstellt das Repository, pusht den exportierten Ordner und aktiviert GitHub Pages.", "Stellt den exportierten Ordner direkt bei Vercel bereit.", "Diese Anfrage an den Assistenten kopieren (GitHub CLI)", "Diese Anfrage an den Assistenten kopieren (Vercel CLI)", "Benötigt einen klassischen persönlichen Zugriffstoken mit dem Bereich \"repo\" oder einen feingranularen Token mit den Berechtigungen Contents und Pages auf Read and write.", "Ein Zugriffstoken aus Ihrem Vercel-Konto.", "Ein persönlicher Zugriffstoken aus Ihrem Netlify-Konto.", "Benötigt einen API-Token mit der Berechtigung Cloudflare Pages Edit sowie die Konto-ID aus der Seitenleiste Ihres Cloudflare-Dashboards — ohne sie kann Cloudflare kein Projekt auflösen.", "Dieser Arbeitsbereich kann das Terminal Ihres Computers nicht verwenden — die Verbindung hier ist die einzige Möglichkeit zu veröffentlichen.", "Speichern Sie einen persönlichen Zugriffstoken, damit Tovu in Ihrem Namen veröffentlichen kann."
+  ]),
+  fr: candidateGapTranslationEntries([
+    "Cette connexion est déjà enregistrée — rechargez la page et réessayez.", "Erreur inconnue", "Pages, publications et produits", "Paiement et commandes", "Panneau d’administration, en ligne", "Assistant IA", "Message de commit", "Utilisé comme message de commit lorsque Tovu envoie l’export vers la branche gh-pages.", "Nom du projet Vercel", "Vercel trouve ou crée un projet portant ce nom à chaque publication.", "Nom du site", "Netlify trouve ou crée un site portant ce nom à chaque publication.", "Nom du projet", "Cloudflare Pages trouve ou crée un projet portant ce nom à chaque publication.", "Non démarré", "Échec de l’exportation", "Terminé avec des échecs", "Exportation terminée", "Échec de la publication", "Crée le dépôt, envoie le dossier exporté et active GitHub Pages.", "Déploie directement le dossier exporté sur Vercel.", "Copier cette demande à l’assistant (GitHub CLI)", "Copier cette demande à l’assistant (Vercel CLI)", "Nécessite un jeton d’accès personnel classique avec la portée \"repo\", ou un jeton à granularité fine avec les autorisations Contents et Pages réglées sur Read and write.", "Un jeton d’accès de votre compte Vercel.", "Un jeton d’accès personnel de votre compte Netlify.", "Nécessite un jeton API avec l’autorisation Cloudflare Pages Edit, ainsi que l’ID de compte affiché dans la barre latérale de votre tableau de bord Cloudflare — Cloudflare ne peut pas résoudre un projet sans lui.", "Cet espace de travail ne peut pas utiliser le terminal de votre ordinateur — vous connecter ici est la seule façon de publier.", "Enregistrez un jeton d’accès personnel afin que Tovu puisse publier en votre nom."
+  ]),
+  it: candidateGapTranslationEntries([
+    "Questa connessione è già stata salvata — ricarica la pagina e riprova.", "Errore sconosciuto", "Pagine, post e prodotti", "Checkout e ordini", "Pannello di amministrazione, online", "Assistente IA", "Messaggio di commit", "Usato come messaggio di commit quando Tovu invia l’esportazione al branch gh-pages.", "Nome del progetto Vercel", "Vercel trova o crea un progetto con questo nome a ogni pubblicazione.", "Nome del sito", "Netlify trova o crea un sito con questo nome a ogni pubblicazione.", "Nome del progetto", "Cloudflare Pages trova o crea un progetto con questo nome a ogni pubblicazione.", "Non avviato", "Esportazione non riuscita", "Terminato con errori", "Esportazione terminata", "Pubblicazione non riuscita", "Crea il repository, invia la cartella esportata e attiva GitHub Pages.", "Distribuisce la cartella esportata direttamente su Vercel.", "Copia questa richiesta all’assistente (GitHub CLI)", "Copia questa richiesta all’assistente (Vercel CLI)", "Richiede un token di accesso personale classico con l’ambito \"repo\", oppure un token granulare con i permessi Contents e Pages impostati su Read and write.", "Un token di accesso dal tuo account Vercel.", "Un token di accesso personale dal tuo account Netlify.", "Richiede un token API con il permesso Cloudflare Pages Edit, oltre all’ID account mostrato nella barra laterale del tuo dashboard Cloudflare — Cloudflare non può risolvere un progetto senza di esso.", "Questo spazio di lavoro non può usare il terminale del tuo computer — collegarti qui è l’unico modo per pubblicare.", "Salva un token di accesso personale affinché Tovu possa pubblicare per tuo conto."
+  ]),
+  "pt-BR": candidateGapTranslationEntries([
+    "Esta conexão já foi salva — recarregue a página e tente novamente.", "Erro desconhecido", "Páginas, posts e produtos", "Checkout e pedidos", "Painel administrativo, online", "Assistente de IA", "Mensagem de commit", "Usada como mensagem de commit quando o Tovu envia a exportação para a branch gh-pages.", "Nome do projeto Vercel", "A Vercel encontra ou cria um projeto com este nome em cada publicação.", "Nome do site", "A Netlify encontra ou cria um site com este nome em cada publicação.", "Nome do projeto", "A Cloudflare Pages encontra ou cria um projeto com este nome em cada publicação.", "Não iniciado", "A exportação falhou", "Terminou com falhas", "Exportação concluída", "A publicação falhou", "Cria o repositório, envia a pasta exportada e ativa o GitHub Pages.", "Implanta a pasta exportada diretamente na Vercel.", "Copiar esta solicitação para o assistente (GitHub CLI)", "Copiar esta solicitação para o assistente (Vercel CLI)", "Precisa de um token de acesso pessoal clássico com o escopo \"repo\", ou de um token refinado com as permissões Contents e Pages definidas como Read and write.", "Um token de acesso da sua conta Vercel.", "Um token de acesso pessoal da sua conta Netlify.", "Precisa de um token de API com a permissão Cloudflare Pages Edit, além do ID da conta exibido na barra lateral do seu painel da Cloudflare — a Cloudflare não consegue resolver um projeto sem ele.", "Este espaço de trabalho não pode usar o terminal do seu computador — conectar aqui é a única forma de publicar.", "Salve um token de acesso pessoal para que o Tovu possa publicar em seu nome."
+  ]),
+  "zh-CN": candidateGapTranslationEntries([
+    "此连接已保存——请重新加载页面后重试。", "未知错误", "页面、文章和产品", "结账和订单", "管理面板，在线", "AI 助手", "提交消息", "Tovu 将导出内容推送到 gh-pages 分支时，会使用此消息作为提交消息。", "Vercel 项目名称", "Vercel 会在每次发布时查找或创建使用此名称的项目。", "站点名称", "Netlify 会在每次发布时查找或创建使用此名称的站点。", "项目名称", "Cloudflare Pages 会在每次发布时查找或创建使用此名称的项目。", "尚未开始", "导出失败", "完成但有失败", "导出完成", "发布失败", "创建仓库、推送导出文件夹，并启用 GitHub Pages。", "将导出文件夹直接部署到 Vercel。", "将此请求复制给助手（GitHub CLI）", "将此请求复制给助手（Vercel CLI）", "需要具有 \"repo\" 范围的经典个人访问令牌，或将 Contents 和 Pages 权限设为 Read and write 的细粒度令牌。", "来自您 Vercel 帐户的访问令牌。", "来自您 Netlify 帐户的个人访问令牌。", "需要具有 Cloudflare Pages Edit 权限的 API 令牌，以及 Cloudflare 控制面板侧栏显示的帐户 ID——没有它，Cloudflare 无法解析项目。", "此工作区无法使用您计算机的终端——在此连接是唯一的发布方式。", "保存个人访问令牌，以便 Tovu 代表您发布。"
+  ]),
+  "zh-TW": candidateGapTranslationEntries([
+    "此連線已儲存——請重新載入頁面後再試。", "未知錯誤", "頁面、文章與產品", "結帳與訂單", "管理面板，在線", "AI 助理", "提交訊息", "Tovu 將匯出內容推送至 gh-pages 分支時，會使用此訊息作為提交訊息。", "Vercel 專案名稱", "Vercel 會在每次發佈時尋找或建立使用此名稱的專案。", "網站名稱", "Netlify 會在每次發佈時尋找或建立使用此名稱的網站。", "專案名稱", "Cloudflare Pages 會在每次發佈時尋找或建立使用此名稱的專案。", "尚未開始", "匯出失敗", "完成但有失敗", "匯出完成", "發佈失敗", "建立儲存庫、推送匯出資料夾，並啟用 GitHub Pages。", "將匯出資料夾直接部署到 Vercel。", "將此請求複製給助理（GitHub CLI）", "將此請求複製給助理（Vercel CLI）", "需要具有 \"repo\" 範圍的傳統個人存取權杖，或將 Contents 與 Pages 權限設為 Read and write 的細微權杖。", "您 Vercel 帳戶的存取權杖。", "您 Netlify 帳戶的個人存取權杖。", "需要具有 Cloudflare Pages Edit 權限的 API 權杖，以及 Cloudflare 控制台側欄顯示的帳戶 ID——沒有它，Cloudflare 無法解析專案。", "此工作區無法使用您電腦的終端機——在此連線是唯一的發佈方式。", "儲存個人存取權杖，讓 Tovu 能代表您發佈。"
+  ]),
+  ar: candidateGapTranslationEntries([
+    "تم حفظ هذا الاتصال بالفعل — أعد تحميل الصفحة وحاول مرة أخرى.", "خطأ غير معروف", "الصفحات والمنشورات والمنتجات", "الدفع والطلبات", "لوحة الإدارة، متصلة", "مساعد الذكاء الاصطناعي", "رسالة الالتزام", "تُستخدم كرسالة التزام عندما يدفع Tovu التصدير إلى فرع gh-pages.", "اسم مشروع Vercel", "يعثر Vercel على مشروع بهذا الاسم أو ينشئه عند كل نشر.", "اسم الموقع", "يعثر Netlify على موقع بهذا الاسم أو ينشئه عند كل نشر.", "اسم المشروع", "يعثر Cloudflare Pages على مشروع بهذا الاسم أو ينشئه عند كل نشر.", "لم يبدأ", "فشل التصدير", "انتهى مع إخفاقات", "اكتمل التصدير", "فشل النشر", "ينشئ المستودع ويدفع المجلد المُصدَّر ويفعّل GitHub Pages.", "ينشر المجلد المُصدَّر مباشرةً إلى Vercel.", "انسخ هذا الطلب إلى المساعد (GitHub CLI)", "انسخ هذا الطلب إلى المساعد (Vercel CLI)", "يتطلب رمز وصول شخصياً تقليدياً بنطاق \"repo\"، أو رمزاً دقيق الصلاحيات مع تعيين أذونات Contents وPages إلى Read and write.", "رمز وصول من حساب Vercel الخاص بك.", "رمز وصول شخصي من حساب Netlify الخاص بك.", "يتطلب رمز API مع إذن Cloudflare Pages Edit، بالإضافة إلى معرّف الحساب الظاهر في الشريط الجانبي للوحة Cloudflare الخاصة بك — لا يستطيع Cloudflare حل مشروع بدونه.", "لا يمكن لمساحة العمل هذه استخدام طرفية جهازك — الاتصال هنا هو الطريقة الوحيدة للنشر.", "احفظ رمز وصول شخصياً لكي يتمكن Tovu من النشر نيابةً عنك."
+  ]),
+  bn: candidateGapTranslationEntries([
+    "এই সংযোগটি ইতিমধ্যেই সংরক্ষিত হয়েছে — পৃষ্ঠাটি পুনরায় লোড করে আবার চেষ্টা করুন।", "অজানা ত্রুটি", "পৃষ্ঠা, পোস্ট ও পণ্য", "চেকআউট ও অর্ডার", "অ্যাডমিন প্যানেল, অনলাইন", "AI সহায়ক", "কমিট বার্তা", "Tovu যখন gh-pages শাখায় এক্সপোর্ট পুশ করে, তখন এটি কমিট বার্তা হিসেবে ব্যবহৃত হয়।", "Vercel প্রকল্পের নাম", "Vercel প্রতিটি প্রকাশনার সময় এই নামের একটি প্রকল্প খুঁজে বা তৈরি করে।", "সাইটের নাম", "Netlify প্রতিটি প্রকাশনার সময় এই নামের একটি সাইট খুঁজে বা তৈরি করে।", "প্রকল্পের নাম", "Cloudflare Pages প্রতিটি প্রকাশনার সময় এই নামের একটি প্রকল্প খুঁজে বা তৈরি করে।", "শুরু হয়নি", "এক্সপোর্ট ব্যর্থ হয়েছে", "ব্যর্থতা সহ শেষ হয়েছে", "এক্সপোর্ট শেষ হয়েছে", "প্রকাশনা ব্যর্থ হয়েছে", "রিপোজিটরি তৈরি করে, এক্সপোর্ট করা ফোল্ডার পুশ করে এবং GitHub Pages চালু করে।", "এক্সপোর্ট করা ফোল্ডারটি সরাসরি Vercel-এ ডিপ্লয় করে।", "সহায়কের কাছে এই অনুরোধটি কপি করুন (GitHub CLI)", "সহায়কের কাছে এই অনুরোধটি কপি করুন (Vercel CLI)", "\"repo\" স্কোপসহ একটি ক্লাসিক ব্যক্তিগত অ্যাক্সেস টোকেন, অথবা Contents এবং Pages অনুমতি Read and write-এ সেট করা একটি সূক্ষ্ম-গ্রেইন টোকেন প্রয়োজন।", "আপনার Vercel অ্যাকাউন্টের একটি অ্যাক্সেস টোকেন।", "আপনার Netlify অ্যাকাউন্টের একটি ব্যক্তিগত অ্যাক্সেস টোকেন।", "Cloudflare Pages Edit অনুমতিসহ একটি API টোকেন এবং আপনার Cloudflare ড্যাশবোর্ডের সাইডবারে দেখানো অ্যাকাউন্ট ID প্রয়োজন — এটি ছাড়া Cloudflare একটি প্রকল্প সমাধান করতে পারে না।", "এই কর্মক্ষেত্রটি আপনার কম্পিউটারের টার্মিনাল ব্যবহার করতে পারে না — এখানে সংযুক্ত করাই প্রকাশের একমাত্র উপায়।", "একটি ব্যক্তিগত অ্যাক্সেস টোকেন সংরক্ষণ করুন যাতে Tovu আপনার হয়ে প্রকাশ করতে পারে।"
+  ]),
+  fa: candidateGapTranslationEntries([
+    "این اتصال قبلاً ذخیره شده است — صفحه را دوباره بارگیری کنید و دوباره تلاش کنید.", "خطای ناشناخته", "صفحه‌ها، نوشته‌ها و محصولات", "پرداخت و سفارش‌ها", "پنل مدیریت، آنلاین", "دستیار هوش مصنوعی", "پیام کامیت", "وقتی Tovu خروجی را به شاخه gh-pages پوش می‌کند، از این به‌عنوان پیام کامیت استفاده می‌شود.", "نام پروژه Vercel", "Vercel در هر انتشار پروژه‌ای با این نام پیدا یا ایجاد می‌کند.", "نام سایت", "Netlify در هر انتشار سایتی با این نام پیدا یا ایجاد می‌کند.", "نام پروژه", "Cloudflare Pages در هر انتشار پروژه‌ای با این نام پیدا یا ایجاد می‌کند.", "شروع نشده", "خروجی ناموفق بود", "با خطاها پایان یافت", "خروجی تمام شد", "انتشار ناموفق بود", "مخزن را ایجاد می‌کند، پوشه خروجی را پوش می‌کند و GitHub Pages را روشن می‌کند.", "پوشه خروجی را مستقیماً در Vercel مستقر می‌کند.", "این درخواست را برای دستیار کپی کنید (GitHub CLI)", "این درخواست را برای دستیار کپی کنید (Vercel CLI)", "به یک توکن دسترسی شخصی کلاسیک با دامنه \"repo\"، یا یک توکن ریزدانه با مجوزهای Contents و Pages روی Read and write نیاز دارد.", "یک توکن دسترسی از حساب Vercel شما.", "یک توکن دسترسی شخصی از حساب Netlify شما.", "به یک توکن API با مجوز Cloudflare Pages Edit و شناسه حساب نشان‌داده‌شده در نوار کناری داشبورد Cloudflare شما نیاز دارد — Cloudflare بدون آن نمی‌تواند پروژه‌ای را حل کند.", "این فضای کاری نمی‌تواند از ترمینال رایانه شما استفاده کند — اتصال در اینجا تنها راه انتشار است.", "یک توکن دسترسی شخصی ذخیره کنید تا Tovu بتواند از طرف شما منتشر کند."
+  ]),
+  hi: candidateGapTranslationEntries([
+    "यह कनेक्शन पहले ही सहेजा जा चुका है — पेज फिर से लोड करें और दोबारा कोशिश करें।", "अज्ञात त्रुटि", "पेज, पोस्ट और उत्पाद", "चेकआउट और ऑर्डर", "एडमिन पैनल, ऑनलाइन", "AI सहायक", "कमिट संदेश", "जब Tovu एक्सपोर्ट को gh-pages शाखा में पुश करता है, तो यह कमिट संदेश के रूप में उपयोग होता है।", "Vercel प्रोजेक्ट नाम", "Vercel हर प्रकाशन पर इस नाम से प्रोजेक्ट खोजता या बनाता है।", "साइट नाम", "Netlify हर प्रकाशन पर इस नाम से साइट खोजता या बनाता है।", "प्रोजेक्ट नाम", "Cloudflare Pages हर प्रकाशन पर इस नाम से प्रोजेक्ट खोजता या बनाता है।", "शुरू नहीं हुआ", "एक्सपोर्ट विफल हुआ", "विफलताओं के साथ समाप्त", "एक्सपोर्ट पूरा हुआ", "प्रकाशन विफल हुआ", "रिपॉज़िटरी बनाता है, एक्सपोर्ट किया हुआ फोल्डर पुश करता है और GitHub Pages चालू करता है।", "एक्सपोर्ट किया हुआ फोल्डर सीधे Vercel पर डिप्लॉय करता है।", "इस अनुरोध को सहायक को कॉपी करें (GitHub CLI)", "इस अनुरोध को सहायक को कॉपी करें (Vercel CLI)", "\"repo\" स्कोप वाला क्लासिक व्यक्तिगत एक्सेस टोकन, या Contents और Pages अनुमतियों को Read and write पर सेट किया गया फाइन-ग्रेन्ड टोकन चाहिए।", "आपके Vercel खाते का एक्सेस टोकन।", "आपके Netlify खाते का व्यक्तिगत एक्सेस टोकन।", "Cloudflare Pages Edit अनुमति वाला API टोकन और आपके Cloudflare डैशबोर्ड की साइडबार में दिखाया गया खाता ID चाहिए — इसके बिना Cloudflare प्रोजेक्ट हल नहीं कर सकता।", "यह कार्यक्षेत्र आपके कंप्यूटर का टर्मिनल उपयोग नहीं कर सकता — यहाँ कनेक्ट करना ही प्रकाशित करने का एकमात्र तरीका है।", "व्यक्तिगत एक्सेस टोकन सहेजें ताकि Tovu आपकी ओर से प्रकाशित कर सके।"
+  ]),
+  hu: candidateGapTranslationEntries([
+    "Ez a kapcsolat már el van mentve — töltse újra az oldalt, és próbálja meg újra.", "Ismeretlen hiba", "Oldalak, bejegyzések és termékek", "Pénztár és rendelések", "Adminisztrációs panel, online", "MI-asszisztens", "Commit üzenet", "Ezt használja commit üzenetként, amikor a Tovu az exportot a gh-pages ágba küldi.", "Vercel-projektnév", "A Vercel minden közzétételkor megkeres vagy létrehoz egy ilyen nevű projektet.", "Webhely neve", "A Netlify minden közzétételkor megkeres vagy létrehoz egy ilyen nevű webhelyet.", "Projekt neve", "A Cloudflare Pages minden közzétételkor megkeres vagy létrehoz egy ilyen nevű projektet.", "Nincs elindítva", "Az export sikertelen", "Hibákkal fejeződött be", "Az export befejeződött", "A közzététel sikertelen", "Létrehozza a repót, feltölti az exportált mappát, és bekapcsolja a GitHub Pages szolgáltatást.", "Az exportált mappát közvetlenül a Vercelre telepíti.", "Kérés másolása az asszisztensnek (GitHub CLI)", "Kérés másolása az asszisztensnek (Vercel CLI)", "Klasszikus személyes hozzáférési token szükséges \"repo\" hatókörrel, vagy finomhangolt token, amelynél a Contents és Pages engedélyek Read and write értékre vannak állítva.", "Hozzáférési token a Vercel-fiókjából.", "Személyes hozzáférési token a Netlify-fiókjából.", "Cloudflare Pages Edit engedélyű API-token és a Cloudflare-irányítópult oldalsávjában látható fiókazonosító szükséges — ezek nélkül a Cloudflare nem tud projektet feloldani.", "Ez a munkaterület nem használhatja a számítógépe terminálját — az itt történő csatlakozás az egyetlen közzétételi mód.", "Mentsen személyes hozzáférési tokent, hogy a Tovu az Ön nevében közzétehessen."
+  ]),
+  ja: candidateGapTranslationEntries([
+    "この接続はすでに保存されています。ページを再読み込みして、もう一度お試しください。", "不明なエラー", "ページ、投稿、商品", "チェックアウトと注文", "管理パネル、オンライン", "AI アシスタント", "コミットメッセージ", "Tovu がエクスポートを gh-pages ブランチへプッシュするときのコミットメッセージとして使われます。", "Vercel プロジェクト名", "Vercel は公開のたびにこの名前のプロジェクトを見つけるか作成します。", "サイト名", "Netlify は公開のたびにこの名前のサイトを見つけるか作成します。", "プロジェクト名", "Cloudflare Pages は公開のたびにこの名前のプロジェクトを見つけるか作成します。", "未開始", "エクスポートに失敗しました", "失敗を含めて完了", "エクスポート完了", "公開に失敗しました", "リポジトリを作成し、エクスポートしたフォルダーをプッシュして GitHub Pages を有効にします。", "エクスポートしたフォルダーを Vercel に直接デプロイします。", "このリクエストをアシスタントにコピー (GitHub CLI)", "このリクエストをアシスタントにコピー (Vercel CLI)", "\"repo\" スコープの従来の個人アクセストークン、または Contents と Pages の権限を Read and write に設定したきめ細かいトークンが必要です。", "Vercel アカウントのアクセストークン。", "Netlify アカウントの個人アクセストークン。", "Cloudflare Pages Edit 権限のある API トークンと、Cloudflare ダッシュボードのサイドバーに表示されるアカウント ID が必要です。これがないと Cloudflare はプロジェクトを解決できません。", "このワークスペースではお使いのコンピューターのターミナルを使用できません。ここで接続することが公開する唯一の方法です。", "Tovu がお客様に代わって公開できるように、個人アクセストークンを保存します。"
+  ]),
+  ko: candidateGapTranslationEntries([
+    "이 연결은 이미 저장되었습니다. 페이지를 새로고침한 뒤 다시 시도하세요.", "알 수 없는 오류", "페이지, 게시물 및 제품", "결제 및 주문", "관리자 패널, 온라인", "AI 도우미", "커밋 메시지", "Tovu가 내보내기를 gh-pages 브랜치로 푸시할 때 커밋 메시지로 사용됩니다.", "Vercel 프로젝트 이름", "Vercel은 게시할 때마다 이 이름의 프로젝트를 찾거나 만듭니다.", "사이트 이름", "Netlify는 게시할 때마다 이 이름의 사이트를 찾거나 만듭니다.", "프로젝트 이름", "Cloudflare Pages는 게시할 때마다 이 이름의 프로젝트를 찾거나 만듭니다.", "시작되지 않음", "내보내기 실패", "실패와 함께 완료", "내보내기 완료", "게시 실패", "저장소를 만들고 내보낸 폴더를 푸시한 뒤 GitHub Pages를 켭니다.", "내보낸 폴더를 Vercel에 바로 배포합니다.", "이 요청을 도우미에게 복사 (GitHub CLI)", "이 요청을 도우미에게 복사 (Vercel CLI)", "\"repo\" 범위가 있는 클래식 개인 액세스 토큰 또는 Contents와 Pages 권한이 Read and write로 설정된 세분화된 토큰이 필요합니다.", "Vercel 계정의 액세스 토큰입니다.", "Netlify 계정의 개인 액세스 토큰입니다.", "Cloudflare Pages Edit 권한이 있는 API 토큰과 Cloudflare 대시보드 사이드바에 표시된 계정 ID가 필요합니다. 없으면 Cloudflare에서 프로젝트를 확인할 수 없습니다.", "이 작업 공간은 컴퓨터의 터미널을 사용할 수 없습니다. 여기에서 연결하는 것이 게시하는 유일한 방법입니다.", "Tovu가 사용자를 대신해 게시할 수 있도록 개인 액세스 토큰을 저장하세요."
+  ]),
+  pl: candidateGapTranslationEntries([
+    "To połączenie zostało już zapisane — odśwież stronę i spróbuj ponownie.", "Nieznany błąd", "Strony, wpisy i produkty", "Kasa i zamówienia", "Panel administracyjny, online", "Asystent AI", "Komunikat commitu", "Używane jako komunikat commitu, gdy Tovu wysyła eksport do gałęzi gh-pages.", "Nazwa projektu Vercel", "Vercel przy każdej publikacji znajduje lub tworzy projekt o tej nazwie.", "Nazwa witryny", "Netlify przy każdej publikacji znajduje lub tworzy witrynę o tej nazwie.", "Nazwa projektu", "Cloudflare Pages przy każdej publikacji znajduje lub tworzy projekt o tej nazwie.", "Nie rozpoczęto", "Eksport nie powiódł się", "Zakończono z niepowodzeniami", "Eksport zakończony", "Publikacja nie powiodła się", "Tworzy repozytorium, wysyła wyeksportowany folder i włącza GitHub Pages.", "Wdraża wyeksportowany folder bezpośrednio w Vercel.", "Kopiuj to żądanie do asystenta (GitHub CLI)", "Kopiuj to żądanie do asystenta (Vercel CLI)", "Wymaga klasycznego osobistego tokenu dostępu z zakresem \"repo\" albo szczegółowego tokenu z uprawnieniami Contents i Pages ustawionymi na Read and write.", "Token dostępu z Twojego konta Vercel.", "Osobisty token dostępu z Twojego konta Netlify.", "Wymaga tokenu API z uprawnieniem Cloudflare Pages Edit oraz identyfikatora konta widocznego na pasku bocznym panelu Cloudflare — bez niego Cloudflare nie może rozpoznać projektu.", "Ten obszar roboczy nie może używać terminala Twojego komputera — połączenie tutaj jest jedynym sposobem publikacji.", "Zapisz osobisty token dostępu, aby Tovu mógł publikować w Twoim imieniu."
+  ]),
+  ru: candidateGapTranslationEntries([
+    "Это подключение уже сохранено — перезагрузите страницу и попробуйте снова.", "Неизвестная ошибка", "Страницы, записи и товары", "Оформление заказа и заказы", "Панель администратора, онлайн", "ИИ-помощник", "Сообщение коммита", "Используется как сообщение коммита, когда Tovu отправляет экспорт в ветку gh-pages.", "Название проекта Vercel", "Vercel при каждой публикации находит или создаёт проект с этим именем.", "Название сайта", "Netlify при каждой публикации находит или создаёт сайт с этим именем.", "Название проекта", "Cloudflare Pages при каждой публикации находит или создаёт проект с этим именем.", "Не запущено", "Экспорт не удался", "Завершено с ошибками", "Экспорт завершён", "Публикация не удалась", "Создаёт репозиторий, отправляет экспортированную папку и включает GitHub Pages.", "Развёртывает экспортированную папку непосредственно в Vercel.", "Скопировать этот запрос помощнику (GitHub CLI)", "Скопировать этот запрос помощнику (Vercel CLI)", "Нужен классический персональный токен доступа с областью \"repo\" или детализированный токен с разрешениями Contents и Pages, установленными в Read and write.", "Токен доступа из вашей учётной записи Vercel.", "Персональный токен доступа из вашей учётной записи Netlify.", "Нужен токен API с разрешением Cloudflare Pages Edit и идентификатор учётной записи из боковой панели вашей панели Cloudflare — без него Cloudflare не может определить проект.", "Это рабочее пространство не может использовать терминал вашего компьютера — подключение здесь является единственным способом публикации.", "Сохраните персональный токен доступа, чтобы Tovu мог публиковать от вашего имени."
+  ]),
+  th: candidateGapTranslationEntries([
+    "บันทึกการเชื่อมต่อนี้แล้ว — โหลดหน้าใหม่แล้วลองอีกครั้ง", "ข้อผิดพลาดที่ไม่ทราบสาเหตุ", "หน้า โพสต์ และสินค้า", "ชำระเงินและคำสั่งซื้อ", "แผงผู้ดูแลระบบ ออนไลน์", "ผู้ช่วย AI", "ข้อความคอมมิต", "ใช้เป็นข้อความคอมมิตเมื่อ Tovu พุชการส่งออกไปยังสาขา gh-pages", "ชื่อโปรเจ็กต์ Vercel", "Vercel ค้นหาหรือสร้างโปรเจ็กต์ชื่อนี้ทุกครั้งที่เผยแพร่", "ชื่อเว็บไซต์", "Netlify ค้นหาหรือสร้างเว็บไซต์ชื่อนี้ทุกครั้งที่เผยแพร่", "ชื่อโปรเจ็กต์", "Cloudflare Pages ค้นหาหรือสร้างโปรเจ็กต์ชื่อนี้ทุกครั้งที่เผยแพร่", "ยังไม่เริ่ม", "การส่งออกล้มเหลว", "เสร็จสิ้นพร้อมข้อผิดพลาด", "การส่งออกเสร็จสิ้น", "การเผยแพร่ล้มเหลว", "สร้างรีโพซิทอรี พุชโฟลเดอร์ที่ส่งออก และเปิด GitHub Pages", "ปรับใช้โฟลเดอร์ที่ส่งออกไปยัง Vercel โดยตรง", "คัดลอกคำขอนี้ไปยังผู้ช่วย (GitHub CLI)", "คัดลอกคำขอนี้ไปยังผู้ช่วย (Vercel CLI)", "ต้องใช้โทเค็นการเข้าถึงส่วนบุคคลแบบคลาสสิกที่มีขอบเขต \"repo\" หรือโทเค็นแบบละเอียดที่ตั้งค่าสิทธิ์ Contents และ Pages เป็น Read and write", "โทเค็นการเข้าถึงจากบัญชี Vercel ของคุณ", "โทเค็นการเข้าถึงส่วนบุคคลจากบัญชี Netlify ของคุณ", "ต้องใช้โทเค็น API ที่มีสิทธิ์ Cloudflare Pages Edit และ ID บัญชีที่แสดงในแถบด้านข้างของแดชบอร์ด Cloudflare ของคุณ — Cloudflare ไม่สามารถระบุโปรเจ็กต์ได้หากไม่มีสิ่งนี้", "พื้นที่ทำงานนี้ไม่สามารถใช้เทอร์มินัลของคอมพิวเตอร์คุณได้ — การเชื่อมต่อที่นี่เป็นวิธีเดียวในการเผยแพร่", "บันทึกโทเค็นการเข้าถึงส่วนบุคคลเพื่อให้ Tovu เผยแพร่แทนคุณได้"
+  ]),
+  tr: candidateGapTranslationEntries([
+    "Bu bağlantı zaten kaydedildi — sayfayı yeniden yükleyip tekrar deneyin.", "Bilinmeyen hata", "Sayfalar, gönderiler ve ürünler", "Ödeme ve siparişler", "Yönetici paneli, çevrimiçi", "Yapay zekâ asistanı", "Commit mesajı", "Tovu dışa aktarmayı gh-pages dalına gönderdiğinde commit mesajı olarak kullanılır.", "Vercel proje adı", "Vercel her yayında bu adla bir proje bulur veya oluşturur.", "Site adı", "Netlify her yayında bu adla bir site bulur veya oluşturur.", "Proje adı", "Cloudflare Pages her yayında bu adla bir proje bulur veya oluşturur.", "Başlatılmadı", "Dışa aktarma başarısız", "Hatalarla tamamlandı", "Dışa aktarma tamamlandı", "Yayınlama başarısız", "Depoyu oluşturur, dışa aktarılan klasörü gönderir ve GitHub Pages'i açar.", "Dışa aktarılan klasörü doğrudan Vercel'e dağıtır.", "Bu isteği asistana kopyala (GitHub CLI)", "Bu isteği asistana kopyala (Vercel CLI)", "\"repo\" kapsamına sahip klasik bir kişisel erişim belirteci veya Contents ve Pages izinleri Read and write olarak ayarlanmış ayrıntılı bir belirteç gerekir.", "Vercel hesabınızdan bir erişim belirteci.", "Netlify hesabınızdan bir kişisel erişim belirteci.", "Cloudflare Pages Edit iznine sahip bir API belirteci ve Cloudflare panonuzun kenar çubuğunda gösterilen hesap ID'si gerekir — bunlar olmadan Cloudflare bir projeyi çözemaz.", "Bu çalışma alanı bilgisayarınızın terminalini kullanamaz — buradan bağlanmak yayınlamanın tek yoludur.", "Tovu'nun sizin adınıza yayınlayabilmesi için kişisel erişim belirtecini kaydedin."
+  ]),
+  uk: candidateGapTranslationEntries([
+    "Це підключення вже збережено — перезавантажте сторінку й спробуйте ще раз.", "Невідома помилка", "Сторінки, дописи й товари", "Оформлення замовлення та замовлення", "Панель адміністратора, онлайн", "ШІ-помічник", "Повідомлення коміту", "Використовується як повідомлення коміту, коли Tovu надсилає експорт до гілки gh-pages.", "Назва проєкту Vercel", "Vercel під час кожної публікації знаходить або створює проєкт із цією назвою.", "Назва сайту", "Netlify під час кожної публікації знаходить або створює сайт із цією назвою.", "Назва проєкту", "Cloudflare Pages під час кожної публікації знаходить або створює проєкт із цією назвою.", "Не запущено", "Експорт не вдався", "Завершено з помилками", "Експорт завершено", "Публікація не вдалася", "Створює репозиторій, надсилає експортовану папку та вмикає GitHub Pages.", "Розгортає експортовану папку безпосередньо у Vercel.", "Копіювати цей запит помічнику (GitHub CLI)", "Копіювати цей запит помічнику (Vercel CLI)", "Потрібен класичний персональний токен доступу з областю \"repo\" або деталізований токен із дозволами Contents і Pages, установленими на Read and write.", "Токен доступу з вашого облікового запису Vercel.", "Персональний токен доступу з вашого облікового запису Netlify.", "Потрібен токен API з дозволом Cloudflare Pages Edit і ID облікового запису, показаний на бічній панелі вашої панелі Cloudflare — без нього Cloudflare не може визначити проєкт.", "Цей робочий простір не може використовувати термінал вашого комп’ютера — підключення тут є єдиним способом публікації.", "Збережіть персональний токен доступу, щоб Tovu міг публікувати від вашого імені."
+  ]),
+  ur: candidateGapTranslationEntries([
+    "یہ کنکشن پہلے ہی محفوظ ہو چکا ہے — صفحہ دوبارہ لوڈ کریں اور پھر کوشش کریں۔", "نامعلوم خرابی", "صفحات، پوسٹس اور مصنوعات", "چیک آؤٹ اور آرڈرز", "ایڈمن پینل، آن لائن", "AI معاون", "کمٹ پیغام", "جب Tovu ایکسپورٹ کو gh-pages برانچ پر پش کرتا ہے تو اسے کمٹ پیغام کے طور پر استعمال کیا جاتا ہے۔", "Vercel پروجیکٹ کا نام", "Vercel ہر اشاعت پر اس نام کا پروجیکٹ ڈھونڈتا یا بناتا ہے۔", "سائٹ کا نام", "Netlify ہر اشاعت پر اس نام کی سائٹ ڈھونڈتا یا بناتا ہے۔", "پروجیکٹ کا نام", "Cloudflare Pages ہر اشاعت پر اس نام کا پروجیکٹ ڈھونڈتا یا بناتا ہے۔", "شروع نہیں ہوا", "ایکسپورٹ ناکام ہوا", "ناکامیوں کے ساتھ ختم ہوا", "ایکسپورٹ مکمل ہوا", "اشاعت ناکام ہوئی", "ریپوزٹری بناتا ہے، ایکسپورٹ شدہ فولڈر پش کرتا ہے اور GitHub Pages چالو کرتا ہے۔", "ایکسپورٹ شدہ فولڈر کو براہ راست Vercel پر تعینات کرتا ہے۔", "اس درخواست کو معاون کے لیے کاپی کریں (GitHub CLI)", "اس درخواست کو معاون کے لیے کاپی کریں (Vercel CLI)", "\"repo\" دائرہ کار والا کلاسک ذاتی رسائی ٹوکن، یا Contents اور Pages کی اجازتیں Read and write پر سیٹ والا باریک ٹوکن درکار ہے۔", "آپ کے Vercel اکاؤنٹ کا رسائی ٹوکن۔", "آپ کے Netlify اکاؤنٹ کا ذاتی رسائی ٹوکن۔", "Cloudflare Pages Edit اجازت والا API ٹوکن اور آپ کے Cloudflare ڈیش بورڈ کی سائڈبار میں دکھایا گیا اکاؤنٹ ID درکار ہے — اس کے بغیر Cloudflare پروجیکٹ حل نہیں کر سکتا۔", "یہ ورک اسپیس آپ کے کمپیوٹر کا ٹرمینل استعمال نہیں کر سکتی — یہاں کنکشن کرنا شائع کرنے کا واحد طریقہ ہے۔", "ذاتی رسائی ٹوکن محفوظ کریں تاکہ Tovu آپ کی طرف سے شائع کر سکے۔"
+  ]),
+};
+
+const DEPLOYMENT_DICT: Record<string, Record<string, string>> = Object.fromEntries(
+  Object.entries(DEPLOYMENT_TRANSLATIONS).map(([locale, entries]) => [
+    locale,
+    {
+      ...entries,
+      ...DEPLOYMENT_AUDIT_TRANSLATIONS[locale],
+      ...DEPLOYMENT_CANDIDATE_GAP_TRANSLATIONS[locale],
+    },
+  ]),
+);
 
 export const t = createDictionaryTranslator(DEPLOYMENT_DICT);
 
@@ -2008,4 +2510,16 @@ const PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE: Record<string, string> = {
 
 export function publishCredentialVerifyErrorMessage(locale: string, error: string): string {
   return interpolate(PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE[locale] ?? PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE.en, { error });
+}
+
+/** The "which saved token publishes" picker's failed-switch banner — same shape as
+ *  {@link PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE}. Its second sentence is the point: a refused
+ *  promotion leaves the server publishing with the token it had, and the picker goes back to showing
+ *  that one, so the operator is told the two still agree rather than left to wonder which is live. */
+const PUBLISH_CREDENTIAL_SELECT_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Could not switch the publishing token ({error}). Publishing still uses the one shown.",
+};
+
+export function publishCredentialSelectErrorMessage(locale: string, error: string): string {
+  return interpolate(PUBLISH_CREDENTIAL_SELECT_ERROR_TEMPLATE[locale] ?? PUBLISH_CREDENTIAL_SELECT_ERROR_TEMPLATE.en, { error });
 }

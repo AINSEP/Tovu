@@ -7,6 +7,7 @@ import {
   PostNotFoundError,
   PostValidationError,
   PostVersionConflictError,
+  restorePostForward,
   updatePost,
   versionConflictEnvelope,
   type PostRecord,
@@ -206,7 +207,16 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
               }),
             captureEntityVersion: (r) => r.post.version,
             rollback: async () => {
-              if (priorPost) await deps.postRepo.save(priorPost);
+              if (!priorPost) return;
+              await restorePostForward({
+                deps: {
+                  repo: deps.postRepo,
+                  clock: deps.clock,
+                  outbox: deps.outbox,
+                  forgetRemoved: deps.forgetRemovedPost,
+                },
+                input: { prior: priorPost, actorId: principal.id },
+              });
             },
           },
         });

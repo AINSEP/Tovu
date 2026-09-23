@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { originSettings } from "../schema.js";
+import { originSettings } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 import type { UUID } from "@jini-ai/cms/core";
 import type { OriginSettingRepoPort } from "#src/features/origin/ports";

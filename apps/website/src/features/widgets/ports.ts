@@ -81,3 +81,24 @@ export interface WidgetRegionRegistry {
   list(required: { workspaceId: UUID }): WidgetRegionDescriptor[];
   get(required: { workspaceId: UUID; key: WidgetRegionKey }): WidgetRegionDescriptor | null;
 }
+
+// ---------------------------------------------------------------------------
+// The Trash, injected
+// ---------------------------------------------------------------------------
+
+/**
+ * The function `trashWidgetInstance` receives to move a widget to the Trash, bound to the `"widget"`
+ * type at the composition root. Structurally typed on purpose: this feature imports nothing from
+ * `features/trash`.
+ */
+export type RemoveWidgetFn = (required: {
+  workspaceId: UUID;
+  id: UUID;
+  display: { title: string; subtitle?: string | null };
+  at: string;
+  expectedVersion: number | null;
+  actor: { principalId: string; pluginId?: string | null };
+  /** The status a restore brings back, when the Trash cannot read it off a column — only the
+   *  legacy-widget adoption states one (`"active"`). */
+  priorMarker?: string | null;
+}) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }>;

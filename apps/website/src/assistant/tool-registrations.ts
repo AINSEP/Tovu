@@ -187,6 +187,7 @@ import {
   updateVendorCredential,
 } from "../features/vendor-credentials/index.js";
 import type { SourceControlToolDeps } from "../features/source-control/tool-registrations.js";
+import type { SiteBackupToolDeps } from "../features/site-backup/tool-registrations.js";
 import type { PluginsToolDeps } from "../features/plugin-runtime/tool-registrations.js";
 import type { AgentPluginSearchToolDeps, AgentPluginUninstallToolDeps } from "../features/agent-plugins/tool-registrations.js";
 import type { PostToolDeps } from "../features/post/tool-registrations.js";
@@ -211,7 +212,9 @@ import type { WorkspaceToolDeps } from "../features/workspace/tool-registrations
 import type { FormsToolDeps } from "../features/forms/tool-registrations.js";
 import type { IdentityToolDeps } from "../features/identity/tool-registrations.js";
 import type { IntegrationsToolDeps } from "../features/webhooks/tool-registrations.js";
-import type { MediaToolDeps } from "../features/media/tool-registrations.js";
+import type { MediaToolDeps, MediaTrashToolDeps } from "../features/media/tool-registrations.js";
+import type { TrashToolDeps } from "../features/trash/tool-registrations.js";
+import { deriveTrashItemRegistrations, trashItemDerivedRisk, type TrashItemToolDeps } from "../features/trash/index.js";
 import type { MediaGenerationToolDeps } from "../features/media-generation/tool-registrations.js";
 import type { MediaImportToolDeps } from "../features/media-import/tool-registrations.js";
 import type { MembersToolDeps } from "../features/members/tool-registrations.js";
@@ -261,6 +264,7 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   PagesToolDeps &
   RecoveryToolDeps &
   SettingsToolDeps &
+  SiteBackupToolDeps &
   SiteInspectionToolDeps &
   SitesToolDeps &
   TaxonomyToolDeps &
@@ -270,6 +274,7 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   IdentityToolDeps &
   IntegrationsToolDeps &
   MediaToolDeps &
+  MediaTrashToolDeps &
   MediaGenerationToolDeps &
   MediaImportToolDeps &
   MembersToolDeps &
@@ -280,7 +285,9 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   SiteEvidenceToolDeps &
   WidgetsToolDeps &
   ExternalMcpReauthToolDeps &
-  ExternalMcpToolDeps;
+  ExternalMcpToolDeps &
+  TrashToolDeps &
+  TrashItemToolDeps;
 
 /**
  * One wired domain: its builder and the risk classification its own wiring file maintains.
@@ -589,6 +596,20 @@ function allToolContributors(): readonly DomainSlice[] {
 }
 
 /**
+ * Risk classifications for tools built by a post-processing pass in
+ * {@link buildAssistantToolRegistrations} rather than by a domain slice, so
+ * {@link allToolContributors} never sees them.
+ *
+ * `trash_item` is a tool of its own (a new id, a new schema, its own `deletes-durable-state`
+ * declaration), so it is classified here and cross-checked like any other wired tool. The
+ * `content_read.*` cards are deliberately absent: each is a relabel of member tools whose risk was
+ * already checked under their original ids (see `content-read-tool.ts`).
+ */
+const POST_PROCESSING_RISK: readonly { domain: string; risk: DerivedRiskByToolId }[] = [
+  { domain: "trash-item", risk: trashItemDerivedRisk },
+];
+
+/**
  * Every domain's risk classification folded into one map, refusing any id two domains both wire.
  *
  * Computed fresh per call (see {@link allToolContributors}) rather than once at module load — a
@@ -602,7 +623,7 @@ function allToolContributors(): readonly DomainSlice[] {
  * to force.
  */
 function derivedRiskByToolId(): DerivedRiskByToolId {
-  return mergeDerivedRiskMaps(allToolContributors());
+  return mergeDerivedRiskMaps([...allToolContributors(), ...POST_PROCESSING_RISK]);
 }
 
 /**
@@ -703,6 +724,21 @@ export function buildAssistantToolRegistrations(
       ownerByToolId.set(registration.descriptor.id, slice.domain);
       registrations.push(registration);
     }
+  }
+
+  // `trash_item` (2026-09-20) — see `features/trash/trash-item-tool.ts`'s header. A post-processing
+  // pass for the same reason `content_read` below is one: it reuses the four per-domain delete tools'
+  // ALREADY-BUILT handlers, so it can only be built once every contributor above has run. Pushed
+  // before the collapse's early return so both of this function's shapes include it.
+  for (const registration of deriveTrashItemRegistrations({ registrations, routeDeps: enrichedRouteDeps, surfaces })) {
+    const owner = ownerByToolId.get(registration.descriptor.id);
+    if (owner) {
+      throw new Error(
+        `tool-registrations.ts: '${registration.descriptor.id}' is registered by both the ${owner} domain and trash_item's post-processing pass — one tool id must resolve to exactly one handler`,
+      );
+    }
+    ownerByToolId.set(registration.descriptor.id, "trash-item");
+    registrations.push(registration);
   }
 
   // `content_read` collapse (2026-09-08, ADS-memory/reports/2026-09-08-parent-tool-read-eval.md,

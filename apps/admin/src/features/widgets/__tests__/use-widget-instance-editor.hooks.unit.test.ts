@@ -166,8 +166,8 @@ describe("save — no-op guards", () => {
 });
 
 describe("save — create (isNew)", () => {
-  it("calls api.createWidget with widgetType/title/config, and navigates to the new widget's id", async () => {
-    const createWidget = vi.spyOn(api, "createWidget").mockResolvedValue({ widget: { ...EXISTING_WIDGET, id: "w9" } });
+  it("calls api.createWidget with widgetType/title/config, and navigates to the new widget's slug", async () => {
+    const createWidget = vi.spyOn(api, "createWidget").mockResolvedValue({ widget: { ...EXISTING_WIDGET, id: "w9", slug: "new-text-widget" } });
     const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: null, widgetType: "text" }));
     act(() => result.current.setTitle("New Text Widget"));
 
@@ -176,7 +176,8 @@ describe("save — create (isNew)", () => {
     });
 
     expect(createWidget).toHaveBeenCalledWith({ widgetType: "text", title: "New Text Widget", config: { body: "" } });
-    expect(navigate).toHaveBeenCalledWith("/widgets/w9");
+    // Slug, not id (2026-09-22, URL-uses-slug) — mirrors `use-form-editor.hooks.ts`'s create-navigate.
+    expect(navigate).toHaveBeenCalledWith("/widgets/new-text-widget");
   });
 
   it("sets saving=true while the create is in flight, false after it settles", async () => {
@@ -220,7 +221,7 @@ describe("save — update (existing widget)", () => {
     return view;
   }
 
-  it("calls api.updateWidget with id/baseVersion/config, updates widget+config, and sets a version message", async () => {
+  it("calls api.updateWidget with id/baseVersion/title/config, updates widget+config, and sets a version message", async () => {
     const view = await mountLoaded();
     const updateWidget = vi.spyOn(api, "updateWidget").mockResolvedValue({ widget: { ...EXISTING_WIDGET, version: 3, config: { body: "edited" } } });
     act(() => view.result.current.setConfig({ body: "edited" }));
@@ -229,11 +230,43 @@ describe("save — update (existing widget)", () => {
       await view.result.current.save();
     });
 
-    expect(updateWidget).toHaveBeenCalledWith({ id: "w1", baseVersion: 2, config: { body: "edited" } });
+    expect(updateWidget).toHaveBeenCalledWith({ id: "w1", baseVersion: 2, title: "Hero banner", config: { body: "edited" } });
     expect(view.result.current.widget?.version).toBe(3);
     expect(view.result.current.config).toEqual({ body: "edited" });
     expect(view.result.current.message).toBe("Saved · version 3");
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("sends an edited title with the update and shows the saved title", async () => {
+    const view = await mountLoaded();
+    const updateWidget = vi
+      .spyOn(api, "updateWidget")
+      .mockResolvedValue({ widget: { ...EXISTING_WIDGET, title: "Autumn Hero", version: 3 } });
+    act(() => view.result.current.setTitle("Autumn Hero"));
+
+    await act(async () => {
+      await view.result.current.save();
+    });
+
+    expect(updateWidget).toHaveBeenCalledWith({ id: "w1", baseVersion: 2, title: "Autumn Hero", config: { body: "hello" } });
+    expect(view.result.current.title).toBe("Autumn Hero");
+  });
+
+  /** The sibling test above sends the same title the server echoes back, so it stays green even if
+   *  `save()` never reseeds the field from the response — deleting `setTitle(saved.title)` survives
+   *  it. This one makes the two values DIFFER: the server returns the title it actually stored, and
+   *  the field has to show that, not the operator's draft, or the next save sends a stale
+   *  `baseVersion`-matched title that silently disagrees with the row. */
+  it("shows the title the server stored, not the draft, when the two differ", async () => {
+    const view = await mountLoaded();
+    vi.spyOn(api, "updateWidget").mockResolvedValue({ widget: { ...EXISTING_WIDGET, title: "Autumn Hero", version: 3 } });
+    act(() => view.result.current.setTitle("  Autumn Hero  "));
+
+    await act(async () => {
+      await view.result.current.save();
+    });
+
+    expect(view.result.current.title).toBe("Autumn Hero");
   });
 
   it("maps a WIDGETS_VERSION_CONFLICT ApiError to STALE_VERSION_MESSAGE", async () => {
@@ -354,7 +387,7 @@ describe("useWidgetInstanceEditor — injected port (no api spy, no router mock)
 
     expect(port.widgets).toHaveLength(1);
     expect(port.widgets[0]?.title).toBe("New Text Widget");
-    expect(fakeNavigate).toHaveBeenCalledWith(`/widgets/${port.widgets[0]?.id}`);
+    expect(fakeNavigate).toHaveBeenCalledWith(`/widgets/${port.widgets[0]?.slug}`);
     expect(createWidgetSpy).not.toHaveBeenCalled();
     expect(navigate).not.toHaveBeenCalled();
   });
@@ -367,6 +400,44 @@ describe("useWidgetInstanceEditor — injected port (no api spy, no router mock)
    * network in this test env, and the real `navigate` mock — not `fakeNavigate` — is what would
    * receive the call) — see this feature's commit/handoff report for the recorded run.
    */
+  /**
+   * URL-uses-slug (2026-09-22): the server now resolves `getWidget` by slug OR id
+   * (`read-service.ts`'s `getWidgetInstance`), and `panels.tsx` passes whatever `:widgetId` the URL
+   * held straight through as `props.widgetId`. Loading by the widget's OWN slug (the common case,
+   * and the only path `WidgetsLibrary.tsx`'s row link and the create-navigate produce) must not
+   * touch history — see `widgetSlugRedirectPath`'s own doc comment (`../rules.ts`).
+   */
+  it("does not replace-navigate when the URL already carries the widget's own slug", async () => {
+    const port = createFakeWidgetsPort({ widgets: [EXISTING_WIDGET] });
+    const fakeNavigate = vi.fn();
+    const { result } = renderHook(() =>
+      useWidgetInstanceEditor({ widgetId: EXISTING_WIDGET.slug, widgetType: null }, { port, locale: "en", navigate: fakeNavigate, t: (key: string) => key })
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.widget?.id).toBe(EXISTING_WIDGET.id);
+    expect(fakeNavigate).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The old-bookmark case this fix exists for: an id-based `/admin/widgets/<uuid>` link (the
+   * pre-2026-09-22 URL shape) still loads the right widget (the server resolves it via
+   * `findById`), and the hook replace-navigates the URL to the widget's slug once it does — see
+   * `widgetSlugRedirectPath` (`../rules.ts`) for why this only fires for a UUID-shaped id, not any
+   * string that merely differs from the slug.
+   */
+  it("replace-navigates to the slug URL when the URL carried the widget's raw (UUID-shaped) id", async () => {
+    const WIDGET_UUID = "b7e6c8a0-1f2d-4e3a-9c5b-6a7d8e9f0a1b";
+    const port = createFakeWidgetsPort({ widgets: [{ ...EXISTING_WIDGET, id: WIDGET_UUID }] });
+    const fakeNavigate = vi.fn();
+    const { result } = renderHook(() =>
+      useWidgetInstanceEditor({ widgetId: WIDGET_UUID, widgetType: null }, { port, locale: "en", navigate: fakeNavigate, t: (key: string) => key })
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(fakeNavigate).toHaveBeenCalledWith(`/widgets/${EXISTING_WIDGET.slug}`, { replace: true });
+  });
+
   it("does not resolve widget while the injected port's get call is still pending", () => {
     const port = createFakeWidgetsPort();
     port.getWidget = () => new Promise(() => {});

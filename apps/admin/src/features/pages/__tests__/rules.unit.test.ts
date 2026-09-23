@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AdminPost } from "@/lib/api";
 import {
   DEFAULT_PAGE_SORT,
+  pageVersionConflictMessage,
   buildPageAutosaveDraft,
   buildPageSavePlan,
   comparePagesByStatus,
@@ -19,6 +20,7 @@ import {
   pageEditableHtml,
   pageEditorSurface,
   pageLivePreviewPath,
+  pagePartialSaveMessage,
   pagePreviewFormTarget,
   pagePublicPath,
   pageRefreshMayHaveUnsavedEdits,
@@ -32,8 +34,10 @@ import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
  * @file Pure logic for `features/pages/rules.ts`.
  *
  * `pageRowMenuItems` mirrors `features/posts/rules.ts`'s `postRowMenuItems` exactly (this feature's
- * own doc comment says so) — the branch worth pinning is the same one: "Disable" is omitted
- * entirely for a draft page rather than rendered disabled.
+ * own doc comment says so) — the branch worth pinning is the same one: the middle item's key and
+ * label flip with the row's own status (Unpublish for published, Publish for draft), replacing the
+ * pre-2026-09-22 "Disable" item that was omitted entirely for a draft page rather than rendered
+ * disabled.
  */
 
 const PUBLISHED_PAGE: AdminPost = {
@@ -49,66 +53,78 @@ const PUBLISHED_PAGE: AdminPost = {
 };
 
 const DRAFT_PAGE: AdminPost = { ...PUBLISHED_PAGE, id: "pg2", title: "Draft Page", status: "draft" };
+const identityT = (key: string): string => key;
 
 function page(overrides: Partial<AdminPost> = {}): AdminPost {
   return { ...PUBLISHED_PAGE, ...overrides };
 }
 
 describe("pageRowMenuItems", () => {
-  it("returns Edit, Disable, then Delete (in that order) for a published page", () => {
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit: vi.fn(), onDisable: vi.fn(), onDelete: vi.fn() }, "en");
-    expect(items.map((i) => i.key)).toEqual(["edit", "disable", "delete"]);
+  it("returns Edit, Unpublish, then Delete (in that order) for a published page", () => {
+    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() }, "en");
+    expect(items.map((i) => i.key)).toEqual(["edit", "unpublish", "delete"]);
   });
 
-  it("omits Disable entirely (not a disabled entry) for a draft page", () => {
-    const items = pageRowMenuItems(DRAFT_PAGE, { onEdit: vi.fn(), onDisable: vi.fn(), onDelete: vi.fn() }, "en");
-    expect(items.map((i) => i.key)).toEqual(["edit", "delete"]);
-    expect(items.find((i) => i.key === "disable")).toBeUndefined();
+  it("returns Edit, Publish, then Delete for a draft page — the middle item flips rather than being omitted", () => {
+    const items = pageRowMenuItems(DRAFT_PAGE, { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() }, "en");
+    expect(items.map((i) => i.key)).toEqual(["edit", "publish", "delete"]);
+    expect(items.find((i) => i.key === "unpublish")).toBeUndefined();
   });
 
-  it("marks Delete destructive, and Edit/Disable not", () => {
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit: vi.fn(), onDisable: vi.fn(), onDelete: vi.fn() }, "en");
+  it("marks Delete destructive, and Edit/Unpublish not", () => {
+    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() }, "en");
     expect(items.find((i) => i.key === "delete")).toMatchObject({ label: "Delete", destructive: true });
     expect(items.find((i) => i.key === "edit")).not.toHaveProperty("destructive", true);
-    expect(items.find((i) => i.key === "disable")).not.toHaveProperty("destructive", true);
+    expect(items.find((i) => i.key === "unpublish")).not.toHaveProperty("destructive", true);
   });
 
   it("wires Edit's onSelect to onEdit with the page, and only onEdit", () => {
     const onEdit = vi.fn();
-    const onDisable = vi.fn();
+    const onTogglePublish = vi.fn();
     const onDelete = vi.fn();
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit, onDisable, onDelete }, "en");
+    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit, onTogglePublish, onDelete }, "en");
     items.find((i) => i.key === "edit")!.onSelect();
     expect(onEdit).toHaveBeenCalledWith(PUBLISHED_PAGE);
-    expect(onDisable).not.toHaveBeenCalled();
+    expect(onTogglePublish).not.toHaveBeenCalled();
     expect(onDelete).not.toHaveBeenCalled();
   });
 
-  it("wires Disable's onSelect to onDisable with the page, and only onDisable", () => {
+  it("wires Unpublish's onSelect to onTogglePublish with the page, and only onTogglePublish", () => {
     const onEdit = vi.fn();
-    const onDisable = vi.fn();
+    const onTogglePublish = vi.fn();
     const onDelete = vi.fn();
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit, onDisable, onDelete }, "en");
-    items.find((i) => i.key === "disable")!.onSelect();
-    expect(onDisable).toHaveBeenCalledWith(PUBLISHED_PAGE);
+    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit, onTogglePublish, onDelete }, "en");
+    items.find((i) => i.key === "unpublish")!.onSelect();
+    expect(onTogglePublish).toHaveBeenCalledWith(PUBLISHED_PAGE);
+    expect(onEdit).not.toHaveBeenCalled();
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it("wires Publish's onSelect to onTogglePublish with the page, for a draft row", () => {
+    const onEdit = vi.fn();
+    const onTogglePublish = vi.fn();
+    const onDelete = vi.fn();
+    const items = pageRowMenuItems(DRAFT_PAGE, { onEdit, onTogglePublish, onDelete }, "en");
+    items.find((i) => i.key === "publish")!.onSelect();
+    expect(onTogglePublish).toHaveBeenCalledWith(DRAFT_PAGE);
     expect(onEdit).not.toHaveBeenCalled();
     expect(onDelete).not.toHaveBeenCalled();
   });
 
   it("wires Delete's onSelect to onDelete with the page, and only onDelete", () => {
     const onEdit = vi.fn();
-    const onDisable = vi.fn();
+    const onTogglePublish = vi.fn();
     const onDelete = vi.fn();
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit, onDisable, onDelete }, "en");
+    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit, onTogglePublish, onDelete }, "en");
     items.find((i) => i.key === "delete")!.onSelect();
     expect(onDelete).toHaveBeenCalledWith(PUBLISHED_PAGE);
     expect(onEdit).not.toHaveBeenCalled();
-    expect(onDisable).not.toHaveBeenCalled();
+    expect(onTogglePublish).not.toHaveBeenCalled();
   });
 
   it("translates labels to Spanish when locale is es", () => {
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit: vi.fn(), onDisable: vi.fn(), onDelete: vi.fn() }, "es");
-    expect(items.map((i) => i.label)).toEqual(["Editar", "Desactivar", "Eliminar"]);
+    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() }, "es");
+    expect(items.map((i) => i.label)).toEqual(["Editar", "Anular publicación", "Eliminar"]);
   });
 });
 
@@ -199,25 +215,25 @@ describe("comparePagesByUpdated", () => {
 
 describe("updatedPageColumnSortLabel", () => {
   it("states 'not sorted by updated date' and offers newest-first when direction is null", () => {
-    const label = updatedPageColumnSortLabel(null);
+    const label = updatedPageColumnSortLabel(identityT, null);
     expect(label).toMatch(/not sorted by updated date/i);
     expect(label).toMatch(/newest first/i);
   });
 
   it("states 'newest first' and offers oldest-first as the next action when direction is 'desc'", () => {
-    const label = updatedPageColumnSortLabel("desc");
+    const label = updatedPageColumnSortLabel(identityT, "desc");
     expect(label).toMatch(/newest first/i);
     expect(label).toMatch(/oldest first/i);
   });
 
   it("states 'oldest first' and offers newest-first as the next action when direction is 'asc'", () => {
-    const label = updatedPageColumnSortLabel("asc");
+    const label = updatedPageColumnSortLabel(identityT, "asc");
     expect(label).toMatch(/oldest first/i);
     expect(label).toMatch(/newest first/i);
   });
 
   it("all three states produce different labels", () => {
-    expect(new Set([updatedPageColumnSortLabel(null), updatedPageColumnSortLabel("asc"), updatedPageColumnSortLabel("desc")]).size).toBe(3);
+    expect(new Set([updatedPageColumnSortLabel(identityT, null), updatedPageColumnSortLabel(identityT, "asc"), updatedPageColumnSortLabel(identityT, "desc")]).size).toBe(3);
   });
 });
 
@@ -311,25 +327,25 @@ describe("DEFAULT_PAGE_SORT", () => {
 
 describe("pageColumnSortLabel", () => {
   it("states 'not sorted' and names the ascending action when direction is null (the column isn't active)", () => {
-    const label = pageColumnSortLabel("Title", null);
+    const label = pageColumnSortLabel(identityT, "Title", null);
     expect(label).toMatch(/not sorted by title/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("states 'ascending' and offers descending as the next action when direction is 'asc'", () => {
-    const label = pageColumnSortLabel("Title", "asc");
+    const label = pageColumnSortLabel(identityT, "Title", "asc");
     expect(label).toMatch(/sorted by title, ascending/i);
     expect(label).toMatch(/activate to sort descending/i);
   });
 
   it("states 'descending' and offers ascending as the next action when direction is 'desc'", () => {
-    const label = pageColumnSortLabel("Title", "desc");
+    const label = pageColumnSortLabel(identityT, "Title", "desc");
     expect(label).toMatch(/sorted by title, descending/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("all three states produce different labels", () => {
-    expect(new Set([pageColumnSortLabel("Title", null), pageColumnSortLabel("Title", "asc"), pageColumnSortLabel("Title", "desc")]).size).toBe(3);
+    expect(new Set([pageColumnSortLabel(identityT, "Title", null), pageColumnSortLabel(identityT, "Title", "asc"), pageColumnSortLabel(identityT, "Title", "desc")]).size).toBe(3);
   });
 });
 
@@ -517,7 +533,7 @@ describe("pageAutosaveStaleBasisMessage", () => {
     "want to keep first.";
 
   it("names the basis the operator was working from, and states all four facts they cannot infer", () => {
-    const message = pageAutosaveStaleBasisMessage({ baseVersion: 4, draft: {
+    const message = pageAutosaveStaleBasisMessage(identityT, { baseVersion: 4, draft: {
       bodyFormat: "html",
       bodyHtml: "<p>still being typed</p>",
       title: "Landing",
@@ -534,7 +550,7 @@ describe("pageAutosaveStaleBasisMessage", () => {
   });
 
   it("promises no recovery it cannot deliver — the browser-storage mirror is best-effort and unnamed", () => {
-    const message = pageAutosaveStaleBasisMessage({ baseVersion: 4, draft: {
+    const message = pageAutosaveStaleBasisMessage(identityT, { baseVersion: 4, draft: {
       bodyFormat: "html",
       bodyHtml: "<p>still being typed</p>",
       title: "Landing",
@@ -543,6 +559,28 @@ describe("pageAutosaveStaleBasisMessage", () => {
     } });
 
     expect(message).not.toMatch(/restore|recover|saved locally|in your browser/i);
+  });
+});
+
+/** H1's own message — see `use-page-editor.hooks.ts`'s `PageBodyWriteError`/`applySaveFailure` for
+ *  when this fires: the metadata write landed but the body write then failed. */
+describe("pagePartialSaveMessage", () => {
+  const t = (locale: string, key: string) => `${locale}:${key}`;
+
+  it("names what saved, what did not, and appends the underlying reason", () => {
+    const message = pagePartialSaveMessage(t, "en", new Error("boom"));
+
+    expect(message).toBe(
+      "en:Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry. (boom)"
+    );
+  });
+
+  it("falls back to the generic failure copy for a non-Error rejection", () => {
+    const message = pagePartialSaveMessage(t, "en", "not an Error");
+
+    expect(message).toBe(
+      "en:Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry. (en:failed to save page)"
+    );
   });
 });
 
@@ -617,5 +655,19 @@ describe("pageRefreshMayHaveUnsavedEdits", () => {
 
   it("is true on the Interactive tab even when dirty reads false, since canvas typing may not have reached html yet", () => {
     expect(pageRefreshMayHaveUnsavedEdits({ dirty: false, view: "interactive" })).toBe(true);
+  });
+});
+
+describe("sort labels and conflict copy are translated, not English passthrough", () => {
+  it("renders German sort labels and a fully German conflict message", async () => {
+    const { t: pagesT } = await import("../pages-i18n");
+    const { t: editorT } = await import("../page-editor-i18n");
+    const deT = (key: string): string => pagesT("de", key);
+    expect(pageColumnSortLabel(deT, deT("Title"), null)).toBe("Nicht nach Titel sortiert. Aktivieren, um aufsteigend zu sortieren.");
+    expect(updatedPageColumnSortLabel(deT, "desc")).toMatch(/^Nach Aktualisierungsdatum sortiert/);
+    const message = pageVersionConflictMessage((key) => editorT("de", key), { expectedVersion: null, currentVersion: 7, attemptedStatus: undefined });
+    expect(message).toContain("die von dir geladene Version");
+    expect(message).toContain("Version 7");
+    expect(message).not.toMatch(/Someone else|version you loaded/);
   });
 });

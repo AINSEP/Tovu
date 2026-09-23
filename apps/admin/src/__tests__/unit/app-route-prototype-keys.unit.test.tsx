@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render as renderWithoutProvider, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { FetchQueryProvider } from "../../lib/fetch-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
@@ -94,3 +96,9 @@ describe("a prototype-chain key in the URL is not a section", () => {
     expect(screen.queryByText(/\[object Object\]/)).not.toBeInTheDocument();
   });
 });
+
+/** `App` mounts the assistant dock, whose agents list reads through the app's query cache — render
+ *  under the same provider `main.tsx` wraps `App` in. */
+function render(ui: ReactElement) {
+  return renderWithoutProvider(ui, { wrapper: FetchQueryProvider });
+}

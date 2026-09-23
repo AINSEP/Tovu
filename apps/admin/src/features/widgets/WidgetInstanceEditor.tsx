@@ -1,4 +1,5 @@
 import { WidgetConfigFields } from "../../components/WidgetConfigFields/WidgetConfigFields";
+import { t as sharedComponentsT } from "../../components/shared-components-i18n";
 import { agentHandle } from "@jini-ai/agentic";
 import { isKnownWidgetType, widgetTypeLabel } from "./rules";
 import { useWiredWidgetInstanceEditor } from "./hooks/use-widget-instance-editor.hooks";
@@ -71,16 +72,16 @@ export function widgetInstanceGuard(state: {
 
 /** Renders the notice for whichever guard applies — split from `widgetInstanceGuard` itself so the
  *  decision (data in, data out) and the rendering stay separately testable. */
-function WidgetInstanceGuardNotice({ guard }: { guard: WidgetInstanceGuard }) {
+function WidgetInstanceGuardNotice({ guard, t }: { guard: WidgetInstanceGuard; t: (key: string) => string }) {
   switch (guard.kind) {
     case "fetch-error":
       return <div className="notice error">{guard.message}</div>;
     case "loading":
-      return <div className="notice">Loading widget…</div>;
+      return <div className="notice">{t("Loading widget…")}</div>;
     case "no-type":
-      return <div className="notice error">No widget type specified.</div>;
+      return <div className="notice error">{t("No widget type specified.")}</div>;
     case "unknown-type":
-      return <div className="notice error">Unknown widget type "{guard.widgetType}".</div>;
+      return <div className="notice error">{t('Unknown widget type "')}{guard.widgetType}".</div>;
   }
 }
 
@@ -116,28 +117,58 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
   } = useWidgetInstanceEditorHook({ widgetId, widgetType: queryWidgetType });
 
   const guard = widgetInstanceGuard({ error, isNew, widget, loading, widgetType });
-  if (guard) return <WidgetInstanceGuardNotice guard={guard} />;
+  if (guard) return <WidgetInstanceGuardNotice guard={guard} t={t} />;
   // Unreachable in practice — `widgetInstanceGuard`'s "no-type" case already covers a null
   // `widgetType` above — but TS can't see through that opaque function call, so this narrows the
   // type for the JSX below rather than asserting it with `!`.
   if (!widgetType) return null;
 
+  // `WidgetConfigFields`'s own copy lives in `shared-components-i18n.ts`, a DIFFERENT dictionary
+  // from this screen's own `t` (bound to `widgets-i18n.ts`'s `WIDGETS_DICT` — see the hook import
+  // above) — reusing `t` here would look "Text"/"Menu"/etc. up in the wrong dictionary and silently
+  // render the English fallback in every non-English locale. Bound off the same `locale` this
+  // screen already resolves, mirroring `WidgetPickerDialog.hooks.tsx`'s `t = (key) =>
+  // sharedComponentsT(locale, key)` shape exactly.
+  const sharedT: Translate = (key) => sharedComponentsT(locale, key);
+
   return (
     <div className="page">
-      <div className="page-header">
+      {/* `page-header-split` (`styles.css`) — same shared idiom Pages/Posts/Forms already use:
+          back link alone at the left rail, title block centred. Widgets never grew a separate
+          `.editor-action-row` below a toolbar, so Save/status stay IN the header instead of an
+          empty third rail — `.page-header-actions` (`styles.css`) pins that rail to the right and
+          gives it its own narrow-container stacking row alongside the back link (owner,
+          2026-09-22: "put the back button on the left, like the other editors" — this used to be a
+          plain `.page-header`/`.page-actions` row with Back and Save both crowded at the right;
+          the narrow-viewport "title, then a button row underneath" layout it already had is kept
+          as-is, since that's the layout the owner said they liked). */}
+      <div
+        className="page-header page-header-split"
+        {...agentHandle("widget-instance-header", {
+          role: "region",
+          label: "Widget editor header — the back link, the widget's title, and the Save button",
+        })}
+      >
+        <div className="page-header-lead">
+          {/* Visible label shortened to a plain "← Back" (owner, 2026-09-22 — every editor's back
+              button reads the same short way now). `aria-label` keeps "Back: Widgets" —
+              colon-joined rather than concatenated into a sentence so it needs no new per-locale
+              phrase key and still starts with the exact visible text (WCAG 2.5.3 Label in Name). */}
+          <a
+            className="btn-secondary"
+            href="/admin/widgets"
+            aria-label={`${t("Back")}: ${t("Widgets")}`}
+            {...agentHandle("widget-instance-back", { role: "link", label: "Back to Widgets" })}
+          >
+            ← {t("Back")}
+          </a>
+        </div>
         <div className="page-header-text">
           <p className="page-kicker">{t("Content")}</p>
           <h1 className="page-title">{t(isNew ? "New widget" : "Edit widget")}</h1>
           <p className="page-description">{t("Configure this widget's title and settings.")}</p>
         </div>
-        <div className="page-actions">
-          <a
-            className="btn-secondary"
-            href="/admin/widgets"
-            {...agentHandle("widget-instance-back", { role: "link", label: "Back to Widgets" })}
-          >
-            ← {t("Widgets")}
-          </a>
+        <div className="page-header-actions page-actions">
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? (
             <span className="save-error" role="alert">
@@ -159,7 +190,7 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
       {/* Audit finding: placeholder-only, no `<label>` — same fix as `PostEditor.tsx`'s title field
           (see `styles/editor.css`'s `.a11y-label-wrap` comment). */}
       <label className="a11y-label-wrap">
-        <span className="visually-hidden">Widget title</span>
+        <span className="visually-hidden">{t("Widget title")}</span>
         <input
           className="editor-title"
           value={title}
@@ -171,7 +202,13 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
       <p className="muted-cell">{t("Type:")} {widgetTypeLabel(widgetType, locale)}</p>
 
       <div className="widget-config-form">
-        <WidgetConfigFields widgetType={widgetType} config={config} onChange={setConfig} agentHandle="widget-instance-config" />
+        <WidgetConfigFields
+          widgetType={widgetType}
+          config={config}
+          onChange={setConfig}
+          agentHandle="widget-instance-config"
+          t={sharedT}
+        />
         {fieldErrors.map((fe, i) => (
           <p key={i} className="save-error" role="alert">
             {fe.field}: {fe.reason}

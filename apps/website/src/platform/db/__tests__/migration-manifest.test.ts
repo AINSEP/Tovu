@@ -43,7 +43,7 @@ import {
 import { verifyBooleanCopy, verifyClassifiedValue, verifyExactTextCopy, verifyJsonText, verifyUtcTimestampText } from "../migration/verify.js";
 import * as pgSchema from "../schema.postgres.js";
 
-const SCHEMA_SOURCE = fs.readFileSync(path.resolve(import.meta.dirname, "../schema.ts"), "utf8");
+const SCHEMA_SOURCE = fs.readFileSync(path.resolve(import.meta.dirname, "../schema.sqlite.ts"), "utf8");
 
 test("classifying every column of every core table does not throw — the real schema has no case this manifest hasn't reviewed", () => {
   const all = classifyAllCoreColumns();
@@ -87,7 +87,7 @@ function pgTablesByExportName(): Map<string, object> {
   );
 }
 
-test("GATE A: every SQLiteInteger column in schema.ts maps to a bigint column in the generated schema.postgres.ts, with zero exceptions", () => {
+test("GATE A: every SQLiteInteger column in schema.sqlite.ts maps to a bigint column in the generated schema.postgres.ts, with zero exceptions", () => {
   // Derived via rawCoreColumns() (raw getTableConfig() walk), NOT classifyAllCoreColumns() — this
   // gate is about physical type, independent of growth-class review completeness (see that helper's
   // own doc / LOW #10: a classifier throw on an unreviewed PK must not also take this gate down).
@@ -114,7 +114,7 @@ test("GATE A: every SQLiteInteger column in schema.ts maps to a bigint column in
 
 // --- GATE B: growth-class review completeness, independent of the generated schema ----------------
 
-test("GATE B: REVIEWED_INTEGER_ID_COLUMNS has no stale entries — every key names a real column in schema.ts today", () => {
+test("GATE B: REVIEWED_INTEGER_ID_COLUMNS has no stale entries — every key names a real column in schema.sqlite.ts today", () => {
   // Derived via rawCoreColumns(), NOT classifyAllCoreColumns() — same independence rationale as
   // GATE A above (LOW #10).
   const real = new Set(rawCoreColumns().map((c) => `${c.sqlTableName}.${c.sqlColumnName}`));
@@ -122,7 +122,7 @@ test("GATE B: REVIEWED_INTEGER_ID_COLUMNS has no stale entries — every key nam
   assert.deepEqual(stale, [], "REVIEWED_INTEGER_ID_COLUMNS names a column that no longer exists — update the registry");
 });
 
-test("GATE B: every autoincrement PK in schema.ts is assigned exactly one growth class ('unbounded' or 'bounded') — none unreviewed", () => {
+test("GATE B: every autoincrement PK in schema.sqlite.ts is assigned exactly one growth class ('unbounded' or 'bounded') — none unreviewed", () => {
   const identityKeys = collectIdentityColumns().map((c) => `${c.sqlTableName}.${c.sqlColumnName}`);
   assert.ok(identityKeys.length > 0, "sanity: expected at least one autoincrement PK");
   for (const key of identityKeys) {
@@ -191,15 +191,15 @@ test("entry_revisions.seq's rationale correctly scopes to entries, not posts —
   assert.ok(!/entry\/post save/.test(rationale), "rationale must not repeat the false 'every entry/post save' claim");
 });
 
-test("boolean-flag classification matches exactly the SQLiteBoolean columns in schema.ts, not the many plain-integer 0/1 flags", () => {
+test("boolean-flag classification matches exactly the SQLiteBoolean columns in schema.sqlite.ts, not the many plain-integer 0/1 flags", () => {
   const all = classifyAllCoreColumns();
   const booleans = all.filter((c) => c.columnClass.kind === "boolean-flag").map((c) => `${c.sqlTableName}.${c.sqlColumnName}`);
   // `publish_credential_sets.is_default`/`source_control_credential_sets.is_default` (2026-08-15),
   // `publish_history.reachable` (2026-08-16), and `vendor_credential_sets.is_default` (its own doc
-  // comment in schema.ts: "same invariant... the two predecessor tables' own isDefault columns
+  // comment in schema.sqlite.ts: "same invariant... the two predecessor tables' own isDefault columns
   // document" — a third sibling of the two credential-set columns above) post-date this test's
   // original hardcoded set — added here rather than left stale, since this assertion's whole point
-  // is to track real schema.ts state.
+  // is to track real schema.sqlite.ts state.
   assert.deepEqual(
     new Set(booleans),
     new Set([
@@ -243,7 +243,7 @@ test("boolean-flag classification matches exactly the SQLiteBoolean columns in s
 // naming conventions alone can ever close this gap by construction — the two tests below stay useful
 // for what they actually prove (naming-convention self-consistency and classifier-dispatch fidelity),
 // they are just not, and were never, a completeness proof over "which columns are semantically JSON."
-test("json-text classification matches an independent textual scan of schema.ts for *_json columns, UNIONED with the REVIEWED_JSON_COLUMNS allowlist for the columns that scan cannot see by construction", () => {
+test("json-text classification matches an independent textual scan of schema.sqlite.ts for *_json columns, UNIONED with the REVIEWED_JSON_COLUMNS allowlist for the columns that scan cannot see by construction", () => {
   // Independent oracle: regexes directly over the source text, not through Drizzle introspection —
   // a different code path from classifyAllCoreColumns()'s getTableConfig() walk, so this cannot pass
   // merely because the same bug is present in both places.
@@ -263,7 +263,7 @@ test("json-text classification matches an independent textual scan of schema.ts 
   assert.deepEqual(classified, declared);
 });
 
-test("json-text classification agrees with a GENUINELY independent oracle: schema.ts's camelCase TS property names ('*Json' convention) vs its snake_case SQL names ('_json' convention) never disagree on a single column", () => {
+test("json-text classification agrees with a GENUINELY independent oracle: schema.sqlite.ts's camelCase TS property names ('*Json' convention) vs its snake_case SQL names ('_json' convention) never disagree on a single column", () => {
   // Proves naming-CONVENTION self-consistency only — NOT completeness over "which columns are
   // semantically JSON" (see the LEDGER #14 comment above this test block for the real column,
   // `composio_config.auth_config_ids`, that disproved the old, stronger claim this comment used to
@@ -285,7 +285,7 @@ test("json-text classification agrees with a GENUINELY independent oracle: schem
   assert.deepEqual(
     disagreements,
     [],
-    "schema.ts's SQL name and TS property name disagree about whether a column is JSON for at least one column"
+    "schema.sqlite.ts's SQL name and TS property name disagree about whether a column is JSON for at least one column"
   );
 });
 
@@ -294,7 +294,7 @@ test("json-text classification agrees with a GENUINELY independent oracle: schem
 // REVIEWED_INTEGER_ID_COLUMNS gets (GATE B), plus a non-redundancy check so the allowlist can only ever
 // grow with columns the naming convention genuinely cannot see -----------------------------------------
 
-test("REVIEWED_JSON_COLUMNS has no stale entries — every key names a real column in schema.ts today", () => {
+test("REVIEWED_JSON_COLUMNS has no stale entries — every key names a real column in schema.sqlite.ts today", () => {
   const real = new Set(rawCoreColumns().map((c) => `${c.sqlTableName}.${c.sqlColumnName}`));
   const stale = Object.keys(REVIEWED_JSON_COLUMNS).filter((key) => !real.has(key));
   assert.deepEqual(stale, [], "REVIEWED_JSON_COLUMNS names a column that no longer exists — update the registry");
@@ -344,7 +344,7 @@ test("REVIEWED_JSON_COLUMNS matches exactly the six columns known-reviewed today
 // of them can catch the next one.
 //
 // This is a HEURISTIC tripwire, not a completeness proof — the test below says so in its own comment.
-// It scans schema.ts for the same two signals the round-3 audit's manual scan used to find all five
+// It scans schema.sqlite.ts for the same two signals the round-3 audit's manual scan used to find all five
 // current REVIEWED_JSON_COLUMNS entries, with zero false positives on this schema today, and FAILS the
 // run (not warns) if either fires on a text() column outside both isJsonColumnName and
 // REVIEWED_JSON_COLUMNS: (a) the column's own doc comment calls it a JSON object/array, or (b) it
@@ -353,12 +353,12 @@ test("REVIEWED_JSON_COLUMNS matches exactly the six columns known-reviewed today
 // convention before it — this narrows the miss window, it does not close it.
 
 /**
- * Every `text(...)` core-schema column DECLARATION in schema.ts, paired with its own leading doc
+ * Every `text(...)` core-schema column DECLARATION in schema.sqlite.ts, paired with its own leading doc
  * comment, its FULL builder chain, and the SQL name of the table it belongs to.
  *
  * REWRITTEN 2026-08-12 as a TypeScript AST scan (external audit, Terra F1 / Gemini-Pro F1). The
  * previous version was a line-oriented regex, and three auditors independently found three DIFFERENT
- * columns it was blind to — each confirmed by planting the column into schema.ts and watching the
+ * columns it was blind to — each confirmed by planting the column into schema.sqlite.ts and watching the
  * suite stay green:
  *
  *   - `text('single_quoted')` — the pattern hard-coded a double quote, and the sanity count grepped
@@ -389,7 +389,7 @@ function textColumnDeclarations(source: string = SCHEMA_SOURCE): ScannedColumn[]
 }
 
 function scanSchemaTables(source: string = SCHEMA_SOURCE): { declarations: ScannedColumn[]; unresolved: string[] } {
-  const sf = ts.createSourceFile("schema.ts", source, ts.ScriptTarget.Latest, /* setParentNodes */ true);
+  const sf = ts.createSourceFile("schema.sqlite.ts", source, ts.ScriptTarget.Latest, /* setParentNodes */ true);
   const out: ScannedColumn[] = [];
   const unresolved: string[] = [];
 
@@ -446,7 +446,7 @@ function scanSchemaTables(source: string = SCHEMA_SOURCE): { declarations: Scann
           // (round-2 audit F1). A shorthand/spread/imported column reference — `auditProbeColumn,` or
           // `...sharedColumns` — is a plausible Drizzle refactor, and the scanner returned nothing for
           // it: the column was ABSENT from the scan, and the textual safety net missed it too, because
-          // that net searches schema.ts's own text and the `text(...)` call lives in another file. A
+          // that net searches schema.sqlite.ts's own text and the `text(...)` call lives in another file. A
           // JSON column could then carry both signals and never be considered a candidate at all.
           // 694/694 real columns are inline builder calls today, so recording these costs nothing now
           // and fails loudly the moment the shape appears.
@@ -495,7 +495,7 @@ function scanSchemaTables(source: string = SCHEMA_SOURCE): { declarations: Scann
 
 test("textColumnDeclarations(): declLine carries a `.default(...)` wrapped onto a continuation line, not just a same-line one", () => {
   // REGRESSION (found 2026-08-12 by mutation-testing the tripwire below, NOT by reading it): planting a
-  // `.default("{}")` column into schema.ts with the chain wrapped across lines left the whole file green
+  // `.default("{}")` column into schema.sqlite.ts with the chain wrapped across lines left the whole file green
   // — the tripwire never saw the default. The sanity test below used to claim its count assertion would
   // catch that case first; it does not, because declPattern's trailing `(.*)` matches the EMPTY string,
   // so a wrapped declaration still counts as one declaration and `declaredCount === rawTextCallSites - 1`
@@ -527,7 +527,7 @@ test("textColumnDeclarations(): declLine carries a `.default(...)` wrapped onto 
   assert.match(by("filename_only")?.docComment ?? "", /theme\.json/, "the filename comment must attach to its own column");
 });
 
-test("sanity: the AST scan silently drops no text() column that is textually visible in schema.ts", () => {
+test("sanity: the AST scan silently drops no text() column that is textually visible in schema.sqlite.ts", () => {
   // REPLACES a count-equality assertion that compared the scan against a `text("` grep. That check was
   // doubly wrong: it hard-coded the double quote (so a single-quoted column moved BOTH sides of the
   // equality and stayed invisible), and its stated purpose — proving declarations are single-line — was
@@ -576,7 +576,7 @@ test("the AST scan resolves EVERY property in every sqliteTable literal — an u
   // ROUND-2 AUDIT F1. The scan reads one file and only understands an inline builder CALL. A column
   // referenced by identifier — the ordinary result of extracting shared column builders into a helper
   // module — was returned by NOTHING: absent from the scan, and invisible to the textual safety net
-  // too, because that net searches schema.ts's own source and the `text(...)` call lives elsewhere. A
+  // too, because that net searches schema.sqlite.ts's own source and the `text(...)` call lives elsewhere. A
   // JSON column could then carry both signals and never be considered a candidate.
   //
   // Rather than resolve cross-file symbols (a full ts.Program for a test-only heuristic guarding a
@@ -587,7 +587,7 @@ test("the AST scan resolves EVERY property in every sqliteTable literal — an u
   assert.deepEqual(
     scanSchemaTables().unresolved,
     [],
-    "schema.ts has table properties this scan cannot resolve to a column-builder call. Any text() column " +
+    "schema.sqlite.ts has table properties this scan cannot resolve to a column-builder call. Any text() column " +
       "hiding behind one is invisible to the JSON tripwire below AND to its textual safety net. Either " +
       "inline the builder call, or teach scanSchemaTables() to resolve the reference — do not delete " +
       "this assertion"
@@ -675,7 +675,7 @@ test("JSON-completeness tripwire (R4-F1/C-1): no text() column outside isJsonCol
   assert.ok(
     sealedCiphertextDecl,
     "sanity: expected to find the sealed_ciphertext column whose comment mentions JSON.stringify — if this " +
-      "fails, the trap case this test guards against no longer exists in schema.ts in this exact shape and " +
+      "fails, the trap case this test guards against no longer exists in schema.sqlite.ts in this exact shape and " +
       "should be replaced with a live one"
   );
 });
@@ -692,7 +692,7 @@ test("JSON-completeness tripwire (R4-F1/C-1): no text() column outside isJsonCol
 // problem it solves (a large, drift-prone list nobody keeps current). The TS-property-name test
 // immediately below is the cheaper, genuinely independent check that DOES catch one real class of
 // rule-level bug: the SQL name and TS name conventions silently disagreeing about a specific column.
-test("utc-timestamp-text classification matches an independent textual scan of schema.ts for *_at / bare 'at' columns, excluding *_at_capture snapshot columns", () => {
+test("utc-timestamp-text classification matches an independent textual scan of schema.sqlite.ts for *_at / bare 'at' columns, excluding *_at_capture snapshot columns", () => {
   const declared = new Set(
     [...SCHEMA_SOURCE.matchAll(/text\("([a-z0-9_]+)"\)/g)].map((m) => m[1]).filter((name) => name === "at" || name.endsWith("_at"))
   );
@@ -710,12 +710,12 @@ test("utc-timestamp-text classification matches an independent textual scan of s
   assert.deepEqual(classified, declared);
 });
 
-test("utc-timestamp-text classification agrees with a GENUINELY independent oracle: schema.ts's camelCase TS property names ('*At' convention) vs its snake_case SQL names ('_at' convention) never disagree on a single column", () => {
+test("utc-timestamp-text classification agrees with a GENUINELY independent oracle: schema.sqlite.ts's camelCase TS property names ('*At' convention) vs its snake_case SQL names ('_at' convention) never disagree on a single column", () => {
   // Different signal from the test above: this reads the TS property name (left of the colon, e.g.
   // `createdAt` in `createdAt: text("created_at")`) via its own regex against a different substring
   // of the source, then applies its OWN "is this a timestamp name" predicate to that different
   // string. A bug in isTimestampColumnName's underlying convention that this file's SQL-name oracle
-  // cannot see (see the doc above) would only also fool THIS test if schema.ts's two independent
+  // cannot see (see the doc above) would only also fool THIS test if schema.sqlite.ts's two independent
   // naming conventions had themselves drifted apart on that exact column — a real, checkable fact
   // about the schema's own naming discipline, not a restatement of the implementation.
   const pairs = [...SCHEMA_SOURCE.matchAll(/([A-Za-z_$][\w$]*):\s*text\("([a-z0-9_]+)"\)/g)].map((m) => ({ tsName: m[1], sqlName: m[2] }));
@@ -728,7 +728,7 @@ test("utc-timestamp-text classification agrees with a GENUINELY independent orac
   assert.deepEqual(
     disagreements,
     [],
-    "schema.ts's SQL name and TS property name disagree about whether a column is a timestamp for at least one column"
+    "schema.sqlite.ts's SQL name and TS property name disagree about whether a column is a timestamp for at least one column"
   );
 });
 
@@ -860,7 +860,7 @@ test("collectForeignKeyEdges finds real foreign keys in the core schema, and non
   assert.ok(edges.length > 10, `sanity: expected several FKs, got ${edges.length}`);
   assert.ok(
     edges.every((e) => !e.selfReferencing),
-    "no self-referencing FK exists in schema.ts today — if this fails, a new one was added and needs its own " +
+    "no self-referencing FK exists in schema.sqlite.ts today — if this fails, a new one was added and needs its own " +
       "row-level ordering plan, see topologicalTableCopyOrder's doc"
   );
 });
@@ -959,7 +959,7 @@ test("verifyUtcTimestampText: rejects Date.parse's looser forms that bare Date.p
   // Space-separated date-time: Date.parse("2026-08-12 10:00:00Z") parses successfully (isNaN false)
   // even though it is not the RFC3339 "T"-separated shape this manifest's timestamps are declared to
   // use. Verified before tightening: a live scan of infra/content.db found zero space-separated
-  // values in any schema.ts-declared timestamp column, so this does not retroactively flag real data.
+  // values in any schema.sqlite.ts-declared timestamp column, so this does not retroactively flag real data.
   const spaceSeparated = verifyUtcTimestampText("2026-08-12 10:00:00Z");
   assert.equal(spaceSeparated?.code, "UNPARSEABLE_TIMESTAMP");
 
@@ -1083,13 +1083,29 @@ test("verifyClassifiedValue rejects a copier that silently substitutes a differe
   // the omission (null never triggers a shape check either way) — this test uses REAL matching source
   // shapes on purpose, so it actually exercises the fidelity comparison.
   const jsonSwap = verifyClassifiedValue({ kind: "json-text" }, '{"role":"admin"}', '{"role":"member"}');
-  assert.equal(jsonSwap?.code, "TEXT_COPY_FIDELITY_MISMATCH");
+  assert.equal(jsonSwap?.code, "JSON_COPY_FIDELITY_MISMATCH");
 
   const timestampSwap = verifyClassifiedValue({ kind: "utc-timestamp-text" }, "2026-08-12T10:00:00Z", "2026-08-12T11:00:00Z");
   assert.equal(timestampSwap?.code, "TEXT_COPY_FIDELITY_MISMATCH");
 
   const plainTextSwap = verifyClassifiedValue({ kind: "plain-text" }, "hello", "goodbye");
   assert.equal(plainTextSwap?.code, "TEXT_COPY_FIDELITY_MISMATCH");
+});
+
+test("json-text copy fidelity is JSON-value equality: jsonb's normalisation (key order, whitespace, duplicate keys) passes, any value change still fails", () => {
+  // Exactly what Postgres jsonb hands back for the source on the left — keys reordered by length,
+  // whitespace re-emitted as ", " / ": ", duplicate key collapsed to its last value.
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, '{"zz":1,"a":{"y":[1,2],"x":null},"a2":true}', '{"a": {"x": null, "y": [1, 2]}, "a2": true, "zz": 1}'), null);
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, '{"k":1,"k":2}', '{"k": 2}'), null);
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, null, null), null);
+  // Array order IS meaning; so are types, nullness, and nested values.
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, "[1,2]", "[2, 1]")?.code, "JSON_COPY_FIDELITY_MISMATCH");
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, '{"a":1}', '{"a": "1"}')?.code, "JSON_COPY_FIDELITY_MISMATCH");
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, '{"a":{"b":1}}', '{"a": {"b": 1, "c": 2}}')?.code, "JSON_COPY_FIDELITY_MISMATCH");
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, '{"a":1}', null)?.code, "JSON_COPY_FIDELITY_MISMATCH");
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, null, '{"a": 1}')?.code, "JSON_COPY_FIDELITY_MISMATCH");
+  // A malformed source cannot be compared as JSON at all.
+  assert.equal(verifyClassifiedValue({ kind: "json-text" }, "{bad", '{"a": 1}')?.code, "INVALID_JSON");
 });
 
 test("verifyClassifiedValue still catches a destination-shape violation even when fidelity passes (fidelity and shape are two DIFFERENT checks, not one replacing the other)", () => {

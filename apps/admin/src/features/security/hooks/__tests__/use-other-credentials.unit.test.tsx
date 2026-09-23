@@ -341,6 +341,31 @@ describe("useOtherCredentials — replace: per-store dispatch (writeReplace)", (
     expect(saveMediaProviders).toHaveBeenCalledWith({ cloudinary: { apiKey: "sk-cloud-new" }, grok: {} });
   });
 
+  // Same rebuild as Remove (see the baseUrl/model regression in the remove block below) — and the
+  // replaced provider keeps its OWN baseUrl/model too, since the PUT would otherwise null them.
+  it("media-provider: a Replace carries baseUrl/model through for the target AND every other provider", async () => {
+    const saveMediaProviders = vi.fn((map: AdminMediaProviderMap) => Promise.resolve(map));
+    const port = createFakeOtherCredentialsPort({
+      getMediaProviders: () =>
+        Promise.resolve({
+          cloudinary: { apiKeyConfigured: true, apiKeyTail: "old4", baseUrl: "https://cloud.example", model: "c-1" },
+          grok: { apiKeyConfigured: true, apiKeyTail: "grok", baseUrl: "https://grok.example/v1" },
+        } as AdminMediaProviderMap),
+      saveMediaProviders,
+    });
+    const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const row = findGroup(result.current.groups, "media-provider")!.rows.find((r) => r.itemId === "cloudinary")!;
+    act(() => result.current.setDraftToken(row.key, "sk-cloud-new"));
+
+    await act(() => result.current.replace(findGroup(result.current.groups, "media-provider")!.rows.find((r) => r.itemId === "cloudinary")!));
+
+    expect(saveMediaProviders.mock.calls[0]![0]).toStrictEqual({
+      cloudinary: { apiKey: "sk-cloud-new", baseUrl: "https://cloud.example", model: "c-1" },
+      grok: { baseUrl: "https://grok.example/v1" },
+    });
+  });
+
   it("a rejected write surfaces the exact save-error text and preserves the typed (untrimmed-source) token", async () => {
     const port = createFakeOtherCredentialsPort({
       getSiteAssistantCredential: () => Promise.resolve({ data: { isSet: true, masked: "abcd", provider: "openai", baseUrl: null, model: null, updatedAt: null } }),
@@ -427,6 +452,39 @@ describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all 
     expect(saveMediaProviders).toHaveBeenCalledWith({ grok: {} });
   });
 
+  // Regression (found while triaging the terra security review, 2026-09-20): the rebuild sent `{}`
+  // for every OTHER provider, and the server writes `baseUrl`/`model` from the submitted entry
+  // (`provider-credential-store.ts`'s `buildProviderUpsertRow` → `trimmedOrNull(entry.baseUrl)`) —
+  // `{}` only preserves the KEY. Removing one provider silently cleared every other provider's base
+  // URL and model. The two tests above use fixtures with neither field, so they could not see it.
+  it("media-provider: removing one provider carries every OTHER provider's baseUrl/model through unchanged", async () => {
+    const saveMediaProviders = vi.fn((map: AdminMediaProviderMap) => Promise.resolve(map));
+    const port = createFakeOtherCredentialsPort({
+      getMediaProviders: () =>
+        Promise.resolve({
+          cloudinary: { apiKeyConfigured: true, apiKeyTail: "old4", baseUrl: "https://cloud.example" },
+          grok: { apiKeyConfigured: true, apiKeyTail: "grok", baseUrl: "https://grok.example/v1", model: "grok-imagine-2" },
+          openai: { apiKeyConfigured: true, apiKeyTail: "oai1", model: "gpt-image-1" },
+          fal: { baseUrl: "https://fal.example" },
+        } as AdminMediaProviderMap),
+      saveMediaProviders,
+    });
+    const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const target = findGroup(result.current.groups, "media-provider")!.rows.find((r) => r.itemId === "cloudinary")!;
+
+    await act(() => result.current.remove(target));
+
+    expect(saveMediaProviders).toHaveBeenCalledTimes(1);
+    // Exact map, key by key: marker fields (`apiKeyConfigured`/`apiKeyTail`) are read-only view
+    // facts and must NOT be echoed back; an absent `apiKey` is what keeps each stored key.
+    expect(saveMediaProviders.mock.calls[0]![0]).toStrictEqual({
+      grok: { baseUrl: "https://grok.example/v1", model: "grok-imagine-2" },
+      openai: { model: "gpt-image-1" },
+      fal: { baseUrl: "https://fal.example" },
+    });
+  });
+
   it("composio-connector: disconnectConnector(itemId)", async () => {
     const disconnectConnector = vi.fn(() => Promise.resolve({ id: "c1", name: "C1", provider: "p", category: "cat", status: "available" as const, tools: [] }));
     const port = createFakeOtherCredentialsPort({
@@ -473,6 +531,80 @@ describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all 
     expect(settled.error).toBe("Couldn't save this token: boom");
     expect(settled.token).toBe("typed-but-not-saved");
     expect(settled.saving).toBe(false);
+  });
+});
+
+// Regression (terra security review 2026-09-20, #2 — the in-tab half; the cross-session half needs a
+// server-side concurrency token and is out of this hook's reach). A media-provider write is GET map →
+// rebuild → PUT whole map. Two removes started back to back both read the SAME map, so the second PUT
+// is built from a snapshot that still contains the provider the first one deleted.
+describe("useOtherCredentials — Tier-2 writes from one tab are serialized", () => {
+  /** A fake `/media/providers` with the real server's whole-map semantics
+   *  (`provider-credential-store.ts`): an absent provider is hard-deleted; a present entry with no
+   *  `apiKey` keeps the key stored at write time, or has none if the row no longer exists. Each PUT
+   *  lands only when the test releases it, so both removes can be put in flight before either
+   *  write applies. */
+  function fakeMediaServer(initial: AdminMediaProviderMap) {
+    let state: AdminMediaProviderMap = { ...initial };
+    const releases: Array<() => void> = [];
+    const putBodies: AdminMediaProviderMap[] = [];
+    return {
+      state: () => state,
+      putBodies,
+      releaseNext: () => releases.shift()?.(),
+      pendingPuts: () => releases.length,
+      getMediaProviders: () => Promise.resolve(structuredClone(state)),
+      saveMediaProviders: (map: AdminMediaProviderMap) => {
+        putBodies.push(structuredClone(map));
+        return new Promise<AdminMediaProviderMap>((resolve) => {
+          releases.push(() => {
+            const next: AdminMediaProviderMap = {};
+            for (const [id, entry] of Object.entries(map)) {
+              const stored = state[id];
+              next[id] = entry.apiKey ? { apiKeyConfigured: true, apiKeyTail: entry.apiKey.slice(-4) } : stored?.apiKeyConfigured ? { apiKeyConfigured: true, apiKeyTail: stored.apiKeyTail! } : {};
+            }
+            state = next;
+            resolve(structuredClone(state));
+          });
+        });
+      },
+    };
+  }
+
+  it("a second media-provider remove reads the map only AFTER the first one's write landed", async () => {
+    const server = fakeMediaServer({
+      cloudinary: { apiKeyConfigured: true, apiKeyTail: "c111" },
+      grok: { apiKeyConfigured: true, apiKeyTail: "g222" },
+    });
+    const port = createFakeOtherCredentialsPort({ getMediaProviders: server.getMediaProviders, saveMediaProviders: server.saveMediaProviders });
+    const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const rows = findGroup(result.current.groups, "media-provider")!.rows;
+    const cloudinary = rows.find((r) => r.itemId === "cloudinary")!;
+    const grok = rows.find((r) => r.itemId === "grok")!;
+
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.remove(cloudinary);
+      second = result.current.remove(grok);
+    });
+    await waitFor(() => expect(server.pendingPuts()).toBe(1));
+    // Only ONE write may be in flight — the second remove must not have read or written yet.
+    expect(server.putBodies).toStrictEqual([{ grok: {} }]);
+
+    server.releaseNext();
+    await waitFor(() => expect(server.pendingPuts()).toBe(1));
+    server.releaseNext();
+    await act(async () => {
+      await first;
+      await second;
+    });
+
+    // Built from the post-first-write map, so it no longer names cloudinary. Unserialized, this body
+    // was `{ cloudinary: {} }`, which re-created cloudinary as an empty, key-less row.
+    expect(server.putBodies).toStrictEqual([{ grok: {} }, {}]);
+    expect(server.state()).toStrictEqual({});
   });
 });
 

@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-import { applyGuestWebPreferences } from "./webview-guest-policy.ts";
+import { admitGuestSource, applyGuestWebPreferences } from "./webview-guest-policy.ts";
 import type { GuestWebPreferences } from "./webview-guest-policy.ts";
 import { fileURLToPath } from "node:url";
 
@@ -67,4 +67,62 @@ test("the preload main.ts hands the guest is the same file the standalone window
   const preloadSourcePath = path.join(__dirname, "speech", "preload-speech.cts");
   assert.equal(fs.existsSync(preloadSourcePath), true, `expected the speech preload source at ${preloadSourcePath}`);
   assert.match(fs.readFileSync(preloadSourcePath, "utf8"), /exposeInMainWorld\("tovuVoice"/);
+});
+
+/** A `will-attach-webview` event stand-in that counts `preventDefault` calls. */
+function attachEvent() {
+  const event = { prevented: 0, preventDefault: () => void (event.prevented += 1) };
+  return event;
+}
+
+const SUPERVISED = "http://127.0.0.1:4567/admin/";
+const isSupervised = (src: string) => src === SUPERVISED;
+
+test("a guest whose src is a supervised site is admitted, and the attach is not prevented", () => {
+  const event = attachEvent();
+  assert.equal(admitGuestSource(event, { src: SUPERVISED }, { isAllowedSource: isSupervised }), true);
+  assert.equal(event.prevented, 0);
+});
+
+test("a guest whose src is any other origin is refused by preventing the attach", () => {
+  // The defect: `will-attach-webview` never read `params.src`, so a `<webview>` pointed anywhere
+  // attached and received the speech preload.
+  for (const src of ["https://attacker.example/admin", "http://127.0.0.1:4567@evil.example/admin/", "file:///etc/passwd"]) {
+    const event = attachEvent();
+    assert.equal(admitGuestSource(event, { src }, { isAllowedSource: isSupervised }), false, src);
+    assert.equal(event.prevented, 1, src);
+  }
+});
+
+test("a guest with no src, or a non-string src, is refused without asking the predicate", () => {
+  const asked: string[] = [];
+  const isAllowedSource = (src: string) => {
+    asked.push(src);
+    return true;
+  };
+  for (const params of [{}, { src: undefined }, { src: 42 }, { src: { toString: () => SUPERVISED } }]) {
+    const event = attachEvent();
+    assert.equal(admitGuestSource(event, params, { isAllowedSource }), false);
+    assert.equal(event.prevented, 1);
+  }
+  assert.deepEqual(asked, []);
+});
+
+test("a predicate that throws refuses the attach instead of throwing out of Electron's callback", () => {
+  // A throw escaping a guest callback blanks the whole sites-home window in this app; refusing is
+  // the only safe answer when the check itself fails.
+  const event = attachEvent();
+  const isAllowedSource = () => {
+    throw new Error("openSites was not ready");
+  };
+  assert.equal(admitGuestSource(event, { src: SUPERVISED }, { isAllowedSource }), false);
+  assert.equal(event.prevented, 1);
+});
+
+test("main.ts checks the guest's src against the supervised sites before applying its preferences", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+  assert.match(
+    source,
+    /on\("will-attach-webview", \(event, webPreferences, params\) => \{\s*if \(!admitGuestSource\(event, params, \{ isAllowedSource: isSupervisedGuestUrl \}\)\) return;\s*applyGuestWebPreferences\(webPreferences, \{ preloadPath: SPEECH_PRELOAD_PATH \}\);/,
+  );
 });

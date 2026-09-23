@@ -14,6 +14,11 @@ import type { AdminMenu, AdminMenuItem } from "@/lib/api";
  * English (see `use-menu-editor.hooks.ts`/`use-menus.hooks.ts`'s own `e instanceof Error ?
  * e.message : "failed to ..."` fallbacks) — so unlike `media-port.hooks.ts`/`widgets-port
  * .hooks.ts`, this port has no accompanying `locale` dependency to inject alongside it.
+ *
+ * `trash` (Trash rewrite, 2026-09-21, `trash-delete-architecture.md`) moves a menu to Trash. A
+ * trashed menu is hidden from
+ * `listMenus()` by the server's own default filter, and the Trash screen owns restore/purge from
+ * here.
  */
 export interface MenusPort {
   listMenus(): Promise<{ menus: AdminMenu[] }>;
@@ -23,5 +28,8 @@ export interface MenusPort {
     target: { id: string; expectedVersion: number; items: AdminMenuItem[] },
     options: { title?: string; slug?: string }
   ): Promise<{ menu: AdminMenu }>;
-  deleteMenu(target: { id: string }, options: { force?: boolean }): Promise<{ menu: AdminMenu | null; purged: boolean }>;
+  /** Moves a menu to the Trash via the generic single-item route (`POST .../trash/items`,
+   *  `api.trash({ type: "menu", id })`) — the same route every other admin delete button now goes
+   *  through. No purge method here any more; the Trash screen owns that. */
+  trash(target: { id: string }): Promise<{ ok: true; version: number | null }>;
 }

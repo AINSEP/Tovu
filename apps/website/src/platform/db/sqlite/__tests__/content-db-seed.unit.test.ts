@@ -4,7 +4,7 @@ import test from "node:test";
 import { eq } from "drizzle-orm";
 
 import { openContentDb, seedContentDb, type ContentDbSeedData } from "../content-db.js";
-import * as schema from "../../schema.js";
+import * as schema from "../../schema.sqlite.js";
 
 /**
  * @file Direct unit coverage of `content-db.ts`'s `seedContentDb` — previously exercised only

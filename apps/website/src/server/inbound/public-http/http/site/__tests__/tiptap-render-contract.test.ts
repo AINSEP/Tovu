@@ -819,11 +819,73 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
     html: "<p></p>",
   },
   {
-    label: "widgetEmbed, resolved through inlineResolved",
+    label: "widgetEmbed, resolved through inlineResolved — a bare node (no cssClass/htmlAttributes) is byte-identical to before W1 (D5, 2026-09-23 embed-attributes-everywhere plan): no wrapper div at all",
     types: ["widgetEmbed"],
     doc: { type: "doc", content: [{ type: "widgetEmbed", attrs: { placementId: "p1", widgetEntryId: "w1" } }] },
     inlineResolved: new Map<string, WidgetRenderIR>([["p1", { componentId: "text", props: { body: "Hello widget" } }]]),
     html: '<div class="widget widget-text">Hello widget</div>',
+  },
+  {
+    label: "widgetEmbed with cssClass (D5/W1, like the media node's own cssClass): wrapped in a widget-embed div carrying the base class plus the node's own escaped class",
+    types: ["widgetEmbed"],
+    doc: { type: "doc", content: [{ type: "widgetEmbed", attrs: { placementId: "p-class", widgetEntryId: "w-class", cssClass: "a b" } }] },
+    inlineResolved: new Map<string, WidgetRenderIR>([["p-class", { componentId: "text", props: { body: "Styled" } }]]),
+    html: '<div class="widget-embed a b"><div class="widget widget-text">Styled</div></div>',
+  },
+  {
+    label:
+      "widgetEmbed with htmlAttributes (S1, 2026-09-23 widget-attrs plan): the shared embed allowlist is wider than data-*/aria-* now — loading (a pre-existing media extra, harmless if meaningless on a div) survives alongside data-*/aria-*, since the widget wrapper no longer applies its own extra data-/aria-only restriction on top of the shared allowlist",
+    types: ["widgetEmbed"],
+    doc: {
+      type: "doc",
+      content: [{ type: "widgetEmbed", attrs: { placementId: "p-attrs", widgetEntryId: "w-attrs", htmlAttributes: 'data-x="1" aria-label="L" loading="lazy"' } }],
+    },
+    inlineResolved: new Map<string, WidgetRenderIR>([["p-attrs", { componentId: "text", props: { body: "Attrs" } }]]),
+    html: '<div class="widget-embed" data-x="1" aria-label="L" loading="lazy"><div class="widget widget-text">Attrs</div></div>',
+  },
+  {
+    label:
+      "widgetEmbed security guard (S1, 2026-09-23 widget-attrs plan): an htmlAttributes string carrying an on* handler now drops ONLY that one token — data-x and style (now allowlisted, for styling/animation) both survive; onclick alone is rejected",
+    types: ["widgetEmbed"],
+    doc: {
+      type: "doc",
+      content: [{ type: "widgetEmbed", attrs: { placementId: "p-bad", widgetEntryId: "w-bad", htmlAttributes: 'data-x="1" onclick="alert(1)" style="color:red"' } }],
+    },
+    inlineResolved: new Map<string, WidgetRenderIR>([["p-bad", { componentId: "text", props: { body: "Guarded" } }]]),
+    html: '<div class="widget-embed" data-x="1" style="color:red"><div class="widget widget-text">Guarded</div></div>',
+  },
+  {
+    label:
+      "widgetEmbed with class/id/style in htmlAttributes (S1, 2026-09-23 widget-attrs plan): style/id now pass through for animation/layout, and htmlAttributes' own class token is appended after the node's cssClass, never emitted as a separate class attribute",
+    types: ["widgetEmbed"],
+    doc: {
+      type: "doc",
+      content: [
+        {
+          type: "widgetEmbed",
+          attrs: { placementId: "p-style", widgetEntryId: "w-style", cssClass: "a", htmlAttributes: 'class="fade" id="hero" style="opacity:0"' },
+        },
+      ],
+    },
+    inlineResolved: new Map<string, WidgetRenderIR>([["p-style", { componentId: "text", props: { body: "Faded" } }]]),
+    html: '<div class="widget-embed a fade" id="hero" style="opacity:0"><div class="widget widget-text">Faded</div></div>',
+  },
+  {
+    label:
+      "media node style override (S1, 2026-09-23 widget-attrs plan): style now survives the shared allowlist alongside data-*/aria-*, while onerror on the SAME node is still dropped on its own — one bad token, not the whole string",
+    types: ["media"],
+    doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-style-guard", transformName: "public", htmlAttributes: 'style="border:0" onerror="x"' } }] },
+    mediaTransformVersions: new Map([["public", 1]]),
+    mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
+      ["asset-style-guard", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "image/png" }],
+    ]),
+    html: '<img src="/m/asset-style-guard/public.v1/image.jpg" alt="" style="border:0" loading="lazy">',
+  },
+  {
+    label: "widgetEmbed missing widget (D5/W1): an unresolved placementId still falls back to the placeholder, and the placeholder is still wrapped when the node itself carries cssClass",
+    types: ["widgetEmbed"],
+    doc: { type: "doc", content: [{ type: "widgetEmbed", attrs: { placementId: "missing", widgetEntryId: "w-missing", cssClass: "featured" } }] },
+    html: '<div class="widget-embed featured"><div class="widget widget-placeholder" aria-hidden="true"></div></div>',
   },
   {
     label: "title node — deliberately contributes NOTHING to a generic doc walk (post.title prints separately elsewhere; see the post-content table below for the node's real render target)",

@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -188,12 +188,17 @@ describe("field attributes modal", () => {
 /**
  * @file (cont'd) Direct coverage for `FormEditorFieldsBody`, `FormEditorTabStrip`, and
  * `FormEditorMainPanel` — extracted out of `FormEditor` by the complexity-ceiling pass. None of
- * these branches (notify recipients reveal, the Enable/Disable status toggle, the Fields/
- * Submissions tab switch, and the new-form "Create form" vs existing-form "Save" label) were
- * exercised by the tests above, which only drove the load-error guards and the field-attributes
- * modal. Added per the refactor brief's "every extracted unit gets its own direct unit test" rule.
+ * these branches (the Enable/Disable status toggle, the Fields/Submissions tab switch, and the
+ * new-form "Create form" vs existing-form "Save" label) were exercised by the tests above, which
+ * only drove the load-error guards and the field-attributes modal. Added per the refactor brief's
+ * "every extracted unit gets its own direct unit test" rule.
+ *
+ * The notify checkbox/recipients-input UI this describe block used to also cover was removed
+ * (owner ask 2026-09-22 — dead until an outside mail integration exists; see
+ * `use-form-editor.hooks.ts`'s own `notify` state comment for the pass-through that replaced it,
+ * pinned by `use-form-editor.unit.test.tsx`'s "preserves an existing form's notify setting" test).
  */
-describe("new form — no tabs, Create form label, notify recipients reveal", () => {
+describe("new form — no tabs, Create form label", () => {
   it("renders no tab strip for a new form, and the Save button reads 'Create form'", async () => {
     renderScreen(<FormEditor formId="new" tab="fields" />);
 
@@ -201,13 +206,12 @@ describe("new form — no tabs, Create form label, notify recipients reveal", ()
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
 
-  it("reveals the recipients input only once notify is enabled", async () => {
-    const user = userEvent.setup();
+  it("never renders the removed notify checkbox or recipients input", async () => {
     renderScreen(<FormEditor formId="new" tab="fields" />);
 
+    await screen.findByRole("button", { name: /create form/i });
+    expect(screen.queryByRole("checkbox", { name: /notification/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/recipients/i)).not.toBeInTheDocument();
-    await user.click(screen.getByRole("checkbox", { name: /enable email notification/i }));
-    expect(screen.getByLabelText(/recipients/i)).toBeInTheDocument();
   });
 });
 
@@ -324,5 +328,119 @@ describe("existing form — tab strip, status toggle, submissions panel", () => 
     expect(putCall).toBeTruthy();
     const body = JSON.parse((putCall as [string, RequestInit])[1].body as string);
     expect(body.status).toBe("disabled");
+  });
+});
+
+describe("form submission delete — confirm modal (S5 fix, 2026-09-20)", () => {
+  function activeForm() {
+    return {
+      id: "f1",
+      name: "Contact",
+      slug: "contact",
+      status: "active",
+      fields: [],
+      notify: { enabled: false, recipients: [] },
+    };
+  }
+
+  function submissionFixture() {
+    return {
+      id: "s1",
+      formDefinitionId: "f1",
+      workspaceId: "ws1",
+      data: { email: "a@example.com" },
+      sourceIp: "127.0.0.1",
+      submittedAt: "2026-08-01T00:00:00.000Z",
+    };
+  }
+
+  it("Delete submission opens a confirm dialog; a double-click alone never deletes", async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: activeForm() })) // form load
+      .mockResolvedValueOnce(jsonResponse({ data: [submissionFixture()], nextCursor: null })) // submissions list
+      .mockResolvedValueOnce(jsonResponse({ data: submissionFixture() })); // submission detail
+
+    renderScreen(<FormEditor formId="f1" tab="submissions" />);
+
+    await user.click(await screen.findByRole("button", { name: /view/i }));
+    const deleteButton = await screen.findByRole("button", { name: /^delete submission$/i });
+
+    // A real double-click, same as an operator clicking twice in a hurry — the old inline
+    // two-click confirm deleted outright on the second click.
+    await user.click(deleteButton);
+    await user.click(deleteButton);
+
+    // T7a (2026-09-21): submission delete now moves it to the Trash (`api.trash`) rather than a
+    // hard `DELETE` — see `form-submissions-dependencies.hooks.ts`'s own doc.
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
+    const dialog = await screen.findByRole("dialog", { name: "Move to trash?" });
+    expect(within(dialog).getByText("It will disappear from this list. You can restore it from the Trash.")).toBeInTheDocument();
+  });
+});
+
+/**
+ * #3/#5/S2 (`ADS-memory/.local-artifacts/terra-admin-review-2026-09-20/plan-content2.md`) — the
+ * button-visible half of `use-form-submissions.hooks.ts`'s paging fix. `use-form-submissions
+ * .unit.test.tsx` covers the hook's request-serialization/staleness behavior directly; this test
+ * only pins the button's `disabled`/label reaction to `loadingMore`.
+ *
+ * `useFormSubmissionsHook` (the DI seam `FormSubmissions` accepts) isn't reachable from here —
+ * `FormEditor.tsx` mounts `<FormSubmissions formId={formId} t={t} />` with no seam of its own to
+ * forward one through, unlike `useFormEditorHook` on `FormEditor` itself. So this drives the real
+ * wired hook through a deferred `fetch`, the same idiom every other test in this file already
+ * uses, rather than stubbing the hook.
+ */
+describe("form submissions — Load more paging (2026-09-20)", () => {
+  function activeForm() {
+    return {
+      id: "f1",
+      name: "Contact",
+      slug: "contact",
+      status: "active",
+      fields: [],
+      notify: { enabled: false, recipients: [] },
+    };
+  }
+
+  function submissionFixture(id: string) {
+    return {
+      id,
+      formDefinitionId: "f1",
+      workspaceId: "ws1",
+      data: { email: "a@example.com" },
+      sourceIp: "127.0.0.1",
+      submittedAt: "2026-08-01T00:00:00.000Z",
+    };
+  }
+
+  it("disables Load more and shows Loading… while a page is in flight", async () => {
+    const user = userEvent.setup();
+    let resolveSecondPage: (() => void) | undefined;
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: activeForm() })) // form load
+      .mockResolvedValueOnce(jsonResponse({ data: [submissionFixture("s1")], nextCursor: "c2" })) // submissions list, page 1
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            // Manually resolved, never a timer — same deferred idiom as `use-form-submissions
+            // .unit.test.tsx`'s `createControlledPort`.
+            resolveSecondPage = () => resolve(jsonResponse({ data: [submissionFixture("s2")], nextCursor: "c3" }));
+          }),
+      );
+
+    renderScreen(<FormEditor formId="f1" tab="submissions" />);
+
+    const loadMoreButton = await screen.findByRole("button", { name: /^load more$/i });
+    expect(loadMoreButton).not.toBeDisabled();
+
+    await user.click(loadMoreButton);
+
+    const loadingButton = await screen.findByRole("button", { name: /^loading…$/i });
+    expect(loadingButton).toBeDisabled();
+
+    resolveSecondPage?.();
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /^load more$/i })).not.toBeDisabled());
   });
 });

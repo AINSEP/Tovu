@@ -1,5 +1,9 @@
-import { LIFECYCLE_COPY, autoFocusCancelForLifecycleOp, type LifecycleConfirmOp } from "../rules";
+import { useRef, type RefObject } from "react";
+
+import { autoFocusCancelForLifecycleOp, lifecycleCopy, type LifecycleConfirmOp } from "../rules";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useEscapeToCancel } from "./use-escape-to-cancel.hooks";
+import { useFocusTrap } from "@/hooks/use-focus-trap.hooks";
 
 /**
  * @file `LifecycleConfirmDialog`'s only two behaviours — Escape-to-cancel and the op-derived copy/
@@ -14,16 +18,23 @@ import { useEscapeToCancel } from "./use-escape-to-cancel.hooks";
 export interface LifecycleConfirmDialogController {
   copy: { title: string; body: string };
   autoFocusCancel: boolean;
+  /** Attach to the dialog's own `role="dialog"` root so `useFocusTrap` (M3) can find it. */
+  dialogRef: RefObject<HTMLDivElement | null>;
 }
 
 export function useLifecycleConfirmDialog(props: {
   op: LifecycleConfirmOp;
   onCancel: () => void;
 }): LifecycleConfirmDialogController {
+  const locale = useAdminLocale();
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+
   useEscapeToCancel(props.onCancel);
+  useFocusTrap(dialogRef);
 
   return {
-    copy: LIFECYCLE_COPY[props.op],
+    copy: lifecycleCopy(props.op, locale),
     autoFocusCancel: autoFocusCancelForLifecycleOp(props.op),
+    dialogRef,
   };
 }

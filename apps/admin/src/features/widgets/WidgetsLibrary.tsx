@@ -5,15 +5,19 @@ import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { widgetTypeLabel } from "./rules";
 import { useWiredWidgetsLibrary } from "./hooks/use-widgets-library.hooks";
+import { ServerLabel } from "@/components/status-labels";
 
 /**
  * @file `WidgetsLibraryScreen` (`ui.spec.md` §2.1/§3.1/§4.1) — the widget library/list screen,
  * `/admin/widgets` — markup only. Mirrors `Menus.tsx`'s list-table/status-badge/header-action
  * shape exactly.
  *
- * State, the fetch, and the trash/purge/force-purge escalation live in
- * `hooks/use-widgets-library.hooks.ts`; the shared type-label and referencing-locations
- * derivations live in `rules.ts`.
+ * State and the fetch live in `hooks/use-widgets-library.hooks.ts`; the shared type-label
+ * derivation lives in `rules.ts`. Delete always confirms first (`pendingTrash`/`ConfirmDialog`
+ * below) and moves the widget to the Trash — there is no purge/force-purge escalation here any
+ * more (2026-09-21, `trash-delete-architecture.md`): the server's widget purge route was removed,
+ * a trashed widget is hidden from this list by the server, and the Trash screen owns
+ * restore/purge from here.
  */
 export interface WidgetsLibraryProps {
   /**
@@ -23,17 +27,18 @@ export interface WidgetsLibraryProps {
   useWidgetsLibraryHook?: typeof useWiredWidgetsLibrary;
 }
 
-/** The list screen's two independent notices — a fetch/action error, and how many rows the server
- *  sent back that couldn't be displayed — pulled out of `WidgetsLibrary`'s own render body as a
- *  top-level component under the tightened ≤9/≤9 pass. `skippedCount`'s own singular/plural
- *  ternary is part of the same extraction, since it only exists inside this notice. */
+/** The list screen's two independent notices — a fetch/action error, and malformed widget records
+ *  the server could not read — pulled out of `WidgetsLibrary`'s own render body as a top-level
+ *  component under the tightened ≤9/≤9 pass. */
 export function WidgetsLibraryNotices({
   error,
   skippedCount,
+  skippedIds = [],
   t = (key: string) => key,
 }: {
   error: string | null;
   skippedCount: number;
+  skippedIds?: string[];
   /** Translator closure — see `WidgetsLibrary()`'s own `t`. Optional (identity default) since this
    *  component is exported and unit-tested directly without one — same "default to the real thing,
    *  a stub renders English" convention every `use*Hook` prop in this app already follows. */
@@ -45,8 +50,14 @@ export function WidgetsLibraryNotices({
       {skippedCount > 0 ? (
         <div className="notice">
           {skippedCount === 1
-            ? t("1 row could not be displayed.")
-            : t("{n} rows could not be displayed.").replace("{n}", String(skippedCount))}
+            ? t("1 widget record in this workspace could not be read.")
+            : t("{n} widget records in this workspace could not be read.").replace("{n}", String(skippedCount))}
+          {skippedIds.length > 0 ? (
+            <details>
+              <summary>{t("Show ids")}</summary>
+              <ul>{skippedIds.map((id) => <li key={id}><code>{id}</code></li>)}</ul>
+            </details>
+          ) : null}
         </div>
       ) : null}
     </>
@@ -58,19 +69,20 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
     widgets,
     error,
     skippedCount,
+    skippedIds,
     createType,
     setCreateType,
-    pendingForcePurge,
-    cancelForcePurge,
-    forcePurging,
-    confirmForcePurge,
-    trashOrPurge,
+    pendingTrash,
+    trashing,
+    requestTrash,
+    confirmTrash,
+    cancelTrash,
     t,
     locale,
   } = useWidgetsLibraryHook();
 
   if (error && !widgets) return <div className="notice error">{error}</div>;
-  if (!widgets) return <div className="notice">Loading widgets…</div>;
+  if (!widgets) return <div className="notice">{t("Loading widgets…")}</div>;
 
   // Widget ids are stable and unique, same per-row-handle derivation every other list on this
   // workstream uses (`buildAgentListHandles`) — the title link and the Trash/Delete button both
@@ -101,12 +113,12 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
           <select
             value={createType}
             onChange={(e) => setCreateType(e.target.value as AdminWidgetType)}
-            aria-label="Widget type to create"
+            aria-label={t("Widget type to create")}
             {...agentHandle("widgets-create-type", { role: "field", label: "Widget type to create" })}
           >
             {WIDGET_TYPE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
-                {o.label}
+                {widgetTypeLabel(o.value, locale)}
               </option>
             ))}
           </select>
@@ -119,7 +131,7 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
           </a>
         </div>
       </div>
-      <WidgetsLibraryNotices error={error} skippedCount={skippedCount} t={t} />
+      <WidgetsLibraryNotices error={error} skippedCount={skippedCount} skippedIds={skippedIds} t={t} />
       <DataTable
         rows={widgets}
         rowKey={(widget) => widget.id}
@@ -137,7 +149,10 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
             header: t("Title"),
             cell: (widget) => (
               <a
-                href={`/admin/widgets/${widget.id}`}
+                // Slug, not id (2026-09-22, URL-uses-slug — mirrors `FormsList.tsx`'s
+                // `/admin/forms/${form.slug}` row link): the editor resolves either
+                // (`read-service.ts`'s `getWidgetInstance`), but the slug is the readable one.
+                href={`/admin/widgets/${widget.slug}`}
                 {...agentHandle(`${rowHandleById.get(widget.id)}-edit`, { role: "link", label: `Edit the "${widget.title}" widget` })}
               >
                 {widget.title}
@@ -150,11 +165,17 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
             cell: (widget) => widgetTypeLabel(widget.widgetType, locale),
           },
           {
+            key: "slug",
+            header: t("Slug"),
+            // Monospace like Collections' "Key" column (`Collections.tsx`) — a slug is an
+            // identifier, not prose.
+            cell: (widget) => <code>{widget.slug}</code>,
+          },
+          {
             key: "status",
             header: t("Status"),
-            cell: (widget) => <span className={`status status-${widget.status}`}>{widget.status}</span>,
+            cell: (widget) => <span className={`status status-${widget.status}`}><ServerLabel value={widget.status} /></span>,
           },
-          { key: "version", header: "v", cell: (widget) => widget.version },
           {
             key: "actions",
             // Not converted to a `RowMenu` — this is the row's only action (see report: a menu
@@ -164,38 +185,28 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
             headerLabel: t("Actions"),
             cell: (widget) => (
               <button
-                onClick={() => trashOrPurge(widget)}
-                {...agentHandle(`${rowHandleById.get(widget.id)}-trash-or-purge`, {
+                onClick={() => requestTrash(widget)}
+                {...agentHandle(`${rowHandleById.get(widget.id)}-trash`, {
                   role: "button",
-                  label: widget.status === "active" ? `Move "${widget.title}" to trash` : `Permanently delete "${widget.title}"`,
+                  label: `Move "${widget.title}" to trash`,
                 })}
               >
-                {widget.status === "active" ? t("Trash") : t("Delete permanently")}
+                {t("Trash")}
               </button>
             ),
           },
         ]}
       />
       <ConfirmDialog
-        open={pendingForcePurge !== null}
-        agentHandle="widgets-force-purge"
-        title={t("Still in use")}
-        body={
-          pendingForcePurge ? (
-            <p>
-              {t('"{title}" is still used in: {summary}.')
-                .replace("{title}", pendingForcePurge.widget.title)
-                .replace("{summary}", pendingForcePurge.summary)}
-              <br />
-              {t("Permanently delete anyway? This cannot be undone.")}
-            </p>
-          ) : null
-        }
-        confirmLabel={t("Permanently delete")}
+        open={pendingTrash !== null}
+        agentHandle="widgets-trash"
+        title={t("Move to trash?")}
+        body={pendingTrash ? <p>{t('Move "{title}" to trash?').replace("{title}", pendingTrash.title)}</p> : null}
+        confirmLabel={t("Move to trash")}
         destructive
-        pending={forcePurging}
-        onConfirm={confirmForcePurge}
-        onCancel={cancelForcePurge}
+        pending={trashing}
+        onConfirm={confirmTrash}
+        onCancel={cancelTrash}
       />
     </div>
   );

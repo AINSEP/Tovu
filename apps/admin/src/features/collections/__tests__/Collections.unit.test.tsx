@@ -87,6 +87,9 @@ function collectionsController(overrides: Partial<CollectionsController> = {}): 
     actionError: null,
     load: vi.fn(),
     runLifecycle: vi.fn(async () => {}),
+    copiedKey: null,
+    copyFallback: null,
+    copyEmbedCode: vi.fn(async () => {}),
     // Identity `t` + "en" locale — matches what the pre-`useWiredX` component got from a real,
     // unmocked `useAdminLocale()` call in this render-only test (defaults to `DEFAULT_LOCALE`
     // synchronously; `COLLECTIONS_DICT` has no "en" entries, so every lookup already fell through
@@ -110,6 +113,8 @@ function newDialogController(overrides: Partial<NewContentTypeDialogController> 
     error: null,
     saving: false,
     submit: vi.fn((e: React.FormEvent) => e.preventDefault()),
+    cancel: vi.fn(),
+    dialogRef: { current: null },
     ...overrides,
   };
 }
@@ -123,6 +128,8 @@ function editDialogController(overrides: Partial<EditFieldsDialogController> = {
     error: null,
     saving: false,
     submit: vi.fn((e: React.FormEvent) => e.preventDefault()),
+    cancel: vi.fn(),
+    dialogRef: { current: null },
     ...overrides,
   };
 }
@@ -131,6 +138,7 @@ function lifecycleDialogController(overrides: Partial<LifecycleConfirmDialogCont
   return {
     copy: { title: "Deprecate content type", body: "Existing entries stay readable; no new entries can be created." },
     autoFocusCancel: false,
+    dialogRef: { current: null },
     ...overrides,
   };
 }
@@ -185,6 +193,28 @@ describe("empty and populated list", () => {
     expect(screen.getByText("1")).toBeInTheDocument(); // queryable count
     expect(screen.getByText("active")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Manage entries" })).toHaveAttribute("href", "/admin/collections/recipe");
+  });
+});
+
+describe("Copy embed code", () => {
+  it("renders a Copy embed code button per row and calls copyEmbedCode(ct) on click", async () => {
+    const user = userEvent.setup();
+    const c = renderCollections({ types: [TYPE] });
+    await user.click(screen.getByRole("button", { name: "Copy embed code" }));
+    expect(c.copyEmbedCode).toHaveBeenCalledWith(TYPE);
+  });
+
+  it("shows the snippet as selectable text on the failed row only, when the clipboard write failed", () => {
+    const snippet = '<div data-embed-config=\'{"type":"collection","id":"recipe"}\'></div>';
+    renderCollections({ types: [TYPE, DEPRECATED_TYPE], copyFallback: { key: "recipe", snippet } });
+    expect(screen.getByText(snippet)).toBeInTheDocument();
+    expect(screen.getAllByText(/data-embed-config/)).toHaveLength(1);
+  });
+
+  it("shows Copied only for the row whose key matches copiedKey", () => {
+    renderCollections({ types: [TYPE, DEPRECATED_TYPE], copiedKey: "recipe" });
+    expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy embed code" })).toBeInTheDocument();
   });
 });
 
@@ -385,20 +415,46 @@ describe("NewContentTypeDialog", () => {
     expect(dlg.submit).toHaveBeenCalledTimes(1);
   });
 
-  it("clicking Cancel calls setShowNewDialog(false)", async () => {
+  it("clicking Cancel calls the dialog's own cancel (H4 — routes through the in-flight guard, not the raw prop)", async () => {
     const user = userEvent.setup();
-    const c = renderCollections({ showNewDialog: true });
+    const dlg = newDialogController();
+    newDialogRef.current = dlg;
+    renderCollections({ showNewDialog: true });
     await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(c.setShowNewDialog).toHaveBeenCalledWith(false);
+    expect(dlg.cancel).toHaveBeenCalledTimes(1);
   });
 
-  it("clicking the backdrop calls onCancel (setShowNewDialog(false)), but clicking inside the dialog does not", async () => {
+  // M3's focus trap only works if Collections.tsx actually attaches the hook's ref to this
+  // dialog's own role="dialog" root. The hook tests render their own harness markup, so dropping
+  // `ref={dialogRef}` here left every test green (verified 2026-09-20) while the trap silently
+  // did nothing in the real dialog.
+  it("attaches the hook's dialogRef to the dialog root, so useFocusTrap has an element to trap in (M3)", () => {
+    const dlg = newDialogController();
+    newDialogRef.current = dlg;
+    renderCollections({ showNewDialog: true });
+    expect(dlg.dialogRef.current).toBe(screen.getByRole("dialog"));
+  });
+
+  it("clicking the backdrop calls the dialog's own cancel, but clicking inside the dialog does not", async () => {
     const user = userEvent.setup();
-    const c = renderCollections({ showNewDialog: true });
+    const dlg = newDialogController();
+    newDialogRef.current = dlg;
+    renderCollections({ showNewDialog: true });
     await user.click(screen.getByRole("dialog"));
-    expect(c.setShowNewDialog).not.toHaveBeenCalled();
+    expect(dlg.cancel).not.toHaveBeenCalled();
     await user.click(document.querySelector(".settings-dialog-backdrop")!);
-    expect(c.setShowNewDialog).toHaveBeenCalledWith(false);
+    expect(dlg.cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("Cancel is disabled while saving, so a click can't reach the dialog's cancel (H4)", async () => {
+    const user = userEvent.setup();
+    const dlg = newDialogController({ saving: true });
+    newDialogRef.current = dlg;
+    renderCollections({ showNewDialog: true });
+    const cancelButton = screen.getByRole("button", { name: "Cancel" });
+    expect(cancelButton).toBeDisabled();
+    await user.click(cancelButton);
+    expect(dlg.cancel).not.toHaveBeenCalled();
   });
 
   it("onCreated closes the dialog AND reloads the list — Collections passes both through, not just one", () => {
@@ -499,11 +555,47 @@ describe("EditFieldsDialog", () => {
     expect(dlg.submit).toHaveBeenCalledTimes(1);
   });
 
-  it("clicking Cancel calls setEditingFieldsFor(null)", async () => {
+  it("clicking Cancel calls the dialog's own cancel (H4 — routes through the in-flight guard, not the raw prop)", async () => {
     const user = userEvent.setup();
-    const c = renderCollections({ editingFieldsFor: TYPE });
+    const dlg = editDialogController();
+    editDialogRef.current = dlg;
+    renderCollections({ editingFieldsFor: TYPE });
     await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(c.setEditingFieldsFor).toHaveBeenCalledWith(null);
+    expect(dlg.cancel).toHaveBeenCalledTimes(1);
+  });
+
+  /** Same wiring check as NewContentTypeDialog's own — see its comment. */
+  it("attaches the hook's dialogRef to the dialog root, so useFocusTrap has an element to trap in (M3)", () => {
+    const dlg = editDialogController();
+    editDialogRef.current = dlg;
+    renderCollections({ editingFieldsFor: TYPE });
+    expect(dlg.dialogRef.current).toBe(screen.getByRole("dialog"));
+  });
+
+  // The sibling NewContentTypeDialog describe has had this case since 7cd19b4a7; this dialog's
+  // backdrop did not, so `onClick={cancel}` here could be reverted to the raw `onCancel` prop with
+  // every test still green — the dismiss-while-saving guard would be gone on one of the two
+  // dialogs only (verified 2026-09-20: that exact mutant survived the whole file).
+  it("clicking the backdrop calls the dialog's own cancel, but clicking inside the dialog does not", async () => {
+    const user = userEvent.setup();
+    const dlg = editDialogController();
+    editDialogRef.current = dlg;
+    renderCollections({ editingFieldsFor: TYPE });
+    await user.click(screen.getByRole("dialog"));
+    expect(dlg.cancel).not.toHaveBeenCalled();
+    await user.click(document.querySelector(".settings-dialog-backdrop")!);
+    expect(dlg.cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("Cancel is disabled while saving, so a click can't reach the dialog's cancel (H4)", async () => {
+    const user = userEvent.setup();
+    const dlg = editDialogController({ saving: true });
+    editDialogRef.current = dlg;
+    renderCollections({ editingFieldsFor: TYPE });
+    const cancelButton = screen.getByRole("button", { name: "Cancel" });
+    expect(cancelButton).toBeDisabled();
+    await user.click(cancelButton);
+    expect(dlg.cancel).not.toHaveBeenCalled();
   });
 
   it("onSaved closes the dialog AND reloads the list — Collections passes both through, not just one", () => {
@@ -550,6 +642,14 @@ describe("LifecycleConfirmDialog", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(c.setPendingLifecycle).toHaveBeenCalledWith(null);
     expect(c.runLifecycle).not.toHaveBeenCalled();
+  });
+
+  /** Same wiring check as NewContentTypeDialog's own — see its comment. */
+  it("attaches the hook's dialogRef to the dialog root, so useFocusTrap has an element to trap in (M3)", () => {
+    const dlg = lifecycleDialogController();
+    lifecycleDialogRef.current = dlg;
+    renderCollections({ pendingLifecycle: { op: "deprecate", contentType: TYPE } });
+    expect(dlg.dialogRef.current).toBe(screen.getByRole("dialog"));
   });
 
   it("autoFocus reflects the hook's autoFocusCancel — cancel focused for tombstone", () => {

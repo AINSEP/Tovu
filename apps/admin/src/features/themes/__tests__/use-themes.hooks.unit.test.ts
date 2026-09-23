@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, type PresentationSettings } from "@/lib/api";
 import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";
 import { useThemes, useWiredThemes } from "../hooks/use-themes.hooks";
+import { t as translateThemes } from "../themes-i18n";
 
 /**
  * @file `useThemes` driven against the injected `ThemesPort`, no `fetch` stub and no `api` spy.
@@ -74,7 +75,7 @@ function settingsFor(activeThemeId: string): PresentationSettings {
 }
 
 describe("useThemes — activate race safety", () => {
-  it("the LAST-clicked activate wins even when an earlier click's response arrives after it", async () => {
+  it("the LAST-clicked activate wins even when an earlier click's response arrives while the later one is still queued", async () => {
     const deferred: Record<
       string,
       { promise: Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>; resolve: (value: { settings: PresentationSettings; availableThemeIds: string[] }) => void }
@@ -94,36 +95,36 @@ describe("useThemes — activate race safety", () => {
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz", "slate"]));
 
     // Two rapid clicks on different themes: quartz first, slate second — slate is the operator's
-    // actual, final choice.
+    // actual, final choice. Activations are serialized onto one lane, so only quartz's call
+    // reaches the port; slate's stays queued behind it.
     act(() => {
       void result.current.activate("quartz");
     });
     act(() => {
       void result.current.activate("slate");
     });
-    // `activate` invokes the port on a microtask, not synchronously inside `act`'s callback — wait
-    // for both to actually reach the port before either is resolved.
-    await waitFor(() => expect(setActiveTheme).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(setActiveTheme).toHaveBeenCalledTimes(1), { timeout: 5000 });
+    expect(setActiveTheme).toHaveBeenCalledWith("quartz");
 
-    // Network settles OUT of click order: slate (clicked LAST) resolves first; quartz (clicked
-    // first) resolves after it.
-    await act(async () => {
-      deferred.slate.resolve({ settings: settingsFor("slate"), availableThemeIds: ["basic", "quartz", "slate"] });
-      await deferred.slate.promise;
-    });
-    await waitFor(() => expect(result.current.settings?.activeThemeId).toBe("slate"));
-
+    // quartz (clicked first) resolves — but a newer activate (slate) already superseded it before
+    // its result ever lands, so it must not paint, and slate's queued call now reaches the port.
     await act(async () => {
       deferred.quartz.resolve({ settings: settingsFor("quartz"), availableThemeIds: ["basic", "quartz", "slate"] });
       await deferred.quartz.promise;
     });
-    // Give quartz's now-stale settlement a chance to land before asserting nothing changed.
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await waitFor(() => expect(setActiveTheme).toHaveBeenCalledTimes(2), { timeout: 5000 });
+    expect(result.current.settings?.activeThemeId).toBe("basic");
+    expect(result.current.busyTheme).toBe("slate");
 
-    // The operator's LAST click (slate) must still be what is shown — quartz's late-arriving
-    // response must not overwrite it just because it settled second.
+    await act(async () => {
+      deferred.slate.resolve({ settings: settingsFor("slate"), availableThemeIds: ["basic", "quartz", "slate"] });
+      await deferred.slate.promise;
+    });
+    await waitFor(() => expect(result.current.busyTheme).toBeNull(), { timeout: 5000 });
+
+    // The operator's LAST click (slate) is what is shown, reached the server AFTER quartz's stale
+    // response had already been dropped.
     expect(result.current.settings?.activeThemeId).toBe("slate");
-    expect(result.current.busyTheme).toBeNull();
   });
 
   /**
@@ -134,7 +135,7 @@ describe("useThemes — activate race safety", () => {
    * settles WHILE the newer one is still pending: clearing `busyTheme` here would hide the busy
    * indicator for a switch that hasn't actually finished yet.
    */
-  it("a stale activate settling while a newer activate is still pending must not clear busyTheme early", async () => {
+  it("a stale activate settling while a newer activate is still queued must not clear busyTheme early", async () => {
     const deferred: Record<string, { resolve: (value: { settings: PresentationSettings; availableThemeIds: string[] }) => void }> = {};
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz", "slate"] });
     port.setActiveTheme = vi.fn(
@@ -153,14 +154,14 @@ describe("useThemes — activate race safety", () => {
     act(() => {
       void result.current.activate("slate");
     });
-    await waitFor(() => expect(port.setActiveTheme).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(port.setActiveTheme).toHaveBeenCalledTimes(1), { timeout: 5000 });
     expect(result.current.busyTheme).toBe("slate");
 
-    // quartz (stale) settles now, while slate's own call is STILL pending.
+    // quartz (stale) settles now, while slate's own call is still QUEUED behind it.
     await act(async () => {
       deferred.quartz!.resolve({ settings: settingsFor("quartz"), availableThemeIds: ["basic", "quartz", "slate"] });
     });
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await waitFor(() => expect(port.setActiveTheme).toHaveBeenCalledTimes(2), { timeout: 5000 });
 
     // slate's activate has not settled yet — busyTheme must still show it, not be cleared by
     // quartz's stale settlement.
@@ -170,10 +171,10 @@ describe("useThemes — activate race safety", () => {
     await act(async () => {
       deferred.slate!.resolve({ settings: settingsFor("slate"), availableThemeIds: ["basic", "quartz", "slate"] });
     });
-    await waitFor(() => expect(result.current.busyTheme).toBeNull());
+    await waitFor(() => expect(result.current.busyTheme).toBeNull(), { timeout: 5000 });
   });
 
-  it("a stale FAILED activate settling after a newer, successful activate must not resurrect a stale error", async () => {
+  it("a stale FAILED activate settling while a newer, successful activate is still queued must not resurrect a stale error", async () => {
     const deferred: Record<string, { reject: (reason: unknown) => void; resolveOk: (value: { settings: PresentationSettings; availableThemeIds: string[] }) => void }> = {};
     const promises: Record<string, Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>> = {};
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz", "slate"] });
@@ -194,26 +195,84 @@ describe("useThemes — activate race safety", () => {
     act(() => {
       void result.current.activate("slate");
     });
-    await waitFor(() => expect(port.setActiveTheme).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(port.setActiveTheme).toHaveBeenCalledTimes(1), { timeout: 5000 });
 
-    // The LAST click (slate) succeeds first.
-    await act(async () => {
-      deferred.slate.resolveOk({ settings: settingsFor("slate"), availableThemeIds: ["basic", "quartz", "slate"] });
-      await promises.slate.catch(() => {});
-    });
-    await waitFor(() => expect(result.current.settings?.activeThemeId).toBe("slate"));
-    expect(result.current.error).toBeNull();
-
-    // The stale, superseded quartz call now fails — its error must not resurrect over slate's
-    // already-successful, already-displayed outcome.
+    // quartz — already superseded the instant slate was clicked — now fails, while slate's call is
+    // still queued behind it. Its error must not surface.
     await act(async () => {
       deferred.quartz.reject(new Error("failed to switch theme"));
       await promises.quartz.catch(() => {});
     });
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.error).toBeNull();
+
+    // slate's queued call now reaches the port and succeeds.
+    await waitFor(() => expect(port.setActiveTheme).toHaveBeenCalledTimes(2), { timeout: 5000 });
+    await act(async () => {
+      deferred.slate.resolveOk({ settings: settingsFor("slate"), availableThemeIds: ["basic", "quartz", "slate"] });
+      await promises.slate.catch(() => {});
+    });
+    await waitFor(() => expect(result.current.settings?.activeThemeId).toBe("slate"), { timeout: 5000 });
 
     expect(result.current.error).toBeNull();
+  });
+});
+
+/**
+ * The server persists whichever activation it processes LAST (mirrors `use-sites.hooks.ts`'s own
+ * "two activations back to back" race, closed there by c2da0ddba), so two activations in flight at
+ * once can leave the server on the earlier choice while this screen reports the later one.
+ * `Themes.tsx` disables every Activate button (and "Turn the theme off") while `busyTheme !==
+ * null`, so only a same-tick programmatic call reaches this — but the hook accepts one, and must
+ * not let the screen and the server disagree when it does.
+ */
+describe("useThemes — two activations back to back persist the theme the screen reports", () => {
+  it("sends the second activation only after the first settles, so the server ends on the theme the screen reports", async () => {
+    let persisted: string | null = null;
+    const pending: Array<() => void> = [];
+    let maxInFlight = 0;
+    let inFlight = 0;
+    const calls: string[] = [];
+    const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz", "slate"] });
+    port.setActiveTheme = vi.fn((themeId: string) => {
+      calls.push(themeId);
+      return new Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>((resolve) => {
+        inFlight += 1;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        pending.push(() => {
+          persisted = themeId;
+          inFlight -= 1;
+          resolve({ settings: settingsFor(themeId), availableThemeIds: ["basic", "quartz", "slate"] });
+        });
+      });
+    });
+
+    const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
+    await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz", "slate"]));
+
+    act(() => {
+      void result.current.activate("quartz");
+    });
+    act(() => {
+      void result.current.activate("slate");
+    });
+
+    // Release the NEWEST pending request each round — the network order that loses the last click
+    // if activations are not serialized. Exactly two releases: two clicks, so two requests reach
+    // the port whether they arrive together (today, unserialized) or one at a time (after the fix).
+    // Generous timeout: up to 3 agents run vitest on this machine at once (see WRITER-RULES), and a
+    // microtask that is logically instant can still lag past the default 1000ms under contention.
+    for (let round = 0; round < 2; round += 1) {
+      await waitFor(() => expect(pending.length).toBeGreaterThan(0), { timeout: 5000 });
+      act(() => {
+        pending.pop()!();
+      });
+    }
+    await waitFor(() => expect(result.current.busyTheme).toBeNull(), { timeout: 5000 });
+
+    expect(persisted).toBe("slate");
     expect(result.current.settings?.activeThemeId).toBe("slate");
+    expect(maxInFlight).toBe(1);
+    expect(calls).toEqual(["quartz", "slate"]);
   });
 });
 
@@ -563,6 +622,42 @@ describe("useThemes — loadMarketplace", () => {
     });
 
     expect(result.current.error).toBe("failed to load the marketplace");
+  });
+});
+
+/**
+ * The download SUCCEEDED and the re-read of the installed list failed. Both used to share one try,
+ * so the screen said the download failed — and a retry installed a second, suffixed copy.
+ */
+describe("useThemes — a failed re-read after a successful download", () => {
+  it("reports the install as done and the read failure as its own error", async () => {
+    const port = createFakeThemesPort({ availableThemeIds: ["basic"] });
+    const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
+    await waitFor(() => expect(result.current.themes).toEqual(["basic"]));
+    const download = vi.spyOn(port, "downloadMarketplaceTheme");
+    port.getPresentation = () => Promise.reject(new Error("presentation read failed"));
+
+    await act(async () => {
+      await result.current.download!("alpha");
+    });
+
+    expect(download).toHaveBeenCalledTimes(1);
+    expect(result.current.rescanNotice).toBe("Installed “alpha”.");
+    expect(result.current.error).toBe("presentation read failed");
+    expect(result.current.downloading).toBeNull();
+  });
+
+  it("a non-Error read failure falls back to a translated key of its own, not the download's", async () => {
+    const port = createFakeThemesPort({ availableThemeIds: ["basic"] });
+    const { result } = renderHook(() => useThemes({ port, t: (k) => translateThemes("es", k) }));
+    await waitFor(() => expect(result.current.themes).toEqual(["basic"]));
+    port.getPresentation = () => Promise.reject("nope");
+
+    await act(async () => {
+      await result.current.download!("alpha");
+    });
+
+    expect(result.current.error).toBe("No se pudo actualizar la lista de temas");
   });
 });
 

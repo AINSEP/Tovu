@@ -51,7 +51,7 @@ import type { StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
  * history is a separate, additional side effect performed alongside them, not folded into them, so a
  * reader auditing "what does settling a run do to the shared snapshot" is not also reading unrelated
  * persistence code. See `./publish-history.ts`'s own header for the storage design (an append-only
- * `publish_history` table, `src/platform/db/schema.ts`; migration `0043`).
+ * `publish_history` table, `src/platform/db/schema.sqlite.ts`; migration `0043`).
  *
  * `historyStore` is a REQUIRED parameter on both {@link startPublishRun} and
  * {@link runPublishAndAwait} — deliberately no module-level default the way this file's original

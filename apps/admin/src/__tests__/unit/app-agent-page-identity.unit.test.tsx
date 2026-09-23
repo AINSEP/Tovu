@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, render as renderWithoutProvider, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { FetchQueryProvider } from "../../lib/fetch-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { agentPageId, App, parseRoute } from "../../App";
@@ -152,3 +154,9 @@ describe("data-agent-page reports the published page id, not the sidebar row", (
     },
   );
 });
+
+/** `App` mounts the assistant dock, whose agents list reads through the app's query cache — render
+ *  under the same provider `main.tsx` wraps `App` in. */
+function render(ui: ReactElement) {
+  return renderWithoutProvider(ui, { wrapper: FetchQueryProvider });
+}

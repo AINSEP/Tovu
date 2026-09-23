@@ -1,6 +1,12 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { describeApiError, type AdminWidget, type AdminWidgetType } from "../../lib/api";
-import { defaultWidgetConfig, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
+import { DEFAULT_LOCALE } from "../../hooks/admin-locale-dependencies.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import type { Translate } from "../../lib/dictionary-translator";
+import { interpolate } from "../../lib/template-i18n";
+import { widgetTypeLabel } from "../../features/widgets/rules";
+import { t as sharedComponentsT } from "../shared-components-i18n";
+import { defaultWidgetConfig } from "../WidgetConfigFields/WidgetConfigFields";
 import { defaultWidgetPickerPort } from "./widget-picker-dependencies.hooks";
 import type { WidgetPickerPort } from "./widget-picker-port.hooks";
 import type { WidgetAddControlProps, WidgetPickerDialogProps } from "./WidgetPickerDialog";
@@ -19,18 +25,27 @@ import type { WidgetAddControlProps, WidgetPickerDialogProps } from "./WidgetPic
  * runtime circular dependency between the two.
  *
  * `port` is injected (see `widget-picker-port.hooks.ts`) rather than reaching `lib/api`'s `api`
- * directly — same shape `MediaPickerDialog.hooks.tsx` uses. Unlike that file, the three functions
- * below take `port` as an OPTIONAL, defaulted parameter rather than splitting into a separate
- * `useWiredX()` pair: `useWidgetAddControl` has a real out-of-slice consumer —
- * `EmbedInsertControl.hooks.tsx` calls `useWidgetAddControl(props)` with one argument, twice, for
- * its pinned Form/Menu controls — and `WidgetPickerDialog.tsx`/`WidgetAddControl` both default
- * their own `useDialog`/`useAddControl` props straight to these same exported names. An optional,
- * defaulted second parameter keeps every existing call site (in-slice and out-of-slice alike)
- * compiling and behaving identically, while still giving tests a real seam:
- * `useWidgetAddControl(props, { port: createFakeWidgetPickerPort(...) })`. Per
- * `development/docs/architecture/wired-hooks-convention.md`'s "narrow to the actual pain point"
- * guidance — renaming to a strict `useWiredX` pair would ripple into a file this pass is explicitly
- * scoped to leave untouched (flagged, not edited, per this dispatch's own task note).
+ * directly — same shape `MediaPickerDialog.hooks.tsx` uses. `useWidgetPickerDialog`/
+ * `useWidgetAddControl` take `deps: { port?; locale? }` as an OPTIONAL, defaulted parameter rather
+ * than being strictly `useWiredX(props)`-only: `useWidgetAddControl` has a real out-of-slice
+ * consumer — `EmbedInsertControl.hooks.tsx` calls `useWidgetAddControl(props)` with one argument,
+ * twice, for its pinned Form/Menu controls (still locale-less until that file gets its own
+ * `useAdminLocale()` — see `EmbedInsertControl.hooks.tsx`'s own header once that lands). An
+ * optional, defaulted `deps` object keeps every existing call site (in-slice and out-of-slice
+ * alike) compiling and behaving identically, while still giving tests a real seam:
+ * `useWidgetAddControl(props, { port: createFakeWidgetPickerPort(...) })`.
+ *
+ * `useWiredWidgetPickerDialog`/`useWiredWidgetAddControl` (below) are the zero-argument-deps half
+ * every component actually mounts — they resolve `locale` via `useAdminLocale()` and pass the real
+ * `port`, mirroring `MediaEditDialog.hooks.tsx`'s established wired/unwired split. `locale` sits in
+ * the SAME `deps` object as `port` rather than a separate parameter, so `useWidgetAddControl`'s
+ * existing one-argument out-of-slice call sites keep compiling — adding a required third
+ * positional parameter would have broken them.
+ *
+ * `t`/`locale` are computed once here (`t = (key) => sharedComponentsT(locale, key)`) and returned
+ * on both hooks' controllers, rather than each call site importing `shared-components-i18n`
+ * directly — `WidgetPickerDialog.tsx`/`WidgetAddControl` read `t`/`locale` off the hook's return
+ * the same way they already read every other piece of controller state.
  */
 
 /**
@@ -40,25 +55,33 @@ import type { WidgetAddControlProps, WidgetPickerDialogProps } from "./WidgetPic
  * @param widgetType - The widget type to list instances for.
  * @param port - Injected {@link WidgetPickerPort} — see this file's own header for why it's an
  *   optional, defaulted parameter rather than a separate `useWiredX()` export.
+ * @param locale - Translates the `describeApiError` fallback via `shared-components-i18n.ts`'s `t`.
+ *   Defaults to `DEFAULT_LOCALE` ("en"), which renders the same English fallback as before this
+ *   parameter existed (the dictionary carries no "en" block — see that file's own header).
  * @returns `instances` (`null` while the fetch is in flight, otherwise the loaded list) and
  *   `error` (a describable failure message, or `null`).
  * @example
  * const { instances, error } = useExistingInstances("text");
  */
-export function useExistingInstances(widgetType: AdminWidgetType, port: WidgetPickerPort = defaultWidgetPickerPort) {
+export function useExistingInstances(
+  widgetType: AdminWidgetType,
+  port: WidgetPickerPort = defaultWidgetPickerPort,
+  locale: string = DEFAULT_LOCALE
+) {
   const [instances, setInstances] = useState<AdminWidget[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     port
       .listWidgets({ widgetType })
       .then((r) => setInstances(r.widgets))
-      .catch((e) => setError(describeApiError(e, "failed to load existing widgets")));
-    // `port` is added to the array below — a function-scoped value ESLint's exhaustive-deps rule
-    // can see, referentially stable in production (the default parameter always resolves to the
-    // same module-level singleton), so this changes nothing about when the effect re-runs. Same
-    // note as `use-pages.hooks.ts`'s identical `port` addition.
+      .catch((e) => setError(describeApiError(e, sharedComponentsT(locale, "failed to load existing widgets"))));
+    // `port`/`locale` are added to the array below — function-scoped values ESLint's exhaustive-deps
+    // rule can see, both referentially/value stable across re-renders in production (the default
+    // parameters resolve to the same module-level singleton and the same string), so this changes
+    // nothing about when the effect re-runs. Same note as `use-pages.hooks.ts`'s identical `port`
+    // addition.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [widgetType, port]);
+  }, [widgetType, port, locale]);
   return { instances, error };
 }
 
@@ -71,16 +94,20 @@ export function useExistingInstances(widgetType: AdminWidgetType, port: WidgetPi
  *   — the hook reads and forwards these exactly as the component previously did inline.
  * @returns Everything the dialog's JSX renders from: loaded instances/`loadError`, the "use
  *   existing" and "create new" form state plus their submit handlers, the three `useId()` values,
- *   the new-title input ref, the resolved type label, and `hasExisting`.
- * @param deps - Injected `{ port }` — see this file's own header for why it's optional/defaulted.
+ *   the new-title input ref, the resolved type label, `hasExisting`, and the bound `t`/`locale`.
+ * @param deps - Injected `{ port?; locale? }` — see this file's own header for why it's
+ *   optional/defaulted rather than two required positional parameters.
  * @example
  * const { instances, hasExisting, submitCreateNew } = useWidgetPickerDialog(props);
  */
 export function useWidgetPickerDialog(
   props: WidgetPickerDialogProps,
-  deps: { port: WidgetPickerPort } = { port: defaultWidgetPickerPort }
+  deps: { port?: WidgetPickerPort; locale?: string } = {}
 ) {
-  const { instances, error: loadError } = useExistingInstances(props.widgetType, deps.port);
+  const port = deps.port ?? defaultWidgetPickerPort;
+  const locale = deps.locale ?? DEFAULT_LOCALE;
+  const t: Translate = (key) => sharedComponentsT(locale, key);
+  const { instances, error: loadError } = useExistingInstances(props.widgetType, port, locale);
   const [selectedExistingId, setSelectedExistingId] = useState("");
   const [newTitle, setNewTitle] = useState("");
   const [newConfig, setNewConfig] = useState<Record<string, unknown>>(() => defaultWidgetConfig(props.widgetType));
@@ -107,7 +134,7 @@ export function useWidgetPickerDialog(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.onCancel]);
 
-  const typeLabel = WIDGET_TYPE_OPTIONS.find((o) => o.value === props.widgetType)?.label ?? props.widgetType;
+  const typeLabel = widgetTypeLabel(props.widgetType, locale);
   const hasExisting = (instances?.length ?? 0) > 0;
 
   // Found live in a real browser, not in this file's own jsdom suite: `instances` starts `null`
@@ -130,7 +157,7 @@ export function useWidgetPickerDialog(
   function submitUseExisting(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedExistingId) {
-      setError("Choose an existing widget to use.");
+      setError(t("Choose an existing widget to use."));
       return;
     }
     props.onUseExisting(selectedExistingId);
@@ -139,7 +166,7 @@ export function useWidgetPickerDialog(
   function submitCreateNew(e: React.FormEvent) {
     e.preventDefault();
     if (!newTitle.trim()) {
-      setError("Title is required.");
+      setError(t("Title is required."));
       return;
     }
     props.onCreateNew(newTitle.trim(), newConfig);
@@ -163,7 +190,25 @@ export function useWidgetPickerDialog(
     hasExisting,
     submitUseExisting,
     submitCreateNew,
+    t,
+    locale,
   };
+}
+
+/**
+ * Binds the real `WidgetPickerPort` and resolves `locale` via `useAdminLocale()` — see this file's
+ * own header for why `locale` rides in the same `deps` object as `port` rather than a separate
+ * parameter.
+ *
+ * The zero-argument-deps half of the `useX(deps)` / `useWiredX()` pair, so `WidgetPickerDialog.tsx`
+ * composes this by default and a test composes {@link useWidgetPickerDialog} directly with a fake
+ * port/locale.
+ *
+ * @param props - Forwarded to {@link useWidgetPickerDialog}.
+ */
+export function useWiredWidgetPickerDialog(props: WidgetPickerDialogProps) {
+  const locale = useAdminLocale();
+  return useWidgetPickerDialog(props, { port: defaultWidgetPickerPort, locale });
 }
 
 /**
@@ -174,8 +219,10 @@ export function useWidgetPickerDialog(
  * @param props - `triggerLabel` (unused by the hook itself, kept for parity with the component's
  *   props) and `onResolved`, invoked once a widget instance id is settled.
  * @returns `pickerType`/`setPickerType`, `selectedType`/`setSelectedType`, the create/use-existing
- *   `error` message (or `null`), and the `handleCreateNew`/`handleUseExisting` submit handlers.
- * @param deps - Injected `{ port }` — see this file's own header for why it's optional/defaulted.
+ *   `error` message (or `null`), the `handleCreateNew`/`handleUseExisting` submit handlers, and the
+ *   bound `t`/`locale`.
+ * @param deps - Injected `{ port?; locale? }` — see this file's own header for why it's
+ *   optional/defaulted rather than two required positional parameters.
  *   `EmbedInsertControl.hooks.tsx`'s two pinned instances call this with one argument, so this
  *   parameter must stay optional — see this file's own header.
  * @example
@@ -183,9 +230,11 @@ export function useWidgetPickerDialog(
  */
 export function useWidgetAddControl(
   props: WidgetAddControlProps,
-  deps: { port: WidgetPickerPort } = { port: defaultWidgetPickerPort }
+  deps: { port?: WidgetPickerPort; locale?: string } = {}
 ) {
-  const { port } = deps;
+  const port = deps.port ?? defaultWidgetPickerPort;
+  const locale = deps.locale ?? DEFAULT_LOCALE;
+  const t: Translate = (key) => sharedComponentsT(locale, key);
   const [pickerType, setPickerTypeRaw] = useState<AdminWidgetType | null>(null);
   const [selectedType, setSelectedType] = useState<AdminWidgetType>("text");
   const [error, setError] = useState<string | null>(null);
@@ -204,21 +253,56 @@ export function useWidgetAddControl(
     setPickerTypeRaw(next);
   }
 
+  // Creating and placing are two separate writes with nothing binding them, so each gets its own
+  // catch: a placement failure after a successful create must not be reported as "failed to create"
+  // (the widget exists), and must name the way back to it — "Use existing" re-fetches on open, so
+  // the created widget is listed there. `error` renders beside the dialog, not inside it
+  // (`WidgetAddControl`), so it stays visible after the close. Never rejects: the dialog's submit
+  // handlers discard these promises.
   async function handleCreateNew(title: string, config: Record<string, unknown>) {
     if (!pickerType) return;
+    let widgetId: string;
     try {
       const { widget } = await port.createWidget({ widgetType: pickerType, title, config });
-      setPickerType(null);
-      await props.onResolved(widget.id);
+      widgetId = widget.id;
     } catch (e) {
-      setError(describeApiError(e, "failed to create widget"));
+      setError(describeApiError(e, t("failed to create widget")));
+      return;
+    }
+    setPickerType(null);
+    try {
+      await props.onResolved(widgetId);
+    } catch (e) {
+      const detail = describeApiError(e, t("failed to place widget"));
+      setError(
+        interpolate(
+          t('Widget "{title}" was created but not placed ({detail}). Choose it under Use existing to try again.'),
+          { title, detail }
+        )
+      );
     }
   }
 
   async function handleUseExisting(widgetInstanceId: string) {
     setPickerType(null);
-    await props.onResolved(widgetInstanceId);
+    try {
+      await props.onResolved(widgetInstanceId);
+    } catch (e) {
+      setError(describeApiError(e, t("failed to place widget")));
+    }
   }
 
-  return { pickerType, setPickerType, selectedType, setSelectedType, error, handleCreateNew, handleUseExisting };
+  return { pickerType, setPickerType, selectedType, setSelectedType, error, handleCreateNew, handleUseExisting, t, locale };
+}
+
+/**
+ * Binds the real `WidgetPickerPort` and resolves `locale` via `useAdminLocale()` — see
+ * {@link useWiredWidgetPickerDialog}'s doc comment for the same wired/unwired reasoning, applied
+ * here to `WidgetAddControl`.
+ *
+ * @param props - Forwarded to {@link useWidgetAddControl}.
+ */
+export function useWiredWidgetAddControl(props: WidgetAddControlProps) {
+  const locale = useAdminLocale();
+  return useWidgetAddControl(props, { port: defaultWidgetPickerPort, locale });
 }

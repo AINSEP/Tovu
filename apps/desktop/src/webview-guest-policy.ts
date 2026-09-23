@@ -60,5 +60,48 @@ function applyGuestWebPreferences(webPreferences: GuestWebPreferences, options: 
   webPreferences.contextIsolation = true;
 }
 
-export { applyGuestWebPreferences };
-export type { GuestPolicyOptions, GuestWebPreferences };
+/** The part of a `will-attach-webview` event {@link admitGuestSource} uses. */
+interface GuestAttachEvent {
+  preventDefault(): void;
+}
+
+/** The part of `will-attach-webview`'s `params` {@link admitGuestSource} reads: the tag's `src`. */
+interface GuestAttachParams {
+  src?: unknown;
+}
+
+/** {@link admitGuestSource}'s options. */
+interface GuestSourceOptions {
+  /** Whether a guest may load `src` — `main.ts`'s `isSupervisedGuestUrl`, the same boundary the
+   *  guest's own navigation, redirect and popup handlers apply once it is attached. */
+  isAllowedSource: (src: string) => boolean;
+}
+
+/**
+ * Refuse a guest whose `src` is not a site this shell supervises, BEFORE it attaches.
+ *
+ * The preload {@link applyGuestWebPreferences} grants is only safe on a supervised site's origin.
+ * The navigation policy keeps an attached guest there, but only this check decides where the guest
+ * starts: without it, any `<webview src>` the page wrote attached and got the preload.
+ *
+ * Never throws. A throw escaping a guest callback blanks the whole sites-home window in this app,
+ * so a missing or non-string `src`, or a predicate that throws, is a refusal.
+ *
+ * @param event the `will-attach-webview` event; `preventDefault()` is what refuses the attach.
+ * @param params the event's `params`; only `src` is read.
+ * @returns whether the guest was admitted.
+ * @complexity O(1) beyond `isAllowedSource`'s own cost.
+ */
+function admitGuestSource(event: GuestAttachEvent, params: GuestAttachParams, options: GuestSourceOptions): boolean {
+  let admitted = false;
+  try {
+    admitted = typeof params?.src === "string" && options.isAllowedSource(params.src);
+  } catch {
+    admitted = false;
+  }
+  if (!admitted) event.preventDefault();
+  return admitted;
+}
+
+export { applyGuestWebPreferences, admitGuestSource };
+export type { GuestPolicyOptions, GuestWebPreferences, GuestSourceOptions };

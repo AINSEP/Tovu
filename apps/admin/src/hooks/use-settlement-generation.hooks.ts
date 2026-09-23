@@ -12,6 +12,15 @@ import { useRef } from "react";
  * minted a higher id — a stale response must not overwrite whatever the latest call already
  * produced, regardless of settlement order.
  *
+ * **Later adopters (past the 2026-09-06 sweep).** `use-admin-execution-credential.hooks.ts`'s
+ * `refresh` and each of `saveKey`/`saveSettings`/`migrateLegacyKey`'s own `setStored` (F2,
+ * plan-components.md, 2026-09-20) — the mount GET, the post-save refresh GET, and each write's own
+ * response are independent round trips with no ordering guarantee between them. There the writes
+ * mint only AFTER their PUT succeeds (`installWrittenView`): a generation minted before a request
+ * that then fails still supersedes every older call, so a failed write would strand a read that
+ * was about to deliver the real row. `use-admin-locale.hooks.ts`'s `fetchLocale` (F3, same plan)
+ * and `use-settings-slice.hooks.ts`'s `refresh` (S2) guard the same shape.
+ *
  * A `useRef`, not `useState`: two calls issued in the same synchronous tick (a double-click, or
  * a caller reaching the action directly) must each observe the increment the other one just
  * made, which only a synchronous ref read/write guarantees — a `useState` counter would have

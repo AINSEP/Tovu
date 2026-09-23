@@ -219,6 +219,166 @@ test("deleteTerm/deleteTaxonomy against real SQLite: the guarded refusal paths h
   }
 });
 
+// ---------------------------------------------------------------------------
+// T6 (trash parallel plan §2, owner decision 5) — read filtering. `trashTerm`/`trashTaxonomy`
+// (`trash-term.ts`) don't exist until commit 2, so these tests flip `status` directly with raw
+// SQL to prove the READ side of the contract in isolation: RED before `repo.sqlite.ts`'s
+// `taxonomyIsLive`/`termIsLive` filters existed (every one of these rows was visible before this
+// commit), GREEN after.
+// ---------------------------------------------------------------------------
+
+test("a trashed taxonomy drops out of findById and list, a live sibling does not", async () => {
+  const { db, tmpDir } = openTempContentDb();
+  try {
+    const deps = buildDeps(db, "ws-1");
+    const trashed = await createTaxonomy({ deps, principalId: "user-1", name: "Trashed", hierarchical: false });
+    const live = await createTaxonomy({ deps, principalId: "user-1", name: "Live", hierarchical: false });
+    db.$client.prepare("UPDATE taxonomies SET status = 'trash' WHERE id = ?").run(trashed.id);
+
+    assert.equal(await deps.taxonomies.findById(trashed.id), null);
+    assert.ok(await deps.taxonomies.findById(live.id));
+    const names = (await deps.taxonomies.list()).map((t) => t.name);
+    assert.deepEqual(names, ["Live"]);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("a trashed term drops out of findById/listByTaxonomy/findForTrash, a live sibling does not", async () => {
+  const { db, tmpDir } = openTempContentDb();
+  try {
+    const deps = buildDeps(db, "ws-1");
+    const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Category", hierarchical: false });
+    const trashed = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "Trashed" });
+    const live = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "Live" });
+    db.$client.prepare("UPDATE terms SET status = 'trash' WHERE id = ?").run(trashed.id);
+
+    assert.equal(await deps.terms.findById(trashed.id), null);
+    assert.ok(await deps.terms.findById(live.id));
+    const names = (await deps.terms.listByTaxonomy({ taxonomyId: taxonomy.id })).map((t) => t.name);
+    assert.deepEqual(names, ["Live"]);
+
+    const taxonomyRepo = deps.taxonomies as SqliteTaxonomyRepo;
+    const termRepo = deps.terms as SqliteTermRepo;
+    assert.equal(await termRepo.findForTrash(trashed.id), null);
+    const display = await termRepo.findForTrash(live.id);
+    assert.deepEqual(display, { id: live.id, name: "Live", taxonomyId: taxonomy.id, taxonomyName: "Category", version: 1 });
+    const taxDisplay = await taxonomyRepo.findForTrash(taxonomy.id);
+    assert.deepEqual(taxDisplay, { id: taxonomy.id, name: "Category", version: 1 });
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("hiddenWithParent: a LIVE term whose taxonomy is trashed reads as gone too, and comes back the instant the taxonomy does", async () => {
+  const { db, tmpDir } = openTempContentDb();
+  try {
+    const deps = buildDeps(db, "ws-1");
+    const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Category", hierarchical: false });
+    const term = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "Member" });
+    assert.ok(await deps.terms.findById(term.id), "sanity: visible before the taxonomy is trashed");
+
+    db.$client.prepare("UPDATE taxonomies SET status = 'trash' WHERE id = ?").run(taxonomy.id);
+    assert.equal(await deps.terms.findById(term.id), null, "the term's OWN status is still 'active' — only its parent is trashed");
+    assert.deepEqual(await deps.terms.listByTaxonomy({ taxonomyId: taxonomy.id }), []);
+
+    db.$client.prepare("UPDATE taxonomies SET status = 'active' WHERE id = ?").run(taxonomy.id);
+    assert.ok(await deps.terms.findById(term.id), "restoring the taxonomy makes the never-touched term visible again, no second write");
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("listForContent excludes a trashed term's assignment and a live term's assignment under a trashed taxonomy, keeps the assignment row itself", async () => {
+  const { db, tmpDir } = openTempContentDb();
+  try {
+    const deps = buildDeps(db, "ws-1");
+    const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Tags", hierarchical: false });
+    const termA = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "A" });
+    const termB = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "B" });
+    (deps.contentLookup as InMemoryContentLookup).set("post", "post-1", { workspaceId: "ws-1", kind: "post" });
+    await assignTerms({ deps, principalId: "user-1", contentType: "post", contentId: "post-1", termIds: [termA.id, termB.id] });
+
+    const entryTermRepo = deps.entryTerms as SqliteEntryTermRepo;
+    assert.deepEqual(
+      (await entryTermRepo.listForContent({ contentType: "post", contentId: "post-1" })).map((v) => v.termName).sort(),
+      ["A", "B"],
+      "sanity: both assigned before anything is trashed"
+    );
+
+    // Trash A directly (its own marker) -- the assignment row survives (decision 5), only the read
+    // hides it.
+    db.$client.prepare("UPDATE terms SET status = 'trash' WHERE id = ?").run(termA.id);
+    let visible = await entryTermRepo.listForContent({ contentType: "post", contentId: "post-1" });
+    assert.deepEqual(visible.map((v) => v.termName), ["B"]);
+    assert.equal(await entryTermRepo.countByTerm({ termId: termA.id }), 1, "the entry_terms row for A was never deleted by a trash");
+
+    // Restore A, then trash the whole taxonomy instead -- hiddenWithParent must hide BOTH.
+    db.$client.prepare("UPDATE terms SET status = 'active' WHERE id = ?").run(termA.id);
+    db.$client.prepare("UPDATE taxonomies SET status = 'trash' WHERE id = ?").run(taxonomy.id);
+    visible = await entryTermRepo.listForContent({ contentType: "post", contentId: "post-1" });
+    assert.deepEqual(visible, []);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("findForPurgeAudit/listIdsForPurgeAudit read regardless of trash status — the shape a purge follow-up needs after the row is already hidden", async () => {
+  const { db, tmpDir } = openTempContentDb();
+  try {
+    const deps = buildDeps(db, "ws-1");
+    const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Category", hierarchical: false });
+    const termA = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "A" });
+    const termB = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "B" });
+    const termRepo = deps.terms as SqliteTermRepo;
+
+    // Sanity: both reads work before anything is trashed.
+    assert.deepEqual(await termRepo.findForPurgeAudit(termA.id), { id: termA.id, name: "A", taxonomyId: taxonomy.id });
+    assert.deepEqual((await termRepo.listIdsForPurgeAudit(taxonomy.id)).sort(), [termA.id, termB.id].sort());
+
+    // A purge only ever runs on an already-trashed row — `findForTrash` would already return null
+    // here, which is exactly the case `findForPurgeAudit` exists to still serve.
+    db.$client.prepare("UPDATE terms SET status = 'trash' WHERE id = ?").run(termA.id);
+    assert.equal(await termRepo.findForTrash(termA.id), null, "sanity: the live-filtered read is blind to a trashed term");
+    assert.deepEqual(await termRepo.findForPurgeAudit(termA.id), { id: termA.id, name: "A", taxonomyId: taxonomy.id });
+
+    // `listIdsForPurgeAudit` must also see a member term whose PARENT taxonomy is trashed
+    // (hiddenWithParent) — the taxonomy purge cascade deletes it too, regardless of its own marker.
+    db.$client.prepare("UPDATE taxonomies SET status = 'trash' WHERE id = ?").run(taxonomy.id);
+    assert.deepEqual(await termRepo.listByTaxonomy({ taxonomyId: taxonomy.id }), [], "sanity: the live-filtered read is now blind to both");
+    assert.deepEqual((await termRepo.listIdsForPurgeAudit(taxonomy.id)).sort(), [termA.id, termB.id].sort());
+
+    assert.equal(await termRepo.findForPurgeAudit("does-not-exist"), null);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("SqliteTermRepo.update's setWhere guard: a write against an already-trashed term is a no-op, the row stays exactly as it was", async () => {
+  const { db, tmpDir } = openTempContentDb();
+  try {
+    const deps = buildDeps(db, "ws-1");
+    const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Category", hierarchical: false });
+    const term = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "Original" });
+    db.$client.prepare("UPDATE terms SET status = 'trash' WHERE id = ?").run(term.id);
+
+    // Bypasses `renameTerm`'s own (already trash-filtered) `findById` guard on purpose -- this
+    // proves the repo's OWN `setWhere`, not the write-service's read-then-write, is what stops a
+    // stale write from reviving or editing an already-trashed row.
+    const termRepo = deps.terms as SqliteTermRepo;
+    await termRepo.update({ id: term.id, taxonomyId: taxonomy.id, parentId: null, name: "Hijacked", status: "active", updatedAt: "later", version: 99 });
+
+    const row = db.$client.prepare("SELECT name, status, version FROM terms WHERE id = ?").get(term.id) as {
+      name: string;
+      status: string;
+      version: number;
+    };
+    assert.deepEqual(row, { name: "Original", status: "trash", version: 1 }, "the update's WHERE matched zero rows -- nothing changed");
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test("atomicity: a mid-cascade failure in deleteTaxonomy is genuinely undone by a real SQLite ROLLBACK, not just an aborted function call", async () => {
   const { db, tmpDir } = openTempContentDb();
   try {

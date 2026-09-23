@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
-import { resolveSiteSectionRouteGate, withoutSiteSection } from "../../App.hooks";
+import {
+  resolveSiteSectionRouteGate,
+  useSiteSectionAvailability,
+  withoutSiteSection,
+  type SiteSectionAvailability,
+} from "../../App.hooks";
 import { FetchQueryProvider } from "../../lib/fetch-query";
+import { api, ApiError, type AdminUser } from "../../lib/api";
 
 /**
  * @file The Sites section exists only on a deployment that owns site switching from the admin.
@@ -192,5 +198,53 @@ describe("withoutSiteSection", () => {
     expect(filtered.map((group) => group.label)).toEqual([undefined, "Content"]);
     expect(filtered[0]?.items.map((item) => item.id)).toEqual(["dashboard", "ai-assistant"]);
     expect(filtered[1]?.items.map((item) => item.id)).toEqual(["posts"]);
+  });
+});
+
+/** A manually-resolved/rejected promise — pins settlement order across sessions without a timer. */
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void; reject: (err: unknown) => void } {
+  let resolve!: (value: T) => void;
+  let reject!: (err: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+describe("useSiteSectionAvailability", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("forgets the previous session's answer at logout and while the next session's own read is in flight", async () => {
+    const alice: AdminUser = { id: "u1", username: "alice" };
+    const bob: AdminUser = { id: "u2", username: "bob" };
+    const second = deferred<ReturnType<typeof sitesSnapshot>>();
+    const listSites = vi
+      .spyOn(api, "listSites")
+      .mockResolvedValueOnce(sitesSnapshot(true))
+      .mockReturnValueOnce(second.promise);
+
+    const { result, rerender } = renderHook<SiteSectionAvailability, { user: AdminUser | null }>(
+      ({ user }) => useSiteSectionAvailability(user),
+      { initialProps: { user: alice } },
+    );
+
+    await waitFor(() => expect(result.current).toBe("available"));
+
+    // Logout: the session object is gone, so an answer that was keyed to Alice's session must not
+    // keep painting the nav/route as available — even though no new read has settled yet.
+    rerender({ user: null });
+    expect(result.current).toBe("unknown");
+
+    // A new login, before its OWN read has settled: still unknown, never Alice's stale "available".
+    rerender({ user: bob });
+    expect(result.current).toBe("unknown");
+
+    second.reject(new ApiError("forbidden", 403, "FORBIDDEN"));
+    await waitFor(() => expect(result.current).toBe("unavailable"));
+
+    expect(listSites).toHaveBeenCalledTimes(2);
   });
 });

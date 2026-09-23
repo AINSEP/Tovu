@@ -8,6 +8,7 @@ import { useWiredNewTaxonomyForm } from "./hooks/use-new-taxonomy-form.hooks";
 import { useWiredMergeTermSection } from "./hooks/use-merge-term-section.hooks";
 import { useWiredTermDetailPanel } from "./hooks/use-term-detail-panel.hooks";
 import { useWiredTaxonomy } from "./hooks/use-taxonomy.hooks";
+import { ServerLabel } from "@/components/status-labels";
 
 /**
  * @file Categories & Tags screen (design-spec.md §2, ADR-044) — the `/admin/taxonomy` route.
@@ -63,9 +64,8 @@ import { useWiredTaxonomy } from "./hooks/use-taxonomy.hooks";
  * `.page-actions`/`.btn-secondary`/`.btn-ghost` exactly as `Integrations.tsx` does.
  *
  * Delete term/taxonomy (web-design pass, 2026-08-05): the owner's other complaint — dummy
- * categories/tags created to test creation, with no way to remove them — closes here, against the
- * `taxonomy-delete-api` dispatch's real, tested `DELETE /taxonomy/terms/:id` and
- * `DELETE /taxonomy/:id` routes (see `api.ts`'s `deleteTerm`/`deleteTaxonomy`). Both use the same
+ * categories/tags created to test creation, with no way to remove them — closes here through the
+ * generic single-item Trash route. Both use the same
  * `RowMenu`("Delete …") → `ConfirmDialog` idiom `Media.tsx`/`Comments.tsx`/`Menus.tsx` already use
  * for their own destructive actions — no new interaction pattern introduced. State (the pending
  * row, the busy flag, and the *blocked* outcome) lives in `useTaxonomy`; see that hook's own comment
@@ -131,7 +131,7 @@ function NewTermForm({ taxonomy, onCreated, agentBase: base, useNewTermFormHook 
         />
         {taxonomy.taxonomy.hierarchical ? (
           <select
-            aria-label="Parent term"
+        aria-label={t("Parent term")}
             value={parentId}
             onChange={(e) => setParentId(e.target.value)}
             {...agentHandle(`${base}-parent`, {
@@ -196,7 +196,7 @@ function NewTaxonomyForm({ onCreated, useNewTaxonomyFormHook = useWiredNewTaxono
           id="new-taxonomy-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Category"
+          placeholder={t("e.g. Category")}
           {...agentHandle("taxonomy-new-name", { role: "field", label: "The new taxonomy's name" })}
         />
         <label>
@@ -258,7 +258,7 @@ function MergeIdleStep({ otherTerms, intoTermId, setIntoTermId, busy, startPlan,
   return (
     <span className="editor-actions">
       <select
-        aria-label="Merge into"
+        aria-label={t("Merge into")}
         value={intoTermId}
         onChange={(e) => setIntoTermId(e.target.value)}
         {...agentHandle("term-merge-target", {
@@ -408,7 +408,7 @@ function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, useTermDetailPan
       <div className="settings-layer-grid">
         <div className="settings-layer-cell">
           <span className="settings-layer-label">{t("Status")}</span>
-          <span className={`status status-${term.status}`}>{term.status}</span>
+          <span className={`status status-${term.status}`}><ServerLabel value={term.status} /></span>
         </div>
         <div className="settings-layer-cell">
           <span className="settings-layer-label">{t("Parent")}</span>
@@ -511,13 +511,13 @@ function TermDeleteDialog({ pendingDeleteTerm, deleteTermBusy, confirmDeleteTerm
     <ConfirmDialog
       open={pendingDeleteTerm !== null}
       agentHandle="taxonomy-delete-term"
-      title={t("Delete term?")}
+      title={t("Move to trash?")}
       body={
         pendingDeleteTerm ? (
-          <p>{t('Delete term "{name}"? This cannot be undone.').replace("{name}", pendingDeleteTerm.name)}</p>
+          <p>{t('Move "{name}" to trash?').replace("{name}", pendingDeleteTerm.name)}</p>
         ) : null
       }
-      confirmLabel={t("Delete term")}
+      confirmLabel={t("Move to trash")}
       destructive
       pending={deleteTermBusy}
       onConfirm={confirmDeleteTerm}
@@ -546,18 +546,18 @@ function TaxonomyDeleteDialog({
     <ConfirmDialog
       open={pendingDeleteTaxonomy !== null}
       agentHandle="taxonomy-delete-taxonomy"
-      title={t("Delete taxonomy?")}
+      title={t("Move to trash?")}
       body={
         pendingDeleteTaxonomy ? (
           <p>
-            {t('Delete taxonomy "{name}", and every unassigned term in it? This cannot be undone.').replace(
+            {t('Move "{name}" and its terms to trash?').replace(
               "{name}",
               pendingDeleteTaxonomy.name,
             )}
           </p>
         ) : null
       }
-      confirmLabel={t("Delete taxonomy")}
+      confirmLabel={t("Move to trash")}
       destructive
       pending={deleteTaxonomyBusy}
       onConfirm={confirmDeleteTaxonomy}
@@ -591,7 +591,7 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
   const deleteState = { requestDeleteTerm, deleteTermBlocked, requestDeleteTaxonomy, deleteTaxonomyBlocked };
 
   if (error && !taxonomies) return <div className="notice error">{error}</div>;
-  if (!taxonomies) return <div className="notice">Loading taxonomies…</div>;
+  if (!taxonomies) return <div className="notice">{t("Loading taxonomies…")}</div>;
 
   return (
     <div className="page">
@@ -715,7 +715,7 @@ function namespaceList(
             <div className="taxonomy-namespace-group-header">
               <h2>{group.taxonomy.name}</h2>
               <RowMenu
-                triggerLabel={`Actions for taxonomy "${group.taxonomy.name}"`}
+                triggerLabel={t('Actions for taxonomy "{name}"').replace("{name}", group.taxonomy.name)}
                 agentHandle={taxonomyMenuHandles[groupIndex]}
                 items={[
                   {
@@ -729,7 +729,7 @@ function namespaceList(
             </div>
             {deleteState.deleteTaxonomyBlocked?.taxonomyId === group.taxonomy.id ? (
               <p className="notice error" role="alert">
-                Can&apos;t delete &quot;{group.taxonomy.name}&quot;: {deleteState.deleteTaxonomyBlocked.state.message}
+                {t("Can't delete")} &quot;{group.taxonomy.name}&quot;: {deleteState.deleteTaxonomyBlocked.state.message}
               </p>
             ) : null}
             {group.terms.length === 0 ? (
@@ -813,7 +813,7 @@ function namespaceList(
                       >
                         {term.name}
                       </span>
-                      <span className={`status status-${term.status}`}>{term.status}</span>
+                      <span className={`status status-${term.status}`}><ServerLabel value={term.status} /></span>
                       {/* Stops the click before it reaches the `<li>`'s own `onClick` above — without
                           this, opening the row menu (or picking an item in it) would ALSO select the
                           row and pop the detail panel open behind the menu, since this trigger sits
@@ -822,7 +822,7 @@ function namespaceList(
                           precedent to follow here. */}
                       <span onClick={(e) => e.stopPropagation()}>
                         <RowMenu
-                          triggerLabel={`Actions for term "${term.name}"`}
+                          triggerLabel={t('Actions for term "{name}"').replace("{name}", term.name)}
                           agentHandle={`${termHandle}-menu`}
                           items={[
                             {
@@ -841,7 +841,7 @@ function namespaceList(
             )}
             {deleteState.deleteTermBlocked && byId.has(deleteState.deleteTermBlocked.termId) ? (
               <p className="notice error" role="alert">
-                Can&apos;t delete &quot;{byId.get(deleteState.deleteTermBlocked.termId)?.name}&quot;:{" "}
+                {t("Can't delete")} &quot;{byId.get(deleteState.deleteTermBlocked.termId)?.name}&quot;:{" "}
                 {deleteState.deleteTermBlocked.state.message}
               </p>
             ) : null}

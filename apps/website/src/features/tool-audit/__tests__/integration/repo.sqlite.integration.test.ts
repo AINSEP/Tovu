@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { desc, eq } from "drizzle-orm";
 
-import { agentToolAttempts } from "#src/platform/db/schema";
+import { agentToolAttempts } from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { MAX_ROWS_PER_WORKSPACE, SqliteToolAttemptAuditSink } from "../../repo.sqlite.js";
 import type { ToolAttemptEvent } from "../../types.js";

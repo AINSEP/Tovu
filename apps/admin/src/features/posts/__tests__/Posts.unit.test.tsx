@@ -43,7 +43,7 @@ function controller(overrides: Partial<PostsController> = {}): PostsController {
     pendingDelete: null,
     setPendingDelete: vi.fn(),
     createPost: vi.fn(async () => {}),
-    disablePost: vi.fn(async () => {}),
+    togglePostPublish: vi.fn(async () => {}),
     removePost: vi.fn(async () => {}),
     rowMenuHandleById: buildPostRowMenuHandleMap(posts),
     ...overrides,
@@ -211,19 +211,20 @@ describe("New Post action", () => {
   });
 });
 
-describe("row menu — Disable visibility mirrors postRowMenuItems", () => {
-  it("offers Disable for a published post", async () => {
+describe("row menu — Publish/Unpublish visibility mirrors postRowMenuItems", () => {
+  it("offers Unpublish for a published post", async () => {
     const user = userEvent.setup();
     renderWith({ posts: [POST] });
     await user.click(screen.getByRole("button", { name: 'Actions for "Hello World"' }));
-    expect(screen.getByRole("menuitem", { name: "Disable" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Unpublish" })).toBeInTheDocument();
   });
 
-  it("omits Disable for a draft post", async () => {
+  it("offers Publish for a draft post — the item flips rather than being omitted", async () => {
     const user = userEvent.setup();
     renderWith({ posts: [DRAFT_POST] });
     await user.click(screen.getByRole("button", { name: 'Actions for "Draft Post"' }));
-    expect(screen.queryByRole("menuitem", { name: "Disable" })).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Publish" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Unpublish" })).not.toBeInTheDocument();
   });
 
   it("Edit navigates to the Posts editor at /posts/{slug}", async () => {
@@ -234,12 +235,20 @@ describe("row menu — Disable visibility mirrors postRowMenuItems", () => {
     expect(navigate).toHaveBeenCalledWith("/posts/hello-world");
   });
 
-  it("Disable calls disablePost with the row", async () => {
+  it("Unpublish calls togglePostPublish with the row", async () => {
     const user = userEvent.setup();
     const c = renderWith({ posts: [POST] });
     await user.click(screen.getByRole("button", { name: 'Actions for "Hello World"' }));
-    await user.click(screen.getByRole("menuitem", { name: "Disable" }));
-    expect(c.disablePost).toHaveBeenCalledWith(POST);
+    await user.click(screen.getByRole("menuitem", { name: "Unpublish" }));
+    expect(c.togglePostPublish).toHaveBeenCalledWith(POST);
+  });
+
+  it("Publish calls togglePostPublish with the row, for a draft post", async () => {
+    const user = userEvent.setup();
+    const c = renderWith({ posts: [DRAFT_POST] });
+    await user.click(screen.getByRole("button", { name: 'Actions for "Draft Post"' }));
+    await user.click(screen.getByRole("menuitem", { name: "Publish" }));
+    expect(c.togglePostPublish).toHaveBeenCalledWith(DRAFT_POST);
   });
 
   it("Delete calls setPendingDelete with the row rather than deleting immediately", async () => {
@@ -303,22 +312,22 @@ describe("delete confirmation dialog", () => {
  */
 describe("postsListNotice", () => {
   it("returns the error notice when there is an error and no list yet", () => {
-    const notice = postsListNotice(null, "boom");
+    const notice = postsListNotice(null, "boom", (key) => key);
     expect(notice).not.toBeNull();
   });
 
   it("returns the loading notice when there is no list and no error", () => {
-    const notice = postsListNotice(null, null);
+    const notice = postsListNotice(null, null, (key) => key);
     expect(notice).not.toBeNull();
   });
 
   it("prioritizes the error branch over the loading branch when both conditions could apply", () => {
-    render(<>{postsListNotice(null, "boom")}</>);
+    render(<>{postsListNotice(null, "boom", (key) => key)}</>);
     expect(screen.getByText("boom")).toBeInTheDocument();
     expect(screen.queryByText("Loading posts…")).not.toBeInTheDocument();
   });
 
   it("returns null once the list has loaded, even with an error set (the inline-banner case)", () => {
-    expect(postsListNotice([], "a later error")).toBeNull();
+    expect(postsListNotice([], "a later error", (key) => key)).toBeNull();
   });
 });

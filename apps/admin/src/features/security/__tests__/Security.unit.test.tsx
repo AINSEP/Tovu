@@ -126,7 +126,7 @@ describe("Security — page shell", () => {
       renderPage({ tabId: "site-token", canManageSiteToken: true });
       expect(screen.getByRole("tab", { name: /Site Token/ })).toHaveAttribute(
         "data-agent-label",
-        "Switch to the Site Token tab — view and generate the site token that decrypts every credential this install has saved (BYOK/AI keys, publish, source-control, media-provider, and MCP credentials), plus webhook signing and newsletter tokens on a local install"
+        "Switch to the Site Token tab — view and generate the Site Token that decrypts every credential this install has saved (BYOK/AI keys, publish, source-control, media-provider, and MCP credentials), plus webhook signing and newsletter tokens on a local install"
       );
     });
 

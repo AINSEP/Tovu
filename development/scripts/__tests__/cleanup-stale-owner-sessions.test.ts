@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
-import { sessions } from "../../../apps/website/src/platform/db/schema.js";
+import { sessions } from "../../../apps/website/src/platform/db/schema.sqlite.js";
 import { isClearlyStaleSession, partitionStaleSessions, type SessionRow } from "../cleanup-stale-owner-sessions.js";
 
 /**

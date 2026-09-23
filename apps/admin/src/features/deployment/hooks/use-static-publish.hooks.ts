@@ -99,8 +99,13 @@ export interface StaticPublishController {
   /** Starts a real publish with the current field values. Resolves either way — a failure is
    *  surfaced through {@link publishError}, never a thrown rejection. A call while {@link publishing}
    *  is already true is a duplicate submit and is ignored outright, not just discouraged by the
-   *  disabled button — see this function's own implementation note. */
-  publish: () => Promise<void>;
+   *  disabled button — see this function's own implementation note.
+   *
+   *  `options.credentialId` names the saved connection the publish must use (terra review
+   *  2026-09-20, finding 1). This hook never picks one itself: it has no credentials controller, and
+   *  the caller (`StaticSiteTab`) is the one screen that knows which connection the operator is
+   *  actually looking at. Omitted when this provider has no saved connection. */
+  publish: (options?: { credentialId?: string }) => Promise<void>;
 
   t: Translate;
 }
@@ -313,7 +318,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     };
   }, [isPublishing]);
 
-  async function publish() {
+  async function publish(options: { credentialId?: string } = {}) {
     // A second call while the first is still in flight is a duplicate submit (e.g. a double-click
     // landing before React re-renders with the button disabled) — ignore it here too, not just via
     // the UI's `publishing`-gated disabled state, so the race can't still send two POSTs (C4 fix).
@@ -334,7 +339,13 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     setPublishError(null);
     setPublishing(true);
     try {
-      const started = await port.triggerPublish({ config: buildConfig({ target, owner, repo, branch, teamId }), projectName });
+      const started = await port.triggerPublish({
+        config: buildConfig({ target, owner, repo, branch, teamId }),
+        projectName,
+        // Conditional spread, never `credentialId: options.credentialId` — an absent choice must not
+        // reach the wire as an explicit `undefined` key.
+        ...(options.credentialId !== undefined ? { credentialId: options.credentialId } : {}),
+      });
       setRun(started);
     } catch (err) {
       setPublishError(publishTriggerErrorMessage(locale, describeApiError(err, "unknown error")));

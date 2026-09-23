@@ -1,9 +1,9 @@
-import { DataTable } from "@jini-ai/admin/react";
+import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { SeeMore } from "../../components/SeeMore/SeeMore";
 import "../../styles/form-field-attrs.css";
 
-import type { AdminFormDefinition, AdminFormField, AdminFormNotify } from "../../lib/api";
+import type { AdminFormDefinition, AdminFormField } from "../../lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { ATTRIBUTE_NAME_SUGGESTIONS, FIELD_TYPES, FORM_TABS, fieldDisplayName } from "./rules";
 import { useFieldAttributesDialog } from "./hooks/use-field-attributes-dialog.hooks";
@@ -55,8 +55,7 @@ import { useWiredFormEditor } from "./hooks/use-form-editor.hooks";
  * ## Markup only
  *
  * Every component's state now lives in its own `hooks/use-<thing>.hooks.ts`; pure logic (field-list
- * transforms, tab-index math, the attribute allowlist check, recipients parsing) lives in
- * `rules.ts`.
+ * transforms, tab-index math, the attribute allowlist check) lives in `rules.ts`.
  */
 
 // ---------------------------------------------------------------------------
@@ -120,12 +119,11 @@ function FieldAttributesDialog({
             collapsed view ends after the Tailwind example, on a complete sentence. The
             attribute-name `<datalist>` below already communicates the allowlist implicitly by only
             offering valid names, so this paragraph is reinforcement, not the sole channel. */}
-        <SeeMore lines={2} textClassName="field-attrs-hint" toggleAriaLabel="See more about field attributes">
-          Add CSS classes and HTML attributes to this field&rsquo;s input. Classes are unrestricted — Tailwind
-          utility classes like <code>md:col-span-2</code> or <code>w-1/2</code> work as expected. Attribute names
-          are limited to a safe allowlist (<code>aria-*</code>, <code>data-*</code>, and a fixed list of
-          layout/behavior attributes) — anything else, including event handlers like <code>onclick</code>, is
-          rejected.
+        <SeeMore lines={2} textClassName="field-attrs-hint" toggleAriaLabel={t("See more about field attributes")}>
+          {t("Add CSS classes and HTML attributes to this field’s input. Classes are unrestricted — Tailwind utility classes like ")}
+          <code>md:col-span-2</code> {t("or ")}<code>w-1/2</code>{t(" work as expected. Attribute names are limited to a safe allowlist (")}
+          <code>aria-*</code>{t(", ")}<code>data-*</code>{t(", and a fixed list of layout/behavior attributes) — anything else, including event handlers like ")}
+          <code>onclick</code>{t(", is rejected.")}
         </SeeMore>
 
         <div className="field">
@@ -153,7 +151,7 @@ function FieldAttributesDialog({
           </datalist>
           {rows.map((row, index) => (
             <fieldset key={row._rowId} className="collections-field-row">
-              <legend>Attribute {index + 1}</legend>
+              <legend>{t("Attribute")} {index + 1}</legend>
               <div className="field">
                 <label className="field-label" htmlFor={`field-attrs-name-${row._rowId}`}>
                   {t("Name")}
@@ -177,7 +175,7 @@ function FieldAttributesDialog({
                 <input
                   id={`field-attrs-value-${row._rowId}`}
                   value={row.value}
-                  placeholder="e.g. Enter your work email"
+                  placeholder={t("e.g. Enter your work email")}
                   onChange={(e) => updateRow(row._rowId, { value: e.target.value })}
                   {...agentHandle(`${attrRowHandles[index]}-value`, {
                     role: "field",
@@ -428,7 +426,7 @@ function FormFieldsEditor({
                   <button
                     type="button"
                     disabled={isExisting}
-                    title={isExisting ? "Existing fields cannot be removed once created" : undefined}
+                    title={isExisting ? t("Existing fields cannot be removed once created") : undefined}
                     onClick={() => removeField(index)}
                     {...agentHandle(`${base}-remove`, {
                       role: "button",
@@ -492,14 +490,14 @@ function FormSubmissionDetail({
   useFormSubmissionDetailHook = useWiredFormSubmissionDetail,
   t,
 }: FormSubmissionDetailProps) {
-  const { submission, error, confirming, deleting, handleDelete } = useFormSubmissionDetailHook({
+  const { submission, error, confirmOpen, deleting, requestDelete, cancelDelete, confirmDelete } = useFormSubmissionDetailHook({
     formId,
     submissionId,
     onDeleted,
   });
 
   if (error && !submission) return <div className="notice error">{error}</div>;
-  if (!submission) return <div className="notice">Loading submission…</div>;
+  if (!submission) return <div className="notice">{t("Loading submission…")}</div>;
 
   return (
     // `form-submission-detail` (`styles/forms.css`) — the back button, table, and Delete button
@@ -512,9 +510,10 @@ function FormSubmissionDetail({
         type="button"
         className="btn-secondary"
         onClick={onBack}
+        aria-label={t("Back to submissions")}
         {...agentHandle("form-submission-back", { role: "link", label: "Back to this form's list of submissions" })}
       >
-        &larr; {t("Back to submissions")}
+        &larr; {t("Back")}
       </button>
       {error ? <div className="notice error">{error}</div> : null}
       <div className="table-scroll">
@@ -541,14 +540,25 @@ function FormSubmissionDetail({
         type="button"
         className="btn-danger"
         disabled={deleting}
-        onClick={handleDelete}
+        onClick={requestDelete}
         {...agentHandle("form-submission-delete", {
           role: "button",
-          label: "Delete this submission permanently. Asks for confirmation before deleting.",
+          label: "Move this submission to the trash. Opens a confirmation dialog first.",
         })}
       >
-        {confirming ? t("Confirm delete") : t("Delete submission")}
+        {t("Delete submission")}
       </button>
+      <ConfirmDialog
+        open={confirmOpen}
+        agentHandle="form-submission-delete-confirm"
+        title={t("Move to trash?")}
+        body={<p>{t("It will disappear from this list. You can restore it from the Trash.")}</p>}
+        confirmLabel={t("Move to trash")}
+        destructive
+        pending={deleting}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+      />
     </div>
   );
 }
@@ -562,7 +572,7 @@ export interface FormSubmissionsProps {
 }
 
 function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissions, t }: FormSubmissionsProps) {
-  const { submissions, nextCursor, error, selectedId, setSelectedId, load } = useFormSubmissionsHook({ formId });
+  const { submissions, nextCursor, error, selectedId, setSelectedId, load, loadingMore } = useFormSubmissionsHook({ formId });
 
   if (selectedId) {
     return (
@@ -582,7 +592,7 @@ function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissi
   }
 
   if (error && !submissions) return <div className="notice error">{error}</div>;
-  if (!submissions) return <div className="notice">Loading submissions…</div>;
+  if (!submissions) return <div className="notice">{t("Loading submissions…")}</div>;
   if (submissions.length === 0) return <div className="empty-state">{t("No submissions yet.")}</div>;
 
   // Submission ids are stable and unique, so they're what disambiguates one row's "View" button
@@ -627,13 +637,14 @@ function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissi
         <button
           type="button"
           className="btn-secondary"
+          disabled={loadingMore}
           onClick={() => load(nextCursor)}
           {...agentHandle("form-submissions-load-more", {
             role: "button",
             label: "Load the next page of submissions",
           })}
         >
-          {t("Load more")}
+          {loadingMore ? t("Loading…") : t("Load more")}
         </button>
       ) : null}
     </div>
@@ -650,8 +661,8 @@ export interface FormEditorProps {
   useFormEditorHook?: typeof useWiredFormEditor;
 }
 
-/** The name/slug fields, the field-definition table, the notify checkbox + recipients, and the
- * status-toggle/save action row — shared verbatim between the "new form" view (no tabs) and the
+/** The name/slug fields, the field-definition table, and the status-toggle/save action row —
+ * shared verbatim between the "new form" view (no tabs) and the
  * "existing form, Fields tab" view (see `FormEditor`'s own `fieldsBody` comment for why it's one
  * JSX value rather than two copies). Split into its own top-level component, not just a local
  * `const`, because a `const` assigned inside `FormEditor` still executes in that function's own
@@ -665,10 +676,6 @@ function FormEditorFieldsBody(props: {
   fields: AdminFormField[];
   existingFieldIds: string[];
   onFieldsChange: (fields: AdminFormField[]) => void;
-  notify: AdminFormNotify;
-  onNotifyChange: (notify: AdminFormNotify) => void;
-  recipientsText: string;
-  onRecipientsTextChange: (value: string) => void;
   form: AdminFormDefinition | null;
   saving: boolean;
   onStatusToggle: () => void;
@@ -685,10 +692,6 @@ function FormEditorFieldsBody(props: {
     fields,
     existingFieldIds,
     onFieldsChange,
-    notify,
-    onNotifyChange,
-    recipientsText,
-    onRecipientsTextChange,
     form,
     saving,
     onStatusToggle,
@@ -733,37 +736,6 @@ function FormEditorFieldsBody(props: {
         <div className="table-scroll">
           <FormFieldsEditor fields={fields} existingFieldIds={existingFieldIds} onChange={onFieldsChange} t={t} />
         </div>
-      </div>
-
-      <div className="field-group">
-        <label className="form-checkbox-field">
-          <input
-            type="checkbox"
-            checked={notify.enabled}
-            onChange={(e) => onNotifyChange({ ...notify, enabled: e.target.checked })}
-            {...agentHandle("form-editor-notify-enabled", {
-              role: "checkbox",
-              label: "Whether an email is sent to the recipients below on every new submission",
-            })}
-          />
-          {t("Enable email notification")}
-        </label>
-        {notify.enabled ? (
-          <div className="field">
-            <label className="field-label" htmlFor="form-recipients">
-              {t("Recipients (comma-separated)")}
-            </label>
-            <input
-              id="form-recipients"
-              value={recipientsText}
-              onChange={(e) => onRecipientsTextChange(e.target.value)}
-              {...agentHandle("form-editor-notify-recipients", {
-                role: "field",
-                label: "Comma-separated email addresses notified on every new submission",
-              })}
-            />
-          </div>
-        ) : null}
       </div>
 
       {/* `form-actions` is a spacing-only hook layered on top of the shared `.editor-actions`
@@ -841,7 +813,7 @@ function FormEditorTabStrip(props: {
   if (!showTabs) return null;
 
   return (
-    <div className="form-tabs" role="tablist" aria-label="Form sections" onKeyDown={onTabsKeyDown}>
+    <div className="form-tabs" role="tablist" aria-label={t("Form sections")} onKeyDown={onTabsKeyDown}>
       {FORM_TABS.map((formTab, index) => (
         <button
           key={formTab.id}
@@ -881,17 +853,17 @@ function FormEditorMainPanel(props: {
   const { isNew, tab, formId, fieldsBody, t } = props;
 
   if (isNew) {
-    return <div className="card">{fieldsBody}</div>;
+    return <div className="form-editor-panel">{fieldsBody}</div>;
   }
   if (tab === "fields") {
     return (
-      <div className="card" role="tabpanel" id="form-panel-fields" aria-labelledby="form-tab-fields">
+      <div className="form-editor-panel" role="tabpanel" id="form-panel-fields" aria-labelledby="form-tab-fields">
         {fieldsBody}
       </div>
     );
   }
   return (
-    <div className="card" role="tabpanel" id="form-panel-submissions" aria-labelledby="form-tab-submissions">
+    <div className="form-editor-panel" role="tabpanel" id="form-panel-submissions" aria-labelledby="form-tab-submissions">
       <FormSubmissions formId={formId} t={t} />
     </div>
   );
@@ -907,10 +879,6 @@ export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor
     setSlug,
     fields,
     setFields,
-    notify,
-    setNotify,
-    recipientsText,
-    setRecipientsText,
     tab: activeTab,
     onTabChange,
     error,
@@ -924,7 +892,7 @@ export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor
     t,
   } = useFormEditorHook({ formId, tab });
 
-  if (!isNew && !form && !error) return <div className="notice">Loading form…</div>;
+  if (!isNew && !form && !error) return <div className="notice">{t("Loading form…")}</div>;
   // Previously this was the ONLY guard, and it only covers the pre-error case — once the load
   // failed and set `error`, `!error` here goes false and rendering fell through to the full,
   // empty, live-saveable editor below (audit blocker, exec summary #3: a bogus form id showed
@@ -950,10 +918,6 @@ export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor
       fields={fields}
       existingFieldIds={existingFieldIds}
       onFieldsChange={setFields}
-      notify={notify}
-      onNotifyChange={setNotify}
-      recipientsText={recipientsText}
-      onRecipientsTextChange={setRecipientsText}
       form={form}
       saving={saving}
       onStatusToggle={handleStatusToggle}
@@ -966,7 +930,7 @@ export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor
     <div className="page">
       {/* `page-header-split` (the same modifier `PageEditorHeader`/`PostEditor` use on the shared
           `.page-header`, `styles.css`) — back link alone at the far left, title block centred.
-          Forms has no Save/Delete group living in this header (that's inside the fields card
+          Forms has no Save/Delete group living in this header (that's inside the fields panel
           below), so the header's third rail just stays empty, same as the editors' post-move
           state. */}
       <div
@@ -980,14 +944,21 @@ export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor
           {/* Plain `<a className="btn-secondary">`, not a `<button>` nested inside an `<a>`
               (invalid HTML, undefined activation behaviour) — same `a.btn-*` mechanism
               `Dashboard.tsx`'s "View site ↗" already uses. Arrow sits outside `t()`, matching
-              `FormSubmissionDetail`'s own `&larr; {t("Back to submissions")}` below — the glyph
-              is not part of the translated string, so no locale block needs to change. */}
+              `FormSubmissionDetail`'s own `&larr; {t("Back")}` below — the glyph is not part of
+              the translated string, so no locale block needs to change.
+
+              Visible label shortened to a plain "← Back" (owner, 2026-09-22 — every editor's back
+              button reads the same short way now). The destination stays legible: `aria-label`
+              carries the full "Back to forms" phrase for screen readers, and `agentHandle`'s own
+              `label` (a stable, untranslated identifier — never live text, see `handle.ts`) already
+              said "Back to the list of all forms" for agents, unchanged by this. */}
           <a
             className="btn-secondary"
             href="/admin/forms"
+            aria-label={t("Back to forms")}
             {...agentHandle("form-editor-back", { role: "link", label: "Back to the list of all forms" })}
           >
-            &larr; {t("Back to forms")}
+            &larr; {t("Back")}
           </a>
         </div>
         <FormEditorHeaderText isNew={isNew} name={name} t={t} />

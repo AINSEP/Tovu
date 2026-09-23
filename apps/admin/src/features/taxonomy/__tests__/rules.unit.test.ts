@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiError, type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "@/lib/api";
-import { termDepth, otherMergeTargets, findSelectedTerm, describeDeleteBlocked } from "../rules";
+import { termDepth, otherMergeTargets, findSelectedTerm, describeDeleteBlocked, describeTrashError } from "../rules";
 
 /**
  * @file Pure logic for `features/taxonomy/rules.ts`.
@@ -143,7 +143,7 @@ describe("describeDeleteBlocked", () => {
     expect(describeDeleteBlocked("boom")).toBeNull();
   });
 
-  it("returns null for an ApiError whose code isn't one of the three known blocked-delete codes", () => {
+  it("returns null for an ApiError whose code isn't TERM_HAS_CHILDREN", () => {
     expect(describeDeleteBlocked(new ApiError("not found", 404, "TERM_NOT_FOUND", {}))).toBeNull();
   });
 
@@ -151,65 +151,94 @@ describe("describeDeleteBlocked", () => {
     expect(describeDeleteBlocked(new ApiError("server exploded", 500))).toBeNull();
   });
 
-  it("TERM_HAS_ASSIGNMENTS: reads assignedCount and pluralizes for count > 1", () => {
+  // Owner ruling (T8b, 2026-09-21): content/term assignments no longer block a delete at all — a
+  // term or taxonomy can be trashed while still assigned, hidden until restored. Only a term with
+  // sub-terms still refuses, and a plain assignment code (now nothing sends it, but a defensive
+  // check regardless) must fall through to null, not a stale blocked state.
+  it("returns null for the retired TERM_HAS_ASSIGNMENTS code — assignments no longer block a delete", () => {
     const e = new ApiError("blocked", 409, "TERM_HAS_ASSIGNMENTS", { assignedCount: 3 });
-    expect(describeDeleteBlocked(e)).toEqual({
-      code: "TERM_HAS_ASSIGNMENTS",
-      count: 3,
-      message: "Still assigned to 3 content items. Unassign it, or merge it into another term, before deleting.",
-    });
+    expect(describeDeleteBlocked(e)).toBeNull();
   });
 
-  it("TERM_HAS_ASSIGNMENTS: singular count reads 'item', not 'items'", () => {
-    const e = new ApiError("blocked", 409, "TERM_HAS_ASSIGNMENTS", { assignedCount: 1 });
-    expect(describeDeleteBlocked(e)?.message).toBe(
-      "Still assigned to 1 content item. Unassign it, or merge it into another term, before deleting."
-    );
-  });
-
-  it("TAXONOMY_HAS_ASSIGNMENTS: reads assignedCount and names the taxonomy-level remedy", () => {
+  it("returns null for the retired TAXONOMY_HAS_ASSIGNMENTS code — taxonomies have no blocked case at all", () => {
     const e = new ApiError("blocked", 409, "TAXONOMY_HAS_ASSIGNMENTS", { assignedCount: 2 });
-    expect(describeDeleteBlocked(e)).toEqual({
-      code: "TAXONOMY_HAS_ASSIGNMENTS",
-      count: 2,
-      message:
-        "A term in this taxonomy is still assigned to 2 content items. Unassign or merge that term before deleting the taxonomy.",
-    });
+    expect(describeDeleteBlocked(e)).toBeNull();
   });
 
-  it("TAXONOMY_HAS_ASSIGNMENTS: singular count reads 'item', not 'items'", () => {
-    const e = new ApiError("blocked", 409, "TAXONOMY_HAS_ASSIGNMENTS", { assignedCount: 1 });
-    expect(describeDeleteBlocked(e)?.message).toBe(
-      "A term in this taxonomy is still assigned to 1 content item. Unassign or merge that term before deleting the taxonomy."
-    );
-  });
-
-  it("TERM_HAS_CHILDREN: reads childCount and names the reparent-first remedy", () => {
-    const e = new ApiError("blocked", 409, "TERM_HAS_CHILDREN", { childCount: 4 });
+  it("TERM_HAS_CHILDREN: reads count and names the reparent-first remedy", () => {
+    const e = new ApiError("blocked", 409, "TERM_HAS_CHILDREN", { count: 4 });
     expect(describeDeleteBlocked(e)).toEqual({
       code: "TERM_HAS_CHILDREN",
       count: 4,
-      message: "Has 4 child terms under it. Delete or move them first.",
+      message: "This term has 4 sub-terms. Move them under another parent or delete them first.",
     });
   });
 
-  it("TERM_HAS_CHILDREN: singular count reads 'term', not 'terms'", () => {
-    const e = new ApiError("blocked", 409, "TERM_HAS_CHILDREN", { childCount: 1 });
-    expect(describeDeleteBlocked(e)?.message).toBe("Has 1 child term under it. Delete or move them first.");
+  it("TERM_HAS_CHILDREN: singular count reads 'sub-term', not 'sub-terms'", () => {
+    const e = new ApiError("blocked", 409, "TERM_HAS_CHILDREN", { count: 1 });
+    expect(describeDeleteBlocked(e)?.message).toBe(
+      "This term has 1 sub-term. Move them under another parent or delete them first."
+    );
   });
 
   it("defaults count to 0 (not a crash) when the 409 body omits its count field", () => {
-    const e = new ApiError("blocked", 409, "TERM_HAS_ASSIGNMENTS", {});
+    const e = new ApiError("blocked", 409, "TERM_HAS_CHILDREN", {});
     expect(describeDeleteBlocked(e)?.count).toBe(0);
   });
 
   it("defaults count to 0 when the body is entirely absent", () => {
-    const e = new ApiError("blocked", 409, "TERM_HAS_ASSIGNMENTS");
+    const e = new ApiError("blocked", 409, "TERM_HAS_CHILDREN");
     expect(describeDeleteBlocked(e)?.count).toBe(0);
   });
 
   it("ignores a non-number count value rather than interpolating it raw", () => {
-    const e = new ApiError("blocked", 409, "TERM_HAS_ASSIGNMENTS", { assignedCount: "many" });
+    const e = new ApiError("blocked", 409, "TERM_HAS_CHILDREN", { count: "many" });
     expect(describeDeleteBlocked(e)?.count).toBe(0);
+  });
+});
+
+describe("describeTrashError", () => {
+  it("returns no message and alreadyGone: false for no error at all", () => {
+    expect(describeTrashError(null, "failed to delete")).toEqual({ alreadyGone: false, message: null });
+  });
+
+  it("404: alreadyGone true, no message — a quiet refetch, not a banner", () => {
+    const e = new ApiError("not found", 404, "NOT_FOUND", {});
+    expect(describeTrashError(e, "failed to delete")).toEqual({ alreadyGone: true, message: null });
+  });
+
+  it("409 TRASH_VERSION_CHANGED: names the reload-and-retry remedy, not the generic fallback", () => {
+    const e = new ApiError("changed", 409, "TRASH_VERSION_CHANGED", {});
+    expect(describeTrashError(e, "failed to delete")).toEqual({
+      alreadyGone: false,
+      message: "This item changed since you loaded it. Reload and try again.",
+    });
+  });
+
+  it("falls back to describeApiError's generic message for anything else", () => {
+    const e = new ApiError("server exploded", 500, undefined, {});
+    expect(describeTrashError(e, "failed to delete")).toEqual({ alreadyGone: false, message: "server exploded" });
+  });
+
+  // Pre-existing defect fixed in passing (T8b2, 2026-09-21): the old version of this test asserted
+  // `describeTrashError(new Error(""), fallback)` returns the fallback text, but `describeApiError`
+  // (lib/api.ts) only substitutes the fallback for an `ApiError` with an empty `message` (`e.message
+  // || fallback`) — a plain `Error` always surfaces its own `.message` unconditionally (`e
+  // instanceof Error ? e.message : fallback`), even when that message is `""`. The assertion was
+  // simply wrong for the code it was testing; split into the two real behaviors below rather than
+  // patched to expect `""`, since a passing-but-misleading test name is worse than two accurate ones.
+  it("surfaces a plain Error's own message unconditionally — describeApiError never substitutes the fallback for a non-ApiError", () => {
+    expect(describeTrashError(new Error("Failed to fetch"), "failed to delete")).toEqual({
+      alreadyGone: false,
+      message: "Failed to fetch",
+    });
+  });
+
+  it("falls back to the given fallback text when the ApiError itself carries no message", () => {
+    const e = new ApiError("", 500, undefined, {});
+    expect(describeTrashError(e, "failed to delete")).toEqual({
+      alreadyGone: false,
+      message: "failed to delete",
+    });
   });
 });

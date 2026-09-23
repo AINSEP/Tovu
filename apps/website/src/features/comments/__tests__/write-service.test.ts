@@ -6,6 +6,7 @@ import { createCommentHookRegistry } from "../hooks.js";
 import { InMemoryCommentRepo } from "../repo.memory.js";
 import { createCommentWriteService } from "../write-service.js";
 import type { CommentRecord } from "../types.js";
+import { commentTrashDoubles } from "./comment-trash-doubles.js";
 
 /** @file SPEC-033 — the moderation write-service: outbox events + statusChanged hook firing. */
 
@@ -45,6 +46,7 @@ function makeService() {
     hooks,
     clock: { nowIso: () => "2026-07-16T01:00:00.000Z" },
     idGen: { newId: () => "event-1" },
+    ...commentTrashDoubles(),
   });
   return { repo, outbox, hooks, service };
 }

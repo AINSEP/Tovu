@@ -1,10 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Editor } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import type { NodeViewProps } from "@tiptap/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, type AdminMedia } from "../api";
 import { Media, MediaEmbedNodeView } from "../media-embed-extension";
@@ -22,10 +22,10 @@ import { PostTitle, PostTitleDocument } from "../post-title-extension";
  *   `addAttributes`/`addCommands`/the node NAME are proven through the actual TipTap pipeline.
  *
  * The two highest-value tests below are the video/image dispatch pair: `MediaEmbedNodeView` has no
- * server round trip and no stored content-type hint to read (see the file header's own explanation
- * of why), so its ONLY source of truth for which tag to show is the `<video>` element's own
- * `error` event — these tests are what proves that client-side probe actually works, in both
- * directions, not just that the component compiles.
+ * stored content-type hint to read (see the file header's own explanation of why), so it asks the
+ * asset's `/original` route for its real `Content-Type` (`api.mediaContentType`, stubbed here) —
+ * these tests prove an image previews as `<img>` and a video as `<video>`, not just that the
+ * component compiles.
  */
 
 const adminLocale = vi.hoisted(() => ({ current: "en" }));
@@ -69,19 +69,26 @@ function fakeNodeViewProps(
   } as unknown as NodeViewProps;
 }
 
+// Every rendered node view asks for its asset's content type; tests that care override this.
+beforeEach(() => {
+  vi.spyOn(api, "mediaContentType").mockResolvedValue("image/png");
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
   adminLocale.current = "en";
 });
 
 describe("MediaEmbedNodeView", () => {
-  it("resolved ref: renders a <video> against api.mediaOriginalUrl(assetId) FIRST, before any error — the video-first probe this file's header describes", () => {
+  it("resolved ref whose asset is a VIDEO (Content-Type video/*): previews as a <video> against api.mediaOriginalUrl(assetId)", async () => {
+    const contentType = vi.spyOn(api, "mediaContentType").mockResolvedValue("video/mp4");
     const { container } = render(
       <MediaEmbedNodeView {...fakeNodeViewProps({ assetId: "asset-1", transformName: "public", alt: "Rocket launch" })} />
     );
 
+    await waitFor(() => expect(container.querySelector("video")).not.toBeNull());
     const video = container.querySelector("video") as HTMLVideoElement;
-    expect(video).not.toBeNull();
+    expect(contentType).toHaveBeenCalledWith("asset-1");
     expect(video.src).toContain(api.mediaOriginalUrl("asset-1"));
     expect(video).toHaveAttribute("controls");
     expect(video).toHaveTextContent("Rocket launch");
@@ -89,25 +96,31 @@ describe("MediaEmbedNodeView", () => {
     expect(screen.queryByLabelText("Broken media reference")).not.toBeInTheDocument();
   });
 
-  it("video fallback text defaults when alt is empty", () => {
+  it("video fallback text defaults when alt is empty", async () => {
+    vi.spyOn(api, "mediaContentType").mockResolvedValue("video/webm");
     const { container } = render(<MediaEmbedNodeView {...fakeNodeViewProps({ assetId: "asset-1", transformName: "public" })} />);
-    const video = container.querySelector("video") as HTMLVideoElement;
-    expect(video).toHaveTextContent("Your browser does not support the video tag.");
+    await waitFor(() => expect(container.querySelector("video")).not.toBeNull());
+    expect(container.querySelector("video")).toHaveTextContent("Your browser does not support the video tag.");
   });
 
-  it("resolved ref whose asset is actually an IMAGE: the <video> element's own error event flips the preview to a real <img>, same src, never stuck on a broken video element", () => {
+  it("resolved ref whose asset is an IMAGE (Content-Type image/png): previews as an <img> with no event needed — never an empty <video> player (Chrome fires no error for an image src on <video>)", async () => {
+    vi.spyOn(api, "mediaContentType").mockResolvedValue("image/png");
     const { container } = render(
       <MediaEmbedNodeView {...fakeNodeViewProps({ assetId: "asset-2", transformName: "public", alt: "A photo" })} />
     );
 
-    const video = container.querySelector("video") as HTMLVideoElement;
-    fireEvent.error(video);
-
+    await waitFor(() => expect(container.querySelector("img")).not.toBeNull());
     const img = container.querySelector("img") as HTMLImageElement;
-    expect(img).not.toBeNull();
     expect(img.src).toContain(api.mediaOriginalUrl("asset-2"));
     expect(img).toHaveAttribute("alt", "A photo");
     expect(container.querySelector("video")).toBeNull();
+  });
+
+  it("before the content type resolves, neither a <video> nor an <img> is rendered", () => {
+    vi.spyOn(api, "mediaContentType").mockReturnValue(new Promise(() => {}));
+    const { container } = render(<MediaEmbedNodeView {...fakeNodeViewProps({ assetId: "asset-2", transformName: "public" })} />);
+    expect(container.querySelector("video")).toBeNull();
+    expect(container.querySelector("img")).toBeNull();
   });
 
   it("broken-ref branch: neither assetId nor transformName renders the unavailable label, no <video> and no <img>", () => {

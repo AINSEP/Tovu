@@ -29,7 +29,7 @@ import type { CommercePriceRecord, CommerceProductRecord, CommerceProductSpec } 
  *    Commerce-sourced product can honestly omit it rather than claim a specific count.
  *  - `description` — a SECURITY omission, not a data-availability one: `CommerceProductRecord
  *    .description` is a plain `text()` column with no HTML-sanitization contract (no admin UI even
- *    writes it yet — `db/schema.ts`'s `commerceProducts.description` doc names no format at all).
+ *    writes it yet — `db/schema.sqlite.ts`'s `commerceProducts.description` doc names no format at all).
  *    `product.liquid` renders `product.description` via Liquid's `| raw` filter — the SAME trust
  *    contract `post.content` uses, but `post.content` earns that trust by walking a controlled
  *    TipTap doc-JSON AST (`renderDocNode`) that only ever emits an allowlisted set of tags; a plain

@@ -1,6 +1,6 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
-import { describeApiError, type AdminFormDefinition, type AdminFormField } from "../../lib/api";
+import { ApiError, describeApiError, type AdminFormDefinition, type AdminFormField } from "../../lib/api";
 import type { QueryKey } from "../../lib/fetch-query";
 
 /**
@@ -71,14 +71,17 @@ export function visibleFormEditorError(params: {
   statusError: Error | null;
   listError: Error | null;
   hasForm: boolean;
+  saveFallback: string;
+  statusUpdateFallback: string;
+  loadFormFallback: string;
 }): string | null {
   // Two distinct fallback strings, matching the pre-migration `handleSave`/`handleStatusToggle`
   // catch blocks verbatim ("save failed" vs "status update failed") — not one shared string.
-  if (params.updateError) return describeApiError(params.updateError, "save failed");
-  if (params.createError) return describeApiError(params.createError, "save failed");
-  if (params.statusError) return describeApiError(params.statusError, "status update failed");
+  if (params.updateError) return describeApiError(params.updateError, params.saveFallback);
+  if (params.createError) return describeApiError(params.createError, params.saveFallback);
+  if (params.statusError) return describeApiError(params.statusError, params.statusUpdateFallback);
   if (params.hasForm) return null;
-  return params.listError ? describeApiError(params.listError, "failed to load form") : null;
+  return params.listError ? describeApiError(params.listError, params.loadFormFallback) : null;
 }
 
 /**
@@ -91,17 +94,66 @@ export function visibleFormEditorError(params: {
  *
  * @complexity Time/space: O(1) — two fixed checks, no iteration.
  */
-export function formsListError(params: { toggleError: Error | null; listError: Error | null; hasForms: boolean }): string | null {
-  if (params.toggleError) return describeApiError(params.toggleError, "failed to update form status");
+export function formsListError(params: {
+  toggleError: Error | null;
+  deleteError: Error | null;
+  listError: Error | null;
+  hasForms: boolean;
+  deleteFallback: string;
+  statusUpdateFallback: string;
+  loadFormsFallback: string;
+  versionChangedMessage: string;
+}): string | null {
+  // The delete's own failure outranks both the toggle's and a background list-refresh failure —
+  // same precedence tier `use-posts.hooks.ts`'s `removePost` gives its own delete, and a 404
+  // "already gone" resolves to `message: null` here so it never reaches this banner at all (see
+  // `describeTrashError`'s own doc for why).
+  const deleteMessage = describeTrashError(params.deleteError, params.deleteFallback, params.versionChangedMessage).message;
+  if (deleteMessage) return deleteMessage;
+  if (params.toggleError) return describeApiError(params.toggleError, params.statusUpdateFallback);
   if (params.hasForms) return null;
-  return params.listError ? describeApiError(params.listError, "failed to load forms") : null;
+  return params.listError ? describeApiError(params.listError, params.loadFormsFallback) : null;
+}
+
+/**
+ * Classifies a failed `api.trash` call — shared by `useFormsList`'s `removeForm` (forms) and
+ * `useFormSubmissionDetail`'s `confirmDelete` (submissions), since both routes now go through the
+ * same generic `POST /trash/items` (`routes/trash/items.ts`) and its 404/409 contract:
+ *
+ * - 404 (`NOT_FOUND`/`FORMS_SUBMISSION_NOT_FOUND`/…): the row is already gone — another tab,
+ *   another operator, or a prior click that actually succeeded before a flaky response read as a
+ *   failure. `alreadyGone: true`, `message: null` — the caller's job is a quiet list refresh, not
+ *   an error banner blaming the operator for something that already happened.
+ * - 409 `TRASH_VERSION_CHANGED`: the row changed under the operator since this screen last read
+ *   it. Specific reload-and-retry copy, not the generic fallback.
+ * - Anything else (network failure, an unrelated `ApiError`, …): falls through to
+ *   `describeApiError`'s generic fallback message.
+ *
+ * @complexity O(1) — one `instanceof` check plus two fixed comparisons.
+ */
+export function describeTrashError(
+  e: Error | null,
+  fallback: string,
+  versionChangedMessage: string,
+): { alreadyGone: boolean; message: string | null } {
+  if (!e) return { alreadyGone: false, message: null };
+  if (e instanceof ApiError) {
+    if (e.status === 404) return { alreadyGone: true, message: null };
+    if (e.code === "TRASH_VERSION_CHANGED") {
+      return { alreadyGone: false, message: versionChangedMessage };
+    }
+  }
+  return { alreadyGone: false, message: describeApiError(e, fallback) };
 }
 
 /** The callbacks a form row menu needs. Passed in rather than imported so this module stays free
- *  of state, mirroring `redirects/rules.ts`'s `RedirectRowMenuHandlers`. */
+ *  of state, mirroring `redirects/rules.ts`'s `RedirectRowMenuHandlers`. `onDelete` opens the
+ *  `ConfirmDialog` in `FormsList.tsx` — see that component's own render for why the actual
+ *  `port.trashForm` call waits for the confirm, not this selection. */
 export interface FormRowMenuHandlers {
   onEdit: (form: AdminFormDefinition) => void;
   onToggleStatus: (form: AdminFormDefinition) => void;
+  onDelete: (form: AdminFormDefinition) => void;
 }
 
 /**
@@ -114,7 +166,7 @@ export interface FormRowMenuHandlers {
  * hook does. Flagged by the 2026-09-05 Gemini admin-tooling audit as a standing no-logic-in-`.tsx`
  * violation; moving the guard into the hook also fixed the comment's own false precedent claim.)
  *
- * @complexity Time/space: O(1) — two fixed entries, no iteration.
+ * @complexity Time/space: O(1) — three fixed entries, no iteration.
  */
 export function formRowMenuItems(form: AdminFormDefinition, handlers: FormRowMenuHandlers, t: (key: string) => string): RowMenuItem[] {
   return [
@@ -127,6 +179,10 @@ export function formRowMenuItems(form: AdminFormDefinition, handlers: FormRowMen
       tone: form.status === "active" ? "warning" : "default",
       onSelect: () => handlers.onToggleStatus(form),
     },
+    // Opens `FormsList.tsx`'s `ConfirmDialog` — no network call from this selection itself, same
+    // "a click alone can never delete" contract `use-form-submission-detail.hooks.ts`'s
+    // `requestDelete` already documents for the sibling submission-delete flow.
+    { key: "delete", label: t("Delete"), tone: "danger", onSelect: () => handlers.onDelete(form) },
   ];
 }
 
@@ -183,19 +239,6 @@ export function removeFormField(fields: AdminFormField[], index: number): AdminF
  *  (form not loaded yet, or the "new form" case) has no existing ids. */
 export function existingFieldIdsOf(form: AdminFormDefinition | null): string[] {
   return form ? form.fields.map((f) => f.id) : [];
-}
-
-/**
- * Splits the notification recipients textarea into the trimmed, non-empty address list
- * `api.createForm`/`api.updateForm` expect.
- *
- * @complexity O(n) in `recipientsText.length`.
- */
-export function parseRecipients(recipientsText: string): string[] {
-  return recipientsText
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
 }
 
 // ---------------------------------------------------------------------------

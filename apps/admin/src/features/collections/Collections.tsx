@@ -4,6 +4,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { contentTypeMenuItems, type DraftField, type LifecycleConfirmOp } from "./rules";
 import { useWiredCollections } from "./hooks/use-collections.hooks";
+import { ServerLabel } from "@/components/status-labels";
 import { useWiredNewContentTypeDialog } from "./hooks/use-new-content-type-dialog.hooks";
 import { useWiredEditFieldsDialog } from "./hooks/use-edit-fields-dialog.hooks";
 import { useLifecycleConfirmDialog } from "./hooks/use-lifecycle-confirm-dialog.hooks";
@@ -110,7 +111,7 @@ function ContentTypeFieldFieldset({
         />
         {t("Required")}
       </label>
-      <label className="form-checkbox-field" title="Adds a database index; keep this list small.">
+      <label className="form-checkbox-field" title={t("Adds a database index; keep this list small.")}>
         <input
           type="checkbox"
           checked={f.queryable}
@@ -155,7 +156,7 @@ function NewContentTypeDialog({
   useNewContentTypeDialogHook = useWiredNewContentTypeDialog,
   t,
 }: NewContentTypeDialogProps) {
-  const { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit } =
+  const { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit, cancel, dialogRef } =
     useNewContentTypeDialogHook({ onCreated, onCancel });
   const fieldHandles = buildAgentListHandles(
     "new-content-type-field",
@@ -163,8 +164,9 @@ function NewContentTypeDialog({
   );
 
   return (
-    <div className="settings-dialog-backdrop" onClick={onCancel}>
+    <div className="settings-dialog-backdrop" onClick={cancel}>
       <form
+        ref={dialogRef}
         className="settings-dialog collections-type-dialog"
         role="dialog"
         aria-modal="true"
@@ -184,7 +186,7 @@ function NewContentTypeDialog({
             id="ct-label"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="e.g. Recipe"
+            placeholder={t("e.g. Recipe")}
             autoFocus
             {...agentHandle("new-content-type-label", { role: "field", label: "This content type's display name" })}
           />
@@ -216,7 +218,7 @@ function NewContentTypeDialog({
               onUpdateField={updateField}
               onRemoveField={removeField}
               showRemoveButton={fields.length > 1}
-              removeButtonLabel="Remove this field from the new content type"
+              removeButtonLabel={t("Remove this field from the new content type")}
               t={t}
             />
           ))}
@@ -247,7 +249,8 @@ function NewContentTypeDialog({
           <button
             type="button"
             className="btn-secondary"
-            onClick={onCancel}
+            onClick={cancel}
+            disabled={saving}
             {...agentHandle("new-content-type-cancel", { role: "button", label: "Close this dialog without creating a content type" })}
           >
             {t("Cancel")}
@@ -279,7 +282,7 @@ function EditFieldsDialog({
   useEditFieldsDialogHook = useWiredEditFieldsDialog,
   t,
 }: EditFieldsDialogProps) {
-  const { fields, updateField, removeField, addField, error, saving, submit } = useEditFieldsDialogHook({
+  const { fields, updateField, removeField, addField, error, saving, submit, cancel, dialogRef } = useEditFieldsDialogHook({
     contentType,
     onSaved,
     onCancel,
@@ -290,8 +293,9 @@ function EditFieldsDialog({
   );
 
   return (
-    <div className="settings-dialog-backdrop" onClick={onCancel}>
+    <div className="settings-dialog-backdrop" onClick={cancel}>
       <form
+        ref={dialogRef}
         className="settings-dialog collections-type-dialog"
         role="dialog"
         aria-modal="true"
@@ -316,7 +320,7 @@ function EditFieldsDialog({
               onUpdateField={updateField}
               onRemoveField={removeField}
               showRemoveButton={true}
-              removeButtonLabel="Remove this field from this content type"
+              removeButtonLabel={t("Remove this field from this content type")}
               t={t}
             />
           ))}
@@ -347,7 +351,8 @@ function EditFieldsDialog({
           <button
             type="button"
             className="btn-secondary"
-            onClick={onCancel}
+            onClick={cancel}
+            disabled={saving}
             {...agentHandle("edit-fields-cancel", { role: "button", label: "Close this dialog without saving field changes" })}
           >
             {t("Cancel")}
@@ -381,11 +386,12 @@ function LifecycleConfirmDialog({
   useLifecycleConfirmDialogHook = useLifecycleConfirmDialog,
   t,
 }: LifecycleConfirmDialogProps) {
-  const { copy, autoFocusCancel } = useLifecycleConfirmDialogHook({ op, onCancel });
+  const { copy, autoFocusCancel, dialogRef } = useLifecycleConfirmDialogHook({ op, onCancel });
 
   return (
     <div className="settings-dialog-backdrop" onClick={onCancel}>
       <div
+        ref={dialogRef}
         className="settings-dialog"
         role="dialog"
         aria-modal="true"
@@ -503,12 +509,15 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
     actionError,
     load,
     runLifecycle,
+    copiedKey,
+    copyFallback,
+    copyEmbedCode,
     t,
     locale,
   } = useCollectionsHook();
 
   if (error && !types) return <div className="notice error">{error}</div>;
-  if (!types) return <div className="notice">Loading content types…</div>;
+  if (!types) return <div className="notice">{t("Loading content types…")}</div>;
 
   // Content type keys are stable and unique (the server's own primary key for this resource), so
   // they disambiguate one row's entries link from another's — same reasoning as every other list
@@ -572,7 +581,7 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
           {
             key: "status",
             header: t("Status"),
-            cell: (ct) => <span className={`status status-${ct.status}`}>{ct.status}</span>,
+            cell: (ct) => <span className={`status status-${ct.status}`}><ServerLabel value={ct.status} /></span>,
           },
           {
             key: "entries",
@@ -590,11 +599,31 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
             ),
           },
           {
+            key: "embed",
+            header: t("Embed"),
+            cell: (ct, index) => (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void copyEmbedCode(ct)}
+                  {...agentHandle(`${rowHandles[index]}-copy-embed`, {
+                    role: "button",
+                    label: `Copy the embed code for content type "${ct.label}"`,
+                  })}
+                >
+                  {/* aria-live so the swap to "Copied" is announced, as StaticSiteTab's copy button does. */}
+                  <span aria-live="polite">{copiedKey === ct.key ? t("Copied") : t("Copy embed code")}</span>
+                </button>
+                {copyFallback?.key === ct.key && <code translate="no">{copyFallback.snippet}</code>}
+              </>
+            ),
+          },
+          {
             key: "actions",
             header: t("More"),
             cell: (ct, index) => (
               <RowMenu
-                triggerLabel={`Actions for content type "${ct.label}"`}
+                triggerLabel={t('Actions for content type "{label}"').replace("{label}", ct.label)}
                 agentHandle={`${rowHandles[index]}-menu`}
                 items={contentTypeMenuItems(
                   ct,

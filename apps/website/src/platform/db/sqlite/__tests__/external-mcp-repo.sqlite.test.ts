@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ExternalMcpServerRecord } from "#src/assistant/index";
-import { workspaces } from "../../schema.js";
+import { workspaces } from "../../schema.sqlite.js";
 import { openContentDb } from "../content-db.js";
 import { SqliteExternalMcpServerRepo } from "../external-mcp-repo.sqlite.js";
 
@@ -50,6 +50,11 @@ function makeRecord(overrides: Partial<ExternalMcpServerRecord> = {}): ExternalM
     oauthTokenEnvName: null,
     oauthRefreshLeaseUntil: null,
     sealedOAuth: null,
+    // `fix(security): bind AAD to external_mcp_servers, the tenth store that sealed with none`
+    // (e3cb674a9, 2026-09-02) added both columns with a `NOT NULL DEFAULT 0` — every row this
+    // fixture inserts is a fresh row, so 0 is the real value a round-trip reads back.
+    aadVersion: 0,
+    oauthAadVersion: 0,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,

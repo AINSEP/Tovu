@@ -10,7 +10,7 @@ import type { UUID } from "@jini-ai/cms/core";
  *
  * Format: `admin-execution-credential:v1:${workspaceId}:${principalId}` — this table has no
  * surrogate `id` column (`(workspace_id, principal_id)` IS the row's own primary key, per
- * `db/schema.ts`'s `adminExecutionCredentials` doc), so the AAD binds that composite PK directly.
+ * `db/schema.sqlite.ts`'s `adminExecutionCredentials` doc), so the AAD binds that composite PK directly.
  * Binds both scoping dimensions this table actually has: a ciphertext sealed under one admin's own
  * BYOK key fails auth-tag verification if presented as any other admin's ciphertext, even within
  * the same workspace — which is exactly the property this table's own header requires ("two admins
@@ -18,7 +18,7 @@ import type { UUID } from "@jini-ai/cms/core";
  *
  * This table's rows predate AAD entirely (2026-09-02 gap closure, `SecretSealerPort`'s own header
  * used to name this table by number among the callers with no AAD at all) — see
- * `admin_execution_credentials.aad_version`'s own doc in `db/schema.ts` and
+ * `admin_execution_credentials.aad_version`'s own doc in `db/schema.sqlite.ts` and
  * `development/scripts/backfill-execution-credential-aad.ts` for how existing rows are migrated
  * without becoming unreadable.
  */

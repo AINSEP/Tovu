@@ -1,5 +1,4 @@
 import type { JsonObject, JsonValue } from "@jini-ai/cms/core";
-import { parseMediaHtmlAttributes } from "@jini-ai/cms/media";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN, type PostRecord } from "#src/features/post/index";
 import type { DiscoveredTheme, StaticMenuItem, TemplateNode } from "#src/features/theme/index";
 import {
@@ -13,6 +12,7 @@ import type { AssignedTermView } from "#src/features/taxonomy/repo.sqlite";
 import type { WidgetRenderIR } from "#src/features/widgets/types";
 import { substituteHtmlEmbeds, type EmbedOccurrence, type PageHtmlEmbedRef } from "#src/features/widgets/html-embeds";
 import type { MarkerAttribute } from "#src/contracts/core/embeds/marker";
+import { parseEmbedHtmlAttributes } from "#src/contracts/core/embeds/html-attributes";
 import { ATTRIBUTE_NAME_PATTERN } from "#src/features/forms/forms";
 import { renderHandlebarsInSandbox } from "./handlebars-sandbox.js";
 import { renderLiquidInSandbox } from "./liquid-sandbox.js";
@@ -644,22 +644,32 @@ function isPlausibleMediaRefId(value: string): boolean {
  * @overallScore 100
  */
 /**
- * Re-validates and formats `MediaRecord.htmlAttributes`' raw stored text into escaped
- * ` name="value"` fragments — the render-path half of the allowlist's defense-in-depth (owner
- * requirement: enforced at the write path AND the render path, since a client-only check is not a
- * control). `updateMediaMetadata` (`@jini-ai/cms/media`) already validates before writing, so a
- * re-parse failure here should be unreachable through the normal write path — but this function
- * fails CLOSED (emits nothing) rather than trusting a stored value was never written by an older
- * code path, a direct DB edit, or a future bug in the write-side check, matching this file's own
- * "escape/validate at the one place a tag is templated" discipline for every other attribute here.
+ * Re-validates `raw` free-text HTML attributes against the shared render-time allowlist
+ * ({@link parseEmbedHtmlAttributes}, `#src/contracts/core/embeds/html-attributes` — S1, 2026-09-23
+ * widget-attrs plan) and returns only the accepted attribute map — the render-path half of the
+ * allowlist's defense-in-depth (owner requirement: enforced at the write path AND the render path,
+ * since a client-only check is not a control). `updateMediaMetadata` (`@jini-ai/cms/media`) already
+ * validates before writing, so a re-parse failure here should be unreachable through the normal
+ * write path — but this function still re-validates rather than trusting a stored value was never
+ * written by an older code path, a direct DB edit, or a future bug in the write-side check, matching
+ * this file's own "escape/validate at the one place a tag is templated" discipline for every other
+ * attribute here.
  *
- * @param raw - `MediaRecord.htmlAttributes` — `null`/empty means no extra attributes.
- * @complexity O(n) in `raw`'s length (one parse pass), O(k) space for k attributes.
+ * Every render-time re-parse of a free-text `htmlAttributes` field in this file — media asset, media
+ * post-node, and widget post-node — goes through this ONE function, so all three share one allowlist
+ * and one failure mode: a rejected token (an `on*` handler, an unsafe URL scheme, an unsafe `style`
+ * value, a disallowed name) is simply omitted from the returned map, while every other token in the
+ * same string still lands (`parseEmbedHtmlAttributes`'s per-token behavior). Only `malformed` —
+ * the tokenizer itself losing sync — empties the whole map; `raw`'s caller never needs to
+ * distinguish that from "nothing accepted" here, since both return `{}`.
+ *
+ * @param raw - The free-text `htmlAttributes` field (asset- or node-level) — `null`/empty means no
+ *   extra attributes.
+ * @complexity O(n) in `raw`'s length (one parse pass), O(k) space for k accepted attributes.
  */
-function resolveMediaHtmlAttributes(raw: string | null): Record<string, string> {
+function resolveEmbedHtmlAttributes(raw: string | null): Record<string, string> {
   if (!raw) return {};
-  const parsed = parseMediaHtmlAttributes(raw);
-  return parsed.error ? {} : parsed.attributes;
+  return parseEmbedHtmlAttributes(raw).attributes;
 }
 
 /** A shallow copy of `attributes` with `key` removed — used when a call site already emits its own
@@ -686,7 +696,7 @@ const NO_MARKER_ATTRIBUTES: readonly MarkerAttribute[] = [];
 /**
  * Formats one already-decided value for embedding inside a double-quoted HTML attribute — the render-
  * path half of D3/D4 (2026-09-16 embed-attributes plan). An **asset**-sourced value (`MediaRecord.
- * cssClass`/`htmlAttributes`, already allowlist-validated by {@link resolveMediaHtmlAttributes}, not
+ * cssClass`/`htmlAttributes`, already allowlist-validated by {@link resolveEmbedHtmlAttributes}, not
  * itself entity-encoded) goes through the ordinary {@link escapeHtml}, matching every pre-existing call
  * site in this file. A **marker**-sourced value is SOURCE TEXT (D4: `EmbedMarker.attrs`'s own
  * {@link MarkerAttribute}) and only its literal `"` is escaped — the identical rule
@@ -715,6 +725,28 @@ function mergeMediaClassAttr(assetClass: string | null, markerAttributes: readon
     markerClass ? attributeValueHtml(markerClass, "marker") : null,
   ].filter((part): part is string => part !== null);
   return parts.length > 0 ? ` class="${parts.join(" ")}"` : "";
+}
+
+/**
+ * Folds a free-text `htmlAttributes`' own `class` token — now allowlisted (S1, 2026-09-23
+ * widget-attrs plan), unlike the old `data-*`/`aria-*`-only boundary — into an already-built
+ * ` class="..."` fragment from {@link mergeMediaClassAttr}, appended LAST so it layers on top of
+ * both the asset's own `cssClass` and a marker's own `class` (D3's existing precedence between
+ * those two is untouched; this is strictly an addition after it). Kept as its own step, rather than
+ * folded into {@link mergeMediaClassAttr} itself, so that function's own asset/marker precedence
+ * rule stays exactly as documented there — this is a third, independent source, not a change to how
+ * the first two combine.
+ *
+ * @param classAttr - {@link mergeMediaClassAttr}'s own return value: either `""` or a full
+ *   ` class="..."` fragment.
+ * @param extraClass - `resolveEmbedHtmlAttributes(...).class`, already allowlist-validated,
+ *   value-untouched — `undefined` when `htmlAttributes` carried no `class` token.
+ * @complexity O(1).
+ */
+function foldHtmlAttributesClass(classAttr: string, extraClass: string | undefined): string {
+  if (!extraClass) return classAttr;
+  const escaped = attributeValueHtml(extraClass, "asset");
+  return classAttr === "" ? ` class="${escaped}"` : `${classAttr.slice(0, -1)} ${escaped}"`;
 }
 
 /**
@@ -803,12 +835,17 @@ function renderImageTag(props: {
   const altAttr = mediaAltAttrValue(props.alt, markerAttributes);
   const widthAttr = mediaDimensionAttr("width", props.width, markerAttributes);
   const heightAttr = mediaDimensionAttr("height", props.height, markerAttributes);
-  const classAttr = mergeMediaClassAttr(props.cssClass, markerAttributes);
   // `loading` is on the allowlist (an operator may legitimately want `loading="eager"`) but this
   // tag already hardcodes a `loading="lazy"` default below — the asset's own value, when present,
   // wins over the default, and a marker's own `loading` attribute (D3: author wins over asset) wins
   // over both, never a silently dropped or duplicated second `loading` attribute.
-  const allExtra = resolveMediaHtmlAttributes(props.htmlAttributes);
+  const allExtra = resolveEmbedHtmlAttributes(props.htmlAttributes);
+  // `class` is now an allowlisted name (S1, 2026-09-23 widget-attrs plan), same as `style`/`id` — it
+  // is folded into the class attribute here rather than left to `mergeMediaExtraAttributes`'s
+  // generic tail (which already excludes it via `MEDIA_IMAGE_FIXED_ATTRIBUTE_NAMES`, same reason
+  // `mergeMediaClassAttr`'s own doc gives for the marker's `class`: an addition, never a second
+  // `class="..."` attribute).
+  const classAttr = foldHtmlAttributesClass(mergeMediaClassAttr(props.cssClass, markerAttributes), allExtra.class);
   const markerLoading = markerAttributes.find((attr) => attr.name === "loading");
   const loadingValue = markerLoading
     ? attributeValueHtml(markerLoading.value ?? "lazy", "marker")
@@ -835,7 +872,7 @@ function renderImageTag(props: {
  *  is excluded unconditionally even though `EmbedOccurrence.elementAttributes` never actually carries
  *  a `"controls"`-named entry (`html-embeds.ts`'s `resolveMarkerControls`/`planMediaMarkerAttributes`
  *  strip it before this function ever sees `markerAttributes`) — this is defence-in-depth for the same
- *  reason {@link resolveMediaHtmlAttributes} fails closed on a re-parse: never trust a single upstream
+ *  reason {@link resolveEmbedHtmlAttributes} fails closed on a re-parse: never trust a single upstream
  *  guarantee alone for a rule this precise (a stray `controls="false"` reaching a browser as a literal
  *  attribute still shows controls, since it is a boolean-by-presence attribute). */
 const MEDIA_VIDEO_FIXED_ATTRIBUTE_NAMES: ReadonlySet<string> = new Set(["class", "alt", "width", "height", "controls"]);
@@ -859,7 +896,11 @@ function renderVideoTag(props: {
   const controlsAttr = (props.controls ?? true) ? " controls" : "";
   const widthAttr = mediaDimensionAttr("width", props.width, markerAttributes);
   const heightAttr = mediaDimensionAttr("height", props.height, markerAttributes);
-  const classAttr = mergeMediaClassAttr(props.cssClass, markerAttributes);
+  const allExtra = resolveEmbedHtmlAttributes(props.htmlAttributes);
+  // `class` is now an allowlisted name (S1, 2026-09-23 widget-attrs plan) — folded in here, same as
+  // `renderImageTag`'s own identical fold, rather than left to `mergeMediaExtraAttributes`'s generic
+  // tail (already excluded via `MEDIA_VIDEO_FIXED_ATTRIBUTE_NAMES`).
+  const classAttr = foldHtmlAttributesClass(mergeMediaClassAttr(props.cssClass, markerAttributes), allExtra.class);
   // No hardcoded default here to collide with (unlike `renderImageTag`'s `loading`) — every
   // allowlisted asset attribute is emitted as-is, including boolean ones (`muted`, `loop`,
   // `autoplay`, `playsinline`), which the parser records as an empty-string value; HTML treats ANY
@@ -867,7 +908,7 @@ function renderVideoTag(props: {
   // equivalent. A marker's own boolean attribute keeps ITS OWN shape instead (a bare `autoplay`
   // renders as bare `autoplay`, never `autoplay=""`) — {@link mergeMediaExtraAttributes} preserves
   // that distinction rather than normalizing every boolean attribute to the asset path's convention.
-  const extraAttrs = mergeMediaExtraAttributes(resolveMediaHtmlAttributes(props.htmlAttributes), markerAttributes, MEDIA_VIDEO_FIXED_ATTRIBUTE_NAMES);
+  const extraAttrs = mergeMediaExtraAttributes(allExtra, markerAttributes, MEDIA_VIDEO_FIXED_ATTRIBUTE_NAMES);
   // `alt` has no `<video>` attribute equivalent (see this function's own header doc) — a marker's
   // `alt` attribute (D3) replaces the fallback TEXT NODE instead, used verbatim as source text (never
   // re-escaped: this text node sits inside a page whose own body HTML is already unsanitized by
@@ -1233,7 +1274,7 @@ function resolveMediaAssetOverrides(meta: MediaAssetRenderMeta | undefined): Pic
  *
  * "Empty means unset" here mirrors every other optional string field in this file rather than
  * inventing a new convention: {@link renderImageTag}'s own `props.cssClass ? … : ""` check and
- * {@link resolveMediaHtmlAttributes}'s `!raw` guard both already treat `""` the same as `null`.
+ * {@link resolveEmbedHtmlAttributes}'s `!raw` guard both already treat `""` the same as `null`.
  *
  * @complexity O(1).
  */
@@ -1362,7 +1403,7 @@ function renderDocImage(node: JsonObject, _content: JsonValue[] | undefined, dep
  * rules depending on what the asset turns out to be. `htmlAttributes` re-validation is NOT
  * duplicated here: both {@link renderVideoTag} and {@link tryRenderRefImage} (via
  * {@link renderImageTag}) already re-parse whatever string reaches them through
- * `resolveMediaHtmlAttributes`'s `@jini-ai/cms/media` allowlist and fail closed on anything
+ * `resolveEmbedHtmlAttributes`'s shared embed allowlist and drop just the bad token on anything
  * disallowed, so a node-authored value gets the exact same security boundary an asset-authored value
  * already had, with no new parser and no second copy of the allowlist.
  */
@@ -1439,6 +1480,29 @@ function renderDocMention(node: JsonObject): string {
   return `<a class="post-mention" href="/${escapeHtml(id)}">@${escapeHtml(label)}</a>`;
 }
 
+/**
+ * Renders a `widgetEmbed` node — REQ-18/REQ-21 (see inline comment below) — through the resolved
+ * widget IR, optionally wrapped in a `<div class="widget-embed …">` carrying the node's own
+ * `attrs.cssClass`/`attrs.htmlAttributes` (D5, 2026-09-23 embed-attributes-everywhere plan), the
+ * SAME two per-node style fields {@link renderDocMedia} already supports. A bare node (neither
+ * field set, the common case today) renders BYTE-IDENTICAL to before this task — no wrapper at
+ * all — so every existing page keeps its exact output.
+ *
+ * `htmlAttributes` reuses the exact shared allowlist boundary ({@link resolveEmbedHtmlAttributes}) —
+ * no extra restriction beyond it (S1, 2026-09-23 widget-attrs plan removed the old data-/aria- prefix
+ * -only narrowing this wrapper used to apply on top: the base allowlist itself now covers `style`/`id`/
+ * `class`/etc., so a second, narrower filter here would only take away what the owner asked to keep
+ * for widget styling/animation). A rejected token (an `on*` handler, an unsafe URL/style value, a
+ * disallowed name) is dropped ON ITS OWN — every other token in the same string still lands — except
+ * `malformed` syntax, which still empties the whole map (see `html-attributes.ts`'s own header).
+ * `htmlAttributes`' own `class` token, if present, is appended after `cssClass` rather than emitted
+ * as a second `class` attribute — the same fold {@link renderImageTag}/{@link renderVideoTag} apply
+ * via {@link foldHtmlAttributesClass}, just built from `cssClass` directly here since a widget node
+ * has no separate marker-class source to layer under it.
+ *
+ * @complexity O(n) in `attrs.htmlAttributes`'s length (one allowlist parse), O(k) in its resulting
+ * attribute count for the class fold and formatting.
+ */
 function renderDocWidgetEmbed(node: JsonObject, _content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
   // REQ-18/REQ-21: a block-level atom node carrying a single widget-instance reference,
   // resolved server-side (by `resolvePageWidgets`, threaded in via `inlineResolved`) before this
@@ -1448,7 +1512,34 @@ function renderDocWidgetEmbed(node: JsonObject, _content: JsonValue[] | undefine
   const attrs = isObject(node.attrs) ? node.attrs : {};
   const placementId = typeof attrs.placementId === "string" ? attrs.placementId : undefined;
   const ir = placementId ? deps.inlineResolved.get(placementId) : undefined;
-  return renderWidgetIr(ir ?? WIDGET_PLACEHOLDER_IR);
+  const widgetHtml = renderWidgetIr(ir ?? WIDGET_PLACEHOLDER_IR);
+
+  const nodeCssClass = typeof attrs.cssClass === "string" && attrs.cssClass ? attrs.cssClass : null;
+  const nodeHtmlAttributes = typeof attrs.htmlAttributes === "string" && attrs.htmlAttributes ? attrs.htmlAttributes : null;
+  if (!nodeCssClass && !nodeHtmlAttributes) return widgetHtml;
+
+  const parsedAttributes = resolveEmbedHtmlAttributes(nodeHtmlAttributes);
+  const classAttr = mergeWidgetClassAttr(nodeCssClass, parsedAttributes.class);
+  const restAttributes = formatHtmlAttributes(omitKey(parsedAttributes, "class"));
+  return `<div${classAttr}${restAttributes}>${widgetHtml}</div>`;
+}
+
+/**
+ * Builds the widget wrapper's `class` attribute from the fixed `widget-embed` base plus the node's
+ * own `cssClass` and, appended last, any `class` token inside its parsed `htmlAttributes` — the
+ * SAME ordering {@link foldHtmlAttributesClass} applies for media (base/asset value first,
+ * `htmlAttributes`' own `class` layered on top last). Always non-empty (the `widget-embed` base is
+ * unconditional), unlike {@link mergeMediaClassAttr}, which returns `""` when there is nothing at
+ * all to add.
+ *
+ * @param nodeCssClass - `attrs.cssClass`, already checked non-empty by the caller, or `null`.
+ * @param attributesClass - `resolveEmbedHtmlAttributes(...).class`, already allowlist-validated,
+ *   value-untouched — `undefined` when `htmlAttributes` carried no `class` token.
+ * @complexity O(1).
+ */
+function mergeWidgetClassAttr(nodeCssClass: string | null, attributesClass: string | undefined): string {
+  const parts = ["widget-embed", nodeCssClass, attributesClass].filter((part): part is string => Boolean(part));
+  return ` class="${escapeHtml(parts.join(" "))}"`;
 }
 
 /** {@link renderDocNode}'s own `content` extraction, pulled out so the ternary is counted once here
@@ -1667,6 +1758,14 @@ const HTML_EMBED_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeho
 export function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbedsResult | undefined): string {
   return substituteHtmlEmbeds(html, (ref, occurrence) => {
     if (!isPageEmbedType(ref.type)) return undefined;
+    // D4 guard (2026-09-23): a "content"/"post" marker naming neither an id nor a slug has no
+    // current entity to resolve against at all — e.g. the static theme's own `index.html`, whose
+    // `{"type":"content","header":false}` marker names no id because D2's `finishStaticTierDocument`
+    // runs this stage over assembled HTML, not a per-entity render. Leave it exactly as authored
+    // (return `undefined`, `substituteMarkers`' own "leave as written" contract) instead of
+    // degrading to the REQ-28 placeholder, which is the right answer only when an id/slug WAS
+    // named but failed to resolve.
+    if ((ref.type === "content" || ref.type === "post") && ref.id === null && ref.slug === null) return undefined;
     const lookupKey = ref.id ?? ref.slug;
     const ir = (lookupKey !== null ? resolved?.get(ref.type)?.get(lookupKey) : undefined) ?? HTML_EMBED_PLACEHOLDER_IR;
     return renderWidgetIr(withOccurrenceMediaAttributes(withOccurrenceHeader(ir, ref), ref, occurrence));
@@ -2402,6 +2501,18 @@ function readMediaAssetMetadata(value: JsonValue | undefined): ReadonlyMap<strin
   return entries.length > 0 ? new Map(entries) : EMPTY_MEDIA_ASSET_METADATA;
 }
 
+/** Rebuilds the `placementId -> WidgetRenderIR` map `renderDocNode`'s `widgetEmbed` case needs from
+ *  the plain JSON `resolver-service.ts`'s `resolvePostContentWidgetContext` stashes into
+ *  `props.inlineWidgets` (2026-09-22 — before it, every inline widget in a template-rendered post was
+ *  the placeholder). A malformed entry is skipped, so its node degrades to the placeholder. */
+function readInlineWidgets(value: JsonValue | undefined): ReadonlyMap<string, WidgetRenderIR> {
+  if (!isObject(value)) return EMPTY_INLINE_RESOLVED;
+  const entries = Object.entries(value).filter(
+    (entry): entry is [string, JsonObject] => isObject(entry[1]) && typeof entry[1].componentId === "string" && isObject(entry[1].props)
+  );
+  return entries.length > 0 ? new Map(entries.map(([id, ir]) => [id, ir as unknown as WidgetRenderIR])) : EMPTY_INLINE_RESOLVED;
+}
+
 /**
  * Owner-reported bug (2026-08-12): a ref-based image dropped into a post's body rendered as a
  * labelled placeholder box showing the filename — everywhere this function's output reaches (the
@@ -2470,9 +2581,10 @@ function renderWidgetPostContent(props: JsonObject): string {
     titleNode !== null ? `<h1${styleForAlign(titleNode.align)}>${titleNode.html}</h1>` : `<h1>${escapeHtml(title)}</h1>`;
   const mediaTransformVersions = readMediaTransformVersions(props.mediaTransformVersions as JsonValue | undefined);
   const mediaAssetMetadata = readMediaAssetMetadata(props.mediaAssetMetadata as JsonValue | undefined);
+  const inlineWidgets = readInlineWidgets(props.inlineWidgets as JsonValue | undefined);
   return (
     renderPostDetailHeader(showHeader, titleHtml, dateLabel, updatedAt) +
-    `<div class="post-detail-body">${renderDocNode(bodyJson, EMPTY_INLINE_RESOLVED, mediaTransformVersions, mediaAssetMetadata)}</div>`
+    `<div class="post-detail-body">${renderDocNode(bodyJson, inlineWidgets, mediaTransformVersions, mediaAssetMetadata)}</div>`
   );
 }
 

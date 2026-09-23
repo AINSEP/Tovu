@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState, type RefObject } from "react";
 
 import { describeApiError } from "@/lib/api";
 import { useFetchMutation } from "@/lib/fetch-query";
@@ -14,6 +14,7 @@ import {
 } from "../rules";
 import { useEscapeToCancel } from "./use-escape-to-cancel.hooks";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useFocusTrap } from "@/hooks/use-focus-trap.hooks";
 import { t } from "../collections-i18n";
 import { defaultNewContentTypeDialogPort } from "./new-content-type-dialog-dependencies.hooks";
 import type { NewContentTypeDialogPort } from "./new-content-type-dialog-port.hooks";
@@ -52,6 +53,12 @@ export interface NewContentTypeDialogController {
   error: string | null;
   saving: boolean;
   submit: (e: React.FormEvent) => void;
+  /** Backdrop/Cancel/Escape all route here instead of `props.onCancel` directly — a no-op while
+   * `createContentType` is in flight, so those dismiss paths can't unmount the dialog out from
+   * under its own pending write (H4). */
+  cancel: () => void;
+  /** Attach to the dialog's own `role="dialog"` root so `useFocusTrap` (M3) can find it. */
+  dialogRef: RefObject<HTMLFormElement | null>;
 }
 
 export interface NewContentTypeDialogDependencies {
@@ -71,8 +78,16 @@ export function useNewContentTypeDialog(
   const [key, setKey] = useState("");
   const [fields, setFields] = useState<DraftField[]>([emptyField()]);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const inFlightRef = useRef(false);
+  const dialogRef = useRef<HTMLFormElement | null>(null);
 
-  useEscapeToCancel(props.onCancel);
+  function cancel() {
+    if (inFlightRef.current) return;
+    props.onCancel();
+  }
+
+  useEscapeToCancel(cancel);
+  useFocusTrap(dialogRef);
 
   const createMutation = useFetchMutation({
     run: (input: { key: string; label: string; fields: ReturnType<typeof stripDraftFieldRowIds> }) =>
@@ -96,12 +111,13 @@ export function useNewContentTypeDialog(
     e.preventDefault();
     setValidationError(null);
 
-    const draftError = validateNewContentTypeDraft({ key, label, fields });
+    const draftError = validateNewContentTypeDraft({ key, label, fields }, locale);
     if (draftError) {
       setValidationError(draftError);
       return;
     }
 
+    inFlightRef.current = true;
     try {
       await createMutation.mutate({
         key: key.trim(),
@@ -111,13 +127,15 @@ export function useNewContentTypeDialog(
       props.onCreated();
     } catch {
       // already surfaced through createMutation.error -> error below
+    } finally {
+      inFlightRef.current = false;
     }
   }
 
   const saving = createMutation.status === "pending";
   const error = validationError ?? (createMutation.error ? describeApiError(createMutation.error, t(locale, "Failed to create content type")) : null);
 
-  return { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit };
+  return { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit, cancel, dialogRef };
 }
 
 /**

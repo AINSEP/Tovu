@@ -5,7 +5,7 @@
  * terms, hierarchy rules, and term-assignment chokepoint. What is left in this directory is only
  * what is genuinely this host's:
  *
- * - `repo.sqlite.ts` — the Drizzle adapters. They name `db/schema.ts`, this repo's shared
+ * - `repo.sqlite.ts` — the Drizzle adapters. They name `db/schema.sqlite.ts`, this repo's shared
  *   1,246-line schema covering every domain, so they are host persistence, not library code.
  * - `gated-hooks.ts` — the `mergeTerm` ceremony's `GatedMutationHooks` factory. It composes
  *   `core/gated-mutations`, a kernel that has not been extracted, so it is composition over a

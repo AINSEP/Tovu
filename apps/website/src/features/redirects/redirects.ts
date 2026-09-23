@@ -62,8 +62,27 @@ function isAbsoluteOrProtocolRelative(target: string): boolean {
   return target.startsWith("//") || /^[a-z][a-z0-9+.-]*:/i.test(target);
 }
 
+/**
+ * The removal primitive this domain is handed, rather than one it implements.
+ *
+ * Structurally typed ON PURPOSE — `features/redirects` imports nothing from `features/trash`, and
+ * must not. The composition root binds the real implementation (marker flip AND Trash index row, in
+ * one transaction) pre-bound to this domain's entity type. `display` is required so the two strings
+ * the Trash screen shows come from columns the caller already holds.
+ */
+export type RemoveRedirectFn = (required: {
+  workspaceId: string;
+  id: string;
+  display: { title: string; subtitle?: string | null };
+  at: string;
+  expectedVersion: number | null;
+  actor: { principalId: string; pluginId?: string | null };
+}) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }>;
+
 export interface RedirectsWriteDeps {
   repo: RedirectRepoPort;
+  /** See {@link RemoveRedirectFn}. Replaces `tombstoneRedirect`'s own `status` write. */
+  remove: RemoveRedirectFn;
   /** The shared, non-tx-opening write handle (Decision A) — used via `ports.internal.ts`. */
   db: RedirectDbHandle;
   /** Opens/commits/rolls back the chokepoint's own transaction around a write. */
@@ -525,8 +544,24 @@ export async function tombstoneRedirect(
     recordedAt: now,
   };
 
+  // The marker flip, the Trash index row and the revision append are one unit. `deps.remove` joins
+  // this transaction rather than opening its own, so a tombstone can never land without its Trash
+  // row (which would make the redirect unrecoverable through the UI) or vice versa.
   await deps.transaction(async () => {
-    await insertRedirectAndRevision({ db: deps.db, record, revision });
+    const removed = await deps.remove({
+      workspaceId: input.workspaceId,
+      id: input.id,
+      // From columns already loaded above — no second read.
+      display: { title: existing.fromPattern, subtitle: existing.toTarget },
+      at: now,
+      expectedVersion: existing.version,
+      actor: { principalId: input.actorId, pluginId: input.pluginId ?? null },
+    });
+    if (!removed.ok) {
+      if (removed.reason === "not-found") throw new RedirectNotFoundError(`redirect '${input.id}' was not found`);
+      throw new RedirectConflictError(`redirect '${input.id}' changed while it was being tombstoned`);
+    }
+    await deps.db.insertRevision(revision);
   });
   await enqueueMutatedEvent(deps, record, "tombstoned");
 

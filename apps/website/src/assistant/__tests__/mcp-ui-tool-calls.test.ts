@@ -142,10 +142,12 @@ const EXPECTED_ALLOWLIST = [
   "plugins_set_enabled",
   "plugins_uninstall",
   "redirects_tombstone",
+  "site_backup_push",
   "source_control_execute_commit",
   "supabase_set_access_token",
   "supabase_set_project_scope",
   "theme_trash_file",
+  "trash_item",
   "webhooks_delete_subscription",
   "widgets_trash_instance",
 ];

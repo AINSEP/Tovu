@@ -2678,6 +2678,41 @@ test("renderHtmlPageBody: an unresolvable slug (typo, no matching entry) degrade
 });
 
 // ---------------------------------------------------------------------------
+// renderHtmlPageBody: D4 guard (2026-09-23) — a "content"/"post" marker naming NEITHER an id nor a
+// slug is left exactly as authored, instead of degrading to the REQ-28 placeholder. Needed for the
+// static theme's own `index.html`, whose `{"type":"content","header":false}` marker names no id —
+// D2's `finishStaticTierDocument` runs this stage over assembled HTML, and without this guard that
+// marker would be replaced by an empty placeholder div on every render.
+// ---------------------------------------------------------------------------
+
+test('renderHtmlPageBody: an id-less, slug-less "content" marker is left exactly as written, not replaced by the placeholder', () => {
+  const html = `<div data-embed-config='{"type":"content","header":false}'>keep</div>`;
+  const out = renderHtmlPageBody(html, undefined);
+  assert.equal(out, html);
+});
+
+test('renderHtmlPageBody: an id-less, slug-less "post" marker is left exactly as written, not replaced by the placeholder', () => {
+  const html = `<div data-embed-config='{"type":"post"}'>keep</div>`;
+  const out = renderHtmlPageBody(html, undefined);
+  assert.equal(out, html);
+});
+
+test('renderHtmlPageBody: an id-carrying "content" marker still resolves normally — the D4 guard is id-less AND slug-less only', () => {
+  const html = `<div data-embed-config='{"type":"content","id":"c1"}'></div>`;
+  const out = renderHtmlPageBody(html, resolvedMap("content", "c1", TEXT_WIDGET_IR));
+  // "content" always keeps its wrapper element (WRAPPER_PRESERVING_EMBED_TYPES), unlike the
+  // keep-if-attributed "widget" rule the tests above this section exercise.
+  assert.equal(out, `<div>${renderWidgetIr(TEXT_WIDGET_IR)}</div>`);
+});
+
+test('renderHtmlPageBody: an unresolvable id-less "content" marker still degrades to the placeholder when it DOES carry a slug', () => {
+  const html = `<div data-embed-config='{"type":"content","slug":"does-not-exist"}'></div>`;
+  const out = renderHtmlPageBody(html, new Map([["content", new Map()]]));
+  // "content" always keeps its wrapper element, same as the id-carrying case above.
+  assert.equal(out, `<div>${renderWidgetIr({ componentId: "widget-placeholder", props: {} })}</div>`);
+});
+
+// ---------------------------------------------------------------------------
 // htmlAttributes attribute-NAME injection (2026-09-07 audit, claim #1).
 // `formatHtmlAttributes` interpolates the attribute NAME raw — only the value is escaped — and the
 // allowlist accepted ANY name starting with `data-`/`aria-`, while the tokenizer's name class

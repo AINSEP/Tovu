@@ -583,3 +583,50 @@ test("update media: `parseMediaMetadataPatch`'s `(rawBody ?? {})` fallback, forc
   assert.equal(capture.statusCode, 404);
 });
 
+
+/**
+ * The media half of the local admin Trash
+ * (`ADS-memory/reports/2026-09-20-trash-delete-architecture.md`).
+ *
+ * Asserts the wiring end to end through the real composition root, in both directions: the trash
+ * rung has to index the asset (or it never appears on the Trash screen), and the purge rung has to
+ * drop the index row (or the screen offers a Restore for bytes that are already gone).
+ */
+test("trashing a media asset indexes it for the Trash screen; purging it drops the index row", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const mediaId = await uploadAsOwner(baseUrl, cookie);
+
+  const beforeRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media`, { headers: { cookie } });
+  const beforePayload = (await beforeRes.json()) as { media: { id: string; title: string; slug: string }[] };
+  const uploaded = beforePayload.media.find((m) => m.id === mediaId);
+  assert.ok(uploaded, "the upload fixture did not land");
+
+  const trashRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media/${mediaId}/trash`, {
+    method: "POST",
+    headers: { cookie },
+  });
+  assert.equal(trashRes.status, 200);
+  assert.equal(((await trashRes.json()) as { media: { status: string } }).media.status, "trashed");
+
+  const listed = await deps.trash.list({ workspaceId: deps.workspaceId, now: deps.clock.nowIso(), limit: 50 });
+  const indexed = listed.items.find((item) => item.entityId === mediaId);
+  assert.ok(indexed, "a trashed media asset never reached trashed_items — the delete path is unwired");
+  assert.equal(indexed.entityType, "media");
+  // Snapshot captured from columns the route already held, so a corrupt asset still lists.
+  assert.equal(indexed.displayTitle, uploaded.title);
+  assert.equal(indexed.displaySubtitle, uploaded.slug);
+
+  const purgeRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media/${mediaId}`, {
+    method: "DELETE",
+    headers: { cookie },
+  });
+  assert.equal(purgeRes.status, 200);
+
+  const afterPurge = await deps.trash.list({ workspaceId: deps.workspaceId, now: deps.clock.nowIso(), limit: 50 });
+  assert.equal(
+    afterPurge.items.some((item) => item.entityId === mediaId),
+    false,
+    "a hard-purged asset is still listed in the Trash — its index row outlived the bytes"
+  );
+});

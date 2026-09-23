@@ -1,4 +1,5 @@
-import { useId } from "react";
+import { useId, useRef } from "react";
+import { useFocusTrap } from "../../hooks/use-focus-trap.hooks";
 
 import { useWiredMediaEditDialog, type MediaEditDialogValue } from "./MediaEditDialog.hooks";
 
@@ -32,18 +33,26 @@ export interface MediaEditDialogProps {
    *  into `props.updateAttributes`. */
   onSave: (value: MediaEditDialogValue) => void;
   onCancel: () => void;
+  /** `false` hides the Alt field and titles the dialog "Style" instead of "Edit this instance" —
+   *  the `widgetEmbed` node's own Style action (`widget-embed-extension.tsx`), which has no `alt`
+   *  concept of its own. Defaults to `true` (the `media` node's original "Edit" dialog, unchanged).
+   *  `save()` still returns whatever `initial.alt` was — hiding the field never touches it. */
+  showAlt?: boolean;
   /** Injectable seam for the dialog's draft/validation/Escape hook. Defaults to the real
    *  {@link useWiredMediaEditDialog}; a test can pass a fake here to exercise this component's
    *  rendering without a real `useAdminLocale()` fetch or a real `document` keydown listener. */
   useDialog?: typeof useWiredMediaEditDialog;
 }
 
-export function MediaEditDialog({ initial, onSave, onCancel, useDialog = useWiredMediaEditDialog }: MediaEditDialogProps) {
-  const { alt, cssClass, htmlAttributes, setAlt, setCssClass, setHtmlAttributes, htmlAttributesError, save, t } = useDialog(
+export function MediaEditDialog({ initial, onSave, onCancel, showAlt = true, useDialog = useWiredMediaEditDialog }: MediaEditDialogProps) {
+  const { alt, cssClass, htmlAttributes, setAlt, setCssClass, setHtmlAttributes, htmlAttributesError, save, t, altRef } = useDialog(
     initial,
     onSave,
     onCancel
   );
+  // aria-modal promises the background is unavailable; this is what keeps Tab from reaching it.
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(dialogRef);
   const titleId = useId();
   const altId = useId();
   const cssClassId = useId();
@@ -58,21 +67,26 @@ export function MediaEditDialog({ initial, onSave, onCancel, useDialog = useWire
           onto this plain `<div>` modal (an extra border, a wider max-width, altered padding),
           producing chrome that silently drifts from `MediaPickerDialog`'s clean `.settings-dialog`
           + unique-marker-class pattern this file's header says it mirrors. */}
-      <div className="settings-dialog media-node-edit-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(e) => e.stopPropagation()}>
-        <h2 id={titleId}>{t("Edit this instance")}</h2>
+      <div ref={dialogRef} className="settings-dialog media-node-edit-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(e) => e.stopPropagation()}>
+        <h2 id={titleId}>{showAlt ? t("Edit this instance") : t("Style")}</h2>
 
-        <div className="field">
-          <label className="field-label" htmlFor={altId}>
-            {t("Alt text (optional)")}
-          </label>
-          <input id={altId} value={alt} onChange={(e) => setAlt(e.target.value)} />
-        </div>
+        {showAlt ? (
+          <div className="field">
+            <label className="field-label" htmlFor={altId}>
+              {t("Alt text (optional)")}
+            </label>
+            <input ref={altRef} id={altId} value={alt} onChange={(e) => setAlt(e.target.value)} />
+          </div>
+        ) : null}
 
         <div className="field">
           <label className="field-label" htmlFor={cssClassId}>
             {t("CSS class (optional)")}
           </label>
-          <input id={cssClassId} value={cssClass} onChange={(e) => setCssClass(e.target.value)} />
+          {/* When Alt is hidden (`showAlt={false}`), this is the first field in the dialog, so it
+              takes the always-present focus target the hook otherwise points at Alt — see
+              `MediaEditDialog.hooks.tsx`'s own header on why a focus target must always exist. */}
+          <input ref={showAlt ? undefined : altRef} id={cssClassId} value={cssClass} onChange={(e) => setCssClass(e.target.value)} />
         </div>
 
         {/* Same live, as-you-type hint `EditMediaPanel`'s asset-level field shows — never gates

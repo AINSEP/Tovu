@@ -13,6 +13,7 @@ import { InMemoryRedirectRepo } from "../repo.memory.js";
 import type { RedirectsWriteDeps } from "../redirects.js";
 import { createRedirect } from "../redirects.js";
 import { buildRedirectsRegistrations, type RedirectsToolDeps } from "../tool-registrations.js";
+import { removeVia } from "./remove-redirect-double.js";
 
 /**
  * @file Certification of `redirects_tombstone`'s confirmation gate — migrated onto the shared
@@ -37,6 +38,7 @@ function makeDeps(options: { allow?: boolean } = {}): RedirectsToolDeps {
   let idTick = 0;
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
+    remove: removeVia(redirectRepo as unknown as Parameters<typeof removeVia>[0]),
     db: redirectRepo as unknown as RedirectDbHandle,
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,

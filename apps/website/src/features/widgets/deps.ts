@@ -35,8 +35,8 @@ import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js
 import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/cms/core";
 import type { ContentTypeRepoPort } from "../content-types/index.js";
 import type { EntryListPort, EntryRepoPort } from "../entries/index.js";
-import type { BeforeSaveHookPort, PostRepoPort } from "../post/index.js";
-import type { WidgetRegionBindingRepoPort } from "./ports.js";
+import type { BeforeSaveHookPort, ForgetRemovedPostFn, PostRepoPort } from "../post/index.js";
+import type { RemoveWidgetFn, WidgetRegionBindingRepoPort } from "./ports.js";
 
 /** The exact slice of a route/tool layer's own deps bag this domain's write-path needs. */
 export interface WidgetsRouteDeps {
@@ -51,8 +51,13 @@ export interface WidgetsRouteDeps {
   widgetBindingRepo: WidgetRegionBindingRepoPort;
   /** REQ-44 — a post/page embed host writes through the same chokepoint the live editor uses. */
   postRepo: PostRepoPort;
+  /** Required by `restorePostForward`, which `embed-service.ts`'s `rollback` calls — see
+   *  {@link import("./embed-service.js").EmbedServiceDeps.forgetRemovedPost}. */
+  forgetRemovedPost: ForgetRemovedPostFn;
   changeSets: ChangeSetRepoPort;
   pluginBeforeSaveHook: BeforeSaveHookPort;
+  /** Moves a widget to the Trash — `bindRemoveEntity(trash, "widget")` at composition. */
+  removeWidget: RemoveWidgetFn;
 }
 
 /** Shared dependency bag for `write-service.ts`/`embed-service.ts` calls — every one of them takes this identical shape. */
@@ -62,12 +67,14 @@ export function buildWidgetsDeps(routeDeps: WidgetsRouteDeps) {
     contentTypeRepo: routeDeps.contentTypeRepo,
     entryRefsRepo: routeDeps.entryRefsRepo,
     postRepo: routeDeps.postRepo,
+    forgetRemovedPost: routeDeps.forgetRemovedPost,
     changeSets: routeDeps.changeSets,
     beforeSaveHook: routeDeps.pluginBeforeSaveHook,
     clock: routeDeps.clock,
     ids: routeDeps.idGen,
     authorize: routeDeps.authorize,
     outbox: routeDeps.outbox,
+    remove: routeDeps.removeWidget,
   };
 }
 

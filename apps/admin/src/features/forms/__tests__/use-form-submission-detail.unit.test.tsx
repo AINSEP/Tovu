@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useFormSubmissionDetail } from "../hooks/use-form-submission-detail.hooks";
 import { createFakeFormSubmissionsPort } from "../hooks/form-submissions-dependencies.hooks";
-import type { AdminFormSubmission } from "@/lib/api";
+import { ApiError, type AdminFormSubmission } from "@/lib/api";
 
 /**
  * @file `useFormSubmissionDetail` — the submission detail view's load + two-click delete.
@@ -53,7 +53,25 @@ describe("useFormSubmissionDetail — injected port", () => {
     expect(networkMock).not.toHaveBeenCalled();
   });
 
-  it("the two-click delete removes through the port and calls onDeleted only on the second click", async () => {
+  it("requestDelete opens the confirm and deletes nothing", async () => {
+    const port = createFakeFormSubmissionsPort({ submissions: [submissionFixture()] });
+    port.deleteFormSubmission = vi.fn(port.deleteFormSubmission);
+    const onDeleted = vi.fn();
+    const { result } = renderHook(() => useFormSubmissionDetail({ formId: "f1", submissionId: "s1", onDeleted }, port), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.submission).not.toBeNull());
+
+    act(() => {
+      result.current.requestDelete();
+    });
+
+    expect(result.current.confirmOpen).toBe(true);
+    expect(port.deleteFormSubmission).not.toHaveBeenCalled();
+    expect(onDeleted).not.toHaveBeenCalled();
+  });
+
+  it("confirmDelete deletes, calls onDeleted and closes", async () => {
     const port = createFakeFormSubmissionsPort({ submissions: [submissionFixture()] });
     const onDeleted = vi.fn();
     const { result } = renderHook(() => useFormSubmissionDetail({ formId: "f1", submissionId: "s1", onDeleted }, port), {
@@ -62,15 +80,82 @@ describe("useFormSubmissionDetail — injected port", () => {
     await waitFor(() => expect(result.current.submission).not.toBeNull());
 
     act(() => {
-      result.current.handleDelete();
+      result.current.requestDelete();
     });
-    expect(result.current.confirming).toBe(true);
-    expect(onDeleted).not.toHaveBeenCalled();
+    expect(result.current.confirmOpen).toBe(true);
 
     await act(async () => {
-      await result.current.handleDelete();
+      await result.current.confirmDelete();
     });
 
     expect(onDeleted).toHaveBeenCalledTimes(1);
+    expect(result.current.confirmOpen).toBe(false);
+    expect(port.submissions).toEqual([]);
+  });
+
+  it("cancelDelete closes with no request", async () => {
+    const port = createFakeFormSubmissionsPort({ submissions: [submissionFixture()] });
+    port.deleteFormSubmission = vi.fn(port.deleteFormSubmission);
+    const onDeleted = vi.fn();
+    const { result } = renderHook(() => useFormSubmissionDetail({ formId: "f1", submissionId: "s1", onDeleted }, port), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.submission).not.toBeNull());
+
+    act(() => {
+      result.current.requestDelete();
+    });
+    expect(result.current.confirmOpen).toBe(true);
+
+    act(() => {
+      result.current.cancelDelete();
+    });
+
+    expect(result.current.confirmOpen).toBe(false);
+    expect(port.deleteFormSubmission).not.toHaveBeenCalled();
+    expect(onDeleted).not.toHaveBeenCalled();
+  });
+});
+
+/** T7a (2026-09-21): submission removal routes through the generic `api.trash` (see
+ *  `form-submissions-dependencies.hooks.ts`'s own doc) and its 404/409 contract — same classifier
+ *  (`describeTrashError`) `use-forms-list.hooks.ts`'s own `removeForm` uses for the forms row delete. */
+describe("useFormSubmissionDetail — trash errors", () => {
+  it("a 404 (already gone) is treated as a successful delete — calls onDeleted, no error banner", async () => {
+    const port = createFakeFormSubmissionsPort({ submissions: [submissionFixture()] });
+    port.deleteFormSubmission = vi.fn(() => Promise.reject(new ApiError("not found", 404, "FORMS_SUBMISSION_NOT_FOUND")));
+    const onDeleted = vi.fn();
+    const { result } = renderHook(() => useFormSubmissionDetail({ formId: "f1", submissionId: "s1", onDeleted }, port), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.submission).not.toBeNull());
+
+    act(() => result.current.requestDelete());
+    await act(async () => {
+      await result.current.confirmDelete();
+    });
+
+    expect(onDeleted).toHaveBeenCalledTimes(1);
+    expect(result.current.confirmOpen).toBe(false);
+    expect(result.current.error).toBeNull();
+  });
+
+  it("a 409 TRASH_VERSION_CHANGED surfaces the reload-and-retry copy and does not call onDeleted", async () => {
+    const port = createFakeFormSubmissionsPort({ submissions: [submissionFixture()] });
+    port.deleteFormSubmission = vi.fn(() => Promise.reject(new ApiError("changed", 409, "TRASH_VERSION_CHANGED")));
+    const onDeleted = vi.fn();
+    const { result } = renderHook(() => useFormSubmissionDetail({ formId: "f1", submissionId: "s1", onDeleted }, port), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.submission).not.toBeNull());
+
+    act(() => result.current.requestDelete());
+    await act(async () => {
+      await result.current.confirmDelete();
+    });
+
+    expect(onDeleted).not.toHaveBeenCalled();
+    expect(result.current.confirmOpen).toBe(false);
+    await waitFor(() => expect(result.current.error).toBe("This item changed since you loaded it. Reload and try again."));
   });
 });

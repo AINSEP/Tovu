@@ -53,6 +53,11 @@ import type { NormalizedWriteFile } from "./write-files-validation.js";
  *   `write-files-validation.ts`'s own file-count cap rather than by however large the branch's whole
  *   tree happens to be — and with no truncation edge case to handle, unlike a `recursive=1` fetch
  *   against a very large repository.
+ *
+ * The request primitives below (`githubSend`, `getJson`, `postJson`, `createBlob`, `updateRef` and
+ * their small helpers) are exported for `features/site-backup/github-push.ts`, which pushes a whole
+ * site backup through the same guarded client and the same non-force ref rule instead of forking
+ * this sequence a third time.
  */
 
 export interface GitHubWriteFilesDeps {
@@ -66,18 +71,18 @@ const GITHUB_API_VERSION = "2026-03-10";
  *  tree/commit creation can carry a real payload, and GitHub itself has occasional latency spikes. */
 const GITHUB_WRITE_FILES_TIMEOUT_MS = 30_000;
 
-function enc(value: string): string {
+export function enc(value: string): string {
   return encodeURIComponent(value);
 }
 
 /** Percent-encodes a repo-relative path one segment at a time, preserving `/` — same reasoning
  *  `github-git-provider.ts`'s own `encPath` documents (branch names and file paths both routinely
  *  contain `/`, which {@link enc} alone would turn into `%2F`). */
-function encPath(path: string): string {
+export function encPath(path: string): string {
   return path.split("/").map(enc).join("/");
 }
 
-function trimTrailingSlash(url: string): string {
+export function trimTrailingSlash(url: string): string {
   return url.endsWith("/") ? url.slice(0, -1) : url;
 }
 
@@ -85,7 +90,7 @@ function sha256Hex(data: string): string {
   return createHash("sha256").update(Buffer.from(data, "utf8")).digest("hex");
 }
 
-type GitHubSendResult = { kind: "response"; response: HttpResponse } | ({ kind: "network-unreachable" } & SendFailureDescription);
+export type GitHubSendResult = { kind: "response"; response: HttpResponse } | ({ kind: "network-unreachable" } & SendFailureDescription);
 
 /** A thrown send failure split in two: `message` may reach the model and the human, `logDetail` may
  *  reach only a server log. */
@@ -127,7 +132,7 @@ function describeSendFailure(err: unknown): SendFailureDescription {
  *
  * @complexity O(1) — one `httpClient.send()` call.
  */
-async function githubSend(
+export async function githubSend(
   deps: GitHubWriteFilesDeps,
   connection: CustomProviderConnectionInput,
   request: { method: "GET" | "POST" | "PATCH"; url: string; body?: string }
@@ -151,7 +156,7 @@ async function githubSend(
   }
 }
 
-function parseJsonBody(response: HttpResponse): { ok: true; json: Record<string, unknown> } | { ok: false; message: string } {
+export function parseJsonBody(response: HttpResponse): { ok: true; json: Record<string, unknown> } | { ok: false; message: string } {
   try {
     return { ok: true, json: JSON.parse(response.bodyText) as Record<string, unknown> };
   } catch {
@@ -159,7 +164,7 @@ function parseJsonBody(response: HttpResponse): { ok: true; json: Record<string,
   }
 }
 
-async function providerErrorMessage(response: HttpResponse, fallback: string): Promise<string> {
+export async function providerErrorMessage(response: HttpResponse, fallback: string): Promise<string> {
   const body = parseJsonBody(response);
   const providerMessage = body.ok && typeof body.json.message === "string" ? body.json.message : undefined;
   return providerMessage ? `${fallback}: ${providerMessage}` : `${fallback} (status ${response.status})`;
@@ -173,18 +178,18 @@ export type GitHubWriteFilesFailure =
   | { ok: false; code: "provider-error"; message: string }
   | { ok: false; code: "network-unreachable"; message: string; logDetail: string };
 
-function nonResponseFailure(result: Extract<GitHubSendResult, { kind: "network-unreachable" }>): GitHubWriteFilesFailure {
+export function nonResponseFailure(result: Extract<GitHubSendResult, { kind: "network-unreachable" }>): GitHubWriteFilesFailure {
   return { ok: false, code: "network-unreachable", message: result.message, logDetail: result.logDetail };
 }
 
-function isOk(response: HttpResponse): boolean {
+export function isOk(response: HttpResponse): boolean {
   return response.status >= 200 && response.status < 300;
 }
 
 /** Reads a string field off a JSON value that may not even be an object — every `sha`/`tree.sha`
  *  extraction in this file goes through this one narrowing, so a malformed provider response reads
  *  as "field absent" everywhere, never a thrown `TypeError` on a `null`/non-object value. */
-function extractStringField(value: unknown, field: string): string {
+export function extractStringField(value: unknown, field: string): string {
   if (typeof value !== "object" || value === null) return "";
   const candidate = (value as Record<string, unknown>)[field];
   return typeof candidate === "string" ? candidate : "";
@@ -195,7 +200,7 @@ function extractStringField(value: unknown, field: string): string {
  *  "confirmed absent" (a 404) versus "confirmed present," so a caller narrows in two steps
  *  (`!result.ok`, then `!result.found`) rather than a single field that would not exist on the
  *  failure branch. */
-type GitHubJsonResult = { ok: true; found: false } | { ok: true; found: true; json: Record<string, unknown> } | GitHubWriteFilesFailure;
+export type GitHubJsonResult = { ok: true; found: false } | { ok: true; found: true; json: Record<string, unknown> } | GitHubWriteFilesFailure;
 
 /** One GET, fully classified: a 404 becomes `{ok: true, found: false}` (the caller decides what that
  *  means — a missing branch is fatal, a missing file is just "create" — never assumed here), a
@@ -206,7 +211,7 @@ type GitHubJsonResult = { ok: true; found: false } | { ok: true; found: true; js
  *
  * @complexity O(1) — one `httpClient.send()` call.
  */
-async function getJson(deps: GitHubWriteFilesDeps, connection: CustomProviderConnectionInput, url: string, failureFallback: string): Promise<GitHubJsonResult> {
+export async function getJson(deps: GitHubWriteFilesDeps, connection: CustomProviderConnectionInput, url: string, failureFallback: string): Promise<GitHubJsonResult> {
   const result = await githubSend(deps, connection, { method: "GET", url });
   if (result.kind !== "response") return nonResponseFailure(result);
   if (result.response.status === 404) return { ok: true, found: false };
@@ -223,7 +228,7 @@ async function getJson(deps: GitHubWriteFilesDeps, connection: CustomProviderCon
  *
  * @complexity O(1) — one `httpClient.send()` call.
  */
-async function postJson(
+export async function postJson(
   deps: GitHubWriteFilesDeps,
   connection: CustomProviderConnectionInput,
   url: string,
@@ -333,12 +338,21 @@ export async function planGitHubFileWrite(deps: GitHubWriteFilesDeps, input: Pla
   return { ok: true, plan: { parentCommitSha, baseTreeSha, fileStates: existence.fileStates } };
 }
 
-async function createBlob(deps: GitHubWriteFilesDeps, connection: CustomProviderConnectionInput, repoPath: string, content: string): Promise<{ ok: true; sha: string } | GitHubWriteFilesFailure> {
+/** One blob, always sent base64-encoded. A `string` is this file's own UTF-8 text case; a
+ *  `Uint8Array` is sent byte-for-byte, for binary content (`features/site-backup` pushes a SQLite file
+ *  and media through here) — never round-tripped through a string, which would corrupt it. */
+export async function createBlob(
+  deps: GitHubWriteFilesDeps,
+  connection: CustomProviderConnectionInput,
+  repoPath: string,
+  content: string | Uint8Array
+): Promise<{ ok: true; sha: string } | GitHubWriteFilesFailure> {
+  const bytes = typeof content === "string" ? Buffer.from(content, "utf8") : Buffer.from(content.buffer, content.byteOffset, content.byteLength);
   const result = await postJson(
     deps,
     connection,
     `${repoPath}/git/blobs`,
-    { content: Buffer.from(content, "utf8").toString("base64"), encoding: "base64" },
+    { content: bytes.toString("base64"), encoding: "base64" },
     "GitHub blob creation failed"
   );
   if (!result.ok) return result;
@@ -395,7 +409,7 @@ async function buildTreeEntries(
  *
  * @complexity O(1) — one `httpClient.send()` call.
  */
-async function updateRef(
+export async function updateRef(
   deps: GitHubWriteFilesDeps,
   connection: CustomProviderConnectionInput,
   repoPath: string,

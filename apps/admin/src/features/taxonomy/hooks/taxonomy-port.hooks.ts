@@ -16,10 +16,16 @@ import type { AdminTaxonomyWithTerms, AdminTerm } from "@/lib/api";
  * instead — none of their routes overlap with these four or with each other, and forcing them into
  * this port would be exactly the dishonest shared contract `page-editor-port.hooks.ts`'s own doc
  * comment warns against.
+ *
+ * `trashTerm`/`trashTaxonomy` (T8b, 2026-09-21) use the generic single-item Trash route
+ * (`api.trash({ type: "term" | "taxonomy", id })`,
+ * `taxonomy-dependencies.hooks.ts`), the same route every other admin delete button uses — see
+ * `widgets-port.hooks.ts`'s `trashWidget` for the identical precedent. Object-argument shape (`{
+ * id }`) rather than a bare string, matching this workspace's exported/boundary-function convention.
  */
 export interface TaxonomyPort {
   listTaxonomies(): Promise<{ items: AdminTaxonomyWithTerms[] }>;
-  deleteTerm(termId: string): Promise<{ deletedTermId: string }>;
-  deleteTaxonomy(taxonomyId: string): Promise<{ deletedTaxonomyId: string; deletedTermIds: string[] }>;
+  trashTerm(target: { id: string }): Promise<{ ok: true; version: number | null }>;
+  trashTaxonomy(target: { id: string }): Promise<{ ok: true; version: number | null }>;
   renameTerm(target: { termId: string; newName: string }): Promise<{ term: AdminTerm }>;
 }

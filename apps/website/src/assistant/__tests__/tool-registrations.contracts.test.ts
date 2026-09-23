@@ -7,6 +7,9 @@ import { createToolExecutor } from "@jini-ai/daemon";
 import { adminScreenLinkAgentToolCatalog } from "../admin-screen-link-tool.js";
 import { agentPluginSearchAgentToolCatalog, agentPluginUninstallAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { contentDuplicationAgentToolCatalog } from "../../features/content-duplication/agent-tools.js";
+import { publishContentAgentToolCatalog } from "../../features/publish-content/agent-tools.js";
+import { getTrashAgentToolCatalog } from "../../features/trash/agent-tools.js";
+import { getTrashItemAgentToolCatalog } from "../../features/trash/trash-item-tool.js";
 import { getFsFilesAgentToolCatalog } from "../../features/fs-files/agent-tools.js";
 import { supabaseConnectAgentToolCatalog } from "../../features/supabase-connect/agent-tools.js";
 import { externalMcpAgentToolCatalog } from "../../features/external-mcp/agent-tools.js";
@@ -34,6 +37,7 @@ import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js
 import { getSettingsAgentToolCatalog } from "../../features/settings/index.js";
 import { siteInspectionAgentToolCatalog } from "../../features/site-inspection/index.js";
 import { sitesAgentToolCatalog } from "../../features/sites/index.js";
+import { siteBackupAgentToolCatalog } from "../../features/site-backup/tool-registrations.js";
 import { sourceControlAgentToolCatalog } from "../../features/source-control/tool-registrations.js";
 import { siteEvidenceAgentToolCatalog } from "../../features/site-evidence/agent-tools.js";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
@@ -196,6 +200,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // 2026-09-05: `sites` — `sites_duplicate_site`, wiring `platform/site-dir/duplicate-site.ts`'s
   // `duplicateSite` to the assistant. See `server/tool-catalog-manifest.ts`'s own header.
   sites: sitesAgentToolCatalog as unknown as AgentToolDefinition[],
+  "site-backup": siteBackupAgentToolCatalog as unknown as AgentToolDefinition[],
   "custom-credentials": customCredentialsAgentToolCatalog as unknown as AgentToolDefinition[],
   // `media-generation` (2026-09-02): `media_generate_asset`, wired via
   // `contributeMediaGenerationTools()` — see `features/media-generation/tool-registrations.ts`'s own
@@ -246,6 +251,21 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // And again: `supabase-connect` (SPEC-052 M2, d0666279) wired via `contributeSupabaseConnectTools()`
   // with no entry here — surfaced the moment the `fs-files` entry above let the loop get past it.
   "supabase-connect": supabaseConnectAgentToolCatalog as unknown as AgentToolDefinition[],
+  // Same class again: `publish-content` was wired via `contributePublishContentTools()` with no
+  // entry here, so the completeness test above and every per-tool lookup that reached
+  // `publish_content_status` went red. Found already failing at HEAD while adding `trash` below.
+  "publish-content": publishContentAgentToolCatalog as unknown as AgentToolDefinition[],
+  // 2026-09-20: `trash` — `trash_list_items` and `trash_restore_item`, wired via
+  // `contributeTrashTools()`. Added with the contributor rather than after this test caught it.
+  // The catalog has exactly two entries and must never grow a purge tool; see
+  // `features/trash/__tests__/tool-registrations.purge-ban.test.ts`.
+  trash: getTrashAgentToolCatalog() as unknown as AgentToolDefinition[],
+  // 2026-09-20: `trash-item` — `trash_item`, built by a post-processing pass in
+  // `buildAssistantToolRegistrations` (it reuses the four delete tools' built handlers), so it is in
+  // neither `listToolContributors()` nor `DOMAIN_SLICES` and the completeness test above cannot
+  // derive it. Hand-maintained like the `DOMAIN_SLICES`-only entries. Kept apart from `trash` on
+  // purpose: the purge-ban test proves that catalog holds exactly two tools.
+  "trash-item": getTrashItemAgentToolCatalog() as unknown as AgentToolDefinition[],
 };
 
 /** Flattened view of {@link CATALOGS_BY_DOMAIN} for the per-tool-id lookups below — every catalog

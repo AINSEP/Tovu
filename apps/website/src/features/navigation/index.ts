@@ -5,7 +5,7 @@
  * location bindings, and resolution rules. What is left in this directory is only what is
  * genuinely this host's:
  *
- * - `repo.sqlite.ts` — the Drizzle adapters. They name `db/schema.ts`, which is this repo's shared
+ * - `repo.sqlite.ts` — the Drizzle adapters. They name `db/schema.sqlite.ts`, which is this repo's shared
  *   1,246-line schema covering every domain, so they are host persistence, not library code.
  *
  * Everything else here is a re-export, and the shape of what is *not* re-exported is the point:
@@ -130,6 +130,13 @@ export {
   type RebuildNavLocationBindingsDeps,
   type RebuildNavLocationBindingsResult,
 } from "@jini-ai/cms/navigation";
+
+/**
+ * `trashMenu`/`RemoveMenuFn` (T5): host-local, not from Jini — the generic trash pipeline's menu
+ * entry point (`trash-menu.ts`). `remove` is an injected structural type, so this stays free of any
+ * `features/trash` import; the composition root binds it.
+ */
+export { trashMenu, type RemoveMenuFn, type TrashMenuInput, type TrashMenuDeps } from "./trash-menu.js";
 
 /** The agent-tool surface for this domain (see the package's `agent-tools.ts` for what is deliberately omitted). */
 export {

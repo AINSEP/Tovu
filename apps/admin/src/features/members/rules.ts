@@ -32,9 +32,13 @@ export function emptyRowState(): RowActionState {
   return { disabling: false, resending: false, error: null, notice: null };
 }
 
-/** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`). */
-export function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError && e.code === "FORBIDDEN") return "You do not have permission to do that.";
+/** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`).
+ *
+ *  `locale` (C4 fix, 2026-09-20): the FORBIDDEN override used to return its English literal
+ *  directly, leaking English into every non-`en` locale — see `users/rules.ts`'s identical fix for
+ *  the full reasoning. The literal is now also a key into `members-i18n.ts`'s `MEMBERS_DICT`. */
+export function describeApiError(e: unknown, fallback: string, locale: string): string {
+  if (e instanceof ApiError && e.code === "FORBIDDEN") return t(locale, "You do not have permission to do that.");
   return describeApiErrorDefault(e, fallback);
 }
 

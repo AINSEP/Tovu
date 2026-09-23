@@ -47,10 +47,13 @@ import { shellStalenessFailure } from "../src/shell-staleness.ts";
 import type { StalenessShell } from "../src/shell-staleness.ts";
 import {
   assertClosureComplete,
+  diskBytes,
   isExcluded,
   newestMtime,
+  parseNpmLsPaths,
   stageDir,
   pruneNativePrebuilds,
+  resolveNpmLsCommand,
   resolveTargets,
   stageTransitiveDependencies,
   stripNonRuntimeFiles,
@@ -118,11 +121,15 @@ function fail(message: string): never {
 /** Tovu's production dependency closure, as package paths relative to its `node_modules`. */
 function productionDependencyPaths(): string[] {
   let stdout: string;
+  // `resolveNpmLsCommand` picks the portable invocation — see its doc comment for why a bare
+  // `execFileSync("npm", …)` fails on Windows.
+  const { command, args, shell } = resolveNpmLsCommand(process);
   try {
-    stdout = execFileSync("npm", ["ls", "--omit=dev", "--parseable", "--all"], {
+    stdout = execFileSync(command, args, {
       cwd: repoRoot,
       encoding: "utf8",
       maxBuffer: 64 * 1024 * 1024,
+      shell,
     });
   } catch (err) {
     // `npm ls` exits non-zero on any tree quibble (the linked `@jini-ai/*` produce several) while
@@ -130,8 +137,7 @@ function productionDependencyPaths(): string[] {
     // `as`: `execFileSync`'s thrown error carries the same `stdout` it would have returned.
     stdout = (err as { stdout?: string }).stdout ?? "";
   }
-  const prefix = `${repoModulesDir}${path.sep}`;
-  const names = [...new Set(stdout.split("\n").filter((line) => line.startsWith(prefix)).map((line) => line.slice(prefix.length)))].sort();
+  const names = parseNpmLsPaths(stdout, repoModulesDir, path.sep);
   if (names.length === 0) {
     fail(`npm ls listed no packages under ${repoModulesDir}. Has \`npm install\` run at the repo root?`);
   }
@@ -364,8 +370,10 @@ for (const shell of STAGED_SHELLS) {
 }
 failIfDistIsStale();
 
-const size = execFileSync("du", ["-sh", outDir], { encoding: "utf8" }).split("\t")[0];
-process.stdout.write(`stage-payload: staged ${staged} packages, materialized ${materialized} symlinks -> ${outDir} (${size})\n`);
+// `diskBytes`, not `du -sh`: `du` does not exist on Windows, and diskBytes already walks the same
+// on-disk block accounting the strip/prune tallies below use, so all three sizes stay comparable.
+const sizeMb = (diskBytes(outDir) / 1048576).toFixed(1);
+process.stdout.write(`stage-payload: staged ${staged} packages, materialized ${materialized} symlinks -> ${outDir} (${sizeMb} MB)\n`);
 process.stdout.write(
   `stage-payload: stripped ${stripped.declaration} declarations, ${stripped.sourceMap} third-party source maps, ` +
     `${stripped.coverage} coverage reports (${(stripped.bytes / 1048576).toFixed(1)} MB on disk)\n`

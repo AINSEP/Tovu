@@ -6,6 +6,7 @@ import type { Translate } from "../../lib/dictionary-translator";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { redirectRowMenuItems } from "./rules";
 import { useWiredRedirects } from "./hooks/use-redirects.hooks";
+import { ServerLabel } from "@/components/status-labels";
 import { useWiredHitCountCell } from "./hooks/use-hit-count-cell.hooks";
 import { useWiredImportRedirectsForm } from "./hooks/use-import-redirects-form.hooks";
 import {
@@ -196,7 +197,7 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
     setPendingDelete,
     confirmDelete,
     deletePending,
-    createRedirect,
+    submitCreate,
     onToggleStatus,
     onRequestDelete,
     t,
@@ -233,14 +234,7 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
       </div>
       {error ? <div className="notice error">{describeApiError(error, "request failed")}</div> : null}
 
-      <form
-        className="card form-measure"
-        onSubmit={(e) => {
-          e.preventDefault();
-          createRedirect(new FormData(e.currentTarget));
-          e.currentTarget.reset();
-        }}
-      >
+      <form className="card form-measure" onSubmit={submitCreate}>
         <div className="field-group">
           <div className="field-row">
             <div className="field">
@@ -251,9 +245,9 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
                 defaultValue="exact"
                 {...agentHandle("redirects-create-match-type", { role: "field", label: "New redirect's match type" })}
               >
-                <option value="exact">exact</option>
-                <option value="prefix">prefix</option>
-                <option value="wildcard">wildcard</option>
+                <option value="exact">{t("exact")}</option>
+                <option value="prefix">{t("prefix")}</option>
+                <option value="wildcard">{t("wildcard")}</option>
               </select>
             </div>
             <div className="field">
@@ -324,7 +318,7 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
           {
             key: "status",
             header: t("Status"),
-            cell: (rule) => <span className={`status status-${rule.status}`}>{rule.status}</span>,
+            cell: (rule) => <span className={`status status-${rule.status}`}><ServerLabel value={rule.status} /></span>,
           },
           {
             key: "hits",

@@ -3,6 +3,8 @@ import TiptapImage from "@tiptap/extension-image";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
 import { api } from "./api";
 import { MediaPickerDialog } from "../components/MediaPickerDialog/MediaPickerDialog";
+import { t as translateApp } from "../app-i18n";
+import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 
 /**
  * @file `MediaImage` — the TipTap `image` node extended with ADR-027 §4's ref-based
@@ -54,6 +56,8 @@ export function MediaImageNodeView(props: NodeViewProps) {
   const legacySrc = typeof props.node.attrs.src === "string" ? props.node.attrs.src : "";
   const alt = typeof props.node.attrs.alt === "string" ? props.node.attrs.alt : "";
   const [picking, setPicking] = useState(false);
+  const locale = useWiredAdminLocale();
+  const t = (key: string): string => translateApp(locale, key);
 
   const isRef = assetId.length > 0 && transformName.length > 0;
   const previewSrc = isRef ? api.mediaOriginalUrl(assetId) : legacySrc;
@@ -68,16 +72,16 @@ export function MediaImageNodeView(props: NodeViewProps) {
       {previewSrc ? (
         <img className="media-image-node__preview" src={previewSrc} alt={alt} />
       ) : (
-        <span className="media-image-node__broken-label" role="img" aria-label="Broken image reference">
-          ⚠ Image unavailable
+        <span className="media-image-node__broken-label" role="img" aria-label={t("Broken image reference")}>
+          {t("⚠ Image unavailable")}
         </span>
       )}
       <span className="media-image-node__actions">
         <button type="button" onClick={() => setPicking(true)}>
-          Replace
+          {t("Replace")}
         </button>
         <button type="button" onClick={() => props.deleteNode()}>
-          Remove
+          {t("Remove")}
         </button>
       </span>
       {picking ? <MediaPickerDialog onSelect={replaceWith} onCancel={() => setPicking(false)} /> : null}

@@ -1,11 +1,12 @@
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
 import { trashWidgetInstance } from "#src/features/widgets/write-service";
-import { mapWidgetErrorToResponse, toAdminWidgetResponse } from "#src/server/inbound/admin-http/http/widgets";
+import { mapWidgetErrorToResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
 
-/** POST trash a widget instance (SPEC-043 ADR-047 §7 deletion ladder, step 1 of 2) —
- * unconditional/soft/revisioned, `widgets.delete`-gated. Never blocked by references (EC-07). */
+/** POST move a widget instance to the Trash — `widgets.delete`-gated, never blocked by references
+ * (EC-07). Kept for existing callers; the admin's Delete goes through `POST .../trash/items`. A
+ * permanent delete is the Trash's purge (there is no widget purge route any more). */
 export const registerAdminWidgetTrashRoute: RouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/widgets/:id/trash", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
@@ -15,11 +16,11 @@ export const registerAdminWidgetTrashRoute: RouteRegistrar = (app, deps) => {
 
     try {
       const principal = getAuthedPrincipal(res);
-      const { instance } = await trashWidgetInstance({
+      const { widgetInstanceId, version } = await trashWidgetInstance({
         deps: buildWidgetsDeps(deps),
         input: { workspaceId: deps.workspaceId, actor: { principalId: principal.id }, widgetInstanceId: String(req.params.id) },
       });
-      res.status(200).json(toAdminWidgetResponse(instance));
+      res.status(200).json({ trashed: true, id: widgetInstanceId, version });
     } catch (err) {
       mapWidgetErrorToResponse(err, res);
     }

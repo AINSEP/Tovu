@@ -93,6 +93,7 @@ import { requireInputRecord, requireString, requireToolPermission, type ToolHand
 import { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
 import { getLatestTransformDefinition } from "./index.js";
 import type { MediaContentTypeStorePort } from "./content-type-store.js";
+import { TOVU_MAX_UPLOAD_BYTES } from "./upload-limits.js";
 
 export { buildMediaRegistrations, mediaDerivedRisk, type MediaToolDeps };
 
@@ -210,6 +211,39 @@ function buildRecordUploadContentType(
 
 const MEDIA_TRASH_TOOL_ID = "media_trash_asset";
 
+/** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
+ *  imported, the same "structurally typed, no `features/trash` import" convention this file's own
+ *  {@link RemoveMediaFn} doc already follows. */
+const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
+
+/**
+ * Hands one asset's removal to whoever owns removal in this composition.
+ *
+ * Structurally typed ON PURPOSE — this file imports nothing from `features/trash`, exactly as
+ * `post.ts`'s `RemovePostFn` and the comments write-service's `RemoveCommentFn` do not. The
+ * composition root binds the real implementation, already bound to this domain's entity type.
+ */
+export type RemoveMediaFn = (required: {
+  workspaceId: string;
+  id: string;
+  display: { title: string; subtitle?: string | null };
+  at: string;
+  expectedVersion: number | null;
+  actor: { principalId: string; pluginId?: string | null };
+}) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }>;
+
+/**
+ * The one field this shim adds to Jini's `MediaToolDeps`.
+ *
+ * Declared here (rather than widening `MediaToolDeps` in `@jini-ai/cms`) for the same reason the
+ * confirmation gate itself lives here: `@jini-ai/cms` is host-agnostic and knows nothing about
+ * Tovu's Trash. It is folded into `assistant/tool-registrations.ts`'s `AssistantToolRegistryDeps`
+ * so both composition roots satisfy it structurally.
+ */
+export interface MediaTrashToolDeps {
+  removeMedia: RemoveMediaFn;
+}
+
 /** The `ui://` URI for one trash-confirmation instance — keyed by the exchange id, mirroring
  *  `comments/tool-registrations.ts`'s identical `trashConfirmationUri`. */
 function mediaTrashConfirmationUri(exchangeId: string): UIResourceUri {
@@ -265,7 +299,11 @@ function buildMediaTrashConfirmationResource(spec: { asset: { title: string; slu
  * redundant but harmless — so a denied principal never sees a dialog raised for them, matching
  * every other tool in this family.
  */
-function buildMediaTrashConfirmationHandler(routeDeps: MediaToolDeps, surfaces: AssistantSurfaceDeps, originalHandler: ToolHandler): ToolHandler {
+function buildMediaTrashConfirmationHandler(
+  routeDeps: MediaToolDeps & MediaTrashToolDeps,
+  surfaces: AssistantSurfaceDeps,
+  originalHandler: ToolHandler
+): ToolHandler {
   return async (ctx) => {
     const mediaId = requireString(requireInputRecord(ctx.input), "mediaId");
     await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "media.delete", entityType: "media", entityId: mediaId });
@@ -302,6 +340,32 @@ function buildMediaTrashConfirmationHandler(routeDeps: MediaToolDeps, surfaces: 
         };
       }
 
+      // Re-read AFTER the confirmation rather than reusing `existing`: the dialog may have been
+      // open for a while, and `removeMedia` compares against the version it is handed.
+      const current = await routeDeps.mediaRepo.findById({ workspaceId: routeDeps.workspaceId, id: mediaId });
+      if (!current) throw new Error(`media asset '${mediaId}' was not found`);
+
+      // The marker flip and the Trash index row, as one transaction. `originalHandler` still runs
+      // afterwards and still owns the tool's reply shape — `trashMedia` is idempotent (an asset
+      // already `trashed` is returned unchanged, no second version bump), so it renders the row
+      // this flip produced instead of performing a second one. That is what keeps the agent path
+      // and the HTTP route on the same single delete chokepoint with no change to `@jini-ai/cms`.
+      const removed = await routeDeps.removeMedia({
+        workspaceId: routeDeps.workspaceId,
+        id: mediaId,
+        display: { title: current.title, subtitle: current.slug },
+        at: routeDeps.clock.nowIso(),
+        expectedVersion: current.version,
+        actor: { principalId: ctx.principal.id, pluginId: ASSISTANT_ACTOR_PLUGIN_ID },
+      });
+      if (!removed.ok) {
+        throw new Error(
+          removed.reason === "not-found"
+            ? `media asset '${mediaId}' was not found`
+            : `media asset '${mediaId}' changed while the confirmation was open — nothing was trashed`
+        );
+      }
+
       const result = (await originalHandler(ctx)) as Record<string, unknown>;
       return { trashed: true, cancelled: false, ...result };
     } finally {
@@ -322,12 +386,26 @@ function buildMediaTrashConfirmationHandler(routeDeps: MediaToolDeps, surfaces: 
  * MediaPublicUrlDeps` and a real `SurfaceExchangeStore`, mirroring every sibling domain's own
  * `build<Domain>Registrations` export (`buildWidgetsRegistrations`, `buildRedirectsRegistrations`,
  * ...) — `media/__tests__/agent-tools.trash-confirmation.test.ts` is what needed it.
+ *
+ * `maxUploadBytes: TOVU_MAX_UPLOAD_BYTES` (2026-09-21): every OTHER upload path into this package
+ * (the admin HTTP upload route, `duplicate-asset.ts`, `media-generation`'s and `media-import`'s own
+ * tool registrations) already calls `uploadMedia` with this host's `TOVU_MAX_UPLOAD_BYTES` override
+ * instead of `@jini-ai/cms/media`'s 10 MiB `DEFAULT_MAX_UPLOAD_BYTES` — this was the one remaining
+ * upload path (and the one a chat attachment promoted into the library also goes through) still
+ * silently stuck at 10 MiB, because `MediaToolDeps` had no field to carry a cap until
+ * `@jini-ai/cms/media`'s `maxUploadBytes` addition. Passed explicitly here (not merely via
+ * `...routeDeps`) since `RouteDeps` itself has no `maxUploadBytes` field — this host's cap is a fixed
+ * constant, not a per-request value.
  */
-export function buildMediaRegistrationsForTovu(routeDeps: MediaToolDeps & MediaPublicUrlDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
+export function buildMediaRegistrationsForTovu(
+  routeDeps: MediaToolDeps & MediaPublicUrlDeps & MediaTrashToolDeps,
+  surfaces: AssistantSurfaceDeps
+): ToolRegistration[] {
   const registrations = buildMediaRegistrations({
     ...routeDeps,
     resolvePublicUrls: (assets) => resolveMediaPublicUrls(routeDeps, assets),
     recordUploadContentType: buildRecordUploadContentType(routeDeps),
+    maxUploadBytes: TOVU_MAX_UPLOAD_BYTES,
   });
 
   return registrations.map((registration) =>

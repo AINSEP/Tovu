@@ -17,6 +17,7 @@ import {
   buildSourceControlConnectionInput,
 } from "../source-control/rules";
 import { MEDIA_PROVIDER_CATALOG } from "../media/media-provider-catalog";
+import type { Translate } from "../../lib/dictionary-translator";
 
 /**
  * @file Pure data and computation for the Security page's Access Tokens tab — no React, no fetch,
@@ -103,10 +104,16 @@ export interface AccessTokenCategoryInfo {
 /**
  * The filter row's fixed order — `All` first and default (owner's own list, 2026-08-16 ruling:
  * "All / Source control / Hosting / Media / AI / Ops"). Split from the seven Tier 1 providers'
- * `purposeLabel` ("Publishing"/"Source Control"), which is a per-provider DISAMBIGUATOR shown next to
+ * `purposeLabel` ("Hosting"/"Source control"), which is a per-provider DISAMBIGUATOR shown next to
  * a name, not a filter bucket — `github-pages` and `vercel` share the `"hosting"` category here even
  * though only `github-pages` needed a purpose subtitle to tell it apart from source-control's own
- * `github`.
+ * `github`. `purposeLabel` used to read "Publishing" for the four hosting providers, and "Source
+ * Control" (title case) for the three source-control providers — the owner's 2026-09-21 ruling
+ * collapsed BOTH onto the exact same string as this filter chip's own label ("Hosting"/"Source
+ * control"), so a row's subtitle and the category chip that filters it always agree, letter for
+ * letter (round 2 of that same ruling caught the source-control half: a custom row's `purposeLabel`
+ * already read this table's own "Source control" via {@link accessTokenCategoryLabel}, so only the
+ * three hardcoded catalog entries below were still out of step).
  */
 export const ACCESS_TOKEN_CATEGORIES: readonly AccessTokenCategoryInfo[] = [
   { id: "all", label: "All" },
@@ -233,7 +240,7 @@ export const ACCESS_TOKEN_PROVIDERS: readonly AccessTokenProviderInfo[] = [
       providerId: provider.id,
       label: provider.label,
       vendorLabel: vendorLabelFor(provider.id, provider.label),
-      purposeLabel: "Publishing",
+      purposeLabel: "Hosting",
       category: "hosting",
       tokenPageUrl: provider.tokenPageUrl,
       scopeGuidanceKey: provider.scopeGuidanceKey,
@@ -246,7 +253,7 @@ export const ACCESS_TOKEN_PROVIDERS: readonly AccessTokenProviderInfo[] = [
       providerId: provider.id,
       label: provider.label,
       vendorLabel: vendorLabelFor(provider.id, provider.label),
-      purposeLabel: "Source Control",
+      purposeLabel: "Source control",
       category: "source-control",
       tokenPageUrl: provider.tokenPageUrl,
       scopeGuidanceKey: provider.scopeGuidanceKey,
@@ -434,7 +441,7 @@ export function buildCustomCredentialRows(raws: readonly RawCustomCredentialSumm
 }
 
 /** Whether `row` should show under an active search `query` — matches the provider's brand label
- *  ("GitHub", "Cloudflare Pages"), its purpose subtitle ("Publishing", "Source Control"), and the
+ *  ("GitHub", "Cloudflare Pages"), its purpose subtitle ("Hosting", "Source control"), and the
  *  row's own display name ("Production", "30-day test token"). Case-insensitive, whitespace-trimmed;
  *  an empty query matches everything (the "no filter active" state).
  *  @complexity O(1) per row — three substring checks against already-short strings. */
@@ -549,6 +556,56 @@ export function buildAccessTokenConnectionInput(fields: AccessTokenFormFields): 
  *  @complexity O(n) in this workspace's total saved-credential count (small). */
 export function accessTokenRowsForProvider(rows: readonly AccessTokenRow[], ref: AccessTokenProviderRef): AccessTokenRow[] {
   return rows.filter((row) => row.kind === ref.kind && row.providerId === ref.providerId);
+}
+
+/** The minimal shape {@link sortAccessTokenGroups} needs from a provider group — a structural
+ *  subset of `AccessTokenProviderGroupState` (`use-access-tokens.hooks.ts`) so this pure sort has
+ *  no dependency on that hook's own types (this file's own convention: `rules.ts` is never imported
+ *  BY the reverse direction — see this file's header). `rows` is read only for its `.length` (is
+ *  there at least one saved token for this group), never its contents. */
+export interface AccessTokenGroupSortInput {
+  readonly info: Pick<AccessTokenProviderInfo, "category" | "label">;
+  readonly rows: readonly unknown[];
+}
+
+/**
+ * The Secrets page's provider-group order — owner's 2026-09-21 ruling. Two tiers: every group with
+ * at least one saved row (`rows.length > 0`) first, every "Not connected" group after. Within each
+ * tier, grouped by category in the SAME order the filter chips render ({@link ACCESS_TOKEN_CATEGORIES},
+ * minus `"all"`, which is the chip row's own "show everything" option and never a row's real
+ * category — see {@link AccessTokenRowCategoryId}'s own doc), then alphabetical by the provider's
+ * own `label`, locale-aware and case-insensitive (`toLocaleLowerCase()` before `localeCompare()` —
+ * same "read like a human alphabetizing a shelf" convention `media/rules.ts`'s `sortMediaByOrder`
+ * already uses for its own `"alphabetical"` order).
+ *
+ * A provider moving from zero saved rows to one (a Save that just succeeded) needs no special case
+ * here: {@link AccessTokenGroupSortInput.rows}'s own length IS the tier a caller feeds in on every
+ * render (`use-access-tokens.hooks.ts`'s `groups` is rebuilt from scratch whenever the underlying
+ * row list changes), so a provider crossing that boundary simply sorts into the other tier the next
+ * time this runs. Applies equally whether `groups` is the full catalog (`"All"` chip), narrowed to
+ * one category (a single chip active), or narrowed by an active search query — this function only
+ * ever reads each entry's own category/label/saved-count, never the set's size or the active
+ * filter, so a smaller or single-category input sorts by the identical rule.
+ *
+ * Returns a NEW array — never mutates `groups` (same "caller's own array survives" contract
+ * `sortMediaByOrder` documents for the identical reason: a caller may still need the unsorted list).
+ *
+ * @complexity Time O(n log n) in the group count (small — one entry per catalog provider plus one
+ * per saved custom credential), space O(n) for the shallow copy.
+ */
+export function sortAccessTokenGroups<T extends AccessTokenGroupSortInput>(groups: readonly T[]): T[] {
+  const categoryRank = new Map<AccessTokenRowCategoryId, number>(
+    ACCESS_TOKEN_CATEGORIES.filter((c) => c.id !== "all").map((c, index) => [c.id as AccessTokenRowCategoryId, index])
+  );
+  const sorted = [...groups];
+  sorted.sort((a, b) => {
+    const savedDiff = Number(b.rows.length > 0) - Number(a.rows.length > 0);
+    if (savedDiff !== 0) return savedDiff;
+    const categoryDiff = (categoryRank.get(a.info.category) ?? 0) - (categoryRank.get(b.info.category) ?? 0);
+    if (categoryDiff !== 0) return categoryDiff;
+    return a.info.label.trim().toLocaleLowerCase().localeCompare(b.info.label.trim().toLocaleLowerCase());
+  });
+  return sorted;
 }
 
 /** Builds an update patch's non-secret/secret halves independently — split out of the hook's own
@@ -706,6 +763,17 @@ export function customCredentialReplaceReadyToSave(fields: AccessTokenFormFields
   const nameChanged = fields.name.trim() !== currentName.trim();
   const usernameChanged = fields.username.trim() !== (currentUsername ?? "").trim();
   return nameChanged || usernameChanged;
+}
+
+/** The Save-readiness gate for a SAVED row's Replace form, picked by row kind — the same split
+ *  `use-access-tokens.hooks.ts`'s `replaceToken` makes before writing: a custom row uses
+ *  {@link customCredentialReplaceReadyToSave} (a username-only change is a real edit), every catalog
+ *  row keeps {@link accessTokenReplaceReadyToSave}. `ExistingTokenFields` used to call the catalog
+ *  gate for every row, so a custom row's username-only fix left Save disabled even though the
+ *  controller would have sent it. @complexity O(1). */
+export function accessTokenExistingRowReadyToSave(fields: AccessTokenFormFields, row: Pick<AccessTokenRow, "kind" | "name" | "username">): boolean {
+  if (row.kind === "custom") return customCredentialReplaceReadyToSave(fields, row.name, row.username);
+  return accessTokenReplaceReadyToSave(fields, row.name);
 }
 
 /** Builds the wire connection input for a custom-provider create/update call — just
@@ -911,8 +979,8 @@ export function maskedTailFact(tail: string): string {
 /** The value fact for an OAuth-connected `composio-connector` row — "Connected as: {label}" when
  *  Composio returned a human account label, or a bare "Connected" when it did not (a real, observed
  *  case: some connectors report status with no `accountLabel`). @complexity O(1). */
-export function connectedAsFact(accountLabel: string | undefined): string {
-  return accountLabel ? `Connected as: ${accountLabel}` : "Connected";
+export function connectedAsFact(accountLabel: string | undefined, t: Translate = (key) => key): string {
+  return accountLabel ? t("Connected as: {label}").replace("{label}", accountLabel) : t("Connected");
 }
 
 /** The value fact for an `external-mcp` row — there is no single token to characterize (§10: "no
@@ -920,7 +988,27 @@ export function connectedAsFact(accountLabel: string | undefined): string {
  *  already plaintext — see `AdminExternalMcpServer.envNames`'s own doc in `lib/api.ts`). Zero reads as
  *  a fact, not an error: an MCP server can be fully configured with no secrets at all (a local stdio
  *  tool needing no credentials). @complexity O(1). */
-export function envNamesFact(envNames: readonly string[]): string {
-  if (envNames.length === 0) return "No environment variables set";
-  return envNames.length === 1 ? "1 environment variable set" : `${envNames.length} environment variables set`;
+export function envNamesFact(envNames: readonly string[], t: Translate = (key) => key): string {
+  if (envNames.length === 0) return t("No environment variables set");
+  if (envNames.length === 1) return t("1 environment variable set");
+  return t("{count} environment variables set").replace("{count}", String(envNames.length));
+}
+
+/** `AccessTokensSearch`'s own count line (the search box's `role="status"` caption) — whole-sentence
+ *  templates keyed by the plural of `totalCount`, not string-fragment concatenation. Gluing
+ *  translated words in English order (`"${count} ${tokenWord} ${translate("saved")}"`) can't read
+ *  naturally in a language that puts the verb, the count, or the quoted query somewhere else in the
+ *  sentence (ja/ko/zh/th all reorder this), so each plural form is one full translated sentence
+ *  instead. The plural is chosen by `totalCount` alone (never `matchCount`) — see this file's own
+ *  callers for why the visible noun stays anchored to the total, not the filtered subset. `query` is
+ *  interpolated raw (not trimmed) to match the box's own display of what was typed.
+ *  @complexity O(1). */
+export function accessTokensCountText(totalCount: number, matchCount: number, query: string, t: Translate = (key) => key): string {
+  if (query.trim() === "") {
+    return t(totalCount === 1 ? "{count} token saved" : "{count} tokens saved").replace("{count}", String(totalCount));
+  }
+  return t(totalCount === 1 ? "{matched} of {count} token matching “{query}”" : "{matched} of {count} tokens matching “{query}”")
+    .replace("{matched}", String(matchCount))
+    .replace("{count}", String(totalCount))
+    .replace("{query}", query);
 }

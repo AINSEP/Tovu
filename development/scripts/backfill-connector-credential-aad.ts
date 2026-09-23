@@ -11,7 +11,7 @@
  * connector_id)`, matching `backfill-connector-credential-aad.ts`'s sibling for
  * `composio_connector_credentials`'s own primary key, not a bare `workspace_id`.
  *
- * `account_label` is left untouched — it was never sealed (`db/schema.ts`'s
+ * `account_label` is left untouched — it was never sealed (`db/schema.sqlite.ts`'s
  * `composioConnectorCredentials` doc: "the only part held in the clear").
  *
  * The dry-run/`--apply` split, restore-point capture, and per-row seal-verify-write loop live in
@@ -35,7 +35,7 @@ import path from "node:path";
 
 import { and, eq } from "drizzle-orm";
 
-import { composioConnectorCredentials } from "../../apps/website/src/platform/db/schema.js";
+import { composioConnectorCredentials } from "../../apps/website/src/platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { buildConnectorCredentialAad } from "../../apps/website/src/platform/connectors/connector-credential-aad.js";
 

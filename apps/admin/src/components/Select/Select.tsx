@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import type { Translate } from "../../lib/dictionary-translator";
 import { useSelectDropdown, type PanelPosition, type SelectOption } from "./Select.hooks";
 import "../../styles/select.css";
 
@@ -70,6 +71,12 @@ export interface SelectProps {
   /** This select's own base handle — see this file's "Agent handles" doc for the full scheme. Omit
    *  to leave it (and every option) untagged. */
   agentHandle?: string;
+  /** Translates this component's own static copy (`"Search options"`, `"Search…"`, `"No matches"`,
+   *  the default `"Select…"` placeholder) — `components/shared-components-i18n.ts`'s dictionary,
+   *  bound to a locale by the caller's own wired hook (see `WidgetPickerDialog.hooks.tsx`'s `t`).
+   *  Defaults to an identity passthrough, so a caller that has no locale to give (or a test) renders
+   *  the English source strings unchanged. */
+  t?: Translate;
 }
 
 /** One row of the option list — the `isSelected`/`isHighlighted` derivation, the option's
@@ -145,6 +152,7 @@ function SelectPanel({
   onKeyDown,
   searchHandle,
   optionHandles,
+  t,
 }: {
   panelRef: React.RefObject<HTMLDivElement | null>;
   position: PanelPosition;
@@ -166,6 +174,8 @@ function SelectPanel({
   /** One handle per entry in `filtered`, positionally aligned — see `Select`'s own "Agent handles"
    *  doc. `undefined` (rather than an empty array) when `Select` published no base handle at all. */
   optionHandles?: readonly string[];
+  /** Already-bound translator for this panel's own static copy — see `SelectProps.t`. */
+  t: Translate;
 }) {
   return (
     <div
@@ -180,8 +190,8 @@ function SelectPanel({
           ref={searchInputRef}
           type="text"
           className="select-search"
-          aria-label="Search options"
-          placeholder="Search…"
+          aria-label={t("Search options")}
+          placeholder={t("Search…")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           {...(searchHandle ? agentHandle(searchHandle, { role: "field", label: "Search the option list" }) : {})}
@@ -190,7 +200,7 @@ function SelectPanel({
       <ul className="select-list" role="listbox" id={listboxId}>
         {filtered.length === 0 ? (
           <li className="select-empty" role="presentation">
-            No matches
+            {t("No matches")}
           </li>
         ) : (
           filtered.map((option, index) => (
@@ -216,9 +226,13 @@ function SelectPanel({
 /** The trigger button's derived label text + "is it showing a placeholder" className — pulled out
  *  of `Select`'s own render body as a top-level pure function under the tightened ≤9/≤9 pass, same
  *  extraction rule as `SelectPanel`/`SelectOptionRow` above. */
-export function resolveSelectTriggerLabel(selectedOption: SelectOption | null, placeholder: string | undefined): { text: string; className: string } {
+export function resolveSelectTriggerLabel(
+  selectedOption: SelectOption | null,
+  placeholder: string | undefined,
+  t: Translate = (key) => key
+): { text: string; className: string } {
   if (selectedOption) return { text: selectedOption.label, className: "select-trigger-label" };
-  return { text: placeholder ?? "Select…", className: "select-trigger-label is-placeholder" };
+  return { text: placeholder ?? t("Select…"), className: "select-trigger-label is-placeholder" };
 }
 
 /** The trigger `<button>`'s `aria-activedescendant` — the currently highlighted option's id while
@@ -244,7 +258,7 @@ function resolveSelectTriggerHandleProps(
 }
 
 export function Select(props: SelectProps) {
-  const { value, onChange, options, placeholder, id, disabled, useDropdown = useSelectDropdown, agentHandle: base } = props;
+  const { value, onChange, options, placeholder, id, disabled, useDropdown = useSelectDropdown, agentHandle: base, t = (key: string) => key } = props;
   const ariaLabel = props["aria-label"];
   const ariaLabelledBy = props["aria-labelledby"];
 
@@ -276,7 +290,7 @@ export function Select(props: SelectProps) {
     else optionRefs.current.delete(index);
   }
 
-  const triggerLabel = resolveSelectTriggerLabel(selectedOption, placeholder);
+  const triggerLabel = resolveSelectTriggerLabel(selectedOption, placeholder, t);
   const activeDescendant = resolveSelectTriggerActiveDescendant(open, highlightedIndex, optionId);
   // One handle per FILTERED option, recomputed as the search query narrows the list — an option
   // dropped by the current query has no rendered row to attach a handle to, so it is simply absent
@@ -327,6 +341,7 @@ export function Select(props: SelectProps) {
               onKeyDown={handlePanelKeyDown}
               searchHandle={base ? `${base}-search` : undefined}
               optionHandles={optionHandles}
+              t={t}
             />,
             document.body
           )

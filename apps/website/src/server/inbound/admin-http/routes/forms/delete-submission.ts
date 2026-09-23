@@ -1,24 +1,10 @@
+import { deleteFormSubmission } from "#src/features/forms/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteDeps, FormsRouteRegistrar } from "./deps.js";
 import { resolveFormDefinitionByIdOrSlug } from "./resolve-definition.js";
 
-/**
- * Looks up a submission and confirms it belongs to `definitionId` — a real submission id scoped to
- * a DIFFERENT form must read as not-found here, same as an id that doesn't exist at all. Extracted
- * from the route handler below so the `||` this comparison needed collapses to a single `if` at the
- * call site (cyclomatic-complexity gate, not a behavior change — see AC-20/forms-submissions.test.ts
- * for the cross-form-mismatch regression test this preserves).
- */
-async function findSubmissionScopedToDefinition(
-  deps: Pick<FormsRouteDeps, "workspaceId" | "formSubmissionRepo">,
-  definitionId: string,
-  submissionId: string
-) {
-  const submission = await deps.formSubmissionRepo.findById({ workspaceId: deps.workspaceId, id: submissionId });
-  return submission && submission.formDefinitionId === definitionId ? submission : undefined;
-}
-
-/** DELETE permanently removes one submission (`FORMS_DELETE_SUBMISSION`, REQ-14). */
+/** DELETE moves one submission to the Trash (`FORMS_DELETE_SUBMISSION`). A submission of another
+ *  form reads as not-found, same as a missing one (`deleteFormSubmission`). */
 export const registerAdminFormsDeleteSubmissionRoute: FormsRouteRegistrar = (app, deps) => {
   app.delete(
     "/api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId",
@@ -58,15 +44,28 @@ export const registerAdminFormsDeleteSubmissionRoute: FormsRouteRegistrar = (app
           return;
         }
 
-        const submission = await findSubmissionScopedToDefinition(deps, definition.id, submissionId);
-        if (!submission) {
+        // Moves it to the Trash; restore or a permanent delete happens from the Trash screen.
+        const outcome = await deleteFormSubmission(
+          {
+            workspaceId: deps.workspaceId,
+            form: { id: definition.id, name: definition.name },
+            submissionId,
+            actor: { principalId: principal.id, pluginId: null },
+          },
+          { submissionRepo: deps.formSubmissionRepo, remove: deps.removeFormSubmission, clock: deps.clock }
+        );
+        if (!outcome.ok && outcome.reason === "not-found") {
           res
             .status(404)
             .json({ error: `submission '${submissionId}' was not found`, code: "FORMS_SUBMISSION_NOT_FOUND" });
           return;
         }
-
-        await deps.formSubmissionRepo.delete({ workspaceId: deps.workspaceId, id: submissionId });
+        if (!outcome.ok) {
+          res
+            .status(409)
+            .json({ error: `submission '${submissionId}' changed while it was being deleted`, code: "TRASH_VERSION_CHANGED" });
+          return;
+        }
         res.status(204).end();
       } catch {
         res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

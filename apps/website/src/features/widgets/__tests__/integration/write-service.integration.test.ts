@@ -3,18 +3,17 @@ import test from "node:test";
 
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { buildWidgetInstanceFieldsJson } from "../../entry-payload.js";
 import { bindWidgetArea, mutateWidgetAreaPlacements, type RegionAreaServiceDeps } from "../../region-area-service.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
 import type { WidgetTypeKey } from "../../types.js";
 import {
   createWidgetInstance,
-  purgeWidgetInstance,
   trashWidgetInstance,
   updateWidgetInstance,
-  type WidgetWriteServiceDeps,
+  type WidgetTrashDeps,
 } from "../../write-service.js";
+import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 
 /**
  * @file C-005 widget-instance CRUD — SPEC-043 REQ-01..06/42/43, AC-01..04/29, INV-01/09.
@@ -32,10 +31,12 @@ import {
 const WORKSPACE_ID = "ws-1";
 const ACTOR = { principalId: "user-1" };
 
-function makeDeps(): WidgetWriteServiceDeps {
+function makeDeps(): WidgetTrashDeps {
   let counter = 0;
+  const trash = memoryWidgetTrash();
   return {
-    entryRepo: new InMemoryEntryRepo(),
+    entryRepo: trash.entryRepo,
+    remove: trash.remove,
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     clock: { nowIso: () => "2026-07-21T00:00:00.000Z" },
@@ -47,7 +48,7 @@ function makeDeps(): WidgetWriteServiceDeps {
 
 /** Same underlying adapters as `deps`, extended with a bindingRepo — so a widget created via
  * `write-service.ts` and a widget placed via `region-area-service.ts` see the same state. */
-function makeRegionDeps(deps: WidgetWriteServiceDeps): RegionAreaServiceDeps {
+function makeRegionDeps(deps: WidgetTrashDeps): RegionAreaServiceDeps {
   return { ...deps, bindingRepo: new InMemoryWidgetRegionBindingRepo() };
 }
 
@@ -146,15 +147,12 @@ test("AC-04/REQ-06: two concurrent updates against the same baseVersion — exac
   assert.equal(rejected.length, 1, "exactly one concurrent update must be rejected as a version conflict");
 });
 
-test("AC-29/REQ-42: force-purging a widget instance still referenced by a placement is rejected with the referencing list, unless force", async () => {
-  // Corrected 2026-07-21: the original version of this test called `trashWidgetInstance` (which
-  // ADR-047 §7's deletion ladder makes unconditional/soft, and the implementation outline's own
-  // Contract Map already specified as such) and never created a placement to be "referenced" by —
-  // both were authoring bugs in the test, not in the implementation, confirmed against
-  // feature.spec.md REQ-42/43 and the outline's C-005 invariant note ("purgeWidgetInstance without
-  // force must check entry_refs... the sole gate for REQ-42"). Fixed to exercise the actual
-  // REQ-42-gated operation (`purgeWidgetInstance` without force) against a genuinely referenced
-  // instance (placed into a live region).
+// REQ-42/43 (superseded 2026-09-21, generic Trash): the reference-gated "purge" rung and its
+// `force` variant are retired — a permanent delete is now only the Trash's purge, which is
+// unconditional and deletes the widget's own outgoing refs (`features/trash/__tests__/
+// widget-trash-flow.test.ts` covers it on real SQLite). The three tests that exercised
+// `purgeWidgetInstance` were replaced by this one and that suite.
+test("REQ-42/EC-07: trashing a referenced widget instance is unconditional — it goes to the Trash and every entries read treats it as missing", async () => {
   const deps = makeDeps();
   const { instance: created } = await createWidgetInstance({
     deps,
@@ -180,110 +178,53 @@ test("AC-29/REQ-42: force-purging a widget instance still referenced by a placem
     },
   });
 
-  await assert.rejects(
-    () =>
-      purgeWidgetInstance({
-        deps,
-        input: {
-          workspaceId: WORKSPACE_ID,
-          actor: ACTOR,
-          widgetInstanceId: created.id,
-          force: false,
-        },
-      }),
-    /WidgetReferencedError/
-  );
-});
-
-test("REQ-42/EC-07: trashing (soft-delete) a referenced widget instance is unconditional — trash is not reference-gated, only force-purge is (ADR-047 §7)", async () => {
-  const deps = makeDeps();
-  const { instance: created } = await createWidgetInstance({
-    deps,
-    input: {
-      workspaceId: WORKSPACE_ID,
-      actor: ACTOR,
-      widgetType: "text",
-      title: "Footer note",
-      config: { body: "text" },
-    },
-  });
-
-  const regionDeps = makeRegionDeps(deps);
-  const { areaEntry } = await bindWidgetArea({ deps: regionDeps, input: { workspaceId: WORKSPACE_ID, regionKey: "footer" } });
-  await mutateWidgetAreaPlacements({
-    deps: regionDeps,
-    input: {
-      workspaceId: WORKSPACE_ID,
-      actor: ACTOR,
-      areaEntryId: areaEntry.id,
-      baseVersion: areaEntry.version,
-      placements: [{ placementId: "plc-1", widgetEntryId: created.id, enabled: true }],
-    },
-  });
-
-  const { instance: trashed } = await trashWidgetInstance({
+  const trashed = await trashWidgetInstance({
     deps,
     input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetInstanceId: created.id },
   });
-  assert.equal(trashed.status, "trash");
+  assert.deepEqual(trashed, { widgetInstanceId: created.id, version: created.version + 1 });
+  assert.equal(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: created.id }), null);
 });
 
-test("REQ-43: force-purging a referenced widget instance succeeds and flags the resulting dangling references rather than silently dropping them", async () => {
+test("trashing hands the Trash the widget's title, slug and current version, and a version race is a typed conflict", async () => {
   const deps = makeDeps();
   const { instance: created } = await createWidgetInstance({
     deps,
-    input: {
-      workspaceId: WORKSPACE_ID,
-      actor: ACTOR,
-      widgetType: "text",
-      title: "Footer note",
-      config: { body: "text" },
-    },
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetType: "text", title: "Racy", config: { body: "text" } },
   });
-
-  await purgeWidgetInstance({
-    deps,
-    input: {
+  const calls: Array<Parameters<WidgetTrashDeps["remove"]>[0]> = [];
+  await assert.rejects(
+    trashWidgetInstance({
+      deps: {
+        ...deps,
+        remove: async (required) => {
+          calls.push(required);
+          return { ok: false, reason: "version-changed" };
+        },
+      },
+      input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetInstanceId: created.id },
+    }),
+    {
+      name: "WidgetVersionConflictError",
+      message: `widget instance '${created.id}' changed while it was being deleted — reload and try again`,
+    }
+  );
+  assert.deepEqual(calls, [
+    {
       workspaceId: WORKSPACE_ID,
-      actor: ACTOR,
-      widgetInstanceId: created.id,
-      force: true,
+      id: created.id,
+      display: { title: "Racy", subtitle: created.slug },
+      at: "2026-07-21T00:00:00.000Z",
+      expectedVersion: created.version,
+      actor: { principalId: ACTOR.principalId },
     },
-  });
-  // Once implemented: assert every entry_refs row that pointed at this instance is now
-  // flagged/queryable as dangling (feature.spec.md EC-06) — requires the entry_refs read API,
-  // asserted more fully in extractor.integration.test.ts.
+  ]);
 });
 
 // ---------------------------------------------------------------------------
-// External /audit-work finding (2026-07-21, ADR-047) — purge must retract its OWN outgoing
-// entry_refs (config ref-typed fields, e.g. a menu widget's menuRef); trash must NOT.
+// External /audit-work finding (2026-07-21, ADR-047) — trash must NOT retract a widget's own
+// outgoing entry_refs (the purge half now lives in the Trash; see the note above).
 // ---------------------------------------------------------------------------
-
-test("audit fix: force-purging a widget instance with an outgoing ref-typed config field (menuRef) retracts that row from entry_refs — the purged instance's own refs must not survive it", async () => {
-  const deps = makeDeps();
-  const { instance: created } = await createWidgetInstance({
-    deps,
-    input: {
-      workspaceId: WORKSPACE_ID,
-      actor: ACTOR,
-      widgetType: "menu",
-      title: "Footer menu widget",
-      config: { menuRef: "some-menu-id" },
-    },
-  });
-
-  const refsBeforePurge = await deps.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: created.id });
-  assert.ok(refsBeforePurge.length > 0, "sanity check: the menuRef must have been extracted on create");
-
-  await purgeWidgetInstance({
-    deps,
-    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetInstanceId: created.id, force: true },
-  });
-
-  const refsAfterPurge = await deps.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: created.id });
-  assert.deepEqual(refsAfterPurge, [], "a force-purged instance's own outgoing refs must be retracted, not left stale");
-});
 
 test("audit fix: trashing (not purging) a widget instance with an outgoing ref-typed config field leaves entry_refs untouched — trash is reversible, its refs must survive a later restore", async () => {
   const deps = makeDeps();

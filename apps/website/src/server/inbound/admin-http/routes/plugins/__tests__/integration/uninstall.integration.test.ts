@@ -63,7 +63,7 @@ async function existsOnDisk(target: string): Promise<boolean> {
   }
 }
 
-test("Milestone 2 end to end: install(fixture) -> enable -> save -> disable -> uninstall — ext data and disable-detach both survive, files and activation both gone", async (t) => {
+test("site plugin end to end: remove -> list in Trash -> restore disabled -> remove -> purge", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-plugin-uninstall-lifecycle-"));
   const installDir = path.join(root, "plugins");
   const pluginId = "lifecycle-plugin";
@@ -74,6 +74,7 @@ test("Milestone 2 end to end: install(fixture) -> enable -> save -> disable -> u
     const app = createApp(deps);
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     const pluginsBase = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/plugins`;
+    const trashBase = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/trash`;
 
     // --- enable ---
     const enableResponse = await fetch(`${pluginsBase}/${pluginId}`, {
@@ -132,17 +133,56 @@ test("Milestone 2 end to end: install(fixture) -> enable -> save -> disable -> u
     // --- uninstall ---
     const uninstallResponse = await fetch(`${pluginsBase}/${pluginId}`, { method: "DELETE", headers: { cookie } });
     if (uninstallResponse.status !== 200) assert.fail(`uninstall returned ${uninstallResponse.status}: ${await uninstallResponse.text()}`);
-    const uninstallBody = (await uninstallResponse.json()) as { pluginId: string; clearedWorkspaceIds: string[] };
-    assert.equal(uninstallBody.pluginId, pluginId);
-    assert.deepEqual(uninstallBody.clearedWorkspaceIds, [deps.workspaceId], "the (disabled) activation row must be cleared");
+    assert.deepEqual(await uninstallResponse.json(), { pluginId, trashed: true });
+    const parkedDir = path.join(root, "plugins-trash", pluginId);
+    assert.equal(await existsOnDisk(path.join(installDir, pluginId)), false);
+    assert.equal(await existsOnDisk(parkedDir), true);
+    assert.equal((await deps.pluginActivationRepo.listAll()).filter((row) => row.pluginId === pluginId).length, 1);
 
-    // Files gone.
-    assert.equal(await existsOnDisk(path.join(installDir, pluginId)), false, "the plugin's on-disk id folder must be removed");
+    const trashListResponse = await fetch(trashBase, { headers: { cookie } });
+    assert.equal(trashListResponse.status, 200);
+    const trashList = (await trashListResponse.json()) as {
+      items: Array<{ id: string; entityType: string; entityId: string; title: string }>;
+    };
+    const trashItem = trashList.items.find((item) => item.entityType === "plugin" && item.entityId === pluginId);
+    assert.ok(trashItem);
+    assert.equal(trashItem.title, pluginId);
 
-    // Discovery no longer lists it.
-    const listResponse = await fetch(pluginsBase, { headers: { cookie } });
-    const listed = (await listResponse.json()) as { plugins: Array<{ id: string }> };
-    assert.ok(!listed.plugins.some((p) => p.id === pluginId), "an uninstalled plugin must not appear in PLUGINS_LIST");
+    const restoreResponse = await fetch(`${trashBase}/restore`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ items: [{ entityType: "plugin", entityId: pluginId }] }),
+    });
+    assert.equal(restoreResponse.status, 200, await restoreResponse.clone().text());
+    assert.deepEqual(await restoreResponse.json(), {
+      restored: 1,
+      results: [{ entityType: "plugin", entityId: pluginId, outcome: "restored" }],
+    });
+    assert.equal(await existsOnDisk(path.join(installDir, pluginId)), true);
+
+    const restoredListResponse = await fetch(pluginsBase, { headers: { cookie } });
+    const restoredList = (await restoredListResponse.json()) as { plugins: Array<{ id: string; enabled: boolean }> };
+    assert.equal(restoredList.plugins.find((plugin) => plugin.id === pluginId)?.enabled, false);
+
+    const secondDelete = await fetch(`${pluginsBase}/${pluginId}`, { method: "DELETE", headers: { cookie } });
+    assert.equal(secondDelete.status, 200, await secondDelete.clone().text());
+    const secondTrashList = (await (await fetch(trashBase, { headers: { cookie } })).json()) as {
+      items: Array<{ id: string; entityType: string; entityId: string }>;
+    };
+    const secondTrashItem = secondTrashList.items.find((item) => item.entityType === "plugin" && item.entityId === pluginId);
+    assert.ok(secondTrashItem);
+    const purgeResponse = await fetch(`${trashBase}/purge`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ ids: [secondTrashItem.id] }),
+    });
+    assert.equal(purgeResponse.status, 200, await purgeResponse.clone().text());
+    assert.deepEqual(await purgeResponse.json(), {
+      purged: 1,
+      results: [{ id: secondTrashItem.id, outcome: "purged" }],
+    });
+    assert.equal(await existsOnDisk(parkedDir), false);
+    assert.equal((await deps.pluginActivationRepo.listAll()).filter((row) => row.pluginId === pluginId).length, 0);
 
     // INV-03: the ext data written while it was enabled MUST survive uninstall, inert.
     const getPostResponse = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/posts/${postId}`, { headers: { cookie } });
@@ -227,7 +267,7 @@ test("PLUGIN_ENABLED: DELETE .../plugins/:pluginId while still enabled is 409, r
   }
 });
 
-test("double uninstall: a second DELETE for an already-uninstalled id is 404 PLUGIN_NOT_FOUND, not a crash or a silent success", async (t) => {
+test("PLUGIN_IN_TRASH: a newly copied live folder cannot replace the same plugin already in Trash", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-plugin-uninstall-double-"));
   const installDir = path.join(root, "plugins");
   const pluginId = "double-uninstall-plugin";
@@ -241,10 +281,14 @@ test("double uninstall: a second DELETE for an already-uninstalled id is 404 PLU
     const first = await fetch(`${pluginsBase}/${pluginId}`, { method: "DELETE", headers: { cookie } });
     assert.equal(first.status, 200);
 
+    await writeRealPluginFixture(installDir, pluginId);
+
     const second = await fetch(`${pluginsBase}/${pluginId}`, { method: "DELETE", headers: { cookie } });
-    assert.equal(second.status, 404);
+    assert.equal(second.status, 409);
     const body = (await second.json()) as { code: string };
-    assert.equal(body.code, "PLUGIN_NOT_FOUND");
+    assert.equal(body.code, "PLUGIN_IN_TRASH");
+    assert.equal(await existsOnDisk(path.join(installDir, pluginId)), true);
+    assert.equal(await existsOnDisk(path.join(root, "plugins-trash", pluginId)), true);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -1,15 +1,15 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 
-import { assetBlobs, assetRenditions, media, transformDefinitions } from "../schema.js";
+import { assetBlobs, assetRenditions, media, transformDefinitions } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 import { findOneBy } from "./repo-helpers.js";
 import type { MediaContentTypeStorePort } from "#src/features/media/content-type-store";
+import type { VersionedMediaRepoPort } from "#src/features/media/versioned-media-repo";
 import type { UUID } from "@jini-ai/cms/core";
 import { MediaConflictError } from "@jini-ai/cms/media";
 import type {
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
-  MediaRepoPort,
   TransformDefinitionRepoPort,
   AssetBlobRecord,
   AssetBlobStatus,
@@ -42,7 +42,7 @@ function toMediaRecord(row: typeof media.$inferSelect): MediaRecord {
     id: row.id,
     workspaceId: row.workspaceId,
     title: row.title,
-    // `row.slug` is nullable in the DB (see `schema.ts`'s doc: backfilled out of band, not on
+    // `row.slug` is nullable in the DB (see `schema.sqlite.ts`'s doc: backfilled out of band, not on
     // write) but `MediaRecord.slug` is non-nullable in the domain model — every row this repo
     // itself ever writes always has a real slug (`SqliteMediaRepo.save()`'s `values` below never
     // omits it), so a `null` here can only mean a genuinely pre-backfill row. Falling back to the
@@ -64,7 +64,52 @@ function toMediaRecord(row: typeof media.$inferSelect): MediaRecord {
   };
 }
 
-export class SqliteMediaRepo implements MediaRepoPort {
+/**
+ * Extracted from `save()` (this commit) so `save`, `saveIfVersion`, and `insertIfAbsent` persist
+ * the IDENTICAL columns from the identical record — a second hand-maintained copy of this mapping
+ * is how one write path silently stops honouring a column the others still write. Mirrors
+ * `repo.sqlite.ts`'s (post) identical `toRow` extraction for the same reason.
+ *
+ * @complexity O(1) — a fixed field-by-field copy, no iteration.
+ */
+function toMediaRow(record: MediaRecord) {
+  return {
+    id: record.id,
+    workspaceId: record.workspaceId,
+    title: record.title,
+    slug: record.slug,
+    alt: record.alt,
+    caption: record.caption,
+    credit: record.credit,
+    sourceSha256: record.source.sha256,
+    status: record.status,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+    version: record.version,
+    width: record.width,
+    height: record.height,
+    cssClass: record.cssClass,
+    htmlAttributes: record.htmlAttributes,
+  };
+}
+
+/**
+ * Translates a SQLite unique-constraint violation on `idx_media_workspace_slug` into the same
+ * `MediaConflictError` the app-level `findBySlug` courtesy check throws, so every caller of every
+ * write method on this repo (`save`, `saveIfVersion`, `insertIfAbsent`) handles one error shape
+ * regardless of which layer actually caught the collision. Re-throws anything that is not a unique-
+ * constraint violation unchanged.
+ *
+ * @complexity O(1).
+ */
+function translateSlugConflict(err: unknown, slug: string): never {
+  if (isUniqueConstraintViolation(err)) {
+    throw new MediaConflictError(`slug '${slug}' is already used by another media asset in this workspace`);
+  }
+  throw err;
+}
+
+export class SqliteMediaRepo implements VersionedMediaRepoPort {
   constructor(private readonly db: ContentDb) {}
 
   async findById(required: { workspaceId: UUID; id: UUID }): Promise<MediaRecord | null> {
@@ -124,24 +169,7 @@ export class SqliteMediaRepo implements MediaRepoPort {
 
   async save(record: MediaRecord): Promise<void> {
     const existing = await this.findById({ workspaceId: record.workspaceId, id: record.id });
-    const values = {
-      id: record.id,
-      workspaceId: record.workspaceId,
-      title: record.title,
-      slug: record.slug,
-      alt: record.alt,
-      caption: record.caption,
-      credit: record.credit,
-      sourceSha256: record.source.sha256,
-      status: record.status,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
-      version: record.version,
-      width: record.width,
-      height: record.height,
-      cssClass: record.cssClass,
-      htmlAttributes: record.htmlAttributes,
-    };
+    const values = toMediaRow(record);
     // `updateMediaMetadata`'s own `findBySlug` check (see `@jini-ai/cms/media`'s `media-service.ts`)
     // is a friendly-error courtesy, not the enforcement — `idx_media_workspace_slug` is. A caller
     // that races past that check (or bypasses the service entirely) hits the real DB constraint
@@ -154,10 +182,51 @@ export class SqliteMediaRepo implements MediaRepoPort {
         this.db.insert(media).values(values).run();
       }
     } catch (err) {
-      if (isUniqueConstraintViolation(err)) {
-        throw new MediaConflictError(`slug '${record.slug}' is already used by another media asset in this workspace`);
-      }
-      throw err;
+      translateSlugConflict(err, record.slug);
+    }
+  }
+
+  /**
+   * See `VersionedMediaRepoPort.saveIfVersion`'s own doc for the contract. An
+   * `UPDATE … WHERE workspace_id = ? AND id = ? AND version = ?` — never the upsert `save()` above
+   * uses, because an absent or already-superseded row must report `applied: false` rather than be
+   * inserted or silently overwritten. The predicate and the write are ONE statement, which is the
+   * whole point: a compare done in JavaScript with a write issued afterwards (this repo's `save()`,
+   * called from a caller that read a stale version first) is exactly the race this method closes —
+   * mirrors `features/post/repo.sqlite.ts`'s identical `saveIfVersion` for posts.
+   *
+   * @complexity O(1) — one statement against the `media` primary key.
+   */
+  async saveIfVersion(required: { record: MediaRecord; ifVersion: number }): Promise<{ applied: boolean }> {
+    const { record, ifVersion } = required;
+    try {
+      const result = this.db
+        .update(media)
+        .set(toMediaRow(record))
+        .where(and(eq(media.workspaceId, record.workspaceId), eq(media.id, record.id), eq(media.version, ifVersion)))
+        .run();
+      return { applied: result.changes > 0 };
+    } catch (err) {
+      translateSlugConflict(err, record.slug);
+    }
+  }
+
+  /**
+   * See `VersionedMediaRepoPort.insertIfAbsent`'s own doc for the contract. The conflict target is
+   * deliberately `media.id` (the primary key) and NOT a bare `onConflictDoNothing()` — an untargeted
+   * call would also swallow `idx_media_workspace_slug`'s unique-constraint violation, silently
+   * reporting `applied: false` for a slug collision instead of throwing `MediaConflictError` the way
+   * every other write on this repo does. Precedent: `database-journal-repo.ts`'s
+   * `appendInterruptedRow`, the only other `onConflictDoNothing` call in this codebase.
+   *
+   * @complexity O(1) — one statement against the `media` primary key.
+   */
+  async insertIfAbsent(record: MediaRecord): Promise<{ applied: boolean }> {
+    try {
+      const result = this.db.insert(media).values(toMediaRow(record)).onConflictDoNothing({ target: media.id }).run();
+      return { applied: result.changes > 0 };
+    } catch (err) {
+      translateSlugConflict(err, record.slug);
     }
   }
 

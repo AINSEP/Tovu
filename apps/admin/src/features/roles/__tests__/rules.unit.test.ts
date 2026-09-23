@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminPolicy, type AdminRole } from "@/lib/api";
 import { describeApiError, roleMenuItems, policyMenuItems } from "../rules";
+import { t } from "../roles-i18n";
 
 /**
  * @file Pure logic for `features/roles/rules.ts`.
@@ -30,31 +31,79 @@ describe("describeApiError", () => {
     ["GRANT_EXCEEDS_ISSUER", "You cannot grant a permission you do not hold."],
   ])("maps ApiError code %s to its screen-specific copy", (code, expected) => {
     const err = new ApiError("raw server message", 400, code);
-    expect(describeApiError(err, "fallback")).toBe(expected);
+    expect(describeApiError(err, "fallback", "en")).toBe(expected);
   });
 
   it("uses the ApiError's own message for VALIDATION_ERROR when present", () => {
     const err = new ApiError("Name is required", 400, "VALIDATION_ERROR");
-    expect(describeApiError(err, "fallback")).toBe("Name is required");
+    expect(describeApiError(err, "fallback", "en")).toBe("Name is required");
   });
 
   it("falls back to the generic validation copy when VALIDATION_ERROR carries no message", () => {
     const err = new ApiError("", 400, "VALIDATION_ERROR");
-    expect(describeApiError(err, "fallback")).toBe("Please correct the highlighted fields.");
+    expect(describeApiError(err, "fallback", "en")).toBe("Please correct the highlighted fields.");
   });
 
   it("defers to the shared default translation for an unrecognized ApiError code", () => {
     const err = new ApiError("some other server message", 500, "SOME_OTHER_CODE");
-    expect(describeApiError(err, "fallback")).toBe("some other server message");
+    expect(describeApiError(err, "fallback", "en")).toBe("some other server message");
   });
 
   it("defers to the shared default translation for a plain Error", () => {
-    expect(describeApiError(new Error("network down"), "fallback")).toBe("network down");
+    expect(describeApiError(new Error("network down"), "fallback", "en")).toBe("network down");
   });
 
   it("uses the fallback for a non-Error, non-ApiError thrown value", () => {
-    expect(describeApiError("boom", "fallback")).toBe("fallback");
+    expect(describeApiError("boom", "fallback", "en")).toBe("fallback");
   });
+
+  // C4 — table-driven translation of each static override into the operator's locale (es).
+  it.each([
+    ["FORBIDDEN", "No tienes permiso para hacer eso."],
+    ["RESOURCE_CONFLICT", "Todavía está en uso; primero quita esa asignación o adjunto."],
+    ["PERMISSION_UNKNOWN", "Ese permiso no se reconoce."],
+    ["GRANT_EXCEEDS_ISSUER", "No puedes otorgar un permiso que no posees."],
+  ])("translates the %s override into the operator's locale (es)", (code, expected) => {
+    expect(describeApiError(new ApiError("raw", 400, code), "fallback", "es")).toBe(expected);
+  });
+
+  it("translates the VALIDATION_ERROR fallback into the operator's locale (es)", () => {
+    expect(describeApiError(new ApiError("", 400, "VALIDATION_ERROR"), "fallback", "es")).toBe(
+      "Corrige los campos resaltados.",
+    );
+  });
+
+  it("falls back to English for an unrecognized locale", () => {
+    expect(describeApiError(new ApiError("raw", 400, "FORBIDDEN"), "fallback", "xx")).toBe(
+      "You do not have permission to do that.",
+    );
+  });
+});
+
+// C4 — dictionary-parity spot check for just the 5 keys this pass added (same scoping as C1's own
+// `roles-i18n.unit.test.ts`, so pre-existing dictionary drift elsewhere does not fail this file).
+describe("roles-i18n — C4 keys", () => {
+  const LOCALES = [
+    "es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko",
+    "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn",
+  ];
+  const NEW_KEYS = [
+    "You do not have permission to do that.",
+    "It is still in use — remove that assignment/attachment first.",
+    "That permission is not recognized.",
+    "You cannot grant a permission you do not hold.",
+    "Please correct the highlighted fields.",
+  ];
+
+  for (const key of NEW_KEYS) {
+    for (const locale of LOCALES) {
+      it(`t(${locale}, "${key}") is non-empty and translated`, () => {
+        const translated = t(locale, key);
+        expect(translated.length).toBeGreaterThan(0);
+        expect(translated).not.toBe(key);
+      });
+    }
+  }
 });
 
 describe("roleMenuItems", () => {

@@ -18,7 +18,7 @@ import type { ThemeExploreController, ThemeExploreFile } from "../hooks/use-them
  * - Partials now preview standalone (`/theme-explore/{theme}/partial/{id}`) instead of showing "no
  *   standalone preview" — a partial is complete, styled markup the moment its CSS loads.
  * - The Preview pane has a Desktop/Tablet/Mobile width control (reusing `PageEditor.tsx`'s own
- *   `PAGE_PREVIEW_WIDTHS`) plus a fullscreen affordance, keyboard-dismissible via Escape.
+ *   `DEVICE_PREVIEW_WIDTHS`) plus a fullscreen affordance, keyboard-dismissible via Escape.
  */
 
 const FILES: ThemeExploreFile[] = [
@@ -259,7 +259,7 @@ describe("device width control", () => {
     expect(screen.queryByRole("button", { name: /view preview fullscreen/i })).not.toBeInTheDocument();
   });
 
-  it("defaults to Desktop pressed and shows its pixel width, matching PAGE_PREVIEW_WIDTHS.desktop", () => {
+  it("defaults to Desktop pressed and shows its pixel width, matching DEVICE_PREVIEW_WIDTHS.desktop", () => {
     renderExplore({ view: "preview" });
     expect(screen.getByRole("button", { name: "Desktop" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("1280px")).toBeInTheDocument();
@@ -274,7 +274,7 @@ describe("device width control", () => {
     expect(screen.getByText("834px")).toBeInTheDocument();
   });
 
-  it("clicking Mobile updates the readout to PAGE_PREVIEW_WIDTHS.mobile", async () => {
+  it("clicking Mobile updates the readout to DEVICE_PREVIEW_WIDTHS.mobile", async () => {
     const user = userEvent.setup();
     renderExplore({ view: "preview" });
     await user.click(screen.getByRole("button", { name: "Mobile" }));
@@ -1230,6 +1230,42 @@ describe("Preview/HTML view tabs", () => {
     await user.click(screen.getByRole("tab", { name: "Preview" }));
 
     expect(setView).toHaveBeenCalledWith("preview");
+  });
+
+  /** Hand-rolled `.segmented` tablist markup, so a35ce9f12's `TabBar` keyboard fix never reached
+   *  it: no arrow keys, and both buttons were separate native tab stops. */
+  it("ArrowRight moves to the next view tab and takes focus with it", async () => {
+    const user = userEvent.setup();
+    const setView = vi.fn();
+    renderExplore({ setView });
+
+    screen.getByRole("tab", { name: "Preview" }).focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(setView).toHaveBeenCalledWith("html");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "HTML" }));
+  });
+
+  it("End moves to the last view tab and Home back to the first", async () => {
+    const user = userEvent.setup();
+    const setView = vi.fn();
+    renderExplore({ setView });
+
+    screen.getByRole("tab", { name: "Preview" }).focus();
+    await user.keyboard("{End}");
+    expect(setView).toHaveBeenLastCalledWith("html");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "HTML" }));
+
+    await user.keyboard("{Home}");
+    expect(setView).toHaveBeenLastCalledWith("preview");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Preview" }));
+  });
+
+  it("keeps one roving tab stop: only the active view tab is in the native Tab order", () => {
+    renderExplore({ view: "html" });
+
+    expect(screen.getByRole("tab", { name: "HTML" })).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("tab", { name: "Preview" })).toHaveAttribute("tabindex", "-1");
   });
 });
 

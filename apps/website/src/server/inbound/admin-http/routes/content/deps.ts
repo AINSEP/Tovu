@@ -71,6 +71,12 @@ export type ContentRouteDeps = Pick<
   | "clock"
   | "idGen"
   | "postRepo"
+  /** `posts/delete.ts` + `pages/delete.ts` — the injected, pre-bound removal these routes hand
+   *  `deletePost` in place of the `postRepo.softDelete` call it used to make itself. */
+  | "removePost"
+  /** The other half of an undone delete: every `rollback` in this module that restores a post
+   *  through `restorePostForward` must also drop the Trash index row `removePost` wrote. */
+  | "forgetRemovedPost"
   | "pluginBeforeSaveHook"
   | "pagesHtmlStore"
   | "changeSets"
@@ -86,6 +92,12 @@ export type ContentRouteDeps = Pick<
   | "transformDefinitionRepo"
   | "menuRepo"
   | "mediaContentTypeStore"
+  // C5 (collections plan, 2026-09-23): `renderViaTemplate` now runs `finishStaticTierDocument`,
+  // whose `TemplateRenderDeps` widened with `contentTypeRepo` for `resolveCollectionListsForRender`'s
+  // content-type lookup. Same "this route needs the render pipeline's full dependency set" reasoning
+  // as the `entryRepo`/`mediaRepo`/… group directly above — a template preview with a `collection`
+  // marker needs this too, or it would silently diverge from the live site's own resolution.
+  | "contentTypeRepo"
 >;
 
 export type ContentRouteRegistrar = (app: Express, deps: ContentRouteDeps) => void;

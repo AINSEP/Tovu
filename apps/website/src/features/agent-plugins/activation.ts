@@ -72,7 +72,7 @@
  *
  * Everything else about an installed Agent Plugin already lives on disk under the workspace's own
  * tenant-isolated root; its activation living beside it needs no new seam, no migration, and no
- * cross-process cache-coherence argument. `plugin_activations` (`db/schema.ts`) is the SPEC-005
+ * cross-process cache-coherence argument. `plugin_activations` (`db/schema.sqlite.ts`) is the SPEC-005
  * `.tovu-plugin` runtime's table for a different plugin system with a different lifecycle — reusing
  * it would conflate two unrelated things that merely share a word.
  *

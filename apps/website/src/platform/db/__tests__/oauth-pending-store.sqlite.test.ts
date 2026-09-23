@@ -10,7 +10,7 @@ import { eq } from "drizzle-orm";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createPendingAuthorizationStore, isOAuthError, type OAuthClock } from "#src/platform/oauth/index";
-import { oauthDeviceAuthorizations, oauthPendingAuthorizations, workspaces } from "../schema.js";
+import { oauthDeviceAuthorizations, oauthPendingAuthorizations, workspaces } from "../schema.sqlite.js";
 import { openContentDb, type ContentDb } from "../sqlite/content-db.js";
 import { createSqliteDeviceAuthorizationStore, createSqlitePendingAuthorizationStore } from "../sqlite/oauth-pending-store.sqlite.js";
 

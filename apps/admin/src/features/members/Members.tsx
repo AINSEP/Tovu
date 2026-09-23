@@ -8,6 +8,7 @@ import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
 import { memberRowMenuItems, type RowActionState } from "./rules";
 import { useWiredMembers } from "./hooks/use-members.hooks";
+import { ServerLabel } from "@/components/status-labels";
 
 /**
  * @file Admin "Members" screen (ADR-030, ADR-PIPE-013 Decision §7) — markup only.
@@ -119,7 +120,7 @@ function MemberRow({
         </td>
         <td>{member.name ?? "—"}</td>
         <td>
-          <span className={`status status-${member.status}`}>{member.status}</span>
+          <span className={`status status-${member.status}`}><ServerLabel value={member.status} /></span>
         </td>
         <td>{formatTimestamp(member.createdAt)}</td>
         <td>

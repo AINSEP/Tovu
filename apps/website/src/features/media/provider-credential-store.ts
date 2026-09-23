@@ -11,7 +11,7 @@ import { buildMediaProviderCredentialAad } from "./aad.js";
  *
  * WORKSPACE-scoped, not per-principal like `assistant/execution-credential-store.ts`: generation
  * spends real money and publishes assets site-wide, so the install holds one vendor roster. See
- * `db/schema.ts`'s `mediaProviderCredentials` header for the full reasoning.
+ * `db/schema.sqlite.ts`'s `mediaProviderCredentials` header for the full reasoning.
  *
  * Two functions, matching the port exactly:
  * - {@link getMediaProviderCredentials} — read model only. Never decrypts (`keyTail` is a plain

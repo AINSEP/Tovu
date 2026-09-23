@@ -395,3 +395,110 @@ describe("WidgetConfigFields data-fetching-hook injection", () => {
     expect(neverCalled).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * `t` injection (Batch D2 i18n wiring) — every `describe` above renders with no `t` prop at all,
+ * proving the identity-passthrough default keeps English output byte-identical (zero of the tests
+ * above needed to change). These prove the OTHER half: a non-identity `t` actually reaches every
+ * sub-form's copy, not just gets threaded through and ignored. Each fake `t` below maps only the
+ * keys that widget type's sub-form actually calls `t()`/`interpolate()` with, to something visibly
+ * NOT the English source string — a passthrough bug (a sub-component reading a hardcoded literal
+ * instead of `props.t(...)`) would leave the untranslated English text on screen and fail these.
+ */
+describe("WidgetConfigFields — translated copy (t injection)", () => {
+  it("TextConfigFields: translates the Text label", () => {
+    const t = (key: string) => (key === "Text" ? "Texto-FAKE" : key);
+    render(<WidgetConfigFields widgetType="text" config={{}} onChange={vi.fn()} t={t} />);
+
+    expect(screen.getByLabelText("Texto-FAKE")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Text")).not.toBeInTheDocument();
+  });
+
+  it("SocialLinksConfigFields: translates the heading, Link {n} legend (interpolated), field labels/placeholders, Remove and Add link", () => {
+    const DICT: Record<string, string> = {
+      "Social links": "Enlaces-FAKE",
+      "Link {n}": "Enlace-FAKE {n}",
+      Platform: "Plataforma-FAKE",
+      "e.g. GitHub": "p.ej.-FAKE GitHub",
+      URL: "URL-FAKE",
+      Remove: "Quitar-FAKE",
+      "Add link": "Añadir-FAKE",
+    };
+    const t = (key: string) => DICT[key] ?? key;
+    const links = [{ platform: "GitHub", url: "https://github.com/x" }];
+    render(<WidgetConfigFields widgetType="social-links" config={{ links }} onChange={vi.fn()} t={t} />);
+
+    expect(screen.getByText("Enlaces-FAKE")).toBeInTheDocument();
+    expect(screen.getByText("Enlace-FAKE 1")).toBeInTheDocument();
+    expect(screen.getByLabelText("Plataforma-FAKE")).toBeInTheDocument();
+    expect(screen.getByLabelText("URL-FAKE")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("p.ej.-FAKE GitHub")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quitar-FAKE" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Añadir-FAKE" })).toBeInTheDocument();
+    // None of the English source strings this locale should have replaced remain on screen.
+    expect(screen.queryByText("Social links")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Link 1$/)).not.toBeInTheDocument();
+  });
+
+  it("RecentEntriesConfigFields: translates both field labels", () => {
+    const DICT: Record<string, string> = {
+      "Max items": "Máximo-FAKE",
+      "Category term id (optional)": "ID-categoría-FAKE",
+    };
+    const t = (key: string) => DICT[key] ?? key;
+    render(<WidgetConfigFields widgetType="recent-entries" config={{}} onChange={vi.fn()} t={t} />);
+
+    expect(screen.getByLabelText("Máximo-FAKE")).toBeInTheDocument();
+    expect(screen.getByLabelText("ID-categoría-FAKE")).toBeInTheDocument();
+  });
+
+  it("MenuConfigFields: translates the loading state, the label, and the empty option", async () => {
+    vi.spyOn(api, "listMenus").mockResolvedValue({ menus: MENUS });
+    const DICT: Record<string, string> = {
+      "Loading menus…": "Cargando-FAKE…",
+      Menu: "Menú-FAKE",
+      "Choose a menu…": "Elegir-FAKE…",
+    };
+    const t = (key: string) => DICT[key] ?? key;
+    render(<WidgetConfigFields widgetType="menu" config={{}} onChange={vi.fn()} t={t} />);
+
+    expect(screen.getByText("Cargando-FAKE…")).toBeInTheDocument();
+
+    expect(await screen.findByLabelText("Menú-FAKE")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Elegir-FAKE…" })).toBeInTheDocument();
+  });
+
+  it("MenuConfigFields: translates the generic error fallback (rejection is not an Error instance)", async () => {
+    vi.spyOn(api, "listMenus").mockRejectedValue("string rejection");
+    const t = (key: string) => (key === "failed to load menus" ? "fallo-FAKE" : key);
+    render(<WidgetConfigFields widgetType="menu" config={{}} onChange={vi.fn()} t={t} />);
+
+    expect(await screen.findByText("fallo-FAKE")).toBeInTheDocument();
+  });
+
+  it("ContactFormConfigFields: translates the loading state, both labels, and the empty option", async () => {
+    vi.spyOn(api, "listForms").mockResolvedValue({ data: FORMS });
+    const DICT: Record<string, string> = {
+      "Loading forms…": "Cargando-formularios-FAKE…",
+      Form: "Formulario-FAKE",
+      "Choose a form…": "Elegir-formulario-FAKE…",
+      "Success message (optional)": "Mensaje-éxito-FAKE",
+    };
+    const t = (key: string) => DICT[key] ?? key;
+    render(<WidgetConfigFields widgetType="contact-form" config={{}} onChange={vi.fn()} t={t} />);
+
+    expect(screen.getByText("Cargando-formularios-FAKE…")).toBeInTheDocument();
+
+    expect(await screen.findByLabelText("Formulario-FAKE")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Elegir-formulario-FAKE…" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Mensaje-éxito-FAKE")).toBeInTheDocument();
+  });
+
+  it("ContactFormConfigFields: translates the generic error fallback (rejection is not an Error instance)", async () => {
+    vi.spyOn(api, "listForms").mockRejectedValue({ code: 500 });
+    const t = (key: string) => (key === "failed to load forms" ? "fallo-formulario-FAKE" : key);
+    render(<WidgetConfigFields widgetType="contact-form" config={{}} onChange={vi.fn()} t={t} />);
+
+    expect(await screen.findByText("fallo-formulario-FAKE")).toBeInTheDocument();
+  });
+});

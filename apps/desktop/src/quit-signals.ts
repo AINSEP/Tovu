@@ -28,7 +28,7 @@
  *
  * **Bounded.** Absorbing repeats removes the old accidental escape hatch: a second signal can no longer
  * end a drain that has hung (`endSiteSession`'s loopback logout has no timeout of its own). The
- * first signal therefore also arms a deadline that force-exits. A row still in `open-sites.json` then
+ * first signal therefore also arms a deadline that force-exits. A row still in the site-process registry then
  * lets the next launch's `reconcileOrphans()` reap whatever the drain did not reach.
  *
  * No `electron` import, so it can be tested under plain `node --test`, the same convention as

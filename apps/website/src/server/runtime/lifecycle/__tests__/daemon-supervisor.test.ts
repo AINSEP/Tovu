@@ -130,6 +130,48 @@ test("a deliberate shutdown kills the current child and does not trigger a respa
   assert.equal(spawnCount, 1, "an exit that follows a deliberate shutdown must never trigger a respawn");
 });
 
+// win32 has no process groups: `process.kill(-pid, "SIGTERM")` throws there (caught, then falls
+// through to a direct `currentChild.kill()`, which only reaches the immediate `npx`/`tsx` hop and
+// orphans the daemon underneath it). The two tests below inject `platform` so both branches of
+// `killCurrentChild` are exercised on this Mac, proving it actually branches on `platform` rather
+// than always doing the same thing regardless of what is injected.
+test("shutdown() on win32 reaps via the injected killTree(pid) instead of the POSIX process-group signal", () => {
+  const children = [createFakeDaemonProcess()];
+  let spawnCount = 0;
+  const killTreeCalls: number[] = [];
+  const supervisor = createDaemonSupervisor({
+    spawnDaemonProcess: () => children[spawnCount++].handle,
+    policy: createRespawnPolicy(),
+    platform: "win32",
+    killTree: (pid) => killTreeCalls.push(pid),
+  });
+
+  supervisor.start();
+  supervisor.shutdown();
+
+  assert.deepEqual(killTreeCalls, [FAKE_PID], "win32 must reap via killTree(pid), not process.kill(-pid) — Windows has no process groups");
+  assert.deepEqual(children[0].killedSignals, [], "killTree succeeding must not also fall back to a direct child.kill()");
+});
+
+test("shutdown() on posix (the default) never calls an injected killTree", () => {
+  const children = [createFakeDaemonProcess()];
+  let spawnCount = 0;
+  const killTreeCalls: number[] = [];
+  const supervisor = createDaemonSupervisor({
+    spawnDaemonProcess: () => children[spawnCount++].handle,
+    policy: createRespawnPolicy(),
+    // No `platform` passed — defaults to the real `process.platform`, POSIX on every host this
+    // suite runs on.
+    killTree: (pid) => killTreeCalls.push(pid),
+  });
+
+  supervisor.start();
+  supervisor.shutdown();
+
+  assert.deepEqual(killTreeCalls, [], "posix must keep using the process-group signal, never the injected killTree");
+  assert.deepEqual(children[0].killedSignals, ["SIGTERM"], "the existing POSIX path is unchanged");
+});
+
 test("the crash-loop cap trips after the configured number of failures and latches a distinct, actionable reason", async () => {
   const children = [createFakeDaemonProcess(), createFakeDaemonProcess(), createFakeDaemonProcess()];
   let spawnCount = 0;

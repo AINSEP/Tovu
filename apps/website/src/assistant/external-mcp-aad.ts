@@ -20,14 +20,14 @@
  * table also carries two independent version discriminators rather than one.
  *
  * Format: `external-mcp-{env,oauth}:v1:${workspaceId}:${serverId}`. This table has no surrogate
- * `id` column — `(workspace_id, server_id)` IS the primary key (`db/schema.ts`'s
+ * `id` column — `(workspace_id, server_id)` IS the primary key (`db/schema.sqlite.ts`'s
  * `externalMcpServers`) — so the AAD binds that composite PK directly. A ciphertext sealed for one
  * server fails auth-tag verification if presented as any other server's, in the same workspace or
  * any other.
  *
  * This table's rows predate AAD entirely: both `.seal()` call sites in `external-mcp-store.ts`
  * passed no AAD until the 2026-09-02 follow-up gap closure, and the table was not in `ffb5ce44`'s
- * five. See `aad_version`/`oauth_aad_version` in `db/schema.ts` and
+ * five. See `aad_version`/`oauth_aad_version` in `db/schema.sqlite.ts` and
  * `development/scripts/backfill-external-mcp-aad.ts` for how existing rows migrate without becoming
  * unreadable.
  */

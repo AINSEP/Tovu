@@ -6,6 +6,7 @@ import { SitemapModal } from "../SitemapModal";
 import { useSitemapModal } from "../hooks/use-sitemap-modal.hooks";
 import { createFakeSitemapPort } from "../hooks/sitemap-dependencies.hooks";
 import type { SitemapPort } from "../hooks/sitemap-port.hooks";
+import { tabFromLastFocusableInDialog } from "../../../hooks/__tests__/focus-trap.test-helpers";
 
 /**
  * @file `SitemapModal` — "View sitemap" (owner request, `Seo.tsx`'s Sitemap card). Composes the
@@ -210,5 +211,17 @@ describe("SitemapModal — regenerate in the footer", () => {
     // happened — the count must still read the FIRST fetch's result.
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(screen.getByRole("heading", { name: "Sitemap · 1 URLs" })).toBeInTheDocument();
+  });
+});
+
+describe("SitemapModal — focus", () => {
+  it("keeps Tab inside the dialog: Tab on the last focusable element wraps to the first", async () => {
+    renderModal(createFakeSitemapPort({ text: TWO_URL_XML }));
+    await screen.findByRole("heading", { name: "Sitemap · 2 URLs" });
+
+    const { event, first } = tabFromLastFocusableInDialog();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
   });
 });

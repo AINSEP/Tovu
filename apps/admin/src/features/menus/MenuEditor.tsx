@@ -95,10 +95,12 @@ export function MenuItemTargetFields({
   item,
   path,
   onChange,
+  t,
 }: {
   item: AdminMenuItem;
   path: number[];
   onChange: (path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) => void;
+  t: Translate;
 }) {
   switch (item.target.kind) {
     case "url":
@@ -115,10 +117,10 @@ export function MenuItemTargetFields({
     case "route":
       return (
         <label className="a11y-label-wrap">
-          <span className="visually-hidden">Route name</span>
+          <span className="visually-hidden">{t("Route name")}</span>
           <input
             value={orEmpty(item.target.route)}
-            placeholder="route name"
+            placeholder={t("route name")}
             onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, route: e.target.value } }))}
           />
         </label>
@@ -126,10 +128,10 @@ export function MenuItemTargetFields({
     case "entryRef":
       return (
         <label className="a11y-label-wrap">
-          <span className="visually-hidden">Entry ID</span>
+          <span className="visually-hidden">{t("Entry ID")}</span>
           <input
             value={orEmpty(item.target.entryId)}
-            placeholder="entry id"
+            placeholder={t("entry id")}
             onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, entryId: e.target.value } }))}
           />
         </label>
@@ -138,18 +140,18 @@ export function MenuItemTargetFields({
       return (
         <>
           <label className="a11y-label-wrap">
-            <span className="visually-hidden">Term ID</span>
+            <span className="visually-hidden">{t("Term ID")}</span>
             <input
               value={orEmpty(item.target.termId)}
-              placeholder="term id"
+              placeholder={t("term id")}
               onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, termId: e.target.value } }))}
             />
           </label>
           <label className="a11y-label-wrap">
-            <span className="visually-hidden">Taxonomy</span>
+            <span className="visually-hidden">{t("Taxonomy")}</span>
             <input
               value={orEmpty(item.target.taxonomy)}
-              placeholder="taxonomy"
+              placeholder={t("taxonomy")}
               onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, taxonomy: e.target.value } }))}
             />
           </label>
@@ -250,7 +252,7 @@ function ItemRow(props: {
             fields above — see `styles/editor.css`'s `.a11y-label-wrap` comment for why the wrap
             costs no layout in this dense flex row. */}
         <label className="a11y-label-wrap">
-          <span className="visually-hidden">Item label</span>
+          <span className="visually-hidden">{t("Item label")}</span>
           <input
             value={item.label ?? ""}
             placeholder={t("Label")}
@@ -258,7 +260,7 @@ function ItemRow(props: {
           />
         </label>
         <label className="a11y-label-wrap">
-          <span className="visually-hidden">Link type</span>
+          <span className="visually-hidden">{t("Link type")}</span>
           <select
             value={item.target.kind}
             onChange={(e) =>
@@ -274,16 +276,16 @@ function ItemRow(props: {
             <option value="termRef">{t("Term")}</option>
           </select>
         </label>
-        <MenuItemTargetFields item={item} path={path} onChange={onChange} />
+        <MenuItemTargetFields item={item} path={path} onChange={onChange} t={t} />
         {/* `aria-label` alongside `title`: `title` alone isn't reliably exposed to assistive tech
             and isn't keyboard-discoverable without a mouse hover (audit Minor finding). */}
-        <button className="tb-btn" onClick={() => onMove(path, -1)} title="Move up" aria-label="Move item up">
+        <button className="tb-btn" onClick={() => onMove(path, -1)} title={t("Move up")} aria-label={t("Move item up")}>
           ↑
         </button>
-        <button className="tb-btn" onClick={() => onMove(path, 1)} title="Move down" aria-label="Move item down">
+        <button className="tb-btn" onClick={() => onMove(path, 1)} title={t("Move down")} aria-label={t("Move item down")}>
           ↓
         </button>
-        <button className="tb-btn" onClick={() => onAddChild(path)} title="Add child item">
+        <button className="tb-btn" onClick={() => onAddChild(path)} title={t("Add child item")}>
           {t("+ child")}
         </button>
         <button
@@ -296,13 +298,13 @@ function ItemRow(props: {
           // own `FormFieldsEditor`-sibling "Remove" convention for low-stakes removals — see
           // `MenuEditor.hooks.tsx`'s `useMenuItemRemove` for the confirmation logic itself.
           onClick={handleRemoveClick}
-          title="Remove item"
+          title={t("Remove item")}
           // `✕` is this button's only text content, so — unlike Move up/down above, whose glyphs
           // are at least paired with a real word via `title` alone being insufficient too — its
           // accessible name would otherwise compute to the glyph itself ("✕"/"multiplication
           // sign"), not "Remove item". Found empirically while adding this button's test:
           // `title` is never part of the accessible-name computation when text content exists.
-          aria-label="Remove item"
+          aria-label={t("Remove item")}
         >
           ✕
         </button>
@@ -351,44 +353,74 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
     moveAt,
     addRootItem,
     save,
+    saving,
     t,
   } = useMenuEditorHook(menuId);
 
   if (error && !isNew && !menu) return <div className="notice error">{error}</div>;
-  if (loading) return <div className="notice">Loading menu…</div>;
+  if (loading) return <div className="notice">{t("Loading menu…")}</div>;
 
   return (
     <div className="page">
-      <div className="page-header">
+      {/* `page-header-split` (`styles.css`) — same shared idiom Pages/Posts/Forms already use:
+          back link alone at the left rail, title block centred. Menus (like Widgets) never grew a
+          separate `.editor-action-row` below a toolbar, so Save/status stay IN the header instead
+          of an empty third rail — `.page-header-actions` (`styles.css`) pins that rail to the
+          right and gives it its own narrow-container stacking row alongside the back link (owner,
+          2026-09-22: "put the back button on the left, like the other editors" — this used to be a
+          plain `.page-header`/`.page-actions` row with Back and Save both crowded at the right). */}
+      <div
+        className="page-header page-header-split"
+        {...agentHandle("menu-editor-header", {
+          role: "region",
+          label: "Menu editor header — the back link, the menu's title, and the Save button",
+        })}
+      >
+        <div className="page-header-lead">
+          {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
+              edits — confirmed live on this exact screen. `preventDefault()` here also stops
+              `router.ts`'s document-level click interceptor from firing `navigate()`, since that
+              listener's first check is `event.defaultPrevented` — no change to `router.ts` needed.
+              Plain `<a className="btn-secondary">`, not a `<button>` nested inside an `<a>`
+              (invalid HTML) — same fix Pages/Posts/Forms' own back links already made; this one
+              still carried the old nested-button markup.
+
+              Visible label shortened to a plain "← Back" (owner, 2026-09-22 — every editor's back
+              button reads the same short way now). `aria-label` keeps "Back: Menus" — colon-joined
+              rather than concatenated into a sentence so it needs no new per-locale phrase key and
+              still starts with the exact visible text (WCAG 2.5.3 Label in Name). */}
+          <a
+            className="btn-secondary"
+            href="/admin/menus"
+            onClick={(e) => {
+              if (!confirmLeave()) e.preventDefault();
+            }}
+            aria-label={`${t("Back")}: ${t("Menus")}`}
+            {...agentHandle("menu-editor-back", { role: "link", label: "Back to the list of all menus" })}
+          >
+            ← {t("Back")}
+          </a>
+        </div>
         <div className="page-header-text">
           <p className="page-kicker">{t("Content")}</p>
           <h1 className="page-title">{t(isNew ? "New menu" : "Edit menu")}</h1>
           <p className="page-description">{t("Build this menu's items and where each one links to.")}</p>
         </div>
-        <div className="page-actions">
-          {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
-              edits — confirmed live on this exact screen. `preventDefault()` here also stops
-              `router.ts`'s document-level click interceptor from firing `navigate()`, since that
-              listener's first check is `event.defaultPrevented` — no change to `router.ts` needed. */}
-          <a
-            href="/admin/menus"
-            onClick={(e) => {
-              if (!confirmLeave()) e.preventDefault();
-            }}
-          >
-            <button type="button" className="btn-secondary">
-              ← {t("Menus")}
-            </button>
-          </a>
+        <div
+          className="page-header-actions page-actions"
+          {...agentHandle("menu-editor-actions", { role: "region", label: "Save status and the Save button" })}
+        >
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? <span className="save-error">{error}</span> : null}
-          <button onClick={save}>{t("Save")}</button>
+          <button onClick={save} disabled={saving} {...agentHandle("menu-editor-save", { role: "button", label: "Save this menu" })}>
+            {t("Save")}
+          </button>
         </div>
       </div>
       {/* Audit finding: placeholder-only, no `<label>` — same fix as `PostEditor.tsx`'s title/slug
           (see `styles/editor.css`'s `.a11y-label-wrap` comment). */}
       <label className="a11y-label-wrap">
-        <span className="visually-hidden">Menu title</span>
+          <span className="visually-hidden">{t("Menu title")}</span>
         <input
           className="editor-title"
           value={title}
@@ -399,7 +431,7 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
       <div className="editor-slug">
         /{" "}
         <label className="a11y-label-wrap">
-          <span className="visually-hidden">Menu slug</span>
+          <span className="visually-hidden">{t("Menu slug")}</span>
           <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="menu-slug" />
         </label>
         {/* The internal id used to be surfaced here as a read-only field (2026-08-09). Removed

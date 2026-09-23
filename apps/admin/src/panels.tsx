@@ -3,7 +3,6 @@ import type { AdminPanel } from "@jini-ai/admin/core";
 import { Themes, ThemeExplore } from "./features/themes";
 import { Dashboard } from "./features/dashboard";
 import { Placeholder } from "./components/Placeholder";
-import { PlaceholderTabs } from "./components/PlaceholderTabs";
 import { PostEditor, Posts } from "./features/posts";
 import { PageEditor, Pages } from "./features/pages";
 import { Members } from "./features/members";
@@ -24,6 +23,7 @@ import { Plugins, AgentPlugins } from "./features/plugins";
 import { FormsList, FormEditor } from "./features/forms";
 import { Collections, CollectionEntries, CollectionEntryEditor } from "./features/collections";
 import { Taxonomy } from "./features/taxonomy";
+import { Trash } from "./features/trash";
 import { Database } from "./features/database";
 import { Recovery } from "./features/recovery";
 import { Deployment } from "./features/deployment";
@@ -1094,13 +1094,17 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // `comments_trash_comment`, and `redirects_tombstone` all exist today and each currently
     // strands its deletions inside its own section. A single cross-cutting recycle bin belongs
     // with the site-wide surfaces, not under any one content type.
-    render: () => <Placeholder sectionId="trash" agentHandle="trash" />,
+    // Real screen since 2026-09-20 (design:
+    // `ADS-memory/reports/2026-09-20-trash-delete-architecture.md`). Phase 1 collects Posts,
+    // Comments, Media and Redirects; the screen says so in a line under its own title, because a
+    // user who deletes a widget and does not find it here would otherwise conclude it is gone.
+    render: () => <Trash />,
     nav: {
       label: "Trash",
       group: "Administration",
-      soon: true,
       icon: '<path d="M3.5 5h11M7 5V3.5h4V5M5 5l.8 9.5h6.4L13 5"/>',
     },
+    agentReachable: true,
   },
 
   // --- Marketing ---

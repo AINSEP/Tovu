@@ -3,8 +3,8 @@ import type { AdminFormDefinition } from "@/lib/api";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { FORMS_LIST_RESOURCE, KEYS, formsListError } from "../rules";
-import { FORMS_DICT } from "../forms-i18n";
+import { FORMS_LIST_RESOURCE, KEYS, describeTrashError, formsListError } from "../rules";
+import { t as translate } from "../forms-i18n";
 import { defaultFormsPort } from "./forms-dependencies.hooks";
 import type { FormsPort } from "./forms-port.hooks";
 
@@ -51,12 +51,22 @@ import type { FormsPort } from "./forms-port.hooks";
 export interface FormsListController {
   forms: AdminFormDefinition[] | null;
   error: string | null;
-  /** In-flight row action (status toggle) — one at a time, same `rowSavingId` convention
-   *  `Posts.tsx`/`Pages.tsx` use for their own row actions. */
+  /** In-flight row action (status toggle, or the confirmed delete) — one at a time, same
+   *  `rowSavingId` convention `Posts.tsx`/`Pages.tsx` use for their own row actions. Shared between
+   *  {@link FormsListController.toggleStatus} and {@link FormsListController.removeForm} so a
+   *  Disable click and a Delete confirm on two different rows can never race each other. */
   rowSavingId: string | null;
   /** No-op while a previous call is still in flight (`rowSavingId` set) — see this function's own
    *  comment; the caller never has to guard against a double toggle itself. */
   toggleStatus: (form: AdminFormDefinition) => Promise<void>;
+  /** The form a `RowMenu` "Delete" selection is asking to confirm; `null` when the `ConfirmDialog`
+   *  is closed. `FormsList.tsx` drives the dialog's `open` prop from this. */
+  pendingDelete: AdminFormDefinition | null;
+  setPendingDelete: (form: AdminFormDefinition | null) => void;
+  /** Runs the trash move for {@link FormsListController.pendingDelete}. No-op with no
+   *  `pendingDelete` (Cancel never reaches the port) or while another row action is already
+   *  in-flight (`rowSavingId` set) — see this function's own comment. */
+  removeForm: () => Promise<void>;
   /** Bound translator — see this file's own header for why it arrives via the hook rather than
    *  `FormsList.tsx` calling `useAdminLocale()`/`FORMS_DICT` directly. */
   t: (key: string) => string;
@@ -78,11 +88,24 @@ export function useFormsList(deps: { port: FormsPort; t: (key: string) => string
     invalidates: [KEYS.list],
   });
 
+  // The form a `RowMenu` "Delete" selection is asking to confirm — `null` when the `ConfirmDialog`
+  // is closed. `ConfirmDialog` stays mounted unconditionally in `FormsList.tsx`; this is what drives
+  // its `open` prop — same shape `use-posts.hooks.ts`'s `pendingDelete` uses for its own row delete.
+  const [pendingDelete, setPendingDelete] = useState<AdminFormDefinition | null>(null);
+
+  const deleteMutation = useFetchMutation({
+    run: (form: AdminFormDefinition) => port.trashForm(form.id),
+    invalidates: [KEYS.list],
+  });
+
   // In-flight guard lives here, not in `FormsList.tsx`'s `onToggleStatus` closure — `RowMenu` has no
   // per-item `disabled`, so this is what stops a second toggle firing while the first is still
   // saving. Same shape `use-redirects.hooks.ts`'s own `onToggleStatus` uses for its identical
   // `if (saving) return;` guard (that hook's own comment on why: `disabled={saving}` on the old
-  // inline buttons moved into each handler once `RowMenu` replaced them).
+  // inline buttons moved into each handler once `RowMenu` replaced them). Shared `rowSavingId` with
+  // `removeForm` below (T7a) — only clears THIS row's own lock in `finally`, so a Delete confirm on
+  // a DIFFERENT row that lands while this toggle is still in flight doesn't get its own lock wiped,
+  // same guard `use-posts.hooks.ts`'s `togglePostPublish`/`removePost` pair documents.
   async function toggleStatus(form: AdminFormDefinition) {
     if (rowSavingId) return;
     setRowSavingId(form.id);
@@ -91,14 +114,47 @@ export function useFormsList(deps: { port: FormsPort; t: (key: string) => string
     } catch {
       // already surfaced through toggleMutation.error -> error below
     } finally {
-      setRowSavingId(null);
+      setRowSavingId((cur) => (cur === form.id ? null : cur));
+    }
+  }
+
+  /** Moves `pendingDelete` to the Trash via `port.trashForm` — reached only through the
+   *  `ConfirmDialog`'s Confirm button, never the `RowMenu` selection itself (that only opens the
+   *  dialog via `setPendingDelete`), so a click alone can never delete. A 404 (`describeTrashError`'s
+   *  `alreadyGone`) means the row is already gone: a quiet list refresh instead of an error banner
+   *  blaming the operator for something that already happened — see that function's own doc. Every
+   *  other outcome closes the dialog and leaves the failure (if any) for `error` below to surface. */
+  async function removeForm() {
+    if (!pendingDelete) return;
+    if (rowSavingId) return;
+    const form = pendingDelete;
+    setRowSavingId(form.id);
+    try {
+      await deleteMutation.mutate(form);
+      setPendingDelete(null);
+    } catch (e) {
+      if (describeTrashError(e instanceof Error ? e : null, t("failed to delete form"), t("This item changed since you loaded it. Reload and try again.")).alreadyGone) {
+        invalidateList();
+      }
+      setPendingDelete(null);
+    } finally {
+      setRowSavingId((cur) => (cur === form.id ? null : cur));
     }
   }
 
   const forms = list.data?.data ?? null;
-  const error = formsListError({ toggleError: toggleMutation.error, listError: list.error, hasForms: forms !== null });
+  const error = formsListError({
+    toggleError: toggleMutation.error,
+    deleteError: deleteMutation.error,
+    listError: list.error,
+    hasForms: forms !== null,
+    deleteFallback: t("failed to delete form"),
+    statusUpdateFallback: t("failed to update form status"),
+    loadFormsFallback: t("failed to load forms"),
+    versionChangedMessage: t("This item changed since you loaded it. Reload and try again."),
+  });
 
-  return { forms, error, rowSavingId, toggleStatus, t };
+  return { forms, error, rowSavingId, toggleStatus, pendingDelete, setPendingDelete, removeForm, t };
 }
 
 /**
@@ -111,6 +167,6 @@ export function useFormsList(deps: { port: FormsPort; t: (key: string) => string
  */
 export function useWiredFormsList(): FormsListController {
   const locale = useAdminLocale();
-  const t = (key: string): string => FORMS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useFormsList({ port: defaultFormsPort, t });
 }

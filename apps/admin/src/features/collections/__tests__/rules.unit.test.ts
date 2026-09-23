@@ -1,13 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  ADMIN_SYSTEM_CONTENT_TYPES,
   addDraftField,
   autoFocusCancelForLifecycleOp,
+  collectionEmbedSnippet,
   contentTypeMenuItems,
   describeEditFieldsError,
   draftFieldsFromContentType,
   emptyField,
   firstDraftFieldError,
+  isUserCollection,
   LIFECYCLE_COPY,
   removeDraftField,
   STALE_VERSION_MESSAGE,
@@ -270,6 +273,27 @@ describe("LIFECYCLE_COPY", () => {
     expect(LIFECYCLE_COPY.deprecate.title).toBe("Deprecate content type");
     expect(LIFECYCLE_COPY.tombstone.title).toBe("Tombstone content type");
     expect(LIFECYCLE_COPY.tombstone.body).toContain("not reversible");
+  });
+});
+
+describe("isUserCollection", () => {
+  it("hides every ADMIN_SYSTEM_CONTENT_TYPES entry (widget/widget_area/menu)", () => {
+    expect(ADMIN_SYSTEM_CONTENT_TYPES).toEqual(["widget", "widget_area", "menu"]);
+    for (const key of ADMIN_SYSTEM_CONTENT_TYPES) {
+      expect(isUserCollection(key)).toBe(false);
+    }
+  });
+
+  it("shows a user-defined content type", () => {
+    expect(isUserCollection("recipe")).toBe(true);
+  });
+});
+
+describe("collectionEmbedSnippet", () => {
+  it("embeds the content-type key as `id`, never a UUID", () => {
+    expect(collectionEmbedSnippet("tovu_feature")).toBe(
+      '<div data-embed-config=\'{"type":"collection","id":"tovu_feature"}\'></div>',
+    );
   });
 });
 

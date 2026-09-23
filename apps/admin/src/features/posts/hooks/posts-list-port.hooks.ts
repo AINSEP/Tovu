@@ -13,9 +13,10 @@ export interface PostsListPort {
    * `expectedVersion` (2026-09-18, multi-author hardening) — the optimistic-concurrency basis, same
    * contract as `post-editor-port.hooks.ts`'s `updatePost`: the row's `version` as this list last
    * loaded it, so a row action here that races a second author's edit gets `409 VERSION_CONFLICT`
-   * instead of silently overwriting whatever they just saved. `disablePost` (`use-posts.hooks.ts`)
-   * always sends it — this is the row-menu action, not the full editor, but it hits the exact same
-   * `PUT /posts/:id` route and the same shared-post race the editor already guards against.
+   * instead of silently overwriting whatever they just saved. `togglePostPublish`
+   * (`use-posts.hooks.ts`) always sends it — this is the row-menu action, not the full editor, but
+   * it hits the exact same `PUT /posts/:id` route and the same shared-post race the editor already
+   * guards against.
    */
   updatePost(
     target: { id: string },

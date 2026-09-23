@@ -21,7 +21,7 @@ import { addSitePointer } from "./add-site-pointer.ts";
 import { createKeyedSerializer } from "./keyed-serializer.ts";
 import { createSiteSupervisor } from "./site-supervisor.ts";
 import type { SupervisedServer } from "./site-supervisor.ts";
-import { readRegistry, writeRegistry, isLiveServeRow } from "./site-process-registry.ts";
+import { readRegistry, writeRegistry, isLiveServeRow, instanceFilePath } from "./site-process-registry.ts";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -89,7 +89,7 @@ function baseDeps<O extends Partial<ProjectIpcDeps>>(
   const dir = tempDir();
   return {
     projectsPath: sitesFilePath(dir),
-    registryPath: path.join(dir, "site-registry.json"),
+    registryPath: path.join(dir, "site-processes"),
     repoRoot: "/repo",
     statePath: path.join(dir, "desktop-state.json"),
     cliMode: "source",
@@ -999,14 +999,14 @@ test("registerSiteIpcHandlers registers the rescan channel and it returns the fr
 
 // D-08. `handleDelete`'s stop-then-erase sequence was safe against THIS process (the serializer) and
 // against nothing else. `main.ts` calls no `requestSingleInstanceLock`, and `site-process-registry.ts` is
-// written throughout on the premise that two instances can run at once — its `recordSiteOpened`
-// deliberately RETAINS a sibling's row for the same site. Instance A deleting a site instance B has
+// written throughout on the premise that two instances can run at once — each records only into its
+// own file, so a sibling's row for the same site survives. Instance A deleting a site instance B has
 // open recursively erased the directory out from under B's live `tovu serve`.
 
 /** Registry state as a second app instance would have left it: a row for `siteDir` under a pid this
- *  process is not holding. */
+ *  process is not holding, in that instance's own file. */
 function seedForeignRegistryRow(deps: Pick<ProjectIpcDeps, "registryPath">, siteDir: string, pid = 999_001): void {
-  writeRegistry(deps.registryPath, {
+  writeRegistry(instanceFilePath(deps.registryPath, "424242-f0f0f0f0"), {
     sites: [{ siteDir, port: 41234, workspaceId: "ws-foreign", pid, updatedAt: Date.now() }],
   });
 }
@@ -1062,6 +1062,24 @@ test("a STALE registry row does not wedge a delete", async () => {
 
   await assert.doesNotReject(() => handleDelete(siteDir, deps));
   assert.equal(fs.existsSync(siteDir), false);
+});
+
+test("handleDelete refuses to erase while a registry file is unreadable — its rows are unknown, not absent", async () => {
+  // A torn or corrupt sibling file used to read as "no rows", so the guard waved the erase through
+  // without knowing whether that sibling had this very site open.
+  const siteDir = writeSite(path.join(tempDir(), "site-unknown"), "site-unknown", { "content.db": "real bytes" });
+  const deps = baseDeps({ isLiveServeRow: () => true });
+  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "site-unknown" });
+  const torn = instanceFilePath(deps.registryPath, "424242-f0f0f0f0");
+  fs.mkdirSync(deps.registryPath, { recursive: true });
+  fs.writeFileSync(torn, '{\n  "sites": [\n    { "siteDir": ');
+
+  await assert.rejects(
+    () => handleDelete(siteDir, deps),
+    (error: Error) => error.message === `Could not read ${torn}, so Tovu cannot tell whether another copy of Tovu still has this site open. Nothing was deleted. Restart Tovu and try again.`,
+  );
+  assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true, "nothing may be erased on an unknown");
+  assert.equal(readTrackedSites(deps.projectsPath).length, 1, "and the project stays tracked");
 });
 
 test("REMOVING an adopted project is not gated by a sibling instance — it erases nothing", async () => {

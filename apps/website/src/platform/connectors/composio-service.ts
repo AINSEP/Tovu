@@ -36,7 +36,7 @@ const COMPOSIO_USER_ID_PREFIX = "tovu-workspace";
  * The `userId` Composio scopes connected accounts under.
  *
  * The workspace id, because the API key that authorizes these connections is itself
- * workspace-scoped (`db/schema.ts`'s `composioConfig`): one Composio "user" per Tovu workspace
+ * workspace-scoped (`db/schema.sqlite.ts`'s `composioConfig`): one Composio "user" per Tovu workspace
  * keeps the two scopes aligned, so revoking the workspace's key cannot orphan accounts belonging
  * to some other scope. Prefixed rather than bare so a Composio project shared with another product
  * cannot collide with a same-named id.

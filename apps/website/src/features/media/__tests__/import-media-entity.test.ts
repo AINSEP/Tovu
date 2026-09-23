@@ -23,7 +23,7 @@ import {
   computeBlobStorageKey,
   InMemoryAssetBlobRepo,
   InMemoryBlobStore,
-  InMemoryMediaRepo,
+  InMemoryVersionedMediaRepo,
   type AssetBlobRecord,
   type MediaRecord,
 } from "#src/features/media/index";
@@ -71,18 +71,18 @@ function makeMediaRecord(overrides: Partial<MediaRecord> = {}): MediaRecord {
 }
 
 function makeDeps(overrides: Partial<ImportMediaEntityDeps> = {}): ImportMediaEntityDeps & {
-  mediaRepo: InMemoryMediaRepo;
+  mediaRepo: InMemoryVersionedMediaRepo;
   assetBlobRepo: InMemoryAssetBlobRepo;
   blobStore: InMemoryBlobStore;
 } {
   return {
-    mediaRepo: new InMemoryMediaRepo(),
+    mediaRepo: new InMemoryVersionedMediaRepo(),
     assetBlobRepo: new InMemoryAssetBlobRepo(),
     blobStore: new InMemoryBlobStore(),
     clock: makeClock(),
     idGen: makeIdGen(),
     ...overrides,
-  } as ImportMediaEntityDeps & { mediaRepo: InMemoryMediaRepo; assetBlobRepo: InMemoryAssetBlobRepo; blobStore: InMemoryBlobStore };
+  } as ImportMediaEntityDeps & { mediaRepo: InMemoryVersionedMediaRepo; assetBlobRepo: InMemoryAssetBlobRepo; blobStore: InMemoryBlobStore };
 }
 
 // ---------------------------------------------------------------------------
@@ -95,7 +95,7 @@ test("importMediaEntity: the imported row is saved under the SOURCE id, never a 
 
   const result = await importMediaEntity({
     deps,
-    input: { workspaceId: WORKSPACE_ID, record, bytes: HELLO_BYTES, blobCreatedByPrincipal: "importer-1" },
+    input: { workspaceId: WORKSPACE_ID, record, bytes: HELLO_BYTES, blobCreatedByPrincipal: "importer-1", baseVersion: null },
   });
 
   assert.deepEqual(result, { status: "imported", id: "source-asset-1", blobWritten: true });
@@ -124,7 +124,7 @@ test("importMediaEntity: a slug already held by a different id is blocked and wr
 
   const result = await importMediaEntity({
     deps,
-    input: { workspaceId: WORKSPACE_ID, record: incoming, bytes: HELLO_BYTES, blobCreatedByPrincipal: "importer-1" },
+    input: { workspaceId: WORKSPACE_ID, record: incoming, bytes: HELLO_BYTES, blobCreatedByPrincipal: "importer-1", baseVersion: null },
   });
 
   assert.equal(result.status, "blocked");
@@ -154,7 +154,7 @@ test("importMediaEntity: re-importing an existing id with a DIFFERENT claimed sh
 
   const result = await importMediaEntity({
     deps,
-    input: { workspaceId: WORKSPACE_ID, record: incoming, bytes: differentBytes, blobCreatedByPrincipal: "importer-1" },
+    input: { workspaceId: WORKSPACE_ID, record: incoming, bytes: differentBytes, blobCreatedByPrincipal: "importer-1", baseVersion: 1 },
   });
 
   assert.equal(result.status, "blocked");
@@ -181,7 +181,7 @@ test("importMediaEntity: re-importing an existing id with the SAME claimed sha25
   const incoming = makeMediaRecord({ id: "asset-1", source: { sha256: HELLO_SHA256 }, title: "New Title" });
   const result = await importMediaEntity({
     deps,
-    input: { workspaceId: WORKSPACE_ID, record: incoming, bytes: HELLO_BYTES, blobCreatedByPrincipal: "importer-1" },
+    input: { workspaceId: WORKSPACE_ID, record: incoming, bytes: HELLO_BYTES, blobCreatedByPrincipal: "importer-1", baseVersion: 3 },
   });
 
   assert.deepEqual(result, { status: "imported", id: "asset-1", blobWritten: false });
@@ -201,7 +201,7 @@ test("importMediaEntity: a missing staged byte payload is an authoritative typed
 
   const result = await importMediaEntity({
     deps,
-    input: { workspaceId: WORKSPACE_ID, record, bytes: null, blobCreatedByPrincipal: "importer-1" },
+    input: { workspaceId: WORKSPACE_ID, record, bytes: null, blobCreatedByPrincipal: "importer-1", baseVersion: null },
   });
 
   assert.deepEqual(result, {
@@ -227,7 +227,7 @@ test("importMediaEntity: bytes that do not hash to the claimed sha256 are refuse
 
   const result = await importMediaEntity({
     deps,
-    input: { workspaceId: WORKSPACE_ID, record, bytes: wrongBytes, blobCreatedByPrincipal: "importer-1" },
+    input: { workspaceId: WORKSPACE_ID, record, bytes: wrongBytes, blobCreatedByPrincipal: "importer-1", baseVersion: null },
   });
 
   assert.equal(result.status, "blocked");
@@ -242,7 +242,7 @@ test("importMediaEntity: a malformed (non-hex-64) claimed sha256 is refused befo
 
   const result = await importMediaEntity({
     deps,
-    input: { workspaceId: WORKSPACE_ID, record, bytes: HELLO_BYTES, blobCreatedByPrincipal: "importer-1" },
+    input: { workspaceId: WORKSPACE_ID, record, bytes: HELLO_BYTES, blobCreatedByPrincipal: "importer-1", baseVersion: null },
   });
 
   assert.equal(result.status, "blocked");
@@ -274,7 +274,7 @@ test("importMediaEntity: a blob that already exists at the destination is never 
   const secondRecord = makeMediaRecord({ id: "second-asset", slug: "second-asset-slug", source: { sha256: HELLO_SHA256 } });
   const result = await importMediaEntity({
     deps,
-    input: { workspaceId: WORKSPACE_ID, record: secondRecord, bytes: HELLO_BYTES, blobCreatedByPrincipal: "importing-operator" },
+    input: { workspaceId: WORKSPACE_ID, record: secondRecord, bytes: HELLO_BYTES, blobCreatedByPrincipal: "importing-operator", baseVersion: null },
   });
 
   assert.deepEqual(result, { status: "imported", id: "second-asset", blobWritten: false });
@@ -289,7 +289,7 @@ test("importMediaEntity: a brand-new blob IS stamped with the supplied blobCreat
 
   const result = await importMediaEntity({
     deps,
-    input: { workspaceId: WORKSPACE_ID, record, bytes: HELLO_BYTES, blobCreatedByPrincipal: "importing-operator" },
+    input: { workspaceId: WORKSPACE_ID, record, bytes: HELLO_BYTES, blobCreatedByPrincipal: "importing-operator", baseVersion: null },
   });
 
   assert.deepEqual(result, { status: "imported", id: "asset-fresh", blobWritten: true });

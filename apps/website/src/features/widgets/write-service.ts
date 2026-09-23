@@ -7,15 +7,12 @@
  * `features/entries/write-service.ts`'s real `createEntry`/`updateEntry` chokepoint (never
  * reimplemented) so revisions and slug-uniqueness come for free.
  *
- * Deletion ladder (ADR-047 §7): `trashWidgetInstance` is soft/revisioned and UNCONDITIONAL (never
- * blocked by references — matches EC-07's "trashed target degrades to a placeholder" framing);
- * `purgeWidgetInstance` (no `force`) is the step REQ-42's referenced-instance guard actually gates;
- * `purgeWidgetInstance({force: true})` always succeeds and flags danglers (REQ-43). Corrected
- * 2026-07-21: `write-service.integration.test.ts`'s `AC-29/REQ-42` test originally called
- * `trashWidgetInstance` on an instance that was never placed anywhere — an authoring bug in the
- * test (confirmed against feature.spec.md REQ-42/43 and this file's own deletion ladder), not this
- * implementation. Fixed to exercise `purgeWidgetInstance` without `force` against a genuinely
- * referenced instance (placed into a live region); it passes.
+ * Deleting (2026-09-21, generic Trash): `trashWidgetInstance` moves a widget to the Trash through
+ * the injected `remove` and is UNCONDITIONAL (EC-07 — a trashed target degrades to the REQ-28
+ * placeholder). The old second rung, `purgeWidgetInstance` (a `purged` payload status that never
+ * removed the row, REQ-42/43), is retired: "delete permanently" is now the Trash's purge, and
+ * `adoptLegacyTrashedWidgets` moves the widgets it left behind into the Trash, and
+ * `restoreWidgetPriorStatus` makes one of them active again when it is restored.
  *
  * `entry_refs` extraction (INV-06) runs inside the same DB transaction as the triggering
  * `createEntry`/`updateEntry` call, via that chokepoint's optional `deps.onWritten` hook (added
@@ -55,13 +52,13 @@ import {
 import {
   WidgetConfigValidationError,
   WidgetInstanceNotFoundError,
-  WidgetReferencedError,
   WidgetTypeUnregisteredError,
   WidgetVersionConflictError,
 } from "./errors.js";
 import { findWidgetTypeRegistration } from "./registry.js";
 import { WIDGET_CONTENT_TYPE, WIDGET_FIELD_NAMESPACE } from "./types.js";
-import type { WidgetInstanceEntry, WidgetTypeKey } from "./types.js";
+import type { RemoveWidgetFn } from "./ports.js";
+import type { WidgetInstanceEntry, WidgetInstanceStatus, WidgetTypeKey } from "./types.js";
 
 export interface WidgetWriteServiceDeps {
   entryRepo: EntryRepoPort & EntryListPort;
@@ -192,6 +189,11 @@ export interface UpdateWidgetInstanceInput {
   readonly widgetInstanceId: UUID;
   readonly baseVersion: number;
   readonly config: Record<string, unknown>;
+  /** Optional (SPEC-043 ui.spec §4.3): omitted keeps the current title, forwarded to
+   *  `updateEntry`'s own `title` field (`input.title ?? current.title`) the same way create's
+   *  `title` reaches the entry row — never folded into `fieldsJson`, which only carries
+   *  widget-domain payload (`widgetType`/`config`/`status`). */
+  readonly title?: string;
 }
 
 export interface UpdateWidgetInstanceRequired {
@@ -242,6 +244,7 @@ export async function updateWidgetInstance(required: UpdateWidgetInstanceRequire
         actorId: input.actor.principalId,
         workspaceId: input.workspaceId,
         id: input.widgetInstanceId,
+        title: input.title,
         fieldsJson: buildWidgetInstanceFieldsJson({ widgetType: currentPayload.widgetType, config: input.config, status: currentPayload.status }),
         expectedVersion: input.baseVersion,
         owner: WIDGET_FIELD_NAMESPACE,
@@ -262,26 +265,43 @@ export async function updateWidgetInstance(required: UpdateWidgetInstanceRequire
 
 export interface TrashWidgetInstanceInput {
   readonly workspaceId: UUID;
-  readonly actor: { readonly principalId: UUID };
+  readonly actor: {
+    readonly principalId: UUID;
+    /** The assistant's AI marker on the Trash row's `actor.pluginId` (2026-09-21, trash T4c) —
+     *  unset by every non-assistant caller, so a human's own trash from the admin screen stays
+     *  human-only. See {@link RemoveWidgetFn}'s `actor.pluginId`. */
+    readonly pluginId?: UUID | null;
+  };
   readonly widgetInstanceId: UUID;
 }
 
+/** {@link WidgetWriteServiceDeps} plus the Trash, injected: `remove` (bound to `"widget"` at the
+ *  composition root). */
+export interface WidgetTrashDeps extends WidgetWriteServiceDeps {
+  remove: RemoveWidgetFn;
+}
+
 export interface TrashWidgetInstanceRequired {
-  deps: WidgetWriteServiceDeps;
+  deps: Pick<WidgetTrashDeps, "entryRepo" | "clock" | "authorize" | "remove">;
   input: TrashWidgetInstanceInput;
 }
 
 /**
- * Trash is soft, revisioned, and — per ADR-047 §7's deletion ladder ("trash (soft, revisioned) →
- * purge blocked with the referencing list while bound... → force-purge") and feature.spec.md EC-07
- * ("a widgetEmbed's target instance is trashed... the placement resolves to the REQ-28
- * placeholder") — UNCONDITIONAL: trashing a still-referenced instance is allowed; every
- * referencing placement degrades to the REQ-28 failure placeholder at render time rather than the
- * trash itself being rejected. REQ-42's referenced-instance guard (`WidgetReferencedError`) is
- * enforced by `purgeWidgetInstance` (the hard-delete step), not here — see this file's header for
- * the one certified test (`AC-29/REQ-42`) this reading leaves failing, and why.
+ * Deleting a widget = moving it to the Trash (the injected `remove`). UNCONDITIONAL, per ADR-047 §7
+ * and feature.spec.md EC-07: a widget still placed somewhere can be trashed, and every placement
+ * then renders the REQ-28 placeholder until it is restored. Only a purge from the Trash removes it
+ * for good.
+ *
+ * Never parses the payload, so a widget whose `fields_json` is corrupt can still be deleted, and
+ * never touches its outgoing `entry_refs` (a restore needs them).
+ *
+ * @throws WidgetInstanceNotFoundError when the widget is missing, already trashed, or not a widget.
+ * @throws WidgetVersionConflictError when the row changed between the read and the move.
+ * @complexity O(1): one read, one `remove` call (and one more read only on a version conflict).
  */
-export async function trashWidgetInstance(required: TrashWidgetInstanceRequired): Promise<{ instance: WidgetInstanceEntry }> {
+export async function trashWidgetInstance(
+  required: TrashWidgetInstanceRequired
+): Promise<{ widgetInstanceId: UUID; version: number | null }> {
   const { deps, input } = required;
 
   await requireWidgetPermission({
@@ -292,112 +312,143 @@ export async function trashWidgetInstance(required: TrashWidgetInstanceRequired)
   });
 
   return withEntryLock(`${input.workspaceId}::${input.widgetInstanceId}`, async () => {
+    const notFound = () => new WidgetInstanceNotFoundError(`widget instance '${input.widgetInstanceId}' was not found`);
     const current = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.widgetInstanceId });
-    if (!current || current.type !== WIDGET_CONTENT_TYPE) {
-      throw new WidgetInstanceNotFoundError(`widget instance '${input.widgetInstanceId}' was not found`);
-    }
+    if (!current || current.type !== WIDGET_CONTENT_TYPE) throw notFound();
 
-    const payload = parseWidgetInstancePayload(current.fieldsJson);
-    const result = await updateEntry({
-      deps: entriesWriteDeps(deps, input.workspaceId),
-      input: {
-        actorId: input.actor.principalId,
-        workspaceId: input.workspaceId,
-        id: input.widgetInstanceId,
-        fieldsJson: buildWidgetInstanceFieldsJson({ ...payload, status: "trash" }),
-        expectedVersion: current.version,
-        owner: WIDGET_FIELD_NAMESPACE,
-      },
+    const removed = await deps.remove({
+      workspaceId: input.workspaceId,
+      id: current.id,
+      display: { title: current.title, subtitle: current.slug },
+      at: deps.clock.nowIso(),
+      expectedVersion: current.version,
+      actor: { principalId: input.actor.principalId, pluginId: input.actor.pluginId ?? null },
     });
-    if (!result.ok) throw result.error;
+    if (removed.ok) return { widgetInstanceId: current.id, version: removed.version };
+    if (removed.reason === "not-found") throw notFound();
 
-    return { instance: toWidgetInstanceEntry(result.value.entry) };
+    const fresh = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.widgetInstanceId });
+    if (!fresh) throw notFound();
+    throw new WidgetVersionConflictError(
+      `widget instance '${input.widgetInstanceId}' changed while it was being deleted — reload and try again`,
+      fresh.version
+    );
   });
 }
 
-export interface PurgeWidgetInstanceInput {
-  readonly workspaceId: UUID;
-  readonly actor: { readonly principalId: UUID };
-  readonly widgetInstanceId: UUID;
-  /** Required to bypass the REQ-42 referenced-instance guard. Flags resulting dangling refs (REQ-43). */
-  readonly force: boolean;
-}
+/** The payload statuses the old delete ladder left behind: `trash` (step 1) and `purged` (its
+ *  "delete permanently", which never removed the row). */
+const LEGACY_DELETED_STATUSES: ReadonlySet<string> = new Set(["trash", "purged"]);
 
-export interface PurgeWidgetInstanceRequired {
-  deps: WidgetWriteServiceDeps;
-  input: PurgeWidgetInstanceInput;
+/** Who the Trash records as having moved an adopted widget there. */
+const ADOPTION_ACTOR = { principalId: "system" } as const;
+
+/** The status a restore brings an adopted widget back to — recorded as its Trash row's prior marker. */
+const ADOPTED_WIDGET_PRIOR_STATUS = "active" satisfies WidgetInstanceStatus;
+
+export interface AdoptLegacyTrashedWidgetsRequired {
+  deps: Pick<WidgetTrashDeps, "entryRepo" | "clock" | "remove">;
+  input: { readonly workspaceId: UUID };
 }
 
 /**
- * REQ-43: force-purge behind `widgets.delete.force`, flagging any dangling references it creates.
+ * One-time, idempotent boot step (owner decision 6): every widget the old delete ladder left with
+ * payload status `trash` or `purged` goes into the Trash, so it gets the same 60 days as anything
+ * else deleted today.
  *
- * Disclosed gap: `features/entries`' `EntryRepoPort` (this task's frozen, real chokepoint contract)
- * exposes no delete/remove method for ANY content type — there is no hard-delete primitive to call
- * without editing `features/entries`, which is out of this task's scope, and this codebase's other
- * deletion ladders (e.g. Forms definitions, ADR-047 Amendment 4: "never deleted, only
- * active⇄disabled") show that's a deliberate house style, not an oversight specific to widgets. This
- * is a best-effort purge: it marks the instance permanently `purged` via the real chokepoint — a
- * status every resolver/where-used consumer treats identically to `trash` (dangling/unavailable per
- * REQ-27/28) but which stays observably distinct from an ordinary `trash`, so stored state alone can
- * tell "just trashed" apart from "force-purged past a known reference" — rather than physically
- * removing the row. See the implementation report.
+ * The payload is NOT touched: while the widget is in the Trash it keeps saying `trash`/`purged`,
+ * because an older site build that knows nothing about `entries.deleted_at` may still read it and
+ * would otherwise show the widget as live. The Trash row records `"active"` as its prior marker;
+ * restoring it runs {@link restoreWidgetPriorStatus}, which applies that status to the payload.
+ *
+ * A second run finds nothing: an adopted widget is in the Trash, so the entries reads no longer
+ * return it. A widget whose payload does not parse is skipped; nothing about it says it was deleted.
+ *
+ * @returns the id and title of each widget it moved to the Trash (the boot step logs them).
+ * @throws when the Trash refuses a widget (it changed under the adoption) — boot logs it and the
+ *         next boot retries the rest.
+ * @complexity O(w) over the workspace's live widgets: one list, then one `remove` per adopted widget.
  */
-export async function purgeWidgetInstance(required: PurgeWidgetInstanceRequired): Promise<void> {
+export async function adoptLegacyTrashedWidgets(
+  required: AdoptLegacyTrashedWidgetsRequired
+): Promise<{ adopted: Array<{ id: UUID; title: string }> }> {
   const { deps, input } = required;
+  const widgets = await deps.entryRepo.listByWorkspace({ workspaceId: input.workspaceId, type: WIDGET_CONTENT_TYPE });
+  const adopted: Array<{ id: UUID; title: string }> = [];
 
-  await requireWidgetPermission({
-    authorize: deps.authorize,
-    actor: input.actor,
-    workspaceId: input.workspaceId,
-    permission: input.force ? "widgets.delete.force" : "widgets.delete",
-  });
-
-  await withEntryLock(`${input.workspaceId}::${input.widgetInstanceId}`, async () => {
-    const current = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.widgetInstanceId });
-    if (!current || current.type !== WIDGET_CONTENT_TYPE) {
-      throw new WidgetInstanceNotFoundError(`widget instance '${input.widgetInstanceId}' was not found`);
+  for (const widget of widgets) {
+    let status: string;
+    try {
+      status = parseWidgetInstancePayload(widget.fieldsJson).status;
+    } catch {
+      continue;
     }
+    if (!LEGACY_DELETED_STATUSES.has(status)) continue;
 
-    const refs = await deps.entryRefsRepo.findByTarget({
+    const removed = await deps.remove({
       workspaceId: input.workspaceId,
-      targetKind: "entry",
-      targetId: input.widgetInstanceId,
+      id: widget.id,
+      display: { title: widget.title, subtitle: widget.slug },
+      at: deps.clock.nowIso(),
+      expectedVersion: widget.version,
+      actor: ADOPTION_ACTOR,
+      priorMarker: ADOPTED_WIDGET_PRIOR_STATUS,
     });
-    if (refs.length > 0 && !input.force) {
-      throw new WidgetReferencedError(
-        `widget instance '${input.widgetInstanceId}' is still referenced by ${refs.length} placement(s) (REQ-42)`,
-        refs.map((ref) => ({ kind: ref.sourceKind === "widget-embed" ? ("embed" as const) : ("region" as const), entryId: ref.sourceEntryId }))
-      );
-    }
+    if (!removed.ok) throw new Error(`widget '${widget.id}' could not be moved to the Trash: ${removed.reason}`);
+    adopted.push({ id: widget.id, title: widget.title });
+  }
 
-    const payload = parseWidgetInstancePayload(current.fieldsJson);
-    const result = await updateEntry({
-      deps: {
-        ...entriesWriteDeps(deps, input.workspaceId),
-        // Audit finding (2026-07-21, external /audit-work on ADR-047): a force-purged instance's
-        // own OUTGOING refs (e.g. a Contact Form's `formDefinitionId`, a Menu widget's `menuRef`)
-        // must be retracted, same transaction as the purge write — purge is the permanent step
-        // (REQ-43), so a config field that used to reference something should stop counting as a
-        // live reference once the instance holding it is gone. Deliberately an EMPTY
-        // `replaceForSource` call, not a re-extraction from `config` (the config is unchanged by a
-        // status transition, so re-running the normal extractor would just re-derive the SAME rows
-        // — it's the retraction itself, not a re-derivation, that's the fix here).
-        //
-        // `trashWidgetInstance` deliberately does NOT do this: trash is soft/reversible (EC-07 — a
-        // trashed target's placements degrade to the REQ-28 placeholder and recover automatically
-        // if the instance is restored), so its own outgoing refs must stay intact for that restore
-        // to be meaningful. Only the permanent step retracts.
-        onWritten: (entry) => deps.entryRefsRepo.replaceForSource({ workspaceId: input.workspaceId, sourceEntryId: entry.id, refs: [] }),
-      },
-      input: {
-        actorId: input.actor.principalId,
-        workspaceId: input.workspaceId,
-        id: input.widgetInstanceId,
-        fieldsJson: buildWidgetInstanceFieldsJson({ ...payload, status: "purged" }),
-        expectedVersion: current.version,
-        owner: WIDGET_FIELD_NAMESPACE,
-      },
-    });
-    if (!result.ok) throw result.error;
+  return { adopted };
+}
+
+export interface RestoreWidgetPriorStatusRequired {
+  deps: WidgetWriteServiceDeps;
+  input: { readonly workspaceId: UUID; readonly widgetInstanceId: UUID; readonly priorStatus: string };
+}
+
+/**
+ * Runs as a widget comes back from the Trash with a recorded prior status — only an adopted legacy
+ * widget has one (see {@link adoptLegacyTrashedWidgets}). Sets the payload's `trash`/`purged` status
+ * back to `active` and re-derives the widget's outgoing refs (the old purge had retracted them), in
+ * the restore's own transaction.
+ *
+ * Leaves the widget alone when there is nothing to fix: a prior status other than `active`, a
+ * payload that does not parse (a restore must still bring a corrupt widget back byte-identical), or
+ * a payload already live.
+ *
+ * @throws WidgetInstanceNotFoundError when the widget does not read back (the restore just cleared
+ *         its marker, so this means the row is not a widget) — the restore rolls back with it.
+ * @complexity O(1): one read and at most one `updateEntry`.
+ */
+export async function restoreWidgetPriorStatus(required: RestoreWidgetPriorStatusRequired): Promise<void> {
+  const { deps, input } = required;
+  if (input.priorStatus !== ADOPTED_WIDGET_PRIOR_STATUS) return;
+
+  const widget = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.widgetInstanceId });
+  if (!widget || widget.type !== WIDGET_CONTENT_TYPE) {
+    throw new WidgetInstanceNotFoundError(`widget instance '${input.widgetInstanceId}' was not found`);
+  }
+  let payload: ReturnType<typeof parseWidgetInstancePayload>;
+  try {
+    payload = parseWidgetInstancePayload(widget.fieldsJson);
+  } catch {
+    return;
+  }
+  if (!LEGACY_DELETED_STATUSES.has(payload.status)) return;
+
+  const updated = await updateEntry({
+    deps: {
+      ...entriesWriteDeps(deps, input.workspaceId),
+      onWritten: (entry) => extractAndStoreInstanceRefs(deps, input.workspaceId, entry),
+    },
+    input: {
+      actorId: ADOPTION_ACTOR.principalId,
+      workspaceId: input.workspaceId,
+      id: widget.id,
+      fieldsJson: buildWidgetInstanceFieldsJson({ ...payload, status: ADOPTED_WIDGET_PRIOR_STATUS }),
+      expectedVersion: widget.version,
+      owner: WIDGET_FIELD_NAMESPACE,
+    },
   });
+  if (!updated.ok) throw updated.error;
 }

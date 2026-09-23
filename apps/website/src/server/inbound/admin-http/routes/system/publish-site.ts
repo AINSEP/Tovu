@@ -38,9 +38,19 @@ import type { RouteDeps } from "#src/server/routes/types";
  * resource, so it gets the stricter, single-permission gate.
  *
  * Request body for the trigger: `{ target: "github-pages"|"vercel"|"netlify"|"cloudflare-pages",
- * projectName: string, owner?, repo?, branch?, teamId? }` — `owner`/`repo`/`branch` apply only to
+ * projectName: string, credentialId?, owner?, repo?, branch?, teamId? }` — `owner`/`repo`/`branch` apply only to
  * `github-pages`, `teamId` only to `vercel`; `netlify`/`cloudflare-pages` use none of the four (see
- * `parsePublishRequestBody`'s own per-target branches below). Every field is validated by
+ * `parsePublishRequestBody`'s own per-target branches below).
+ *
+ * `credentialId` (2026-09-20, terra review finding 1 — Critical) BINDS the publish to the saved
+ * connection the operator chose, instead of letting the server pick whichever row is `is_default`
+ * when the POST lands: selecting connection B and clicking Publish while B's promotion was still in
+ * flight published the site to A's account. It is OPTIONAL, and deliberately so — the
+ * `deployment_execute_static_publish` agent tool has no chosen connection, and a self-hosted install
+ * whose credentials come from `GITHUB_TOKEN`/`VERCEL_TOKEN`/... has no connection ids at all. Those
+ * callers keep the DEFAULT lookup, explicitly (`static-publish/credentials.ts`'s
+ * `createDbPublishCredentialSource`); an id that is supplied is validated against this workspace and
+ * this target by that same module, and refuses rather than falling back. Every other field is validated by
  * `publishStaticSite` itself
  * (`static-publish/adapter.ts`'s `validateStaticPublishConfig`) — this route's own parsing only
  * narrows JSON shape (right types, right target-specific fields present), never re-implements that
@@ -120,7 +130,9 @@ const TRIGGER_TARGET_PARSERS: Record<string, (raw: Record<string, unknown>) => T
  * `publishStaticSite` -> `validateStaticPublishConfig`, so a caller only ever gets one canonical
  * rejection message for the same bad value.
  */
-function parsePublishRequestBody(body: unknown): { ok: true; config: StaticPublishConfig; projectName: string } | { ok: false; error: string } {
+function parsePublishRequestBody(
+  body: unknown
+): { ok: true; config: StaticPublishConfig; projectName: string; credentialId?: string } | { ok: false; error: string } {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     return { ok: false, error: "request body must be a JSON object" };
   }
@@ -130,6 +142,14 @@ function parsePublishRequestBody(body: unknown): { ok: true; config: StaticPubli
     return { ok: false, error: "'projectName' (non-empty string) is required" };
   }
 
+  // Shape only, same discipline as every other field here — whether this id names a connection this
+  // workspace actually owns, for this target, is judged exactly once, by the credential source
+  // (`static-publish/credentials.ts`). Optional because the agent tool and env-var installs have no
+  // connection id to send; see this file's header for the full backward-compatibility contract.
+  if (raw.credentialId !== undefined && (typeof raw.credentialId !== "string" || raw.credentialId.trim() === "")) {
+    return { ok: false, error: "'credentialId' must be a non-empty string when present" };
+  }
+
   const parseTarget = typeof raw.target === "string" ? TRIGGER_TARGET_PARSERS[raw.target] : undefined;
   if (!parseTarget) {
     return { ok: false, error: "'target' must be one of: github-pages, vercel, netlify, cloudflare-pages" };
@@ -137,7 +157,12 @@ function parsePublishRequestBody(body: unknown): { ok: true; config: StaticPubli
 
   const result = parseTarget(raw);
   if (!result.ok) return result;
-  return { ok: true, config: result.config, projectName: raw.projectName };
+  return {
+    ok: true,
+    config: result.config,
+    projectName: raw.projectName,
+    ...(typeof raw.credentialId === "string" ? { credentialId: raw.credentialId } : {}),
+  };
 }
 
 type PreviewTargetParseResult = { ok: true; config: StaticPublishConfig } | { ok: false; error: string };
@@ -256,6 +281,10 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
           exportSiteBound: deps.exportSiteBound,
           config: parsed.config,
           projectName: parsed.projectName,
+          // The connection the operator actually chose in the Static Site tab. Never defaulted here:
+          // an absent id means "this caller has no chosen connection", which the credential source
+          // answers with its own default lookup — see `parsePublishRequestBody` above.
+          ...(parsed.credentialId !== undefined ? { credentialId: parsed.credentialId } : {}),
         },
         deps.clock,
         deps.publishHistoryStore

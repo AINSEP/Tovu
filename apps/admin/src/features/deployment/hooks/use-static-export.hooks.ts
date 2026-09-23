@@ -199,7 +199,14 @@ export function useStaticExport(port: StaticExportPort, t: Translate, locale: st
     };
   }, [isRunning]);
 
+  // Synchronous duplicate-submit guard — same reasoning as `use-static-publish.hooks.ts`'s
+  // `publishingRef` (C4): two calls in one tick both read this render's `triggering: false`
+  // (terra review 2026-09-20, finding 5).
+  const triggeringRef = useRef(false);
+
   async function trigger() {
+    if (triggeringRef.current) return;
+    triggeringRef.current = true;
     // Local action supersedes any still-pending bootstrap read: mark it consumed BEFORE the request
     // even starts, so a bootstrap GET that resolves late — after this trigger's own response already
     // set `run` — cannot land on top of it and silently kill polling for a run the server is still
@@ -219,6 +226,7 @@ export function useStaticExport(port: StaticExportPort, t: Translate, locale: st
     } catch (err) {
       setTriggerError(exportTriggerErrorMessage(locale, describeApiError(err, "unknown error")));
     } finally {
+      triggeringRef.current = false;
       setTriggering(false);
     }
   }

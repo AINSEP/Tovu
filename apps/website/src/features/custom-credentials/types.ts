@@ -6,7 +6,7 @@ import type { SealedSecret } from "../webhooks/index.js";
  * @file Domain types for `custom_credential_sets` — the admin Access Tokens page's "Add custom
  * provider" capability (2026-08-17). Structurally the simplest of this codebase's three credential
  * tables: no `providerId` union (an operator-typed `label` IS the provider identity — see
- * `src/platform/db/schema.ts`'s `customCredentialSets` doc), no `isDefault` group invariant, no
+ * `src/platform/db/schema.sqlite.ts`'s `customCredentialSets` doc), no `isDefault` group invariant, no
  * `accountLabel` probe. Every row is already its own independent, standalone credential.
  *
  * Architectural role: domain types only — no I/O, no sealer/keyring dependency. `store.ts` is the
@@ -19,7 +19,7 @@ import type { SealedSecret } from "../webhooks/index.js";
  *  `apps/admin/src/features/security/rules.ts`'s `AccessTokenRowCategoryId` exactly (that file is
  *  the source of truth for the UI's own copy; this is the server-side validation twin, since a
  *  category must be readable/filterable without ever decrypting a row — see this file's own header
- *  and `db/schema.ts`'s `customCredentialSets.category` doc). Kept as a plain literal union rather
+ *  and `db/schema.sqlite.ts`'s `customCredentialSets.category` doc). Kept as a plain literal union rather
  *  than importing from `apps/admin` (server code never depends on the admin app). */
 export type CustomCredentialCategoryId = "source-control" | "hosting" | "media" | "ai" | "ops" | "general";
 
@@ -28,13 +28,13 @@ export const CUSTOM_CREDENTIAL_CATEGORIES: readonly CustomCredentialCategoryId[]
 /** The secret half of a custom credential — sealed as one ciphertext blob (this table's own
  *  connection object), same one-ciphertext-per-row discipline every sibling credential table here
  *  documents. `baseUrl`/`category`/`label` are NOT part of this object — they are plaintext columns
- *  (see `db/schema.ts`'s own doc for why), so they never round-trip through the sealer.
+ *  (see `db/schema.sqlite.ts`'s own doc for why), so they never round-trip through the sealer.
  *
  *  `username` is the one field here that is NOT a secret: it is an account identifier, and since
  *  2026-09-01 its authoritative home is the plaintext `custom_credential_sets.username` column. It
  *  stays on this input type because that is the shape a caller (and the admin form) supplies a
  *  connection in, and it is still sealed alongside the token until the migration's Pass 2 stops
- *  doing so — see `db/schema.ts`'s `customCredentialSets.username` doc for the two-pass plan. */
+ *  doing so — see `db/schema.sqlite.ts`'s `customCredentialSets.username` doc for the two-pass plan. */
 export interface CustomProviderConnectionInput {
   readonly token: string;
   readonly username?: string;
@@ -50,11 +50,11 @@ export interface CustomCredentialSetRecord {
   readonly category: CustomCredentialCategoryId;
   readonly baseUrl: string;
   /** Extra allowed origins beyond `baseUrl` (e.g. fly.io needs both `api.fly.io` and
-   *  `api.machines.dev`) — see `db/schema.ts`'s `customCredentialSets.additionalHostsJson` doc.
+   *  `api.machines.dev`) — see `db/schema.sqlite.ts`'s `customCredentialSets.additionalHostsJson` doc.
    *  Each entry is a normalized ORIGIN (`https://host[:port]`), never a full URL with a path.
    *  Empty, never `null` — `store.ts`'s read path normalizes the DB's nullable column to `[]`. */
   readonly additionalHosts: readonly string[];
-  /** The credential's account login, plaintext (`db/schema.ts`'s `customCredentialSets.username`).
+  /** The credential's account login, plaintext (`db/schema.sqlite.ts`'s `customCredentialSets.username`).
    *  `undefined` means the credential has no username — the DB's `NULL` normalizes to `undefined`
    *  here rather than `""`, so "absent" stays one value instead of two. */
   readonly username?: string;

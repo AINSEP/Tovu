@@ -499,6 +499,46 @@ describe("startAgUiRun — SSE frame streaming end to end", () => {
     expect(h.events).toEqual([{ kind: "text", text: "still here" }]);
   });
 
+  test("a transport failure after the run started reports the error AND still hands onDone the events collected before it", async () => {
+    const encoder = new TextEncoder();
+    const opening = [
+      frame({ type: EventType.RUN_STARTED, threadId: "t", runId: "r" }),
+      frame({ type: EventType.TEXT_MESSAGE_START, messageId: "m1", role: "assistant" }),
+      frame({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: "m1", delta: "partial" }),
+    ].join("");
+    // A hand-held reader, not a real erroring ReadableStream: `@ag-ui/client`'s teardown calls
+    // `reader.cancel()` and rethrows anything but an AbortError, so a real errored stream's
+    // rejecting `cancel()` leaks an unhandled rejection from inside the package (a package defect,
+    // independent of the behavior asserted here). A resolving `cancel()` keeps this test about ours.
+    let reads = 0;
+    const reader = {
+      read: async () => {
+        reads += 1;
+        if (reads === 1) return { done: false, value: encoder.encode(opening) };
+        throw new Error("connection reset");
+      },
+      cancel: async () => undefined,
+      releaseLock() {},
+    };
+    const fakeResponse = {
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "text/event-stream" }),
+      body: { getReader: () => reader },
+    } as unknown as Response;
+    fetchMock = vi.fn(async () => fakeResponse);
+    vi.stubGlobal("fetch", fetchMock);
+    const h = handlers();
+
+    await startAgUiRun({ history: HISTORY, signal: new AbortController().signal }, h);
+    await flushMicrotasks();
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    expect(h.errors.map((e) => e.message)).toEqual(["connection reset"]);
+    expect(h.done).toEqual([{ kind: "text", text: "partial" }]);
+  });
+
   // --- ADR-059 Decision 6: the named, load-bearing interruption-sequence regression ------------
 
   test("interruption sequence: text -> tool_use -> tool_result -> text again renders as two distinct text segments end to end", async () => {
@@ -589,6 +629,28 @@ describe("createTovuAssistantTransport — AG-UI toggle dispatch", () => {
     expect(result.runId).toMatch(/^agui:/);
     const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe(AG_UI_RUN_PATH);
+  });
+
+  // Same rule the BYOK and Local CLI paths already apply (`historyForTranscript`): partial output
+  // from a run that failed is visible to the user but is not the agent's answer, so it must not be
+  // resent to the model as one — it would ground the next turn in an action that never completed.
+  test("an assistant turn whose run did not succeed is not resent as history, even when it has content", async () => {
+    const stream = streamFromChunks([frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r" })]);
+    fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const transport = createTovuAssistantTransport({ getAgUiEnabled: () => true });
+    const history: ChatMessage[] = [
+      { id: "1", role: "user", content: "update the page" },
+      { id: "2", role: "assistant", content: "I updated the page", runStatus: "failed" },
+      { id: "3", role: "assistant", content: "Done earlier", runStatus: "succeeded" },
+      { id: "4", role: "user", content: "did it work?" },
+    ];
+
+    await transport.startRun({ history, signal: new AbortController().signal }, handlers());
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { messages: Array<{ id: string }> };
+    expect(body.messages.map((message) => message.id)).toEqual(["1", "3", "4"]);
   });
 
   test("getAgUiEnabled false (or absent) falls through to the Local CLI path unchanged", async () => {

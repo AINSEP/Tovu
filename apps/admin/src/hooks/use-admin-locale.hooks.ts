@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { defaultAdminLocalePort, DEFAULT_LOCALE } from "./admin-locale-dependencies.hooks";
 import type { AdminLocalePort } from "./admin-locale-port.hooks";
+import { useSettlementGeneration } from "./use-settlement-generation.hooks";
 
 /**
  * Fetches the operator's stored `core.language.locale`, defaulting to `DEFAULT_LOCALE` ("en")
@@ -46,17 +47,22 @@ import type { AdminLocalePort } from "./admin-locale-port.hooks";
  */
 export function useAdminLocale(port: AdminLocalePort = defaultAdminLocalePort): string {
   const [locale, setLocale] = useState(DEFAULT_LOCALE);
+  // Every refresh notification starts another unordered `loadLanguage()` call — nothing ties a call
+  // to its own settlement order, so a slower earlier fetch resolving after a faster later one used
+  // to win regardless of which was actually the newest ask. See F3, plan-components.md (2026-09-20).
+  const settlement = useSettlementGeneration();
   // `port` is referentially stable in production (`useWiredAdminLocale` always passes the same
   // module-level singleton) — see `use-analytics.hooks.ts`'s identical justification for the same
-  // omission.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `port` is referentially stable in production — see comment above; same justification as use-analytics.hooks.ts.
+  // omission. `settlement`'s identity is stable too, for the same reason (its own doc comment).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `port`/`settlement` are referentially stable in production — see comment above; same justification as use-analytics.hooks.ts.
   useEffect(() => {
     let cancelled = false;
     const fetchLocale = () => {
+      const generation = settlement.next();
       port
         .loadLanguage()
         .then((next) => {
-          if (!cancelled) setLocale(next);
+          if (!cancelled && settlement.isCurrent(generation)) setLocale(next);
         })
         .catch(() => undefined);
     };

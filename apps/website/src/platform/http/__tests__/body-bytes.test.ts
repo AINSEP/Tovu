@@ -131,7 +131,7 @@ test("a legacy transport that returns no bodyBytes still works — the field is 
 // MI-01 (2026-09-06): `bodyTruncated` was the OR of the text half and the byte half, and
 // `features/media-import` — a consumer that never reads `bodyText` at all — refused an import on
 // it. A lossy UTF-8 decode of compressed image data is ~1.8x the size of the bytes it came from,
-// so every complete PNG/JPEG from roughly 6.94 MiB up to the feature's own 10 MiB accept limit
+// so every complete PNG/JPEG from roughly 6.94 MiB up to the feature's own 50 MiB accept limit
 // tripped the 12 MiB policy cap on its TEXT half alone and was rejected as "exceeds the import
 // limit". The byte half now carries its own flag; the OR stays, so no text consumer changes.
 // ---------------------------------------------------------------------------------------------

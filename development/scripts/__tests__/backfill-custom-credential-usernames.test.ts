@@ -7,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
-import { customCredentialSets, workspaces } from "../../../apps/website/src/platform/db/schema.js";
+import { customCredentialSets, workspaces } from "../../../apps/website/src/platform/db/schema.sqlite.js";
 import { AesGcmSecretSealer } from "../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
 import { EnvOrFileKeyring } from "../../../apps/website/src/features/webhooks/keyring.env.js";
 import { buildCustomCredentialAad } from "../../../apps/website/src/features/custom-credentials/aad.js";
@@ -501,7 +501,7 @@ test("backfill-custom-credential-usernames: countPending converges to 0 with a t
   const activeKey = await keyring.activeKey();
 
   // A token-only credential — legitimately has no username and never will (this file's header on
-  // `custom_credential_sets.username`, and `schema.ts`'s own doc on that column). Its `username`
+  // `custom_credential_sets.username`, and `schema.sqlite.ts`'s own doc on that column). Its `username`
   // column stays NULL forever by design, no matter how many times this script re-runs.
   const tokenOnlyId = "cred-token-only";
   const tokenOnlySealed = await sealer.seal({

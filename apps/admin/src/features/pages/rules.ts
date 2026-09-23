@@ -11,7 +11,7 @@ import type {
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
 import { formatRelativeMinutesAgo } from "../../lib/format-timestamp";
-import { PAGES_DICT } from "./pages-i18n";
+import { t as translate } from "./pages-i18n";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 import type { PageEditorView } from "./hooks/use-page-editor.hooks";
 import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
@@ -21,7 +21,8 @@ import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.h
  * rendering one.
  *
  * Mirrors `features/posts/rules.ts` exactly, since `Pages.tsx` is `Posts.tsx`'s twin (same
- * `RowMenu`-building logic, same "Disable" omission rule) backed by the pages-filtered endpoints.
+ * `RowMenu`-building logic, same Publish/Unpublish status-flip rule) backed by the pages-filtered
+ * endpoints.
  * The bar for landing here is "does it compute something", not "is it rendered" — `pageRowMenuItems`
  * was a closure inside a `DataTable` cell, reachable only by rendering a table and opening a
  * popover, which is how its `page.status` conditional ended up permanently untested.
@@ -114,30 +115,40 @@ export function pageAdminPath(page: PageAdminHandle): string {
  *  shape as `posts/rules.ts`'s `PostRowMenuHandlers`. */
 export interface PageRowMenuHandlers {
   onEdit: (page: AdminPost) => void;
-  onDisable: (page: AdminPost) => void;
+  onTogglePublish: (page: AdminPost) => void;
   onDelete: (page: AdminPost) => void;
 }
 
 /**
  * The row-action menu for one page.
  *
- * The branch is the reason this is exported: **"Disable" is omitted entirely for a page that is
- * already a draft**, rather than rendered disabled — same deliberate choice as `posts/rules.ts`'s
- * `postRowMenuItems`, and a claim worth a test, which it cannot have while it is a closure inside a
- * `DataTable` cell.
+ * The branch is the reason this is exported: **the middle item's label and key flip with the row's
+ * own status** — "Unpublish" for a published page, "Publish" for a draft — same deliberate rename
+ * `posts/rules.ts`'s `postRowMenuItems` got (owner request, 2026-09-22), replacing the old rule
+ * that omitted the item entirely for a draft rather than rendering it disabled. See that function's
+ * own doc for the full "why" — a status-only payload sent by the old "Disable" item, always
+ * missing `title`/`slug`, was rejected by `PUT /posts/:id` with "title is required" (owner
+ * screenshot) before the row's status could ever change, and a draft page had no way to publish
+ * from this list at all.
+ *
+ * Both branches call the SAME handler — `onTogglePublish` reads `page.status` itself to decide
+ * which way to flip, so this menu builder does not need two callbacks for what is one reversible
+ * toggle.
  *
  * "Delete" is marked `destructive` and only OPENS the confirmation; the delete itself is
  * `usePages().removePage`, gated on `ConfirmDialog`.
  *
- * @complexity Time/space: O(1) — at most three entries, no iteration.
+ * @complexity Time/space: O(1) — exactly three entries, no iteration.
  * @overallScore 100
  */
 export function pageRowMenuItems(page: AdminPost, handlers: PageRowMenuHandlers, locale: string): RowMenuItem[] {
-  const t = (key: string): string => PAGES_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   const items: RowMenuItem[] = [{ key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit(page) }];
-  if (page.status === "published") {
-    items.push({ key: "disable", label: t("Disable"), onSelect: () => handlers.onDisable(page) });
-  }
+  items.push(
+    page.status === "published"
+      ? { key: "unpublish", label: t("Unpublish"), onSelect: () => handlers.onTogglePublish(page) }
+      : { key: "publish", label: t("Publish"), onSelect: () => handlers.onTogglePublish(page) }
+  );
   items.push({ key: "delete", label: t("Delete"), destructive: true, onSelect: () => handlers.onDelete(page) });
   return items;
 }
@@ -376,13 +387,10 @@ export function pageAutosaveBannerMessage(savedAt: string, nowMs: number, stale:
  *
  * @complexity Time/space: O(1).
  */
-export function pageAutosaveStaleBasisMessage(staleBasis: StandingDraftStaleBasis): string {
-  return (
-    `Someone else saved this while you were editing — you were working from version ${staleBasis.baseVersion}, ` +
-    "so autosaving has paused and nothing you type now is being stored. Your changes were NOT saved, and are " +
-    "still here in the editor. Reload to pick up their version and resume autosaving; copy anything you want " +
-    "to keep first."
-  );
+export function pageAutosaveStaleBasisMessage(t: Translate, staleBasis: StandingDraftStaleBasis): string {
+  return t(
+    "Someone else saved this while you were editing — you were working from version {baseVersion}, so autosaving has paused and nothing you type now is being stored. Your changes were NOT saved, and are still here in the editor. Reload to pick up their version and resume autosaving; copy anything you want to keep first."
+  ).replace("{baseVersion}", String(staleBasis.baseVersion));
 }
 
 /**
@@ -449,13 +457,16 @@ export function readPageVersionConflict(
  *
  * @complexity Time/space: O(1).
  */
-export function pageVersionConflictMessage(conflict: PageSaveConflict): string {
-  const basis = conflict.expectedVersion === null ? "the version you loaded" : `version ${conflict.expectedVersion}`;
-  const current = conflict.currentVersion === null ? "a newer version" : `version ${conflict.currentVersion}`;
-  return (
-    `Someone else saved this while you were editing — you were working from ${basis}, and ${current} is now stored. ` +
-    "Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
-  );
+export function pageVersionConflictMessage(t: Translate, conflict: PageSaveConflict): string {
+  const basis =
+    conflict.expectedVersion === null ? t("the version you loaded") : t("version {version}").replace("{version}", String(conflict.expectedVersion));
+  const current =
+    conflict.currentVersion === null ? t("a newer version") : t("version {version}").replace("{version}", String(conflict.currentVersion));
+  return t(
+    "Someone else saved this while you were editing — you were working from {basis}, and {current} is now stored. Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
+  )
+    .replace("{basis}", basis)
+    .replace("{current}", current);
 }
 
 /** The save-success message — the one piece of copy in `save` that depends on `canSaveHtml`, split
@@ -465,6 +476,28 @@ export function pageSaveSuccessMessage(t: (locale: string, key: string) => strin
   return canSaveHtml
     ? t(locale, "Saved")
     : t(locale, "Saved title, slug, and status. This page's body uses the document editor and can't be edited here yet.");
+}
+
+/** The exact English copy {@link pagePartialSaveMessage} wraps in `t()` — also the dictionary key
+ *  added to `page-editor-i18n.ts`'s `PAGE_EDITOR_DICT` for every locale, matching this app's "the key
+ *  IS the source string" convention. Kept as a separate constant (rather than inlined in the template
+ *  literal below) so the two stay textually identical by construction. */
+const PAGE_PARTIAL_SAVE_COPY =
+  "Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry.";
+
+/**
+ * The banner `usePageEditor` shows when a Page's metadata write landed but its body write then
+ * failed (H1, 2026-09-20) — see `use-page-editor.hooks.ts`'s `PageBodyWriteError` and `writePage` for
+ * why the two writes can now part ways instead of one opaque failure. Appends the underlying reason
+ * in parentheses, the same "state what happened, then why" shape {@link pageVersionConflictMessage}
+ * already uses, falling back to the generic "failed to save page" copy for a non-`Error` rejection —
+ * the same fallback `applySaveFailure`'s own generic branch already uses for that case.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function pagePartialSaveMessage(t: (locale: string, key: string) => string, locale: string, reason: unknown): string {
+  const why = reason instanceof Error && reason.message ? reason.message : t(locale, "failed to save page");
+  return `${t(locale, PAGE_PARTIAL_SAVE_COPY)} (${why})`;
 }
 
 /**
@@ -613,19 +646,19 @@ export function comparePagesByUpdated(a: AdminPost, b: AdminPost): number {
  *
  * @complexity Time/space: O(1).
  */
-export function pageColumnSortLabel(columnName: string, direction: DataTableSortDirection | null): string {
-  if (direction === null) return `Not sorted by ${columnName}. Activate to sort ascending.`;
+export function pageColumnSortLabel(t: Translate, columnName: string, direction: DataTableSortDirection | null): string {
+  if (direction === null) return t("Not sorted by {columnName}. Activate to sort ascending.").replace("{columnName}", columnName);
   return direction === "asc"
-    ? `Sorted by ${columnName}, ascending. Activate to sort descending.`
-    : `Sorted by ${columnName}, descending. Activate to sort ascending.`;
+    ? t("Sorted by {columnName}, ascending. Activate to sort descending.").replace("{columnName}", columnName)
+    : t("Sorted by {columnName}, descending. Activate to sort ascending.").replace("{columnName}", columnName);
 }
 
 /** Same contract as {@link pageColumnSortLabel}, phrased in the Updated column's own "newest"/
  *  "oldest" vocabulary rather than generic "ascending"/"descending" — mirrors `posts/rules.ts`'s
  *  `updatedColumnSortLabel` verbatim. */
-export function updatedPageColumnSortLabel(direction: DataTableSortDirection | null): string {
-  if (direction === null) return "Not sorted by updated date. Activate to sort newest first.";
+export function updatedPageColumnSortLabel(t: Translate, direction: DataTableSortDirection | null): string {
+  if (direction === null) return t("Not sorted by updated date. Activate to sort newest first.");
   return direction === "desc"
-    ? "Sorted by updated date, newest first. Activate to sort oldest first."
-    : "Sorted by updated date, oldest first. Activate to sort newest first.";
+    ? t("Sorted by updated date, newest first. Activate to sort oldest first.")
+    : t("Sorted by updated date, oldest first. Activate to sort newest first.");
 }

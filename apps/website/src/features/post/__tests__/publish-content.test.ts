@@ -73,6 +73,9 @@ function makeApplyDeps(rows: PostRecord[]) {
     outbox,
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
+    // Required by `apply()`'s guard: its rollback restores through `restorePostForward`, which
+    // needs the Trash-index forget. Nothing in this file trashes a post, so it never fires.
+    forgetRemovedPost: async () => {},
   };
 }
 
@@ -314,6 +317,38 @@ test("apply() 'created' path: a null source author imports as null, not the oper
 
   const saved = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-new-2" });
   assert.equal(saved?.createdByPrincipalId, null);
+});
+
+test("apply() 'created' path: a change-set failure removes the row outright — an undone create must leave nothing behind", async () => {
+  const deps = makeApplyDeps([]);
+  // Fails only on the RECORD, after `createPost` has already written the row — the exact window
+  // `CommandMutation.rollback` exists for.
+  deps.changeSets.insert = async () => {
+    throw new Error("change-set store is down");
+  };
+  const handler = contributePostPublish().build(deps);
+  const source = makePost({ id: "post-orphan", title: "Orphan", slug: "orphan" });
+
+  await assert.rejects(
+    () => handler.apply({ entity: packedFrom("post", source), expectedVersion: undefined, principalId: "operator-1" }),
+    /change-set store is down/
+  );
+
+  assert.equal(
+    await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-orphan" }),
+    null,
+    "a create has no pre-image, so the only correct undo is removal — trashing it instead records a creation the system decided had not happened, and leaves a row a user can find and restore"
+  );
+  assert.equal(
+    await deps.postRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "orphan" }),
+    null,
+    "and the slug it took must be released, so a retry of the same import is not blocked by its own failed attempt"
+  );
+  assert.deepEqual(
+    await deps.postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: "post-orphan" }),
+    [],
+    "the create's revision goes with it — nothing in the ledger may point at a row that never happened"
+  );
 });
 
 test("apply() 'applied' path: writes through updatePost with expectedVersion, actor is the OPERATOR", async () => {

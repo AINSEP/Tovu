@@ -15,7 +15,7 @@ export type CommerceProductStatus = "active" | "archived";
 
 /**
  * One display attribute pair (theme example: `{label: "Material", value: "Thick premium weight
- * combed cotton"}`). Variable-key, display-only — see `db/schema.ts`'s `commerceProducts.specsJson`
+ * combed cotton"}`). Variable-key, display-only — see `db/schema.sqlite.ts`'s `commerceProducts.specsJson`
  * doc for the column-vs-document call and its recorded promotion trigger.
  */
 export interface CommerceProductSpec {
@@ -25,7 +25,7 @@ export interface CommerceProductSpec {
 
 /**
  * A sellable thing. Deliberately separate from `MemberTierRecord` (`src/members/types.ts`) —
- * see `db/schema.ts`'s `commerceProducts` doc for why the two are not merged.
+ * see `db/schema.sqlite.ts`'s `commerceProducts` doc for why the two are not merged.
  */
 export interface CommerceProductRecord {
   id: UUID;
@@ -46,7 +46,7 @@ export interface CommerceProductRecord {
 
 /**
  * One image in a product's gallery, linking to an existing `media` row (never a bespoke image
- * store — see `db/schema.ts`'s `commerceProductImages` doc). Alt text, title, and caption live on
+ * store — see `db/schema.sqlite.ts`'s `commerceProductImages` doc). Alt text, title, and caption live on
  * the referenced `media` row itself, not duplicated here.
  */
 export interface CommerceProductImageRecord {

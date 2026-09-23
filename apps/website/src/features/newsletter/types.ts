@@ -53,7 +53,7 @@ export type CampaignStatus =
 /**
  * ADR-PIPE-011 Decision §2 supersedes this file's original ADR-034-draft framing above: the
  * campaign row is a BESPOKE Drizzle table pair (`newsletter_campaigns`/`newsletter_campaign_revisions`,
- * `src/platform/db/schema.ts`), not an `entries` content-type — no generalized `entries` substrate
+ * `src/platform/db/schema.sqlite.ts`), not an `entries` content-type — no generalized `entries` substrate
  * exists in this repo (ADR-PIPE-011 Rationale). `CampaignFields`/`NEWSLETTER_CAMPAIGN_TYPE` below are
  * kept in place (additive-only extension per this task's directive) but are NOT the shape the real
  * write chokepoint (`campaign-write-service.ts`) persists — `CampaignRecord`/`CampaignRevision`

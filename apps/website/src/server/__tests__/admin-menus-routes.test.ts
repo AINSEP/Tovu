@@ -5,7 +5,7 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from 
 
 import express from "express";
 
-import { ALLOWED_HREF_SHAPES_DESCRIPTION, InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../../features/navigation/index.js";
+import { ALLOWED_HREF_SHAPES_DESCRIPTION, InMemoryNavLocationBindingRepo } from "../../features/navigation/index.js";
 import type { MenuRepoPort } from "../../features/navigation/index.js";
 import type { MenuRouteDeps } from "../inbound/admin-http/http/menus.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
@@ -27,11 +27,14 @@ import { registerAdminMenuUpdateTreeRoute } from "../inbound/admin-http/routes/m
  * login before hitting any route.
  */
 function buildTestApp(): { app: express.Express; deps: MenuRouteDeps } {
-  const deps: MenuRouteDeps = {
-    ...createRouteDeps(),
-    menuRepo: new InMemoryMenuRepo(),
-    navLocationBindingRepo: new InMemoryNavLocationBindingRepo(),
-  };
+  // NOTE: previously overrode `menuRepo`/`navLocationBindingRepo` with a second, disconnected pair
+  // of in-memory repos here. That broke once `removeMenu` (bound inside `createRouteDeps()` to ITS
+  // OWN internal `menuRepo` instance) was wired into the trash composition — `delete.ts` would read
+  // a menu through the overridden repo but remove it through a different instance, so every delete
+  // saw a false not-found. Using `createRouteDeps()`'s own repos keeps `deps.menuRepo` and
+  // `deps.removeMenu` pointed at the same instance; each test still gets full isolation because this
+  // function calls `createRouteDeps()` fresh every time.
+  const deps: MenuRouteDeps = createRouteDeps();
 
   const app = express();
   app.use(express.json());
@@ -221,7 +224,7 @@ test("admin menus routes: create -> list -> get -> update-tree -> assign -> dele
   });
   assert.equal(assignRes.status, 200);
   const assigned = (await assignRes.json()) as {
-    menu: { locations: string[] };
+    menu: { locations: string[]; version: number };
     binding: { locationKey: string; menuId: string };
     displacedMenu: unknown;
   };
@@ -229,34 +232,17 @@ test("admin menus routes: create -> list -> get -> update-tree -> assign -> dele
   assert.equal(assigned.binding.locationKey, "primary");
   assert.equal(assigned.displacedMenu, null);
 
-  // delete ladder: first call trashes (still location-bound, so purge would 409)
+  // delete: one call trashes; a second 404s (no more force ladder). Purge/binding-removal is
+  // covered by menu-trash-flow.test.ts, not this route test.
   const trashRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menuId}`, {
     method: "DELETE",
     headers: { cookie },
   });
   assert.equal(trashRes.status, 200);
-  const trashed = (await trashRes.json()) as { menu: { status: string } | null; purged: boolean };
-  assert.equal(trashed.purged, false);
-  assert.equal(trashed.menu?.status, "trash");
-
-  // second call attempts purge — rejected (still bound to "primary")
-  const blockedPurgeRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menuId}`, {
-    method: "DELETE",
-    headers: { cookie },
-  });
-  assert.equal(blockedPurgeRes.status, 409);
-  const blockedPurgeBody = (await blockedPurgeRes.json()) as { boundLocations: string[] };
-  assert.deepEqual(blockedPurgeBody.boundLocations, ["primary"]);
-
-  // force purge succeeds
-  const forcePurgeRes = await fetch(
-    `${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menuId}?force=true`,
-    { method: "DELETE", headers: { cookie } }
-  );
-  assert.equal(forcePurgeRes.status, 200);
-  const forcePurged = (await forcePurgeRes.json()) as { menu: null; purged: boolean };
-  assert.equal(forcePurged.purged, true);
-  assert.equal(forcePurged.menu, null);
+  const trashed = (await trashRes.json()) as { trashed: true; id: string; version: number | null };
+  assert.equal(trashed.trashed, true);
+  assert.equal(trashed.id, menuId);
+  assert.equal(trashed.version, assigned.menu.version + 1); // read dynamically off the prior response
 
   // gone from list
   const finalListRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus`, {
@@ -264,6 +250,17 @@ test("admin menus routes: create -> list -> get -> update-tree -> assign -> dele
   });
   const finalList = (await finalListRes.json()) as { menus: unknown[] };
   assert.equal(finalList.menus.length, 0);
+
+  const goneRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menuId}`, {
+    headers: { cookie },
+  });
+  assert.equal(goneRes.status, 404);
+
+  const secondDeleteRes = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menuId}?force=true`,
+    { method: "DELETE", headers: { cookie } }
+  );
+  assert.equal(secondDeleteRes.status, 404, "no more force ladder — a second delete on an already-trashed menu is just not-found");
 });
 
 test("admin menus routes: create rejects duplicate slug and invalid tree", async (t) => {
@@ -622,7 +619,7 @@ test("T033/C-010d: assign-location.ts is gated by admin.menus.assign specificall
   assert.equal(res.status, 200);
 });
 
-test("T034/C-010e: delete.ts — admin.menus.delete alone succeeds on trash + blocked-purge-409; ?force=true without admin.menus.delete.force is 403 (not a silent downgrade); both present succeeds the force-purge", async (t) => {
+test("T034/C-010e: delete.ts — admin.menus.delete alone succeeds; a second delete on an already-trashed menu is 404; ?force=true changes nothing", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
 
@@ -640,41 +637,27 @@ test("T034/C-010e: delete.ts — admin.menus.delete alone succeeds on trash + bl
 
   const deleteOnlyCookie = await loginWithPermissions(deps, baseUrl, ["admin.menus.delete"]);
 
-  // Trash step: admin.menus.delete alone succeeds.
+  // A principal holding only `admin.menus.delete` can trash it — no separate `.force` permission
+  // is ever consulted now that there is no force ladder.
   const trashRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
     method: "DELETE",
     headers: { cookie: deleteOnlyCookie },
   });
   assert.equal(trashRes.status, 200);
 
-  // Blocked purge (still bound to "primary"): admin.menus.delete alone still succeeds (409, not 403).
-  const blockedRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
+  // A second delete on an already-trashed menu is just not-found — not 403, not 409.
+  const secondRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
     method: "DELETE",
     headers: { cookie: deleteOnlyCookie },
   });
-  assert.equal(blockedRes.status, 409);
+  assert.equal(secondRes.status, 404);
 
-  // ?force=true WITHOUT admin.menus.delete.force: 403, not a silent downgrade to the ordinary 409.
-  const forceDeniedRes = await fetch(
+  // `?force=true` is not a recognized param anymore — same 404, no 403 for a missing `.force` grant.
+  const forceRes = await fetch(
     `${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}?force=true`,
     { method: "DELETE", headers: { cookie: deleteOnlyCookie } }
   );
-  assert.equal(forceDeniedRes.status, 403);
-  const forceDeniedBody = (await forceDeniedRes.json()) as { details: { permission: string } };
-  assert.equal(forceDeniedBody.details.permission, "admin.menus.delete.force");
-
-  // Both permissions present: force-purge succeeds.
-  const bothCookie = await loginWithPermissions(deps, baseUrl, [
-    "admin.menus.delete",
-    "admin.menus.delete.force",
-  ]);
-  const forcedRes = await fetch(
-    `${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}?force=true`,
-    { method: "DELETE", headers: { cookie: bothCookie } }
-  );
-  assert.equal(forcedRes.status, 200);
-  const forcedBody = (await forcedRes.json()) as { purged: boolean };
-  assert.equal(forcedBody.purged, true);
+  assert.equal(forceRes.status, 404);
 });
 
 /**

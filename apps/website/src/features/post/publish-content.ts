@@ -3,7 +3,7 @@ import { executeCommand } from "@jini-ai/cms/core";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import type { PublishContentContributor, PublishContentDeps, PublishContentHandler, PackedEntity } from "#src/features/publish-content/type-registry";
 
-import { importPostEntity, isTrashed } from "./post.js";
+import { importPostEntity, isTrashed, restorePostForward } from "./post.js";
 import type { PostKind, PostRecord } from "./post.js";
 
 /**
@@ -323,11 +323,11 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
     principalId: string;
     idempotencyKey: string;
   }): Promise<{ changeSetId: string }> {
-    const { changeSets, authorize, outbox } = deps;
-    if (!changeSets || !authorize || !outbox) {
+    const { changeSets, authorize, outbox, forgetRemovedPost } = deps;
+    if (!changeSets || !authorize || !outbox || !forgetRemovedPost) {
       throw new Error(
         `publish-content: ${entityType}.apply() requires PublishContentDeps.changeSets/authorize/` +
-          "outbox — wire them from the real apply-loop composition root " +
+          "outbox/forgetRemovedPost — wire them from the real apply-loop composition root " +
           "(features/publish-content/apply-loop.ts)."
       );
     }
@@ -380,28 +380,27 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
           }),
         captureEntityVersion: (result) => result.post.version,
         rollback: async () => {
-          // Compensating undo for a change-set record that failed AFTER the write landed. An update
-          // restores the prior record verbatim, `version` included.
+          // Compensating undo for a change-set record that failed AFTER the write landed. An
+          // update restores the prior record forward — see `restorePostForward`'s own doc for why
+          // "forward" rather than the verbatim restore `command.ts:82` asks for.
           if (priorPost) {
-            await deps.postRepo.save(priorPost);
+            await restorePostForward({
+              deps: { repo: deps.postRepo, clock: deps.clock, outbox, forgetRemoved: forgetRemovedPost },
+              input: { prior: priorPost, actorId: input.principalId },
+            });
             return;
           }
-          // A create has no pre-image, and `PostRepoPort` exposes no hard delete (every content
-          // delete in Tovu is soft — see `PostRecord.deletedAt`'s own doc), so the strongest
-          // available undo is to trash the row this import just added. That is deliberately not a
-          // no-op: leaving it would publish live content at the destination with no change-set
-          // record to revert it by, which is the worse of the two failure modes. A trashed row is
-          // invisible to every public read and restorable if the failure turns out to be transient.
+          // A create has no pre-image, so the correct undo is for the row never to have existed:
+          // `PostRepoPort.hardDelete` removes it outright, with the revision the create appended
+          // and the slug it reserved. Until 2026-09-20 the port had no row removal and this trashed
+          // the row instead, which was the wrong shape twice over — it recorded a creation the
+          // system had just decided did not happen, left it sitting in the Trash for a user to
+          // "restore", and kept its slug reserved against the retry of the very import that failed.
+          // The one thing it must not become is a no-op: leaving the row live would publish content
+          // at the destination with no change-set record to revert it by.
           const orphan = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: input.entity.id });
           if (!orphan) return;
-          const trashedAt = deps.clock.nowIso();
-          await deps.postRepo.softDelete({
-            workspaceId: deps.workspaceId,
-            id: input.entity.id,
-            deletedAt: trashedAt,
-            updatedAt: trashedAt,
-            version: orphan.version + 1,
-          });
+          await deps.postRepo.hardDelete({ workspaceId: deps.workspaceId, id: input.entity.id });
         },
       },
     });

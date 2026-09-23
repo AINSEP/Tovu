@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import { tabFromLastFocusableInDialog } from "../../hooks/__tests__/focus-trap.test-helpers";
 import { MediaEditDialog } from "../MediaEditDialog/MediaEditDialog";
 import type { useWiredMediaEditDialog } from "../MediaEditDialog/MediaEditDialog.hooks";
 
@@ -26,6 +27,7 @@ function fakeController(overrides: Partial<ReturnType<typeof useWiredMediaEditDi
     htmlAttributesError: null,
     save: vi.fn(),
     t: (key) => key,
+    altRef: { current: null },
     ...overrides,
   };
 }
@@ -135,6 +137,66 @@ describe("MediaEditDialog — dismissal", () => {
   });
 });
 
+describe("MediaEditDialog — showAlt (2026-09-23, W2: the widgetEmbed node's Style action)", () => {
+  it("showAlt={false} hides the Alt field and titles the dialog 'Style' instead of 'Edit this instance'", () => {
+    const useDialog: typeof useWiredMediaEditDialog = () => fakeController({ cssClass: "hero" });
+    render(
+      <MediaEditDialog
+        initial={{ alt: null, cssClass: "hero", htmlAttributes: null }}
+        onSave={vi.fn()}
+        onCancel={vi.fn()}
+        showAlt={false}
+        useDialog={useDialog}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: "Style" })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Alt text/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("CSS class (optional)")).toHaveValue("hero");
+  });
+
+  it("showAlt omitted defaults to true: the Alt field and original title still render", () => {
+    const useDialog: typeof useWiredMediaEditDialog = () => fakeController();
+    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />);
+
+    expect(screen.getByRole("heading", { name: "Edit this instance" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Alt text (optional)")).toBeInTheDocument();
+  });
+
+  it("with showAlt={false}, the dialog otherwise mirrors media's exactly: no extra client-side hint or filtering on attribute names", () => {
+    const useDialog: typeof useWiredMediaEditDialog = () => fakeController({ htmlAttributes: 'style="color:red"' });
+    render(
+      <MediaEditDialog
+        initial={{ alt: null, cssClass: null, htmlAttributes: 'style="color:red"' }}
+        onSave={vi.fn()}
+        onCancel={vi.fn()}
+        showAlt={false}
+        useDialog={useDialog}
+      />
+    );
+
+    // Only the fields showAlt itself governs differ from the default dialog — no additional
+    // static warning about which attribute names survive (2026-09-23 owner correction: the
+    // data-*/aria-*-only framing was a mistake; the server-side allowlist is being widened
+    // separately, and the UI must not pre-empt that with its own client-side message).
+    expect(screen.getByLabelText("HTML attributes (optional)")).toHaveValue('style="color:red"');
+    expect(screen.queryByText(/data-\*/)).not.toBeInTheDocument();
+  });
+
+  it("with showAlt={false}, Save still returns the initial alt untouched even though no field can change it (real hook)", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(
+      <MediaEditDialog initial={{ alt: "Untouched alt", cssClass: null, htmlAttributes: null }} onSave={onSave} onCancel={vi.fn()} showAlt={false} />
+    );
+
+    await user.type(screen.getByLabelText("CSS class (optional)"), "hero");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onSave).toHaveBeenCalledWith({ alt: "Untouched alt", cssClass: "hero", htmlAttributes: null });
+  });
+});
+
 describe("MediaEditDialog — real useWiredMediaEditDialog wiring (no fake)", () => {
   it("Escape, real validation hint, and Save-not-gated all work end to end through the default hook, alt included", async () => {
     const user = userEvent.setup();
@@ -147,5 +209,32 @@ describe("MediaEditDialog — real useWiredMediaEditDialog wiring (no fake)", ()
 
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(onSave).toHaveBeenCalledWith({ alt: "A cat", cssClass: null, htmlAttributes: 'onerror="x"' });
+  });
+});
+
+describe("MediaEditDialog — focus trap", () => {
+  it("keeps Tab inside the dialog: Tab on the last focusable element wraps to the first", async () => {
+    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={() => fakeController()} />);
+    const { event, first } = tabFromLastFocusableInDialog();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
+  });
+});
+
+describe("MediaEditDialog — focus moves in on open and returns to the opener on close", () => {
+  it("moves focus onto the Alt field when the dialog mounts, and restores the opener's focus on unmount", () => {
+    const opener = document.createElement("button");
+    opener.textContent = "Edit";
+    document.body.appendChild(opener);
+    opener.focus();
+    expect(document.activeElement).toBe(opener);
+
+    const { unmount } = render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} />);
+    expect(document.activeElement).toBe(screen.getByLabelText("Alt text (optional)"));
+
+    unmount();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
   });
 });

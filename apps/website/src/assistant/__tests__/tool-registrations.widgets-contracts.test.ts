@@ -9,7 +9,7 @@
  * correctly in the sequence a real admin task would use (create a widget, bind a region, place the
  * widget into it, then read it back resolved) — not just that each tool works in isolation.
  *
- * Real in-memory adapters throughout (`InMemoryEntryRepo`, `InMemoryContentTypeRepo`,
+ * Real in-memory adapters throughout (`TrashAwareInMemoryEntryRepo`, `InMemoryContentTypeRepo`,
  * `InMemoryEntryRefsRepo`, `InMemoryWidgetRegionBindingRepo`) — no mocking of the chokepoint itself,
  * per Constitution Article V (Integration-First Testing), mirroring
  * `widgets/__tests__/integration/*.test.ts`'s own discipline.
@@ -24,11 +24,12 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../con
 import type { UIResource } from "../index.js";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../features/content-types/index.js";
 import { registerContentType } from "../../features/content-types/index.js";
-import { InMemoryEntryRepo } from "../../features/entries/index.js";
+import type { TrashAwareInMemoryEntryRepo } from "../../features/entries/trash-aware-memory-repo.js";
 import { createEntry } from "../../features/entries/index.js";
 import { PRE_AUTHORIZED } from "../../features/widgets/authorize-helper.js";
 import { widgetsAgentToolCatalog, type AgentToolDefinition } from "../../features/widgets/agent-tools.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../features/widgets/repo.memory.js";
+import { memoryWidgetTrash } from "../../features/widgets/__tests__/support/memory-widget-trash.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
@@ -50,7 +51,8 @@ const HOST_CONTENT_TYPE = "article";
 
 function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const allow = options.allow ?? true;
-  const entryRepo = new InMemoryEntryRepo();
+  const widgetTrash = memoryWidgetTrash();
+  const entryRepo = widgetTrash.entryRepo;
   const contentTypeRepo = new InMemoryContentTypeRepo();
   const entryRefsRepo = new InMemoryEntryRefsRepo();
   const widgetBindingRepo = new InMemoryWidgetRegionBindingRepo();
@@ -66,6 +68,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     contentTypeRepo,
     entryRefsRepo,
     widgetBindingRepo,
+    removeWidget: widgetTrash.remove,
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
@@ -114,7 +117,7 @@ function wired(toolId: string, deps: RouteDeps): ToolRegistration {
  * round trip lands on the same exchange, standing in for the human's click in this workflow test
  * (the confirmation gate itself is certified by `widgets/__tests__/agent-tools.trash-confirmation.test.ts`).
  */
-async function trashInstance(deps: RouteDeps, widgetInstanceId: string): Promise<{ instance: { status: string } }> {
+async function trashInstance(deps: RouteDeps, widgetInstanceId: string): Promise<{ trashed: boolean; cancelled: boolean }> {
   const surfaceExchanges = createSurfaceExchangeStore();
   const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "widgets_trash_instance");
   assert.ok(trashTool, "expected 'widgets_trash_instance' to be wired");
@@ -128,7 +131,11 @@ async function trashInstance(deps: RouteDeps, widgetInstanceId: string): Promise
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
   assert.ok(match, "the surface must carry its exchange id");
   surfaceExchanges.deliver({ exchangeId: match[1]!, toolId: "widgets_trash_instance", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
-  return pending as Promise<{ instance: { status: string } }>;
+  // `{trashed, cancelled, widgetInstanceId, title, slug, version?}` (2026-09-21) — the confirmed
+  // return shape dropped `instance: toWidgetInstanceToolView(...)` so a corrupt payload can still be
+  // reported as trashed without parsing it. See `features/widgets/tool-registrations.ts`'s
+  // `widgets_trash_instance` handler.
+  return pending as Promise<{ trashed: boolean; cancelled: boolean }>;
 }
 
 /** Seeds a 'text' widget instance through the real create tool, so tests operate on genuine domain output. */
@@ -141,7 +148,7 @@ async function seedInstance(deps: RouteDeps, title = "Footer Note"): Promise<{ i
 
 /** Registers a non-widget host content type + creates one entry of it — the target for embed tests. Bypasses the tool layer deliberately: this is test SETUP for a capability (authoring an ordinary page/article entry) outside this task's scope, not a widgets tool under test. */
 async function makeHostEntry(deps: RouteDeps): Promise<{ id: string; version: number }> {
-  const routeDeps = deps as unknown as { contentTypeRepo: InMemoryContentTypeRepo; entryRepo: InMemoryEntryRepo };
+  const routeDeps = deps as unknown as { contentTypeRepo: InMemoryContentTypeRepo; entryRepo: TrashAwareInMemoryEntryRepo };
   const ctDeps = {
     repo: routeDeps.contentTypeRepo,
     clock: { nowIso: () => NOW },
@@ -367,12 +374,17 @@ test("workflow: create a widget instance, bind a region, place the widget into i
   // Step 5: trashing the placed instance must NOT be blocked by the reference (trash is
   // unconditional) — proving the full chain leaves consistent, inspectable state end to end.
   const trashed = await trashInstance(deps, created.instance.id);
-  assert.equal(trashed.instance.status, "trash");
+  assert.deepEqual([trashed.trashed, trashed.cancelled], [true, false]);
 
-  const diagnosis = (await wired("content_read.widget_instance", deps).handler(executionContext({ widgetInstanceId: created.instance.id }))) as {
-    whereUsed: { count: number };
+  // A trashed widget is hidden from every read, so the region's placement now resolves broken with
+  // no title — the placement itself is kept, ready for a restore.
+  const afterTrash = (await wired("content_read.widget_region", deps).handler(executionContext({ regionKey: "header" }))) as {
+    placements: Array<{ widgetEntryId: string; widgetTitle: string | null; broken: boolean }>;
   };
-  assert.equal(diagnosis.whereUsed.count, 1, "the region placement from step 3 still counts as a reference even after the instance is trashed");
+  assert.equal(afterTrash.placements.length, 1, "trashing the widget must not drop the region's placement");
+  assert.equal(afterTrash.placements[0].widgetEntryId, created.instance.id);
+  assert.equal(afterTrash.placements[0].broken, true);
+  assert.equal(afterTrash.placements[0].widgetTitle, null);
 });
 
 test("workflow: insert an inline embed referencing a freshly-created widget, then remove it — the host entry's version advances consistently across both calls", async () => {

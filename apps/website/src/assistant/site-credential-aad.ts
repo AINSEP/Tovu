@@ -9,7 +9,7 @@ import type { UUID } from "@jini-ai/cms/core";
  * `../features/webhooks/secret-sealer.aesgcm.ts`'s file header).
  *
  * Format: `site-assistant-credential:v1:${workspaceId}` — this table is single-row-per-workspace
- * (`workspace_id` is the bare primary key, `db/schema.ts`'s `siteAssistantCredentials` doc), so
+ * (`workspace_id` is the bare primary key, `db/schema.sqlite.ts`'s `siteAssistantCredentials` doc), so
  * `workspaceId` is the whole row identity there is to bind. That single binding is still
  * load-bearing: without it, an attacker (or a bad migration) with DB write access could copy one
  * workspace's sealed visitor-assistant key onto another workspace's row and have it decrypt
@@ -18,7 +18,7 @@ import type { UUID } from "@jini-ai/cms/core";
  *
  * This table's rows predate AAD entirely (2026-09-02 gap closure, `SecretSealerPort`'s own header
  * used to name this table by number among the callers with no AAD at all) — see
- * `site_assistant_credentials.aad_version`'s own doc in `db/schema.ts` and
+ * `site_assistant_credentials.aad_version`'s own doc in `db/schema.sqlite.ts` and
  * `development/scripts/backfill-site-assistant-credential-aad.ts` for how existing rows are
  * migrated without becoming unreadable.
  */

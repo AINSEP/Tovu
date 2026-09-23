@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import type { PublishContentRunRecord, PublishContentRunRepoPort } from "#src/features/publish-content/run-repo";
-import { publishContentRuns } from "../schema.js";
+import { publishContentRuns } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
 /**
@@ -9,7 +9,7 @@ import type { ContentDb } from "./content-db.js";
  * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §2/§4 task 8.
  *
  * Real SQLite `PublishContentRunRepoPort` adapter over `publish_content_runs` (migration `0066`,
- * `platform/db/schema.ts`). Each run id is inserted once and then updated as per-item progress
+ * `platform/db/schema.sqlite.ts`). Each run id is inserted once and then updated as per-item progress
  * becomes durable, using one `INSERT … ON CONFLICT DO UPDATE` operation for both cases.
  */
 export class SqlitePublishContentRunRepo implements PublishContentRunRepoPort {

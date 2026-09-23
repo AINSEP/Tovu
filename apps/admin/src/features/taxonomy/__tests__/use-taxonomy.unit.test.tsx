@@ -138,7 +138,7 @@ describe("delete term", () => {
   it("requestDeleteTerm sets pendingDeleteTerm and clears a previous deleteTermBlocked", async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ items: [GROUP] }))
-      .mockResolvedValueOnce(jsonResponse({ error: "still assigned", code: "TERM_HAS_ASSIGNMENTS", assignedCount: 2 }, 409));
+      .mockResolvedValueOnce(jsonResponse({ error: "has sub-terms", code: "TERM_HAS_CHILDREN", count: 2 }, 409));
     const { result } = renderHook(() => useWiredTaxonomy(), { wrapper });
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
 
@@ -159,14 +159,14 @@ describe("delete term", () => {
     await act(() => result.current.confirmDeleteTerm());
     expect(fetchMock).toHaveBeenCalledTimes(1); // only the initial load — no DELETE fired
     // A mutant that drops the `!pendingDeleteTerm` guard doesn't necessarily call `fetch` either
-    // (accessing `.id` on the still-null `pendingDeleteTerm` throws before `api.deleteTerm` is
+    // (accessing `.id` on the still-null `pendingDeleteTerm` throws before the mutation route is
     // reached) — caught live: that mutant survived the `fetchMock` count assertion alone. `error`
     // staying `null` is what actually distinguishes a real no-op from "guard removed, crashed into
     // the catch block, and silently set a generic failure message" — a true no-op sets no state.
     expect(result.current.error).toBeNull();
   });
 
-  it("on success: calls DELETE, closes the dialog, reloads, and clears selection if the deleted term was selected", async () => {
+  it("on success: moves to Trash, closes the dialog, reloads, and clears selection if the deleted term was selected", async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ items: [GROUP] }))
       .mockResolvedValueOnce(jsonResponse({ deletedTermId: "a" }))
@@ -178,8 +178,9 @@ describe("delete term", () => {
     act(() => result.current.requestDeleteTerm(TERM_A));
     await act(() => result.current.confirmDeleteTerm());
 
-    expect(fetchMock.mock.calls[1][0]).toContain("/taxonomy/terms/a");
-    expect(fetchMock.mock.calls[1][1]?.method).toBe("DELETE");
+    expect(fetchMock.mock.calls[1][0]).toContain("/trash/items");
+    expect(fetchMock.mock.calls[1][1]?.method).toBe("POST");
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({ type: "term", id: "a" });
     expect(result.current.pendingDeleteTerm).toBeNull();
     expect(result.current.selectedTermId).toBeNull();
     await waitFor(() => expect(result.current.taxonomies).toEqual([]));
@@ -202,10 +203,32 @@ describe("delete term", () => {
     expect(result.current.selectedTermId).toBe("a");
   });
 
-  it("on a 409 TERM_HAS_ASSIGNMENTS: closes the dialog, sets deleteTermBlocked scoped to that term, and does not touch the page error banner", async () => {
+  it("on a 404 (already gone): closes the dialog, clears selection, refetches quietly, and sets no error", async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ items: [GROUP] }))
-      .mockResolvedValueOnce(jsonResponse({ error: "still assigned", code: "TERM_HAS_ASSIGNMENTS", assignedCount: 3 }, 409));
+      .mockResolvedValueOnce(jsonResponse({ error: "not found" }, 404))
+      .mockResolvedValueOnce(jsonResponse({ items: [] }));
+    const { result } = renderHook(() => useWiredTaxonomy(), { wrapper });
+    await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
+    act(() => result.current.setSelectedTermId("a"));
+
+    act(() => result.current.requestDeleteTerm(TERM_A));
+    await act(() => result.current.confirmDeleteTerm());
+
+    expect(result.current.pendingDeleteTerm).toBeNull();
+    expect(result.current.selectedTermId).toBeNull();
+    expect(result.current.deleteTermBlocked).toBeNull();
+    expect(result.current.error).toBeNull();
+    // The explicit `list.refetch()` `runGuardedDelete` fires on the `alreadyGone` branch — a third
+    // fetch beyond mount + the failed trash call, since `useFetchMutation` only invalidates
+    // `onSuccess` (rules.ts's `runGuardedDelete` doc comment).
+    await waitFor(() => expect(result.current.taxonomies).toEqual([]));
+  });
+
+  it("on a 409 TERM_HAS_CHILDREN: closes the dialog, sets deleteTermBlocked scoped to that term, and does not touch the page error banner", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ items: [GROUP] }))
+      .mockResolvedValueOnce(jsonResponse({ error: "has sub-terms", code: "TERM_HAS_CHILDREN", count: 3 }, 409));
     const { result } = renderHook(() => useWiredTaxonomy(), { wrapper });
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
 
@@ -216,9 +239,9 @@ describe("delete term", () => {
     expect(result.current.deleteTermBlocked).toEqual({
       termId: "a",
       state: {
-        code: "TERM_HAS_ASSIGNMENTS",
+        code: "TERM_HAS_CHILDREN",
         count: 3,
-        message: "Still assigned to 3 content items. Unassign it, or merge it into another term, before deleting.",
+        message: "This term has 3 sub-terms. Move them under another parent or delete them first.",
       },
     });
     expect(result.current.error).toBeNull();
@@ -252,24 +275,30 @@ describe("delete taxonomy", () => {
     act(() => result.current.requestDeleteTaxonomy(GROUP.taxonomy));
     await act(() => result.current.confirmDeleteTaxonomy());
 
-    expect(fetchMock.mock.calls[1][0]).toContain("/taxonomy/tax1");
-    expect(fetchMock.mock.calls[1][1]?.method).toBe("DELETE");
+    expect(fetchMock.mock.calls[1][0]).toContain("/trash/items");
+    expect(fetchMock.mock.calls[1][1]?.method).toBe("POST");
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({ type: "taxonomy", id: "tax1" });
     expect(result.current.pendingDeleteTaxonomy).toBeNull();
     expect(result.current.selectedTermId).toBeNull();
   });
 
-  it("on a 409 TAXONOMY_HAS_ASSIGNMENTS: closes the dialog and sets deleteTaxonomyBlocked scoped to that taxonomy", async () => {
+  // Taxonomies have no blocked-delete case at all (`registry.ts` registers a `blocker` for `term`
+  // only) — a 409 here is always `TRASH_VERSION_CHANGED`, surfaced through `error`, never through
+  // `deleteTaxonomyBlocked`.
+  it("on a 409 TRASH_VERSION_CHANGED: leaves deleteTaxonomyBlocked null and shows the reload-and-retry banner", async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ items: [GROUP] }))
-      .mockResolvedValueOnce(jsonResponse({ error: "blocked", code: "TAXONOMY_HAS_ASSIGNMENTS", assignedCount: 1 }, 409));
+      .mockResolvedValueOnce(jsonResponse({ error: "changed", code: "TRASH_VERSION_CHANGED" }, 409));
     const { result } = renderHook(() => useWiredTaxonomy(), { wrapper });
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
 
     act(() => result.current.requestDeleteTaxonomy(GROUP.taxonomy));
     await act(() => result.current.confirmDeleteTaxonomy());
 
-    expect(result.current.deleteTaxonomyBlocked?.taxonomyId).toBe("tax1");
-    expect(result.current.deleteTaxonomyBlocked?.state.code).toBe("TAXONOMY_HAS_ASSIGNMENTS");
+    expect(result.current.deleteTaxonomyBlocked).toBeNull();
+    await waitFor(() =>
+      expect(result.current.error).toBe("This item changed since you loaded it. Reload and try again."),
+    );
   });
 
   it("confirmDeleteTaxonomy is a no-op when nothing is pending", async () => {
@@ -298,7 +327,7 @@ describe("useTaxonomy — injected port", () => {
   it("a 409 from the fake port sets deleteTermBlocked, not the page error banner", async () => {
     const port = createFakeTaxonomyPort({
       groups: [GROUP],
-      onDeleteTermBlocked: () => ({ code: "TERM_HAS_ASSIGNMENTS", assignedCount: 2 }),
+      onTrashTermBlocked: () => ({ count: 2 }),
     });
     const { result } = renderHook(() => useTaxonomy(port, "en", (k) => k), { wrapper });
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
@@ -306,7 +335,7 @@ describe("useTaxonomy — injected port", () => {
     act(() => result.current.requestDeleteTerm(TERM_A));
     await act(() => result.current.confirmDeleteTerm());
 
-    expect(result.current.deleteTermBlocked?.state.code).toBe("TERM_HAS_ASSIGNMENTS");
+    expect(result.current.deleteTermBlocked?.state.code).toBe("TERM_HAS_CHILDREN");
     expect(result.current.error).toBeNull();
   });
 });

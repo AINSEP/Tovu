@@ -4,9 +4,9 @@ import { agentHandle } from "@jini-ai/agentic";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { Translate } from "../../lib/dictionary-translator";
-import { otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "./rules";
-import { removeDialogBody, removeDialogTitle } from "./security-i18n";
-import type { OtherCredentialGroupState, OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
+import type { OtherCredentialStoreInfo } from "./rules";
+import { otherCredentialRemoveDialogBody, removeDialogTitle } from "./security-i18n";
+import type { OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
 import { useOtherCredentialRemoveDialog } from "./OtherCredentialsSection.hooks";
 
 /**
@@ -24,9 +24,16 @@ import { useOtherCredentialRemoveDialog } from "./OtherCredentialsSection.hooks"
 const HANDLE_SAFE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /**
- * @file Tier 2 of the Access Tokens list — the six single-row/per-item credential stores
- * (`rules.ts`'s `OTHER_CREDENTIAL_STORES`), rendered as top-level entries in the SAME list Tier 1's
- * `AccessTokensTab.tsx` renders, per the 2026-08-16 owner ruling ("one list, not two surfaces").
+ * @file Tier 2 of the Access Tokens list — {@link OtherCredentialEntry}, the one top-level entry
+ * component for the six single-row/per-item credential stores (`rules.ts`'s
+ * `OTHER_CREDENTIAL_STORES`), rendered inline in the SAME merged, sorted list Tier 1's provider
+ * groups render in, per the 2026-08-16 owner ruling ("one list, not two surfaces") and the
+ * 2026-09-21 round-2 ruling that made it one TRUE ordered list rather than "Tier 1 sorted, Tier 2
+ * always appended after". `AccessTokensTab.hooks.tsx`'s `useMergedSecretsOrder` owns the visibility
+ * check and the per-store explosion into individual entries that this file used to own itself
+ * (`OtherCredentialsSection`/`MaybeOtherCredentialGroup`/`OtherCredentialGroup`, deleted this pass —
+ * see that hook's own doc for where the identical logic now lives); `AccessTokensTab.tsx` renders
+ * this component directly, one call per merged entry.
  *
  * ## Why a Tier-2 "entry" has no separate parent heading the way a Tier-1 provider group does
  *
@@ -40,42 +47,6 @@ const HANDLE_SAFE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
  * top-level entry, heading and all. {@link OtherCredentialEntry} is that entry; it structurally
  * mirrors `ProviderGroup` (one heading, one row) with exactly zero or one row inside, never more.
  */
-
-/** One store's zero-or-more configured items, each rendered as its own top-level entry — a store
- *  with NO configured items still renders once, as a single placeholder entry named after the store
- *  itself (mirrors Tier 1's always-visible-even-when-not-connected provider row). */
-export function OtherCredentialsSection({ controller, query }: { controller: OtherCredentialsController; query: string }) {
-  if (controller.groups === undefined) return null;
-  return (
-    <>
-      {controller.groups.map((group) => (
-        <MaybeOtherCredentialGroup key={group.store.id} group={group} controller={controller} query={query} />
-      ))}
-    </>
-  );
-}
-
-/** Renders {@link OtherCredentialGroup} only when this store is a search match — mirrors Tier 1's
- *  `MaybeProviderGroup` exactly (store-info match OR at least one already-filtered row present). */
-function MaybeOtherCredentialGroup({ group, controller, query }: { group: OtherCredentialGroupState; controller: OtherCredentialsController; query: string }) {
-  const visible = otherCredentialMatchesQuery(group.store, undefined, query) || group.rows.length > 0;
-  if (!visible) return null;
-  return <OtherCredentialGroup group={group} controller={controller} />;
-}
-
-/** One store's rendered entries — every configured row gets its own entry; an unconfigured store
- *  renders exactly one placeholder entry instead, never zero (a store is always findable by name,
- *  same "always-visible provider" convention Tier 1 uses). */
-function OtherCredentialGroup({ group, controller }: { group: OtherCredentialGroupState; controller: OtherCredentialsController }) {
-  if (group.rows.length === 0) return <OtherCredentialEntry store={group.store} row={undefined} controller={controller} />;
-  return (
-    <>
-      {group.rows.map((row) => (
-        <OtherCredentialEntry key={row.key} store={group.store} row={row} controller={controller} />
-      ))}
-    </>
-  );
-}
 
 function entryHandleLabel(name: string, purposeLabel: string, configured: boolean): string {
   return configured ? `${name} — ${purposeLabel}, configured` : `${name} — ${purposeLabel}, not configured`;
@@ -104,10 +75,12 @@ function safeAgentHandle(handle: string, options: Parameters<typeof agentHandle>
 }
 
 /** One top-level Tier-2 entry — see this file's header for why this has no separate parent heading
- *  the way a Tier-1 `ProviderGroup` does. `row` is `undefined` for the not-configured placeholder. */
-function OtherCredentialEntry({ store, row, controller }: { store: OtherCredentialStoreInfo; row: OtherCredentialRowState | undefined; controller: OtherCredentialsController }) {
+ *  the way a Tier-1 `ProviderGroup` does. `row` is `undefined` for the not-configured placeholder.
+ *  Exported (2026-09-21 round 2): `AccessTokensTab.tsx` now mounts this directly, one call per
+ *  `useMergedSecretsOrder` entry, in place of the deleted `OtherCredentialsSection` wrapper. */
+export function OtherCredentialEntry({ store, row, controller }: { store: OtherCredentialStoreInfo; row: OtherCredentialRowState | undefined; controller: OtherCredentialsController }) {
   const translate = controller.t;
-  const name = row?.name ?? store.label;
+  const name = row?.name ?? translate(store.label);
   return (
     <section
       className="access-tokens-provider-group"
@@ -171,9 +144,13 @@ function OtherCredentialPlaceholderRow({ store, t: translate }: { store: OtherCr
 
 /** Configured, but this store does not support inline Replace (`composio-connector`/`external-mcp`
  *  — see `rules.ts`'s `OtherCredentialStoreInfo.supportsReplace` doc for why) — just the value fact,
- *  Remove, and the deep link, no disclosure to expand. */
+ *  Remove, and the deep link, no disclosure to expand. Remove asks first, through the same
+ *  {@link OtherCredentialRemoveDialog} the replaceable row uses: these two stores are the most
+ *  destructive on the page (an External MCP delete loses a sealed OAuth secret for good, a Composio
+ *  disconnect revokes the account at Composio), and this button used to fire on the first click. */
 function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRowState; controller: OtherCredentialsController }) {
   const translate = controller.t;
+  const dialogRef = useRef<HTMLDialogElement>(null);
   return (
     <div className="access-tokens-row access-tokens-row-done">
       <div className="access-tokens-row-summary">
@@ -190,7 +167,7 @@ function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRow
         <button
           type="button"
           className="btn-danger"
-          onClick={() => void controller.remove(row)}
+          onClick={() => dialogRef.current?.showModal()}
           // `aria-label`: a store can hold more than one configured item (this file's own
           // `handleSuffix` doc comment above names `media-provider` as an example), and every row
           // renders unconditionally — no accordion, no menu — so two configured items under the
@@ -207,6 +184,7 @@ function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRow
           </p>
         ) : null}
       </div>
+      <OtherCredentialRemoveDialog ref={dialogRef} row={row} controller={controller} t={translate} />
     </div>
   );
 }
@@ -277,10 +255,11 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
 }
 
 /**
- * Native `<dialog>` confirm, mirroring Tier 1's `RemoveConfirmDialog` exactly — same "Remove from
- * Tovu, never Revoke" load-bearing copy constraint (`rules.ts`'s own header): deleting Tovu's row
- * does not revoke the credential at the provider, and this dialog is the one place that fact gets
- * stated in words. No equivalent "this is the last row for this provider" note: every Tier-2 store
+ * Native `<dialog>` confirm, mirroring Tier 1's `RemoveConfirmDialog` — same "Remove from Tovu,
+ * never Revoke" load-bearing copy constraint (`rules.ts`'s own header) for the four replaceable
+ * stores: deleting Tovu's row does not revoke the credential at the provider, and this dialog is the
+ * one place that fact gets stated in words. The two static-row stores state their own, different
+ * fact instead (`otherCredentialRemoveDialogBody`). No equivalent "this is the last row for this provider" note: every Tier-2 store
  * already caps at one row per item, so removing it is always the only-row case — the sentence would
  * be true on every single Remove and therefore say nothing new.
  *
@@ -301,12 +280,10 @@ const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCr
     return (
       <dialog ref={ref} className="confirm-dialog" aria-labelledby={titleId}>
         <h2 id={titleId}>{removeDialogTitle(locale, row.name)}</h2>
-        {/* `removeDialogBody` now takes a separate vendor-label param (Tier 1's fix for the
-            "Revoke it on GitHub Pages" bug — see `rules.ts`'s `AccessTokenProviderInfo.vendorLabel`
-            doc). Tier 2 stores have no vendor/destination split at all — they're deep links to
-            Tovu's OWN other screens (`screenPath`), never a third-party token console — so passing
-            `purposeLabel` for both params reproduces this row's exact previous copy unchanged. */}
-        <p className="confirm-dialog-body">{removeDialogBody(locale, row.store.purposeLabel, row.store.purposeLabel)}</p>
+        {/* Per-store body — `otherCredentialRemoveDialogBody`'s own doc: the shared "does NOT
+            revoke" sentence is kept for the four replaceable stores and would be false for a
+            Composio disconnect, which DOES revoke at Composio. */}
+        <p className="confirm-dialog-body">{otherCredentialRemoveDialogBody(locale, row.store)}</p>
         <div className="confirm-dialog-actions">
           <button
             type="button"

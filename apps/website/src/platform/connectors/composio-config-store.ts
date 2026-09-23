@@ -26,7 +26,7 @@ import { buildComposioConfigAad } from "./composio-config-aad.js";
  * call. Sealing inside the sync interface is impossible, not merely inconvenient — which is why
  * this indirection exists rather than a direct DB-backed `ComposioConfigStore`.
  *
- * Workspace-scoped, single row (see `db/schema.ts`'s `composioConfig` header for why the scope is
+ * Workspace-scoped, single row (see `db/schema.sqlite.ts`'s `composioConfig` header for why the scope is
  * the workspace and not the principal).
  */
 
@@ -40,7 +40,7 @@ export interface ComposioConfigRecord {
   /** `0` = `sealed` (when non-null) was sealed with NO aad — open with none either, or auth-tag
    *  verification fails. `1` = sealed under `composio-config-aad.ts`'s `buildComposioConfigAad`;
    *  open MUST supply the byte-identical string. Meaningless (and always `0`) when `sealed` is
-   *  `null`. Added 2026-09-02 (AAD gap closure) — see `db/schema.ts`'s `composioConfig.aad_version`
+   *  `null`. Added 2026-09-02 (AAD gap closure) — see `db/schema.sqlite.ts`'s `composioConfig.aad_version`
    *  doc for the full migration story. */
   aadVersion: number;
   /** Connector id → Composio auth-config id. Empty object when none are provisioned. */
@@ -48,7 +48,7 @@ export interface ComposioConfigRecord {
   /**
    * Monotonic counter identifying which stored key the rest of this row belongs to. Bumped by
    * {@link saveComposioApiKey} whenever the key actually changes and by {@link clearComposioApiKey}
-   * on every clear; a re-save of the SAME key leaves it alone. See `db/schema.ts`'s `key_generation`
+   * on every clear; a re-save of the SAME key leaves it alone. See `db/schema.sqlite.ts`'s `key_generation`
    * column for the full reasoning, and {@link saveComposioAuthConfigIds} for the write it guards.
    */
   keyGeneration: number;

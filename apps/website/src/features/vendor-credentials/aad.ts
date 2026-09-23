@@ -15,7 +15,7 @@ import type { VendorId } from "./types.js";
  * either predecessor table's own format. This table is a new table with its own AAD lineage, not a
  * versioned continuation of `publish-credential-set:v1:...`/`source-control-credential-set:v1:...`
  * (those formats stay exactly as they are, still governing whatever rows remain in the two
- * predecessor tables until they are cut over and dropped — see `../../db/schema.ts`'s
+ * predecessor tables until they are cut over and dropped — see `../../db/schema.sqlite.ts`'s
  * `vendorCredentialSets` doc). Binds all three scoping dimensions the predecessor tables' own AAD
  * already bound, with `vendorId` standing in for `providerId`: a ciphertext sealed under one
  * credential set's AAD fails auth-tag verification if presented as any other credential set's

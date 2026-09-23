@@ -10,14 +10,14 @@ import type { UUID } from "@jini-ai/cms/core";
  * authenticated but never stored — see `webhooks/secret-sealer.aesgcm.ts`'s file header).
  *
  * Format: `media-provider-credential:v1:${workspaceId}:${providerId}` — this table has no surrogate
- * `id` column (`(workspace_id, provider_id)` IS the row's own primary key, per `db/schema.ts`'s
+ * `id` column (`(workspace_id, provider_id)` IS the row's own primary key, per `db/schema.sqlite.ts`'s
  * `mediaProviderCredentials` doc), so the AAD binds that composite PK directly rather than a third
  * `id` component the row does not have. Binds both scoping dimensions this table actually has: a
  * ciphertext sealed under one provider's AAD fails auth-tag verification if presented as any other
  * provider's ciphertext, even within the same workspace.
  *
  * This table's rows predate AAD entirely (2026-09-02 gap closure) — see `media_provider_
- * credentials.aad_version`'s own doc in `db/schema.ts` and `development/scripts/backfill-media-
+ * credentials.aad_version`'s own doc in `db/schema.sqlite.ts` and `development/scripts/backfill-media-
  * provider-credential-aad.ts` for how existing rows are migrated without becoming unreadable.
  */
 const AAD_VERSION = "v1";

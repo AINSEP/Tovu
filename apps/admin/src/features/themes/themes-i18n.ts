@@ -6,8 +6,11 @@
  */
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
-const THEMES_DICT: Record<string, Record<string, string>> = {
+/** Exported only so `__tests__/themes-i18n.unit.test.ts` can check whole-dictionary key parity. */
+export const THEMES_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Close preview": "Cerrar vista previa",
+    "{id} theme preview": "Vista previa del tema {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Renombrar {file} a {name} cambia su URL pública. Cualquier enlace directo existente tendrá que actualizarse.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -156,8 +159,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} no está en el original de este tema, así que no hay nada a lo que restablecerlo.",
     "This theme has no stored original, so nothing can be reset.":
       "Este tema no tiene un original guardado, así que no se puede restablecer nada.",
+    "failed to refresh the theme list": "No se pudo actualizar la lista de temas",
+    "failed to switch theme": "No se pudo cambiar de tema",
   },
   id: {
+    "Close preview": "Tutup pratinjau",
+    "{id} theme preview": "Pratinjau tema {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Mengganti nama {file} menjadi {name} akan mengubah URL publiknya. Tautan langsung yang sudah ada perlu diperbarui.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -306,8 +313,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} tidak ada di versi asli tema ini, jadi tidak ada yang bisa dijadikan acuan untuk mengatur ulang.",
     "This theme has no stored original, so nothing can be reset.":
       "Tema ini tidak memiliki salinan asli yang tersimpan, jadi tidak ada yang dapat diatur ulang.",
+    "failed to refresh the theme list": "Gagal menyegarkan daftar tema",
+    "failed to switch theme": "Gagal mengganti tema",
   },
   de: {
+    "Close preview": "Vorschau schließen",
+    "{id} theme preview": "Vorschau des Themas {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Das Umbenennen von {file} in {name} ändert dessen öffentliche URL. Bereits bestehende direkte Links darauf müssen aktualisiert werden.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -456,8 +467,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} ist nicht im Original dieses Designs enthalten, daher gibt es nichts, worauf es zurückgesetzt werden könnte.",
     "This theme has no stored original, so nothing can be reset.":
       "Dieses Design hat kein gespeichertes Original, daher kann nichts zurückgesetzt werden.",
+    "failed to refresh the theme list": "Designliste konnte nicht aktualisiert werden",
+    "failed to switch theme": "Design konnte nicht gewechselt werden",
   },
   "zh-CN": {
+    "Close preview": "关闭预览",
+    "{id} theme preview": "{id} 主题预览",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "将 {file} 重命名为 {name} 会更改其公开网址。任何已直接链接到它的地方都需要更新。",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -599,8 +614,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "此主题保存的原始版本与其当前结构不一致，因此无法重置其文件。",
     "{file} isn't in this theme's original, so there's nothing to reset it to.": "{file} 不在此主题的原始版本中，因此没有可重置到的内容。",
     "This theme has no stored original, so nothing can be reset.": "此主题没有保存的原始版本，因此无法重置任何内容。",
+    "failed to refresh the theme list": "刷新主题列表失败",
+    "failed to switch theme": "切换主题失败",
   },
   "zh-TW": {
+    "Close preview": "關閉預覽",
+    "{id} theme preview": "{id} 佈景主題預覽",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "將 {file} 重新命名為 {name} 會變更其公開網址。任何已直接連結到它的地方都需要更新。",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -746,8 +765,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "此佈景主題儲存的原始版本與目前的結構不一致，因此無法重設其檔案。",
     "{file} isn't in this theme's original, so there's nothing to reset it to.": "{file} 不在此佈景主題的原始版本中，因此沒有可重設的內容。",
     "This theme has no stored original, so nothing can be reset.": "此佈景主題沒有儲存的原始版本，因此無法重設任何內容。",
+    "failed to refresh the theme list": "重新整理佈景主題清單失敗",
+    "failed to switch theme": "切換佈景主題失敗",
   },
   "pt-BR": {
+    "Close preview": "Fechar visualização",
+    "{id} theme preview": "Visualização do tema {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Renomear {file} para {name} muda sua URL pública. Qualquer link direto já existente precisará ser atualizado.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -896,8 +919,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} não está no original deste tema, então não há nada para o qual redefini-lo.",
     "This theme has no stored original, so nothing can be reset.":
       "Este tema não tem um original salvo, então nada pode ser redefinido.",
+    "failed to refresh the theme list": "Não foi possível atualizar a lista de temas",
+    "failed to switch theme": "Não foi possível trocar de tema",
   },
   ru: {
+    "Close preview": "Закрыть предпросмотр",
+    "{id} theme preview": "Предпросмотр темы {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Переименование {file} в {name} изменяет её публичный URL. Все уже существующие прямые ссылки на неё нужно будет обновить.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -1046,8 +1073,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "Файла {file} нет в оригинале этой темы, поэтому сбрасывать его не к чему.",
     "This theme has no stored original, so nothing can be reset.":
       "У этой темы нет сохранённого оригинала, поэтому сбросить ничего нельзя.",
+    "failed to refresh the theme list": "Не удалось обновить список тем",
+    "failed to switch theme": "Не удалось переключить тему",
   },
   fa: {
+    "Close preview": "بستن پیش‌نمایش",
+    "{id} theme preview": "پیش‌نمایش پوسته {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "تغییر نام {file} به {name} نشانی اینترنتی عمومی آن را تغییر می‌دهد. هر پیوند مستقیمی که از قبل به آن اشاره می‌کند باید به‌روزرسانی شود.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -1196,8 +1227,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} در نسخه اصلی این پوسته وجود ندارد، بنابراین چیزی برای بازنشانی آن نیست.",
     "This theme has no stored original, so nothing can be reset.":
       "این پوسته نسخه اصلی ذخیره‌شده‌ای ندارد، بنابراین چیزی قابل بازنشانی نیست.",
+    "failed to refresh the theme list": "به‌روزرسانی فهرست پوسته‌ها ناموفق بود",
+    "failed to switch theme": "تغییر پوسته ناموفق بود",
   },
   ar: {
+    "Close preview": "إغلاق المعاينة",
+    "{id} theme preview": "معاينة قالب {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "إعادة تسمية {file} إلى {name} تغيّر عنوان URL العام الخاص به. أي روابط مباشرة موجودة بالفعل تحتاج إلى تحديث.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -1346,8 +1381,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} غير موجود في النسخة الأصلية لهذا القالب، لذا لا يوجد ما يمكن إعادة تعيينه إليه.",
     "This theme has no stored original, so nothing can be reset.":
       "لا توجد نسخة أصلية محفوظة لهذا القالب، لذا لا يمكن إعادة تعيين أي شيء.",
+    "failed to refresh the theme list": "تعذّر تحديث قائمة القوالب",
+    "failed to switch theme": "تعذّر تبديل القالب",
   },
   ja: {
+    "Close preview": "プレビューを閉じる",
+    "{id} theme preview": "{id}テーマのプレビュー",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file} を {name} に変更すると、公開URLが変わります。すでにそこへ直接リンクしているものは更新が必要です。",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -1495,8 +1534,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "{file} isn't in this theme's original, so there's nothing to reset it to.":
       "{file} はこのテーマのオリジナルに含まれていないため、リセットできません。",
     "This theme has no stored original, so nothing can be reset.": "このテーマには保存されたオリジナルがないため、リセットできるものはありません。",
+    "failed to refresh the theme list": "テーマ一覧を更新できませんでした",
+    "failed to switch theme": "テーマを切り替えられませんでした",
   },
   ko: {
+    "Close preview": "미리보기 닫기",
+    "{id} theme preview": "{id} 테마 미리보기",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file}을 {name}으로 이름을 바꾸면 공개 URL이 변경됩니다. 이미 직접 연결된 링크는 업데이트해야 합니다.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -1644,8 +1687,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "{file} isn't in this theme's original, so there's nothing to reset it to.":
       "{file}은(는) 이 테마의 원본에 없어 초기화할 대상이 없습니다.",
     "This theme has no stored original, so nothing can be reset.": "이 테마에는 저장된 원본이 없어 초기화할 수 있는 항목이 없습니다.",
+    "failed to refresh the theme list": "테마 목록을 새로 고치지 못했습니다",
+    "failed to switch theme": "테마를 전환하지 못했습니다",
   },
   pl: {
+    "Close preview": "Zamknij podgląd",
+    "{id} theme preview": "Podgląd motywu {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Zmiana nazwy {file} na {name} zmienia jego publiczny adres URL. Wszelkie istniejące bezpośrednie linki do niego trzeba będzie zaktualizować.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -1794,8 +1841,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} nie ma w oryginale tego motywu, więc nie ma do czego go zresetować.",
     "This theme has no stored original, so nothing can be reset.":
       "Ten motyw nie ma zapisanego oryginału, więc nie można niczego zresetować.",
+    "failed to refresh the theme list": "Nie udało się odświeżyć listy motywów",
+    "failed to switch theme": "Nie udało się przełączyć motywu",
   },
   hu: {
+    "Close preview": "Előnézet bezárása",
+    "{id} theme preview": "{id} téma előnézete",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "A {file} átnevezése {name} névre megváltoztatja a nyilvános URL-jét. Minden meglévő közvetlen hivatkozást frissíteni kell rá.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -1944,8 +1995,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} nincs benne a sablon eredetijében, így nincs mire visszaállítani.",
     "This theme has no stored original, so nothing can be reset.":
       "Ennek a sablonnak nincs mentett eredetije, ezért semmi sem állítható vissza.",
+    "failed to refresh the theme list": "Nem sikerült frissíteni a témák listáját",
+    "failed to switch theme": "Nem sikerült témát váltani",
   },
   fr: {
+    "Close preview": "Fermer l'aperçu",
+    "{id} theme preview": "Aperçu du thème {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Renommer {file} en {name} change son URL publique. Tout lien direct existant devra être mis à jour.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -2008,7 +2063,7 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     HTML: "HTML",
     "Loading the marketplace…": "Chargement de la marketplace…",
     "Loading theme…": "Chargement du thème…",
-    Marketplace: "Marketplace",
+    Marketplace: "Place de marché",
     Mobile: "Mobile",
     "More actions for {file}": "Autres actions pour {file}",
     "New name for {file}": "Nouveau nom pour {file}",
@@ -2094,8 +2149,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} ne fait pas partie de l'original de ce thème, il n'y a donc rien vers quoi le réinitialiser.",
     "This theme has no stored original, so nothing can be reset.":
       "Ce thème n'a pas d'original enregistré, rien ne peut donc être réinitialisé.",
+    "failed to refresh the theme list": "Impossible d'actualiser la liste des thèmes",
+    "failed to switch theme": "Impossible de changer de thème",
   },
   uk: {
+    "Close preview": "Закрити перегляд",
+    "{id} theme preview": "Перегляд теми {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Перейменування {file} на {name} змінює її публічну URL-адресу. Усі наявні прямі посилання на неї доведеться оновити.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -2244,8 +2303,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "Файлу {file} немає в оригіналі цієї теми, тому скидати його нема до чого.",
     "This theme has no stored original, so nothing can be reset.":
       "Ця тема не має збереженого оригіналу, тому нічого не можна скинути.",
+    "failed to refresh the theme list": "Не вдалося оновити список тем",
+    "failed to switch theme": "Не вдалося змінити тему",
   },
   tr: {
+    "Close preview": "Önizlemeyi kapat",
+    "{id} theme preview": "{id} teması önizlemesi",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file} adını {name} olarak değiştirmek, genel URL'sini değiştirir. Ona doğrudan bağlantı veren her şeyin güncellenmesi gerekir.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -2394,8 +2457,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} bu temanın orijinalinde yok, bu yüzden sıfırlanacak bir şey yok.",
     "This theme has no stored original, so nothing can be reset.":
       "Bu temanın kaydedilmiş bir orijinali yok, bu yüzden hiçbir şey sıfırlanamaz.",
+    "failed to refresh the theme list": "Tema listesi yenilenemedi",
+    "failed to switch theme": "Tema değiştirilemedi",
   },
   th: {
+    "Close preview": "ปิดตัวอย่าง",
+    "{id} theme preview": "ตัวอย่างธีม {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "การเปลี่ยนชื่อ {file} เป็น {name} จะเปลี่ยน URL สาธารณะของมัน ลิงก์โดยตรงที่มีอยู่แล้วจะต้องอัปเดต",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -2543,8 +2610,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "{file} isn't in this theme's original, so there's nothing to reset it to.":
       "{file} ไม่มีอยู่ในต้นฉบับของธีมนี้ จึงไม่มีอะไรให้รีเซ็ตกลับไป",
     "This theme has no stored original, so nothing can be reset.": "ธีมนี้ไม่มีต้นฉบับที่บันทึกไว้ จึงรีเซ็ตอะไรไม่ได้",
+    "failed to refresh the theme list": "รีเฟรชรายการธีมไม่สำเร็จ",
+    "failed to switch theme": "เปลี่ยนธีมไม่สำเร็จ",
   },
   it: {
+    "Close preview": "Chiudi anteprima",
+    "{id} theme preview": "Anteprima del tema {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Rinominare {file} in {name} cambia il suo URL pubblico. Qualsiasi link diretto già esistente dovrà essere aggiornato.",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -2693,8 +2764,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} non è nell'originale di questo tema, quindi non c'è nulla a cui ripristinarlo.",
     "This theme has no stored original, so nothing can be reset.":
       "Questo tema non ha un originale salvato, quindi non è possibile ripristinare nulla.",
+    "failed to refresh the theme list": "Impossibile aggiornare l'elenco dei temi",
+    "failed to switch theme": "Impossibile cambiare tema",
   },
   hi: {
+    "Close preview": "पूर्वावलोकन बंद करें",
+    "{id} theme preview": "{id} थीम पूर्वावलोकन",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file} का नाम {name} रखने से इसका सार्वजनिक URL बदल जाता है। इससे पहले से सीधे जुड़े किसी भी लिंक को अपडेट करना होगा।",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -2843,8 +2918,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} इस थीम के मूल संस्करण में नहीं है, इसलिए इसे रीसेट करने के लिए कुछ नहीं है।",
     "This theme has no stored original, so nothing can be reset.":
       "इस थीम का कोई सहेजा हुआ मूल संस्करण नहीं है, इसलिए कुछ भी रीसेट नहीं किया जा सकता।",
+    "failed to refresh the theme list": "थीम सूची रीफ़्रेश नहीं हो सकी",
+    "failed to switch theme": "थीम बदली नहीं जा सकी",
   },
   ur: {
+    "Close preview": "پیش نظارہ بند کریں",
+    "{id} theme preview": "{id} تھیم کا پیش نظارہ",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file} کا نام {name} رکھنے سے اس کا عوامی URL تبدیل ہو جاتا ہے۔ اس سے پہلے سے جڑے ہوئے کسی بھی براہ راست لنک کو اپ ڈیٹ کرنا ہوگا۔",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -2993,8 +3072,12 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} اس تھیم کے اصل نسخے میں موجود نہیں ہے، اس لیے اسے ری سیٹ کرنے کے لیے کچھ نہیں ہے۔",
     "This theme has no stored original, so nothing can be reset.":
       "اس تھیم کا کوئی محفوظ شدہ اصل نسخہ نہیں ہے، اس لیے کچھ بھی ری سیٹ نہیں کیا جا سکتا۔",
+    "failed to refresh the theme list": "تھیمز کی فہرست ریفریش نہیں ہو سکی",
+    "failed to switch theme": "تھیم تبدیل نہیں ہو سکی",
   },
   bn: {
+    "Close preview": "প্রিভিউ বন্ধ করুন",
+    "{id} theme preview": "{id} থিমের প্রিভিউ",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file}-এর নাম {name} করলে এর পাবলিক URL পরিবর্তিত হবে। এর সাথে ইতিমধ্যে সরাসরি লিঙ্ক করা যেকোনো কিছু আপডেট করতে হবে।",
     "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
@@ -3143,6 +3226,8 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} এই থিমের মূল সংস্করণে নেই, তাই এটিকে রিসেট করার মতো কিছু নেই।",
     "This theme has no stored original, so nothing can be reset.":
       "এই থিমের কোনো সংরক্ষিত মূল সংস্করণ নেই, তাই কিছুই রিসেট করা যাবে না।",
+    "failed to refresh the theme list": "থিমের তালিকা রিফ্রেশ করা যায়নি",
+    "failed to switch theme": "থিম পরিবর্তন করা যায়নি",
   },
 };
 

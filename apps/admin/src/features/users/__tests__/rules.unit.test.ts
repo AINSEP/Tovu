@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminIdentityUser } from "@/lib/api";
 import { describeApiError, formatGrantLabel, userRowMenuItems } from "../rules";
+import { t } from "../users-i18n";
 
 /**
  * @file Pure-logic coverage for `features/users/rules.ts` — the screen's `describeApiError`
@@ -29,26 +30,88 @@ describe("describeApiError", () => {
     ["RESOURCE_CONFLICT", "That username is already in use."],
     ["OWNER_REQUIRED", "The workspace must keep at least one active owner."],
   ])("overrides code %s with a fixed message", (code, expected) => {
-    expect(describeApiError(new ApiError("raw", 400, code), "fallback")).toBe(expected);
+    expect(describeApiError(new ApiError("raw", 400, code), "fallback", "en")).toBe(expected);
   });
 
   it("VALIDATION_ERROR prefers the server's own message, falling back when blank", () => {
-    expect(describeApiError(new ApiError("username too short", 400, "VALIDATION_ERROR"), "fallback")).toBe(
+    expect(describeApiError(new ApiError("username too short", 400, "VALIDATION_ERROR"), "fallback", "en")).toBe(
       "username too short",
     );
-    expect(describeApiError(new ApiError("", 400, "VALIDATION_ERROR"), "fallback")).toBe(
+    expect(describeApiError(new ApiError("", 400, "VALIDATION_ERROR"), "fallback", "en")).toBe(
       "Please correct the highlighted fields.",
     );
   });
 
   it("an unrecognized code falls through to the shared default", () => {
-    expect(describeApiError(new ApiError("raw message", 500, "SOMETHING_ELSE"), "fallback")).toBe("raw message");
+    expect(describeApiError(new ApiError("raw message", 500, "SOMETHING_ELSE"), "fallback", "en")).toBe(
+      "raw message",
+    );
   });
 
   it("a non-ApiError value falls through to the shared default", () => {
-    expect(describeApiError(new Error("plain"), "fallback")).toBe("plain");
-    expect(describeApiError("nope", "fallback")).toBe("fallback");
+    expect(describeApiError(new Error("plain"), "fallback", "en")).toBe("plain");
+    expect(describeApiError("nope", "fallback", "en")).toBe("fallback");
   });
+
+  // C4 — the four static overrides plus the VALIDATION_ERROR fallback leaked English regardless of
+  // locale. Table-driven per static code, in `es`.
+  it.each([
+    ["GRANT_EXCEEDS_ISSUER", "No puedes otorgar un permiso que no posees."],
+    ["FORBIDDEN", "No tienes permiso para hacer eso."],
+    ["RESOURCE_CONFLICT", "Ese nombre de usuario ya está en uso."],
+    ["OWNER_REQUIRED", "El espacio de trabajo debe conservar al menos un propietario activo."],
+  ])("translates the %s override into the operator's locale (es)", (code, expected) => {
+    const translated = describeApiError(new ApiError("raw", 400, code), "fallback", "es");
+    expect(translated).toBe(expected);
+    expect(translated).not.toBe(STATIC_ENGLISH[code]);
+  });
+
+  it("translates the VALIDATION_ERROR fallback into the operator's locale (es)", () => {
+    expect(describeApiError(new ApiError("", 400, "VALIDATION_ERROR"), "fallback", "es")).toBe(
+      "Corrige los campos resaltados.",
+    );
+  });
+
+  it("falls back to English for an unrecognized locale", () => {
+    expect(describeApiError(new ApiError("raw", 400, "FORBIDDEN"), "fallback", "xx")).toBe(
+      "You do not have permission to do that.",
+    );
+  });
+
+});
+
+const STATIC_ENGLISH: Record<string, string> = {
+  GRANT_EXCEEDS_ISSUER: "You cannot grant a permission you do not hold.",
+  FORBIDDEN: "You do not have permission to do that.",
+  RESOURCE_CONFLICT: "That username is already in use.",
+  OWNER_REQUIRED: "The workspace must keep at least one active owner.",
+};
+
+// C4 — dictionary-parity spot check for just the 5 keys this pass added, so pre-existing
+// dictionary drift elsewhere in `USERS_DICT` does not fail this file (same scoping `roles-
+// i18n.unit.test.ts` uses for C1's keys).
+describe("users-i18n — C4 keys", () => {
+  const LOCALES = [
+    "es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko",
+    "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn",
+  ];
+  const NEW_KEYS = [
+    "You cannot grant a permission you do not hold.",
+    "You do not have permission to do that.",
+    "That username is already in use.",
+    "The workspace must keep at least one active owner.",
+    "Please correct the highlighted fields.",
+  ];
+
+  for (const key of NEW_KEYS) {
+    for (const locale of LOCALES) {
+      it(`t(${locale}, "${key}") is non-empty and translated`, () => {
+        const translated = t(locale, key);
+        expect(translated.length).toBeGreaterThan(0);
+        expect(translated).not.toBe(key);
+      });
+    }
+  }
 });
 
 describe("userRowMenuItems", () => {

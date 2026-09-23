@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState, type RefObject } from "react";
 
 import { type AdminContentType } from "@/lib/api";
 import { useFetchMutation } from "@/lib/fetch-query";
@@ -14,8 +14,12 @@ import {
   type DraftField,
 } from "../rules";
 import { useEscapeToCancel } from "./use-escape-to-cancel.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useFocusTrap } from "@/hooks/use-focus-trap.hooks";
+import { t as translate } from "../collections-i18n";
 import { defaultEditFieldsDialogPort } from "./edit-fields-dialog-dependencies.hooks";
 import type { EditFieldsDialogPort } from "./edit-fields-dialog-port.hooks";
+import type { Translate } from "@/lib/dictionary-translator";
 
 /**
  * @file `EditFieldsDialog`'s own state and submit action (SPEC-037 REQ-05 — post-creation
@@ -49,6 +53,12 @@ export interface EditFieldsDialogController {
   error: string | null;
   saving: boolean;
   submit: (e: React.FormEvent) => void;
+  /** Backdrop/Cancel/Escape all route here instead of `props.onCancel` directly — a no-op while
+   * `updateContentTypeFields` is in flight, so those dismiss paths can't unmount the dialog out
+   * from under its own pending write (H4). */
+  cancel: () => void;
+  /** Attach to the dialog's own `role="dialog"` root so `useFocusTrap` (M3) can find it. */
+  dialogRef: RefObject<HTMLFormElement | null>;
 }
 
 export function useEditFieldsDialog(
@@ -57,12 +67,22 @@ export function useEditFieldsDialog(
     onSaved: () => void;
     onCancel: () => void;
   },
-  port: EditFieldsDialogPort
+  port: EditFieldsDialogPort,
+  options: { t?: Translate } = {},
 ): EditFieldsDialogController {
+  const t = options.t ?? ((key: string) => key);
   const [fields, setFields] = useState<DraftField[]>(() => draftFieldsFromContentType(props.contentType.fields));
   const [validationError, setValidationError] = useState<string | null>(null);
+  const inFlightRef = useRef(false);
+  const dialogRef = useRef<HTMLFormElement | null>(null);
 
-  useEscapeToCancel(props.onCancel);
+  function cancel() {
+    if (inFlightRef.current) return;
+    props.onCancel();
+  }
+
+  useEscapeToCancel(cancel);
+  useFocusTrap(dialogRef);
 
   const updateFieldsMutation = useFetchMutation({
     run: (input: { key: string; fields: ReturnType<typeof stripDraftFieldRowIds>; expectedVersion: number }) =>
@@ -86,12 +106,13 @@ export function useEditFieldsDialog(
     e.preventDefault();
     setValidationError(null);
 
-    const draftError = validateEditFieldsDraft(fields);
+    const draftError = validateEditFieldsDraft(fields, t);
     if (draftError) {
       setValidationError(draftError);
       return;
     }
 
+    inFlightRef.current = true;
     try {
       await updateFieldsMutation.mutate({
         key: props.contentType.key,
@@ -101,13 +122,15 @@ export function useEditFieldsDialog(
       props.onSaved();
     } catch {
       // already surfaced through updateFieldsMutation.error -> error below
+    } finally {
+      inFlightRef.current = false;
     }
   }
 
   const saving = updateFieldsMutation.status === "pending";
-  const error = validationError ?? (updateFieldsMutation.error ? describeEditFieldsError(updateFieldsMutation.error) : null);
+  const error = validationError ?? (updateFieldsMutation.error ? describeEditFieldsError(updateFieldsMutation.error, t) : null);
 
-  return { fields, updateField, removeField, addField, error, saving, submit };
+  return { fields, updateField, removeField, addField, error, saving, submit, cancel, dialogRef };
 }
 
 /**
@@ -123,5 +146,7 @@ export function useWiredEditFieldsDialog(props: {
   onSaved: () => void;
   onCancel: () => void;
 }): EditFieldsDialogController {
-  return useEditFieldsDialog(props, defaultEditFieldsDialogPort);
+  const locale = useAdminLocale();
+  const t = (key: string): string => translate(locale, key);
+  return useEditFieldsDialog(props, defaultEditFieldsDialogPort, { t });
 }

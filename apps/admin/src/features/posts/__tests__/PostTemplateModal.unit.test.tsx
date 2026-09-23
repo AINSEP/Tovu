@@ -1,8 +1,18 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PostTemplateModal } from "../PostTemplateModal";
 import type { PostTemplateFetchState } from "../hooks/use-post-template-source.hooks";
+import { navigate } from "@/lib/router";
+
+vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
+
+const t = (key: string) => key;
+/** Every case below leaves a real dirty-guard decision out of scope (see the "Edit button" describe
+ *  block for the one case that isn't) — this stub always allows the navigation/close through, same
+ *  as `Posts.unit.test.tsx`'s own fixtures do for props unrelated to what a given `it` covers. */
+const alwaysConfirmLeave = () => true;
 
 /**
  * @file `PostTemplateModal` — the "View Template" read-only source view (2026-08-10). Covers the
@@ -15,6 +25,7 @@ import type { PostTemplateFetchState } from "../hooks/use-post-template-source.h
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.mocked(navigate).mockClear();
 });
 
 function jsonOk(text: string): Response {
@@ -33,6 +44,8 @@ describe("theme tier gates the fetch", () => {
         themeApiVersion={undefined}
         templateFilename="post.html"
         onClose={vi.fn()}
+        confirmLeave={alwaysConfirmLeave}
+        t={t}
       />,
     );
 
@@ -51,6 +64,8 @@ describe("theme tier gates the fetch", () => {
         themeApiVersion={undefined}
         templateFilename="post.html"
         onClose={vi.fn()}
+        confirmLeave={alwaysConfirmLeave}
+        t={t}
       />,
     );
 
@@ -71,6 +86,8 @@ describe("a static-tier theme", () => {
         themeApiVersion={undefined}
         templateFilename="blog-post.html"
         onClose={vi.fn()}
+        confirmLeave={alwaysConfirmLeave}
+        t={t}
       />,
     );
 
@@ -95,6 +112,8 @@ describe("a static-tier theme", () => {
         themeApiVersion={2}
         templateFilename="blog-post.html"
         onClose={vi.fn()}
+        confirmLeave={alwaysConfirmLeave}
+        t={t}
       />,
     );
 
@@ -112,6 +131,8 @@ describe("a static-tier theme", () => {
         themeApiVersion={2}
         templateFilename="x.html"
         onClose={vi.fn()}
+        confirmLeave={alwaysConfirmLeave}
+        t={t}
       />,
     );
 
@@ -128,6 +149,8 @@ describe("a static-tier theme", () => {
         themeApiVersion={2}
         templateFilename="missing.html"
         onClose={vi.fn()}
+        confirmLeave={alwaysConfirmLeave}
+        t={t}
       />,
     );
 
@@ -144,6 +167,8 @@ describe("a static-tier theme", () => {
         themeApiVersion={2}
         templateFilename="x.html"
         onClose={vi.fn()}
+        confirmLeave={alwaysConfirmLeave}
+        t={t}
       />,
     );
 
@@ -169,6 +194,8 @@ describe("PostTemplateModal template-source-hook injection", () => {
         themeApiVersion={2}
         templateFilename="blog-post.html"
         onClose={vi.fn()}
+        confirmLeave={alwaysConfirmLeave}
+        t={t}
         useTemplateSourceHook={useFakeTemplateSource}
       />,
     );
@@ -176,5 +203,52 @@ describe("PostTemplateModal template-source-hook injection", () => {
     expect(screen.getByText("fake template source")).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
+  });
+});
+
+describe("Edit button (owner ask, 2026-09-22)", () => {
+  /** Reused across this block's `it`s: a loaded static-tier fixture, so the header (and its Edit
+   *  button) is on screen without waiting on a real fetch. */
+  function renderLoadedModal(overrides: { onClose?: () => void; confirmLeave?: () => boolean } = {}) {
+    function useFakeTemplateSource(): PostTemplateFetchState {
+      return { status: "loaded", html: "<h1>Hello template</h1>" };
+    }
+    return render(
+      <PostTemplateModal
+        themeId="basic"
+        themeTier="static"
+        themeApiVersion={2}
+        templateFilename="posts-default.html"
+        onClose={overrides.onClose ?? vi.fn()}
+        confirmLeave={overrides.confirmLeave ?? alwaysConfirmLeave}
+        t={t}
+        useTemplateSourceHook={useFakeTemplateSource}
+      />,
+    );
+  }
+
+  it("navigates to the exact Theme Explore URL for this template and closes the modal", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    renderLoadedModal({ onClose });
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+
+    expect(navigate).toHaveBeenCalledWith("/themes/explore?theme=basic&page=posts-default");
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("declines to navigate or close when confirmLeave reports unsaved edits", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    // Same shape as `PostEditorHeader`'s back-link guard: `confirmLeave` returning `false` means
+    // the operator chose "keep editing" at a browser-native confirm(), so nothing here should act
+    // as though they'd left.
+    renderLoadedModal({ onClose, confirmLeave: () => false });
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

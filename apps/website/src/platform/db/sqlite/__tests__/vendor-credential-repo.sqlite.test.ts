@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 
 import { openContentDb } from "../content-db.js";
 import { SqliteVendorCredentialSetRepo } from "../vendor-credential-repo.sqlite.js";
-import { workspaces } from "../../schema.js";
+import { workspaces } from "../../schema.sqlite.js";
 import type { VendorCredentialSetRecord } from "#src/features/vendor-credentials/types";
 
 /**

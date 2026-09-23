@@ -108,6 +108,7 @@ import {
   previewUninstallPlugin,
   uninstallPlugin,
   type PluginUninstallPreview,
+  type RemovePluginFn,
   type UninstallPluginRequired,
 } from "./uninstall.js";
 // The Agent Plugins half of `plugins_list` (see this file's header) — a deliberate, disclosed
@@ -153,11 +154,7 @@ export interface PluginsToolDeps {
   discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   onPluginEnabled: (pluginId: string) => Promise<void>;
   onPluginDisabled: (pluginId: string) => void;
-  /** The actual on-disk artifact removal for `plugins_uninstall` — same field name and same
-   *  composition-root binding `routes/admin/plugins/uninstall.ts` already reads
-   *  (`server/runtime/composition/plugin-runtime.ts`'s `onPluginUninstalled`), so this domain adds
-   *  no second implementation of "how a plugin's files actually get removed". */
-  onPluginUninstalled: (pluginId: string) => Promise<void>;
+  removePlugin: RemovePluginFn;
   /** The external-MCP store slice `provisionAgentPluginMcpServers` writes into. Enabling an Agent
    *  Plugin from chat must provision its auto-admitted MCP servers exactly as the admin toggle does
    *  (`server/inbound/admin-http/routes/agent-plugins/set-enabled.ts`); these are the same fields
@@ -180,9 +177,8 @@ export const pluginsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   //    (on enable) the injected onEnabled hook, which can run ADR-023 schema DDL against the live
   //    database. Genuinely mutating, not a metadata-only flip.
   ["plugins_set_enabled", "mutates-durable-state"],
-  // -> uninstallPlugin (uninstall.ts): deps.onPluginUninstalled (real filesystem removal) plus
-  //    pluginActivationRepo.deleteActivation() per matching workspace. Durable and irreversible —
-  //    see agent-tools.ts's own description; no revert/change-set capture exists for this operation.
+  // -> uninstallPlugin (uninstall.ts): the package directory moves to the 60-day Trash.
+  //    Durable and reversible only through the human Admin Trash surface.
   ["plugins_uninstall", "mutates-durable-state"],
 ]);
 
@@ -371,9 +367,21 @@ function notConfirmedUninstallResult(outcome: ConfirmationOutcome, pluginId: str
 
 /** A fresh `uninstallPlugin` request. Discovery is re-read on every call, so the post-confirmation write never resolves
  *  its target from the snapshot taken before a human was asked. @complexity one discovery scan. */
-async function uninstallRequestFor(routeDeps: PluginsToolDeps, pluginId: string): Promise<UninstallPluginRequired> {
+async function uninstallRequestFor(
+  routeDeps: PluginsToolDeps,
+  pluginId: string,
+  principalId: string,
+): Promise<UninstallPluginRequired> {
   const discovery = await routeDeps.discoverPlugins();
-  return { deps: { repo: routeDeps.pluginActivationRepo, discovery, onUninstall: routeDeps.onPluginUninstalled }, input: { pluginId } };
+  return {
+    deps: { repo: routeDeps.pluginActivationRepo, discovery, remove: routeDeps.removePlugin },
+    input: {
+      pluginId,
+      workspaceId: routeDeps.workspaceId,
+      at: routeDeps.clock.nowIso(),
+      actor: { principalId, pluginId: "assistant" },
+    },
+  };
 }
 
 /**
@@ -382,11 +390,15 @@ async function uninstallRequestFor(routeDeps: PluginsToolDeps, pluginId: string)
  * member `expired`/`abandoned` use; every other refusal still propagates undecorated, per this file's convention.
  * @complexity one discovery scan plus `uninstallPlugin`.
  */
-async function uninstallConfirmedPlugin(routeDeps: PluginsToolDeps, preview: PluginUninstallPreview): Promise<unknown> {
+async function uninstallConfirmedPlugin(
+  routeDeps: PluginsToolDeps,
+  preview: PluginUninstallPreview,
+  principalId: string,
+): Promise<unknown> {
   const { pluginId } = preview;
   try {
-    const result = await uninstallPlugin(await uninstallRequestFor(routeDeps, pluginId), { confirmedPreview: preview });
-    return { pluginId, clearedWorkspaceIds: result.clearedWorkspaceIds };
+    const result = await uninstallPlugin(await uninstallRequestFor(routeDeps, pluginId, principalId), { confirmedPreview: preview });
+    return { pluginId, trashed: result.trashed };
   } catch (error) {
     if (!(error instanceof PluginChangedSincePreviewError)) throw error;
     return {
@@ -730,7 +742,7 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
 
     /**
      * Mirrors `routes/admin/plugins/uninstall.ts`'s own business rules exactly: same permission, same
-     * `uninstallPlugin()` module, same `deps.onPluginUninstalled` mechanism binding. NOT wrapped in
+     * `uninstallPlugin()` module, same pre-bound Trash removal binding. NOT wrapped in
      * `executeCommand` — matching that route's own deliberate choice (`uninstall.ts`'s header: "there
      * is no meaningful 'restore the prior state' for deleted bytes"), so there is nothing here for a
      * `captureInverse`/`rollback` pair to capture. That is a statement about revertability, not about
@@ -750,12 +762,12 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
       const pluginId = requireString(input, "pluginId");
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.plugins.enable", entityType: "plugin", entityId: pluginId });
 
-      const preview = await previewUninstallPlugin(await uninstallRequestFor(routeDeps, pluginId)); // throws PluginNotFoundError/NotUninstallableError/EnabledError BEFORE any dialog
+      const preview = await previewUninstallPlugin(await uninstallRequestFor(routeDeps, pluginId, ctx.principal.id)); // throws PluginNotFoundError/NotUninstallableError/EnabledError BEFORE any dialog
 
       const outcome = await confirmUninstall(surfaces, ctx, preview);
       if (!outcome.confirmed) return notConfirmedUninstallResult(outcome, pluginId);
 
-      return uninstallConfirmedPlugin(routeDeps, preview);
+      return uninstallConfirmedPlugin(routeDeps, preview, ctx.principal.id);
     },
   };
 

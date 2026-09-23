@@ -442,6 +442,32 @@ test("markup: every real current embed type (widget/media/post/content/menu/part
   assert.equal(findError(result, "markup-embed-config-unknown-type"), undefined, JSON.stringify(result.errors));
 });
 
+test("markup: the theme-owned post-previews embed type is accepted", () => {
+  const dir = tmpDir("tovu-validate-markup-post-previews-");
+  writeMinimalV2Static(dir);
+  fs.writeFileSync(
+    path.join(dir, "render", "pages", "index.html"),
+    `<div data-embed-config='{"type":"post-previews","id":"latest"}'></div>`,
+    "utf8"
+  );
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.equal(findError(result, "markup-embed-config-unknown-type"), undefined, JSON.stringify(result.errors));
+});
+
+test("markup: the theme-owned collection embed type is accepted", () => {
+  const dir = tmpDir("tovu-validate-markup-collection-");
+  writeMinimalV2Static(dir);
+  fs.writeFileSync(
+    path.join(dir, "render", "pages", "index.html"),
+    `<div data-embed-config='{"type":"collection","typeKey":"recipe"}'></div>`,
+    "utf8"
+  );
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.equal(findError(result, "markup-embed-config-unknown-type"), undefined, JSON.stringify(result.errors));
+});
+
 test("markup: a data-embed-config attribute written with double quotes is flagged as unrecognized-at-runtime", () => {
   const dir = tmpDir("tovu-validate-markup-doublequote-");
   writeMinimalV2Static(dir);

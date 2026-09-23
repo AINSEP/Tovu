@@ -1,9 +1,10 @@
 import { navigate } from "../../lib/router";
-import { DataTable, RowMenu } from "@jini-ai/admin/react";
+import { ConfirmDialog, DataTable, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { formRowMenuItems } from "./rules";
 import { useWiredFormsList } from "./hooks/use-forms-list.hooks";
+import { RecipientLabel, ServerLabel } from "@/components/status-labels";
 
 /**
  * @file Forms list screen (SPEC-010 ui.spec.md §2.1/§3.1) — the `/admin/forms` route.
@@ -12,12 +13,15 @@ import { useWiredFormsList } from "./hooks/use-forms-list.hooks";
  * see `styles.css`) instead of the bare `.editor-header` this screen used before — see
  * `FormEditor.tsx`'s file comment for the fuller rationale (both screens were audited together).
  *
- * Row actions (this pass): `Posts.tsx`/`Pages.tsx`'s `RowMenu` pattern, minus a Delete item —
- * `api.ts` has no `deleteForm` route at all (only `deleteFormSubmission`, a different resource),
- * so there is nothing to wire without inventing a server capability that doesn't exist. What DOES
- * exist is `api.updateForm`'s `status` patch, the exact call `FormEditor.tsx`'s own Disable/Enable
- * button already makes — surfaced here too so an operator doesn't have to open the editor just to
- * toggle it. No `ConfirmDialog`: `FormEditor.tsx` treats this as reversible either direction (no
+ * Row actions: `Posts.tsx`/`Pages.tsx`'s `RowMenu` pattern, INCLUDING a Delete item (T7a,
+ * 2026-09-21) — `api.ts`'s generic `trash` route (`POST /trash/items`, `type: "form"`) now covers
+ * forms, so there is a server capability to wire. Reached through `RowMenu`'s "Delete" ->
+ * `ConfirmDialog` ("Move to trash?") -> `useFormsList`'s `removeForm`, the same three-step gate
+ * `Posts.tsx`/`Pages.tsx` already use for their own row deletes; see `use-forms-list.hooks.ts`'s own
+ * doc for why a click alone can never delete. What ALSO exists (unchanged by this pass) is
+ * `api.updateForm`'s `status` patch, the exact call `FormEditor.tsx`'s own Disable/Enable button
+ * already makes — surfaced here too so an operator doesn't have to open the editor just to toggle
+ * it. That action stays un-confirmed: `FormEditor.tsx` treats it as reversible either direction (no
  * confirm step there either), so this list doesn't invent a heavier gate the editor itself doesn't
  * have. `.btn-warning`'s tone applies only going active -> disabled, same asymmetry as
  * `FormEditor.tsx`'s "Re-enabling is the safe direction" comment.
@@ -39,10 +43,10 @@ export interface FormsListProps {
 }
 
 export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListProps = {}) {
-  const { forms, error, toggleStatus, t } = useFormsListHook();
+  const { forms, error, rowSavingId, toggleStatus, pendingDelete, setPendingDelete, removeForm, t } = useFormsListHook();
 
   if (error && !forms) return <div className="notice error">{error}</div>;
-  if (!forms) return <div className="notice">Loading forms…</div>;
+  if (!forms) return <div className="notice">{t("Loading forms…")}</div>;
 
   // Form ids are stable and unique, so they disambiguate one row's edit link from another's —
   // same reasoning as every other list on this workstream. Each row's "Actions" menu (Edit/Disable/
@@ -113,26 +117,27 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
           {
             key: "status",
             header: t("Status"),
-            cell: (form) => <span className={`status status-${form.status}`}>{form.status}</span>,
+            cell: (form) => <span className={`status status-${form.status}`}><ServerLabel value={form.status} /></span>,
           },
           { key: "fields", header: t("Fields"), cell: (form) => form.fields.length },
           {
             key: "notify",
             header: t("Notify"),
-            cell: (form) => (form.notify.enabled ? `${form.notify.recipients.length} recipient(s)` : t("off")),
+            cell: (form) => (form.notify.enabled ? <>{form.notify.recipients.length} <RecipientLabel count={form.notify.recipients.length} /></> : t("off")),
           },
           {
             key: "actions",
             header: t("More"),
             cell: (form, index) => (
               <RowMenu
-                triggerLabel={`Actions for form "${form.name}"`}
+                triggerLabel={t('Actions for form "{name}"').replace("{name}", form.name)}
                 agentHandle={`${rowHandles[index]}-menu`}
                 items={formRowMenuItems(
                   form,
                   {
                     onEdit: (f) => navigate(`/forms/${f.slug}`),
                     onToggleStatus: (f) => void toggleStatus(f),
+                    onDelete: (f) => setPendingDelete(f),
                   },
                   t,
                 )}
@@ -140,6 +145,23 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
             ),
           },
         ]}
+      />
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        agentHandle="forms-delete"
+        title={t("Move to trash?")}
+        body={
+          pendingDelete ? (
+            <p>
+              {t("Move")} &quot;{pendingDelete.name}&quot; {t("to trash? It will disappear from the site and from this list.")}
+            </p>
+          ) : null
+        }
+        confirmLabel={t("Move to trash")}
+        destructive
+        pending={pendingDelete !== null && rowSavingId === pendingDelete.id}
+        onConfirm={removeForm}
+        onCancel={() => setPendingDelete(null)}
       />
     </div>
   );

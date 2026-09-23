@@ -31,9 +31,22 @@ export interface ImagePreviewModalProps {
   /** Publishes the close button as agent-addressable via `agentHandle()` (`@jini-ai/agentic`).
    *  Omit to leave it untagged — every existing render then stays byte-identical. */
   agentHandle?: string;
+  /** The close button's accessible name (aria-label, and the agent-handle label when `agentHandle`
+   *  is set). Defaults to the raw English string — this component has no locale of its own (see
+   *  `Themes.tsx`'s file header on `ImagePreviewModal`), so a caller with a translator passes its
+   *  own `t("Close preview")` through here instead. */
+  closeLabel?: string;
 }
 
-export function ImagePreviewModal({ open, src, alt, onClose, useModal = useImagePreviewModal, agentHandle: handle }: ImagePreviewModalProps) {
+export function ImagePreviewModal({
+  open,
+  src,
+  alt,
+  onClose,
+  useModal = useImagePreviewModal,
+  agentHandle: handle,
+  closeLabel = "Close preview",
+}: ImagePreviewModalProps) {
   const { dialogRef, handleNativeCancel, handleBackdropClick } = useModal(open, onClose);
 
   return (
@@ -48,8 +61,8 @@ export function ImagePreviewModal({ open, src, alt, onClose, useModal = useImage
         type="button"
         className="image-preview-modal-close"
         onClick={onClose}
-        aria-label="Close preview"
-        {...(handle ? agentHandle(handle, { role: "button", label: "Close preview" }) : {})}
+        aria-label={closeLabel}
+        {...(handle ? agentHandle(handle, { role: "button", label: closeLabel }) : {})}
       >
         ×
       </button>

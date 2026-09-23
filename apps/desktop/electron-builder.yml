@@ -118,16 +118,25 @@ mac:
   # means anything for a sandboxed (MAS) build, and this is Developer ID. The renderer and GPU
   # helpers run V8 and so need `allow-jit` in their own right.
   entitlementsInherit: build/entitlements.mac.plist
+  # Already electron-builder's own default (scheme.json:2970). Stated explicitly so a reader does
+  # not have to go check — this app relies on it (see allow-jit in the entitlements file).
+  hardenedRuntime: true
   # `notarize` is deliberately left UNSET rather than true or false. Unset means electron-builder
   # notarizes only when APPLE_API_KEY/APPLE_API_KEY_ID/APPLE_API_ISSUER (or another credential mode)
   # is in the environment, and otherwise logs a skip and carries on. `false` would hard-disable it
   # and make setting those variables silently useless.
+  # CI enforces notarization; 26.15.3 skips silently (MacTargetHelper.js:264).
   #
   # Electron ships 220 `locale.pak` files (~47 MB) under Electron Framework.framework — every
   # Chromium UI language. This shell's own strings are English-only, and these paks translate only
   # Chromium's own chrome (context menus, error pages).
   electronLanguages:
     - en
+  extendInfo:
+    # Under hardened runtime, mic capture is refused without the matching entitlement, and without
+    # this usage string TCC kills the process on first mic access. Read by admin's `mic-capture.ts`
+    # `getUserMedia` call for voice input in the editor.
+    NSMicrophoneUsageDescription: "Tovu uses the microphone for voice input in the editor."
 
 dmg:
   # Not a default, and not cosmetic. dmg-builder signs the image only when this is LITERALLY `true`
@@ -137,3 +146,25 @@ dmg:
   # the file people download, and an unsigned one is refused by Gatekeeper with
   # `source=no usable signature` before its contents are ever examined.
   sign: true
+  # Versionless and platform-tagged so the GitHub release's stable `latest/download/<name>` URL
+  # never changes release to release: `Tovu-mac-arm64.dmg` / `Tovu-mac-x64.dmg`.
+  artifactName: "Tovu-mac-${arch}.${ext}"
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]            # Windows-on-ARM runs x64 under emulation; no arm64 build in v1
+  icon: build/icon.png       # 512x512 (checked), >= 256 required
+
+nsis:
+  # Resolves to `Tovu-windows-x64-setup.exe` — the exact name both the workflow's `win-x64` matrix
+  # row (`out:`) and the `release` job's fallback `gh release create` line already name.
+  artifactName: "Tovu-windows-${arch}-setup.${ext}"
+  oneClick: true
+  perMachine: false          # per-user install in %LOCALAPPDATA%\Programs, no UAC prompt
+  allowElevation: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Tovu
+  deleteAppDataOnUninstall: false
+  differentialPackage: false # no auto-updater, so no .blockmap

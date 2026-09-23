@@ -30,10 +30,14 @@ import {
   computeBlobStorageKey,
   InMemoryAssetBlobRepo,
   InMemoryBlobStore,
-  InMemoryMediaRepo,
+  InMemoryVersionedMediaRepo,
   type AssetBlobRecord,
+  type BlobStorePort,
   type MediaRecord,
+  type VersionedMediaRepoPort,
 } from "#src/features/media/index";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 import { renderDocNode, type MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render";
@@ -85,7 +89,7 @@ function packedFrom(record: MediaRecord) {
 
 interface Fixture {
   readonly deps: PublishContentDeps;
-  readonly mediaRepo: InMemoryMediaRepo;
+  readonly mediaRepo: VersionedMediaRepoPort;
   readonly assetBlobRepo: InMemoryAssetBlobRepo;
   readonly blobStore: InMemoryBlobStore;
   readonly changeSets: InMemoryChangeSetRepo;
@@ -93,9 +97,21 @@ interface Fixture {
 
 /** A fully wired deps bag — what a real `apply-loop.ts` composition supplies. `authorize` always
  *  allows: these tests exercise `apply()`'s own write path, not `executeCommand`'s authorization
- *  gate (covered by the gateway's own suite). */
-function makeFixture(options: { mediaRows?: MediaRecord[]; blobRows?: AssetBlobRecord[] } = {}): Fixture {
-  const mediaRepo = new InMemoryMediaRepo(options.mediaRows ? [...options.mediaRows] : []);
+ *  gate (covered by the gateway's own suite).
+ *
+ *  `mediaRepo` is overridable (2026-09-20, media optimistic-concurrency fix) so the same fixture
+ *  can be parameterized over BOTH `VersionedMediaRepoPort` adapters — `InMemoryVersionedMediaRepo`
+ *  (the default, used by every test below except the concurrency race tests) and `SqliteMediaRepo`
+ *  — proving the atomic compare-and-set write holds on the real production adapter too, not just
+ *  the in-memory double. When a caller supplies one, `mediaRows` is seeded onto it via `save()`
+ *  (async) rather than a bulk constructor, since `SqliteMediaRepo` has no such constructor. */
+async function makeFixture(
+  options: { mediaRows?: MediaRecord[]; blobRows?: AssetBlobRecord[]; mediaRepo?: VersionedMediaRepoPort } = {}
+): Promise<Fixture> {
+  const mediaRepo = options.mediaRepo ?? new InMemoryVersionedMediaRepo(options.mediaRows ? [...options.mediaRows] : []);
+  if (options.mediaRepo && options.mediaRows) {
+    for (const row of options.mediaRows) await mediaRepo.save(row);
+  }
   const assetBlobRepo = new InMemoryAssetBlobRepo(options.blobRows ? [...options.blobRows] : []);
   const blobStore = new InMemoryBlobStore();
   const outbox = new InMemoryOutbox();
@@ -131,7 +147,7 @@ function handlerFor(deps: PublishContentDeps) {
 // ---------------------------------------------------------------------------
 
 test("apply() writes the media row under the SOURCE id — the id a post's embed already points at", async () => {
-  const fixture = makeFixture();
+  const fixture = await makeFixture();
   const record = makeMediaRecord();
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
 
@@ -170,7 +186,7 @@ test("apply() writes the media row under the SOURCE id — the id a post's embed
 // ---------------------------------------------------------------------------
 
 test("apply() + renderDocNode: a post's embed authored against the SOURCE asset id renders a real <img>, never the placeholder", async () => {
-  const fixture = makeFixture();
+  const fixture = await makeFixture();
   const record = makeMediaRecord();
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
 
@@ -206,7 +222,7 @@ test("apply() + renderDocNode: a post's embed authored against the SOURCE asset 
 // ---------------------------------------------------------------------------
 
 test("apply() blocks with 'blocked:missing-blob' when the bundle names a sha this destination never received — and writes nothing", async () => {
-  const fixture = makeFixture();
+  const fixture = await makeFixture();
   const record = makeMediaRecord();
   // Deliberately NOT staged — this is the exact "bundle manifest lists a sha we never got" case.
 
@@ -247,7 +263,7 @@ test("apply() never re-stamps an existing asset_blobs row's createdByPrincipal, 
     createdAt: "2025-05-05T00:00:00.000Z",
     status: "active",
   };
-  const fixture = makeFixture({ blobRows: [existingBlob] });
+  const fixture = await makeFixture({ blobRows: [existingBlob] });
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
 
   const result = await handlerFor(fixture.deps).apply({
@@ -272,7 +288,7 @@ test("apply() never re-stamps an existing asset_blobs row's createdByPrincipal, 
 });
 
 test("apply() attributes a BRAND-NEW asset_blobs row to the importing operator, and reports blobWritten:true", async () => {
-  const fixture = makeFixture();
+  const fixture = await makeFixture();
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
 
   const result = await handlerFor(fixture.deps).apply({
@@ -294,7 +310,7 @@ test("apply() attributes a BRAND-NEW asset_blobs row to the importing operator, 
 
 test("apply() blocks with 'blocked:slug-taken' when the slug is held by a DIFFERENT id — and writes neither a blob row nor a media row", async () => {
   const squatter = makeMediaRecord({ id: "a-different-local-asset", slug: "team-photo", source: { sha256: "f".repeat(64) } });
-  const fixture = makeFixture({ mediaRows: [squatter] });
+  const fixture = await makeFixture({ mediaRows: [squatter] });
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
 
   const thrown = await handlerFor(fixture.deps)
@@ -328,7 +344,7 @@ test("apply() blocks with 'blocked:slug-taken' when the slug is held by a DIFFER
 
 test("apply() updates an existing row when expectedVersion matches, recording the prior record as the change set's inverse", async () => {
   const existing = makeMediaRecord({ title: "Old Title", version: 3, updatedAt: "2026-02-02T00:00:00.000Z" });
-  const fixture = makeFixture({ mediaRows: [existing] });
+  const fixture = await makeFixture({ mediaRows: [existing] });
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
 
   const result = await handlerFor(fixture.deps).apply({
@@ -354,7 +370,7 @@ test("apply() updates an existing row when expectedVersion matches, recording th
 
 test("apply() refuses to overwrite a destination row that moved on from expectedVersion", async () => {
   const existing = makeMediaRecord({ title: "Edited Locally", version: 9 });
-  const fixture = makeFixture({ mediaRows: [existing] });
+  const fixture = await makeFixture({ mediaRows: [existing] });
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
 
   const thrown = await handlerFor(fixture.deps)
@@ -375,7 +391,7 @@ test("apply() refuses to overwrite a destination row that moved on from expected
 });
 
 test("apply() refuses a 'created' row when the destination grew one between plan and apply", async () => {
-  const fixture = makeFixture({ mediaRows: [makeMediaRecord({ title: "Created By Someone Else", version: 2 })] });
+  const fixture = await makeFixture({ mediaRows: [makeMediaRecord({ title: "Created By Someone Else", version: 2 })] });
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
 
   const thrown = await handlerFor(fixture.deps)
@@ -395,11 +411,145 @@ test("apply() refuses a 'created' row when the destination grew one between plan
 });
 
 // ---------------------------------------------------------------------------
+// Concurrency race — two writers planned against the SAME basis cannot both land
+// (2026-09-20, media optimistic-concurrency fix)
+// ---------------------------------------------------------------------------
+
+/** A manually resolved deferred promise — never a timer, per this repo's race-test convention. */
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
+/**
+ * Wraps `store` so its `get()` PARKS after `expected` concurrent callers have all called in, and
+ * releases every parked caller only once `release()` is invoked. This is what lets a test start two
+ * `apply()` calls, wait until BOTH have passed Guard 1's version compare and are blocked on fetching
+ * blob bytes (the real `await` gap the disclosed limitation named), and only then let either one's
+ * write actually run — reproducing the race deterministically instead of hoping for unlucky
+ * scheduling.
+ */
+function gateBlobGets(store: InMemoryBlobStore, expected: number) {
+  const release = deferred();
+  const allParked = deferred();
+  let parked = 0;
+  const gated: BlobStorePort = {
+    put: (i) => store.put(i),
+    putIfAbsent: (i) => store.putIfAbsent(i),
+    exists: (i) => store.exists(i),
+    remove: (i) => store.remove(i),
+    get: async (i) => {
+      parked += 1;
+      if (parked === expected) allParked.resolve();
+      await release.promise;
+      return store.get(i);
+    },
+  };
+  return { gated, allParked: allParked.promise, release: release.resolve };
+}
+
+for (const [label, makeRepo] of [
+  ["sqlite", () => new SqliteMediaRepo(openContentDb(":memory:"))],
+  ["memory", () => new InMemoryVersionedMediaRepo()],
+] as const) {
+  test(`[${label}] apply(): two concurrent updates planned against the same version cannot both land — one wins, the other is a conflict`, async () => {
+    const seeded = makeMediaRecord({ title: "Old Title", version: 3 });
+    const fixture = await makeFixture({ mediaRepo: makeRepo(), mediaRows: [seeded] });
+    await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
+
+    const gate = gateBlobGets(fixture.blobStore, 2);
+    const handler = handlerFor({ ...fixture.deps, blobStore: gate.gated });
+
+    const a = handler.apply({
+      entity: packedFrom(makeMediaRecord({ title: "Title From A" })),
+      expectedVersion: 3,
+      principalId: OPERATOR_ID,
+      idempotencyKey: "race-a",
+    });
+    const b = handler.apply({
+      entity: packedFrom(makeMediaRecord({ title: "Title From B" })),
+      expectedVersion: 3,
+      principalId: OPERATOR_ID,
+      idempotencyKey: "race-b",
+    });
+
+    // Both calls are now blocked on `blobStore.get()`, past Guard 1's compare, neither has written.
+    await gate.allParked;
+    gate.release();
+    const settled = await Promise.allSettled([a, b]);
+
+    const fulfilled = settled.filter((s) => s.status === "fulfilled");
+    const rejected = settled.filter((s) => s.status === "rejected");
+    assert.equal(fulfilled.length, 1, "exactly one writer must win");
+    assert.equal(rejected.length, 1, "exactly one writer must be refused as a conflict");
+
+    const rejection = (rejected[0] as PromiseRejectedResult).reason;
+    assert.ok(rejection instanceof MediaApplyConflictError, `expected MediaApplyConflictError, got ${rejection}`);
+    assert.equal(
+      (rejection as Error).message,
+      "media 'source-system-asset-42' changed on the destination during apply: expected version 3, found version 4"
+    );
+
+    const landed = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: "source-system-asset-42" });
+    assert.equal(landed?.version, 4, "the row must land at exactly version 4 — never both writes, never neither");
+    // Derive the winner's title from `settled` rather than assuming which of a/b won — the whole
+    // point of this test is that interleaving is not something the caller controls.
+    const winnerIndex = settled.findIndex((s) => s.status === "fulfilled");
+    const winnerTitle = winnerIndex === 0 ? "Title From A" : "Title From B";
+    assert.equal(landed?.title, winnerTitle);
+
+    assert.equal((await fixture.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID })).length, 1);
+  });
+
+  test(`[${label}] apply(): two concurrent creates of the same id cannot both land`, async () => {
+    const fixture = await makeFixture({ mediaRepo: makeRepo() });
+    await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
+
+    const gate = gateBlobGets(fixture.blobStore, 2);
+    const handler = handlerFor({ ...fixture.deps, blobStore: gate.gated });
+
+    const a = handler.apply({
+      entity: packedFrom(makeMediaRecord({ title: "Title From A" })),
+      expectedVersion: undefined,
+      principalId: OPERATOR_ID,
+      idempotencyKey: "race-a",
+    });
+    const b = handler.apply({
+      entity: packedFrom(makeMediaRecord({ title: "Title From B" })),
+      expectedVersion: undefined,
+      principalId: OPERATOR_ID,
+      idempotencyKey: "race-b",
+    });
+
+    await gate.allParked;
+    gate.release();
+    const settled = await Promise.allSettled([a, b]);
+
+    const fulfilled = settled.filter((s) => s.status === "fulfilled");
+    const rejected = settled.filter((s) => s.status === "rejected");
+    assert.equal(fulfilled.length, 1, "exactly one create must win");
+    assert.equal(rejected.length, 1, "exactly one create must be refused as a conflict");
+
+    const rejection = (rejected[0] as PromiseRejectedResult).reason;
+    assert.ok(rejection instanceof MediaApplyConflictError, `expected MediaApplyConflictError, got ${rejection}`);
+    assert.equal(
+      (rejection as Error).message,
+      "media 'source-system-asset-42' changed on the destination during apply: expected no existing row, found version 1"
+    );
+
+    assert.equal((await fixture.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID })).length, 1);
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Wiring guards — apply() must never silently no-op when its deps are absent
 // ---------------------------------------------------------------------------
 
 test("apply() throws a named error when changeSets/authorize/outbox are not wired", async () => {
-  const fixture = makeFixture();
+  const fixture = await makeFixture();
   const deps: PublishContentDeps = { ...fixture.deps, changeSets: undefined, authorize: undefined, outbox: undefined };
   await assert.rejects(
     () => handlerFor(deps).apply({ entity: packedFrom(makeMediaRecord()), expectedVersion: undefined, principalId: OPERATOR_ID }),
@@ -408,7 +558,7 @@ test("apply() throws a named error when changeSets/authorize/outbox are not wire
 });
 
 test("apply() throws a named error when mediaRepo/assetBlobRepo/blobStore are not wired", async () => {
-  const fixture = makeFixture();
+  const fixture = await makeFixture();
   const deps: PublishContentDeps = { ...fixture.deps, mediaRepo: undefined, assetBlobRepo: undefined, blobStore: undefined };
   await assert.rejects(
     () => handlerFor(deps).apply({ entity: packedFrom(makeMediaRecord()), expectedVersion: undefined, principalId: OPERATOR_ID }),
@@ -417,7 +567,7 @@ test("apply() throws a named error when mediaRepo/assetBlobRepo/blobStore are no
 });
 
 test("apply() no longer throws Task 12's 'not wired yet' stub error", async () => {
-  const fixture = makeFixture();
+  const fixture = await makeFixture();
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
   const result = await handlerFor(fixture.deps).apply({
     entity: packedFrom(makeMediaRecord()),
@@ -432,13 +582,13 @@ test("apply() no longer throws Task 12's 'not wired yet' stub error", async () =
 // ---------------------------------------------------------------------------
 
 test("precheck() reports a missing blob so the planner can emit a 'blocked' row before any apply is attempted", async () => {
-  const fixture = makeFixture();
+  const fixture = await makeFixture();
   const reason = await handlerFor(fixture.deps).precheck(packedFrom(makeMediaRecord()));
   assert.equal(reason, `required blob '${PHOTO_SHA256}' is not available on this destination`);
 });
 
 test("precheck() returns null once the blob has been staged and no slug holds the name", async () => {
-  const fixture = makeFixture();
+  const fixture = await makeFixture();
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
   assert.equal(await handlerFor(fixture.deps).precheck(packedFrom(makeMediaRecord())), null);
 });

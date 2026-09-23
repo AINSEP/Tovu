@@ -462,6 +462,12 @@ export interface AdminObservabilityStatus {
   serviceName: string | null;
 }
 
+/** `GET /system/mail-status` (`apps/website/src/server/inbound/admin-http/routes/system/mail-status.ts`)
+ *  — `false` while the site only logs outbound mail (the console fallback, no mail credential). */
+export interface AdminMailStatus {
+  mailDeliveryAvailable: boolean;
+}
+
 /** One row of the admin Sites screen — mirrors `SiteListEntry` in
  *  `apps/website/src/platform/site-dir/site-registry.ts`. Only directories carrying a valid
  *  `.site-meta.json` commit marker appear; see {@link AdminSiteBinding.listed} for why that matters. */
@@ -782,7 +788,7 @@ export interface AdminRevealedSiteToken extends AdminSiteTokenStatus {
  * union, NOT reusing {@link AdminPublishCredentialProviderId} — that type is a deploy-target id by
  * design (aliased to {@link AdminStaticPublishTargetId} so the two can never drift), and none of
  * GitLab, Bitbucket, or a *source* GitHub account is a static-publish target. See
- * `src/platform/db/schema.ts`'s `sourceControlCredentialSets` doc comment (server-side) for the full "why a
+ * `src/platform/db/schema.sqlite.ts`'s `sourceControlCredentialSets` doc comment (server-side) for the full "why a
  * second table/type, not a wider union" reasoning this type mirrors on the client.
  */
 export type AdminSourceControlProviderId = "github" | "gitlab" | "bitbucket";
@@ -840,7 +846,7 @@ export type AdminCustomCredentialCategoryId = "source-control" | "hosting" | "me
  * custom-credentials.ts`) — never carries the token or username. Unlike
  * {@link AdminSourceControlCredentialSummary}, `baseUrl`/`category` ARE part of this summary: both
  * are stored in the clear server-side specifically so the Access Tokens list can group/filter a
- * custom row without decrypting it (see `src/platform/db/schema.ts`'s `customCredentialSets` doc).
+ * custom row without decrypting it (see `src/platform/db/schema.sqlite.ts`'s `customCredentialSets` doc).
  */
 export interface AdminCustomCredentialSummary {
   readonly id: string;
@@ -1893,6 +1899,70 @@ export interface AdminCommentsQueuePage {
   nextCursor: string | null;
 }
 
+/**
+ * One row of the Trash. Mirrors `routes/trash/list.ts`'s `toAdminTrashResponse`.
+ *
+ * Every field is a SNAPSHOT captured when the thing was deleted, not a read of the thing itself —
+ * which is what lets a row whose payload is corrupt still be listed and still be restored. `title`
+ * can therefore be stale; that is the design, not a bug.
+ */
+export interface AdminTrashItem {
+  /** The trash row's own id. Purge addresses rows by THIS, not by `entityId`. */
+  id: string;
+  entityType: string;
+  entityId: string;
+  title: string;
+  subtitle: string | null;
+  trashedAt: string;
+  purgeAfter: string;
+  /** Whole days until auto-purge, floored at 0. Server-computed, so the clock is the server's. */
+  daysRemaining: number;
+  actorPrincipalId: string;
+  actorPluginId: string | null;
+  /** The server-resolved username for `actorPrincipalId`, or `null` when no user record matches
+   *  it (the account was since removed, or the principal is not a user). Never the raw id — that
+   *  resolution happens server-side so the admin UI never has to guess at a fallback. Optional
+   *  (rather than always `string | null`) because an older server build that predates username
+   *  resolution omits the field entirely — `rules.ts`'s `actorLabel` treats that absence
+   *  differently from an explicit `null`, so the type must let the two states be told apart. */
+  actorUsername?: string | null;
+  /** True when the row's actor is a non-human system principal (e.g. the boot-time widget
+   *  adoption), never a real user account. Optional because an older server predates this field;
+   *  absent means "not known to be a system actor", the same safe default as `false`. */
+  actorIsSystem?: boolean;
+}
+
+export interface AdminTrashPage {
+  items: AdminTrashItem[];
+  nextCursor: string | null;
+}
+
+/** Per-item outcomes. `forbidden` means the operator lacks THAT ROW'S kind's permission. */
+export type AdminTrashRestoreOutcome =
+  | "restored"
+  | "not-found"
+  | "version-changed"
+  | "adapter-unavailable"
+  | "forbidden";
+
+export type AdminTrashPurgeOutcome =
+  | "purged"
+  | "already-gone"
+  | "version-changed"
+  | "not-found"
+  | "adapter-unavailable"
+  | "forbidden";
+
+export interface AdminTrashRestoreReport {
+  restored: number;
+  results: { entityType: string; entityId: string; outcome: AdminTrashRestoreOutcome }[];
+}
+
+export interface AdminTrashPurgeReport {
+  purged: number;
+  results: { id: string; outcome: AdminTrashPurgeOutcome }[];
+}
+
 /** Mirrors `src/comments/types.ts`'s `CommentsSettings`. */
 export interface CommentsSettings {
   enabled: boolean;
@@ -2733,11 +2803,6 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ expectedVersion, items, title: options.title, slug: options.slug }),
     }),
-  deleteMenu: ({ id }: { id: string }, options: { force?: boolean } = {}) =>
-    request<{ menu: AdminMenu | null; purged: boolean }>(
-      `/workspaces/${WORKSPACE_ID}/menus/${encodeURIComponent(id)}${options.force ? "?force=true" : ""}`,
-      { method: "DELETE" }
-    ),
   listIntegrationSubscriptions: () =>
     request<{ subscriptions: AdminWebhookSubscription[] }>(
       `/workspaces/${WORKSPACE_ID}/integrations/subscriptions`
@@ -2898,6 +2963,16 @@ export const api = {
    *  sniffed HTML/SVG is deliberately served as a non-rendering attachment) — see `Media.tsx`'s
    *  `MediaPreview` for how the client discovers which element type an asset actually needs. */
   mediaOriginalUrl: (id: string) => `${BASE}/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/original`,
+  /** The asset's real, server-sniffed `Content-Type`, read from a `HEAD` of {@link mediaOriginalUrl}
+   *  (no body transferred) — the same value the public renderer dispatches `<img>` vs `<video>` on.
+   *  Resolves `""` when the route answers non-2xx or sends no header. */
+  mediaContentType: async (id: string): Promise<string> => {
+    const res = await fetch(api.mediaOriginalUrl(id), {
+      method: "HEAD",
+      credentials: "same-origin",
+    });
+    return res.ok ? (res.headers.get("content-type") ?? "") : "";
+  },
   uploadMedia: (
     input: { filename: string; contentType: string; dataBase64: string },
     options: { alt?: string; caption?: string; credit?: string } = {}
@@ -3153,13 +3228,6 @@ export const api = {
     _options: Record<string, never> = {}
   ) =>
     request<{ data: AdminFormSubmission }>(`/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(formId)}/submissions/${encodeURIComponent(submissionId)}`),
-  deleteFormSubmission: (
-    { formId, submissionId }: { formId: string; submissionId: string },
-    _options: Record<string, never> = {}
-  ) =>
-    request<void>(`/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(formId)}/submissions/${encodeURIComponent(submissionId)}`, {
-      method: "DELETE",
-    }),
   // AI Assistant — the visitor-facing assistant's master switch. Same `{ data }` envelope and same
   // partial-PUT shape as the SEO settings pair below, because the two routes are deliberately
   // identical in contract (see `server/routes/admin/assistant/put-settings.ts`).
@@ -3212,7 +3280,9 @@ export const api = {
   // `request()`: both `200` (ready) and `503` (not ready) are ordinary, meaningful bodies here, not
   // error cases to throw on — the whole point of this call is telling the two apart after a restart.
   getAssistantDaemonReadyz: async (): Promise<{ ready: boolean; assistantDaemonKnownFailed?: true }> => {
-    const res = await fetch("/readyz", { credentials: "same-origin" });
+    // Raw response, but through the same bounded fetch as `request()`: a bare `fetch` here queued
+    // forever once long-lived SSE connections had used up the origin's connection budget.
+    const res = await fetchOrThrowUnreachable("/readyz", { credentials: "same-origin" });
     // `/readyz` (`server/routes/ops/health.ts`'s `registerReadyzRoute`) always answers JSON, on both
     // its `200` and `503` branches — so a non-JSON response here means something ELSE answered
     // instead of the real route: a dev-server proxy gap (fixed 2026-08-17 in `vite.config.ts`, but
@@ -3409,22 +3479,6 @@ export const api = {
    * unselected assignment — there is no remove-assignment route yet). */
   assignTerms: (input: { contentType: string; contentId: string; termIds: string[] }) =>
     request<void>("/taxonomy/assign-terms", { method: "POST", body: JSON.stringify(input) }),
-  // Guarded hard-delete (backend-gap closure, 2026-08-05) — refuses with a 409 rather than
-  // cascading through live content: `TERM_HAS_ASSIGNMENTS`/`TAXONOMY_HAS_ASSIGNMENTS` when content
-  // is still assigned, `TERM_HAS_CHILDREN` when a hierarchical term still has children. `rules.ts`'s
-  // `describeDeleteBlocked` turns the `ApiError`'s `code`/`assignedCount`/`childCount` into operator
-  // copy naming the remedy, not just a raw refusal. See `src/server/routes/admin/taxonomy/delete-
-  // term.ts`/`delete-taxonomy.ts` for the route implementations this contract was taken from.
-  deleteTerm: (termId: string) =>
-    request<{ deletedTermId: string }>(`/taxonomy/terms/${encodeURIComponent(termId)}`, { method: "DELETE" }),
-  /** `deletedTermIds` lists any (unassigned) member terms cascade-deleted along with the taxonomy —
-   *  the taxonomy delete is refused (409 `TAXONOMY_HAS_ASSIGNMENTS`) before any of this happens if
-   *  even one member term is still assigned, so this list is never a surprise loss of live content. */
-  deleteTaxonomy: (taxonomyId: string) =>
-    request<{ deletedTaxonomyId: string; deletedTermIds: string[] }>(`/taxonomy/${encodeURIComponent(taxonomyId)}`, {
-      method: "DELETE",
-    }),
-
   // Categories & Tags — merge-term ceremony (ADR-044, SPEC-018 C-207). 3-step plan/confirm/execute.
   planMergeTerm: (
     { fromTermId, intoTermId }: { fromTermId: string; intoTermId: string },
@@ -3586,6 +3640,41 @@ export const api = {
     }),
 
   // -------------------------------------------------------------------------
+  // Trash — the cross-domain recycle bin (design:
+  // `ADS-memory/reports/2026-09-20-trash-delete-architecture.md`). Keyset paging like
+  // `listCommentsQueue` above. Restore names items by `{entityType, entityId}` and purge by trash
+  // ROW id — that asymmetry is the server's, and it is deliberate: the purge endpoint resolves each
+  // row's kind itself rather than trusting one the client sent, so it cannot be told that a post is
+  // a comment.
+  // -------------------------------------------------------------------------
+  listTrash: (options: { cursor?: string; limit?: number; entityTypes?: string[] } = {}) => {
+    const params = new URLSearchParams();
+    if (options.cursor) params.set("cursor", options.cursor);
+    if (options.limit) params.set("limit", String(options.limit));
+    if (options.entityTypes?.length) params.set("entityTypes", options.entityTypes.join(","));
+    const qs = params.toString();
+    return request<AdminTrashPage>(`/workspaces/${WORKSPACE_ID}/trash${qs ? `?${qs}` : ""}`);
+  },
+  restoreTrashItems: ({ items }: { items: { entityType: string; entityId: string }[] }) =>
+    request<AdminTrashRestoreReport>(`/workspaces/${WORKSPACE_ID}/trash/restore`, {
+      method: "POST",
+      body: JSON.stringify({ items }),
+    }),
+  purgeTrashItems: ({ ids }: { ids: string[] }) =>
+    request<AdminTrashPurgeReport>(`/workspaces/${WORKSPACE_ID}/trash/purge`, {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
+  /** The generic single-item trash endpoint (`POST /trash/items`, `W/features/trash/`): the way
+   *  every OTHER admin feature's delete button (forms, widgets, menus, terms, taxonomies) moves one
+   *  row to the Trash, instead of each domain keeping its own bespoke delete call. */
+  trash: ({ type, id }: { type: string; id: string }) =>
+    request<{ ok: true; version: number | null }>(`/workspaces/${WORKSPACE_ID}/trash/items`, {
+      method: "POST",
+      body: JSON.stringify({ type, id }),
+    }),
+
+  // -------------------------------------------------------------------------
   // Widgets (SPEC-043, ADR-047) — mirrors the Menus client functions' exact shape
   // -------------------------------------------------------------------------
   listWidgets: (options: { widgetType?: string; includeInactive?: boolean } = {}) => {
@@ -3593,9 +3682,9 @@ export const api = {
     if (options.widgetType) params.set("widgetType", options.widgetType);
     if (options.includeInactive) params.set("includeInactive", "true");
     const qs = params.toString();
-    // `skippedCount` (dossier C5 follow-up, 2026-08-03) is additive and optional — present only
-    // when the server silently dropped one or more malformed rows. Absent in the common case.
-    return request<{ widgets: AdminWidget[]; skippedCount?: number }>(
+    // `skippedCount`/`skippedIds` (dossier C5 follow-up, 2026-08-03) are additive and optional —
+    // present only when the server dropped one or more malformed records. Absent in the common case.
+    return request<{ widgets: AdminWidget[]; skippedCount?: number; skippedIds?: string[] }>(
       `/workspaces/${WORKSPACE_ID}/widgets${qs ? `?${qs}` : ""}`
     );
   },
@@ -3610,18 +3699,13 @@ export const api = {
       body: JSON.stringify({ ...input, ...options }),
     }),
   updateWidget: (
-    { id, baseVersion, config }: { id: string; baseVersion: number; config: Record<string, unknown> },
+    { id, baseVersion, config, title }: { id: string; baseVersion: number; config: Record<string, unknown>; title?: string },
     _options: Record<string, never> = {}
   ) =>
     request<{ widget: AdminWidget }>(`/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}`, {
       method: "PUT",
-      body: JSON.stringify({ baseVersion, config }),
+      body: JSON.stringify({ baseVersion, config, ...(title === undefined ? {} : { title }) }),
     }),
-  trashWidget: (id: string) =>
-    request<{ widget: AdminWidget }>(`/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}/trash`, { method: "POST" }),
-  purgeWidget: ({ id }: { id: string }, options: { force?: boolean } = {}) =>
-    request<{ purged: true }>(`/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}/purge${options.force ? "?force=true" : ""}`, { method: "POST" }),
-
   listWidgetRegions: () => request<{ regions: AdminWidgetRegionBinding[] }>(`/workspaces/${WORKSPACE_ID}/widgets/regions`),
   bindWidgetRegion: (regionKey: string) =>
     request<{ area: AdminWidgetArea }>(`/workspaces/${WORKSPACE_ID}/widgets/regions`, {
@@ -3683,22 +3767,9 @@ export const api = {
       `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}`,
       { method: "PATCH", body: JSON.stringify({ enabled }) }
     ),
-  /**
-   * PLUGIN_UNINSTALL (Milestone 2, 2026-08-20) — `DELETE /workspaces/:id/plugins/:pluginId`.
-   * Deletes a `"site"` plugin's on-disk artifact and every workspace's activation row for it; no
-   * `PLUGINS_LIST`/`PLUGIN_SET_ENABLED`-style spec package covers this route at all (see
-   * `server/inbound/admin-http/routes/plugins/uninstall.ts`'s own header — new surface, not an
-   * implementation of an existing contract). Deliberately NOT `executeCommand`-wrapped server-side
-   * (a filesystem delete has no meaningful inverse), so unlike `setPluginEnabled` above there is no
-   * `changeSetId` in the response — just the id and which workspaces' activation rows were cleared.
-   *
-   * Refuses with `PLUGIN_NOT_FOUND` (404, id unknown), `PLUGIN_NOT_UNINSTALLABLE` (422, the
-   * discovered record is `"built-in"`), `PLUGIN_ENABLED` (409, still enabled in some workspace), or
-   * `PLUGIN_ID_INVALID` (400, path-traversal-shaped id) — see `rules.ts`'s `describeApiError` for
-   * the operator-facing text each maps to.
-   */
+  /** Moves a site plugin to the 60-day Trash. `PLUGIN_IN_TRASH` reports an existing parked copy. */
   uninstallPlugin: (pluginId: string) =>
-    request<{ pluginId: string; clearedWorkspaceIds: string[] }>(
+    request<{ pluginId: string; trashed: true }>(
       `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}`,
       { method: "DELETE" }
     ),
@@ -3747,6 +3818,8 @@ export const api = {
    *  name — never the OTLP endpoint value itself. See {@link AdminObservabilityStatus}. */
   getObservabilityStatus: () =>
     request<AdminObservabilityStatus>(`/workspaces/${WORKSPACE_ID}/system/observability-status`),
+  /** Whether outbound email really sends — the form editor greys out its notify settings when not. */
+  getMailStatus: () => request<AdminMailStatus>(`/workspaces/${WORKSPACE_ID}/system/mail-status`),
 
   // Sites panel (`apps/website/src/server/inbound/admin-http/routes/system/sites.ts`) — list is
   // `system.read`, create/activate are `system.write` AND additionally refused with
@@ -3852,11 +3925,24 @@ export const api = {
     return request<AdminStaticPublishPreview>(`/workspaces/${WORKSPACE_ID}/system/publish/preview?${query.toString()}`);
   },
   /** Starts a new publish to `config.target`. `409` (surfaced as a thrown error) if one is already
-   *  running — this instance runs at most one publish at a time, independent of a plain export. */
-  triggerPublish: (input: { config: AdminStaticPublishConfig; projectName: string }) =>
+   *  running — this instance runs at most one publish at a time, independent of a plain export.
+   *
+   *  `credentialId` names the saved connection the operator chose, and BINDS the publish to it
+   *  (terra review 2026-09-20, finding 1 — Critical): without it the server resolved whichever row
+   *  was `is_default` when the POST landed, so picking connection B and clicking Publish while B's
+   *  promotion was still in flight published the site to A's account. The server validates the id
+   *  against this workspace and this target and REFUSES on a mismatch — it never falls back to the
+   *  default (`static-publish/credentials.ts`). Omitted entirely (never sent as an explicit
+   *  `undefined`) when this provider has no saved connection — an install publishing from server
+   *  env vars has no connection ids at all, and that caller keeps the default lookup. */
+  triggerPublish: (input: { config: AdminStaticPublishConfig; projectName: string; credentialId?: string }) =>
     request<AdminPublishRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/publish`, {
       method: "POST",
-      body: JSON.stringify({ ...input.config, projectName: input.projectName }),
+      body: JSON.stringify({
+        ...input.config,
+        projectName: input.projectName,
+        ...(input.credentialId !== undefined ? { credentialId: input.credentialId } : {}),
+      }),
     }),
   /** The current/most recent publish run's status — poll this after `triggerPublish` until `status`
    *  is no longer `"running"`. */

@@ -4,7 +4,7 @@ import type Database from "better-sqlite3";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 import type { JsonObject } from "@jini-ai/cms/core";
-import { postRevisions, posts } from "../../platform/db/schema.js";
+import { postRevisions, posts } from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import {
@@ -297,6 +297,36 @@ export class SqlitePostRepo implements PostRepoPort {
       .set({ deletedAt: required.deletedAt, updatedAt: required.updatedAt, version: required.version })
       .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
       .run();
+  }
+
+  /**
+   * See `PostRepoPort.hardDelete`'s own doc. A real `DELETE FROM`, with the SAME cascade the Trash
+   * purge already performs on this table (`features/trash/adapters/post.ts`): `post_revisions`
+   * holds a full copy of every version of the post, and `post_search_document` is the projection
+   * behind the FTS index, so leaving either behind would keep the content findable after the row
+   * it belongs to is gone. The parked autosave needs no cascade here — `autosave_json` is a column
+   * ON the row, so it travels with it (the in-memory adapter keeps it in a side map and must drop
+   * it explicitly; the contract test asserts the same observable outcome on both).
+   *
+   * No `changes` check and no throw for a miss: an unknown id or another workspace's row simply
+   * matches nothing, which is the documented no-op.
+   *
+   * @complexity O(r) for r revisions of the one post, plus one indexed row delete on each table.
+   */
+  async hardDelete(required: { workspaceId: string; id: string }): Promise<void> {
+    this.db
+      .delete(postRevisions)
+      .where(and(eq(postRevisions.workspaceId, required.workspaceId), eq(postRevisions.postId, required.id)))
+      .run();
+    const removed = this.db
+      .delete(posts)
+      .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
+      .run();
+    // Keyed on `post_id` alone (no workspace column on the projection), so it is dropped only when
+    // the scoped delete above actually removed the row it projects.
+    if (removed.changes > 0) {
+      this.db.$client.prepare(`DELETE FROM post_search_document WHERE post_id = ?`).run(required.id);
+    }
   }
 
   /** See `PostRepoPort.readAutosave`'s own doc. `autosave_json` is the only column read — never

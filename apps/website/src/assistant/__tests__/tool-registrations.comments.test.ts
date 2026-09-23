@@ -34,6 +34,7 @@ import {
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeCommentsTools } from "../../features/comments/tool-registrations.js";
 import { registerToolContributor } from "../tool-contribution-registry.js";
+import { commentTrashDoubles } from "../../features/comments/__tests__/comment-trash-doubles.js";
 
 // Comments moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17 — see `tool-contribution-registry.ts`'s header), so
@@ -81,6 +82,7 @@ async function fakeRouteDeps(options: { allow?: boolean } = {}) {
     hooks: createCommentHookRegistry(),
     clock,
     idGen,
+    ...commentTrashDoubles(),
   });
 
   const deps = {

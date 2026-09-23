@@ -7,6 +7,33 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "#src/features/seo/index";
 import { registerPageHeadContributor, resetPageHeadRegistry } from "../../inbound/public-http/http/site/page-head.js";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
+import type { PostRecord } from "#src/features/post/index";
+import type { RedirectRecord } from "#src/features/redirects/index";
+import {
+  bindRemoveEntity,
+  buildTrashRegistry,
+  COMMENT_ENTITY_TYPE,
+  bindForgetRemovedEntity,
+  createDirectoryTrashAdapter,
+  unhideIfRemoveThrows,
+  createRecordStoreTrashAdapter,
+  createSqliteTrashDb,
+  createTableTrashAdapter,
+  createTrashService,
+  createTrashSweep,
+  InMemoryTrashRepo,
+  MEDIA_ENTITY_TYPE,
+  PLUGIN_ENTITY_TYPE,
+  POST_ENTITY_TYPE,
+  REDIRECT_ENTITY_TYPE,
+  type RemoveEntity,
+  type TrashAdapter,
+  type TrashDb,
+  type TrashedItemsRef,
+  withFollowUps,
+} from "#src/features/trash/index";
+import * as contentSchema from "#src/platform/db/schema.sqlite";
+import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
 import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
@@ -82,7 +109,8 @@ import {
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
 } from "#src/features/members/index";
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "#src/features/navigation/index";
+import { InMemoryNavLocationBindingRepo } from "#src/features/navigation/index";
+import { TrashAwareInMemoryMenuRepo, type TrashableMenuRecord } from "#src/features/navigation/trash-aware-memory-menu-repo";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
@@ -97,7 +125,8 @@ import {
   InMemoryBlobStore,
   InMemoryImageTransformer,
   InMemoryMediaContentTypeStore,
-  InMemoryMediaRepo,
+  InMemoryVersionedMediaRepo,
+  type MediaRecord,
   InMemoryTransformDefinitionRepo,
 } from "#src/features/media/index";
 import { createInMemoryIdentityRouteDeps } from "#src/features/identity/wiring";
@@ -117,7 +146,11 @@ import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsle
 import { toSendPipelineDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { createNewsletterModule } from "./modules/newsletter.js";
 import type { NewsletterPublicRouteDeps } from "../../inbound/public-http/routes/site/newsletter-deps.js";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/features/forms/repo.memory";
+import {
+  InMemoryFormDefinitionRepo,
+  InMemoryFormSubmissionRepo,
+  type StoredFormSubmission,
+} from "#src/features/forms/repo.memory";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
 import {
@@ -133,11 +166,12 @@ import {
 import { registerSlugChangeCapture } from "#src/platform/routing/index";
 import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemoryMigrationRunsRepo, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "#src/features/database/repo.memory";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
-import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { TrashAwareInMemoryEntryRepo, type TrashableEntryRecord } from "#src/features/entries/trash-aware-memory-repo";
 import { InMemoryWidgetRegionBindingRepo } from "#src/features/widgets/repo.memory";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
+import { forgetPluginActivations, type RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
 import { createAgentPluginsModule } from "./modules/agent-plugins.js";
 import { createPluginsModule } from "./modules/plugins.js";
 import { createSkillsModule } from "./modules/skills.js";
@@ -152,14 +186,16 @@ import {
   preserveLegacySiteTitles,
 } from "#src/features/settings/site-title";
 import { InMemoryCommentRepo } from "#src/features/comments/repo.memory";
+import type { CommentRecord } from "#src/features/comments/index";
 import { registerCommentsSubmitRoute } from "../../inbound/public-http/routes/site/comments-submit.js";
+import { noopStampWatermark, toTaxonomyOutbox } from "#src/features/taxonomy/index";
 import {
-  InMemoryEntryTermRepo,
-  InMemoryTaxonomyRepo,
-  InMemoryTaxonomyRevisionRepo,
-  InMemoryTermRepo,
-  noopStampWatermark,
-} from "#src/features/taxonomy/index";
+  SqliteEntryTermRepo,
+  SqliteTaxonomyRepo,
+  SqliteTaxonomyRevisionRepo,
+  SqliteTermRepo,
+} from "#src/features/taxonomy/repo.sqlite";
+import { createTaxonomyPurgeFollowUp, createTermPurgeFollowUp } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "#src/features/recovery/repo.memory";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
@@ -199,6 +235,7 @@ import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "#
 import { createPendingAuthorizationStore } from "#src/platform/oauth/index";
 import { createMediaModule } from "./modules/media.js";
 import { createTaxonomyModule } from "./modules/taxonomy.js";
+import { createTrashModule } from "./modules/trash.js";
 import { createContentModule } from "./modules/content.js";
 import { createPublishContentModule } from "./modules/publish-content.js";
 import { createMembersModule } from "./modules/members.js";
@@ -215,6 +252,7 @@ import { createAnalyticsModule } from "./modules/analytics.js";
 import { createCommerceModule } from "./modules/commerce.js";
 import { registerAdminModuleStatusRoute } from "../../inbound/admin-http/routes/system/module-status.js";
 import { registerAdminObservabilityStatusRoute } from "../../inbound/admin-http/routes/system/observability-status.js";
+import { registerAdminMailStatusRoute } from "../../inbound/admin-http/routes/system/mail-status.js";
 import { registerAdminAssistantDaemonRoutes } from "../../inbound/admin-http/routes/system/assistant-daemon.js";
 import { registerAdminDeploymentOverviewRoute } from "../../inbound/admin-http/routes/system/deployment-overview.js";
 import { registerAdminSitesRoutes } from "../../inbound/admin-http/routes/system/sites.js";
@@ -279,6 +317,17 @@ export interface CreateRouteDepsOptions {
    * directory here is opt-in, for a caller that specifically wants to exercise site-plugin
    * discovery through this in-memory root instead of `server/deps.ts`'s SQLite one. */
   readonly installDir?: string;
+}
+
+function createLazyProxy<T extends object>(factory: () => T): T {
+  let instance: T | undefined;
+  return new Proxy({} as T, {
+    get(_target, property) {
+      const object = (instance ??= factory());
+      const value = Reflect.get(object, property, object);
+      return typeof value === "function" ? value.bind(object) : value;
+    },
+  });
 }
 
 /** In-memory route deps seeded from `./seed`. Default for tests/dev. */
@@ -438,8 +487,229 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // inline in the return object) so Recovery's `deepLinkRestorePointLookup` below reads the SAME
   // in-memory rows Database's restore-points routes write into, not a second, disconnected instance.
   const restorePointsRepo = new InMemoryRestorePointsRepo();
+  // Local admin Trash, hermetic half. A plain Map resolved at CALL time, same as `deps.ts`'s —
+  // never a module-level registry. Every domain whose delete path is wired to `deps.remove` in this
+  // composition must be registered here; an unregistered type fails loudly at the call rather than
+  // silently trashing something that could never be restored.
+  const commentRepo = new InMemoryCommentRepo();
+  // Hoisted here (from beside `changeSets` further down) for TWO reasons now: the apply loop's
+  // `media.apply()` must write into the very stores the media routes and this file's own tests
+  // read — constructed twice they would be two disconnected in-memory stores — and the media
+  // `TrashAdapter` just below needs the same instance.
+  const mediaRepo = new InMemoryVersionedMediaRepo([]);
+  // Hoisted for the same reason: the `form_submission` `TrashAdapter` below must flip the marker on
+  // the very store the Forms routes read.
+  const formSubmissionRepo = new InMemoryFormSubmissionRepo();
+  // ADR-031/ADR-023 (SPEC-033) — hoisted so the Comments module's `entryLookup` reads the SAME
+  // in-memory entries the rest of the hermetic composition writes into (mirrors
+  // `restorePointsRepo`'s identical hoisting rationale above) — and so the `widget` `TrashAdapter`
+  // below flips the marker on the very store the widget routes read.
+  const entryRepo = new TrashAwareInMemoryEntryRepo();
+  const workspaceId = seededWorkspace.id;
+  const taxonomyDb = createLazyProxy<ContentDb>(() => openContentDb(":memory:"));
+  const sqliteTrashDb = createLazyProxy<TrashDb>(() => createSqliteTrashDb({ db: taxonomyDb }));
+  const trashRegistry = new Map(
+    [...buildTrashRegistry({ schema: contentSchema })].filter(([entityType]) =>
+      entityType === "term" || entityType === "taxonomy"
+    )
+  );
+  const trashedItemsRef: TrashedItemsRef = {
+    table: contentSchema.trashedItems,
+    workspaceId: contentSchema.trashedItems.workspaceId,
+    entityType: contentSchema.trashedItems.entityType,
+    entityId: contentSchema.trashedItems.entityId,
+  };
+  const trashRepo = new InMemoryTrashRepo();
+  const taxonomyFollowUpTermRepo = new SqliteTermRepo({ db: taxonomyDb, workspaceId });
+  const taxonomyFollowUpRevisions = new SqliteTaxonomyRevisionRepo({ db: taxonomyDb, workspaceId });
+  const taxonomyFollowUpOutbox = toTaxonomyOutbox({ outbox, clock, idGen, workspaceId });
+  const taxonomyRepo = new SqliteTaxonomyRepo({ db: taxonomyDb, workspaceId });
+  const termRepo = new SqliteTermRepo({ db: taxonomyDb, workspaceId });
+  const entryTermRepo = new SqliteEntryTermRepo({ db: taxonomyDb, workspaceId });
+  const taxonomyRevisionRepo = new SqliteTaxonomyRevisionRepo({ db: taxonomyDb, workspaceId });
+  const pluginTrashAdapter = createDirectoryTrashAdapter({
+    entityType: PLUGIN_ENTITY_TYPE,
+    locate: ({ entityId }) => pluginRuntime.locatePluginPackageDirs(entityId),
+    forget: ({ entityId }) => forgetPluginActivations({ pluginId: entityId }, { repo: pluginActivationRepo }),
+  });
+  const trashAdapters = new Map<string, TrashAdapter>([
+    [PLUGIN_ENTITY_TYPE, pluginTrashAdapter],
+    [
+      POST_ENTITY_TYPE,
+      createRecordStoreTrashAdapter<PostRecord>({
+        entityType: POST_ENTITY_TYPE,
+        store: postRepo,
+        isHidden: (record) => record.deletedAt !== undefined && record.deletedAt !== null,
+        hidden: (record, at) => ({ ...record, deletedAt: at, updatedAt: at }),
+        shown: (record, at) => ({ ...record, deletedAt: null, updatedAt: at }),
+        // 2026-09-20: `PostRepoPort.hardDelete` now exists on both adapters, so this purges for
+        // real. The former stand-down ("`InMemoryPostRepo` has no row removal") was honest but left
+        // an expired post un-purgeable in this composition — the sweeper released the lease and
+        // retried the same row on every pass, forever. Same cascade the durable adapter performs:
+        // `hardDelete` takes the revision ledger and the parked autosave with the row.
+        hardDelete: (required) => postRepo.hardDelete(required),
+      }),
+    ],
+    [
+      REDIRECT_ENTITY_TYPE,
+      createRecordStoreTrashAdapter<RedirectRecord>({
+        entityType: REDIRECT_ENTITY_TYPE,
+        // `insertRedirect` rather than `save`: this repo's `save` insists on a paired revision, and
+        // the revision for a tombstone is written by `tombstoneRedirect` itself.
+        store: {
+          findById: (required) => redirectRepo.findById(required),
+          save: async (record) => {
+            await redirectRepo.insertRedirect(record);
+          },
+        },
+        isHidden: (record) => record.status === "disabled",
+        hidden: (record, at) => ({ ...record, status: "disabled", updatedAt: at }),
+        shown: (record, at) => ({ ...record, status: "active", updatedAt: at }),
+      }),
+    ],
+    [
+      COMMENT_ENTITY_TYPE,
+      createRecordStoreTrashAdapter<CommentRecord>({
+        entityType: COMMENT_ENTITY_TYPE,
+        // `save` is this double's direct-write seam (not on `CommentRepoPort`) — the moderation
+        // write-service has already flipped the status by the time `remove` runs, so `hide` is a
+        // no-op here and only `unhide` (a Trash-screen restore) actually writes.
+        store: commentRepo,
+        isHidden: (record) => record.status === "trash",
+        hidden: (record, at) => ({ ...record, status: "trash", updatedAt: at }),
+        // Back to moderation, not to the prior status: the original is recorded nowhere the
+        // no-parse rule lets an adapter read, and of the two guesses this is the one that cannot
+        // republish spam onto a public page.
+        shown: (record, at) => ({ ...record, status: "pending", updatedAt: at }),
+        // No `hardDelete`: `InMemoryCommentRepo.purge` needs a moderator, an action and a note this
+        // adapter does not have, so purge stands down rather than claiming a removal.
+      }),
+    ],
+    [
+      MEDIA_ENTITY_TYPE,
+      createRecordStoreTrashAdapter<MediaRecord>({
+        entityType: MEDIA_ENTITY_TYPE,
+        store: mediaRepo,
+        isHidden: (record) => record.status === "trashed",
+        hidden: (record, at) => ({ ...record, status: "trashed", updatedAt: at }),
+        shown: (record, at) => ({ ...record, status: "active", updatedAt: at }),
+        // No `hardDelete`: a media purge is not a row delete — rendition rows hang off it and the
+        // blob store holds bytes, a ladder `purgeMedia` owns. Reimplementing it here would orphan
+        // bytes, so purge stands down instead.
+      }),
+    ],
+    [
+      "form_submission",
+      createRecordStoreTrashAdapter<StoredFormSubmission>({
+        entityType: "form_submission",
+        // The repo's trash-blind, memory-only seam — its port reads hide a trashed submission.
+        store: {
+          findById: (required) => formSubmissionRepo.findAnyById(required),
+          save: (record) => formSubmissionRepo.save(record),
+        },
+        isHidden: (record) => record.deletedAt !== null,
+        hidden: (record, at) => ({ ...record, deletedAt: at }),
+        shown: (record) => ({ ...record, deletedAt: null }),
+        hardDelete: (required) => formSubmissionRepo.hardDelete(required),
+      }),
+    ],
+    [
+      "widget",
+      createRecordStoreTrashAdapter<TrashableEntryRecord>({
+        entityType: "widget",
+        // The repo's trash-blind seam — its port reads hide a trashed entry. No `hardDelete`: a purge
+        // here stands down, same as the hermetic media/comment adapters.
+        store: {
+          findById: (required) => entryRepo.findAnyById(required),
+          save: (record) => entryRepo.saveAny(record),
+        },
+        isHidden: (record) => record.deletedAt !== null,
+        hidden: (record, at) => ({ ...record, deletedAt: at }),
+        shown: (record) => ({ ...record, deletedAt: null }),
+      }),
+    ],
+    [
+      "menu",
+      createRecordStoreTrashAdapter<TrashableMenuRecord>({
+        entityType: "menu",
+        // The repo's trash-blind seam — its port reads hide a trashed menu. No `hardDelete`: a purge
+        // here stands down, same as the hermetic media/comment/widget adapters (T5's own registry
+        // work removes location bindings at purge; this composition has no bindings table to sweep
+        // either, so it stands down the same honest way).
+        store: {
+          findById: (required) => menuRepo.findAnyById(required),
+          save: (record) => menuRepo.saveAny(record),
+        },
+        isHidden: (record) => record.status === "trash",
+        // Stash the pre-trash status so `shown` can restore it — `flip()` has no side-channel of its
+        // own for it (see `trash-aware-memory-menu-repo.ts`'s file doc).
+        hidden: (record, at) => ({ ...record, status: "trash", updatedAt: at, priorStatus: record.status }),
+        shown: (record, at) => ({ ...record, status: record.priorStatus ?? "published", updatedAt: at, priorStatus: null }),
+      }),
+    ],
+    [
+      "term",
+      withFollowUps({
+        adapter: createTableTrashAdapter({
+          entry: trashRegistry.get("term")!,
+          db: sqliteTrashDb,
+          trashedItems: trashedItemsRef,
+        }),
+        hooks: createTermPurgeFollowUp({
+          termRepo: taxonomyFollowUpTermRepo,
+          trash: trashRepo,
+          revisions: taxonomyFollowUpRevisions,
+          outbox: taxonomyFollowUpOutbox,
+          clock,
+        }),
+      }),
+    ],
+    [
+      "taxonomy",
+      withFollowUps({
+        adapter: createTableTrashAdapter({
+          entry: trashRegistry.get("taxonomy")!,
+          db: sqliteTrashDb,
+          trashedItems: trashedItemsRef,
+        }),
+        hooks: createTaxonomyPurgeFollowUp({
+          termRepo: taxonomyFollowUpTermRepo,
+          trash: trashRepo,
+          revisions: taxonomyFollowUpRevisions,
+          outbox: taxonomyFollowUpOutbox,
+          clock,
+        }),
+      }),
+    ],
+  ]);
+  const trash = createTrashService({
+    repo: trashRepo,
+    adapters: trashAdapters,
+    idGen: { next: () => randomUUID() },
+    // Nothing here opens a database transaction, so the runner is a pass-through. The atomicity
+    // guarantee this replaces is a SQLite one; an in-memory store has no partial-write window.
+    transaction: (fn) => fn(),
+  });
+  // Folder moves before the Trash row is written; if that write throws, move the folder back.
+  const removePlugin: RemovePluginFn = unhideIfRemoveThrows(pluginTrashAdapter, bindRemoveEntity(trash, PLUGIN_ENTITY_TYPE));
+
+  // See `composition/deps.ts`'s identically-named/documented helper: narrows `bindRemoveEntity`'s
+  // result for a type whose registry entry declares no `blocker` (redirect/comment/form_submission).
+  function removeEntityWithoutBlocker(remove: RemoveEntity): (
+    required: Parameters<RemoveEntity>[0]
+  ) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }> {
+    return async (required) => {
+      const result = await remove(required);
+      if (!result.ok && result.reason === "blocked") {
+        throw new Error(`trash: '${required.id}' reported 'blocked' from a type registered with no blocker — composition bug`);
+      }
+      return result;
+    };
+  }
+
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
+    remove: removeEntityWithoutBlocker(bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE)),
     db: redirectRepo,
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,
@@ -461,16 +731,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   );
   void registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink });
 
-  // ADR-031/ADR-023 (SPEC-033) — hoisted so the Comments module's `entryLookup` reads the SAME
-  // in-memory entries the rest of the hermetic composition writes into (mirrors
-  // `restorePointsRepo`'s identical hoisting rationale above).
-  const entryRepo = new InMemoryEntryRepo();
   // SPEC-043/ADR-047 (widgets) — hoisted alongside `entryRepo` for the same reason: both the admin
   // `widgets` routes and the public site-render path (`routes/site/pages.ts` → `resolvePageWidgets`,
   // W-004) must see the SAME binding/ref-index state, not two independent in-memory instances.
   const widgetBindingRepo = new InMemoryWidgetRegionBindingRepo();
   const entryRefsRepo = new InMemoryEntryRefsRepo();
-  const menuRepo = new InMemoryMenuRepo();
+  const menuRepo = new TrashAwareInMemoryMenuRepo();
   const navLocationBindingRepo = new InMemoryNavLocationBindingRepo();
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — mirrors `server/deps.ts`'s
@@ -482,13 +748,18 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     formDefinitionRepo,
   });
   const commentsModule = createCommentsModule({
-    commentRepo: new InMemoryCommentRepo(),
+    commentRepo,
     entryRepo,
     outbox,
     clock,
     idGen,
     spamCheck: new HeuristicSpamCheck(),
     settingsRepo,
+    remove: removeEntityWithoutBlocker(bindRemoveEntity(trash, COMMENT_ENTITY_TYPE)),
+    forgetRemoved: ({ workspaceId: ws, id }) =>
+      trashRepo.deleteByEntity({ workspaceId: ws, entityType: COMMENT_ENTITY_TYPE, entityId: id }),
+    // Nothing in this composition opens a database transaction; see `createTrashService` above.
+    runInTransaction: (fn) => fn(),
   });
 
   // SPEC-011 (Newsletter) Stage 5 wiring — hoisted so `newsletterSubscriberDirectory` below reads
@@ -554,11 +825,6 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // loop's `executeCommand` calls must land in the SAME change-set store every other route/test
   // reads off `RouteDeps.changeSets`.
   const changeSets = new InMemoryChangeSetRepo([], [], outbox);
-  // Hoisted out of the `routeDeps` literal below for the SAME reason as `changeSets` above: the
-  // apply loop's `media.apply()` must write into the very stores the media routes and this file's
-  // own tests read. Constructed twice (once here, once inline below) they would be two disconnected
-  // in-memory stores, and an imported media row would be invisible to everything else.
-  const mediaRepo = new InMemoryMediaRepo([]);
   const assetBlobRepo = new InMemoryAssetBlobRepo([]);
   const blobStore = new InMemoryBlobStore();
   const publishContentBundleRepo = new InMemoryPublishContentBundleRepo();
@@ -580,6 +846,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       outbox,
       changeSets,
       authorize: identity.authorize,
+      forgetRemovedPost: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
       mediaRepo,
       assetBlobRepo,
       blobStore,
@@ -590,6 +857,26 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
 
   const routeDeps: NewsletterRouteDeps = {
     workspaceId: seededWorkspace.id,
+    trash,
+    // The rest of this root stays hermetic; only term/taxonomy exercise the shared scratch database.
+    registry: trashRegistry,
+    db: sqliteTrashDb,
+    removePost: removeEntityWithoutBlocker(bindRemoveEntity(trash, POST_ENTITY_TYPE)),
+    removeComment: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
+    removeMedia: removeEntityWithoutBlocker(bindRemoveEntity(trash, MEDIA_ENTITY_TYPE)),
+    removeRedirect: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
+    removeWidget: removeEntityWithoutBlocker(bindRemoveEntity(trash, "widget")),
+    removeMenu: removeEntityWithoutBlocker(bindRemoveEntity(trash, "menu")),
+    // Bound the same way as `composition/deps.ts`; the matching adapters share `taxonomyDb`.
+    removeTerm: bindRemoveEntity(trash, "term"),
+    removeTaxonomy: removeEntityWithoutBlocker(bindRemoveEntity(trash, "taxonomy")),
+    forgetRemovedMedia: bindForgetRemovedEntity(trashRepo, MEDIA_ENTITY_TYPE),
+    forgetRemovedPost: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
+    // Present so this root satisfies `TrashDeps`, and harmless: `createApp` never starts the
+    // timer (`createServingApp` does), and the hermetic media/comment adapters have no
+    // `hardDelete`, so a pass here would stand down rather than claim a removal.
+    sweepTrash: createTrashSweep({ repo: trashRepo, adapters: trashAdapters, transaction: (fn) => fn() }),
+    isTrashableEntityType: (entityType) => trashAdapters.has(entityType),
     // The hermetic half of the real SQLite deny store. `core.ts` still narrows this to `list`
     // before giving it to the request gate, so tests retain the same least-authority boundary.
     publishTrustRevocations: createInMemoryRevocations(),
@@ -668,7 +955,14 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // Pre-loaded with the post-domain reverters, closed over the SAME postRepo/clock/outbox
     // instances this root threads through everything else (ADR-018 C-005/C-006; 2026-08-13
     // features-post-deep-import-trace.md Job 2 — see `features/post/reverters.ts`'s header).
-    revertRegistry: createPostRevertRegistry({ postRepo, clock, outbox }),
+    revertRegistry: createPostRevertRegistry({
+      postRepo,
+      clock,
+      outbox,
+      // `post/delete`'s reverter clears the trash marker; without this the index row it was written
+      // with outlives it and the Trash lists a post that is live again.
+      forgetRemoved: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
+    }),
     themes: discoverAllBuiltInThemes({ dir: builtInThemesDir(), source: "built-in" }),
     themesDir: builtInThemesDir(),
     siteBinding: describeSiteBinding(),
@@ -752,7 +1046,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // process-lifetime `FORMS_SUBMIT_PROFILE` counter store (constructed once here, not
     // per-request) so its fixed-window counts persist across requests within one `createApp()`.
     formDefinitionRepo,
-    formSubmissionRepo: new InMemoryFormSubmissionRepo(),
+    formSubmissionRepo,
+    removeFormSubmission: removeEntityWithoutBlocker(bindRemoveEntity(trash, "form_submission")),
     formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
     // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,
     // matching `server/deps.ts`'s real composition's identical construction.
@@ -763,17 +1058,15 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     databaseLedgerRepo: new InMemoryDatabaseLedgerRepo(),
     migrationRunsRepo: new InMemoryMigrationRunsRepo(),
     // Admin-UI backend-gap closure (design-spec.md §0.4, this dispatch): in-memory adapters for
-    // content-types/entries/taxonomy (no SQLite adapter exists yet for any of the three — see
-    // `routes/types.ts`'s doc comment on this field group for the full disclosure) plus the
-    // restore-points/dbOps/site-status/recovery seams the Database/Recovery screens' remaining
-    // read routes need.
+    // content-types/entries plus the restore-points/dbOps/site-status/recovery seams the
+    // Database/Recovery screens' remaining read routes need.
     contentTypeRepo: new InMemoryContentTypeRepo(),
     contentTypeIndexProvisioner: new NoopContentTypeIndexProvisioner(),
     entryRepo,
-    taxonomyRepo: new InMemoryTaxonomyRepo(),
-    termRepo: new InMemoryTermRepo(),
-    entryTermRepo: new InMemoryEntryTermRepo(),
-    taxonomyRevisionRepo: new InMemoryTaxonomyRevisionRepo(),
+    taxonomyRepo,
+    termRepo,
+    entryTermRepo,
+    taxonomyRevisionRepo,
     stampWatermark: noopStampWatermark,
     restorePointsRepo,
     dbOps: new InMemoryDbOpsAdapter(),
@@ -814,7 +1107,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     discoverPlugins: pluginRuntime.discoverPlugins,
     onPluginEnabled: pluginRuntime.onPluginEnabled,
     onPluginDisabled: pluginRuntime.onPluginDisabled,
-    onPluginUninstalled: pluginRuntime.onPluginUninstalled,
+    removePlugin,
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
     // 2026-08-15 — hermetic double for `server/deps.ts`'s real `SqliteDeploymentsReadRepo`. Empty
@@ -1125,12 +1418,12 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
 
   // Default 100kb body limit is too small for the media upload route, which accepts
   // base64-encoded bytes in the JSON body (no multipart-parsing dependency in this repo yet —
-  // see routes/admin/media/upload.ts's file comment for the disclosed simplification). 50mb
-  // covers `TOVU_MAX_UPLOAD_BYTES` (35 MiB, `features/media/upload-limits.ts`) once base64
-  // inflates it ~1.33x (~47 MiB) plus headroom — owner-directed 2026-09-16 to fit a 10-20s
-  // generated video clip. A real implementation should stream multipart/octet-stream instead of
-  // inflating bytes through base64 JSON.
-  app.use(express.json({ limit: "50mb" }));
+  // see routes/admin/media/upload.ts's file comment for the disclosed simplification). 75mb
+  // covers `TOVU_MAX_UPLOAD_BYTES` (50 MiB as of 2026-09-21, `features/media/upload-limits.ts`)
+  // once base64 inflates it ~1.33x (~66.7 MiB) plus headroom — owner-directed 2026-09-16 to fit a
+  // 10-20s generated video clip, raised again 2026-09-21 for larger videos. A real implementation
+  // should stream multipart/octet-stream instead of inflating bytes through base64 JSON.
+  app.use(express.json({ limit: "75mb" }));
 
   // Once per bus, not once per createApp call: see `subscribeSiteEventHandlersOnce`.
   subscribeSiteEventHandlersOnce(routeDeps);
@@ -1238,6 +1531,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // Observability admin page, Overview tab (`development/todos.md` 2026-09-09 owner ask) — same
   // `system.read`-gated shape as the module-status route just above.
   registerAdminObservabilityStatusRoute(app, routeDeps);
+  // Whether outbound mail really sends (not the console fallback) — the form editor greys out its
+  // notification settings when it does not.
+  registerAdminMailStatusRoute(app, routeDeps);
   // Admin "Restart assistant" action (`system.write`-gated) — the manual recovery seam for the
   // locally-spawned agent daemon, sibling to the on-demand recovery `server/modules/assistant.ts`'s
   // daemon-proxy code now triggers automatically on a known-failed request. See that route file's
@@ -1328,6 +1624,12 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // moved up here since its only real constraint, "before `/:slug`", still holds — see
   // `modules/media.ts`'s file header for the full disclosure).
   mountRoutes(app, createMediaModule(routeDeps));
+  // The local admin Trash screen's 3 routes (design:
+  // `ADS-memory/reports/2026-09-20-trash-delete-architecture.md`). Registered next to `media`
+  // because Media is one of the four kinds it lists, but it is a platform surface, not a media one:
+  // it spans Posts, Comments, Media and Redirects. No ordering constraint — every path is under
+  // `/api/admin/v1/workspaces/:workspaceId/trash` and none is a catch-all.
+  mountRoutes(app, createTrashModule(routeDeps));
   // The `connectors` server module — Composio-backed third-party accounts behind the admin's
   // Settings → Connectors tab. Registered next to `integrations-admin` above because the two share
   // the `admin.integrations.manage` permission, but they own different subsystems (outbound

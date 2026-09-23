@@ -82,7 +82,7 @@ row would have shown text for, just now reachable by URL and click.
 
 ## Subscriptions (new in pass two)
 
-`member_tiers` and `member_subscriptions` are real tables (`src/platform/db/schema.ts:466-506`, defined
+`member_tiers` and `member_subscriptions` are real tables (`src/platform/db/schema.sqlite.ts:466-506`, defined
 immediately after the `members` table as part of the same membership feature) — verified both are
 empty via direct query (`sqlite3 infra/content.db "SELECT count(*) FROM member_tiers"` → `0`, same for
 `member_subscriptions`), and verified no admin route references either

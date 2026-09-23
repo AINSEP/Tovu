@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
+import { useSerialWrites } from "./use-serial-writes.hooks";
+import { useSettlementGeneration } from "./use-settlement-generation.hooks";
 
 /**
  * @file One settings-dialog tab's load/edit/debounced-save lifecycle,
@@ -183,8 +185,9 @@ export interface SettingsSlice<T> {
  * logic that genuinely fit a top-level pure-function shape (0–4 plain params, no ref reads);
  * `refresh` itself dropped from 9/5 to 5/4 as a result, its own per-function score real progress,
  * not exempted. What remains (`runSave`/`onChange`/the unmount cleanup/the rest of `refresh`) each
- * reads or writes 3–6 of this hook's own refs (`io`, `persisted`, `latest`, `timer`, `saveChain`,
- * `saveTicket`, `hasUnsavedEdits`, `commits`, `mounted`) and several of them call each other
+ * reads or writes 3–6 of this hook's own refs (`io`, `persisted`, `latest`, `timer`,
+ * `saveTicket`, `hasUnsavedEdits`, `commits`, `mounted`) plus the shared `writes` lane, and several of
+ * them call each other
  * (`onChange` schedules a link that calls `runSave`; the unmount cleanup calls `runSave` directly),
  * so none of them can become a top-level function without threading that whole ref set through as a
  * parameter object. This file's own header states the reason that is dangerous here specifically:
@@ -202,6 +205,15 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
   const [value, setValue] = useState<T | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ status: "idle" });
+
+  /** Guards `refresh`'s own `setValue`/`persisted`/`latest` write against a second background
+   *  refresh started after it: `canAcceptRefresh`'s `commitsUnchanged` check cannot tell two
+   *  refreshes apart when no save happens between them (both sample the same `commits.current`),
+   *  so without this an older refresh call that happens to SETTLE last could still land over a
+   *  newer one's result (S2, plan-components.md 2026-09-20; two rapid SSE frames from another
+   *  tab's writes is the trigger). Same guard `use-admin-execution-credential.hooks.ts`'s `refresh`
+   *  and `use-admin-locale.hooks.ts`'s `fetchLocale` already use for the identical shape. */
+  const refreshSettlement = useSettlementGeneration();
 
   /** `load`/`save` are usually inline arrows at the call site, so a new
    *  identity arrives on every render. Holding them in a ref keeps the effect
@@ -222,7 +234,7 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /**
-   * Saves run strictly one at a time, chained off this promise.
+   * Saves run strictly one at a time, queued through this lane.
    *
    * The debounce alone does NOT prevent overlap: it only cancels a save that
    * has not STARTED. Once one is in flight, the next edit schedules a fresh
@@ -233,7 +245,7 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
    * value was persisted that never was, so the next edit skips writing the
    * fields it thinks are already saved.
    */
-  const saveChain = useRef<Promise<void>>(Promise.resolve());
+  const writes = useSerialWrites();
 
   /** Monotonic ticket, so only the newest save may write the status
    *  indicator. Without it a slow earlier save resolving last would paint
@@ -360,16 +372,16 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
       if (!hasUnsavedEdits.current) return;
       // Fire-and-forget: the component is going away, so there is no status
       // left to paint. The write itself still has to happen — through the same
-      // runner as the debounce path, so it diffs against the base that is
+      // lane as the debounce path, so it diffs against the base that is
       // current when it RUNS, not the one that was current when it was queued.
-      saveChain.current = saveChain.current.then(() =>
+      void writes.run(() =>
         runSave().then(
           () => {},
           () => {},
         ),
       );
     },
-    [runSave],
+    [runSave, writes],
   );
 
   const onChange = useCallback((next: T) => {
@@ -386,7 +398,7 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
       timer.current = null;
       const ticket = ++saveTicket.current;
       setSaveState({ status: "saving" });
-      saveChain.current = saveChain.current.then(() =>
+      void writes.run(() =>
         commitQueuedSave(ticket, {
           runSave,
           currentTicket: () => saveTicket.current,
@@ -395,7 +407,7 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
         }),
       );
     }, SAVE_DEBOUNCE_MS);
-  }, [runSave]);
+  }, [runSave, writes]);
 
   /**
    * Re-reads the persisted value on an external notification.
@@ -430,6 +442,7 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
       return;
     }
     const seenCommits = commits.current;
+    const generation = refreshSettlement.next();
     let loaded: T;
     try {
       loaded = await io.current.load();
@@ -437,6 +450,7 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
       return;
     }
     if (
+      !refreshSettlement.isCurrent(generation) ||
       !canAcceptRefresh({
         timerPending: timer.current !== null,
         hasUnsavedEdits: hasUnsavedEdits.current,

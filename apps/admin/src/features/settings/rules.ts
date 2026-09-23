@@ -3,6 +3,9 @@ import type { ByokConfig, ExecutionConfig, SourceFieldSpec, SourceFieldValues } 
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import type { SaveState } from "../../hooks/use-settings-slice.hooks";
+import type { Translate } from "../../lib/dictionary-translator";
+
+const identityTranslate: Translate = (key) => key;
 
 /**
  * @file Pure logic for the `settings` feature (the Open Design settings-dialog port) —
@@ -113,55 +116,55 @@ export function resolveExternalMcpEffectiveAuthMode(values: SourceFieldValues): 
  * form once this returns; see this module's own section header for why that is the whole mechanism.
  * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
  */
-export function buildExternalMcpFieldSpecs(values: SourceFieldValues): SourceFieldSpec[] {
+export function buildExternalMcpFieldSpecs(values: SourceFieldValues, t: Translate = identityTranslate): SourceFieldSpec[] {
   const transport = resolveExternalMcpEffectiveTransport(values);
   const authMode = resolveExternalMcpEffectiveAuthMode(values);
   const isStdio = transport === "stdio";
   const isOAuth = authMode === "oauth";
 
   const specs: SourceFieldSpec[] = [
-    { key: "id", label: "ID", kind: "text", required: true, placeholder: "lowercase letters, digits and dashes" },
+    { key: "id", label: t("ID"), kind: "text", required: true, placeholder: t("lowercase letters, digits and dashes") },
     {
       key: "transport",
-      label: "Connection type",
+      label: t("Connection type"),
       kind: "select",
       required: true,
       options: [
-        { value: "stdio", label: "Local command (stdio)" },
-        { value: "streamable_http", label: "Hosted server (URL)" },
+        { value: "stdio", label: t("Local command (stdio)") },
+        { value: "streamable_http", label: t("Hosted server (URL)") },
       ],
     },
     // Third, right under Connection type (owner call, 2026-09-13): how the connection authenticates
     // decides which of the fields below apply at all, so it is chosen before them, not after.
     {
       key: "authMode",
-      label: "Credentials",
+      label: t("Credentials"),
       kind: "select",
       required: true,
       options: [
-        { value: "none", label: "None needed" },
-        { value: "static_env", label: "API key / access token" },
-        { value: "oauth", label: "Connect via OAuth" },
+        { value: "none", label: t("None needed") },
+        { value: "static_env", label: t("API key / access token") },
+        { value: "oauth", label: t("Connect via OAuth") },
       ],
     },
   ];
 
-  if (authMode === "static_env") specs.push(...buildAccessTokenFieldSpecs(isStdio));
+  if (authMode === "static_env") specs.push(...buildAccessTokenFieldSpecs(isStdio, t));
 
   if (isStdio) {
     specs.push(
-      { key: "command", label: "Command", kind: "text", required: true, placeholder: "e.g. npx, node, /path/to/binary" },
-      { key: "args", label: "Args", kind: "text", placeholder: "space-separated" },
+      { key: "command", label: t("Command"), kind: "text", required: true, placeholder: t("e.g. npx, node, /path/to/binary") },
+      { key: "args", label: t("Args"), kind: "text", placeholder: t("space-separated") },
     );
   } else {
-    specs.push({ key: "url", label: "URL", kind: "text", required: true, placeholder: "https://…" });
+    specs.push({ key: "url", label: t("URL"), kind: "text", required: true, placeholder: t("https://…") });
   }
 
   specs.push({
     key: "allowedToolNames",
-    label: "Allowed tools",
+    label: t("Allowed tools"),
     kind: "text",
-    placeholder: "comma-separated — nothing runs unless it is listed here",
+    placeholder: t("comma-separated — nothing runs unless it is listed here"),
   });
 
   // Unconditional, same as `allowedToolNames` immediately above: `trust.ts` R2/R3 apply this pair
@@ -172,21 +175,21 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues): SourceFie
   // how a field is shown or withheld here.
   specs.push({
     key: "writeAllowedToolNames",
-    label: "Allowed to make changes",
+    label: t("Allowed to make changes"),
     kind: "text",
-    placeholder: "comma-separated — a tool can change or create things only if it's listed both here and in Allowed tools above",
+    placeholder: t("comma-separated — a tool can change or create things only if it's listed both here and in Allowed tools above"),
   });
 
   if (isStdio) {
     specs.push({
       key: "env",
-      label: "Environment variables (KEY=VALUE)",
+      label: t("Environment variables (KEY=VALUE)"),
       kind: "textarea",
-      placeholder: "GITHUB_TOKEN=…  (leave blank to keep the stored values)",
+      placeholder: t("GITHUB_TOKEN=…  (leave blank to keep the stored values)"),
     });
   }
 
-  if (isOAuth) specs.push(...buildOAuthFieldSpecs(isStdio));
+  if (isOAuth) specs.push(...buildOAuthFieldSpecs(isStdio, t));
 
   return specs;
 }
@@ -203,16 +206,16 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues): SourceFie
  *
  * @complexity O(1).
  */
-function buildAccessTokenFieldSpecs(isStdio: boolean): SourceFieldSpec[] {
+function buildAccessTokenFieldSpecs(isStdio: boolean, t: Translate): SourceFieldSpec[] {
   const specs: SourceFieldSpec[] = [
-    { key: "accessToken", label: "Access token", kind: "password", placeholder: "leave blank to keep the stored token" },
+    { key: "accessToken", label: t("Access token"), kind: "password", placeholder: t("leave blank to keep the stored token") },
   ];
   if (isStdio) {
     specs.push({
       key: "accessTokenEnvName",
-      label: "Access token environment variable",
+      label: t("Access token environment variable"),
       kind: "text",
-      placeholder: "the variable the command reads its token from, e.g. GITHUB_TOKEN",
+      placeholder: t("the variable the command reads its token from, e.g. GITHUB_TOKEN"),
     });
   }
   return specs;
@@ -227,21 +230,21 @@ function buildAccessTokenFieldSpecs(isStdio: boolean): SourceFieldSpec[] {
  *
  * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
  */
-function buildOAuthFieldSpecs(isStdio: boolean): SourceFieldSpec[] {
+function buildOAuthFieldSpecs(isStdio: boolean, t: Translate): SourceFieldSpec[] {
   const specs: SourceFieldSpec[] = [
     {
       key: "oauthProviderId",
-      label: "Provider ID",
+      label: t("Provider ID"),
       kind: "text",
-      placeholder: "leave blank to define this connection's own endpoints below",
+      placeholder: t("leave blank to define this connection's own endpoints below"),
     },
     {
       key: "oauthGrant",
-      label: "Sign-in method",
+      label: t("Sign-in method"),
       kind: "select",
       options: [
-        { value: "authorization_code", label: "Browser sign-in" },
-        { value: "device_code", label: "Device code" },
+        { value: "authorization_code", label: t("Browser sign-in") },
+        { value: "device_code", label: t("Device code") },
       ],
       // Required only for stdio, same discovery precedent as `oauthClientId` right below: a
       // REMOTE connection can run RFC 8414 discovery against its own URL at connect time and read
@@ -249,11 +252,11 @@ function buildOAuthFieldSpecs(isStdio: boolean): SourceFieldSpec[] {
       // guess between "Browser sign-in" and "Device code" before knowing what the server even
       // offers. A stdio connection has no URL to discover from, so there it stands.
       required: isStdio,
-      ...(isStdio ? {} : { placeholder: "detected from the server unless set here" }),
+      ...(isStdio ? {} : { placeholder: t("detected from the server unless set here") }),
     },
     {
       key: "oauthClientId",
-      label: "Client ID",
+      label: t("Client ID"),
       kind: "text",
       // Required only for stdio, matching the server rule in `external-mcp-store.ts`: a REMOTE
       // connection can run OAuth discovery against its own URL and mint a client for itself by
@@ -261,33 +264,33 @@ function buildOAuthFieldSpecs(isStdio: boolean): SourceFieldSpec[] {
       // registration endpoint and no developer console — so for those there is no client id a
       // human could type. A stdio connection has no URL to discover from, so there it stands.
       required: isStdio,
-      ...(isStdio ? {} : { placeholder: "leave blank to register with this server automatically" }),
+      ...(isStdio ? {} : { placeholder: t("leave blank to register with this server automatically") }),
     },
-    { key: "oauthClientSecret", label: "Client secret", kind: "password", placeholder: "leave blank to keep the stored secret" },
-    { key: "oauthScopes", label: "Scopes", kind: "text", placeholder: "space- or comma-separated" },
+    { key: "oauthClientSecret", label: t("Client secret"), kind: "password", placeholder: t("leave blank to keep the stored secret") },
+    { key: "oauthScopes", label: t("Scopes"), kind: "text", placeholder: t("space- or comma-separated") },
   ];
   if (isStdio) {
     specs.push({
       key: "oauthTokenEnvName",
-      label: "Access token environment variable",
+      label: t("Access token environment variable"),
       kind: "text",
       required: true,
-      placeholder: "the variable name the command reads its token from",
+      placeholder: t("the variable name the command reads its token from"),
     });
   }
   specs.push(
     {
       key: "oauthAuthorizationEndpoint",
-      label: "Authorization endpoint",
+      label: t("Authorization endpoint"),
       kind: "text",
-      placeholder: "needed for Browser sign-in, unless Provider ID is set",
+      placeholder: t("needed for Browser sign-in, unless Provider ID is set"),
     },
-    { key: "oauthTokenEndpoint", label: "Token endpoint", kind: "text", placeholder: "needed unless Provider ID is set" },
+    { key: "oauthTokenEndpoint", label: t("Token endpoint"), kind: "text", placeholder: t("needed unless Provider ID is set") },
     {
       key: "oauthDeviceAuthorizationEndpoint",
-      label: "Device authorization endpoint",
+      label: t("Device authorization endpoint"),
       kind: "text",
-      placeholder: "needed for Device code, unless Provider ID is set",
+      placeholder: t("needed for Device code, unless Provider ID is set"),
     },
   );
   return specs;
@@ -343,13 +346,13 @@ export function buildExternalMcpCardHandles(sourceIds: readonly string[]): strin
  * @returns An operator-facing message when the rule is violated, else `null`.
  * @complexity O(1).
  */
-export function validateExternalMcpOAuthIdentity(values: SourceFieldValues): string | null {
+export function validateExternalMcpOAuthIdentity(values: SourceFieldValues, t: Translate = identityTranslate): string | null {
   if (resolveExternalMcpEffectiveAuthMode(values) !== "oauth") return null;
   if (resolveExternalMcpEffectiveTransport(values) !== "stdio") return null;
   const hasProviderId = (values.oauthProviderId ?? "").trim() !== "";
   const hasTokenEndpoint = (values.oauthTokenEndpoint ?? "").trim() !== "";
   if (hasProviderId || hasTokenEndpoint) return null;
-  return "Enter a Provider ID, or fill in this connection's own Token endpoint.";
+  return t("Enter a Provider ID, or fill in this connection's own Token endpoint.");
 }
 
 /** The subset of `SettingsSlice<T>` these functions actually read, kept generic-free so callers
@@ -435,11 +438,14 @@ export interface RemoveConfirmCopy {
  *
  * @complexity Time/space: O(1) — one ternary, no iteration.
  */
-export function buildExternalMcpRemoveConfirmCopy(params: { name: string; isOAuth: boolean }): RemoveConfirmCopy {
+export function buildExternalMcpRemoveConfirmCopy(
+  params: { name: string; isOAuth: boolean },
+  t: Translate = identityTranslate,
+): RemoveConfirmCopy {
   return {
-    title: `Remove "${params.name}"?`,
+    title: t('Remove "{name}"?').replace("{name}", params.name),
     body: params.isOAuth
-      ? "This connection will stop working immediately. Its OAuth credential is sealed and cannot be recovered — reconnecting will require signing in again."
-      : "This connection will stop working immediately. You'll need to re-enter its configuration to use it again.",
+      ? t("This connection will stop working immediately. Its OAuth credential is sealed and cannot be recovered — reconnecting will require signing in again.")
+      : t("This connection will stop working immediately. You'll need to re-enter its configuration to use it again."),
   };
 }

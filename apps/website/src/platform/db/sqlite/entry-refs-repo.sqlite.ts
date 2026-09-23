@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import { entryRefs } from "../schema.js";
+import { entryRefs } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 import type { UUID } from "@jini-ai/cms/core";
 import type { EntryRefsRepoPort } from "#src/contracts/core/entry-refs/ports";

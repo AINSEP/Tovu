@@ -26,9 +26,13 @@ ADR-036 subsystem — Forms adds zero webhook-dispatch code, only the event).
 
 ## Rules
 
-- A form definition is never permanently deleted — only `active` ⇄ `disabled` (INV-08).
-  `FormDefinitionRepoPort` structurally has no delete method; only `FormSubmissionRepoPort` does
-  (REQ-14 — a submission supports permanent delete, since it is visitor-supplied PII).
+- A form definition is deleted like everything else — through the Trash (owner ruling 2026-09-21,
+  superseding the original INV-08 "never deleted" wording): deleting moves it to the Trash, and it
+  is removed permanently only by a Trash purge (a human on the Trash screen, or the 60-day
+  sweeper), which removes its submissions with it; restore brings it back with its submissions.
+  `FormDefinitionRepoPort` structurally has no delete method — that path is the Trash, not this
+  port. A submission's own delete (REQ-14) likewise moves it to the Trash; only a purge deletes it
+  permanently.
 - `slug` is set once at creation and is never accepted from an `UPDATE_FORM_DEFINITION` patch
   (behavior.spec.md §1.1) — enforced in `write-service.ts`'s `updateFormDefinition`.
 - An update patch may never omit a field id present in the current definition (behavior.spec.md

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@/lib/api";
+import { t as translateSecurity } from "../security-i18n";
 import {
   ACCESS_TOKEN_CATEGORIES,
   ACCESS_TOKEN_PROVIDERS,
@@ -15,6 +16,7 @@ import {
   accessTokenRowProviderInfo,
   accessTokenRowReadyToSave,
   accessTokenRowsForProvider,
+  accessTokensCountText,
   buildAccessTokenConnectionInput,
   buildAccessTokenRows,
   buildAccessTokenUpdatePatch,
@@ -27,6 +29,7 @@ import {
   customCredentialNameTaken,
   customCredentialReadyToSave,
   customCredentialReplaceReadyToSave,
+  accessTokenExistingRowReadyToSave,
   envNamesFact,
   invalidAdditionalHostsEntries,
   isValidHttpUrl,
@@ -36,9 +39,12 @@ import {
   otherCredentialMatchesQuery,
   otherCredentialStoreInfo,
   providerGroupHandleLabel,
+  sortAccessTokenGroups,
   tokenRowHandleLabel,
   type AccessTokenFormFields,
+  type AccessTokenGroupSortInput,
   type AccessTokenRow,
+  type AccessTokenRowCategoryId,
   type CustomCredentialFormFields,
   type RawCredentialSummary,
   type RawCustomCredentialSummary,
@@ -86,8 +92,11 @@ describe("ACCESS_TOKEN_PROVIDERS", () => {
     expect(githubPages.label).toBe("GitHub Pages");
     expect(github.label).toBe("GitHub");
     expect(githubPages.purposeLabel).not.toBe(github.purposeLabel);
-    expect(githubPages.purposeLabel).toBe("Publishing");
-    expect(github.purposeLabel).toBe("Source Control");
+    expect(githubPages.purposeLabel).toBe("Hosting");
+    // "Source control" (sentence case), not "Source Control" — 2026-09-21 round 2: this must read
+    // identically to the "Source control" filter chip's own label (`ACCESS_TOKEN_CATEGORIES`), the
+    // same letter-for-letter agreement round 1 already gave the "Hosting" pair above.
+    expect(github.purposeLabel).toBe("Source control");
   });
 
   it("carries cloudflare-pages' accountId requirement and bitbucket's username requirement through unchanged", () => {
@@ -240,6 +249,44 @@ describe("value-fact formatters", () => {
   });
 });
 
+describe("accessTokensCountText", () => {
+  // Whole-sentence templates replaced the old `${totalCount} ${tokenWord} ${translate("saved")}`
+  // fragment concatenation (see rules.ts's own doc) — pinning English byte-identical to what that
+  // concatenation used to produce, including the plural boundary at exactly 1 and the curly quotes
+  // around the query, is what proves the rewrite changed no visible English copy.
+  it("stays byte-identical in English for the empty-query, zero-count case", () => {
+    expect(accessTokensCountText(0, 0, "")).toBe("0 tokens saved");
+  });
+
+  it("stays byte-identical in English for the empty-query singular case", () => {
+    expect(accessTokensCountText(1, 1, "")).toBe("1 token saved");
+  });
+
+  it("stays byte-identical in English for a searched, plural-total case", () => {
+    expect(accessTokensCountText(5, 2, "abc")).toBe("2 of 5 tokens matching “abc”");
+  });
+
+  it("stays byte-identical in English for a searched, singular-total case", () => {
+    expect(accessTokensCountText(1, 1, "abc")).toBe("1 of 1 token matching “abc”");
+  });
+
+  it("ignores leading/trailing whitespace in the query the same way the old check did", () => {
+    expect(accessTokensCountText(3, 0, "   ")).toBe("3 tokens saved");
+  });
+
+  it("renders a full translated German sentence, not glued fragments", () => {
+    const translate = (key: string) => translateSecurity("de", key);
+    expect(accessTokensCountText(0, 0, "", translate)).toBe("0 Tokens gespeichert");
+    expect(accessTokensCountText(1, 1, "", translate)).toBe("1 Token gespeichert");
+    expect(accessTokensCountText(5, 2, "abc", translate)).toBe("2 von 5 Tokens, die zu “abc” passen");
+  });
+
+  it("renders a full translated Japanese sentence with the query reordered to the front", () => {
+    const translate = (key: string) => translateSecurity("ja", key);
+    expect(accessTokensCountText(5, 2, "abc", translate)).toBe("「abc」に一致するトークン5件中2件");
+  });
+});
+
 describe("mediaProviderLabel", () => {
   it("resolves a known catalog id to its human label", () => {
     // The catalog is real vendor data (`@jini-ai/integrations/media-providers/catalog`) — assert
@@ -266,6 +313,78 @@ describe("accessTokenRowsForProvider", () => {
   });
 });
 
+describe("sortAccessTokenGroups", () => {
+  /** A minimal {@link AccessTokenGroupSortInput} — `savedCount` stands in for `rows.length` (the
+   *  function only ever reads its length, never its contents). */
+  function group(label: string, category: AccessTokenRowCategoryId, savedCount: number): AccessTokenGroupSortInput & { label: string } {
+    return { info: { category, label }, rows: Array.from({ length: savedCount }), label };
+  }
+  function labelsOf(groups: readonly (AccessTokenGroupSortInput & { label: string })[]): string[] {
+    return sortAccessTokenGroups(groups).map((g) => g.label);
+  }
+
+  it("puts every group with at least one saved row before every group with none, regardless of input order", () => {
+    const groups = [group("Netlify", "hosting", 0), group("GitHub", "source-control", 1), group("Vercel", "hosting", 0), group("GitLab", "source-control", 1)];
+    const result = sortAccessTokenGroups(groups);
+    expect(result.slice(0, 2).every((g) => g.rows.length > 0)).toBe(true);
+    expect(result.slice(2).every((g) => g.rows.length === 0)).toBe(true);
+  });
+
+  it("orders the saved tier by category in the same order as the filter chips: source control, hosting, media, ai, ops, general", () => {
+    const groups = [
+      group("Cloudinary", "media", 1),
+      group("OpenAI", "ai", 1),
+      group("GitHub", "source-control", 1),
+      group("Composio", "ops", 1),
+      group("Custom Co", "general", 1),
+      group("Vercel", "hosting", 1),
+    ];
+    expect(labelsOf(groups)).toEqual(["GitHub", "Vercel", "Cloudinary", "OpenAI", "Composio", "Custom Co"]);
+  });
+
+  it("orders the unsaved tier by the same category order, independently of the saved tier", () => {
+    const groups = [group("Vercel", "hosting", 0), group("GitHub", "source-control", 1), group("Bitbucket", "source-control", 0)];
+    // Saved tier (GitHub) first; within the unsaved tier, source control (Bitbucket) still outranks
+    // hosting (Vercel) by category order, unaffected by GitHub already having moved to the other tier.
+    expect(labelsOf(groups)).toEqual(["GitHub", "Bitbucket", "Vercel"]);
+  });
+
+  it("sorts alphabetically by label within the same tier and category, locale-aware/case-insensitive", () => {
+    const groups = [group("netlify", "hosting", 0), group("Cloudflare Pages", "hosting", 0), group("Vercel", "hosting", 0), group("GitHub Pages", "hosting", 0)];
+    expect(labelsOf(groups)).toEqual(["Cloudflare Pages", "GitHub Pages", "netlify", "Vercel"]);
+  });
+
+  it("a provider moving from zero saved rows to one moves it into the saved tier on the next call", () => {
+    const unsaved = [group("Vercel", "hosting", 0), group("GitHub", "source-control", 1)];
+    expect(labelsOf(unsaved)).toEqual(["GitHub", "Vercel"]);
+    const nowSaved = [group("Vercel", "hosting", 1), group("GitHub", "source-control", 1)];
+    // Alphabetical within the same (saved, hosting-vs-source-control) categories: GitHub's category
+    // (source control) still ranks before Vercel's (hosting) — the tier move alone should not also
+    // reorder categories.
+    expect(labelsOf(nowSaved)).toEqual(["GitHub", "Vercel"]);
+  });
+
+  it("a filtered/searched subset (fewer groups, possibly one category only) still sorts by the same rule", () => {
+    // Simulates the "Hosting" chip or an active search query narrowing `groups` before it reaches
+    // this function — every entry shares one category, so only the saved-tier/alphabetical rules
+    // are left to apply.
+    const groups = [group("Vercel", "hosting", 0), group("GitHub Pages", "hosting", 1), group("Cloudflare Pages", "hosting", 0)];
+    expect(labelsOf(groups)).toEqual(["GitHub Pages", "Cloudflare Pages", "Vercel"]);
+  });
+
+  it("custom providers follow the same category-based rule as catalog providers", () => {
+    const groups = [group("My Custom API", "general", 0), group("Vercel", "hosting", 0), group("Another Custom", "general", 1)];
+    expect(labelsOf(groups)).toEqual(["Another Custom", "Vercel", "My Custom API"]);
+  });
+
+  it("does not mutate the input array", () => {
+    const groups = [group("Vercel", "hosting", 0), group("GitHub", "source-control", 1)];
+    const original = [...groups];
+    sortAccessTokenGroups(groups);
+    expect(groups).toEqual(original);
+  });
+});
+
 describe("accessTokenRowMatchesQuery / accessTokenProviderMatchesQuery", () => {
   const info = accessTokenProviderInfo({ kind: "publish", providerId: "github-pages" });
   const row = buildAccessTokenRows("publish", [rawSummary({ label: "Production" })])[0]!;
@@ -281,9 +400,9 @@ describe("accessTokenRowMatchesQuery / accessTokenProviderMatchesQuery", () => {
   });
 
   it("matches on the purpose subtitle — the two-store GitHub disambiguator", () => {
-    expect(accessTokenRowMatchesQuery(row, info, "publishing")).toBe(true);
+    expect(accessTokenRowMatchesQuery(row, info, "hosting")).toBe(true);
     const sourceControlInfo = accessTokenProviderInfo({ kind: "source-control", providerId: "github" });
-    expect(accessTokenProviderMatchesQuery(sourceControlInfo, "publishing")).toBe(false);
+    expect(accessTokenProviderMatchesQuery(sourceControlInfo, "hosting")).toBe(false);
   });
 
   it("matches on the row's own display name", () => {
@@ -678,6 +797,19 @@ describe("customCredentialReplaceReadyToSave (2026-09-01 owner-reported bug: use
   it("treats an undefined saved username the same as an empty one (a row that never had one)", () => {
     expect(customCredentialReplaceReadyToSave(blankCustomRowFields({ name: "name.com", username: "" }), "name.com", undefined)).toBe(false);
     expect(customCredentialReplaceReadyToSave(blankCustomRowFields({ name: "name.com", username: "new-user" }), "name.com", undefined)).toBe(true);
+  });
+});
+
+describe("accessTokenExistingRowReadyToSave — the Replace form's gate, picked by row kind (terra review 2026-09-20 #3)", () => {
+  it("a custom row uses the custom gate: a username-only change is ready", () => {
+    expect(accessTokenExistingRowReadyToSave(blankCustomRowFields({ name: "name.com", username: "new-user" }), { kind: "custom", name: "name.com", username: "old-user" })).toBe(true);
+    expect(accessTokenExistingRowReadyToSave(blankCustomRowFields({ name: "name.com", username: "old-user" }), { kind: "custom", name: "name.com", username: "old-user" })).toBe(false);
+  });
+
+  it("a catalog row keeps the catalog gate: a username with no token and no rename is NOT ready", () => {
+    const fields: AccessTokenFormFields = { ref: { kind: "source-control", providerId: "bitbucket" }, name: "Team", token: "", accountId: "", username: "bb-user" };
+    expect(accessTokenExistingRowReadyToSave(fields, { kind: "source-control", name: "Team", username: undefined })).toBe(false);
+    expect(accessTokenExistingRowReadyToSave({ ...fields, name: "Team 2" }, { kind: "source-control", name: "Team", username: undefined })).toBe(true);
   });
 });
 

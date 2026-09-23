@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { render } from "@testing-library/react";
+import { render as renderWithoutProvider } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { FetchQueryProvider } from "../../lib/fetch-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
@@ -67,3 +69,9 @@ it("renders the authenticated shell immediately through a fake useSession, with 
     expect(String(url)).not.toContain("/auth/me");
   }
 });
+
+/** `App` mounts the assistant dock, whose agents list reads through the app's query cache — render
+ *  under the same provider `main.tsx` wraps `App` in. */
+function render(ui: ReactElement) {
+  return renderWithoutProvider(ui, { wrapper: FetchQueryProvider });
+}

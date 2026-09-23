@@ -10,13 +10,46 @@
  * supervision side of the same problem. `buildSiteRecord` (`main.ts`) is what joins one row here
  * with `openSites` to produce the `SiteRecord` the renderer actually gets.
  *
+ * **Durability and who else is writing (2026-09-20).** This file is USER DATA — the operator built
+ * this list up by adding folders, and losing it empties the Projects screen. It used to be written
+ * with a plain `writeFileSync`, read back as an EMPTY list whenever it was torn or corrupt, and then
+ * rewritten from that empty state by the very next change: one crash partway through a write, and
+ * every card was gone. Three things answer that, all of them `durable-json-file.ts`'s, shared with
+ * `site-process-registry.ts` and `site-dir-store.ts` rather than copied here:
+ *
+ * 1. Every write is temp file + `fsync` + `rename`, so a reader sees the whole old file or the whole
+ *    new one and a crash can no longer tear this file at all.
+ * 2. A damaged file is never read as empty. Readers show the longest part of it that still parses
+ *    (see {@link readProjectsFile}), so the operator sees the projects that survived rather than none.
+ * 3. The first change after the damage moves the damaged bytes aside to `<file>.corrupt-<ms>` and
+ *    writes the recovered list plus that change. A file that cannot be moved aside is not written
+ *    over: the change is refused, out loud, instead of destroying what is left.
+ *
+ * Several processes write this ONE file — every app instance (the owner runs several on purpose, and
+ * ruled out a single-instance lock), `bin/tovu-desktop.ts add-site`, and the MCP bridge's
+ * `add_site_pointer`. A per-instance file, the shape `site-process-registry.ts` chose for its own
+ * rows, is wrong here: the operator expects every window to show the same projects, and a removal in
+ * one window to hold everywhere. So every read-modify-write below runs inside one cross-process lock
+ * ({@link updateProjectsFile}), which is also what makes "is this dir already known?" and "add it"
+ * one decision rather than two a sibling process can slip between.
+ *
  * No `electron` import, so this is testable under plain `node --test` — same convention as
  * `site-dir-store.ts` and `site-process-registry.ts`.
  */
 import fs from "node:fs";
 import path from "node:path";
 
+import { readJsonFile, quarantineUnreadableFile, salvageJsonPrefix, withFileLock, writeJsonFileAtomic } from "./durable-json-file.ts";
+import type { QuarantineNotice } from "./durable-json-file.ts";
+
 const SITES_FILE_NAME = "desktop-projects.json";
+
+/** How a damaged projects list is announced on stderr. The mechanism and the message's shape are
+ *  `durable-json-file.ts`'s; only this sentence is this store's. */
+const PROJECTS_QUARANTINE_NOTICE: QuarantineNotice = {
+  label: "projects list",
+  consequence: "every project that could still be read from it was kept, and anything past the damage is only in that copy.",
+};
 
 /**
  * A tracked row's PROVENANCE — who made the directory it points at. Recorded because project delete
@@ -58,10 +91,28 @@ interface TrackedSiteRow {
   siteId?: string;
 }
 
-/** The raw shape parsed off disk, before {@link readTrackedSites}/{@link readDismissedSites} validate it. */
-interface RawRegistryFile {
+/** The raw shape parsed off disk, before {@link readProjectsFile} validates it. */
+interface RawProjectsFile {
   projects?: unknown;
   dismissed?: unknown;
+}
+
+/** The file as every reader and writer here sees it, whatever state it is in. */
+interface ProjectsFile {
+  /** `unreadable`: the file exists but is damaged, and `rows`/`dismissed` are what could be recovered
+   *  from it — never an empty list standing in for "nobody knows". */
+  state: "ok" | "missing" | "unreadable";
+  rows: TrackedSiteRow[];
+  dismissed: string[];
+  /** Whether the file records removals AT ALL, which is a different question from having none —
+   *  see {@link migrateLegacyDismissals}. */
+  dismissedRecorded: boolean;
+}
+
+/** What a change {@link updateProjectsFile} applies leaves behind. */
+interface ProjectsUpdate {
+  rows: WritableTrackedRow[];
+  dismissed: string[];
 }
 
 /** A raw parsed row, before {@link readTrackedSites} checks which fields are actually usable strings. */
@@ -89,45 +140,89 @@ function normalizeOrigin(origin: unknown): SiteOrigin {
 }
 
 /**
- * Parse the registry file, or `undefined` when it is absent, unreadable, or not a JSON object.
+ * Read the file — the ONE place it is read from disk, so no two readers can disagree about what state
+ * it is in. The distinction between "no file at all", "a file holding an empty list" and "a damaged
+ * file" is load-bearing (for {@link migrateLegacyDismissals}, and for whether the next write moves the
+ * bytes aside), and independent readers would eventually drift on it.
  *
- * The one place the file is read from disk, so {@link readTrackedSites} and
- * {@link readDismissedSites} can never disagree about whether a given file exists — the
- * distinction between "no file at all" and "a file holding an empty list" is load-bearing for
- * {@link migrateLegacyDismissals}, and two independent readers would eventually drift on it.
+ * **A damaged file is not an empty one.** It yields the longest prefix of itself that still parses
+ * ({@link salvageJsonPrefix}) — every row completely written before a crash cut the write, or before a
+ * hand edit broke it — so the Projects screen shows the operator what survived, and the next write
+ * keeps exactly what they were shown. Recovered rows lose their PROVENANCE
+ * ({@link stripProvenance}): damaged bytes may not authorize erasing a directory.
  *
- * @complexity O(n) in file size.
+ * @complexity O(n) in file size, plus {@link salvageJsonPrefix}'s bounded retries for a damaged file.
  */
-function readRegistryFile(projectsPath: string): RawRegistryFile | undefined {
-  try {
-    const parsed: unknown = JSON.parse(fs.readFileSync(projectsPath, "utf8"));
-    return typeof parsed === "object" && parsed !== null ? (parsed as RawRegistryFile) : undefined;
-  } catch {
-    return undefined;
-  }
+function readProjectsFile(projectsPath: string): ProjectsFile {
+  const read = readJsonFile(projectsPath);
+  if (read.state === "missing") return { state: "missing", rows: [], dismissed: [], dismissedRecorded: false };
+  if (read.state === "ok" && isProjectsShape(read.value)) return { state: "ok", ...contentsOf(read.value) };
+  const salvaged = read.state === "ok" ? read.value : salvageJsonPrefix(read.text ?? "");
+  return { state: "unreadable", ...contentsOf(stripProvenance(salvaged)) };
+}
+
+/** Whether a parsed value is a projects file this app could itself have written. Anything else —
+ *  `null`, an array, an object whose `projects` is not a list — is damaged, not empty.
+ *  @complexity O(1). */
+function isProjectsShape(value: unknown): value is RawProjectsFile {
+  return typeof value === "object" && value !== null && Array.isArray((value as RawProjectsFile).projects);
 }
 
 /**
- * Read the tracked project list, treating any unreadable or malformed file as "nothing tracked yet".
- *
- * Deliberately forgiving, the same rule `site-dir-store.ts`'s `readDesktopState` follows: this file
- * is a convenience list over sites that still exist for real on disk, not the sites themselves, so a
- * truncated or corrupt copy should read as empty rather than crash the Projects screen.
- *
- * Every row comes back with a definite {@link SITE_ORIGIN} value: a row written before
- * provenance existed, or one carrying an unrecognized value, reads as `adopted`. That is the single
- * place the fail-closed rule lives, so no consumer has to remember to default it — see
+ * The usable rows and dismissals in one parsed file. A row needs both `siteDir` and `createdAt` as
+ * strings to be usable at all; every row that is comes back with a definite {@link SITE_ORIGIN}
+ * value, since a row written before provenance existed, or carrying an unrecognized value, reads as
+ * `adopted`. That fail-closed default lives here alone, so no consumer has to remember it — see
  * {@link normalizeOrigin}.
+ *
+ * @complexity O(n) in the row and dismissal count.
+ */
+function contentsOf(file: RawProjectsFile): Omit<ProjectsFile, "state"> {
+  const rows = (Array.isArray(file.projects) ? file.projects : [])
+    .filter((row) => typeof (row as RawTrackedRow)?.siteDir === "string" && typeof (row as RawTrackedRow)?.createdAt === "string")
+    .map((row) => ({ ...(row as RawTrackedRow), origin: normalizeOrigin((row as RawTrackedRow).origin) })) as TrackedSiteRow[];
+  const dismissedRecorded = Array.isArray(file.dismissed);
+  const dismissed = dismissedRecorded ? (file.dismissed as unknown[]).filter((dir): dir is string => typeof dir === "string") : [];
+  return { rows, dismissed, dismissedRecorded };
+}
+
+/**
+ * Everything recoverable from a damaged file, with every row's provenance removed: no `origin` (so
+ * {@link normalizeOrigin} reads it as `adopted`) and no `siteId`.
+ *
+ * Fail-closed, and the one thing recovery deliberately does NOT restore. `created` plus a matching
+ * `siteId` is what lets a delete erase a directory outright (`project-delete-guard.ts`), and a file
+ * this app has just found damaged is not evidence it may delete someone's folder. The operator keeps
+ * every card; a recovered one can only be removed from the list.
+ *
+ * @complexity O(n) in the recovered row count.
+ */
+function stripProvenance(value: unknown): RawProjectsFile {
+  if (typeof value !== "object" || value === null) return { projects: [] };
+  const file = value as RawProjectsFile;
+  const projects = (Array.isArray(file.projects) ? file.projects : []).map((row) => {
+    if (typeof row !== "object" || row === null) return row;
+    const bare = { ...(row as RawTrackedRow) };
+    delete bare.origin;
+    delete bare.siteId;
+    return bare;
+  });
+  return { projects, dismissed: file.dismissed };
+}
+
+/**
+ * Read the tracked project list.
+ *
+ * Never throws and never refuses to answer: this runs on the boot path and behind every Projects
+ * screen render, so a damaged file shows what it still holds (see {@link readProjectsFile}) rather
+ * than taking the screen down — or, as it used to, reading as "nothing tracked" and being persisted
+ * as that by the next change.
  *
  * @returns rows shaped `{siteDir, createdAt, origin}`, oldest first.
  * @complexity O(n) in file size.
  */
 function readTrackedSites(projectsPath: string): TrackedSiteRow[] {
-  const parsed = readRegistryFile(projectsPath);
-  const rows: unknown[] = Array.isArray(parsed?.projects) ? parsed.projects : [];
-  return rows
-    .filter((row) => typeof (row as RawTrackedRow)?.siteDir === "string" && typeof (row as RawTrackedRow)?.createdAt === "string")
-    .map((row) => ({ ...(row as RawTrackedRow), origin: normalizeOrigin((row as RawTrackedRow).origin) })) as TrackedSiteRow[];
+  return readProjectsFile(projectsPath).rows;
 }
 
 /**
@@ -147,8 +242,7 @@ function readTrackedSites(projectsPath: string): TrackedSiteRow[] {
  * @complexity O(n) in file size.
  */
 function readDismissedSites(projectsPath: string): string[] {
-  const dismissed = readRegistryFile(projectsPath)?.dismissed;
-  return Array.isArray(dismissed) ? dismissed.filter((dir): dir is string => typeof dir === "string") : [];
+  return readProjectsFile(projectsPath).dismissed;
 }
 
 /**
@@ -164,14 +258,47 @@ interface WritableTrackedRow {
 }
 
 /**
- * @param dismissed the tombstone list to write. Defaults to whatever is already on disk, so a
- *   caller that only means to change the ROWS cannot silently erase the operator's removals — the
- *   failure mode that would quietly resurrect every dismissed project on the next scan.
+ * THE way this file changes: read it, decide, write it, all inside one cross-process lock so no
+ * sibling instance, CLI run or MCP call can write between the read and the write and have its change
+ * erased (`durable-json-file.ts`'s {@link withFileLock}, and this file's header for why the lock is
+ * right here where per-instance files were right for the registry).
+ *
+ * `change` returning `null` means "nothing to do", and then NOTHING is touched — a damaged file is
+ * not repaired by a call that had no change to make, so a no-op cannot cost the operator the
+ * `.corrupt-<ms>` copy's bytes for no reason.
+ *
+ * @param change computed from the file's CURRENT contents, which for a damaged file are what could
+ *   be recovered from it ({@link readProjectsFile}) — so a change applies on top of the recovered
+ *   list and the write keeps both.
+ * @returns what the file holds afterwards.
+ * @throws {Error} when the file is damaged and could not be moved aside. The change is refused
+ *   rather than written over bytes that could not be preserved first.
+ * @complexity O(n) in the row count, plus the lock wait.
+ */
+function updateProjectsFile(projectsPath: string, change: (current: ProjectsFile) => ProjectsUpdate | null): ProjectsUpdate {
+  return withFileLock(projectsPath, () => {
+    const current = readProjectsFile(projectsPath);
+    const next = change(current);
+    if (next === null) return { rows: current.rows, dismissed: current.dismissed };
+    if (current.state === "unreadable" && !quarantineUnreadableFile(projectsPath, PROJECTS_QUARANTINE_NOTICE)) {
+      throw new Error(`The projects list ${projectsPath} is damaged and could not be moved aside, so this change was not saved. Nothing was written over it.`);
+    }
+    writeJsonFileAtomic(projectsPath, { projects: next.rows, dismissed: next.dismissed });
+    return next;
+  });
+}
+
+/**
+ * Replace the rows outright.
+ *
+ * @param dismissed the tombstone list to write. Defaults to whatever is already on disk — read
+ *   inside the same lock as the write, so a caller that only means to change the ROWS cannot
+ *   silently erase the operator's removals, which would quietly resurrect every dismissed project
+ *   on the next scan.
  * @complexity O(n) in the row count.
  */
-function writeTrackedSites(projectsPath: string, rows: WritableTrackedRow[], dismissed: string[] = readDismissedSites(projectsPath)): void {
-  fs.mkdirSync(path.dirname(projectsPath), { recursive: true });
-  fs.writeFileSync(projectsPath, JSON.stringify({ projects: rows, dismissed }, null, 2));
+function writeTrackedSites(projectsPath: string, rows: WritableTrackedRow[], dismissed?: string[]): void {
+  updateProjectsFile(projectsPath, (current) => ({ rows, dismissed: dismissed ?? current.dismissed }));
 }
 
 /** {@link trackSite}'s own extra, provenance-only field. See its param doc. */
@@ -199,20 +326,22 @@ interface TrackSiteOptions {
  * @complexity O(n) in the row count.
  */
 function trackSite(projectsPath: string, siteDir: string, origin: SiteOrigin = SITE_ORIGIN.adopted, options: TrackSiteOptions = {}): TrackedSiteRow[] {
-  const rows = readTrackedSites(projectsPath);
-  // Clearing the tombstone is safe HERE and only here, and that is an invariant rather than a
-  // convenience: this is the EXPLICIT adder, reached when the operator picks the folder in the
-  // dialog themselves, and picking a folder they once removed is them asking for it back. Every
-  // AUTOMATIC adder must consult `isSiteDirKnown` before calling this, so a dismissed directory
-  // never reaches this line by machine.
-  const dismissed = readDismissedSites(projectsPath).filter((dir) => dir !== siteDir);
-  if (rows.some((row) => row.siteDir === siteDir)) {
-    if (dismissed.length !== readDismissedSites(projectsPath).length) writeTrackedSites(projectsPath, rows, dismissed);
-    return rows;
-  }
-  const next = [...rows, buildTrackedRow(siteDir, normalizeOrigin(origin), options.siteId)];
-  writeTrackedSites(projectsPath, next, dismissed);
-  return next;
+  let rows: TrackedSiteRow[] = [];
+  updateProjectsFile(projectsPath, (current) => {
+    // Clearing the tombstone is safe HERE and only here, and that is an invariant rather than a
+    // convenience: this is the EXPLICIT adder, reached when the operator picks the folder in the
+    // dialog themselves, and picking a folder they once removed is them asking for it back. Every
+    // AUTOMATIC adder must consult `isSiteDirKnown` before calling this, so a dismissed directory
+    // never reaches this line by machine.
+    const dismissed = current.dismissed.filter((dir) => dir !== siteDir);
+    rows = current.rows;
+    if (current.rows.some((row) => row.siteDir === siteDir)) {
+      return dismissed.length === current.dismissed.length ? null : { rows, dismissed };
+    }
+    rows = [...current.rows, buildTrackedRow(siteDir, normalizeOrigin(origin), options.siteId)];
+    return { rows, dismissed };
+  });
+  return rows;
 }
 
 /**
@@ -235,11 +364,14 @@ function buildTrackedRow(siteDir: string, origin: SiteOrigin, siteId: string | n
  * @complexity O(n) in the row count.
  */
 function untrackSite(projectsPath: string, siteDir: string): TrackedSiteRow[] {
-  const rows = readTrackedSites(projectsPath).filter((row) => row.siteDir !== siteDir);
-  // The removal is RECORDED, not just applied. Dropping the row alone was enough while the list was
-  // the only thing that could add a project; with a boot scan and a rescan also adding, a bare
-  // deletion would be undone by the very next one. See {@link readDismissedSites}.
-  writeTrackedSites(projectsPath, rows, [...new Set([...readDismissedSites(projectsPath), siteDir])]);
+  let rows: TrackedSiteRow[] = [];
+  updateProjectsFile(projectsPath, (current) => {
+    rows = current.rows.filter((row) => row.siteDir !== siteDir);
+    // The removal is RECORDED, not just applied. Dropping the row alone was enough while the list was
+    // the only thing that could add a project; with a boot scan and a rescan also adding, a bare
+    // deletion would be undone by the very next one. See {@link readDismissedSites}.
+    return { rows, dismissed: [...new Set([...current.dismissed, siteDir])] };
+  });
   return rows;
 }
 
@@ -252,8 +384,15 @@ function untrackSite(projectsPath: string, siteDir: string): TrackedSiteRow[] {
  * @complexity O(n) in the row + dismissal count.
  */
 function isSiteDirKnown(projectsPath: string, siteDir: string): boolean {
-  if (readTrackedSites(projectsPath).some((row) => row.siteDir === siteDir)) return true;
-  return readDismissedSites(projectsPath).includes(siteDir);
+  return isKnownIn(readProjectsFile(projectsPath), siteDir);
+}
+
+/** {@link isSiteDirKnown} against a file already read — the form {@link adoptDiscoveredSites} needs,
+ *  so its check and its add are one decision inside one lock rather than two a sibling process can
+ *  slip a removal between.
+ *  @complexity O(n) in the row + dismissal count. */
+function isKnownIn(file: ProjectsFile, siteDir: string): boolean {
+  return file.rows.some((row) => row.siteDir === siteDir) || file.dismissed.includes(siteDir);
 }
 
 /**
@@ -278,20 +417,24 @@ function isSiteDirKnown(projectsPath: string, siteDir: string): boolean {
  * of that choice, stated rather than hidden: on a legacy install, a site the operator adopted by
  * hand and later removed can reappear once, and removing it again records a dismissal that sticks.
  *
- * A no-op when there is no file at all (a fresh install has removed nothing) and when the file
- * already carries a `dismissed` key (already migrated — running again would manufacture a tombstone
- * for a directory the operator has simply never seen).
+ * A no-op when there is no file at all (a fresh install has removed nothing), when the file already
+ * carries a `dismissed` key (already migrated — running again would manufacture a tombstone for a
+ * directory the operator has simply never seen), and when it is damaged (what it recorded is what
+ * nobody can know).
  *
  * @returns the dismissals this call added — empty when nothing needed migrating.
  * @complexity O(n) in file size.
  */
 function migrateLegacyDismissals(projectsPath: string, devFallbackDir: string): string[] {
-  const parsed = readRegistryFile(projectsPath);
-  if (parsed === undefined) return [];
-  if (Array.isArray(parsed.dismissed)) return [];
-  const rows = readTrackedSites(projectsPath);
-  const added = rows.some((row) => row.siteDir === devFallbackDir) ? [] : [devFallbackDir];
-  writeTrackedSites(projectsPath, rows, added);
+  let added: string[] = [];
+  updateProjectsFile(projectsPath, (current) => {
+    // A DAMAGED file is not a legacy one: whether it recorded removals is exactly what its damage
+    // makes unknowable, and converting it would manufacture a tombstone out of a gap. Left for the
+    // first real change to move aside.
+    if (current.state !== "ok" || current.dismissedRecorded) return null;
+    added = current.rows.some((row) => row.siteDir === devFallbackDir) ? [] : [devFallbackDir];
+    return { rows: current.rows, dismissed: added };
+  });
   return added;
 }
 
@@ -311,7 +454,7 @@ function migrateLegacyDismissals(projectsPath: string, devFallbackDir: string): 
  * callers can test the seeding decision without a real directory on disk.
  *
  * @returns whether a row was seeded.
- * @complexity O(1) beyond `classifySiteDir`'s and `trackSite`'s own cost.
+ * @complexity O(1) beyond `classifySiteDir`'s and {@link adoptDiscoveredSites}' own cost.
  */
 function seedDevFallbackSite(projectsPath: string, devFallbackDir: string, classifySiteDir: ClassifySiteDirFn): boolean {
   if (isSiteDirKnown(projectsPath, devFallbackDir)) return false;
@@ -319,11 +462,12 @@ function seedDevFallbackSite(projectsPath: string, devFallbackDir: string, class
   // chain whose only handler is `reportBootFailure`. A fallback that cannot be examined is a
   // fallback to decline — never a launch to abort (D-01).
   if (!classifiesAsSite(devFallbackDir, classifySiteDir)) return false;
-  // ALWAYS `adopted`, and stated rather than left to the default: this row points at a folder that
-  // already held a site before this app ever ran — `<repo>/sites/tovu-com` in a checkout, someone's
-  // real content. Deleting its card must never delete it.
-  trackSite(projectsPath, devFallbackDir, SITE_ORIGIN.adopted);
-  return true;
+  // Through the automatic adder, not `trackSite`: it re-asks `isSiteDirKnown` inside the lock, so a
+  // dismissal another instance records between the check above and this line still holds. It also
+  // records `adopted`, which is the only correct value here — this row points at a folder that
+  // already held a site before this app ever ran (`<repo>/sites/tovu-com` in a checkout, someone's
+  // real content), and deleting its card must never delete it.
+  return adoptDiscoveredSites(projectsPath, [devFallbackDir]).length > 0;
 }
 
 /** Input to {@link discoverSiteDirs}. */
@@ -431,19 +575,27 @@ function classifiesAsSite(dir: string, classifySiteDir: ClassifySiteDirFn): bool
  * operator's way back is the folder dialog, which reaches {@link trackSite} directly and clears
  * the tombstone, because that one IS them asking.
  *
+ * Asked and answered inside ONE locked update, not one per directory: the check "does the operator
+ * already have an answer about this dir" and the add are a single decision, so a removal made in
+ * another window (or by the CLI) between the two cannot be undone by this scan. Duplicate entries in
+ * `siteDirs` therefore collapse here rather than being caught by a re-read.
+ *
  * Every discovery is recorded `adopted`, never `created`: this app did not make any of these
  * directories, so `project-delete-guard.ts` must never let a delete erase one.
  *
  * @returns the dirs newly tracked by this call, in `siteDirs` order — empty when nothing was new.
- * @complexity O(n * m) in the discovered count and the registry size.
+ * @complexity O(n * m) in the discovered count and the tracked-row count, in one read and one write.
  */
 function adoptDiscoveredSites(projectsPath: string, siteDirs: string[]): string[] {
-  const adopted: string[] = [];
-  for (const siteDir of siteDirs) {
-    if (isSiteDirKnown(projectsPath, siteDir)) continue;
-    trackSite(projectsPath, siteDir, SITE_ORIGIN.adopted);
-    adopted.push(siteDir);
-  }
+  let adopted: string[] = [];
+  updateProjectsFile(projectsPath, (current) => {
+    adopted = [...new Set(siteDirs)].filter((siteDir) => !isKnownIn(current, siteDir));
+    if (adopted.length === 0) return null;
+    return {
+      rows: [...current.rows, ...adopted.map((siteDir) => buildTrackedRow(siteDir, SITE_ORIGIN.adopted, undefined))],
+      dismissed: current.dismissed,
+    };
+  });
   return adopted;
 }
 

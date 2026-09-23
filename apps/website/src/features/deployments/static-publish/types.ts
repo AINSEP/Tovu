@@ -190,7 +190,22 @@ export type StaticPublishOutcome =
  * to every existing caller for a fifth target's sake.
  */
 export interface PublishCredentialSource {
-  resolve(input: { workspaceId: UUID; target: StaticPublishTargetId }): Promise<
+  /**
+   * @param input.credentialId - OPTIONAL id of the saved connection the OPERATOR chose for this one
+   *   publish (terra review 2026-09-20, finding 1 — Critical). When present, an implementation must
+   *   resolve THAT connection or refuse: never the provider's current default, and never a fallback
+   *   source. The silent "whichever row is `is_default` when the publish POST lands" resolution this
+   *   parameter replaces is the defect itself — a publish fired while a "make this one the default"
+   *   promotion was still in flight went to the PREVIOUS account. Absent means the caller genuinely
+   *   has no chosen connection (the `deployment_execute_static_publish` agent tool, and any admin
+   *   install whose credentials come from server env vars, which have no ids), and the established
+   *   default lookup applies unchanged.
+   *
+   *   UNTRUSTED input: it arrives from an HTTP body. An implementation must scope its lookup to
+   *   `workspaceId` and verify the row's own provider matches `target` before resolving anything —
+   *   a request naming another workspace's credential id must refuse, not publish.
+   */
+  resolve(input: { workspaceId: UUID; target: StaticPublishTargetId; credentialId?: UUID }): Promise<
     | {
         readonly ok: true;
         readonly token: string;

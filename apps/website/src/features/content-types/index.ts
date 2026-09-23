@@ -5,7 +5,7 @@
  * The domain moved into the package on 2026-08-03. What is left in this directory is only what is
  * genuinely this host's:
  *
- * - `repo.sqlite.ts` — the Drizzle adapter. It names `db/schema.ts`, this repo's shared 1,246-line
+ * - `repo.sqlite.ts` — the Drizzle adapter. It names `db/schema.sqlite.ts`, this repo's shared 1,246-line
  *   schema covering every domain, so it is host persistence, not library code.
  *
  * There is no SQLite export on this barrel, deliberately: nothing outside the composition root can

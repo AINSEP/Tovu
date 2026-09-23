@@ -76,7 +76,7 @@ const PRUNE_TABLES = [
   "newsletter_campaign_revisions",
   // Live secrets: sealed (AES-256-GCM) provider API keys, a real GitHub account's publish token, a
   // real OAuth grant (client id + refresh ciphertext) to a third-party MCP server, and a revoked but
-  // still-identifying API key issuance record. Every `sealed_ciphertext` column in `schema.ts` is
+  // still-identifying API key issuance record. Every `sealed_ciphertext` column in `schema.sqlite.ts` is
   // covered by one of the ten tables below (verified by grep — see the seed-site report for the
   // exact search). Two independent reasons to prune all of them, not just the ones with real rows
   // today: (1) a fresh deploy's operator configures their own, so the owner's, even sealed, must

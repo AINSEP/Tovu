@@ -63,7 +63,7 @@ export function ExternalMcpToolsModal({
   saving,
   onSave,
 }: ExternalMcpToolsModalProps) {
-  useExternalMcpToolsModalEscape(onClose);
+  const { dialogRef, closeRef } = useExternalMcpToolsModalEscape(onClose);
   const t = useT();
   const tDrift = useExternalMcpDriftCopy();
   const titleId = `${cardHandle}-tools-modal-title`;
@@ -71,6 +71,7 @@ export function ExternalMcpToolsModal({
   return (
     <div className="settings-dialog-backdrop" onClick={onClose}>
       <div
+        ref={dialogRef}
         className="settings-dialog external-mcp-tools-modal"
         role="dialog"
         aria-modal="true"
@@ -83,6 +84,7 @@ export function ExternalMcpToolsModal({
             <h2 id={titleId}>{name}</h2>
           </div>
           <button
+            ref={closeRef}
             type="button"
             className="btn-secondary"
             onClick={onClose}

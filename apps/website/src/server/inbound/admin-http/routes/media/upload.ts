@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 
 import { MediaValidationError, sniffContentType, TOVU_MAX_UPLOAD_BYTES, uploadMedia } from "#src/features/media/index";
+import { decodeStrictBase64 } from "#src/contracts/core/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
 import type { MediaRouteRegistrar } from "./deps.js";
@@ -74,14 +75,13 @@ function parseUploadRequestFieldsOrRespond(
   return fields;
 }
 
-/** Decodes base64 upload bytes, or `null` if `dataBase64` is not valid base64.
+/** Decodes base64 upload bytes, or `null` if `dataBase64` is not valid base64. Delegates to
+ *  {@link decodeStrictBase64}: `Buffer.from(x, "base64")` alone never throws (it skips characters
+ *  outside the alphabet instead of refusing them), so a bare try/catch around it can never fire —
+ *  see that function's own header.
  *  @complexity O(n) in the encoded payload length. */
 function decodeUploadBytes(dataBase64: string): Uint8Array | null {
-  try {
-    return new Uint8Array(Buffer.from(dataBase64, "base64"));
-  } catch {
-    return null;
-  }
+  return decodeStrictBase64(dataBase64);
 }
 
 /**

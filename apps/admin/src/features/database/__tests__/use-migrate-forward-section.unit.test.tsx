@@ -2,8 +2,12 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
+import type { AdminSchemaState } from "@/lib/api";
 import { useMigrateForwardSection, useWiredMigrateForwardSection } from "../hooks/use-migrate-forward-section.hooks";
 import { createFakeMigrateForwardSectionPort } from "../hooks/migrate-forward-section-dependencies.hooks";
+import { useSchemaStateSection } from "../hooks/use-schema-state-section.hooks";
+import { useTimelineSection } from "../hooks/use-timeline-section.hooks";
+import { createFakeTimelineSectionPort } from "../hooks/timeline-section-dependencies.hooks";
 
 /**
  * @file `useMigrateForwardSection` — the Database screen's plan/confirm/execute ceremony
@@ -17,8 +21,10 @@ import { createFakeMigrateForwardSectionPort } from "../hooks/migrate-forward-se
  *
  * `fetch-query` migration (2026-08-12): every `renderHook` now needs `wrapper: FetchQueryProvider`
  * — see `redirects/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
- * precedent. The three ceremony mutations have no `invalidates` (see the hook file's own header),
- * but `useFetchMutation` still needs a `QueryClient` in context to call `useMutation` at all.
+ * precedent. `startPlan`/`doConfirm` have no `invalidates` — they write nothing another screen reads
+ * — but `doExecute` invalidates `KEYS.schemaState` and `KEYS.timelineAll` (see the hook file's own
+ * header and the "re-reads what a migration changes" describe below), so `useFetchMutation` needs a
+ * `QueryClient` in context both to call `useMutation` and to actually invalidate those keys.
  *
  * The bodies below drive the WIRED hook (real `fetch`); the "injected port" describe block at the
  * bottom (2026-08-14, Orc-BASH pass) proves the pure hook is independently testable against
@@ -316,5 +322,102 @@ describe("injected port (2026-08-14, Orc-BASH pass)", () => {
 
     await waitFor(() => expect(result.current.error).toBe("boom from fake"));
     expect(result.current.step).toBe("idle");
+  });
+});
+
+describe("re-reads what a migration changes", () => {
+  /** A successful (or rejected-but-possibly-committed) `doExecute` is the ceremony's one write that
+   *  changes reads OTHER screens/sections own — the drift banner's `schemaState` and the Timeline's
+   *  ledger. Everything here drives the three PURE hooks together inside one `renderHook` so they
+   *  share one `QueryClient` — exactly the production wiring, where `Database.tsx` mounts all three
+   *  under one `FetchQueryProvider`. */
+  const BEHIND: AdminSchemaState = {
+    status: "behind",
+    siteMeta: { version: 1, tag: "t" },
+    runtime: { version: 2, tag: "t" },
+  };
+  const IN_SYNC: AdminSchemaState = {
+    status: "in-sync",
+    siteMeta: { version: 2, tag: "t" },
+    runtime: { version: 2, tag: "t" },
+  };
+
+  function renderCeremony(options: { executeError?: Error } = {}) {
+    const schemaPort = {
+      getDatabaseSchemaState: vi.fn().mockResolvedValueOnce(BEHIND).mockResolvedValue(IN_SYNC),
+    };
+    const timelinePort = createFakeTimelineSectionPort();
+    const migratePort = createFakeMigrateForwardSectionPort({ executeError: options.executeError });
+
+    const view = renderHook(
+      () => ({
+        schema: useSchemaStateSection({ port: schemaPort }),
+        timeline: useTimelineSection({ port: timelinePort }),
+        migrate: useMigrateForwardSection({ port: migratePort }),
+      }),
+      { wrapper },
+    );
+
+    return { ...view, schemaPort, timelinePort };
+  }
+
+  async function runFullCeremony(result: ReturnType<typeof renderCeremony>["result"]) {
+    await act(async () => {
+      await result.current.migrate.startPlan();
+    });
+    await act(async () => {
+      await result.current.migrate.doConfirm();
+    });
+    await act(async () => {
+      await result.current.migrate.doExecute();
+    });
+  }
+
+  it("a successful execute re-reads the drift banner's schema state", async () => {
+    const { result, schemaPort } = renderCeremony();
+    await waitFor(() => expect(result.current.schema.warning?.title).toBe("Your database is out of date"));
+
+    await runFullCeremony(result);
+
+    await waitFor(() => expect(result.current.schema.warning).toBeNull());
+    expect(schemaPort.getDatabaseSchemaState).toHaveBeenCalledTimes(2);
+  });
+
+  it("a successful execute re-reads the Timeline", async () => {
+    const { result, timelinePort } = renderCeremony();
+    await waitFor(() => expect(result.current.schema.warning?.title).toBe("Your database is out of date"));
+    expect(timelinePort.calls.length).toBe(1);
+
+    await runFullCeremony(result);
+
+    await waitFor(() => expect(timelinePort.calls.length).toBe(2));
+  });
+
+  it("a rejected execute still re-reads both", async () => {
+    const { result, schemaPort, timelinePort } = renderCeremony({ executeError: new Error("connection reset") });
+    await waitFor(() => expect(result.current.schema.warning?.title).toBe("Your database is out of date"));
+
+    await runFullCeremony(result);
+
+    await waitFor(() => expect(result.current.migrate.error).toBe("connection reset"));
+    expect(result.current.migrate.step).toBe("confirmed");
+    await waitFor(() => expect(schemaPort.getDatabaseSchemaState).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(timelinePort.calls.length).toBe(2));
+  });
+
+  it("plan and confirm do not re-read", async () => {
+    const { result, schemaPort, timelinePort } = renderCeremony();
+    await waitFor(() => expect(result.current.schema.warning?.title).toBe("Your database is out of date"));
+
+    await act(async () => {
+      await result.current.migrate.startPlan();
+    });
+    await act(async () => {
+      await result.current.migrate.doConfirm();
+    });
+
+    await waitFor(() => expect(result.current.migrate.step).toBe("confirmed"));
+    expect(schemaPort.getDatabaseSchemaState).toHaveBeenCalledTimes(1);
+    expect(timelinePort.calls.length).toBe(1);
   });
 });

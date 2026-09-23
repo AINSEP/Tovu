@@ -6,7 +6,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/contracts/core/tool-surface-exchanges";
 import type { UIResource } from "#src/assistant/index";
@@ -36,12 +36,14 @@ const NOW = "2026-08-20T00:00:00.000Z";
 
 function makeDeps(): WidgetsToolDeps {
   let counter = 0;
+  const widgetTrash = memoryWidgetTrash();
   return {
     workspaceId: WORKSPACE_ID,
     clock: { nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
-    entryRepo: new InMemoryEntryRepo(),
+    entryRepo: widgetTrash.entryRepo,
+    removeWidget: widgetTrash.remove,
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
@@ -133,7 +135,7 @@ test("widgets_create_instance: a config missing a required field is a shape reje
   );
 });
 
-test("widgets_list_instances: includeInactive true returns a trashed instance; includeInactive omitted excludes it", async () => {
+test("widgets_list_instances: a trashed instance is left out whether or not includeInactive is set (the Trash hides it from every read)", async () => {
   const deps = makeDeps();
   const created = (await wired("widgets_create_instance", deps).handler(
     executionContext({ widgetType: "text", title: "Will be trashed", config: { body: "hi" } })
@@ -149,5 +151,5 @@ test("widgets_list_instances: includeInactive true returns a trashed instance; i
   const including = (await wired("widgets_list_instances", deps).handler(
     executionContext({ includeInactive: true })
   )) as { instances: Array<{ id: string }> };
-  assert.deepEqual(including.instances.map((i) => i.id), [created.instance.id], "includeInactive: true must surface it");
+  assert.deepEqual(including.instances, [], "includeInactive: true must not surface a widget that is in the Trash");
 });

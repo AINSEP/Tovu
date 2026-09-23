@@ -10,6 +10,7 @@ import {
   type ProviderPreset,
 } from "@jini-ai/ui";
 
+import { useSerialWrites } from "@/hooks/use-serial-writes.hooks";
 import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/lib/api";
 import type { Translate } from "@/lib/dictionary-translator";
 import { createExecutionPort } from "@/lib/execution-settings";
@@ -20,7 +21,13 @@ import {
   storedKeyBlocksProbe,
   storedKeyIsForOtherEndpoint as storedKeyIsForOtherEndpointRule,
 } from "@/lib/stored-credential-endpoint";
-import { configuredPresetIds as configuredPresetIdsRule, describeApiError, hasStoredCredential, isPresetSuppliedEndpoint } from "../rules";
+import {
+  configuredPresetIds as configuredPresetIdsRule,
+  describeApiError,
+  hasStoredCredential,
+  hydrateVisitorCredentialConfig,
+  isPresetSuppliedEndpoint,
+} from "../rules";
 import { defaultVisitorCredentialFormPort } from "./visitor-credential-form-dependencies.hooks";
 import type { VisitorCredentialFormPort } from "./visitor-credential-form-port.hooks";
 
@@ -428,8 +435,9 @@ export function useVisitorCredentialForm({
   // Hydrate from the server once. This is what makes the screen honest across sessions: without it
   // an operator who saved a key last week reopens the tab, sees an empty key field, and reasonably
   // concludes nothing was ever stored. The KEY cannot come back (the route is write-only by design),
-  // so what hydrates is everything else — provider, base URL, model — plus `isSet`/`masked`, which is
-  // what the "A key is stored" line under the field reports.
+  // so what hydrates is everything else — provider, base URL, model (`rules.ts`'s
+  // `hydrateVisitorCredentialConfig`) — plus `isSet`/`masked`, which is what the "A key is stored"
+  // line under the field reports.
   useEffect(() => {
     let cancelled = false;
     apiRef.current
@@ -437,11 +445,7 @@ export function useVisitorCredentialForm({
       .then(({ data }) => {
         if (cancelled) return;
         setStored(data);
-        setConfig((current) => ({
-          ...current,
-          baseUrl: data.baseUrl ?? current.baseUrl,
-          model: data.model ?? current.model,
-        }));
+        setConfig((current) => hydrateVisitorCredentialConfig(current, data));
       })
       // Silent: a failed read must not put an error next to a key field the operator has not touched
       // yet. The consequence is only that the stored-state line stays absent, and the save effect's
@@ -503,16 +507,27 @@ export function useVisitorCredentialForm({
   // (moved WITH the functions in the complexity-pass extraction, not summarised here).
   const hasStoredKey = hasStoredCredential(stored);
 
+  // One lane for both Save buttons, which can be enabled at the same time. The server builds every
+  // write from the row it reads first (`site-credential-store.ts`'s `setSiteAssistantCredential`:
+  // read → seal → upsert the whole merged record), so a key PUT and a settings PUT in flight together
+  // each merge over the same old row and the later upsert reverts the other's field. Queued through
+  // the shared lane, the second PUT reads what the first wrote. Tab-local — two tabs still race;
+  // closing that needs a server-side check. Same shared primitive as
+  // `use-other-credentials.hooks.ts`'s `writes`.
+  const writes = useSerialWrites();
+
   function saveKey() {
-    return saveVisitorKey({ api: apiRef.current, config, writers: { setSaveState, setStored, setConfig } });
+    return writes.run(() => saveVisitorKey({ api: apiRef.current, config, writers: { setSaveState, setStored, setConfig } }));
   }
 
   function saveSettings() {
-    return saveVisitorSettings({
-      api: apiRef.current,
-      config,
-      writers: { setSettingsSaveState, setStored, setDirty },
-    });
+    return writes.run(() =>
+      saveVisitorSettings({
+        api: apiRef.current,
+        config,
+        writers: { setSettingsSaveState, setStored, setDirty },
+      }),
+    );
   }
 
   // `isPresetSuppliedEndpoint` (in `../rules.ts`) is the SECURITY GATE for the debounced discovery

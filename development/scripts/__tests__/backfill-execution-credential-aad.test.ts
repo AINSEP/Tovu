@@ -11,8 +11,8 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
 import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
-import { adminExecutionCredentials, principals, workspaces } from "../../../apps/website/src/platform/db/schema.js";
-import * as schema from "../../../apps/website/src/platform/db/schema.js";
+import { adminExecutionCredentials, principals, workspaces } from "../../../apps/website/src/platform/db/schema.sqlite.js";
+import * as schema from "../../../apps/website/src/platform/db/schema.sqlite.js";
 import { AesGcmSecretSealer } from "../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
 import { EnvOrFileKeyring } from "../../../apps/website/src/features/webhooks/keyring.env.js";
 import { buildExecutionCredentialAad } from "../../../apps/website/src/assistant/execution-credential-aad.js";

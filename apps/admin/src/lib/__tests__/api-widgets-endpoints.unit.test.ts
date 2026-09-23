@@ -5,10 +5,11 @@ import { api } from "../api";
 /**
  * @file Coverage-gap-fill pass (2026-09-05) for `api.ts`'s Widgets-resource endpoint wrappers
  * (`/workspaces/${WORKSPACE_ID}/widgets...` paths) that had no test at all before this file:
- * `getWidget`, `trashWidget`, `listWidgetRegions`, `bindWidgetRegion`, `getWidgetRegion`,
+ * `getWidget`, `listWidgetRegions`, `bindWidgetRegion`, `getWidgetRegion`,
  * `widgetsToolPlace`, `widgetsToolCreate`. `listWidgets`, `createWidget`, `updateWidget`,
- * `purgeWidget`, and `mutateWidgetRegionPlacements` already had real fetch-stubbed tests in
- * `api-endpoint-option-branches.unit.test.ts` — not duplicated here. `insertWidgetEmbed` /
+ * and `mutateWidgetRegionPlacements` already had real fetch-stubbed tests in
+ * `api-endpoint-option-branches.unit.test.ts` — not duplicated here. (The generic Trash endpoint
+ * is covered by its own tests.) `insertWidgetEmbed` /
  * `removeWidgetEmbed` hit `/entries/${id}/widget-embeds`, not a `/widgets/...` path, so they are
  * out of this file's scope (a sibling resource's endpoints).
  *
@@ -71,13 +72,6 @@ test("getWidget resolves the widget/whereUsed envelope verbatim", async () => {
   await expect(api.getWidget("w1")).resolves.toEqual({ widget, whereUsed });
 });
 
-test("trashWidget POSTs to /widgets/:id/trash", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.trashWidget("w1");
-  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/widgets/w1/trash`);
-  expect(calls[0].init?.method).toBe("POST");
-});
-
 test("listWidgetRegions is a bare GET at /widgets/regions", async () => {
   const { calls } = stubFetchCapturing();
   await api.listWidgetRegions();
@@ -107,6 +101,22 @@ test("widgetsToolPlace POSTs the input verbatim as the body to /widgets/tools/pl
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/widgets/tools/place`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual(input);
+});
+
+test("updateWidget forwards an edited title in the PUT body", async () => {
+  const { calls, body } = stubFetchCapturing();
+  await api.updateWidget({ id: "w1", baseVersion: 2, title: "Autumn Hero", config: { body: "edited" } });
+  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/widgets/w1`);
+  expect(calls[0].init?.method).toBe("PUT");
+  expect(body()).toEqual({ baseVersion: 2, config: { body: "edited" }, title: "Autumn Hero" });
+});
+
+test("updateWidget omits title from the body entirely when the caller doesn't pass one", async () => {
+  const { body } = stubFetchCapturing();
+  await api.updateWidget({ id: "w1", baseVersion: 2, config: { body: "edited" } });
+  const sent = body() as Record<string, unknown>;
+  expect(Object.prototype.hasOwnProperty.call(sent, "title")).toBe(false);
+  expect(sent).toEqual({ baseVersion: 2, config: { body: "edited" } });
 });
 
 test("widgetsToolCreate POSTs the input verbatim as the body to /widgets/tools/create", async () => {

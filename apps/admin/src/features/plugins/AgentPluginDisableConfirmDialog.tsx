@@ -64,13 +64,14 @@ export function AgentPluginDisableConfirmDialog({
   t,
   useAgentPluginDisableConfirmHook = useAgentPluginDisableConfirm,
 }: AgentPluginDisableConfirmDialogProps) {
-  const { copy } = useAgentPluginDisableConfirmHook({ name, variant, onCancel });
+  const { copy, dialogRef } = useAgentPluginDisableConfirmHook({ name, variant, onCancel, t });
   const titleId = `${agentHandleBase}-${variant}-confirm-title`;
-  const confirmWord = variant === "remove" ? "Remove" : "Disable";
+  const confirmWord = variant === "remove" ? "Turn off" : "Disable";
 
   return (
     <div className="settings-dialog-backdrop" onClick={onCancel}>
       <div
+        ref={dialogRef}
         className="settings-dialog"
         role="dialog"
         aria-modal="true"
@@ -89,7 +90,7 @@ export function AgentPluginDisableConfirmDialog({
             onClick={onCancel}
             {...agentHandle(`${agentHandleBase}-${variant}-cancel`, {
               role: "button",
-              label: `Close this dialog without ${variant === "remove" ? "removing" : "disabling"} ${name}`,
+              label: `Close this dialog without ${variant === "remove" ? "turning off" : "disabling"} ${name}`,
             })}
           >
             {t("Cancel")}
@@ -100,7 +101,7 @@ export function AgentPluginDisableConfirmDialog({
             onClick={onConfirm}
             {...agentHandle(`${agentHandleBase}-${variant}-confirm`, {
               role: "button",
-              label: variant === "remove" ? `Remove ${name}` : `Disable ${name} for this site`,
+              label: variant === "remove" ? `Turn off ${name}` : `Disable ${name} for this site`,
             })}
           >
             {t(confirmWord)}

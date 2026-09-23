@@ -39,7 +39,7 @@ import { inArray } from "drizzle-orm";
 
 import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
-import { sessions } from "../../apps/website/src/platform/db/schema.js";
+import { sessions } from "../../apps/website/src/platform/db/schema.sqlite.js";
 
 import { resolveExistingDbPath } from "./backfill-db-path.js";
 

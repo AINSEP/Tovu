@@ -117,10 +117,11 @@ export function useExternalMcpAddForm(input: {
   list: { addSourceToList: (source: SourceConfigItem) => void };
 }): ExternalMcpAddFormController {
   const { dependencies, list } = input;
+  const t = useExternalMcpDriftCopy();
   const [formOpen, setFormOpen] = useState(false);
   const [transportGuess, setTransportGuess] = useState<string>("stdio");
   const [authModeGuess, setAuthModeGuess] = useState<string>("static_env");
-  const fieldSpecs = buildExternalMcpFieldSpecs({ transport: transportGuess, authMode: authModeGuess });
+  const fieldSpecs = buildExternalMcpFieldSpecs({ transport: transportGuess, authMode: authModeGuess }, t);
 
   const addForm = useWiredSourceConfigAddForm<SourceConfigItem>({
     dependencies,

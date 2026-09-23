@@ -236,6 +236,19 @@ describe("Sites — the capability flag", () => {
   });
 });
 
+describe("Sites — the Activate button's accessible name is translated copy", () => {
+  it("resolves the per-site label through t(), with the site name filled into the translated sentence", () => {
+    const t = (key: string): string =>
+      key === "Save {name} as the site to serve after the next restart"
+        ? "Guardar {name} como el sitio que se servirá tras el próximo reinicio"
+        : key;
+    renderSites({ t });
+
+    expect(screen.getByRole("button", { name: "Guardar beta como el sitio que se servirá tras el próximo reinicio" })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "Guardar alpha como el sitio que se servirá tras el próximo reinicio" })).toBeDisabled();
+  });
+});
+
 describe("Sites — create form safety", () => {
   it("disables the create-name input while a create is in flight, so a second name can't be typed and silently lost", () => {
     renderSites({ creating: true }, "new");

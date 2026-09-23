@@ -1,12 +1,17 @@
 import {
+  COLLECTION_MARKER_TYPE,
   markersOfType,
   MENU_MARKER_TYPE,
   PARTIAL_MARKER_TYPE,
   POST_PREVIEWS_MARKER_TYPE,
   substituteMarkers,
   withAddedId,
+  withElementKeptIfAttributed,
   withInnerContent,
+  withInnerContentFinal,
+  type EmbedMarker,
 } from "#src/contracts/core/embeds/marker";
+import { withEntryListStyleOnce } from "./entry-list-render.js";
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";
 import { DEFAULT_THEME_SLOTS, type DiscoveredTheme, type ThemeSlotDescriptor, type ThemeTokens } from "./theme.js";
 
@@ -55,6 +60,14 @@ function rewritePageLinks(html: string): string {
   return html.replace(/href="([a-z0-9-]+)\.html"/g, (_m, name: string) => (name === "index" ? 'href="/"' : `href="/${name}"`));
 }
 
+/** `true` for a marker carrying a NON-EMPTY string `slug` — an explicit reference to another entity.
+ * An empty `slug` names nothing (every resolver stage treats `""` as absent, `html-embeds.ts`'s
+ * `normalizeEmbedSlug`), so it must not block filling in the current entity's id. */
+function hasAuthoredSlug(marker: EmbedMarker): boolean {
+  const slug = marker.config.slug;
+  return typeof slug === "string" && slug.length > 0;
+}
+
 /**
  * Fills the current entity's real id into every `{"type":"content"}` marker in `html` that carries NO
  * id — the unified-marker (2026-08-11) replacement for BOTH `injectPostEmbedId`'s `{{post}}` literal
@@ -70,6 +83,13 @@ function rewritePageLinks(html: string): string {
  *
  * A marker that ALREADY carries an id (an author's explicit reference to some OTHER entity) is left
  * completely untouched — this function only ever fills a gap, never overwrites an explicit choice.
+ * The same rule applies to a marker carrying a `slug` instead of an `id` (S3, 2026-09-23 widget-attrs
+ * plan): `{"type":"content","slug":"some-other-entity"}` is just as much an explicit reference to
+ * some OTHER entity as an id-carrying marker is — filling in the CURRENT entity's id here would win
+ * over that authored `slug` (`resolveContentTypeEmbeds`'s id-authoritative-when-present order) and
+ * silently redirect the marker to the wrong row. Checking `marker.id === undefined` alone would miss
+ * this — a slug-only marker also has no `id` yet, but for a completely different reason than "this
+ * means the current entity".
  * The old `blog-post.html`/`page-shell.html` split (one marker type per kind) is gone: BOTH doc-format
  * Posts and Pages, and html-format Pages, use this exact same function now, since the row's
  * `bodyFormat` — not the marker's type — is what decides how the referenced content actually renders
@@ -86,7 +106,7 @@ function rewritePageLinks(html: string): string {
  */
 export function injectCurrentEntityContentId(html: string, entityId: string): string {
   return substituteMarkers(html, (marker) => {
-    if (marker.type !== "content" || marker.id !== undefined) return undefined;
+    if (marker.type !== "content" || marker.id !== undefined || hasAuthoredSlug(marker)) return undefined;
     return withAddedId(marker, entityId);
   });
 }
@@ -165,7 +185,7 @@ export interface StaticMenuItem {
   readonly children: readonly StaticMenuItem[];
 }
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -216,7 +236,7 @@ const SAFE_HREF_RESOLUTION_ORIGIN = new URL(SAFE_HREF_RESOLUTION_BASE).origin;
  * `renderMenuLinks`'s `.filter()` and `renderMenuItem`'s `linkable` both already apply) — adding a
  * second, always-false null guard here would be untestable dead code, not defense in depth.
  */
-function safeHref(value: string): string {
+export function safeHref(value: string): string {
   const href = value.trim();
   if (href.startsWith("#")) return href;
   if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) return href;
@@ -491,6 +511,91 @@ export function scanPostPreviewsLimit(html: string): number | undefined {
   return markers.reduce((widest, marker) => Math.max(widest, clampPostPreviewsLimit(marker.config.limit)), 0);
 }
 
+/**
+ * One collection marker's already-rendered entry list, keyed by {@link collectionMarkerKey}. The
+ * route layer (`pages.ts`'s `resolveCollectionListsForRender`, C5) builds these — one query per
+ * distinct marker config found on the page, run through `entry-list-render.ts`'s `renderEntryList` —
+ * and hands the result to {@link renderStaticPage} as a `ReadonlyMap<string, string | undefined>`.
+ * `html` is `undefined` for a marker this file's caller looked up but found nothing to show for
+ * (unknown type, invalid config, or zero matching entries): the map still records the key so
+ * {@link injectCollectionEmbeds} treats it as a deliberate miss rather than re-querying, but the
+ * marker's authored fallback survives either way (`collectionLists`'s own contract, same as
+ * `postPreviews`'s "absent input, absent effect").
+ */
+export interface StaticCollectionList {
+  /** {@link collectionMarkerKey}'s output for the marker this list answers. */
+  readonly key: string;
+  readonly html: string;
+}
+
+/**
+ * A stable identity for one `{"type":"collection",…}` marker's config, so a page with several
+ * differently-configured collection markers (or the same config repeated) can be resolved as
+ * independent entries in a `Map` — the same per-marker addressing `withAddedId`'s own `id` field
+ * gives markers that need one, done here via the WHOLE config instead because two collection markers
+ * can differ in `typeKey`/`sort`/`where`/`limit` without either carrying an `id`. `JSON.stringify` of
+ * the parsed config as-is (no key filtering) is deterministic for a given authored marker: both this
+ * file's {@link injectCollectionEmbeds} and the route layer's map-builder parse the identical marker
+ * text into the identical `config` object, so they always agree on the key.
+ *
+ * The authored `<template>` ({@link splitCollectionMarkerInner}) is part of the identity too: the
+ * rendered list depends on it, so two markers with the same config but different templates must not
+ * share one map entry (the route layer dedupes by this key and renders with the FIRST marker's
+ * template). A template-less marker keeps the plain config-JSON key; a templated one uses a JSON
+ * array `[config, template]`, which starts with `[` and so can never equal an object key.
+ *
+ * @complexity O(k + n) over the config's own key count and the marker's inner length — independent of
+ * the surrounding document.
+ */
+export function collectionMarkerKey(marker: EmbedMarker): string {
+  const { template } = splitCollectionMarkerInner(marker.inner);
+  return template === undefined ? JSON.stringify(marker.config) : JSON.stringify([marker.config, template]);
+}
+
+/**
+ * Splits a collection marker's authored inner content into an optional per-item `template` (the
+ * first `<template>…</template>` found, exclusive of the tags themselves) and the remaining
+ * `fallback` markup (everything else, shown untouched on a miss — see {@link injectCollectionEmbeds}).
+ * A marker authored with no `<template>` returns its whole inner content as `fallback` and no
+ * `template`, which routes the route layer's renderer into its built-in cards/list markup instead of
+ * per-item template mode (`entry-list-render.ts`'s `EntryListRenderOptions.template`).
+ *
+ * @complexity O(n) over `inner`'s length for the two substring scans plus the slice/concat.
+ */
+export function splitCollectionMarkerInner(inner: string): { template?: string; fallback: string } {
+  const openTag = "<template>";
+  const closeTag = "</template>";
+  const start = inner.indexOf(openTag);
+  if (start === -1) return { fallback: inner };
+  const end = inner.indexOf(closeTag, start + openTag.length);
+  if (end === -1) return { fallback: inner };
+  const template = inner.slice(start + openTag.length, end);
+  const fallback = inner.slice(0, start) + inner.slice(end + closeTag.length);
+  return { template, fallback };
+}
+
+/**
+ * Substitutes each `{"type":"collection"}` marker with its pre-resolved, pre-rendered entry list from
+ * `lists` (looked up by {@link collectionMarkerKey}), preserving the marker element's own tag and
+ * authored attributes but stripping `data-embed-config` on the hit path so a later re-scan of the
+ * same output can never rediscover and re-resolve it (D3: matches the widget rule via
+ * {@link withInnerContentFinal}, unlike {@link injectPostPreviewsEmbeds}'s `withInnerContent`). A miss
+ * — no entry in `lists` for this marker's key, or an entry whose `html` is `undefined` — leaves the
+ * marker exactly as authored, so its fallback/empty-state markup survives untouched (same "absent
+ * input, absent effect" contract {@link injectMenuEmbeds}/{@link injectPostPreviewsEmbeds} already
+ * establish for their own marker types).
+ *
+ * @complexity O(n) over `html`'s length — one `substituteMarkers` scan-and-splice pass, plus O(1)
+ * per collection marker for the map lookup.
+ */
+function injectCollectionEmbeds(html: string, lists: ReadonlyMap<string, string | undefined>): string {
+  return substituteMarkers(html, (marker) => {
+    if (marker.type !== COLLECTION_MARKER_TYPE) return undefined;
+    const rendered = lists.get(collectionMarkerKey(marker));
+    return rendered === undefined ? undefined : withInnerContentFinal(marker, rendered);
+  });
+}
+
 /** Escape a manifest-supplied string so it matches literally inside a constructed `RegExp`. */
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -533,8 +638,13 @@ function resolveSlotMarker(
 
 /**
  * Replace every `{"type":"partial"}` marker with the root partial the theme's `theme.json` `slots`
- * block maps that key to. Unlike a menu marker, the marker element itself disappears — it is
- * scaffolding, and the partial is a complete `<nav>`/`<footer>` of its own.
+ * block maps that key to. A BARE marker's own element disappears entirely — it is scaffolding, and
+ * the partial is a complete `<nav>`/`<footer>` of its own — but one carrying any authored attribute
+ * besides `data-embed-config` keeps that element (minus the marker config) around the resolved
+ * partial ({@link withElementKeptIfAttributed}, D3 of the 2026-09-23 collections/embeds plan): the
+ * same keep-if-attributed rule the `widget` marker type already followed. A survey of every shipped
+ * theme found no attributed partial marker in the wild, so this is additive — every existing bare
+ * marker keeps disappearing exactly as before.
  *
  * Manifest-driven rather than the hardcoded `nav`/`footer` pair this carried before 2026-08-10; that
  * pair now lives in {@link DEFAULT_THEME_SLOTS} and is used verbatim for a theme declaring no
@@ -553,8 +663,25 @@ function resolveSlots(
     if (marker.type !== PARTIAL_MARKER_TYPE || marker.id === undefined) return undefined;
     const descriptor = slots[marker.id];
     if (descriptor === undefined) return undefined;
-    return resolveSlotMarker(descriptor, partials, marker.config);
+    return withElementKeptIfAttributed(marker, resolveSlotMarker(descriptor, partials, marker.config));
   });
+}
+
+/**
+ * Partial-slot expansion as its OWN exported step (E2, 2026-09-23), so a caller can run it standalone
+ * over already-assembled HTML rather than only as the inline step {@link renderStaticPage} below
+ * still takes. Exists for D2's `finishStaticTierDocument` pipeline (`pages.ts`), which expands
+ * partials first and only then scans the assembled result for widget/media/post/content/menu/
+ * post-previews markers a partial itself might carry.
+ *
+ * Equivalent to {@link resolveSlots} called with the theme's own partials and declared (or default)
+ * slots — no new behavior, just a named entry point for a caller that only has a `theme`, not the
+ * two separate `partials`/`slots` arguments.
+ *
+ * @complexity Same as {@link resolveSlots}: O(n) over `html`'s length.
+ */
+export function expandPartials(html: string, theme: DiscoveredTheme): string {
+  return resolveSlots(html, theme.partials, theme.manifest.slots ?? DEFAULT_THEME_SLOTS);
 }
 
 /**
@@ -600,6 +727,12 @@ function injectColorMode(html: string, defaultMode: string | undefined): string 
  * docs for how it decides whether to fetch anything at all. Omitted (or empty) leaves every
  * `{"type":"post-previews"}` marker's authored fallback untouched, see
  * {@link injectPostPreviewsEmbeds} — same "absent input, absent effect" contract `menus` already has.
+ *
+ * `collectionLists` (collection marker, 2026-09-23): the route layer's already-resolved,
+ * already-rendered entry lists, one per distinct marker config — see {@link StaticCollectionList}'s
+ * own doc for how a miss is recorded. Omitted (or a miss for a given marker) leaves that
+ * `{"type":"collection"}` marker's authored fallback untouched, see {@link injectCollectionEmbeds} —
+ * same "absent input, absent effect" contract `menus`/`postPreviews` already have.
  */
 export function renderStaticPage(
   required: {
@@ -608,10 +741,11 @@ export function renderStaticPage(
     htmlOverride?: string;
     menus?: Readonly<Record<string, readonly StaticMenuItem[]>>;
     postPreviews?: readonly StaticPostPreview[];
+    collectionLists?: ReadonlyMap<string, string | undefined>;
   },
   _optional: Record<string, never> = {}
 ): string | null {
-  const { theme, pageId, htmlOverride, menus, postPreviews } = required;
+  const { theme, pageId, htmlOverride, menus, postPreviews, collectionLists } = required;
   const source = htmlOverride ?? theme.pages[pageId];
   if (source === undefined) return null;
 
@@ -638,9 +772,11 @@ export function renderStaticPage(
     );
   }
   html = injectColorMode(html, theme.manifest.defaultMode);
-  html = resolveSlots(html, theme.partials, theme.manifest.slots ?? DEFAULT_THEME_SLOTS);
+  html = expandPartials(html, theme);
   html = injectMenuEmbeds(html, menus ?? {});
   html = injectPostPreviewsEmbeds(html, postPreviews ?? []);
+  html = injectCollectionEmbeds(html, collectionLists ?? new Map());
+  html = withEntryListStyleOnce(html);
   html = rewritePageLinks(html);
   return html;
 }

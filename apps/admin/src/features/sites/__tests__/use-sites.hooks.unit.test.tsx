@@ -270,28 +270,29 @@ describe("useSites — activate race safety", () => {
     // final choice.
     act(() => result.current.activate("alpha"));
     act(() => result.current.activate("beta"));
-    // `mutateAsync` invokes the mutation function on a microtask, not synchronously inside `act`'s
-    // callback — wait for both to actually reach the port before either is resolved.
-    await waitFor(() => expect(activateSite).toHaveBeenCalledTimes(2));
+    // Activations reach the server one at a time (see `activateChainRef`), so only alpha is in
+    // flight — beta waits for it. `mutateAsync` invokes the mutation function on a microtask.
+    await waitFor(() => expect(activateSite).toHaveBeenCalledTimes(1));
+    expect(activateSite).toHaveBeenLastCalledWith("alpha");
 
-    // Network settles OUT of click order: beta (clicked LAST) resolves first; alpha (clicked first)
-    // resolves after it.
+    // alpha settles while beta is still queued: alpha is stale (beta was clicked after it), so its
+    // result must not be shown and must not clear beta's busy state.
+    await act(async () => {
+      deferred.alpha.resolve({ ok: true, activeSiteName: "alpha", restartRequired: true, restartInstructions: "Restart alpha." });
+      await deferred.alpha.promise;
+    });
+    await waitFor(() => expect(activateSite).toHaveBeenCalledTimes(2));
+    expect(activateSite).toHaveBeenLastCalledWith("beta");
+    expect(result.current.activation).toBeNull();
+    expect(result.current.activatingName).toBe("beta");
+
     await act(async () => {
       deferred.beta.resolve({ ok: true, activeSiteName: "beta", restartRequired: true, restartInstructions: "Restart beta." });
       await deferred.beta.promise;
     });
     await waitFor(() => expect(result.current.activation?.activeSiteName).toBe("beta"));
 
-    await act(async () => {
-      deferred.alpha.resolve({ ok: true, activeSiteName: "alpha", restartRequired: true, restartInstructions: "Restart alpha." });
-      await deferred.alpha.promise;
-    });
-    // Give alpha's now-stale settlement a chance to land before asserting nothing changed.
-    await new Promise((resolve) => setTimeout(resolve, 20));
-
-    // The operator's LAST click (beta) must still be what is shown — alpha's late-arriving response
-    // must not overwrite it just because it settled second.
-    expect(result.current.activation?.activeSiteName).toBe("beta");
+    // The operator's LAST click (beta) is what is shown, and what the server received last.
     expect(result.current.activatingName).toBeNull();
   });
 });
@@ -320,5 +321,56 @@ describe("useSites — write error precedence", () => {
     await waitFor(() => expect(result.current.activation?.activeSiteName).toBe("beta"));
     // The earlier Create failure must not still be latched over this later, successful Activate.
     expect(result.current.writeError).toBeNull();
+  });
+});
+
+/**
+ * The server persists whichever activation it processes LAST (`system/sites.ts` awaits the
+ * permission check before `persistActiveSite`), so two activations in flight at once can leave the
+ * server on the earlier choice while this screen reports the later one. The row buttons are all
+ * disabled while one activation is pending, so only a same-tick second call reaches this — but the
+ * hook accepts one, and must not let the UI and the server disagree when it does.
+ */
+describe("useSites — two activations back to back persist the one the screen reports", () => {
+  it("sends the second activation only after the first settles, so the server ends on the last-called site", async () => {
+    let persisted: string | null = null;
+    const pending: Array<() => void> = [];
+    let maxInFlight = 0;
+    let inFlight = 0;
+    const activateSite = vi.fn(
+      (name: string) =>
+        new Promise<AdminSiteActivation>((resolve) => {
+          inFlight += 1;
+          maxInFlight = Math.max(maxInFlight, inFlight);
+          pending.push(() => {
+            persisted = name;
+            inFlight -= 1;
+            resolve({ ok: true, activeSiteName: name, restartRequired: true, restartInstructions: `Restart ${name}.` });
+          });
+        }),
+    );
+    const port = createFakeSitesPort(snapshotFixture(), { activateSite });
+    const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
+    await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
+
+    act(() => {
+      result.current.activate("alpha");
+      result.current.activate("beta");
+    });
+    // Release the NEWEST pending request each round — the network order that leaves the earlier
+    // choice written last.
+    for (let round = 0; round < 20; round += 1) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        pending.pop()?.();
+      });
+      if (activateSite.mock.calls.length === 2 && pending.length === 0) break;
+    }
+    await waitFor(() => expect(result.current.activatingName).toBeNull());
+
+    expect(result.current.activation?.activeSiteName).toBe("beta");
+    expect(persisted).toBe("beta");
+    expect(maxInFlight).toBe(1);
+    expect(activateSite.mock.calls.map(([name]) => name)).toEqual(["alpha", "beta"]);
   });
 });

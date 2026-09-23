@@ -357,14 +357,18 @@ export function withPublishTrustAuthorize(res: Response, deps: GatewayDeps): Gat
  *   permission, and an unregistered permission is denied here exactly as before.
  * - It answers YES only for a type whose `entityType` the grant itself names, so a grant limited to
  *   `post` cannot write `media` even though both declare `content.write`. The permission alone is
- *   too coarse to express that; pairing it with the entity type is what makes it exact.
+ *   too coarse to express that; pairing it with the entity type is what makes it exact. The entity
+ *   type is taken from the CALLER (`executeCommand`'s `mutation.entityType`) and checked against
+ *   the registry, never inferred from the permission — inferring it is what made this claim false
+ *   until 2026-09-20 (see the `authorize` closure below).
  * - It requires `publish_content.apply`. A read-only grant authorizes no write.
  *
  * The blast radius is bounded twice over independently of this function: the token only resolves at
  * all on a `PUBLISH_TRUST_ROUTES` path, and the entities that reach the apply loop can only be ones
  * already admitted by the bundle door's own `entityTypes` check.
  *
- * @param typePermissions - `permission -> entityType`, from the registered contributors.
+ * @param typePermissions - `entityType -> permission`, from the registered contributors. Keyed by
+ * entity type because that is what is unique per contributor; see `registeredTypePermissions`.
  * @returns The ORIGINAL bag untouched when this request carries no publishing credential.
  * @complexity O(1) per authorize call — one map lookup and one array scan of at most 2 entries.
  */
@@ -376,9 +380,21 @@ export function withPublishTrustContentAuthorize<
   if (!context) return deps;
 
   const granted = publishTrustAuthorizeFor(context);
-  const authorize = async (params: { permission: string }): Promise<{ allowed: boolean; reason: string }> => {
-    const entityType = typePermissions.get(params.permission);
+  const authorize = async (params: {
+    permission: string;
+    entityType?: string;
+  }): Promise<{ allowed: boolean; reason: string }> => {
+    // The entity type comes from the CALLER — `executeCommand` always passes `mutation.entityType`,
+    // and each contributor's `apply()` states its own (`post`, `page`, `media`). It is not derived
+    // from the permission, because `content.write` is declared by all three and so cannot identify
+    // one (sol review 2026-09-20, Medium finding 6). A caller that states no entity type, or one
+    // this instance has no registered handler for, or one whose registered permission is not the
+    // one being asked for, is not answered here at all: it falls through to `granted`, which denies
+    // `content.write`. Fail-closed, and unchanged for every non-publish-content caller.
+    const entityType = params.entityType;
     if (entityType === undefined) return granted(params);
+    if (typePermissions.get(entityType) !== params.permission) return granted(params);
+
     const allowed =
       context.capabilities.includes("publish_content.apply") && context.entityTypes.includes(entityType);
     return {

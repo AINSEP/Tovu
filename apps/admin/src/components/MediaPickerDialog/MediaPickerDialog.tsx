@@ -1,7 +1,9 @@
-import { useId } from "react";
+import { useId, useRef } from "react";
+import { useFocusTrap } from "../../hooks/use-focus-trap.hooks";
 import { agentHandle } from "@jini-ai/agentic";
 import type { AdminMedia } from "../../lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { splitOnPlaceholders } from "../../lib/template-i18n";
 import { useWiredMediaPickerDialog } from "./MediaPickerDialog.hooks";
 
 /**
@@ -60,28 +62,40 @@ export interface MediaPickerDialogProps {
 }
 
 export function MediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentHandle: base, ...props }: MediaPickerDialogProps) {
-  const { items, error, select, mediaOriginalUrl, cancelRef } = useDialog(props.onSelect, props.onCancel);
+  const { items, error, select, mediaOriginalUrl, cancelRef, t } = useDialog(props.onSelect, props.onCancel);
+  // aria-modal promises the background is unavailable; this is what keeps Tab from reaching it.
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(dialogRef);
   const titleId = useId();
   const itemHandles = base && items ? buildAgentListHandles(`${base}-item`, items.map((item) => item.id)) : undefined;
+  // `{link}` must render as a real `<a>` node, not plain text — interpolate() can't produce that,
+  // so this splits the template around the token instead. See `lib/template-i18n.ts`'s own header.
+  const [emptyStateBefore, emptyStateAfter] = splitOnPlaceholders(
+    t("No media uploaded yet. Upload an asset from the {link} screen first."),
+    ["{link}"]
+  );
 
   return (
     <div className="settings-dialog-backdrop" onClick={props.onCancel}>
       <div
+        ref={dialogRef}
         className="settings-dialog media-picker-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id={titleId}>Choose an image</h2>
+        <h2 id={titleId}>{t("Choose an image")}</h2>
 
         <div className="media-picker-body">
           {error ? <div className="notice error">{error}</div> : null}
           {items === null ? (
-            <p className="notice">Loading media…</p>
+            <p className="notice">{t("Loading media…")}</p>
           ) : items.length === 0 ? (
             <p className="notice">
-              No media uploaded yet. Upload an asset from the <a href="/admin/media">Media</a> screen first.
+              {emptyStateBefore}
+              <a href="/admin/media">{t("Media")}</a>
+              {emptyStateAfter}
             </p>
           ) : (
             <div className="media-picker-grid">
@@ -111,7 +125,7 @@ export function MediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agent
               onClick={props.onCancel}
               {...(base ? agentHandle(`${base}-cancel`, { role: "button", label: "Close without choosing an image" }) : {})}
             >
-              Cancel
+              {t("Cancel")}
             </button>
           </span>
         </div>

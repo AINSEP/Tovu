@@ -347,6 +347,10 @@ function fakeAddControl(overrides: Partial<ReturnType<typeof useEmbedInsertContr
     error: null,
     handleCreateNew: vi.fn(),
     handleUseExisting: vi.fn(),
+    // `t`/`locale` added by `31bb4aa73` (useWidgetAddControl now returns both) — same passthrough
+    // pattern as WidgetPickerDialog.unit.test.tsx's `useFakeAddControl`.
+    t: (key: string) => key,
+    locale: "en",
     ...overrides,
   };
 }

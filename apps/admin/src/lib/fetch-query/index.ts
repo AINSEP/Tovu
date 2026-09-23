@@ -41,9 +41,11 @@
  * not a case of missing this abstraction.
  */
 
-export { FetchQueryProvider, useFetchMutation, useFetchQuery, useInvalidate } from "./adapter.tanstack";
+export { FetchQueryProvider, useCachedLoader, useFetchMutation, useFetchQuery, useInvalidate } from "./adapter.tanstack";
 
 export type {
+  CachedLoader,
+  CachedLoaderOptions,
   FetchMutationOptions,
   FetchQueryAdapter,
   FetchQueryOptions,

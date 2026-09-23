@@ -41,8 +41,8 @@ export function createContactFormResolver(deps: ContactFormResolverDeps): Widget
           workspaceId: context.workspaceId,
           id: formDefinitionId,
         });
-        // REQ-38/EC-05: a disabled OR missing/unreachable definition is the same failure-isolation
-        // placeholder, never an error — Forms definitions are never deleted (SPEC-010 INV-08).
+        // REQ-38/EC-05: a disabled, trashed (`findById` hides it) or purged definition is the same
+        // failure-isolation placeholder, never an error.
         if (!definition || definition.status !== "active") {
           results.set(instance.id, { ok: false, reason: "target-disabled" });
           continue;

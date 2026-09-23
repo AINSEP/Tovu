@@ -6,7 +6,7 @@ import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-ref
 import { useFormsList } from "../hooks/use-forms-list.hooks";
 import { createFakeFormsPort } from "../hooks/forms-dependencies.hooks";
 import { FORMS_LIST_RESOURCE } from "../rules";
-import type { AdminFormDefinition } from "@/lib/api";
+import { ApiError, type AdminFormDefinition } from "@/lib/api";
 
 /**
  * @file `useFormsList` — the Forms LIST screen's load/status-toggle state.
@@ -98,6 +98,126 @@ describe("useFormsList — injected port", () => {
 
     resolveUpdate({ data: formFixture({ status: "disabled" }) });
     await waitFor(() => expect(result.current.rowSavingId).toBeNull());
+  });
+});
+
+describe("useFormsList — delete (T7a, move to Trash)", () => {
+  it("setPendingDelete opens the confirm and calls the port for nothing — a click alone never deletes", async () => {
+    const port = createFakeFormsPort({ forms: [formFixture()] });
+    const trashSpy = vi.fn(port.trashForm);
+    port.trashForm = trashSpy;
+    const { result } = renderHook(() => useFormsList({ port, t: (key: string) => key }), { wrapper });
+    await waitFor(() => expect(result.current.forms).toHaveLength(1));
+
+    act(() => {
+      result.current.setPendingDelete(formFixture());
+    });
+
+    expect(result.current.pendingDelete).toEqual(formFixture());
+    expect(trashSpy).not.toHaveBeenCalled();
+  });
+
+  it("Cancel (setPendingDelete(null)) closes the dialog with no port call", async () => {
+    const port = createFakeFormsPort({ forms: [formFixture()] });
+    const trashSpy = vi.fn(port.trashForm);
+    port.trashForm = trashSpy;
+    const { result } = renderHook(() => useFormsList({ port, t: (key: string) => key }), { wrapper });
+    await waitFor(() => expect(result.current.forms).toHaveLength(1));
+
+    act(() => result.current.setPendingDelete(formFixture()));
+    act(() => result.current.setPendingDelete(null));
+
+    expect(result.current.pendingDelete).toBeNull();
+    expect(trashSpy).not.toHaveBeenCalled();
+  });
+
+  it("removeForm calls the port only after confirm, then the list refetches and the row is gone", async () => {
+    const port = createFakeFormsPort({ forms: [formFixture()] });
+    const trashSpy = vi.fn(port.trashForm);
+    port.trashForm = trashSpy;
+    const { result } = renderHook(() => useFormsList({ port, t: (key: string) => key }), { wrapper });
+    await waitFor(() => expect(result.current.forms).toHaveLength(1));
+
+    act(() => result.current.setPendingDelete(formFixture()));
+    expect(trashSpy).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.removeForm();
+    });
+
+    expect(trashSpy).toHaveBeenCalledTimes(1);
+    expect(trashSpy).toHaveBeenCalledWith("f1");
+    expect(result.current.pendingDelete).toBeNull();
+    await waitFor(() => expect(result.current.forms).toEqual([]));
+  });
+
+  it("removeForm is a no-op with no pendingDelete — the RowMenu selection alone never reaches the port", async () => {
+    const port = createFakeFormsPort({ forms: [formFixture()] });
+    const trashSpy = vi.fn(port.trashForm);
+    port.trashForm = trashSpy;
+    const { result } = renderHook(() => useFormsList({ port, t: (key: string) => key }), { wrapper });
+    await waitFor(() => expect(result.current.forms).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.removeForm();
+    });
+
+    expect(trashSpy).not.toHaveBeenCalled();
+  });
+
+  it("removeForm does not double-fire while a previous row action is still in flight", async () => {
+    const port = createFakeFormsPort({ forms: [formFixture({ status: "active" })] });
+    let resolveTrash!: (value: { ok: true; version: number | null }) => void;
+    const trashSpy = vi.fn(() => new Promise<{ ok: true; version: number | null }>((resolve) => { resolveTrash = resolve; }));
+    port.trashForm = trashSpy;
+    const { result } = renderHook(() => useFormsList({ port, t: (key: string) => key }), { wrapper });
+    await waitFor(() => expect(result.current.forms).toHaveLength(1));
+
+    act(() => result.current.setPendingDelete(formFixture()));
+    act(() => {
+      void result.current.removeForm();
+    });
+    await waitFor(() => expect(result.current.rowSavingId).toBe("f1"));
+    expect(trashSpy).toHaveBeenCalledTimes(1);
+
+    // A second confirm while the first is still unresolved must not reach the port again.
+    await act(async () => {
+      await result.current.removeForm();
+    });
+    expect(trashSpy).toHaveBeenCalledTimes(1);
+
+    resolveTrash({ ok: true, version: null });
+    await waitFor(() => expect(result.current.rowSavingId).toBeNull());
+  });
+
+  it("a 404 (already gone) refetches quietly — no error banner, dialog closes", async () => {
+    const port = createFakeFormsPort({ forms: [formFixture()] });
+    port.trashForm = vi.fn(() => Promise.reject(new ApiError("not found", 404, "NOT_FOUND")));
+    const { result } = renderHook(() => useFormsList({ port, t: (key: string) => key }), { wrapper });
+    await waitFor(() => expect(result.current.forms).toHaveLength(1));
+
+    act(() => result.current.setPendingDelete(formFixture()));
+    await act(async () => {
+      await result.current.removeForm();
+    });
+
+    expect(result.current.pendingDelete).toBeNull();
+    expect(result.current.error).toBeNull();
+  });
+
+  it("a 409 TRASH_VERSION_CHANGED surfaces the reload-and-retry copy", async () => {
+    const port = createFakeFormsPort({ forms: [formFixture()] });
+    port.trashForm = vi.fn(() => Promise.reject(new ApiError("changed", 409, "TRASH_VERSION_CHANGED")));
+    const { result } = renderHook(() => useFormsList({ port, t: (key: string) => key }), { wrapper });
+    await waitFor(() => expect(result.current.forms).toHaveLength(1));
+
+    act(() => result.current.setPendingDelete(formFixture()));
+    await act(async () => {
+      await result.current.removeForm();
+    });
+
+    expect(result.current.pendingDelete).toBeNull();
+    await waitFor(() => expect(result.current.error).toBe("This item changed since you loaded it. Reload and try again."));
   });
 });
 

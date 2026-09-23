@@ -29,7 +29,7 @@
     "src/contracts/core/commands/revert.ts",
     "src/contracts/core/embeds/marker.ts",
     "src/contracts/core/tool-surface-exchanges.ts",
-    "src/platform/db/schema.ts",
+    "src/platform/db/schema.sqlite.ts",
     "src/platform/db/sqlite/content-db.ts",
     "src/platform/db/sqlite/repo-helpers.ts",
     "src/features/content-types/index.ts",

@@ -9,6 +9,7 @@ import { InMemoryRedirectRepo } from "../repo.memory.js";
 import { createRedirect, tombstoneRedirect, updateRedirect, type RedirectsWriteDeps } from "../redirects.js";
 import { RedirectTargetNotAllowedError } from "../types.js";
 import type { RedirectRecord } from "../types.js";
+import { removeVia } from "./remove-redirect-double.js";
 
 /**
  * @file The site-relative half of the write-path target gate (REQ-08's own
@@ -48,6 +49,7 @@ function makeDeps(opts: { redirectAllowlist?: string[] } = {}): RedirectsWriteDe
   let idTick = 0;
   return {
     repo,
+    remove: removeVia(repo as unknown as Parameters<typeof removeVia>[0]),
     db: repo as unknown as RedirectDbHandle,
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,

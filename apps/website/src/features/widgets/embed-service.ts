@@ -36,11 +36,13 @@ import {
 } from "../entries/index.js";
 import {
   isTrashed,
+  restorePostForward,
   updatePost,
   PostNotFoundError,
   PostVersionConflictError,
   type BeforeSaveHookPort,
   type PostRecord,
+  type ForgetRemovedPostFn,
   type PostRepoPort,
 } from "../post/index.js";
 import {
@@ -73,6 +75,13 @@ export interface EmbedServiceDeps {
   entryRefsRepo: EntryRefsRepoPort;
   /** REQ-44 — a post/page host is a second, separate table (see `loadEmbedHost`'s doc). */
   postRepo: PostRepoPort;
+  /**
+   * Required by `restorePostForward`, which this service's `rollback` calls. Nothing here ever
+   * trashes a post, so it can never actually fire — but the dependency is required rather than
+   * optional on purpose: an optional compensation port is how one gets wired at three call sites
+   * out of four. See `post.ts`'s {@link ForgetRemovedPostFn}.
+   */
+  forgetRemovedPost: ForgetRemovedPostFn;
   /** The same command-gateway change-set store the live editor's own post-save route uses, so a
    *  post/page embed write records an auditable, revertible change set identically (ADR-047
    *  Amendment 6). */
@@ -373,7 +382,22 @@ async function writePostHostBody(
           }),
         captureEntityVersion: (r) => r.post.version,
         rollback: async () => {
-          if (priorPost) await deps.postRepo.save(priorPost);
+          if (!priorPost) return;
+          await restorePostForward({
+            deps: {
+              repo: deps.postRepo,
+              clock: deps.clock,
+              outbox: deps.outbox,
+              forgetRemoved: deps.forgetRemovedPost,
+            },
+            input: {
+              prior: priorPost,
+              actorId: actor.principalId,
+              // Mirrors the forward write's own delegatedBy* convention just above.
+              delegatedByWorkspaceId: actor.kind === "user" ? undefined : workspaceId,
+              delegatedById: actor.kind === "user" ? undefined : actor.principalId,
+            },
+          });
         },
       },
     });

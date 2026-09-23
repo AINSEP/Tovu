@@ -3,6 +3,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import {
+  resolveActivateAriaLabel,
   resolveActivateDisabled,
   resolveSiteCardClassName,
   resolveSiteCardTitle,
@@ -87,8 +88,8 @@ function ActivateButton({
   // repo's own `agentHandle()`, whose `label` is a private `data-agent-label` attribute neither
   // one can see) has no way to tell one card's button from another's without the site's own name
   // in the accessible name. Same string already computed for `agentHandle`'s own `label`, reused
-  // here so the two channels never drift.
-  const ariaLabel = `Save ${site.name} as the site to serve after the next restart`;
+  // here so the two channels never drift. Translated copy like every other string on this screen.
+  const ariaLabel = resolveActivateAriaLabel(site.name, t);
   return (
     <button
       type="button"

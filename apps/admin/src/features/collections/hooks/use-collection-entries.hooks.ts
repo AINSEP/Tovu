@@ -2,7 +2,7 @@ import { describeApiError, type AdminContentType, type AdminEntry } from "@/lib/
 import { useFetchQuery } from "@/lib/fetch-query";
 import { KEYS } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { COLLECTIONS_DICT, t as translate } from "../collections-i18n";
+import { t as translate } from "../collections-i18n";
 import { defaultCollectionEntriesPort } from "./collection-entries-dependencies.hooks";
 import type { CollectionEntriesPort } from "./collection-entries-port.hooks";
 
@@ -86,6 +86,6 @@ export function useCollectionEntries(
  */
 export function useWiredCollectionEntries(props: { contentTypeKey: string }): CollectionEntriesController {
   const locale = useAdminLocale();
-  const t = (key: string): string => COLLECTIONS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useCollectionEntries(props, { port: defaultCollectionEntriesPort, locale, t });
 }

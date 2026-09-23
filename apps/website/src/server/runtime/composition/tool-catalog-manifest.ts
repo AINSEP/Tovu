@@ -34,10 +34,12 @@ import { contributeNewsletterTools } from "#src/features/newsletter/tool-registr
 import { contributeRedirectsTools } from "#src/features/redirects/tool-registrations";
 import { contributeSeoTools } from "#src/features/seo/tool-registrations";
 import { contributeSettingsTools } from "#src/features/settings/tool-registrations";
+import { contributeSiteBackupTools } from "#src/features/site-backup/tool-registrations";
 import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-registrations";
 import { contributeSiteInspectionTools } from "#src/features/site-inspection/index";
 import { contributeSitesTools } from "#src/features/sites/index";
 import { contributeSourceControlTools } from "#src/features/source-control/tool-registrations";
+import { contributeTrashTools } from "#src/features/trash/tool-registrations";
 import { contributeSupabaseConnectTools } from "#src/features/supabase-connect/tool-registrations";
 import { contributeStaticPublishTools } from "#src/features/deployments/publish-agent-tools";
 import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations";
@@ -297,6 +299,9 @@ export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeRedirectsTools());
   registerToolContributor(contributeSeoTools());
   registerToolContributor(contributeSettingsTools());
+  // Site backup (2026-09-21): `site_backup_plan` (read-only) and `site_backup_push`, which holds its
+  // own call open for the human's confirm before one commit lands in a private GitHub repository.
+  registerToolContributor(contributeSiteBackupTools());
   registerToolContributor(contributeSiteEvidenceTools());
   registerToolContributor(contributeSiteInspectionTools());
   registerToolContributor(contributeSitesTools());
@@ -306,6 +311,12 @@ export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeSupabaseConnectTools());
   registerToolContributor(contributeTaxonomyTools());
   registerToolContributor(contributeThemesTools());
+  // Trash: `trash_list_items` and `trash_restore_item` ONLY. There is no purge tool and there must
+  // never be one — `features/trash/__tests__/tool-registrations.purge-ban.test.ts` walks every
+  // registration this function installs and fails if any handler can reach `purgeSelected`.
+  // (`trash_item` is not a contributor: `buildAssistantToolRegistrations` derives it afterwards from
+  // the four per-domain delete tools — see `features/trash/trash-item-tool.ts`.)
+  registerToolContributor(contributeTrashTools());
   registerToolContributor(contributeWidgetsTools());
   registerToolContributor(contributeWorkspaceTools());
 

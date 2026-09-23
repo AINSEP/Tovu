@@ -5,13 +5,27 @@
 | Field | Value |
 |-------|-------|
 | spec_id | SPEC-043 |
-| version | 1.0.0 |
+| version | 1.1.0 |
 | status | APPROVED |
 | feature_name | FEAT-043-widgets |
-| last_edited | 2026-07-21T00:00:00Z |
+| last_edited | 2026-09-21T00:00:00Z |
 | owner | Leona Burime |
 | spec_agent | Spec Agent (in-session, direct — Claude Sonnet 5, Coordinator) |
 | spec_mode | greenfield |
+
+## Changelog
+
+- **v1.1.0 (2026-09-21, spec/shipped-behavior drift fix).** REQ-05 amended from "update an existing
+  widget instance's **config**" to "update an existing widget instance's **config and title**" — commit
+  `969fbe884` ("fix(widgets): save a widget's edited title") shipped a cross-stack fix (hook, `api.ts`,
+  server route, write-service) so an edited title actually persists on update, following `ui.spec.md`
+  §4.3's `onSave` contract (`api.updateWidget(id, { baseVersion: version, config, title })`, already
+  citing REQ-05/06) rather than the narrower REQ-05 text, and flagged the conflict for spec authorship
+  to close rather than changing it as part of that fix. This entry closes that flag: REQ-05 now matches
+  both the shipped server/client behavior and `ui.spec.md`, which described `title` in its `onSave`
+  contract since this spec package's original 2026-07-21 authoring. No other requirement, AC, or
+  invariant changes — slug stays create-only (REQ-01/AC-01 unaffected), and AC-04's OCC scenario is
+  agnostic to which fields the update carries.
 
 **Provenance note:** this spec derives from `ADR-047-widgets-region-and-embed-placement.md`
 (PROPOSED 2026-07-20, **debate-cleared** 2026-07-21 — 2-round swarm `/debate`, full 4/4 convergence,
@@ -159,8 +173,8 @@ wants that exact same form embedded partway down the dedicated Contact page.
 - REQ-04: The system shall allow a principal holding `widgets.read` to read a widget instance's current
   state and its full revision history.
 - REQ-05: The system shall allow a principal holding `widgets.update` to update an existing widget
-  instance's config, recording a new revision in the same transaction as the write (single chokepoint,
-  ADR-022 §4).
+  instance's config and title, recording a new revision in the same transaction as the write (single
+  chokepoint, ADR-022 §4). Slug is create-only and is never part of an update (§REQ-01).
 - REQ-06: The system shall reject a widget-instance update whose base `version` does not match the
   instance's current `version` (optimistic concurrency), returning a typed conflict.
 

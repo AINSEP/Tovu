@@ -1,8 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ByokConfig } from "@jini-ai/ui";
-import type { AdminExecutionCredential } from "../../lib/api";
+import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "../../lib/api";
 import { resetSettingsRefreshBus } from "../../lib/settings-refresh-bus";
+import type { AdminExecutionCredentialPort } from "../admin-execution-credential-port.hooks";
 
 /**
  * @file Covers the four owner-required behaviors for the admin's own BYOK credential UI (Bug 7),
@@ -465,6 +466,88 @@ describe("injected port — useAdminExecutionCredential with no lib/api mock", (
  * one thing, and these two cases are the contract for that: what each patch MUST carry, and — more
  * importantly — what it must NOT.
  */
+/**
+ * S1 (plan-components.md, 2026-09-20): `saveKey`'s post-await `onByokChange({ ...byok, apiKey: "" })`
+ * closed over `byok` as it stood at the moment the button was PRESSED, so a provider chip click, a
+ * model edit, or a newly typed key made while the save was in flight was reverted to the click-time
+ * config when the response landed — and the ledger slice then autosaved that revert.
+ */
+describe("saveKey — edits made while the save is in flight survive", () => {
+  it("a model change made mid-flight is preserved when the field still holds the saved key", async () => {
+    let releaseSave: ((view: AdminExecutionCredential) => void) | null = null;
+    const port: AdminExecutionCredentialPort = {
+      async loadAdminExecutionCredential() {
+        return { isSet: false, masked: null, protocol: "anthropic", providerId: null, baseUrl: null, model: null, maxTokens: null, updatedAt: null };
+      },
+      saveAdminExecutionCredential() {
+        return new Promise<AdminExecutionCredential>((resolve) => {
+          releaseSave = resolve;
+        });
+      },
+    };
+    const onByokChange = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ byok: b, onByokChange }, port),
+      { initialProps: { b: byok({ apiKey: "sk-a1b2c3", model: "m1" }) } },
+    );
+    await waitFor(() => expect(result.current.stored).not.toBeNull());
+
+    act(() => {
+      void result.current.saveKey();
+    });
+    // `saveKey` queues onto the write lane rather than calling the port synchronously (F1), so wait
+    // for the queued task to actually reach the port before rerendering — otherwise the rerender
+    // below would race the task's own start instead of landing mid-flight.
+    await waitFor(() => expect(releaseSave).not.toBeNull());
+    // The operator switches the model while the save is still in flight. The field still holds
+    // exactly the key that was sent.
+    rerender({ b: byok({ apiKey: "sk-a1b2c3", model: "m2" }) });
+
+    await act(async () => {
+      releaseSave!({ isSet: true, masked: "••••b2c3", protocol: "anthropic", providerId: "anthropic", baseUrl: null, model: "m2", maxTokens: null, updatedAt: new Date(0).toISOString() });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.saveState.status).toBe("saved"));
+
+    expect(onByokChange).toHaveBeenLastCalledWith(expect.objectContaining({ model: "m2", apiKey: "" }));
+  });
+
+  it("does not clear the field when the operator typed a different key while the save was in flight", async () => {
+    let releaseSave: ((view: AdminExecutionCredential) => void) | null = null;
+    const port: AdminExecutionCredentialPort = {
+      async loadAdminExecutionCredential() {
+        return { isSet: false, masked: null, protocol: "anthropic", providerId: null, baseUrl: null, model: null, maxTokens: null, updatedAt: null };
+      },
+      saveAdminExecutionCredential() {
+        return new Promise<AdminExecutionCredential>((resolve) => {
+          releaseSave = resolve;
+        });
+      },
+    };
+    const onByokChange = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ byok: b, onByokChange }, port),
+      { initialProps: { b: byok({ apiKey: "sk-a1b2c3" }) } },
+    );
+    await waitFor(() => expect(result.current.stored).not.toBeNull());
+
+    act(() => {
+      void result.current.saveKey();
+    });
+    await waitFor(() => expect(releaseSave).not.toBeNull());
+    // The operator starts typing a NEW key before the first save lands.
+    rerender({ b: byok({ apiKey: "sk-b2c3d4" }) });
+
+    await act(async () => {
+      releaseSave!({ isSet: true, masked: "••••b2c3", protocol: "anthropic", providerId: "anthropic", baseUrl: null, model: "claude-sonnet-4-5", maxTokens: null, updatedAt: new Date(0).toISOString() });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.saveState.status).toBe("saved"));
+
+    expect(onByokChange).not.toHaveBeenCalled();
+  });
+});
+
 describe("useAdminExecutionCredential — the two buttons write disjoint patches", () => {
   it("saveKey sends apiKey and NOTHING else — no protocol, providerId, baseUrl, model or maxTokens", async () => {
     setAdminExecutionCredential.mockResolvedValue({ data: setView({ masked: "••••abcd" }) });
@@ -664,5 +747,325 @@ describe("useAdminExecutionCredential — provider switch while the key is store
 
     // Once it loads, the verdict arrives, and `ExecutionTab` drops whatever that first probe returns.
     await waitFor(() => expect(result.current.canDiscoverModels).toBe(false));
+  });
+});
+
+/**
+ * F2 (plan-components.md, 2026-09-20): nothing orders the reads. A slow mount GET that resolves
+ * after a save, or after the post-save refresh, overwrote the newer `stored` — the UI then said "no
+ * key" for a key that actually is stored.
+ */
+describe("useAdminExecutionCredential — stored: an older read never overwrites a newer one", () => {
+  it("a slow initial GET that resolves after a save still does not clobber the save's fresher view", async () => {
+    const loads: Array<{ resolve: (view: AdminExecutionCredential) => void }> = [];
+    const port: AdminExecutionCredentialPort = {
+      loadAdminExecutionCredential() {
+        return new Promise<AdminExecutionCredential>((resolve) => {
+          loads.push({ resolve });
+        });
+      },
+      async saveAdminExecutionCredential() {
+        return {
+          isSet: true,
+          masked: "••••live",
+          protocol: "anthropic",
+          providerId: "anthropic",
+          baseUrl: null,
+          model: "claude-sonnet-4-5",
+          maxTokens: null,
+          updatedAt: new Date(0).toISOString(),
+        };
+      },
+    };
+    const { result } = renderHook(() =>
+      useAdminExecutionCredential({ byok: byok({ apiKey: "sk-new" }), onByokChange: vi.fn() }, port),
+    );
+    // The mount GET (load #1) is left pending on purpose.
+    await waitFor(() => expect(loads.length).toBe(1));
+
+    // The save publishes a refresh, which starts load #2 — also left pending.
+    await act(async () => {
+      await result.current.saveKey();
+    });
+    await waitFor(() => expect(loads.length).toBe(2));
+
+    // The NEWER read (load #2, started by the save's own refresh) settles first.
+    loads[1]!.resolve({
+      isSet: true,
+      masked: "••••live",
+      protocol: "anthropic",
+      providerId: "anthropic",
+      baseUrl: null,
+      model: "claude-sonnet-4-5",
+      maxTokens: null,
+      updatedAt: new Date(0).toISOString(),
+    });
+    await waitFor(() => expect(result.current.stored?.isSet).toBe(true));
+
+    // The OLDER read (load #1, the original mount GET) settles last, reporting stale "nothing
+    // stored" — it must not win just because it happened to resolve last.
+    await act(async () => {
+      loads[0]!.resolve({ isSet: false, masked: null, protocol: "anthropic", providerId: null, baseUrl: null, model: null, maxTokens: null, updatedAt: null });
+      await Promise.resolve();
+    });
+
+    expect(result.current.stored?.isSet).toBe(true);
+  });
+
+  it("a save that FAILS does not strand a slower read that was already in flight", async () => {
+    // A failed write learned nothing about the row, so it must not supersede a read that is still
+    // coming back with the row's real state — otherwise `stored` stays at its pre-load value (here
+    // `null`: no key, no migration prompt) until some unrelated refresh happens to run.
+    const loads: Array<{ resolve: (view: AdminExecutionCredential) => void }> = [];
+    const port: AdminExecutionCredentialPort = {
+      loadAdminExecutionCredential() {
+        return new Promise<AdminExecutionCredential>((resolve) => {
+          loads.push({ resolve });
+        });
+      },
+      async saveAdminExecutionCredential() {
+        throw new FakeApiError("boom", 500);
+      },
+    };
+    const { result } = renderHook(() =>
+      useAdminExecutionCredential({ byok: byok({ apiKey: "sk-new" }), onByokChange: vi.fn() }, port),
+    );
+    await waitFor(() => expect(loads.length).toBe(1)); // the mount GET, left pending
+
+    await act(async () => {
+      await result.current.saveKey();
+    });
+    expect(result.current.saveState.status).toBe("error");
+
+    await act(async () => {
+      loads[0]!.resolve(setView({ masked: "••••live" }));
+      await Promise.resolve();
+    });
+
+    expect(result.current.stored).toEqual(setView({ masked: "••••live" }));
+  });
+});
+
+/**
+ * Finding F1 (plan-components.md, 2026-09-20): the server rebuilds every credential write from the
+ * row it read when the request arrived (`execution-credential-store.ts`'s `setExecutionCredential`:
+ * read -> seal -> upsert the WHOLE merged record), so two of `saveKey`/`saveSettings`/
+ * `migrateLegacyKey` in flight together can each merge over the same stale row and the later upsert
+ * reverts the other's fields — both still answer 200. This fake server models exactly that shape,
+ * so the test proves the actual data loss, not just an ordering of mock calls.
+ */
+function readMergeUpsertServer(initial: {
+  protocol: string;
+  providerId: string;
+  baseUrl: string;
+  model: string;
+  apiKey: string;
+}): {
+  port: AdminExecutionCredentialPort;
+  /** Releaser functions for saves currently in flight, in arrival order. A test drains this to
+   *  control exactly when each save's read-merge-upsert actually lands. */
+  pending: Array<() => void>;
+  row: () => Record<string, unknown>;
+  /** The largest number of saves this fake ever had in flight at once — `1` proves the writes were
+   *  serialized; `2`+ proves they raced. */
+  maxInFlight: () => number;
+} {
+  let row: Record<string, unknown> = { ...initial };
+  let inFlight = 0;
+  let maxInFlightSeen = 0;
+  const pending: Array<() => void> = [];
+
+  function toView(): AdminExecutionCredential {
+    return {
+      isSet: Boolean(row.apiKey),
+      masked: row.apiKey ? `••••${String(row.apiKey).slice(-4)}` : null,
+      protocol: row.protocol as string,
+      providerId: (row.providerId as string | null) ?? null,
+      baseUrl: (row.baseUrl as string | null) ?? null,
+      model: (row.model as string | null) ?? null,
+      maxTokens: (row.maxTokens as number | undefined) ?? null,
+      updatedAt: new Date(0).toISOString(),
+    };
+  }
+
+  const port: AdminExecutionCredentialPort = {
+    async loadAdminExecutionCredential() {
+      return toView();
+    },
+    saveAdminExecutionCredential(patch: AdminExecutionCredentialPatch) {
+      // The "read" half, captured the instant the request ARRIVES — a real server's read happens
+      // before this promise ever resolves, not when some later caller happens to release it.
+      const snapshot = { ...row };
+      inFlight += 1;
+      maxInFlightSeen = Math.max(maxInFlightSeen, inFlight);
+      return new Promise<AdminExecutionCredential>((resolve) => {
+        pending.push(() => {
+          // The "seal + upsert" half: the WHOLE merged record, built from the snapshot taken on
+          // arrival — exactly the bug's root cause, not from whatever `row` holds at release time.
+          row = { ...snapshot, ...patch };
+          inFlight -= 1;
+          resolve(toView());
+        });
+      });
+    },
+  };
+
+  return { port, pending, row: () => ({ ...row }), maxInFlight: () => maxInFlightSeen };
+}
+
+describe("useAdminExecutionCredential — the three writes to the one credential row run one at a time", () => {
+  it("a Save settings pressed while a migration is in flight keeps the migrated key AND the new model", async () => {
+    window.localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ apiKey: "sk-legacy" }));
+    const server = readMergeUpsertServer({
+      protocol: "anthropic",
+      providerId: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      model: "model-a",
+      apiKey: "",
+    });
+    const { result, rerender } = renderHook(
+      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ byok: b, onByokChange: vi.fn() }, server.port),
+      { initialProps: { b: byok({ model: "model-a" }) } },
+    );
+    await waitFor(() => expect(result.current.legacyKey).toBe("sk-legacy"));
+
+    act(() => {
+      void result.current.migrateLegacyKey();
+    });
+    rerender({ b: byok({ protocol: "openai", providerId: "openai", baseUrl: "https://api.openai.com", model: "model-b" }) });
+    act(() => {
+      void result.current.saveSettings();
+    });
+
+    // Release exactly twice, newest arrival first — with today's unserialized writes both are
+    // already pending and this drains settings before migrate; with the fix, only one is ever
+    // pending at a time and this simply drains them in the order they actually arrive.
+    for (let i = 0; i < 2; i += 1) {
+      await waitFor(() => expect(server.pending.length).toBeGreaterThan(0));
+      server.pending.pop()!();
+    }
+
+    await waitFor(() => expect(result.current.settingsSaveState.status).toBe("saved"));
+
+    expect(server.row()).toEqual({
+      apiKey: "sk-legacy",
+      protocol: "openai",
+      providerId: "openai",
+      baseUrl: "https://api.openai.com",
+      model: "model-b",
+    });
+    expect(server.maxInFlight()).toBe(1);
+  });
+
+  it("a Save settings pressed while a migration is in flight never wipes the migrated key, even when the migration lands first", async () => {
+    // The key-loss interleaving: unserialized, the settings PUT reads the row BEFORE the migration's
+    // upsert (no key yet) and commits AFTER it, so its whole-row upsert writes the key back to empty
+    // — while the migration has already deleted the browser's only copy from localStorage.
+    window.localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ apiKey: "sk-legacy" }));
+    const server = readMergeUpsertServer({
+      protocol: "anthropic",
+      providerId: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      model: "model-a",
+      apiKey: "",
+    });
+    const { result, rerender } = renderHook(
+      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ byok: b, onByokChange: vi.fn() }, server.port),
+      { initialProps: { b: byok({ model: "model-a" }) } },
+    );
+    await waitFor(() => expect(result.current.legacyKey).toBe("sk-legacy"));
+
+    act(() => {
+      void result.current.migrateLegacyKey();
+    });
+    rerender({ b: byok({ protocol: "openai", providerId: "openai", baseUrl: "https://api.openai.com", model: "model-b" }) });
+    act(() => {
+      void result.current.saveSettings();
+    });
+
+    // Release OLDEST arrival first — the migration lands before the settings write.
+    for (let i = 0; i < 2; i += 1) {
+      await waitFor(() => expect(server.pending.length).toBeGreaterThan(0));
+      server.pending.shift()!();
+    }
+
+    await waitFor(() => expect(result.current.settingsSaveState.status).toBe("saved"));
+
+    expect(server.row()).toEqual({
+      apiKey: "sk-legacy",
+      protocol: "openai",
+      providerId: "openai",
+      baseUrl: "https://api.openai.com",
+      model: "model-b",
+    });
+    expect(window.localStorage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
+  });
+
+  it("Save key and Save settings pressed back to back keep both", async () => {
+    const server = readMergeUpsertServer({
+      protocol: "anthropic",
+      providerId: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      model: "model-a",
+      apiKey: "",
+    });
+    const { result, rerender } = renderHook(
+      ({ b }: { b: ByokConfig }) => useAdminExecutionCredential({ byok: b, onByokChange: vi.fn() }, server.port),
+      { initialProps: { b: byok({ apiKey: "sk-new-key", model: "model-a" }) } },
+    );
+    await waitFor(() => expect(result.current.stored).not.toBeNull());
+
+    act(() => {
+      void result.current.saveKey();
+    });
+    rerender({ b: byok({ apiKey: "sk-new-key", model: "model-b" }) });
+    act(() => {
+      void result.current.saveSettings();
+    });
+
+    for (let i = 0; i < 2; i += 1) {
+      await waitFor(() => expect(server.pending.length).toBeGreaterThan(0));
+      server.pending.pop()!();
+    }
+
+    await waitFor(() => expect(result.current.settingsSaveState.status).toBe("saved"));
+
+    expect(server.row()).toEqual({
+      apiKey: "sk-new-key",
+      protocol: "anthropic",
+      providerId: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      model: "model-b",
+    });
+    expect(server.maxInFlight()).toBe(1);
+  });
+
+  it("a rejected write does not wedge the chain — the next queued write still runs", async () => {
+    let callCount = 0;
+    const port: AdminExecutionCredentialPort = {
+      async loadAdminExecutionCredential() {
+        return { isSet: false, masked: null, protocol: "anthropic", providerId: null, baseUrl: null, model: null, maxTokens: null, updatedAt: null };
+      },
+      async saveAdminExecutionCredential() {
+        callCount += 1;
+        if (callCount === 1) throw new FakeApiError("boom", 500);
+        return { isSet: true, masked: "••••bcde", protocol: "anthropic", providerId: "anthropic", baseUrl: null, model: "model-b", maxTokens: null, updatedAt: new Date(0).toISOString() };
+      },
+    };
+    const { result } = renderHook(() =>
+      useAdminExecutionCredential({ byok: byok({ apiKey: "sk-abcde" }), onByokChange: vi.fn() }, port),
+    );
+    await waitFor(() => expect(result.current.stored).not.toBeNull());
+
+    act(() => {
+      void result.current.saveKey(); // this one rejects
+    });
+    act(() => {
+      void result.current.saveSettings(); // must still run once the rejected one settles
+    });
+
+    await waitFor(() => expect(result.current.settingsSaveState.status).toBe("saved"));
+    expect(result.current.saveState.status).toBe("error");
+    expect(callCount).toBe(2);
   });
 });

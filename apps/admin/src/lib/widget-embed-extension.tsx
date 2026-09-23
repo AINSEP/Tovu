@@ -3,8 +3,11 @@ import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tip
 import type { AdminWidget } from "./api";
 import { insertBlockAtom } from "./block-atom-insert";
 import { useWidgetEmbedNodeView } from "./widget-embed-extension.hooks";
+import { MediaEditDialog } from "../components/MediaEditDialog/MediaEditDialog";
 import { WidgetAddControl, WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
 import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields/WidgetConfigFields";
+import { t as translateApp } from "../app-i18n";
+import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 
 /**
  * @file The shared TipTap `widgetEmbed` node extension (SPEC-043 REQ-18, `ui.spec.md` §3.10/§4.9) —
@@ -49,11 +52,13 @@ export function widgetTypeLabel(widget: AdminWidget | null | undefined): string 
  *  rather than a nested closure, so the branch it owns leaves the parent's scope entirely instead
  *  of only lowering its ESLint per-closure score. Exported for direct testability. */
 export function WidgetEmbedStatus({ widget, isBroken, typeLabel }: { widget: AdminWidget | null | undefined; isBroken: boolean; typeLabel: string }) {
-  if (widget === undefined) return <span className="notice">Loading widget…</span>;
+  const locale = useWiredAdminLocale();
+  const t = (key: string): string => translateApp(locale, key);
+  if (widget === undefined) return <span className="notice">{t("Loading widget…")}</span>;
   if (isBroken) {
     return (
-      <span className="widget-embed-node__broken-label" role="img" aria-label="Broken widget reference">
-        ⚠ Widget unavailable{widget ? ` (${widget.title})` : ""}
+      <span className="widget-embed-node__broken-label" role="img" aria-label={t("Broken widget reference")}>
+        {t("⚠ Widget unavailable")}{widget ? ` (${widget.title})` : ""}
       </span>
     );
   }
@@ -76,18 +81,26 @@ export function WidgetEmbedNodeView(props: NodeViewProps) {
   // State, the (stale-guarded) widget fetch and every handler live in the hook — see
   // `widget-embed-extension.hooks.ts`.
   const view = useWidgetEmbedNodeView(props);
+  const locale = useWiredAdminLocale();
+  const t = (key: string): string => translateApp(locale, key);
 
   return (
     <NodeViewWrapper as="div" className={view.nodeClassName} data-drag-handle contentEditable={false}>
       <WidgetEmbedStatus widget={view.widget} isBroken={view.isBroken} typeLabel={widgetTypeLabel(view.widget)} />
       <span className="widget-embed-node__actions">
+        <button type="button" onClick={view.openStyle}>
+          {t("Style")}
+        </button>
         <button type="button" onClick={view.openChange}>
-          Change
+          {t("Change")}
         </button>
         <button type="button" onClick={view.remove}>
-          Remove
+          {t("Remove")}
         </button>
       </span>
+      {view.styling ? (
+        <MediaEditDialog initial={view.styleInitial} onSave={view.saveStyle} onCancel={view.closeStyle} showAlt={false} />
+      ) : null}
       {view.changeDialog ? (
         <WidgetPickerDialog
           widgetType={view.changeDialog.widgetType}
@@ -112,6 +125,17 @@ export const WidgetEmbed = Node.create({
     return {
       placementId: { default: null },
       widgetEntryId: { default: null },
+      // Per-instance style override (2026-09-23, W2 — owner ask: "widget embed attributes pass
+      // through like the other types"), same two field names/shape as the `media` node's own
+      // `cssClass`/`htmlAttributes` (`media-embed-extension.tsx`). The editor UI (the Style action,
+      // `WidgetEmbedNodeView`) mirrors the media node's Edit dialog exactly — no extra client-side
+      // filtering or warning on attribute names. What the render-time allowlist actually keeps is a
+      // server-side decision (`render.ts`), out of this admin-only slice's scope, and is expected to
+      // change (2026-09-23 owner correction: `data-*`/`aria-*`-only was too narrow — `class`/`id`/
+      // `style`/animation attributes are meant to stay, same as media; only `on*`/`javascript:` stay
+      // blocked).
+      cssClass: { default: null },
+      htmlAttributes: { default: null },
     };
   },
 
@@ -163,10 +187,19 @@ export function WidgetEmbedInsertControl(props: {
   agentHandle?: string;
 }) {
   if (!props.editor) return null;
+  return <WidgetEmbedInsertControlEnabled editor={props.editor} agentHandle={props.agentHandle} />;
+}
+
+function WidgetEmbedInsertControlEnabled(props: {
+  editor: WidgetEmbedEditor;
+  agentHandle?: string;
+}) {
   const editor = props.editor;
+  const locale = useWiredAdminLocale();
+  const t = (key: string): string => translateApp(locale, key);
   return (
     <WidgetAddControl
-      triggerLabel="Insert widget"
+      triggerLabel={t("Insert widget")}
       onResolved={(widgetInstanceId) => insertWidgetEmbedAtCursor(editor, widgetInstanceId)}
       agentHandle={props.agentHandle}
     />

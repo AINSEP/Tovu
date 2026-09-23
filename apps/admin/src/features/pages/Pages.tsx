@@ -3,10 +3,12 @@ import { agentHandle } from "@jini-ai/agentic";
 import { useState, type ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
+import type { Translate } from "../../lib/dictionary-translator";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { adminHref, navigate } from "../../lib/router";
 import { TabBar } from "../../components/TabBar";
+import { ServerLabel } from "@/components/status-labels";
 import {
   pageRowMenuItems,
   pagePublicPath,
@@ -92,9 +94,9 @@ function resolveThemePagesHook(override: typeof useWiredThemePages | undefined):
  * `postsListNotice`, matching this pair's existing "twin screens" convention (this file's own
  * header).
  */
-export function pagesListNotice(pages: AdminPost[] | null, error: string | null): ReactNode {
+export function pagesListNotice(pages: AdminPost[] | null, error: string | null, t: Translate): ReactNode {
   if (error && !pages) return <div className="notice error">{error}</div>;
-  if (!pages) return <div className="notice">Loading pages…</div>;
+  if (!pages) return <div className="notice">{t("Loading pages…")}</div>;
   return null;
 }
 
@@ -109,7 +111,7 @@ export function Pages(props: PagesProps) {
     pendingDelete,
     setPendingDelete,
     createPage,
-    disablePage,
+    togglePagePublish,
     removePage,
     t,
     locale,
@@ -143,7 +145,7 @@ export function Pages(props: PagesProps) {
     writePagesTabToUrl(id);
   }
 
-  const notice = pagesListNotice(pages, error);
+  const notice = pagesListNotice(pages, error, t);
   if (notice) return notice;
   // Unreachable in practice — `pagesListNotice` already returns a non-null notice whenever `pages`
   // is null — but restores the narrowing TS lost by moving that check behind a function call, so
@@ -204,7 +206,7 @@ export function Pages(props: PagesProps) {
                 // onto `DataTable`'s own shared sort mechanism the same day) — `DataTable` now
                 // renders the button, caret, and `aria-sort` itself from this descriptor; only the
                 // domain-specific comparator and label wording stay here (`rules.ts`).
-                sort: { compare: comparePagesByTitle, label: (direction) => pageColumnSortLabel("Title", direction) },
+                sort: { compare: comparePagesByTitle, label: (direction) => pageColumnSortLabel(t, t("Title"), direction) },
                 // The admin editor route (`panels.tsx`'s `/:slug` pattern) is one path segment, so a
                 // Page holding the root slug `"/"` (`pagePublicPath`'s own doc) can't be expressed in
                 // slug form at all — `pageAdminPath` (`rules.ts`) picks slug-vs-id per page so this
@@ -222,7 +224,7 @@ export function Pages(props: PagesProps) {
               {
                 key: "slug",
                 header: "Slug",
-                sort: { compare: comparePagesBySlug, label: (direction) => pageColumnSortLabel("Slug", direction) },
+                sort: { compare: comparePagesBySlug, label: (direction) => pageColumnSortLabel(t, t("Slug"), direction) },
                 // The public site link and its visible text both go through `pagePublicPath` so the
                 // root-slug page reads "/" — a bare `/${page.slug}` template would render "//" and
                 // link nowhere real for that one page.
@@ -240,15 +242,15 @@ export function Pages(props: PagesProps) {
               {
                 key: "status",
                 header: t("Status"),
-                sort: { compare: comparePagesByStatus, label: (direction) => pageColumnSortLabel("Status", direction) },
-                cell: (page) => <span className={`status status-${page.status}`}>{page.status}</span>,
+                sort: { compare: comparePagesByStatus, label: (direction) => pageColumnSortLabel(t, t("Status"), direction) },
+                cell: (page) => <span className={`status status-${page.status}`}><ServerLabel value={page.status} /></span>,
               },
               {
                 key: "updated",
                 header: t("Updated"),
                 // "desc" (newest first) is this column's own starting direction, unlike the other
                 // three's ascending default — unchanged from the pre-existing Updated-only feature.
-                sort: { compare: comparePagesByUpdated, defaultDirection: "desc", label: updatedPageColumnSortLabel },
+                sort: { compare: comparePagesByUpdated, defaultDirection: "desc", label: (direction) => updatedPageColumnSortLabel(t, direction) },
                 cell: (page) => formatTimestamp(page.updatedAt),
               },
               {
@@ -256,7 +258,7 @@ export function Pages(props: PagesProps) {
                 header: t("More"),
                 cell: (page) => (
                   <RowMenu
-                    triggerLabel={`Actions for "${page.title}"`}
+                    triggerLabel={t('Actions for "{title}"').replace("{title}", page.title)}
                     agentHandle={`${rowMenuHandleById.get(page.id)}-menu`}
                     items={pageRowMenuItems(
                       page,
@@ -264,7 +266,7 @@ export function Pages(props: PagesProps) {
                         // Same `pageAdminPath` slug-vs-id reasoning as the Title column's own edit
                         // link above; `navigate` takes the bare route path directly.
                         onEdit: (p) => navigate(pageAdminPath(p)),
-                        onDisable: disablePage,
+                        onTogglePublish: togglePagePublish,
                         onDelete: setPendingDelete,
                       },
                       locale,

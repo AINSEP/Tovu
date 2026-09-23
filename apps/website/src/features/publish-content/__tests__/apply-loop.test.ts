@@ -27,7 +27,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import type { PostRecord } from "#src/features/post/post";
 import { contributePostPublish, toPublishableState } from "#src/features/post/publish-content";
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaRepo, computeBlobStorageKey, type MediaRecord } from "#src/features/media/index";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo, computeBlobStorageKey, type MediaRecord } from "#src/features/media/index";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
@@ -122,6 +122,10 @@ function makeHarness(
     outbox,
     changeSets,
     authorize,
+    // Required by `features/post/publish-content.ts`'s apply guard — its rollback restores through
+    // `restorePostForward`, which drops the Trash index row when the write it undoes was a trash.
+    // An import never trashes, so this never fires here.
+    forgetRemovedPost: async () => {},
   };
 
   const applyPort = createPublishContentApplyPort({
@@ -547,7 +551,7 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
   registerPublishContentContributor(contributeMediaPublish());
 
   const postRepo = new InMemoryPostRepo([]);
-  const mediaRepo = new InMemoryMediaRepo();
+  const mediaRepo = new InMemoryVersionedMediaRepo();
   const assetBlobRepo = new InMemoryAssetBlobRepo();
   const blobStore = new InMemoryBlobStore();
   const clock = makeClock();
@@ -565,6 +569,8 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
     outbox,
     changeSets,
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
+    // See the harness bag above for why `apply()` requires this.
+    forgetRemovedPost: async () => {},
     mediaRepo,
     assetBlobRepo,
     blobStore,

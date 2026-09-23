@@ -76,3 +76,30 @@ test("createServingApp is called only by the two site-serving boot paths", () =>
 test("startOutboxDrainer is called only by createServingApp", () => {
   assert.deepEqual(filesCalling(/(?<!function )\bstartOutboxDrainer\(/), ["server/runtime/composition/serving-app.ts"]);
 });
+
+/**
+ * Same "only there" rule for the Trash auto-purge sweeper (2026-09-20), for a sharper reason than
+ * the drainer's: a sweep HARD-DELETES rows. Started in the exporter, in `app.ts`'s eager
+ * module-level app or in the agent daemon, it would permanently delete a site's content from a
+ * process nobody is watching and nobody asked to run.
+ */
+test("startTrashSweeper is called only by createServingApp", () => {
+  assert.deepEqual(filesCalling(/(?<!function )\bstartTrashSweeper\(/), ["server/runtime/composition/serving-app.ts"]);
+});
+
+test("cli/commands/serve.ts stops the trash sweeper on shutdown", () => {
+  assert.ok(readCodeLines("cli/commands/serve.ts").some((line) => /\btrashSweeper\.stop\(\)/.test(line)));
+});
+
+/**
+ * The Trash routes are mounted in exactly one place, and it is the `createApp()` both composition
+ * roots go through — the hermetic one (`app.ts`'s own `createRouteDeps`) and the durable one
+ * (`index.ts` -> `createSqliteRouteDeps()` -> `createServingApp` -> `createApp`). `RouteDeps.trash`
+ * is a required field, so tsc already makes each root supply a port; what it cannot see is a SECOND
+ * mount somewhere, built over a different deps bag, which is how two surfaces of the same feature
+ * start disagreeing about permissions. That the single mount really answers requests is proven over
+ * HTTP in `server/__tests__/admin-trash-routes.test.ts`.
+ */
+test("createTrashModule is mounted by exactly one composition, and it is app.ts", () => {
+  assert.deepEqual(filesCalling(/(?<!function )\bcreateTrashModule\(/), ["server/runtime/composition/app.ts"]);
+});

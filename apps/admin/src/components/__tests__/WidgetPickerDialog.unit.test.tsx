@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { tabFromLastFocusableInDialog } from "../../hooks/__tests__/focus-trap.test-helpers";
 import { WidgetAddControl, WidgetPickerDialog } from "../WidgetPickerDialog/WidgetPickerDialog";
 
 /**
@@ -36,7 +37,14 @@ const EXISTING_WIDGET = {
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
-  fetchMock = vi.fn().mockResolvedValue(jsonResponse({ widgets: [EXISTING_WIDGET] }));
+  // A fresh `Response` per call, not one shared instance — `WidgetPickerDialog` now also mounts
+  // `useAdminLocale()` (Batch D2 i18n wiring), which fires its own `fetch()` alongside
+  // `useExistingInstances`'s. `mockResolvedValue` would hand both calls the exact same `Response`
+  // object; a `Response` body can only be read once (`.json()` throws "body stream already read"
+  // on the second read), so whichever call's `.json()` ran second used to silently degrade to
+  // `lib/api.ts`'s `UNPARSEABLE_BODY` sentinel — `instances` never resolved, `hasExisting` stayed
+  // false, and every test below that expects the "Existing Text widgets" combobox failed.
+  fetchMock = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse({ widgets: [EXISTING_WIDGET] })));
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -143,6 +151,13 @@ describe("WidgetPickerDialog dialog-hook injection", () => {
         hasExisting: false,
         submitUseExisting: vi.fn((e: React.FormEvent) => e.preventDefault()),
         submitCreateNew,
+        // Identity passthrough — the component now destructures `t` off the controller (Batch D2's
+        // i18n wiring); a fake that omits it would throw on the first `t(...)` call.
+        t: (key: string) => key,
+        // `useDialog` is typed as `typeof useWiredWidgetPickerDialog`, whose return always includes
+        // `locale` (even though this component doesn't destructure it itself) — a fake missing it
+        // fails structural typing, caught by `tsc`, not by any runtime assertion here.
+        locale: "en",
       };
     }
 
@@ -167,6 +182,53 @@ describe("WidgetPickerDialog dialog-hook injection", () => {
     await user.click(screen.getByRole("button", { name: "Create and place" }));
     expect(submitCreateNew).toHaveBeenCalledOnce();
   });
+
+  it("passes its own t down into the nested WidgetConfigFields — the same translator, not a second one", () => {
+    // The dialog's own copy ("Create new") and the nested config form's copy ("Text", `widgetType:
+    // "text"`'s only field) must come from the SAME `t` this fake returns — proves `WidgetConfigFields
+    // t={t}` (Batch D2's second WidgetConfigFields commit) actually forwards the controller's
+    // translator rather than leaving `WidgetConfigFields` on its own passthrough default.
+    const DICT: Record<string, string> = { "Create new": "Crear-FAKE", Text: "Texto-FAKE" };
+    const t = (key: string) => DICT[key] ?? key;
+    function useFakeDialog() {
+      return {
+        instances: [],
+        loadError: null,
+        selectedExistingId: "",
+        setSelectedExistingId: vi.fn(),
+        newTitle: "",
+        setNewTitle: vi.fn(),
+        newConfig: {},
+        setNewConfig: vi.fn(),
+        error: null,
+        titleId: "fake-title-id-2",
+        existingSelectId: "fake-existing-select-id-2",
+        newTitleInputId: "fake-title-input-id-2",
+        newTitleInputRef: { current: null },
+        typeLabel: "Fake Type",
+        hasExisting: false,
+        submitUseExisting: vi.fn((e: React.FormEvent) => e.preventDefault()),
+        submitCreateNew: vi.fn((e: React.FormEvent) => e.preventDefault()),
+        t,
+        locale: "es",
+      };
+    }
+
+    render(
+      <WidgetPickerDialog
+        widgetType="text"
+        onUseExisting={vi.fn()}
+        onCreateNew={vi.fn()}
+        onCancel={vi.fn()}
+        useDialog={useFakeDialog}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: "Crear-FAKE" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Texto-FAKE")).toBeInTheDocument();
+    expect(screen.queryByText("Create new")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Text")).not.toBeInTheDocument();
+  });
 });
 
 describe("WidgetAddControl add-control-hook injection", () => {
@@ -183,6 +245,10 @@ describe("WidgetAddControl add-control-hook injection", () => {
         error: "fake add-control error",
         handleCreateNew: vi.fn(),
         handleUseExisting: vi.fn(),
+        // Same passthrough note as `useFakeDialog` above — `WidgetAddControl` also reads `t`/`locale`
+        // off its controller now.
+        t: (key: string) => key,
+        locale: "en",
       };
     }
 
@@ -227,5 +293,16 @@ describe("WidgetAddControl — real flow (unmocked useWidgetAddControl)", () => 
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(onResolved).not.toHaveBeenCalled();
+  });
+});
+
+describe("WidgetPickerDialog — focus trap", () => {
+  it("keeps Tab inside the dialog: Tab on the last focusable element wraps to the first", async () => {
+    render(<WidgetPickerDialog widgetType="text" onUseExisting={vi.fn()} onCreateNew={vi.fn()} onCancel={vi.fn()} />);
+    await screen.findByRole("button", { name: "Use this widget" });
+    const { event, first } = tabFromLastFocusableInDialog();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
   });
 });

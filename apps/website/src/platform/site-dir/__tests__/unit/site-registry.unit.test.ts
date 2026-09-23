@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { openContentDbReadOnly } from "../../../db/sqlite/content-db.js";
-import { posts as postsTable } from "../../../db/schema.js";
+import { posts as postsTable } from "../../../db/schema.sqlite.js";
 import { ValidationError } from "../../errors.js";
 import { createSite, describeSiteBinding, includeServingSite, listSites, SITE_BINDING_NOT_SWITCHABLE_ENV, SITE_NAME_PATTERN } from "../../site-registry.js";
 

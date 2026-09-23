@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiError, type AdminWidget } from "@/lib/api";
 import {
   buildDraftPlacement,
-  describeReferencingLocations,
   isKnownWidgetType,
   movePlacement,
   resolveEditorWidgetType,
   widgetConfigFieldErrors,
+  widgetSlugRedirectPath,
   widgetTypeLabel,
 } from "../rules";
 
@@ -34,6 +34,20 @@ describe("widgetTypeLabel", () => {
   it("falls back to the raw stored value for an unknown type in Spanish too", () => {
     expect(widgetTypeLabel("some-legacy-type", "es")).toBe("some-legacy-type");
   });
+
+  /**
+   * S-I18N fallback fix, sibling defect the earlier widgets pass (75844acca) missed:
+   * `widgetTypeLabel` did `WIDGETS_DICT[locale]?.[rawLabel] ?? rawLabel` inline instead of calling
+   * the module's own `t`/`translate` (which falls through to `COMMON_I18N`). No live v1 widget
+   * type label collides with a `COMMON_I18N` word, but the same unknown-type fallback path this
+   * describe block already covers above is reachable with any raw stored string — including one
+   * that happens to match a `COMMON_I18N` key, such as a pre-v1 legacy widget type literally named
+   * "Title". `WIDGETS_DICT.de` never carries "Title" (only the `es` superset block does), so before
+   * this fix German rendered the bare English word here too.
+   */
+  it("falls back to COMMON_I18N for an unknown type whose raw value matches a shared word", () => {
+    expect(widgetTypeLabel("Title", "de")).toBe("Titel");
+  });
 });
 
 describe("isKnownWidgetType", () => {
@@ -44,18 +58,6 @@ describe("isKnownWidgetType", () => {
   it("is false for anything else", () => {
     expect(isKnownWidgetType("garbage-nonsense")).toBe(false);
     expect(isKnownWidgetType("")).toBe(false);
-  });
-});
-
-describe("describeReferencingLocations", () => {
-  it("joins each location's kind and entryId", () => {
-    expect(describeReferencingLocations([{ kind: "post", entryId: "p1" }, { kind: "page", entryId: "p2" }])).toBe(
-      "post (p1), page (p2)",
-    );
-  });
-
-  it("falls back to a generic phrase for an empty list", () => {
-    expect(describeReferencingLocations([])).toBe("at least one other place");
   });
 });
 
@@ -145,5 +147,26 @@ describe("buildDraftPlacement", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("widgetSlugRedirectPath", () => {
+  const WIDGET_UUID = "b7e6c8a0-1f2d-4e3a-9c5b-6a7d8e9f0a1b";
+  const WIDGET = { id: WIDGET_UUID, slug: "hero-banner" };
+
+  it("returns null when the URL already carries the widget's slug", () => {
+    expect(widgetSlugRedirectPath({ requestedId: "hero-banner", widget: WIDGET })).toBeNull();
+  });
+
+  it("returns the slug path when the URL carries the widget's raw (UUID-shaped) id", () => {
+    expect(widgetSlugRedirectPath({ requestedId: WIDGET_UUID, widget: WIDGET })).toBe("/widgets/hero-banner");
+  });
+
+  it("returns null for a string that differs from the slug but isn't UUID-shaped (not recognizably an id link)", () => {
+    expect(widgetSlugRedirectPath({ requestedId: "some-other-slug", widget: WIDGET })).toBeNull();
+  });
+
+  it("returns null for a UUID-shaped string that isn't actually this widget's own id", () => {
+    expect(widgetSlugRedirectPath({ requestedId: "00000000-0000-0000-0000-000000000000", widget: WIDGET })).toBeNull();
   });
 });

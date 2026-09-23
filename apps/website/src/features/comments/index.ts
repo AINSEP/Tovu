@@ -65,7 +65,12 @@ import type { CommentIngressPolicy, CommentRepoPort, SpamCheckPort } from "./por
 import { getCommentsSettings } from "./settings.js";
 import type { CommentsSettings } from "./types.js";
 import { createCommentWriteService } from "./write-service.js";
-import type { CommentWriteService } from "./write-service.js";
+import type {
+  CommentTransactionRunner,
+  CommentWriteService,
+  ForgetRemovedCommentFn,
+  RemoveCommentFn,
+} from "./write-service.js";
 
 export const DEFAULT_COMMENTS_SETTINGS: CommentsSettings = {
   enabled: true,
@@ -96,6 +101,15 @@ export interface CommentsModuleDeps {
    * responsible for calling `ensureCommentsSettingDefinitions` at boot (mirrors SEO's
    * `ensureSeoSettingDefinitions` wiring) — this module does not register definitions itself. */
   settingsRepo?: SettingsRepoPort;
+  /**
+   * The local admin Trash's three seams, passed straight through to the moderation write-service.
+   * Required, not optional: a default no-op would silently drop comments out of the Trash screen,
+   * and "deleted but unrecoverable" is exactly the failure this feature exists to prevent. See
+   * `write-service.ts`'s `RemoveCommentFn` for why none of them is a trash type.
+   */
+  remove: RemoveCommentFn;
+  forgetRemoved: ForgetRemovedCommentFn;
+  runInTransaction: CommentTransactionRunner;
 }
 
 export interface CommentsModule {
@@ -180,6 +194,9 @@ export function createCommentsModule(deps: CommentsModuleDeps): CommentsModule {
     hooks,
     clock: deps.clock,
     idGen: deps.idGen,
+    remove: deps.remove,
+    forgetRemoved: deps.forgetRemoved,
+    runInTransaction: deps.runInTransaction,
   });
 
   return { commentRepo: deps.commentRepo, ingressPolicy, writeService };
@@ -189,6 +206,11 @@ export type { CommentRepoPort, CommentIngressPolicy, SpamCheckPort } from "./por
 export { HeuristicSpamCheck } from "./spam.heuristic.js";
 export type { CommentRecord, CommentStatus, CommentsSettings, CommentSubmission, ModerationAction, ModerationLogEntry } from "./types.js";
 export { COMMENTS_DATA_MODULE, COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID, COMMENTS_PLUGIN_ID } from "./types.js";
-export type { CommentWriteService } from "./write-service.js";
+export type {
+  CommentTransactionRunner,
+  CommentWriteService,
+  ForgetRemovedCommentFn,
+  RemoveCommentFn,
+} from "./write-service.js";
 export { ensureCommentsSettingDefinitions, getCommentsSettings, setCommentsSettings } from "./settings.js";
 export { CommentsSettingsValidationError } from "./errors.js";

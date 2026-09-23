@@ -22,10 +22,11 @@ import type {
  * `createFormDefinition`/`updateFormDefinition`/`setFormDefinitionStatus`, each wrapping the
  * existing core/commands `executeCommand` gateway (mirrors `posts/create.ts`'s pattern — the
  * gateway captures the auditable change-set record, authorizes `admin.forms.manage`, and enqueues
- * `change-set.applied` onto the outbox). Never exposes a delete (INV-08) — the repo port itself
- * has no delete method to call.
+ * `change-set.applied` onto the outbox). Never exposes a delete: a form definition is removed
+ * permanently only by a Trash purge (owner ruling 2026-09-21, superseding the original INV-08
+ * "never deleted" wording) — the repo port itself has no delete method for this file to call.
  *
- * Slug-uniqueness relies on the DB unique index (`db/schema.ts`), not an app-level check
+ * Slug-uniqueness relies on the DB unique index (`db/schema.sqlite.ts`), not an app-level check
  * (behavior.spec.md §6.1) — `repo.memory.ts`/`repo.sqlite.ts` both map a conflicting insert to
  * `FormSlugConflictError`, which this file lets propagate unchanged out of `mutation.execute()`.
  */
@@ -160,6 +161,9 @@ export async function createFormDefinition(
           status: "active",
           createdAt: now,
           updatedAt: now,
+          // Optimistic-concurrency counter the Trash's compare-and-set flips (`types.ts`'s doc on
+          // `FormDefinitionRecord.version`). Every new definition starts at 1, same as `PostRecord`.
+          version: 1,
         };
         await deps.repo.create(definition);
         return { definition };
@@ -275,7 +279,8 @@ export interface SetFormDefinitionStatusRequired {
   };
 }
 
-/** REQ-04/INV-08 — flips `active` ⇄ `disabled`; never deletes the row. */
+/** REQ-04/INV-08 — flips `active` ⇄ `disabled`; never deletes the row (deletion is a separate
+ *  Trash action, not this function). */
 export async function setFormDefinitionStatus(
   required: SetFormDefinitionStatusRequired
 ): Promise<{ definition: FormDefinitionRecord }> {

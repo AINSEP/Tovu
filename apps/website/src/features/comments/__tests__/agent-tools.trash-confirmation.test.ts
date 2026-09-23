@@ -13,6 +13,7 @@ import { InMemoryCommentRepo } from "../repo.memory.js";
 import { createCommentWriteService } from "../write-service.js";
 import type { CommentRecord } from "../types.js";
 import { buildCommentsRegistrations, type CommentsToolDeps } from "../tool-registrations.js";
+import { commentTrashDoubles } from "./comment-trash-doubles.js";
 
 /**
  * @file Certification of `comments_trash_comment`'s confirmation gate — the first of the 7 tools
@@ -56,6 +57,7 @@ async function fakeRouteDeps(options: { allow?: boolean } = {}) {
     hooks: createCommentHookRegistry(),
     clock,
     idGen,
+    ...commentTrashDoubles(),
   });
 
   const deps = {

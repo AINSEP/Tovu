@@ -7,7 +7,7 @@ import type { PackedEntity, PublishContentContributor, PublishContentDeps, Publi
 
 import { importMediaEntity } from "./import-media-entity.js";
 import { computeBlobStorageKey } from "./index.js";
-import type { AssetBlobRepoPort, BlobStorePort, MediaRecord, MediaRepoPort } from "./index.js";
+import type { AssetBlobRepoPort, BlobStorePort, MediaRecord, MediaRepoPort, VersionedMediaRepoPort } from "./index.js";
 
 /**
  * @file Task 12 of the publish-content (Publish Content) feature —
@@ -71,14 +71,16 @@ import type { AssetBlobRepoPort, BlobStorePort, MediaRecord, MediaRepoPort } fro
  * The invariant that makes those row outcomes honest: `importMediaEntity` completes every
  * authoritative validation before its first write and reports a typed block to this wrapper.
  *
- * ## One disclosed limitation, in a file outside this feature directory
+ * ## The optimistic-concurrency guard is now atomic (formerly a disclosed limitation)
  *
- * **The optimistic-concurrency guard here is check-then-write, not atomic.** `MediaRepoPort` has no
- * `saveIfVersion` (contrast `PostRepoPort`'s, which is what makes `updatePost`'s guard a single
- * atomic `UPDATE … WHERE version = ?`), so the freshest possible re-read immediately before the
- * write is the strongest guard available without widening the `@jini-ai/cms` port. The window is
- * narrower than the apply loop's own `inspect()`-to-`apply()` window, so this strictly improves on
- * passing `expectedVersion` through unchecked — but it is not the same guarantee `post` has.
+ * Guard 1 below (the freshest re-read immediately before `importMediaEntity` is called) is an EARLY
+ * refusal only — it exists to avoid fetching blob bytes for an import that is already doomed, not
+ * to be the enforcement point. The real guarantee lives inside `importMediaEntity`
+ * (`import-media-entity.ts`): its `baseVersion` input carries the SAME compare into an atomic
+ * compare-and-set write, `VersionedMediaRepoPort.saveIfVersion`/`insertIfAbsent`, mirroring
+ * `PostRepoPort.saveIfVersion`'s identical role for `updatePost`. A concurrent writer that slips
+ * past Guard 1's read (real blob-store I/O sits between the two) is now caught by that atomic write
+ * instead of silently losing to a last-write-wins `save()`.
  */
 
 /** Empty by design — see this file's header. */
@@ -329,8 +331,9 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
         execute: async (): Promise<{ blobWritten: boolean; version: number | null }> => {
           const existing: MediaRecord | null = priorMedia;
 
-          // Guard 1 — optimistic concurrency. Check-then-write, on the freshest read available (see
-          // this file's header for why `MediaRepoPort` cannot do better today).
+          // Guard 1 — an EARLY refusal only, on the freshest read available BEFORE any blob bytes are
+          // fetched. The real, atomic enforcement is `importMediaEntity`'s compare-and-set write
+          // (see this file's header) — a writer that slips past this read is still caught there.
           if (input.expectedVersion === undefined && existing) {
             throw new MediaApplyConflictError(
               `${entityType} '${input.entity.id}' changed on the destination during apply: expected no existing row, found version ${existing.version}`
@@ -366,8 +369,19 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
               // `importMediaEntity` only reaches `assetBlobRepo.save` when `findByHash` finds
               // nothing, which is what makes the preserved case safe by construction.
               blobCreatedByPrincipal: input.principalId,
+              // The atomic compare-and-set basis — see this file's header (safety property 5,
+              // formerly a disclosed limitation): Guard 1 above already compared the SAME basis
+              // against the freshest read available to IT, but a concurrent writer can still land
+              // between Guard 1's read and this command's own write. `importMediaEntity` carries the
+              // compare into the write itself, so that race can no longer let two importers both win.
+              baseVersion: input.expectedVersion ?? null,
             },
           });
+          if (outcome.status === "conflict") {
+            throw new MediaApplyConflictError(
+              `${entityType} '${input.entity.id}' changed on the destination during apply: ${outcome.reason}`
+            );
+          }
           if (outcome.status === "blocked") {
             const code: MediaApplyBlockedCode =
               outcome.code === "missing-blob"

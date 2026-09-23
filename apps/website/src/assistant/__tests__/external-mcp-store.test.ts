@@ -231,6 +231,33 @@ test("argv is split without shell quoting, and the allowlist de-duplicates", () 
   assert.deepEqual(parseAllowedToolNames(""), []);
 });
 
+test("parseArgs keeps a double-quoted argument containing spaces as ONE argument (Windows paths)", () => {
+  // The desktop shell's win32 registration: a user named "John Smith" puts a space in both paths.
+  const raw =
+    '"C:\\Users\\John Smith\\AppData\\Local\\Programs\\Tovu\\resources\\app\\bin\\mcp-bridge.ts"' +
+    ' --user-data-dir "C:\\Users\\John Smith\\AppData\\Roaming\\tovu-desktop"';
+  assert.deepEqual(parseArgs(raw), [
+    "C:\\Users\\John Smith\\AppData\\Local\\Programs\\Tovu\\resources\\app\\bin\\mcp-bridge.ts",
+    "--user-data-dir",
+    "C:\\Users\\John Smith\\AppData\\Roaming\\tovu-desktop",
+  ]);
+  assert.deepEqual(parseArgs('""'), [""]);
+});
+
+test("parseArgs leaves a quote that does not open a token literal, as before", () => {
+  assert.deepEqual(parseArgs('--name="x" a"b'), ['--name="x"', 'a"b']);
+});
+
+test("parseArgs refuses an unterminated or run-on quoted argument", () => {
+  for (const raw of ['"C:\\Users\\John Smith', '"a b"c']) {
+    assert.throws(
+      () => parseArgs(raw),
+      (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "args",
+      raw,
+    );
+  }
+});
+
 test("an allowlist entry the trust tier would refuse is rejected at save time", () => {
   assert.throws(
     () => parseAllowedToolNames("valid_name, not a valid name"),

@@ -50,7 +50,7 @@ function controller(overrides: Partial<PostsController> = {}): PostsController {
     pendingDelete: null,
     setPendingDelete: vi.fn(),
     createPost: vi.fn(async () => {}),
-    disablePost: vi.fn(async () => {}),
+    togglePostPublish: vi.fn(async () => {}),
     removePost: vi.fn(async () => {}),
     // `Posts.tsx` now destructures this from the hook (moved there in 45537ee2) instead of
     // computing it itself — this fixture fell out of sync with that move. Mirrors

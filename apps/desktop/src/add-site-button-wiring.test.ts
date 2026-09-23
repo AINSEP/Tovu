@@ -32,7 +32,7 @@ import type { ProjectIpcDeps } from "./project-ipc.ts";
 import { addSitePointer } from "./add-site-pointer.ts";
 import { SITE_ORIGIN, sitesFilePath, readTrackedSites } from "./tracked-sites.ts";
 import { classifySiteDirSafely } from "./site-dir-store.ts";
-import { readRegistry, isLiveServeRow } from "./site-process-registry.ts";
+import { readRegistry, isLiveServeRow, registryDirPath } from "./site-process-registry.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -93,7 +93,7 @@ function registerRealHandlers(pickedPath: string | null) {
     openSites: new Map(),
     serializer: { run: (_key: string, fn: () => unknown) => fn() },
     projectsPath,
-    registryPath: path.join(userDataDir, "open-sites.json"),
+    registryPath: registryDirPath(userDataDir),
     repoRoot: "/repo",
     statePath: path.join(userDataDir, "desktop-state.json"),
     cliMode: "source",

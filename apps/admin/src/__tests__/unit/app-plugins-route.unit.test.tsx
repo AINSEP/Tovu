@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from "@testing-library/react";
+import { render as renderWithoutProvider, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { FetchQueryProvider } from "../../lib/fetch-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
@@ -77,3 +79,9 @@ it("AC-25: navigating to /admin/plugins does NOT fall through to <Placeholder>'s
   expect(container.querySelector("main")).toHaveAttribute("data-agent-page", "plugins");
   expect(screen.queryByText(PLACEHOLDER_COPY)).not.toBeInTheDocument();
 });
+
+/** `App` mounts the assistant dock, whose agents list reads through the app's query cache — render
+ *  under the same provider `main.tsx` wraps `App` in. */
+function render(ui: ReactElement) {
+  return renderWithoutProvider(ui, { wrapper: FetchQueryProvider });
+}

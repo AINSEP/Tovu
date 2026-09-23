@@ -26,6 +26,7 @@ import {
   type AdminExternalMcpServer,
   type AdminExternalMcpServerInput,
 } from "@/lib/api";
+import { useSerialWrites } from "@/hooks/use-serial-writes.hooks";
 import { useExternalMcpDriftCopy } from "../ExternalMcpSettingsPanel.hooks";
 import { mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, validateExternalMcpOAuthIdentity } from "../rules";
 
@@ -61,6 +62,14 @@ import { mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, validateExterna
  * returns a stored client secret either.
  */
 
+/** Joins stored argv back into the one-line field the operator edits, double-quoting any argument
+ *  that contains whitespace — the one quoting form the server's `parseArgs` reads — so a re-save
+ *  (e.g. toggling `enabled`) splits it back into the same arguments instead of breaking a path like
+ *  `C:\\Users\\John Smith\\...` in two. @complexity O(n) in the total arg length. */
+function joinArgs(args: readonly string[]): string {
+  return args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg)).join(" ");
+}
+
 function toItem(server: AdminExternalMcpServer): SourceConfigItem {
   return {
     id: server.serverId,
@@ -71,7 +80,7 @@ function toItem(server: AdminExternalMcpServer): SourceConfigItem {
       transport: server.transport,
       command: server.command,
       url: server.url ?? "",
-      args: server.args.join(" "),
+      args: joinArgs(server.args),
       allowedToolNames: server.allowedToolNames.join(", "),
       // The operator's second, write-authorization list — same join convention as
       // `allowedToolNames` immediately above, and round-tripped the same way (never blanked, unlike
@@ -232,51 +241,15 @@ export interface ExternalMcpController {
  * @complexity O(n) per fetch in the configured server count.
  * @overallScore 100
  */
-/**
- * Runs `task` behind whatever `updateSource` write for THIS SAME id is already in flight, so a
- * second concurrent edit never reads `lastKnown` until the first one has actually committed its
- * own result there.
- *
- * The merge in `updateSource` is a read-then-write over `lastKnown` (see that ref's own doc), and
- * nothing else serializes two calls for the same id: `SourceConfigList` can fire a toggle and a
- * field-save close together (e.g. flipping "enabled" while a command edit is still saving), and
- * without this both reads see the SAME pre-write snapshot. Whichever write then lands second wins
- * outright — not merges — because it built its own full-row body from a `previous` that never
- * saw the first write's change, so the field the first write touched (and the second's own patch
- * never named) silently reverts the moment the second write's response arrives. Chaining per id
- * closes that: the second call's `previous` read is delayed until the first call's `lastKnown.set`
- * has actually run, so it merges against the true current state instead of a stale one. Different
- * ids are NOT serialized against each other — they are independent rows with no shared merge base.
- *
- * @complexity O(1) beyond the chained promise itself.
- */
-function chainedSourceWrite(
-  chain: React.MutableRefObject<Map<string, Promise<unknown>>>,
-  id: string,
-  task: () => Promise<SourceConfigItem | null>,
-): Promise<SourceConfigItem | null> {
-  const prior = chain.current.get(id) ?? Promise.resolve();
-  const next = prior.then(task, task);
-  // Swallow the outcome for the CHAIN's own bookkeeping only — `next` itself (returned below)
-  // still carries the real result/rejection to this call's own caller.
-  chain.current.set(
-    id,
-    next.then(
-      () => undefined,
-      () => undefined,
-    ),
-  );
-  return next;
-}
-
 export function useExternalMcp(): ExternalMcpController {
   const [restartRequired, setRestartRequired] = useState(false);
   // `updateSource` receives a PARTIAL patch, but the write route replaces the whole row, so the
   // last-known field values are kept here to merge against. Without this, toggling `enabled` would
   // blank out `command` and the allowlist.
   const lastKnown = useRef(new Map<string, SourceConfigItem>());
-  // Serializes `updateSource` per id — see `chainedSourceWrite`'s own doc for the race this closes.
-  const updateChain = useRef(new Map<string, Promise<unknown>>());
+  // Serializes `updateSource` writes per id, through `useSerialWrites`' keyed lanes — see that
+  // method's own doc for the race this closes.
+  const writes = useSerialWrites();
   // Same bound translator `ExternalMcpToolPicker.tsx` uses for this dictionary (Phase 2C) — reused
   // here rather than re-resolving the locale a second way, so `testSource`'s unreachable-server
   // fallback below stays word-for-word identical to the picker's own copy in every locale, not just
@@ -295,8 +268,8 @@ export function useExternalMcp(): ExternalMcpController {
 
         async addSource(input: AddSourceInput): Promise<AddSourceResult<SourceConfigItem>> {
           const serverId = (input.fields.id ?? "").trim();
-          if (serverId === "") return { ok: false, message: "An ID is required." };
-          const oauthIdentityIssue = validateExternalMcpOAuthIdentity(input.fields);
+          if (serverId === "") return { ok: false, message: t("An ID is required.") };
+          const oauthIdentityIssue = validateExternalMcpOAuthIdentity(input.fields, t);
           if (oauthIdentityIssue) return { ok: false, message: oauthIdentityIssue };
           try {
             const { server } = await api.saveExternalMcpServer(
@@ -308,7 +281,7 @@ export function useExternalMcp(): ExternalMcpController {
             lastKnown.current.set(item.id, item);
             return { ok: true, source: item };
           } catch (e) {
-            return { ok: false, message: describeApiError(e, "That server could not be saved.") };
+            return { ok: false, message: describeApiError(e, t("That server could not be saved.")) };
           }
         },
 
@@ -323,8 +296,26 @@ export function useExternalMcp(): ExternalMcpController {
           }
         },
 
+        /**
+         * Runs the write behind whatever `updateSource` write for THIS SAME id is already in
+         * flight (`writes.run(..., { key: id })`), so a second concurrent edit never reads
+         * `lastKnown` until the first one has actually committed its own result there.
+         *
+         * The merge below is a read-then-write over `lastKnown` (see that ref's own doc), and
+         * nothing else serializes two calls for the same id: `SourceConfigList` can fire a toggle
+         * and a field-save close together (e.g. flipping "enabled" while a command edit is still
+         * saving), and without this both reads see the SAME pre-write snapshot. Whichever write
+         * then lands second wins outright — not merges — because it built its own full-row body
+         * from a `previous` that never saw the first write's change, so the field the first write
+         * touched (and the second's own patch never named) silently reverts the moment the second
+         * write's response arrives. Keying the lane on `id` closes that: the second call's
+         * `previous` read is delayed until the first call's `lastKnown.set` has actually run, so it
+         * merges against the true current state instead of a stale one. Different ids are NOT
+         * serialized against each other — they are independent rows with no shared merge base, and
+         * each gets its own lane.
+         */
         async updateSource(id: string, patch: SourceUpdateInput) {
-          return chainedSourceWrite(updateChain, id, async () => {
+          return writes.run(async () => {
             const previous = lastKnown.current.get(id);
             const merged = mergeSourceUpdate(previous, patch);
             try {
@@ -336,7 +327,7 @@ export function useExternalMcp(): ExternalMcpController {
             } catch {
               return null;
             }
-          });
+          }, { key: id });
         },
 
         /**
@@ -364,7 +355,7 @@ export function useExternalMcp(): ExternalMcpController {
          */
         async testSource(id: string | undefined): Promise<SourceTestResult> {
           if (id === undefined) {
-            return { ok: false, message: "Save this server before you can test it." };
+            return { ok: false, message: t("Save this server before you can test it.") };
           }
           const startedAt = Date.now();
           try {
@@ -380,7 +371,7 @@ export function useExternalMcp(): ExternalMcpController {
         },
       },
     }),
-    [t]
+    [t, writes]
   );
 
   return { dependencies, restartRequired };

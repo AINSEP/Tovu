@@ -4,7 +4,16 @@ import type { SiteProduct } from "../inbound/public-http/http/site/render.js";
 import type { ExportReport } from "#src/platform/export/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 import type { SiteBinding } from "#src/platform/site-dir/index";
+import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
+import type {
+  ForgetRemovedEntity,
+  RemoveEntity,
+  TrashDb,
+  TrashPort,
+  TrashRegistry,
+  TrashSweepOnce,
+} from "#src/features/trash/index";
 import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../contracts/core/commands/index.js";
 import type {
@@ -21,7 +30,7 @@ import type {
 } from "@jini-ai/cms/identity";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin.js";
-import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord } from "../../features/post/index.js";
+import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord, RemovePostFn } from "../../features/post/index.js";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
 import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope.js";
 import type { AgentSessionStore } from "../../assistant/persistence/agent-session-store.js";
@@ -41,6 +50,7 @@ import type {
 import type { CommercePriceRepoPort, CommerceProductRepoPort } from "../../features/commerce/index.js";
 import type { MailerPort } from "../../platform/mail/index.js";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../features/navigation/index.js";
+import type { RemoveMenuFn } from "../../features/navigation/trash-menu.js";
 import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
 import type { WebhookSigner } from "../../features/webhooks/signing.js";
 import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store.js";
@@ -63,17 +73,18 @@ import type {
   BlobStorePort,
   ImageTransformerPort,
   MediaContentTypeStorePort,
-  MediaRepoPort,
   TransformDefinitionRepoPort,
+  VersionedMediaRepoPort,
 } from "../../features/media/index.js";
 // Composition-root-only boot effect, deliberately imported straight from its own file rather than
 // through the `features/media` barrel — same precedent `deps.ts` already follows for
 // `ensureCoreMediaTransform` (not barrel-exported either): this type has no reason to be part of
 // this host's wider public media surface.
 import type { HydrateBlobStoreFromSeedResult } from "../../features/media/hydrate-blob-store-from-seed.js";
+import type { RemoveMediaFn } from "../../features/media/tool-registrations.js";
 import type { OriginRegistryPort } from "../../features/origin/index.js";
 import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../../features/redirects/index.js";
-import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../features/forms/index.js";
+import type { FormDefinitionRepoPort, FormSubmissionRepoPort, RemoveFormSubmissionFn } from "../../features/forms/index.js";
 import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "../../features/comments/index.js";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { LedgerReadPort } from "../../features/database/timeline.js";
@@ -94,6 +105,7 @@ import type { TeardownIndexProvisionerPort } from "../../features/content-types/
 import type { ContentTypeListPort } from "../../features/content-types/index.js";
 import type { EntryRepoPort } from "../../features/entries/index.js";
 import type { EntryListPort } from "../../features/entries/index.js";
+import type { EntryDisplayListPort } from "../../features/entries/public-list.js";
 import type {
   AssignmentCountEntryTermRepoPort,
   DeletableTaxonomyRepoPort,
@@ -112,11 +124,18 @@ import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.j
 import type { LedgerAppendPort } from "../../features/database/gated-hooks.js";
 import type { MergeableEntryTermRepoPort } from "../../features/taxonomy/gated-hooks.js";
 import type { EntryTermReadPort } from "../../features/taxonomy/repo.sqlite.js";
-import type { WidgetRegionBindingRepoPort } from "../../features/widgets/ports.js";
+import type {
+  RemoveTermFn,
+  RemoveTaxonomyFn,
+  TermTrashReadPort,
+  TaxonomyTrashReadPort,
+} from "../../features/taxonomy/trash-term.js";
+import type { WidgetRegionBindingRepoPort, RemoveWidgetFn } from "../../features/widgets/ports.js";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation.js";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
 import type { PluginPackageFiles } from "../../features/plugin-runtime/package-files.js";
+import type { RemovePluginFn } from "../../features/plugin-runtime/uninstall.js";
 import type { DeploymentsReadRepoPort, ExportEngine } from "../../features/deployments/index.js";
 import type { PublishTrustRevocationPort } from "#src/features/publish-trust/revocations";
 import type { PublishContentBundleRepoPort } from "../../features/publish-content/bundle-staging.js";
@@ -211,7 +230,7 @@ export interface MediaDeps {
    * `assetRenditionRepo` are the two core-owned sidecars ADR-027 §2 specifies;
    * `blobStore` is the one real ADR-027 §1 `BlobStorePort`.
    */
-  mediaRepo: MediaRepoPort;
+  mediaRepo: VersionedMediaRepoPort;
   assetBlobRepo: AssetBlobRepoPort;
   assetRenditionRepo: AssetRenditionRepoPort;
   blobStore: BlobStorePort;
@@ -294,7 +313,7 @@ export interface CredentialsDeps {
    * GET/PUT/DELETE `.../assistant/execution-credential` routes. NOT `siteAssistantCredentialRepo`
    * above (that one is per-workspace and backs the public visitor assistant). Sealed via the SAME
    * `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above — see
-   * `db/schema.ts`'s `adminExecutionCredentials` header for why one shared sealing capability is
+   * `db/schema.sqlite.ts`'s `adminExecutionCredentials` header for why one shared sealing capability is
    * correct here rather than a third `KeyringPort` instance. No matching `*Ready` promise, for the
    * same reason `siteAssistantCredentialRepo` has none: a plain table, usable as soon as migrations
    * have run.
@@ -405,13 +424,13 @@ export interface CredentialsDeps {
    * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above — one
    * sealing capability app-wide, same reasoning `publishCredentialSetRepo` already establishes. A
    * deliberately SEPARATE table from `publishCredentialSetRepo` above, not a widened
-   * `PublishProviderId` union — see `src/platform/db/schema.ts`'s `sourceControlCredentialSets` doc comment for
+   * `PublishProviderId` union — see `src/platform/db/schema.sqlite.ts`'s `sourceControlCredentialSets` doc comment for
    * why.
    */
   sourceControlCredentialSetRepo: SourceControlCredentialSetRepoPort;
   /**
    * 2026-08-16 (Phase 3) — the `vendor_credential_sets` repo backing the unified vendor-scoped
-   * credential redesign (`features/vendor-credentials/`; `db/schema.ts`'s `vendorCredentialSets`
+   * credential redesign (`features/vendor-credentials/`; `db/schema.sqlite.ts`'s `vendorCredentialSets`
    * doc has the full "destination vs. vendor" reasoning). Real `SqliteVendorCredentialSetRepo`
    * (`db/sqlite/vendor-credential-repo.sqlite.ts`) in `server/deps.ts`;
    * `InMemoryVendorCredentialSetRepo` in `server/app.ts`'s hermetic composition, same rule-of-two
@@ -436,7 +455,7 @@ export interface CredentialsDeps {
    * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above —
    * one sealing capability app-wide, same reasoning `publishCredentialSetRepo`/
    * `sourceControlCredentialSetRepo` already establish. A deliberately separate table from both of
-   * those and from `vendorCredentialSetRepo` — see `src/platform/db/schema.ts`'s `customCredentialSets` doc
+   * those and from `vendorCredentialSetRepo` — see `src/platform/db/schema.sqlite.ts`'s `customCredentialSets` doc
    * comment for why (no fixed provider-id catalog to join either union, or the vendor table's own
    * vendor-keyed model).
    */
@@ -520,8 +539,11 @@ export interface ContentTaxonomyDeps {
   /** ADR-022/ADR-043 — the `entries` write chokepoint repo, widened with this dispatch's new
    * `EntryListPort` (`features/entries/list.ts`). Also satisfies entries' `ContentTypeLookupPort`
    * structurally when `contentTypeRepo` is passed as its `contentTypeRepo` dep (a `ContentTypeRecord`
-   * is a structural superset of `OwningContentType`). */
-  entryRepo: EntryRepoPort & EntryListPort;
+   * is a structural superset of `OwningContentType`). Widened again by collections plan C2 with
+   * `EntryDisplayListPort` (`features/entries/public-list.ts`) — the `{"type":"collection"}`
+   * marker's bounded published-entry read. No composition-root edit: `deps.ts`'s `SqliteEntryRepo`
+   * and `app.ts`'s `TrashAwareInMemoryEntryRepo` both implement it directly. */
+  entryRepo: EntryRepoPort & EntryListPort & EntryDisplayListPort;
   /** ADR-044 — the `taxonomies`/`terms`/`entry_terms`/`taxonomy_revisions` write chokepoint repos,
    * `taxonomyRepo`/`termRepo` widened with this dispatch's new `TaxonomyListPort`/`TermListPort`
    * (`features/taxonomy/list.ts`). `mergeTerm`'s plan/confirm/execute ceremony is NOT wired this
@@ -534,8 +556,19 @@ export interface ContentTaxonomyDeps {
    * #1/#2): the same guard-and-cascade atomicity `deleteTerm`/`deleteTaxonomy` need, sourced from
    * whichever one repo instance the route wires up as `deps.transaction` — `taxonomyRepo` is the
    * one both delete flows always have, so it is the canonical source. */
-  taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort & DeletableTaxonomyRepoPort & TransactionalRepoPort;
-  termRepo: TermRepoPort & TermListPort & DeletableTermRepoPort;
+  /** Widened once more with `TaxonomyTrashReadPort` (`findForTrash`, a host-only addition — see
+   *  `EntryTermReadPort`'s doc above for why these are declared directly against `repo.sqlite.js`/
+   *  `trash-term.js` rather than folded into a certified Jini port) for `trashTaxonomy`'s read. */
+  taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort & DeletableTaxonomyRepoPort & TransactionalRepoPort & TaxonomyTrashReadPort;
+  /** Widened once more with `TermTrashReadPort` (`findForTrash`) for `trashTerm`'s read — same
+   *  host-only-addition reasoning as `taxonomyRepo` above. */
+  termRepo: TermRepoPort & TermListPort & DeletableTermRepoPort & TermTrashReadPort;
+  /** Bound at composition to the generic trash pipeline (T6, trash parallel plan §2, owner
+   *  decision 5) — `RemoveTermFn` is WIDE (carries `"blocked"`, the `TERM_HAS_CHILDREN` blocker);
+   *  `RemoveTaxonomyFn` is narrowed, same reasoning as `removeWidget`/`removeMenu` elsewhere in
+   *  this file. */
+  removeTerm: RemoveTermFn;
+  removeTaxonomy: RemoveTaxonomyFn;
   /** Widened this dispatch with `MergeableEntryTermRepoPort` (the `mergeTerm` gated-mutation
    * ceremony's by-term enumeration need — see `features/taxonomy/gated-hooks.ts`). Widened again
    * with `AssignmentCountEntryTermRepoPort` for the `deleteTaxonomy`/`deleteTerm` guard. */
@@ -817,6 +850,8 @@ export interface WebhooksDeps {
 export interface FormsDeps {
   formDefinitionRepo: FormDefinitionRepoPort;
   formSubmissionRepo: FormSubmissionRepoPort;
+  /** Moves a submission to the Trash — `bindRemoveEntity(trash, "form_submission")` at composition. */
+  removeFormSubmission: RemoveFormSubmissionFn;
 }
 
 /**
@@ -1132,6 +1167,9 @@ export interface NavigationDeps {
   menuRepo: MenuRepoPort;
   /** The one real ADR-029 port: the derived nav_location_bindings index. */
   navLocationBindingRepo: NavLocationBindingRepoPort;
+  /** Bound at composition to the generic trash pipeline's `removeEntityWithoutBlocker` —
+   *  `RemoveMenuFn`, not the broad `RemoveEntity`, same reasoning as `removeWidget` above. */
+  removeMenu: RemoveMenuFn;
 }
 
 /**
@@ -1326,11 +1364,7 @@ export interface PluginRuntimeDeps {
    * and agent-tool enable paths. Failures reject the enable operation. */
   onPluginEnabled: (pluginId: string) => Promise<void>;
   onPluginDisabled: (pluginId: string) => void;
-  /** Milestone 2 (2026-08-20) — removes a site plugin's on-disk artifact. Mechanism only, same
-   * pre-bound-closure convention as `onPluginEnabled`/`onPluginDisabled` above; the business-rule
-   * gating (not-found / built-in / still-enabled-somewhere) lives in
-   * `features/plugin-runtime/uninstall.ts`'s `uninstallPlugin()`, the route's actual entry point. */
-  onPluginUninstalled: (pluginId: string) => Promise<void>;
+  removePlugin: RemovePluginFn;
   /** 2026-09-13 — pre-bound, read-only, bounded listing of one discovered plugin's own files
    * (`PLUGIN_FILES`). Path safety lives in the binding (`plugin-runtime.ts`) and
    * `features/plugin-runtime/package-files.ts`; the route only authorizes and resolves the record. */
@@ -1347,7 +1381,83 @@ export interface PublishTrustRevocationDeps {
   publishTrustRevocations: PublishTrustRevocationPort;
 }
 
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & {
+/**
+ * The local admin Trash (design: `ADS-memory/reports/2026-09-20-trash-delete-architecture.md`).
+ *
+ * `trash` is the whole port, read by the Trash screen's own routes. The `remove*` fields are
+ * the SAME service pre-bound to one entity type each, and they are what the delete paths receive —
+ * a delete path takes exactly one of them and therefore cannot address another domain's entities by
+ * passing the wrong string. Each performs the marker flip AND the Trash index write as one
+ * transaction; there is deliberately no field here that does only half of it.
+ *
+ * Pre-bound per domain rather than a `removeFor(entityType)` lookup at the call site, because a
+ * lookup puts a typo-able string in every route and defers a wiring mistake to runtime.
+ */
+export interface TrashDeps {
+  trash: TrashPort;
+  // `RemovePostFn`, not the broad `RemoveEntity`: `deletePost` (`features/post/post.ts`) declares its
+  // own narrower structural type with no `"blocked"` branch (post has no `TrashBlockerSpec`, T1). The
+  // composition root narrows `bindRemoveEntity`'s wider result to match (`removeEntityWithoutBlocker`
+  // in `deps.ts`/`app.ts`) so this field's promise is actually kept.
+  removePost: RemovePostFn;
+  removeComment: RemoveEntity;
+  // `RemoveMediaFn`, not the broad `RemoveEntity` — same reasoning as `removePost` above:
+  // `media_trash_asset` (`features/media/tool-registrations.ts`) declares its own narrower
+  // structural type with no `"blocked"` branch (media has no `TrashBlockerSpec`, T1).
+  removeMedia: RemoveMediaFn;
+  removeRedirect: RemoveEntity;
+  // `RemoveWidgetFn`, not the broad `RemoveEntity` — same reasoning as `removePost` above:
+  // `trashWidgetInstance` (`features/widgets/ports.ts`) declares its own narrower structural type
+  // with no `"blocked"` branch (widget has no `TrashBlockerSpec`, T1).
+  removeWidget: RemoveWidgetFn;
+  /**
+   * Media alone needs this pair: its ladder has a HUMAN hard-purge rung of its own
+   * (`routes/media/delete.ts`, gated by `media.delete.force`) that removes the row outside the
+   * Trash screen, so the index row has to be dropped with it. See {@link ForgetRemovedEntity}.
+   */
+  forgetRemovedMedia: ForgetRemovedEntity;
+  /**
+   * Posts need it for a different reason than media: nothing removes a post row outside the Trash
+   * screen, but two paths UNDO a delete after its transaction has already committed — the command
+   * gateway's `rollback` (the change-set record failed to persist) and `post/delete`'s
+   * `EntityReverter` (an operator reverting the recorded change set). Either one that clears the
+   * marker without this leaves a live, published post listed in the Trash and selectable for
+   * permanent deletion. See {@link ForgetRemovedEntity}.
+   */
+  forgetRemovedPost: ForgetRemovedEntity;
+  /**
+   * One pass of the 60-day auto-purge backstop, pre-bound to this composition's repo and adapters.
+   *
+   * A function rather than the repo-plus-adapters the sweep needs, for the same reason the
+   * `remove*` fields are pre-bound: `RouteDeps` is handed to every route, and a route that could
+   * reach `TrashRepoPort` directly could delete an index row without touching the entity.
+   * `server/runtime/composition/serving-app.ts` is the only caller — it owns the timer.
+   */
+  sweepTrash: TrashSweepOnce;
+  /**
+   * Whether this composition registered a Trash adapter for `entityType`: a read of the live adapter
+   * map, on every call, never a list captured once. `trash_item` checks it before it touches
+   * anything, so a model-supplied kind the Trash cannot hold is refused rather than trusted.
+   *
+   * A predicate rather than the map: the adapters carry `purge`, and nothing handed to every route
+   * may reach a hard delete.
+   */
+  isTrashableEntityType: (entityType: string) => boolean;
+  /**
+   * `TRASHABLE`, built once at composition from the live schema module (`registry.ts`). Read by
+   * `moveToTrash` (the generic `POST .../trash/items` route) and by `permissions.ts`'s
+   * `trashPermissionFor`/`mayActOnEntityType`/`filterVisibleTrashItems`, which `list.ts`/`restore.ts`/
+   * `purge.ts` already call with this same deps object — one field serves both concerns. Named to
+   * match `TrashRouteDeps.registry` exactly, since `RouteDeps` is passed there unchanged.
+   */
+  registry: TrashRegistry;
+  /** The dialect-neutral DB port `moveToTrash` reads the entity's live display/version through —
+   *  same instance `deps.ts` used to build every registry-derived `TrashAdapter`. Named to match
+   *  `TrashRouteDeps.db`. */
+  db: TrashDb;
+}
+
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {
   workspaceRepo: WorkspaceRepoPort;
   /**
    * Durable AI chat history, obtained per-principal.
@@ -1515,6 +1625,16 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * falls back to `describeSiteBinding()`, an unchanged default.
    */
   siteBinding: SiteBinding;
+  /**
+   * Where `features/site-backup`'s `site_backup_plan` reads this site's files from: the site folder
+   * (`siteBinding.dir`), and the SAME uploads, themes, agent-plugins and skills roots this process
+   * serves them from, plus the Tovu version stamped into the backup's manifest. Resolved once by
+   * `server/runtime/composition/deps.ts`'s `createSqliteRouteDeps()`.
+   *
+   * Optional because the in-memory `server/app.ts` runtime has no site folder on disk; both
+   * site-backup tools then answer `UNAVAILABLE` instead of backing up nothing.
+   */
+  siteBackupSources?: SiteBackupSources;
   /**
    * `TOVU_ADMIN_ASSISTANT` off switch, read ONCE at boot (`admin-assistant-enabled.ts`'s
    * `isAdminAssistantEnabled()`) by both composition roots — `server/app.ts`'s `createRouteDeps()`

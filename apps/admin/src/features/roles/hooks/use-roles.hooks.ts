@@ -56,6 +56,13 @@ import type { RolesPort } from "./roles-port.hooks";
  * render by design — there is no `useEffect([port])` in this file for `port` to be listed in wrongly.
  */
 
+/** The permission row a Roles-screen "Remove" click is asking to confirm before it becomes a
+ *  durable write — see {@link RolesController.pendingPermissionRemove}'s doc comment. */
+export interface PendingPermissionRemove {
+  policyId: string;
+  row: AdminPolicyPermission;
+}
+
 export interface RolesController {
   roles: AdminRole[] | null;
   policies: AdminPolicy[] | null;
@@ -113,6 +120,17 @@ export interface RolesController {
    *  page-wide spinner (same reasoning as `rowSavingId`). */
   removingPermissionId: string | null;
   onRemovePermission: (policyId: string, policyPermissionId: string) => Promise<void>;
+
+  /** The permission row a Remove click is asking to confirm — `null` when the dialog is closed.
+   *  Same "ConfirmDialog stays mounted, this drives its `open` prop" shape as `pendingRoleDelete`/
+   *  `pendingPolicyDelete` above. Removing a permission from a policy that is currently attached to
+   *  someone changes their live authority immediately, and there is no undo route open to anyone
+   *  but an owner — see this file's header note on OQ-10/C1 for the lockout analysis that ruled a
+   *  server-side guard unnecessary here (INV-06 + INV-08 already prevent a workspace lockout); this
+   *  dialog exists for the one risk that IS reachable, a one-click self-demotion. */
+  pendingPermissionRemove: PendingPermissionRemove | null;
+  setPendingPermissionRemove: (target: PendingPermissionRemove | null) => void;
+  onConfirmRemovePermission: () => Promise<void>;
 
   /** The role a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
    *  closed. `ConfirmDialog` stays mounted unconditionally below (see its own doc comment on why);
@@ -201,7 +219,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
   });
   const roles = list.data?.roles ?? null;
   const policies = list.data?.policies ?? null;
-  const error = list.error ? describeApiError(list.error, t(locale, "failed to load roles/policies")) : null;
+  const error = list.error ? describeApiError(list.error, t(locale, "failed to load roles/policies"), locale) : null;
 
   const [rowError, setRowError] = useState<string | null>(null);
 
@@ -235,6 +253,17 @@ export function useRoles(deps: RolesDependencies): RolesController {
   // one shared field across every action in this hook) is dropped instead of overwriting whichever
   // policy's rows the operator is actually looking at now.
   const permissionsGenerationRef = useRef(0);
+  // C2 (N1 fix) — which policy's panel is actually open right now, so `onWritePermission`'s and
+  // `onRemovePermission`'s trailing `loadPermissions(policyId)` can tell "the operator switched to a
+  // DIFFERENT policy's panel while my write was in flight" apart from "still on the same panel".
+  // `permissionsGenerationRef` cannot express this: the trailing refresh mints the NEWEST generation
+  // by construction (it starts after the write that preceded it), so it always wins even when the
+  // panel has moved on — that was the actual bug (see the trailing-refresh call sites below). A ref
+  // holding the CURRENTLY open policy id is an equality check ("is the panel still on policy X"),
+  // not an ordering check ("was this the latest call") — same "activeEntityRef" idiom as
+  // `use-widget-instance-editor`'s `activeEntityRef` and `use-term-detail-panel`'s
+  // `activeTermIdRef`. Written only by `togglePermissionForm`.
+  const permissionPolicyIdRef = useRef<string | null>(null);
 
   // The row a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
   // closed. `ConfirmDialog` stays mounted unconditionally below (see its own doc comment on why);
@@ -242,6 +271,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
   // are independent operations with their own copy, not because anything shares data between them.
   const [pendingRoleDelete, setPendingRoleDelete] = useState<AdminRole | null>(null);
   const [pendingPolicyDelete, setPendingPolicyDelete] = useState<AdminPolicy | null>(null);
+  const [pendingPermissionRemove, setPendingPermissionRemove] = useState<PendingPermissionRemove | null>(null);
 
   const createRoleMutation = useFetchMutation({
     run: (name: string) => port.createRole(name),
@@ -323,7 +353,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
       await saveRoleMutation.mutate({ roleId, name: editingRoleName });
       setEditingRoleId((current) => (current === roleId ? null : current));
     } catch (e) {
-      setRowError(describeApiError(e, t(locale, "failed to rename role")));
+      setRowError(describeApiError(e, t(locale, "failed to rename role"), locale));
     } finally {
       setRowSavingId((current) => (current === roleId ? null : current));
     }
@@ -349,7 +379,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
       setRowSavingId,
       setRowError,
       () => setPendingRoleDelete((current) => (current?.id === role.id ? null : current)),
-      (e) => describeApiError(e, t(locale, "failed to delete role")),
+      (e) => describeApiError(e, t(locale, "failed to delete role"), locale),
     );
   }
 
@@ -369,7 +399,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
       await savePolicyMutation.mutate({ policyId, name: editingPolicyName, description: editingPolicyDescription });
       setEditingPolicyId((current) => (current === policyId ? null : current));
     } catch (e) {
-      setRowError(describeApiError(e, t(locale, "failed to update policy")));
+      setRowError(describeApiError(e, t(locale, "failed to update policy"), locale));
     } finally {
       setRowSavingId((current) => (current === policyId ? null : current));
     }
@@ -386,7 +416,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
       setRowSavingId,
       setRowError,
       () => setPendingPolicyDelete((current) => (current?.id === policy.id ? null : current)),
-      (e) => describeApiError(e, t(locale, "failed to delete policy")),
+      (e) => describeApiError(e, t(locale, "failed to delete policy"), locale),
     );
   }
 
@@ -406,24 +436,28 @@ export function useRoles(deps: RolesDependencies): RolesController {
     } catch (e) {
       if (permissionsGenerationRef.current !== generation) return;
       setPermissionRows([]);
-      setRowError(describeApiError(e, t(locale, "failed to load permissions")));
+      setRowError(describeApiError(e, t(locale, "failed to load permissions"), locale));
     } finally {
       if (permissionsGenerationRef.current !== generation) return;
       setPermissionsLoading(false);
     }
   }
 
+  // No side effects inside the `setPermissionPolicyId` updater (2026-09-20 fix, C2/N1): React 18
+  // Strict Mode double-invokes a functional `setState` updater in dev, so the old shape (this
+  // function's body used to live inside that updater) fired `loadPermissions` twice per open. The
+  // updater is now a pure `current === policyId` read; every side effect (the ref write, the row
+  // clear, the load) runs once, in the function body, after the updater has been called.
   function togglePermissionForm(policyId: string) {
     setRowError(null);
     setPermissionInput("");
     setResourceTypeInput("");
-    setPermissionPolicyId((current) => {
-      const closing = current === policyId;
-      // Clear first either way, so a re-open never flashes the previous policy's permissions.
-      setPermissionRows([]);
-      if (!closing) void loadPermissions(policyId);
-      return closing ? null : policyId;
-    });
+    const closing = permissionPolicyIdRef.current === policyId;
+    permissionPolicyIdRef.current = closing ? null : policyId;
+    setPermissionPolicyId(permissionPolicyIdRef.current);
+    // Clear first either way, so a re-open never flashes the previous policy's permissions.
+    setPermissionRows([]);
+    if (!closing) void loadPermissions(policyId);
   }
 
   async function onRemovePermission(policyId: string, policyPermissionId: string) {
@@ -431,11 +465,35 @@ export function useRoles(deps: RolesDependencies): RolesController {
     setRowError(null);
     try {
       await removePermissionMutation.mutate({ policyId, policyPermissionId });
-      await loadPermissions(policyId);
+      // Refresh only while the panel is still on THIS policy (C2/N1 fix) — see
+      // `permissionPolicyIdRef`'s doc comment above. `loadPermissions`'s generation guard orders
+      // same-policy loads against each other; it does not protect against a newer call for a
+      // DIFFERENT policy, and this trailing call always mints the newest generation by
+      // construction, so it used to win even after the operator moved to another policy's panel.
+      if (permissionPolicyIdRef.current === policyId) await loadPermissions(policyId);
     } catch (e) {
-      setRowError(describeApiError(e, t(locale, "failed to remove permission")));
+      setRowError(describeApiError(e, t(locale, "failed to remove permission"), locale));
     } finally {
-      setRemovingPermissionId(null);
+      // Keyed functional update (same fix class as `runRowDelete`'s `setRowSavingId` above):
+      // nothing gates starting a removal on a SECOND row while this one is still in flight, so an
+      // unconditional reset would clear a still-in-flight newer removal's own busy indicator.
+      setRemovingPermissionId((current) => (current === policyPermissionId ? null : current));
+    }
+  }
+
+  /** C1 — the Remove button no longer calls {@link onRemovePermission} directly; it stages the
+   *  target row here and a shell `ConfirmDialog` calls this to actually remove it. Clears the
+   *  pending selection in `finally` regardless of outcome (a failure surfaces through `rowError`,
+   *  same as every other row action), keyed on the row's own id so a stale confirm settling after
+   *  the operator has already opened a DIFFERENT row's confirmation does not dismiss it — same
+   *  guard shape as `onDeleteRole`/`onDeletePolicy`'s `clearPending`. */
+  async function onConfirmRemovePermission() {
+    if (!pendingPermissionRemove) return;
+    const target = pendingPermissionRemove;
+    try {
+      await onRemovePermission(target.policyId, target.row.id);
+    } finally {
+      setPendingPermissionRemove((current) => (current?.row.id === target.row.id ? null : current));
     }
   }
 
@@ -461,21 +519,24 @@ export function useRoles(deps: RolesDependencies): RolesController {
         setResourceTypeInput("");
       }
       // The row the write just created has to appear in the list, or its Remove button would not
-      // exist until the form was closed and re-opened. Safe to call even when superseded —
-      // `loadPermissions` guards its own state writes against exactly that.
-      await loadPermissions(policyId);
+      // exist until the form was closed and re-opened. Refresh only while the panel is still on
+      // THIS policy (C2/N1 fix, same guard and reasoning as `onRemovePermission` above) — this
+      // trailing call always mints the newest generation, so `loadPermissions`'s OWN generation
+      // guard cannot tell "superseded by a different policy's open" apart from "just the latest
+      // load for this one"; only `permissionPolicyIdRef`'s equality check can.
+      if (permissionPolicyIdRef.current === policyId) await loadPermissions(policyId);
     } catch (e) {
-      setRowError(describeApiError(e, t(locale, "failed to add permission")));
+      setRowError(describeApiError(e, t(locale, "failed to add permission"), locale));
     } finally {
       setRowSavingId((current) => (current === policyId ? null : current));
     }
   }
 
   const roleSaving = createRoleMutation.status === "pending";
-  const roleError = createRoleMutation.error ? describeApiError(createRoleMutation.error, t(locale, "failed to create role")) : null;
+  const roleError = createRoleMutation.error ? describeApiError(createRoleMutation.error, t(locale, "failed to create role"), locale) : null;
   const policySaving = createPolicyMutation.status === "pending";
   const policyError = createPolicyMutation.error
-    ? describeApiError(createPolicyMutation.error, t(locale, "failed to create policy"))
+    ? describeApiError(createPolicyMutation.error, t(locale, "failed to create policy"), locale)
     : null;
 
   return {
@@ -528,6 +589,10 @@ export function useRoles(deps: RolesDependencies): RolesController {
     permissionsLoading,
     removingPermissionId,
     onRemovePermission,
+
+    pendingPermissionRemove,
+    setPendingPermissionRemove,
+    onConfirmRemovePermission,
 
     pendingRoleDelete,
     setPendingRoleDelete,

@@ -333,7 +333,11 @@ export async function startAgUiRun(input: StartRunInput, handlers: RunHandlers):
           finish();
           return;
         }
+        // Error THEN finish: an errored Observable never calls `complete`, so without this the turn
+        // is never settled and the events collected before the failure never reach `onDone`. Same
+        // order as `subscribeToRun`'s `end` listener, so the run is still recorded as failed.
         handlers.onError(err);
+        finish();
       },
       complete: () => {
         finish();

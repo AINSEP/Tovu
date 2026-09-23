@@ -47,6 +47,9 @@ function makeDeps(rows: PostRecord[]) {
     outbox,
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
+    // Required by `apply()`'s guard: its rollback restores through `restorePostForward`, which
+    // needs the Trash-index forget. Nothing in this file trashes a post, so it never fires.
+    forgetRemovedPost: async () => {},
   };
 }
 

@@ -122,6 +122,19 @@ describe("useExternalMcp — fetchSources / toItem", () => {
     ]);
   });
 
+  it("double-quotes an arg containing a space so a re-save splits it back into ONE arg", async () => {
+    // The desktop shell's win32 row: a username with a space in it. `parseArgs` on the server reads
+    // `"..."` as one argument; a bare join would re-save it as two broken ones.
+    listExternalMcpServers.mockResolvedValue({
+      servers: [server({ args: ["C:\\Users\\John Smith\\bridge.ts", "--user-data-dir", "C:\\Users\\John Smith\\ud"] })],
+    });
+    const { result } = renderHook(() => useExternalMcp());
+
+    const items = await result.current.dependencies.port.fetchSources();
+
+    expect(items[0]!.fields.args).toBe('"C:\\Users\\John Smith\\bridge.ts" --user-data-dir "C:\\Users\\John Smith\\ud"');
+  });
+
   it("joins writeAllowedToolNames the same way as allowedToolNames, comma-separated", async () => {
     listExternalMcpServers.mockResolvedValue({
       servers: [server({ allowedToolNames: ["read_file", "generate_image"], writeAllowedToolNames: ["generate_image"] })],
@@ -375,6 +388,43 @@ describe("useExternalMcp — updateSource", () => {
     const [, secondBody] = saveExternalMcpServer.mock.calls[1]!;
     expect(secondBody.enabled).toBe(false);
     expect(secondBody.command).toBe("newcmd");
+  });
+
+  it("an update for a DIFFERENT id is not held behind a still-pending update for another id", async () => {
+    // Different ids are independent rows with no shared merge base, so each gets its own lane — a
+    // slow save of one server must not delay a save of another.
+    listExternalMcpServers.mockResolvedValue({
+      servers: [server({ serverId: "alpha" }), server({ serverId: "beta" })],
+    });
+    let releaseAlpha!: () => void;
+    saveExternalMcpServer.mockImplementation((id: string) => {
+      if (id === "alpha") {
+        return new Promise((resolve) => {
+          releaseAlpha = () => resolve({ server: server({ serverId: "alpha", enabled: false }), restartRequired: true });
+        });
+      }
+      return Promise.resolve({ server: server({ serverId: id, enabled: false }), restartRequired: true });
+    });
+    const { result } = renderHook(() => useExternalMcp());
+    await result.current.dependencies.port.fetchSources();
+
+    let alpha!: Promise<unknown>;
+    let beta!: Promise<unknown>;
+    act(() => {
+      alpha = result.current.dependencies.port.updateSource!("alpha", { enabled: false });
+      beta = result.current.dependencies.port.updateSource!("beta", { enabled: false });
+    });
+
+    // beta reaches the server, and settles, while alpha's save is still parked.
+    await waitFor(() => expect(saveExternalMcpServer.mock.calls.map(([id]) => id)).toEqual(["alpha", "beta"]));
+    await act(async () => {
+      await expect(beta).resolves.toMatchObject({ id: "beta", enabled: false });
+    });
+
+    await act(async () => {
+      releaseAlpha();
+      await expect(alpha).resolves.toMatchObject({ id: "alpha", enabled: false });
+    });
   });
 });
 

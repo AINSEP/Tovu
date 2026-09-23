@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { ApiError, describeApiError, type AdminWidget, type AdminWidgetType } from "@/lib/api";
-import { WIDGETS_LIBRARY_RESOURCE, describeReferencingLocations } from "../rules";
+import { WIDGETS_LIBRARY_RESOURCE } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
-import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
+import { t as translate } from "../widgets-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
 import { defaultWidgetsPort } from "./widgets-dependencies.hooks";
 import type { WidgetsPort } from "./widgets-port.hooks";
@@ -13,10 +13,12 @@ import type { WidgetsPort } from "./widgets-port.hooks";
 /**
  * @file Everything the `WidgetsLibrary` screen does, so `WidgetsLibrary.tsx` is only markup.
  *
- * Extracted verbatim — same state, same order, same effect, same error handling. The doc comments
- * below moved WITH the functions they describe; several are decision records (why the escalation
- * gates on `ConfirmDialog` instead of `window.confirm`, why the skipped-row count is a quiet note
- * rather than an error) and a comment separated from its code stops being read.
+ * Trash rewrite (2026-09-21, `trash-delete-architecture.md`): the widget-specific purge/
+ * force-purge escalation (`WIDGETS_REFERENCED` 409, "Delete permanently") is gone — the server's
+ * widget purge route was removed, and every admin delete button now goes through the generic
+ * `POST .../trash/items` (`port.trashWidget`, which binds to `api.trash({ type: "widget", id })`).
+ * `load()` no longer asks for `includeInactive` — the server's default (active-only) already does
+ * what this screen wants, since a trashed widget belongs on the Trash screen, not here.
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local
  * because nothing outside `features/widgets` needs it.
@@ -54,19 +56,22 @@ export interface WidgetsLibraryController {
   /** `null` until the initial load settles — the caller renders a loading state. */
   widgets: AdminWidget[] | null;
   error: string | null;
-  /** Count of widget-instance rows the server silently skipped (unparseable `fields_json`) — see
-   *  the state's own declaration below for the full Dossier C5 rationale. `0` and `undefined` both
-   *  mean "nothing to say". */
+  /** Count of widget-instance records the server could not read (unparseable `fields_json`).
+   *  `0` and `undefined` both mean "nothing to say". */
   skippedCount: number;
+  /** IDs of the malformed widget records counted in {@link skippedCount}. */
+  skippedIds: string[];
   createType: AdminWidgetType;
   setCreateType: (type: AdminWidgetType) => void;
-  /** The widget + its referencing-locations summary a `WIDGETS_REFERENCED` 409 is asking to
-   *  force-purge past — `null` when the dialog is closed. */
-  pendingForcePurge: { widget: AdminWidget; summary: string } | null;
-  cancelForcePurge: () => void;
-  forcePurging: boolean;
-  confirmForcePurge: () => Promise<void>;
-  trashOrPurge: (widget: AdminWidget) => Promise<void>;
+  /** The widget a "Trash" click is asking to confirm — `null` when the dialog is closed. Set by
+   *  `requestTrash`; no network call happens until {@link confirmTrash}. */
+  pendingTrash: AdminWidget | null;
+  /** True only while the CONFIRMED trash for {@link pendingTrash} is in flight — same
+   *  `pendingX !== null && xId === pendingX.id` shape `use-media.hooks.ts` uses. */
+  trashing: boolean;
+  requestTrash: (widget: AdminWidget) => void;
+  confirmTrash: () => Promise<void>;
+  cancelTrash: () => void;
   /** Bound translator — `WidgetsLibrary.tsx`'s only source of UI copy; see this file's own header. */
   t: Translate;
   /** The raw resolved locale — exposed only because `widgetTypeLabel` (`../rules.ts`) genuinely
@@ -79,41 +84,42 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
   const [error, setError] = useState<string | null>(null);
   // Dossier C5 follow-up (2026-08-03): `listWidgetInstances` silently skips a widget-instance row
   // whose `fields_json` doesn't parse into the expected shape, rather than 500ing the whole
-  // screen — correct, but it used to be invisible. The server now counts the skips; this just
-  // surfaces that count as a quiet note, never as an error (nothing failed — some rows just
-  // aren't shown). `undefined`/`0` both mean "nothing to say", handled identically below.
+  // screen — correct, but it used to be invisible. The server now returns the skip count and
+  // record IDs; this surfaces them as a quiet note, never as an error. `undefined`/`0` both mean
+  // "nothing to say", handled identically below.
   const [skippedCount, setSkippedCount] = useState<number>(0);
+  const [skippedIds, setSkippedIds] = useState<string[]>([]);
   const [createType, setCreateType] = useState<AdminWidgetType>("text");
-  // The widget + its referencing-locations summary a `WIDGETS_REFERENCED` 409 (below) is asking to
-  // force-purge past — `null` when the dialog is closed. `ConfirmDialog` stays mounted
-  // unconditionally below (see its own doc comment on why); this is what drives its `open` prop.
-  const [pendingForcePurge, setPendingForcePurge] = useState<{ widget: AdminWidget; summary: string } | null>(null);
-  const [forcePurging, setForcePurging] = useState(false);
-  // Monotonic per-call id (extracted into `useSettlementGeneration` 2026-09-06, same shape as
-  // `use-theme-explore.hooks.ts`'s own `renameSettlement`): nothing disables a row's delete button
-  // during a widget's FIRST purge attempt (`force: false`, before any dialog is showing), so the
-  // operator can click "Delete permanently" on two DIFFERENT widgets back to back, racing two
-  // independent `WIDGETS_REFERENCED` 409s. Without this, whichever 409 lands LAST wins
-  // `pendingForcePurge` regardless of click order — and confirming that dialog calls
-  // `port.purgeWidget` with THAT widget's id, so the bug is not just cosmetic: it force-purges the
-  // WRONG widget.
-  const purgeSettlement = useSettlementGeneration();
+  // The widget a "Trash" click is asking to confirm — `null` when the dialog is closed.
+  // `ConfirmDialog` stays mounted unconditionally in `WidgetsLibrary.tsx`; this is what drives its
+  // `open` prop.
+  const [pendingTrash, setPendingTrash] = useState<AdminWidget | null>(null);
+  const [trashingId, setTrashingId] = useState<string | null>(null);
+  // Latest-wins guard for `load()` (S1, plan-content2.md 2026-09-20): a mount read, the content
+  // refresh bus, and a write-triggered reload can all be in flight together with no ordering
+  // guarantee between them. Without this, trashing A then B races two `load()` calls — if A's
+  // stale read answers after B's, B renders as present again even though the server already
+  // trashed it. Its siblings `use-widget-regions.hooks.ts` and `use-widget-region-editor.hooks.ts`
+  // guard the same shape.
+  const loadSettlement = useSettlementGeneration();
 
   const load = useCallback(() => {
+    const generation = loadSettlement.next();
     port
-      .listWidgets({ includeInactive: true })
+      .listWidgets()
       .then((r) => {
-        // `includeInactive: true` deliberately asks the server for both `trash` and `purged` rows
-        // (see `src/server/routes/admin/widgets/list.ts`), because `purgeWidgetInstance` never
-        // hard-deletes — ADR-047 Amendment 4: "never deleted, only active⇄disabled" — it only
-        // flips status to the terminal `purged` state. `trash` stays reversible and visible here
-        // (its row still offers "Delete permanently"); `purged` has nothing left to do or show, so
-        // it's filtered out client-side rather than dropped from the wire contract other
-        // `includeInactive` callers may still rely on.
-        setWidgets(r.widgets.filter((w) => w.status !== "purged"));
+        if (!loadSettlement.isCurrent(generation)) return;
+        // No `includeInactive` — the server's default (active-only) is exactly this screen's view
+        // now that a trashed widget is the Trash screen's concern, not this list's. See this
+        // file's own header for why the old client-side `purged` filter is gone too.
+        setWidgets(r.widgets);
         setSkippedCount(r.skippedCount ?? 0);
+        setSkippedIds(r.skippedIds ?? []);
       })
-      .catch((e) => setError(describeApiError(e, translate(locale, "failed to load widgets"))));
+      .catch((e) => {
+        if (!loadSettlement.isCurrent(generation)) return;
+        setError(describeApiError(e, translate(locale, "failed to load widgets")));
+      });
     // `port` is added — see `use-page-editor.hooks.ts`'s identical note: a function-scoped value
     // ESLint's exhaustive-deps rule can see, referentially stable in production, so this changes
     // nothing about when this callback's identity changes.
@@ -123,84 +129,58 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
   useEffect(load, [load]);
   useContentRefreshSubscription(WIDGETS_LIBRARY_RESOURCE, load);
 
-  /** REQ-42/`ui.spec.md` §4.2: the first purge attempt is always `force: false` — only on a
-   * `WidgetReferencedError` 409 (naming every referencing location) does a `force: true` retry
-   * become an option, and only after an explicit confirmation. Never `force` on the first try.
+  /** Opens the "Move to trash?" confirm for `widget` — no network call happens until
+   *  {@link confirmTrash}. */
+  function requestTrash(widget: AdminWidget) {
+    setError(null);
+    setPendingTrash(widget);
+  }
+
+  function cancelTrash() {
+    setPendingTrash(null);
+  }
+
+  /** The confirmed trash request. Maps the two error shapes the generic Trash route defines
+   *  (`items.ts`): a `409 TRASH_VERSION_CHANGED` (the row changed since this screen last read it —
+   *  shown so the operator can reload) and a `404 NOT_FOUND` (it's already gone — no error to show,
+   *  just a quiet re-read so the row drops out of the list). Any other failure falls back to the
+   *  generic "delete failed" message.
    *
-   * The escalation confirmation now gates via a `ConfirmDialog` modal (`setPendingForcePurge`)
-   * rather than a `window.confirm` built from the same dynamic "still used in: ..." message —
-   * computed here, at the point the 409 is caught, same as before; only where it's rendered
-   * (a real dialog body instead of a blocking prompt string) changed. */
-  async function purge(widget: AdminWidget) {
-    const generation = purgeSettlement.next();
+   * @complexity Time/space: O(1) plus `load()`'s own re-read cost. */
+  async function confirmTrash() {
+    if (!pendingTrash) return;
+    const widget = pendingTrash;
+    setTrashingId(widget.id);
     setError(null);
     try {
-      await port.purgeWidget({ id: widget.id }, { force: false });
+      await port.trashWidget(widget.id);
       load();
     } catch (e) {
-      if (e instanceof ApiError && e.code === "WIDGETS_REFERENCED") {
-        // Superseded by a newer purge attempt (on ANY widget) started after this one — that later
-        // attempt owns `pendingForcePurge` now, and opening this stale 409's dialog would let
-        // whichever attempt happens to 409 LAST win regardless of which widget was actually
-        // clicked last. See `purgeSettlement`'s doc comment above.
-        if (!purgeSettlement.isCurrent(generation)) return;
-        const locations = (e.body?.details as { referencingLocations?: Array<{ kind: string; entryId: string }> } | undefined)?.referencingLocations ?? [];
-        const summary = describeReferencingLocations(locations);
-        setPendingForcePurge({ widget, summary });
-        return;
-      }
-      setError(describeApiError(e, translate(locale, "delete failed")));
-    }
-  }
-
-  async function confirmForcePurge() {
-    if (!pendingForcePurge) return;
-    const { widget } = pendingForcePurge;
-    setForcePurging(true);
-    try {
-      await port.purgeWidget({ id: widget.id }, { force: true });
-      load();
-    } catch (e2) {
-      setError(describeApiError(e2, translate(locale, "force-purge failed")));
-    } finally {
-      setForcePurging(false);
-      // Only close the dialog for THIS widget — a newer purge attempt (started while this
-      // force-purge was in flight) may have already opened `pendingForcePurge` for a DIFFERENT
-      // widget, and an unconditional reset would silently dismiss that one too. Same shape as
-      // `use-roles.hooks.ts`'s `runRowDelete`'s `clearPending` fix.
-      setPendingForcePurge((current) => (current?.widget.id === widget.id ? null : current));
-    }
-  }
-
-  async function trashOrPurge(widget: AdminWidget) {
-    setError(null);
-    try {
-      if (widget.status === "active") {
-        await port.trashWidget(widget.id);
+      if (e instanceof ApiError && e.code === "NOT_FOUND") {
         load();
-        return;
+      } else if (e instanceof ApiError && e.code === "TRASH_VERSION_CHANGED") {
+        setError(translate(locale, "This item changed since you loaded it. Reload and try again."));
+      } else {
+        setError(describeApiError(e, translate(locale, "delete failed")));
       }
-      await purge(widget);
-    } catch (e) {
-      setError(describeApiError(e, translate(locale, "delete failed")));
+    } finally {
+      setTrashingId((current) => (current === widget.id ? null : current));
+      setPendingTrash((current) => (current?.id === widget.id ? null : current));
     }
-  }
-
-  function cancelForcePurge() {
-    setPendingForcePurge(null);
   }
 
   return {
     widgets,
     error,
     skippedCount,
+    skippedIds,
     createType,
     setCreateType,
-    pendingForcePurge,
-    cancelForcePurge,
-    forcePurging,
-    confirmForcePurge,
-    trashOrPurge,
+    pendingTrash,
+    trashing: pendingTrash !== null && trashingId === pendingTrash.id,
+    requestTrash,
+    confirmTrash,
+    cancelTrash,
     t,
     locale,
   };
@@ -216,6 +196,6 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
  */
 export function useWiredWidgetsLibrary(): WidgetsLibraryController {
   const locale = useAdminLocale();
-  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useWidgetsLibrary({ port: defaultWidgetsPort, locale, t });
 }

@@ -4,6 +4,7 @@ import { describeApiError, type AdminSiteActivation, type AdminSiteListEntry, ty
 import { useFetchMutation, useFetchQuery, useInvalidate, type QueryStatus } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useSerialWrites } from "@/hooks/use-serial-writes.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 import { t as defaultT } from "../sites-i18n";
@@ -129,6 +130,13 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
   // race two independent requests, and network completion order does not have to match click order.
   const activateSettlement = useSettlementGeneration();
 
+  // Activations reach the server one at a time, in call order. The server persists whichever request
+  // it processes LAST (the activate route awaits its permission check before writing), so two in
+  // flight at once could leave it on the earlier choice while `activateSettlement` shows the later
+  // one. The row buttons already disable while one is pending; this closes the same-tick second call
+  // the hook itself would otherwise accept. Tab-local — two tabs still race; that needs a server check.
+  const writes = useSerialWrites();
+
   const nameErrorKey = siteNameErrorKey(createName);
 
   // The view's own `setCreateName` — every edit to the field also clears a still-showing "Created."
@@ -176,22 +184,25 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
       createMutation.reset();
       setActivatingName(name);
       setActivation(null);
-      activateMutation
-        .mutate(name)
-        .then((result) => {
-          // Superseded by a newer activate call started after this one — that later call owns
-          // `activation`/`activatingName` now, and applying this stale result would let whichever
-          // request happens to settle LAST win regardless of which row was actually clicked last.
-          if (!activateSettlement.isCurrent(generation)) return;
-          setActivation(result);
-        })
-        .catch(() => {})
-        .finally(() => {
-          if (!activateSettlement.isCurrent(generation)) return;
-          setActivatingName(null);
-        });
+      // Never rejects (`.catch` below), so one failed activation cannot wedge the lane.
+      void writes.run(() =>
+        activateMutation
+          .mutate(name)
+          .then((result) => {
+            // Superseded by a newer activate call started after this one — that later call owns
+            // `activation`/`activatingName` now, and applying this stale result would let whichever
+            // request happens to settle LAST win regardless of which row was actually clicked last.
+            if (!activateSettlement.isCurrent(generation)) return;
+            setActivation(result);
+          })
+          .catch(() => {})
+          .finally(() => {
+            if (!activateSettlement.isCurrent(generation)) return;
+            setActivatingName(null);
+          }),
+      );
     },
-    [activateMutation, createMutation, activateSettlement],
+    [activateMutation, createMutation, activateSettlement, writes],
   );
 
   const view = readSnapshot(list.data);

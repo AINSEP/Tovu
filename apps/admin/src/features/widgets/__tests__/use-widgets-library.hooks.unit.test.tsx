@@ -11,6 +11,10 @@ import { WIDGETS_LIBRARY_RESOURCE } from "../rules";
  * @file `useWidgetsLibrary` driven against the injected `WidgetsPort`, no `fetch` stub.
  * `WidgetsLibrary.unit.test.tsx` already covers the real-client path via `useWiredWidgetsLibrary`
  * (the component's default DI prop); this is the "injected port" half.
+ *
+ * Trash rewrite (2026-09-21): the old purge/force-purge escalation is gone. Delete now confirms
+ * once ("Move to trash?") and calls `port.trashWidget` exactly once — the generic `api.trash`
+ * route.
  */
 
 const WIDGET: AdminWidget = {
@@ -30,42 +34,129 @@ afterEach(() => {
 });
 
 describe("useWidgetsLibrary — injected port (no fetch stub)", () => {
-  it("loads the list from the injected port and never touches the real api client", async () => {
+  it("loads the list and skipped record IDs from the injected port without touching the real api client", async () => {
     const listSpy = vi.spyOn(api, "listWidgets");
-    const port = createFakeWidgetsPort({ widgets: [WIDGET] });
+    const port = createFakeWidgetsPort({ widgets: [WIDGET], skippedCount: 1, skippedIds: ["malformed-1"] });
     const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
 
     await waitFor(() => expect(result.current.widgets).toHaveLength(1));
     expect(result.current.widgets?.[0]?.id).toBe("w1");
+    expect(result.current.skippedCount).toBe(1);
+    expect(result.current.skippedIds).toEqual(["malformed-1"]);
     expect(listSpy).not.toHaveBeenCalled();
   });
 
-  it("routes trashOrPurge (active widget) through the injected port's trashWidget, and the row disappears once the list re-reads it", async () => {
-    const port = createFakeWidgetsPort({ widgets: [WIDGET] });
-    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
-    await waitFor(() => expect(result.current.widgets).toHaveLength(1));
-
-    await act(async () => {
-      await result.current.trashOrPurge(WIDGET);
-    });
-
-    // `load()` re-reads with `includeInactive: true` then filters out only `purged` rows client-
-    // side (see the hook's own comment) — a `trash` row stays in the list, just with its status
-    // flipped, matching what `WidgetsLibrary.tsx` renders a "Delete permanently" action against.
-    await waitFor(() => expect(result.current.widgets?.[0]?.status).toBe("trash"));
-  });
-
-  /**
-   * Negative verification (per this refactor's own required check): temporarily replacing
-   * `port.listWidgets(...)` in `use-widgets-library.hooks.ts`'s `load()` with a call to the real
-   * `api.listWidgets(...)` and re-running this suite fails both non-pending assertions above (no
-   * real network in this test env) — see this feature's commit/handoff report for the recorded run.
-   */
   it("does not resolve `widgets` while the injected port's list call is still pending", () => {
     const port = createFakeWidgetsPort();
     port.listWidgets = () => new Promise(() => {});
     const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
     expect(result.current.widgets).toBeNull();
+  });
+});
+
+/**
+ * S1 (plan-content2.md, 2026-09-20; terra review triage): `load()` has no latest-wins guard, unlike
+ * its siblings `use-widget-regions.hooks.ts` and `use-widget-region-editor.hooks.ts`, which both
+ * guard exactly this. Trashing widget A, then widget B, fires two independent re-reads — if A's
+ * settles LAST, B renders as `active` again even though the server already trashed it.
+ */
+describe("useWidgetsLibrary — overlapping list reads keep the newest", () => {
+  const WIDGET_A: AdminWidget = { ...WIDGET, id: "wA", slug: "a", title: "A", status: "active" };
+  const WIDGET_B: AdminWidget = { ...WIDGET, id: "wB", slug: "b", title: "B", status: "active" };
+
+  it("an older list read settling after a newer one does not overwrite it", async () => {
+    const port = createFakeWidgetsPort({ widgets: [WIDGET_A, WIDGET_B] });
+    type ListResult = { widgets: AdminWidget[]; skippedCount?: number };
+    const releases: Array<(r: ListResult) => void> = [];
+    let callCount = 0;
+    port.listWidgets = vi.fn(() => {
+      callCount += 1;
+      // The mount read settles immediately; every read after it is held until the test releases it.
+      if (callCount === 1) return Promise.resolve({ widgets: [WIDGET_A, WIDGET_B], skippedCount: 0 });
+      return new Promise<ListResult>((resolve) => {
+        releases[callCount] = resolve;
+      });
+    });
+
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).toHaveLength(2));
+
+    // Trash A, then trash B — each fires its own `load()` re-read once its `trashWidget` write settles.
+    act(() => {
+      result.current.requestTrash(WIDGET_A);
+    });
+    act(() => {
+      void result.current.confirmTrash();
+    });
+    await waitFor(() => expect(releases[2]).toBeDefined());
+
+    act(() => {
+      result.current.requestTrash(WIDGET_B);
+    });
+    act(() => {
+      void result.current.confirmTrash();
+    });
+    await waitFor(() => expect(releases[3]).toBeDefined());
+
+    // The NEWER read (B's, triggered last — both A and B are trashed server-side by now, so the
+    // server's default active-only list returns neither) settles FIRST...
+    await act(async () => {
+      releases[3]!({ widgets: [], skippedCount: 0 });
+    });
+    // ...then the STALE, older read (fired right after A was trashed but before B was) settles
+    // after it, still carrying B as active.
+    await act(async () => {
+      releases[2]!({ widgets: [WIDGET_B], skippedCount: 0 });
+    });
+
+    // Fails without the settlement guard: the stale read wins because it settled last, so B
+    // reappears even though the server already trashed it.
+    await waitFor(() => expect(result.current.widgets?.find((w) => w.id === WIDGET_B.id)).toBeUndefined());
+  });
+
+  // a3-review-6 (2026-09-21): the test above only pins the `.then` guard. Removing the `.catch` guard
+  // left this whole file green, so a stale read that FAILS late gets its own test.
+  it("an older list read failing after a newer one succeeded shows no load error", async () => {
+    const port = createFakeWidgetsPort({ widgets: [WIDGET_A, WIDGET_B] });
+    type ListResult = { widgets: AdminWidget[]; skippedCount?: number };
+    const releases: Array<{ resolve: (r: ListResult) => void; reject: (e: unknown) => void }> = [];
+    let callCount = 0;
+    port.listWidgets = vi.fn(() => {
+      callCount += 1;
+      if (callCount === 1) return Promise.resolve({ widgets: [WIDGET_A, WIDGET_B], skippedCount: 0 });
+      return new Promise<ListResult>((resolve, reject) => {
+        releases[callCount] = { resolve, reject };
+      });
+    });
+
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).toHaveLength(2));
+
+    act(() => {
+      result.current.requestTrash(WIDGET_A);
+    });
+    act(() => {
+      void result.current.confirmTrash();
+    });
+    await waitFor(() => expect(releases[2]).toBeDefined());
+    act(() => {
+      result.current.requestTrash(WIDGET_B);
+    });
+    act(() => {
+      void result.current.confirmTrash();
+    });
+    await waitFor(() => expect(releases[3]).toBeDefined());
+
+    // The newer read (both trashed by now) succeeds first, then the older, stale one fails.
+    await act(async () => {
+      releases[3]!.resolve({ widgets: [], skippedCount: 0 });
+    });
+    await act(async () => {
+      releases[2]!.reject(new Error("stale read failed"));
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.widgets).toEqual([]);
   });
 });
 
@@ -118,57 +209,134 @@ describe("useWidgetsLibrary — content refresh bus", () => {
 });
 
 /**
- * `purge`'s `pendingForcePurge` write had no guard against a second, DIFFERENT widget's purge
- * attempt starting before the first settles — nothing disables a row's delete button during a
- * widget's first (`force: false`) attempt, before any dialog is even showing, so two rapid deletes
- * race two independent `WIDGETS_REFERENCED` 409s. Not just cosmetic: confirming the dialog
- * force-purges whatever widget `pendingForcePurge` currently names, so the wrong widget could be
- * destroyed. See `purge`'s `purgeSettlement` doc comment.
+ * Trash rewrite (2026-09-21): "Trash" always confirms first — `requestTrash` opens the dialog and
+ * sends nothing until `confirmTrash`. Replaces the old two-stage purge/force-purge escalation.
  */
-describe("useWidgetsLibrary — concurrent purge-attempt race safety", () => {
-  const WIDGET_A: AdminWidget = { ...WIDGET, id: "wA", slug: "a", title: "A", status: "trash" };
-  const WIDGET_B: AdminWidget = { ...WIDGET, id: "wB", slug: "b", title: "B", status: "trash" };
-
-  it("two widgets' first purge attempts racing a WIDGETS_REFERENCED 409 must not let the wrong widget's dialog win", async () => {
-    const deferred: Record<string, { reject: (e: unknown) => void }> = {};
-    const port = createFakeWidgetsPort({ widgets: [WIDGET_A, WIDGET_B] });
-    port.purgeWidget = vi.fn(({ id }: { id: string }) => {
-      return new Promise<never>((_resolve, reject) => {
-        deferred[id] = { reject };
-      });
-    });
-
+describe("useWidgetsLibrary — delete confirms first, then trashes exactly once", () => {
+  it("requestTrash opens the confirm and sends nothing until confirmed", async () => {
+    const port = createFakeWidgetsPort({ widgets: [WIDGET] });
+    const trashSpy = vi.spyOn(port, "trashWidget");
     const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
-    await waitFor(() => expect(result.current.widgets).not.toBeNull());
+    await waitFor(() => expect(result.current.widgets).toHaveLength(1));
 
-    // Operator clicks "Delete permanently" on A, then immediately on B — nothing disables either
-    // button before the first attempt's 409 (if any) comes back.
-    act(() => {
-      void result.current.trashOrPurge(WIDGET_A);
-    });
-    act(() => {
-      void result.current.trashOrPurge(WIDGET_B);
-    });
-    await waitFor(() => expect(port.purgeWidget).toHaveBeenCalledTimes(2));
+    act(() => result.current.requestTrash(WIDGET));
+    expect(trashSpy).not.toHaveBeenCalled();
+    expect(result.current.pendingTrash?.id).toBe(WIDGET.id);
 
-    const referenced = (id: string) =>
-      new ApiError("still referenced", 409, "WIDGETS_REFERENCED", {
-        details: { referencingLocations: [{ kind: "post", entryId: id }] },
-      });
-
-    // B (clicked LAST) 409s first.
     await act(async () => {
-      deferred.wB!.reject(referenced("post-for-b"));
+      await result.current.confirmTrash();
     });
-    await waitFor(() => expect(result.current.pendingForcePurge?.widget.id).toBe(WIDGET_B.id));
+    expect(trashSpy).toHaveBeenCalledTimes(1);
+    expect(trashSpy).toHaveBeenCalledWith(WIDGET.id);
+    expect(result.current.pendingTrash).toBeNull();
+    await waitFor(() => expect(result.current.widgets).toEqual([]));
+  });
 
-    // A's stale 409 now arrives.
+  it("cancelTrash closes the confirm with no request", async () => {
+    const port = createFakeWidgetsPort({ widgets: [WIDGET] });
+    const trashSpy = vi.spyOn(port, "trashWidget");
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).toHaveLength(1));
+
+    act(() => result.current.requestTrash(WIDGET));
+    expect(result.current.pendingTrash?.id).toBe(WIDGET.id);
+
+    act(() => result.current.cancelTrash());
+    expect(result.current.pendingTrash).toBeNull();
+    expect(trashSpy).not.toHaveBeenCalled();
+  });
+
+  it("trashing is true only while the confirmed trash is in flight", async () => {
+    let resolveTrash: ((r: { ok: true; version: number | null }) => void) | undefined;
+    const port = createFakeWidgetsPort({ widgets: [WIDGET] });
+    port.trashWidget = vi.fn(() => new Promise<{ ok: true; version: number | null }>((resolve) => (resolveTrash = resolve)));
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).toHaveLength(1));
+
+    act(() => result.current.requestTrash(WIDGET));
+    expect(result.current.trashing).toBe(false);
+
+    let confirmPromise!: Promise<void>;
+    act(() => {
+      confirmPromise = result.current.confirmTrash();
+    });
+    expect(result.current.trashing).toBe(true);
+
     await act(async () => {
-      deferred.wA!.reject(referenced("post-for-a"));
+      resolveTrash?.({ ok: true, version: 2 });
+      await confirmPromise;
     });
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.trashing).toBe(false);
+  });
+});
 
-    // The dialog must still be showing B — the operator's actual last click — not A's late 409.
-    expect(result.current.pendingForcePurge?.widget.id).toBe(WIDGET_B.id);
+describe("useWidgetsLibrary — trash error mapping", () => {
+  it("a 409 TRASH_VERSION_CHANGED shows a reload message instead of the generic delete-failed one", async () => {
+    const port = createFakeWidgetsPort({ widgets: [WIDGET] });
+    port.trashWidget = vi.fn(() => {
+      throw new ApiError("the item changed since it was last read", 409, "TRASH_VERSION_CHANGED");
+    });
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).toHaveLength(1));
+
+    act(() => result.current.requestTrash(WIDGET));
+    await act(async () => {
+      await result.current.confirmTrash();
+    });
+
+    expect(result.current.error).toBe("This item changed since you loaded it. Reload and try again.");
+  });
+
+  it("a 404 NOT_FOUND (already gone) shows no error and quietly re-reads the list", async () => {
+    const port = createFakeWidgetsPort({ widgets: [WIDGET] });
+    const listSpy = vi.spyOn(port, "listWidgets");
+    port.trashWidget = vi.fn(() => {
+      throw new ApiError("item was not found", 404, "NOT_FOUND");
+    });
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).toHaveLength(1));
+    const callsBeforeTrash = listSpy.mock.calls.length;
+
+    act(() => result.current.requestTrash(WIDGET));
+    await act(async () => {
+      await result.current.confirmTrash();
+    });
+
+    expect(result.current.error).toBeNull();
+    await waitFor(() => expect(listSpy.mock.calls.length).toBeGreaterThan(callsBeforeTrash));
+  });
+
+  it("any other error falls back to the generic 'delete failed' message", async () => {
+    const port = createFakeWidgetsPort({ widgets: [WIDGET] });
+    port.trashWidget = vi.fn(() => {
+      throw new Error("network exploded");
+    });
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).toHaveLength(1));
+
+    act(() => result.current.requestTrash(WIDGET));
+    await act(async () => {
+      await result.current.confirmTrash();
+    });
+
+    expect(result.current.error).toBe("network exploded");
+  });
+});
+
+// Grep-style regression: the widget escalation is gone for good — a WidgetsPort with no
+// permanent-removal operation still satisfies every call site in this hook file and its component.
+// Reading the source text pins that no permanent-removal call or force option survived the rewrite
+// — the codebase's established "scan the source text" idiom, e.g.
+// `deployment/__tests__/rules.unit.test.ts`'s `.not.toMatch` assertions.
+describe("useWidgetsLibrary/WidgetsLibrary — no permanent-removal call remains", () => {
+  it.each([
+    "src/features/widgets/hooks/use-widgets-library.hooks.ts",
+    "src/features/widgets/WidgetsLibrary.tsx",
+  ])("%s calls no purge/force-purge method and passes no force option", async (relPath) => {
+    const [fs, path] = await Promise.all([import("node:fs/promises"), import("node:path")]);
+    const source = await fs.readFile(path.join(process.cwd(), relPath), "utf-8");
+    expect(source).not.toMatch(/\.purge\w*\s*\(/i);
+    expect(source).not.toMatch(/force\s*:/i);
+    expect(source).not.toMatch(/pendingForcePurge|confirmForcePurge|trashOrPurge/);
   });
 });

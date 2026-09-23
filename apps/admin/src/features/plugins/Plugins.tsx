@@ -290,7 +290,11 @@ export function Plugins({ tabId, usePluginsHook = useWiredPlugins }: PluginsProp
   const controller = usePluginsHook();
   const { plugins, error, t } = controller;
 
-  if (error) return <div className="notice error">{error}</div>;
+  // `error && !plugins`, not `error` alone (2026-09-20 platform review, X1): a NEVER-loaded fetch
+  // (no `plugins` yet) is still fatal — there is nothing else to show. But once the list has loaded
+  // once, a later reload failure (a toggle's post-write re-fetch) must not blank the whole screen —
+  // see `LoadedPlugins`'s own error notice below, and `use-plugins.hooks.ts`'s `reload()` header.
+  if (error && !plugins) return <div className="notice error">{error}</div>;
   if (!plugins) return <div className="notice">{t("Loading plugins…")}</div>;
   return <LoadedPlugins plugins={plugins} controller={controller} activeTabId={resolvePluginsTabId(tabId)} />;
 }
@@ -298,7 +302,7 @@ export function Plugins({ tabId, usePluginsHook = useWiredPlugins }: PluginsProp
 /** The screen once `PLUGINS_LIST` has settled: header, row error, tab bar, the active tab's panel,
  *  and the package-files viewer and Remove confirm dialog (both opened through the controller). */
 function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlugin[]; controller: PluginsController; activeTabId: PluginsTabId }) {
-  const { rowError, t, inspectedPlugin, pendingRemovePlugin } = controller;
+  const { error, rowError, t, inspectedPlugin, pendingRemovePlugin } = controller;
 
   // Plugin ids are stable and unique, same per-row-handle derivation every other list on this
   // workstream uses (`buildAgentListHandles`), computed once from the FULL unfiltered list so a
@@ -331,6 +335,14 @@ function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlu
       {rowError ? (
         <div className="notice error">
           <span role="alert">{rowError}</span>
+        </div>
+      ) : null}
+      {/* A reload failure AFTER the list has loaded once (X1) — the list, tabs and dialogs below
+       *  stay on screen; only `error && !plugins` in `Plugins` itself is fatal. Same markup as
+       *  `rowError` above. */}
+      {error ? (
+        <div className="notice error">
+          <span role="alert">{error}</span>
         </div>
       ) : null}
 

@@ -720,3 +720,40 @@ describe("useStaticPublish — initial load", () => {
     expect(result.current.loadError).toContain("disk error");
   });
 });
+
+// terra review 2026-09-20, finding 1 (Critical). The trigger carries the connection the operator
+// chose so the SERVER publishes with that row, instead of resolving whichever one is default when
+// the POST lands (`static-publish/credentials.ts`).
+describe("useStaticPublish — the publish names the chosen credential", () => {
+  it("forwards publish({ credentialId }) to the port's triggerPublish", async () => {
+    const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" };
+    const triggerPublish = vi.fn().mockResolvedValue(runningRun);
+    const port = createFakeStaticPublishPort({ triggerPublish });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setTarget("vercel"));
+    act(() => result.current.setProjectName("demo"));
+    await act(async () => {
+      await result.current.publish({ credentialId: "cred-2" });
+    });
+
+    expect(triggerPublish).toHaveBeenCalledWith({ config: { target: "vercel" }, projectName: "demo", credentialId: "cred-2" });
+  });
+
+  it("sends no credentialId key at all when the caller has no chosen connection", async () => {
+    const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" };
+    const triggerPublish = vi.fn().mockResolvedValue(runningRun);
+    const port = createFakeStaticPublishPort({ triggerPublish });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setTarget("vercel"));
+    act(() => result.current.setProjectName("demo"));
+    await act(async () => {
+      await result.current.publish();
+    });
+
+    expect(triggerPublish).toHaveBeenCalledWith({ config: { target: "vercel" }, projectName: "demo" });
+  });
+});

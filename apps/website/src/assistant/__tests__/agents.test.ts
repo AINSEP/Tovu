@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { after, before } from "node:test";
 
-import { AGENT_DEFS, runtimeSupportsExternalTools } from "@jini-ai/agent-runtime";
+import { AGENT_DEFS, resolveAgentLaunch, runtimeSupportsExternalTools } from "@jini-ai/agent-runtime";
 
-import { listAssistantAgents, rescanAssistantAgents } from "../agents.js";
+import { listAssistantAgents, rescanAssistantAgents, setAgentModelProberForTesting } from "../agents.js";
+
+// No test here may spawn a real CLI's model listing: every test runs against a prober that reports
+// "nothing live" unless it installs its own.
+before(() => setAgentModelProberForTesting(async (def) => ({ models: def.fallbackModels, source: "fallback" })));
+after(() => setAgentModelProberForTesting(null));
 
 /**
  * @file Regression coverage for `listAssistantAgents()` projecting model/reasoning metadata.
@@ -125,4 +130,36 @@ test("rescanAssistantAgents forces a fresh probe, and a later listAssistantAgent
   const after = listAssistantAgents();
   assert.strictEqual(after, rescanned, "expected the cache to now hold the rescanned probe, not the stale pre-rescan one");
   await after;
+});
+
+/**
+ * @file Regression coverage for the "Local CLI picker never shows a live model" bug: the probe used to
+ * hardcode every entry to `fallbackModels`/`"fallback"` and never called the def's model listing at
+ * all, so `claude`'s credential-free live catalog (e.g. a new `claude-opus-*` id) could never reach
+ * `GET /api/agents`/`POST /api/agents/rescan`, however the runtime-side probe behaved.
+ */
+test("rescanAssistantAgents surfaces the live model list the prober returns for an available def", async () => {
+  const liveOnly = { id: "claude-live-only-test-id", label: "claude-live-only-test-id" };
+  const probed: string[] = [];
+  setAgentModelProberForTesting(async (def) => {
+    probed.push(def.id);
+    return def.id === "claude"
+      ? { models: [...def.fallbackModels, liveOnly], source: "live" }
+      : { models: def.fallbackModels, source: "fallback" };
+  });
+  try {
+    const agents = await rescanAssistantAgents();
+    const claude = agents.find((agent) => agent.id === "claude");
+    assert.ok(claude, "expected a 'claude' entry in the agent list");
+    if (claude.available) {
+      assert.equal(claude.modelsSource, "live");
+      assert.ok(claude.models?.some((model) => model.id === liveOnly.id), "expected the live-only id in claude.models");
+    }
+    for (const def of AGENT_DEFS) {
+      const installed = Boolean(resolveAgentLaunch(def).launchPath);
+      assert.equal(probed.includes(def.id), installed, `def '${def.id}' probed=${probed.includes(def.id)} but installed=${installed}`);
+    }
+  } finally {
+    setAgentModelProberForTesting(async (def) => ({ models: def.fallbackModels, source: "fallback" }));
+  }
 });

@@ -1,6 +1,6 @@
 /**
  * Copies every `publish_credential_sets`/`source_control_credential_sets` row into the new
- * vendor-scoped `vendor_credential_sets` table (`src/platform/db/schema.ts`, migration `0045`), decrypting
+ * vendor-scoped `vendor_credential_sets` table (`src/platform/db/schema.sqlite.ts`, migration `0045`), decrypting
  * each row under its OLD table's AAD and re-sealing the SAME plaintext bytes under the NEW table's
  * AAD (`buildVendorCredentialAad`).
  *
@@ -30,7 +30,7 @@
  * `publish_credential_sets`/`source_control_credential_sets` are NEVER written to by this script —
  * only read. Every existing route/tool/store keeps reading and writing them exactly as before; the
  * cutover that points them at `vendor_credential_sets` instead, and the eventual migration that
- * drops the two old tables, are separate, later work (see `src/platform/db/schema.ts`'s
+ * drops the two old tables, are separate, later work (see `src/platform/db/schema.sqlite.ts`'s
  * `vendorCredentialSets` doc). Because the old tables are never mutated, a crash or `Ctrl-C`
  * mid-run cannot lose a row: whatever was inserted into `vendor_credential_sets` before the
  * interruption stays there (harmless — that table has no reader yet), and whatever was not yet
@@ -84,7 +84,7 @@
  *   picker — it is explicitly NOT this script's job to invent a "second default" concept.
  * - **`token_tail`**: the last four characters of the connection's primary secret — `token` for
  *   every vendor except `s3-compatible`, whose bearer-token-shaped field is `secretAccessKey`
- *   instead (see `src/platform/db/schema.ts`'s `vendorCredentialSets.tokenTail` doc). Derived from the SAME
+ *   instead (see `src/platform/db/schema.sqlite.ts`'s `vendorCredentialSets.tokenTail` doc). Derived from the SAME
  *   decrypted plaintext being re-sealed, never a separate read.
  *
  * ## Usage
@@ -110,7 +110,7 @@ import path from "node:path";
 
 import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
-import { publishCredentialSets, sourceControlCredentialSets, vendorCredentialSets } from "../../apps/website/src/platform/db/schema.js";
+import { publishCredentialSets, sourceControlCredentialSets, vendorCredentialSets } from "../../apps/website/src/platform/db/schema.sqlite.js";
 import { resolveExistingDbPath } from "./backfill-db-path.js";
 import { AesGcmSecretSealer } from "../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
 import { EnvOrFileKeyring } from "../../apps/website/src/features/webhooks/keyring.env.js";
@@ -241,7 +241,7 @@ function loadTargetState(db: ContentDb): TargetState {
 
 /** Extracts `token_tail` from the just-decrypted plaintext — `secretAccessKey` for `s3-compatible`
  *  (the only vendor whose primary secret is not called `token`), `token` for every other vendor. See
- *  `src/platform/db/schema.ts`'s `vendorCredentialSets.tokenTail` doc for the full reasoning.
+ *  `src/platform/db/schema.sqlite.ts`'s `vendorCredentialSets.tokenTail` doc for the full reasoning.
  *
  * @throws If the expected field is missing or not a non-empty string — a decrypted connection that
  *   fails this shape check is corrupt or was sealed by code this script does not recognize, and

@@ -370,6 +370,13 @@ export interface StaticPublishInput {
    *  Sanitized further by Jini's own `safeProjectLabel`/`safeVercelProjectName`; validated here only
    *  for length and non-blankness. */
   readonly projectName: string;
+  /** The saved connection the OPERATOR chose for this publish, when the caller has one (terra review
+   *  2026-09-20, finding 1 — Critical). Passed through to `credentialSource.resolve()` VERBATIM and
+   *  validated there, never here: this module has no repo/sealer and no way to judge an id. Absent
+   *  means the caller genuinely has no chosen connection (`deployment_execute_static_publish`, and
+   *  any install whose credentials come from server env vars) and the established default lookup
+   *  applies — see `./types.ts`'s `PublishCredentialSource.resolve` doc for that contract. */
+  readonly credentialId?: string;
 }
 
 /** The `{ok:true, ...}` member of `PublishCredentialSource["resolve"]`'s return union — the shape
@@ -400,7 +407,13 @@ async function resolvePublishCredentialForSite(
 ): Promise<{ ok: true; credential: ResolvedCredentialSourceSuccess } | { ok: false; outcome: StaticPublishOutcome }> {
   let credential: Awaited<ReturnType<PublishCredentialSource["resolve"]>>;
   try {
-    credential = await deps.credentialSource.resolve({ workspaceId: input.workspaceId, target: input.config.target });
+    credential = await deps.credentialSource.resolve({
+      workspaceId: input.workspaceId,
+      target: input.config.target,
+      // Conditional spread, never `credentialId: input.credentialId` — an absent choice must not
+      // travel as an explicit `undefined` key, which a source could read as "a choice was made".
+      ...(input.credentialId !== undefined ? { credentialId: input.credentialId } : {}),
+    });
   } catch (err) {
     return {
       ok: false,

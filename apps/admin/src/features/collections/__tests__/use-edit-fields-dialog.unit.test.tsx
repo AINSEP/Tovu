@@ -1,10 +1,12 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminContentType } from "@/lib/api";
 import { FetchQueryProvider } from "@/lib/fetch-query";
+import { tabFromLastFocusableInDialog } from "@/hooks/__tests__/focus-trap.test-helpers";
 import { createFakeEditFieldsDialogPort } from "../hooks/edit-fields-dialog-dependencies.hooks";
 import { useEditFieldsDialog, useWiredEditFieldsDialog } from "../hooks/use-edit-fields-dialog.hooks";
+import type { EditFieldsDialogPort } from "../hooks/edit-fields-dialog-port.hooks";
 
 /**
  * @file `useEditFieldsDialog` — `EditFieldsDialog`'s own state and submit action (SPEC-037 REQ-05).
@@ -30,6 +32,15 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
 
+/** A manually-resolved promise, for race tests — never a timer (WRITER-RULES). */
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
 const TYPE: AdminContentType = {
   workspaceId: "w1",
   key: "recipe",
@@ -43,7 +54,11 @@ let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();
-  vi.stubGlobal("fetch", fetchMock);
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input.toString();
+    if (url.includes("/settings/effective")) return Promise.resolve(jsonResponse({ data: [] }));
+    return fetchMock(input, init);
+  });
 });
 
 afterEach(() => {
@@ -159,6 +174,55 @@ describe("submit — failure", () => {
 describe("Escape-to-cancel", () => {
   it("calls onCancel when Escape is pressed while mounted", () => {
     const { onCancel } = mount();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("focus trap (M3)", () => {
+  it("Tab from the dialog's last focusable element wraps to the first instead of leaving", () => {
+    function Harness() {
+      const { dialogRef } = useEditFieldsDialog({ contentType: TYPE, onSaved: vi.fn(), onCancel: vi.fn() }, createFakeEditFieldsDialogPort());
+      return (
+        <>
+          <button type="button">page behind</button>
+          <form ref={dialogRef} role="dialog" aria-modal="true">
+            <button type="button">first</button>
+            <button type="button">last</button>
+          </form>
+        </>
+      );
+    }
+    render(<Harness />, { wrapper });
+
+    const { event, first } = tabFromLastFocusableInDialog();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
+  });
+});
+
+describe("cancel — in-flight guard (H4)", () => {
+  it("Escape while the update request is in flight does not dismiss the dialog", async () => {
+    const onCancel = vi.fn();
+    const onSaved = vi.fn();
+    const updated = deferred<{ contentType: AdminContentType }>();
+    const port: EditFieldsDialogPort = { updateContentTypeFields: () => updated.promise };
+    const { result } = renderHook(() => useEditFieldsDialog({ contentType: TYPE, onSaved, onCancel }, port), {
+      wrapper,
+    });
+
+    act(() => {
+      void result.current.submit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+    });
+    await waitFor(() => expect(result.current.saving).toBe(true));
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(onCancel).not.toHaveBeenCalled();
+
+    updated.resolve({ contentType: TYPE });
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });

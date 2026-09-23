@@ -9,7 +9,7 @@ import Database from "better-sqlite3";
 
 import { openContentDb, openContentDbReadOnly } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
 import { openChatDb } from "../../../apps/website/src/platform/db/sqlite/chat-db.js";
-import { workspaces } from "../../../apps/website/src/platform/db/schema.js";
+import { workspaces } from "../../../apps/website/src/platform/db/schema.sqlite.js";
 import { readChatSplitPlan, reportDryRun, applyChatSplit } from "../split-chat-data-into-chat-db.js";
 
 /**
@@ -33,27 +33,39 @@ function tmpDir(prefix: string): string {
 }
 
 /** Seeds a fresh content.db with one workspace (the "must survive untouched" content row) and one
- *  conversation carrying a message and an agent-session row across all three chat tables. */
+ *  conversation carrying a message and an agent-session row across all three chat tables.
+ *
+ *  `openContentDb` (`fix(db): drop empty legacy chat tables from content.db on open`, 5a189cb2a)
+ *  now drops `ai_chats`/`ai_chat_messages`/`assistant_agent_sessions` the moment they're empty —
+ *  i.e. immediately, for any freshly created content.db — so by the time this function would
+ *  `INSERT` into them they no longer exist. Reopen the same file through `openChatDb` first (byte-
+ *  identical DDL to migrations 0023/0051, per that commit's own fixture fix for
+ *  `duplicate-content-db.integration.test.ts`/`duplicate-site.integration.test.ts`) to recreate the
+ *  three tables before seeding rows, modeling a PRE-split install whose content.db still carries
+ *  real chat rows. */
 function seedContentDbFixture(dbPath: string): void {
   const db = openContentDb(dbPath);
   db.insert(workspaces).values({ id: "ws-1", name: "Workspace One", slug: "workspace-one", createdAt: "2026-09-01T00:00:00.000Z" }).run();
-  db.$client
+  db.$client.close();
+
+  const raw = openChatDb(dbPath);
+  raw
     .prepare(
       `INSERT INTO ai_chats (id, scope_id, owner_kind, owner_id, title, title_source, created_at, updated_at, expires_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run("conv-1", "ws-1", "user", "user-1", "First chat", "fallback", 1, 1, null);
-  db.$client
+  raw
     .prepare(
       `INSERT INTO ai_chat_messages
          (id, conversation_id, role, content, agent_id, agent_name, events_json, attachments_json, run_id, run_status, position, created_at, started_at, ended_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run("msg-1", "conv-1", "user", "hello", null, null, null, null, null, null, 0, 1, null, null);
-  db.$client
+  raw
     .prepare(`INSERT INTO assistant_agent_sessions (conversation_id, agent_id, session_id, updated_at) VALUES (?, ?, ?, ?)`)
     .run("conv-1", "agent-1", "session-1", 1);
-  db.$client.close();
+  raw.close();
 }
 
 /** Row counts across all three chat tables, via a fresh independent connection. */

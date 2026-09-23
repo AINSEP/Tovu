@@ -9,12 +9,13 @@
  * `forms/write-service.ts` — this catalog never names an operation the domain cannot perform.
  *
  * Deliberate absences (the point of a catalog, not an oversight):
- * - There is NO `forms_delete_definition`, and no description here may imply one. INV-08 says a
- *   form definition is never permanently deleted, only flipped `active` ⇄ `disabled`, and
+ * - There is NO `forms_delete_definition`, and no description here may imply one. A form
+ *   definition is removed permanently only by a Trash purge (owner ruling 2026-09-21, superseding
+ *   the original INV-08 "never deleted" wording) — never through this catalog's tools — and
  *   `FormDefinitionRepoPort` enforces that structurally by exposing no `delete` method at all.
- *   "Delete this form" must therefore route an agent to `forms_set_definition_status` — never to a
- *   lever that does not exist. This mirrors `features/recovery/agent-tools.ts`'s identical
- *   discipline around `backup_confirm_restore`.
+ *   "Delete this form" must therefore route an agent to `forms_set_definition_status` (to disable
+ *   it) or to the Trash's own tools — never to a lever that does not exist here. This mirrors
+ *   `features/recovery/agent-tools.ts`'s identical discipline around `backup_confirm_restore`.
  * - Submissions carry a separate permission tier (`admin.forms.submissions.*`) that does not go
  *   through `write-service.ts` — `routes/admin/forms/{list,get,delete}-submissions.ts` gate
  *   directly, the same split `comments/agent-tools.ts` makes for its read tools. Read access
@@ -236,7 +237,7 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "forms_set_definition_status",
     description:
-      "Sets a form definition's status to 'active' or 'disabled'. Disabling is how a form is taken out of service and is the ONLY way to retire one — a form definition is never permanently deleted, and no tool can delete one.",
+      "Sets a form definition's status to 'active' or 'disabled'. Disabling is how a form is taken out of service without deleting it — no tool in this catalog can delete a form definition; permanent deletion happens only through the Trash.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.forms.manage" },
     inputSchema: {

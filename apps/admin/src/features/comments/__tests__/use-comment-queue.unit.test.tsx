@@ -1,11 +1,12 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminComment } from "@/lib/api";
+import type { AdminComment, AdminCommentsQueuePage, CommentStatus } from "@/lib/api";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeCommentQueuePort } from "../hooks/comment-queue-dependencies.hooks";
 import { useCommentQueue } from "../hooks/use-comment-queue.hooks";
+import type { CommentQueuePort } from "../hooks/comment-queue-port.hooks";
 import { COMMENTS_QUEUE_RESOURCE } from "../rules";
 
 /**
@@ -225,5 +226,156 @@ describe("useCommentQueue — content refresh bus", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(port.listCalls).toHaveLength(callsWhileMounted);
+  });
+});
+
+/**
+ * S3 (`ADS-memory/.local-artifacts/terra-admin-review-2026-09-20/plan-content2.md`) — same family
+ * of bugs as forms' `use-form-submissions.unit.test.tsx` "Load more paging" describe block, and the
+ * same fix shape: `loadMore` had no in-flight guard (a same-tick double call reached the port
+ * twice), a stuck `loadingMore` if `status` changed mid-flight (the old `statusAtCall !==
+ * statusRef.current` finally-check silently drops the reset, forever), `moreError` surviving a
+ * retry, and a content refresh keeping stale accumulated pages instead of dropping them.
+ *
+ * `createControlledQueuePort`'s cursorless calls resolve with whatever `setFirstPage` last set
+ * (defaulting to page 1 for COMMENT); cursor calls never resolve on their own — each pushes a
+ * `{ resolve, reject }` pair onto `cursorCalls` for a test to settle manually (same deferred idiom
+ * `use-form-submissions.unit.test.tsx`'s `createControlledPort` uses).
+ */
+describe("useCommentQueue — Load more paging (2026-09-20)", () => {
+  afterEach(() => resetContentRefreshBus());
+
+  interface ControlledQueuePort {
+    port: CommentQueuePort;
+    cursorCalls: Array<{ resolve: (v: AdminCommentsQueuePage) => void; reject: (e: Error) => void }>;
+    setFirstPage: (page: AdminCommentsQueuePage) => void;
+  }
+
+  function createControlledQueuePort(): ControlledQueuePort {
+    let firstPageResult: AdminCommentsQueuePage = { items: [COMMENT], nextCursor: "c2" };
+    const cursorCalls: ControlledQueuePort["cursorCalls"] = [];
+    const port: CommentQueuePort = {
+      listCommentsQueue: vi.fn((options: { status?: CommentStatus; cursor?: string }) => {
+        if (options.cursor) {
+          return new Promise<AdminCommentsQueuePage>((resolve, reject) => {
+            cursorCalls.push({ resolve, reject });
+          });
+        }
+        return Promise.resolve(firstPageResult);
+      }),
+      async moderateComment() {
+        throw new Error("not used by this test");
+      },
+      async purgeComment() {
+        throw new Error("not used by this test");
+      },
+    };
+    return {
+      port,
+      cursorCalls,
+      setFirstPage(page) {
+        firstPageResult = page;
+      },
+    };
+  }
+
+  it("switching status while Load more is in flight does not leave loadingMore stuck", async () => {
+    const { port, cursorCalls } = createControlledQueuePort();
+    const { result } = renderHook(() => useCommentQueue({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.nextCursor).toBe("c2"));
+
+    act(() => {
+      void result.current.loadMore();
+    });
+    await waitFor(() => expect(cursorCalls).toHaveLength(1));
+    expect(result.current.loadingMore).toBe(true);
+
+    act(() => result.current.setStatus("trash"));
+    await waitFor(() => expect(result.current.status).toBe("trash"));
+    await waitFor(() => expect(result.current.items).toEqual([COMMENT])); // trash's own first page settled
+    expect(result.current.loadingMore).toBe(false);
+
+    const itemsAfterSwitch = result.current.items;
+    await act(async () => {
+      cursorCalls[0].resolve({ items: [{ ...COMMENT, id: "c2" }], nextCursor: null });
+      await Promise.resolve();
+    });
+
+    // The superseded pending's-status page must not land under the new filter.
+    expect(result.current.items).toEqual(itemsAfterSwitch);
+  });
+
+  it("two loadMore calls in one tick reach the port once", async () => {
+    const { port, cursorCalls } = createControlledQueuePort();
+    const { result } = renderHook(() => useCommentQueue({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.nextCursor).toBe("c2"));
+
+    act(() => {
+      void result.current.loadMore();
+      void result.current.loadMore();
+    });
+
+    // 1 first-page call (on mount) + 1 loadMore call — the second same-tick call must be dropped
+    // by the in-flight guard. Today (no guard) this is 3.
+    expect(port.listCommentsQueue).toHaveBeenCalledTimes(2);
+    expect(cursorCalls).toHaveLength(1);
+
+    await act(async () => {
+      cursorCalls[0].resolve({ items: [{ ...COMMENT, id: "c2" }], nextCursor: null });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(result.current.items?.map((c) => c.id)).toEqual(["c1", "c2"]));
+  });
+
+  it("a successful Load more retry clears the previous failure", async () => {
+    const { port, cursorCalls } = createControlledQueuePort();
+    const { result } = renderHook(() => useCommentQueue({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.nextCursor).toBe("c2"));
+
+    act(() => {
+      void result.current.loadMore();
+    });
+    await waitFor(() => expect(cursorCalls).toHaveLength(1));
+    await act(async () => {
+      cursorCalls[0].reject(new Error("network down"));
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.error).toBe("network down"));
+
+    act(() => {
+      void result.current.loadMore();
+    });
+    await waitFor(() => expect(cursorCalls).toHaveLength(2));
+    await act(async () => {
+      cursorCalls[1].resolve({ items: [{ ...COMMENT, id: "c2" }], nextCursor: null });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(result.current.error).toBeNull());
+  });
+
+  it("a content-refresh refetch drops stale Load more pages", async () => {
+    const { port, cursorCalls, setFirstPage } = createControlledQueuePort();
+    const { result } = renderHook(() => useCommentQueue({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.nextCursor).toBe("c2"));
+
+    act(() => {
+      void result.current.loadMore();
+    });
+    await waitFor(() => expect(cursorCalls).toHaveLength(1));
+    await act(async () => {
+      cursorCalls[0].resolve({ items: [{ ...COMMENT, id: "c2" }], nextCursor: null });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.items?.map((c) => c.id)).toEqual(["c1", "c2"]));
+
+    // A different first page landing (same trigger `publishContentRefresh` — the "content refresh
+    // bus" describe block above — as an assistant moderation action would cause server-side).
+    setFirstPage({ items: [{ ...COMMENT, id: "c3" }], nextCursor: "c4" });
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.items?.map((c) => c.id)).toEqual(["c3"]));
+    expect(result.current.nextCursor).toBe("c4");
   });
 });

@@ -21,9 +21,12 @@ import test from "node:test";
 
 import {
   assertClosureComplete,
+  diskBytes,
   newestMtime,
+  parseNpmLsPaths,
   prebuildTarget,
   pruneNativePrebuilds,
+  resolveNpmLsCommand,
   resolveTargets,
   stageTransitiveDependencies,
   strippableReason,
@@ -678,4 +681,60 @@ test("pruneNativePrebuilds: a staged tree with no node_modules at all is a no-op
   fs.mkdirSync(outDir, { recursive: true });
 
   assert.deepEqual(pruneNativePrebuilds({ outDir, targets: [{ platform: "darwin", arch: "x64" }] }), { prebuilds: 0, buildInputs: 0, bytes: 0 });
+});
+
+test("diskBytes: a single file returns its on-disk block size, not its apparent content length", () => {
+  const dir = tempDir();
+  const file = path.join(dir, "small.txt");
+  fs.writeFileSync(file, "x");
+
+  // Reference value taken from the SAME stat call diskBytes makes, not a hardcoded block size —
+  // see the file header on why this suite never assumes a filesystem's block size.
+  assert.equal(diskBytes(file), fs.lstatSync(file).blocks * 512);
+});
+
+test("diskBytes: a directory sums the on-disk size of its files, recursing into subdirectories", () => {
+  const dir = tempDir();
+  const top = path.join(dir, "top.txt");
+  const nested = path.join(dir, "nested", "deep.txt");
+  fs.writeFileSync(top, "top");
+  fs.mkdirSync(path.dirname(nested), { recursive: true });
+  fs.writeFileSync(nested, "deep-content");
+
+  const expected = fs.lstatSync(top).blocks * 512 + fs.lstatSync(nested).blocks * 512;
+  assert.equal(diskBytes(dir), expected);
+});
+
+test("resolveNpmLsCommand: prefers execPath + npm_execpath when npm set it, on every platform", () => {
+  const win = resolveNpmLsCommand({ execPath: "/usr/bin/node", platform: "win32", env: { npm_execpath: "/usr/lib/npm-cli.js" } });
+  assert.deepEqual(win, { command: "/usr/bin/node", args: ["/usr/lib/npm-cli.js", "ls", "--omit=dev", "--parseable", "--all"], shell: false });
+
+  const mac = resolveNpmLsCommand({ execPath: "/usr/bin/node", platform: "darwin", env: { npm_execpath: "/usr/lib/npm-cli.js" } });
+  assert.deepEqual(mac, { command: "/usr/bin/node", args: ["/usr/lib/npm-cli.js", "ls", "--omit=dev", "--parseable", "--all"], shell: false });
+});
+
+test("resolveNpmLsCommand: falls back to a shell-less npm off win32 when npm_execpath is unset", () => {
+  assert.deepEqual(resolveNpmLsCommand({ execPath: "/usr/bin/node", platform: "darwin", env: {} }), {
+    command: "npm",
+    args: ["ls", "--omit=dev", "--parseable", "--all"],
+    shell: false,
+  });
+});
+
+test("resolveNpmLsCommand: falls back to npm through the platform shell on win32 when npm_execpath is unset", () => {
+  assert.deepEqual(resolveNpmLsCommand({ execPath: "C:\\node.exe", platform: "win32", env: {} }), {
+    command: "npm",
+    args: ["ls", "--omit=dev", "--parseable", "--all"],
+    shell: true,
+  });
+});
+
+test("parseNpmLsPaths reads LF output: unique, sorted, relative to node_modules, other lines ignored", () => {
+  const stdout = ["/repo", "/repo/node_modules/zod", "/repo/node_modules/@scope/pkg", "/repo/node_modules/zod", ""].join("\n");
+  assert.deepEqual(parseNpmLsPaths(stdout, "/repo/node_modules", "/"), ["@scope/pkg", "zod"]);
+});
+
+test("parseNpmLsPaths reads CRLF output (npm on Windows) without a trailing carriage return on any name", () => {
+  const stdout = ["C:\\repo", "C:\\repo\\node_modules\\zod", "C:\\repo\\node_modules\\@scope\\pkg", ""].join("\r\n");
+  assert.deepEqual(parseNpmLsPaths(stdout, "C:\\repo\\node_modules", "\\"), ["@scope\\pkg", "zod"]);
 });

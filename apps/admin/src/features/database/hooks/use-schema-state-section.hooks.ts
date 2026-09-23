@@ -19,8 +19,10 @@ import type { SchemaStateSectionPort } from "./schema-state-section-port.hooks";
  * the honesty rules (a failed check must warn; an unrecognised status must warn; only a confirmed
  * `"in-sync"` may stay silent) are worth testing without a React tree around them.
  *
- * NO `refetchInterval`/polling: drift changes only when someone migrates, which is a deliberate act
- * that reloads this screen anyway. A background poll would add request volume for no new signal.
+ * NO `refetchInterval`/polling: drift changes only when someone migrates, and `use-migrate-forward-
+ * section.hooks.ts`'s `doExecute` invalidates `KEYS.schemaState` on success or rejection (see that
+ * hook's own header) — so the one deliberate act that can change this screen's answer already forces
+ * a re-read. A background poll would add request volume for no new signal.
  */
 
 export interface SchemaStateSectionController {

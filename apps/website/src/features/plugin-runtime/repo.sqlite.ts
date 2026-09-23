@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import { pluginActivations } from "../../platform/db/schema.js";
+import { pluginActivations } from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import type { PluginActivationRecord, PluginActivationRepoPort } from "./activation.js";
@@ -8,8 +8,8 @@ import type { PluginActivationRecord, PluginActivationRepoPort } from "./activat
 /**
  * @file Drizzle/SQLite `PluginActivationRepoPort` adapter — mirrors
  * `src/features/presentation/repo.sqlite.ts`'s shape. Depends on `pluginActivations` landing in
- * `src/platform/db/schema.ts` (Track C, additive migration) — this is the only file besides
- * `schema.ts`/`content-db.ts` allowed to import Drizzle for this feature (ADR-015 rule 2).
+ * `src/platform/db/schema.sqlite.ts` (Track C, additive migration) — this is the only file besides
+ * `schema.sqlite.ts`/`content-db.ts` allowed to import Drizzle for this feature (ADR-015 rule 2).
  *
  * Architectural role:
  * TDD-certified adapter (implementation outline C-013). Implements get/upsert/delete/list through

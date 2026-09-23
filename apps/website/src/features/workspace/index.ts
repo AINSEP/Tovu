@@ -5,7 +5,7 @@
  * create/update/delete transitions, the `WorkspaceRepoPort` contract, and the agent-tool catalog.
  * What is left in this directory is only what is genuinely this host's:
  *
- * - `repo.sqlite.ts` — the Drizzle adapter. It names `db/schema.ts`, this repo's shared
+ * - `repo.sqlite.ts` — the Drizzle adapter. It names `db/schema.sqlite.ts`, this repo's shared
  *   1,246-line schema covering every domain, so it is host persistence, not library code.
  * - `tool-registrations.ts` — a re-export shim; see that file's own header for why it stays.
  * - `INFO.md` / `__specs__/` — this host's requirement documents (SPEC-044). They describe the

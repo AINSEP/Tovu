@@ -7,6 +7,9 @@ import {
 import "@jini-ai/ui/settings-dialog.css";
 import type { ReactElement } from "react";
 
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import type { Translate } from "../../lib/dictionary-translator";
+import { providerBackendNote, t as translateAuthentication } from "./authentication-i18n";
 import {
   AUTHENTICATION_PROVIDER_SCHEMAS,
   type AuthenticationCredentialFieldSchema,
@@ -36,6 +39,7 @@ import {
 function AuthenticationCredentialField(props: {
   providerId: AuthenticationProviderId;
   field: AuthenticationCredentialFieldSchema;
+  t: Translate;
 }): ReactElement {
   const inputId = `authentication-${props.providerId}-${props.field.key}`;
   const hintId = `${inputId}-hint`;
@@ -43,8 +47,8 @@ function AuthenticationCredentialField(props: {
   return (
     <label className="source-config-field" htmlFor={inputId}>
       <span className="source-config-field-label">
-        {props.field.label}
-        <span className="source-config-field-required" aria-label="required">
+        {props.t(props.field.label)}
+        <span className="source-config-field-required" aria-label={props.t("required")}>
           *
         </span>
       </span>
@@ -52,14 +56,14 @@ function AuthenticationCredentialField(props: {
         id={inputId}
         type={props.field.kind}
         defaultValue=""
-        placeholder={props.field.placeholder}
+        placeholder={props.t(props.field.placeholder)}
         required={props.field.required}
         autoComplete={props.field.kind === "password" ? "new-password" : "off"}
         spellCheck={false}
         aria-describedby={hintId}
       />
       <span id={hintId} className="jini-field-hint">
-        {props.field.hint}
+        {props.t(props.field.hint)}
       </span>
     </label>
   );
@@ -73,23 +77,22 @@ function AuthenticationCredentialField(props: {
  * @throws Never.
  * @complexity Time and space: O(f), where f is the provider's bounded field count.
  */
-function AuthenticationProviderPanel(props: { provider: AuthenticationProviderSchema }): ReactElement {
+function AuthenticationProviderPanel(props: { provider: AuthenticationProviderSchema; locale: string; t: Translate }): ReactElement {
   const noteId = `authentication-${props.provider.id}-backend-note`;
 
   return (
     <section className="jini-settings-section" aria-label={`${props.provider.label} authentication setup`}>
       <p id={noteId} className="settings-ui-inert-note" role="note">
-        Not connected to a provider authentication backend yet. These required fields are shown for setup planning;
-        Tovu cannot save credentials or enable {props.provider.label} sign-in from this screen today.
+        {providerBackendNote(props.locale, props.provider.label)}
       </p>
       <fieldset
         className="source-config-add-form settings-ui-inert-control"
         disabled
         aria-describedby={noteId}
       >
-        <legend className="jini-byok-card-title">Required credentials</legend>
+        <legend className="jini-byok-card-title">{props.t("Required credentials")}</legend>
         {props.provider.fields.map((field) => (
-          <AuthenticationCredentialField key={field.key} providerId={props.provider.id} field={field} />
+          <AuthenticationCredentialField key={field.key} providerId={props.provider.id} field={field} t={props.t} />
         ))}
       </fieldset>
     </section>
@@ -103,17 +106,16 @@ function AuthenticationProviderPanel(props: { provider: AuthenticationProviderSc
  * @throws Never.
  * @complexity Time: O(1). Space: O(1).
  */
-function AuthenticationHomePanel(): ReactElement {
+function AuthenticationHomePanel({ t }: { t: Translate }): ReactElement {
   return (
-    <section className="jini-settings-section" aria-label="Authentication overview">
+    <section className="jini-settings-section" aria-label={t("Authentication overview")}>
       <p className="settings-ui-inert-note" role="note">
-        Tovu currently signs administrators in with a local username and password. A provider authentication backend,
-        secure provider-credential storage contract, callback handling, and token lifecycle are not implemented yet.
+        {t("Tovu currently signs administrators in with a local username and password. A provider authentication backend, secure provider-credential storage contract, callback handling, and token lifecycle are not implemented yet.")}
       </p>
       <div className="jini-settings-section-card">
-        <h3 className="jini-byok-card-title">Provider setup preview</h3>
+        <h3 className="jini-byok-card-title">{t("Provider setup preview")}</h3>
         <p className="jini-field-hint">
-          Open a provider tab to see the credentials an operator will need once the backend capability exists.
+          {t("Open a provider tab to see the credentials an operator will need once the backend capability exists.")}
         </p>
       </div>
     </section>
@@ -131,20 +133,22 @@ function AuthenticationHomePanel(): ReactElement {
  * <Authentication />
  */
 export function Authentication(): ReactElement {
+  const locale = useAdminLocale();
+  const t: Translate = (key) => translateAuthentication(locale, key);
   const tabs: SettingsDialogTab[] = [
     {
       id: "home",
       label: "Home",
-      title: "Authentication",
-      subtitle: "Review current sign-in support and future provider requirements.",
-      panel: <AuthenticationHomePanel />,
+      title: t("Authentication"),
+      subtitle: t("Review current sign-in support and future provider requirements."),
+      panel: <AuthenticationHomePanel t={t} />,
     },
     ...AUTHENTICATION_PROVIDER_SCHEMAS.map((provider) => ({
       id: provider.id,
       label: provider.label,
       title: provider.label,
       subtitle: `${provider.subtitle} Saving and sign-in are not wired yet.`,
-      panel: <AuthenticationProviderPanel provider={provider} />,
+      panel: <AuthenticationProviderPanel provider={provider} locale={locale} t={t} />,
     })),
   ];
 
@@ -157,10 +161,10 @@ export function Authentication(): ReactElement {
           duplicate heading above the tab strip. */}
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">People</p>
-          <h1 className="page-title">Authentication</h1>
+          <p className="page-kicker">{t("People")}</p>
+          <h1 className="page-title">{t("Authentication")}</h1>
           <p className="page-description">
-            Review current sign-in support and future provider requirements.
+            {t("Review current sign-in support and future provider requirements.")}
           </p>
         </div>
       </div>
@@ -187,7 +191,7 @@ export function Authentication(): ReactElement {
             presentation="inline"
             className="jini-tabbed-dialog--inline"
             fullscreenEnabled={false}
-            labels={{ kicker: "People" }}
+            labels={{ kicker: t("People") }}
           />
         </div>
       </I18nProvider>

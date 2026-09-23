@@ -106,14 +106,15 @@ import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen 
 import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "./src/tovu-server.ts";
 import { resolveAdminDevProxyUrl } from "./src/admin-dev-proxy.ts";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "./src/site-dir-store.ts";
-import { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-process-registry.ts";
+import { registryDirPath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-process-registry.ts";
 import { createKeyedSerializer } from "./src/keyed-serializer.ts";
 import { createSiteSupervisor } from "./src/site-supervisor.ts";
 import { createSiteTransitions } from "./src/site-transitions.ts";
 import { createShutdownTracker } from "./src/shutdown-tracker.ts";
 import { routeQuitSignals } from "./src/quit-signals.ts";
 import { decideBeforeQuit } from "./src/quit-drain-gate.ts";
-import { applyGuestWebPreferences } from "./src/webview-guest-policy.ts";
+import { admitGuestSource, applyGuestWebPreferences } from "./src/webview-guest-policy.ts";
+import { installAppWindowNavigationPolicy, isSameOrigin, isShellPageUrl } from "./src/window-navigation-policy.ts";
 import { createSelftestTracker } from "./src/selftest-tracker.ts";
 import { registerSpeechIpc } from "./src/speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "./src/find-in-page-ipc.ts";
@@ -126,7 +127,7 @@ import { readPreviewVersion, readPreviewDataUrl, writePreview, deletePreview, sw
 import { registerSiteIpcHandlers, rescanSites } from "./src/project-ipc.ts";
 import { addSitePointer } from "./src/add-site-pointer.ts";
 import { registerSitesMcpServer, writeSitesMcpLauncher } from "./src/sites-mcp-registration.ts";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveDesktopRoots } from "./src/packaged-paths.ts";
 import { sitesHomeMenuTemplate } from "./src/site-history-menu.ts";
 import { windowBoundsFilePath, readWindowBounds, writeWindowBounds, resolveWindowBounds } from "./src/window-bounds-store.ts";
@@ -312,8 +313,9 @@ const openSites = createSiteSupervisor<OpenSite>({
   onUnexpectedExit: (siteDir, exit, entry) => {
     // The row exists to let the NEXT launch reap a child this process left running. This one is
     // already gone, so the row is now a lie that `reconcileOrphans` would spend a `ps` call on.
-    // Narrowed by pid: a live sibling instance may hold its own row for this same site (D-07).
-    recordSiteClosed(registryFilePath(app.getPath("userData")), siteDir, { pid: entry.server.pid });
+    // Narrowed by pid: this instance's own file can also hold a still-draining earlier child's row
+    // for this same site (D-07).
+    recordSiteClosed(registryDirPath(app.getPath("userData")), siteDir, { pid: entry.server.pid });
     console.warn(`tovu desktop: ${siteDir}'s server exited on its own (code ${exit.code ?? "none"}, signal ${exit.signal ?? "none"}). Its tab will show as stopped; Start will spawn a fresh one.`);
   },
 });
@@ -459,12 +461,11 @@ function createWindow(url: string, title?: string, partition?: string): BrowserW
   window.on("page-title-updated", (event) => event.preventDefault());
 
   // Anything that navigates away from the app's own origin belongs in the OS browser — a
-  // "view site ↗" link must not replace the admin shell inside the app window.
-  const origin = new URL(url).origin;
-  window.webContents.setWindowOpenHandler(({ url: target }) => {
-    if (target.startsWith(origin)) return { action: "allow" };
-    void shell.openExternal(target);
-    return { action: "deny" };
+  // "view site ↗" link must not replace the admin shell inside the app window, and nothing but this
+  // origin may run with the speech preload. See `window-navigation-policy.ts`.
+  installAppWindowNavigationPolicy(window.webContents, {
+    appOrigin: new URL(url).origin,
+    openExternal: (target) => void shell.openExternal(target),
   });
 
   void window.loadURL(url);
@@ -554,8 +555,10 @@ function openSitesHomeWindow(): BrowserWindow | null {
   // The guest gets the shell's OWN speech preload, not none (D-10) — see
   // `webview-guest-policy.ts` for why assigning is strictly stronger than the `delete` this
   // replaced, and for the symptom it fixes: the embedded admin telling the operator that voice
-  // input needs the desktop app, from inside the desktop app.
-  window.webContents.on("will-attach-webview", (_event, webPreferences) => {
+  // input needs the desktop app, from inside the desktop app. That grant is only safe on a supervised
+  // site's origin, so a guest pointed anywhere else is refused before it attaches.
+  window.webContents.on("will-attach-webview", (event, webPreferences, params) => {
+    if (!admitGuestSource(event, params, { isAllowedSource: isSupervisedGuestUrl })) return;
     applyGuestWebPreferences(webPreferences, { preloadPath: SPEECH_PRELOAD_PATH });
   });
 
@@ -716,12 +719,11 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
  */
 function announceDesktopToolsToSite(server: TovuServerHandle, partition: string): void {
   try {
-    const launcherPath = writeSitesMcpLauncher({
-      userDataDir: app.getPath("userData"),
-      // Read live, never persisted as truth — see this function's own note on staleness.
-      electronPath: process.execPath,
-      bridgePath: path.join(__dirname, "bin", "mcp-bridge.ts"),
-    });
+    // Read live, never persisted as truth — see this function's own note on staleness.
+    const electronPath = process.execPath;
+    const bridgePath = path.join(__dirname, "bin", "mcp-bridge.ts");
+    const userDataDir = app.getPath("userData");
+    const launcherPath = writeSitesMcpLauncher({ userDataDir, electronPath, bridgePath });
     void registerSitesMcpServer({
       net,
       session: session.fromPartition(partition),
@@ -731,6 +733,11 @@ function announceDesktopToolsToSite(server: TovuServerHandle, partition: string)
       // `--workspace` can name another, so an assumed id would 404 on exactly the sites that differ.
       workspaceId: server.workspaceId,
       launcherPath,
+      // Unused on POSIX (`writeSitesMcpLauncher` already embedded them in the launcher script);
+      // on win32, where that call wrote no script and `launcherPath` is `electronPath` itself,
+      // `registerSitesMcpServer`/`buildSitesMcpRegistration` need these to build `args`/`env`.
+      bridgePath,
+      userDataDir,
     }).then((result) => {
       if (!result.ok) console.warn(`tovu-desktop: the assistant's desktop tools are unavailable for this site — ${result.reason}`);
     });
@@ -964,7 +971,8 @@ async function openSiteServer(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
 /**
  * Whether `raw` points at a site this launch is currently supervising through the sites home UI's
  * embedded tabs — the boundary {@link registerGuestNavigationPolicy} enforces before ever handing a
- * guest-requested url to the operator's own browser. Scoped to `openSites`' own live ports rather
+ * guest-requested url to the operator's own browser, and the allowlist for where a guest may start
+ * (`will-attach-webview`) or be redirected (`will-redirect`). Scoped to `openSites`' own live ports rather
  * than a separate registry, since `openSites` already IS this shell's registry of what is running.
  *
  * @complexity O(n) in currently open sites.
@@ -978,6 +986,22 @@ function isSupervisedGuestUrl(raw: string): boolean {
   }
   if (url.protocol !== "http:" || url.hostname !== "127.0.0.1") return false;
   return [...openSites.values()].some((entry) => entry.server && String(entry.server.port) === url.port);
+}
+
+/**
+ * Whether `raw` is a page this shell serves — the speech channels' sender check. A supervised site
+ * (own-server windows and sites-home tabs are both `http://127.0.0.1:<port>`), attach mode's one
+ * origin, or the sites home renderer, whose own preload exposes `tovuVoice` too (`preload.mts`).
+ * Read at call time, so a site opened after boot is admitted from its first call.
+ *
+ * @complexity O(n) in currently open sites.
+ */
+function isShellPage(raw: string): boolean {
+  return isShellPageUrl(raw, {
+    isSupervisedSite: isSupervisedGuestUrl,
+    attachUrl: process.env.TOVU_DESKTOP_URL?.trim(),
+    rendererFileUrl: pathToFileURL(SITES_RENDERER_PATH).href,
+  });
 }
 
 /**
@@ -1011,17 +1035,19 @@ function registerGuestNavigationPolicy(): void {
     });
 
     contents.on("will-navigate", (event, url) => {
-      let target;
-      let current;
-      try {
-        target = new URL(url).origin;
-        current = new URL(contents.getURL()).origin;
-      } catch {
-        return;
-      }
-      if (target === current) return;
+      if (isSameOrigin(url, contents.getURL())) return;
       event.preventDefault();
       openExternally(url);
+    });
+
+    // A server-side 30x never fires `will-navigate`, and a site's redirect rules may name another
+    // origin. Judged against the supervised sites rather than `getURL()`, which a redirect during
+    // the guest's FIRST load has nothing committed to compare against. Main frame only: a subframe
+    // never runs the preload. Nothing is handed to the OS browser: `openExternally` only ever opens
+    // a supervised url, and a supervised url is allowed here.
+    contents.on("will-redirect", (details) => {
+      if (!details.isMainFrame || isSupervisedGuestUrl(details.url)) return;
+      details.preventDefault();
     });
   });
 }
@@ -1256,8 +1282,8 @@ function applyDockIcon(): void {
  * mode — which spawns nothing and records nothing — can only ever find rows a previous own-server or
  * sites-home launch left behind, exactly the rows that should be reaped. It cannot touch a CONCURRENT
  * instance's children: `reconcileOrphans` proves a row's process has actually been reparented to
- * launchd before terminating it, and retains the rows of any still-supervised sibling (see
- * `site-process-registry.ts`'s `isOrphanedProcess`).
+ * launchd before terminating it (see `site-process-registry.ts`'s `isOrphanedProcess`), and never
+ * rewrites a live sibling's registry file — each instance writes only its own.
  *
  * @complexity O(n) in persisted row count; each row's own cost is `terminateOrphan`'s bounded poll,
  *   so a launch can be delayed by up to that grace window per genuine orphan.
@@ -1285,7 +1311,7 @@ async function bootOwnServerMode(): Promise<void> {
   const ctx: SiteOpenCtx = {
     cliMode: resolveCliMode(),
     statePath: stateFilePath(app.getPath("userData")),
-    registryPath: registryFilePath(app.getPath("userData")),
+    registryPath: registryDirPath(app.getPath("userData")),
   };
 
   refreshAppMenu(ctx);
@@ -1325,7 +1351,7 @@ app
     // call (fired from the preload the instant the page mounts) never races an unregistered
     // channel — see `SPEECH_PRELOAD_PATH`'s own doc for why this and the preload path are both
     // needed for `window.tovuVoice` to exist at all.
-    registerSpeechIpc({ ipcMain });
+    registerSpeechIpc({ ipcMain, isTrustedSender: isShellPage });
     // General, not sites-home-only: registered here for the same reason `registerSpeechIpc` is —
     // resolves its target from `event.sender` at call time, so it needs no per-window setup and is
     // harmless to register even for a boot mode whose window never calls it (no preload exposes
@@ -1350,7 +1376,7 @@ app
     // first open goes through `openSiteServer`) but used to read none back, so a hard kill leaked
     // every open site's `tovu serve` forever. See `reconcileOrphansOnBoot`'s own doc for why running
     // it for all three modes is correct and why it cannot reap a live sibling instance's children.
-    await reconcileOrphansOnBoot(registryFilePath(app.getPath("userData")));
+    await reconcileOrphansOnBoot(registryDirPath(app.getPath("userData")));
 
     // Checked before every other mode: the sites home UI supersedes both attach and own-server, and it
     // spawns no `tovu serve` of its own at boot — only when a project tab is first opened, through
@@ -1360,7 +1386,7 @@ app
       const sitesCtx = {
         cliMode: resolveCliMode(),
         statePath: stateFilePath(app.getPath("userData")),
-        registryPath: registryFilePath(app.getPath("userData")),
+        registryPath: registryDirPath(app.getPath("userData")),
         projectsPath: sitesFilePath(app.getPath("userData")),
       };
       // Once, before the seed reads the file: a registry written before removals were RECORDED

@@ -1,8 +1,9 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import { ApiError, describeApiError, type AdminContentType, type ContentTypeFieldDef } from "../../lib/api";
+import type { Translate } from "../../lib/dictionary-translator";
 import type { QueryKey } from "../../lib/fetch-query";
-import { COLLECTIONS_DICT } from "./collections-i18n";
+import { t as translate } from "./collections-i18n";
 
 /**
  * @file Pure logic for the `collections` feature (top-level Collections screen only — see
@@ -46,6 +47,34 @@ export const KEYS = {
 };
 
 /**
+ * Content types this screen never lists as a user-manageable collection: `widget`/`widget_area`
+ * back the widget-placement system, and `menu` is `NAV_MENU_CONTENT_TYPE`
+ * (`node_modules/@jini-ai/cms/dist/navigation/types.js:10`). This is the admin-side copy of the
+ * server's own system-type list — admin cannot import website code, the same accepted
+ * duplication the media accept-lists already carry.
+ */
+export const ADMIN_SYSTEM_CONTENT_TYPES = ["widget", "widget_area", "menu"];
+
+/**
+ * @complexity Time/space: O(1) — one `Array.includes` over a fixed 3-item list.
+ */
+export function isUserCollection(key: string): boolean {
+  return !ADMIN_SYSTEM_CONTENT_TYPES.includes(key);
+}
+
+/**
+ * The embeddable marker for "list this content type's entries here" — `id` carries the content
+ * type's own key, never a row's UUID (the collection marker reads `id` first, `typeKey` as a
+ * fallback, per the fix landed in `a9ab19c4f`). Keeps the wrapper `<div data-embed-config='...'>`
+ * shape every other embeddable type already uses.
+ *
+ * @complexity Time/space: O(1) — one template string.
+ */
+export function collectionEmbedSnippet(key: string): string {
+  return `<div data-embed-config='{"type":"collection","id":"${key}"}'></div>`;
+}
+
+/**
  * `useCollectionEntryEditor`'s `error` banner, extracted out of that hook (`refactor/fetch-query`
  * complexity pass, 2026-08-12 — the hook's own precedence chain over three independent mutations
  * pushed it to complexity 12 against a ceiling of 9). `update`/`create` share ONE fallback string,
@@ -74,12 +103,18 @@ export function visibleEntryEditorError(params: {
 const KEY_GRAMMAR = /^[a-z][a-z0-9_]{0,63}$/;
 const RESERVED_KEYS = new Set(["post", "page"]);
 
+type LocaleOrTranslate = string | Translate;
+
+function localize(localeOrTranslate: LocaleOrTranslate, key: string): string {
+  return typeof localeOrTranslate === "function" ? localeOrTranslate(key) : translate(localeOrTranslate, key);
+}
+
 /**
  * @complexity Time/space: O(1) — one regex test, one `Set` lookup.
  */
-export function validateKey(key: string): string | null {
+export function validateKey(key: string, locale = "en"): string | null {
   if (!KEY_GRAMMAR.test(key)) {
-    return "Key must start with a lowercase letter and contain only lowercase letters, digits, and underscores (max 64 chars).";
+    return translate(locale, "Key must start with a lowercase letter and contain only lowercase letters, digits, and underscores (max 64 chars).");
   }
   if (RESERVED_KEYS.has(key)) {
     return `"${key}" is a reserved key (built-in content already uses it).`;
@@ -90,9 +125,9 @@ export function validateKey(key: string): string | null {
 /**
  * @complexity Time/space: O(1) — one regex test.
  */
-export function validateFieldName(name: string): string | null {
+export function validateFieldName(name: string, localeOrTranslate: LocaleOrTranslate = "en"): string | null {
   if (!KEY_GRAMMAR.test(name)) {
-    return "Field name must start with a lowercase letter and contain only lowercase letters, digits, and underscores.";
+    return localize(localeOrTranslate, "Field name must start with a lowercase letter and contain only lowercase letters, digits, and underscores.");
   }
   return null;
 }
@@ -145,9 +180,9 @@ export function stripDraftFieldRowIds(fields: DraftField[]): ContentTypeFieldDef
  *
  * @complexity Time/space: O(n) in `fields.length`, short-circuiting on the first failure.
  */
-export function firstDraftFieldError(fields: DraftField[]): string | null {
+export function firstDraftFieldError(fields: DraftField[], localeOrTranslate: LocaleOrTranslate = "en"): string | null {
   for (const f of fields) {
-    const fieldError = validateFieldName(f.name.trim());
+    const fieldError = validateFieldName(f.name.trim(), localeOrTranslate);
     if (fieldError) return `Field "${f.name || "(unnamed)"}": ${fieldError}`;
   }
   return null;
@@ -160,11 +195,14 @@ export function firstDraftFieldError(fields: DraftField[]): string | null {
  *
  * @complexity Time/space: O(n) in `fields.length`.
  */
-export function validateNewContentTypeDraft(draft: { key: string; label: string; fields: DraftField[] }): string | null {
-  const keyError = validateKey(draft.key.trim());
+export function validateNewContentTypeDraft(
+  draft: { key: string; label: string; fields: DraftField[] },
+  locale = "en",
+): string | null {
+  const keyError = validateKey(draft.key.trim(), locale);
   if (keyError) return keyError;
-  if (!draft.label.trim()) return "Label is required.";
-  return firstDraftFieldError(draft.fields);
+  if (!draft.label.trim()) return translate(locale, "Label is required.");
+  return firstDraftFieldError(draft.fields, locale);
 }
 
 /**
@@ -173,9 +211,9 @@ export function validateNewContentTypeDraft(draft: { key: string; label: string;
  *
  * @complexity Time/space: O(n) in `fields.length`.
  */
-export function validateEditFieldsDraft(fields: DraftField[]): string | null {
-  if (fields.length === 0) return "At least one field is required.";
-  return firstDraftFieldError(fields);
+export function validateEditFieldsDraft(fields: DraftField[], localeOrTranslate: LocaleOrTranslate = "en"): string | null {
+  if (fields.length === 0) return localize(localeOrTranslate, "At least one field is required.");
+  return firstDraftFieldError(fields, localeOrTranslate);
 }
 
 // ---------------------------------------------------------------------------
@@ -194,9 +232,9 @@ export const STALE_VERSION_MESSAGE = "This content type changed since you loaded
  *
  * @complexity Time/space: O(1) — one `instanceof` check.
  */
-export function describeEditFieldsError(e: unknown): string {
+export function describeEditFieldsError(e: unknown, localeOrTranslate: LocaleOrTranslate = "en"): string {
   if (e instanceof ApiError && e.status === 409) return STALE_VERSION_MESSAGE;
-  return describeApiError(e, "Failed to update fields");
+  return describeApiError(e, localize(localeOrTranslate, "Failed to update fields"));
 }
 
 // ---------------------------------------------------------------------------
@@ -215,6 +253,11 @@ export const LIFECYCLE_COPY: Record<LifecycleConfirmOp, { title: string; body: s
     body: "Entries stop being served publicly. This is not reversible from this screen.",
   },
 };
+
+export function lifecycleCopy(op: LifecycleConfirmOp, locale = "en"): { title: string; body: string } {
+  const copy = LIFECYCLE_COPY[op];
+  return { ...copy, title: translate(locale, copy.title) };
+}
 
 /**
  * Tombstone is heavier/less-reversible than an ordinary reset, so — unlike
@@ -259,7 +302,7 @@ export function contentTypeMenuItems(
   handlers: ContentTypeRowMenuHandlers,
   locale: string,
 ): RowMenuItem[] {
-  const t = (key: string): string => COLLECTIONS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   const items: RowMenuItem[] = [
     { key: "edit-fields", label: t("Edit fields"), onSelect: () => handlers.onEditFields(contentType) },
   ];

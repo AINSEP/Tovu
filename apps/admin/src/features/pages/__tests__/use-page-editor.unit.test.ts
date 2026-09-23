@@ -411,7 +411,13 @@ describe("injected port — usePageEditor with no fetch stub", () => {
       await result.current.save();
     });
 
-    expect(result.current.error).toBe("boom");
+    // The body write is what fails here (`updatePageHtml` throws), so the metadata write landed
+    // first — this is H1's partial-save path, not a generic failure. See
+    // `describe("save() when the body write fails after the metadata write landed")` below for the
+    // full behavior this now has; this test only pins the partial-save message's exact text.
+    expect(result.current.error).toBe(
+      "en:Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry. (boom)"
+    );
     expect(deps.navigate).not.toHaveBeenCalled();
   });
 
@@ -1472,6 +1478,110 @@ describe("save() guards against a concurrent save", () => {
     act(() => result.current.dismissSaveConflict());
 
     expect(result.current.saveConflict).toBeNull();
+    expect(deps.port.updatePageHtmlCalls).toEqual([]);
+  });
+});
+
+/**
+ * H1 (`ADS-memory/.local-artifacts/terra-admin-review-2026-09-20/plan-content.md`) — a Page save is
+ * two unbound writes (`updatePost` then `updatePageHtml`, see `writePage`'s own doc). Before this
+ * fix, a body-write failure after the metadata write landed left `page.version` at the stale basis
+ * while the server already held the bumped one, so the operator's very own next save came back as a
+ * self-conflict — and if the attempt was a Publish, the page went live with the OLD html while the
+ * UI reported only a generic failure. These tests drive that split outcome directly.
+ */
+describe("save() when the body write fails after the metadata write landed", () => {
+  function conflictDeps(page: unknown) {
+    const port = createFakePageEditorPort({ page: page as Parameters<typeof createFakePageEditorPort>[0]["page"] });
+    return { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: (l: string, k: string) => `${l}:${k}`, locale: "en" };
+  }
+
+  it("advances the version basis and keeps the body dirty", async () => {
+    const deps = conflictDeps(HTML_PAGE);
+    deps.port.updatePageHtml = async () => {
+      throw new Error("boom");
+    };
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => {
+      result.current.setTitle("Renamed");
+      result.current.setHtml("<p>mine</p>");
+    });
+    await act(async () => {
+      await result.current.save();
+    });
+
+    // The metadata write landed (and bumped version) even though the body write threw.
+    expect(result.current.page?.version).toBe(HTML_PAGE.version + 1);
+    // Not a version conflict — this editor's own save partially succeeded, nobody else wrote.
+    expect(result.current.saveConflict).toBeNull();
+    // The unsaved body must still show as dirty, or a retry (and the standing-draft autosave) would
+    // both think there is nothing left to save.
+    expect(result.current.dirty).toBe(true);
+    expect(result.current.error).toBe(
+      "en:Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry. (boom)"
+    );
+  });
+
+  it("a retry after a partial save does not raise a self-conflict", async () => {
+    const deps = conflictDeps(HTML_PAGE);
+    const realUpdatePageHtml = deps.port.updatePageHtml;
+    deps.port.updatePageHtml = async () => {
+      throw new Error("boom");
+    };
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => {
+      result.current.setTitle("Renamed");
+      result.current.setHtml("<p>mine</p>");
+    });
+    await act(async () => {
+      await result.current.save();
+    });
+
+    deps.port.updatePageHtml = realUpdatePageHtml;
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.saveConflict).toBeNull();
+    // The retry's `expectedVersion` is the version the partial save already advanced to — not the
+    // stale basis this editor originally loaded.
+    expect(deps.port.updatePostCalls[1]).toMatchObject({ expectedVersion: HTML_PAGE.version + 1 });
+    expect(deps.port.updatePageHtmlCalls).toEqual(["<p>mine</p>"]);
+    expect(result.current.message).toBe("en:Saved");
+  });
+
+  /**
+   * The other side of the same branch. H1 re-pointed the suite's only exercise of
+   * `applySaveFailure`'s GENERIC arm ("a save failure surfaces the injected t()'s message…", which
+   * fails `updatePageHtml`) at the new partial-save arm, leaving the generic arm with no test at
+   * all. Restored here against the write that genuinely cannot be partial: when the METADATA write
+   * is what fails, nothing landed, so the operator must see the raw failure — never the
+   * "Title, slug and status saved…" banner, and never an advanced version basis.
+   */
+  it("a metadata-write failure is still the plain error, with no partial-save banner and no version advance", async () => {
+    const deps = conflictDeps(HTML_PAGE);
+    deps.port.updatePost = async () => {
+      throw new Error("boom");
+    };
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => {
+      result.current.setTitle("Renamed");
+      result.current.setHtml("<p>mine</p>");
+    });
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.error).toBe("boom");
+    expect(result.current.saveConflict).toBeNull();
+    // Nothing landed: the basis must stay where it was, and the body write never fired.
+    expect(result.current.page?.version).toBe(HTML_PAGE.version);
     expect(deps.port.updatePageHtmlCalls).toEqual([]);
   });
 });

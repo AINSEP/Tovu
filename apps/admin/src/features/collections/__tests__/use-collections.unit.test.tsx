@@ -58,6 +58,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 async function loaded() {
@@ -214,5 +215,79 @@ describe("injected port (useWiredX conversion coverage)", () => {
     });
 
     await waitFor(() => expect(result.current.actionError).toBe('Failed to tombstone "Recipe"'));
+  });
+
+  it("filters system content types (widget/widget_area/menu) out of the injected port's list", async () => {
+    const widget: AdminContentType = { ...TYPE, key: "widget", label: "Widget" };
+    const menu: AdminContentType = { ...TYPE, key: "menu", label: "Menu" };
+    const port = createFakeCollectionsPort({ types: [TYPE, widget, menu] });
+    const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.types).not.toBeNull());
+
+    expect(result.current.types).toEqual([TYPE]);
+  });
+
+  it("copyEmbedCode writes the collection's embed snippet to the clipboard, flips copiedKey, then resets after 1.5s", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
+    const port = createFakeCollectionsPort({ types: [TYPE] });
+
+    const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.types).not.toBeNull());
+    expect(result.current.copiedKey).toBeNull();
+
+    await act(async () => {
+      await result.current.copyEmbedCode(TYPE);
+    });
+    expect(writeText).toHaveBeenCalledWith('<div data-embed-config=\'{"type":"collection","id":"recipe"}\'></div>');
+    expect(result.current.copiedKey).toBe("recipe");
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    expect(result.current.copiedKey).toBeNull();
+  });
+
+  // Review of A2 (2026-09-23): a denied clipboard write used to be swallowed with no visible
+  // result — the row shows no snippet text, so the click was a dead end. The failure now exposes
+  // the snippet for manual selection, and a later successful copy clears it.
+  it("copyEmbedCode: a rejected clipboard write exposes the snippet as copyFallback instead of failing silently", async () => {
+    const writeText = vi.fn().mockRejectedValue(new DOMException("denied", "NotAllowedError"));
+    vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
+    const port = createFakeCollectionsPort({ types: [TYPE] });
+
+    const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.types).not.toBeNull());
+    expect(result.current.copyFallback).toBeNull();
+
+    await act(async () => {
+      await result.current.copyEmbedCode(TYPE);
+    });
+    expect(result.current.copiedKey).toBeNull();
+    expect(result.current.copyFallback).toEqual({
+      key: "recipe",
+      snippet: '<div data-embed-config=\'{"type":"collection","id":"recipe"}\'></div>',
+    });
+
+    writeText.mockResolvedValue(undefined);
+    await act(async () => {
+      await result.current.copyEmbedCode(TYPE);
+    });
+    expect(result.current.copyFallback).toBeNull();
+    expect(result.current.copiedKey).toBe("recipe");
+  });
+
+  it("copyEmbedCode: no Clipboard API at all (insecure context) also exposes the snippet", async () => {
+    vi.stubGlobal("navigator", { ...window.navigator, clipboard: undefined });
+    const port = createFakeCollectionsPort({ types: [TYPE] });
+
+    const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.types).not.toBeNull());
+
+    await act(async () => {
+      await result.current.copyEmbedCode(TYPE);
+    });
+    expect(result.current.copyFallback?.key).toBe("recipe");
   });
 });

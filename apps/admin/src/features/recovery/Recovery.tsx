@@ -15,6 +15,7 @@ import {
   restoreButtonAccessibleName,
 } from "./rules";
 import { useWiredRecovery } from "./hooks/use-recovery.hooks";
+import { ServerLabel } from "@/components/status-labels";
 import { useWiredRestoreFlow, type CeremonyStep } from "./hooks/use-restore-flow.hooks";
 import {
   t,
@@ -373,7 +374,7 @@ function RestoreDoneStep(props: { locale: string; restoreRunId: string; state: s
   return (
     <div className="recovery-ceremony-step">
       <p role="status">
-        {restoreDoneMessage(locale, restoreRunId, <span className={`status status-${state}`}>{state}</span>)}
+        {restoreDoneMessage(locale, restoreRunId, <span className={`status status-${state}`}><ServerLabel value={state} /></span>)}
       </p>
       {restartRequired ? (
         <p className="save-error" role="alert">

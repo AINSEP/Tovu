@@ -10,7 +10,7 @@ export interface PagesPort {
   createPage(title: string): Promise<{ post: AdminPost }>;
   /**
    * `expectedVersion` (2026-09-18, multi-author hardening) — mirrors `posts-list-port.hooks.ts`'s
-   * identical member exactly (Pages and Posts share this one route). `disablePage`
+   * identical member exactly (Pages and Posts share this one route). `togglePagePublish`
    * (`use-pages.hooks.ts`) always sends it.
    */
   updatePost(

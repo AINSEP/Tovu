@@ -10,6 +10,8 @@ import { adminHref, navigate } from "@/lib/router";
 import type { AdminPost } from "@/lib/api";
 import { siteUrl } from "@/lib/site-url";
 
+const identityT = (key: string): string => key;
+
 /**
  * @file `Pages` — markup-only list screen, twin of `features/posts/Posts.tsx`. Driven entirely
  * through the injectable `usePagesHook` seam (`Pages.tsx`'s own doc comment on `PagesProps`), so
@@ -65,7 +67,7 @@ function controller(overrides: Partial<PagesController> = {}): PagesController {
     pendingDelete: null,
     setPendingDelete: vi.fn(),
     createPage: vi.fn(async () => {}),
-    disablePage: vi.fn(async () => {}),
+    togglePagePublish: vi.fn(async () => {}),
     removePage: vi.fn(async () => {}),
     // `PAGES_DICT` has no `en` entry (only translated locales) — `key` IS the English copy, so
     // the identity function is a faithful fake for the wired hook's real English behavior, same
@@ -265,19 +267,20 @@ describe("New Page action", () => {
   });
 });
 
-describe("row menu — Disable visibility mirrors pageRowMenuItems", () => {
-  it("offers Disable for a published page", async () => {
+describe("row menu — Publish/Unpublish visibility mirrors pageRowMenuItems", () => {
+  it("offers Unpublish for a published page", async () => {
     const user = userEvent.setup();
     renderWith({ pages: [PAGE] });
     await user.click(screen.getByRole("button", { name: 'Actions for "About"' }));
-    expect(screen.getByRole("menuitem", { name: "Disable" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Unpublish" })).toBeInTheDocument();
   });
 
-  it("omits Disable for a draft page", async () => {
+  it("offers Publish for a draft page — the item flips rather than being omitted", async () => {
     const user = userEvent.setup();
     renderWith({ pages: [DRAFT_PAGE] });
     await user.click(screen.getByRole("button", { name: 'Actions for "Draft Page"' }));
-    expect(screen.queryByRole("menuitem", { name: "Disable" })).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Publish" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Unpublish" })).not.toBeInTheDocument();
   });
 
   it("Edit navigates to the Pages editor by slug (via pageAdminPath), never the Posts editor", async () => {
@@ -288,12 +291,20 @@ describe("row menu — Disable visibility mirrors pageRowMenuItems", () => {
     expect(navigate).toHaveBeenCalledWith("/pages/about");
   });
 
-  it("Disable calls disablePage with the row", async () => {
+  it("Unpublish calls togglePagePublish with the row", async () => {
     const user = userEvent.setup();
     const c = renderWith({ pages: [PAGE] });
     await user.click(screen.getByRole("button", { name: 'Actions for "About"' }));
-    await user.click(screen.getByRole("menuitem", { name: "Disable" }));
-    expect(c.disablePage).toHaveBeenCalledWith(PAGE);
+    await user.click(screen.getByRole("menuitem", { name: "Unpublish" }));
+    expect(c.togglePagePublish).toHaveBeenCalledWith(PAGE);
+  });
+
+  it("Publish calls togglePagePublish with the row, for a draft page", async () => {
+    const user = userEvent.setup();
+    const c = renderWith({ pages: [DRAFT_PAGE] });
+    await user.click(screen.getByRole("button", { name: 'Actions for "Draft Page"' }));
+    await user.click(screen.getByRole("menuitem", { name: "Publish" }));
+    expect(c.togglePagePublish).toHaveBeenCalledWith(DRAFT_PAGE);
   });
 
   it("Delete calls setPendingDelete with the row rather than deleting immediately", async () => {
@@ -816,8 +827,8 @@ describe("Theme Pages tab", () => {
    * `ThemePageDetailsModal.tsx`'s own footer entirely. Same Theme Studio destination as before
    * (`themeStudioHref`, reused rather than re-derived) and as the table's own `Page` column link
    * (PART 5, 2026-09-13); `navigate` is mocked at the top of this file, same pattern `"row menu —
-   * Disable visibility..."`'s own "Edit navigates to the Pages editor" test above uses for My Pages'
-   * row menu.
+   * Publish/Unpublish visibility..."`'s own "Edit navigates to the Pages editor" test above uses for
+   * My Pages' row menu.
    */
   describe("row menu — Edit (Theme Pages)", () => {
     /**
@@ -928,21 +939,21 @@ describe("Theme Pages tab — deep link via ?tab=", () => {
  */
 describe("pagesListNotice", () => {
   it("returns the error notice when there is an error and no list yet", () => {
-    expect(pagesListNotice(null, "boom")).not.toBeNull();
+    expect(pagesListNotice(null, "boom", identityT)).not.toBeNull();
   });
 
   it("returns the loading notice when there is no list and no error", () => {
-    expect(pagesListNotice(null, null)).not.toBeNull();
+    expect(pagesListNotice(null, null, identityT)).not.toBeNull();
   });
 
   it("prioritizes the error branch over the loading branch when both conditions could apply", () => {
-    render(<>{pagesListNotice(null, "boom")}</>);
+    render(<>{pagesListNotice(null, "boom", identityT)}</>);
     expect(screen.getByText("boom")).toBeInTheDocument();
     expect(screen.queryByText("Loading pages…")).not.toBeInTheDocument();
   });
 
   it("returns null once the list has loaded, even with an error set (the inline-banner case)", () => {
-    expect(pagesListNotice([], "a later error")).toBeNull();
+    expect(pagesListNotice([], "a later error", identityT)).toBeNull();
   });
 });
 

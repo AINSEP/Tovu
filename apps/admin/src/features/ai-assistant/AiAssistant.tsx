@@ -32,7 +32,7 @@ import {
 } from "./hooks/use-visitor-credential-form.hooks";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
-import { AI_ASSISTANT_DICT } from "./ai-assistant-i18n";
+import { t as translateAiAssistantLabel } from "./ai-assistant-i18n";
 import { useWiredAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
 import type { Translate } from "../../lib/dictionary-translator";
 
@@ -630,7 +630,7 @@ export function VisitorCredentialKeyFooter({
       {/* Save key's status line — see `visitorCredentialSaveStatusMessage`'s own doc comment above
           for the mask/placeholder reasoning, and for why `dirty` is no longer read here. */}
       <p className="assistant-save-line">{visitorCredentialSaveStatusMessage(saveState, stored, t, storedKeyIsForOtherEndpoint)}</p>
-      {saveState.status === "error" ? <div className="save-error">{saveState.message}</div> : null}
+      {saveState.status === "error" ? <div className="save-error">{t(saveState.message)}</div> : null}
     </div>
   );
 }
@@ -671,7 +671,7 @@ export function VisitorCredentialSettingsFooter({
         </button>
       </div>
       {statusLine ? <p className="assistant-save-line">{statusLine}</p> : null}
-      {settingsSaveState.status === "error" ? <div className="save-error">{settingsSaveState.message}</div> : null}
+      {settingsSaveState.status === "error" ? <div className="save-error">{t(settingsSaveState.message)}</div> : null}
     </div>
   );
 }
@@ -835,7 +835,11 @@ export function VisitorCredentialForm({
         onConfigChange={editConfig}
         preset={preset}
         modelDiscovery={discovery}
-        connectionTest={connectionTest}
+        connectionTest={
+          connectionTest.status === "error"
+            ? { ...connectionTest, message: t(connectionTest.message) }
+            : connectionTest
+        }
         onTestConnection={() => void runTestConnection()}
         // Tells the shared form that the empty key field is not a missing required field, so
         // "Test connection" stops being permanently disabled on a screen whose key lives on the
@@ -925,7 +929,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
    * `I18nProvider` mounted below can't call that package's own `useT()`).
    */
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => AI_ASSISTANT_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translateAiAssistantLabel(locale, key);
 
   if (loadError) return <div className="notice error">{loadError}</div>;
   if (!settings) return <div className="notice">{t("Loading AI assistant settings…")}</div>;

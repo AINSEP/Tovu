@@ -162,6 +162,7 @@ import {
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { buildPromoteChatAttachmentTool, MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID } from "#src/features/media/promote-chat-attachment";
 import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pending-chat-attachments";
+import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
 
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
@@ -290,6 +291,18 @@ installUnhandledRejectionGuard();
  * exactly the "one call site drifts" defect this repo keeps finding.
  */
 const ATTACHMENT_UPLOAD_DIRECTORY = resolveChatAttachmentUploadDirectory();
+
+/**
+ * Total bytes one composer turn's staged attachments may sum to (`createDiskAttachmentStore`'s
+ * `maxBatchBytes`, `@jini-ai/http-kit`'s own default is 20 MB). Kept at twice
+ * {@link TOVU_MAX_UPLOAD_BYTES} (below) — the daemon's own per-file cap — rather than left equal to
+ * it, so a turn with one file at the cap still has room for a second small one; that default's own
+ * doc says the per-file cap "should be at or below" this value, and an exact match would leave zero
+ * headroom for any additional attachment in the same turn. Owner-directed (2026-09-21): the
+ * per-file cap rose to 50 MiB alongside the media upload cap it mirrors, so this rose to 100 MiB to
+ * keep that headroom.
+ */
+const ATTACHMENT_MAX_BATCH_BYTES = TOVU_MAX_UPLOAD_BYTES * 2;
 
 /**
  * Opt-in-only diagnostic gate for the base system overlay's Bash-prohibition instrument — see
@@ -1482,6 +1495,7 @@ async function start(): Promise<void> {
   attachmentStore = await createDiskAttachmentStore({
     uploadDirectory: ATTACHMENT_UPLOAD_DIRECTORY,
     retainAcrossRestarts: true,
+    maxBatchBytes: ATTACHMENT_MAX_BATCH_BYTES,
   });
   // Registered ahead of `express.json()` in spirit (see `attachments.ts`'s own "mount before any
   // global body parser" note) even though call order here is necessarily after it (`express.json()`
@@ -1498,6 +1512,13 @@ async function start(): Promise<void> {
       // OWN session — see that function's doc. This is what `chat_list_pending_attachments`
       // (`list-pending-chat-attachments.ts`) scopes its listing by.
       resolveOwnerId: (req) => req.get(RUN_PRINCIPAL_HEADER) ?? undefined,
+      // Without this, `@jini-ai/http-kit`'s own default (20 MB) silently undercuts
+      // `TOVU_MAX_UPLOAD_BYTES` for the one media path that reaches it (a chat attachment promoted
+      // to the library, `promote-chat-attachment.ts`) — this route's hard, streaming-enforced byte
+      // cap, not just the client's own pre-check (`AssistantDock.hooks.tsx`'s
+      // `useAttachmentUploader`, which must independently match this so a rejection surfaces before
+      // the bytes are ever sent, not just after).
+      maxAttachmentBytes: TOVU_MAX_UPLOAD_BYTES,
     },
     adapter,
   );

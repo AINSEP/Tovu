@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ComposioConfigRecord } from "#src/platform/connectors/composio-config-store";
-import { workspaces } from "../../schema.js";
+import { workspaces } from "../../schema.sqlite.js";
 import { SqliteComposioConfigRepo } from "../composio-config-repo.sqlite.js";
 import { openContentDb } from "../content-db.js";
 

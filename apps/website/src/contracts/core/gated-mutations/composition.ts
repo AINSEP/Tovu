@@ -17,7 +17,7 @@ import type { InstanceAuthorizeFn, PrincipalKind } from "./ports.js";
  * `buildGatewayDeps` builds the one shared `GatewayDeps` (clock/idGen/authorize/authorizeInstance/
  * tokens) every ceremony needs. `buildOwnerOnlyInstanceAuthorize` is the minimal binding for
  * `authorizeInstance` — every RBAC table (`principals`/`roles`/`policies`/...) is
- * `workspace_id NOT NULL` (`db/schema.ts`), so an instance-wide ceremony (one whose blast radius
+ * `workspace_id NOT NULL` (`db/schema.sqlite.ts`), so an instance-wide ceremony (one whose blast radius
  * crosses every workspace in `content.db`, e.g. a whole-database migration) cannot be authorized
  * through the ordinary workspace-scoped `authorize()` without either denying every principal or
  * letting a single workspace's admin approve a cross-tenant operation; this closes that gap by
@@ -91,7 +91,7 @@ export function buildGatewayDeps(params: {
  * principal, denies everyone else — the RBAC-table equivalent of `authorize()`'s own
  * `owner_wildcard` precedent (`@jini-ai/cms/identity/authorize.ts`), reused here rather than
  * inventing new vocabulary. Disclosed simplification, same shape as `resolveActorClassIdentity`'s
- * disclosure below: `db/schema.ts`'s RBAC tables (`principals`/`roles`/`policies`/...) are all
+ * disclosure below: `db/schema.sqlite.ts`'s RBAC tables (`principals`/`roles`/`policies`/...) are all
  * `workspace_id NOT NULL` — today's identity model has no dedicated instance-level policy/permission
  * table (unlike `setting_values_global`, which has no workspace column at all). `ownerPrincipalId`
  * (`identity/wiring.ts`'s `IdentityRouteDepsSlice`, SPEC-006 0.6.0's "seeded owner is never
@@ -102,7 +102,7 @@ export function buildGatewayDeps(params: {
  * more than one legitimate instance-level approver (e.g. multiple site operators) Property="a
  * workspace-scoped grant must never authorize an instance-wide mutation" MissingConstraint=a real
  * instance-level policy/permission table mirroring `setting_values_global`'s workspace-column-free
- * shape Evidence=`db/schema.ts` RBAC tables (all `workspace_id NOT NULL`), this file.
+ * shape Evidence=`db/schema.sqlite.ts` RBAC tables (all `workspace_id NOT NULL`), this file.
  *
  * @complexity O(1): one promise await, one equality check.
  * @overallScore 100

@@ -6,21 +6,22 @@
  *
  * Two independent constraints in `apps/website` force it, and neither is negotiable from here:
  *
- * 1. **The daemon REPLACES an MCP child's environment.** `mcp-federation/adapter.stdio.ts:251-255,339`
- *    spawns with `{...inheritedEnv(), ...spec.env}` where `inheritedEnv()` is exactly `PATH`, `HOME`
- *    and `TMPDIR`. So `ELECTRON_RUN_AS_NODE=1` cannot reach the child — and this shell's only Node is
+ * 1. **The daemon REPLACES an MCP child's environment.** `mcp-federation/adapter.stdio.ts`'s
+ *    `buildMcpChildEnv` passes the child only `PATH`, `HOME` and `TMPDIR` on POSIX. So `ELECTRON_RUN_AS_NODE=1` cannot reach the child — and this shell's only Node is
  *    Electron's own binary (`tovu-server.ts`'s `buildCliSpawnPlan` makes the same call for `tovu
  *    serve`, deliberately, so the app does not depend on a system Node install). Naming Electron as
  *    the `command` without that variable launches a second GUI app instead of a script.
  *    Putting the variable in the stored row's `env` block instead routes it through
  *    `external-mcp-store.ts:1380-1391`'s credential sealing, which fails the whole save with
- *    `SECRET_STORE_UNCONFIGURED` on any site that has no keyring root key.
+ *    `SECRET_STORE_UNCONFIGURED` on any site that has no keyring root key. (win32, where no script
+ *    can be exec'd, is covered by that same adapter instead: see {@link buildSitesMcpRegistration}.)
  *
- * 2. **`args` cannot carry a path containing a space.** `external-mcp-store.ts:441`'s `parseArgs`
- *    is `raw.split(/\s+/)` with no quoting whatsoever, and the value that must reach the bridge is
- *    `~/Library/Application Support/tovu-desktop` — which would arrive as two broken arguments.
- *    This is why {@link buildSitesMcpRegistration} sends an EMPTY `args` and the userData path
- *    travels inside the launcher, properly quoted, instead.
+ * 2. **`args` splits on whitespace.** `external-mcp-store.ts`'s `parseArgs` splits on whitespace
+ *    and honours exactly one quoting form (a token that starts and ends with `"`), and the value that
+ *    must reach the bridge is `~/Library/Application Support/tovu-desktop` — unquoted, two broken
+ *    arguments. On POSIX {@link buildSitesMcpRegistration} sends an EMPTY `args` and the userData
+ *    path travels inside the launcher, properly quoted, instead; on win32, where no launcher can be
+ *    exec'd, it sends both paths in that `"..."` form.
  *
  * So the launcher is not a convenience wrapper; it is the only place both facts can be satisfied at
  * once. It is generated, never hand-written, and rewritten on every launch so it cannot drift from
@@ -79,12 +80,25 @@ interface WriteLauncherInput {
   userDataDir: string;
   electronPath: string;
   bridgePath: string;
+  /** Test seam: injects the OS platform this branches on. Defaults to the real `process.platform`;
+   *  production never passes this. See {@link writeSitesMcpLauncher}'s own doc for what win32 does
+   *  instead of writing a script. */
+  platform?: NodeJS.Platform;
 }
 
 /** {@link buildSitesMcpRegistration}'s input. */
 interface BuildRegistrationInput {
   launcherPath: string;
   enabled?: boolean;
+  /** Test seam: injects the OS platform this branches on. Defaults to the real `process.platform`;
+   *  production never passes this explicitly — {@link registerSitesMcpServer} forwards whatever its
+   *  own caller gave it, which is nothing on POSIX. */
+  platform?: NodeJS.Platform;
+  /** win32 only: the bridge script's absolute path. Required when `platform` is `"win32"` (see this
+   *  function's own doc for why); ignored on every other platform. */
+  bridgePath?: string;
+  /** win32 only: the userData directory. Required when `platform` is `"win32"`; ignored elsewhere. */
+  userDataDir?: string;
 }
 
 /** The PUT body {@link buildSitesMcpRegistration} returns — the wire shape `put.ts` reads. */
@@ -228,16 +242,37 @@ function buildSitesMcpLauncherScript({ electronPath, bridgePath, userDataDir }: 
  * stale launcher pointing at a deleted Electron binary fails at connect time with an error that
  * names neither cause.
  *
- * @returns the launcher's absolute path, for {@link buildSitesMcpRegistration}'s `command`.
+ * **win32 writes nothing.** A `.cmd`/`.bat` file cannot be executed by `adapter.stdio.ts`'s
+ * `spawn(spec.command, [...spec.args], {env, stdio})` — that call never sets `shell: true`, and
+ * Node's own hardening (CVE-2024-27980) refuses to exec a batch file without one. There is no
+ * script format this daemon's spawn call can run on win32, so none is written; the returned value
+ * is `electronPath` itself, and {@link buildSitesMcpRegistration} registers it directly with the
+ * bridge and userData path carried in `args` instead of embedded in a script.
+ *
+ * @param platform test seam; see {@link WriteLauncherInput}.
+ * @returns the launcher's absolute path on POSIX, for {@link buildSitesMcpRegistration}'s `command`;
+ *   `electronPath` unchanged on win32, for the same field's direct-electron branch.
  * @complexity O(1).
  */
-function writeSitesMcpLauncher({ userDataDir, electronPath, bridgePath }: WriteLauncherInput): string {
+function writeSitesMcpLauncher({ userDataDir, electronPath, bridgePath, platform = process.platform }: WriteLauncherInput): string {
+  if (platform === "win32") return electronPath;
   const script = buildSitesMcpLauncherScript({ electronPath, bridgePath, userDataDir });
   const launcherPath = path.join(userDataDir, SITES_MCP_LAUNCHER_NAME);
   fs.mkdirSync(userDataDir, { recursive: true });
   fs.writeFileSync(launcherPath, script, { mode: 0o700 });
   fs.chmodSync(launcherPath, 0o700);
   return launcherPath;
+}
+
+/** Wraps one win32 path for {@link buildSitesMcpRegistration}'s `args`, in the only quoting form
+ *  `external-mcp-store.ts`'s `parseArgs` reads: `"..."` with no escapes.
+ *  @throws {Error} when the path itself contains a `"`, which that form cannot carry.
+ *  @complexity O(n) in the path length. */
+function quoteArg(value: string): string {
+  if (value.includes('"')) {
+    throw new Error(`sites-mcp-registration: a win32 path cannot contain a double quote: ${value}`);
+  }
+  return `"${value}"`;
 }
 
 /**
@@ -257,12 +292,40 @@ function writeSitesMcpLauncher({ userDataDir, electronPath, bridgePath }: WriteL
  *   `assertWriteAllowlistSubset` rejects the save outright if this list is not a subset of the
  *   first — so deriving both from one source is what keeps the two rules satisfied at once.
  *
- * `args` is empty ON PURPOSE and must stay empty: see this file's header, constraint 2.
+ * `args` is empty ON PURPOSE and must stay empty ON POSIX: see this file's header, constraint 2.
  *
+ * **win32 is the one exception**, because {@link writeSitesMcpLauncher} writes no script there —
+ * `launcherPath` IS `electronPath` on that platform, so this function commands it directly and
+ * carries `bridgePath` plus `--user-data-dir <userDataDir>` in `args` — the facts the POSIX launcher
+ * script states in its own `exec` line. `ELECTRON_RUN_AS_NODE=1`, the script's `export` line, is NOT
+ * sent in `env`: that field is sealed with the site's root key, so it failed the whole save with
+ * `SECRET_STORE_UNCONFIGURED` on a site without one. The daemon's stdio adapter supplies it instead
+ * (`mcp-federation/adapter.stdio.ts`'s `buildMcpChildEnv`): on win32 a child whose command is the
+ * daemon's own executable — this Electron binary — inherits the daemon's own run mode, which
+ * `tovu-server.ts`'s `buildServeEnv` set. Electron has no command-line equivalent of the variable,
+ * so the environment is the only channel. Each path is wrapped
+ * in double quotes, the one quoting rule `external-mcp-store.ts`'s `parseArgs` honours, so a
+ * username or install directory with a space in it (`C:\\Users\\John Smith\\...`) still arrives as
+ * a single argument — constraint 2's POSIX workaround (hide the path in a script) has no win32
+ * equivalent, so the store reads quotes instead.
+ *
+ * @throws {Error} on win32 without both `bridgePath` and `userDataDir` — there is nothing to put in
+ *   `args` otherwise, and a half-registered connection is worse than none — or when either contains a
+ *   `"`, which `parseArgs` has no way to carry inside a quoted argument (and no Windows path can hold).
  * @complexity O(n) in the tool count.
  */
-function buildSitesMcpRegistration({ launcherPath, enabled = true }: BuildRegistrationInput): SitesMcpRegistrationBody {
+function buildSitesMcpRegistration({
+  launcherPath,
+  enabled = true,
+  platform = process.platform,
+  bridgePath,
+  userDataDir,
+}: BuildRegistrationInput): SitesMcpRegistrationBody {
   const writeTools = SITES_MCP_TOOLS.filter((tool) => tool.annotations.readOnlyHint === false);
+  const isWin32 = platform === "win32";
+  if (isWin32 && (!bridgePath || !userDataDir)) {
+    throw new Error("sites-mcp-registration: bridgePath and userDataDir are required to build a win32 registration");
+  }
   return {
     label: SITES_MCP_LABEL,
     transport: "stdio",
@@ -285,13 +348,14 @@ function buildSitesMcpRegistration({ launcherPath, enabled = true }: BuildRegist
      */
     enabled,
     command: launcherPath,
-    args: "",
+    args: isWin32 ? `${quoteArg(bridgePath!)} --user-data-dir ${quoteArg(userDataDir!)}` : "",
     allowedToolNames: SITES_MCP_TOOLS.map((tool) => tool.name).join(","),
     writeAllowedToolNames: writeTools.map((tool) => tool.name).join(","),
     // Sent as the empty string rather than omitted, which are DIFFERENT things to the PUT route
     // (`put.ts:88-89`): omitted keeps whatever credentials are stored, empty clears them. This
     // connection must never carry credentials, so every re-assert states that rather than
-    // inheriting whatever a previous row happened to hold.
+    // inheriting whatever a previous row happened to hold. Empty on win32 as well: see this
+    // function's doc for how `ELECTRON_RUN_AS_NODE` reaches the child there without being sealed.
     env: "",
   };
 }
@@ -420,6 +484,9 @@ async function readSitesMcpEnabled<TSession>(deps: RegistrationDeps<TSession>): 
  *   (`apps/website/src/platform/site-dir/resolve-workspace.ts`) picks the single or oldest workspace
  *   row and an operator can serve a different one with `--workspace`, so assuming the id would 404
  *   through `guardExternalMcpRequest`'s workspace check on exactly the sites that differ.
+ * @param deps.platform, deps.bridgePath, deps.userDataDir forwarded verbatim into
+ *   {@link buildSitesMcpRegistration} — see that function's own doc for the win32 branch they drive.
+ *   All three are optional and unused on POSIX, matching that function's own defaults.
  * **Read before write, specifically to preserve one field.** {@link readSitesMcpEnabled} runs first
  * so an operator who DISABLED this connection in Settings keeps it disabled — the re-assert exists
  * to repair a stale `command` or allowlist, never to reverse a choice they made. When that read
@@ -432,7 +499,12 @@ async function readSitesMcpEnabled<TSession>(deps: RegistrationDeps<TSession>): 
  * @complexity O(1) — two requests.
  */
 async function registerSitesMcpServer<TSession>(
-  deps: RegistrationDeps<TSession> & { launcherPath: string }
+  deps: RegistrationDeps<TSession> & {
+    launcherPath: string;
+    platform?: NodeJS.Platform;
+    bridgePath?: string;
+    userDataDir?: string;
+  }
 ): Promise<{ ok: boolean; status?: number; reason?: string; skipped?: boolean }> {
   const existing = await readSitesMcpEnabled(deps);
   if (existing.state === "unknown") {
@@ -447,6 +519,9 @@ async function registerSitesMcpServer<TSession>(
         launcherPath: deps.launcherPath,
         // `absent` is a first registration; `present` carries the operator's own value forward.
         enabled: existing.state === "absent" ? true : existing.enabled,
+        platform: deps.platform,
+        bridgePath: deps.bridgePath,
+        userDataDir: deps.userDataDir,
       }),
     ),
   });

@@ -6,6 +6,10 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   es: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "No tienes permiso para hacer eso.",
+    "That slug is already in use.": "Ese slug ya está en uso.",
+    "Please correct the highlighted fields.": "Corrige los campos resaltados.",
   Administration: "Administración",
   Workspace: "Espacio de trabajo",
   "This site's identity — its name, URL slug, and creation date.": "La identidad de este sitio — su nombre, slug de URL y fecha de creación.",
@@ -24,6 +28,10 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "no se pudo guardar el espacio de trabajo",
   },
   id: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Anda tidak memiliki izin untuk melakukan itu.",
+    "That slug is already in use.": "Slug itu sudah digunakan.",
+    "Please correct the highlighted fields.": "Perbaiki kolom yang ditandai.",
   Administration: "Administrasi",
   Workspace: "Ruang kerja",
   "This site's identity — its name, URL slug, and creation date.": "Identitas situs ini — nama, slug URL, dan tanggal pembuatannya.",
@@ -40,6 +48,10 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "gagal menyimpan ruang kerja",
   },
   de: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Sie haben keine Berechtigung dafür.",
+    "That slug is already in use.": "Dieser Slug wird bereits verwendet.",
+    "Please correct the highlighted fields.": "Bitte korrigieren Sie die markierten Felder.",
   Administration: "Verwaltung",
   Workspace: "Arbeitsbereich",
   "This site's identity — its name, URL slug, and creation date.": "Die Identität dieser Website — ihr Name, URL-Slug und Erstellungsdatum.",
@@ -56,10 +68,14 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "Arbeitsbereich konnte nicht gespeichert werden",
   },
   "zh-CN": {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "您没有执行此操作的权限。",
+    "That slug is already in use.": "该 slug 已被使用。",
+    "Please correct the highlighted fields.": "请更正高亮显示的字段。",
   Administration: "管理",
   Workspace: "工作区",
   "This site's identity — its name, URL slug, and creation date.": "此站点的身份 — 名称、URL slug 和创建日期。",
-  Slug: "Slug",
+  Slug: "别名",
   "Save changes": "保存更改",
   "Workspace ID": "工作区 ID",
   Created: "创建时间",
@@ -72,10 +88,14 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "无法保存工作区",
   },
   "zh-TW": {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "您沒有執行此操作的權限。",
+    "That slug is already in use.": "該 slug 已被使用。",
+    "Please correct the highlighted fields.": "請更正醒目提示的欄位。",
   Administration: "管理",
   Workspace: "工作區",
   "This site's identity — its name, URL slug, and creation date.": "此網站的身分 — 名稱、URL slug 及建立日期。",
-  Slug: "Slug",
+  Slug: "網址別名",
   "Save changes": "儲存變更",
   "Workspace ID": "工作區 ID",
   Created: "建立時間",
@@ -88,6 +108,10 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "無法儲存工作區",
   },
   "pt-BR": {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Você não tem permissão para fazer isso.",
+    "That slug is already in use.": "Esse slug já está em uso.",
+    "Please correct the highlighted fields.": "Corrija os campos destacados.",
   Administration: "Administração",
   Workspace: "Espaço de trabalho",
   "This site's identity — its name, URL slug, and creation date.": "A identidade deste site — seu nome, slug de URL e data de criação.",
@@ -104,10 +128,14 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "falha ao salvar o espaço de trabalho",
   },
   ru: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "У вас нет прав для этого действия.",
+    "That slug is already in use.": "Этот slug уже используется.",
+    "Please correct the highlighted fields.": "Исправьте выделенные поля.",
   Administration: "Администрирование",
   Workspace: "Рабочая область",
   "This site's identity — its name, URL slug, and creation date.": "Идентичность этого сайта — его название, URL-slug и дата создания.",
-  Slug: "Slug",
+  Slug: "Ярлык",
   "Save changes": "Сохранить изменения",
   "Workspace ID": "ID рабочей области",
   Created: "Создано",
@@ -120,6 +148,10 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "не удалось сохранить рабочую область",
   },
   fa: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "شما مجوز انجام این کار را ندارید.",
+    "That slug is already in use.": "این slug قبلاً استفاده شده است.",
+    "Please correct the highlighted fields.": "لطفاً فیلدهای برجسته‌شده را اصلاح کنید.",
   Administration: "مدیریت",
   Workspace: "فضای کاری",
   "This site's identity — its name, URL slug, and creation date.": "هویت این سایت — نام، اسلاگ URL و تاریخ ایجاد آن.",
@@ -136,10 +168,14 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "ذخیره فضای کاری ناموفق بود",
   },
   ar: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "ليس لديك إذن للقيام بذلك.",
+    "That slug is already in use.": "هذا الـ slug مستخدم بالفعل.",
+    "Please correct the highlighted fields.": "يرجى تصحيح الحقول المميزة.",
   Administration: "الإدارة",
   Workspace: "مساحة العمل",
   "This site's identity — its name, URL slug, and creation date.": "هوية هذا الموقع — اسمه، وslug عنوان URL الخاص به، وتاريخ إنشائه.",
-  Slug: "Slug",
+  Slug: "الرابط المختصر",
   "Save changes": "حفظ التغييرات",
   "Workspace ID": "معرّف مساحة العمل",
   Created: "تاريخ الإنشاء",
@@ -152,6 +188,10 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "تعذّر حفظ مساحة العمل",
   },
   ja: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "この操作を行う権限がありません。",
+    "That slug is already in use.": "その slug は既に使用されています。",
+    "Please correct the highlighted fields.": "強調表示されている項目を修正してください。",
   Administration: "管理",
   Workspace: "ワークスペース",
   "This site's identity — its name, URL slug, and creation date.": "このサイトのアイデンティティ — 名前、URLスラッグ、作成日。",
@@ -168,6 +208,10 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "ワークスペースの保存に失敗しました",
   },
   ko: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "이 작업을 수행할 권한이 없습니다.",
+    "That slug is already in use.": "해당 slug는 이미 사용 중입니다.",
+    "Please correct the highlighted fields.": "강조 표시된 항목을 수정해 주세요.",
   Administration: "관리",
   Workspace: "워크스페이스",
   "This site's identity — its name, URL slug, and creation date.": "이 사이트의 정체성 — 이름, URL 슬러그, 생성일입니다.",
@@ -184,6 +228,10 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "워크스페이스를 저장하지 못했습니다",
   },
   pl: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Nie masz uprawnień, aby to zrobić.",
+    "That slug is already in use.": "Ten slug jest już używany.",
+    "Please correct the highlighted fields.": "Popraw zaznaczone pola.",
   Administration: "Administracja",
   Workspace: "Obszar roboczy",
   "This site's identity — its name, URL slug, and creation date.": "Tożsamość tej witryny — jej nazwa, slug URL i data utworzenia.",
@@ -200,6 +248,10 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "nie udało się zapisać obszaru roboczego",
   },
   hu: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Nincs jogosultsága ehhez a művelethez.",
+    "That slug is already in use.": "Ez a slug már foglalt.",
+    "Please correct the highlighted fields.": "Javítsa a kiemelt mezőket.",
   Administration: "Adminisztráció",
   Workspace: "Munkaterület",
   "This site's identity — its name, URL slug, and creation date.": "A webhely azonosítója — neve, URL-slugja és létrehozási dátuma.",
@@ -216,6 +268,10 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "nem sikerült menteni a munkaterületet",
   },
   fr: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Vous n'avez pas la permission de faire cela.",
+    "That slug is already in use.": "Ce slug est déjà utilisé.",
+    "Please correct the highlighted fields.": "Veuillez corriger les champs mis en évidence.",
   Administration: "Administration",
   Workspace: "Espace de travail",
   "This site's identity — its name, URL slug, and creation date.": "L'identité de ce site — son nom, son slug d'URL et sa date de création.",
@@ -232,6 +288,10 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "échec de l'enregistrement de l'espace de travail",
   },
   uk: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "У вас немає прав для цієї дії.",
+    "That slug is already in use.": "Цей slug вже використовується.",
+    "Please correct the highlighted fields.": "Виправте виділені поля.",
   Administration: "Адміністрування",
   Workspace: "Робочий простір",
   "This site's identity — its name, URL slug, and creation date.": "Ідентичність цього сайту — його назва, URL-слаг і дата створення.",
@@ -248,6 +308,10 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "не вдалося зберегти робочий простір",
   },
   tr: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Bunu yapmak için izniniz yok.",
+    "That slug is already in use.": "Bu slug zaten kullanımda.",
+    "Please correct the highlighted fields.": "Lütfen vurgulanan alanları düzeltin.",
   Administration: "Yönetim",
   Workspace: "Çalışma alanı",
   "This site's identity — its name, URL slug, and creation date.": "Bu sitenin kimliği — adı, URL slug'ı ve oluşturulma tarihi.",
@@ -264,10 +328,14 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "çalışma alanı kaydedilemedi",
   },
   th: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "คุณไม่มีสิทธิ์ทำสิ่งนี้",
+    "That slug is already in use.": "slug นี้ถูกใช้งานแล้ว",
+    "Please correct the highlighted fields.": "โปรดแก้ไขช่องที่ไฮไลต์",
   Administration: "การจัดการระบบ",
   Workspace: "พื้นที่ทำงาน",
   "This site's identity — its name, URL slug, and creation date.": "ข้อมูลประจำตัวของเว็บไซต์นี้ — ชื่อ, URL slug และวันที่สร้าง",
-  Slug: "Slug",
+  Slug: "ชื่อ URL",
   "Save changes": "บันทึกการเปลี่ยนแปลง",
   "Workspace ID": "รหัสพื้นที่ทำงาน",
   Created: "สร้างเมื่อ",
@@ -280,6 +348,10 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "บันทึกพื้นที่ทำงานไม่สำเร็จ",
   },
   it: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "Non hai il permesso di farlo.",
+    "That slug is already in use.": "Questo slug è già in uso.",
+    "Please correct the highlighted fields.": "Correggi i campi evidenziati.",
   Administration: "Amministrazione",
   Workspace: "Spazio di lavoro",
   "This site's identity — its name, URL slug, and creation date.": "L'identità di questo sito — il suo nome, lo slug URL e la data di creazione.",
@@ -296,6 +368,10 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "impossibile salvare lo spazio di lavoro",
   },
   hi: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "आपके पास ऐसा करने की अनुमति नहीं है।",
+    "That slug is already in use.": "वह slug पहले से उपयोग में है।",
+    "Please correct the highlighted fields.": "कृपया हाइलाइट किए गए फ़ील्ड ठीक करें।",
   Administration: "प्रशासन",
   Workspace: "वर्कस्पेस",
   "This site's identity — its name, URL slug, and creation date.": "इस साइट की पहचान — इसका नाम, URL स्लग, और निर्माण तिथि।",
@@ -312,6 +388,10 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "वर्कस्पेस सहेजना विफल रहा",
   },
   ur: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "آپ کو یہ کرنے کی اجازت نہیں ہے۔",
+    "That slug is already in use.": "یہ slug پہلے سے استعمال میں ہے۔",
+    "Please correct the highlighted fields.": "براہ کرم نمایاں کردہ خانوں کو درست کریں۔",
   Administration: "انتظامیہ",
   Workspace: "ورک اسپیس",
   "This site's identity — its name, URL slug, and creation date.": "اس سائٹ کی شناخت — اس کا نام، URL سلگ، اور تخلیق کی تاریخ۔",
@@ -328,6 +408,10 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   "failed to save workspace": "ورک اسپیس محفوظ کرنا ناکام ہوا",
   },
   bn: {
+    // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
+    "You do not have permission to do that.": "আপনার এটি করার অনুমতি নেই।",
+    "That slug is already in use.": "সেই slug ইতিমধ্যে ব্যবহৃত হচ্ছে।",
+    "Please correct the highlighted fields.": "অনুগ্রহ করে হাইলাইট করা ফিল্ডগুলো সংশোধন করুন।",
   Administration: "প্রশাসন",
   Workspace: "ওয়ার্কস্পেস",
   "This site's identity — its name, URL slug, and creation date.": "এই সাইটের পরিচয় — এর নাম, URL স্লাগ এবং তৈরির তারিখ।",

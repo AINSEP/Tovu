@@ -63,6 +63,16 @@ function testRouteDeps(publishOutputRootDir: string = publishOutputDir): RouteDe
   return { ...createRouteDeps(), publishOutputRootDir };
 }
 
+/** Restores an env var to exactly what it was, INCLUDING "it was unset" — `process.env.X = undefined`
+ *  stores the literal string `"undefined"`, which `createEnvPublishCredentialSource` then reads as a
+ *  perfectly good token. That leak made every later test in this file resolve a credential and
+ *  attempt a real provider call (found 2026-09-20 while adding the credentialId tests below, which
+ *  settled `PROVIDER_ERROR` instead of `NO_CREDENTIALS_CONFIGURED` for exactly this reason). */
+function restoreEnvVar(name: string, previous: string | undefined): void {
+  if (previous === undefined) delete process.env[name];
+  else process.env[name] = previous;
+}
+
 async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<string> {
   await deps.identityReady;
   const bareId = "bare-principal-publish-site";
@@ -266,7 +276,7 @@ test("publish-site: a concurrent second trigger while one is genuinely in flight
   }) as typeof fetch;
   t.after(() => {
     globalThis.fetch = realFetch;
-    process.env.VERCEL_TOKEN = previousVercelToken;
+    restoreEnvVar("VERCEL_TOKEN", previousVercelToken);
     rmSync(runOutputDir, { recursive: true, force: true });
   });
 
@@ -343,7 +353,7 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
   }) as typeof fetch;
   t.after(() => {
     globalThis.fetch = realFetch;
-    process.env.VERCEL_TOKEN = previousVercelToken;
+    restoreEnvVar("VERCEL_TOKEN", previousVercelToken);
     rmSync(runOutputDir, { recursive: true, force: true });
   });
 
@@ -515,7 +525,7 @@ test("publish-site preview: with a token configured, credentialsConfigured is tr
   const previousToken = process.env.GITHUB_TOKEN;
   process.env.GITHUB_TOKEN = "ghp_fake-token-for-preview-test-only";
   t.after(() => {
-    process.env.GITHUB_TOKEN = previousToken;
+    restoreEnvVar("GITHUB_TOKEN", previousToken);
   });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=github-pages&owner=octo&repo=demo-repo`, { headers: { cookie } });
@@ -742,4 +752,66 @@ test("publish-site: workspaceId can never actually be undefined through this app
     assert.equal(capture.statusCode, 404);
     assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
   }
+});
+
+// --- credentialId: the trigger binds the publish to the connection the operator chose ------------
+// terra review 2026-09-20, finding 1 (Critical). The trigger body carried no credential id, so the
+// server published with whichever saved row was `is_default` when the POST landed — a publish fired
+// inside a "make this one the default" window went to the PREVIOUS account. The body now carries the
+// chosen connection's id, and an id this workspace does not own must REFUSE, never quietly fall back
+// to the default row or to the server-environment-variable token.
+
+test("publish-site: a trigger naming a credential this workspace does not own is refused by the run — never falls back to the default/env credential", async (t) => {
+  const deps: RouteDeps = { ...testRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const trigger = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ target: "github-pages", owner: "octo", repo: "demo-repo", projectName: "demo", credentialId: "cred-from-another-workspace" }),
+  });
+  assert.equal(trigger.status, 202);
+
+  let finalStatusBody: { status: string; [key: string]: unknown } = { status: "running" };
+  for (let attempt = 0; attempt < 200 && finalStatusBody.status === "running"; attempt++) {
+    await delay(20);
+    const poll = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } });
+    assert.equal(poll.status, 200);
+    finalStatusBody = await poll.json();
+  }
+
+  assert.equal(finalStatusBody.status, "errored", `publish did not settle in time: ${JSON.stringify(finalStatusBody)}`);
+  const result = finalStatusBody.result as { ok: boolean; code?: string; message?: string };
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
+  assert.equal(
+    result.message,
+    "the selected publish credential is not available in this workspace — reload the Static Site tab and choose a connection again"
+  );
+  // The discriminating half: without the id threaded through, this run would have gone looking for
+  // the provider's default and then the env var, and the message would name GITHUB_TOKEN instead.
+  assert.doesNotMatch(result.message ?? "", /GITHUB_TOKEN/);
+  assert.doesNotMatch(result.message ?? "", /cred-from-another-workspace/, "never echo caller-supplied input back into an error message");
+});
+
+test("publish-site: a non-string or blank 'credentialId' 400s and never starts a run", async (t) => {
+  const deps: RouteDeps = { ...testRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  for (const credentialId of [42, "", "   ", null]) {
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ target: "github-pages", owner: "octo", repo: "demo-repo", projectName: "demo", credentialId }),
+    });
+    assert.equal(res.status, 400, `credentialId ${JSON.stringify(credentialId)} must be rejected`);
+    const body = await res.json();
+    assert.equal(body.error, "'credentialId' must be a non-empty string when present");
+  }
+
+  const poll = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } });
+  const snapshot = await poll.json();
+  assert.notEqual(snapshot.status, "running", "a 400 must never have started a run");
 });

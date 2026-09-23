@@ -53,16 +53,22 @@ function statusFor(err: unknown): { status: number; code: string } {
 }
 
 export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = (app: Express, deps) => {
-  /** `permission -> entityType` for every registered type, so the publishing attenuation can answer
+  /** `entityType -> permission` for every registered type, so the publishing attenuation can answer
    *  a type's OWN write permission for exactly the types a grant names, and nothing else. Built per
    *  request from the bag the handlers will actually run against, the same way the export route and
-   *  the planner already resolve contributors. */
+   *  the planner already resolve contributors.
+   *
+   *  Keyed by ENTITY TYPE, which is unique per contributor — never by permission, which is not.
+   *  `post`, `page` and `media` all declare `content.write`, so a permission-keyed map collapsed to
+   *  a single `content.write -> media` entry and every post and page write resolved to the wrong
+   *  type: a legitimately post-only grant was denied its own writes (sol review 2026-09-20, Medium
+   *  finding 6). */
   function registeredTypePermissions(publishContentDeps: ReturnType<typeof toPublishContentDeps>): ReadonlyMap<string, string> {
-    const byPermission = new Map<string, string>();
+    const byEntityType = new Map<string, string>();
     for (const contributor of listPublishContentContributors()) {
-      byPermission.set(contributor.build(publishContentDeps).permission, contributor.entityType);
+      byEntityType.set(contributor.entityType, contributor.build(publishContentDeps).permission);
     }
-    return byPermission;
+    return byEntityType;
   }
 
   function buildHooks(bundleId: string, actorId: string, res: Response) {

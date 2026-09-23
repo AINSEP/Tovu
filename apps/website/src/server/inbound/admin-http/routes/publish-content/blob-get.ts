@@ -56,7 +56,8 @@ import type { PublishContentRouteRegistrar } from "./deps.js";
  * `Promise<Uint8Array>` — the port exposes no streaming read, and every existing consumer
  * (`routes/media/original.ts`, `public-http/.../media-rendition.ts`) buffers the same way. Memory is
  * therefore bounded by {@link TOVU_MAX_UPLOAD_BYTES} per request, enforced below, which also keeps
- * the base64 body (≈4/3 of 35 MiB) under the peer policy's 64 MiB `maxResponseBytes` cap.
+ * the base64 body (≈4/3 of 50 MiB as of 2026-09-21, ≈66.7 MiB) under the peer policy's 96 MiB
+ * `maxResponseBytes` cap (`PUBLISH_CONTENT_PEER_MAX_RESPONSE_BYTES`, raised from 64 MiB alongside it).
  *
  * ## Why this does not re-hash the bytes before sending
  *

@@ -4,6 +4,7 @@ import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-quer
 import { contentRefreshApplies, subscribeToContentRefresh } from "@/lib/content-refresh-bus";
 import {
   describeDeleteBlocked,
+  describeTrashError,
   findSelectedTerm,
   KEYS,
   TAXONOMY_RESOURCE,
@@ -11,7 +12,7 @@ import {
   type DeleteBlockedState,
 } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { TAXONOMY_DICT, t as translate } from "../taxonomy-i18n";
+import { t as translate } from "../taxonomy-i18n";
 import { defaultTaxonomyPort } from "./taxonomy-dependencies.hooks";
 import type { TaxonomyPort } from "./taxonomy-port.hooks";
 
@@ -58,7 +59,7 @@ import type { TaxonomyPort } from "./taxonomy-port.hooks";
  * explicitly, not a host reach.
  *
  * `lib/fetch-query` migration (2026-08-12): the list read is now `useFetchQuery({ key: KEYS.list,
- * ... })`, and `deleteTerm`/`deleteTaxonomy` are `useFetchMutation`s that `invalidates: [KEYS.list]`
+ * ... })`, and the two Trash mutations are `useFetchMutation`s that `invalidates: [KEYS.list]`
  * instead of calling `load()` by hand on success — see `rules.ts`'s `KEYS` doc. `error`'s precedence
  * (an active delete's own hard failure over a background list-refresh failure) mirrors
  * `redirects/rules.ts`'s `visibleRedirectsError`, with one addition that screen doesn't have: a
@@ -114,15 +115,24 @@ export interface TaxonomyController {
 }
 
 /** The shape `confirmDeleteTerm`/`confirmDeleteTaxonomy` both repeat: guard on nothing pending,
- *  delete, and on failure split a 409 "blocked" refusal (its own recoverable state, see the
- *  controller doc comment) from a hard error — a hard error needs no handling here at all, since it
- *  is already surfaced through the mutation's own `.error`, read by `useTaxonomy`'s `error`
- *  derivation below. `onSuccess` carries the one thing that genuinely differs beyond which id/state
- *  pair is involved: term-delete clears `selectedTermId` when the deleted term WAS selected,
- *  taxonomy-delete clears it when the selected term belonged to the deleted taxonomy. */
+ *  trash, and on failure split three outcomes — a 409 "blocked" refusal (its own recoverable state,
+ *  see the controller doc comment), a 404 "already gone", and everything else. A hard error (or a
+ *  409 `TRASH_VERSION_CHANGED`) needs no handling here at all, since it is already surfaced through
+ *  the mutation's own `.error`, read by `useTaxonomy`'s `error` derivation below via
+ *  `describeTrashError`. `onSuccess` carries the one thing that genuinely differs beyond which
+ *  id/state pair is involved: term-delete clears `selectedTermId` when the deleted term WAS
+ *  selected, taxonomy-delete clears it when the selected term belonged to the deleted taxonomy — a
+ *  404 runs the same clearing, since the row being already-gone is the same outcome from this
+ *  screen's perspective as this call having just deleted it.
+ *
+ * `refetch` (T8b, 2026-09-21): the mutation's own `invalidates` only fires on success
+ * (`lib/fetch-query/adapter.tanstack.tsx`), so a 404 — reached only through the `catch` branch —
+ * needs its own explicit refetch to drop the row for anyone still looking; mirrors
+ * `use-forms-list.hooks.ts`'s `removeForm` calling `invalidateList()` from the identical branch. */
 async function runGuardedDelete(
   id: string,
   mutate: (id: string) => Promise<unknown>,
+  refetch: () => void,
   clearPending: () => void,
   onSuccess: () => void,
   onBlocked: (blocked: DeleteBlockedState) => void,
@@ -134,8 +144,16 @@ async function runGuardedDelete(
   } catch (e) {
     clearPending();
     const blocked = describeDeleteBlocked(e);
-    if (blocked) onBlocked(blocked);
-    // else: already surfaced through the mutation's own `.error` -> `error` below.
+    if (blocked) {
+      onBlocked(blocked);
+      return;
+    }
+    if (describeTrashError(e instanceof Error ? e : null, "").alreadyGone) {
+      onSuccess();
+      refetch();
+    }
+    // else: a hard failure or TRASH_VERSION_CHANGED — already surfaced through the mutation's own
+    // `.error` -> `error` below via `visibleTaxonomyError`.
   }
 }
 
@@ -167,7 +185,7 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
     null
   );
   const deleteTermMutation = useFetchMutation({
-    run: (termId: string) => port.deleteTerm(termId),
+    run: (termId: string) => port.trashTerm({ id: termId }),
     invalidates: [KEYS.list],
   });
 
@@ -177,7 +195,7 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
     state: DeleteBlockedState;
   } | null>(null);
   const deleteTaxonomyMutation = useFetchMutation({
-    run: (taxonomyId: string) => port.deleteTaxonomy(taxonomyId),
+    run: (taxonomyId: string) => port.trashTaxonomy({ id: taxonomyId }),
     invalidates: [KEYS.list],
   });
 
@@ -214,6 +232,7 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
     await runGuardedDelete(
       term.id,
       deleteTermMutation.mutate,
+      list.refetch,
       () => setPendingDeleteTermState(null),
       // A deleted term can no longer own the detail panel it might currently be selected into.
       () => {
@@ -234,6 +253,7 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
     await runGuardedDelete(
       taxonomy.id,
       deleteTaxonomyMutation.mutate,
+      list.refetch,
       () => setPendingDeleteTaxonomyState(null),
       // A deleted taxonomy takes every one of its terms with it (the route's own cascade) —
       // whatever was selected can't still exist if it belonged to this taxonomy.
@@ -276,6 +296,6 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
  */
 export function useWiredTaxonomy(): TaxonomyController {
   const locale = useAdminLocale();
-  const t = (key: string): string => TAXONOMY_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useTaxonomy(defaultTaxonomyPort, locale, t);
 }

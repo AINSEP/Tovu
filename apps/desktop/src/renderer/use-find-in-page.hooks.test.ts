@@ -14,11 +14,13 @@ import {
   formatMatchCount,
   initialFindBarState,
   resolveFindTarget,
-  restoreFocusAfterWindowResult,
+  restoreFindInputFocus,
   runFind,
   shouldCloseOnGuestChange,
+  shouldReclaimFindFocus,
   stopFind,
   subscribeToFindResults,
+  FIND_FOCUS_RECLAIM_MS,
   type FindBarState,
   type FindableGuest,
   type FindBridge,
@@ -186,20 +188,21 @@ test('runFind on the top target with no bridge does not clear the selection eith
   assert.deepEqual(order, [], 'no search to anchor, so nothing to clear');
 });
 
-test('restoreFocusAfterWindowResult refocuses the input, and tolerates a closed bar', () => {
+test('restoreFindInputFocus refocuses the input, and tolerates a closed bar', () => {
   let focused = 0;
   const input = {
     focus: () => {
       focused += 1;
     },
   };
-  // Every call site is already a result that arrived on the WINDOW's own found-in-page — the one
-  // source whose search blurred the input. A guest's own event never reaches here.
-  restoreFocusAfterWindowResult(input);
+  // Every reported result means Chromium moved focus somewhere: ClearFocusedElement blurred the
+  // host input for a top-level match, or SetFocusedFrame moved keyboard focus into the guest frame
+  // for a guest match. Both need the identical restore.
+  restoreFindInputFocus(input);
   assert.equal(focused, 1);
-  restoreFocusAfterWindowResult(input);
-  assert.equal(focused, 2, 'every window-reported result restores focus, not just the first');
-  assert.doesNotThrow(() => restoreFocusAfterWindowResult(null), 'the bar can be closed by the time a result lands');
+  restoreFindInputFocus(input);
+  assert.equal(focused, 2, 'every reported result restores focus, not just the first');
+  assert.doesNotThrow(() => restoreFindInputFocus(null), 'the bar can be closed by the time a result lands');
 });
 
 test('runFind/stopFind on none, or on top with no bridge, are no-ops', () => {
@@ -262,14 +265,14 @@ function twoSourceFakes() {
   };
 }
 
-test('subscribeToFindResults: a GUEST target listens to the window too, because Chromium may report there', () => {
+test('subscribeToFindResults: a GUEST target reports on both sources, and a result on the GUEST\'s own event also restores focus — a guest find moves keyboard focus into the guest', () => {
   const fakes = twoSourceFakes();
   const results: FindInPageResult[] = [];
-  let windowResults = 0;
+  let reportedCount = 0;
   const unsubscribe = subscribeToFindResults({ kind: 'guest', element: fakes.guest }, fakes.bridge, {
     onResult: (result) => results.push(result),
-    onWindowResult: () => {
-      windowResults += 1;
+    onReported: () => {
+      reportedCount += 1;
     },
   });
   assert.equal(fakes.guestCount(), 1, "the guest's own event");
@@ -277,11 +280,15 @@ test('subscribeToFindResults: a GUEST target listens to the window too, because 
 
   fakes.emitGuest({ activeMatchOrdinal: 1, matches: 98 });
   assert.deepEqual(results, [{ activeMatchOrdinal: 1, matches: 98 }]);
-  assert.equal(windowResults, 0, 'a guest-reported result took no focus away, so nothing to restore');
+  // A cold window (no find run yet) serves a guest find from the guest's OWN find manager, and
+  // Chromium's TextFinder::FindInternal runs SetFocusedFrame on the guest frame unconditionally —
+  // the same focus theft ClearFocusedElement does for a host-document match. This is the bug: that
+  // event used to restore nothing, so the bar accepted exactly one character.
+  assert.equal(reportedCount, 1, "a guest-reported result also moved keyboard focus into the guest, so it must restore focus too");
 
   fakes.emitWindow({ activeMatchOrdinal: 2, matches: 98 });
   assert.deepEqual(results.at(-1), { activeMatchOrdinal: 2, matches: 98 }, 'a rerouted guest find still reaches the counter');
-  assert.equal(windowResults, 1, 'a window-reported result blurred the input and must restore focus');
+  assert.equal(reportedCount, 2, 'a window-reported result blurred the input and must restore focus too');
 
   unsubscribe();
   assert.equal(fakes.guestCount(), 0);
@@ -291,29 +298,53 @@ test('subscribeToFindResults: a GUEST target listens to the window too, because 
 test('subscribeToFindResults: a TOP target listens to the window alone', () => {
   const fakes = twoSourceFakes();
   const results: FindInPageResult[] = [];
-  let windowResults = 0;
+  let reportedCount = 0;
   const unsubscribe = subscribeToFindResults({ kind: 'top' }, fakes.bridge, {
     onResult: (result) => results.push(result),
-    onWindowResult: () => {
-      windowResults += 1;
+    onReported: () => {
+      reportedCount += 1;
     },
   });
   assert.equal(fakes.guestCount(), 0, 'no guest element to listen to');
   fakes.emitWindow({ activeMatchOrdinal: 3, matches: 12 });
   assert.deepEqual(results, [{ activeMatchOrdinal: 3, matches: 12 }]);
-  assert.equal(windowResults, 1);
+  assert.equal(reportedCount, 1);
   unsubscribe();
   assert.equal(fakes.windowCount(), 0);
 });
 
-test('subscribeToFindResults: no bridge (outside a desktop window) still subscribes a guest, and unsubscribing is safe', () => {
+test('subscribeToFindResults: no bridge (outside a desktop window) still subscribes a guest, restores focus on its own event, and unsubscribing is safe', () => {
   const fakes = twoSourceFakes();
+  let reportedCount = 0;
   const unsubscribe = subscribeToFindResults({ kind: 'guest', element: fakes.guest }, undefined, {
     onResult: () => {},
-    onWindowResult: () => {},
+    onReported: () => {
+      reportedCount += 1;
+    },
   });
   assert.equal(fakes.guestCount(), 1);
+  fakes.emitGuest({ activeMatchOrdinal: 1, matches: 1 });
+  assert.equal(reportedCount, 1, 'no bridge to relay a window result, but the guest still took focus and still needs it restored');
   assert.doesNotThrow(unsubscribe);
   assert.equal(fakes.guestCount(), 0);
-  assert.doesNotThrow(() => subscribeToFindResults({ kind: 'none' }, undefined, { onResult: () => {}, onWindowResult: () => {} })());
+  assert.doesNotThrow(() => subscribeToFindResults({ kind: 'none' }, undefined, { onResult: () => {}, onReported: () => {} })());
+});
+
+test('shouldReclaimFindFocus: only while open and within FIND_FOCUS_RECLAIM_MS of the last issued find', () => {
+  assert.equal(
+    shouldReclaimFindFocus({ open: true, lastFindAt: 1000, now: 1000 + FIND_FOCUS_RECLAIM_MS - 1 }),
+    true,
+    'still within the reclaim window',
+  );
+  assert.equal(
+    shouldReclaimFindFocus({ open: true, lastFindAt: 1000, now: 1000 + FIND_FOCUS_RECLAIM_MS }),
+    false,
+    'the window has passed — a genuine click away from the bar should not be undone',
+  );
+  assert.equal(shouldReclaimFindFocus({ open: false, lastFindAt: 1000, now: 1000 }), false, 'the bar is closed');
+  assert.equal(
+    shouldReclaimFindFocus({ open: true, lastFindAt: null, now: 1000 }),
+    false,
+    'no find has been issued yet — a user click-away must not be undone',
+  );
 });

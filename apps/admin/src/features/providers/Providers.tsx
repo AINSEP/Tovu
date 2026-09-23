@@ -6,6 +6,7 @@ import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
 import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
+import { ComingSoonPanel } from "../../components/ComingSoonPanel";
 import { ComposioKeyField } from "../settings/ComposioKeyField";
 import { ExternalMcpSettingsPanel } from "../settings/ExternalMcpSettingsPanel";
 import { connectorsDependencies } from "../settings/connectors-port";
@@ -13,7 +14,7 @@ import { t as tCapability } from "../settings/settings-capabilities-i18n";
 import { Integrations } from "../integrations/Integrations";
 import { useWiredIntegrations } from "../integrations/hooks/use-integrations.hooks";
 import { t as tIntegrations } from "../integrations/integrations-i18n";
-import { t } from "./providers-i18n";
+import { composioGateCopy, t } from "./providers-i18n";
 import { useProviders } from "./hooks/use-providers.hooks";
 
 /**
@@ -183,10 +184,14 @@ export function Providers(props: ProvidersProps) {
     {
       // Absorbed from `DeveloperApi.tsx`'s own `mcp-server` tab (2026-09-10, second pass) — same id,
       // same label source (`integrations-i18n.tsx`'s own `t`, reused rather than re-translated), same
-      // icon, same body (`IntegrationsTab`). Only the address and its position in a four-tab row
-      // changed.
+      // icon, same body (`IntegrationsTab`, now `ComingSoonPanel`-wrapped — see the render block
+      // below).
       id: "mcp-server",
       label: tIntegrations(locale, "MCP Server"),
+      // Not wired to a real McpIntegrationsPort yet (see the render block below) — the tag says so
+      // from the tab strip itself, before an operator clicks in. Tab stays fully clickable; see
+      // `TabBarTab.tag`'s own doc for why this isn't `disabled` instead.
+      tag: tIntegrations(locale, "Soon"),
       icon: (
         <TabIcon>
           <path d="M4 6.5h10M4 11.5h10" />
@@ -195,20 +200,24 @@ export function Providers(props: ProvidersProps) {
         </TabIcon>
       ),
       handle: "providers-tab-mcp-server",
-      handleLabel: "Switch to the MCP Server tab — connect an MCP client to this Tovu install",
+      handleLabel: "Switch to the MCP Server tab — connect an MCP client to this Tovu install (soon)",
     },
     {
       // Absorbed from `DeveloperApi.tsx`'s own `webhooks` tab — see the `mcp-server` tab above for
       // the shape of this move.
       id: "webhooks",
       label: tIntegrations(locale, "Webhooks"),
+      // Same "Soon" tag as MCP Server (2026-09-19, owner call): firing a webhook needs an event
+      // checklist that doesn't exist yet. Confirmed no saved endpoints exist to hide behind the
+      // wash (owner's own screenshot: "No webhooks yet").
+      tag: tIntegrations(locale, "Soon"),
       icon: (
         <TabIcon>
           <path d="M6 6l-3 3 3 3M12 6l3 3-3 3M10 4l-2 10" />
         </TabIcon>
       ),
       handle: "providers-tab-webhooks",
-      handleLabel: "Switch to the Webhooks tab — outbound webhooks this site sends when its content changes",
+      handleLabel: "Switch to the Webhooks tab — outbound webhooks this site sends when its content changes (soon)",
     },
   ];
 
@@ -269,9 +278,7 @@ export function Providers(props: ProvidersProps) {
               dependencies={connectorsDependencies}
               catalogRefreshKey={p.composio.catalogRefreshKey}
               gate={{
-                title: "Add your Composio API key to continue",
-                body: "Paste your key above to load available integrations.",
-                ctaLabel: "Get API Key",
+                ...composioGateCopy(locale),
                 ctaHref: "https://app.composio.dev",
               }}
               agentHandle="settings-connectors"
@@ -301,21 +308,34 @@ export function Providers(props: ProvidersProps) {
         ) : null}
 
         {activeTabId === "mcp-server" ? (
-          // Verbatim from `DeveloperApi.tsx`'s own "MCP Server" tab, itself verbatim from the
-          // Settings page's old `mcp` tab before that — same `IntegrationsTab` component, same
-          // `serverName`, same `agentHandle`. Its own subtitle still says plainly that it is showing
-          // sample output rather than a live server: `IntegrationsTab` defaults to an in-memory fake
-          // port, and wiring a real `McpIntegrationsPort` to Tovu's daemon remains its own piece of
-          // work. Moving it (twice, now) did not make it more real, and this file does not imply it
-          // did.
-          <IntegrationsTab serverName="tovu" agentHandle="settings-mcp-server" />
+          // `<IntegrationsTab>` with no `port` prop falls back to `createFakeMcpIntegrationsPort()`,
+          // whose demo install command (`{command: "node", args: ["/path/to/cli.js", "mcp"]}`) is
+          // not a real path on any install. Found 2026-09-19. First fix deleted the setup card
+          // outright; the owner's follow-up call was to keep it VISIBLE (so an operator can see
+          // what's coming) but genuinely inert — `ComingSoonPanel` (own file, full reasoning there)
+          // is the shared wash+`inert` wrapper for that, reused below for Webhooks too. Wiring a
+          // real `McpIntegrationsPort` (see `development/todos.md`'s "make the MCP Server real"
+          // item) is a one-line change: drop this wrapper and pass a live `port`.
+          <ComingSoonPanel
+            label={tIntegrations(locale, "Coming soon")}
+            note={tIntegrations(locale, "Nothing below is connected to anything yet.")}
+          >
+            <IntegrationsTab serverName="tovu" agentHandle="settings-mcp-server" />
+          </ComingSoonPanel>
         ) : null}
 
         {activeTabId === "webhooks" ? (
-          // `Integrations` (the webhooks list) renders no `page`/`page-header` of its own — see that
-          // component's own doc comment for why: it was built to be a tab body under a single page
-          // shell, first `DeveloperApi.tsx`'s, now this one.
-          <Integrations useIntegrationsHook={props.useIntegrationsHook} />
+          // Same treatment as MCP Server above (owner call, 2026-09-19): firing a webhook needs an
+          // event checklist that isn't built. `Integrations` (the webhooks list) renders no
+          // `page`/`page-header` of its own — see that component's own doc comment for why: it was
+          // built to be a tab body under a single page shell, first `DeveloperApi.tsx`'s, now this
+          // one.
+          <ComingSoonPanel
+            label={tIntegrations(locale, "Coming soon")}
+            note={tIntegrations(locale, "Webhooks can't fire yet — nothing here is wired up.")}
+          >
+            <Integrations useIntegrationsHook={props.useIntegrationsHook} />
+          </ComingSoonPanel>
         ) : null}
       </div>
     </I18nProvider>

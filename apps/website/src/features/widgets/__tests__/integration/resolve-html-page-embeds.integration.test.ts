@@ -45,10 +45,10 @@ import { WIDGET_CONTENT_TYPE, WIDGET_FIELD_NAMESPACE } from "../../types.js";
 const WORKSPACE_ID = "ws-html-embeds";
 const NOW = "2026-08-05T00:00:00.000Z";
 
-function seedWidget(entryRepo: InMemoryEntryRepo, id: string, payload: Record<string, unknown>): Promise<void> {
+function seedWidget(entryRepo: InMemoryEntryRepo, id: string, payload: Record<string, unknown>, workspaceId: string = WORKSPACE_ID): Promise<void> {
   return entryRepo.save({
     id,
-    workspaceId: WORKSPACE_ID,
+    workspaceId,
     type: WIDGET_CONTENT_TYPE,
     slug: id,
     status: "published",
@@ -885,6 +885,109 @@ test('GUARD 2 NEGATIVE VERIFICATION: a published row DOES resolve via "content" 
 });
 
 // ---------------------------------------------------------------------------
+// `slug` (S3, 2026-09-23 widget-attrs plan) — `content`/`post` markers accept "slug" the same way
+// `widget`/`media` already do (2026-08-31/2026-09-16 precedents above): `id` stays authoritative when
+// a marker carries both, and a slug that resolves to a DRAFT or TRASHED row must refuse identically to
+// guard 2's id-based check — the visibility guard is on the ROW `findPublishedPostBySlug` returns, not
+// on which key was used to find it.
+// ---------------------------------------------------------------------------
+
+test('resolveHtmlPageEmbeds: a "content" embed addressed by SLUG resolves the same published row an id-addressed embed would, keyed by the slug', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecord({ kind: "page" })]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","slug":"a-published-entity"}'></div>` },
+  });
+
+  assert.equal(resolved.get("content")?.has("entity-1"), false, "must not be keyed by the resolved id — the marker never typed it");
+  const ir = resolved.get("content")?.get("a-published-entity");
+  assert.equal(ir?.componentId, "post-content");
+  assert.equal(ir?.props.title, "A published entity");
+});
+
+test('resolveHtmlPageEmbeds: a "post" embed addressed by SLUG resolves the same way "content" does', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecord()]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"post","slug":"a-published-entity"}'></div>` },
+  });
+
+  const ir = resolved.get("post")?.get("a-published-entity");
+  assert.equal(ir?.componentId, "post-content");
+  assert.equal(ir?.props.title, "A published entity");
+});
+
+test('GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed by a slug naming a DRAFT row never resolves', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecord({ id: "draft-1", slug: "draft-slug", status: "draft" })]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","slug":"draft-slug"}'></div>` },
+  });
+
+  assert.equal(resolved.get("content")?.has("draft-slug"), false, "a draft must not leak onto a public page via its slug either");
+});
+
+test('GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed by a slug naming a TRASHED row never resolves', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([
+    postRecord({ id: "trashed-1", slug: "trashed-slug", status: "published", deletedAt: "2026-08-11T00:00:00.000Z" }),
+  ]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","slug":"trashed-slug"}'></div>` },
+  });
+
+  assert.equal(resolved.get("content")?.has("trashed-slug"), false);
+});
+
+test('resolveHtmlPageEmbeds: a "content" embed with both id and slug uses id and never consults slug — same precedent as the media/widget resolvers', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([
+    postRecord({ id: "entity-1", slug: "entity-one-slug", title: "Entity One" }),
+    postRecord({ id: "entity-2", slug: "entity-two-slug", title: "Entity Two" }),
+  ]);
+
+  // Only entity-1's own id key is populated; if this fell back to slug for a marker carrying both, it
+  // would surface entity-2's data instead of entity-1's.
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: {
+      workspaceId: WORKSPACE_ID_POST,
+      html: `<div data-embed-config='{"type":"content","id":"entity-1","slug":"entity-two-slug"}'></div>`,
+    },
+  });
+
+  const ir = resolved.get("content")?.get("entity-1");
+  assert.equal(ir?.props.title, "Entity One", "id must win — entity-2's slug is never even consulted");
+});
+
+test("resolveHtmlPageEmbeds: pendingContentOverride matches a slug-only ref by override.slug, the same way it already matches an id-only ref by override.id", async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const pending = {
+    id: "entity-1",
+    title: "Unsaved Title",
+    slug: "a-published-entity",
+    updatedAt: "2026-09-23T00:00:00.000Z",
+    bodyJson: { type: "doc" as const, content: [] },
+  };
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, pendingContentOverride: pending },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","slug":"a-published-entity"}'></div>` },
+  });
+
+  const ir = resolved.get("content")?.get("a-published-entity");
+  assert.equal(ir?.props.title, "Unsaved Title", "the override's unsaved data must win, matched by slug just like the id branch already does");
+});
+
+// ---------------------------------------------------------------------------
 // Owner-reported bug (2026-08-12): a ref-based `image` node inside a "content"/"post" embed's own
 // bodyJson rendered as a filename-labelled placeholder — everywhere this IR reaches (the editor's
 // own "Preview" tab AND the published public page), even with the referenced asset, its "public"
@@ -1158,4 +1261,85 @@ test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branc
   });
 
   assert.equal(resolved.get("content")?.get("entity-1")?.props.header, true);
+});
+
+// ---------------------------------------------------------------------------
+// Owner-reported bug (2026-09-22): a `widgetEmbed` node inside a post's OWN bodyJson always rendered
+// as the widget placeholder when the post went through a static-tier theme template — the
+// `"post-content"` IR carried no inline-widget context, so `renderWidgetPostContent` handed
+// `renderDocNode` an empty `inlineResolved` map. These tests pipe the real resolver output into the
+// real renderer, so they pin the rendered HTML, not just the resolved JSON.
+// ---------------------------------------------------------------------------
+
+function postRecordWithWidgetEmbeds(overrides: Partial<PostRecord> = {}): PostRecord {
+  return postRecord({
+    bodyJson: {
+      type: "doc",
+      content: [
+        { type: "widgetEmbed", attrs: { placementId: "placement-live", widgetEntryId: "inline-text-widget" } },
+        { type: "widgetEmbed", attrs: { placementId: "placement-trashed", widgetEntryId: "inline-trashed-widget" } },
+        { type: "widgetEmbed", attrs: { placementId: "placement-missing", widgetEntryId: "no-such-widget" } },
+      ],
+    },
+    ...overrides,
+  });
+}
+
+async function seedInlineWidgets(entryRepo: InMemoryEntryRepo): Promise<void> {
+  await seedWidget(entryRepo, "inline-text-widget", { widgetType: "text", config: { body: "Inline hello" } }, WORKSPACE_ID_POST);
+  await seedWidget(entryRepo, "inline-trashed-widget", { widgetType: "text", config: { body: "gone" }, status: "trash" }, WORKSPACE_ID_POST);
+}
+
+const EXPECTED_INLINE_WIDGET_BODY =
+  `<div class="post-detail-body">` +
+  `<div class="widget widget-text">Inline hello</div>` +
+  `<div class="widget widget-placeholder" aria-hidden="true"></div>` +
+  `<div class="widget widget-placeholder" aria-hidden="true"></div>` +
+  `</div>`;
+
+test('resolveHtmlPageEmbeds: a "content" embed\'s DB branch resolves the post body\'s inline widgetEmbed nodes, so renderWidgetIr renders the real widget (trashed/missing widgets still degrade to the placeholder) — the path every post rendered through a static-tier theme template takes', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  await seedInlineWidgets(entryRepo);
+  const postRepo = new InMemoryPostRepo([postRecordWithWidgetEmbeds()]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
+  });
+
+  const ir = resolved.get("content")?.get("entity-1");
+  assert.ok(ir);
+  const html = renderWidgetIr(ir!);
+  assert.ok(html.endsWith(EXPECTED_INLINE_WIDGET_BODY), `unexpected post body render: ${html}`);
+});
+
+test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branch (the admin Preview tab) resolves inline widgetEmbed nodes the same way as the DB branch', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  await seedInlineWidgets(entryRepo);
+  const pending = postRecordWithWidgetEmbeds();
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: {
+      entryRepo,
+      pendingContentOverride: { id: "entity-1", title: pending.title, slug: pending.slug, updatedAt: pending.updatedAt, bodyJson: pending.bodyJson },
+    },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
+  });
+
+  const html = renderWidgetIr(resolved.get("content")!.get("entity-1")!);
+  assert.ok(html.endsWith(EXPECTED_INLINE_WIDGET_BODY), `unexpected post body render: ${html}`);
+});
+
+test('resolveHtmlPageEmbeds: the legacy "post" embed type resolves inline widgetEmbed nodes in its bodyJson too (all three "post-content" IR builders share one context helper)', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  await seedInlineWidgets(entryRepo);
+  const postRepo = new InMemoryPostRepo([postRecordWithWidgetEmbeds()]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"post","id":"entity-1"}'></div>` },
+  });
+
+  const html = renderWidgetIr(resolved.get("post")!.get("entity-1")!);
+  assert.ok(html.endsWith(EXPECTED_INLINE_WIDGET_BODY), `unexpected post body render: ${html}`);
 });

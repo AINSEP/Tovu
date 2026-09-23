@@ -1,4 +1,6 @@
 import { agentHandle, type AgentElementRole } from "@jini-ai/agentic";
+import { useAdminLocale } from "../hooks/use-admin-locale.hooks";
+import { t as sharedComponentsT } from "./shared-components-i18n";
 import {
   resolveByokFooterStatusLine,
   type AdminByokSaveState,
@@ -56,15 +58,15 @@ export interface AdminByokMigrationPromptProps {
  * @overallScore 100
  */
 export function AdminByokMigrationPrompt({ controller, agentHandle: base }: AdminByokMigrationPromptProps) {
+  const locale = useAdminLocale();
+  const t = (key: string) => sharedComponentsT(locale, key);
   if (!controller.legacyKey) return null;
   const saving = controller.saveState.status === "saving";
 
   return (
     <div className="notice admin-byok-migration" role="status">
       <p>
-        We found a saved key in this browser — save it to your account? It will be encrypted and stored on the
-        server, and this browser&rsquo;s copy will be cleared once that succeeds. Declining leaves it exactly as it
-        is; nothing is sent or cleared unless you confirm.
+        {t("We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.")}
       </p>
       <div className="admin-byok-migration-actions">
         <button
@@ -74,7 +76,7 @@ export function AdminByokMigrationPrompt({ controller, agentHandle: base }: Admi
           disabled={saving}
           {...byokAgentProps(base, "save", { role: "button", label: "Save this browser's key to your account" })}
         >
-          {saving ? "Saving…" : "Save to my account"}
+          {saving ? t("Saving…") : t("Save to my account")}
         </button>
         <button
           type="button"
@@ -83,7 +85,7 @@ export function AdminByokMigrationPrompt({ controller, agentHandle: base }: Admi
           disabled={saving}
           {...byokAgentProps(base, "dismiss", { role: "button", label: "Dismiss this prompt without saving" })}
         >
-          Not now
+          {t("Not now")}
         </button>
       </div>
       {controller.saveState.status === "error" ? <div className="save-error">{controller.saveState.message}</div> : null}
@@ -112,9 +114,11 @@ export interface AdminByokKeyFooterProps {
  * @complexity Time/space: O(1).
  */
 export function AdminByokKeyFooter({ controller, agentHandle: handle, t }: AdminByokKeyFooterProps) {
+  const locale = useAdminLocale();
+  const sharedT = (key: string) => sharedComponentsT(locale, key);
   const { saveState, canSaveKey, stored, storedKeyIsForOtherEndpoint } = controller;
   const saving = saveState.status === "saving";
-  const statusLine = resolveByokFooterStatusLine(saveState.status, stored?.isSet ?? false, storedKeyIsForOtherEndpoint, t);
+  const statusLine = resolveByokFooterStatusLine(saveState.status, stored?.isSet ?? false, storedKeyIsForOtherEndpoint, t ?? sharedT);
 
   return (
     <div className="assistant-key-footer">
@@ -131,7 +135,7 @@ export function AdminByokKeyFooter({ controller, agentHandle: handle, t }: Admin
           disabled={!canSaveKey || saving}
           {...(handle ? agentHandle(handle, { role: "button", label: "Save this API key" }) : {})}
         >
-          {saving ? "Saving…" : "Save key"}
+          {saving ? sharedT("Saving…") : sharedT("Save key")}
         </button>
       </div>
       <p className="assistant-save-line">{statusLine}</p>
@@ -188,9 +192,11 @@ export function resolveByokSettingsStatusLine(
  * @complexity Time/space: O(1).
  */
 export function AdminByokSettingsFooter({ controller, agentHandle: handle, t }: AdminByokSettingsFooterProps) {
+  const locale = useAdminLocale();
+  const sharedT = (key: string) => sharedComponentsT(locale, key);
   const { settingsSaveState } = controller;
   const saving = settingsSaveState.status === "saving";
-  const statusLine = resolveByokSettingsStatusLine(settingsSaveState.status, t);
+  const statusLine = resolveByokSettingsStatusLine(settingsSaveState.status, t ?? sharedT);
 
   return (
     <div className="assistant-settings-footer">
@@ -207,7 +213,7 @@ export function AdminByokSettingsFooter({ controller, agentHandle: handle, t }: 
           disabled={saving}
           {...(handle ? agentHandle(handle, { role: "button", label: "Save these execution settings" }) : {})}
         >
-          {saving ? "Saving…" : "Save settings"}
+          {saving ? sharedT("Saving…") : sharedT("Save settings")}
         </button>
       </div>
       {statusLine ? <p className="assistant-save-line">{statusLine}</p> : null}

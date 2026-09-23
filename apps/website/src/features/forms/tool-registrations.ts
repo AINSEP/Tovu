@@ -96,7 +96,8 @@ export const formsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSi
   // -> updateFormDefinition (write-service.ts): executeCommand -> repo.update + change-set + outbox.
   ["forms_update_definition", "mutates-durable-state"],
   // -> setFormDefinitionStatus (write-service.ts): executeCommand -> repo.update (status flip) +
-  //    change-set + outbox. Never a delete: FormDefinitionRepoPort exposes no delete method (INV-08).
+  //    change-set + outbox. Never a delete: FormDefinitionRepoPort exposes no delete method — a
+  //    definition is removed permanently only via a Trash purge, never through this tool (INV-08).
   ["forms_set_definition_status", "mutates-durable-state"],
   // -> formSubmissionRepo.listByDefinition: one paginated read, no write of any kind.
   ["forms_list_submissions", "none"],
@@ -477,8 +478,11 @@ async function duplicateFormDefinition(
     (await deriveAvailableFormSlug(
       { name },
       {
+        // `isSlugTaken`, not `findBySlug` — trash-blind, so a trashed form's slug is correctly
+        // reported as taken instead of offered to the copy and then colliding on the DB unique
+        // index (decision 3, ADS-memory/reports/2026-09-21-t8f-trash-forms-plan.md §B).
         isTaken: async (candidate) =>
-          (await routeDeps.formDefinitionRepo.findBySlug({ workspaceId: routeDeps.workspaceId, slug: candidate })) !== null,
+          routeDeps.formDefinitionRepo.isSlugTaken({ workspaceId: routeDeps.workspaceId, slug: candidate }),
       }
     ));
 

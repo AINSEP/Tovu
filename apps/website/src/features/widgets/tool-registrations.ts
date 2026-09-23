@@ -104,8 +104,8 @@ export const widgetsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   ["widgets_create_instance", "mutates-durable-state"],
   // -> updateWidgetInstance (write-service.ts): updateEntry + entry_refs extraction.
   ["widgets_update_instance", "mutates-durable-state"],
-  // -> trashWidgetInstance (write-service.ts): updateEntry, status flip only. Never a purge:
-  //    purgeWidgetInstance is deliberately not exposed (see widgets/agent-tools.ts's file header).
+  // -> trashWidgetInstance (write-service.ts): moves it to the Trash (restorable). Never a purge:
+  //    a permanent delete exists only as the Trash screen's purge.
   ["widgets_trash_instance", "mutates-durable-state"],
   // -> bindWidgetArea (region-area-service.ts): createEntry (maybe) + bindingRepo.upsert.
   ["widgets_bind_region", "mutates-durable-state"],
@@ -221,6 +221,11 @@ function toWidgetInstanceToolView(instance: WidgetInstanceEntry): WidgetInstance
 
 const WIDGETS_TRASH_TOOL_ID = "widgets_trash_instance";
 
+/** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
+ *  imported, the same "structurally typed, no `features/trash` import" convention this file's own
+ *  header already follows. */
+const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
+
 /** The `ui://` URI for one trash-confirmation instance — keyed by the exchange id, mirroring
  *  `comments/tool-registrations.ts`'s identical `trashConfirmationUri`. */
 function trashConfirmationUri(exchangeId: string): UIResourceUri {
@@ -234,10 +239,7 @@ function trashConfirmationUri(exchangeId: string): UIResourceUri {
  *
  * @complexity O(1).
  */
-function buildTrashConfirmationResource(spec: {
-  instance: { title: string; widgetType: string; status: WidgetInstanceEntry["status"] };
-  exchangeId: string;
-}): UIResource {
+function buildTrashConfirmationResource(spec: { instance: { title: string; slug: string }; exchangeId: string }): UIResource {
   const { instance, exchangeId } = spec;
   return buildConfirmationSurface({
     uri: trashConfirmationUri(exchangeId),
@@ -245,8 +247,7 @@ function buildTrashConfirmationResource(spec: {
     description: "The widget instance will be moved to the trash and removed from wherever it is currently placed.",
     details: [
       { label: "Title", value: instance.title },
-      { label: "Widget type", value: instance.widgetType },
-      { label: "Current status", value: instance.status },
+      { label: "Slug", value: instance.slug },
     ],
     danger: true,
     confirm: {
@@ -385,20 +386,33 @@ export function buildWidgetsRegistrations(
     /**
      * The MCP-UI-gated trash — migrated onto the shared held-open confirmation exchange
      * (2026-09-08, ADS-memory/reports/2026-09-08-delete-confirmation-build.md). The pre-dialog read
-     * gates on `widgets.read` (via `getWidgetInstance`), deferring `widgets.delete` to the confirmed
-     * write — same split `content_post_delete` uses for `content.read`/`content.write`.
-     * `trashWidgetInstance` re-reads the row and derives `expectedVersion` from that fresh read
-     * INSIDE itself, right before writing, so no separate staleness re-check is needed here the way
-     * `content_post_delete`'s own handler needs one — a row that moved while the dialog was open is
-     * simply the version `trashWidgetInstance` writes against.
+     * gates on `widgets.read`, deferring `widgets.delete` to the confirmed write — same split
+     * `content_post_delete` uses for `content.read`/`content.write`. `trashWidgetInstance` re-reads
+     * the row and derives `expectedVersion` from that fresh read INSIDE itself, right before moving
+     * it to the Trash, so no separate staleness re-check is needed here the way
+     * `content_post_delete`'s own handler needs one.
+     *
+     * (2026-09-21, trash T4) The pre-dialog read no longer goes through `getWidgetInstance` — that
+     * function calls `toWidgetInstanceEntry`, which `JSON.parse`s `fields_json`, so a widget whose
+     * payload is corrupt (e.g. `fields_json = "{not json"`) threw here before the confirmation
+     * dialog ever rendered, making exactly the rows a user most wants gone untrashable. Reads the
+     * raw `EntryRecord` (`title`/`slug`/`version`/`type`) instead, the same column-only rule
+     * `TrashAdapter` implementations already follow (see `ports.ts`'s file header) — the dialog now
+     * shows Title/Slug (both raw columns) rather than widget type/status (both payload fields).
      */
     widgets_trash_instance: async (ctx) => {
       const widgetInstanceId = requireString(requireInputRecord(ctx.input), "widgetInstanceId");
 
-      const { instance } = await getWidgetInstance({
-        deps: { entryRepo: routeDeps.entryRepo, authorize: routeDeps.authorize },
-        input: { workspaceId: routeDeps.workspaceId, actor: { principalId: ctx.principal.id }, widgetInstanceId },
+      await requireWidgetPermission({
+        authorize: routeDeps.authorize,
+        actor: { principalId: ctx.principal.id },
+        workspaceId: routeDeps.workspaceId,
+        permission: "widgets.read",
       });
+      const entry = await routeDeps.entryRepo.findById({ workspaceId: routeDeps.workspaceId, id: widgetInstanceId });
+      if (!entry || entry.type !== WIDGET_CONTENT_TYPE) {
+        throw new WidgetInstanceNotFoundError(`widget instance '${widgetInstanceId}' was not found`);
+      }
 
       if (!ctx.emitSurface) {
         throw new Error(
@@ -412,7 +426,7 @@ export function buildWidgetsRegistrations(
         ctx.emitSurface
       );
       const ui = buildTrashConfirmationResource({
-        instance: { title: instance.title, widgetType: instance.widgetType, status: instance.status },
+        instance: { title: entry.title, slug: entry.slug },
         exchangeId: exchange.id,
       });
 
@@ -422,7 +436,7 @@ export function buildWidgetsRegistrations(
         const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
         if (!outcome.confirmed) {
           if (outcome.reason === "declined") {
-            return { trashed: false, cancelled: true, instance: toWidgetInstanceToolView(instance) };
+            return { trashed: false, cancelled: true, widgetInstanceId, title: entry.title, slug: entry.slug };
           }
           return {
             trashed: false,
@@ -435,11 +449,17 @@ export function buildWidgetsRegistrations(
           };
         }
 
-        const { instance: trashed } = await trashWidgetInstance({
+        const { version } = await trashWidgetInstance({
           deps: buildWidgetsDeps(routeDeps),
-          input: { workspaceId: routeDeps.workspaceId, actor: { principalId: ctx.principal.id }, widgetInstanceId },
+          input: {
+            workspaceId: routeDeps.workspaceId,
+            actor: { principalId: ctx.principal.id, pluginId: ASSISTANT_ACTOR_PLUGIN_ID },
+            widgetInstanceId,
+          },
         });
-        return { trashed: true, cancelled: false, instance: toWidgetInstanceToolView(trashed) };
+        // The row itself is unchanged apart from its Trash marker; no `toWidgetInstanceToolView` here
+        // (see this handler's own header) — a corrupt payload must still be reportable as trashed.
+        return { trashed: true, cancelled: false, widgetInstanceId, title: entry.title, slug: entry.slug, version: version ?? entry.version };
       } finally {
         ctx.signal.removeEventListener("abort", closeOnAbort);
       }

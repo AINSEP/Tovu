@@ -39,6 +39,29 @@ export function templateAssetUrl(themeId: string, templateFilename: string, apiV
 }
 
 /**
+ * Route path (not a full URL — matches this app's `navigate()`, see `apps/admin/src/lib/router.ts`)
+ * for the Theme Explore screen with this template preselected — `PostTemplateModal`'s "Edit" button
+ * target (owner ask, 2026-09-22). The viewer stays read-only; this only ever points the operator at
+ * Explore, which is where the real edit happens.
+ *
+ * Builds the short `?page=<label>` form Theme Explore documents and writes for an ordinary page
+ * (`theme-explore-url.hooks.ts`'s file header and `writeThemeExploreSelectionToUrl`), not the
+ * longer `?file=<full path>` form — every template this modal can show is itself a static-tier
+ * page template, so `resolveThemeExploreSelectionValue`'s label match (`kind === "page"`, basename
+ * minus `.html`) always resolves it without needing `pagesDir` at all. Built with `URLSearchParams`,
+ * matching that module's own encoding.
+ *
+ * @param themeId - The active theme id.
+ * @param templateFilename - The selected template's filename (e.g. `posts-default.html`).
+ * @returns A `/themes/explore?theme=...&page=...` route path.
+ * @complexity O(1).
+ */
+export function templateEditUrl(themeId: string, templateFilename: string): string {
+  const params = new URLSearchParams({ theme: themeId, page: templateFilename.replace(/\.html$/, "") });
+  return `/themes/explore?${params.toString()}`;
+}
+
+/**
  * Fetches a static-tier theme's template source as plain text via the injected `port`. Kept out
  * of the component body so the three outcomes (loading/loaded/error) are the function's only
  * branches — no theme-tier decision in here, that gate lives in the caller

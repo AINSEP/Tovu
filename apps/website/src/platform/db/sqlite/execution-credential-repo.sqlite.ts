@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import type { AdminExecutionCredentialRecord, AdminExecutionCredentialRepoPort } from "#src/assistant/index";
 import type { UUID, ISODateTime } from "@jini-ai/cms/core";
-import { adminExecutionCredentials } from "../schema.js";
+import { adminExecutionCredentials } from "../schema.sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
 /**

@@ -917,6 +917,78 @@ describe("useAccessTokens: makeDefault — already-default no-op, and a successf
     expect(row?.saving).toBe(false);
     expect(row?.error).toBe(null);
   });
+
+  // terra review 2026-09-20: the server confirms a promotion, but the reconcile refetch that follows
+  // it (`refetchStore`) is a separate network call and can fail on its own — a real transient blip,
+  // not a sign the promotion itself failed. The old `makeDefault` awaited both inside one try/catch,
+  // so a refetch failure reported the whole thing as failed AND left the pre-promotion list on
+  // screen, even though the write had already landed. Same bug, same fix as deployment's
+  // `withPromotedDefault` (commit 5deaf6f12): splice the server's own confirmed response into local
+  // state first, then treat the reconcile as best-effort.
+  it("a promotion that landed shows the new default even when the reconcile refetch after it fails", async () => {
+    let listCalls = 0;
+    const port = createFakeAccessTokensPort({
+      publish: {
+        list: () => {
+          listCalls += 1;
+          if (listCalls === 1) {
+            return Promise.resolve({
+              credentials: [publishCredential({ isDefault: false }), publishCredential({ id: "cred-2", label: "Staging", isDefault: true })],
+              executionMode: "self-hosted-cli",
+            });
+          }
+          return Promise.reject(new Error("refetch down"));
+        },
+        update: (id) => Promise.resolve(publishCredential({ id, isDefault: true })),
+      },
+    });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const target = findRow(result.current.groups, "cred-1")!.row;
+
+    await act(() => result.current.makeDefault(target));
+
+    const row = findRow(result.current.groups, "cred-1");
+    expect(row?.error).toBe(null);
+    expect(row?.saving).toBe(false);
+    expect(row?.row.isDefault).toBe(true);
+    // The promotion must also UN-default the provider's previous default, the other half of
+    // `withPromotedDefault`. Without this line the test passed with the promoted row merely replaced
+    // in place, leaving two defaults for one provider on screen.
+    expect(findRow(result.current.groups, "cred-2")?.row.isDefault).toBe(false);
+  });
+
+  // Same failure, source-control store: `applyPromotedDefault`'s second branch. With that branch
+  // writing the wrong store, or replacing only the promoted row, the publish-only test above still
+  // passed.
+  it("a source-control promotion that landed shows the new default even when the reconcile refetch after it fails", async () => {
+    let listCalls = 0;
+    const port = createFakeAccessTokensPort({
+      sourceControl: {
+        list: () => {
+          listCalls += 1;
+          if (listCalls === 1) {
+            return Promise.resolve({
+              credentials: [sourceControlCredential({ isDefault: false }), sourceControlCredential({ id: "sc-2", label: "Mirror", isDefault: true })],
+            });
+          }
+          return Promise.reject(new Error("refetch down"));
+        },
+        update: (id) => Promise.resolve(sourceControlCredential({ id, isDefault: true })),
+      },
+    });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(findRow(result.current.groups, "sc-1")).toBeDefined());
+    const target = findRow(result.current.groups, "sc-1")!.row;
+
+    await act(() => result.current.makeDefault(target));
+
+    const row = findRow(result.current.groups, "sc-1");
+    expect(row?.error).toBe(null);
+    expect(row?.saving).toBe(false);
+    expect(row?.row.isDefault).toBe(true);
+    expect(findRow(result.current.groups, "sc-2")?.row.isDefault).toBe(false);
+  });
 });
 
 describe("useAccessTokens: custom add-form draft + reset", () => {

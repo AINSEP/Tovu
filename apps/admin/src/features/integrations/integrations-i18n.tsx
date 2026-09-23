@@ -10,6 +10,12 @@ import { interpolate } from "../../lib/template-i18n";
  * Also covers `rules.ts`'s `integrationRowMenuItems` row-menu labels (Pause/Resume/Delete) — the
  * earlier pass's `.tsx`-only scope left these untranslated (flagged in its handoff report as a
  * follow-up gap); `rules.ts` imports `t` from here directly.
+ *
+ * `Soon` (added 2026-09-19, for the MCP Server tab's new `TabBarTab.tag`) is copied verbatim from
+ * `lib/admin-nav-i18n.ts`'s own `Soon` entries per locale rather than retranslated — same word,
+ * same app, and that file's own translations were already reviewed. `Providers.tsx`'s own header
+ * explains why this feature keeps its own dictionary instead of reading that one directly: it is
+ * scoped to the nav only.
  */
 
 const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
@@ -24,6 +30,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Integraciones",
     "APIs & Webhooks": "API y Webhooks",
     "MCP Server": "Servidor MCP",
+    Soon: "Próximamente",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Cómo otras herramientas se comunican con este sitio: webhooks salientes y la conexión de un cliente MCP.",
@@ -44,6 +51,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Última respuesta",
     "Loading delivery log…": "Cargando registro de entregas…",
     "Loading integrations…": "Cargando integraciones…",
+    "failed to update subscription": "no se pudo actualizar la suscripción",
+    "failed to delete subscription": "no se pudo eliminar la suscripción",
+    "failed to load integrations": "no se pudieron cargar las integraciones",
   },
   id: {
     Pause: "Jeda",
@@ -56,6 +66,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Integrasi",
     "APIs & Webhooks": "API & Webhooks",
     "MCP Server": "Server MCP",
+    Soon: "Segera",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Cara alat lain berkomunikasi dengan situs ini — webhook keluar dan menghubungkan klien MCP.",
@@ -76,6 +87,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Respons terakhir",
     "Loading delivery log…": "Memuat log pengiriman…",
     "Loading integrations…": "Memuat integrasi…",
+    "failed to update subscription": "gagal memperbarui langganan",
+    "failed to delete subscription": "gagal menghapus langganan",
+    "failed to load integrations": "gagal memuat integrasi",
   },
   de: {
     Pause: "Pausieren",
@@ -88,6 +102,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Integrationen",
     "APIs & Webhooks": "API & Webhooks",
     "MCP Server": "MCP-Server",
+    Soon: "Bald",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Wie andere Tools mit dieser Website kommunizieren – ausgehende Webhooks und die Verbindung eines MCP-Clients.",
@@ -108,6 +123,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Letzte Antwort",
     "Loading delivery log…": "Zustellprotokoll wird geladen…",
     "Loading integrations…": "Integrationen werden geladen…",
+    "failed to update subscription": "Abonnement konnte nicht aktualisiert werden",
+    "failed to delete subscription": "Abonnement konnte nicht gelöscht werden",
+    "failed to load integrations": "Integrationen konnten nicht geladen werden",
   },
   "zh-CN": {
     Pause: "暂停",
@@ -120,6 +138,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "集成",
     "APIs & Webhooks": "API 与 Webhook",
     "MCP Server": "MCP 服务器",
+    Soon: "即将推出",
     "Webhooks": "Webhook",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "其他工具如何与本站通信 — 出站 Webhook，以及连接 MCP 客户端。",
@@ -140,6 +159,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "最近一次响应",
     "Loading delivery log…": "正在加载投递日志…",
     "Loading integrations…": "正在加载集成…",
+    "failed to update subscription": "无法更新订阅",
+    "failed to delete subscription": "无法删除订阅",
+    "failed to load integrations": "无法加载集成",
   },
   "zh-TW": {
     Pause: "暫停",
@@ -152,6 +174,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "整合",
     "APIs & Webhooks": "API 與 Webhook",
     "MCP Server": "MCP 伺服器",
+    Soon: "即將推出",
     "Webhooks": "Webhook",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "其他工具如何與本站通訊 — 外送 Webhook，以及連接 MCP 用戶端。",
@@ -172,6 +195,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "上次回應",
     "Loading delivery log…": "正在載入傳送記錄…",
     "Loading integrations…": "正在載入整合…",
+    "failed to update subscription": "無法更新訂閱",
+    "failed to delete subscription": "無法刪除訂閱",
+    "failed to load integrations": "無法載入整合",
   },
   "pt-BR": {
     Pause: "Pausar",
@@ -184,6 +210,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Integrações",
     "APIs & Webhooks": "API e Webhooks",
     "MCP Server": "Servidor MCP",
+    Soon: "Em breve",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Como outras ferramentas se comunicam com este site — webhooks de saída e a conexão de um cliente MCP.",
@@ -204,6 +231,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Última resposta",
     "Loading delivery log…": "Carregando registro de entregas…",
     "Loading integrations…": "Carregando integrações…",
+    "failed to update subscription": "não foi possível atualizar a assinatura",
+    "failed to delete subscription": "não foi possível excluir a assinatura",
+    "failed to load integrations": "não foi possível carregar as integrações",
   },
   ru: {
     Pause: "Приостановить",
@@ -216,7 +246,8 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Интеграции",
     "APIs & Webhooks": "API и Webhooks",
     "MCP Server": "MCP-сервер",
-    "Webhooks": "Webhooks",
+    Soon: "Скоро",
+    "Webhooks": "Вебхуки",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Как другие инструменты взаимодействуют с этим сайтом — исходящие вебхуки и подключение MCP-клиента.",
     "Send webhook notifications to external services when content on this site changes.":
@@ -236,6 +267,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Последний ответ",
     "Loading delivery log…": "Загрузка журнала доставки…",
     "Loading integrations…": "Загрузка интеграций…",
+    "failed to update subscription": "не удалось обновить подписку",
+    "failed to delete subscription": "не удалось удалить подписку",
+    "failed to load integrations": "не удалось загрузить интеграции",
   },
   fa: {
     Pause: "توقف موقت",
@@ -248,7 +282,8 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "یکپارچه‌سازی‌ها",
     "APIs & Webhooks": "API و Webhooks",
     "MCP Server": "سرور MCP",
-    "Webhooks": "Webhooks",
+    Soon: "به‌زودی",
+    "Webhooks": "وب‌هوک",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "چگونه ابزارهای دیگر با این سایت ارتباط برقرار می‌کنند — وب‌هوک‌های خروجی و اتصال یک کلاینت MCP.",
     "Send webhook notifications to external services when content on this site changes.":
@@ -268,6 +303,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "آخرین پاسخ",
     "Loading delivery log…": "در حال بارگذاری گزارش تحویل…",
     "Loading integrations…": "در حال بارگذاری یکپارچه‌سازی‌ها…",
+    "failed to update subscription": "به‌روزرسانی اشتراک ناموفق بود",
+    "failed to delete subscription": "حذف اشتراک ناموفق بود",
+    "failed to load integrations": "بارگذاری یکپارچه‌سازی‌ها ناموفق بود",
   },
   ar: {
     Pause: "إيقاف مؤقت",
@@ -280,7 +318,8 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "عمليات التكامل",
     "APIs & Webhooks": "API و Webhooks",
     "MCP Server": "خادم MCP",
-    "Webhooks": "Webhooks",
+    Soon: "قريبًا",
+    "Webhooks": "ويب هوك",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "كيف تتواصل الأدوات الأخرى مع هذا الموقع — الويب هوك الصادرة، وتوصيل عميل MCP.",
     "Send webhook notifications to external services when content on this site changes.":
@@ -300,6 +339,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "آخر استجابة",
     "Loading delivery log…": "جارٍ تحميل سجل التسليم…",
     "Loading integrations…": "جارٍ تحميل عمليات التكامل…",
+    "failed to update subscription": "تعذر تحديث الاشتراك",
+    "failed to delete subscription": "تعذر حذف الاشتراك",
+    "failed to load integrations": "تعذر تحميل عمليات التكامل",
   },
   ja: {
     Pause: "一時停止",
@@ -312,6 +354,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "連携",
     "APIs & Webhooks": "APIとWebhook",
     "MCP Server": "MCP サーバー",
+    Soon: "近日公開",
     "Webhooks": "Webhook",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "他のツールがこのサイトとやり取りする方法 — 送信 Webhook と MCP クライアントの接続。",
@@ -332,6 +375,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "最終レスポンス",
     "Loading delivery log…": "配信ログを読み込み中…",
     "Loading integrations…": "連携を読み込み中…",
+    "failed to update subscription": "サブスクリプションを更新できませんでした",
+    "failed to delete subscription": "サブスクリプションを削除できませんでした",
+    "failed to load integrations": "連携を読み込めませんでした",
   },
   ko: {
     Pause: "일시중지",
@@ -344,6 +390,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "통합",
     "APIs & Webhooks": "API 및 Webhook",
     "MCP Server": "MCP 서버",
+    Soon: "준비 중",
     "Webhooks": "Webhook",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "다른 도구가 이 사이트와 통신하는 방법 — 아웃바운드 웹훅과 MCP 클라이언트 연결.",
@@ -364,6 +411,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "마지막 응답",
     "Loading delivery log…": "전송 기록 로드 중…",
     "Loading integrations…": "통합 로드 중…",
+    "failed to update subscription": "구독을 업데이트하지 못했습니다",
+    "failed to delete subscription": "구독을 삭제하지 못했습니다",
+    "failed to load integrations": "통합을 불러오지 못했습니다",
   },
   pl: {
     Pause: "Wstrzymaj",
@@ -376,6 +426,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Integracje",
     "APIs & Webhooks": "API i Webhooks",
     "MCP Server": "Serwer MCP",
+    Soon: "Wkrótce",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Jak inne narzędzia komunikują się z tą witryną — wychodzące webhooki i podłączanie klienta MCP.",
@@ -396,6 +447,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Ostatnia odpowiedź",
     "Loading delivery log…": "Wczytywanie dziennika dostarczania…",
     "Loading integrations…": "Wczytywanie integracji…",
+    "failed to update subscription": "nie udało się zaktualizować subskrypcji",
+    "failed to delete subscription": "nie udało się usunąć subskrypcji",
+    "failed to load integrations": "nie udało się wczytać integracji",
   },
   hu: {
     Pause: "Szüneteltetés",
@@ -408,6 +462,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Integrációk",
     "APIs & Webhooks": "API és Webhooks",
     "MCP Server": "MCP-kiszolgáló",
+    Soon: "Hamarosan",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Hogyan kommunikálnak más eszközök ezzel a webhellyel – kimenő webhookok és MCP-kliens csatlakoztatása.",
@@ -428,6 +483,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Utolsó válasz",
     "Loading delivery log…": "Kézbesítési napló betöltése…",
     "Loading integrations…": "Integrációk betöltése…",
+    "failed to update subscription": "nem sikerült frissíteni az előfizetést",
+    "failed to delete subscription": "nem sikerült törölni az előfizetést",
+    "failed to load integrations": "nem sikerült betölteni az integrációkat",
   },
   fr: {
     Pause: "Suspendre",
@@ -440,6 +498,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Intégrations",
     "APIs & Webhooks": "API et Webhooks",
     "MCP Server": "Serveur MCP",
+    Soon: "Bientôt",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Comment d'autres outils communiquent avec ce site — webhooks sortants et connexion d'un client MCP.",
@@ -460,6 +519,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Dernière réponse",
     "Loading delivery log…": "Chargement du journal des livraisons…",
     "Loading integrations…": "Chargement des intégrations…",
+    "failed to update subscription": "impossible de mettre à jour l’abonnement",
+    "failed to delete subscription": "impossible de supprimer l’abonnement",
+    "failed to load integrations": "impossible de charger les intégrations",
   },
   uk: {
     Pause: "Призупинити",
@@ -472,7 +534,8 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Інтеграції",
     "APIs & Webhooks": "API та Webhooks",
     "MCP Server": "MCP-сервер",
-    "Webhooks": "Webhooks",
+    Soon: "Скоро",
+    "Webhooks": "Вебхуки",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Як інші інструменти взаємодіють із цим сайтом — вихідні вебхуки та підключення MCP-клієнта.",
     "Send webhook notifications to external services when content on this site changes.":
@@ -492,6 +555,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Остання відповідь",
     "Loading delivery log…": "Завантаження журналу доставки…",
     "Loading integrations…": "Завантаження інтеграцій…",
+    "failed to update subscription": "не вдалося оновити підписку",
+    "failed to delete subscription": "не вдалося видалити підписку",
+    "failed to load integrations": "не вдалося завантажити інтеграції",
   },
   tr: {
     Pause: "Duraklat",
@@ -504,6 +570,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Entegrasyonlar",
     "APIs & Webhooks": "API ve Webhooks",
     "MCP Server": "MCP Sunucusu",
+    Soon: "Yakında",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Diğer araçlar bu siteyle nasıl konuşur — giden webhook'lar ve bir MCP istemcisi bağlama.",
@@ -524,6 +591,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Son yanıt",
     "Loading delivery log…": "Teslimat günlüğü yükleniyor…",
     "Loading integrations…": "Entegrasyonlar yükleniyor…",
+    "failed to update subscription": "abonelik güncellenemedi",
+    "failed to delete subscription": "abonelik silinemedi",
+    "failed to load integrations": "entegrasyonlar yüklenemedi",
   },
   th: {
     Pause: "หยุดชั่วคราว",
@@ -536,6 +606,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "การผสานการทำงาน",
     "APIs & Webhooks": "API และ Webhook",
     "MCP Server": "เซิร์ฟเวอร์ MCP",
+    Soon: "เร็วๆ นี้",
     "Webhooks": "Webhook",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "เครื่องมืออื่นสื่อสารกับไซต์นี้อย่างไร — เว็บฮุคขาออก และการเชื่อมต่อไคลเอ็นต์ MCP",
@@ -556,6 +627,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "การตอบสนองล่าสุด",
     "Loading delivery log…": "กำลังโหลดบันทึกการส่ง…",
     "Loading integrations…": "กำลังโหลดการผสานการทำงาน…",
+    "failed to update subscription": "ไม่สามารถอัปเดตการสมัครสมาชิกได้",
+    "failed to delete subscription": "ไม่สามารถลบการสมัครสมาชิกได้",
+    "failed to load integrations": "ไม่สามารถโหลดการผสานการทำงานได้",
   },
   it: {
     Pause: "Metti in pausa",
@@ -568,6 +642,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "Integrazioni",
     "APIs & Webhooks": "API e Webhooks",
     "MCP Server": "Server MCP",
+    Soon: "Presto",
     "Webhooks": "Webhooks",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "Come altri strumenti comunicano con questo sito: webhook in uscita e connessione di un client MCP.",
@@ -588,6 +663,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "Ultima risposta",
     "Loading delivery log…": "Caricamento registro delle consegne…",
     "Loading integrations…": "Caricamento integrazioni…",
+    "failed to update subscription": "impossibile aggiornare l’abbonamento",
+    "failed to delete subscription": "impossibile eliminare l’abbonamento",
+    "failed to load integrations": "impossibile caricare le integrazioni",
   },
   hi: {
     Pause: "रोकें",
@@ -600,6 +678,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "इंटीग्रेशन",
     "APIs & Webhooks": "API और वेबहुक",
     "MCP Server": "MCP सर्वर",
+    Soon: "जल्द आ रहा है",
     "Webhooks": "वेबहुक",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "अन्य टूल इस साइट से कैसे बात करते हैं — आउटबाउंड वेबहुक, और MCP क्लाइंट कनेक्ट करना।",
@@ -620,6 +699,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "अंतिम प्रतिक्रिया",
     "Loading delivery log…": "डिलीवरी लॉग लोड हो रहा है…",
     "Loading integrations…": "इंटीग्रेशन लोड हो रहे हैं…",
+    "failed to update subscription": "सदस्यता अपडेट नहीं की जा सकी",
+    "failed to delete subscription": "सदस्यता हटाई नहीं जा सकी",
+    "failed to load integrations": "इंटीग्रेशन लोड नहीं किए जा सके",
   },
   ur: {
     Pause: "موقوف کریں",
@@ -632,6 +714,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "انٹیگریشنز",
     "APIs & Webhooks": "API اور ویب ہکس",
     "MCP Server": "MCP سرور",
+    Soon: "جلد آ رہا ہے",
     "Webhooks": "ویب ہکس",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "دوسرے ٹولز اس سائٹ سے کیسے بات کرتے ہیں — آؤٹ باؤنڈ ویب ہکس، اور MCP کلائنٹ کو جوڑنا۔",
@@ -652,6 +735,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "آخری جواب",
     "Loading delivery log…": "ترسیل کا لاگ لوڈ ہو رہا ہے…",
     "Loading integrations…": "انٹیگریشنز لوڈ ہو رہی ہیں…",
+    "failed to update subscription": "سبسکرپشن اپ ڈیٹ نہیں ہو سکی",
+    "failed to delete subscription": "سبسکرپشن حذف نہیں ہو سکی",
+    "failed to load integrations": "انٹیگریشنز لوڈ نہیں ہو سکیں",
   },
   bn: {
     Pause: "বিরতি দিন",
@@ -664,6 +750,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     Integrations: "ইন্টিগ্রেশন",
     "APIs & Webhooks": "API ও ওয়েবহুক",
     "MCP Server": "MCP সার্ভার",
+    Soon: "শীঘ্রই আসছে",
     "Webhooks": "ওয়েবহুক",
     "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
       "অন্যান্য টুল কীভাবে এই সাইটের সঙ্গে যোগাযোগ করে — আউটবাউন্ড ওয়েবহুক, এবং একটি MCP ক্লায়েন্ট সংযুক্ত করা।",
@@ -684,6 +771,9 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Last response": "শেষ প্রতিক্রিয়া",
     "Loading delivery log…": "ডেলিভারি লগ লোড হচ্ছে…",
     "Loading integrations…": "ইন্টিগ্রেশন লোড হচ্ছে…",
+    "failed to update subscription": "সাবস্ক্রিপশন আপডেট করা যায়নি",
+    "failed to delete subscription": "সাবস্ক্রিপশন মুছে ফেলা যায়নি",
+    "failed to load integrations": "ইন্টিগ্রেশন লোড করা যায়নি",
   },
 };
 

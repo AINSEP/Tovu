@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
@@ -12,6 +12,9 @@ import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
 import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import { SqliteDeploymentsReadRepo } from "#src/features/deployments/index";
+import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
+import { resolveSkillLayout } from "#src/features/skills/layout";
+import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import { SqlitePublishCredentialSetRepo } from "#src/platform/db/sqlite/publish-credential-repo.sqlite";
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
 import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-content-bundle-repo.sqlite";
@@ -91,6 +94,7 @@ import {
 import { SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "#src/features/commerce/repo.sqlite";
 import { rebuildNavLocationBindings } from "#src/features/navigation/index";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "#src/features/navigation/repo.sqlite";
+import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash-follow-ups";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
@@ -104,6 +108,7 @@ import { SqliteExternalMcpServerRepo } from "#src/platform/db/sqlite/external-mc
 import { createComposioConnectors } from "#src/platform/connectors/composio-service";
 import {
   LocalFsBlobStore,
+  purgeMedia,
   S3BlobStore,
   SharpImageTransformer,
   type BlobStorePort,
@@ -150,9 +155,12 @@ import { NoopContentTypeIndexProvisioner } from "#src/features/content-types/ind
 import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
 import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
 import { SqliteWidgetRegionBindingRepo } from "#src/features/widgets/repo.sqlite";
+import { buildWidgetsDeps } from "#src/features/widgets/deps";
+import { adoptLegacyTrashedWidgets, restoreWidgetPriorStatus } from "#src/features/widgets/write-service";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 import { SqlitePluginActivationRepo } from "#src/features/plugin-runtime/repo.sqlite";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
+import { forgetPluginActivations, type RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { isAdminAssistantEnabled } from "./admin-assistant-enabled.js";
 import { wireCoreResolvers } from "#src/features/widgets/resolvers/index";
@@ -176,6 +184,34 @@ import {
 } from "#src/features/settings/site-title";
 import { SqliteSiteTitlePreservationStore } from "#src/features/settings/site-title-preservation.sqlite";
 import { SqliteCommentRepo } from "#src/features/comments/repo.sqlite";
+import {
+  bindRemoveEntity,
+  COMMENT_ENTITY_TYPE,
+  bindForgetRemovedEntity,
+  buildTrashRegistry,
+  createCommentTrashAdapter,
+  createContentDbTransactionRunner,
+  createDirectoryTrashAdapter,
+  unhideIfRemoveThrows,
+  createMediaTrashAdapter,
+  createPostTrashAdapter,
+  createRedirectTrashAdapter,
+  createSqliteTrashDb,
+  createTableTrashAdapter,
+  createTrashService,
+  createTrashSweep,
+  MEDIA_ENTITY_TYPE,
+  PLUGIN_ENTITY_TYPE,
+  POST_ENTITY_TYPE,
+  REDIRECT_ENTITY_TYPE,
+  SqliteTrashRepo,
+  type RemoveEntity,
+  type TrashAdapter,
+  type TrashedItemsRef,
+  type TrashFollowUpHooks,
+  withFollowUps,
+} from "#src/features/trash/index";
+import * as contentSchema from "#src/platform/db/schema.sqlite";
 import { installCommentsDataModule } from "#src/features/comments/data-module-install";
 import {
   SqliteEntryTermRepo,
@@ -184,6 +220,8 @@ import {
   SqliteTermRepo,
   sqliteStampWatermark,
 } from "#src/features/taxonomy/repo.sqlite";
+import { toTaxonomyOutbox } from "#src/features/taxonomy/index";
+import { createTermPurgeFollowUp, createTaxonomyPurgeFollowUp } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "#src/features/recovery/repo.memory";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
@@ -596,6 +634,36 @@ function resolveSiteBindingOverride(overrides?: Partial<CreateSqliteRouteDepsOve
 }
 
 /**
+ * `RouteDeps.siteBackupSources`: the directories `site_backup_plan` reads, taken from the SAME
+ * resolved values this root serves the site from, so a backup never walks a different folder than
+ * the one in use. Media is `null` under `TOVU_MEDIA_BLOB_STORE=s3`: the bytes then live in object
+ * storage, and the backup says so instead of copying an unused local folder.
+ *
+ * @complexity O(1) — env reads and one small `package.json` read.
+ */
+function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; themesDir: string }): SiteBackupSources {
+  return {
+    siteDir: input.siteDir,
+    mediaUploadsDir: process.env.TOVU_MEDIA_BLOB_STORE === "s3" ? null : input.uploadsDir,
+    themesDir: input.themesDir,
+    agentPluginsDir: resolveAgentPluginLayout().root,
+    skillsDir: resolveSkillLayout().root,
+    tovuVersion: readTovuVersion(),
+  };
+}
+
+/** The product's own `package.json` version, stamped into a site backup's manifest. A missing or
+ *  unreadable file costs only the stamp, never the boot. */
+function readTovuVersion(): string {
+  try {
+    const parsed = JSON.parse(readFileSync(join(resolveProductRoot(), "package.json"), "utf8")) as { version?: unknown };
+    return typeof parsed.version === "string" ? parsed.version : "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+/**
  * SPEC-050 (NC-2 = B, REQ-13): the served site's display name, `config.json` `name` in the directory
  * holding `dbPath`, read at each render that needs it so a rename shows with no restart. Every boot
  * path keeps `content.db` in its site directory (`tovu serve`/`tovu export` pass `<dir>/content.db`;
@@ -985,7 +1053,8 @@ export function createSqliteRouteDeps(
   // caller needs to gate on it — `hydrateBlobStoreFromSeed`'s own per-key gate makes every run after
   // the first an all-`skipped` no-op. It calls `blobStore.putIfAbsent()` — one atomic call per key
   // now, not a separate `exists()`/`put()` pair (see that file's header for the race that closes).
-  const blobStore = resolveBlobStore(overrides?.uploadsDir ?? mediaUploadsDir());
+  const resolvedUploadsDir = overrides?.uploadsDir ?? mediaUploadsDir();
+  const blobStore = resolveBlobStore(resolvedUploadsDir);
   const blobHydrationReady = hydrateBlobStoreFromSeed({
     seedUploadsDir: builtInSeedUploadsDir(),
     blobStore,
@@ -1059,8 +1128,149 @@ export function createSqliteRouteDeps(
   const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo(db) });
   const redirectRepo = new SqliteRedirectRepo(db);
   const redirectHitSink = new RedirectHitSinkImpl();
+  // ---------------------------------------------------------------------------
+  // Local admin Trash (design: ADS-memory/reports/2026-09-20-trash-delete-architecture.md)
+  // ---------------------------------------------------------------------------
+  // A plain Map, built here and resolved on every call. NOT a module-level registry: this
+  // codebase's registries (`ToolRegistry`, routing's `phaseRegistry`) are append-only with no
+  // unregister, so anything that filters at registration time runs exactly once — two real bugs
+  // already came from that. Adding a phase-2 domain means one more `set()` here and no migration.
+  const assetRenditionRepo = new SqliteAssetRenditionRepo(db);
+  // `TRASHABLE` (plan §1/§4) — built once here from the live `schema.sqlite.ts` tables. Adding a type needs
+  // no edit below this line, only a new `registry.ts` `Map` entry — the adapter map beneath already
+  // loops over every registered entry generically.
+  const trashRegistry = buildTrashRegistry({ schema: contentSchema });
+  const sqliteTrashDb = createSqliteTrashDb({ db });
+  // Column-only reference to `trashed_items`, shared by every generic entry's adapter — needed only
+  // by a `purgeFirst` cascade that declares `entityType` (`form` -> `form_submission`, `taxonomy` ->
+  // `term`): the phantom-row cleanup, T1 item 5 (`table-adapter.ts`'s `TrashedItemsRef`).
+  const trashedItemsRef: TrashedItemsRef = {
+    table: contentSchema.trashedItems,
+    workspaceId: contentSchema.trashedItems.workspaceId,
+    entityType: contentSchema.trashedItems.entityType,
+    entityId: contentSchema.trashedItems.entityId,
+  };
+  // Finishes a hide/restore/purge a generic marker flip alone cannot (`follow-ups.ts`), per type.
+  // `widget`: an adopted legacy widget keeps its `purged` payload while in the Trash (an older site
+  // build still reads it), and its restore makes the payload active again. `routeDeps` is read at
+  // restore time, long after it exists below. T5/T6 add their own entries here (menu/taxonomy
+  // revision + event follow-ups) — this map stays the one per-type wiring point (plan §2 T1 item 6).
+  // Hoisted above `trashFollowUpHooks` (needs `findByEntity` for the term/taxonomy purge
+  // follow-ups below) — the constructor takes only `db.$client`, no dependency on
+  // `trashAdapters`/`trash` itself, so this is safe to build early (T6, step 3).
+  const trashRepo = new SqliteTrashRepo(db.$client);
+  // Purge-only audit trail for `term`/`taxonomy` (plan §6 Q2): one `taxonomy_revisions` row plus a
+  // domain event, matching `deleteTerm`/`deleteTaxonomy`'s own writes — see
+  // `taxonomy-trash-follow-ups.ts`'s file header. A second, cheap `SqliteTermRepo`/
+  // `SqliteTaxonomyRevisionRepo` instance each (stateless wrappers over the same tables `termRepo`/
+  // `taxonomyRevisionRepo` below use) rather than hoisting those out of the return object literal.
+  const taxonomyFollowUpTermRepo = new SqliteTermRepo({ db, workspaceId });
+  const taxonomyFollowUpRevisions = new SqliteTaxonomyRevisionRepo({ db, workspaceId });
+  const taxonomyFollowUpOutbox = toTaxonomyOutbox({ outbox, clock, idGen, workspaceId });
+  const trashFollowUpHooks = new Map<string, TrashFollowUpHooks>([
+    [
+      "widget",
+      {
+        afterUnhide: (required) =>
+          restoreWidgetPriorStatus({
+            deps: buildWidgetsDeps(routeDeps),
+            input: { workspaceId: required.workspaceId, widgetInstanceId: required.entityId, priorStatus: required.priorMarker },
+          }),
+      },
+    ],
+    ["menu", buildMenuTrashFollowUpHooks({ menuRepo, outbox, idGen, clock })],
+    [
+      "term",
+      createTermPurgeFollowUp({
+        termRepo: taxonomyFollowUpTermRepo,
+        trash: trashRepo,
+        revisions: taxonomyFollowUpRevisions,
+        outbox: taxonomyFollowUpOutbox,
+        clock,
+      }),
+    ],
+    [
+      "taxonomy",
+      createTaxonomyPurgeFollowUp({
+        termRepo: taxonomyFollowUpTermRepo,
+        trash: trashRepo,
+        revisions: taxonomyFollowUpRevisions,
+        outbox: taxonomyFollowUpOutbox,
+        clock,
+      }),
+    ],
+  ]);
+  const pluginTrashAdapter = createDirectoryTrashAdapter({
+    entityType: PLUGIN_ENTITY_TYPE,
+    locate: ({ entityId }) => pluginRuntime.locatePluginPackageDirs(entityId),
+    forget: ({ entityId }) => forgetPluginActivations({ pluginId: entityId }, { repo: pluginActivationRepo }),
+  });
+  const trashAdapters = new Map<string, TrashAdapter>([
+    [POST_ENTITY_TYPE, createPostTrashAdapter(db.$client)],
+    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(db.$client)],
+    [COMMENT_ENTITY_TYPE, createCommentTrashAdapter(db.$client)],
+    [PLUGIN_ENTITY_TYPE, pluginTrashAdapter],
+    [
+      MEDIA_ENTITY_TYPE,
+      createMediaTrashAdapter({
+        client: db.$client,
+        // Media's hard delete is not a row delete: rendition rows hang off it and the blob store
+        // holds bytes. `purgeMedia` owns that ladder, so the adapter delegates rather than
+        // reimplementing it in SQL and silently orphaning bytes.
+        purgeAsset: async ({ workspaceId: ws, entityId }) => {
+          await purgeMedia({
+            deps: { mediaRepo, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, blobStore, clock },
+            input: { workspaceId: ws, id: entityId },
+          });
+        },
+      }),
+    ],
+    // One generic adapter per `TRASHABLE` entry — `createTableTrashAdapter` is
+    // written once and driven entirely by each entry's own registration, so this line never changes
+    // as G2-G4 add more entries.
+    ...[...trashRegistry.values()].map((entry) => {
+      const adapter = createTableTrashAdapter({ entry, db: sqliteTrashDb, trashedItems: trashedItemsRef });
+      const hooks = trashFollowUpHooks.get(entry.entityType);
+      return [entry.entityType, hooks ? withFollowUps({ adapter, hooks }) : adapter] as const;
+    }),
+  ]);
+  // Reentrant: `deletePost` and `tombstoneRedirect` already open their own BEGIN IMMEDIATE around
+  // "marker + revision append", and `remove` is called from inside it. Named (not inlined) because
+  // the comments moderation service needs the SAME runner to wrap its own two writes.
+  const trashTransaction = createContentDbTransactionRunner(db.$client);
+  const trash = createTrashService({
+    repo: trashRepo,
+    adapters: trashAdapters,
+    idGen: { next: () => randomUUID() },
+    transaction: trashTransaction,
+  });
+  // Folder moves before the Trash row is written; if that write throws, move the folder back.
+  const removePlugin: RemovePluginFn = unhideIfRemoveThrows(pluginTrashAdapter, bindRemoveEntity(trash, PLUGIN_ENTITY_TYPE));
+
+  /**
+   * Narrows `bindRemoveEntity`'s result for a type whose registry entry declares no `blocker`
+   * (redirect/comment/form_submission — none of `registry.ts`'s three entries for them sets one).
+   * `TrashMarkerResult` (T1) is generic over every registered kind, so TypeScript cannot see that on
+   * its own; this is the composition-root seam that carries the narrower promise those domains'
+   * OWN structural types (`RemoveRedirectFn`/`RemoveCommentFn`/`RemoveFormSubmissionFn`) still make.
+   * A `"blocked"` result here is a composition bug (a blocker was added to one of these three entries
+   * without updating this call site to match) — fail fast rather than silently drop it.
+   */
+  function removeEntityWithoutBlocker(remove: RemoveEntity): (
+    required: Parameters<RemoveEntity>[0]
+  ) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }> {
+    return async (required) => {
+      const result = await remove(required);
+      if (!result.ok && result.reason === "blocked") {
+        throw new Error(`trash: '${required.id}' reported 'blocked' from a type registered with no blocker — composition bug`);
+      }
+      return result;
+    };
+  }
+
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
+    remove: removeEntityWithoutBlocker(bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE)),
     db: redirectRepo,
     transaction: (fn) => redirectRepo.transaction(fn),
     matcher: redirectMatcher,
@@ -1159,6 +1369,12 @@ export function createSqliteRouteDeps(
     idGen,
     spamCheck: new HeuristicSpamCheck(),
     settingsRepo,
+    // Local admin Trash. A comment's "deleted" marker is one value of its moderation status, so the
+    // index has to follow both directions of that transition — see `syncRemovalIndex`.
+    remove: removeEntityWithoutBlocker(bindRemoveEntity(trash, COMMENT_ENTITY_TYPE)),
+    forgetRemoved: ({ workspaceId: ws, id }) =>
+      trashRepo.deleteByEntity({ workspaceId: ws, entityType: COMMENT_ENTITY_TYPE, entityId: id }),
+    runInTransaction: trashTransaction,
   });
 
   // Hoisted above `newsletterKeyring` (moved up from its original position further below, where a
@@ -1362,6 +1578,7 @@ export function createSqliteRouteDeps(
       outbox,
       changeSets,
       authorize: identity.authorize,
+      forgetRemovedPost: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
       mediaRepo,
       assetBlobRepo,
       blobStore,
@@ -1373,6 +1590,25 @@ export function createSqliteRouteDeps(
   const routeDeps: NewsletterRouteDeps = {
     workspaceId: workspaceId,
     workspaceRepo: new SqliteWorkspaceRepo(db),
+    trash,
+    // Pre-bound per domain. A delete path receives exactly one of these and therefore cannot reach
+    // another domain's entities by passing the wrong string.
+    removePost: removeEntityWithoutBlocker(bindRemoveEntity(trash, POST_ENTITY_TYPE)),
+    removeComment: bindRemoveEntity(trash, COMMENT_ENTITY_TYPE),
+    removeMedia: removeEntityWithoutBlocker(bindRemoveEntity(trash, MEDIA_ENTITY_TYPE)),
+    removeRedirect: bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE),
+    removeWidget: removeEntityWithoutBlocker(bindRemoveEntity(trash, "widget")),
+    forgetRemovedMedia: bindForgetRemovedEntity(trashRepo, MEDIA_ENTITY_TYPE),
+    forgetRemovedPost: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
+    // The 60-day backstop's one pass. `createServingApp` owns the timer that calls it, so it runs
+    // only in a site-serving process — never in the exporter or the agent daemon.
+    sweepTrash: createTrashSweep({ repo: trashRepo, adapters: trashAdapters, transaction: trashTransaction }),
+    // Read on every call; see `TrashDeps.isTrashableEntityType`.
+    isTrashableEntityType: (entityType) => trashAdapters.has(entityType),
+    // `TrashDeps.registry`/`db` — read by `moveToTrash` (`POST .../trash/items`) and by
+    // `permissions.ts`'s registry-based permission lookup, both via this same `routeDeps` object.
+    registry: trashRegistry,
+    db: sqliteTrashDb,
     postRepo,
     postSearch: new SqlitePostSearchIndex(db),
     // SPEC-047/ADR-056 — the db handle and clock are closed over here so no route ever holds one;
@@ -1452,7 +1688,14 @@ export function createSqliteRouteDeps(
     // Pre-loaded with the post-domain reverters, closed over the SAME postRepo/clock/outbox
     // instances this root threads through everything else (ADR-018 C-005/C-006; 2026-08-13
     // features-post-deep-import-trace.md Job 2 — see `features/post/reverters.ts`'s header).
-    revertRegistry: createPostRevertRegistry({ postRepo, clock, outbox }),
+    revertRegistry: createPostRevertRegistry({
+      postRepo,
+      clock,
+      outbox,
+      // `post/delete`'s reverter clears the trash marker; without this the index row it was written
+      // with outlives it and the Trash lists a post that is live again.
+      forgetRemoved: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
+    }),
     themes: discoverAllBuiltInThemes({ dir: resolvedThemesDir, source: "built-in" }),
     themesDir: resolvedThemesDir,
     // Design C (2026-09-16) — the package's own read-only catalog, threaded through separately from
@@ -1462,6 +1705,7 @@ export function createSqliteRouteDeps(
     // the same cheap, side-effect-free env/path lookup, not a second filesystem walk.
     packageThemesDir: builtInThemesDir(),
     siteBinding: resolvedSiteBinding,
+    siteBackupSources: resolveSiteBackupSources({ siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir, themesDir: resolvedThemesDir }),
     outbox,
     bus,
     // Env-driven — off (the real no-op port) unless the operator has set
@@ -1508,6 +1752,7 @@ export function createSqliteRouteDeps(
     }),
     menuRepo,
     navLocationBindingRepo,
+    removeMenu: removeEntityWithoutBlocker(bindRemoveEntity(trash, "menu")),
     // ADR-046 Phase 1 (2026-07-16): durable SQLite adapters, wired into a real composition root
     // for the first time. Delivery-worker activation itself stays gated (REQ-07/SPEC-022's
     // capabilityRouteGuard unconditionally contains "webhooks" in production mode regardless of
@@ -1526,7 +1771,7 @@ export function createSqliteRouteDeps(
     // in the actual running server.
     mediaRepo,
     assetBlobRepo,
-    assetRenditionRepo: new SqliteAssetRenditionRepo(db),
+    assetRenditionRepo,
     mediaContentTypeStore: new SqliteMediaContentTypeStore(db),
     // 2026-08-12: wiring products into template render data. Plain Drizzle repos over the SAME
     // `db` every other adapter above already shares — no plugin/`declareDataModule()` bootstrap
@@ -1570,6 +1815,7 @@ export function createSqliteRouteDeps(
     // `server/app.ts`'s hermetic-test composition's identical construction.
     formDefinitionRepo,
     formSubmissionRepo: new SqliteFormSubmissionRepo(db),
+    removeFormSubmission: removeEntityWithoutBlocker(bindRemoveEntity(trash, "form_submission")),
     formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
     // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,
     // just above it so the two process-lifetime rate limiters stay visually paired.
@@ -1586,6 +1832,11 @@ export function createSqliteRouteDeps(
     entryRepo,
     taxonomyRepo: new SqliteTaxonomyRepo({ db, workspaceId: workspaceId }),
     termRepo: new SqliteTermRepo({ db, workspaceId: workspaceId }),
+    // `removeTerm` is WIDE (carries `"blocked"` — the `term` registry entry declares a
+    // `TERM_HAS_CHILDREN` blocker); `removeTaxonomy` is narrowed the same way as `removeMenu`/
+    // `removeFormSubmission` above (T6, step 3).
+    removeTerm: bindRemoveEntity(trash, "term"),
+    removeTaxonomy: removeEntityWithoutBlocker(bindRemoveEntity(trash, "taxonomy")),
     // Same instance backs both `entryTermRepo` (the certified write-service port, widened with the
     // Mergeable/AssignmentCount additive capabilities) and `entryTermReadRepo` (the new
     // `EntryTermReadPort` read path, `routes/types.ts`'s own doc explains why these are two
@@ -1640,7 +1891,7 @@ export function createSqliteRouteDeps(
     discoverPlugins: pluginRuntime.discoverPlugins,
     onPluginEnabled: pluginRuntime.onPluginEnabled,
     onPluginDisabled: pluginRuntime.onPluginDisabled,
-    onPluginUninstalled: pluginRuntime.onPluginUninstalled,
+    removePlugin,
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
     // 2026-08-15 — read-only wiring onto migration 0037's tables, previously applied with zero
@@ -1731,6 +1982,26 @@ export function createSqliteRouteDeps(
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
   };
+
+  // Owner decision 6 (2026-09-21): the widgets the retired "delete permanently" rung left behind
+  // (payload status `purged`/`trash`) go into the Trash, once — idempotent, so every later boot finds
+  // none and logs nothing. Waits for every boot-time SQLite writer above to settle first (the shared-
+  // connection transaction hazard `seoReady`'s comment documents); fire-and-forget, logged, never
+  // aborts boot.
+  const widgetAdoptionReady = Promise.allSettled([siteTitleReady, menuBindingsReady, mediaTransformReady])
+    .then(() => adoptLegacyTrashedWidgets({ deps: buildWidgetsDeps(routeDeps), input: { workspaceId } }))
+    .then(({ adopted }) => {
+      for (const widget of adopted) {
+        // eslint-disable-next-line no-console
+        console.info(`[trash] moved legacy deleted widget '${widget.id}' ("${widget.title}") to the Trash`);
+      }
+    })
+    .catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error(`adoptLegacyTrashedWidgets failed at boot: ${(err as Error).message}`);
+    });
+  void widgetAdoptionReady;
+
   return routeDeps;
 }
 

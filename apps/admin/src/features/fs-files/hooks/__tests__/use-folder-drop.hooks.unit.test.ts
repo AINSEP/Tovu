@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DragEvent } from "react";
 import type { ChatPaneComposerHandle } from "@jini-ai/chat/react";
@@ -6,6 +6,26 @@ import type { ChatPaneComposerHandle } from "@jini-ai/chat/react";
 import { ApiError } from "../../../../lib/api";
 import type { FolderDropPort } from "../../folder-drop-port";
 import { useFolderDrop } from "../use-folder-drop.hooks";
+
+/** A manually-resolved/rejected promise, for pinning exact settlement order across overlapping
+ *  drops — never a timer. */
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void; reject: (err: unknown) => void } {
+  let resolve!: (value: T) => void;
+  let reject!: (err: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+/** Flushes pending microtasks without advancing any timer. Only for a *negative* or count
+ *  assertion ("still only 1 call") — everything else below uses `waitFor`. */
+async function flushMicrotasks(): Promise<void> {
+  await act(async () => {
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+  });
+}
 
 /**
  * @file SPEC-053 core logic — behavior.spec.md §1.2 (custom-root "last write wins" + replacement
@@ -39,6 +59,19 @@ function folderDataTransfer(paths: readonly string[]): { dataTransfer: DataTrans
   const byFile = new Map(files.map((file, i) => [file, paths[i] as string]));
   const port: FolderDropPort = { getPathForFile: (file) => byFile.get(file) ?? "" };
   return { dataTransfer, port };
+}
+
+/** Two independent single-folder drops (`a`, `b`) plus one combined port that answers for either
+ *  one's files — needed because `getPort` is read once at render, so both drops must share a port. */
+function twoFolderDrops(): {
+  a: ReturnType<typeof folderDataTransfer>;
+  b: ReturnType<typeof folderDataTransfer>;
+  port: FolderDropPort;
+} {
+  const a = folderDataTransfer(["/Users/x/a"]);
+  const b = folderDataTransfer(["/Users/x/b"]);
+  const port: FolderDropPort = { getPathForFile: (f) => a.port.getPathForFile(f) || b.port.getPathForFile(f) };
+  return { a, b, port };
 }
 
 /** A loose-file drop (not a folder) — `webkitGetAsEntry().isDirectory` is `false`. */
@@ -334,5 +367,127 @@ describe("useFolderDrop", () => {
     expect(setCustomRoot).toHaveBeenCalledTimes(2);
     expect(setCustomRoot).toHaveBeenNthCalledWith(2, "/Users/x/flaky");
     expect(result.current.notice).toEqual({ kind: "confirmation", path: "/Users/x/flaky", replacedPreviousPath: null });
+  });
+});
+
+describe("useFolderDrop — last drop wins across overlapping drops", () => {
+  // Real timers throughout: `waitFor` polls on real timers, and these tests pin ordering with
+  // manually-resolved deferreds, never `vi.advanceTimersByTime`.
+  it("a slow read for an older drop never overwrites the newer drop's root", async () => {
+    const composerHandle = fakeComposerHandle();
+    const { a, b, port } = twoFolderDrops();
+    const reads = [deferred<{ path: string | null }>(), deferred<{ path: string | null }>()];
+    const readsCopy = [...reads];
+    const getCustomRoot = vi.fn(() => reads.shift()!.promise);
+    const setCustomRoot = vi.fn(async (p: string) => ({ path: p }));
+    const { result } = renderHook(() =>
+      useFolderDrop({ composerHandle }, { getPort: () => port, setCustomRoot, getCustomRoot, autoDismissMs: 60_000 }),
+    );
+
+    act(() => result.current.handleDropCapture(fakeDropEvent(a.dataTransfer)));
+    act(() => result.current.handleDropCapture(fakeDropEvent(b.dataTransfer)));
+
+    readsCopy[1]!.resolve({ path: null });
+    readsCopy[0]!.resolve({ path: null });
+
+    await waitFor(() => expect(result.current.notice).toMatchObject({ kind: "confirmation", path: "/Users/x/b" }));
+    expect(setCustomRoot.mock.calls.at(-1)).toEqual(["/Users/x/b"]);
+    // `a` was superseded before its turn on the chain came up, so it never read and never wrote —
+    // the server only ever saw `b`. Pins the mint-BEFORE-`run` rule too: minted inside the queued
+    // task, `a` would still be "current" when it started, and would read and write `/Users/x/a`.
+    expect(getCustomRoot).toHaveBeenCalledTimes(1);
+    expect(setCustomRoot.mock.calls).toEqual([["/Users/x/b"]]);
+  });
+
+  it("a drop superseded while its own read is in flight never issues its write", async () => {
+    const composerHandle = fakeComposerHandle();
+    const { a, b, port } = twoFolderDrops();
+    const readA = deferred<{ path: string | null }>();
+    const getCustomRoot = vi.fn().mockReturnValueOnce(readA.promise).mockResolvedValue({ path: null });
+    const setCustomRoot = vi.fn(async (p: string) => ({ path: p }));
+    const { result } = renderHook(() =>
+      useFolderDrop({ composerHandle }, { getPort: () => port, setCustomRoot, getCustomRoot, autoDismissMs: 60_000 }),
+    );
+
+    act(() => result.current.handleDropCapture(fakeDropEvent(a.dataTransfer)));
+    await waitFor(() => expect(getCustomRoot).toHaveBeenCalledTimes(1));
+
+    // `b` lands while `a`'s read is still parked; then `a`'s read settles.
+    act(() => result.current.handleDropCapture(fakeDropEvent(b.dataTransfer)));
+    readA.resolve({ path: null });
+
+    await waitFor(() =>
+      expect(result.current.notice).toEqual({ kind: "confirmation", path: "/Users/x/b", replacedPreviousPath: null }),
+    );
+    expect(setCustomRoot.mock.calls).toEqual([["/Users/x/b"]]);
+  });
+
+  it("does not issue a newer drop's write until the older write has settled", async () => {
+    const composerHandle = fakeComposerHandle();
+    const { a, b, port } = twoFolderDrops();
+    const getCustomRoot = vi.fn().mockResolvedValue({ path: null });
+    const sA = deferred<{ path: string }>();
+    const sB = deferred<{ path: string }>();
+    const setCustomRoot = vi.fn().mockReturnValueOnce(sA.promise).mockReturnValueOnce(sB.promise);
+    const { result } = renderHook(() =>
+      useFolderDrop({ composerHandle }, { getPort: () => port, setCustomRoot, getCustomRoot, autoDismissMs: 60_000 }),
+    );
+
+    act(() => result.current.handleDropCapture(fakeDropEvent(a.dataTransfer)));
+    await waitFor(() => expect(setCustomRoot).toHaveBeenCalledTimes(1));
+
+    act(() => result.current.handleDropCapture(fakeDropEvent(b.dataTransfer)));
+    await flushMicrotasks();
+
+    expect(setCustomRoot).toHaveBeenCalledTimes(1);
+
+    sA.resolve({ path: "/Users/x/a" });
+    await waitFor(() => expect(setCustomRoot).toHaveBeenNthCalledWith(2, "/Users/x/b"));
+
+    sB.resolve({ path: "/Users/x/b" });
+    await waitFor(() =>
+      expect(result.current.notice).toEqual({ kind: "confirmation", path: "/Users/x/b", replacedPreviousPath: null }),
+    );
+  });
+
+  it("an older drop's failure never replaces the newer drop's confirmation", async () => {
+    const composerHandle = fakeComposerHandle();
+    const { a, b, port } = twoFolderDrops();
+    // `b`'s own read is parked, so the moment between `a`'s failure and `b`'s confirmation spans a
+    // render — a superseded error that leaked through would be on screen for that whole wait.
+    const readB = deferred<{ path: string | null }>();
+    const getCustomRoot = vi.fn().mockResolvedValueOnce({ path: null }).mockReturnValueOnce(readB.promise);
+    const sA = deferred<{ path: string }>();
+    const setCustomRoot = vi
+      .fn()
+      .mockReturnValueOnce(sA.promise)
+      .mockResolvedValueOnce({ path: "/Users/x/b" });
+    // Every notice any render ever showed — a superseded drop's error must never appear, not even
+    // briefly before the newer drop's confirmation replaces it.
+    const shown: Array<{ kind: string; path: string } | null> = [];
+    const { result } = renderHook(() => {
+      const controller = useFolderDrop(
+        { composerHandle },
+        { getPort: () => port, setCustomRoot, getCustomRoot, autoDismissMs: 60_000 },
+      );
+      shown.push(controller.notice);
+      return controller;
+    });
+
+    act(() => result.current.handleDropCapture(fakeDropEvent(a.dataTransfer)));
+    await waitFor(() => expect(setCustomRoot).toHaveBeenCalledTimes(1));
+
+    act(() => result.current.handleDropCapture(fakeDropEvent(b.dataTransfer)));
+    await flushMicrotasks();
+
+    sA.reject(new ApiError("'/Users/x/a' does not exist", 400, "INVALID_PATH", { error: "'/Users/x/a' does not exist" }));
+    await waitFor(() => expect(getCustomRoot).toHaveBeenCalledTimes(2));
+    await flushMicrotasks();
+    readB.resolve({ path: null });
+
+    await waitFor(() => expect(result.current.notice).toMatchObject({ kind: "confirmation", path: "/Users/x/b" }));
+    await flushMicrotasks();
+    expect(result.current.notice).toMatchObject({ kind: "confirmation", path: "/Users/x/b" });
+    expect(shown.filter((n) => n !== null).map((n) => `${n!.kind} ${n!.path}`)).not.toContain("error /Users/x/a");
   });
 });

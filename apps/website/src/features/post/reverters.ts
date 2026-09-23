@@ -1,6 +1,13 @@
 import type { ClockPort, JsonObject, OutboxPort } from "@jini-ai/cms/core";
 import { createRevertRegistry, type EntityReverter, type RevertRegistry } from "../../contracts/core/commands/index.js";
-import { classifyStatusTransition, type PostRecord, type PostRepoPort, type PostStatus } from "./post.js";
+import {
+  classifyStatusTransition,
+  isTrashed,
+  type ForgetRemovedPostFn,
+  type PostRecord,
+  type PostRepoPort,
+  type PostStatus,
+} from "./post.js";
 
 /**
  * @file Post-domain entity reverters (ADR-018 C-005/C-006).
@@ -26,6 +33,13 @@ export interface PostReverterDeps {
   clock: ClockPort;
   /** SPEC-008 (ADR-PIPE-008 Decision §5) — `updatePost` now requires an `outbox` in its own deps. */
   outbox: OutboxPort;
+  /**
+   * Needed by `post/delete`'s reverter and required for both, for the same reason
+   * `restorePostForward`'s is required: reverting a delete clears the marker `deletePost` wrote,
+   * and the index row written alongside that marker has to go with it or the Trash screen offers a
+   * permanent delete for a post that is live again. See {@link ForgetRemovedPostFn}.
+   */
+  forgetRemoved: ForgetRemovedPostFn;
 }
 
 /**
@@ -175,6 +189,14 @@ function createPostDeleteReverter(deps: PostReverterDeps): EntityReverter {
       };
 
       await deps.postRepo.save(restored);
+
+      // Symmetric to the marker clear above, and conditional on the same thing `restorePostForward`
+      // tests: only a row that WAS trashed has an index row to forget. A revert of a change set
+      // whose delete some other path already undid must not delete an index row a later, unrelated
+      // trash legitimately owns.
+      if (isTrashed(existing)) {
+        await deps.forgetRemoved({ workspaceId: restored.workspaceId, id: restored.id });
+      }
 
       // Symmetric to `deletePost`'s own emission: trashing a published entry emitted
       // `entry.unpublished`, so restoring one must emit `entry.published` or SEO's sitemap cache

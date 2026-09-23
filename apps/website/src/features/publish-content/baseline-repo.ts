@@ -2,7 +2,7 @@
  * @file Task 7 of the publish-content (Publish Content) feature —
  * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §2/§4 task 7.
  *
- * Read/write seam over `publish_content_baselines` (migration `0066`, `platform/db/schema.ts`) —
+ * Read/write seam over `publish_content_baselines` (migration `0066`, `platform/db/schema.sqlite.ts`) —
  * "per-peer sync memory: the content hash of each entity as last exchanged with that peer" (that
  * table's own doc comment). `planImport()` (Task 5, `planner.ts`) only ever READS through this port
  * (`PlanImportDeps.getBaseline`, wired in `gated-hooks.ts`); nothing in Task 7 ever calls
@@ -19,7 +19,7 @@
  * backwards would let any key-holder poison another peer's baselines into "safe to overwrite".
  */
 
-/** One persisted baseline row — mirrors `publishContentBaselines` (`platform/db/schema.ts`)
+/** One persisted baseline row — mirrors `publishContentBaselines` (`platform/db/schema.sqlite.ts`)
  *  field-for-field. */
 export interface PublishContentBaselineRecord {
   readonly workspaceId: string;

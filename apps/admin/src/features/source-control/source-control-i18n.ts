@@ -9,16 +9,17 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
  * only, mirroring that exact same file's own documented "partial-coverage precedent" for its two
  * newest, most-recently-added error templates: an English banner in an otherwise-translated screen
  * degrades legibly (falls back through `createDictionaryTranslator`'s own `?? key` chain), it does
- * not break. The one-off "already saved, reload" duplicate-label string below follows the identical
- * precedent for the identical reason (an edge case, not core page copy).
+ * not break. The duplicate-label and generic-error strings are fully translated because they show
+ * directly in credential rows.
  *
  * Every OTHER string here — headings, field labels, hints, the three providers' scope-guidance
  * sentences — gets the full locale set this app's nav and every other stable feature dictionary
  * carries, since those are read on every visit, not just an error path.
  */
 
-const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
+const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
+    Operations: "Operaciones",
     "Source Control": "Control de código fuente",
     Providers: "Proveedores",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -39,6 +40,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "token guardado, cifrado",
     saved: "guardado",
     "Replace token": "Reemplazar token",
+    "This connection was already saved — reload the page and try again.": "Esta conexión ya estaba guardada; recarga la página e inténtalo de nuevo.",
+    "unknown error": "error desconocido",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Necesita un token de acceso personal detallado, limitado únicamente a este repositorio, con el permiso Contents en Lectura y escritura. Un token clásico con el alcance "repo" también funciona, pero da acceso a todos los repositorios que esta cuenta pueda alcanzar — usa el token detallado siempre que puedas.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -47,6 +50,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'Necesita un token de API de Bitbucket limitado solo al acceso al repositorio (los alcances "read:repository:bitbucket" y "write:repository:bitbucket"), más el nombre de usuario de Bitbucket al que pertenece — Bitbucket autentica el par, no el token por sí solo.',
   },
   id: {
+    Operations: "Operasi",
     "Source Control": "Kontrol Kode Sumber",
     Providers: "Penyedia",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -67,6 +71,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "token tersimpan, terenkripsi",
     saved: "disimpan",
     "Replace token": "Ganti token",
+    "This connection was already saved — reload the page and try again.": "Koneksi ini sudah disimpan — muat ulang halaman dan coba lagi.",
+    "unknown error": "kesalahan tidak diketahui",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Memerlukan token akses pribadi terperinci yang dibatasi hanya untuk repositori ini, dengan izin Contents diatur ke Read and write. Token klasik dengan cakupan "repo" juga berfungsi, tetapi menjangkau semua repositori yang dapat diakses akun ini — gunakan token terperinci jika memungkinkan.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -75,6 +81,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'Memerlukan token API Bitbucket yang dibatasi hanya untuk akses repositori (cakupan "read:repository:bitbucket" dan "write:repository:bitbucket"), ditambah nama pengguna Bitbucket tempat token ini berasal — Bitbucket mengautentikasi pasangan ini, bukan hanya tokennya.',
   },
   de: {
+    Operations: "Vorgänge",
     "Source Control": "Quellcodeverwaltung",
     Providers: "Anbieter",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -95,6 +102,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "Token gespeichert, verschlüsselt",
     saved: "gespeichert",
     "Replace token": "Token ersetzen",
+    "This connection was already saved — reload the page and try again.": "Diese Verbindung wurde bereits gespeichert — laden Sie die Seite neu und versuchen Sie es erneut.",
+    "unknown error": "unbekannter Fehler",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Benötigt ein feingranulares persönliches Zugriffstoken, das auf nur dieses Repository beschränkt ist, mit der Berechtigung Contents auf Lesen und Schreiben. Ein klassisches Token mit dem Bereich "repo" funktioniert auch, erreicht aber jedes Repository, auf das dieses Konto zugreifen kann — bevorzuge nach Möglichkeit das feingranulare Token.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -103,6 +112,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'Benötigt ein Bitbucket-API-Token, das ausschließlich auf Repository-Zugriff beschränkt ist (die Bereiche "read:repository:bitbucket" und "write:repository:bitbucket"), plus den Bitbucket-Benutzernamen, zu dem es gehört — Bitbucket authentifiziert das Paar, nicht nur das Token.',
   },
   "zh-CN": {
+    Operations: "操作",
     "Source Control": "源代码管理",
     Providers: "提供商",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -122,6 +132,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "令牌已存储，已加密",
     saved: "已保存于",
     "Replace token": "更换令牌",
+    "This connection was already saved — reload the page and try again.": "此连接已保存，请重新加载页面后重试。",
+    "unknown error": "未知错误",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       '需要一个精细令牌，仅限访问此仓库，并将 Contents 权限设为读写。具有 "repo" 范围的经典令牌也可以使用，但会访问该账户可访问的所有仓库——请尽可能使用精细令牌。',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -130,6 +142,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       '需要一个仅限仓库访问的 Bitbucket API 令牌（"read:repository:bitbucket" 和 "write:repository:bitbucket" 范围），以及其所属的 Bitbucket 用户名——Bitbucket 验证的是这一对信息，而不仅仅是令牌本身。',
   },
   "zh-TW": {
+    Operations: "操作",
     "Source Control": "原始碼管理",
     Providers: "供應商",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -149,6 +162,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "權杖已儲存，已加密",
     saved: "已儲存於",
     "Replace token": "更換權杖",
+    "This connection was already saved — reload the page and try again.": "此連線已儲存，請重新載入頁面後再試一次。",
+    "unknown error": "未知錯誤",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       '需要精細權杖，僅限存取此儲存庫，並將 Contents 權限設為讀寫。具有 "repo" 範圍的傳統權杖也可使用，但會存取此帳戶可存取的每個儲存庫——請盡量使用精細權杖。',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -157,6 +172,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       '需要僅限儲存庫存取的 Bitbucket API 權杖（"read:repository:bitbucket" 與 "write:repository:bitbucket" 範圍），以及其所屬的 Bitbucket 使用者名稱——Bitbucket 驗證的是這一對資訊，而非僅是權杖本身。',
   },
   "pt-BR": {
+    Operations: "Operações",
     "Source Control": "Controle de código-fonte",
     Providers: "Provedores",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -177,6 +193,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "token salvo, criptografado",
     saved: "salvo em",
     "Replace token": "Substituir token",
+    "This connection was already saved — reload the page and try again.": "Esta conexão já foi salva — recarregue a página e tente novamente.",
+    "unknown error": "erro desconhecido",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Requer um token de acesso pessoal refinado, restrito apenas a este repositório, com a permissão Contents definida como Leitura e escrita. Um token clássico com o escopo "repo" também funciona, mas alcança todos os repositórios que esta conta pode acessar — prefira o token refinado sempre que possível.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -185,6 +203,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'Requer um token de API do Bitbucket restrito apenas ao acesso de repositório (os escopos "read:repository:bitbucket" e "write:repository:bitbucket"), além do nome de usuário do Bitbucket ao qual pertence — o Bitbucket autentica o par, não apenas o token.',
   },
   ru: {
+    Operations: "Операции",
     "Source Control": "Управление исходным кодом",
     Providers: "Провайдеры",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -205,6 +224,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "токен сохранён, зашифрован",
     saved: "сохранено",
     "Replace token": "Заменить токен",
+    "This connection was already saved — reload the page and try again.": "Это подключение уже сохранено — перезагрузите страницу и попробуйте снова.",
+    "unknown error": "неизвестная ошибка",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Требуется детализированный персональный токен доступа, ограниченный только этим репозиторием, с правом Contents на чтение и запись. Классический токен с областью "repo" тоже подходит, но даёт доступ ко всем репозиториям, доступным этому аккаунту — по возможности используйте детализированный токен.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -213,6 +234,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'Требуется токен API Bitbucket, ограниченный только доступом к репозиторию (области "read:repository:bitbucket" и "write:repository:bitbucket"), а также имя пользователя Bitbucket, которому он принадлежит — Bitbucket проверяет именно эту пару, а не только токен.',
   },
   fa: {
+    Operations: "عملیات",
     "Source Control": "کنترل کد منبع",
     Providers: "ارائه‌دهندگان",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -233,6 +255,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "توکن ذخیره شد، رمزگذاری‌شده",
     saved: "ذخیره‌شده در",
     "Replace token": "جایگزینی توکن",
+    "This connection was already saved — reload the page and try again.": "این اتصال قبلاً ذخیره شده است — صفحه را دوباره بارگیری کنید و دوباره تلاش کنید.",
+    "unknown error": "خطای ناشناخته",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'به یک توکن دسترسی شخصی دقیق نیاز دارد که فقط به این مخزن محدود شده باشد، با مجوز Contents تنظیم‌شده روی خواندن و نوشتن. یک توکن کلاسیک با محدوده "repo" هم کار می‌کند، اما به هر مخزنی که این حساب به آن دسترسی دارد می‌رسد — در صورت امکان از توکن دقیق استفاده کنید.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -241,6 +265,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'به یک توکن API بیت‌باکت نیاز دارد که فقط به دسترسی مخزن محدود شده (محدوده‌های "read:repository:bitbucket" و "write:repository:bitbucket")، به‌همراه نام کاربری Bitbucket که به آن تعلق دارد — Bitbucket این جفت را احراز هویت می‌کند، نه فقط توکن را.',
   },
   ar: {
+    Operations: "العمليات",
     "Source Control": "إدارة الشيفرة المصدرية",
     Providers: "المزوّدون",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -261,6 +286,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "الرمز محفوظ، مشفّر",
     saved: "تم الحفظ في",
     "Replace token": "استبدال الرمز",
+    "This connection was already saved — reload the page and try again.": "تم حفظ هذا الاتصال بالفعل — أعد تحميل الصفحة وحاول مرة أخرى.",
+    "unknown error": "خطأ غير معروف",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'يتطلب رمز وصول شخصي دقيقًا مقصورًا على هذا المستودع فقط، بصلاحية Contents مضبوطة على القراءة والكتابة. يعمل أيضًا رمز تقليدي بنطاق "repo"، لكنه يصل إلى كل مستودع يمكن لهذا الحساب الوصول إليه — يُفضَّل استخدام الرمز الدقيق كلما أمكن.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -269,6 +296,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'يتطلب رمز API من Bitbucket مقصورًا على الوصول إلى المستودع فقط (نطاقا "read:repository:bitbucket" و"write:repository:bitbucket")، إضافةً إلى اسم مستخدم Bitbucket الذي ينتمي إليه — يتحقق Bitbucket من هذا الزوج معًا، وليس من الرمز وحده.',
   },
   ja: {
+    Operations: "操作",
     "Source Control": "ソースコード管理",
     Providers: "プロバイダー",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -288,6 +316,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "トークン保存済み・暗号化済み",
     saved: "保存日時",
     "Replace token": "トークンを置き換える",
+    "This connection was already saved — reload the page and try again.": "この接続はすでに保存されています。ページを再読み込みしてもう一度お試しください。",
+    "unknown error": "不明なエラー",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'このリポジトリだけに限定された、きめ細かい個人アクセストークンが必要です。Contents 権限を読み書きに設定してください。"repo" スコープを持つクラシックなトークンでも動作しますが、このアカウントがアクセスできるすべてのリポジトリに届いてしまいます — 可能な限りきめ細かいトークンを優先してください。',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -296,6 +326,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'リポジトリへのアクセスのみに限定された Bitbucket API トークン（"read:repository:bitbucket" と "write:repository:bitbucket" スコープ）と、それが属する Bitbucket のユーザー名が必要です — Bitbucket はトークン単体ではなく、この組み合わせを認証します。',
   },
   ko: {
+    Operations: "작업",
     "Source Control": "소스 코드 관리",
     Providers: "제공업체",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -315,6 +346,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "토큰 저장됨, 암호화됨",
     saved: "저장 시각",
     "Replace token": "토큰 교체",
+    "This connection was already saved — reload the page and try again.": "이 연결은 이미 저장되었습니다. 페이지를 새로고침한 후 다시 시도하세요.",
+    "unknown error": "알 수 없는 오류",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       '이 저장소에만 국한된 세분화된 개인 액세스 토큰이 필요하며, Contents 권한을 읽기/쓰기로 설정해야 합니다. "repo" 범위를 가진 클래식 토큰도 작동하지만 이 계정이 접근할 수 있는 모든 저장소에 도달합니다 — 가능하면 세분화된 토큰을 우선하세요.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -323,6 +356,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       '저장소 접근으로만 범위가 제한된 Bitbucket API 토큰("read:repository:bitbucket" 및 "write:repository:bitbucket" 범위)과, 그것이 속한 Bitbucket 사용자 이름이 필요합니다 — Bitbucket은 토큰 단독이 아니라 이 조합을 인증합니다.',
   },
   pl: {
+    Operations: "Operacje",
     "Source Control": "Kontrola kodu źródłowego",
     Providers: "Dostawcy",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -343,6 +377,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "token zapisany, zaszyfrowany",
     saved: "zapisano",
     "Replace token": "Zastąp token",
+    "This connection was already saved — reload the page and try again.": "To połączenie zostało już zapisane — odśwież stronę i spróbuj ponownie.",
+    "unknown error": "nieznany błąd",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Wymaga precyzyjnego osobistego tokenu dostępu ograniczonego wyłącznie do tego repozytorium, z uprawnieniem Contents ustawionym na odczyt i zapis. Klasyczny token o zakresie "repo" również działa, ale obejmuje każde repozytorium dostępne dla tego konta — jeśli to możliwe, preferuj token precyzyjny.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -351,6 +387,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'Wymaga tokenu API Bitbucket ograniczonego wyłącznie do dostępu do repozytorium (zakresy "read:repository:bitbucket" i "write:repository:bitbucket"), a także nazwy użytkownika Bitbucket, do którego należy — Bitbucket uwierzytelnia tę parę, a nie sam token.',
   },
   hu: {
+    Operations: "Műveletek",
     "Source Control": "Forráskód-kezelés",
     Providers: "Szolgáltatók",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -371,6 +408,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "token elmentve, titkosítva",
     saved: "mentve",
     "Replace token": "Token cseréje",
+    "This connection was already saved — reload the page and try again.": "Ez a kapcsolat már mentve van — töltse újra az oldalt, és próbálja újra.",
+    "unknown error": "ismeretlen hiba",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Finomhangolt személyes hozzáférési token szükséges, amely kizárólag erre a tárolóra korlátozódik, a Contents jogosultsággal olvasásra és írásra állítva. A klasszikus, "repo" hatókörű token is működik, de eléri a fiók által elérhető összes tárolót — lehetőség szerint a finomhangolt tokent részesítsd előnyben.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -379,6 +418,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'Kizárólag tárolóhozzáférésre korlátozott Bitbucket API-token szükséges ("read:repository:bitbucket" és "write:repository:bitbucket" hatókörök), valamint a Bitbucket felhasználónév, amelyhez tartozik — a Bitbucket ezt a párost hitelesíti, nem csak a tokent.',
   },
   fr: {
+    Operations: "Opérations",
     "Source Control": "Gestion du code source",
     Providers: "Fournisseurs",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -399,6 +439,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "jeton enregistré, chiffré",
     saved: "enregistré le",
     "Replace token": "Remplacer le jeton",
+    "This connection was already saved — reload the page and try again.": "Cette connexion a déjà été enregistrée — rechargez la page et réessayez.",
+    "unknown error": "erreur inconnue",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Nécessite un jeton d\'accès personnel fin, limité à ce seul dépôt, avec la permission Contents réglée sur lecture et écriture. Un jeton classique avec le champ "repo" fonctionne aussi, mais donne accès à tous les dépôts que ce compte peut atteindre — préférez le jeton fin quand c\'est possible.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -407,6 +449,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'Nécessite un jeton API Bitbucket limité au seul accès aux dépôts (les champs "read:repository:bitbucket" et "write:repository:bitbucket"), ainsi que le nom d\'utilisateur Bitbucket auquel il appartient — Bitbucket authentifie cette paire, pas seulement le jeton.',
   },
   uk: {
+    Operations: "Операції",
     "Source Control": "Керування вихідним кодом",
     Providers: "Провайдери",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -427,6 +470,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "токен збережено, зашифровано",
     saved: "збережено",
     "Replace token": "Замінити токен",
+    "This connection was already saved — reload the page and try again.": "Це підключення вже збережено — перезавантажте сторінку та спробуйте ще раз.",
+    "unknown error": "невідома помилка",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Потрібен деталізований особистий токен доступу, обмежений лише цим репозиторієм, із правом Contents на читання й запис. Класичний токен з областю "repo" також підходить, але надає доступ до кожного репозиторію, доступного цьому обліковому запису — за можливості віддавайте перевагу деталізованому токену.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -435,6 +480,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'Потрібен токен API Bitbucket, обмежений лише доступом до репозиторію (області "read:repository:bitbucket" та "write:repository:bitbucket"), а також ім\'я користувача Bitbucket, якому він належить — Bitbucket перевіряє саме цю пару, а не лише токен.',
   },
   tr: {
+    Operations: "İşlemler",
     "Source Control": "Kaynak kod yönetimi",
     Providers: "Sağlayıcılar",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -455,6 +501,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "belirteç kaydedildi, şifrelendi",
     saved: "kaydedildi",
     "Replace token": "Belirteci değiştir",
+    "This connection was already saved — reload the page and try again.": "Bu bağlantı zaten kaydedildi — sayfayı yeniden yükleyin ve tekrar deneyin.",
+    "unknown error": "bilinmeyen hata",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Yalnızca bu depoyla sınırlı, ayrıntılı bir kişisel erişim belirteci gerekir; Contents izni Okuma ve yazma olarak ayarlanmalıdır. "repo" kapsamına sahip klasik bir belirteç de çalışır, ancak bu hesabın erişebildiği her depoya ulaşır — mümkünse ayrıntılı belirteci tercih edin.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -463,6 +511,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'Yalnızca depo erişimiyle sınırlı bir Bitbucket API belirteci ("read:repository:bitbucket" ve "write:repository:bitbucket" kapsamları) ile ait olduğu Bitbucket kullanıcı adı gerekir — Bitbucket yalnızca belirteci değil, bu ikiliyi doğrular.',
   },
   th: {
+    Operations: "การดำเนินการ",
     "Source Control": "การจัดการซอร์สโค้ด",
     Providers: "ผู้ให้บริการ",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -483,6 +532,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "บันทึกโทเคนแล้ว เข้ารหัสแล้ว",
     saved: "บันทึกเมื่อ",
     "Replace token": "แทนที่โทเคน",
+    "This connection was already saved — reload the page and try again.": "บันทึกการเชื่อมต่อนี้แล้ว — โหลดหน้าใหม่แล้วลองอีกครั้ง",
+    "unknown error": "ข้อผิดพลาดที่ไม่ทราบสาเหตุ",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'ต้องใช้โทเคนการเข้าถึงส่วนบุคคลแบบละเอียดที่จำกัดเฉพาะที่เก็บโค้ดนี้เท่านั้น โดยตั้งสิทธิ์ Contents เป็นอ่านและเขียน โทเคนแบบคลาสสิกที่มีขอบเขต "repo" ก็ใช้ได้เช่นกัน แต่จะเข้าถึงทุกที่เก็บโค้ดที่บัญชีนี้เข้าถึงได้ — ควรเลือกใช้โทเคนแบบละเอียดเมื่อทำได้',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -491,6 +542,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'ต้องใช้โทเคน API ของ Bitbucket ที่จำกัดเฉพาะการเข้าถึงที่เก็บโค้ด (ขอบเขต "read:repository:bitbucket" และ "write:repository:bitbucket") พร้อมชื่อผู้ใช้ Bitbucket ที่เป็นเจ้าของ — Bitbucket ตรวจสอบสิทธิ์จากคู่ข้อมูลนี้ ไม่ใช่โทเคนเพียงอย่างเดียว',
   },
   it: {
+    Operations: "Operazioni",
     "Source Control": "Controllo del codice sorgente",
     Providers: "Fornitori",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -511,6 +563,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "token salvato, cifrato",
     saved: "salvato il",
     "Replace token": "Sostituisci token",
+    "This connection was already saved — reload the page and try again.": "Questa connessione è già stata salvata: ricarica la pagina e riprova.",
+    "unknown error": "errore sconosciuto",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'Richiede un token di accesso personale granulare, limitato a questo solo repository, con il permesso Contents impostato su Lettura e scrittura. Funziona anche un token classico con l\'ambito "repo", ma raggiunge ogni repository a cui questo account può accedere — preferisci il token granulare quando possibile.',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -519,6 +573,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'Richiede un token API di Bitbucket limitato al solo accesso al repository (gli ambiti "read:repository:bitbucket" e "write:repository:bitbucket"), oltre al nome utente Bitbucket a cui appartiene — Bitbucket autentica la coppia, non solo il token.',
   },
   hi: {
+    Operations: "संचालन",
     "Source Control": "स्रोत कोड नियंत्रण",
     Providers: "प्रदाता",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -539,6 +594,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "टोकन सहेजा गया, एन्क्रिप्टेड",
     saved: "सहेजा गया",
     "Replace token": "टोकन बदलें",
+    "This connection was already saved — reload the page and try again.": "यह कनेक्शन पहले से सहेजा गया है — पेज रीफ़्रेश करके फिर से कोशिश करें।",
+    "unknown error": "अज्ञात त्रुटि",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'इसके लिए केवल इसी रिपॉज़िटरी तक सीमित एक बारीक व्यक्तिगत एक्सेस टोकन चाहिए, जिसमें Contents अनुमति पढ़ने और लिखने पर सेट हो। "repo" स्कोप वाला क्लासिक टोकन भी काम करता है, लेकिन यह उन सभी रिपॉज़िटरी तक पहुँच देता है जिन तक यह खाता पहुँच सकता है — जब संभव हो, बारीक टोकन को प्राथमिकता दें।',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -547,6 +604,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'इसके लिए केवल रिपॉज़िटरी एक्सेस तक सीमित एक Bitbucket API टोकन ("read:repository:bitbucket" और "write:repository:bitbucket" स्कोप), साथ ही वह Bitbucket उपयोगकर्ता नाम चाहिए जिससे यह संबंधित है — Bitbucket केवल टोकन को नहीं, बल्कि इस जोड़ी को प्रमाणित करता है।',
   },
   ur: {
+    Operations: "عملیات",
     "Source Control": "سورس کوڈ کنٹرول",
     Providers: "فراہم کنندگان",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -567,6 +625,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "ٹوکن محفوظ، خفیہ کاری شدہ",
     saved: "محفوظ کیا گیا",
     "Replace token": "ٹوکن تبدیل کریں",
+    "This connection was already saved — reload the page and try again.": "یہ کنکشن پہلے ہی محفوظ ہے — صفحہ دوبارہ لوڈ کریں اور دوبارہ کوشش کریں۔",
+    "unknown error": "نامعلوم خرابی",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'اس کے لیے صرف اسی ریپوزٹری تک محدود ایک باریک ذاتی رسائی ٹوکن درکار ہے، جس میں Contents اجازت پڑھنے اور لکھنے پر سیٹ ہو۔ "repo" اسکوپ کے ساتھ کلاسک ٹوکن بھی کام کرتا ہے، لیکن یہ ہر اس ریپوزٹری تک رسائی دیتا ہے جس تک یہ اکاؤنٹ پہنچ سکتا ہے — جب ممکن ہو باریک ٹوکن کو ترجیح دیں۔',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -575,6 +635,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'اس کے لیے صرف ریپوزٹری تک رسائی محدود کردہ Bitbucket API ٹوکن ("read:repository:bitbucket" اور "write:repository:bitbucket" اسکوپس)، اور وہ Bitbucket صارف نام درکار ہے جس سے یہ تعلق رکھتا ہے — Bitbucket صرف ٹوکن کی نہیں بلکہ اس جوڑے کی توثیق کرتا ہے۔',
   },
   bn: {
+    Operations: "কার্যক্রম",
     "Source Control": "সোর্স কোড নিয়ন্ত্রণ",
     Providers: "প্রদানকারী",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
@@ -595,6 +656,8 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "token stored, encrypted": "টোকেন সংরক্ষিত, এনক্রিপ্টেড",
     saved: "সংরক্ষিত হয়েছে",
     "Replace token": "টোকেন প্রতিস্থাপন করুন",
+    "This connection was already saved — reload the page and try again.": "এই সংযোগটি ইতিমধ্যেই সংরক্ষিত আছে — পৃষ্ঠাটি পুনরায় লোড করে আবার চেষ্টা করুন।",
+    "unknown error": "অজানা ত্রুটি",
     'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
       'শুধুমাত্র এই রিপোজিটরির মধ্যে সীমাবদ্ধ একটি সূক্ষ্ম ব্যক্তিগত অ্যাক্সেস টোকেন প্রয়োজন, যেখানে Contents অনুমতি Read and write-এ সেট করা থাকবে। "repo" স্কোপ সহ একটি ক্লাসিক টোকেনও কাজ করে, তবে এটি এই অ্যাকাউন্ট যত রিপোজিটরিতে পৌঁছাতে পারে সবগুলোতে পৌঁছায় — যখনই সম্ভব সূক্ষ্ম টোকেনটি ব্যবহার করুন।',
     'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
@@ -603,6 +666,37 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       'শুধুমাত্র রিপোজিটরি অ্যাক্সেসের মধ্যে সীমাবদ্ধ একটি Bitbucket API টোকেন ("read:repository:bitbucket" এবং "write:repository:bitbucket" স্কোপ), এবং যে Bitbucket ব্যবহারকারীর নামের সাথে এটি সম্পর্কিত তা প্রয়োজন — Bitbucket শুধু টোকেন নয়, এই জোড়াটি যাচাই করে।',
   },
 };
+
+const ACCESS_TOKEN_LINK_TRANSLATIONS: Record<string, Record<string, string>> = {
+  es: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "¿Necesitas guardar más de un token, cambiarle el nombre a uno o administrar todas las credenciales guardadas en un solo lugar?", "Create access token": "Crear token de acceso" },
+  id: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Perlu menyimpan lebih dari satu token, mengganti namanya, atau mengelola semua kredensial tersimpan di satu tempat?", "Create access token": "Buat token akses" },
+  de: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Möchten Sie mehr als ein Token speichern, eines umbenennen oder alle gespeicherten Zugangsdaten an einem Ort verwalten?", "Create access token": "Zugriffstoken erstellen" },
+  "zh-CN": { "Need to save more than one token, rename one, or manage every saved credential in one place?": "需要保存多个令牌、重命名令牌，或在一个地方管理所有已保存的凭据吗？", "Create access token": "创建访问令牌" },
+  "zh-TW": { "Need to save more than one token, rename one, or manage every saved credential in one place?": "需要儲存多個權杖、重新命名權杖，或在同一處管理所有已儲存的認證嗎？", "Create access token": "建立存取權杖" },
+  "pt-BR": { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Precisa salvar mais de um token, renomear um ou gerenciar todas as credenciais salvas em um só lugar?", "Create access token": "Criar token de acesso" },
+  ru: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Нужно сохранить несколько токенов, переименовать один или управлять всеми сохранёнными учётными данными в одном месте?", "Create access token": "Создать токен доступа" },
+  fa: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "می‌خواهید بیش از یک توکن ذخیره کنید، نام یکی را تغییر دهید یا همهٔ اعتبارنامه‌های ذخیره‌شده را در یک جا مدیریت کنید؟", "Create access token": "ایجاد توکن دسترسی" },
+  ar: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "هل تحتاج إلى حفظ أكثر من رمز مميز واحد أو إعادة تسمية أحدها أو إدارة كل بيانات الاعتماد المحفوظة في مكان واحد؟", "Create access token": "إنشاء رمز وصول" },
+  ja: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "複数のトークンを保存したり、名前を変更したり、保存済みの認証情報を一か所で管理したりする必要がありますか？", "Create access token": "アクセストークンを作成" },
+  ko: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "토큰을 여러 개 저장하거나 이름을 바꾸거나 저장된 모든 자격 증명을 한곳에서 관리해야 하나요?", "Create access token": "액세스 토큰 만들기" },
+  pl: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Chcesz zapisać więcej niż jeden token, zmienić nazwę tokenu lub zarządzać wszystkimi zapisanymi poświadczeniami w jednym miejscu?", "Create access token": "Utwórz token dostępu" },
+  hu: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Több tokent szeretne menteni, átnevezni egyet, vagy minden mentett hitelesítő adatot egy helyen kezelni?", "Create access token": "Hozzáférési token létrehozása" },
+  fr: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Besoin d’enregistrer plusieurs jetons, d’en renommer un ou de gérer tous les identifiants enregistrés au même endroit ?", "Create access token": "Créer un jeton d’accès" },
+  uk: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Потрібно зберегти кілька токенів, перейменувати один або керувати всіма збереженими обліковими даними в одному місці?", "Create access token": "Створити токен доступу" },
+  tr: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Birden fazla belirteç kaydetmeniz, birinin adını değiştirmeniz veya tüm kayıtlı kimlik bilgilerini tek yerde yönetmeniz mi gerekiyor?", "Create access token": "Erişim belirteci oluştur" },
+  th: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "ต้องการบันทึกโทเค็นมากกว่าหนึ่งรายการ เปลี่ยนชื่อ หรือจัดการข้อมูลรับรองที่บันทึกไว้ทั้งหมดในที่เดียวหรือไม่?", "Create access token": "สร้างโทเค็นการเข้าถึง" },
+  it: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "Devi salvare più di un token, rinominarne uno o gestire tutte le credenziali salvate in un unico posto?", "Create access token": "Crea token di accesso" },
+  hi: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "क्या आपको एक से अधिक टोकन सहेजने, किसी का नाम बदलने या सभी सहेजे गए क्रेडेंशियल एक ही जगह प्रबंधित करने हैं?", "Create access token": "एक्सेस टोकन बनाएँ" },
+  ur: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "کیا آپ کو ایک سے زیادہ ٹوکن محفوظ کرنے، کسی کا نام بدلنے، یا تمام محفوظ اسناد ایک جگہ منظم کرنے کی ضرورت ہے؟", "Create access token": "رسائی ٹوکن بنائیں" },
+  bn: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "একাধিক টোকেন সংরক্ষণ, কোনোটি পুনঃনামকরণ বা সব সংরক্ষিত পরিচয়পত্র এক জায়গায় পরিচালনা করতে চান?", "Create access token": "অ্যাক্সেস টোকেন তৈরি করুন" },
+};
+
+const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = Object.fromEntries(
+  Object.entries(SOURCE_CONTROL_TRANSLATIONS).map(([locale, entries]) => [
+    locale,
+    { ...entries, ...(ACCESS_TOKEN_LINK_TRANSLATIONS[locale] ?? {}) },
+  ]),
+);
 
 export const t = createDictionaryTranslator(SOURCE_CONTROL_DICT);
 

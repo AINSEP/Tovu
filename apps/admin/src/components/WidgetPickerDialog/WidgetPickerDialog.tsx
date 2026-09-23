@@ -1,8 +1,12 @@
+import { useRef } from "react";
 import { agentHandle, type AgentElementRole } from "@jini-ai/agentic";
+import { useFocusTrap } from "../../hooks/use-focus-trap.hooks";
 import type { AdminWidget, AdminWidgetType } from "../../lib/api";
+import { interpolate } from "../../lib/template-i18n";
+import { widgetTypeLabel } from "../../features/widgets/rules";
 import { WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
 import { Select, type SelectOption } from "../Select/Select";
-import { useWidgetAddControl, useWidgetPickerDialog } from "./WidgetPickerDialog.hooks";
+import { useWidgetAddControl, useWiredWidgetAddControl, useWiredWidgetPickerDialog } from "./WidgetPickerDialog.hooks";
 
 /**
  * @file `WidgetPickerDialog` (`ui.spec.md` §2/§3.9/§4.8) — REQ-33's explicit reuse-vs-duplicate
@@ -73,15 +77,16 @@ export interface WidgetPickerDialogProps {
   onCreateNew: (title: string, config: Record<string, unknown>) => void;
   onCancel: () => void;
   /** Injectable seam for the dialog's fetch/form/Escape-listener/autofocus state. Defaults to the
-   *  real {@link useWidgetPickerDialog}; a test can pass a fake here to exercise this component's
-   *  rendering without the real `listWidgets` fetch or `document`-level Escape listener. */
-  useDialog?: typeof useWidgetPickerDialog;
+   *  real {@link useWiredWidgetPickerDialog}; a test can pass a fake here to exercise this
+   *  component's rendering without the real `listWidgets` fetch or `document`-level Escape
+   *  listener. */
+  useDialog?: typeof useWiredWidgetPickerDialog;
   /** This dialog's own base handle — see this file's "Agent handles" doc for the full scheme. Omit
    *  to leave it untagged. */
   agentHandle?: string;
 }
 
-export function WidgetPickerDialog({ useDialog = useWidgetPickerDialog, agentHandle: base, ...props }: WidgetPickerDialogProps) {
+export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, agentHandle: base, ...props }: WidgetPickerDialogProps) {
   const {
     instances,
     loadError,
@@ -100,18 +105,23 @@ export function WidgetPickerDialog({ useDialog = useWidgetPickerDialog, agentHan
     hasExisting,
     submitUseExisting,
     submitCreateNew,
+    t,
   } = useDialog(props);
+  // aria-modal promises the background is unavailable; this is what keeps Tab from reaching it.
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(dialogRef);
 
   return (
     <div className="settings-dialog-backdrop" onClick={props.onCancel}>
       <div
+        ref={dialogRef}
         className="settings-dialog widget-picker-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id={titleId}>Place a {typeLabel} widget</h2>
+        <h2 id={titleId}>{interpolate(t("Place a {typeLabel} widget"), { typeLabel })}</h2>
 
         <div className="widget-picker-body">
           {loadError ? <div className="notice error">{loadError}</div> : null}
@@ -123,31 +133,32 @@ export function WidgetPickerDialog({ useDialog = useWidgetPickerDialog, agentHan
 
           {hasExisting ? (
             <form onSubmit={submitUseExisting} className="widget-picker-section">
-              <h3>Use existing</h3>
+              <h3>{t("Use existing")}</h3>
               <div className="field">
                 <label className="field-label" htmlFor={existingSelectId}>
-                  Existing {typeLabel} widgets
+                  {interpolate(t("Existing {typeLabel} widgets"), { typeLabel })}
                 </label>
                 <Select
                   id={existingSelectId}
                   value={selectedExistingId}
                   onChange={setSelectedExistingId}
                   options={toExistingOptions(instances)}
-                  placeholder="Choose a widget…"
+                  placeholder={t("Choose a widget…")}
                   agentHandle={subHandle(base, "existing-select")}
+                  t={t}
                 />
               </div>
               <button type="submit" {...handleSpread(base, "existing-submit", { role: "button", label: "Use this widget" })}>
-                Use this widget
+                {t("Use this widget")}
               </button>
             </form>
           ) : null}
 
           <form onSubmit={submitCreateNew} className="widget-picker-section">
-            <h3>Create new</h3>
+            <h3>{t("Create new")}</h3>
             <div className="field">
               <label className="field-label" htmlFor={newTitleInputId}>
-                Title
+                {t("Title")}
               </label>
               <input
                 id={newTitleInputId}
@@ -162,9 +173,10 @@ export function WidgetPickerDialog({ useDialog = useWidgetPickerDialog, agentHan
               config={newConfig}
               onChange={setNewConfig}
               agentHandle={subHandle(base, "new-config")}
+              t={t}
             />
             <button type="submit" {...handleSpread(base, "new-submit", { role: "button", label: "Create and place this widget" })}>
-              Create and place
+              {t("Create and place")}
             </button>
           </form>
         </div>
@@ -177,7 +189,7 @@ export function WidgetPickerDialog({ useDialog = useWidgetPickerDialog, agentHan
               onClick={props.onCancel}
               {...handleSpread(base, "cancel", { role: "button", label: "Close without placing a widget" })}
             >
-              Cancel
+              {t("Cancel")}
             </button>
           </span>
         </div>
@@ -204,26 +216,31 @@ export interface WidgetAddControlProps {
   triggerLabel: string;
   onResolved: (widgetInstanceId: string) => void | Promise<void>;
   /** Injectable seam for the two-step type-choice/create-or-reuse state. Defaults to the real
-   *  {@link useWidgetAddControl}; a test can pass a fake here to exercise this component's
+   *  {@link useWiredWidgetAddControl}; a test can pass a fake here to exercise this component's
    *  rendering without the real `api.createWidget` call. */
-  useAddControl?: typeof useWidgetAddControl;
+  useAddControl?: typeof useWiredWidgetAddControl;
   /** This control's own base handle — see this file's "Agent handles" doc above. Omit to leave it
    *  (and the dialog it opens) untagged. */
   agentHandle?: string;
 }
 
-export function WidgetAddControl({ useAddControl = useWidgetAddControl, agentHandle: base, ...props }: WidgetAddControlProps) {
-  const { pickerType, setPickerType, selectedType, setSelectedType, error, handleCreateNew, handleUseExisting } =
+export function WidgetAddControl({ useAddControl = useWiredWidgetAddControl, agentHandle: base, ...props }: WidgetAddControlProps) {
+  const { pickerType, setPickerType, selectedType, setSelectedType, error, handleCreateNew, handleUseExisting, t, locale } =
     useAddControl(props);
+  // `WIDGET_TYPE_OPTIONS`'s own labels are the English source strings; translate them through the
+  // same `widgetTypeLabel` lookup `WidgetPickerDialog.hooks.tsx`'s `typeLabel` uses, so this type
+  // picker and the dialog it opens agree on one widget type's display name per locale.
+  const typeOptions: SelectOption[] = WIDGET_TYPE_OPTIONS.map((o) => ({ value: o.value, label: widgetTypeLabel(o.value, locale) }));
 
   return (
     <span className="widget-add-control">
       <Select
         value={selectedType}
         onChange={(v) => setSelectedType(v as AdminWidgetType)}
-        options={WIDGET_TYPE_OPTIONS}
-        aria-label="Widget type"
+        options={typeOptions}
+        aria-label={t("Widget type")}
         agentHandle={base ? `${base}-type` : undefined}
+        t={t}
       />
       <button
         type="button"

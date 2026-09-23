@@ -6,6 +6,7 @@ import { buildSiteAssistantCredentialAad } from "#src/assistant/site-credential-
 import { buildCustomCredentialAad } from "#src/features/custom-credentials/aad";
 import { buildPublishCredentialAad, type PublishProviderId } from "#src/features/deployments/publish-credentials/index";
 import { buildMediaProviderCredentialAad } from "#src/features/media/aad";
+import { buildPublishContentPeerAad, PUBLISH_CONTENT_PEER_AAD_VERSION } from "#src/features/publish-content/peer-aad";
 import { buildSourceControlCredentialAad } from "#src/features/source-control/aad";
 import type { SourceControlProviderId } from "#src/features/source-control/types";
 import { buildVendorCredentialAad } from "#src/features/vendor-credentials/aad";
@@ -99,6 +100,38 @@ const publishCredentialSets: SealedColumnDescriptor = {
       id: text(row, "id") as UUID,
     }),
   }),
+};
+
+/**
+ * `publish_content_peers` — added by migration `0066_shocking_psynapse` (the publish-content
+ * feature, `feat(db): ...` two days after this inventory's own 13-descriptor introduction,
+ * `feat(root-key): add a read-only sealed-credential inventory`), and never registered here. Unlike
+ * every store above, this table was born with AAD from day one (every write stamps
+ * `PUBLISH_CONTENT_PEER_AAD_VERSION`, per `peer-aad.ts`) — there is no
+ * `aad_version = 0` "legacy, no AAD" era to special-case, so this passes the row's own
+ * `aad_version` of 1 to {@link buildPublishContentPeerAad} (as `peers.ts`'s `resolvePeerCredential`
+ * does), rather than routing through {@link versionedAad} — whose 0 means "no AAD", untrue here.
+ */
+const publishContentPeers: SealedColumnDescriptor = {
+  table: "publish_content_peers",
+  column: "sealed_ciphertext",
+  identityColumns: ["id", "workspace_id", "label", "aad_version"],
+  workspaceId: workspaceOf,
+  rowId: (row) => text(row, "id"),
+  label: (row) => `Publish-content peer "${text(row, "label")}"`,
+  // Only the version this build knows (v1) is opened; any other stored value (the schema's `DEFAULT 0`,
+  // a future v2) is `unrecognized-aad-version` rather than a guessed AAD reported as "does not open".
+  aadFor: (row) =>
+    row.aad_version === PUBLISH_CONTENT_PEER_AAD_VERSION
+      ? {
+          kind: "aad",
+          aad: buildPublishContentPeerAad({
+            workspaceId: workspaceOf(row) as UUID,
+            id: text(row, "id") as UUID,
+            aadVersion: PUBLISH_CONTENT_PEER_AAD_VERSION,
+          }),
+        }
+      : { kind: "unrecognized-aad-version" },
 };
 
 const sourceControlCredentialSets: SealedColumnDescriptor = {
@@ -225,11 +258,12 @@ const composioConnectorCredentials: SealedColumnDescriptor = {
     ),
 };
 
-/** Every sealed column the app can open today, in `schema.ts` order. */
+/** Every sealed column the app can open today, in `schema.sqlite.ts` order. */
 export const SEALED_COLUMN_DESCRIPTORS: readonly SealedColumnDescriptor[] = [
   siteAssistantCredentials,
   adminExecutionCredentials,
   publishCredentialSets,
+  publishContentPeers,
   sourceControlCredentialSets,
   customCredentialSets,
   vendorCredentialSets,

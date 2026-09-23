@@ -9,7 +9,7 @@ import Database from "better-sqlite3";
 import { login, AuthInvalidCredentialsError, type AuthServiceDeps, type IdentityRepos } from "@jini-ai/cms/identity";
 
 import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
-import { workspaces } from "../../../apps/website/src/platform/db/schema.js";
+import { workspaces } from "../../../apps/website/src/platform/db/schema.sqlite.js";
 import { createSqliteIdentityRouteDeps, DEFAULT_OWNER_PASSWORD } from "../../../apps/website/src/features/identity/wiring.js";
 import { missingDbPathMessage } from "../backfill-db-path.js";
 

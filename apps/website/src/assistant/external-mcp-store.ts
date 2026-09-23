@@ -125,7 +125,7 @@ export interface ExternalMcpServerRecord {
   serverId: string;
   label: string | null;
   /** The Agent Plugin id that auto-provisioned this row, or `null` for an operator-created one. See
-   *  `schema.ts`'s `provisioned_by_plugin_id` column doc for the full rule. */
+   *  `schema.sqlite.ts`'s `provisioned_by_plugin_id` column doc for the full rule. */
   provisionedByPluginId: string | null;
   transport: string;
   /** How credentials are obtained. Independent of `transport` — see this file's header. */
@@ -500,21 +500,56 @@ export function parseEnvBlock(text: string): Record<string, string> {
 /**
  * Splits an operator's space-separated argv string.
  *
- * No shell quoting is honoured, and that is deliberate rather than unfinished: supporting quotes
- * would invite the belief that this string is shell-interpreted, when the command is spawned
- * WITHOUT a shell (`adapter.stdio.ts` uses `spawn` with an argv array). An operator who needs a
- * literal space in one argument is better served by learning that than by a quoting scheme that
- * silently differs from their shell's.
+ * One quoting rule, and only one: a token that STARTS with `"` runs to the next `"`, which must end
+ * the token (whitespace or end of string after it), and both quotes are dropped. That is what lets a
+ * path with a space in it — `"C:\\Users\\John Smith\\..."`, the desktop shell's win32
+ * registration — arrive as one argument. There are no escapes (a backslash is always literal, since
+ * Windows paths are full of them), and a `"` anywhere else in a token stays literal exactly as it did
+ * before this rule existed, so `--name="x"` still reaches the child unchanged. This is NOT shell
+ * quoting: the command is spawned WITHOUT a shell (`adapter.stdio.ts` uses `spawn` with an argv
+ * array), and nothing else a shell would do happens here.
  *
+ * @throws {ExternalMcpValidationError} On an unterminated quoted token, a closing quote followed by
+ *   more characters, or more than `MAX_ARGS` arguments.
  * @complexity O(n) in the string length.
- * @overallScore 100
  */
 export function parseArgs(raw: string): string[] {
-  const args = raw.split(/\s+/).filter((part) => part.length > 0);
+  const args: string[] = [];
+  let index = 0;
+  while (index < raw.length) {
+    if (/\s/.test(raw[index]!)) {
+      index += 1;
+      continue;
+    }
+    const token = raw[index] === '"' ? readQuotedArg(raw, index) : readBareArg(raw, index);
+    args.push(token.value);
+    index = token.end;
+  }
   if (args.length > MAX_ARGS) {
     throw new ExternalMcpValidationError(`at most ${MAX_ARGS} arguments are supported`, "args");
   }
   return args;
+}
+
+/** {@link parseArgs}'s unquoted token: everything up to the next whitespace, quotes included. */
+function readBareArg(raw: string, start: number): { readonly value: string; readonly end: number } {
+  const match = /\s/.exec(raw.slice(start));
+  const end = match === null ? raw.length : start + match.index;
+  return { value: raw.slice(start, end), end };
+}
+
+/** {@link parseArgs}'s quoted token, `start` pointing at its opening `"`.
+ *  @throws {ExternalMcpValidationError} When the quote never closes, or does not end the token. */
+function readQuotedArg(raw: string, start: number): { readonly value: string; readonly end: number } {
+  const close = raw.indexOf('"', start + 1);
+  if (close === -1) {
+    throw new ExternalMcpValidationError("an argument opens a double quote that never closes", "args");
+  }
+  const end = close + 1;
+  if (end < raw.length && !/\s/.test(raw[end]!)) {
+    throw new ExternalMcpValidationError("a closing double quote must be followed by a space or the end of the arguments", "args");
+  }
+  return { value: raw.slice(start + 1, close), end };
 }
 
 /**
@@ -1110,7 +1145,7 @@ export interface SaveExternalMcpServerInput {
    * `external_mcp_save` tool) omits this field entirely, and an omitted field PRESERVES whatever the
    * row already has — the same three-state rule `env` establishes, minus the "empty string clears
    * it" arm: nothing should ever intentionally clear this column once set, so no clear signal is
-   * defined for it. See `schema.ts`'s `provisioned_by_plugin_id` doc for the full rule.
+   * defined for it. See `schema.sqlite.ts`'s `provisioned_by_plugin_id` doc for the full rule.
    */
   provisionedByPluginId?: string;
   /**

@@ -11,7 +11,7 @@ import { interpolate } from "../../lib/template-i18n";
  * header documented); `rules.ts` imports `t` from here directly.
  */
 
-const REDIRECTS_DICT: Record<string, Record<string, string>> = {
+const REDIRECTS_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
   "Loading…": "Cargando…",
   "Load hits": "Cargar visitas",
@@ -41,6 +41,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "Visitas",
   "Delete redirect rule?": "¿Eliminar regla de redirección?",
   "Loading redirects…": "Cargando redirecciones…",
+  "Not valid JSON.": "JSON no válido.",
+  "Must be a JSON array of rule objects.": "Debe ser una matriz JSON de objetos de regla.",
   },
   id: {
   "Loading…": "Memuat…",
@@ -71,6 +73,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "Klik",
   "Delete redirect rule?": "Hapus aturan pengalihan?",
   "Loading redirects…": "Memuat pengalihan…",
+  "Not valid JSON.": "JSON tidak valid.",
+  "Must be a JSON array of rule objects.": "Harus berupa array JSON berisi objek aturan.",
   },
   de: {
   "Loading…": "Wird geladen…",
@@ -101,6 +105,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "Treffer",
   "Delete redirect rule?": "Weiterleitungsregel löschen?",
   "Loading redirects…": "Weiterleitungen werden geladen…",
+  "Not valid JSON.": "Kein gültiges JSON.",
+  "Must be a JSON array of rule objects.": "Muss ein JSON-Array von Regelobjekten sein.",
   },
   "zh-CN": {
   "Loading…": "加载中…",
@@ -131,6 +137,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "命中次数",
   "Delete redirect rule?": "删除重定向规则？",
   "Loading redirects…": "正在加载重定向…",
+  "Not valid JSON.": "JSON 无效。",
+  "Must be a JSON array of rule objects.": "必须是规则对象的 JSON 数组。",
   },
   "zh-TW": {
   "Loading…": "載入中…",
@@ -161,6 +169,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "命中次數",
   "Delete redirect rule?": "刪除重新導向規則？",
   "Loading redirects…": "正在載入重新導向…",
+  "Not valid JSON.": "JSON 無效。",
+  "Must be a JSON array of rule objects.": "必須是規則物件的 JSON 陣列。",
   },
   "pt-BR": {
   "Loading…": "Carregando…",
@@ -191,6 +201,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "Acessos",
   "Delete redirect rule?": "Excluir regra de redirecionamento?",
   "Loading redirects…": "Carregando redirecionamentos…",
+  "Not valid JSON.": "JSON inválido.",
+  "Must be a JSON array of rule objects.": "Deve ser uma matriz JSON de objetos de regra.",
   },
   ru: {
   "Loading…": "Загрузка…",
@@ -221,6 +233,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "Обращения",
   "Delete redirect rule?": "Удалить правило перенаправления?",
   "Loading redirects…": "Загрузка редиректов…",
+  "Not valid JSON.": "Недопустимый JSON.",
+  "Must be a JSON array of rule objects.": "Должен быть массивом JSON объектов правил.",
   },
   fa: {
   "Loading…": "در حال بارگذاری…",
@@ -251,6 +265,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "بازدیدها",
   "Delete redirect rule?": "قانون تغییرمسیر حذف شود؟",
   "Loading redirects…": "در حال بارگذاری تغییرمسیرها…",
+  "Not valid JSON.": "JSON معتبر نیست.",
+  "Must be a JSON array of rule objects.": "باید یک آرایه JSON از اشیای قانون باشد.",
   },
   ar: {
   "Loading…": "جارٍ التحميل…",
@@ -281,6 +297,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "الزيارات",
   "Delete redirect rule?": "حذف قاعدة إعادة التوجيه؟",
   "Loading redirects…": "جارٍ تحميل عمليات إعادة التوجيه…",
+  "Not valid JSON.": "JSON غير صالح.",
+  "Must be a JSON array of rule objects.": "يجب أن تكون مصفوفة JSON من كائنات القواعد.",
   },
   ja: {
   "Loading…": "読み込み中…",
@@ -311,6 +329,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "ヒット数",
   "Delete redirect rule?": "リダイレクトルールを削除しますか？",
   "Loading redirects…": "リダイレクトを読み込み中…",
+  "Not valid JSON.": "有効な JSON ではありません。",
+  "Must be a JSON array of rule objects.": "ルールオブジェクトの JSON 配列である必要があります。",
   },
   ko: {
   "Loading…": "불러오는 중…",
@@ -341,6 +361,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "히트 수",
   "Delete redirect rule?": "리디렉션 규칙을 삭제하시겠습니까?",
   "Loading redirects…": "리디렉션을 불러오는 중…",
+  "Not valid JSON.": "유효한 JSON이 아닙니다.",
+  "Must be a JSON array of rule objects.": "규칙 객체의 JSON 배열이어야 합니다.",
   },
   pl: {
   "Loading…": "Wczytywanie…",
@@ -371,6 +393,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "Odsłony",
   "Delete redirect rule?": "Usunąć regułę przekierowania?",
   "Loading redirects…": "Wczytywanie przekierowań…",
+  "Not valid JSON.": "Nieprawidłowy JSON.",
+  "Must be a JSON array of rule objects.": "Musi być tablicą JSON obiektów reguł.",
   },
   hu: {
   "Loading…": "Betöltés…",
@@ -401,6 +425,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "Találatok",
   "Delete redirect rule?": "Törli az átirányítási szabályt?",
   "Loading redirects…": "Átirányítások betöltése…",
+  "Not valid JSON.": "Érvénytelen JSON.",
+  "Must be a JSON array of rule objects.": "Szabályobjektumok JSON-tömbjének kell lennie.",
   },
   fr: {
   "Loading…": "Chargement…",
@@ -431,6 +457,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "Visites",
   "Delete redirect rule?": "Supprimer la règle de redirection ?",
   "Loading redirects…": "Chargement des redirections…",
+  "Not valid JSON.": "JSON non valide.",
+  "Must be a JSON array of rule objects.": "Doit être un tableau JSON d’objets de règle.",
   },
   uk: {
   "Loading…": "Завантаження…",
@@ -461,6 +489,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "Звернення",
   "Delete redirect rule?": "Видалити правило переспрямування?",
   "Loading redirects…": "Завантаження переспрямувань…",
+  "Not valid JSON.": "Некоректний JSON.",
+  "Must be a JSON array of rule objects.": "Має бути JSON-масивом об’єктів правил.",
   },
   tr: {
   "Loading…": "Yükleniyor…",
@@ -491,6 +521,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "İsabet",
   "Delete redirect rule?": "Yönlendirme kuralı silinsin mi?",
   "Loading redirects…": "Yönlendirmeler yükleniyor…",
+  "Not valid JSON.": "Geçerli JSON değil.",
+  "Must be a JSON array of rule objects.": "Kural nesnelerinden oluşan bir JSON dizisi olmalıdır.",
   },
   th: {
   "Loading…": "กำลังโหลด…",
@@ -521,6 +553,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "จำนวนการเข้าชม",
   "Delete redirect rule?": "ลบกฎการเปลี่ยนเส้นทางหรือไม่?",
   "Loading redirects…": "กำลังโหลดการเปลี่ยนเส้นทาง…",
+  "Not valid JSON.": "JSON ไม่ถูกต้อง.",
+  "Must be a JSON array of rule objects.": "ต้องเป็นอาร์เรย์ JSON ของออบเจ็กต์กฎ",
   },
   it: {
   "Loading…": "Caricamento…",
@@ -551,6 +585,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "Visite",
   "Delete redirect rule?": "Eliminare la regola di reindirizzamento?",
   "Loading redirects…": "Caricamento reindirizzamenti…",
+  "Not valid JSON.": "JSON non valido.",
+  "Must be a JSON array of rule objects.": "Deve essere un array JSON di oggetti regola.",
   },
   hi: {
   "Loading…": "लोड हो रहा है…",
@@ -581,6 +617,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "हिट्स",
   "Delete redirect rule?": "रीडायरेक्ट नियम हटाएं?",
   "Loading redirects…": "रीडायरेक्ट लोड हो रहे हैं…",
+  "Not valid JSON.": "JSON मान्य नहीं है।",
+  "Must be a JSON array of rule objects.": "नियम ऑब्जेक्ट का JSON ऐरे होना चाहिए।",
   },
   ur: {
   "Loading…": "لوڈ ہو رہا ہے…",
@@ -611,6 +649,8 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "ہٹس",
   "Delete redirect rule?": "ری ڈائریکٹ اصول حذف کریں؟",
   "Loading redirects…": "ری ڈائریکٹس لوڈ ہو رہے ہیں…",
+  "Not valid JSON.": "JSON درست نہیں ہے۔",
+  "Must be a JSON array of rule objects.": "قواعد کے آبجیکٹس کی JSON array ہونا چاہیے۔",
   },
   bn: {
   "Loading…": "লোড হচ্ছে…",
@@ -641,8 +681,41 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   Hits: "হিট",
   "Delete redirect rule?": "রিডাইরেক্ট নিয়ম মুছবেন?",
   "Loading redirects…": "রিডাইরেক্ট লোড হচ্ছে…",
+  "Not valid JSON.": "JSON বৈধ নয়।",
+  "Must be a JSON array of rule objects.": "নিয়ম অবজেক্টের একটি JSON অ্যারে হতে হবে।",
   },
 };
+
+const MATCH_TYPE_TRANSLATIONS: Record<string, Record<string, string>> = {
+  ar: { exact: "مطابق تمامًا", prefix: "بادئة", wildcard: "حرف بدل" },
+  bn: { exact: "হুবহু", prefix: "উপসর্গ", wildcard: "ওয়াইল্ডকার্ড" },
+  de: { exact: "genau", prefix: "Präfix", wildcard: "Platzhalter" },
+  es: { exact: "exacta", prefix: "prefijo", wildcard: "comodín" },
+  fa: { exact: "دقیق", prefix: "پیشوند", wildcard: "عام" },
+  fr: { exact: "exacte", prefix: "préfixe", wildcard: "caractère générique" },
+  hi: { exact: "सटीक", prefix: "उपसर्ग", wildcard: "वाइल्डकार्ड" },
+  hu: { exact: "pontos", prefix: "előtag", wildcard: "helyettesítő karakter" },
+  id: { exact: "tepat", prefix: "awalan", wildcard: "karakter pengganti" },
+  it: { exact: "esatta", prefix: "prefisso", wildcard: "carattere jolly" },
+  ja: { exact: "完全一致", prefix: "前方一致", wildcard: "ワイルドカード" },
+  ko: { exact: "정확히 일치", prefix: "접두사", wildcard: "와일드카드" },
+  pl: { exact: "dokładne", prefix: "prefiks", wildcard: "symbol wieloznaczny" },
+  "pt-BR": { exact: "exata", prefix: "prefixo", wildcard: "curinga" },
+  ru: { exact: "точное", prefix: "префикс", wildcard: "подстановочный знак" },
+  th: { exact: "ตรงกันทุกประการ", prefix: "คำนำหน้า", wildcard: "ไวลด์การ์ด" },
+  tr: { exact: "tam", prefix: "önek", wildcard: "joker karakter" },
+  uk: { exact: "точний", prefix: "префікс", wildcard: "символ узагальнення" },
+  ur: { exact: "عین مطابق", prefix: "سابقہ", wildcard: "وائلڈ کارڈ" },
+  "zh-CN": { exact: "精确", prefix: "前缀", wildcard: "通配符" },
+  "zh-TW": { exact: "精確", prefix: "前綴", wildcard: "萬用字元" },
+};
+
+const REDIRECTS_DICT: Record<string, Record<string, string>> = Object.fromEntries(
+  Object.entries(REDIRECTS_TRANSLATIONS).map(([locale, entries]) => [
+    locale,
+    { ...entries, ...(MATCH_TYPE_TRANSLATIONS[locale] ?? {}) },
+  ]),
+);
 
 /** Same two-step fallback every other `t()` in this app uses: translated value, else the English
  *  source string itself — never a raw dictionary-miss placeholder. */

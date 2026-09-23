@@ -4,6 +4,7 @@ import { type AdminTaxonomyWithTerms, type ContentTypeFieldDef } from "../../lib
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
 import { useWiredCollectionEntryEditor } from "./hooks/use-collection-entry-editor.hooks";
+import { ServerLabel } from "@/components/status-labels";
 import { useWiredTermPicker } from "./hooks/use-term-picker.hooks";
 import { useJsonFieldControl } from "./hooks/use-json-field-control.hooks";
 
@@ -52,6 +53,11 @@ interface FieldControlProps {
   value: unknown;
   onChange: (value: unknown) => void;
   agentHandleProps: ReturnType<typeof agentHandle>;
+  /** This field's own schema name — only `JsonFieldControl` (M2) uses it, to key its parse-validity
+   *  report; every other control ignores it. */
+  fieldName: string;
+  /** M2: forwarded straight through to `JsonFieldControl` — see that control's own comment. */
+  setFieldValidity: (fieldName: string, valid: boolean) => void;
 }
 
 function TextFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
@@ -118,8 +124,8 @@ function DatetimeFieldControl({ inputId, value, onChange, agentHandleProps }: Fi
  * lives there, not here — see that hook's own header). `aria-invalid` flags an unparseable buffer
  * without inventing new copy for it; the last value that DID parse is what stays in `extFields`
  * and what a save sends, regardless of how the buffer currently looks. */
-function JsonFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
-  const { text, parseError, handleTextChange } = useJsonFieldControl({ value, onChange });
+function JsonFieldControl({ inputId, value, onChange, agentHandleProps, fieldName, setFieldValidity }: FieldControlProps) {
+  const { text, parseError, handleTextChange } = useJsonFieldControl({ value, onChange, fieldName, setFieldValidity });
   return (
     <textarea
       id={inputId}
@@ -156,8 +162,10 @@ function DynamicField(props: {
   /** This field's own distinct handle base — see `EntryFieldsSection`'s own comment for why it's
    *  computed once, up there (via `buildAgentListHandles`), rather than per-field here. */
   agentBase: string;
+  /** M2: forwarded to `Control` as `setFieldValidity` — only `JsonFieldControl` uses it. */
+  setFieldValidity: (fieldName: string, valid: boolean) => void;
 }) {
-  const { field, value, onChange, agentBase } = props;
+  const { field, value, onChange, agentBase, setFieldValidity } = props;
   const inputId = `entry-field-${field.name}`;
   const Control = FIELD_CONTROLS[field.kind];
 
@@ -175,6 +183,8 @@ function DynamicField(props: {
           role: field.kind === "boolean" ? "checkbox" : "field",
           label: `This content type's "${field.name}" field${field.required ? " (required)" : ""}`,
         })}
+        fieldName={field.name}
+        setFieldValidity={setFieldValidity}
       />
     </div>
   );
@@ -288,11 +298,15 @@ function TermPicker(props: {
 function EntryLifecycleButtons(props: {
   entry: { status: string } | null | undefined;
   saving: boolean;
+  /** True while save OR a lifecycle toggle is in flight (H2) — disables all three buttons, since
+   *  Publish now runs a save leg before its lifecycle leg and either one being in flight must
+   *  block a second click. `saving` alone stays the Save button's own LABEL source (unchanged). */
+  busy: boolean;
   onToggleLifecycle: (op: "publish" | "unpublish") => void;
   onSave: () => void;
   t: (key: string) => string;
 }) {
-  const { entry, saving, onToggleLifecycle, onSave, t } = props;
+  const { entry, saving, busy, onToggleLifecycle, onSave, t } = props;
   const isPublished = entry?.status === "published";
 
   return (
@@ -301,6 +315,7 @@ function EntryLifecycleButtons(props: {
         <button
           type="button"
           onClick={() => onToggleLifecycle("publish")}
+          disabled={busy}
           {...agentHandle("entry-publish", {
             role: "button",
             label: "Publish this entry immediately, saving its current title, fields and body",
@@ -318,6 +333,7 @@ function EntryLifecycleButtons(props: {
           type="button"
           className="btn-warning"
           onClick={() => onToggleLifecycle("unpublish")}
+          disabled={busy}
           {...agentHandle("entry-unpublish", {
             role: "button",
             label: "Unpublish this entry — removes it from the live site without deleting it",
@@ -334,7 +350,7 @@ function EntryLifecycleButtons(props: {
         type="button"
         className={entry && !isPublished ? "btn-secondary" : undefined}
         onClick={onSave}
-        disabled={saving}
+        disabled={busy}
         {...agentHandle("entry-save", { role: "button", label: "Save this entry's title, slug, fields and body" })}
       >
         {saving ? t("Saving…") : t("Save")}
@@ -350,11 +366,12 @@ function EntryPageActions(props: {
   message: string | null;
   error: string | null;
   saving: boolean;
+  busy: boolean;
   onToggleLifecycle: (op: "publish" | "unpublish") => void;
   onSave: () => void;
   t: (key: string) => string;
 }) {
-  const { contentTypeKey, contentTypeLabel, entry, message, error, saving, onToggleLifecycle, onSave, t } = props;
+  const { contentTypeKey, contentTypeLabel, entry, message, error, saving, busy, onToggleLifecycle, onSave, t } = props;
 
   return (
     <div className="page-actions">
@@ -370,8 +387,15 @@ function EntryPageActions(props: {
       </a>
       {message ? <span className="save-ok">{message}</span> : null}
       {error ? <span className="save-error">{error}</span> : null}
-      {entry ? <span className={`status status-${entry.status}`}>{entry.status}</span> : null}
-      <EntryLifecycleButtons entry={entry} saving={saving} onToggleLifecycle={onToggleLifecycle} onSave={onSave} t={t} />
+      {entry ? <span className={`status status-${entry.status}`}><ServerLabel value={entry.status} /></span> : null}
+      <EntryLifecycleButtons
+        entry={entry}
+        saving={saving}
+        busy={busy}
+        onToggleLifecycle={onToggleLifecycle}
+        onSave={onSave}
+        t={t}
+      />
     </div>
   );
 }
@@ -380,8 +404,13 @@ function EntryPageActions(props: {
  * entry's slug is an editable field. Split out of `CollectionEntryEditor` alongside the fields
  * section below — both are self-contained "does this thing exist yet" branches that don't need
  * anything else in the parent's scope. */
-function EntrySlugField(props: { entry: { slug: string } | null | undefined; slug: string; onSlugChange: (value: string) => void }) {
-  const { entry, slug, onSlugChange } = props;
+function EntrySlugField(props: {
+  entry: { slug: string } | null | undefined;
+  slug: string;
+  onSlugChange: (value: string) => void;
+  t: (key: string) => string;
+}) {
+  const { entry, slug, onSlugChange, t } = props;
   return (
     <div className="editor-slug">
       /{" "}
@@ -389,7 +418,7 @@ function EntrySlugField(props: { entry: { slug: string } | null | undefined; slu
         <span>{entry.slug}</span>
       ) : (
         <label className="a11y-label-wrap">
-          <span className="visually-hidden">Entry slug</span>
+          <span className="visually-hidden">{t("Entry slug")}</span>
           <input
             value={slug}
             onChange={(e) => onSlugChange(e.target.value)}
@@ -412,9 +441,11 @@ function EntryFieldsSection(props: {
   entry: { fieldsJson?: unknown } | null | undefined;
   extFields: Record<string, unknown>;
   onFieldChange: (name: string, value: unknown) => void;
+  /** M2: forwarded to each `DynamicField`. */
+  setFieldValidity: (fieldName: string, valid: boolean) => void;
   t: (key: string) => string;
 }) {
-  const { fields, entry, extFields, onFieldChange, t } = props;
+  const { fields, entry, extFields, onFieldChange, setFieldValidity, t } = props;
   if (fields.length === 0) return null;
 
   // Field names are this content type's own schema keys, unique by construction (Collections.tsx's
@@ -436,6 +467,7 @@ function EntryFieldsSection(props: {
           value={extFields[field.name] ?? readExtSiteField(entry?.fieldsJson, field.name)}
           onChange={(value) => onFieldChange(field.name, value)}
           agentBase={fieldHandles[index]}
+          setFieldValidity={setFieldValidity}
         />
       ))}
     </div>
@@ -481,16 +513,18 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
     loadError,
     loaded,
     saving,
+    busy,
     editor,
     save,
     toggleLifecycle,
+    setFieldValidity,
     t,
   } = useCollectionEntryEditorHook({ contentTypeKey: props.contentTypeKey, entryId: props.entryId });
 
   if (loadError) return <div className="notice error">{loadError}</div>;
-  if (!loaded || contentType === undefined) return <div className="notice">Loading entry…</div>;
-  if (!contentType) return <div className="notice error">Unknown content type "{props.contentTypeKey}".</div>;
-  if (props.entryId && !entry) return <div className="notice error">Entry not found.</div>;
+  if (!loaded || contentType === undefined) return <div className="notice">{t("Loading entry…")}</div>;
+  if (!contentType) return <div className="notice error">{t('Unknown content type "{contentTypeKey}".').replace("{contentTypeKey}", props.contentTypeKey)}</div>;
+  if (props.entryId && !entry) return <div className="notice error">{t("Entry not found.")}</div>;
 
   return (
     <div className="page">
@@ -515,6 +549,7 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
           message={message}
           error={error}
           saving={saving}
+          busy={busy}
           onToggleLifecycle={toggleLifecycle}
           onSave={save}
           t={t}
@@ -534,13 +569,13 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
           {...agentHandle("entry-title", { role: "field", label: "This entry's title" })}
         />
       </label>
-      <EntrySlugField entry={entry} slug={slug} onSlugChange={setSlug} />
+      <EntrySlugField entry={entry} slug={slug} onSlugChange={setSlug} t={t} />
 
       <div
         className="editor-shell"
         {...agentHandle("entry-editor-shell", { role: "region", label: "Formatting toolbar and the entry body editor" })}
       >
-        <div className="editor-toolbar" role="toolbar" aria-label="Formatting">
+        <div className="editor-toolbar" role="toolbar" aria-label={t("Formatting")}>
           <div className="grp">
             <WidgetEmbedInsertControl editor={editor} agentHandle="entry-insert-widget" />
           </div>
@@ -561,6 +596,7 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
         entry={entry}
         extFields={extFields}
         onFieldChange={(name, value) => setExtFields((current) => ({ ...current, [name]: value }))}
+        setFieldValidity={setFieldValidity}
         t={t}
       />
 

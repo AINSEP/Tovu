@@ -137,8 +137,9 @@
  * be its heading), so it stays, and only loses its inset.
  *
  * SCOPED TO `.settings-page`, the Settings screen's own class, NOT to `.settings-ui-section`:
- * five screens share that wrapper class and render the same inline shell (Agent Plugins,
- * Authentication, AI Assistant, `PlaceholderTabs`, and this one). A first cut of this block
+ * five screens shared that wrapper class and rendered the same inline shell at the time (Agent
+ * Plugins, Authentication, AI Assistant, `PlaceholderTabs` — deleted 2026-09-21, dead code with
+ * no importer — and this one). A first cut of this block
  * (`9f13f0e3`) selected on `.settings-ui-section[data-theme="light"]` and reached all five —
  * a restyle of four screens nobody asked about, caught on re-read and corrected here.
  * `.settings-ui-section.settings-page` (0,2,0) as the prefix keeps every rule above

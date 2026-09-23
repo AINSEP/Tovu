@@ -4,7 +4,8 @@ import test from "node:test";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner, registerContentType } from "#src/features/content-types/index";
-import { InMemoryEntryRepo, createEntry } from "#src/features/entries/index";
+import { createEntry } from "#src/features/entries/index";
+import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { PRE_AUTHORIZED } from "../../authorize-helper.js";
 import {
@@ -15,7 +16,7 @@ import {
   type EmbedServiceDeps,
 } from "../../embed-service.js";
 import { WidgetEmbedGuardrailError, WidgetInstanceNotFoundError, WidgetVersionConflictError } from "../../errors.js";
-import { createWidgetInstance, trashWidgetInstance, type WidgetWriteServiceDeps } from "../../write-service.js";
+import { createWidgetInstance, trashWidgetInstance, type WidgetTrashDeps } from "../../write-service.js";
 import { buildWidgetAreaFieldsJson, ensureWidgetContentTypesRegistered, emptyWidgetAreaDoc } from "../../entry-payload.js";
 import { WIDGET_AREA_CONTENT_TYPE, WIDGET_AREA_FIELD_NAMESPACE } from "../../types.js";
 
@@ -35,8 +36,10 @@ const ACTOR = { principalId: "user-1" };
 const HOST_CONTENT_TYPE = "article";
 
 function makeSharedRepos() {
+  const trash = memoryWidgetTrash();
   return {
-    entryRepo: new InMemoryEntryRepo(),
+    trash,
+    entryRepo: trash.entryRepo,
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     postRepo: new InMemoryPostRepo(),
@@ -56,9 +59,10 @@ function makeDeps(repos: ReturnType<typeof makeSharedRepos>, overrides: Partial<
   };
 }
 
-function widgetWriteDeps(repos: ReturnType<typeof makeSharedRepos>): WidgetWriteServiceDeps {
+function widgetWriteDeps(repos: ReturnType<typeof makeSharedRepos>): WidgetTrashDeps {
   return {
     ...repos,
+    remove: repos.trash.remove,
     clock: { nowIso: () => "2026-07-21T00:00:00.000Z" },
     ids: { newId: () => `id-${++idCounter}` },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),

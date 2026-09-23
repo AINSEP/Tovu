@@ -56,7 +56,7 @@ function buildTestApp(overrides: Partial<PluginsRouteDeps> = {}): { app: express
     onPluginDisabled: (id: string) => {
       onDisabledCalls.push(id);
     },
-    onPluginUninstalled: async () => {},
+    removePlugin: baseDeps.removePlugin,
     ...overrides,
   };
   (pluginDeps as unknown as { onEnabledCalls: string[] }).onEnabledCalls = onEnabledCalls;

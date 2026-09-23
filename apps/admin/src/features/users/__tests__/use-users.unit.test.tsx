@@ -624,4 +624,112 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
     expect(result.current.confirmingDisable).toEqual(USER_B);
   });
+
+  // C8 (plan-access.md §8, N3, terra review triage 2026-09-20): `runGrantMutation`'s success path is
+  // guarded by `toggleGenerationRef`, but its `catch` (`setGrantError`) and `finally`
+  // (`setGrantSaving(false)`) are not — same bug shape as the stale-success test above, one step
+  // earlier in the same function. A stale FAILURE for A must not paint onto B's now-open panel.
+  it("onAssignRole: a stale failure settling after the operator switched panels must not show on the new panel", async () => {
+    let rejectA!: (e: unknown) => void;
+    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    port.assignRole = vi.fn(() => new Promise<{ assignment: unknown }>((_resolve, reject) => { rejectA = reject; }));
+
+    const { result } = renderHook(() => useUsers({ port }), { wrapper });
+    await waitFor(() => expect(result.current.users).not.toBeNull());
+
+    act(() => result.current.toggleExpanded(USER_A));
+    act(() => result.current.setPendingRoleId(ROLE.id));
+    let p!: Promise<void>;
+    act(() => {
+      p = result.current.onAssignRole(USER_A.principalId);
+    });
+    await waitFor(() => expect(port.assignRole).toHaveBeenCalledTimes(1));
+
+    // Before A's assign settles, the operator switches to B's panel.
+    act(() => result.current.toggleExpanded(USER_B));
+
+    rejectA(new Error("boom-A"));
+    await act(async () => {
+      await p;
+    });
+
+    // Fails today: A's unguarded catch/finally set grantError to "boom-A" on B's open panel.
+    expect(result.current.grantError).toBeNull();
+  });
+
+  // a3-review-6 (2026-09-21): the C8 test above only pins the `catch` guard. Removing the `finally`
+  // guard or `toggleExpanded`'s own `setGrantSaving(false)` left every test in this file green, so
+  // each of those two arms gets its own test here.
+  it("onAssignRole: a stale grant's finally must not clear the saving flag of a newer grant still in flight on another panel", async () => {
+    let rejectA!: (e: unknown) => void;
+    let resolveB!: (v: { assignment: unknown }) => void;
+    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    port.assignRole = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise<{ assignment: unknown }>((_resolve, reject) => { rejectA = reject; }))
+      .mockImplementationOnce(() => new Promise<{ assignment: unknown }>((resolve) => { resolveB = resolve; }));
+
+    const { result } = renderHook(() => useUsers({ port }), { wrapper });
+    await waitFor(() => expect(result.current.users).not.toBeNull());
+
+    act(() => result.current.toggleExpanded(USER_A));
+    act(() => result.current.setPendingRoleId(ROLE.id));
+    let pA!: Promise<void>;
+    act(() => {
+      pA = result.current.onAssignRole(USER_A.principalId);
+    });
+    await waitFor(() => expect(port.assignRole).toHaveBeenCalledTimes(1));
+
+    // Switch to B and start B's own grant while A's is still in flight.
+    act(() => result.current.toggleExpanded(USER_B));
+    act(() => result.current.setPendingRoleId(ROLE.id));
+    let pB!: Promise<void>;
+    act(() => {
+      pB = result.current.onAssignRole(USER_B.principalId);
+    });
+    await waitFor(() => expect(port.assignRole).toHaveBeenCalledTimes(2));
+    expect(result.current.grantSaving).toBe(true);
+
+    // A settles late. Its `finally` belongs to a superseded generation and must leave B's flag alone.
+    rejectA(new Error("boom-A"));
+    await act(async () => {
+      await pA;
+    });
+    expect(result.current.grantSaving).toBe(true);
+
+    await act(async () => {
+      resolveB({ assignment: {} });
+      await pB;
+    });
+    expect(result.current.grantSaving).toBe(false);
+  });
+
+  it("toggleExpanded: switching panels mid-grant clears the saving flag, and the stale grant's settle leaves it cleared", async () => {
+    let resolveA!: (v: { assignment: unknown }) => void;
+    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    port.assignRole = vi.fn(() => new Promise<{ assignment: unknown }>((resolve) => { resolveA = resolve; }));
+
+    const { result } = renderHook(() => useUsers({ port }), { wrapper });
+    await waitFor(() => expect(result.current.users).not.toBeNull());
+
+    act(() => result.current.toggleExpanded(USER_A));
+    act(() => result.current.setPendingRoleId(ROLE.id));
+    let pA!: Promise<void>;
+    act(() => {
+      pA = result.current.onAssignRole(USER_A.principalId);
+    });
+    await waitFor(() => expect(port.assignRole).toHaveBeenCalledTimes(1));
+    expect(result.current.grantSaving).toBe(true);
+
+    // B's panel must not open already "saving": A's own `finally` is now generation-guarded and will
+    // never clear this, so `toggleExpanded` is the only thing that can.
+    act(() => result.current.toggleExpanded(USER_B));
+    expect(result.current.grantSaving).toBe(false);
+
+    await act(async () => {
+      resolveA({ assignment: {} });
+      await pA;
+    });
+    expect(result.current.grantSaving).toBe(false);
+  });
 });

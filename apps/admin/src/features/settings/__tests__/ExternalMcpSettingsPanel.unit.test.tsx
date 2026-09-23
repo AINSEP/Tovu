@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
+import { tabFromLastFocusableInDialog } from "@/hooks/__tests__/focus-trap.test-helpers";
 
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
 
@@ -242,5 +243,68 @@ describe("ExternalMcpSettingsPanel — Remove asks for confirmation before delet
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getAllByTestId("source-config-item-card")).toHaveLength(1);
+  });
+});
+
+describe("ExternalMcpSettingsPanel — the Remove-confirm and Tools dialogs trap Tab", () => {
+  it("ExternalMcpRemoveConfirmDialog keeps Tab inside the dialog: Tab on the last focusable element wraps to the first", async () => {
+    const user = userEvent.setup();
+    renderPanelWithSources([HIGGSFIELD]);
+    await screen.findAllByTestId("source-config-item-card");
+
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    const { event, first } = tabFromLastFocusableInDialog();
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
+  });
+
+  it("ExternalMcpToolsModal keeps Tab inside the dialog: Tab on the last focusable element wraps to the first", async () => {
+    const user = userEvent.setup();
+    renderPanelWithSources([HIGGSFIELD]);
+    await screen.findAllByTestId("source-config-item-card");
+
+    await user.click(screen.getByRole("button", { name: /Open tool permissions/ }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    const { event, first } = tabFromLastFocusableInDialog();
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
+  });
+});
+
+/**
+ * @file (continued) Regression coverage for the Tools modal's missing focus management — unlike
+ * its sibling `ExternalMcpRemoveConfirmDialog` (`autoFocus` on Cancel), nothing moved focus into
+ * this modal on open or restored it on close, so a keyboard/screen-reader user stayed on the
+ * trigger button underneath the now-modal dialog and lost their place entirely once it closed.
+ * Same regression `4d52c7783` fixed for `MediaEditDialog`.
+ */
+describe("ExternalMcpSettingsPanel — the Tools modal moves focus on open and restores it on close", () => {
+  it("opens with focus already on the modal's own Close button, its first stable control", async () => {
+    const user = userEvent.setup();
+    renderPanelWithSources([HIGGSFIELD]);
+    await screen.findAllByTestId("source-config-item-card");
+
+    await user.click(screen.getByRole("button", { name: /Open tool permissions/ }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "Close" }));
+  });
+
+  it("restores focus to the trigger button once the modal closes", async () => {
+    const user = userEvent.setup();
+    renderPanelWithSources([HIGGSFIELD]);
+    await screen.findAllByTestId("source-config-item-card");
+
+    const trigger = screen.getByRole("button", { name: /Open tool permissions/ });
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog");
+
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(trigger);
   });
 });

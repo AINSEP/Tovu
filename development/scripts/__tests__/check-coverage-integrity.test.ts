@@ -171,7 +171,7 @@ test("classifyBlock: a tiny block with a wrapper FNDA record is CONTAMINATED eve
 });
 
 test("classifyBlock: a block above the SEVERE floor with wrapper FNDA records but DA values unrelated to them is CONTAMINATED but not severe", () => {
-  // Mirrors the real db/schema.ts false-positive risk documented in check-coverage-integrity.ts's
+  // Mirrors the real db/schema.sqlite.ts false-positive risk documented in check-coverage-integrity.ts's
   // header for the REJECTED bare-threshold design: wrapper helpers ARE present (as they are for a
   // majority of first-party files in this repo right now), but the file's own DA values (1..40,
   // cycling) share nothing with the wrapper's hit-counts (128, 500), so SEVERE must not fire.

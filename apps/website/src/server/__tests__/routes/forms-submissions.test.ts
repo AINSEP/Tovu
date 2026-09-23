@@ -209,7 +209,7 @@ test("admin forms submissions: unknown formId (neither a real slug nor id) retur
   assert.equal(body.code, "FORMS_DEFINITION_NOT_FOUND");
 });
 
-test("admin forms submissions: AC-20 — delete permanently removes it (404s + disappears from list)", async (t) => {
+test("admin forms submissions: AC-20 — delete removes it from the Forms screen (404s + disappears from list)", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const formId = await createDefinition(baseUrl, cookie, "delete-form");
@@ -239,4 +239,45 @@ test("admin forms submissions: AC-20 — delete permanently removes it (404s + d
   });
   const listBody = (await listRes.json()) as { data: unknown[] };
   assert.deepEqual(listBody.data, []);
+});
+
+test("admin forms submissions: delete moves the submission to the Trash (form name + time, never the visitor's data), and restore brings it back", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const formId = await createDefinition(baseUrl, cookie, "trash-form");
+
+  await deps.formSubmissionRepo.create({
+    id: "sub-trash",
+    workspaceId: deps.workspaceId,
+    formDefinitionId: formId,
+    data: { name: "Ada Lovelace" },
+    sourceIp: "1.1.1.1",
+    submittedAt: "2026-07-13T00:00:00.000Z",
+  });
+
+  const deleteRes = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${formId}/submissions/sub-trash`,
+    { method: "DELETE", headers: { cookie } }
+  );
+  assert.equal(deleteRes.status, 204);
+
+  const page = await deps.trash.list({ workspaceId: deps.workspaceId, now: "2026-07-14T00:00:00.000Z", limit: 50 });
+  const item = page.items.find((row) => row.entityId === "sub-trash");
+  assert.ok(item, "the deleted submission must be listed in the Trash");
+  assert.equal(item.entityType, "form_submission");
+  assert.equal(item.displayTitle, "Contact");
+  assert.equal(item.displaySubtitle, "2026-07-13T00:00:00.000Z");
+  assert.ok(!JSON.stringify(item).includes("Ada Lovelace"), "the Trash row must not carry the visitor's data");
+
+  const restored = await deps.trash.restore({
+    workspaceId: deps.workspaceId,
+    entityType: "form_submission",
+    entityId: "sub-trash",
+    at: "2026-07-14T00:00:00.000Z",
+  });
+  assert.equal(restored, "restored");
+  const getRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${formId}/submissions/sub-trash`, {
+    headers: { cookie },
+  });
+  assert.equal(getRes.status, 200);
 });

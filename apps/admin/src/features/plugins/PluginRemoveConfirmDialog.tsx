@@ -3,21 +3,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { usePluginRemoveConfirm } from "./hooks/use-plugin-remove-confirm.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 
-/**
- * @file Confirmation gate in front of the Downloaded tab's Remove control. Genuinely destructive,
- * unlike `AgentPluginDisableConfirmDialog`'s "Disable" (a reversible flag flip — that sibling
- * screen has no real uninstall route at all): this dialog's Confirm drives the real
- * `DELETE /workspaces/:id/plugins/:pluginId` route (`uninstallPlugin()`,
- * `features/plugin-runtime/uninstall.ts`), which deletes the plugin's on-disk artifact. There is no
- * "restore the prior state" for deleted bytes.
- *
- * Markup, classes (`settings-dialog`/`settings-dialog-backdrop`, `btn-secondary`/`btn-danger`), and
- * behaviour (Escape-to-cancel via the paired hook, Cancel default-focused so the destructive action
- * is never the default) mirror `features/settings/ExternalMcpRemoveConfirmDialog.tsx` — the
- * precedent for exactly this shape of dialog guarding a real, unrecoverable delete — reused rather
- * than re-invented, the same way `AgentPluginDisableConfirmDialog` already followed it for its own
- * (reversible) case.
- */
+/** @file Confirmation gate before a site plugin moves to the 60-day Trash. */
 
 export interface PluginRemoveConfirmDialogProps {
   /** The plugin's own display name (`plugin.name`) — must name the exact plugin being removed, not
@@ -44,12 +30,13 @@ export function PluginRemoveConfirmDialog({
   t,
   usePluginRemoveConfirmHook = usePluginRemoveConfirm,
 }: PluginRemoveConfirmDialogProps) {
-  const { copy } = usePluginRemoveConfirmHook({ name, onCancel });
+  const { copy, dialogRef } = usePluginRemoveConfirmHook({ name, onCancel, t });
   const titleId = `${agentHandleBase}-remove-confirm-title`;
 
   return (
     <div className="settings-dialog-backdrop" onClick={onCancel}>
       <div
+        ref={dialogRef}
         className="settings-dialog"
         role="dialog"
         aria-modal="true"
@@ -59,8 +46,7 @@ export function PluginRemoveConfirmDialog({
         <h2 id={titleId}>{copy.title}</h2>
         <p>{copy.body}</p>
         <span className="editor-actions">
-          {/* Cancel is the default-focused control — this action is not reversible, matching
-              `ExternalMcpRemoveConfirmDialog`'s own precedent for the identical reason. */}
+          {/* Cancel stays default-focused because moving a shared package affects every workspace. */}
           <button
             type="button"
             className="btn-secondary"
@@ -68,7 +54,7 @@ export function PluginRemoveConfirmDialog({
             onClick={onCancel}
             {...agentHandle(`${agentHandleBase}-remove-cancel`, {
               role: "button",
-              label: `Close this dialog without removing ${name}`,
+              label: `Close this dialog without moving ${name} to the Trash`,
             })}
           >
             {t("Cancel")}
@@ -79,10 +65,10 @@ export function PluginRemoveConfirmDialog({
             onClick={onConfirm}
             {...agentHandle(`${agentHandleBase}-remove-confirm`, {
               role: "button",
-              label: `Permanently remove ${name} — this cannot be undone`,
+              label: `Move ${name} to the Trash`,
             })}
           >
-            {t("Remove")}
+            {t("Move to trash")}
           </button>
         </span>
       </div>

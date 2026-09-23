@@ -26,6 +26,11 @@ import {
 } from "../rules";
 import { ApiError, type AdminPost } from "@/lib/api";
 
+/** Identity translator — same convention `pages/__tests__/rules.unit.test.ts` uses for its
+ *  `pageColumnSortLabel`/`updatedPageColumnSortLabel` tests: asserts against the English key
+ *  template (with `{columnName}` substituted) rather than a real locale's copy. */
+const identityT = (key: string): string => key;
+
 /**
  * @file Pure(ish) logic for `features/posts` — `postRowMenuItems` (the row-action menu, driven
  * entirely by `post.status`), `readFileAsDataUrl` (a `File` -> `data:` URL reader, the one
@@ -50,7 +55,7 @@ function post(overrides: Partial<AdminPost> = {}): AdminPost {
 }
 
 describe("postRowMenuItems", () => {
-  const handlers = { onEdit: vi.fn(), onDisable: vi.fn(), onDelete: vi.fn() };
+  const handlers = { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() };
 
   it("always includes Edit and Delete", () => {
     const items = postRowMenuItems(post({ status: "draft" }), handlers, "en");
@@ -59,45 +64,47 @@ describe("postRowMenuItems", () => {
     expect(keys).toContain("delete");
   });
 
-  it("offers Disable for a published post", () => {
+  it("offers Unpublish for a published post", () => {
     const items = postRowMenuItems(post({ status: "published" }), handlers, "en");
-    expect(items.map((i) => i.key)).toContain("disable");
+    expect(items.map((i) => i.key)).toContain("unpublish");
   });
 
-  it("omits Disable entirely for a draft post — not rendered disabled, not present at all", () => {
+  it("offers Publish for a draft post — the toggle flips rather than being omitted", () => {
     const items = postRowMenuItems(post({ status: "draft" }), handlers, "en");
-    expect(items.map((i) => i.key)).not.toContain("disable");
+    const keys = items.map((i) => i.key);
+    expect(keys).toContain("publish");
+    expect(keys).not.toContain("unpublish");
   });
 
-  it("Delete is marked destructive; Edit/Disable are not", () => {
+  it("Delete is marked destructive; Edit/Unpublish are not", () => {
     const items = postRowMenuItems(post({ status: "published" }), handlers, "en");
     expect(items.find((i) => i.key === "delete")?.destructive).toBe(true);
     expect(items.find((i) => i.key === "edit")?.destructive).toBeFalsy();
-    expect(items.find((i) => i.key === "disable")?.destructive).toBeFalsy();
+    expect(items.find((i) => i.key === "unpublish")?.destructive).toBeFalsy();
   });
 
-  it("preserves order: edit, [disable], delete", () => {
+  it("preserves order: edit, [unpublish|publish], delete", () => {
     const items = postRowMenuItems(post({ status: "published" }), handlers, "en");
-    expect(items.map((i) => i.key)).toEqual(["edit", "disable", "delete"]);
+    expect(items.map((i) => i.key)).toEqual(["edit", "unpublish", "delete"]);
   });
 
   it("each item's onSelect calls the matching handler with the post", () => {
     const onEdit = vi.fn();
-    const onDisable = vi.fn();
+    const onTogglePublish = vi.fn();
     const onDelete = vi.fn();
     const p = post({ status: "published" });
-    const items = postRowMenuItems(p, { onEdit, onDisable, onDelete }, "en");
+    const items = postRowMenuItems(p, { onEdit, onTogglePublish, onDelete }, "en");
     items.find((i) => i.key === "edit")!.onSelect();
-    items.find((i) => i.key === "disable")!.onSelect();
+    items.find((i) => i.key === "unpublish")!.onSelect();
     items.find((i) => i.key === "delete")!.onSelect();
     expect(onEdit).toHaveBeenCalledWith(p);
-    expect(onDisable).toHaveBeenCalledWith(p);
+    expect(onTogglePublish).toHaveBeenCalledWith(p);
     expect(onDelete).toHaveBeenCalledWith(p);
   });
 
   it("translates labels to Spanish when locale is es", () => {
     const items = postRowMenuItems(post({ status: "published" }), handlers, "es");
-    expect(items.map((i) => i.label)).toEqual(["Editar", "Desactivar", "Eliminar"]);
+    expect(items.map((i) => i.label)).toEqual(["Editar", "Anular publicación", "Eliminar"]);
   });
 });
 
@@ -219,25 +226,25 @@ describe("comparePostsByUpdated", () => {
 
 describe("updatedColumnSortLabel", () => {
   it("states 'not sorted by updated date' and offers newest-first when direction is null (a different column is active)", () => {
-    const label = updatedColumnSortLabel(null);
+    const label = updatedColumnSortLabel(identityT, null);
     expect(label).toMatch(/not sorted by updated date/i);
     expect(label).toMatch(/newest first/i);
   });
 
   it("states 'newest first' and offers oldest-first as the next action when direction is 'desc'", () => {
-    const label = updatedColumnSortLabel("desc");
+    const label = updatedColumnSortLabel(identityT, "desc");
     expect(label).toMatch(/newest first/i);
     expect(label).toMatch(/oldest first/i);
   });
 
   it("states 'oldest first' and offers newest-first as the next action when direction is 'asc'", () => {
-    const label = updatedColumnSortLabel("asc");
+    const label = updatedColumnSortLabel(identityT, "asc");
     expect(label).toMatch(/oldest first/i);
     expect(label).toMatch(/newest first/i);
   });
 
   it("all three states produce different labels", () => {
-    expect(new Set([updatedColumnSortLabel(null), updatedColumnSortLabel("asc"), updatedColumnSortLabel("desc")]).size).toBe(3);
+    expect(new Set([updatedColumnSortLabel(identityT, null), updatedColumnSortLabel(identityT, "asc"), updatedColumnSortLabel(identityT, "desc")]).size).toBe(3);
   });
 });
 
@@ -292,25 +299,25 @@ describe("DEFAULT_POST_SORT", () => {
 
 describe("postColumnSortLabel", () => {
   it("states 'not sorted' and names the ascending action when direction is null (the column isn't active)", () => {
-    const label = postColumnSortLabel("Title", null);
+    const label = postColumnSortLabel(identityT, "Title", null);
     expect(label).toMatch(/not sorted by title/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("states 'ascending' and offers descending as the next action when direction is 'asc'", () => {
-    const label = postColumnSortLabel("Title", "asc");
+    const label = postColumnSortLabel(identityT, "Title", "asc");
     expect(label).toMatch(/sorted by title, ascending/i);
     expect(label).toMatch(/activate to sort descending/i);
   });
 
   it("states 'descending' and offers ascending as the next action when direction is 'desc'", () => {
-    const label = postColumnSortLabel("Title", "desc");
+    const label = postColumnSortLabel(identityT, "Title", "desc");
     expect(label).toMatch(/sorted by title, descending/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("all three states produce different labels", () => {
-    expect(new Set([postColumnSortLabel("Title", null), postColumnSortLabel("Title", "asc"), postColumnSortLabel("Title", "desc")]).size).toBe(3);
+    expect(new Set([postColumnSortLabel(identityT, "Title", null), postColumnSortLabel(identityT, "Title", "asc"), postColumnSortLabel(identityT, "Title", "desc")]).size).toBe(3);
   });
 });
 

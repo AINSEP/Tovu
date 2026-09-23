@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import type { AdminMember } from "@/lib/api";
 import { MEMBERS_RESOURCE, describeApiError, emptyRowState, type RowActionState } from "../rules";
@@ -93,6 +93,16 @@ export function useMembers({ port }: MembersDependencies): MembersController {
   // Redirects.tsx/Users.tsx already made). `null` when the dialog is closed.
   const [confirmingDisable, setConfirmingDisable] = useState<AdminMember | null>(null);
   const settlement = useSettlementGeneration();
+  // Which row's detail panel is actually open (C7, plan-access.md §8, N2) — a ref, not just
+  // `expandedId` state, because `onToggleDetail`'s `catch`/`finally` read it after an `await`, where
+  // a state read would see the closure's stale value. Set by `onToggleDetail` alone. Without this,
+  // expanding row A (slow, then failing), then row B, lets A's `finally` blank B's loading indicator
+  // and lets A's failure paint onto B's now-open panel — the same "entity-scoped panel, unkeyed
+  // settle" shape `use-roles.hooks.ts`'s `permissionPolicyIdRef` fixes for `loadPermissions`.
+  const expandedIdRef = useRef<string | null>(null);
+  // Latest-wins for `onToggleDetail`'s detail loads, a separate instance from `settlement` (which
+  // tracks `load()`'s list reads).
+  const detailSettlement = useSettlementGeneration();
 
   const load = useCallback(() => {
     // Claim this call's generation BEFORE the request starts — see `useSettlementGeneration`'s own
@@ -139,7 +149,7 @@ export function useMembers({ port }: MembersDependencies): MembersController {
       setMembers((current) => (current ? current.map((m) => (m.id === member.id ? result.member : m)) : current));
       patchRowState(member.id, { disabling: false, notice: t(locale, "Member disabled.") });
     } catch (e) {
-      patchRowState(member.id, { disabling: false, error: describeApiError(e, t(locale, "Failed to disable member.")) });
+      patchRowState(member.id, { disabling: false, error: describeApiError(e, t(locale, "Failed to disable member."), locale) });
     }
   }
 
@@ -150,7 +160,7 @@ export function useMembers({ port }: MembersDependencies): MembersController {
       await port.requestMemberMagicLink({ email: member.email });
       patchRowState(member.id, { resending: false, notice: t(locale, "Sign-in link sent.") });
     } catch (e) {
-      patchRowState(member.id, { resending: false, error: describeApiError(e, t(locale, "Failed to send sign-in link.")) });
+      patchRowState(member.id, { resending: false, error: describeApiError(e, t(locale, "Failed to send sign-in link."), locale) });
     }
   }
 
@@ -164,22 +174,33 @@ export function useMembers({ port }: MembersDependencies): MembersController {
   }
 
   async function onToggleDetail(member: AdminMember) {
-    if (expandedId === member.id) {
+    if (expandedIdRef.current === member.id) {
+      expandedIdRef.current = null;
       setExpandedId(null);
       return;
     }
+    expandedIdRef.current = member.id;
     setExpandedId(member.id);
     setDetailError(null);
     if (detailById[member.id]) return;
 
     setDetailLoadingId(member.id);
+    // Claimed before the `await`, so a later detail load (another row's, or this same row's after
+    // a close and reopen) supersedes this one. The row-id key alone cannot tell two loads of the
+    // SAME row apart.
+    const generation = detailSettlement.next();
     try {
       const result = await port.getMember(member.id);
       setDetailById((current) => ({ ...current, [member.id]: result.member }));
     } catch (e) {
-      setDetailError(describeApiError(e, t(locale, "Failed to load member detail.")));
+      // Only paint the failure onto the panel this load was actually for — a different row may
+      // already be open by the time this settles, or a newer load of this row may be running.
+      if (detailSettlement.isCurrent(generation) && expandedIdRef.current === member.id) {
+        setDetailError(describeApiError(e, t(locale, "Failed to load member detail."), locale));
+      }
     } finally {
-      setDetailLoadingId(null);
+      // A superseded load leaves the spinner to the load that superseded it.
+      if (detailSettlement.isCurrent(generation)) setDetailLoadingId(null);
     }
   }
 

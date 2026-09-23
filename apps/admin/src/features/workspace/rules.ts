@@ -1,4 +1,5 @@
 import { ApiError, describeApiError as describeApiErrorDefault, type AdminWorkspace } from "../../lib/api";
+import { t } from "./workspace-i18n";
 
 /**
  * @file Pure logic for the `workspace` feature — everything that computes a value rather than
@@ -12,13 +13,17 @@ import { ApiError, describeApiError as describeApiErrorDefault, type AdminWorksp
  * referenced" or `Users.tsx`'s "username already in use" for the same code (audit cross-cutting
  * finding #2 — deliberately not unified into one table).
  *
+ * `locale` (C4 fix, 2026-09-20): every branch here used to return its English literal directly,
+ * leaking English into every non-`en` locale — see `users/rules.ts`'s identical fix for the full
+ * reasoning. Each literal is now also a key into `workspace-i18n.ts`'s `WORKSPACE_DICT`.
+ *
  * @complexity Time/space: O(1).
  */
-export function describeApiError(e: unknown, fallback: string): string {
+export function describeApiError(e: unknown, fallback: string, locale: string): string {
   if (e instanceof ApiError) {
-    if (e.code === "FORBIDDEN") return "You do not have permission to do that.";
-    if (e.code === "RESOURCE_CONFLICT") return "That slug is already in use.";
-    if (e.code === "VALIDATION_ERROR") return e.message || "Please correct the highlighted fields.";
+    if (e.code === "FORBIDDEN") return t(locale, "You do not have permission to do that.");
+    if (e.code === "RESOURCE_CONFLICT") return t(locale, "That slug is already in use.");
+    if (e.code === "VALIDATION_ERROR") return e.message || t(locale, "Please correct the highlighted fields.");
   }
   return describeApiErrorDefault(e, fallback);
 }

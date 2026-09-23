@@ -6,12 +6,12 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/contracts/core/tool-surface-exchanges";
 import type { UIResource } from "#src/assistant/index";
 import { PRE_AUTHORIZED } from "../../authorize-helper.js";
-import { areaDocWithPlacements, buildWidgetAreaFieldsJson, parseWidgetAreaPayload } from "../../entry-payload.js";
+import { areaDocWithPlacements, buildWidgetAreaFieldsJson, buildWidgetInstanceFieldsJson, parseWidgetAreaPayload, parseWidgetInstancePayload } from "../../entry-payload.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../../tool-registrations.js";
 import { WIDGET_AREA_CONTENT_TYPE } from "../../types.js";
@@ -30,7 +30,8 @@ import { WIDGET_AREA_CONTENT_TYPE } from "../../types.js";
  *   longer resolves to a real entry — a defensive branch, not a happy-path one.
  * - `resolveWidgetPlacementView`'s `broken` flag (surfaced via `widgets_get_region`) has three
  *   independent ways to become `true`: the referenced widget is gone, it exists but is the wrong
- *   entry type, or it exists but its own payload status is not `active` (trashed).
+ *   entry type, or it exists but its own payload status is not `active` (a legacy `purged`/`trash`
+ *   status an older build wrote; the Trash itself hides the entry, which is the "gone" case).
  *
  * Real in-memory adapters throughout, mirroring `tool-registrations.widgets-contracts.test.ts`'s own
  * discipline (Constitution Article V) — this file additionally imports `PRE_AUTHORIZED` rather than
@@ -44,12 +45,14 @@ const NOW = "2026-08-20T00:00:00.000Z";
 
 function makeDeps(): WidgetsToolDeps {
   let counter = 0;
+  const widgetTrash = memoryWidgetTrash();
   return {
     workspaceId: WORKSPACE_ID,
     clock: { nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
-    entryRepo: new InMemoryEntryRepo(),
+    entryRepo: widgetTrash.entryRepo,
+    removeWidget: widgetTrash.remove,
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
@@ -298,7 +301,7 @@ test("widgets_get_region: a placement referencing an entry of the WRONG type (a 
   assert.equal(out.placements[0].widgetTitle, areaEntry.title);
 });
 
-test("widgets_get_region: a trashed widget instance resolves broken:true with its title/type still surfaced (status alone gates broken, not visibility)", async () => {
+test("widgets_get_region: a trashed widget instance resolves broken:true with no title/type (the Trash hides the entry from every read)", async () => {
   const deps = makeDeps();
   const widget = await createInstance(deps, "Trashed Note");
   const region = await bindRegion(deps);
@@ -315,9 +318,34 @@ test("widgets_get_region: a trashed widget instance resolves broken:true with it
     placements: Array<{ broken: boolean; widgetTitle: string | null; widgetType: string | null }>;
   };
   assert.equal(out.placements[0].broken, true);
-  // The entry itself still resolves (trash is a status flip, not a delete), so title/type are still
-  // surfaced — only `broken` reflects the non-active status.
-  assert.equal(out.placements[0].widgetTitle, "Trashed Note");
+  // A trashed entry reads as missing (entries.deleted_at), so there is no title/type to surface;
+  // the placement itself stays, ready for a restore.
+  assert.equal(out.placements[0].widgetTitle, null);
+  assert.equal(out.placements[0].widgetType, null);
+});
+
+test("widgets_get_region: a widget whose payload still carries a legacy non-active status resolves broken:true with its title/type surfaced", async () => {
+  const deps = makeDeps();
+  const widget = await createInstance(deps, "Legacy Purged Note");
+  const region = await bindRegion(deps);
+  await wired("widgets_set_region_placements", deps).handler(
+    executionContext({
+      regionKey: "footer",
+      baseVersion: region.version,
+      placements: [{ placementId: "p-legacy", widgetEntryId: widget.id, enabled: true }],
+    })
+  );
+  // What an older build's "delete permanently" left behind: the row stays, its payload says purged.
+  const entry = await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: widget.id });
+  assert.ok(entry);
+  const payload = parseWidgetInstancePayload(entry.fieldsJson);
+  await deps.entryRepo.save({ ...entry, fieldsJson: buildWidgetInstanceFieldsJson({ ...payload, status: "purged" }), version: entry.version + 1 });
+
+  const out = (await wired("widgets_get_region", deps).handler(executionContext({ regionKey: "footer" }))) as {
+    placements: Array<{ broken: boolean; widgetTitle: string | null; widgetType: string | null }>;
+  };
+  assert.equal(out.placements[0].broken, true, "a non-active payload status alone must mark the placement broken");
+  assert.equal(out.placements[0].widgetTitle, "Legacy Purged Note");
   assert.equal(out.placements[0].widgetType, "text");
 });
 

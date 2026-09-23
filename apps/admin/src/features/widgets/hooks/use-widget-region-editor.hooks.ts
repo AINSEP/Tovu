@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { describeApiError, type AdminWidgetArea, type AdminWidgetPlacement } from "@/lib/api";
 import { buildDraftPlacement, movePlacement, resolveWidgetRegionSaveError } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
+import { t as translate } from "../widgets-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
 import { defaultWidgetRegionsPort } from "./widget-regions-dependencies.hooks";
 import type { WidgetRegionsPort } from "./widget-regions-port.hooks";
@@ -169,6 +169,6 @@ export function useWidgetRegionEditor(regionKey: string, { port, locale, t }: Wi
  */
 export function useWiredWidgetRegionEditor(regionKey: string): WidgetRegionEditorController {
   const locale = useAdminLocale();
-  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
+  const t = (key: string): string => translate(locale, key);
   return useWidgetRegionEditor(regionKey, { port: defaultWidgetRegionsPort, locale, t });
 }

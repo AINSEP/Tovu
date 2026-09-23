@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 
 import { openContentDb } from "../content-db.js";
 import { SqlitePublishCredentialSetRepo } from "../publish-credential-repo.sqlite.js";
-import { workspaces } from "../../schema.js";
+import { workspaces } from "../../schema.sqlite.js";
 import type { PublishCredentialSetRecord } from "#src/features/deployments/publish-credentials/types";
 
 /**

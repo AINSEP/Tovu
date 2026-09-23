@@ -126,4 +126,41 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
     expect(result.current.items).toEqual(MENU_B.items);
     expect(result.current.message).toBeNull();
   });
+
+  /**
+   * S4a (sink of M4, 2026-09-20) — the Save button had no `disabled` at all, so a double click sent
+   * two `updateMenuTree` calls carrying the same (now-stale-by-the-second-call) `expectedVersion`.
+   * Today there is no re-entry guard, so both same-tick calls reach the port — this is RED.
+   */
+  it("saving is true while a save is in flight, and two same-tick save() calls reach updateMenuTree only once", async () => {
+    let updateCalls = 0;
+    let resolveSave!: () => void;
+    const port = createFakeMenusPort({ menus: [MENU] });
+    port.updateMenuTree = () => {
+      updateCalls += 1;
+      return new Promise((resolve) => {
+        resolveSave = () => resolve({ menu: { ...MENU, version: MENU.version + 1, title: "Renamed" } });
+      });
+    };
+    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.setTitle("Renamed"));
+    expect(result.current.saving).toBe(false);
+
+    act(() => {
+      void result.current.save();
+      void result.current.save();
+    });
+
+    expect(result.current.saving).toBe(true);
+    expect(updateCalls).toBe(1);
+
+    await act(async () => {
+      resolveSave();
+      await Promise.resolve();
+    });
+
+    expect(result.current.saving).toBe(false);
+  });
 });

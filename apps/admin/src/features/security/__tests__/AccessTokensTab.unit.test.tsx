@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 
 import { AccessTokensTab } from "../AccessTokensTab";
 import type { AccessTokensController } from "../hooks/use-access-tokens.hooks";
@@ -77,5 +78,85 @@ describe("AccessTokensTab search box", () => {
     render(<AccessTokensTab useAccessTokensHook={() => makeAccessTokens()} useOtherCredentialsHook={() => makeOtherCredentials()} />);
 
     expect(screen.getByLabelText("Search access tokens")).toHaveAttribute("autocomplete", "off");
+  });
+});
+
+/**
+ * `AccessTokensCategoryFilter`'s `role="tab"` pills had no `onKeyDown` — the same missing WAI-ARIA
+ * tabs keyboard pattern `TabBar.tsx` had (plan finding F5, sink). Reuses `TabBar.hooks.tsx`'s
+ * `resolveTabBarKeyTarget`/`resolveTabBarTabIndex`/`useTabBarKeyboard` rather than reimplementing
+ * the same logic — `ACCESS_TOKEN_CATEGORIES`'s `{ id, label }` shape structurally satisfies
+ * `TabBarTab`, and none of these categories are ever disabled.
+ */
+describe("AccessTokensTab category filter keyboard (WAI-ARIA tabs)", () => {
+  it("moves focus and calls setCategory on the next category on ArrowRight", async () => {
+    const user = userEvent.setup();
+    const setCategory = vi.fn();
+    render(
+      <AccessTokensTab
+        useAccessTokensHook={() => makeAccessTokens({ setCategory })}
+        useOtherCredentialsHook={() => makeOtherCredentials()}
+      />,
+    );
+
+    screen.getByRole("tab", { name: "All" }).focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(setCategory).toHaveBeenCalledWith("source-control");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Source control" }));
+  });
+
+  it("moves focus to the last category on End", async () => {
+    const user = userEvent.setup();
+    const setCategory = vi.fn();
+    render(
+      <AccessTokensTab
+        useAccessTokensHook={() => makeAccessTokens({ setCategory })}
+        useOtherCredentialsHook={() => makeOtherCredentials()}
+      />,
+    );
+
+    screen.getByRole("tab", { name: "All" }).focus();
+    await user.keyboard("{End}");
+
+    expect(setCategory).toHaveBeenCalledWith("general");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "General" }));
+  });
+
+  it("gives only the active category a roving tabindex of 0, and leaves the Add custom provider button untouched", () => {
+    render(
+      <AccessTokensTab
+        useAccessTokensHook={() => makeAccessTokens({ category: "media" })}
+        useOtherCredentialsHook={() => makeOtherCredentials()}
+      />,
+    );
+
+    expect(screen.getByRole("tab", { name: "Media" })).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("tab", { name: "All" })).toHaveAttribute("tabindex", "-1");
+    expect(screen.getByRole("button", { name: "+ Add custom provider" })).not.toHaveAttribute("tabindex");
+  });
+
+  /** The "+ Add custom provider" button is a real, Tab-reachable control that lives INSIDE this
+   *  `role="tablist"` div. A keydown on it bubbles to the tablist's own `onKeyDown`, so without an
+   *  origin check the tabs handler would answer arrow keys pressed on a button that is not a tab:
+   *  it would silently change the category filter and yank focus off the button the operator was
+   *  standing on. Only the keys the tabs pattern owns are affected, which is exactly why this is
+   *  invisible until someone Tabs to that button and presses an arrow. */
+  it("ignores an arrow key pressed on the non-tab Add custom provider button inside the tablist", async () => {
+    const user = userEvent.setup();
+    const setCategory = vi.fn();
+    render(
+      <AccessTokensTab
+        useAccessTokensHook={() => makeAccessTokens({ setCategory })}
+        useOtherCredentialsHook={() => makeOtherCredentials()}
+      />,
+    );
+
+    const addButton = screen.getByRole("button", { name: "+ Add custom provider" });
+    addButton.focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(setCategory).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(addButton);
   });
 });

@@ -13,6 +13,7 @@ import {
   t as defaultT,
   publishCredentialSaveErrorMessage,
   publishCredentialsLoadErrorMessage,
+  publishCredentialSelectErrorMessage,
   publishCredentialVerifyErrorMessage,
 } from "../deployment-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
@@ -24,6 +25,7 @@ import {
   credentialsForProvider,
   defaultCredentialForProvider,
   publishCredentialRowReadyToSave,
+  withPromotedDefault,
   type PublishCredentialFormFields,
 } from "../rules";
 import { defaultPublishCredentialsPort } from "./publish-credentials-dependencies.hooks";
@@ -111,6 +113,12 @@ export interface PublishCredentialRowState {
    *  `"invalid"`/`"unreachable"` provider answer, which is a normal {@link verification} result, not
    *  an error. See this file's `publishCredentialVerifyErrorMessage` import for the translated text. */
   readonly verifyError: string | null;
+  /** The credential id the picker is promoting to this provider's default right now, `null` when no
+   *  promotion is in flight. The picker shows this id (not {@link saved}'s) while it is set, so the
+   *  choice doesn't appear to snap back before the server has answered. */
+  readonly selectingCredentialId: string | null;
+  /** Why the last promotion for this provider failed, `null` otherwise. Cleared by the next pick. */
+  readonly selectError: string | null;
 }
 
 export interface PublishCredentialsController {
@@ -122,6 +130,13 @@ export interface PublishCredentialsController {
    *  load resolves. Never derived any other way; see `AdminPublishExecutionMode`'s doc. */
   executionMode: AdminPublishExecutionMode | undefined;
   loadError: string | null;
+  /** True while ANY write that changes which token a publish uses is in flight — a default-promotion
+   *  ({@link selectCredential}) or a connection replacement ({@link save}). The server picks a
+   *  publish's credential as whichever row is default when the publish request lands
+   *  (`static-publish/adapter.ts`'s `resolvePublishCredentialForSite`; the request carries no
+   *  credential id), so a Publish sent inside this window would go out on the OLD token. The Static
+   *  Site tab's Publish button is disabled on this. (terra review 2026-09-20, finding 1.) */
+  credentialChangePending: boolean;
 
   setToken: (providerId: AdminPublishCredentialProviderId, value: string) => void;
   setAccountId: (providerId: AdminPublishCredentialProviderId, value: string) => void;
@@ -140,10 +155,15 @@ export interface PublishCredentialsController {
   credentialsForProvider: (providerId: AdminPublishCredentialProviderId) => readonly AdminPublishCredentialSummary[];
   /** Promotes one already-saved connection to this provider's default — the same `isDefault`
    *  mechanic the Security page's own "Make default" already writes through
-   *  (`use-access-tokens.hooks.ts`'s `makeDefault`), reused here rather than reinvented. Re-fetches
-   *  this provider's own credential list afterward rather than splicing optimistically: promoting one
-   *  row un-defaults whichever OTHER row held it server-side, a sibling effect this hook has no local
-   *  copy of ahead of the write. A no-op if `credentialId` is already this provider's default. */
+   *  (`use-access-tokens.hooks.ts`'s `makeDefault`), reused here rather than reinvented. Never
+   *  splices optimistically: promoting one row un-defaults whichever OTHER row held it server-side,
+   *  so the local list changes only once the write has resolved (`rules.ts`'s `withPromotedDefault`),
+   *  then re-fetches to reconcile. A failed re-fetch keeps that confirmed local promotion rather than
+   *  leaving the old default on screen after the server has already switched.
+   *
+   *  A no-op if `credentialId` is already this provider's default, or while a promotion for this
+   *  provider is still in flight. Never rejects — a failure lands in that row's
+   *  {@link PublishCredentialRowState.selectError}. */
   selectCredential: (providerId: AdminPublishCredentialProviderId, credentialId: string) => Promise<void>;
   /** Re-checks the provider's currently connected (default) row against its real provider right now
    *  — the UI half of `POST .../credentials/:id/verify` (`publish-credentials.ts`'s route doc), for
@@ -170,8 +190,28 @@ interface RowFormState {
   verifyError: string | null;
 }
 
+/** One provider's token-picker promotion — see {@link PublishCredentialRowState.selectingCredentialId}
+ *  and {@link PublishCredentialRowState.selectError}. */
+interface SelectionState {
+  pendingId: string | null;
+  error: string | null;
+}
+
 function blankRowFormState(): RowFormState {
   return { token: "", accountId: "", saving: false, error: null, verifying: false, verification: undefined, verifyError: null };
+}
+
+/**
+ * A row's form state once its save has succeeded: blank, as before — unless the operator edited the
+ * draft while the request was in flight (the inputs stay editable; only Save disables). That newer
+ * draft was never sent, so it is kept whole rather than blanked into a "Connected" row that implies
+ * it was saved (terra review 2026-09-20, finding 4's sibling). Kept whole, not per field, so a
+ * two-field provider's draft stays savable as one piece.
+ * @complexity O(1).
+ */
+function rowFormStateAfterSave(current: RowFormState, sent: Pick<PublishCredentialFormFields, "token" | "accountId">): RowFormState {
+  const editedMeanwhile = current.token !== sent.token || current.accountId !== sent.accountId;
+  return editedMeanwhile ? { ...blankRowFormState(), token: current.token, accountId: current.accountId } : blankRowFormState();
 }
 
 function initialRowFormStates(): Record<AdminPublishCredentialProviderId, RowFormState> {
@@ -194,7 +234,7 @@ function publishCredentialSubmitErrorMessage(err: unknown, t: Translate, locale:
   const classified = classifyPublishCredentialSubmitError(err);
   if (classified.kind === "duplicate-label") return t("This connection was already saved — reload the page and try again.");
   if (classified.kind === "validation") return publishCredentialSaveErrorMessage(locale, classified.detail);
-  return publishCredentialSaveErrorMessage(locale, describeApiError(err, "unknown error"));
+  return publishCredentialSaveErrorMessage(locale, describeApiError(err, t("Unknown error")));
 }
 
 export function usePublishCredentials(port: PublishCredentialsPort, t: Translate, locale: string): PublishCredentialsController {
@@ -217,6 +257,16 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
   const loadError = query.error ? publishCredentialsLoadErrorMessage(locale, describeApiError(query.error, "unknown error")) : null;
 
   const [formStates, setFormStates] = useState<Record<AdminPublishCredentialProviderId, RowFormState>>(initialRowFormStates);
+  // The picker's promotion state, kept apart from `formStates`: a `save` that lands mid-promotion
+  // resets its row's form state to blank, which must not also clear the in-flight flag Publish waits on.
+  const [selections, setSelections] = useState<Partial<Record<AdminPublishCredentialProviderId, SelectionState>>>({});
+  // Synchronous duplicate guard for `selectCredential` — a ref, not `selections`, for the same reason
+  // `use-static-publish.hooks.ts`'s `publishingRef` documents: two calls in one tick both read the
+  // same stale state, and two racing promotions would leave the default to whichever PUT lands last.
+  const selectingRef = useRef(new Set<AdminPublishCredentialProviderId>());
+  // Same synchronous per-row guard for `save` — a doubled create collides on the fixed row label
+  // (terra review 2026-09-20, finding 5's sibling).
+  const savingRef = useRef(new Set<AdminPublishCredentialProviderId>());
 
   function setToken(providerId: AdminPublishCredentialProviderId, value: string) {
     setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], token: value } }));
@@ -229,7 +279,8 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
   async function save(providerId: AdminPublishCredentialProviderId) {
     const formState = formStates[providerId];
     const fields: PublishCredentialFormFields = { providerId, token: formState.token, accountId: formState.accountId };
-    if (!publishCredentialRowReadyToSave(fields)) return;
+    if (!publishCredentialRowReadyToSave(fields) || savingRef.current.has(providerId)) return;
+    savingRef.current.add(providerId);
 
     const existing = defaultCredentialForProvider(credentials ?? [], providerId);
     setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], saving: true, error: null } }));
@@ -242,12 +293,14 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
         const base = prev ?? [];
         return existing ? base.map((current) => (current.id === result.id ? result : current)) : [...base, result];
       });
-      setFormStates((prev) => ({ ...prev, [providerId]: blankRowFormState() }));
+      setFormStates((prev) => ({ ...prev, [providerId]: rowFormStateAfterSave(prev[providerId], fields) }));
     } catch (err) {
       setFormStates((prev) => ({
         ...prev,
         [providerId]: { ...prev[providerId], saving: false, error: publishCredentialSubmitErrorMessage(err, t, locale) },
       }));
+    } finally {
+      savingRef.current.delete(providerId);
     }
   }
 
@@ -290,8 +343,14 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
             verifying: formState.verifying,
             verification: formState.verification,
             verifyError: formState.verifyError,
+            selectingCredentialId: selections[provider.id]?.pendingId ?? null,
+            selectError: selections[provider.id]?.error ?? null,
           };
         });
+
+  const credentialChangePending = PUBLISH_CREDENTIAL_PROVIDERS.some(
+    (provider) => formStates[provider.id].saving || (selections[provider.id]?.pendingId ?? null) !== null
+  );
 
   function credentialsForProviderId(providerId: AdminPublishCredentialProviderId): readonly AdminPublishCredentialSummary[] {
     return credentialsForProvider(credentials ?? [], providerId);
@@ -299,13 +358,47 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
 
   async function selectCredential(providerId: AdminPublishCredentialProviderId, credentialId: string): Promise<void> {
     const current = defaultCredentialForProvider(credentials ?? [], providerId);
-    if (current?.id === credentialId) return;
-    await port.updateCredential(credentialId, { isDefault: true });
-    const refreshed = await port.listCredentials();
-    setCredentials(refreshed.credentials);
+    if (current?.id === credentialId || selectingRef.current.has(providerId)) return;
+    selectingRef.current.add(providerId);
+    setSelections((prev) => ({ ...prev, [providerId]: { pendingId: credentialId, error: null } }));
+    let error: string | null = null;
+    try {
+      const promoted = await port.updateCredential(credentialId, { isDefault: true });
+      setCredentials((prev) => withPromotedDefault(prev ?? [], promoted));
+      await reconcileCredentials();
+    } catch (err) {
+      error = publishCredentialSelectErrorMessage(locale, describeApiError(err, "unknown error"));
+    } finally {
+      selectingRef.current.delete(providerId);
+      setSelections((prev) => ({ ...prev, [providerId]: { pendingId: null, error } }));
+    }
   }
 
-  return { rows, executionMode, loadError, setToken, setAccountId, save, credentialsForProvider: credentialsForProviderId, selectCredential, verify, t };
+  /** Best-effort re-read after a promotion the server already confirmed. A failure is deliberately
+   *  swallowed: the local list was already updated from the server's own response, so it is correct —
+   *  surfacing an error here would tell the operator the switch failed when it did not. */
+  async function reconcileCredentials(): Promise<void> {
+    try {
+      const refreshed = await port.listCredentials();
+      setCredentials(refreshed.credentials);
+    } catch {
+      // See this function's doc — the confirmed local promotion stands.
+    }
+  }
+
+  return {
+    rows,
+    executionMode,
+    loadError,
+    credentialChangePending,
+    setToken,
+    setAccountId,
+    save,
+    credentialsForProvider: credentialsForProviderId,
+    selectCredential,
+    verify,
+    t,
+  };
 }
 
 /**

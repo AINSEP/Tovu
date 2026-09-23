@@ -95,22 +95,27 @@ export interface ScanEmbedMarkersResult {
 }
 
 /**
- * Matches one element carrying `data-embed-config`, capturing its tag, attributes, and inner content
- * up to the matching close tag. The backreferenced closing tag (`<\/\1>`) is safe for a marker with
- * no same-named descendant — true for every marker convention in this codebase, and the same
- * assumption `injectMenuEmbed` documented before this module existed.
+ * Matches the OPEN tag of one element carrying `data-embed-config`, capturing its tag name and its
+ * attribute text. It stops at the open tag's own `>` and makes no assumption about what closes it —
+ * {@link scanEmbedMarkers} locates the matching close tag separately, via {@link findBalancedClose}'s
+ * depth count over the masked html.
  *
- * Inner content is captured (rather than requiring an empty element) because a theme marker's
- * authored content is a real fallback that must survive when nothing resolves. The widgets pipeline
- * previously required `<div ...></div>` with nothing between the tags, which is exactly why it could
- * not be used for theme markers; unifying on the permissive form removes that split.
+ * Before 2026-09-23 this pattern captured inner content itself, up to a backreferenced `<\/\1>`. That
+ * was only safe for a marker with no same-named descendant — true for every marker convention in this
+ * codebase at the time, and the same assumption `injectMenuEmbed` documented before this module
+ * existed — but it meant `<div data-embed-config='...'><div>…</div></div>` (an inner element sharing
+ * the marker's own tag name) closed at the FIRST `</div>`, truncating the marker's real inner content.
+ * {@link findBalancedClose} removes that assumption by counting depth instead of matching nearest text.
+ *
+ * The tag name pattern (`[a-z][a-z0-9-]*`) accepts any HTML element name, including a custom element
+ * (`<my-card>`), not just the historical letters-only set.
  *
  * Carries the `d` (`hasIndices`) flag so {@link scanEmbedMarkers} can read every field back out of
  * the ORIGINAL html at each capture group's own offsets, rather than out of whatever string was
  * actually scanned (see {@link maskNonRenderableRegions}) — see that function's doc for why the two
  * must never be the same string.
  */
-const MARKER_PATTERN = /<([a-z]+)((?:\s+[^>]*?)?\sdata-embed-config='([^']*)'(?:\s+[^>]*?)?)\s*>([\s\S]*?)<\/\1>/gid;
+const MARKER_PATTERN = /<([a-z][a-z0-9-]*)((?:\s+[^>]*?)?\sdata-embed-config='([^']*)'(?:\s+[^>]*?)?)\s*>/gid;
 
 /** Every character of `text` replaced by a space, except newlines (left alone so a masked span
  * cannot change how many lines the surrounding string has). Same length in, same length out. */
@@ -173,8 +178,13 @@ function requireGroupRange(indices: RegExpIndicesArray, group: number): readonly
  * Validate one marker's raw attribute text. Split out from {@link scanEmbedMarkers} so the scan stays
  * a plain loop: all three rejection branches live here, and the caller only chooses which list to
  * push onto.
+ *
+ * EXPORTED (2026-09-23, Bug A / interactive-bugs plan Slice A1) so a consumer that only has the raw
+ * `data-embed-config` string in hand — the admin's canvas placeholder describer, which reads an
+ * already-authored DOM attribute rather than re-running {@link scanEmbedMarkers} — can apply the exact
+ * same parse-and-reject rule `scanEmbedMarkers` itself uses, instead of growing its own copy of it.
  */
-function parseMarkerConfig(raw: string): { config: Record<string, unknown> } | { problem: EmbedMarkerProblem } {
+export function parseEmbedMarkerConfig(raw: string): { config: Record<string, unknown> } | { problem: EmbedMarkerProblem } {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -191,14 +201,148 @@ function parseMarkerConfig(raw: string): { config: Record<string, unknown> } | {
   return { config };
 }
 
+/** A tag token's `[start, end)` span in the masked html — from its `<` through its first `>`. */
+type TagSpan = readonly [number, number];
+
+/**
+ * Every `<tagName`/`</tagName` token in `masked` from `fromIndex` onward, in document order. The
+ * boundary lookahead (`[\s/>]`) stops `<my-card` matching a longer name like `<my-card-extra`; each
+ * token ends at its first `>`, and the scan resumes there, so a token's own attribute text is never
+ * re-read as another token. Stops at a trailing malformed tag with no `>` at all.
+ *
+ * Runs against the MASKED copy only, so a tag written inside a comment or a `<script>`/`<style>`
+ * element's raw text (already blanked by {@link maskNonRenderableRegions}) is invisible here,
+ * exactly as it is invisible to {@link MARKER_PATTERN} itself.
+ *
+ * @complexity O(n) over the remaining length of `masked`.
+ */
+function* tagTokens(masked: string, tagName: string, fromIndex: number): Generator<{ readonly isClose: boolean; readonly span: TagSpan }> {
+  const token = new RegExp(`<(/?)${tagName}(?=[\\s/>])`, "gi");
+  token.lastIndex = fromIndex;
+  for (let match = token.exec(masked); match !== null; match = token.exec(masked)) {
+    const closeAngle = masked.indexOf(">", match.index);
+    if (closeAngle === -1) return;
+    yield { isClose: match[1] === "/", span: [match.index, closeAngle + 1] };
+    token.lastIndex = closeAngle + 1;
+  }
+}
+
+/**
+ * The depth-balanced close for the open tag whose match ended at `fromIndex`, by counting
+ * {@link tagTokens} from there: `<div><div>…</div></div>` closes at the tag that actually balances the
+ * one already open, not at the first `</div>` found. Falls back to the first close found when the
+ * region never rebalances (a genuinely unclosed inner tag) — the result the old backreferenced pattern
+ * produced, so malformed markup degrades as it did before. `null` when there is no close at all.
+ *
+ * Only {@link findBalancedClose}'s fallback for an open tag {@link indexTagTokens} tokenized
+ * differently (its JSON config holds a `>`); every other lookup is answered from that index.
+ *
+ * @complexity O(n) over the remaining length of `masked`.
+ */
+function scanForBalancedClose(masked: string, tagName: string, fromIndex: number): TagSpan | null {
+  let depth = 1;
+  let firstClose: TagSpan | null = null;
+  for (const { isClose, span } of tagTokens(masked, tagName, fromIndex)) {
+    if (!isClose) {
+      depth += 1;
+      continue;
+    }
+    firstClose ??= span;
+    depth -= 1;
+    if (depth === 0) return span;
+  }
+  return firstClose;
+}
+
+/** One tag name's tokens over the whole masked html, paired once with a stack. */
+interface TagTokenIndex {
+  /** Each open token's start → the span of the close that balances it, or `null` if none does. */
+  readonly partners: ReadonlyMap<number, TagSpan | null>;
+  /** Every close token's span, in document order (so sorted by start). */
+  readonly closes: readonly TagSpan[];
+}
+
+/**
+ * Pairs every `<tagName`/`</tagName` token in `masked` in ONE pass. Stack pairing gives each open the
+ * same close {@link scanForBalancedClose}'s depth count from that open would find (both match a close
+ * with the nearest still-open tag), but for every open at once — so a page of k unbalanced markers
+ * costs O(n), not the O(k·n) of rescanning to the end of the document once per marker.
+ *
+ * @complexity O(n) time, O(t) space for t tokens.
+ */
+function indexTagTokens(masked: string, tagName: string): TagTokenIndex {
+  const partners = new Map<number, TagSpan | null>();
+  const closes: TagSpan[] = [];
+  const openStarts: number[] = [];
+  for (const { isClose, span } of tagTokens(masked, tagName, 0)) {
+    if (!isClose) {
+      partners.set(span[0], null);
+      openStarts.push(span[0]);
+      continue;
+    }
+    closes.push(span);
+    const opener = openStarts.pop();
+    if (opener !== undefined) partners.set(opener, span);
+  }
+  return { partners, closes };
+}
+
+/** The first span in `closes` (sorted by start) starting at or after `fromIndex`, or `null`.
+ * @complexity O(log c) — binary search. */
+function firstCloseFrom(closes: readonly TagSpan[], fromIndex: number): TagSpan | null {
+  let low = 0;
+  let high = closes.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (closes[mid][0] < fromIndex) low = mid + 1;
+    else high = mid;
+  }
+  return closes[low] ?? null;
+}
+
+/**
+ * The `[start, end)` span (in `masked`) of the close tag that balances the marker open tag spanning
+ * `[openStart, openEnd)` — see {@link scanForBalancedClose} for the balancing and first-close
+ * fallback rules — or `null` when no close exists at all (a void element such as `<img>`, or an
+ * unclosed marker): the caller then treats the open tag alone as the whole marker, rather than
+ * letting it swallow the rest of the document.
+ *
+ * Answers from a per-tag-name {@link indexTagTokens} built once per scan and kept in `cache`. When
+ * that index tokenized this open tag differently from the marker pattern (the index ends a tag at its
+ * first `>`, and a `>` inside the JSON config ends it early), it falls back to the exact linear count.
+ *
+ * @complexity O(log c) amortized once the tag name's O(n) index exists; O(n) on the fallback.
+ */
+function findBalancedClose(
+  masked: string,
+  tag: { readonly name: string; readonly openStart: number; readonly openEnd: number },
+  cache: Map<string, TagTokenIndex>,
+): TagSpan | null {
+  const key = tag.name.toLowerCase();
+  let index = cache.get(key);
+  if (index === undefined) {
+    index = indexTagTokens(masked, key);
+    cache.set(key, index);
+  }
+  const partner = index.partners.get(tag.openStart);
+  const aligned = partner !== undefined && masked.indexOf(">", tag.openStart) + 1 === tag.openEnd;
+  if (!aligned) return scanForBalancedClose(masked, key, tag.openEnd);
+  return partner ?? firstCloseFrom(index.closes, tag.openEnd);
+}
+
 /**
  * Locate and parse every embed marker in `html`. Pure; allocates one result per marker.
  *
  * Scans {@link maskNonRenderableRegions}'s masked copy so a marker sitting inside an HTML comment or
- * a `<script>`/`<style>` element's raw text is never matched, but every field on the resulting
- * {@link EmbedMarker} (`whole`, `tag`, `attrs`, `inner`, the parsed config) is read back out of the
- * ORIGINAL `html` at that match's own offsets — masking only decides which spans are eligible to be
- * a marker, it must never change what an eligible marker's own fields report.
+ * a `<script>`/`<style>` element's raw text is never matched, and so tags inside either are invisible
+ * to {@link findBalancedClose}'s depth count too. Every field on the resulting {@link EmbedMarker}
+ * (`whole`, `tag`, `attrs`, `inner`, the parsed config) is read back out of the ORIGINAL `html` at
+ * that match's own offsets — masking only decides which spans are eligible to be a marker or to count
+ * toward a close tag's depth, it must never change what an eligible marker's own fields report.
+ *
+ * Uses a private copy of {@link MARKER_PATTERN} (same source/flags) for the `exec` loop below, rather
+ * than mutating the shared module-level regex's `lastIndex` directly — this function is PURE, and a
+ * shared mutable scan cursor would corrupt a reentrant or recursive call.
  */
 export function scanEmbedMarkers(html: string): ScanEmbedMarkersResult {
   const markers: EmbedMarker[] = [];
@@ -206,22 +350,30 @@ export function scanEmbedMarkers(html: string): ScanEmbedMarkersResult {
   let occurrence = 0;
 
   const masked = maskNonRenderableRegions(html);
-  for (const match of masked.matchAll(MARKER_PATTERN)) {
+  const pattern = new RegExp(MARKER_PATTERN.source, MARKER_PATTERN.flags);
+  const closeIndexCache = new Map<string, TagTokenIndex>();
+  for (let match = pattern.exec(masked); match !== null; match = pattern.exec(masked)) {
     occurrence += 1;
-    const indices = (match as RegExpMatchArray & { indices: RegExpIndicesArray }).indices;
-    const [wholeStart, wholeEnd] = requireGroupRange(indices, 0);
+    const indices = (match as RegExpExecArray & { indices: RegExpIndicesArray }).indices;
+    const [wholeStart, openTagEnd] = requireGroupRange(indices, 0);
     const tagRange = requireGroupRange(indices, 1);
     const attrsRange = requireGroupRange(indices, 2);
     const rawRange = requireGroupRange(indices, 3);
-    const innerRange = requireGroupRange(indices, 4);
+    const tag = html.slice(...tagRange);
+
+    // No close at all (a void `<img>` marker): the open tag alone is the whole marker, inner empty.
+    const [closeStart, closeEnd] = findBalancedClose(masked, { name: tag, openStart: wholeStart, openEnd: openTagEnd }, closeIndexCache) ?? [
+      openTagEnd,
+      openTagEnd,
+    ];
+    pattern.lastIndex = closeEnd; // resume past this marker's whole balanced span, never re-entering it
 
     const index = wholeStart;
-    const whole = html.slice(wholeStart, wholeEnd);
-    const tag = html.slice(...tagRange);
+    const whole = html.slice(wholeStart, closeEnd);
     const attrs = html.slice(...attrsRange);
     const raw = html.slice(...rawRange);
-    const inner = html.slice(...innerRange);
-    const result = parseMarkerConfig(raw);
+    const inner = html.slice(openTagEnd, closeStart);
+    const result = parseEmbedMarkerConfig(raw);
 
     if ("problem" in result) {
       rejected.push({ problem: result.problem, occurrence, index });
@@ -288,6 +440,117 @@ export const PARTIAL_MARKER_TYPE = "partial";
  * before it reaches the bounded repo query that feeds this marker.
  */
 export const POST_PREVIEWS_MARKER_TYPE = "post-previews";
+
+/**
+ * The collection marker type (2026-09-23) — a theme/page marker that renders a bounded, filtered,
+ * sorted list of entries from one custom content type wherever it appears. Same ownership shape as
+ * {@link MENU_MARKER_TYPE}/{@link PARTIAL_MARKER_TYPE}/{@link POST_PREVIEWS_MARKER_TYPE} immediately
+ * above: resolved end-to-end by `features/theme/static-render.ts`'s `injectCollectionEmbeds`, never
+ * registered in `widgets/resolver-service.ts`'s `HTML_EMBED_RESOLVERS` — see that file's
+ * `THEME_OWNED_MARKER_TYPES`, which carries a matching literal entry for the same disclosed
+ * "duplicated, not imported" reason its own doc gives for the other three.
+ *
+ * Config shape (validated by `entries/public-list.ts`'s `parseCollectionListConfig`, not by this
+ * module): `{"type":"collection","id":"recipe", …}` (`typeKey` accepted as an alias) plus the type's own filter/sort/limit/layout
+ * keys. Unlike {@link POST_PREVIEWS_MARKER_TYPE}, a resolved collection marker's wrapper is stripped
+ * of `data-embed-config` on the hit path ({@link withInnerContentFinal}) so a later re-scan of the
+ * same output can never rediscover and re-resolve it.
+ */
+export const COLLECTION_MARKER_TYPE = "collection";
+
+/**
+ * The longest a target value ({@link embedMarkerTarget}'s `id`/`slug`/`typeKey`) may be before it
+ * counts as absent rather than a usable reference. A duplicate of `features/widgets/html-embeds.ts`'s
+ * `MAX_EMBED_ID_LENGTH` (same number, same reasoning: a bound too long to safely carry into a
+ * `Map`/`Set` key or an `entry_refs` row), not a shared import — this module stays import-free (see
+ * {@link maskNonRenderableRegions}'s file header and `marker-target-parity.unit.test.ts`'s boundary
+ * assertion), the same "duplicated fact, disclosed in a comment" tradeoff {@link MENU_MARKER_TYPE} and
+ * {@link PARTIAL_MARKER_TYPE} already document for their own server-side twins.
+ */
+const MAX_TARGET_VALUE_LENGTH = 200;
+
+/**
+ * One marker type's `data-embed-config` keys that can name its resolution target, in the exact
+ * precedence order the server tries them — `embedMarkerTarget` returns the FIRST of these keys with a
+ * usable string value. This is the "which key names the target" rule Bug A's root cause report
+ * (2026-09-23 interactive-bugs plan) found spread across four different resolvers
+ * (`resolver-service.ts`'s widget/media/post/content, `routes/site/pages.ts`'s collection) with no
+ * single shared table — the admin's own placeholder describer could not reuse it because nothing here
+ * exposed it. Hoisting it as data (not a switch statement) is what lets both the server's own resolvers
+ * and the admin's UI-only describer read the identical precedence rule.
+ *
+ * - `widget`/`media`/`post`/`content`: `id`, else `slug` — the four types registered in
+ *   `resolver-service.ts`'s `HTML_EMBED_RESOLVERS` (see `marker-target-parity.unit.test.ts`, which fails
+ *   loudly if a future registered type is added here without `"slug"`).
+ * - {@link COLLECTION_MARKER_TYPE}: `id`, else `typeKey` — `routes/site/pages.ts`'s
+ *   `collectionMarkerTypeKey` tries `config.id` before `config.typeKey`; `slug` is never consulted.
+ * - {@link MENU_MARKER_TYPE} / {@link PARTIAL_MARKER_TYPE}: `id` only — `static-render.ts` resolves
+ *   both purely by id.
+ * - {@link POST_PREVIEWS_MARKER_TYPE}: no keys at all — this marker needs no target
+ *   ({@link embedMarkerTarget} reports that as its own `{ key: "none" }` outcome, never `undefined`,
+ *   which means "target missing").
+ *
+ * An unknown type (not a key of this table) is not a member of it; {@link embedMarkerTarget} falls back
+ * to `["id"]` for that case rather than treating an unrecognized type as needing no target — a display
+ * must never claim a slug resolves for a type no resolver has ever registered.
+ */
+export const EMBED_MARKER_TARGET_KEYS: Readonly<Record<string, readonly ("id" | "slug" | "typeKey")[]>> = {
+  widget: ["id", "slug"],
+  media: ["id", "slug"],
+  post: ["id", "slug"],
+  content: ["id", "slug"],
+  [COLLECTION_MARKER_TYPE]: ["id", "typeKey"],
+  [MENU_MARKER_TYPE]: ["id"],
+  [PARTIAL_MARKER_TYPE]: ["id"],
+  [POST_PREVIEWS_MARKER_TYPE]: [],
+};
+
+/** The default target-key list for a type absent from {@link EMBED_MARKER_TARGET_KEYS} — an unknown
+ *  or typo'd type is assumed id-addressable like most types, but never slug-addressable: no resolver
+ *  has ever registered to read a slug for it, so claiming one would resolve is always wrong. */
+const UNKNOWN_TYPE_TARGET_KEYS: readonly ("id" | "slug" | "typeKey")[] = ["id"];
+
+/**
+ * One marker's resolved target, from {@link embedMarkerTarget}: either a key/value pair naming what
+ * the marker points at, or the `"none"` marker for a type that needs no target at all. Kept distinct
+ * from `undefined` (target missing) — see {@link embedMarkerTarget}'s own doc.
+ */
+export type EmbedMarkerTarget = { readonly key: "id" | "slug" | "typeKey"; readonly value: string } | { readonly key: "none" };
+
+/** `value` trimmed down to a usable target string, or `undefined` if it is not a non-empty string of
+ *  at most {@link MAX_TARGET_VALUE_LENGTH} characters — the same absent-vs-present rule
+ *  `features/widgets/html-embeds.ts`'s `normalizeEmbedId`/`normalizeEmbedSlug` apply to their own
+ *  config reads. @complexity O(1). */
+function normalizeTargetValue(value: unknown): string | undefined {
+  if (typeof value !== "string" || value.length === 0 || value.length > MAX_TARGET_VALUE_LENGTH) return undefined;
+  return value;
+}
+
+/**
+ * Which `data-embed-config` key names `type`'s resolution target, and that key's value, per
+ * {@link EMBED_MARKER_TARGET_KEYS}'s precedence order. Three distinct outcomes:
+ *
+ * - `{ key, value }` — the first target key present with a usable string value.
+ * - `{ key: "none" }` — this type ({@link POST_PREVIEWS_MARKER_TYPE}) needs no target; a caller must
+ *   never read this as "target missing".
+ * - `undefined` — the type has one or more target keys, but the marker's config supplies none of them
+ *   (or only with an unusable value per {@link normalizeTargetValue}) — "target missing".
+ *
+ * `type` is compared lower-cased, matching `toEmbedRef`'s own `marker.type.toLowerCase()` in
+ * `resolver-service.ts` — a hand-authored `"Widget"` must resolve exactly as `"widget"` does.
+ *
+ * @complexity O(k) in the number of candidate keys for `type` (at most 2 today) — independent of the
+ * surrounding document's size.
+ */
+export function embedMarkerTarget(type: string, config: Readonly<Record<string, unknown>>): EmbedMarkerTarget | undefined {
+  const keys = EMBED_MARKER_TARGET_KEYS[type.toLowerCase()] ?? UNKNOWN_TYPE_TARGET_KEYS;
+  if (keys.length === 0) return { key: "none" };
+  for (const key of keys) {
+    const value = normalizeTargetValue(config[key]);
+    if (value !== undefined) return { key, value };
+  }
+  return undefined;
+}
 
 /**
  * Rebuild a marker's element around new inner content, keeping its own tag and every authored

@@ -74,6 +74,7 @@ function controller(overrides: Partial<PostEditorController> = {}): PostEditorCo
     togglePreviewExpanded: vi.fn(),
     message: null,
     error: null,
+    saving: false,
     confirmingDelete: false,
     setConfirmingDelete,
     deleting: false,
@@ -284,7 +285,15 @@ describe("the fullscreen control is retrievable by the words anyone would reach 
   it("query 'preview' reaches the Preview TAB first and the fullscreen control second", async () => {
     const { container } = renderPostEditor({ view: "preview", previewExpanded: false });
     const { elements } = await find(container, "preview");
-    expect(elements.map((element) => element.handle)).toEqual(["post-view-preview", "post-preview-expand"]);
+    // The Preview-tab width buttons (2026-09-22, "Preview at Mobile width") sit between the two in
+    // DOM order — they are genuinely preview controls, so matching "preview" is correct.
+    expect(elements.map((element) => element.handle)).toEqual([
+      "post-view-preview",
+      "post-preview-width-desktop",
+      "post-preview-width-tablet",
+      "post-preview-width-mobile",
+      "post-preview-expand",
+    ]);
   });
 
   /**

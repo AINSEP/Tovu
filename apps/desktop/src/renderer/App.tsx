@@ -660,7 +660,7 @@ function SiteWorkspace({
               onClick={() => workspace.selectView(option)}
               aria-pressed={option === workspace.surface}
             >
-              {option === 'admin' ? 'View admin' : 'View site'}
+              {option === 'admin' ? 'Admin' : 'Site'}
             </button>
           ))}
         </div>

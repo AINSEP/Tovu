@@ -27,6 +27,7 @@ const PLUGIN_ERROR_MESSAGES: ReadonlyMap<string, string> = new Map([
   ["PLUGIN_INCOMPATIBLE", "This plugin requires a different SDK version."],
   ["PLUGIN_NOT_UNINSTALLABLE", "This plugin ships with Tovu and cannot be removed."],
   ["PLUGIN_ENABLED", "This plugin is enabled and must be disabled everywhere before it can be removed."],
+  ["PLUGIN_IN_TRASH", "This plugin is already in the Trash. Restore or delete it there first."],
   ["PLUGIN_ID_INVALID", "This plugin's id is invalid."],
 ]);
 
@@ -162,23 +163,14 @@ export interface PluginRemoveConfirmCopy {
   body: string;
 }
 
-/**
- * Names the exact plugin in the title (an operator managing several installed plugins must see
- * WHICH one they are about to lose), and states plainly in the body what Remove actually does here:
- * unlike `AgentPluginDisableConfirmDialog`'s "Disable" (a reversible state flip — nothing on this
- * screen can genuinely delete an Agent Plugin), this button drives the real
- * `DELETE /workspaces/:id/plugins/:pluginId` route (`uninstallPlugin()`,
- * `features/plugin-runtime/uninstall.ts`) — it deletes the plugin's on-disk artifact outright, not
- * a reversible flag. The body says so in the owner's own required terms: this deletes the plugin's
- * files from this site, cannot be undone, and reinstalling starts from scratch.
- *
- * @complexity Time/space: O(1) — no iteration.
- */
-export function buildPluginRemoveConfirmCopy(params: { name: string }): PluginRemoveConfirmCopy {
+/** Names the plugin, the site-wide effect, and the 60-day restore window. @complexity O(1). */
+export function buildPluginRemoveConfirmCopy(
+  params: { name: string },
+  translate: Translate = (key) => key,
+): PluginRemoveConfirmCopy {
   return {
-    title: `Remove "${params.name}" from this site?`,
-    body:
-      "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.",
+    title: `Move "${params.name}" to trash?`,
+    body: translate("This removes it for all workspaces on this site. You can restore it from the Trash for 60 days."),
   };
 }
 
@@ -340,10 +332,10 @@ export interface AgentPluginDisableConfirmCopy {
  *
  * `variant` is the SAME underlying operation (`AGENT_PLUGIN_SET_ENABLED` with `enabled: false`)
  * asked for from two different controls, added when Downloaded's row lost its Enable/Disable switch
- * in favor of a single Remove/Enable action (2026-09-09 — see `AgentPlugins.tsx`'s own header):
+ * in favor of a single Turn off/Enable action (2026-09-09 — see `AgentPlugins.tsx`'s own header):
  *   - `"disable"` — Installed tab's switch. Confirm reads "Disable"; the row it guards already says
  *     "Enabled"/"Disabled", so naming the same verb keeps the dialog consistent with the control.
- *   - `"remove"` — Downloaded tab's action button. Confirm reads "Remove" to match that button, but
+ *   - `"remove"` — Downloaded tab's action button. Confirm reads "Turn off" to match that button, but
  *     the body's bundled-package sentence is reused VERBATIM across both — the fact that this can't
  *     actually delete anything doesn't change based on which control asked.
  *
@@ -358,32 +350,32 @@ export interface AgentPluginDisableConfirmCopy {
  *
  * @complexity Time/space: O(1) — one ternary, no iteration.
  */
-export function buildAgentPluginDisableConfirmCopy(params: {
-  name: string;
-  variant: "disable" | "remove";
-}): AgentPluginDisableConfirmCopy {
+export function buildAgentPluginDisableConfirmCopy(
+  params: { name: string; variant: "disable" | "remove" },
+  translate: Translate = (key) => key,
+): AgentPluginDisableConfirmCopy {
   const bundledFact = "This package ships with Tovu — it can't be deleted outright, only turned off.";
   if (params.variant === "remove") {
     return {
-      title: `Remove ${params.name}?`,
+      title: `Turn off ${params.name}?`,
       body:
-        "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. " +
-        `It stays right here on Downloaded and can be enabled again any time. ${bundledFact}`,
+        translate("This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. ") +
+        `${translate("It stays right here on Downloaded and can be enabled again any time.")} ${translate(bundledFact)}`,
     };
   }
   return {
     title: `Disable ${params.name} for this site?`,
-    body: `Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again. ${bundledFact}`,
+    body: `${translate("Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.")} ${translate(bundledFact)}`,
   };
 }
 
 /**
  * The Downloaded tab's own remove/enable action button `aria-label` — same reasoning as
  * {@link agentPluginToggleAriaLabel} for the Installed tab's switch: every row's button reads
- * "Remove"/"Enable" identically, so the plugin's own name has to be in the accessible name for
+ * "Turn off"/"Enable" identically, so the plugin's own name has to be in the accessible name for
  * anything reading the accessibility tree to tell rows apart.
  *
- * Reads "Remove" for a currently-enabled row (Downloaded's stand-in for the switch's "on" state —
+ * Reads "Turn off" for a currently-enabled row (Downloaded's stand-in for the switch's "on" state —
  * see `AgentPlugins.tsx`'s own header for why Downloaded dropped the switch) and "Enable" for a
  * currently-disabled one, mirroring {@link agentPluginToggleAriaLabel}'s own verb choice exactly so
  * the two tabs describe the same underlying states in the same words.
@@ -391,7 +383,7 @@ export function buildAgentPluginDisableConfirmCopy(params: {
  * @complexity O(1).
  */
 export function agentPluginRemoveOrEnableAriaLabel(plugin: { pluginId: string; enabled: boolean }, locale: string): string {
-  const verb = plugin.enabled ? t(locale, "Remove") : t(locale, "Enable");
+  const verb = plugin.enabled ? t(locale, "Turn off") : t(locale, "Enable");
   return `${verb} ${humanizeAgentPluginId(plugin.pluginId)}`;
 }
 

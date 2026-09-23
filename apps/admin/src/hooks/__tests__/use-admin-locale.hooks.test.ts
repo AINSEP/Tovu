@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { resetSettingsRefreshBus } from "../../lib/settings-refresh-bus";
 import { createFakeAdminLocalePort, DEFAULT_LOCALE } from "../admin-locale-dependencies.hooks";
+import type { AdminLocalePort } from "../admin-locale-port.hooks";
 import { useAdminLocale, useWiredAdminLocale } from "../use-admin-locale.hooks";
 
 /**
@@ -90,6 +91,51 @@ describe("useAdminLocale — mount → unmount → mount (StrictMode shape)", ()
     // StrictMode's dev-only mount→unmount→mount would expose.
     act(() => port.publishLocaleChange("ja"));
     await waitFor(() => expect(second.result.current).toBe("ja"));
+  });
+});
+
+/**
+ * F3 (plan-components.md, 2026-09-20): `fetchLocale` had no ordering between successive calls —
+ * every refresh started another unordered load, and whichever one SETTLED last won, regardless of
+ * which one was started last. A hand-built port (not `createFakeAdminLocalePort`, whose
+ * `loadLanguage` resolves synchronously) is needed here so two loads can be left pending at once.
+ */
+describe("useAdminLocale — an older read never overwrites a newer one", () => {
+  it("a refresh's load that resolves LAST does not win if it was not the newest refresh", async () => {
+    const loads: Array<(locale: string) => void> = [];
+    let listener: (() => void) | null = null;
+    const port: AdminLocalePort = {
+      loadLanguage() {
+        return new Promise<string>((resolve) => {
+          loads.push(resolve);
+        });
+      },
+      subscribeToSettingsRefresh(l) {
+        listener = l;
+        return () => {
+          listener = null;
+        };
+      },
+    };
+    const { result } = renderHook(() => useAdminLocale(port));
+    await waitFor(() => expect(loads.length).toBe(1)); // the mount load, left pending
+
+    // A newer refresh starts a second, also-pending load.
+    act(() => listener?.());
+    await waitFor(() => expect(loads.length).toBe(2));
+
+    // The NEWER load (load #2) settles first.
+    loads[1]!("es");
+    await waitFor(() => expect(result.current).toBe("es"));
+
+    // The OLDER load (load #1, the original mount fetch) settles last, and must not win just
+    // because it happened to resolve after the newer one.
+    await act(async () => {
+      loads[0]!("en");
+      await Promise.resolve();
+    });
+
+    expect(result.current).toBe("es");
   });
 });
 
