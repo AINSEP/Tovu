@@ -17,9 +17,10 @@ name: Desktop Release
 # `apps/desktop/RELEASING.md` ("How a release is cut") for the full sequence, including why the
 # stable `releases/latest/download/...` URLs stay 404 until that publish click happens.
 #
-# win-x64 matrix row is commented out until S6 (Windows signing not wired up yet). Until then the
-# `release` job's fallback `gh release create` line below still names
-# `dist/Tovu-windows-x64-setup.exe`, unchanged from the design doc — see the TODO next to it.
+# win-x64 (S6): unsigned. Windows code signing is not wired up (no CSC_LINK/CSC_KEY_PASSWORD for
+# this OS — see the `electron-builder` step's env below), and the draft release's notes say so.
+# `electron-builder.yml`'s `nsis.artifactName` resolves to `Tovu-windows-x64-setup.exe`, matching
+# both this matrix row's `out:` and the `release` job's fallback `gh release create` line.
 #
 # `uses:` steps are pinned to commit SHAs (resolved from each action's `v4` tag on 2026-09-23),
 # not floating version tags.
@@ -56,8 +57,9 @@ jobs:
         include:
           - { id: mac-arm64, os: macos-15,       arch: arm64, eb: "--mac --arm64", out: "Tovu-mac-arm64.dmg",       asar: "release/mac-arm64/Tovu.app/Contents/Resources/app.asar", app: "release/mac-arm64/Tovu.app", lipo: arm64 }
           - { id: mac-x64,   os: macos-15-intel, arch: x64,   eb: "--mac --x64",   out: "Tovu-mac-x64.dmg",         asar: "release/mac/Tovu.app/Contents/Resources/app.asar",       app: "release/mac/Tovu.app",       lipo: x86_64 }
-          # win-x64 disabled until S6 — Windows signing not wired up yet.
-          # - { id: win-x64,   os: windows-2025,   arch: x64,   eb: "--win --x64",   out: "Tovu-windows-x64-setup.exe", asar: "release/win-unpacked/resources/app.asar" }
+          # win-x64 is unsigned (no CSC_LINK/CSC_KEY_PASSWORD on Windows — see the `electron-builder`
+          # step's env below); the draft release's notes already say so.
+          - { id: win-x64,   os: windows-2025,   arch: x64,   eb: "--win --x64",   out: "Tovu-windows-x64-setup.exe", asar: "release/win-unpacked/resources/app.asar" }
     runs-on: ${{ matrix.os }}
     environment: desktop-release           # secrets live here; optional required reviewer
     defaults: { run: { shell: bash } }
@@ -128,7 +130,6 @@ jobs:
       - if: runner.os == 'Windows'
         name: verify-package on the SHIPPED installer
         working-directory: apps/desktop
-        # Currently unreachable: the win-x64 matrix row above is commented out until S6.
         run: |
           7z x "release/${{ matrix.out }}" -o"$RUNNER_TEMP/nsis" -y
           7z x "$RUNNER_TEMP/nsis/\$PLUGINSDIR/app-64.7z" -o"$RUNNER_TEMP/app" -y
@@ -148,9 +149,8 @@ jobs:
         with: { path: dist, merge-multiple: true }
       - name: Draft release
         env: { GH_TOKEN: "${{ github.token }}", GH_REPO: "${{ github.repository }}" }
-        # TODO(S6): dist/Tovu-windows-x64-setup.exe won't exist while the win-x64 matrix row
-        # above stays commented out — this fallback `gh release create` line will fail on a
-        # brand-new tag until S6 restores that row. Left exactly as the design doc (§4) writes it.
+        # dist/Tovu-windows-x64-setup.exe now exists — the win-x64 matrix row builds it and
+        # electron-builder.yml's nsis.artifactName names it exactly this.
         run: |
           cat dist/*.sha256 > dist/SHA256SUMS.txt
           if gh release view "$TAG" >/dev/null 2>&1; then

@@ -149,3 +149,22 @@ dmg:
   # Versionless and platform-tagged so the GitHub release's stable `latest/download/<name>` URL
   # never changes release to release: `Tovu-mac-arm64.dmg` / `Tovu-mac-x64.dmg`.
   artifactName: "Tovu-mac-${arch}.${ext}"
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]            # Windows-on-ARM runs x64 under emulation; no arm64 build in v1
+  icon: build/icon.png       # 512x512 (checked), >= 256 required
+
+nsis:
+  # Resolves to `Tovu-windows-x64-setup.exe` — the exact name both the workflow's `win-x64` matrix
+  # row (`out:`) and the `release` job's fallback `gh release create` line already name.
+  artifactName: "Tovu-windows-${arch}-setup.${ext}"
+  oneClick: true
+  perMachine: false          # per-user install in %LOCALAPPDATA%\Programs, no UAC prompt
+  allowElevation: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Tovu
+  deleteAppDataOnUninstall: false
+  differentialPackage: false # no auto-updater, so no .blockmap
