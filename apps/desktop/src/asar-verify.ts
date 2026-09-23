@@ -189,7 +189,16 @@ export function verifyAsarAgainstSource(asarPath: string, sourceRoot: string, pr
     // node instead of the real root — silently "not found" for every nested path. This is the
     // opposite convention from `listPackage()`'s OUTPUT, which prefixes every entry with "/" for
     // display; that display format is not the input format `extractFile` expects.
-    const shippedBuf = extractFile(asarPath, relPath);
+    let shippedBuf: Buffer;
+    try {
+      shippedBuf = extractFile(asarPath, toArchiveEntryPath(relPath));
+    } catch (error) {
+      mismatches.push({
+        relPath,
+        reason: `present in the asar header but extractFile could not read it (${(error as Error).message})`,
+      });
+      continue;
+    }
     if (!sourceBuf.equals(shippedBuf)) {
       mismatches.push({
         relPath,
@@ -199,6 +208,38 @@ export function verifyAsarAgainstSource(asarPath: string, sourceRoot: string, pr
   }
 
   return { checkedCount: relPaths.length, mismatches };
+}
+
+/**
+ * `checkedCount === 0` is never a clean pass — the walk found nothing to compare at all, which
+ * almost always means a path-separator mismatch (see {@link toArchiveEntryPath}) or a stale
+ * `VERIFIED_PREFIXES` entry hid every real file from the check before a single byte was compared.
+ * Exported so `scripts/verify-package.ts` can turn "verified nothing" into a hard `exit 1` instead
+ * of a false green, and so that decision — not the process exit itself — is unit-testable.
+ *
+ * @param checkedCount `verifyAsarAgainstSource`'s returned count.
+ * @complexity O(1).
+ */
+export function isEmptyVerification(checkedCount: number): boolean {
+  return checkedCount === 0;
+}
+
+/**
+ * Converts a POSIX-style archive-relative path (as {@link filesUnderPrefixes} always produces,
+ * e.g. `"src/sub/b.js"`) to the separator `extractFile` actually needs on this host.
+ * `@electron/asar`'s own `searchNodeFromDirectory` walks the parsed header tree by splitting the
+ * path it is given on the HOST OS's `path.sep` — so on win32, a `/`-joined relPath has no backslash
+ * to split on, is treated as a single segment name that does not exist at the archive root, and the
+ * lookup fails even though the entry is genuinely present in the header. Kept as a pure,
+ * injectable-separator function (rather than reading `path.sep` internally with no override) so the
+ * win32 branch is provable on any host OS, including this suite's macOS/Linux CI.
+ *
+ * @param relPath POSIX-style, e.g. `"src/sub/b.js"`.
+ * @param sep the separator to convert to; defaults to this host's real `path.sep`.
+ * @complexity O(n) in path length.
+ */
+export function toArchiveEntryPath(relPath: string, sep: string = path.sep): string {
+  return sep === "/" ? relPath : relPath.split("/").join(sep);
 }
 
 export type { AsarHeaderNode, AsarMismatch, AsarVerification };

@@ -24,11 +24,11 @@
  * Exit codes: 0 = every file under VERIFIED_PREFIXES is byte-identical to source.
  *             1 = a mismatch was found, or no app.asar could be located.
  */
-import { readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { VERIFIED_PREFIXES, formatMismatchReport, verifyAsarAgainstSource } from "../src/asar-verify.ts";
+import { VERIFIED_PREFIXES, formatMismatchReport, isEmptyVerification, verifyAsarAgainstSource } from "../src/asar-verify.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -54,9 +54,18 @@ function findAppBundles(dir: string): string[] {
 
 /**
  * The `app.asar` to verify: an explicit `--asar` wins (what a deliberate-corruption drill or a
- * one-off probe build uses); otherwise the most-recently-modified `*.app` under `release/`, since a
- * fresh `electron-builder` run is what just produced it and older probes or other arches may still
- * be sitting in the same output directory.
+ * one-off probe build uses); otherwise the most-recently-modified candidate found under `release/`,
+ * across BOTH packaged layouts electron-builder produces:
+ *   - macOS: any `.app` bundle under a `mac`-prefixed output directory, e.g.
+ *     `release/mac-arm64/Tovu.app/Contents/Resources/app.asar` — `findAppBundles` already walks the
+ *     whole tree, so `mac-arm64`, plain `mac`, or any other `mac`-prefixed directory is found with
+ *     no glob needed (NOTE: do not write a literal asterisk immediately followed by a slash in this
+ *     comment block — it closes the JSDoc block comment early and the rest parses as code).
+ *   - Windows: `release/win-unpacked/resources/app.asar` — `win-unpacked` has no `.app` bundle at
+ *     all, so it is checked for directly.
+ * A fresh `electron-builder` run is what just produced the newest one; older probes or other arches
+ * may still be sitting in the same output directory, so only the candidate's own `app.asar` mtime
+ * (not the bundle directory's) decides "newest" across the two shapes uniformly.
  *
  * @complexity O(n) in bundles found under `release/`.
  */
@@ -66,13 +75,19 @@ function resolveAsarPath(argv: string[]): string {
   if (flagAt !== -1 && argv[flagAt + 1]) return path.resolve(argv[flagAt + 1]!);
 
   const releaseDir = path.join(DESKTOP_ROOT, "release");
-  const bundles = findAppBundles(releaseDir);
-  if (bundles.length === 0) {
-    throw new Error(`verify-package: no *.app bundle found under ${releaseDir} — did electron-builder run?`);
+  const candidates = findAppBundles(releaseDir).map((bundle) => path.join(bundle, "Contents/Resources/app.asar"));
+  const winUnpackedAsar = path.join(releaseDir, "win-unpacked", "resources", "app.asar");
+  candidates.push(winUnpackedAsar);
+
+  const existing = candidates.filter((candidate) => existsSync(candidate));
+  if (existing.length === 0) {
+    throw new Error(
+      `verify-package: no app.asar found under ${releaseDir} (checked *.app bundles and win-unpacked) — did electron-builder run?`,
+    );
   }
-  bundles.sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs);
-  // `!`: `bundles.length === 0` above already threw, so index 0 exists.
-  return path.join(bundles[0]!, "Contents/Resources/app.asar");
+  existing.sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs);
+  // `!`: `existing.length === 0` above already threw, so index 0 exists.
+  return existing[0]!;
 }
 
 function main(): void {
@@ -89,6 +104,15 @@ function main(): void {
   process.stdout.write(`verify-package: checking ${asarPath} against source under ${VERIFIED_PREFIXES.join(", ")}\n`);
   const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, DESKTOP_ROOT, VERIFIED_PREFIXES);
   process.stdout.write(`verify-package: ${checkedCount} file(s) checked\n`);
+
+  if (isEmptyVerification(checkedCount)) {
+    process.stderr.write(
+      "verify-package: verified nothing — path-separator or prefix bug (see asar-verify.ts's " +
+        "toArchiveEntryPath doc comment); this is a failure, not a clean pass\n",
+    );
+    process.exit(1);
+    return;
+  }
 
   if (mismatches.length > 0) {
     process.stderr.write(`verify-package: ${formatMismatchReport(mismatches)}\n`);
