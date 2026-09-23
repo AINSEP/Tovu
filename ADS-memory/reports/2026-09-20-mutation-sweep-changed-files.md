@@ -239,7 +239,7 @@ mutation-sweep target was correctly restored. No stale lock files remain under `
 
 Sweep driver (bash 3.2-compatible; macOS has no `mapfile`, no `timeout(1)`):
 ```
-export TOVU_INTEGRATIONS_ROOT_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+export TOVU_INTEGRATIONS_ROOT_KEY=<redacted>
 unset TOVU_ADMIN_PASSWORD
 node development/scripts/mutation-sweep.mjs <file> [test...] --json --timeout=60   # initial sweep
 node development/scripts/mutation-sweep.mjs <file> [test...] --json --timeout=90   # confirmation reruns
