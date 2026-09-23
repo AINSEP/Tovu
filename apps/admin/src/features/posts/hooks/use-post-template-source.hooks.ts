@@ -44,22 +44,20 @@ export function templateAssetUrl(themeId: string, templateFilename: string, apiV
  * target (owner ask, 2026-09-22). The viewer stays read-only; this only ever points the operator at
  * Explore, which is where the real edit happens.
  *
- * Reuses `resolveThemeLayout` the same way {@link templateAssetUrl} does, so the two can never
- * resolve a different `pages`/`render/pages` folder for the same theme. Built with `URLSearchParams`
- * — matching `theme-explore-url.hooks.ts`'s own `writeThemeExploreSelectionToUrl` encoding, not a
- * hand-written template literal — so `pagesDir`'s `/` and anything unusual in `templateFilename`
- * round-trip through Explore's own `?file=` reader (`resolveThemeExploreSelectionValue`) the same way
- * a value Explore wrote itself would.
+ * Builds the short `?page=<label>` form Theme Explore documents and writes for an ordinary page
+ * (`theme-explore-url.hooks.ts`'s file header and `writeThemeExploreSelectionToUrl`), not the
+ * longer `?file=<full path>` form — every template this modal can show is itself a static-tier
+ * page template, so `resolveThemeExploreSelectionValue`'s label match (`kind === "page"`, basename
+ * minus `.html`) always resolves it without needing `pagesDir` at all. Built with `URLSearchParams`,
+ * matching that module's own encoding.
  *
  * @param themeId - The active theme id.
- * @param templateFilename - The selected template's filename.
- * @param apiVersion - The active theme's manifest `apiVersion` — see {@link templateAssetUrl}.
- * @returns A `/themes/explore?theme=...&file=...` route path.
+ * @param templateFilename - The selected template's filename (e.g. `posts-default.html`).
+ * @returns A `/themes/explore?theme=...&page=...` route path.
  * @complexity O(1).
  */
-export function templateEditUrl(themeId: string, templateFilename: string, apiVersion: 2 | undefined): string {
-  const { pagesDir } = resolveThemeLayout(apiVersion);
-  const params = new URLSearchParams({ theme: themeId, file: `${pagesDir}/${templateFilename}` });
+export function templateEditUrl(themeId: string, templateFilename: string): string {
+  const params = new URLSearchParams({ theme: themeId, page: templateFilename.replace(/\.html$/, "") });
   return `/themes/explore?${params.toString()}`;
 }
 

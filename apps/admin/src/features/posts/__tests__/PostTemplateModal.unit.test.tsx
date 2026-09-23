@@ -234,7 +234,7 @@ describe("Edit button (owner ask, 2026-09-22)", () => {
 
     await user.click(screen.getByRole("button", { name: "Edit" }));
 
-    expect(navigate).toHaveBeenCalledWith("/themes/explore?theme=basic&file=render%2Fpages%2Fposts-default.html");
+    expect(navigate).toHaveBeenCalledWith("/themes/explore?theme=basic&page=posts-default");
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

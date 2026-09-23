@@ -34,12 +34,13 @@ import { templateEditUrl, useWiredTemplateSource } from "./hooks/use-post-templa
  * "Edit" header button (owner ask, 2026-09-22): convenience-only navigation to the Theme Explore
  * screen with this same file preselected — the read-only viewer above is unchanged, this never
  * edits anything itself. The target URL is built by `templateEditUrl` (co-located with
- * `templateAssetUrl` in `use-post-template-source.hooks.ts`, same `pagesDir` resolution), rendered
- * into `PreviewModalShell`'s `headerExtras` slot so it lands left of the shell's own Close button
- * with no new chrome to build. Routed through this app's `navigate()` (not a plain `<a href>`) so
- * leaving the editor for Explore is a real SPA navigation, and gated by the same `confirmLeave`
- * `PostEditorHeader`'s back link already uses — an unsaved edit should not silently vanish just
- * because the operator left through this button instead of that one.
+ * `templateAssetUrl` in `use-post-template-source.hooks.ts`), the short `?page=<label>` form Theme
+ * Explore documents for a page, rendered into `PreviewModalShell`'s `headerExtras` slot so it lands
+ * left of the shell's own Close button with no new chrome to build. Routed through this app's
+ * `navigate()` (not a plain `<a href>`) so leaving the editor for Explore is a real SPA navigation,
+ * and gated by the same `confirmLeave` `PostEditorHeader`'s back link already uses — an unsaved
+ * edit should not silently vanish just because the operator left through this button instead of
+ * that one.
  */
 
 export interface PostTemplateModalProps {
@@ -90,7 +91,7 @@ export function PostTemplateModal({
   function goToTemplateInEditor() {
     if (!confirmLeave()) return;
     onClose();
-    navigate(templateEditUrl(themeId, templateFilename, themeApiVersion));
+    navigate(templateEditUrl(themeId, templateFilename));
   }
 
   let stageContent;
