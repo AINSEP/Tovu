@@ -111,7 +111,7 @@ export function Pages(props: PagesProps) {
     pendingDelete,
     setPendingDelete,
     createPage,
-    disablePage,
+    togglePagePublish,
     removePage,
     t,
     locale,
@@ -266,7 +266,7 @@ export function Pages(props: PagesProps) {
                         // Same `pageAdminPath` slug-vs-id reasoning as the Title column's own edit
                         // link above; `navigate` takes the bare route path directly.
                         onEdit: (p) => navigate(pageAdminPath(p)),
-                        onDisable: disablePage,
+                        onTogglePublish: togglePagePublish,
                         onDelete: setPendingDelete,
                       },
                       locale,

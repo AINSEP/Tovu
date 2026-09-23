@@ -21,7 +21,8 @@ import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.h
  * rendering one.
  *
  * Mirrors `features/posts/rules.ts` exactly, since `Pages.tsx` is `Posts.tsx`'s twin (same
- * `RowMenu`-building logic, same "Disable" omission rule) backed by the pages-filtered endpoints.
+ * `RowMenu`-building logic, same Publish/Unpublish status-flip rule) backed by the pages-filtered
+ * endpoints.
  * The bar for landing here is "does it compute something", not "is it rendered" — `pageRowMenuItems`
  * was a closure inside a `DataTable` cell, reachable only by rendering a table and opening a
  * popover, which is how its `page.status` conditional ended up permanently untested.
@@ -114,30 +115,40 @@ export function pageAdminPath(page: PageAdminHandle): string {
  *  shape as `posts/rules.ts`'s `PostRowMenuHandlers`. */
 export interface PageRowMenuHandlers {
   onEdit: (page: AdminPost) => void;
-  onDisable: (page: AdminPost) => void;
+  onTogglePublish: (page: AdminPost) => void;
   onDelete: (page: AdminPost) => void;
 }
 
 /**
  * The row-action menu for one page.
  *
- * The branch is the reason this is exported: **"Disable" is omitted entirely for a page that is
- * already a draft**, rather than rendered disabled — same deliberate choice as `posts/rules.ts`'s
- * `postRowMenuItems`, and a claim worth a test, which it cannot have while it is a closure inside a
- * `DataTable` cell.
+ * The branch is the reason this is exported: **the middle item's label and key flip with the row's
+ * own status** — "Unpublish" for a published page, "Publish" for a draft — same deliberate rename
+ * `posts/rules.ts`'s `postRowMenuItems` got (owner request, 2026-09-22), replacing the old rule
+ * that omitted the item entirely for a draft rather than rendering it disabled. See that function's
+ * own doc for the full "why" — a status-only payload sent by the old "Disable" item, always
+ * missing `title`/`slug`, was rejected by `PUT /posts/:id` with "title is required" (owner
+ * screenshot) before the row's status could ever change, and a draft page had no way to publish
+ * from this list at all.
+ *
+ * Both branches call the SAME handler — `onTogglePublish` reads `page.status` itself to decide
+ * which way to flip, so this menu builder does not need two callbacks for what is one reversible
+ * toggle.
  *
  * "Delete" is marked `destructive` and only OPENS the confirmation; the delete itself is
  * `usePages().removePage`, gated on `ConfirmDialog`.
  *
- * @complexity Time/space: O(1) — at most three entries, no iteration.
+ * @complexity Time/space: O(1) — exactly three entries, no iteration.
  * @overallScore 100
  */
 export function pageRowMenuItems(page: AdminPost, handlers: PageRowMenuHandlers, locale: string): RowMenuItem[] {
   const t = (key: string): string => translate(locale, key);
   const items: RowMenuItem[] = [{ key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit(page) }];
-  if (page.status === "published") {
-    items.push({ key: "disable", label: t("Disable"), onSelect: () => handlers.onDisable(page) });
-  }
+  items.push(
+    page.status === "published"
+      ? { key: "unpublish", label: t("Unpublish"), onSelect: () => handlers.onTogglePublish(page) }
+      : { key: "publish", label: t("Publish"), onSelect: () => handlers.onTogglePublish(page) }
+  );
   items.push({ key: "delete", label: t("Delete"), destructive: true, onSelect: () => handlers.onDelete(page) });
   return items;
 }

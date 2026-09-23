@@ -55,7 +55,7 @@ function post(overrides: Partial<AdminPost> = {}): AdminPost {
 }
 
 describe("postRowMenuItems", () => {
-  const handlers = { onEdit: vi.fn(), onDisable: vi.fn(), onDelete: vi.fn() };
+  const handlers = { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() };
 
   it("always includes Edit and Delete", () => {
     const items = postRowMenuItems(post({ status: "draft" }), handlers, "en");
@@ -64,45 +64,47 @@ describe("postRowMenuItems", () => {
     expect(keys).toContain("delete");
   });
 
-  it("offers Disable for a published post", () => {
+  it("offers Unpublish for a published post", () => {
     const items = postRowMenuItems(post({ status: "published" }), handlers, "en");
-    expect(items.map((i) => i.key)).toContain("disable");
+    expect(items.map((i) => i.key)).toContain("unpublish");
   });
 
-  it("omits Disable entirely for a draft post — not rendered disabled, not present at all", () => {
+  it("offers Publish for a draft post — the toggle flips rather than being omitted", () => {
     const items = postRowMenuItems(post({ status: "draft" }), handlers, "en");
-    expect(items.map((i) => i.key)).not.toContain("disable");
+    const keys = items.map((i) => i.key);
+    expect(keys).toContain("publish");
+    expect(keys).not.toContain("unpublish");
   });
 
-  it("Delete is marked destructive; Edit/Disable are not", () => {
+  it("Delete is marked destructive; Edit/Unpublish are not", () => {
     const items = postRowMenuItems(post({ status: "published" }), handlers, "en");
     expect(items.find((i) => i.key === "delete")?.destructive).toBe(true);
     expect(items.find((i) => i.key === "edit")?.destructive).toBeFalsy();
-    expect(items.find((i) => i.key === "disable")?.destructive).toBeFalsy();
+    expect(items.find((i) => i.key === "unpublish")?.destructive).toBeFalsy();
   });
 
-  it("preserves order: edit, [disable], delete", () => {
+  it("preserves order: edit, [unpublish|publish], delete", () => {
     const items = postRowMenuItems(post({ status: "published" }), handlers, "en");
-    expect(items.map((i) => i.key)).toEqual(["edit", "disable", "delete"]);
+    expect(items.map((i) => i.key)).toEqual(["edit", "unpublish", "delete"]);
   });
 
   it("each item's onSelect calls the matching handler with the post", () => {
     const onEdit = vi.fn();
-    const onDisable = vi.fn();
+    const onTogglePublish = vi.fn();
     const onDelete = vi.fn();
     const p = post({ status: "published" });
-    const items = postRowMenuItems(p, { onEdit, onDisable, onDelete }, "en");
+    const items = postRowMenuItems(p, { onEdit, onTogglePublish, onDelete }, "en");
     items.find((i) => i.key === "edit")!.onSelect();
-    items.find((i) => i.key === "disable")!.onSelect();
+    items.find((i) => i.key === "unpublish")!.onSelect();
     items.find((i) => i.key === "delete")!.onSelect();
     expect(onEdit).toHaveBeenCalledWith(p);
-    expect(onDisable).toHaveBeenCalledWith(p);
+    expect(onTogglePublish).toHaveBeenCalledWith(p);
     expect(onDelete).toHaveBeenCalledWith(p);
   });
 
   it("translates labels to Spanish when locale is es", () => {
     const items = postRowMenuItems(post({ status: "published" }), handlers, "es");
-    expect(items.map((i) => i.label)).toEqual(["Editar", "Desactivar", "Eliminar"]);
+    expect(items.map((i) => i.label)).toEqual(["Editar", "Anular publicación", "Eliminar"]);
   });
 });
 

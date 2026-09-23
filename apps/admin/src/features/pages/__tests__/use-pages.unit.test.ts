@@ -173,25 +173,56 @@ describe("createPage", () => {
   });
 });
 
-describe("disablePage", () => {
-  it("PATCHes status: draft AND expectedVersion for the given page id", async () => {
+describe("togglePagePublish", () => {
+  /**
+   * Regression for the reported bug (owner screenshots, 2026-09-22): clicking "Disable" in the row
+   * menu did nothing but show "title is required". Root cause — this action PATCHed
+   * `{ status: "draft", expectedVersion }` alone; `PUT /posts/:id`'s `validateUpdatePostInput`
+   * (`apps/website/src/features/post/post.ts`) treats a missing `title`/`slug` as `""` and rejects
+   * the request before ever reaching the version check. RED before the fix: this assertion failed
+   * because the body was `{ status: "draft", expectedVersion: PAGE.version }` with no
+   * `title`/`slug`/`bodyJson` at all.
+   */
+  it("PATCHes the row's own title/slug/bodyJson alongside status: draft AND expectedVersion, for a published row", async () => {
     const { result } = await renderLoaded();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...PAGE, status: "draft" } }));
 
     await act(async () => {
-      await result.current.disablePage(PAGE);
+      await result.current.togglePagePublish(PAGE);
     });
 
     const call = fetchMock.mock.calls.at(-1)!;
     expect(String(call[0])).toContain(`/workspaces/workspace-local/posts/${PAGE.id}`);
-    // `expectedVersion` (2026-09-18, multi-author hardening) — mirrors `use-posts.unit.test.ts`'s
-    // identical assertion; before this fix the body was `{ status: "draft" }` alone.
-    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({ status: "draft", expectedVersion: PAGE.version });
+    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({
+      title: PAGE.title,
+      slug: PAGE.slug,
+      bodyJson: PAGE.bodyJson,
+      status: "draft",
+      expectedVersion: PAGE.version,
+    });
+  });
+
+  /** The other direction — a draft row publishing. Owner rename (2026-09-22): the old `disablePage`
+   *  only ever flipped published -> draft; a draft page had no way to publish from this list at all
+   *  before this change. */
+  it("PATCHes status: published for a draft row", async () => {
+    const DRAFT = { ...PAGE, status: "draft" as const };
+    fetchMock.mockResolvedValueOnce(jsonResponse({ posts: [{ post: DRAFT }] }));
+    const { result } = renderHook(() => useWiredPages());
+    await waitFor(() => expect(result.current.pages).not.toBeNull());
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT, status: "published" } }));
+    await act(async () => {
+      await result.current.togglePagePublish(DRAFT);
+    });
+
+    const call = fetchMock.mock.calls.at(-1)!;
+    expect(JSON.parse(String((call[1] as RequestInit).body))).toMatchObject({ status: "published", expectedVersion: DRAFT.version });
   });
 
   /** Multi-author hardening (2026-09-18, Task 14a) — mirrors `use-posts.unit.test.ts`'s identical
    *  two-author test; Pages shares the exact same route and guard. */
-  it("a save by another operator since this list loaded turns disablePage into a 409, not a silent overwrite", async () => {
+  it("a save by another operator since this list loaded turns togglePagePublish into a 409, not a silent overwrite", async () => {
     const { result } = await renderLoaded();
     fetchMock.mockResolvedValueOnce(
       jsonResponse(
@@ -205,11 +236,11 @@ describe("disablePage", () => {
     );
 
     await act(async () => {
-      await result.current.disablePage(PAGE);
+      await result.current.togglePagePublish(PAGE);
     });
 
     const call = fetchMock.mock.calls.at(-1)!;
-    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({ status: "draft", expectedVersion: PAGE.version });
+    expect(JSON.parse(String((call[1] as RequestInit).body))).toMatchObject({ status: "draft", expectedVersion: PAGE.version });
     expect(result.current.pages).toEqual([PAGE]);
     expect(result.current.error).toMatch(/modified by another save/);
   });
@@ -223,7 +254,7 @@ describe("disablePage", () => {
     const updated = { ...PAGE, status: "draft" as const };
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: updated }));
     await act(async () => {
-      await result.current.disablePage(PAGE);
+      await result.current.togglePagePublish(PAGE);
     });
 
     expect(result.current.pages).toEqual([updated, OTHER_PAGE]);
@@ -234,11 +265,11 @@ describe("disablePage", () => {
     fetchMock.mockRejectedValueOnce("offline");
 
     await act(async () => {
-      await result.current.disablePage(PAGE);
+      await result.current.togglePagePublish(PAGE);
     });
 
     expect(result.current.rowSavingId).toBeNull();
-    expect(result.current.error).toBe("failed to disable page");
+    expect(result.current.error).toBe("failed to unpublish page");
   });
 });
 
@@ -289,25 +320,26 @@ describe("removePage", () => {
 });
 
 /**
- * Sink of the review's H4 finding — mirrors `use-posts.unit.test.ts`'s identical test. `disablePage`
- * and `removePage` share one `rowSavingId` field, and `disablePage`'s `finally` clears it
- * unconditionally, so an unrelated row's Disable settling can wipe a DIFFERENT row's in-flight
- * Delete lock, making its `ConfirmDialog` read as settled while the delete is still on the wire.
+ * Sink of the review's H4 finding — mirrors `use-posts.unit.test.ts`'s identical test.
+ * `togglePagePublish` and `removePage` share one `rowSavingId` field, and `togglePagePublish`'s
+ * `finally` clears it unconditionally, so an unrelated row's publish-toggle settling can wipe a
+ * DIFFERENT row's in-flight Delete lock, making its `ConfirmDialog` read as settled while the
+ * delete is still on the wire.
  */
-describe("rowSavingId — shared between Disable and Delete", () => {
-  it("an unrelated Disable settling does not unlock a different row's in-flight Delete confirm", async () => {
+describe("rowSavingId — shared between the publish toggle and Delete", () => {
+  it("an unrelated publish toggle settling does not unlock a different row's in-flight Delete confirm", async () => {
     const OTHER_PAGE = { ...PAGE, id: "pg-other", title: "Other" };
     const port = createFakePagesPort({ pages: [PAGE, OTHER_PAGE] });
     const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
     await waitFor(() => expect(result.current.pages).not.toBeNull());
 
-    let resolveDisable!: (v: { post: typeof PAGE }) => void;
-    vi.spyOn(port, "updatePost").mockImplementationOnce(() => new Promise((resolve) => (resolveDisable = resolve)));
+    let resolveToggle!: (v: { post: typeof PAGE }) => void;
+    vi.spyOn(port, "updatePost").mockImplementationOnce(() => new Promise((resolve) => (resolveToggle = resolve)));
     let resolveDelete!: (v: { post: typeof PAGE }) => void;
     vi.spyOn(port, "deletePage").mockImplementationOnce(() => new Promise((resolve) => (resolveDelete = resolve)));
 
     act(() => {
-      void result.current.disablePage(PAGE);
+      void result.current.togglePagePublish(PAGE);
     });
     await waitFor(() => expect(result.current.rowSavingId).toBe(PAGE.id));
 
@@ -318,11 +350,11 @@ describe("rowSavingId — shared between Disable and Delete", () => {
     await waitFor(() => expect(result.current.rowSavingId).toBe(OTHER_PAGE.id));
 
     await act(async () => {
-      resolveDisable({ post: { ...PAGE, status: "draft", version: PAGE.version + 1 } });
+      resolveToggle({ post: { ...PAGE, status: "draft", version: PAGE.version + 1 } });
       await Promise.resolve();
     });
 
-    // The unrelated Disable settling must not unlock a DIFFERENT row's in-flight Delete confirm.
+    // The unrelated toggle settling must not unlock a DIFFERENT row's in-flight Delete confirm.
     expect(result.current.rowSavingId).toBe(OTHER_PAGE.id);
 
     await act(async () => {
@@ -335,10 +367,10 @@ describe("rowSavingId — shared between Disable and Delete", () => {
   /**
    * The reverse order, mirroring `use-posts.unit.test.ts`'s twin: above, the Delete is the LAST to
    * settle, so `removePage`'s own guard is satisfied either way and unguarding it changes nothing.
-   * Here the Delete settles FIRST while a Disable on a different row is still outstanding — the
-   * only case that guard exists for.
+   * Here the Delete settles FIRST while a publish toggle on a different row is still outstanding —
+   * the only case that guard exists for.
    */
-  it("a Delete settling first does not unlock a different row's in-flight Disable", async () => {
+  it("a Delete settling first does not unlock a different row's in-flight publish toggle", async () => {
     const OTHER_PAGE = { ...PAGE, id: "pg-other", title: "Other" };
     const port = createFakePagesPort({ pages: [PAGE, OTHER_PAGE] });
     const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
@@ -346,8 +378,8 @@ describe("rowSavingId — shared between Disable and Delete", () => {
 
     let resolveDelete!: (v: { post: typeof PAGE }) => void;
     vi.spyOn(port, "deletePage").mockImplementationOnce(() => new Promise((resolve) => (resolveDelete = resolve)));
-    let resolveDisable!: (v: { post: typeof PAGE }) => void;
-    vi.spyOn(port, "updatePost").mockImplementationOnce(() => new Promise((resolve) => (resolveDisable = resolve)));
+    let resolveToggle!: (v: { post: typeof PAGE }) => void;
+    vi.spyOn(port, "updatePost").mockImplementationOnce(() => new Promise((resolve) => (resolveToggle = resolve)));
 
     act(() => result.current.setPendingDelete(OTHER_PAGE));
     act(() => {
@@ -356,7 +388,7 @@ describe("rowSavingId — shared between Disable and Delete", () => {
     await waitFor(() => expect(result.current.rowSavingId).toBe(OTHER_PAGE.id));
 
     act(() => {
-      void result.current.disablePage(PAGE);
+      void result.current.togglePagePublish(PAGE);
     });
     await waitFor(() => expect(result.current.rowSavingId).toBe(PAGE.id));
 
@@ -368,7 +400,7 @@ describe("rowSavingId — shared between Disable and Delete", () => {
     expect(result.current.rowSavingId).toBe(PAGE.id);
 
     await act(async () => {
-      resolveDisable({ post: { ...PAGE, status: "draft", version: PAGE.version + 1 } });
+      resolveToggle({ post: { ...PAGE, status: "draft", version: PAGE.version + 1 } });
       await Promise.resolve();
     });
     expect(result.current.rowSavingId).toBeNull();
@@ -397,13 +429,13 @@ describe("injected port (useWiredX conversion coverage)", () => {
     }
   });
 
-  it("disablePage patches the page through the injected port", async () => {
+  it("togglePagePublish patches the page through the injected port", async () => {
     const port = createFakePagesPort({ pages: [PAGE] });
     const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
     await waitFor(() => expect(result.current.pages).not.toBeNull());
 
     await act(async () => {
-      await result.current.disablePage(PAGE);
+      await result.current.togglePagePublish(PAGE);
     });
 
     expect(port.pages[0]!.status).toBe("draft");
@@ -412,7 +444,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
   /** Reached by the fake genuinely being stale (`simulateConcurrentSave`) — mirrors
    *  `use-posts.unit.test.ts`'s identical test. */
-  it("disablePage rejects with the SAME basis it loaded once another operator has saved, and never applies the write", async () => {
+  it("togglePagePublish rejects with the SAME basis it loaded once another operator has saved, and never applies the write", async () => {
     const port = createFakePagesPort({ pages: [PAGE] });
     const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
     await waitFor(() => expect(result.current.pages).not.toBeNull());
@@ -420,7 +452,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     port.simulateConcurrentSave(PAGE.id, "Their edit");
 
     await act(async () => {
-      await result.current.disablePage(PAGE);
+      await result.current.togglePagePublish(PAGE);
     });
 
     expect(result.current.error).toMatch(/modified by another save/);

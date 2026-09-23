@@ -65,7 +65,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
     pendingDelete,
     setPendingDelete,
     createPost,
-    disablePost,
+    togglePostPublish,
     removePost,
     rowMenuHandleById,
   } = usePostsHook();
@@ -184,7 +184,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
                   post,
                   {
                     onEdit: (p) => navigate(`/posts/${p.slug}`),
-                    onDisable: disablePost,
+                    onTogglePublish: togglePostPublish,
                     onDelete: setPendingDelete,
                   },
                   locale,

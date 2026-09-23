@@ -105,7 +105,7 @@ export function useFormsList(deps: { port: FormsPort; t: (key: string) => string
   // inline buttons moved into each handler once `RowMenu` replaced them). Shared `rowSavingId` with
   // `removeForm` below (T7a) — only clears THIS row's own lock in `finally`, so a Delete confirm on
   // a DIFFERENT row that lands while this toggle is still in flight doesn't get its own lock wiped,
-  // same guard `use-posts.hooks.ts`'s `disablePost`/`removePost` pair documents.
+  // same guard `use-posts.hooks.ts`'s `togglePostPublish`/`removePost` pair documents.
   async function toggleStatus(form: AdminFormDefinition) {
     if (rowSavingId) return;
     setRowSavingId(form.id);

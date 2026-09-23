@@ -39,29 +39,41 @@ export const POSTS_RESOURCE = "posts";
  *  state and navigation, and so a test can assert exactly which one a given row wires up. */
 export interface PostRowMenuHandlers {
   onEdit: (post: AdminPost) => void;
-  onDisable: (post: AdminPost) => void;
+  onTogglePublish: (post: AdminPost) => void;
   onDelete: (post: AdminPost) => void;
 }
 
 /**
  * The row-action menu for one post.
  *
- * The branch is the reason this is exported: **"Disable" is omitted entirely for a post that is
- * already a draft**, rather than rendered disabled. That is a deliberate choice — a control that is
- * visible but inert invites the operator to work out why on their own — and it is a claim worth a
- * test, which it cannot have while it is a closure inside a `DataTable` cell.
+ * The branch is the reason this is exported: **the middle item's label and key flip with the row's
+ * own status** — "Unpublish" for a published post, "Publish" for a draft — rather than either
+ * omitting the item for a draft (the pre-2026-09-22 "Disable" behavior) or rendering it disabled.
+ * Owner rename (2026-09-22): the old always-published-only "Disable" item did two things wrong at
+ * once — it never let an operator publish a draft from this list at all (the ONLY way was opening
+ * the full editor), and clicking it on a published row 500'd with "title is required" (owner
+ * screenshot) because `usePosts().disablePost` sent `{ status: "draft", expectedVersion }` alone;
+ * `PUT /posts/:id`'s `validateUpdatePostInput` (`features/post/post.ts`) treats a missing `title` as
+ * `""` and rejects it before ever reaching the version check. `onTogglePublish` (`use-posts.hooks.ts`)
+ * now sends the row's own `title`/`slug`/`bodyJson` alongside the flipped `status` — see that
+ * function's own doc for the full fix.
+ *
+ * Both branches call the SAME handler — `onTogglePublish` reads `post.status` itself to decide which
+ * way to flip, so this menu builder does not need two callbacks for what is one reversible toggle.
  *
  * "Delete" is marked `destructive` and only OPENS the confirmation; the delete itself is
  * `usePosts().removePost`, gated on `ConfirmDialog`.
  *
- * @complexity Time/space: O(1) — at most three entries, no iteration.
+ * @complexity Time/space: O(1) — exactly three entries, no iteration.
  */
 export function postRowMenuItems(post: AdminPost, handlers: PostRowMenuHandlers, locale: string): RowMenuItem[] {
   const t = (key: string): string => translate(locale, key);
   const items: RowMenuItem[] = [{ key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit(post) }];
-  if (post.status === "published") {
-    items.push({ key: "disable", label: t("Disable"), onSelect: () => handlers.onDisable(post) });
-  }
+  items.push(
+    post.status === "published"
+      ? { key: "unpublish", label: t("Unpublish"), onSelect: () => handlers.onTogglePublish(post) }
+      : { key: "publish", label: t("Publish"), onSelect: () => handlers.onTogglePublish(post) }
+  );
   items.push({ key: "delete", label: t("Delete"), destructive: true, onSelect: () => handlers.onDelete(post) });
   return items;
 }

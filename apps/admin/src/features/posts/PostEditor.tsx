@@ -936,11 +936,11 @@ function PostEditorActions({
         <option value="published">{t("Published")}</option>
       </select>
       {/* Publish is the one-click "save this and put it live" shortcut, and only makes sense
-          while there is something to publish — once `status` is already "published" (matching
-          `RowMenu`'s own precedent in `Posts.tsx`, which omits "Disable" entirely for an
-          already-draft row rather than showing it disabled) it disappears rather than
-          rendering disabled with nothing left to do, and plain Save takes over as the primary
-          action. The status select still covers the reverse direction (unpublish), unchanged. */}
+          while there is something to publish — once `status` is already "published" (same
+          "omit rather than disable" precedent `Posts.tsx`'s `RowMenu` uses for its own
+          Publish/Unpublish toggle) it disappears rather than rendering disabled with nothing
+          left to do, and plain Save takes over as the primary action. The status select still
+          covers the reverse direction (unpublish), unchanged. */}
       {status === "draft" ? (
         <button
           type="button"

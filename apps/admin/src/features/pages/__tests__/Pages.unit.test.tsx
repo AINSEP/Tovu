@@ -67,7 +67,7 @@ function controller(overrides: Partial<PagesController> = {}): PagesController {
     pendingDelete: null,
     setPendingDelete: vi.fn(),
     createPage: vi.fn(async () => {}),
-    disablePage: vi.fn(async () => {}),
+    togglePagePublish: vi.fn(async () => {}),
     removePage: vi.fn(async () => {}),
     // `PAGES_DICT` has no `en` entry (only translated locales) — `key` IS the English copy, so
     // the identity function is a faithful fake for the wired hook's real English behavior, same
@@ -267,19 +267,20 @@ describe("New Page action", () => {
   });
 });
 
-describe("row menu — Disable visibility mirrors pageRowMenuItems", () => {
-  it("offers Disable for a published page", async () => {
+describe("row menu — Publish/Unpublish visibility mirrors pageRowMenuItems", () => {
+  it("offers Unpublish for a published page", async () => {
     const user = userEvent.setup();
     renderWith({ pages: [PAGE] });
     await user.click(screen.getByRole("button", { name: 'Actions for "About"' }));
-    expect(screen.getByRole("menuitem", { name: "Disable" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Unpublish" })).toBeInTheDocument();
   });
 
-  it("omits Disable for a draft page", async () => {
+  it("offers Publish for a draft page — the item flips rather than being omitted", async () => {
     const user = userEvent.setup();
     renderWith({ pages: [DRAFT_PAGE] });
     await user.click(screen.getByRole("button", { name: 'Actions for "Draft Page"' }));
-    expect(screen.queryByRole("menuitem", { name: "Disable" })).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Publish" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Unpublish" })).not.toBeInTheDocument();
   });
 
   it("Edit navigates to the Pages editor by slug (via pageAdminPath), never the Posts editor", async () => {
@@ -290,12 +291,20 @@ describe("row menu — Disable visibility mirrors pageRowMenuItems", () => {
     expect(navigate).toHaveBeenCalledWith("/pages/about");
   });
 
-  it("Disable calls disablePage with the row", async () => {
+  it("Unpublish calls togglePagePublish with the row", async () => {
     const user = userEvent.setup();
     const c = renderWith({ pages: [PAGE] });
     await user.click(screen.getByRole("button", { name: 'Actions for "About"' }));
-    await user.click(screen.getByRole("menuitem", { name: "Disable" }));
-    expect(c.disablePage).toHaveBeenCalledWith(PAGE);
+    await user.click(screen.getByRole("menuitem", { name: "Unpublish" }));
+    expect(c.togglePagePublish).toHaveBeenCalledWith(PAGE);
+  });
+
+  it("Publish calls togglePagePublish with the row, for a draft page", async () => {
+    const user = userEvent.setup();
+    const c = renderWith({ pages: [DRAFT_PAGE] });
+    await user.click(screen.getByRole("button", { name: 'Actions for "Draft Page"' }));
+    await user.click(screen.getByRole("menuitem", { name: "Publish" }));
+    expect(c.togglePagePublish).toHaveBeenCalledWith(DRAFT_PAGE);
   });
 
   it("Delete calls setPendingDelete with the row rather than deleting immediately", async () => {
@@ -818,8 +827,8 @@ describe("Theme Pages tab", () => {
    * `ThemePageDetailsModal.tsx`'s own footer entirely. Same Theme Studio destination as before
    * (`themeStudioHref`, reused rather than re-derived) and as the table's own `Page` column link
    * (PART 5, 2026-09-13); `navigate` is mocked at the top of this file, same pattern `"row menu —
-   * Disable visibility..."`'s own "Edit navigates to the Pages editor" test above uses for My Pages'
-   * row menu.
+   * Publish/Unpublish visibility..."`'s own "Edit navigates to the Pages editor" test above uses for
+   * My Pages' row menu.
    */
   describe("row menu — Edit (Theme Pages)", () => {
     /**

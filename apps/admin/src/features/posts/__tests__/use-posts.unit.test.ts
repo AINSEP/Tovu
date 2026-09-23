@@ -104,8 +104,16 @@ describe("createPost", () => {
   });
 });
 
-describe("disablePost", () => {
-  it("PATCHes status: draft AND expectedVersion for the given post id, and replaces only the matching row", async () => {
+describe("togglePostPublish", () => {
+  /**
+   * Regression for the reported bug (owner screenshots, 2026-09-22): clicking "Disable" in the row
+   * menu did nothing but show "title is required". Root cause — this action PATCHed
+   * `{ status: "draft", expectedVersion }` alone; `PUT /posts/:id`'s `validateUpdatePostInput`
+   * (`apps/website/src/features/post/post.ts`) treats a missing `title`/`slug` as `""` and rejects
+   * the request before ever reaching the version check. RED before the fix: this assertion failed
+   * because the body carried no `title`/`slug`/`bodyJson` at all.
+   */
+  it("PATCHes the row's own title/slug/bodyJson alongside status: draft AND expectedVersion, and replaces only the matching row", async () => {
     const OTHER_POST = { ...POST, id: "p-other", title: "Other" };
     fetchMock.mockResolvedValueOnce(jsonResponse({ posts: [{ post: POST }, { post: OTHER_POST }] }));
     const { result } = renderHook(() => useWiredPosts());
@@ -114,17 +122,37 @@ describe("disablePost", () => {
     const updated = { ...POST, status: "draft" as const, version: POST.version + 1 };
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: updated }));
     await act(async () => {
-      await result.current.disablePost(POST);
+      await result.current.togglePostPublish(POST);
     });
 
     const call = fetchMock.mock.calls.at(-1)!;
     expect(String(call[0])).toContain(`/workspaces/workspace-local/posts/${POST.id}`);
-    // `expectedVersion` (2026-09-18, multi-author hardening) — the row this list last loaded, so
-    // this list-view action races the same shared post exactly as the full editor's Save does. Before
-    // this fix the body was `{ status: "draft" }` alone, which meant this action always won
-    // regardless of what a concurrent editor session had just saved.
-    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({ status: "draft", expectedVersion: POST.version });
+    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({
+      title: POST.title,
+      slug: POST.slug,
+      bodyJson: POST.bodyJson,
+      status: "draft",
+      expectedVersion: POST.version,
+    });
     expect(result.current.posts).toEqual([updated, OTHER_POST]);
+  });
+
+  /** The other direction — a draft row publishing. Owner rename (2026-09-22): the old `disablePost`
+   *  only ever flipped published -> draft; a draft post had no way to publish from this list at all
+   *  before this change. */
+  it("PATCHes status: published for a draft row", async () => {
+    const DRAFT = { ...POST, status: "draft" as const };
+    fetchMock.mockResolvedValueOnce(jsonResponse({ posts: [{ post: DRAFT }] }));
+    const { result } = renderHook(() => useWiredPosts());
+    await waitFor(() => expect(result.current.posts).not.toBeNull());
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT, status: "published" } }));
+    await act(async () => {
+      await result.current.togglePostPublish(DRAFT);
+    });
+
+    const call = fetchMock.mock.calls.at(-1)!;
+    expect(JSON.parse(String((call[1] as RequestInit).body))).toMatchObject({ status: "published", expectedVersion: DRAFT.version });
   });
 
   it("clears rowSavingId in the finally branch even when the request fails", async () => {
@@ -132,11 +160,11 @@ describe("disablePost", () => {
     fetchMock.mockRejectedValueOnce("offline");
 
     await act(async () => {
-      await result.current.disablePost(POST);
+      await result.current.togglePostPublish(POST);
     });
 
     expect(result.current.rowSavingId).toBeNull();
-    expect(result.current.error).toBe("failed to disable post");
+    expect(result.current.error).toBe("failed to unpublish post");
   });
 
   /**
@@ -147,7 +175,7 @@ describe("disablePost", () => {
    * silently reverting whatever the other operator just saved, with no error and no trace. The
    * `409` here is set up as a genuine server response, not asserted from behavior this test invents.
    */
-  it("a save by another operator since this list loaded turns disablePost into a 409, not a silent overwrite", async () => {
+  it("a save by another operator since this list loaded turns togglePostPublish into a 409, not a silent overwrite", async () => {
     const { result } = await renderLoaded();
     fetchMock.mockResolvedValueOnce(
       jsonResponse(
@@ -161,13 +189,13 @@ describe("disablePost", () => {
     );
 
     await act(async () => {
-      await result.current.disablePost(POST);
+      await result.current.togglePostPublish(POST);
     });
 
     // The request carried the stale basis it actually loaded with — proof the 409 came from a real
     // comparison the client set up, not a response this test could get for free either way.
     const call = fetchMock.mock.calls.at(-1)!;
-    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({ status: "draft", expectedVersion: POST.version });
+    expect(JSON.parse(String((call[1] as RequestInit).body))).toMatchObject({ status: "draft", expectedVersion: POST.version });
     // A rejection, not a report: the row in local state must still read exactly as it was loaded —
     // in particular still "published", never silently painted over with "draft".
     expect(result.current.posts).toEqual([POST]);
@@ -205,27 +233,27 @@ describe("removePost", () => {
 });
 
 /**
- * Sink of the review's H4 finding (dialogs closable mid-write): `disablePost` and `removePost`
- * share one `rowSavingId` field, and `disablePost`'s `finally` clears it unconditionally. A
- * Disable on one row settling while a DIFFERENT row's Delete confirm is still in flight wipes
- * that row's lock, making its `ConfirmDialog` (`pending={rowSavingId === pendingDelete.id}` in
- * `Posts.tsx`) read as settled — dismissable and re-confirmable — while the delete is still on
- * the wire.
+ * Sink of the review's H4 finding (dialogs closable mid-write): `togglePostPublish` and
+ * `removePost` share one `rowSavingId` field, and `togglePostPublish`'s `finally` clears it
+ * unconditionally. A toggle on one row settling while a DIFFERENT row's Delete confirm is still in
+ * flight wipes that row's lock, making its `ConfirmDialog`
+ * (`pending={rowSavingId === pendingDelete.id}` in `Posts.tsx`) read as settled — dismissable and
+ * re-confirmable — while the delete is still on the wire.
  */
-describe("rowSavingId — shared between Disable and Delete", () => {
-  it("an unrelated Disable settling does not unlock a different row's in-flight Delete confirm", async () => {
+describe("rowSavingId — shared between the publish toggle and Delete", () => {
+  it("an unrelated publish toggle settling does not unlock a different row's in-flight Delete confirm", async () => {
     const OTHER_POST = { ...POST, id: "p-other", title: "Other" };
     const port = createFakePostsListPort({ posts: [POST, OTHER_POST] });
     const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
     await waitFor(() => expect(result.current.posts).not.toBeNull());
 
-    let resolveDisable!: (v: { post: AdminPost }) => void;
-    vi.spyOn(port, "updatePost").mockImplementationOnce(() => new Promise((resolve) => (resolveDisable = resolve)));
+    let resolveToggle!: (v: { post: AdminPost }) => void;
+    vi.spyOn(port, "updatePost").mockImplementationOnce(() => new Promise((resolve) => (resolveToggle = resolve)));
     let resolveDelete!: (v: { post: AdminPost }) => void;
     vi.spyOn(port, "deletePost").mockImplementationOnce(() => new Promise((resolve) => (resolveDelete = resolve)));
 
     act(() => {
-      void result.current.disablePost(POST);
+      void result.current.togglePostPublish(POST);
     });
     await waitFor(() => expect(result.current.rowSavingId).toBe(POST.id));
 
@@ -236,11 +264,11 @@ describe("rowSavingId — shared between Disable and Delete", () => {
     await waitFor(() => expect(result.current.rowSavingId).toBe(OTHER_POST.id));
 
     await act(async () => {
-      resolveDisable({ post: { ...POST, status: "draft", version: POST.version + 1 } });
+      resolveToggle({ post: { ...POST, status: "draft", version: POST.version + 1 } });
       await Promise.resolve();
     });
 
-    // The unrelated Disable settling must not unlock a DIFFERENT row's in-flight Delete confirm.
+    // The unrelated toggle settling must not unlock a DIFFERENT row's in-flight Delete confirm.
     expect(result.current.rowSavingId).toBe(OTHER_POST.id);
 
     await act(async () => {
@@ -254,10 +282,10 @@ describe("rowSavingId — shared between Disable and Delete", () => {
    * The reverse order, which the test above cannot reach: there the Delete is the LAST to settle,
    * so `removePost`'s own guard is satisfied either way and unguarding it changes nothing (verified
    * by mutation — that arm survived with the test above green). Here the Delete settles FIRST while
-   * a Disable on a different row is still outstanding, which is the only case `removePost`'s
+   * a publish toggle on a different row is still outstanding, which is the only case `removePost`'s
    * `finally` guard exists for.
    */
-  it("a Delete settling first does not unlock a different row's in-flight Disable", async () => {
+  it("a Delete settling first does not unlock a different row's in-flight publish toggle", async () => {
     const OTHER_POST = { ...POST, id: "p-other", title: "Other" };
     const port = createFakePostsListPort({ posts: [POST, OTHER_POST] });
     const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
@@ -265,8 +293,8 @@ describe("rowSavingId — shared between Disable and Delete", () => {
 
     let resolveDelete!: (v: { post: AdminPost }) => void;
     vi.spyOn(port, "deletePost").mockImplementationOnce(() => new Promise((resolve) => (resolveDelete = resolve)));
-    let resolveDisable!: (v: { post: AdminPost }) => void;
-    vi.spyOn(port, "updatePost").mockImplementationOnce(() => new Promise((resolve) => (resolveDisable = resolve)));
+    let resolveToggle!: (v: { post: AdminPost }) => void;
+    vi.spyOn(port, "updatePost").mockImplementationOnce(() => new Promise((resolve) => (resolveToggle = resolve)));
 
     act(() => result.current.setPendingDelete(OTHER_POST));
     act(() => {
@@ -275,7 +303,7 @@ describe("rowSavingId — shared between Disable and Delete", () => {
     await waitFor(() => expect(result.current.rowSavingId).toBe(OTHER_POST.id));
 
     act(() => {
-      void result.current.disablePost(POST);
+      void result.current.togglePostPublish(POST);
     });
     await waitFor(() => expect(result.current.rowSavingId).toBe(POST.id));
 
@@ -287,7 +315,7 @@ describe("rowSavingId — shared between Disable and Delete", () => {
     expect(result.current.rowSavingId).toBe(POST.id);
 
     await act(async () => {
-      resolveDisable({ post: { ...POST, status: "draft", version: POST.version + 1 } });
+      resolveToggle({ post: { ...POST, status: "draft", version: POST.version + 1 } });
       await Promise.resolve();
     });
     expect(result.current.rowSavingId).toBeNull();
@@ -311,13 +339,13 @@ describe("injected port (useWiredX conversion coverage)", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("disablePost patches the post through the injected port", async () => {
+  it("togglePostPublish patches the post through the injected port", async () => {
     const port = createFakePostsListPort({ posts: [POST] });
     const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
     await waitFor(() => expect(result.current.posts).not.toBeNull());
 
     await act(async () => {
-      await result.current.disablePost(POST);
+      await result.current.togglePostPublish(POST);
     });
 
     expect(port.posts[0]!.status).toBe("draft");
@@ -327,7 +355,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
   /** Reached by the fake genuinely being stale (`simulateConcurrentSave`), not a canned rejection —
    *  same idiom `use-post-editor.hooks.unit.test.tsx`'s "usePostEditor — optimistic concurrency"
    *  block uses for the editor's own save. */
-  it("disablePost rejects with the SAME basis it loaded once another operator has saved, and never applies the write", async () => {
+  it("togglePostPublish rejects with the SAME basis it loaded once another operator has saved, and never applies the write", async () => {
     const port = createFakePostsListPort({ posts: [POST] });
     const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
     await waitFor(() => expect(result.current.posts).not.toBeNull());
@@ -336,7 +364,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     port.simulateConcurrentSave(POST.id, "Their edit");
 
     await act(async () => {
-      await result.current.disablePost(POST);
+      await result.current.togglePostPublish(POST);
     });
 
     expect(result.current.error).toMatch(/modified by another save/);

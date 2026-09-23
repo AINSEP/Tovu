@@ -28,7 +28,7 @@ import type { Translate } from "@/lib/dictionary-translator";
  * `use-<thing>.hooks.ts`. Feature-local because nothing outside `features/pages` needs it.
  *
  * `port`/`navigate` are injected — see `pages-port.hooks.ts` — rather than reaching `lib/api`/
- * `lib/router` directly, so a test can describe load/create/disable/delete outcomes against
+ * `lib/router` directly, so a test can describe load/create/publish-toggle/delete outcomes against
  * `createFakePagesPort` instead of stubbing global `fetch`. `useWiredPages` below is the
  * zero-argument pair `Pages.tsx` actually mounts. This hook's OWN error strings stay hardcoded
  * English, unlike `use-collections.hooks.ts`'s locale-aware fallbacks — but `t`/`locale` are still
@@ -46,13 +46,13 @@ export interface PagesController {
   pages: AdminPost[] | null;
   error: string | null;
   creating: boolean;
-  /** In-flight row action (Disable, or the confirmed Delete) — one at a time. */
+  /** In-flight row action (Publish/Unpublish, or the confirmed Delete) — one at a time. */
   rowSavingId: string | null;
   /** The page a `RowMenu` "Delete" selection is asking to confirm; `null` when the dialog is shut. */
   pendingDelete: AdminPost | null;
   setPendingDelete: (page: AdminPost | null) => void;
   createPage: () => Promise<void>;
-  disablePage: (page: AdminPost) => Promise<void>;
+  togglePagePublish: (page: AdminPost) => Promise<void>;
   removePage: () => Promise<void>;
   /** Bound translator — `Pages.tsx`'s only source of UI copy; see this file's own header. */
   t: Translate;
@@ -112,7 +112,7 @@ export function usePages(deps: PagesDependencies): PagesController {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const settlement = useSettlementGeneration();
-  // In-flight row action (Disable or the confirmed Delete) — one at a time, same `rowSavingId`
+  // In-flight row action (Publish/Unpublish or the confirmed Delete) — one at a time, same `rowSavingId`
   // convention `Roles.tsx`'s `onDeleteRole` already uses, per `ConfirmButton`'s own doc comment.
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
   // The page a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
@@ -167,28 +167,49 @@ export function usePages(deps: PagesDependencies): PagesController {
     }
   }
 
-  /** Unpublishes so the row is no longer publicly viewable — a reversible, access-affecting
-   *  action (not destructive: no `ConfirmDialog`, matching `ConfirmButton`'s own warning-vs-
-   *  destructive distinction). Only ever called for a `status === "published"` row — `RowMenu`'s
-   *  item list in the view omits "Disable" entirely once a page is already a draft, rather than
-   *  rendering it disabled with no explanation.
+  /** Flips a row's publish status — Unpublish (-> draft) for a published row, Publish (-> published)
+   *  for a draft, matching `pageRowMenuItems`'s own label for whichever direction applies. A
+   *  reversible, access-affecting action (not destructive: no `ConfirmDialog`, matching
+   *  `ConfirmButton`'s own warning-vs-destructive distinction).
+   *
+   * Owner rename (2026-09-22) from the old `disablePage`, which only ever flipped published -> draft
+   * (`RowMenu`'s item list omitted "Disable" entirely for an already-draft row, rather than
+   * rendering it disabled) — a draft page had no way to publish from this list at all, only from the
+   * full editor.
+   *
+   * Sends the row's own `title`/`slug`/`bodyJson` alongside the flipped `status` and
+   * `expectedVersion` — `PUT /posts/:id`'s `validateUpdatePostInput` (`features/post/post.ts`)
+   * treats a missing `title`/`slug` as `""` and rejects the request with "title is required" before
+   * ever reaching the version check, and requires `bodyJson` to be a JSON object for any row whose
+   * `bodyFormat` isn't `"html"` — which is exactly what the OLD `{ status, expectedVersion }`-only
+   * payload hit (owner screenshot, 2026-09-22): every click 500'd on that validation, regardless of
+   * the row's status, and never reached the version guard at all. Round-tripping the row's own
+   * already-loaded fields here is safe specifically because they are read from the SAME `page` this
+   * call's `expectedVersion` is about to check — a stale basis fails that compare-and-set before any
+   * of these fields would actually be written back, so this can never silently overwrite a
+   * concurrent edit to title/slug/body.
    *
    * `expectedVersion: page.version` (2026-09-18, multi-author hardening, Task 14a) — mirrors
-   * `use-posts.hooks.ts`'s identical `disablePost` fix exactly; see its doc for the full rationale. */
-  async function disablePage(page: AdminPost) {
+   * `use-posts.hooks.ts`'s identical `togglePostPublish` fix exactly; see its doc for the full
+   * rationale. */
+  async function togglePagePublish(page: AdminPost) {
+    const nextStatus: AdminPost["status"] = page.status === "published" ? "draft" : "published";
     setRowSavingId(page.id);
     setError(null);
     try {
-      const { post: updated } = await port.updatePost({ id: page.id }, { status: "draft", expectedVersion: page.version });
+      const { post: updated } = await port.updatePost(
+        { id: page.id },
+        { title: page.title, slug: page.slug, bodyJson: page.bodyJson, status: nextStatus, expectedVersion: page.version }
+      );
       setPages((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to disable page");
+      setError(e instanceof Error ? e.message : `failed to ${nextStatus === "published" ? "publish" : "unpublish"} page`);
     } finally {
       // Only clear THIS row's lock — `rowSavingId` is shared with `removePage`'s delete-in-flight
       // lock (2026-09-20, S4b hardening; mirrors `use-posts.hooks.ts`'s identical fix). An
       // unconditional `setRowSavingId(null)` here would wipe a DIFFERENT row's delete lock if that
-      // row's `ConfirmDialog` confirm landed while this Disable was still in flight, making the
-      // dialog read as settled (dismissable, re-confirmable) while the delete is still on the wire.
+      // row's confirm landed while this toggle was still in flight, making the dialog read as
+      // settled (dismissable, re-confirmable) while the delete is still on the wire.
       setRowSavingId((cur) => (cur === page.id ? null : cur));
     }
   }
@@ -224,7 +245,7 @@ export function usePages(deps: PagesDependencies): PagesController {
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to delete page");
     } finally {
-      // Symmetric guard to `disablePage`'s — see its comment. Keeps this correct regardless of
+      // Symmetric guard to `togglePagePublish`'s — see its comment. Keeps this correct regardless of
       // which of the two in-flight actions settles first.
       setRowSavingId((cur) => (cur === page.id ? null : cur));
       setPendingDelete(null);
@@ -239,7 +260,7 @@ export function usePages(deps: PagesDependencies): PagesController {
     pendingDelete,
     setPendingDelete,
     createPage,
-    disablePage,
+    togglePagePublish,
     removePage,
     t,
     locale,
