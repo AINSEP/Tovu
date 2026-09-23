@@ -192,7 +192,7 @@ test("the registration sends stdio + authMode none + an EMPTY args string", () =
   assert.equal(body.env, "");
 });
 
-test("on win32, the registration commands electronPath directly with the bridge and userData in args/env", () => {
+test("on win32, the registration commands electronPath directly with the bridge and userData in args, and an empty env", () => {
   // win32 has no launcher script (see `writeSitesMcpLauncher`), so `launcherPath` here IS
   // `electronPath` itself — {@link writeSitesMcpLauncher}'s own win32 return value — and the bridge
   // path plus `--user-data-dir` travel in `args` instead of being embedded in a script.
@@ -207,10 +207,11 @@ test("on win32, the registration commands electronPath directly with the bridge 
   // Each path is double-quoted: `external-mcp-store.ts`'s `parseArgs` splits on whitespace, and
   // "Program Files" alone would otherwise arrive as two broken arguments.
   assert.equal(body.args, '"C:\\Program Files\\Tovu\\resources\\app\\bin\\mcp-bridge.ts" --user-data-dir "C:\\Users\\Operator\\AppData\\Roaming\\tovu-desktop"');
-  // The launcher script's own `export ELECTRON_RUN_AS_NODE` line has no equivalent when electron is
-  // invoked directly, so the same effect travels as an `env` line instead — `NAME=VALUE`,
-  // `external-mcp-store.ts`'s `parseEnvBlock` format.
-  assert.equal(body.env, "ELECTRON_RUN_AS_NODE=1");
+  // Empty on win32 too. The row's `env` is sealed with the site's root key, so carrying
+  // `ELECTRON_RUN_AS_NODE=1` there failed the whole save with SECRET_STORE_UNCONFIGURED on a site
+  // without one. The daemon's stdio adapter (`buildMcpChildEnv`) hands a child that is its own
+  // executable its own run mode instead, with nothing sealed.
+  assert.equal(body.env, "");
 });
 
 test("on win32, a username with a space quotes both paths so each stays one argument", () => {
@@ -397,7 +398,7 @@ test("registerSitesMcpServer forwards platform/bridgePath/userDataDir into the P
   const body = JSON.parse(net.calls[1]!.body);
   assert.equal(body.command, "C:\\Users\\Operator\\AppData\\Local\\Programs\\tovu-desktop\\Tovu.exe");
   assert.match(body.args, /mcp-bridge\.ts" --user-data-dir "C:\\Users\\Operator\\AppData\\Roaming\\tovu-desktop"$/);
-  assert.equal(body.env, "ELECTRON_RUN_AS_NODE=1");
+  assert.equal(body.env, "");
 });
 
 test("registerSitesMcpServer omitting platform/bridgePath/userDataDir keeps the unchanged POSIX body", async () => {

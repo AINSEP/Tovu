@@ -6,15 +6,15 @@
  *
  * Two independent constraints in `apps/website` force it, and neither is negotiable from here:
  *
- * 1. **The daemon REPLACES an MCP child's environment.** `mcp-federation/adapter.stdio.ts:251-255,339`
- *    spawns with `{...inheritedEnv(), ...spec.env}` where `inheritedEnv()` is exactly `PATH`, `HOME`
- *    and `TMPDIR`. So `ELECTRON_RUN_AS_NODE=1` cannot reach the child — and this shell's only Node is
+ * 1. **The daemon REPLACES an MCP child's environment.** `mcp-federation/adapter.stdio.ts`'s
+ *    `buildMcpChildEnv` passes the child only `PATH`, `HOME` and `TMPDIR` on POSIX. So `ELECTRON_RUN_AS_NODE=1` cannot reach the child — and this shell's only Node is
  *    Electron's own binary (`tovu-server.ts`'s `buildCliSpawnPlan` makes the same call for `tovu
  *    serve`, deliberately, so the app does not depend on a system Node install). Naming Electron as
  *    the `command` without that variable launches a second GUI app instead of a script.
  *    Putting the variable in the stored row's `env` block instead routes it through
  *    `external-mcp-store.ts:1380-1391`'s credential sealing, which fails the whole save with
- *    `SECRET_STORE_UNCONFIGURED` on any site that has no keyring root key.
+ *    `SECRET_STORE_UNCONFIGURED` on any site that has no keyring root key. (win32, where no script
+ *    can be exec'd, is covered by that same adapter instead: see {@link buildSitesMcpRegistration}.)
  *
  * 2. **`args` splits on whitespace.** `external-mcp-store.ts`'s `parseArgs` splits on whitespace
  *    and honours exactly one quoting form (a token that starts and ends with `"`), and the value that
@@ -247,7 +247,7 @@ function buildSitesMcpLauncherScript({ electronPath, bridgePath, userDataDir }: 
  * Node's own hardening (CVE-2024-27980) refuses to exec a batch file without one. There is no
  * script format this daemon's spawn call can run on win32, so none is written; the returned value
  * is `electronPath` itself, and {@link buildSitesMcpRegistration} registers it directly with the
- * bridge and userData path carried in `args`/`env` instead of embedded in a script.
+ * bridge and userData path carried in `args` instead of embedded in a script.
  *
  * @param platform test seam; see {@link WriteLauncherInput}.
  * @returns the launcher's absolute path on POSIX, for {@link buildSitesMcpRegistration}'s `command`;
@@ -296,9 +296,14 @@ function quoteArg(value: string): string {
  *
  * **win32 is the one exception**, because {@link writeSitesMcpLauncher} writes no script there —
  * `launcherPath` IS `electronPath` on that platform, so this function commands it directly and
- * carries `bridgePath` plus `--user-data-dir <userDataDir>` in `args`, and `ELECTRON_RUN_AS_NODE=1`
- * in `env` (`NAME=VALUE`, the format `external-mcp-store.ts`'s `parseEnvBlock` reads) — the same two
- * facts the POSIX launcher script states in its own `exec` line and `export`. Each path is wrapped
+ * carries `bridgePath` plus `--user-data-dir <userDataDir>` in `args` — the facts the POSIX launcher
+ * script states in its own `exec` line. `ELECTRON_RUN_AS_NODE=1`, the script's `export` line, is NOT
+ * sent in `env`: that field is sealed with the site's root key, so it failed the whole save with
+ * `SECRET_STORE_UNCONFIGURED` on a site without one. The daemon's stdio adapter supplies it instead
+ * (`mcp-federation/adapter.stdio.ts`'s `buildMcpChildEnv`): on win32 a child whose command is the
+ * daemon's own executable — this Electron binary — inherits the daemon's own run mode, which
+ * `tovu-server.ts`'s `buildServeEnv` set. Electron has no command-line equivalent of the variable,
+ * so the environment is the only channel. Each path is wrapped
  * in double quotes, the one quoting rule `external-mcp-store.ts`'s `parseArgs` honours, so a
  * username or install directory with a space in it (`C:\\Users\\John Smith\\...`) still arrives as
  * a single argument — constraint 2's POSIX workaround (hide the path in a script) has no win32
@@ -349,9 +354,9 @@ function buildSitesMcpRegistration({
     // Sent as the empty string rather than omitted, which are DIFFERENT things to the PUT route
     // (`put.ts:88-89`): omitted keeps whatever credentials are stored, empty clears them. This
     // connection must never carry credentials, so every re-assert states that rather than
-    // inheriting whatever a previous row happened to hold. win32's one line is the launcher
-    // script's `export ELECTRON_RUN_AS_NODE` line, restated as an env var since there is no script.
-    env: isWin32 ? "ELECTRON_RUN_AS_NODE=1" : "",
+    // inheriting whatever a previous row happened to hold. Empty on win32 as well: see this
+    // function's doc for how `ELECTRON_RUN_AS_NODE` reaches the child there without being sealed.
+    env: "",
   };
 }
 
