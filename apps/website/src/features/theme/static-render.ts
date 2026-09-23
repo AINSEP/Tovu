@@ -523,10 +523,18 @@ export interface StaticCollectionList {
  * file's {@link injectCollectionEmbeds} and the route layer's map-builder parse the identical marker
  * text into the identical `config` object, so they always agree on the key.
  *
- * @complexity O(k) over the config's own key count — independent of the surrounding document.
+ * The authored `<template>` ({@link splitCollectionMarkerInner}) is part of the identity too: the
+ * rendered list depends on it, so two markers with the same config but different templates must not
+ * share one map entry (the route layer dedupes by this key and renders with the FIRST marker's
+ * template). A template-less marker keeps the plain config-JSON key; a templated one uses a JSON
+ * array `[config, template]`, which starts with `[` and so can never equal an object key.
+ *
+ * @complexity O(k + n) over the config's own key count and the marker's inner length — independent of
+ * the surrounding document.
  */
 export function collectionMarkerKey(marker: EmbedMarker): string {
-  return JSON.stringify(marker.config);
+  const { template } = splitCollectionMarkerInner(marker.inner);
+  return template === undefined ? JSON.stringify(marker.config) : JSON.stringify([marker.config, template]);
 }
 
 /**
