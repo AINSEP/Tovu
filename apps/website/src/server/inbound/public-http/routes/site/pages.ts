@@ -915,58 +915,6 @@ export type RenderContextResolutionDeps = Pick<
   "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "widgetBindingRepo" | "mediaContentTypeStore"
 >;
 
-/**
- * Recursively resolves every `{"type":"content","id":...}` marker in `html` whose target is an
- * `"html"`-format entity: fetches the entity (visibility-filtered — guard 2), resolves ITS OWN
- * embeds (every type, including further `content` markers, via a nested call to this same function
- * plus `resolveHtmlPageEmbeds`), splices the fully-rendered result into `html` in place of the
- * marker, and repeats until no `"html"`-format `content` markers remain or the depth/budget guard
- * (above) stops it.
- *
- * A `"doc"`-format target is left as an ordinary id-carrying marker for `resolveHtmlPageEmbeds`'s
- * registered `"content"` resolver to handle in the FINAL pass the caller runs afterward — a TipTap
- * document has no markers of its own to recurse into, and rendering it needs `renderDocNode`, which
- * only `render.ts` has in scope (this module must stay free of that dependency, same as every other
- * I/O-orchestration function in this file).
- *
- * Lives here, not in `widgets/resolver-service.ts` or `features/theme/static-render.ts`, because it
- * is the one place in the codebase that legitimately needs BOTH `resolveHtmlPageEmbeds` (resolves
- * IDs to data) AND `renderHtmlPageBody` (splices IR into HTML) for the SAME nested string — those two
- * modules must not depend on each other (`render.ts` already depends on `resolver-service.ts`; the
- * reverse would be circular), so only the route layer, which already imports both, can orchestrate
- * the resolve-then-splice-then-rescan loop this recursion needs.
- *
- * Uses {@link withInnerContentFinal}, not `withInnerContent`, for the final splice: an ordinary
- * `withInnerContent` call would leave `data-embed-config` intact on the rebuilt element, and the
- * CALLER's later `resolveHtmlPageEmbeds`/`renderHtmlPageBody` pass would then rediscover it as a
- * fresh, unresolved marker and try to resolve it again — `withInnerContentFinal` strips the marker
- * attribute so the already-rendered result is inert to any later scan.
- *
- * `pendingHtmlOverride` (2026-09-09, `bodyHtml` half of the template-preview pending-body fix —
- * {@link resolveContentTypeEmbeds}'s sibling `pendingContentOverride` already does this for a
- * `"doc"`-format body's `bodyJson`, but that override is only checked by the LATER
- * `resolveHtmlPageEmbeds` pass, which this `"html"`-format pass runs strictly before and never
- * reaches for an id this pass already consumed). Checked BEFORE {@link findPublishedPostById} for a
- * matching id, same order `pendingContentOverride` uses and for the same reason: an authenticated,
- * `content.read`-authorized caller (`routes/admin/posts/template-preview.ts`) previewing their own
- * unsaved edit to a row they already fetched by id should see that pending body, whether the row is
- * published or not — this is the one bypass of `findPublishedPostById`'s visibility guard, scoped to
- * exactly the ONE id the caller resolved and authorized, never a caller-supplied id. Only ever
- * consulted at the id being matched — the RECURSIVE call one line below (into a matched entity's OWN
- * nested markers) never passes it along, so a distinct nested entity embedded inside the previewed
- * body still resolves through the normal visibility-gated fetch; the override cannot leak past the
- * one id it was built for. `undefined` (every pre-existing call site) is byte-for-byte unchanged from
- * before this parameter existed.
- *
- * @complexity Bounded by {@link MAX_CONTENT_EMBED_FETCHES} total `findPublishedPostById` calls across
- * the whole call tree (the `budget` object is a single mutable counter threaded through every
- * recursive call), each followed by an O(n) `resolveHtmlPageEmbeds`/`renderHtmlPageBody` pass over
- * that one fetched entity's own body length. Never unbounded, regardless of the input's shape.
- *
- * Exported for direct testing of guard 3's termination property (`resolve-html-format-content-
- * markers.test.ts`) — the testability seam this function's own dependency shape
- * ({@link ContentMarkerResolutionDeps}) was narrowed for.
- */
 /** A `{"type":"content"}` marker's authored `slug`, or `undefined` when absent/non-string/empty —
  * the marker-scan-side counterpart to `resolver-service.ts`'s `normalizeEmbedSlug`, needed here
  * because `EmbedMarker` (this file's `markersOfType`) projects only `id` as a top-level field; `slug`
@@ -1022,9 +970,11 @@ function distinctContentMarkerRefs(html: string): ContentMarkerRef[] {
 async function fetchHtmlFormatBody(
   deps: ContentMarkerResolutionDeps,
   ref: ContentMarkerRef,
-  pendingHtmlOverride?: { id: string; bodyHtml: string }
+  pendingHtmlOverride?: { id: string; slug: string; bodyHtml: string }
 ): Promise<string | undefined> {
-  if (pendingHtmlOverride && ref.by === "id" && ref.id === pendingHtmlOverride.id) return pendingHtmlOverride.bodyHtml;
+  if (pendingHtmlOverride && (ref.by === "id" ? ref.id === pendingHtmlOverride.id : ref.slug === pendingHtmlOverride.slug)) {
+    return pendingHtmlOverride.bodyHtml;
+  }
   const entity =
     ref.by === "id"
       ? await findPublishedPostById({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, id: ref.id } })
@@ -1033,12 +983,65 @@ async function fetchHtmlFormatBody(
   return entity.bodyHtml ?? "";
 }
 
+/**
+ * Recursively resolves every `{"type":"content","id":...}` marker in `html` whose target is an
+ * `"html"`-format entity: fetches the entity (visibility-filtered — guard 2), resolves ITS OWN
+ * embeds (every type, including further `content` markers, via a nested call to this same function
+ * plus `resolveHtmlPageEmbeds`), splices the fully-rendered result into `html` in place of the
+ * marker, and repeats until no `"html"`-format `content` markers remain or the depth/budget guard
+ * (above) stops it.
+ *
+ * A `"doc"`-format target is left as an ordinary id-carrying marker for `resolveHtmlPageEmbeds`'s
+ * registered `"content"` resolver to handle in the FINAL pass the caller runs afterward — a TipTap
+ * document has no markers of its own to recurse into, and rendering it needs `renderDocNode`, which
+ * only `render.ts` has in scope (this module must stay free of that dependency, same as every other
+ * I/O-orchestration function in this file).
+ *
+ * Lives here, not in `widgets/resolver-service.ts` or `features/theme/static-render.ts`, because it
+ * is the one place in the codebase that legitimately needs BOTH `resolveHtmlPageEmbeds` (resolves
+ * IDs to data) AND `renderHtmlPageBody` (splices IR into HTML) for the SAME nested string — those two
+ * modules must not depend on each other (`render.ts` already depends on `resolver-service.ts`; the
+ * reverse would be circular), so only the route layer, which already imports both, can orchestrate
+ * the resolve-then-splice-then-rescan loop this recursion needs.
+ *
+ * Uses {@link withInnerContentFinal}, not `withInnerContent`, for the final splice: an ordinary
+ * `withInnerContent` call would leave `data-embed-config` intact on the rebuilt element, and the
+ * CALLER's later `resolveHtmlPageEmbeds`/`renderHtmlPageBody` pass would then rediscover it as a
+ * fresh, unresolved marker and try to resolve it again — `withInnerContentFinal` strips the marker
+ * attribute so the already-rendered result is inert to any later scan.
+ *
+ * `pendingHtmlOverride` (2026-09-09, `bodyHtml` half of the template-preview pending-body fix —
+ * {@link resolveContentTypeEmbeds}'s sibling `pendingContentOverride` already does this for a
+ * `"doc"`-format body's `bodyJson`, but that override is only checked by the LATER
+ * `resolveHtmlPageEmbeds` pass, which this `"html"`-format pass runs strictly before and never
+ * reaches for an id this pass already consumed). Checked BEFORE {@link findPublishedPostById} for a
+ * matching id — or, for a slug-only ref, a matching `slug` (review of S3, 2026-09-23; never by slug
+ * for a ref carrying an id) — same order `pendingContentOverride` uses and for the same reason: an authenticated,
+ * `content.read`-authorized caller (`routes/admin/posts/template-preview.ts`) previewing their own
+ * unsaved edit to a row they already fetched by id should see that pending body, whether the row is
+ * published or not — this is the one bypass of `findPublishedPostById`'s visibility guard, scoped to
+ * exactly the ONE id the caller resolved and authorized, never a caller-supplied id. Only ever
+ * consulted at the id being matched — the RECURSIVE call one line below (into a matched entity's OWN
+ * nested markers) never passes it along, so a distinct nested entity embedded inside the previewed
+ * body still resolves through the normal visibility-gated fetch; the override cannot leak past the
+ * one id it was built for. `undefined` (every pre-existing call site) is byte-for-byte unchanged from
+ * before this parameter existed.
+ *
+ * @complexity Bounded by {@link MAX_CONTENT_EMBED_FETCHES} total `findPublishedPostById` calls across
+ * the whole call tree (the `budget` object is a single mutable counter threaded through every
+ * recursive call), each followed by an O(n) `resolveHtmlPageEmbeds`/`renderHtmlPageBody` pass over
+ * that one fetched entity's own body length. Never unbounded, regardless of the input's shape.
+ *
+ * Exported for direct testing of guard 3's termination property (`resolve-html-format-content-
+ * markers.test.ts`) — the testability seam this function's own dependency shape
+ * ({@link ContentMarkerResolutionDeps}) was narrowed for.
+ */
 export async function resolveHtmlFormatContentMarkers(
   deps: ContentMarkerResolutionDeps,
   html: string,
   depth: number,
   budget: { remaining: number },
-  pendingHtmlOverride?: { id: string; bodyHtml: string }
+  pendingHtmlOverride?: { id: string; slug: string; bodyHtml: string }
 ): Promise<string> {
   if (depth >= MAX_CONTENT_EMBED_DEPTH || budget.remaining <= 0) return html;
 
@@ -1222,7 +1225,7 @@ export async function renderViaTemplate(
     withCurrentId,
     0,
     { remaining: MAX_CONTENT_EMBED_FETCHES },
-    pendingBodyHtml !== undefined ? { id: post.id, bodyHtml: pendingBodyHtml } : undefined
+    pendingBodyHtml !== undefined ? { id: post.id, slug: post.slug, bodyHtml: pendingBodyHtml } : undefined
   );
   const resolved = await resolveHtmlPageEmbeds({
     deps: {

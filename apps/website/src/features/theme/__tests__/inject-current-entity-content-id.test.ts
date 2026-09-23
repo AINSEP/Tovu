@@ -81,3 +81,11 @@ test("REGRESSION GUARD: a slug-only content marker is left completely untouched 
   const template = '<div data-embed-config=\'{"type":"content","slug":"some-other-entity"}\'></div>';
   assert.equal(injectCurrentEntityContentId(template, "post-123"), template);
 });
+
+// Review of S3 (2026-09-23): an EMPTY slug names no entity — every resolver stage treats `""` as
+// absent (`normalizeEmbedSlug`), so the injection guard must too, or `{"type":"content","slug":""}`
+// (which filled the current entity before S3) now renders the unresolved placeholder.
+test("a content marker with an EMPTY slug is still an empty slot and gets the current entity's id", () => {
+  const template = '<main data-embed-config=\'{"type":"content","slug":""}\'></main>';
+  assert.ok(injectCurrentEntityContentId(template, "post-123").includes('"id":"post-123"'));
+});

@@ -60,6 +60,14 @@ function rewritePageLinks(html: string): string {
   return html.replace(/href="([a-z0-9-]+)\.html"/g, (_m, name: string) => (name === "index" ? 'href="/"' : `href="/${name}"`));
 }
 
+/** `true` for a marker carrying a NON-EMPTY string `slug` — an explicit reference to another entity.
+ * An empty `slug` names nothing (every resolver stage treats `""` as absent, `html-embeds.ts`'s
+ * `normalizeEmbedSlug`), so it must not block filling in the current entity's id. */
+function hasAuthoredSlug(marker: EmbedMarker): boolean {
+  const slug = marker.config.slug;
+  return typeof slug === "string" && slug.length > 0;
+}
+
 /**
  * Fills the current entity's real id into every `{"type":"content"}` marker in `html` that carries NO
  * id — the unified-marker (2026-08-11) replacement for BOTH `injectPostEmbedId`'s `{{post}}` literal
@@ -98,7 +106,7 @@ function rewritePageLinks(html: string): string {
  */
 export function injectCurrentEntityContentId(html: string, entityId: string): string {
   return substituteMarkers(html, (marker) => {
-    if (marker.type !== "content" || marker.id !== undefined || typeof marker.config.slug === "string") return undefined;
+    if (marker.type !== "content" || marker.id !== undefined || hasAuthoredSlug(marker)) return undefined;
     return withAddedId(marker, entityId);
   });
 }
