@@ -15,16 +15,12 @@ import type { Translate } from "@/lib/dictionary-translator";
  * marker addressed by `slug`.
  */
 
-/** The attribute either the current (`data-embed-type`) or legacy (`data-widget-embed`,
- *  `data-form-embed`) convention uses to mark a Page HTML embed placeholder div — ported verbatim
- *  from Jini's own `InteractiveHtmlEditor.tsx` adapter (`EMBED_MARKER_ATTRIBUTES`).
- *
- *  **Does NOT include `data-embed-config`, the CURRENT marker attribute** — a known, separately
- *  tracked gap (Jini's own adapter carries the identical disclosure): an embed marker written the
- *  current way is still editable/draggable/removable in this editor today. Widening this list is a
- *  one-line change but alters real interaction behavior, which deserves its own change rather than
- *  riding in on this placeholder-card fix. */
-const EMBED_MARKER_ATTRIBUTES = ["data-embed-type", "data-widget-embed", "data-form-embed"] as const;
+/** Every attribute that marks a Page HTML embed placeholder div: the current `data-embed-config`, and
+ *  the legacy `data-embed-type`, `data-widget-embed` and `data-form-embed`. A matching element becomes
+ *  the editor's protected type: one atomic block whose content can't be edited or dropped into, but
+ *  which a click selects (rather than the block around it) and which can still be deliberately moved,
+ *  copied or deleted. See `registerProtectedElementType` in `@jini-ai/ui/html-editor`. */
+const EMBED_MARKER_ATTRIBUTES = ["data-embed-config", "data-embed-type", "data-widget-embed", "data-form-embed"] as const;
 
 /** True when `el` carries any embed marker attribute this convention recognizes. Uses
  *  `hasAttributeOnAnyNodeShape` because this predicate is invoked from inside GrapesJS's
