@@ -228,6 +228,54 @@ test("getEntryMeta: html-format description truncates at the same length and wit
   assert.equal(meta.description, `${"A".repeat(160)}…`);
 });
 
+test("getEntryMeta: html-format description skips a `post-detail-header` block instead of doubling the title (/media regression)", async () => {
+  const deps = await makeDeps([
+    seedPost({
+      kind: "page",
+      bodyFormat: "html",
+      bodyHtml:
+        '<header class="post-detail-header"><h1>Media</h1><p>Sep 3, 2026</p></header>' +
+        '<div class="post-detail-body"><p>Media is where…</p></div>',
+    }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.ok(
+    meta.description?.startsWith("Media is where"),
+    `expected description to start with "Media is where", got: ${meta.description}`
+  );
+});
+
+test("getEntryMeta: html-format description is unchanged when there is no `post-detail-header` block", async () => {
+  const deps = await makeDeps([
+    seedPost({ kind: "page", bodyFormat: "html", bodyHtml: "<p>Plain content with no header block.</p>" }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, "Plain content with no header block.");
+});
+
+test("getEntryMeta: doc-format description is unchanged by the post-detail-header stripping (bodyHtml path not taken)", async () => {
+  const deps = await makeDeps([seedPost()]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, "An excerpt body.");
+});
+
+test("getEntryMeta: html-format `post-detail-header` block is skipped even with extra classes alongside it", async () => {
+  const deps = await makeDeps([
+    seedPost({
+      kind: "page",
+      bodyFormat: "html",
+      bodyHtml:
+        '<header class="post-detail-header foo"><h1>Media</h1><p>Sep 3, 2026</p></header>' +
+        '<div class="post-detail-body"><p>Media is where…</p></div>',
+    }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.ok(
+    meta.description?.startsWith("Media is where"),
+    `expected description to start with "Media is where", got: ${meta.description}`
+  );
+});
+
 test("getEntryMeta: an explicit description override still wins over the derived html excerpt", async () => {
   const deps = await makeDeps([
     seedPost({

@@ -58,12 +58,27 @@ function decodeHtmlEntities(text: string): string {
   });
 }
 
+/** Strips the content of any element carrying the `post-detail-header` class — the injected
+ *  title/date wrapper (`renderPostDetailHeader` in `render.ts`, e.g. `<div class="post-detail-header">
+ *  <h1>…</h1>…</div>`) that the theme prepends ahead of an html-format body's own prose. Without
+ *  this, the derived excerpt doubled the title (`/media`'s description started "Media Media is…",
+ *  since `resolveTitleAndDescription`'s title already repeats it). Matched by tag name via
+ *  backreference, same regex-over-full-HTML-parse tradeoff as the script/style stripping below —
+ *  the class check tolerates any attribute order/quoting and extra class names alongside it. */
+function stripPostDetailHeader(html: string): string {
+  return html.replace(
+    /<([a-z][a-z0-9]*)\b[^>]*\bclass\s*=\s*(["'])(?:(?!\2)[\s\S])*\bpost-detail-header\b(?:(?!\2)[\s\S])*\2[^>]*>[\s\S]*?<\/\1>/gi,
+    " "
+  );
+}
+
 /** Plain-text extraction over a bespoke-HTML Page body (for the derived-excerpt fallback, SPEC-047
- *  gap): drops `<style>`/`<script>` blocks wholesale (never prose) before stripping the remaining
- *  tags, so a leading stylesheet — real `bodyHtml` rows start with one, see `/quickstart` — can never
- *  surface as the description. */
+ *  gap): drops the `.post-detail-header` title/date block and `<style>`/`<script>` blocks wholesale
+ *  (never prose) before stripping the remaining tags, so a leading stylesheet — real `bodyHtml` rows
+ *  start with one, see `/quickstart` — or the injected header can never surface as the description. */
 function extractPlainTextFromHtml(html: string): string {
-  const withoutNonProse = html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, " ");
+  const withoutHeader = stripPostDetailHeader(html);
+  const withoutNonProse = withoutHeader.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, " ");
   const withoutTags = withoutNonProse.replace(/<[^>]+>/g, " ");
   return decodeHtmlEntities(withoutTags);
 }
