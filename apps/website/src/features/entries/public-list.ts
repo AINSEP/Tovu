@@ -1,5 +1,6 @@
 import type { ContentTypeFieldDef, ContentTypeFieldKind, ContentTypeRecord } from "#src/features/content-types/index";
 import { NAV_MENU_CONTENT_TYPE } from "#src/features/navigation/index";
+import type { EntryRecord } from "./index.js";
 
 /**
  * @file Collections plan C1 (`collections-exec-plan-2026-09-23.md` lines 125-148) — the pure
@@ -67,6 +68,22 @@ export interface CollectionListDisplay {
   readonly columns: number;
   readonly layout: "cards" | "list";
   readonly fields: readonly ContentTypeFieldDef[];
+}
+
+/**
+ * C2 (plan lines 149-167): the read port a route/render layer calls with an already-parsed,
+ * already-validated {@link CollectionListQuery} (never raw config) to fetch the matching published
+ * entries. One method, not `EntryListPort`'s general-purpose shape, because a collection-list
+ * query has its own bounded semantics (`where`, arbitrary-field `sort`, a mandatory `limit`) that
+ * `EntryListPort.listByWorkspace` does not express.
+ */
+export interface EntryDisplayListPort {
+  /** @returns published, non-trashed entries of `query.type` matching every `query.where` clause,
+   * ordered by `query.sort`, bounded to `query.limit`. Never more than `query.limit` rows. */
+  listPublishedForDisplay(params: {
+    readonly workspaceId: string;
+    readonly query: CollectionListQuery;
+  }): Promise<EntryRecord[]>;
 }
 
 /** Per-caller overrides. The marker and the Recent Entries widget share one parser; the widget's

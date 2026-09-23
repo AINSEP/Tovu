@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import type { AnyColumn, SQL } from "drizzle-orm";
 
 import { entries, entryRevisions } from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
@@ -12,6 +13,7 @@ import type {
   EntryRevisionInput,
   EntryStatus,
 } from "./index.js";
+import type { CollectionListQuery, CollectionSortBy, CollectionWhereClause, EntryDisplayListPort } from "./public-list.js";
 
 /**
  * @file Real SQLite `EntryRepoPort` + `EntryListPort` adapter (ADR-006 rule-of-two "second
@@ -52,7 +54,61 @@ function toRecord(row: typeof entries.$inferSelect): EntryRecord {
   };
 }
 
-export class SqliteEntryRepo implements EntryRepoPort, EntryListPort {
+/**
+ * Builds the namespaced JSON pointer path (`$.ext.site.<field>`) a custom field's value lives at
+ * inside `entries.fields_json`. C1's `parseCollectionListConfig` has already validated `field`
+ * against the content type's declared fields before a `CollectionListQuery` reaches this repo,
+ * but this function's own contract does not rely on that: every caller below passes its return
+ * value as a bound SQL parameter to `json_extract`, never splices it into the SQL text, so even a
+ * field name an attacker fully controlled could only ever act as a literal (non-matching) JSON
+ * pointer — defense in depth below C1's rejection, not instead of it.
+ *
+ * @complexity O(1).
+ */
+function siteFieldJsonPath(field: string): string {
+  return `$.ext.site.${field}`;
+}
+
+/**
+ * One validated `{field, value}` filter clause as a bound `json_extract` equality check. SQLite's
+ * JSON functions have no boolean type — `json_extract` reads a JSON `true`/`false` back as the
+ * integer `1`/`0` — so a boolean filter value is converted to match before binding (plan §1
+ * unknown 3). Both the path and the value are template-literal placeholders drizzle's `sql`
+ * builds into separate bound parameters; the field name is never string-concatenated into SQL
+ * text (see {@link siteFieldJsonPath}).
+ *
+ * @complexity O(1) to build; the actual `json_extract` scan is charged once per matched row by
+ * SQLite, not once per clause here.
+ */
+function whereClauseSql(clause: CollectionWhereClause): SQL {
+  return sql`json_extract(${entries.fieldsJson}, ${siteFieldJsonPath(clause.field)}) = ${toBoundWhereValue(clause.value)}`;
+}
+
+/** Converts a validated `where` value into the scalar SQLite's `json_extract` comparison expects
+ * — see {@link whereClauseSql}'s boolean-encoding note. @complexity O(1). */
+function toBoundWhereValue(value: CollectionWhereClause["value"]): string | number {
+  if (typeof value === "boolean") {
+    return value ? 1 : 0;
+  }
+  return value;
+}
+
+/**
+ * Resolves a {@link CollectionSortBy} into the `ORDER BY` target: the three built-in keywords map
+ * to real, indexed columns; a `{field}` reference falls back to the same bound `json_extract`
+ * pattern {@link whereClauseSql} uses for `where`. `asc`/`desc` in `listPublishedForDisplay`
+ * accept either a column or a `SQL` fragment uniformly (both satisfy drizzle's `SQLWrapper`).
+ *
+ * @complexity O(1).
+ */
+function sortByExpression(by: CollectionSortBy): AnyColumn | SQL {
+  if (by === "published") return entries.publishedAt;
+  if (by === "updated") return entries.updatedAt;
+  if (by === "title") return entries.title;
+  return sql`json_extract(${entries.fieldsJson}, ${siteFieldJsonPath(by.field)})`;
+}
+
+export class SqliteEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayListPort {
   constructor(private readonly db: ContentDb) {}
 
   async findBySlug(params: { workspaceId: string; type: string; slug: string }): Promise<EntryRecord | null> {
@@ -157,5 +213,42 @@ export class SqliteEntryRepo implements EntryRepoPort, EntryListPort {
       client.exec("ROLLBACK");
       throw error;
     }
+  }
+
+  /**
+   * C2 (plan lines 149-167) — the `{"type":"collection"}` marker's read path: published,
+   * non-trashed rows of `query.type`, narrowed by every `query.where` clause, ordered by
+   * `query.sort`, bounded to `query.limit`. Every `where`/`sort` field name and value reaches
+   * SQL only as a bound parameter (see {@link whereClauseSql}/{@link sortByExpression}), never
+   * interpolated into the query text. `entries.id` is the final tiebreak so a query result is
+   * stable across calls when the primary sort key ties.
+   *
+   * @complexity O(log n + k): SQLite's `idx_entries_workspace(workspace_id, type)` index narrows
+   * to the workspace+type first; each matched row is then charged one `json_extract` per `where`
+   * clause plus the sort key (no expression index yet — plan §1 unknown 3's "queryable index
+   * provisioner" follow-up is later work, not this slice). `k` is the matched row count, always
+   * bounded below by `query.limit` at the SQL layer, never a full-table or full-type scan result
+   * materialized in memory first.
+   */
+  async listPublishedForDisplay(params: { workspaceId: string; query: CollectionListQuery }): Promise<EntryRecord[]> {
+    const { workspaceId, query } = params;
+    const conditions = [
+      eq(entries.workspaceId, workspaceId),
+      eq(entries.type, query.type),
+      eq(entries.status, "published"),
+      LIVE,
+      ...query.where.map(whereClauseSql),
+    ];
+    const direction = query.sort.dir === "asc" ? asc : desc;
+    const orderColumn = sortByExpression(query.sort.by);
+
+    const rows = this.db
+      .select()
+      .from(entries)
+      .where(and(...conditions))
+      .orderBy(direction(orderColumn), asc(entries.id))
+      .limit(query.limit)
+      .all();
+    return rows.map(toRecord);
   }
 }
