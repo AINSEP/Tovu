@@ -46,7 +46,8 @@ const ROLE_DELETE_TOOL_ID = "identity_role_delete";
 const POLICY_DELETE_TOOL_ID = "identity_policy_delete";
 const USER_CREATE_TOOL_ID = "identity_user_create";
 
-const USER_CREATE_DESCRIPTION_SUFFIX =
+/** Exported for the same reason {@link withoutPassword} is — see its doc comment. */
+export const USER_CREATE_DESCRIPTION_SUFFIX =
   " The user types the new user's first password into a form this tool shows; never pass a password, and never ask for one in chat.";
 
 /**
@@ -84,8 +85,14 @@ function gated(
   };
 }
 
-/** The model-facing schema for `identity_user_create`: Jini's, minus `password`. */
-function withoutPassword(schema: unknown): unknown {
+/**
+ * The model-facing schema for `identity_user_create`: Jini's, minus `password`. Exported so
+ * `assistant/__tests__/tool-registrations.contracts.test.ts` can assert the wired registration's
+ * published schema against a real derivation of the Jini catalog entry instead of either a second,
+ * hand-copied expectation (which could silently drift from this function) or a blind id-based skip
+ * (which would stop catching a real regression, e.g. `password` ceasing to be stripped).
+ */
+export function withoutPassword(schema: unknown): unknown {
   const { properties, required, ...rest } = schema as { properties: Record<string, unknown>; required?: string[] };
   const { password: _password, ...kept } = properties;
   return { ...rest, required: (required ?? []).filter((key) => key !== "password"), properties: kept };

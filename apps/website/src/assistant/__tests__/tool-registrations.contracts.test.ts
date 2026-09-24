@@ -44,6 +44,7 @@ import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js
 import { getWorkspaceAgentToolCatalog } from "../../features/workspace/index.js";
 import { formsAgentToolCatalog } from "../../features/forms/agent-tools.js";
 import { identityAgentToolCatalog } from "@jini-ai/cms/identity";
+import { USER_CREATE_DESCRIPTION_SUFFIX, withoutPassword } from "../../features/identity/tool-registrations.js";
 import { getWebhooksAgentToolCatalog } from "../../features/webhooks/agent-tools.js";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
@@ -320,6 +321,21 @@ function catalogEntry(toolId: string): AgentToolDefinition {
  */
 const DERIVED_CONTENT_READ_IDS: ReadonlySet<string> = new Set(RETIRED_READ_TOOL_TO_CARD.values());
 
+/**
+ * `identity_user_create` is the one wired tool whose published schema/description are NOT its
+ * catalog entry's, on purpose (2026-09-24, commit 431f8c831): Jini's catalog still describes a model-
+ * suppliable `password`, but Tovu's human-confirm gate (`features/identity/tool-registrations.ts`'s
+ * `buildGatedIdentityRegistrations`) strips it from what the model sees and appends
+ * `USER_CREATE_DESCRIPTION_SUFFIX` — the human types the password into a dialog instead, so it never
+ * enters model context or the chat transcript. The catalog entry stays the general Jini-level
+ * contract (other `@jini-ai/cms` consumers may not have this dialog), so this is a deliberate,
+ * single-tool divergence, not the "domain wired, catalog entry forgotten" drift the rest of this file
+ * guards against — see the dedicated test right after the generic loop below, which asserts the
+ * published shape against a REAL derivation of the catalog entry (via the exported
+ * `withoutPassword`/`USER_CREATE_DESCRIPTION_SUFFIX`) rather than skipping the check outright.
+ */
+const CATALOG_SCHEMA_OVERRIDE_IDS: ReadonlySet<string> = new Set(["identity_user_create"]);
+
 // ---------------------------------------------------------------------------
 // 1. Published contracts
 // ---------------------------------------------------------------------------
@@ -328,9 +344,18 @@ test("every wired registration publishes the inputSchema from its catalog entry 
   for (const [id, registration] of registrationsById()) {
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
     if (DERIVED_CONTENT_READ_IDS.has(id)) continue; // union schema / concatenated description — see DERIVED_CONTENT_READ_IDS's own doc
+    if (CATALOG_SCHEMA_OVERRIDE_IDS.has(id)) continue; // deliberate divergence, asserted honestly in the dedicated test below — see CATALOG_SCHEMA_OVERRIDE_IDS's own doc
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
   }
+});
+
+test("identity_user_create's published schema/description are a real derivation of its catalog entry, not an accidental mismatch — password stripped, dialog suffix appended", () => {
+  const registration = wiredRegistration("identity_user_create");
+  const catalog = catalogEntry("identity_user_create");
+
+  assert.deepEqual(registration.descriptor.inputSchema, withoutPassword(catalog.inputSchema), "identity_user_create's published schema must be Jini's catalog schema run through withoutPassword(), not a second, hand-copied shape that could silently drift from it");
+  assert.equal(registration.descriptor.description, `${catalog.description}${USER_CREATE_DESCRIPTION_SUFFIX}`);
 });
 
 test("requiresConfirmation is still unset on every wired tool — setting it with no ExecutionDelegate would park the execution forever", () => {
