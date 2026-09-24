@@ -9,6 +9,9 @@ import test from "node:test";
 import { fingerprintRootKeyHex } from "../keyring.env.js";
 import { ensureSiteKey, ensureSiteKeyForBoot, planSiteKeyEnsure, type SiteKeyMaterialCheck } from "../site-key-ensure.js";
 
+/** Site-key plan §A.4 additions to this suite start at "ensureSiteKey: fingerprint stamp" below —
+ *  everything above is unchanged from A2/A3a. */
+
 /**
  * @file Site-key plan §A.2 slice — `planSiteKeyEnsure` (the pure decision table) and `ensureSiteKey`
  * (its one writer). Every `ensureSiteKey` test uses a fresh temp dir for `home` and a fresh temp
@@ -258,4 +261,88 @@ test("ensureSiteKeyForBoot: siteDir has no .site-meta.json → undefined, no fil
 
   assert.equal(result, undefined);
   assert.equal(existsSync(path.join(home, ".tovu")), false);
+});
+
+// ---------------------------------------------------------------------------
+// ensureSiteKey: fingerprint stamp (site-key plan §A.2/§A.4) — after `noop`/`adopt`/`mint` settle
+// on the key now in the per-site file, `.site-meta.json`'s own `siteKeyFingerprint` is stamped if
+// absent, left alone if it already matches, and turns the result into `"mismatch"` — never
+// overwritten, never treated as a reason to mint — if it names a DIFFERENT key.
+// ---------------------------------------------------------------------------
+
+function writeSiteMeta(dir: string, meta: Record<string, unknown>): void {
+  writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify(meta));
+}
+
+function readSiteMeta(dir: string): Record<string, unknown> {
+  return JSON.parse(readFileSync(path.join(dir, ".site-meta.json"), "utf8")) as Record<string, unknown>;
+}
+
+test("ensureSiteKey: no .site-meta.json at siteDir → mint still succeeds, nothing to stamp against (pre-A4 caller shape, unchanged)", () => {
+  // Deliberately no .site-meta.json written — mirrors every ensureSiteKey test above this section.
+  const result = ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home });
+
+  assert.equal(result.action, "mint");
+  assert.equal(existsSync(path.join(siteDir, ".site-meta.json")), false, "ensureSiteKey never CREATES a .site-meta.json, only stamps an existing one");
+});
+
+test("ensureSiteKey: mint with a fresh site stamps siteKeyFingerprint into .site-meta.json, preserving every other field", () => {
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", templateId: "starter", schemaVersion: 3 });
+
+  const result = ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home });
+
+  assert.equal(result.action, "mint");
+  const meta = readSiteMeta(siteDir);
+  assert.equal(meta.siteKeyFingerprint, result.fingerprint, "the stamp must equal the fingerprint of the key actually minted");
+  assert.equal(meta.siteId, "meta-site-1", "stamping must not drop or alter an unrelated field");
+  assert.equal(meta.templateId, "starter", "stamping must not drop or alter an unrelated field");
+  assert.equal(meta.schemaVersion, 3, "stamping must not drop or alter an unrelated field");
+});
+
+test("ensureSiteKey: noop with a stamp that already matches the key's real fingerprint → stays 'noop', .site-meta.json is not rewritten", () => {
+  const perSiteFilePath = perSiteFilePathIn(home, "site-1");
+  mkdirSync(path.dirname(perSiteFilePath), { recursive: true });
+  const hex = validHex();
+  writeFileSync(perSiteFilePath, hex, { mode: 0o600 });
+  const fingerprint = fingerprintRootKeyHex(hex);
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprint });
+  const metaPathStatBefore = statSync(path.join(siteDir, ".site-meta.json"));
+
+  const result = ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home });
+
+  assert.equal(result.action, "noop");
+  assert.equal(result.fingerprint, fingerprint);
+  assert.deepEqual(readSiteMeta(siteDir), { siteId: "meta-site-1", siteKeyFingerprint: fingerprint });
+  // A same-content atomic rewrite would still change the inode/mtime — assert the file was never
+  // even opened for writing, not just that its content still reads the same.
+  assert.equal(statSync(path.join(siteDir, ".site-meta.json")).ino, metaPathStatBefore.ino, "a matching stamp must not trigger any write at all");
+});
+
+test("ensureSiteKey: noop with a TAMPERED (mismatched) stamped fingerprint → 'mismatch', neither the key file nor .site-meta.json is touched", () => {
+  const perSiteFilePath = perSiteFilePathIn(home, "site-1");
+  mkdirSync(path.dirname(perSiteFilePath), { recursive: true });
+  const hex = validHex();
+  writeFileSync(perSiteFilePath, hex, { mode: 0o600 });
+  const realFingerprint = fingerprintRootKeyHex(hex);
+  const tamperedFingerprint = fingerprintRootKeyHex(validHex()); // a different key's fingerprint, planted here on purpose
+  assert.notEqual(tamperedFingerprint, realFingerprint, "test precondition: the two fingerprints must actually differ");
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: tamperedFingerprint });
+
+  const result = ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home });
+
+  assert.equal(result.action, "mismatch", "a stamp that names a different key must be surfaced, not silently trusted");
+  assert.equal(result.fingerprint, realFingerprint, "the result must report the key file's REAL fingerprint, not the stale stamp");
+  assert.equal(readFileSync(perSiteFilePath, "utf8"), hex, "a mismatch must never overwrite the existing key file");
+  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, tamperedFingerprint, "a mismatch must never silently overwrite .site-meta.json's own stamp — it is evidence, not a cache");
+});
+
+test("ensureSiteKey: adopt into a fresh per-site file also stamps the fingerprint (not just mint)", () => {
+  const hex = validHex();
+  const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: hex };
+  writeSiteMeta(siteDir, { siteId: "meta-site-1" });
+
+  const result = ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home });
+
+  assert.equal(result.action, "adopt");
+  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, fingerprintRootKeyHex(hex));
 });

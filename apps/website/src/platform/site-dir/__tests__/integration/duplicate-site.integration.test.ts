@@ -11,6 +11,10 @@ import { duplicateSite } from "../../duplicate-site.js";
 import { InitDirNotEmptyError, InternalError, SiteDirInvalidError, ValidationError } from "../../errors.js";
 import { initSite } from "../../init-site.js";
 import { readSiteDir } from "../../read-site-dir.js";
+import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
+import { ensureSiteKeyForBoot } from "#src/features/webhooks/site-key-ensure";
+import { siteKeySources } from "#src/features/webhooks/site-key-sources";
 
 /**
  * @file `duplicateSite` — TDD certification, integration tier.
@@ -116,6 +120,136 @@ test("a duplicate carries content, uploads, and themes, but never chat history, 
     }
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Site-key plan §A.4: `duplicateSite` carries the source's own key identity forward, so a copy
+// that inherits sealed rows (via duplicateContentDb) can still decrypt them.
+// ---------------------------------------------------------------------------
+
+function mkTempHome(): string {
+  return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-duplicate-site-key-home-"));
+}
+
+function bareKeyEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  delete env.TOVU_SITE_KEY;
+  delete env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete env.TOVU_RUNTIME_MODE;
+  return env;
+}
+
+test("site-key plan §A.4: duplicateSite carries the source's own siteKeyId over — falls back to source.siteId for a pre-A4 source with none", () => {
+  const parent = mkTempParent();
+  try {
+    const source = initSite({ dir: path.join(parent, "source-key"), name: "Source" });
+
+    // Case 1: a post-A4 source already has an explicit siteKeyId (initSite always writes one) — it
+    // must be carried over verbatim, not re-derived from the copy's own fresh siteId.
+    const target1 = path.join(parent, "copy-1");
+    duplicateSite({ sourceDir: source.dir, targetDir: target1, name: "Copy 1" });
+    const meta1 = JSON.parse(fs.readFileSync(path.join(target1, ".site-meta.json"), "utf8"));
+    assert.equal(meta1.siteKeyId, source.siteId, "a post-A4 source's own siteKeyId must be carried over verbatim");
+
+    // Case 2: a pre-A4 source, simulated by stripping siteKeyId from an otherwise-real site's own
+    // .site-meta.json (a real filesystem copy, never a fabricated fixture) — falls back to siteId.
+    const legacySource = path.join(parent, "legacy-source");
+    fs.cpSync(source.dir, legacySource, { recursive: true });
+    const legacyMetaPath = path.join(legacySource, ".site-meta.json");
+    const legacyMeta = JSON.parse(fs.readFileSync(legacyMetaPath, "utf8"));
+    delete legacyMeta.siteKeyId;
+    fs.writeFileSync(legacyMetaPath, JSON.stringify(legacyMeta));
+
+    const target2 = path.join(parent, "copy-2");
+    duplicateSite({ sourceDir: legacySource, targetDir: target2, name: "Copy 2" });
+    const meta2 = JSON.parse(fs.readFileSync(path.join(target2, ".site-meta.json"), "utf8"));
+    assert.equal(meta2.siteKeyId, source.siteId, "a pre-A4 source with no siteKeyId field falls back to its own siteId");
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("site-key plan §A.4: a duplicate of a site with a sealed row can still decrypt it", async () => {
+  const parent = mkTempParent();
+  const home = mkTempHome();
+  try {
+    const source = initSite({ dir: path.join(parent, "source"), name: "Source" });
+    const env = bareKeyEnv();
+
+    // Establish the source's own per-site key file — the exact call `cli/commands/serve.ts`/
+    // `index.ts` make on every real boot (site-key plan §A3a).
+    const mintResult = ensureSiteKeyForBoot({ siteDir: source.dir, mode: "local", env, home });
+    assert.ok(mintResult, "the source must resolve a siteKeyId (initSite always writes one) and mint a per-site key");
+    assert.equal(mintResult?.action, "mint");
+
+    // Seal a real secret under the source's own resolved key, via the exact construction
+    // `server/runtime/composition/deps.ts` uses for the credential sealer (EnvOrFileKeyring with
+    // `sources`, never auto-generating).
+    const sourceKeyring = new EnvOrFileKeyring({
+      allowFileFallback: true,
+      allowFileAutoGenerate: false,
+      sources: siteKeySources({ mode: "local", env, home, cwd: process.cwd(), siteKeyId: source.siteId }),
+    });
+    const sealer = new AesGcmSecretSealer(sourceKeyring);
+    const key = await sourceKeyring.activeKey();
+    const plaintext = "a real vendor api token, never stored in the clear";
+    const sealed = await sealer.seal({ plaintext, key, aad: "row-1" });
+
+    // A real sealed row, physically inserted into the source's own content.db (same
+    // `sealed_ciphertext` column name `findKeyDependentData`'s own scan looks for).
+    const sourceDb = new Database(path.join(source.dir, "content.db"));
+    try {
+      sourceDb.exec(
+        "CREATE TABLE site_key_test_sealed_row (id INTEGER PRIMARY KEY, sealed_ciphertext TEXT, nonce TEXT, alg TEXT, key_id TEXT)"
+      );
+      sourceDb
+        .prepare("INSERT INTO site_key_test_sealed_row (sealed_ciphertext, nonce, alg, key_id) VALUES (?, ?, ?, ?)")
+        .run(sealed.ciphertext, sealed.nonce, sealed.alg, sealed.keyId);
+    } finally {
+      sourceDb.close();
+    }
+
+    // Duplicate the site — content.db, sealed row included, is physically copied.
+    const targetDir = path.join(parent, "copy");
+    const result = duplicateSite({ sourceDir: source.dir, targetDir, name: "Copy" });
+
+    const targetMeta = JSON.parse(fs.readFileSync(path.join(targetDir, ".site-meta.json"), "utf8"));
+    assert.equal(targetMeta.siteKeyId, source.siteId, "the duplicate must share the SOURCE's own siteKeyId, not its own fresh siteId");
+    assert.notEqual(result.siteId, source.siteId, "the duplicate still gets its own fresh siteId — that field is never shared");
+
+    // Resolving the duplicate's own boot path must find the SAME already-minted per-site file —
+    // 'noop', never a fresh 'mint' — proof the two sites truly share one key, not two different ones.
+    const targetEnsure = ensureSiteKeyForBoot({ siteDir: targetDir, mode: "local", env, home });
+    assert.ok(targetEnsure);
+    assert.equal(targetEnsure?.action, "noop", "the duplicate must resolve to the SAME per-site key file, never mint a new one");
+    assert.equal(targetEnsure?.fingerprint, mintResult?.fingerprint);
+
+    // The actual proof: decrypt the copied row under the DUPLICATE's own, independently
+    // constructed keyring — nothing here reuses the source's in-memory keyring instance.
+    const targetKeyring = new EnvOrFileKeyring({
+      allowFileFallback: true,
+      allowFileAutoGenerate: false,
+      sources: siteKeySources({ mode: "local", env, home, cwd: process.cwd(), siteKeyId: targetMeta.siteKeyId }),
+    });
+    const targetSealer = new AesGcmSecretSealer(targetKeyring);
+    const copyDb = new Database(path.join(targetDir, "content.db"), { readonly: true });
+    let copiedRow: { sealed_ciphertext: string; nonce: string; alg: string; key_id: string } | undefined;
+    try {
+      copiedRow = copyDb.prepare("SELECT sealed_ciphertext, nonce, alg, key_id FROM site_key_test_sealed_row").get() as typeof copiedRow;
+    } finally {
+      copyDb.close();
+    }
+    assert.ok(copiedRow, "the sealed row must have been physically copied by duplicateContentDb");
+
+    const decrypted = await targetSealer.open({
+      sealed: { keyId: copiedRow!.key_id, ciphertext: copiedRow!.sealed_ciphertext, nonce: copiedRow!.nonce, alg: copiedRow!.alg },
+      aad: "row-1",
+    });
+    assert.equal(decrypted, plaintext, "the duplicate must be able to decrypt the source's own sealed row byte-for-byte");
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
   }
 });
 

@@ -19,6 +19,7 @@ import Database from "better-sqlite3";
 import { fingerprintRootKeyHex, parseRootKeyHex, type RootKeyRejection } from "./keyring.env.js";
 import { readSiteKeySourceMaterial, resolveSiteKeyId, siteKeySources, type SiteKeySource } from "./site-key-sources.js";
 import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
+import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
 
 /**
@@ -158,11 +159,23 @@ function databaseHasKeyDependentData(dbPath: string): boolean {
 // New: ensureSiteKey — the per-site decision table and its one writer.
 // ---------------------------------------------------------------------------
 
-export type SiteKeyEnsureAction = "noop" | "adopt" | "mint" | "refuse" | "invalid" | "production-noop";
+/** {@link planSiteKeyEnsure}'s own pure decision-table outcomes only. `"mismatch"` (site-key plan
+ *  §A.4) is deliberately NOT one of them — no input to that pure function can ever produce it; it is
+ *  a POST-hoc outcome {@link withFingerprintReconciliation} derives afterward, from `.site-meta.json`'s
+ *  own stamped fingerprint, which `planSiteKeyEnsure` never sees. Keeping it out of this narrower type
+ *  (rather than folding it into {@link SiteKeyEnsureAction} and switching on that everywhere) is what
+ *  lets `ensureSiteKey`'s own `switch (plan.action)` stay genuinely exhaustive over the 6 real planned
+ *  outcomes, instead of carrying a dead `"mismatch"` case no plan input could ever reach. */
+export type SiteKeyEnsurePlanAction = "noop" | "adopt" | "mint" | "refuse" | "invalid" | "production-noop";
 
 export interface SiteKeyEnsurePlan {
-  readonly action: SiteKeyEnsureAction;
+  readonly action: SiteKeyEnsurePlanAction;
 }
+
+/** {@link EnsureSiteKeyResult.action}'s full range: every {@link SiteKeyEnsurePlanAction} the pure
+ *  decision table can produce, plus `"mismatch"` — see {@link SiteKeyEnsurePlanAction}'s own doc for
+ *  why that one extra value lives at this (I/O result) level and not the plan level. */
+export type SiteKeyEnsureAction = SiteKeyEnsurePlanAction | "mismatch";
 
 /** One material check's outcome — never carries a "why" beyond what {@link planSiteKeyEnsure}
  *  needs to decide; the payload (`hex`/`reason`) a caller needs afterward stays in the caller's
@@ -238,8 +251,10 @@ export interface EnsureSiteKeyResult {
   readonly action: SiteKeyEnsureAction;
   /** Absent for `"production-noop"` — production has no per-site file to name. */
   readonly perSiteFilePath?: string;
-  /** Present for `"noop"`, `"adopt"`, `"mint"` — the fingerprint of the key now in the per-site
-   *  file (site-key plan §A.2's fingerprint stamp reuses this same value). */
+  /** Present for `"noop"`, `"adopt"`, `"mint"`, and `"mismatch"` — the fingerprint of the key
+   *  ACTUALLY in the per-site file right now (site-key plan §A.2's fingerprint stamp reuses this
+   *  same value). For `"mismatch"` this is the file's real fingerprint, never the stale value still
+   *  sitting in `.site-meta.json` — see {@link reconcileSiteKeyFingerprint}. */
   readonly fingerprint?: string;
   /** Present for `"invalid"` — which {@link RootKeyRejection} the offending material failed. */
   readonly reason?: RootKeyRejection;
@@ -296,7 +311,7 @@ export function ensureSiteKey(input: EnsureSiteKeyInput): EnsureSiteKeyResult {
   switch (plan.action) {
     case "noop": {
       if (!perSiteParsed?.ok) throw new Error("ensureSiteKey: 'noop' plan implies a valid per-site key");
-      return { action: "noop", perSiteFilePath, fingerprint: fingerprintRootKeyHex(perSiteParsed.hex) };
+      return withFingerprintReconciliation(input.siteDir, "noop", perSiteFilePath, fingerprintRootKeyHex(perSiteParsed.hex));
     }
     case "invalid": {
       const rejected = perSiteParsed?.ok === false ? perSiteParsed : otherParsed?.ok === false ? otherParsed : undefined;
@@ -306,20 +321,87 @@ export function ensureSiteKey(input: EnsureSiteKeyInput): EnsureSiteKeyResult {
     case "adopt": {
       if (!otherParsed?.ok) throw new Error("ensureSiteKey: 'adopt' plan implies valid adoptable material");
       const written = atomicCreateSiteKeyFile(perSiteFilePath, otherParsed.hex);
-      return { action: "adopt", perSiteFilePath, fingerprint: fingerprintRootKeyHex(written) };
+      return withFingerprintReconciliation(input.siteDir, "adopt", perSiteFilePath, fingerprintRootKeyHex(written));
     }
     case "refuse":
       return { action: "refuse", perSiteFilePath };
     case "mint": {
       const generatedHex = randomBytes(32).toString("hex");
       const written = atomicCreateSiteKeyFile(perSiteFilePath, generatedHex);
-      return { action: "mint", perSiteFilePath, fingerprint: fingerprintRootKeyHex(written) };
+      return withFingerprintReconciliation(input.siteDir, "mint", perSiteFilePath, fingerprintRootKeyHex(written));
     }
     case "production-noop":
       // Unreachable here (the mode==="production" branch above already returned) — kept only so
       // this switch stays exhaustive against SiteKeyEnsureAction without a `default` escape hatch.
       return { action: "production-noop" };
   }
+}
+
+/**
+ * Site-key plan §A.2's fingerprint stamp / §A.4: after `ensureSiteKey` settles on the key now
+ * actually in the per-site file (`"noop"`, `"adopt"`, or `"mint"`), makes sure `.site-meta.json`
+ * records that key's fingerprint — atomically, and preserving every other field in the file — so a
+ * LATER substitution of the physical key file becomes visible before any decrypt ever fails on it
+ * (§A.5's `"mismatch"` banner state).
+ *
+ * - No readable/parseable `.site-meta.json` at `siteDir` → nothing to stamp against; the caller's
+ *   own key-material outcome is untouched. This keeps every pre-A4 `ensureSiteKey` caller (a raw
+ *   temp `siteDir` with no meta file at all, e.g. this module's own unit-test fixtures) working
+ *   exactly as before this stamp existed.
+ * - Field absent → stamped now, merged into the EXISTING parsed object so no other field is lost or
+ *   reset (never a fresh object built from scratch).
+ * - Field present and equal → nothing written; the file already reflects reality.
+ * - Field present and different → the stamp is evidence, not a cache: this call returns
+ *   `"mismatch"` instead of the caller's own action, and neither rewrites `.site-meta.json` nor
+ *   mints/writes any new key material — the key file itself was already established (or left alone)
+ *   by the caller before this function ever runs.
+ *
+ * @complexity O(1) — one bounded JSON read, at most one atomic JSON write.
+ */
+function withFingerprintReconciliation(
+  siteDir: string,
+  action: "noop" | "adopt" | "mint",
+  perSiteFilePath: string,
+  fingerprint: string
+): EnsureSiteKeyResult {
+  const meta = readSiteMetaObject(siteDir);
+  if (meta === undefined) {
+    return { action, perSiteFilePath, fingerprint };
+  }
+  const stamped = meta.siteKeyFingerprint;
+  if (stamped === undefined) {
+    writeJsonFileAtomic(join(siteDir, ".site-meta.json"), { ...meta, siteKeyFingerprint: fingerprint });
+    return { action, perSiteFilePath, fingerprint };
+  }
+  if (stamped === fingerprint) {
+    return { action, perSiteFilePath, fingerprint };
+  }
+  return { action: "mismatch", perSiteFilePath, fingerprint };
+}
+
+/** `.site-meta.json`'s raw parsed object under `siteDir`, or `undefined` when the file is missing,
+ *  unreadable, not valid JSON, or not a JSON object — mirrors `site-key-sources.ts`'s
+ *  `resolveSiteKeyId` in never throwing: a site with no meta (or a genuinely corrupt one) simply has
+ *  nowhere to stamp a fingerprint against.
+ *
+ * @complexity O(1) — one small, bounded-size file read (no size guard of its own; a `.site-meta.json`
+ *   this oversized already fails `readSiteDir`'s own 64 KiB corruption guard upstream of anything
+ *   that would call `ensureSiteKey`).
+ */
+function readSiteMetaObject(siteDir: string): Record<string, unknown> | undefined {
+  let raw: string;
+  try {
+    raw = readFileSync(join(siteDir, ".site-meta.json"), "utf8");
+  } catch {
+    return undefined;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+  return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : undefined;
 }
 
 export interface EnsureSiteKeyForBootInput {

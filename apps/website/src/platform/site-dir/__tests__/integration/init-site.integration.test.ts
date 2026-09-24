@@ -71,6 +71,20 @@ test("AC-01/AC-14/REQ-01: a clean init produces exactly the required layout with
   }
 });
 
+test("site-key plan §A.4: a freshly initialized site gets its own siteKeyId, equal to its siteId", () => {
+  const parent = mkTempParent();
+  const target = path.join(parent, "demo-site-key");
+  try {
+    const result = initSite({ dir: target, name: "Demo Site Key" });
+
+    const meta = JSON.parse(fs.readFileSync(path.join(target, ".site-meta.json"), "utf8"));
+    assert.equal(meta.siteKeyId, result.siteId, "a brand-new site's siteKeyId must be stamped explicitly, equal to its own siteId");
+    assert.equal(typeof meta.siteKeyId, "string");
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
 test("BR-03: omitting --name defaults the site name to the directory basename", () => {
   const parent = mkTempParent();
   const target = path.join(parent, "my-cool-site");

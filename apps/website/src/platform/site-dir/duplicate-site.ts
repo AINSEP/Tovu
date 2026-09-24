@@ -243,6 +243,12 @@ export function duplicateSite(required: DuplicateSiteRequired): DuplicateSiteRes
       schemaVersion: sourceMeta.schemaVersion,
       schemaTag: sourceMeta.schemaTag,
       createdAt,
+      // Site-key plan §A.4: the copy shares the SOURCE's own key identity, never siteId (the one
+      // field just above that IS always fresh) — content.db was physically copied with its sealed
+      // rows intact, so the duplicate must resolve to the exact same `~/.tovu/site-keys/<id>.hex`
+      // the source uses, or nothing in it can be decrypted. `?? sourceMeta.siteId` covers a source
+      // written before this field existed (a pre-A4 `.site-meta.json` with no siteKeyId at all).
+      siteKeyId: sourceMeta.siteKeyId ?? sourceMeta.siteId,
     };
     writeJsonFileAtomic(path.join(target, ".site-meta.json"), meta);
 

@@ -224,6 +224,11 @@ export function initSite(required: InitSiteRequired): InitSiteResult {
       schemaVersion: runtime.index,
       schemaTag: runtime.tag,
       createdAt,
+      // Site-key plan §A.4: a brand-new site's key file is named after its own siteId — explicit
+      // here rather than left for `resolveSiteKeyId`'s siteId fallback to infer, so the intent is
+      // visible in the file itself and a future `duplicateSite` always has a real value to carry
+      // forward (see that function's own `siteKeyId ?? siteId` carry-over).
+      siteKeyId: siteId,
     };
     writeJsonFileAtomic(path.join(target, ".site-meta.json"), meta);
 
