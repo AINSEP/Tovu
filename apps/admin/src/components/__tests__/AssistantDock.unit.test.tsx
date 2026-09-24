@@ -652,6 +652,19 @@ describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", (
     const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { agentControl?: { bridgeAccess?: unknown } };
     expect(props.agentControl?.bridgeAccess).toBeUndefined();
   });
+
+  /**
+   * Publish-criteria plan §4 S5 ("WebMCP on") — the owner's 09-22 decision that WebMCP stays on by
+   * default now that P0 (plan §3 item 2) has removed the Publish button's agent handle. Before this,
+   * `agentControl` omitted `webmcp` entirely, which is what kept `useChatPaneAgentControl` from
+   * registering the chat-pane's own WebMCP tools (see this file's own comment above `agentControl`).
+   */
+  it("passes webmcp: true to the chat pane", () => {
+    render(<AssistantDock useChats={() => fakeChats()} />);
+
+    const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { agentControl?: { webmcp?: boolean } };
+    expect(props.agentControl?.webmcp).toBe(true);
+  });
 });
 
 /**

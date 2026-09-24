@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createFrontendSessionBridge, type FrontendSessionBridge } from "@jini-ai/chat/react";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
+import { toWebMcpTool, type WebMcpRegisterToolOptions, type WebMcpToolRegistration } from "@jini-ai/agentic";
 
 import { buildAdminAgentPages } from "./lib/agent-pages";
 import {
@@ -895,6 +896,58 @@ export function logFrontendSessionError(error: unknown): void {
   console.error("[admin] frontend session", error);
 }
 
+/** The minimal shape this file needs from the WebMCP host surface (`document.modelContext`, or the
+ *  older `navigator.modelContext` location — see `@jini-ai/agentic`'s `webmcp.js` module doc for
+ *  why both are checked) — just `registerTool`, matching what `toWebMcpTool`'s
+ *  {@link WebMcpToolRegistration} expects as `registerTool`'s second positional argument. */
+interface AdminWebMcpModelContext {
+  registerTool: (tool: WebMcpToolRegistration, options?: WebMcpRegisterToolOptions) => unknown;
+}
+
+/**
+ * Feature-detects the WebMCP host surface. `document.modelContext` first, `navigator.modelContext`
+ * as a fallback for the pre-2026-07-21 location some builds still serve during Chrome's origin
+ * trial — neither is a standard DOM global, so both reads go through an `unknown` cast rather than
+ * an ambient type declaration this repo does not otherwise carry.
+ *
+ * @complexity O(1).
+ */
+function resolveWebMcpModelContext(): AdminWebMcpModelContext | undefined {
+  const doc = document as unknown as { modelContext?: AdminWebMcpModelContext };
+  const nav = navigator as unknown as { modelContext?: AdminWebMcpModelContext };
+  return doc.modelContext ?? nav.modelContext;
+}
+
+/**
+ * Registers `admin.publish_content` (plan §4 S5, "WebMCP on" — the owner's 09-22 decision) as a
+ * page-native WebMCP tool, when this browser exposes the host surface. A no-op, not a throw, when
+ * it doesn't — every browser today outside Chrome's 149-156 origin trial — because WebMCP is a
+ * *discovery* layer over the always-on relay {@link buildAdminCapabilityExecutors} already serves,
+ * not a replacement for it; the chat path keeps working with no WebMCP host present.
+ *
+ * Passes `executors["admin."]` straight through as the WebMCP `execute` callback, so a WebMCP call
+ * and a chat-relayed call run the exact same code — one implementation of `admin.publish_content`
+ * behind both doors. The gate that stops either door from actually publishing lives in plan §3 (no
+ * agent handle on the Publish button, session-only overwrite unchanged server-side), not here — see
+ * `AssistantDock.tsx`'s own `agentControl={{ webmcp: true }}` comment.
+ *
+ * @param executors - {@link buildAdminCapabilityExecutors}'s own return value; `executors["admin."]`
+ * is always present (that function always returns exactly that one key).
+ * @param signal - Threaded into `toWebMcpTool`'s `registerOptions.signal` — WebMCP's only
+ * unregistration mechanism. The caller's effect cleanup aborts it to unregister on unmount/re-run.
+ * @param modelContext - Test seam; defaults to {@link resolveWebMcpModelContext}'s real lookup.
+ * @complexity O(1).
+ */
+export function registerAdminWebMcpTool(
+  executors: Record<string, (capabilityId: string, input: Record<string, unknown>) => Promise<unknown>>,
+  signal: AbortSignal,
+  modelContext: AdminWebMcpModelContext | undefined = resolveWebMcpModelContext(),
+): void {
+  if (!modelContext) return;
+  const registration = toWebMcpTool(PUBLISH_CONTENT_CAPABILITY, executors["admin."]!, { signal });
+  modelContext.registerTool(registration, registration.registerOptions);
+}
+
 export function useAgentPageBridge(): UseAgentPageBridge {
   const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
   const [agentBridge, setAgentBridge] = useState<FrontendSessionBridge | null>(null);
@@ -906,9 +959,10 @@ export function useAgentPageBridge(): UseAgentPageBridge {
   useEffect(() => {
     if (!contentEl) return;
 
+    const executors = buildAdminCapabilityExecutors(contentEl);
     const bridge = createFrontendSessionBridge({
       pageDriver: createDomPageDriver({ root: contentEl, pages: agentPages }),
-      executors: buildAdminCapabilityExecutors(contentEl),
+      executors,
       onError: logFrontendSessionError,
     });
     // Attach failure is not fatal: the assistant still works, it just cannot drive the page, and
@@ -916,8 +970,16 @@ export function useAgentPageBridge(): UseAgentPageBridge {
     bridge.ready.catch((error: unknown) => console.error("[admin] page control never attached", error));
     setAgentBridge(bridge);
 
+    // Plan §4 S5: registers the same `executors["admin."]` dispatcher as a WebMCP tool, when this
+    // browser exposes one. Its own AbortController, not `bridge.close()`'s lifetime — the two are
+    // unrelated unregistration mechanisms for unrelated surfaces (daemon-relayed SSE vs. page-native
+    // WebMCP) that just happen to share this effect's mount/unmount window.
+    const webMcpController = new AbortController();
+    registerAdminWebMcpTool(executors, webMcpController.signal);
+
     return () => {
       bridge.close();
+      webMcpController.abort();
       setAgentBridge((current) => (current === bridge ? null : current));
     };
   }, [contentEl, agentPages]);

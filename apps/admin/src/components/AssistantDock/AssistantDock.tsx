@@ -572,10 +572,14 @@ export function AssistantDock({
         // until `ToolExecutor`'s 30s `descriptor.timeoutMs` reports it `timed-out` with no real error
         // anywhere. `enabled: true` is safe even before the tab attaches — `bridgeAccess` is only
         // `agentBridge?.bridgeAccess`, `undefined` until `useAgentPageBridge`'s effect runs, and
-        // `useChatPaneAgentControl` is a no-op when `bridgeAccess` is absent. `webmcp` stays
-        // unset (off): this only wires the already-`ToolExecutor`-gated daemon-relayed channel, not
-        // the ungated in-page WebMCP surface — see that option's own doc for why that stays opt-in.
-        agentControl={{ enabled: true, bridgeAccess: agentBridge?.bridgeAccess }}
+        // `useChatPaneAgentControl` is a no-op when `bridgeAccess` is absent. `webmcp: true` wires
+        // this pane's own WebMCP tools on top of the always-on daemon-relayed channel above — the
+        // owner's 09-22 decision (publish-criteria plan §4 S5) that WebMCP stays on by default, now
+        // that plan §3 has closed the hole it would otherwise reopen: the Publish button carries no
+        // agent handle (`PublishContentDialog.tsx`), so neither this in-page WebMCP surface nor the
+        // daemon-relayed one above can press it — see plan §3 for the full gate. Nothing here makes
+        // the Publish button agent-proof by keeping WebMCP off; it already is, regardless.
+        agentControl={{ enabled: true, bridgeAccess: agentBridge?.bridgeAccess, webmcp: true }}
         uploadAttachments={uploadAttachments}
         // Restores a persisted draft's ATTACHMENTS, not just its text. `@jini-ai/chat` caches the
         // references but hands back only the subset a host confirms is still served — the staged
