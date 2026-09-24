@@ -13,7 +13,7 @@ Tovu is at MVP. Everything runs on your own machine.
 - `packages/sdk` — `@tovu/sdk`, the public SDK for plugin authors (the only supported import surface for plugin `server/index.mjs` entries).
 - `sites/` — site data, not source: `sites/<name>/` holds one site's `content.db`, uploads, themes, plugins, and build output. Gitignored per-site; upgrading Tovu never touches this directory.
 
-Tovu is built on [Jini](https://github.com/jini-ai) (`@jini-ai/*` packages) — the agent/runtime framework underneath the CMS and assistant.
+Tovu is built on [Jini](https://github.com/AINSEP/Jini) (`@jini-ai/*` packages) — the agent/runtime framework underneath the CMS and assistant.
 
 ## What it does
 
