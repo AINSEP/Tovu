@@ -1094,6 +1094,21 @@ describe("PublishContentDialog — Overwrite on live, review fixes", () => {
   });
 });
 
+// publish-criteria-tool-webmcp-plan-2026-09-24.md §3 item 2 (P0). `createDomPageDriver.click`
+// (Jini) clicks any `[data-agent-element]`, so the Publish button carrying one let the chat
+// assistant fire a publish to the live site with no human click. Only a person may press this
+// button — see plan §3.
+describe("PublishContentDialog — the Publish button can't be reached by an agent (publish-criteria plan §3)", () => {
+  it("the Publish button carries no agent handle (an agent can't confirm a publish)", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
+    await planFrom(port);
+
+    const publishButton = screen.getByRole("button", { name: /publish/i });
+    expect(publishButton.hasAttribute("data-agent-element")).toBe(false);
+    expect(document.querySelector('[data-agent-element="dashboard-publish-content-confirm"]')).toBeNull();
+  });
+});
+
 describe("PublishContentDialog — the primary action can't be doubled in one tick (terra #5)", () => {
   it("two confirms from the same render send one confirm and one execute", async () => {
     const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });

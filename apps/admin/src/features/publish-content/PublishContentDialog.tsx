@@ -305,14 +305,7 @@ export function PublishContentDialog({ onCancel, t, port }: PublishContentDialog
             className="btn-primary"
             disabled={view.primaryDisabled}
             onClick={view.onPrimary}
-            {...agentHandle("dashboard-publish-content-confirm", {
-              role: "button",
-              // Same control, different job: while `connectOffer` is set this button connects the
-              // pre-filled site instead of reviewing a plan — see this file's header.
-              label: view.connectOffer
-                ? "Connect this site so it can publish, using the pre-filled site address"
-                : "Review what would be published, then publish it to the live site",
-            })}
+            // No agent handle: only a person may press this; see publish-criteria plan §3.
           >
             {view.primaryLabel}
           </button>
