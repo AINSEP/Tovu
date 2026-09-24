@@ -519,6 +519,13 @@
       "when": 1799841600006,
       "tag": "0073_page_empty_template_choice_to_null",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "6",
+      "when": 1799841600007,
+      "tag": "0074_bouncy_makkari",
+      "breakpoints": true
     }
   ]
 }

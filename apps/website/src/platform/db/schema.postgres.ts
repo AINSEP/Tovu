@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 91
+ * Tables: 92
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, customType, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -634,6 +634,16 @@ export const mediaProviderCredentials = pgTable("media_provider_credentials", {
     primaryKey({ columns: [t.workspaceId, t.providerId] }),
     foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
     check("media_provider_credentials_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL AND key_tail IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL AND key_tail IS NOT NULL)`),
+  ]);
+
+export const mediaSlugHistory = pgTable("media_slug_history", {
+  workspaceId: text("workspace_id").notNull(),
+  slug: text("slug").notNull(),
+  mediaId: text("media_id").notNull(),
+  retiredAt: text("retired_at").notNull(),
+}, (t) => [
+    primaryKey({ columns: [t.workspaceId, t.slug] }),
+    index("idx_media_slug_history_media_id").on(t.workspaceId, t.mediaId),
   ]);
 
 export const memberConsents = pgTable("member_consents", {
