@@ -19,7 +19,7 @@ import { NO_PUBLISH_CONTENT_SEED_HASH } from "./seed-hash.js";
 import type { PublishContentSeedHashFn } from "./seed-hash.js";
 import type { PublishContentOutcomeRow, PublishContentReport } from "./planner.js";
 import { buildPublishContentCatalog } from "./type-registry.js";
-import type { PublishContentDeps, PublishContentHandler, PackedEntity } from "./type-registry.js";
+import type { EntityReplacement, PublishContentDeps, PublishContentHandler, PackedEntity } from "./type-registry.js";
 
 /**
  * @file Task 8 of the publish-content (Publish Content) feature —
@@ -210,6 +210,17 @@ function classifyApplyRowFailure(
     };
   }
   return null;
+}
+
+/**
+ * R5 (`plan-publish-repoint-menus-2026-09-24.md` §2.3) — capitalizes a handler's own `entityType`
+ * for the one generic, type-agnostic operator-facing prefix the repoint pass produces when a whole
+ * `repointReferences()` call throws (as opposed to a per-holder line, which the handler itself
+ * already phrases — see {@link createPublishContentApplyPort}'s repoint pass, below).
+ * @complexity O(1).
+ */
+function capitalize(value: string): string {
+  return value.length === 0 ? value : value[0]!.toUpperCase() + value.slice(1);
 }
 
 /**
@@ -554,7 +565,14 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
           items: [],
           finishedAt: input.clock.nowIso(),
         });
-        return { runId, changeSetIds: [], retiredChangeSetIds: [] };
+        return {
+          runId,
+          changeSetIds: [],
+          retiredChangeSetIds: [],
+          repointChangeSetIds: [],
+          menuLinksUpdated: 0,
+          menuLinksNotUpdated: [],
+        };
       }
 
       const entities = JSON.parse(staged.entitiesJson) as readonly PackedEntity[];
@@ -695,8 +713,62 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         throw error;
       }
 
+      // R5 (`plan-publish-repoint-menus-2026-09-24.md` §2.3) — after every row has landed (never
+      // reached above on an abort — the `throw error` a few lines up returns before this point, so a
+      // failed run never repoints anything), repoint every live reference that still points at an
+      // address-clash overwrite's retired holder. This loop stays type-agnostic: it calls every
+      // registered handler that implements the optional `repointReferences` hook, generically, and
+      // never imports navigation or any other reference-holding feature by name.
+      const replacements: EntityReplacement[] = [];
+      for (const row of report.rows) {
+        if (!row.retires) continue;
+        const item = itemByKey.get(entityKey(row.entityType, row.entityId));
+        // `retiredChangeSetId === null` covers both "never reached the retire" and "the create that
+        // followed it failed and was undone" (§2.3 step 1) — either way, nothing was actually
+        // replaced, so there is nothing here for a repoint pass to act on.
+        if (!item || item.retiredChangeSetId === null) continue;
+        replacements.push({ entityType: row.retires.entityType, oldId: row.retires.entityId, newId: row.entityId });
+      }
+      // Every id written THIS run, across every type — a holder in this set already carries the
+      // source's own intent (its own row wrote), so repointing it would fight that intent (§2.5).
+      const skipIds = new Set<string>(
+        itemStates()
+          .filter((item) => item.changeSetId !== null)
+          .map((item) => item.entityId)
+      );
+
+      let repointChangeSetIds: string[] = [];
+      let menuLinksUpdated = 0;
+      const menuLinksNotUpdated: string[] = [];
+      if (replacements.length > 0) {
+        for (const handler of handlerByType.values()) {
+          if (!handler.repointReferences) continue;
+          try {
+            const repointed = await handler.repointReferences({ replacements, skipIds, principalId, runId });
+            repointChangeSetIds = repointChangeSetIds.concat(repointed.changeSetIds);
+            menuLinksUpdated += repointed.linksUpdated;
+            menuLinksNotUpdated.push(...repointed.notUpdated);
+          } catch (error) {
+            // The content this run published already landed — a repoint failure is reported, never
+            // thrown back to fail the run (§2.3 step 4). A handler's own per-holder failures (a
+            // denied grant, a concurrent edit) are already caught inside that handler and returned
+            // via `notUpdated` above; reaching this catch means the WHOLE call failed (e.g. a
+            // required port was never wired for this composition root).
+            const message = error instanceof Error ? error.message : String(error);
+            menuLinksNotUpdated.push(`${capitalize(handler.entityType)} links were not updated: ${message}`);
+          }
+        }
+      }
+
       await saveSnapshot("applied", input.clock.nowIso());
-      return { runId, changeSetIds: currentChangeSetIds(), retiredChangeSetIds: currentRetiredChangeSetIds() };
+      return {
+        runId,
+        changeSetIds: currentChangeSetIds(),
+        retiredChangeSetIds: currentRetiredChangeSetIds(),
+        repointChangeSetIds,
+        menuLinksUpdated,
+        menuLinksNotUpdated,
+      };
     },
   };
 }

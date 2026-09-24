@@ -27,10 +27,15 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import { isTrashed } from "#src/features/post/post";
 import type { PostRecord } from "#src/features/post/post";
-import { contributePostPublish, toPublishableState } from "#src/features/post/publish-content";
+import { contributePagePublish, contributePostPublish, toPublishableState } from "#src/features/post/publish-content";
 import { removeVia } from "#src/features/post/__tests__/remove-post-double";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo, computeBlobStorageKey, type MediaRecord } from "#src/features/media/index";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
+
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type MenuRepoPort, type NavMenuEntry } from "#src/features/navigation/index";
+import { contributeMenusPublish } from "#src/features/navigation/publish-content";
+import { urlFor } from "#src/platform/routing/routing";
+import type { RouteTarget } from "#src/platform/routing/types";
 
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
@@ -1035,4 +1040,214 @@ test("D1: a seed-matched row edited on the destination AFTER plan still downgrad
   assert.deepEqual(result.changeSetIds, []);
   const kept = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "page-seeded" });
   assert.equal(kept?.title, "Edited on live meanwhile");
+});
+
+// ---------------------------------------------------------------------------
+// R5 (plan-publish-repoint-menus-2026-09-24.md §2.3/§3) — the apply loop's own
+// repoint pass: after every row lands, live entities that still link to an
+// address-clash overwrite's retired holder (e.g. a menu's `entryRef`) are
+// repointed to the new id, generically, through the optional
+// `repointReferences` hook — this loop never imports navigation.
+// ---------------------------------------------------------------------------
+
+/** One nested-free menu item targeting `entryId` via `entryRef` — the one `NavItemNode` shape these
+ *  tests need (mirrors `features/navigation/__tests__/reverters.test.ts`'s own `entryRefItem`). */
+function menuEntryRefItem(id: string, entryId: string) {
+  return { id, label: "About", target: { kind: "entryRef" as const, entryId } };
+}
+
+/** One live menu row with a single top-level `entryRef` item targeting `entryId`. */
+function makeMenuRow(overrides: { id: string; entryId: string; version?: number }): NavMenuEntry {
+  return {
+    id: overrides.id,
+    workspaceId: WORKSPACE_ID,
+    slug: "header-nav",
+    title: "Header",
+    status: "published",
+    doc: { type: "menu", version: 1, items: [menuEntryRefItem("item-1", overrides.entryId)] },
+    locations: [],
+    updatedAt: "2026-09-01T00:00:00.000Z",
+    version: overrides.version ?? 1,
+  } as NavMenuEntry;
+}
+
+/** Same shape as {@link makeHarness}, plus a real registered `contributeMenusPublish()` handler over
+ *  a real `InMemoryMenuRepo` — R5's own repoint pass is the one piece of `apply-loop.ts` that calls a
+ *  SECOND type's handler generically (`repointReferences`), so these tests need both `post` and
+ *  `menu` wired for real, not a fake. `wireMenuDeps: false` reproduces the one real (non-fake) way
+ *  the registered menu handler's own `repointReferences()` throws — a composition root that forgot
+ *  to wire `menuRepo`/`navLocationBindingRepo` for this bag — without hand-rolling a fake handler. */
+function makeMenuHarness(rows: PostRecord[] = [], options: { menuRepo?: MenuRepoPort; wireMenuDeps?: boolean } = {}) {
+  resetPublishContentContributorsForTests();
+  registerPublishContentContributor(contributeMediaPublish());
+  registerPublishContentContributor(contributePostPublish());
+  registerPublishContentContributor(contributePagePublish()); // menu's own MENU_DEPENDS_ON names it
+  registerPublishContentContributor(contributeMenusPublish());
+
+  const postRepo = new InMemoryPostRepo(rows);
+  const clock = makeClock();
+  const outbox = new InMemoryOutbox();
+  const changeSets = new InMemoryChangeSetRepo([], [], outbox);
+  const authorize = async () => ({ allowed: true, reason: "test-always-allow" });
+  const bundleRepo = new InMemoryPublishContentBundleRepo();
+  const runRepo = new InMemoryPublishContentRunRepo();
+  const baselineRepo = new InMemoryPublishContentBaselineRepo();
+  const menuRepo = options.menuRepo ?? new InMemoryMenuRepo();
+  const navLocationBindingRepo = new InMemoryNavLocationBindingRepo();
+  const wireMenuDeps = options.wireMenuDeps ?? true;
+
+  const publishContentDeps: PublishContentDeps = {
+    workspaceId: WORKSPACE_ID,
+    postRepo,
+    clock,
+    idGen: makeCounterIdGen("cs"),
+    outbox,
+    changeSets,
+    authorize,
+    forgetRemovedPost: async () => {},
+    removePost: removeVia(postRepo),
+    ...(wireMenuDeps ? { menuRepo, navLocationBindingRepo } : {}),
+  };
+
+  const applyPort = createPublishContentApplyPort({
+    workspaceId: WORKSPACE_ID,
+    bundleRepo,
+    baselineRepo,
+    runRepo,
+    publishContentDeps,
+    clock,
+    idGen: makeCounterIdGen("run"),
+  });
+
+  return { postRepo, menuRepo, clock, changeSets, baselineRepo, bundleRepo, runRepo, publishContentDeps, applyPort };
+}
+
+test("R5: after apply, a live menu's entryRef is repointed to the address-clash overwrite's new id, and routing resolves it", async () => {
+  const holder = makePost({ id: "post-about", slug: "about", kind: "post", version: 3, status: "published", title: "About (live)" });
+  const menuRepo = new InMemoryMenuRepo([makeMenuRow({ id: "menu-header", entryId: "post-about" })]);
+  const { postRepo, clock, bundleRepo, runRepo, publishContentDeps, applyPort } = makeMenuHarness([holder], { menuRepo });
+
+  const incoming = makePost({ id: "local-about", slug: "about", kind: "post", status: "published", title: "About Tovu" });
+  const entities = [packedFrom(incoming)];
+  const forcedKey = entityKey("post", "local-about");
+  const report = await planWithForce(publishContentDeps, entities, new Set([forcedKey]));
+  assert.equal(report.rows[0].outcome, "forced", "precondition: the slug clash must be offered and forced");
+
+  const bundleId = await stage(bundleRepo, clock, entities);
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+
+  assert.equal(result.changeSetIds.length, 1, "the repoint's own change set stays separate from the row change sets, mirroring retiredChangeSetIds");
+  assert.equal(result.menuLinksUpdated, 1);
+  assert.equal(result.repointChangeSetIds.length, 1);
+  assert.deepEqual(result.menuLinksNotUpdated, []);
+
+  const menu = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-header" });
+  assert.equal((menu?.doc.items[0]?.target as { entryId: string }).entryId, "local-about", "the live menu must now target the new id");
+
+  const resolved = await urlFor({
+    deps: { postRepo },
+    target: menu!.doc.items[0]!.target as RouteTarget,
+    ctx: { workspaceId: WORKSPACE_ID },
+  });
+  assert.deepEqual(resolved, { path: "/about", canonicalUrl: "/about" }, "routing must resolve the repointed link to the live page");
+
+  const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
+  assert.equal(run?.phase, "applied");
+});
+
+test("R5: a menu written by the same bundle keeps its own incoming tree — it is skipped, not repointed", async () => {
+  const holder = makePost({ id: "post-about", slug: "about", kind: "post", version: 3, status: "published", title: "About (live)" });
+  const menuRepo = new InMemoryMenuRepo([makeMenuRow({ id: "menu-header", entryId: "post-about" })]);
+  const { clock, bundleRepo, runRepo, publishContentDeps, applyPort } = makeMenuHarness([holder], { menuRepo });
+
+  const incomingPost = makePost({ id: "local-about", slug: "about", kind: "post", title: "About Tovu" });
+  const incomingMenuEntity: PackedEntity = {
+    entityType: "menu",
+    id: "menu-header",
+    schemaVersion: 1,
+    contentHash: "menu-header-incoming-hash",
+    hashVersion: CONTENT_HASH_VERSION,
+    requiredBlobs: [],
+    state: {
+      slug: "header-nav",
+      title: "Header",
+      status: "published",
+      doc: { type: "menu", version: 1, items: [menuEntryRefItem("item-1", "local-about")] },
+      locations: [],
+    },
+  };
+  const entities = [packedFrom(incomingPost), incomingMenuEntity];
+  const forcedKeys = new Set([entityKey("post", "local-about"), entityKey("menu", "menu-header")]);
+  const report = await planWithForce(publishContentDeps, entities, forcedKeys);
+  assert.equal(report.rows.find((row) => row.entityType === "post")?.outcome, "forced", "precondition");
+  assert.equal(report.rows.find((row) => row.entityType === "menu")?.outcome, "forced", "precondition: the menu itself is also forced in this same bundle");
+
+  const bundleId = await stage(bundleRepo, clock, entities);
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+
+  assert.equal(result.menuLinksUpdated, 0, "the menu already targets the new id via its own write this run — nothing left to repoint");
+  assert.deepEqual(result.repointChangeSetIds, []);
+
+  const menu = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-header" });
+  assert.equal((menu?.doc.items[0]?.target as { entryId: string }).entryId, "local-about", "the bundle's own incoming tree must stand, untouched by the repoint pass");
+
+  const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
+  assert.equal(run?.phase, "applied");
+});
+
+test("R5: a repoint pass never runs when the create half of a retire+create pair fails and is undone", async () => {
+  const store = new Map<string, { version: number; hash: string; retired: boolean }>();
+  store.set("holder-widget", { version: 1, hash: "holder-hash", retired: false });
+  const menuRepo = new InMemoryMenuRepo([makeMenuRow({ id: "menu-header", entryId: "holder-widget" })]);
+  const { clock, bundleRepo, runRepo, publishContentDeps, applyPort } = makeMenuHarness([], { menuRepo });
+  registerPublishContentContributor(
+    fakeWidgetContributor(makeRetireFakeHandler({ store, holderId: "holder-widget", applyShouldThrow: true }))
+  );
+
+  const incomingEntity: PackedEntity = {
+    entityType: "widget",
+    id: "incoming-widget",
+    schemaVersion: 1,
+    contentHash: "incoming-hash",
+    hashVersion: CONTENT_HASH_VERSION,
+    requiredBlobs: [],
+    state: { title: "Incoming Widget" },
+  };
+  const forcedKey = entityKey("widget", "incoming-widget");
+  const report = await planWithForce(publishContentDeps, [incomingEntity], new Set([forcedKey]));
+  assert.equal(report.rows[0].outcome, "forced", "precondition");
+
+  const bundleId = await stage(bundleRepo, clock, [incomingEntity]);
+
+  await assert.rejects(() =>
+    applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" })
+  );
+
+  const menu = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-header" });
+  assert.equal((menu?.doc.items[0]?.target as { entryId: string }).entryId, "holder-widget", "no repoint must have run — the create never actually landed");
+
+  const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
+  assert.equal(run?.phase, "failed", "a genuine apply() throw must still fail the run");
+});
+
+test("R5: a whole-handler repoint failure is reported in menuLinksNotUpdated and never fails the run", async () => {
+  const holder = makePost({ id: "post-about", slug: "about", kind: "post", version: 3, status: "published", title: "About (live)" });
+  const { clock, bundleRepo, runRepo, publishContentDeps, applyPort } = makeMenuHarness([holder], { wireMenuDeps: false });
+
+  const incoming = makePost({ id: "local-about", slug: "about", kind: "post", title: "About Tovu" });
+  const entities = [packedFrom(incoming)];
+  const forcedKey = entityKey("post", "local-about");
+  const report = await planWithForce(publishContentDeps, entities, new Set([forcedKey]));
+  assert.equal(report.rows[0].outcome, "forced", "precondition");
+
+  const bundleId = await stage(bundleRepo, clock, entities);
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+
+  assert.equal(result.changeSetIds.length, 1, "the create itself must still land — a repoint failure never fails the run");
+  assert.equal(result.menuLinksUpdated, 0);
+  assert.equal(result.menuLinksNotUpdated.length, 1);
+  assert.match(result.menuLinksNotUpdated[0]!, /^Menu links were not updated: /, "the generic prefix names the handler's own entityType");
+
+  const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
+  assert.equal(run?.phase, "applied", "the run itself must still complete despite the repoint pass failing");
 });

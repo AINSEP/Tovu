@@ -79,4 +79,14 @@ export interface PublishContentExecuteResult {
   /** publish-overwrite-live-plan §4 — the change sets that moved a live address holder to Trash, kept
    *  apart from `changeSetIds`. Absent from a live built before the overwrite feature. */
   readonly retiredChangeSetIds?: readonly string[];
+  /** R5 (`plan-publish-repoint-menus-2026-09-24.md` §2.3) — the change sets a live-reference repoint
+   *  pass produced (e.g. a menu's entryRef rewritten after an overwrite). Absent from a live built
+   *  before this feature. */
+  readonly repointChangeSetIds?: readonly string[];
+  /** Total links repointed this run; the admin dialog shows this only when it is greater than 0
+   *  (§2.7). Absent from a live built before this feature. */
+  readonly menuLinksUpdated?: number;
+  /** Operator-facing lines for a holder that could not be repointed. Absent from a live built before
+   *  this feature. */
+  readonly menuLinksNotUpdated?: readonly string[];
 }

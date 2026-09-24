@@ -135,6 +135,18 @@ export interface PublishContentApplyPort {
     /** publish-overwrite-live-plan §4 — the change sets that retired a live address holder, one per
      *  retire-forced row that landed. Kept apart from `changeSetIds` so that list stays one per row. */
     retiredChangeSetIds: readonly string[];
+    /** R5 (`plan-publish-repoint-menus-2026-09-24.md` §2.3) — the change sets a live-reference
+     *  repoint pass produced, one per holder actually rewritten (e.g. one menu). Kept apart from
+     *  `changeSetIds` for the identical "one list per row-shaped concern" reason
+     *  {@link retiredChangeSetIds} already is. */
+    repointChangeSetIds: readonly string[];
+    /** Total links repointed this run across every handler — `0` when there was nothing to repoint. */
+    menuLinksUpdated: number;
+    /** Operator-facing lines for a holder a repoint pass could not update (a denied grant, a
+     *  concurrent edit, or a whole-handler failure) — never silent, and a repoint failure never
+     *  fails the run (`type-registry.ts`'s `RepointResult.notUpdated`, `apply-loop.ts`'s own
+     *  per-handler catch). */
+    menuLinksNotUpdated: readonly string[];
   }>;
 }
 
@@ -192,7 +204,15 @@ export function buildPublishContentImportHooks(
   input: BuildPublishContentImportHooksInput
 ): GatedMutationHooks<
   PublishContentReport,
-  { restorePointId: string; runId: string; changeSetIds: readonly string[]; retiredChangeSetIds: readonly string[] }
+  {
+    restorePointId: string;
+    runId: string;
+    changeSetIds: readonly string[];
+    retiredChangeSetIds: readonly string[];
+    repointChangeSetIds: readonly string[];
+    menuLinksUpdated: number;
+    menuLinksNotUpdated: readonly string[];
+  }
 > {
   /** Re-derives the current `PublishContentReport` from live state, never cached across calls (this
    *  file's header). `computePlan()` is its ONLY caller: `executeMutation()` deliberately does not
@@ -283,17 +303,26 @@ export function buildPublishContentImportHooks(
       // row the operator confirmed as `conflict` (no write) could re-derive as `applied` (a write)
       // and be applied unseen: the operator authorises one write set and gets another.
       const report = verified.details;
-      const { runId, changeSetIds, retiredChangeSetIds } = await input.applyPort.applyReport({
-        report,
-        principalId: input.actorId,
-        bundleId: input.bundleId,
+      const { runId, changeSetIds, retiredChangeSetIds, repointChangeSetIds, menuLinksUpdated, menuLinksNotUpdated } =
+        await input.applyPort.applyReport({
+          report,
+          principalId: input.actorId,
+          bundleId: input.bundleId,
+          restorePointId,
+          // This hooks bag's OWN authorize, which the route may have attenuated for a publishing
+          // credential. Threaded rather than left to the port because the port is built once per
+          // process and this decision is per request.
+          ...(input.publishContentDeps.authorize === undefined ? {} : { authorize: input.publishContentDeps.authorize }),
+        });
+      return {
         restorePointId,
-        // This hooks bag's OWN authorize, which the route may have attenuated for a publishing
-        // credential. Threaded rather than left to the port because the port is built once per
-        // process and this decision is per request.
-        ...(input.publishContentDeps.authorize === undefined ? {} : { authorize: input.publishContentDeps.authorize }),
-      });
-      return { restorePointId, runId, changeSetIds, retiredChangeSetIds };
+        runId,
+        changeSetIds,
+        retiredChangeSetIds,
+        repointChangeSetIds,
+        menuLinksUpdated,
+        menuLinksNotUpdated,
+      };
     },
     resolveActorClassIdentity,
   };
