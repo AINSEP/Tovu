@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite --port 5174",
     "build": "node ../../development/scripts/check-no-linked-jini.mjs && vite build",
+    "build:local": "vite build && node scripts/check-bundle-mounts.mjs",
     "postbuild": "node scripts/check-bundle-mounts.mjs",
     "preview": "vite preview --port 5174",
     "typecheck": "tsc --noEmit",
