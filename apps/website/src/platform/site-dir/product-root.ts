@@ -49,3 +49,31 @@ export function resolveProductRoot(fromDir: string = import.meta.dirname): strin
       `(source tree) or dist/ (compiled tree).`,
   );
 }
+
+/**
+ * Where a sibling browser app's built bundle lives: `<checkout>/apps/<app>/dist`, found by walking
+ * up from `fromDir` to the first ancestor that has an `apps/<app>/` folder. Same source-vs-compiled
+ * depth problem as {@link resolveProductRoot}, but that root does not help here: in the compiled
+ * tree it is `dist/`, and `apps/` sits next to `dist/`, not inside it.
+ *
+ * Matches on `apps/<app>/` rather than `apps/<app>/dist/`, so an app that has not been built yet
+ * still resolves to its real (missing) `dist` path, and the static mount can answer with its
+ * "not built" page instead of looking somewhere else.
+ *
+ * @param app - The folder name under `apps/` (`"admin"`, `"site-chat"`).
+ * @param fromDir - Override for testing; production callers omit it.
+ * @returns The `dist` path. Never throws: with no matching ancestor it returns
+ *   `<fromDir>/apps/<app>/dist`, which does not exist, so boot still succeeds and the mount 503s —
+ *   the same outcome the old fixed path had when it pointed at the wrong place.
+ * @complexity O(depth) `existsSync` calls, capped at {@link MAX_WALK_UP}.
+ */
+export function resolveAppDistDir(app: string, fromDir: string = import.meta.dirname): string {
+  let dir = path.resolve(fromDir);
+  for (let i = 0; i <= MAX_WALK_UP; i++) {
+    if (existsSync(path.join(dir, "apps", app))) return path.join(dir, "apps", app, "dist");
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return path.resolve(fromDir, "apps", app, "dist");
+}

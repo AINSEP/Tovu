@@ -92,7 +92,7 @@ import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/rep
 import path from "node:path";
 import { builtInThemesDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSourceControlExportRootDir } from "./deps.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
-import { describeSiteBinding } from "#src/platform/site-dir/index";
+import { describeSiteBinding, resolveAppDistDir, resolveProductRoot } from "#src/platform/site-dir/index";
 import {
   seededPosts,
   seededPresentation,
@@ -1772,9 +1772,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // header for the full disclosure and the re-run `route-class-precedence.unit.test.ts` evidence.
   mountRoutes(app, createSeoModule(routeDeps));
 
-  // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt.
+  // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt. Walked up to, not a fixed
+  // `../` count: the source and compiled (`dist/src/...`) trees sit at different depths.
   registerAdminStatic(app, {
-    distDir: process.env.TOVU_ADMIN_DIST ?? path.resolve(import.meta.dirname, "../../../../../../apps/admin/dist"),
+    distDir: process.env.TOVU_ADMIN_DIST ?? resolveAppDistDir("admin"),
   });
 
   // ADR-049 — `@jini-ai/chat-react`'s runtime picker requests agent icons from `/agent-icons/*`
@@ -1783,7 +1784,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // `/admin/*`-scoped static serving above. Served from Tovu's own root here (in both dev, via
   // `apps/admin/vite.config.ts`'s matching proxy entry, and prod) rather than duplicated inside
   // `apps/admin/dist` (which would only ever resolve under `/admin/`).
-  app.use("/agent-icons", express.static(path.resolve(import.meta.dirname, "../../../../../../content/public/agent-icons")));
+  app.use("/agent-icons", express.static(path.join(resolveProductRoot(), "content", "public", "agent-icons")));
 
   // MCP-UI sandbox proxy — `@mcp-ui/client`'s `AppFrame` points an iframe's `src` at this exact
   // root-relative path (see `mcp-ui-sandbox-proxy-route.ts`'s own module doc) and never falls back
@@ -1798,7 +1799,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // Distinct static mount from the admin SPA above: a single self-mounting script, not an app with
   // client-side routing, so `site-chat-static.ts` has no `index.html` SPA fallback to serve.
   registerSiteChatStatic(app, {
-    distDir: process.env.TOVU_SITE_CHAT_DIST ?? path.resolve(import.meta.dirname, "../../../../../../apps/site-chat/dist"),
+    distDir: process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir("site-chat"),
   });
 
   // SPIKE — `static`-tier theme preview builds at /theme-preview/<theme-id>/<dark|light>/...; see
