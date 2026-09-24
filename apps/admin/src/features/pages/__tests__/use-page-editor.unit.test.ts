@@ -1642,6 +1642,29 @@ describe("save() guards against a concurrent save", () => {
     expect(deps.port.current.status).toBe("published");
   });
 
+  it("saveOverwritingConflict() flushes the Interactive editor first and writes the flushed HTML", async () => {
+    const deps = conflictDeps(HTML_PAGE);
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => result.current.setHtml("<p>mine</p>"));
+    deps.port.simulateConcurrentSave();
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(result.current.saveConflict).not.toBeNull();
+
+    // An RTE session opened on the Interactive tab after the conflict banner appeared.
+    result.current.interactiveEditorRef.current = { flush: vi.fn(async () => "<p>mine, then more</p>") };
+    await act(async () => {
+      await result.current.saveOverwritingConflict();
+    });
+
+    expect(result.current.saveConflict).toBeNull();
+    expect(deps.port.updatePageHtmlCalls).toEqual(["<p>mine, then more</p>"]);
+    expect(result.current.html).toBe("<p>mine, then more</p>");
+  });
+
   it("dismissSaveConflict() hides the banner without writing anything", async () => {
     const deps = conflictDeps(HTML_PAGE);
     const { result } = renderHook(() => usePageEditor("landing", deps));

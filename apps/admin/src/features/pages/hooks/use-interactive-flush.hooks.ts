@@ -13,6 +13,30 @@ import type { InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";
  * `save`, `saveOverwritingConflict`, and its "flush, then set" `setView`/`setTemplateChoice` wrappers.
  */
 
+/** How long a Save, Publish, tab switch or template change waits for the editor's `flush()` before
+ *  going ahead without it. GrapesJS's built-in RTE settles in a few microtasks; this bound exists so
+ *  a custom RTE whose `getContent`/`disable` never settles cannot freeze all of them for good. */
+export const INTERACTIVE_FLUSH_TIMEOUT_MS = 2000;
+
+type FlushOutcome = { kind: "flushed"; html: string | undefined } | { kind: "failed"; error: unknown } | { kind: "timed-out" };
+
+/**
+ * Settles `flush` into an outcome within `timeoutMs`. Never rejects.
+ *
+ * @complexity O(1); one timer, cleared once `flush` settles first.
+ */
+function settleFlush(flush: Promise<string | undefined>, timeoutMs: number): Promise<FlushOutcome> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<FlushOutcome>((resolve) => {
+    timer = setTimeout(() => resolve({ kind: "timed-out" }), timeoutMs);
+  });
+  const settled = flush.then(
+    (html): FlushOutcome => ({ kind: "flushed", html }),
+    (error: unknown): FlushOutcome => ({ kind: "failed", error })
+  );
+  return Promise.race([settled, timedOut]).finally(() => clearTimeout(timer));
+}
+
 /**
  * `setHtml` — the raw `useState` setter `usePageEditor` owns for the working copy. Injected rather
  * than reading it off a wider dependency object: this hook's whole job is one write into that one
@@ -36,21 +60,32 @@ export function useInteractiveEditorFlush(
    * Closes any RTE session still open on the Interactive tab and folds its edit into the working
    * copy. A no-op — resolves `undefined`, never calls `setHtml` — whenever there is nothing to flush:
    * `interactiveEditorRef.current` is `null` (not on the Interactive tab, or not yet mounted), the
-   * editor's own `flush()` found nothing changed since mount, or `flush()` itself rejected (swallowed
-   * here rather than propagated, so a save/tab-switch/template-change can never be blocked by it).
+   * editor's own `flush()` found nothing changed since mount, or `flush()` rejected or did not settle
+   * within {@link INTERACTIVE_FLUSH_TIMEOUT_MS} (both warned about, never propagated, so a
+   * save/tab-switch/template-change can never be blocked by it). A flush that settles after the
+   * timeout is ignored: its caller has already moved on, and a late `setHtml` could overwrite what
+   * the operator typed since (for example in the HTML tab).
    * Every caller must still fall back to whatever `html` currently holds on `undefined` — see
    * `usePageEditor`'s own `runSave` `htmlOverride` parameter for why this can't just always win.
    *
    * @complexity O(1) plus whatever the editor's own `flush()` costs.
    */
   const flushInteractiveEdits = useCallback(async (): Promise<string | undefined> => {
-    try {
-      const flushed = await interactiveEditorRef.current?.flush();
-      if (flushed !== undefined) setHtml(flushed);
-      return flushed;
-    } catch {
+    const handle = interactiveEditorRef.current;
+    if (!handle) return undefined;
+    const outcome = await settleFlush(Promise.resolve().then(() => handle.flush()), INTERACTIVE_FLUSH_TIMEOUT_MS);
+    if (outcome.kind === "failed") {
+      console.warn("[useInteractiveEditorFlush] flush failed; saving the working copy without the open edit", outcome.error);
       return undefined;
     }
+    if (outcome.kind === "timed-out") {
+      console.warn(
+        `[useInteractiveEditorFlush] flush did not settle within ${INTERACTIVE_FLUSH_TIMEOUT_MS}ms; continuing without the open edit`
+      );
+      return undefined;
+    }
+    if (outcome.html !== undefined) setHtml(outcome.html);
+    return outcome.html;
   }, [setHtml]);
 
   return { interactiveEditorRef, flushInteractiveEdits };
