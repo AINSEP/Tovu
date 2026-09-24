@@ -14,6 +14,34 @@ import { useRef, useState, type KeyboardEvent } from "react";
  *  how `176` was chosen. */
 const ABOVE_HEADROOM_PX = 176;
 
+/** Half of `.info-tip-bubble`'s own `max-width: 18rem` (`styles.css`) at the default 16px root font
+ *  size. Used only as a WORST-CASE half-width for keeping the bubble on-screen — a caller whose
+ *  copy renders narrower than the max-width simply gets extra margin to spare, never clipping
+ *  either.
+ *
+ *  Found missing 2026-09-24: `Users.tsx`'s new reset-password info tip sits right after the page
+ *  title, close to the left edge on a narrow viewport (900px screenshot check). `show()` used to
+ *  center the bubble purely on the icon's own midpoint with no regard for the viewport at all, so
+ *  roughly half the bubble rendered off-screen to the left there — the same defect any caller near
+ *  EITHER edge would hit, not something specific to that one call site, hence fixed here rather
+ *  than worked around locally. */
+const HALF_MAX_BUBBLE_WIDTH_PX = 144;
+
+/** Minimum breathing room between the bubble's outer edge and the viewport edge once clamped. */
+const EDGE_MARGIN_PX = 8;
+
+/** Keeps `idealLeft` (the icon's own horizontal midpoint) from placing the bubble's worst-case
+ *  width past either viewport edge. Falls back to viewport-center on a viewport narrower than the
+ *  bubble plus both margins (`2 * (HALF_MAX_BUBBLE_WIDTH_PX + EDGE_MARGIN_PX)` = 304px) — below that
+ *  width `minLeft` would exceed `maxLeft` and a plain clamp would invert; not a width this app
+ *  targets, but this keeps the math from producing a nonsensical negative-range result there. */
+function clampBubbleLeft(idealLeft: number): number {
+  const minLeft = EDGE_MARGIN_PX + HALF_MAX_BUBBLE_WIDTH_PX;
+  const maxLeft = window.innerWidth - EDGE_MARGIN_PX - HALF_MAX_BUBBLE_WIDTH_PX;
+  if (maxLeft < minLeft) return window.innerWidth / 2;
+  return Math.min(Math.max(idealLeft, minLeft), maxLeft);
+}
+
 export interface InfoTipController {
   open: boolean;
   placement: "above" | "below";
@@ -44,7 +72,10 @@ export function useInfoTip(): InfoTipController {
     if (!rect) return;
     const nextPlacement = rect.top < ABOVE_HEADROOM_PX ? "below" : "above";
     setPlacement(nextPlacement);
-    setCoords({ top: nextPlacement === "above" ? rect.top : rect.bottom, left: rect.left + rect.width / 2 });
+    setCoords({
+      top: nextPlacement === "above" ? rect.top : rect.bottom,
+      left: clampBubbleLeft(rect.left + rect.width / 2),
+    });
     setOpen(true);
   };
   const hide = () => setOpen(false);

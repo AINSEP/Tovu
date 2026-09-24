@@ -120,7 +120,10 @@ describe("New user form", () => {
     await screen.findByText("No users yet.");
     await user.click(screen.getByRole("button", { name: "New user" }));
     await user.type(screen.getByLabelText("Username"), "alice");
-    await user.type(screen.getByLabelText(/email/i), "alice@example.com");
+    // Was `/email/i` — now ambiguous: the page header's new reset-password `InfoTip` (2026-09-24)
+    // has an accessible name that also contains "email", so the fuzzy regex matches both. The
+    // create form's own field label ("Email (optional)", `NewUserForm`) is exact and unambiguous.
+    await user.type(screen.getByLabelText("Email (optional)"), "alice@example.com");
     await user.type(screen.getByLabelText("Password"), "hunter22");
     await user.click(screen.getByRole("button", { name: "Create user" }));
 

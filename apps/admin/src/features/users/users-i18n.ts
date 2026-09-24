@@ -1276,10 +1276,105 @@ const PASSWORD_FIELD_TRANSLATIONS: Record<string, Record<string, string>> = {
   bn: { "Confirm new password": "নতুন পাসওয়ার্ড নিশ্চিত করুন", "Show password": "পাসওয়ার্ড দেখান", "Hide password": "পাসওয়ার্ড লুকান", "Passwords do not match.": "পাসওয়ার্ড মিলছে না।" },
 };
 
+/** The page-header info tip (owner ask, 2026-09-24): explains there's no "forgot password"
+ *  self-service flow yet, and that the owner/an admin resets a locked-out user's password from
+ *  this page. Its own small dictionary, same shape as {@link PASSWORD_FIELD_TRANSLATIONS} above,
+ *  rather than editing all 21 locale blocks in {@link USERS_TRANSLATIONS}. */
+const RESET_PASSWORD_INFO_TRANSLATIONS: Record<string, Record<string, string>> = {
+  es: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "Todavía no hay un correo de 'olvidé mi contraseña'. Si alguien queda bloqueado, el propietario puede restablecer su contraseña aquí.",
+  },
+  id: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "Belum ada email 'lupa kata sandi'. Jika seseorang terkunci, pemilik dapat mengatur ulang kata sandinya di sini.",
+  },
+  de: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "Noch keine 'Passwort vergessen'-E-Mail. Wenn jemand ausgesperrt ist, kann der Inhaber das Passwort hier zurücksetzen.",
+  },
+  "zh-CN": {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "尚未提供\"忘记密码\"邮件。如果有人被锁定，所有者可以在此重置其密码。",
+  },
+  "zh-TW": {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "尚未提供「忘記密碼」電子郵件功能。如果有人被鎖定，擁有者可以在這裡重設密碼。",
+  },
+  "pt-BR": {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "Ainda não há e-mail de 'esqueci minha senha'. Se alguém for bloqueado, o proprietário pode redefinir a senha aqui.",
+  },
+  ru: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "Письма «Забыли пароль» пока нет. Если кого-то заблокировали, владелец может сбросить его пароль здесь.",
+  },
+  fa: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "هنوز ایمیل «فراموشی رمز عبور» وجود ندارد. اگر کسی قفل شود، مالک می‌تواند رمز عبور او را از اینجا بازنشانی کند.",
+  },
+  ar: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "لا توجد رسالة \"نسيت كلمة المرور\" بعد. إذا تم قفل حساب أحدهم، يمكن للمالك إعادة تعيين كلمة مروره من هنا.",
+  },
+  ja: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "「パスワードを忘れた場合」のメールはまだありません。ロックアウトされた場合は、オーナーがここでパスワードをリセットできます。",
+  },
+  ko: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "아직 '비밀번호 찾기' 이메일이 없습니다. 누군가 잠기면 소유자가 여기에서 비밀번호를 재설정할 수 있습니다.",
+  },
+  pl: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "Nie ma jeszcze e-maila 'nie pamiętam hasła'. Jeśli ktoś zostanie zablokowany, właściciel może tutaj zresetować jego hasło.",
+  },
+  hu: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "Még nincs 'elfelejtett jelszó' e-mail. Ha valaki kizárja magát, a tulajdonos itt tudja visszaállítani a jelszavát.",
+  },
+  fr: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "Pas encore d'e-mail « mot de passe oublié ». Si quelqu'un est bloqué, le propriétaire peut réinitialiser son mot de passe ici.",
+  },
+  uk: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "Листа «Забули пароль» поки немає. Якщо когось заблоковано, власник може скинути його пароль тут.",
+  },
+  tr: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "Henüz 'şifremi unuttum' e-postası yok. Biri hesabından kilitlenirse sahibi parolasını buradan sıfırlayabilir.",
+  },
+  th: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "ยังไม่มีอีเมล 'ลืมรหัสผ่าน' หากมีใครถูกล็อกไม่ให้เข้าใช้งาน เจ้าของสามารถรีเซ็ตรหัสผ่านให้ที่นี่ได้",
+  },
+  it: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "Non c'è ancora un'e-mail 'password dimenticata'. Se qualcuno viene bloccato, il proprietario può reimpostare la password qui.",
+  },
+  hi: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "अभी तक 'पासवर्ड भूल गए' ईमेल नहीं है। अगर किसी का खाता लॉक हो जाए, तो मालिक यहां से उसका पासवर्ड रीसेट कर सकता है।",
+  },
+  ur: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "ابھی تک 'پاس ورڈ بھول گئے' ای میل موجود نہیں ہے۔ اگر کوئی لاک ہو جائے تو مالک یہاں سے اس کا پاس ورڈ ری سیٹ کر سکتا ہے۔",
+  },
+  bn: {
+    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
+      "এখনো 'পাসওয়ার্ড ভুলে গেছেন' ইমেইল নেই। কেউ লক হয়ে গেলে, মালিক এখান থেকে তার পাসওয়ার্ড রিসেট করতে পারেন।",
+  },
+};
+
 const USERS_DICT: Record<string, Record<string, string>> = Object.fromEntries(
   Object.entries(USERS_TRANSLATIONS).map(([locale, entries]) => [
     locale,
-    { ...entries, ...(PASSWORD_FIELD_TRANSLATIONS[locale] ?? {}) },
+    {
+      ...entries,
+      ...(PASSWORD_FIELD_TRANSLATIONS[locale] ?? {}),
+      ...(RESET_PASSWORD_INFO_TRANSLATIONS[locale] ?? {}),
+    },
   ]),
 );
 

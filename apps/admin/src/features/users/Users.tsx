@@ -7,6 +7,7 @@ import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { formatGrantLabel, userRowMenuItems } from "./rules";
 import { useWiredUsers } from "./hooks/use-users.hooks";
 import { ServerLabel } from "@/components/status-labels";
+import { InfoTip } from "@/components/InfoTip";
 import { useResetPasswordFields } from "./hooks/use-reset-password-fields.hooks";
 
 /**
@@ -713,7 +714,23 @@ function UsersPageHeader({ formOpen, setFormOpen, t }: UsersPageHeaderProps) {
     >
       <div className="page-header-text">
         <p className="page-kicker">{t("People")}</p>
-        <h1 className="page-title">{t("Users")}</h1>
+        <h1 className="page-title">
+          {t("Users")}
+          {/* Owner ask (2026-09-24): there's no "forgot password" self-service flow yet, so a
+              locked-out user relies on an admin resetting their password from this page (see
+              `UserRow`'s `RowMenu` — Reset password lives there, not as a standalone header
+              button, which is why this sits on the page title instead of "next to" that action).
+              Reset behavior itself is unchanged. Reuses the shared `InfoTip` — already this app's
+              "ⓘ opens an explanation, keyboard-/focus-reachable, Escape closes without losing
+              focus" convention (see `ThemePagesTab.tsx`'s locked-row usage) — rather than a new
+              bespoke popover. */}
+          <InfoTip
+            label={t(
+              "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.",
+            )}
+            agentHandle="users-reset-password-info"
+          />
+        </h1>
         <p className="page-description">
           {t("Operator accounts with access to this admin — assign roles and policies, or disable access.")}
         </p>
