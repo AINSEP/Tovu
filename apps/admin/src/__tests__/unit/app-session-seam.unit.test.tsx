@@ -49,7 +49,7 @@ afterEach(() => {
   window.history.replaceState(null, "", "/");
 });
 
-it("renders the authenticated shell immediately through a fake useSession, with no boot screen and no /auth/me call", () => {
+it("renders the authenticated shell immediately through a fake useSession, with no boot screen and no session-boot round trip", () => {
   const fakeSession: UseAdminSession = {
     user: { id: "u1", username: "admin" },
     checking: false,
@@ -63,11 +63,23 @@ it("renders the authenticated shell immediately through a fake useSession, with 
   // settled tree.
   const { container } = render(<App useSession={() => fakeSession} />);
 
+  // The seam is proven structurally by these two: `useSession` is a full replacement for
+  // `useAdminSession` (`App.hooks.tsx`), so ITS internal effect — the one that chains into
+  // `api.me()` on `checking` — never runs at all; `.boot-screen` staying absent and `main` being
+  // present on the very first synchronous read is what "never runs" looks like from outside.
+  //
+  // This used to also assert no `fetch` call's URL contained `/auth/me`, as a second, indirect
+  // proxy for the same thing. That stopped being a valid signal once the dashboard's own
+  // independent password-banner nag (`dashboard-dependencies.hooks.ts`'s `getPasswordStatus`,
+  // commit 4cc0fe890) started pairing its per-browser Dismiss with the caller's id from a genuine,
+  // unrelated `GET /auth/me` call of its own — legitimate, and outside what this `useSession` prop
+  // can or should suppress. An exact-URL check does not rescue the assertion either: that call's
+  // URL IS the literal session-check path, not merely a similarly-named sibling like
+  // `/auth/me/password-status`. There is no fetch-shaped signal left that distinguishes "the boot
+  // effect ran" from "an unrelated feature made its own call to the same endpoint," so the network
+  // assertion is dropped in favor of the two structural ones above.
   expect(container.querySelector(".boot-screen")).toBeNull();
   expect(container.querySelector("main")).not.toBeNull();
-  for (const [url] of fetchMock.mock.calls) {
-    expect(String(url)).not.toContain("/auth/me");
-  }
 });
 
 /** `App` mounts the assistant dock, whose agents list reads through the app's query cache — render

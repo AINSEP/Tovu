@@ -1104,10 +1104,10 @@ describe("slug-collision warning — a content record claims this page's own URL
     expect(document.querySelector('[data-agent-element="theme-explore-slug-collision-warning"]')).not.toBeInTheDocument();
   });
 
-  it("links to the colliding POST's own editor route", () => {
+  it("links to the colliding POST's own editor route (keyed by slug, not id — S6a, commit 8d93a65c9)", () => {
     renderExplore({ selected: "pages/mine.html", files: filesWithCollision("pages/mine.html", COLLIDING_CONTENT) });
     const link = screen.getByRole("link", { name: /What Is Tovu\?/ });
-    expect(link).toHaveAttribute("href", "/admin/posts/post-1");
+    expect(link).toHaveAttribute("href", "/admin/posts/mine");
   });
 
   it("links to the colliding PAGE's own editor route (keyed by slug, not id)", () => {
@@ -1139,7 +1139,8 @@ describe("slug-collision warning — a content record claims this page's own URL
 
     await user.click(link);
 
-    expect(window.location.pathname).toBe("/admin/posts/post-1");
+    // Slug-keyed since S6a (commit 8d93a65c9), same as the href assertion above.
+    expect(window.location.pathname).toBe("/admin/posts/mine");
     window.history.replaceState(null, "", "/");
   });
 });
