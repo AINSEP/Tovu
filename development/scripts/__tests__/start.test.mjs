@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { planStart } from "../start.mjs";
+import { planStart, resolveStartHost } from "../start.mjs";
 
 /**
  * @file `planStart` — the pure port/env decision `development/scripts/start.mjs`'s `main()` makes
@@ -105,4 +105,23 @@ test("PORT unset, TOVU_PUBLIC_URL loopback at a port OTHER than 3000, 3000 busy 
 
   assert.equal(result.port, 3001);
   assert.deepEqual(result.envOverrides, { PORT: "3001" });
+});
+
+/**
+ * `resolveStartHost` — the value `main()` both probes with AND (security-critical) writes back to
+ * `process.env.TOVU_HOST` before importing `dist/src/index.js` in-process. `index.ts`'s own default
+ * (`resolveBindHost(process.env.TOVU_HOST, undefined)`) is Node's all-interfaces bind when
+ * `TOVU_HOST` is unset — correct for its OTHER caller, the container entrypoint, but wrong for a
+ * developer's plain `npm start`, which must default to loopback-only unless the user opted in.
+ */
+test("resolveStartHost: TOVU_HOST unset → defaults to loopback-only 127.0.0.1", () => {
+  assert.equal(resolveStartHost({}), "127.0.0.1");
+});
+
+test("resolveStartHost: TOVU_HOST empty string → still defaults to 127.0.0.1 (blank is not a value)", () => {
+  assert.equal(resolveStartHost({ TOVU_HOST: "" }), "127.0.0.1");
+});
+
+test("resolveStartHost: TOVU_HOST explicitly set → the user's value wins untouched", () => {
+  assert.equal(resolveStartHost({ TOVU_HOST: "0.0.0.0" }), "0.0.0.0");
 });

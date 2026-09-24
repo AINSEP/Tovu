@@ -3,7 +3,7 @@
  * (`prepare-start.mjs`) has already built whatever a fresh checkout was missing by the time this
  * runs.
  *
- * Four things, in order, so a fresh checkout with no manually-set `TOVU_INTEGRATIONS_ROOT_KEY`
+ * Five things, in order, so a fresh checkout with no manually-set `TOVU_INTEGRATIONS_ROOT_KEY`
  * "just works" (npm-start-just-works-plan-2026-09-24):
  *
  *   1. Load `.env` — `dev.mjs`/`dev-desktop.mjs` already did this; `npm start` never did, so an
@@ -12,10 +12,14 @@
  *      dumb, idempotent step that never overwrites an existing key or a key-dependent database's
  *      only usable key (see `cli/commands/root-key.ts`'s own header). Runs regardless of exit
  *      code: this launcher never blocks a boot on it, same as today's "loud, not closed" posture.
- *   3. Pick a free port (3000-3019) ONLY when nothing already pins one — see `planStart` below —
+ *   3. Default `TOVU_HOST` to loopback-only (`resolveStartHost` below) when the operator hasn't set
+ *      it — SECURITY: `index.ts` itself defaults an unset `TOVU_HOST` to Node's all-interfaces
+ *      bind (correct for its OTHER caller, the container entrypoint), so without this step a plain
+ *      `npm start` would be reachable from the whole LAN by default.
+ *   4. Pick a free port (3000-3019) ONLY when nothing already pins one — see `planStart` below —
  *      and set `TOVU_ROOT_KEY_NOTICE=off` so `root-key-boot-notice.ts`'s own longer wall doesn't
  *      print a second, redundant notice underneath this file's one-line summary from step 2.
- *   4. `await import()` the compiled server IN-PROCESS — no extra child process, no signal
+ *   5. `await import()` the compiled server IN-PROCESS — no extra child process, no signal
  *      forwarding to build, and `index.ts`'s own `process.ppid` watchdog still sees `npm` as its
  *      parent exactly as it does today.
  *
@@ -112,6 +116,23 @@ export async function planStart(input) {
   return { port: DEFAULT_START_PORT, envOverrides: {}, refuse: "no-free-port-in-range" };
 }
 
+/**
+ * Resolves the `TOVU_HOST` value `main()` both probes with and writes back to `process.env` before
+ * importing `dist/src/index.js` in-process. `index.ts`'s own default (`resolveBindHost` called with
+ * `process.env.TOVU_HOST`, falling back to `undefined`) is Node's all-interfaces bind — correct for
+ * `index.ts`'s OTHER caller, the container entrypoint (Docker/compose/Fly/Render all bind every
+ * interface on purpose), but wrong for a developer running plain `npm start`: without this, a
+ * TOVU_HOST-less `npm start` would boot the server reachable from the whole LAN by default. `npm
+ * start` narrows that default to loopback-only unless the operator explicitly set `TOVU_HOST`.
+ *
+ * @param {NodeJS.ProcessEnv} env
+ * @returns {string} the operator's own `TOVU_HOST` when set to a non-blank value, else `"127.0.0.1"`.
+ * @complexity O(1).
+ */
+export function resolveStartHost(env) {
+  return env.TOVU_HOST && env.TOVU_HOST.length > 0 ? env.TOVU_HOST : "127.0.0.1";
+}
+
 /** Whether something is already accepting connections on `port` at `host` — a CONNECT probe, not a
  *  bind probe. Resolves `true` on a successful connect (destroyed immediately, no data sent),
  *  `false` on `ECONNREFUSED`, any other connect error, or a 300ms timeout. */
@@ -177,7 +198,11 @@ async function main() {
 
   ensureRootKey(repoRoot);
 
-  const host = process.env.TOVU_HOST && process.env.TOVU_HOST.length > 0 ? process.env.TOVU_HOST : "127.0.0.1";
+  const host = resolveStartHost(process.env);
+  // Security-critical: `dist/src/index.js` (imported below) reads `process.env.TOVU_HOST` itself
+  // and defaults to Node's all-interfaces bind when it's unset (see `resolveStartHost`'s header) —
+  // this write is what actually narrows a plain `npm start` to loopback-only, not just the probe.
+  process.env.TOVU_HOST = host;
   const plan = await planStart({
     env: process.env,
     dotenvLoaded,
