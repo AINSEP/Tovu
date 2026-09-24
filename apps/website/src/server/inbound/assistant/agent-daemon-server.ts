@@ -453,9 +453,9 @@ registry.register(
 /**
  * Agent-driven control of the admin's own browser tab and chat pane — `page.navigate`,
  * `page.scroll_to`, `page.find_elements`, `chat.send_message`, `admin.capture_screenshot`, and the
- * rest of {@link FRONTEND_CONTROL_CAPABILITIES} (`page.*` plus six of `chat.*`'s seven verbs, plus
- * Tovu's own `admin.*` additions; `chat.reset_conversation` is deliberately excluded — see that
- * module's own doc for why).
+ * rest of {@link FRONTEND_CONTROL_CAPABILITIES} (`page.*` plus all seven of `chat.*`'s verbs — as
+ * of 2026-09-24 `chat.reset_conversation` is included too, via a Tovu-owned clone; see that
+ * module's own doc for why — plus Tovu's own `admin.*` additions).
  *
  * `createFrontendControl` assembles the three parts (session registry, gated tool registrations,
  * the stream/response routes) and deliberately never hands back the registry — its `invoke`

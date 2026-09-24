@@ -23,19 +23,45 @@ test("no capability reaching createFrontendControl requires confirmation", () =>
   );
 });
 
-test("all six safe chat.* verbs are present, and chat.reset_conversation is not", () => {
+test("all seven chat.* verbs are present, including chat.reset_conversation", () => {
   const ids = FRONTEND_CONTROL_CAPABILITIES.map((capability) => capability.id);
   for (const expected of [
     "chat.send_message",
     "chat.set_draft",
     "chat.select_agent",
     "chat.cancel_run",
+    "chat.reset_conversation",
     "chat.set_working_directory",
     "chat.get_state",
   ]) {
     assert.ok(ids.includes(expected), `expected ${expected} to be present`);
   }
-  assert.ok(!ids.includes("chat.reset_conversation"), "chat.reset_conversation must stay excluded");
+});
+
+/**
+ * `chat.reset_conversation` (2026-09-24, unblock-agent-actions dispatch): unlike the other five
+ * `chat.*` verbs, this id is NOT the raw `CHAT_CAPABILITIES` entry passed through — that one is
+ * still filtered out above for declaring `requiresConfirmation: true`. This is a Tovu-owned clone
+ * (same id/description/inputSchema/risk/surface, `requiresConfirmation` omitted) added via
+ * `TOVU_FRONTEND_CAPABILITIES`, because `pane.reset()` (the browser-side effect, `useChatPane.
+ * hooks.ts`) only resets local view state back to `initialMessages` and cancels the in-flight run —
+ * it never calls `deleteConversation` or any other persistence-deleting call, so it is not a
+ * permanent-delete case that needs a human-in-the-loop confirm. Safety is instead a model-self-confirm
+ * contract, fully independent of the missing `ExecutionDelegate` transport: the browser executor
+ * (`useChatPaneAgentControl.hooks.ts`'s `resetConversationAction`) throws unless the model passes
+ * `confirm: true`, which `inputSchema.required` below still enforces.
+ */
+test("chat.reset_conversation is present, self-confirmed via inputSchema, and requires no confirmation transport", () => {
+  const capability = FRONTEND_CONTROL_CAPABILITIES.find((entry) => entry.id === "chat.reset_conversation");
+  assert.ok(capability, "expected chat.reset_conversation to be in the manifest");
+  assert.notEqual(
+    capability?.requiresConfirmation,
+    true,
+    "no confirmation transport exists — this verb is not a permanent delete, see this file's own comment",
+  );
+  const schema = capability?.inputSchema as { required?: string[]; properties?: Record<string, unknown> } | undefined;
+  assert.deepEqual(schema?.required, ["confirm"], "the model-self-confirm contract must still require confirm:true");
+  assert.ok(schema?.properties?.["confirm"], "inputSchema must still declare the confirm field");
 });
 
 test("page.* capabilities are still present alongside the chat verbs", () => {
@@ -95,7 +121,7 @@ test("admin.capture_screenshot is registered, read-only, session-scoped, and sta
  * `undefined` (a legitimate "no originating surface" per that option's own doc), since this test
  * only needs the registration list, never an actual invocation.
  */
-test("createFrontendControl registers exactly the six safe chat.* verbs as callable tools, plus page.*, and no confirming tool", () => {
+test("createFrontendControl registers exactly the seven chat.* verbs as callable tools, plus page.*, and no confirming tool", () => {
   const frontendControl = createFrontendControl({
     capabilities: FRONTEND_CONTROL_CAPABILITIES,
     resolveBindToken: () => undefined,
@@ -107,12 +133,12 @@ test("createFrontendControl registers exactly the six safe chat.* verbs as calla
     "chat.set_draft",
     "chat.select_agent",
     "chat.cancel_run",
+    "chat.reset_conversation",
     "chat.set_working_directory",
     "chat.get_state",
   ]) {
     assert.ok(ids.includes(expected), `expected ${expected} to be a registered tool`);
   }
-  assert.ok(!ids.includes("chat.reset_conversation"), "chat.reset_conversation must not be a registered tool");
   assert.ok(
     ids.some((id) => id.startsWith("page.")),
     "expected page.* tools to still be registered",

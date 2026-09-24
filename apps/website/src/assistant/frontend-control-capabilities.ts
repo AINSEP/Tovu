@@ -69,6 +69,29 @@
  * confirmation, and only a person's own click on its Publish button can write anything. See that
  * plan's §3 for the full gate (why the Publish button carries no agent handle, and what that does
  * and does not cover).
+ *
+ * ## `chat.reset_conversation` — a Tovu-owned CLONE, not the filtered-out Jini entry
+ *
+ * Added 2026-09-24 (unblock-agent-actions dispatch, item 2). The raw `CHAT_CAPABILITIES` entry for
+ * this id is still excluded by the `requiresConfirmation !== true` filter above — that has not
+ * changed. `TOVU_FRONTEND_CAPABILITIES` below instead carries a Tovu-owned clone of the SAME
+ * descriptor (identical id/description/inputSchema/risk/surface), with `requiresConfirmation`
+ * omitted so it is not caught by that filter.
+ *
+ * This is safe without the missing confirmation transport because the actual effect is not a
+ * permanent delete: the browser-side executor (Jini's `packages/chat/src/react/features/chat-pane/
+ * hooks/useChatPane.hooks.ts`, `reset()`) only resets in-memory view state back to
+ * `initialMessages` and cancels the in-flight run — it never calls `deleteConversation` or any
+ * other persistence-deleting API, so no stored conversation row or message is destroyed. Contrast
+ * this with `redirects_tombstone`/`content_post_delete`, which DO need the held-open MCP-UI
+ * confirmation exchange because they mutate durable state irreversibly without one.
+ *
+ * Safety instead comes from a model-self-confirm contract that is fully independent of the missing
+ * `ExecutionDelegate` transport: the capability's own `inputSchema` still requires a `confirm:
+ * boolean` field (copied verbatim from the Jini entry, not weakened here), and the executor
+ * (`useChatPaneAgentControl.hooks.ts`'s `resetConversationAction` -> `requireConfirmation`) throws
+ * unless the model actually passes `confirm: true`. That check is already fully implemented
+ * upstream and does not depend on this host's confirmation-transport gap at all.
  */
 import { PAGE_CAPABILITIES, type CapabilityDef } from "@jini-ai/agentic";
 import { CHAT_CAPABILITIES } from "@jini-ai/chat/core";
@@ -107,6 +130,29 @@ const TOVU_FRONTEND_CAPABILITIES: readonly CapabilityDef[] = [
   // reference into this array's `CapabilityDef[]` element type, where ordinary structural
   // assignability applies rather than a fresh object literal's excess-property check.
   PUBLISH_CONTENT_CAPABILITY,
+  // Tovu-owned clone of `@jini-ai/chat/core`'s `chat.reset_conversation` CHAT_CAPABILITIES entry —
+  // see this file's own header ("`chat.reset_conversation` — a Tovu-owned CLONE") for why this
+  // duplicates rather than re-exports that entry, and why omitting `requiresConfirmation` here is
+  // safe. Keep description/inputSchema/risk/surface in sync with the Jini source if it changes.
+  {
+    id: "chat.reset_conversation",
+    description:
+      "DESTRUCTIVE. Clear the conversation back to its initial messages and reset the composer, " +
+      "discarding the visible transcript and cancelling any in-flight run. Requires explicit confirmation.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        confirm: {
+          type: "boolean",
+          description: "Must be true. Acknowledges that the current conversation will be discarded.",
+        },
+      },
+      required: ["confirm"],
+      additionalProperties: false,
+    },
+    risk: "write",
+    surface: "session",
+  },
 ];
 
 /**
