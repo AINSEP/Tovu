@@ -238,11 +238,12 @@ async function redeemBootSession<TSession>(deps: {
  * must never be used as if it were** — that was DS-01. The old doc here claimed a stale cookie
  * "fails exactly like a missing one: the ordinary login screen shows". It shows, but it is not an
  * equivalent outcome, and the difference is the finding. A login form is exactly what the boot
- * token exists to spare this operator: they were never given a password, because this shell does
- * not mint one (it passes no `desktopCredential`, so the SITE's own seeding decides — see
- * `features/identity/wiring.ts`, whose `ownerPassword` falls back to `DEFAULT_OWNER_PASSWORD` when
- * `TOVU_ADMIN_PASSWORD` is unset, and whose seed does not rotate an owner that already exists). A
- * credential that works therefore EXISTS; it is a build-time default this app has never shown them.
+ * token exists to spare this operator: they were never given a password. Since the LAN-bind fix
+ * (2026-09-23), `tovu-server.ts`'s `buildCliEnv` seeds a random `TOVU_ADMIN_PASSWORD` into every
+ * `init`/`serve` spawn and never shows it, so a site this shell created has no password anyone
+ * knows. A site created BEFORE that fix was seeded with the build-time default
+ * (`DEFAULT_OWNER_PASSWORD`, `features/identity/wiring.ts`) and keeps it, since seeding never
+ * rotates an existing owner — a credential this app has never shown them either.
  * And the only automatic recovery (`endSiteSession` on quit) is wired solely to `openSiteWindow`'s `closed` event —
  * which the sites home `<webview>` path never reaches. A stale cookie there survives every relaunch and
  * re-forces that same manual login on a site the app itself just opened.

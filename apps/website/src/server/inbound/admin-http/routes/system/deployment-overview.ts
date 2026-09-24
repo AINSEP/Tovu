@@ -23,7 +23,10 @@ import type { RouteDeps } from "#src/server/routes/types";
  * of capability. `entityType: "deployment-status"` follows `recent-hits.ts`'s precedent of a
  * route-specific descriptive string rather than a shared literal across unrelated resources.
  */
-export type AdminDeploymentOverviewDeps = Pick<RouteDeps, "workspaceId" | "authorize">;
+export type AdminDeploymentOverviewDeps = Pick<
+  RouteDeps,
+  "workspaceId" | "authorize" | "identityReady" | "ownerPrincipalId" | "userRepo" | "passwordHasher"
+>;
 
 /** One required-for-production env var's presence, never its value. */
 export interface DeploymentEnvVarStatus {
@@ -45,9 +48,10 @@ export interface DeploymentOverviewSnapshot {
    */
   productionReadinessGate: { applicable: boolean; passed: boolean };
   /**
-   * Whether the seeded owner account is still on the publicly-documented default password — the
-   * exact literal comparison `index.ts`'s own boot gate uses, computed here unconditionally
-   * (not gated on production mode) since it is a real, useful warning in local mode too.
+   * Whether the seeded owner account is still on the publicly-documented default password — read
+   * from the owner's STORED hash ({@link isOwnerOnDefaultPassword}), not from `TOVU_ADMIN_PASSWORD`.
+   * Computed unconditionally (not gated on production mode) since it is a real, useful warning in
+   * local mode too.
    */
   defaultOwnerPasswordUnsafe: boolean;
   /**
@@ -129,20 +133,43 @@ const REQUIRED_ENV_VAR_NAMES = [
  * Builds the snapshot from live process state. Exported separately from the route registrar so a
  * test can call it directly without spinning up Express.
  *
+ * @param input.defaultOwnerPasswordUnsafe the one field that needs the database, resolved by the
+ *   caller ({@link isOwnerOnDefaultPassword}) so this stays synchronous.
  * @complexity O(1) — fixed-size env var list, no iteration over caller-controlled data.
  */
-export function buildDeploymentOverviewSnapshot(): DeploymentOverviewSnapshot {
+export function buildDeploymentOverviewSnapshot(input: { defaultOwnerPasswordUnsafe: boolean }): DeploymentOverviewSnapshot {
   const mode = resolveRuntimeMode();
   return {
     mode,
     productionReadinessGate: { applicable: mode === "production", passed: mode === "production" },
-    defaultOwnerPasswordUnsafe: (process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD) === DEFAULT_OWNER_PASSWORD,
+    defaultOwnerPasswordUnsafe: input.defaultOwnerPasswordUnsafe,
     daemonKnownFailed: isAssistantDaemonKnownFailed(),
     dbPath: defaultContentDbPath(),
     uploadsDir: mediaUploadsDir(),
     envVars: REQUIRED_ENV_VAR_NAMES.map((name) => ({ name, set: Boolean(process.env[name]) })),
     deployClis: DEPLOY_CLI_NAMES.map((name) => ({ name, installed: isOnPath(name) })),
   };
+}
+
+/**
+ * Whether the seeded owner's stored password still verifies against `DEFAULT_OWNER_PASSWORD`.
+ *
+ * Read from the database because `TOVU_ADMIN_PASSWORD` only says what a FIRST boot would seed:
+ * seeding never rotates an existing owner, so the env var and the stored credential drift apart the
+ * moment either changes. Both directions were wrong in practice — the desktop app now passes a
+ * random `TOVU_ADMIN_PASSWORD` into every spawn (LAN-bind plan, 2026-09-23), so a site it created
+ * before that fix, still on the default, read as "changed"; and an owner who changed their password
+ * in the admin UI with the env var unset read as "still the default" forever.
+ *
+ * @returns `false` when there is no owner user row to check (nothing can sign in with the default).
+ * @complexity O(1) — one user lookup and one argon2id verify (tens of ms, by design of the hash).
+ */
+async function isOwnerOnDefaultPassword(deps: AdminDeploymentOverviewDeps): Promise<boolean> {
+  await deps.identityReady;
+  const principalId = await deps.ownerPrincipalId;
+  const owner = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId });
+  if (!owner) return false;
+  return deps.passwordHasher.verify(owner.passwordHash, DEFAULT_OWNER_PASSWORD);
 }
 
 export function registerAdminDeploymentOverviewRoute(app: Express, deps: AdminDeploymentOverviewDeps): void {
@@ -169,7 +196,7 @@ export function registerAdminDeploymentOverviewRoute(app: Express, deps: AdminDe
         return;
       }
 
-      res.status(200).json(buildDeploymentOverviewSnapshot());
+      res.status(200).json(buildDeploymentOverviewSnapshot({ defaultOwnerPasswordUnsafe: await isOwnerOnDefaultPassword(deps) }));
     } catch (err) {
       console.error("[system/deployment-overview] unexpected error", err);
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

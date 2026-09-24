@@ -94,8 +94,8 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
   // source `core/runtime-mode.ts` ever consults — resolves "local", and the gate never ran.
   assert.equal(body.mode, "local");
   assert.deepEqual(body.productionReadinessGate, { applicable: false, passed: false });
-  // No `TOVU_ADMIN_PASSWORD` set above means the seeded owner is still on the literal default —
-  // the exact boolean `index.ts`'s own boot gate would compute.
+  // No `TOVU_ADMIN_PASSWORD` set above means the owner was seeded with the literal default, and the
+  // route reads that from the stored hash.
   assert.equal(body.defaultOwnerPasswordUnsafe, true);
   assert.equal(body.daemonKnownFailed, false);
   // Real filesystem paths this SAME process would actually use — not placeholders.
@@ -110,6 +110,58 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
   // Never echoes a secret VALUE — only ever "set"/"not set" markers, matching every field name
   // above being paired with a boolean, never a string that could carry the real value.
   assert.equal(typeof body.envVars[0].set, "boolean");
+});
+
+/** Sets `TOVU_ADMIN_PASSWORD` for one test only, restoring the previous value (or its absence) after. */
+function withAdminPasswordEnv(t: { after(fn: () => void): void }, value: string | undefined): void {
+  const previous = process.env.TOVU_ADMIN_PASSWORD;
+  if (value === undefined) delete process.env.TOVU_ADMIN_PASSWORD;
+  else process.env.TOVU_ADMIN_PASSWORD = value;
+  t.after(() => {
+    if (previous === undefined) delete process.env.TOVU_ADMIN_PASSWORD;
+    else process.env.TOVU_ADMIN_PASSWORD = previous;
+  });
+}
+
+/** Logs in as the seeded owner (on the default password), runs `afterLogin`, then reads the overview. */
+async function fetchOverview(
+  deps: RouteDeps,
+  t: Parameters<typeof bootAuthenticated>[1],
+  afterLogin: () => Promise<void> = async () => {}
+): Promise<{ defaultOwnerPasswordUnsafe: boolean }> {
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await afterLogin();
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/deployment-overview`, {
+    headers: { cookie },
+  });
+  assert.equal(res.status, 200);
+  return res.json();
+}
+
+// LAN-bind review (2026-09-23): the desktop now puts a random TOVU_ADMIN_PASSWORD into every spawn,
+// but a site it created BEFORE that fix was seeded with the default and keeps it (seeding never
+// rotates an existing owner). An env-only check reported that site as "Changed from the default."
+test("deployment-overview: an owner still on the default password is unsafe even when TOVU_ADMIN_PASSWORD now holds something else", async (t) => {
+  withAdminPasswordEnv(t, undefined);
+  const deps: RouteDeps = { ...createRouteDeps() };
+  await deps.identityReady;
+  process.env.TOVU_ADMIN_PASSWORD = "a-random-password-set-after-the-owner-was-seeded";
+
+  const body = await fetchOverview(deps, t);
+  assert.equal(body.defaultOwnerPasswordUnsafe, true);
+});
+
+test("deployment-overview: an owner whose stored password is no longer the default is safe even with TOVU_ADMIN_PASSWORD unset", async (t) => {
+  withAdminPasswordEnv(t, undefined);
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const body = await fetchOverview(deps, t, async () => {
+    const ownerPrincipalId = await deps.ownerPrincipalId;
+    const owner = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: ownerPrincipalId });
+    assert.ok(owner);
+    await deps.userRepo.save({ ...owner, passwordHash: await deps.passwordHasher.hash("changed-in-the-admin-ui") });
+  });
+  assert.equal(body.defaultOwnerPasswordUnsafe, false);
 });
 
 test("deployment-overview: reports a known agent-daemon failure, latched from outside runBootLifecycle", async (t) => {
