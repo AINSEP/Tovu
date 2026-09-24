@@ -44,6 +44,7 @@ import {
   type ComposerCapabilityProjection,
 } from "@/features/plugins/composer-capabilities";
 import { t as translateAssistantDockLabel, createChatI18nAdapter } from "../assistant-dock-i18n";
+import { isSelectionNormalizationEcho } from "../local-cli-selection-echo";
 import type { SelectedAgentPluginChip } from "../SelectedAgentPluginTray";
 import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@/features/fs-files/hooks/use-folder-drop.hooks";
 
@@ -513,6 +514,10 @@ export function useLocalCliSelection(
    * permanently for an operator who has never picked anything.
    */
   const [localCliSelection, setLocalCliSelection] = useState<ChatPaneAgentSelection>({ agentId: "claude" });
+  /** Read-fresh mirror of `localCliSelection` for {@link isSelectionNormalizationEcho} in the
+   *  change handler below, which must compare against the value `ChatPane` was actually given. */
+  const localCliSelectionRef = useRef(localCliSelection);
+  localCliSelectionRef.current = localCliSelection;
 
   /**
    * Guards the one-time hydration effect below against the same two races `useExecutionConfig`'s
@@ -535,8 +540,9 @@ export function useLocalCliSelection(
   }, [configLoaded, executionConfig]);
 
   /**
-   * `ChatPane`'s `onSelectionChange` — fires only for a genuine change (`useChatPane`'s own dedup,
-   * see this hook's own doc above). Updates the controlled value immediately, so the picker
+   * `ChatPane`'s `onSelectionChange` — fires for an operator pick AND for `ChatPane`'s own
+   * normalization of the value passed in (see {@link isSelectionNormalizationEcho}; only the pick is
+   * saved). Updates the controlled value immediately, so the picker
    * reflects the pick without waiting on a round trip, and persists through the same ADR-028
    * chokepoint `handleByokModelChange` uses, so a Local CLI pick and a BYOK model pick can never
    * disagree about which write path is authoritative.
@@ -547,6 +553,13 @@ export function useLocalCliSelection(
    * silently un-reverting on the next reload.
    */
   const handleLocalCliSelectionChange = useCallback((selection: ChatPaneAgentSelection) => {
+    // `ChatPane` echoing its own default-model fill-in on mount: show it, but it is not a pick —
+    // saving it re-wrote the ledger on every page load, and marking `touchedRef` blocked hydration.
+    if (isSelectionNormalizationEcho(localCliSelectionRef.current, selection, readAgentsSnapshot())) {
+      localCliSelectionRef.current = selection;
+      setLocalCliSelection(selection);
+      return;
+    }
     touchedRef.current = true;
     setLocalCliSelection(selection);
     setExecutionConfig((previous) => {

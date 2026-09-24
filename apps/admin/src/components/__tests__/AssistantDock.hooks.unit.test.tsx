@@ -709,6 +709,84 @@ describe("useLocalCliSelection", () => {
     expect(result.current.localCliSelection).toEqual({ agentId: "gemini", model: "gemini-2.5-pro" });
   });
 
+  // 2026-09-23: `ChatPane` echoes its normalized selection back through `onSelectionChange` on
+  // mount (`{agentId: "claude"}` -> `{agentId: "claude", model: "default"}`). Treated as an
+  // operator pick, that echo wrote `localCli.agentId`/`.model` on EVERY admin page load and
+  // blocked the ledger's hydration, resetting a saved agent to claude.
+  describe("ChatPane normalization echoes", () => {
+    const inventory = [
+      { id: "claude", name: "Claude Code", models: [{ id: "default", label: "Default" }, { id: "opus", label: "Opus" }] },
+      { id: "codex", name: "Codex", models: [{ id: "gpt-5", label: "GPT-5" }], reasoningOptions: [{ id: "medium", label: "Medium" }] },
+      { id: "aider", name: "Aider", available: false },
+    ];
+    beforeEach(() => writeAgentsSnapshot(inventory));
+    afterEach(() => localStorage.clear());
+
+    it("an echo before the ledger settles writes nothing and still lets hydration apply", () => {
+      const setExecutionConfig = stubSetExecutionConfig(DEFAULT_EXECUTION_CONFIG);
+      const saved = localCliConfig({ agentId: "codex", modelByAgentId: { codex: "o3" } });
+      const { result, rerender } = renderHook(
+        ({ executionConfig, configLoaded }) => useLocalCliSelection({ executionConfig, setExecutionConfig, configLoaded }),
+        { initialProps: { executionConfig: DEFAULT_EXECUTION_CONFIG, configLoaded: false } },
+      );
+
+      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "default" }));
+
+      expect(result.current.localCliSelection).toEqual({ agentId: "claude", model: "default" });
+      expect(setExecutionConfig).not.toHaveBeenCalled();
+      expect(mockSaveExecutionConfig).not.toHaveBeenCalled();
+
+      rerender({ executionConfig: saved, configLoaded: true });
+
+      expect(result.current.localCliSelection).toEqual({ agentId: "codex", model: "o3" });
+    });
+
+    it("an echo after hydration (saved agent, no saved model) writes nothing", () => {
+      const config = localCliConfig({ agentId: "codex", modelByAgentId: {} });
+      const setExecutionConfig = stubSetExecutionConfig(config);
+      const { result } = renderHook(() =>
+        useLocalCliSelection({ executionConfig: config, setExecutionConfig, configLoaded: true }),
+      );
+      expect(result.current.localCliSelection).toEqual({ agentId: "codex" });
+
+      act(() => result.current.handleLocalCliSelectionChange({ agentId: "codex", model: "gpt-5", reasoning: "medium" }));
+
+      expect(result.current.localCliSelection).toEqual({ agentId: "codex", model: "gpt-5", reasoning: "medium" });
+      expect(setExecutionConfig).not.toHaveBeenCalled();
+      expect(mockSaveExecutionConfig).not.toHaveBeenCalled();
+    });
+
+    it("an unavailable saved agent's fallback echo writes nothing, so the saved agent survives", () => {
+      const config = localCliConfig({ agentId: "aider", modelByAgentId: {} });
+      const setExecutionConfig = stubSetExecutionConfig(config);
+      const { result } = renderHook(() =>
+        useLocalCliSelection({ executionConfig: config, setExecutionConfig, configLoaded: true }),
+      );
+
+      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "default" }));
+
+      expect(setExecutionConfig).not.toHaveBeenCalled();
+      expect(mockSaveExecutionConfig).not.toHaveBeenCalled();
+    });
+
+    it("an operator's model pick after the echo still persists", () => {
+      const config = DEFAULT_EXECUTION_CONFIG;
+      const setExecutionConfig = stubSetExecutionConfig(config);
+      const { result } = renderHook(() =>
+        useLocalCliSelection({ executionConfig: config, setExecutionConfig, configLoaded: true }),
+      );
+      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "default" }));
+
+      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "opus" }));
+
+      expect(mockSaveExecutionConfig).toHaveBeenCalledTimes(1);
+      expect(mockSaveExecutionConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ localCli: { agentId: "claude", modelByAgentId: { claude: "opus" } } }),
+        config,
+      );
+    });
+  });
+
   it("persists a pick through saveExecutionConfig, keyed by the newly selected agent", () => {
     const config = DEFAULT_EXECUTION_CONFIG;
     const setExecutionConfig = stubSetExecutionConfig(config);
