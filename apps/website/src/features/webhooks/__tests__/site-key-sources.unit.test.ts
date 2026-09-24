@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { SITE_KEY_ENV_VAR_NAME, siteKeySources } from "../site-key-sources.js";
+import { SITE_KEY_ENV_VAR_NAME, resolveSiteKeyId, siteKeyFilePathFrom, siteKeySources } from "../site-key-sources.js";
 import { DEFAULT_ROOT_KEY_ENV_VAR_NAME } from "../keyring.env.js";
 
 /**
@@ -92,4 +94,69 @@ test("every non-env source carries a path and no envVarName; the env source carr
       assert.equal(source.envVarName, undefined);
     }
   }
+});
+
+/**
+ * §A3a/A3b — `resolveSiteKeyId`: the boot/admin-route reader for `.site-meta.json`'s site-key id.
+ * A4 (not built yet) is what WRITES a distinct `siteKeyId` field; until then every site's key is
+ * named after its `siteId` (A.1: "It defaults to siteId when missing") — so this function accepts
+ * either field, preferring `siteKeyId` when both are present (forward-compatible with A4's write).
+ */
+test("resolveSiteKeyId: reads .site-meta.json's siteId when there is no distinct siteKeyId field yet", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-site-key-id-"));
+  try {
+    writeFileSync(join(dir, ".site-meta.json"), JSON.stringify({ siteId: "site-xyz" }));
+    assert.equal(resolveSiteKeyId({ siteDir: dir }), "site-xyz");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("resolveSiteKeyId: prefers a distinct siteKeyId field over siteId when both are present (A4 forward-compat)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-site-key-id-"));
+  try {
+    writeFileSync(join(dir, ".site-meta.json"), JSON.stringify({ siteId: "site-xyz", siteKeyId: "key-abc" }));
+    assert.equal(resolveSiteKeyId({ siteDir: dir }), "key-abc");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("resolveSiteKeyId: undefined (never throws) when .site-meta.json is missing", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-site-key-id-"));
+  try {
+    assert.equal(resolveSiteKeyId({ siteDir: dir }), undefined);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("resolveSiteKeyId: undefined (never throws) when .site-meta.json is not valid JSON", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-site-key-id-"));
+  try {
+    writeFileSync(join(dir, ".site-meta.json"), "{not json");
+    assert.equal(resolveSiteKeyId({ siteDir: dir }), undefined);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("resolveSiteKeyId: undefined when siteId is present but not a non-empty string", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-site-key-id-"));
+  try {
+    writeFileSync(join(dir, ".site-meta.json"), JSON.stringify({ siteId: "" }));
+    assert.equal(resolveSiteKeyId({ siteDir: dir }), undefined);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("siteKeyFilePathFrom: the per-site-file candidate's path when one is present in sources", () => {
+  const sources = siteKeySources({ mode: "local", env: {}, home: HOME, cwd: CWD, siteKeyId: "site-abc" });
+  assert.equal(siteKeyFilePathFrom(sources, "/fallback/path.hex"), join(HOME, ".tovu", "site-keys", "site-abc.hex"));
+});
+
+test("siteKeyFilePathFrom: the given fallback when sources has no per-site-file candidate (e.g. production)", () => {
+  const sources = siteKeySources({ mode: "production", env: {}, home: HOME, cwd: CWD });
+  assert.equal(siteKeyFilePathFrom(sources, "/fallback/path.hex"), "/fallback/path.hex");
 });

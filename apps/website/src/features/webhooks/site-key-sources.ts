@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { DEFAULT_ROOT_KEY_ENV_VAR_NAME } from "./keyring.env.js";
@@ -99,4 +100,62 @@ function legacySharedFilePath(home: string): string {
  *  (`keyring.env.ts`'s `defaultRootKeyFilePath` production branch), reused here unchanged. */
 function legacyVolumeFilePath(cwd: string): string {
   return join(cwd, "sites", ".tovu", LEGACY_KEY_FILENAME);
+}
+
+export interface ResolveSiteKeyIdInput {
+  readonly siteDir: string;
+}
+
+/**
+ * This site's `siteKeyId` for {@link siteKeySources}, read straight from `.site-meta.json` — a
+ * READ-ONLY helper (unlike `site-key-ensure.ts`'s `ensureSiteKey`), safe for a route under
+ * `server/inbound/**` to import directly (site-key plan §A3a: nothing under that tree may import
+ * `site-key-ensure.ts`, the one WRITER — this module stays the reader both sides can share).
+ *
+ * Stage A4 (not built yet) is what writes a distinct `siteKeyId` field into `.site-meta.json`; until
+ * then every site's key is named after its `siteId` (A.1: "It defaults to siteId when missing"), so
+ * a present `siteKeyId` field wins when both exist (forward-compatible with A4's write) and `siteId`
+ * is the fallback otherwise.
+ *
+ * Never throws: a missing file, malformed JSON, or a non-string/empty field all resolve to
+ * `undefined` — exactly the input {@link siteKeySources} already treats as "no per-site candidate",
+ * so a site with no readable meta (a legacy or unrepaired install) falls back to its pre-site-key
+ * env/legacy-file-only behavior rather than crashing a boot or an admin request.
+ *
+ * @complexity O(1) — one small, bounded-size file read.
+ */
+export function resolveSiteKeyId(input: ResolveSiteKeyIdInput): string | undefined {
+  let raw: string;
+  try {
+    raw = readFileSync(join(input.siteDir, ".site-meta.json"), "utf8");
+  } catch {
+    return undefined;
+  }
+  let parsed: { siteKeyId?: unknown; siteId?: unknown };
+  try {
+    parsed = JSON.parse(raw) as { siteKeyId?: unknown; siteId?: unknown };
+  } catch {
+    return undefined;
+  }
+  if (typeof parsed.siteKeyId === "string" && parsed.siteKeyId.length > 0) return parsed.siteKeyId;
+  if (typeof parsed.siteId === "string" && parsed.siteId.length > 0) return parsed.siteId;
+  return undefined;
+}
+
+/**
+ * The per-site-file candidate's path out of an already-computed {@link SiteKeySource} list, or
+ * `fallback` when none exists — production (no per-site candidate at all, A.1) and a site with no
+ * resolvable `siteKeyId` both land on `fallback`. Backs the admin Site Token route's `generate`
+ * action (owner change: generate stays, but (re)writes THIS site's own key file when one exists) —
+ * kept here, not duplicated at the call site, so the "which path does generate target" decision has
+ * one home next to the ordering it is derived from.
+ *
+ * @param fallback - typically `defaultRootKeyFilePath()` (`keyring.env.ts`) — not imported here to
+ *   keep this module free of a dependency on that one, since a caller with no fallback opinion of
+ *   its own can still pass it in directly.
+ * @complexity O(n) in `sources.length` — a single linear find.
+ */
+export function siteKeyFilePathFrom(sources: readonly SiteKeySource[], fallback: string): string {
+  const perSite = sources.find((source) => source.kind === "per-site-file");
+  return perSite?.path ?? fallback;
 }

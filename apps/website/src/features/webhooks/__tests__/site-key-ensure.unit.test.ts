@@ -7,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { fingerprintRootKeyHex } from "../keyring.env.js";
-import { ensureSiteKey, planSiteKeyEnsure, type SiteKeyMaterialCheck } from "../site-key-ensure.js";
+import { ensureSiteKey, ensureSiteKeyForBoot, planSiteKeyEnsure, type SiteKeyMaterialCheck } from "../site-key-ensure.js";
 
 /**
  * @file Site-key plan §A.2 slice — `planSiteKeyEnsure` (the pure decision table) and `ensureSiteKey`
@@ -212,4 +212,27 @@ test("ensureSiteKey: two different siteKeyIds under the same home get two indepe
   assert.equal(second.action, "mint");
   assert.notEqual(first.fingerprint, second.fingerprint);
   assert.notEqual(perSiteFilePathIn(home, "site-a"), perSiteFilePathIn(home, "site-b"));
+});
+
+// ---------------------------------------------------------------------------
+// ensureSiteKeyForBoot — A3a's actual boot-path call site: resolves siteKeyId from siteDir's
+// `.site-meta.json` itself (via site-key-sources.ts's resolveSiteKeyId), so serve.ts/index.ts never
+// have to compute it themselves.
+// ---------------------------------------------------------------------------
+
+test("ensureSiteKeyForBoot: siteDir has a .site-meta.json siteId → resolves it and mints the per-site file", () => {
+  writeFileSync(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "meta-site-1" }));
+
+  const result = ensureSiteKeyForBoot({ siteDir, mode: "local", env: bareEnv(), home });
+
+  assert.ok(result, "a resolvable siteKeyId must produce a real ensureSiteKey result, not undefined");
+  assert.equal(result?.action, "mint");
+  assert.equal(existsSync(perSiteFilePathIn(home, "meta-site-1")), true);
+});
+
+test("ensureSiteKeyForBoot: siteDir has no .site-meta.json → undefined, no file written, never throws", () => {
+  const result = ensureSiteKeyForBoot({ siteDir, mode: "local", env: bareEnv(), home });
+
+  assert.equal(result, undefined);
+  assert.equal(existsSync(path.join(home, ".tovu")), false);
 });

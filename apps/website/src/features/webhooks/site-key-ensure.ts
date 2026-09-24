@@ -17,7 +17,7 @@ import { basename, dirname, join } from "node:path";
 import Database from "better-sqlite3";
 
 import { fingerprintRootKeyHex, parseRootKeyHex, type RootKeyRejection } from "./keyring.env.js";
-import { siteKeySources, type SiteKeySource } from "./site-key-sources.js";
+import { resolveSiteKeyId, siteKeySources, type SiteKeySource } from "./site-key-sources.js";
 import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
 import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
 
@@ -320,6 +320,38 @@ export function ensureSiteKey(input: EnsureSiteKeyInput): EnsureSiteKeyResult {
       // this switch stays exhaustive against SiteKeyEnsureAction without a `default` escape hatch.
       return { action: "production-noop" };
   }
+}
+
+export interface EnsureSiteKeyForBootInput {
+  /** This site's own directory — same meaning as {@link EnsureSiteKeyInput.siteDir}. */
+  readonly siteDir: string;
+  readonly mode?: RuntimeMode;
+  readonly env?: NodeJS.ProcessEnv;
+  readonly home?: string;
+  readonly cwd?: string;
+}
+
+/**
+ * Site-key plan §A3a's actual boot-path call site: `cli/commands/serve.ts` and `src/index.ts` call
+ * this, not {@link ensureSiteKey} directly, so neither has to resolve `siteKeyId` itself. Resolves it
+ * from `siteDir`'s own `.site-meta.json` via {@link resolveSiteKeyId} and, only when that succeeds,
+ * calls through to {@link ensureSiteKey}.
+ *
+ * A `siteDir` with no readable `.site-meta.json` (or none present) returns `undefined` and touches
+ * nothing — {@link ensureSiteKey} itself throws an invariant-guard error for an empty `siteKeyId`
+ * (it assumes a caller only ever invokes it with a real one), so this guard exists precisely to keep
+ * that assumption true at the one real call site that cannot itself guarantee a resolvable id. Every
+ * real `tovu serve`/`index.ts` boot already validated `.site-meta.json`'s presence upstream
+ * (`readSiteDir`), so this is a safety net for the genuinely unusual case (a corrupt or unrepaired
+ * site), not the expected path — that site simply keeps its pre-site-key env/legacy-file-only
+ * behavior, exactly as before this feature existed.
+ *
+ * @complexity O(1) fs read for `resolveSiteKeyId`, plus {@link ensureSiteKey}'s own cost when it runs.
+ */
+export function ensureSiteKeyForBoot(input: EnsureSiteKeyForBootInput): EnsureSiteKeyResult | undefined {
+  const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir });
+  if (!siteKeyId) return undefined;
+  return ensureSiteKey({ siteDir: input.siteDir, siteKeyId, mode: input.mode, env: input.env, home: input.home, cwd: input.cwd });
 }
 
 /** {@link planSiteKeyEnsure}'s input shape from a raw {@link parseRootKeyHex} result (or
