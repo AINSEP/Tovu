@@ -1282,7 +1282,8 @@ export interface CommerceCatalogDeps {
   /** SPIKE: seam for the sample Tier-3 store plugin (data lives in plugin-owned `p_store__*`
    * tables). Optional — only the SQLite runtime wires it (see `index.ts`). */
   store?: {
-    listProducts(): { id: string; title: string; price: number; stock: number; version: number }[];
+    /** `slug` (readable-slugs S7): the product-detail link key — the plugin's `Product.slug`. */
+    listProducts(): { id: string; slug: string; title: string; price: number; stock: number; version: number }[];
     checkout(
       productId: string,
       qty: number

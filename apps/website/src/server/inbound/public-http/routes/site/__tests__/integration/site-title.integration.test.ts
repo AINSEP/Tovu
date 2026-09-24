@@ -112,7 +112,7 @@ test("AC-04/AC-11 (REQ-02, REQ-03, T-W2): an owner title written through the gen
   // `createRouteDeps()` wires no storefront catalog, so the product-detail surface needs one product.
   // `resolveStorefrontProducts` reads `deps.store` per request, so assigning it after boot is enough.
   site.deps.store = {
-    listProducts: () => [{ id: "prod-site-title", title: "Title Probe", price: 100, stock: 1, version: 0 }],
+    listProducts: () => [{ id: "prod-site-title", slug: "prod-site-title", title: "Title Probe", price: 100, stock: 1, version: 0 }],
   } as unknown as RouteDeps["store"];
   const [product] = await resolveStorefrontProducts(site.deps);
   assert.ok(product, "expected the injected storefront product for the product-detail surface");
