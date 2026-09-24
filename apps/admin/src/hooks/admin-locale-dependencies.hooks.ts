@@ -26,12 +26,49 @@ export { DEFAULT_LOCALE };
 /** The live implementation, as a module-level singleton — matches `theme-pages-dependencies
  *  .hooks.ts`'s `defaultThemePagesPort`. */
 export const defaultAdminLocalePort: AdminLocalePort = {
-  loadLanguage: () => loadLanguage(),
+  loadLanguage: loadLanguageShared,
   subscribeToSettingsRefresh: (listener) =>
     subscribeToSettingsRefresh((scope) => {
-      if (refreshApplies(scope)) listener();
+      if (!refreshApplies(scope)) return;
+      dropInFlightLanguageReadOnce();
+      listener();
     }),
 };
+
+/**
+ * The one `loadLanguage()` request in flight, shared by every caller until it settles. About 100
+ * hooks each call `useWiredAdminLocale()`, and their mount effects all run in the same commit, so
+ * without this one admin page load sent ~100 identical `settings/effective?namespace=core.language`
+ * GETs (2026-09-23). Only the in-flight request is shared, never a settled value, so a later mount
+ * still reads the server's current locale.
+ */
+let languageReadInFlight: Promise<string> | null = null;
+
+function loadLanguageShared(): Promise<string> {
+  if (languageReadInFlight) return languageReadInFlight;
+  const read = loadLanguage().finally(() => {
+    if (languageReadInFlight === read) languageReadInFlight = null;
+  });
+  languageReadInFlight = read;
+  return read;
+}
+
+/** Set while one refresh notification is being fanned out to every subscriber. */
+let languageRefreshDispatching = false;
+
+/**
+ * A language refresh means the in-flight read may predate the change, so it is dropped — once per
+ * notification: the bus calls every subscriber synchronously, the first drops the old read and
+ * starts a new one, and the rest share that new one instead of each dropping it again.
+ */
+function dropInFlightLanguageReadOnce(): void {
+  if (languageRefreshDispatching) return;
+  languageRefreshDispatching = true;
+  languageReadInFlight = null;
+  queueMicrotask(() => {
+    languageRefreshDispatching = false;
+  });
+}
 
 /** Seed state for {@link createFakeAdminLocalePort}. */
 export interface FakeAdminLocalePortOptions {
