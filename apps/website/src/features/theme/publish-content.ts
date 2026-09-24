@@ -635,6 +635,8 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
             throw err;
           }
           await prunePreviousCopies(themesDir, address!);
+          // The renderer serves partials/pages from memory, not disk — re-read them now.
+          await deps.onThemeTreeReplaced?.();
           return swapped;
         },
         captureEntityVersion: () => 0,
@@ -644,6 +646,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
           await rename(target, discard);
           if (swapped.previous) await rename(swapped.previous, target);
           await rm(discard, { recursive: true, force: true });
+          await deps.onThemeTreeReplaced?.();
         },
       },
     });

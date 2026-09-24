@@ -377,3 +377,39 @@ test("round trip: a theme edited on live plans 'conflict' offered as an overwrit
   const [previousKey] = await readdir(path.join(fixture.destThemes, ".publish-previous"));
   assert.deepEqual(await readTree(path.join(fixture.destThemes, ".publish-previous", previousKey, "static/basic")), edited);
 });
+
+// ---------------------------------------------------------------------------
+// in-memory theme refresh (2026-09-24 live bug: assets updated, rendered header stayed old)
+// ---------------------------------------------------------------------------
+
+/** Records what `static/basic/render/partials/nav.html` held on disk each time the handler asked the
+ *  running site to re-read its themes — the renderer serves `DiscoveredTheme.partials` from memory. */
+function recordReloads(fixture: Fixture): string[] {
+  const seen: string[] = [];
+  (fixture.deps as { onThemeTreeReplaced?: () => Promise<void> }).onThemeTreeReplaced = async () => {
+    seen.push(await readFile(path.join(fixture.destThemes, "static/basic/render/partials/nav.html"), "utf8").catch(() => "<missing>"));
+  };
+  return seen;
+}
+
+test("apply() asks the running site to re-read its themes after the swap, so new partials render", async () => {
+  const fixture = await makeFixture();
+  const seen = recordReloads(fixture);
+  const entity = await packAndStage(fixture);
+  await handlerFor(fixture.deps).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "key-reload" });
+  assert.deepEqual(seen, ["<nav>new header</nav>"]);
+});
+
+test("rollback asks the running site to re-read its themes again, so the restored partials render", async () => {
+  const fixture = await makeFixture();
+  const seen = recordReloads(fixture);
+  const entity = await packAndStage(fixture);
+  fixture.changeSets.insert = async () => {
+    throw new Error("change-set store is down");
+  };
+  await assert.rejects(
+    handlerFor(fixture.deps).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "key-reload-rollback" }),
+    /change-set store is down/
+  );
+  assert.equal(seen.at(-1), "<nav>original header</nav>");
+});

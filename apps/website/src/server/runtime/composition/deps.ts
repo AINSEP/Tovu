@@ -49,7 +49,7 @@ import {
 import { SqlitePresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
-import { discoverAllBuiltInThemes, seedSiteThemes } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, rescanThemes, seedSiteThemes } from "#src/features/theme/index";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
@@ -1623,6 +1623,9 @@ export function createSqliteRouteDeps(
     idGen,
     redirectsWriteDeps,
   });
+  // One array shared by `routeDeps.themes` (below) and the theme-files apply's refresh hook, so a
+  // published theme's partials/pages re-render without a restart (`rescanThemes` refills IN PLACE).
+  const siteThemes = discoverAllBuiltInThemes({ dir: resolvedThemesDir, source: "built-in" });
   const publishContentApplyPort = createPublishContentApplyPort({
     workspaceId,
     bundleRepo: publishContentBundleRepo,
@@ -1650,6 +1653,9 @@ export function createSqliteRouteDeps(
       // root, the SAME value `routeDeps.themesDir` (below) resolves to. See `routes/types.ts`'s
       // `themesDir` doc.
       themesDir: resolvedThemesDir,
+      onThemeTreeReplaced: () => {
+        rescanThemes({ themes: siteThemes, dir: resolvedThemesDir });
+      },
     }),
     clock,
     idGen,
@@ -1765,7 +1771,7 @@ export function createSqliteRouteDeps(
       // with outlives it and the Trash lists a post that is live again.
       forgetRemoved: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
     }),
-    themes: discoverAllBuiltInThemes({ dir: resolvedThemesDir, source: "built-in" }),
+    themes: siteThemes,
     themesDir: resolvedThemesDir,
     // Design C (2026-09-16) — the package's own read-only catalog, threaded through separately from
     // `themesDir` above (which is this SITE's own themes root) so `resolveThemeOriginalSource` can

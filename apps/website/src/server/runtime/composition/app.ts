@@ -88,7 +88,7 @@ import {
   SCOPE_BIT,
   INSTRUCTIONS_NAMESPACE,
 } from "#src/features/settings/index";
-import { discoverAllBuiltInThemes } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, rescanThemes } from "#src/features/theme/index";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
 import path from "node:path";
@@ -866,6 +866,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // `publishContentPeerRepo` doc.
   const publishContentPeerRepo = new InMemoryPublishContentPeerRepo();
   const publishContentSeedHash = options.publishContentSeedHash ?? NO_PUBLISH_CONTENT_SEED_HASH;
+  // One array shared by `routeDeps.themes` (below) and the theme-files apply's refresh hook, so a
+  // published theme's partials/pages re-render without a restart (`rescanThemes` refills IN PLACE).
+  const siteThemes = discoverAllBuiltInThemes({ dir: builtInThemesDir(), source: "built-in" });
   const publishContentApplyPort = createPublishContentApplyPort({
     workspaceId: seededWorkspace.id,
     bundleRepo: publishContentBundleRepo,
@@ -892,6 +895,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       // S19 (S-F4) — same value `routeDeps.themesDir` (below) resolves to. See `routes/types.ts`'s
       // `themesDir` doc and `deps.ts`'s identical addition to this same apply bag.
       themesDir: builtInThemesDir(),
+      onThemeTreeReplaced: () => {
+        rescanThemes({ themes: siteThemes, dir: builtInThemesDir() });
+      },
     }),
     clock,
     idGen,
@@ -1006,7 +1012,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       // with outlives it and the Trash lists a post that is live again.
       forgetRemoved: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
     }),
-    themes: discoverAllBuiltInThemes({ dir: builtInThemesDir(), source: "built-in" }),
+    themes: siteThemes,
     themesDir: builtInThemesDir(),
     siteBinding: describeSiteBinding(),
     outbox,

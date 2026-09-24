@@ -122,6 +122,7 @@ export type PublishContentApplyDeps = PublishContentDeps &
       | "menuRepo"
       | "navLocationBindingRepo"
       | "themesDir"
+      | "onThemeTreeReplaced"
     >
   >;
 

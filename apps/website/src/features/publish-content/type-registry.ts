@@ -172,6 +172,15 @@ export interface PublishContentDeps {
    */
   readonly themesDir?: string;
   /**
+   * Called by `theme-files`' `apply()` right after it swaps a tree into {@link themesDir} (and again
+   * after a rollback swaps it back). The running site renders pages from `DiscoveredTheme.pages`/
+   * `partials`, which are read into memory at discovery and never re-read from disk — so without
+   * this a published theme's `/theme-assets/*` files change while every rendered page keeps the old
+   * header/footer until the process restarts (2026-09-24 tovu.fly.dev). A composition root binds it
+   * to `rescanThemes` over its own `RouteDeps.themes` array.
+   */
+  readonly onThemeTreeReplaced?: () => void | Promise<void>;
+  /**
    * S-F3 — the process-wide `sha256 -> {absPath, size}` map a file-tree `pack()` fills as it walks a
    * tree (`features/publish-content/file-blob-index.ts`), read by
    * `composite-blob-source.ts`'s `createCompositePeerBlobSource` so a peer can fetch those bytes
