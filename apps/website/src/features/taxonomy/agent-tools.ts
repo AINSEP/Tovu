@@ -8,8 +8,8 @@
  * `Taxonomy` so several domains can export a catalog surface from one package without colliding.
  * They are aliased back here so this host's existing imports keep working.
  *
- * `taxonomy_execute_merge_term` remains declared-but-unwired — see the package copy's own header
- * for the full merge safety analysis and why the exclusion is enforced twice over.
+ * `taxonomy_execute_merge_term` is wired behind a human confirm in chat (2026-09-24) — see the
+ * package copy's own header and `tool-registrations.ts`.
  */
 export { taxonomyAgentToolCatalog } from "@jini-ai/cms/taxonomy";
 

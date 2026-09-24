@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { InMemoryTokenStore } from "../../contracts/core/gated-mutations/token.js";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type DeliverResult } from "../../contracts/core/tool-surface-exchanges.js";
 import { createPost, InMemoryPostRepo } from "../../features/post/index.js";
 import { taxonomyAgentToolCatalog, type AgentToolDefinition as TaxonomyAgentToolDefinition } from "../../features/taxonomy/agent-tools.js";
 import {
@@ -16,17 +18,16 @@ import {
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
-import { contributeTaxonomyTools } from "../../features/taxonomy/tool-registrations.js";
+import { contributeTaxonomyTools, taxonomyDerivedRisk } from "../../features/taxonomy/tool-registrations.js";
 import { registerToolContributor } from "../tool-contribution-registry.js";
 
 /**
  * @file The Taxonomy (Categories & Tags) tool-wiring test file — mirrors
  * `tool-registrations.widgets-contracts.test.ts`/`tool-registrations.database-recovery.test.ts`'s
- * own shape: catalog completeness (including the ONE deliberate exclusion, `taxonomy_execute_merge_term`,
- * and why), published contract parity, the risk cross-check, the ADR-021 §2 authorization half
+ * own shape: catalog completeness, published contract parity, the risk cross-check, the ADR-021 §2 authorization half
  * (self-enforcing writes + inline-gated read + the gated-mutation plan()'s own authorize), the
  * merge-plan's self-merge guard, and a multi-tool workflow test chaining create -> create -> assign
- * -> plan-merge -> rename -> list.
+ * -> plan-merge -> rename -> list, and `taxonomy_execute_merge_term`'s human confirm (section 7).
  *
  * Real in-memory adapters throughout (`InMemoryTaxonomyRepo`, `InMemoryTermRepo`,
  * `InMemoryEntryTermRepo`, `InMemoryTaxonomyRevisionRepo`, `InMemoryPostRepo`,
@@ -117,41 +118,50 @@ const WIRED_TAXONOMY_TOOL_IDS = [
   "taxonomy_unassign_terms",
   "taxonomy_create_taxonomy",
   "taxonomy_create_term",
+  "taxonomy_execute_merge_term",
   "taxonomy_plan_merge_term",
   "taxonomy_rename_term",
 ].sort();
 
 // ---------------------------------------------------------------------------
-// 1. Catalog completeness — the 7 wireable entries vs. the 1 declared-but-excluded destructive tool
+// 1. Catalog completeness — all 8 entries, the merge execute one behind a human confirm (2026-09-24)
 // ---------------------------------------------------------------------------
 
-test("exactly the 7 wireable taxonomy entries are registered", () => {
+test("all 8 taxonomy entries are registered", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...taxonomyRegistrations(deps).keys()].sort(), WIRED_TAXONOMY_TOOL_IDS);
-  assert.equal(taxonomyAgentToolCatalog.length, 8, "sanity: 7 wired + 1 excluded (taxonomy_execute_merge_term)");
+  assert.equal(taxonomyAgentToolCatalog.length, 8);
 });
 
-test("taxonomy_execute_merge_term is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification", () => {
+test("taxonomy_execute_merge_term is registered, classified mutates-durable-state, and refused without its human-confirmed handler", () => {
   const { deps } = fakeRouteDeps();
-  assert.equal(taxonomyRegistrations(deps).has("taxonomy_execute_merge_term"), false);
-  assert.throws(() => assertRiskMetadataIsWirable("taxonomy_execute_merge_term", catalogEntry("taxonomy_execute_merge_term")), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
+  assert.equal(taxonomyRegistrations(deps).has("taxonomy_execute_merge_term"), true);
+  assert.equal(taxonomyDerivedRisk.get("taxonomy_execute_merge_term"), "mutates-durable-state");
+  assert.equal(catalogEntry("taxonomy_execute_merge_term").sideEffects, "mutates-durable-state");
+  // The handler-less check stands for "a plain handler": still refused at build time.
+  assert.throws(() => assertRiskMetadataIsWirable("taxonomy_execute_merge_term", catalogEntry("taxonomy_execute_merge_term")), {
+    message:
+      "tool-registrations: 'taxonomy_execute_merge_term' declares actorClassRule 'confirmer-must-equal-own-delegatedBy', which needs a human confirmer — " +
+      "build its handler with humanConfirmedHandler so a human answers through the host's confirmation transport (see ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT)",
+  });
 });
 
-test("taxonomy_execute_merge_term's actorClassRule would ALSO be refused on its own even if classified — no confirmation transport exists", () => {
-  const excluded = catalogEntry("taxonomy_execute_merge_term");
-  assert.equal(excluded.actorClassRule, "confirmer-must-equal-own-delegatedBy");
+test("taxonomy_execute_merge_term keeps its confirmer-must-equal-own-delegatedBy rule", () => {
+  assert.equal(catalogEntry("taxonomy_execute_merge_term").actorClassRule, "confirmer-must-equal-own-delegatedBy");
 });
 
-test("no wired taxonomy tool is named or described as able to confirm or execute a merge", () => {
+test("no taxonomy tool is named for a confirm step, and only taxonomy_execute_merge_term executes a merge — saying the user confirms", () => {
   const { deps } = fakeRouteDeps();
   for (const [id, registration] of taxonomyRegistrations(deps)) {
     assert.equal(/confirm/i.test(id), false, `'${id}' must not be named for a confirm step`);
+    if (id === "taxonomy_execute_merge_term") {
+      assert.match(registration.descriptor.description, /Shows the user a confirm dialog first and only merges if they confirm\./);
+      continue;
+    }
     assert.equal(/execute_merge/i.test(id), false, `'${id}' must not be named for an execute step`);
-    // Carve out negated clauses ("requires a human to confirm", "no tool ... can do that step") —
-    // mirrors `tool-registrations.widgets-contracts.test.ts`'s identical negation-aware discipline
-    // for its own purge/force-delete disclaimer check. Only a POSITIVE claim of confirming/merging
-    // is disqualifying.
-    const claim = registration.descriptor.description.replace(/\b(never|no|not|cannot|can't|won't|requires? a human to)\b[^.;—]*/gi, "");
+    // Carve out negated clauses — mirrors `tool-registrations.widgets-contracts.test.ts`'s
+    // negation-aware discipline. Only a POSITIVE claim of confirming a merge is disqualifying.
+    const claim = registration.descriptor.description.replace(/\b(never|no|not|cannot|can't|won't|requires? a human to|asks the user to)\b[^.;—]*/gi, "");
     assert.equal(/\bconfirms?\b.*merge|\bmerge\b.*\bconfirms?\b/i.test(claim), false, `'${id}' must not claim it can confirm a merge`);
   }
 });
@@ -186,7 +196,7 @@ test("requiresConfirmation is unset on every wired taxonomy tool", () => {
 // 3. Risk metadata is cross-checked, not trusted
 // ---------------------------------------------------------------------------
 
-test("the independent risk classification agrees with the catalog for all 7 wired taxonomy tools", () => {
+test("the independent risk classification agrees with the catalog for all 8 wired taxonomy tools", () => {
   const { deps } = fakeRouteDeps();
   for (const id of taxonomyRegistrations(deps).keys()) {
     // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
@@ -195,6 +205,8 @@ test("the independent risk classification agrees with the catalog for all 7 wire
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.taxonomy") continue;
+    // Its actor-class rule needs the handler too — checked in section 1 above.
+    if (id === "taxonomy_execute_merge_term") continue;
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
   }
 });
@@ -382,4 +394,105 @@ test("workflow: create a taxonomy, create two terms, assign both to a post, plan
   assert.ok(row, "the taxonomy created in step 1 must appear in the list");
   const names = row.terms.map((t) => t.name).sort();
   assert.deepEqual(names, ["Alpha", "Beta Renamed"], "the list must reflect BOTH the original term1 name and term2's step-5 rename");
+});
+
+// ---------------------------------------------------------------------------
+// 7. taxonomy_execute_merge_term — the human confirms in chat, then the merge runs (2026-09-24)
+// ---------------------------------------------------------------------------
+
+const MERGE_TOOL = "taxonomy_execute_merge_term";
+
+/** Two terms, a post tagged with the first — the state a merge acts on. */
+async function seedMergeableTerms(deps: RouteDeps): Promise<{ taxonomyId: string; fromTermId: string; intoTermId: string }> {
+  const created = (await wired("taxonomy_create_taxonomy", deps).handler(executionContext({ name: "Topic", hierarchical: false }))) as { taxonomy: { id: string } };
+  const taxonomyId = created.taxonomy.id;
+  const from = (await wired("taxonomy_create_term", deps).handler(executionContext({ taxonomyId, name: "Alpha" }))) as { term: { id: string } };
+  const into = (await wired("taxonomy_create_term", deps).handler(executionContext({ taxonomyId, name: "Beta" }))) as { term: { id: string } };
+  const postId = await seedPost(deps);
+  await wired("taxonomy_assign_terms", deps).handler(executionContext({ contentType: "post", contentId: postId, termIds: [from.term.id] }));
+  return { taxonomyId, fromTermId: from.term.id, intoTermId: into.term.id };
+}
+
+/**
+ * Starts the merge against one exchange store, waits for its dialog, and hands back the answer seam.
+ * `answer(principalId, decision)` posts a click the way `mcp-ui-tool-calls-route.ts` does.
+ */
+async function startMerge(deps: RouteDeps, input: Record<string, unknown>) {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === MERGE_TOOL);
+  assert.ok(tool, `expected '${MERGE_TOOL}' to be wired`);
+  const emitted: unknown[] = [];
+  const pending = tool.handler({ ...executionContext(input), emitSurface: async (s) => void emitted.push(s) });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(emitted.length, 1, "exactly one confirm dialog is shown");
+  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
+  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+  assert.ok(match, "the dialog carries its exchange id");
+  const answer = (principalId: string, decision: "confirm" | "cancel"): DeliverResult =>
+    surfaceExchanges.deliver({ exchangeId: match[1]!, toolId: MERGE_TOOL, principalId, params: { decision } });
+  return { pending, html, answer };
+}
+
+test(`${MERGE_TOOL}: the human confirms in the dialog, then the merge runs — assignments move and the source term is deprecated`, async () => {
+  const { deps, entryTermRepo, termRepo } = fakeRouteDeps();
+  const { taxonomyId, fromTermId, intoTermId } = await seedMergeableTerms(deps);
+
+  const { pending, html, answer } = await startMerge(deps, { fromTermId, intoTermId });
+  assert.match(html, /Merge Alpha into Beta\?/);
+  assert.match(html, /Everything tagged Alpha is re-tagged Beta, and Alpha is retired\. This can(&#39;|&#x27;|'|\\u0027)t be undone\./);
+  assert.deepEqual(answer(PRINCIPAL_ID, "confirm"), { ok: true });
+
+  const result = (await pending) as { merged: boolean };
+  assert.equal(result.merged, true);
+  assert.equal(await entryTermRepo.countByTerm({ termId: fromTermId }), 0);
+  assert.equal(await entryTermRepo.countByTerm({ termId: intoTermId }), 1);
+  const fromTerm = (await termRepo.listByTaxonomy({ taxonomyId })).find((term) => term.id === fromTermId);
+  assert.equal(fromTerm?.status, "deprecated");
+});
+
+test(`${MERGE_TOOL}: the human cancels — notConfirmedResult comes back and nothing is merged`, async () => {
+  const { deps, entryTermRepo } = fakeRouteDeps();
+  const { fromTermId, intoTermId } = await seedMergeableTerms(deps);
+
+  const { pending, answer } = await startMerge(deps, { fromTermId, intoTermId });
+  answer(PRINCIPAL_ID, "cancel");
+
+  assert.deepEqual(await pending, { merged: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
+  assert.equal(await entryTermRepo.countByTerm({ termId: fromTermId }), 1);
+});
+
+test(`${MERGE_TOOL}: nothing in the model's input can stand in for the click — a confirm/token key is refused before any dialog`, async () => {
+  const { deps } = fakeRouteDeps();
+  const { fromTermId, intoTermId } = await seedMergeableTerms(deps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === MERGE_TOOL);
+  assert.ok(tool);
+
+  for (const key of ["confirm", "confirmationToken"]) {
+    await assert.rejects(
+      () => tool.handler({ ...executionContext({ fromTermId, intoTermId, [key]: key === "confirm" ? true : "tok" }), emitSurface: async () => undefined }),
+      { message: `'${key}' is not an input of this tool. Only a click in the confirm dialog confirms it — nothing in the tool input can.` },
+    );
+  }
+  assert.equal(surfaceExchanges.size(), 0, "no dialog was opened");
+
+  // And with no dialog channel at all (a headless run), the merge is refused outright.
+  await assert.rejects(() => tool.handler(executionContext({ fromTermId, intoTermId })), {
+    message:
+      "TAXONOMY_NO_CONFIRMATION_CHANNEL: taxonomy_execute_merge_term: this execution context has no interactive " +
+      "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.",
+  });
+});
+
+test(`${MERGE_TOOL}: a click from anyone but the delegating human is refused and leaves the dialog waiting`, async () => {
+  const { deps, entryTermRepo } = fakeRouteDeps();
+  const { fromTermId, intoTermId } = await seedMergeableTerms(deps);
+
+  const { pending, answer } = await startMerge(deps, { fromTermId, intoTermId });
+  assert.deepEqual(answer("someone-else", "confirm"), { ok: false, reason: "binding-mismatch" });
+  assert.equal(await entryTermRepo.countByTerm({ termId: fromTermId }), 1, "the other principal's confirm did not merge");
+
+  answer(PRINCIPAL_ID, "cancel");
+  assert.deepEqual(await pending, { merged: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
+  assert.equal(await entryTermRepo.countByTerm({ termId: fromTermId }), 1);
 });

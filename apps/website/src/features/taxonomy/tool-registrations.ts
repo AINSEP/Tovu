@@ -3,9 +3,10 @@
  * entries onto `write-service.ts`'s ordinary mutations, `list.ts`'s read, and `merge-term.ts`'s
  * plan-only slice of the gated-mutation ceremony, as `ToolRegistration`s.
  *
- * Scope: 7 of 8 catalog entries are wired. `taxonomy_execute_merge_term` is declared unwired — see
- * `agent-tools.ts`'s own header for the full `mergeTerm` safety analysis (destructive, agent-cannot-
- * confirm by the gateway's own actor-class rule, no confirmation transport exists anyway).
+ * Scope: all 8 catalog entries are wired. `taxonomy_execute_merge_term` (2026-09-24) asks the human
+ * in chat first: a merge deletes the source term's assignments with no Trash or undo. On the
+ * human's click it confirms as that human and executes as the agent acting for them — see
+ * `contracts/core/human-confirm.ts`'s `humanConfirmedToolHandler`.
  *
  * Authorization shape, mixed and deliberately so: `createTaxonomy`/`createTerm`/`renameTerm`/
  * `assignTerms` each call `authorizeTaxonomyManage` (`admin.taxonomy.manage`) as their own first line
@@ -39,10 +40,14 @@ import {
 // than redacting it into a message-stripped 500.
 import { ToolInputError } from "@jini-ai/core";
 import {
+  confirm as gatewayConfirm,
+  execute as gatewayExecute,
   plan as gatewayPlan,
   type GatedMutationHooks,
   type GatewayDeps,
 } from "../../contracts/core/gated-mutations/gateway.js";
+import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
 import type { ToolContributor } from "#src/assistant/index";
 import type { PostRepoPort } from "../post/index.js";
 import { buildMergeTermHooks, type MergeableEntryTermRepoPort } from "./gated-hooks.js";
@@ -50,6 +55,8 @@ import { taxonomyAgentToolCatalog } from "./agent-tools.js";
 import {
   createPostBackedContentLookup,
   listTaxonomiesWithTerms,
+  confirmMergeTerm,
+  executeMergeTerm,
   planMergeTerm,
   toTaxonomyOutbox,
   assignTerms,
@@ -99,22 +106,10 @@ export interface TaxonomyToolDeps {
   stampWatermark: () => void;
 }
 
-/** Taxonomy catalog entries this pass does not wire, and why — see `agent-tools.ts`'s own header
- * for the full `mergeTerm` safety analysis. */
-const UNWIRED_TAXONOMY_TOOL_IDS = new Set([
-  // EXCLUDED BY DESIGN: token-gated, and `assertToolIsWirable` refuses to build it anyway
-  // (`actorClassRule: 'confirmer-must-equal-own-delegatedBy'` has no confirmation transport yet).
-  // `core/gated-mutations/gateway.ts`'s own confirm() step additionally refuses an agent principal
-  // unconditionally, before any permission check even runs — so this exclusion is enforced twice
-  // over, not just by this codebase's own policy choice.
-  "taxonomy_execute_merge_term",
-]);
-
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
  * calls. See `DerivedRiskByToolId` in the kit for why it is independent of the catalog's own
- * `sideEffects` declaration — and note that `taxonomy_execute_merge_term` appears NOWHERE here,
- * which is itself the strongest of the guards: an unclassified id cannot be wired at all.
+ * `sideEffects` declaration.
  */
 export const taxonomyDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> listTaxonomiesWithTerms (list.ts): taxonomies.list() + terms.listByTaxonomy() reads only.
@@ -134,7 +129,13 @@ export const taxonomyDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
   // -> gateway.ts's plan() via buildMergeTermHooks: authorizes, then recomputes a plan and returns
   //    it — verified directly against plan()'s own body, which persists nothing (AC-10).
   ["taxonomy_plan_merge_term", "none"],
+  // -> gateway confirm() (as the human, after their click) + execute() via buildMergeTermHooks:
+  //    entryTerms.repointTerm (re-points, then deletes the source rows) + terms.update (deprecate)
+  //    + revisions.insert.
+  ["taxonomy_execute_merge_term", "mutates-durable-state"],
 ]);
+
+const MERGE_TOOL_ID = "taxonomy_execute_merge_term";
 
 /** Shared dependency bag for `write-service.ts` calls — every mutating handler here takes this
  * identical shape, mirroring each admin route's own inline construction. */
@@ -154,7 +155,23 @@ function taxonomyDeps(routeDeps: TaxonomyToolDeps): WriteServiceDeps {
   };
 }
 
-export function buildTaxonomyRegistrations(routeDeps: TaxonomyToolDeps): ToolRegistration[] {
+export function buildTaxonomyRegistrations(
+  routeDeps: TaxonomyToolDeps,
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+): ToolRegistration[] {
+  const mergeHooks = (ctx: { principal: { id: string } }, fromTermId: string, intoTermId: string) =>
+    buildMergeTermHooks({
+      workspaceId: routeDeps.workspaceId,
+      fromTermId,
+      intoTermId,
+      actorId: ctx.principal.id,
+      clock: routeDeps.clock,
+      termRepo: routeDeps.termRepo,
+      entryTermRepo: routeDeps.entryTermRepo,
+      taxonomyRevisionRepo: routeDeps.taxonomyRevisionRepo,
+    }) as unknown as GatedMutationHooks<unknown, { mergedCount: number }>;
+  const termName = async (id: string) => (await routeDeps.termRepo.findById(id))?.name ?? `${id} (not found)`;
+
   const handlers: Record<string, ToolHandler> = {
     taxonomy_list: async (ctx) => {
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.taxonomy.manage", entityType: "taxonomy" });
@@ -265,6 +282,75 @@ export function buildTaxonomyRegistrations(routeDeps: TaxonomyToolDeps): ToolReg
           }),
       });
     },
+
+    // Plans as the agent, asks the human, then confirms as the human and executes as the agent —
+    // the gateway's own check sequence (authorize, token, actor-class, plan hash) runs unchanged.
+    [MERGE_TOOL_ID]: humanConfirmedToolHandler(surfaces, {
+      flag: "merged",
+      prepare: async (ctx) => {
+        const input = requireInputRecord(ctx.input);
+        refuseUnexpectedKeys(input, ["fromTermId", "intoTermId"]);
+        const fromTermId = requireString(input, "fromTermId");
+        const intoTermId = requireString(input, "intoTermId");
+        const hooks = mergeHooks(ctx, fromTermId, intoTermId);
+        const plan = await planMergeTerm({
+          principalId: ctx.principal.id,
+          principalKind: AGENT_TOOL_PRINCIPAL_KIND,
+          fromTermId,
+          intoTermId,
+          computeOverlap: async () => ({ overlappingContentCount: await routeDeps.entryTermRepo.countOverlap({ fromTermId, intoTermId }) }),
+          gatewayPlan: async () =>
+            gatewayPlan({ deps: routeDeps.gatedMutations.gatewayDeps, principalId: ctx.principal.id, principalKind: AGENT_TOOL_PRINCIPAL_KIND, hooks }),
+        });
+        return { hooks, plan, fromName: await termName(fromTermId), intoName: await termName(intoTermId) };
+      },
+      dialog: ({ plan, fromName, intoName }) => ({
+        toolId: MERGE_TOOL_ID,
+        errorCode: "TAXONOMY",
+        title: `Merge ${fromName} into ${intoName}?`,
+        details: [
+          { label: "Merge away", value: fromName },
+          { label: "Keep", value: intoName },
+          ...(plan.details.overlappingContentCount > 0
+            ? [{ label: "Tagged with both", value: String(plan.details.overlappingContentCount) }]
+            : []),
+        ],
+        warning: `Everything tagged ${fromName} is re-tagged ${intoName}, and ${fromName} is retired. This can't be undone.`,
+        danger: true,
+        confirmLabel: "Merge terms",
+      }),
+      run: async (ctx, { hooks, plan }, confirmer) => {
+        const { token } = await confirmMergeTerm({
+          principalId: confirmer.id,
+          principalKind: confirmer.kind,
+          planId: plan.planId,
+          planHash: plan.planHash,
+          gatewayConfirm: async (params) => {
+            const record = await gatewayConfirm({
+              deps: routeDeps.gatedMutations.gatewayDeps,
+              principalId: confirmer.id,
+              principalKind: confirmer.kind,
+              hooks: hooks as GatedMutationHooks<unknown, unknown>,
+              planId: params.planId,
+              planHash: params.planHash,
+            });
+            return { token: record.confirmationToken };
+          },
+        });
+        const result = await executeMergeTerm({
+          confirmationToken: token,
+          gatewayExecute: (params) =>
+            gatewayExecute({
+              deps: routeDeps.gatedMutations.gatewayDeps,
+              principalId: ctx.principal.id,
+              principalKind: AGENT_TOOL_PRINCIPAL_KIND,
+              hooks,
+              confirmationToken: params.confirmationToken,
+            }),
+        });
+        return { merged: true, ...result };
+      },
+    }),
   };
 
   return buildDomainRegistrations({
@@ -273,7 +359,6 @@ export function buildTaxonomyRegistrations(routeDeps: TaxonomyToolDeps): ToolReg
     catalog: CATALOG_BY_ID,
     handlers,
     derivedRisk: taxonomyDerivedRisk,
-    unwiredToolIds: UNWIRED_TAXONOMY_TOOL_IDS,
   });
 }
 
