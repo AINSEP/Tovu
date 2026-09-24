@@ -246,6 +246,37 @@ describe("useThemeCanvasStyling — bounded pending state (Bug B, Slice B2)", ()
   });
 });
 
+describe('useThemeCanvasStyling — bare-page short-circuit (templateChoice === "", owner ruling 2026-09-23, S6)', () => {
+  it('resolves immediately to ready with no styling for a bare Page ("" templateChoice) on a REAL, loaded theme', () => {
+    const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
+    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port, ""));
+    expect(result.current).toEqual({ status: "ready", styling: {} });
+  });
+
+  it("does not fetch tokens, template markup, or warm the stylesheet for a bare Page", () => {
+    const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
+    const tokensSpy = vi.spyOn(port, "fetchThemeTokens");
+    const markupSpy = vi.spyOn(port, "fetchTemplateMarkup");
+    const warmSpy = vi.spyOn(port, "warmStylesheet");
+    renderHook(() => useThemeCanvasStyling("basic", 2, port, ""));
+    expect(tokensSpy).not.toHaveBeenCalled();
+    expect(markupSpy).not.toHaveBeenCalled();
+    expect(warmSpy).not.toHaveBeenCalled();
+  });
+
+  it("still resolves to no styling if templateChoice changes to bare AFTER a real theme was already ready", async () => {
+    const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
+    const { result, rerender } = renderHook(({ templateChoice }: { templateChoice: string | null }) => useThemeCanvasStyling("basic", 2, port, templateChoice), {
+      initialProps: { templateChoice: "blog-post.html" },
+    });
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(result.current.status === "ready" && result.current.styling.stylesheets).toBeDefined();
+
+    rerender({ templateChoice: "" });
+    expect(result.current).toEqual({ status: "ready", styling: {} });
+  });
+});
+
 describe("resolveCanvasTemplateChoice (Interactive-tab page-shell fallback)", () => {
   // The bug: `/admin/pages/passeios-noroeste-do-pacifico` (kind:page, bodyFormat:html,
   // templateChoice:NULL — the state every Page starts in) rendered the Interactive canvas full-bleed,
@@ -259,8 +290,12 @@ describe("resolveCanvasTemplateChoice (Interactive-tab page-shell fallback)", ()
     expect(resolveCanvasTemplateChoice(null, "html")).toBe("pages-default.html");
   });
 
-  it('falls back to the theme\'s page-shell template for an untemplated html Page ("" templateChoice)', () => {
-    expect(resolveCanvasTemplateChoice("", "html")).toBe("pages-default.html");
+  // Bare-page ruling (2026-09-23, S6): `""` and `null` used to be interchangeable here (both fell back
+  // to the page shell). They now diverge — `""` is a bare Page (no theme chrome at all), so it must
+  // NOT resolve to the shell fallback any more; it passes straight through so
+  // `useThemeCanvasStyling`'s own bare short-circuit (below) can read it and skip fetching entirely.
+  it('does NOT fall back to the page-shell template for a bare html Page ("" templateChoice) — passes "" straight through', () => {
+    expect(resolveCanvasTemplateChoice("", "html")).toBe("");
   });
 
   it("leaves an explicit templateChoice alone even on an html Page", () => {
@@ -323,13 +358,11 @@ describe("useThemeCanvasStyling — content wrapper (templateChoice)", () => {
     expect(result.current.status === "ready" && result.current.styling.contentWrapper).toBeUndefined();
   });
 
-  it('has no content wrapper when templateChoice is "" (explicit "no template chosen")', async () => {
-    const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
-    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port, ""));
-
-    await waitFor(() => expect(result.current.status).toBe("ready"));
-    expect(result.current.status === "ready" && result.current.styling.contentWrapper).toBeUndefined();
-  });
+  // Bare-page ruling (2026-09-23, S6): `""` used to reach this hook's normal fetch path (via
+  // `resolveCanvasTemplateChoice`'s old page-shell fallback) and settle asynchronously with no
+  // wrapper. It now short-circuits to `NO_CANVAS_STYLING` synchronously — see the dedicated
+  // "bare short-circuit" describe block below for full coverage of that behavior, including the
+  // zero-fetches assertion. This case is folded into it; kept here only as a cross-reference.
 
   it("falls back to no content wrapper when the template markup fetch fails, without failing the whole canvas", async () => {
     // No entry seeded for the template URL — createFakeThemeCanvasPort rejects, same as a real 404.

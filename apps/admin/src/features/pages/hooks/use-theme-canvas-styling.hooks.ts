@@ -80,7 +80,7 @@ export function templateMarkupUrl(themeId: string, apiVersion: 2 | undefined, te
  *  other installed static theme with a page shell at all — still ships the legacy `page-shell.html`.
  *  {@link useThemeCanvasStyling}'s template-markup fetch tries each entry in order (see that
  *  function's own doc) so either theme's real filename is found. */
-const STATIC_TIER_PAGE_SHELL_TEMPLATES: readonly string[] = ["pages-default.html", "page-shell.html"];
+export const STATIC_TIER_PAGE_SHELL_TEMPLATES: readonly string[] = ["pages-default.html", "page-shell.html"];
 
 /**
  * What {@link useThemeCanvasStyling}'s `templateChoice` argument should actually be, given the page's
@@ -115,6 +115,11 @@ const STATIC_TIER_PAGE_SHELL_TEMPLATES: readonly string[] = ["pages-default.html
  * @complexity O(1) — one truthiness check, no I/O.
  */
 export function resolveCanvasTemplateChoice(templateChoice: string | null, bodyFormat: "doc" | "html"): string | null {
+  // `""` (bare page, owner ruling 2026-09-23) is deliberately excluded from the `if (templateChoice)`
+  // falsy check below: unlike `null`, it must NOT resolve to the page-shell fallback any more — it
+  // renders NO theme chrome at all, and `useThemeCanvasStyling`'s own bare short-circuit (above)
+  // reads this exact `""` to mean "no canvas styling, don't fetch". Passed straight through here.
+  if (templateChoice === "") return templateChoice;
   if (templateChoice) return templateChoice;
   return bodyFormat === "html" ? STATIC_TIER_PAGE_SHELL_TEMPLATES[0] : templateChoice;
 }
@@ -267,6 +272,16 @@ export function useThemeCanvasStyling(
       // nothing to fetch, so this resolves immediately instead of sitting `pending` until the Slice B2
       // timeout below, which exists to bound a real in-flight fetch, not an empty theme id.
       logCanvasStylingSettle("styling:empty-theme");
+      setState(NO_CANVAS_STYLING);
+      return;
+    }
+    if (templateChoice === "") {
+      // Bare page (owner ruling 2026-09-23, S6): no theme chrome at all, so there is nothing for the
+      // canvas to style — resolved immediately, same as the `!themeId` branch above, rather than
+      // fetching this theme's tokens/stylesheet/template markup only to discard them. Deliberately
+      // NOT reached via `themeId = null` (that means "still pending", per this function's own doc) —
+      // a real, loaded theme with a bare Page selected is a settled state, not a waiting one.
+      logCanvasStylingSettle("styling:bare-page");
       setState(NO_CANVAS_STYLING);
       return;
     }

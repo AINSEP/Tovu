@@ -27,8 +27,11 @@ import {
   pageAutosaveStaleBasisMessage,
   pageEditorSurface,
   pageLivePreviewPath,
+  pagePickerValue,
   pagePublicPath,
   pageVersionConflictMessage,
+  pickerValueToChoice,
+  THEME_DEFAULT_SENTINEL,
   type PageSaveConflict,
 } from "./rules";
 
@@ -530,8 +533,16 @@ function PageEditorNotices({
  *
  * UNLIKE the Post picker, the selected value is NOT defaulted to the theme's first template when
  * unset — see `use-page-editor.hooks.ts`'s load effect and `isEligibleForTemplateBranch`'s doc for the
- * full reasoning: "no template chosen" is a Page's normal, fully-working state (render its own body),
- * not an absence-of-decision needing a UI default to stay honest.
+ * full reasoning: "no template chosen" is a Page's normal, fully-working state (render its own body
+ * through the theme's own page shell — "Theme default"), not an absence-of-decision needing a UI
+ * default to stay honest.
+ *
+ * Bare-page ruling (2026-09-23, S6): `null` and `""` used to render identically and this picker showed
+ * both as "No template chosen". They now diverge — `null` still renders through the theme's page shell
+ * ("Theme default"), `""` renders ONLY this Page's own HTML (no theme styles, scripts, header or
+ * footer) — so the picker routes through {@link pagePickerValue}/{@link pickerValueToChoice} (`rules.ts`)
+ * rather than `templateChoice ?? ""` directly, and shows a hint line under the `<select>` whenever the
+ * bare option is selected.
  */
 function PageEditorToolbarEnd({
   view,
@@ -549,9 +560,11 @@ function PageEditorToolbarEnd({
   bodyFormat: "doc" | "html" | undefined;
   availableTemplates: string[];
   templateChoice: string | null;
-  setTemplateChoice: (value: string) => void;
+  setTemplateChoice: (value: string | null) => void;
   t: Translate;
 }) {
+  const pickerValue = pagePickerValue(templateChoice, availableTemplates);
+  const bareHint = t("Serves only this page's HTML. No theme styles, scripts, header or footer.");
   return (
     <div className="page-editor-toolbar-end">
       {view === "preview" ? (
@@ -564,22 +577,24 @@ function PageEditorToolbarEnd({
           </label>
           {availableTemplates.length > 0 ? (
             <select
-              value={templateChoice ?? ""}
-              // `e.target.value`, not `|| null` — `""` is a legitimate stored value here (though,
-              // unlike Posts, it behaves identically to `null` at render time — see
-              // `isEligibleForTemplateBranch`'s doc).
-              onChange={(e) => setTemplateChoice(e.target.value)}
+              value={pickerValue}
+              // `pickerValueToChoice`, not the raw `e.target.value` — translates the synthetic
+              // `THEME_DEFAULT_SENTINEL` option back to `null`; every other value (a real filename, or
+              // the bare `""`) already IS the `templateChoice` to store, see that function's own doc.
+              onChange={(e) => setTemplateChoice(pickerValueToChoice(e.target.value))}
               {...agentHandle("page-template-choice", {
                 role: "field",
-                label: "Which theme page template this page renders through on the public site.",
+                label:
+                  "Which theme page template this page renders through on the public site. 'No template' serves only the page's own HTML.",
               })}
             >
+              {pickerValue === THEME_DEFAULT_SENTINEL ? <option value={THEME_DEFAULT_SENTINEL}>{t("Theme default")}</option> : null}
               {availableTemplates.map((template) => (
                 <option key={template} value={template}>
                   {template}
                 </option>
               ))}
-              <option value="">{t("No template chosen")}</option>
+              <option value="">{t("No template — HTML only")}</option>
             </select>
           ) : (
             <select
@@ -593,6 +608,11 @@ function PageEditorToolbarEnd({
               <option value="">{t("No templates for this theme")}</option>
             </select>
           )}
+          {templateChoice === "" ? (
+            <p className="page-editor-template-hint" title={bareHint}>
+              {bareHint}
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>
