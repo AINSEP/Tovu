@@ -144,3 +144,58 @@ describe("subscribeToRun — a run that dies without answering", () => {
     expect(h.errors).toEqual([]);
   });
 });
+
+/**
+ * 2026-09-24 live publish: an agent commit reloaded the dev API, which restarted the agent daemon.
+ * The daemon forgot the run, the stream dropped with a bare connection error, and the chat stayed
+ * "running" forever; Stop then POSTed `/cancel` and got 404. A run the daemon no longer knows must
+ * end as failed with a plain sentence, and stopping it must not be an error.
+ */
+describe("a run the agent daemon forgot (daemon restarted mid-run)", () => {
+  function routeFetch(statusFor: (url: string, init?: RequestInit) => number) {
+    return vi.fn(async (url: string, init?: RequestInit) => {
+      const status = statusFor(url, init);
+      if (status === 404) return new Response("run not found", { status: 404 });
+      return new Response(JSON.stringify({ run: { id: "run-1", state: "running" } }), { status });
+    });
+  }
+
+  test("a bare stream drop whose run the daemon answers 404 for ends the run as failed with a plain message", async () => {
+    vi.stubGlobal("fetch", routeFetch((url, init) => (init?.method === "POST" ? 200 : 404)));
+    const h = handlers();
+    await createTovuAssistantTransport().startRun({ history: HISTORY } as never, h);
+    const source = FakeEventSource.instances[0]!;
+
+    source.emit("error", "");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(h.errors.map((e) => e.message)).toEqual([
+      "assistant stream connection error",
+      "The assistant restarted while this answer was running, so it stopped. Send your message again to retry.",
+    ]);
+    expect(h.done).not.toBeNull();
+    expect(source.closed).toBe(true);
+  });
+
+  test("a bare stream drop while the daemon still knows the run leaves it running (EventSource reconnects)", async () => {
+    vi.stubGlobal("fetch", routeFetch(() => 200));
+    const h = handlers();
+    await createTovuAssistantTransport().startRun({ history: HISTORY } as never, h);
+    const source = FakeEventSource.instances[0]!;
+
+    source.emit("error", "");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(h.errors.map((e) => e.message)).toEqual(["assistant stream connection error"]);
+    expect(h.done).toBeNull();
+    expect(source.closed).toBe(false);
+  });
+
+  test("stopping a run the daemon answers 404 for resolves — there is nothing left to stop", async () => {
+    vi.stubGlobal("fetch", routeFetch(() => 404));
+
+    await expect(createTovuAssistantTransport().stopRun("run-1")).resolves.toBeUndefined();
+  });
+});

@@ -486,6 +486,10 @@ function toChatCoreRunStatus(state: string): "queued" | "running" | "succeeded" 
 /** `signal` is only available on the `startRun` path (`StartRunInput.signal`) — `reattachRun`'s
  * signature carries no abort signal at all, so a reattached subscription only ever ends via the
  * stream's own `end`/`error` frame. */
+/** Shown when the agent daemon answers 404 for a run it was streaming — it restarted and lost it. */
+const RUN_FORGOTTEN_MESSAGE =
+  "The assistant restarted while this answer was running, so it stopped. Send your message again to retry.";
+
 function subscribeToRun(runId: string, handlers: RunHandlers, signal?: AbortSignal): void {
   const source = new EventSource(`${RUNS_URL}/${encodeURIComponent(runId)}/events`);
   const collected: AgentEvent[] = [];
@@ -547,7 +551,18 @@ function subscribeToRun(runId: string, handlers: RunHandlers, signal?: AbortSign
     // A bare EventSource connection error (no `data`, e.g. the server never responded) rather
     // than a run-level error frame.
     handlers.onError(new Error("assistant stream connection error"));
+    // The agent daemon restarts on every dev API reload and keeps runs in memory only, so a drop
+    // can mean the run no longer exists anywhere. EventSource would retry into a 404 forever and
+    // the chat would stay "running", so ask the daemon; only a 404 ends the run here.
+    void settleIfRunForgotten();
   });
+
+  const settleIfRunForgotten = async () => {
+    const response = await fetch(`${RUNS_URL}/${encodeURIComponent(runId)}`, { credentials: "same-origin" }).catch(() => null);
+    if (settled || response?.status !== 404) return;
+    handlers.onError(new Error(RUN_FORGOTTEN_MESSAGE));
+    finish();
+  };
 
   source.addEventListener("end", (event) => {
     const raw = (event as MessageEvent<string>).data;
@@ -1204,6 +1219,8 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
         credentials: "same-origin",
         body: JSON.stringify({ runId }),
       });
+      // 404: the daemon no longer knows this run (it restarted), so nothing is left running to stop.
+      if (response.status === 404) return;
       // `fetch` resolves on any status: without this a refused cancel (401/403/500) resolved exactly
       // like a successful one while the run kept executing. `useRunStream` logs a rejection here.
       if (!response.ok) {
