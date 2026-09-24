@@ -68,6 +68,8 @@ export type PublishContentRouteDeps = Pick<
   | "mediaRepo"
   | "assetBlobRepo"
   | "redirectsWriteDeps"
+  | "menuRepo"
+  | "navLocationBindingRepo"
 >;
 
 export type PublishContentRouteRegistrar = (app: Express, deps: PublishContentRouteDeps) => void;
@@ -107,5 +109,7 @@ export function toPublishContentDeps(deps: PublishContentRouteDeps): PublishCont
     assetBlobRepo: deps.assetBlobRepo,
     blobStore: deps.blobStore,
     redirectsWriteDeps: deps.redirectsWriteDeps,
+    menuRepo: deps.menuRepo,
+    navLocationBindingRepo: deps.navLocationBindingRepo,
   };
 }

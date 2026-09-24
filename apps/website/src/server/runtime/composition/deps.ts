@@ -1594,6 +1594,8 @@ export function createSqliteRouteDeps(
       assetBlobRepo,
       blobStore,
       redirectsWriteDeps,
+      menuRepo,
+      navLocationBindingRepo,
     }),
     clock,
     idGen,

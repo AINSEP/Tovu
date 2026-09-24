@@ -16,6 +16,7 @@ import test from "node:test";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "#src/features/navigation/index";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import { createRedirect, InMemoryRedirectRepo, redirectMatcher, type RedirectsWriteDeps } from "#src/features/redirects/index";
@@ -31,11 +32,11 @@ test.beforeEach(() => {
   resetPublishContentContributorsForTests();
 });
 
-test("installFirstPartyPublishContentTypes registers exactly post, page, media and redirect", () => {
+test("installFirstPartyPublishContentTypes registers exactly post, page, media, redirect and menu", () => {
   installFirstPartyPublishContentTypes();
   assert.deepEqual(
     listPublishContentContributors().map((c) => c.entityType),
-    ["post", "page", "media", "redirect"]
+    ["post", "page", "media", "redirect", "menu"]
   );
 });
 
@@ -180,4 +181,51 @@ test("the registered redirect contributor's apply() is a real write path, not a 
   const landed = await redirectsWriteDeps.repo.findById({ workspaceId, id: changeSetId });
   assert.equal(landed?.fromPattern, "/folded-stub", "the registered contributor must actually write the row");
   assert.equal(landed?.override, true, "override must land so the redirect wins over an existing live page (D3)");
+});
+
+test("the registered menu contributor's apply() is a real write path, not a throwing stub", async () => {
+  installFirstPartyPublishContentTypes();
+  const contributor = listPublishContentContributors().find((c) => c.entityType === "menu");
+  assert.ok(contributor, "menu must be registered");
+
+  const workspaceId = "11111111-1111-1111-1111-111111111111";
+  const menuRepo = new InMemoryMenuRepo();
+  const navLocationBindingRepo = new InMemoryNavLocationBindingRepo();
+  const outbox = new InMemoryOutbox();
+  const deps: PublishContentDeps = {
+    workspaceId,
+    postRepo: undefined as unknown as PublishContentDeps["postRepo"],
+    clock: { nowIso: () => "2026-09-24T12:00:00.000Z" },
+    idGen: { newId: () => "generated-menu-event-1" },
+    outbox,
+    menuRepo,
+    navLocationBindingRepo,
+  };
+
+  const record = {
+    slug: "header-nav",
+    title: "Header Nav",
+    status: "published",
+    doc: { type: "menu", version: 1, items: [] },
+    locations: [],
+  };
+
+  const { changeSetId } = await contributor.build(deps).apply({
+    entity: {
+      entityType: "menu",
+      id: "menu-header-nav",
+      schemaVersion: 1,
+      contentHash: contentHash("menu", record),
+      hashVersion: CONTENT_HASH_VERSION,
+      requiredBlobs: [],
+      state: record as unknown as Record<string, unknown>,
+    },
+    expectedVersion: undefined,
+    principalId: "operator-principal-1",
+    idempotencyKey: "idem-menu-1",
+  });
+
+  assert.equal(changeSetId, "menu-header-nav", "the registered contributor must write the row under the SOURCE id");
+  const landed = await menuRepo.findById({ workspaceId, id: "menu-header-nav" });
+  assert.equal((landed as NavMenuEntry | null)?.slug, "header-nav");
 });

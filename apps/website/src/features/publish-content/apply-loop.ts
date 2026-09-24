@@ -116,6 +116,8 @@ export type PublishContentApplyDeps = PublishContentDeps &
       | "assetBlobRepo"
       | "blobStore"
       | "redirectsWriteDeps"
+      | "menuRepo"
+      | "navLocationBindingRepo"
     >
   >;
 

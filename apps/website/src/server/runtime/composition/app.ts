@@ -857,6 +857,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       assetBlobRepo,
       blobStore,
       redirectsWriteDeps,
+      menuRepo,
+      navLocationBindingRepo,
     }),
     clock,
     idGen,

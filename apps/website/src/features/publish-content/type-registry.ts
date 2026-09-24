@@ -1,5 +1,6 @@
 import type { BeforeSaveHookPort, ForgetRemovedPostFn, PostRepoPort } from "#src/features/post/post";
 import type { AssetBlobRepoPort, BlobStorePort, VersionedMediaRepoPort } from "#src/features/media/index";
+import type { MenuRepoPort, NavLocationBindingRepoPort } from "#src/features/navigation/index";
 import type { RedirectsWriteDeps } from "#src/features/redirects/redirects";
 import type { AuthorizeFn, ChangeSetRepoPort, ClockPort, OutboxPort } from "@jini-ai/cms/core";
 
@@ -137,6 +138,20 @@ export interface PublishContentDeps {
    * the apply bag, `apply-loop.ts`'s `PublishContentApplyDeps`, not here).
    */
   readonly redirectsWriteDeps?: RedirectsWriteDeps;
+  /**
+   * S3 (`menu` publish type) — `features/navigation/publish-content.ts`'s two real dependencies:
+   * the same `MenuRepoPort`/`NavLocationBindingRepoPort` pair every real menu route already reads
+   * off `RouteDeps` (`server/routes/types.ts:1175-1177`). Optional for the identical reason
+   * {@link redirectsWriteDeps}/{@link mediaRepo} already are — `pack`/`inspect`/`precheck` degrade
+   * to "nothing to report" when either is absent (see that file's own doc), and only `apply()`
+   * requires both wired (enforced at the apply bag, `apply-loop.ts`'s `PublishContentApplyDeps`, not
+   * here). Unlike `redirectsWriteDeps`, both composition roots also thread these through the ROUTE
+   * and TOOL deps bags unconditionally (not just the apply bag) — `RouteDeps.menuRepo`/
+   * `.navLocationBindingRepo` are already non-optional upstream, so `pack`/`inspect`/`precheck`
+   * never actually see them absent outside a focused unit test.
+   */
+  readonly menuRepo?: MenuRepoPort;
+  readonly navLocationBindingRepo?: NavLocationBindingRepoPort;
 }
 
 /**

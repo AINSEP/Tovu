@@ -1,4 +1,5 @@
 import { contributeMediaPublish } from "#src/features/media/publish-content";
+import { contributeMenusPublish } from "#src/features/navigation/publish-content";
 import { contributePagePublish, contributePostPublish } from "#src/features/post/publish-content";
 import { registerPublishContentContributor } from "#src/features/publish-content/type-registry";
 import { contributeRedirectPublish } from "#src/features/redirects/publish-content";
@@ -41,4 +42,5 @@ export function installFirstPartyPublishContentTypes(): void {
   registerPublishContentContributor(contributePagePublish());
   registerPublishContentContributor(contributeMediaPublish());
   registerPublishContentContributor(contributeRedirectPublish());
+  registerPublishContentContributor(contributeMenusPublish());
 }
