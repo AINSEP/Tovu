@@ -18,6 +18,7 @@ import { substituteHtmlEmbeds, type EmbedOccurrence, type PageHtmlEmbedRef } fro
 import type { MarkerAttribute } from "#src/contracts/core/embeds/marker";
 import { parseEmbedHtmlAttributes } from "#src/contracts/core/embeds/html-attributes";
 import { ATTRIBUTE_NAME_PATTERN } from "#src/features/forms/forms";
+import { mediaPublicPath } from "#src/features/media/index";
 import { renderHandlebarsInSandbox } from "./handlebars-sandbox.js";
 import { renderLiquidInSandbox } from "./liquid-sandbox.js";
 import { FORM_BASELINE_STYLE, FORM_CLASS, renderFormSuccessSlot, renderFormErrorSlot } from "./form-render.js";
@@ -834,7 +835,7 @@ function renderImageTag(props: {
   readonly htmlAttributes: string | null;
   readonly markerAttributes?: readonly MarkerAttribute[];
 }): string {
-  const src = `/m/${encodeURIComponent(props.assetId)}/${encodeURIComponent(props.transformName)}.v${props.version}/image.jpg`;
+  const src = mediaPublicPath(props.assetId, { kind: "transform", name: props.transformName, version: props.version, ext: "jpg" });
   const markerAttributes = props.markerAttributes ?? NO_MARKER_ATTRIBUTES;
   const altAttr = mediaAltAttrValue(props.alt, markerAttributes);
   const widthAttr = mediaDimensionAttr("width", props.width, markerAttributes);
@@ -895,7 +896,7 @@ function renderVideoTag(props: {
    *  Defaults to `true` (the pre-existing, only-ever behavior before this prop existed). */
   readonly controls?: boolean;
 }): string {
-  const src = `/m/${encodeURIComponent(props.assetId)}/original`;
+  const src = mediaPublicPath(props.assetId, { kind: "original" });
   const markerAttributes = props.markerAttributes ?? NO_MARKER_ATTRIBUTES;
   const controlsAttr = (props.controls ?? true) ? " controls" : "";
   const widthAttr = mediaDimensionAttr("width", props.width, markerAttributes);

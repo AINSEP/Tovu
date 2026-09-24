@@ -7,6 +7,7 @@ import type {
   TransformDefinitionRepoPort,
   TransformFormat,
 } from "../media/index.js";
+import { mediaPublicPath } from "../media/index.js";
 
 /**
  * @file `resolveSeoImageRef` (ADR-PIPE-008 Decision §6, C-013, EC-07;
@@ -86,7 +87,7 @@ async function resolveLatestTransformVersion(
 /** The `/m/{assetId}/{transformName}.v{version}/image.{ext}` URL contract (ADR-027 §4). */
 function buildSeoImageUrl(assetId: string, transformName: string, latest: TransformDefinitionRecord): string {
   const ext = EXT_BY_TRANSFORM_FORMAT[latest.params.format] ?? latest.params.format;
-  return `/m/${assetId}/${transformName}.v${latest.version}/image.${ext}`;
+  return mediaPublicPath(assetId, { kind: "transform", name: transformName, version: latest.version, ext });
 }
 
 /**

@@ -77,6 +77,7 @@ export {
   updateMediaMetadata,
   trashMedia,
   purgeMedia,
+  isValidMediaSlugFormat,
   type UploadMediaInput,
   type UploadMediaDeps,
   type UpdateMediaMetadataInput,
@@ -145,3 +146,5 @@ export { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
 export { S3BlobStore, type S3BlobStoreConfig } from "./blob-store.s3.js";
 
 export { TOVU_MAX_UPLOAD_BYTES } from "./upload-limits.js";
+
+export { mediaUrlKey, mediaPublicPath, type MediaUrlKeySource, type MediaPublicPathVariant } from "./public-path.js";
