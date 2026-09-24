@@ -239,7 +239,7 @@ test("REQ-03 step (4): setup receives a capability-scoped SDK whose granted addF
   let attachedHook: string | null = null;
   const result = await loadPlugin(
     {
-      record: record(),
+      record: record({ source: "built-in" }),
       manifest: manifest({ capabilities: ["hooks.attach"], hooks: ["content.entry.beforeSave"] }),
       entryPath: "built-in:loader-fixture",
       coreDeps: coreDeps({
@@ -264,7 +264,7 @@ test("REQ-03 step (4): setup receives a capability-scoped SDK whose granted addF
 test("REQ-03 step (4): a module without a valid definePlugin default export is rejected without running setup", async () => {
   const result = await loadPlugin(
     {
-      record: record(),
+      record: record({ source: "built-in" }),
       manifest: manifest(),
       entryPath: "built-in:invalid-export",
       coreDeps: coreDeps(),
@@ -278,7 +278,7 @@ test("REQ-03 step (4): a module without a valid definePlugin default export is r
 test("REQ-03 step (4): a setup failure is returned to the enable caller instead of being swallowed", async () => {
   const result = await loadPlugin(
     {
-      record: record(),
+      record: record({ source: "built-in" }),
       manifest: manifest(),
       entryPath: "built-in:throwing-setup",
       coreDeps: coreDeps(),
@@ -293,4 +293,28 @@ test("REQ-03 step (4): a setup failure is returned to the enable caller instead 
   );
 
   assert.deepEqual(result, { loaded: false, reason: "PLUGIN_SETUP_FAILED" });
+});
+
+test("BR-01 (1): a SITE plugin whose integrity map does not cover its entry file is INTEGRITY_FAILED and never import()-ed — an empty map must not pass vacuously", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "tovu-loader-uncovered-"));
+  try {
+    const entryPath = await writeFixtureEntry(dir, "export default { setup() {} };\n");
+    for (const integrity of [{}, { "server/other.mjs": sha256("x") }]) {
+      let importCalls = 0;
+      const result = await loadPlugin(
+        { record: record(), manifest: manifest({ integrity }), entryPath, coreDeps: coreDeps() },
+        {
+          runtimeSdkVersion: "1.0.0",
+          importModule: async () => {
+            importCalls += 1;
+            return definedPluginModule();
+          },
+        }
+      );
+      assert.deepEqual(result, { loaded: false, reason: "INTEGRITY_FAILED" });
+      assert.equal(importCalls, 0);
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

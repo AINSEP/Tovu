@@ -74,6 +74,28 @@ async function defaultComputeFileHash(absoluteFilePath: string): Promise<string>
   return `sha256-${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
+/**
+ * True when a site plugin's entry file exists but `manifest.integrity` has no hash for it. Without
+ * this, an empty (or entry-less) map passes step (1) vacuously and step (3) imports unverified code.
+ * A MISSING entry is left to step (3), which reports it as `CODE_ENTRY_MISSING` (AC-12).
+ * @complexity One file hash.
+ */
+async function isUncoveredExistingEntry(
+  manifest: PluginManifest,
+  pluginRoot: string,
+  entryPath: string,
+  computeFileHash: (absoluteFilePath: string) => Promise<string>
+): Promise<boolean> {
+  const entryKey = path.relative(pluginRoot, entryPath).split(path.sep).join("/");
+  if (Object.hasOwn(manifest.integrity, entryKey)) return false;
+  try {
+    await computeFileHash(entryPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Applies `loadPlugin()`'s three independent option defaults in one place — split out so the
  *  5-step pipeline itself doesn't also carry these three unrelated `??` branches. */
 function resolveLoadPluginOptions(optional: LoadPluginOptional): Required<LoadPluginOptional> {
@@ -172,6 +194,9 @@ export async function loadPlugin(
 
   // --- CIC U-001-ORD1: step (1), integrity, MUST complete successfully before step (2)/(3). ---
   const pluginRoot = derivePluginRoot(entryPath);
+  if (record.source === "site" && (await isUncoveredExistingEntry(manifest, pluginRoot, entryPath, computeFileHash))) {
+    return { loaded: false, reason: "INTEGRITY_FAILED" };
+  }
   for (const [relativeFilePath, expectedHash] of Object.entries(manifest.integrity)) {
     let actualHash: string;
     try {
