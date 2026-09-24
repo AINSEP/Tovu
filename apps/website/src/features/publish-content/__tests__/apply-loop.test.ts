@@ -49,7 +49,15 @@ import {
   registerPublishContentContributor,
   resetPublishContentContributorsForTests,
 } from "../type-registry.js";
-import type { PackedEntity, PublishContentDeps, PublishContentContributor, PublishContentHandler, RetireTarget } from "../type-registry.js";
+import type {
+  EntityReplacement,
+  PackedEntity,
+  PublishContentDeps,
+  PublishContentContributor,
+  PublishContentHandler,
+  RepointResult,
+  RetireTarget,
+} from "../type-registry.js";
 import { createPublishContentApplyPort, publishContentItemIdempotencyKey } from "../apply-loop.js";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
@@ -429,6 +437,12 @@ function makeRetireFakeHandler(options: {
   applyShouldThrow: boolean;
   /** Every idempotency key `retire()` was called with, in call order. */
   retireKeys?: string[];
+  /** When supplied, the handler carries a `repointReferences` hook that records every call it
+   *  receives (in call order) rather than omitting the hook entirely — the one way a test observes
+   *  whether the apply loop's own repoint pass ran at all, independent of `post`/`menu`'s real
+   *  handlers (see the abort test below, which fires this on a `widget` row deliberately so it never
+   *  needs real navigation infrastructure to prove the property). */
+  repointCalls?: Array<{ replacements: readonly EntityReplacement[]; skipIds: ReadonlySet<string> }>;
 }): PublishContentHandler {
   let retireCount = 0;
   return {
@@ -468,6 +482,19 @@ function makeRetireFakeHandler(options: {
         },
       };
     },
+    ...(options.repointCalls
+      ? {
+          repointReferences: async (input: {
+            replacements: readonly EntityReplacement[];
+            skipIds: ReadonlySet<string>;
+            principalId: string;
+            runId: string;
+          }): Promise<RepointResult> => {
+            options.repointCalls!.push({ replacements: input.replacements, skipIds: input.skipIds });
+            return { changeSetIds: [], linksUpdated: 0, notUpdated: [] };
+          },
+        }
+      : {}),
   };
 }
 
@@ -516,6 +543,7 @@ async function setUpWidgetRetire(options: {
   baselineRepo?: PublishContentBaselineRepoPort;
   applyShouldThrow: boolean;
   retireKeys?: string[];
+  repointCalls?: Array<{ replacements: readonly EntityReplacement[]; skipIds: ReadonlySet<string> }>;
 }) {
   const store = new Map<string, { version: number; hash: string; retired: boolean }>();
   store.set("holder-widget", { version: 1, hash: "holder-hash", retired: false });
@@ -525,6 +553,7 @@ async function setUpWidgetRetire(options: {
     holderId: "holder-widget",
     applyShouldThrow: options.applyShouldThrow,
     ...(options.retireKeys === undefined ? {} : { retireKeys: options.retireKeys }),
+    ...(options.repointCalls === undefined ? {} : { repointCalls: options.repointCalls }),
   };
   registerPublishContentContributor(fakeWidgetContributor(makeRetireFakeHandler(handlerOptions)));
   const incomingEntity: PackedEntity = {
@@ -1231,6 +1260,52 @@ test("R5: a repoint pass never runs when the create half of a retire+create pair
 
   const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
   assert.equal(run?.phase, "failed", "a genuine apply() throw must still fail the run");
+});
+
+// ---------------------------------------------------------------------------
+// R6 (2026-09-24 follow-up) — a run that ABORTS after an overwrite row's
+// retire+create both already landed must still repoint references to that
+// replacement. Before this property, the repoint pass sat entirely after the
+// try/catch's own `throw error`, so any abort — even one an already-landed
+// overwrite row's OWN accounting write caused — skipped the pass outright,
+// leaving a live menu pointing at the now-trashed holder.
+// ---------------------------------------------------------------------------
+
+test("R6: a run that aborts after one landed overwrite still repoints references to that replacement", async () => {
+  const repointCalls: Array<{ replacements: readonly EntityReplacement[]; skipIds: ReadonlySet<string> }> = [];
+  // Fails AFTER the content write (retire()+apply() both already landed) — the same accounting-only
+  // failure window `setUpWidgetRetire`'s other baseline-failure test exercises, chosen here because
+  // it is the one real way to reach an abort with a landed overwrite still sitting in `itemByKey`.
+  const failingBaselineRepo: PublishContentBaselineRepoPort = {
+    findOne: async () => null,
+    upsert: async () => {
+      throw new Error("simulated baseline write failure");
+    },
+  };
+  const { runRepo, applyPort, report, bundleId } = await setUpWidgetRetire({
+    baselineRepo: failingBaselineRepo,
+    applyShouldThrow: false,
+    repointCalls,
+  });
+
+  await assert.rejects(
+    applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" }),
+    /simulated baseline write failure/
+  );
+
+  assert.equal(
+    repointCalls.length,
+    1,
+    "the retire+create both landed before the accounting failure aborted the run — the repoint pass must still run over what landed"
+  );
+  assert.deepEqual(
+    repointCalls[0]?.replacements,
+    [{ entityType: "widget", oldId: "holder-widget", newId: "incoming-widget" }],
+    "only the replacement that actually landed before the abort is repointed"
+  );
+
+  const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
+  assert.equal(run?.phase, "failed", "a genuine (non-downgradeable) accounting failure must still fail the run");
 });
 
 test("R5: a whole-handler repoint failure is reported in menuLinksNotUpdated and never fails the run", async () => {

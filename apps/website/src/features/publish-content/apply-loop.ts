@@ -668,6 +668,68 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         },
       };
 
+      // R5 (`plan-publish-repoint-menus-2026-09-24.md` §2.3), extended by R6 (2026-09-24 follow-up)
+      // — repoints every live reference that still points at an address-clash overwrite's retired
+      // holder. Reads `itemByKey` as it stands AT THE MOMENT IT IS CALLED, so it is safe to call
+      // after every row has landed (the normal path) OR from inside the loop's own `catch`, mid-run,
+      // over whatever happened to land before an abort — either way it stays type-agnostic, calling
+      // every registered handler that implements the optional `repointReferences` hook, generically,
+      // and never importing navigation or any other reference-holding feature by name.
+      //
+      // R6's own property: an overwrite row whose retire+create BOTH landed (`item.retiredChangeSetId`
+      // set — the same signal the success path already gated on) must still be repointed even when a
+      // LATER accounting-only failure (e.g. this row's own baseline write, or an unrelated row's own
+      // write) aborts the whole run — otherwise a live menu is left pointing at a holder this run
+      // already moved to Trash. A row that never reached a landed retire (never got there, or the
+      // create half failed and was undone) contributes nothing, aborted run or not.
+      async function runRepointPass(): Promise<{
+        repointChangeSetIds: string[];
+        menuLinksUpdated: number;
+        menuLinksNotUpdated: string[];
+      }> {
+        const replacements: EntityReplacement[] = [];
+        for (const row of report.rows) {
+          if (!row.retires) continue;
+          const item = itemByKey.get(entityKey(row.entityType, row.entityId));
+          // `retiredChangeSetId === null` covers both "never reached the retire" and "the create that
+          // followed it failed and was undone" (§2.3 step 1) — either way, nothing was actually
+          // replaced, so there is nothing here for a repoint pass to act on.
+          if (!item || item.retiredChangeSetId === null) continue;
+          replacements.push({ entityType: row.retires.entityType, oldId: row.retires.entityId, newId: row.entityId });
+        }
+        // Every id written THIS run, across every type — a holder in this set already carries the
+        // source's own intent (its own row wrote), so repointing it would fight that intent (§2.5).
+        const skipIds = new Set<string>(
+          itemStates()
+            .filter((item) => item.changeSetId !== null)
+            .map((item) => item.entityId)
+        );
+
+        let repointChangeSetIds: string[] = [];
+        let menuLinksUpdated = 0;
+        const menuLinksNotUpdated: string[] = [];
+        if (replacements.length > 0) {
+          for (const handler of handlerByType.values()) {
+            if (!handler.repointReferences) continue;
+            try {
+              const repointed = await handler.repointReferences({ replacements, skipIds, principalId, runId });
+              repointChangeSetIds = repointChangeSetIds.concat(repointed.changeSetIds);
+              menuLinksUpdated += repointed.linksUpdated;
+              menuLinksNotUpdated.push(...repointed.notUpdated);
+            } catch (error) {
+              // The content this run published already landed — a repoint failure is reported, never
+              // thrown back to fail the run (§2.3 step 4). A handler's own per-holder failures (a
+              // denied grant, a concurrent edit) are already caught inside that handler and returned
+              // via `notUpdated` above; reaching this catch means the WHOLE call failed (e.g. a
+              // required port was never wired for this composition root).
+              const message = error instanceof Error ? error.message : String(error);
+              menuLinksNotUpdated.push(`${capitalize(handler.entityType)} links were not updated: ${message}`);
+            }
+          }
+        }
+        return { repointChangeSetIds, menuLinksUpdated, menuLinksNotUpdated };
+      }
+
       let activeItemKey: string | null = null;
 
       try {
@@ -709,56 +771,14 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
             });
           }
         }
+        // R6 — whatever landed before this abort (an overwrite row's retire+create both done) still
+        // gets repointed; see `runRepointPass`'s own doc above for why this is safe to call here too.
+        await runRepointPass();
         await saveSnapshot("failed", input.clock.nowIso());
         throw error;
       }
 
-      // R5 (`plan-publish-repoint-menus-2026-09-24.md` §2.3) — after every row has landed (never
-      // reached above on an abort — the `throw error` a few lines up returns before this point, so a
-      // failed run never repoints anything), repoint every live reference that still points at an
-      // address-clash overwrite's retired holder. This loop stays type-agnostic: it calls every
-      // registered handler that implements the optional `repointReferences` hook, generically, and
-      // never imports navigation or any other reference-holding feature by name.
-      const replacements: EntityReplacement[] = [];
-      for (const row of report.rows) {
-        if (!row.retires) continue;
-        const item = itemByKey.get(entityKey(row.entityType, row.entityId));
-        // `retiredChangeSetId === null` covers both "never reached the retire" and "the create that
-        // followed it failed and was undone" (§2.3 step 1) — either way, nothing was actually
-        // replaced, so there is nothing here for a repoint pass to act on.
-        if (!item || item.retiredChangeSetId === null) continue;
-        replacements.push({ entityType: row.retires.entityType, oldId: row.retires.entityId, newId: row.entityId });
-      }
-      // Every id written THIS run, across every type — a holder in this set already carries the
-      // source's own intent (its own row wrote), so repointing it would fight that intent (§2.5).
-      const skipIds = new Set<string>(
-        itemStates()
-          .filter((item) => item.changeSetId !== null)
-          .map((item) => item.entityId)
-      );
-
-      let repointChangeSetIds: string[] = [];
-      let menuLinksUpdated = 0;
-      const menuLinksNotUpdated: string[] = [];
-      if (replacements.length > 0) {
-        for (const handler of handlerByType.values()) {
-          if (!handler.repointReferences) continue;
-          try {
-            const repointed = await handler.repointReferences({ replacements, skipIds, principalId, runId });
-            repointChangeSetIds = repointChangeSetIds.concat(repointed.changeSetIds);
-            menuLinksUpdated += repointed.linksUpdated;
-            menuLinksNotUpdated.push(...repointed.notUpdated);
-          } catch (error) {
-            // The content this run published already landed — a repoint failure is reported, never
-            // thrown back to fail the run (§2.3 step 4). A handler's own per-holder failures (a
-            // denied grant, a concurrent edit) are already caught inside that handler and returned
-            // via `notUpdated` above; reaching this catch means the WHOLE call failed (e.g. a
-            // required port was never wired for this composition root).
-            const message = error instanceof Error ? error.message : String(error);
-            menuLinksNotUpdated.push(`${capitalize(handler.entityType)} links were not updated: ${message}`);
-          }
-        }
-      }
+      const { repointChangeSetIds, menuLinksUpdated, menuLinksNotUpdated } = await runRepointPass();
 
       await saveSnapshot("applied", input.clock.nowIso());
       return {
