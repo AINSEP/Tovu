@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -178,6 +178,66 @@ test("reveal and generate responses carry Cache-Control: no-store; GET status do
   assert.equal(status.status, 200);
   const statusBody = (await status.json()) as Record<string, unknown>;
   assert.equal("hex" in statusBody, false, "GET status never carries key material regardless of caching");
+});
+
+test("GET status: state is 'missing' when nothing is configured, 'active' after generate, and 'invalid' for a malformed per-site file (site-key plan §A3b)", async (t) => {
+  isolateHomeDir(t);
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const before = await fetch(`${baseUrl}${BASE}`, { headers: { cookie } });
+  assert.equal(before.status, 200);
+  const beforeBody = (await before.json()) as { state: string; active: boolean };
+  assert.equal(beforeBody.state, "missing");
+  assert.equal(beforeBody.active, false);
+
+  const generated = await fetch(`${baseUrl}${BASE}/generate`, { method: "POST", headers: { cookie } });
+  assert.equal(generated.status, 201);
+  const generatedBody = (await generated.json()) as { keyFilePath: string };
+
+  const after = await fetch(`${baseUrl}${BASE}`, { headers: { cookie } });
+  assert.equal(after.status, 200);
+  const afterBody = (await after.json()) as { state: string; active: boolean };
+  assert.equal(afterBody.state, "active");
+  assert.equal(afterBody.active, true);
+
+  // Corrupt the file generate just wrote — 'invalid', not silently 'missing'.
+  writeFileSync(generatedBody.keyFilePath, "not-hex-at-all");
+  const invalid = await fetch(`${baseUrl}${BASE}`, { headers: { cookie } });
+  assert.equal(invalid.status, 200);
+  const invalidBody = (await invalid.json()) as { state: string; active: boolean; invalid: boolean };
+  assert.equal(invalidBody.state, "invalid");
+  assert.equal(invalidBody.active, false);
+  assert.equal(invalidBody.invalid, true);
+});
+
+test("generate writes THIS site's own per-site key file when a siteKeyId is resolvable, not the legacy global default (site-key plan §A3b)", async (t) => {
+  isolateHomeDir(t);
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // The in-memory composition root's siteBinding.dir points at a real directory on disk
+  // (describeSiteBinding()'s own resolution) — stamp a resolvable siteKeyId into it so this test
+  // proves generate targets the PER-SITE path, not merely "some path".
+  const siteMetaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
+  const priorSiteMeta = existsSync(siteMetaPath) ? readFileSync(siteMetaPath, "utf8") : undefined;
+  writeFileSync(siteMetaPath, JSON.stringify({ siteId: "site-token-route-test-site" }));
+  t.after(() => {
+    if (priorSiteMeta === undefined) rmSync(siteMetaPath, { force: true });
+    else writeFileSync(siteMetaPath, priorSiteMeta);
+  });
+
+  const generated = await fetch(`${baseUrl}${BASE}/generate`, { method: "POST", headers: { cookie } });
+  assert.equal(generated.status, 201);
+  const generatedBody = (await generated.json()) as { keyFilePath: string };
+  assert.equal(
+    generatedBody.keyFilePath,
+    path.join(process.env.HOME ?? "", ".tovu", "site-keys", "site-token-route-test-site.hex"),
+    "generate targets the resolved siteKeyId's own per-site file, not the legacy shared default"
+  );
+  assert.ok(existsSync(generatedBody.keyFilePath));
 });
 
 test("all three verbs stay 401 without a credential and 403 for a session lacking the permission", async (t) => {

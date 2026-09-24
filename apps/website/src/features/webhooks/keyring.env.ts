@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
 import type { KeyringPort } from "./ports.js";
-import { readSiteKeySourceMaterial, type SiteKeySource } from "./site-key-sources.js";
+import { readSiteKeySourceMaterial, siteKeyFilePathFrom, type SiteKeySource } from "./site-key-sources.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 
 /**
@@ -423,6 +423,20 @@ export interface RootKeyStatus {
 export interface InspectRootKeyMaterialOptions {
   envVarName?: string;
   keyFilePath?: string;
+  /**
+   * Site-key plan §A3b. When set, resolution walks this ordered list (`site-key-sources.ts`'s
+   * `siteKeySources`) instead of the hardcoded env-then-file precedence below — the first source
+   * WITH ANY MATERIAL wins, same semantics as `EnvOrFileKeyring.resolveRootKeyFromSources`, except
+   * this never throws: a status/reveal read must always return a result, so a present-but-invalid
+   * source surfaces as `{invalid: true, reason}` the same way the hardcoded env/file path already
+   * does for its own case, rather than propagating {@link UnusableRootKeyError}.
+   *
+   * `envVarName`/`keyFilePath` above are ignored once `sources` is given (mirrors
+   * `EnvOrFileKeyringOptions.sources`'s own doc comment) — the reported `keyFilePath` is instead
+   * whichever source in the list is `"per-site-file"`, or the legacy default when none is
+   * ({@link siteKeyFilePathFrom}).
+   */
+  sources?: readonly SiteKeySource[];
 }
 
 type ActiveRootKeyMaterial = { source: "env" | "file" | "none"; hex?: string; invalid?: boolean; reason?: RootKeyRejection };
@@ -431,17 +445,47 @@ type ActiveRootKeyMaterial = { source: "env" | "file" | "none"; hex?: string; in
  *  and {@link revealRootKeyMaterial} build on, so the env-first/file-second precedence exists in
  *  exactly one place here, and the validity verdict is {@link parseRootKeyHex}'s — the same one
  *  `EnvOrFileKeyring.resolveRootKey` throws on. Holds no state, performs no caching (this file's own
- *  header on why that's deliberate). @complexity O(1) plus one file read when the file path applies. */
-function readActiveRootKeyMaterial(envVarName: string, keyFilePath: string): ActiveRootKeyMaterial {
-  const fromEnv = process.env[envVarName];
+ *  header on why that's deliberate). @complexity O(1) plus one file read when the file path applies,
+ *  or O(n) in `sources.length` when given (each step at most one env/file read). */
+function readActiveRootKeyMaterial(input: {
+  envVarName: string;
+  keyFilePath: string;
+  sources?: readonly SiteKeySource[];
+}): ActiveRootKeyMaterial {
+  if (input.sources) return readActiveRootKeyMaterialFromSources(input.sources);
+  const fromEnv = process.env[input.envVarName];
   if (fromEnv) return toActiveRootKeyMaterial("env", fromEnv);
-  if (existsSync(keyFilePath)) return toActiveRootKeyMaterial("file", readFileSync(keyFilePath, "utf8"));
+  if (existsSync(input.keyFilePath)) return toActiveRootKeyMaterial("file", readFileSync(input.keyFilePath, "utf8"));
+  return { source: "none" };
+}
+
+/** The `sources`-driven counterpart to {@link readActiveRootKeyMaterial}'s hardcoded precedence —
+ *  walks `sources` in order, the FIRST one with any material wins (present-but-invalid still wins
+ *  and is reported invalid; it never silently tries the next source, matching
+ *  `EnvOrFileKeyring.resolveRootKeyFromSources`'s own reasoning). Never throws — a status read, not
+ *  a resolution. An `"env"`-kind source maps to `source: "env"`; every other kind maps to
+ *  `source: "file"` (this module's existing `RootKeyStatus.source` union has no third option). */
+function readActiveRootKeyMaterialFromSources(sources: readonly SiteKeySource[]): ActiveRootKeyMaterial {
+  for (const source of sources) {
+    const raw = readSiteKeySourceMaterial(source, process.env);
+    if (raw === undefined) continue;
+    return toActiveRootKeyMaterial(source.kind === "env" ? "env" : "file", raw);
+  }
   return { source: "none" };
 }
 
 function toActiveRootKeyMaterial(source: "env" | "file", raw: string): ActiveRootKeyMaterial {
   const parsed = parseRootKeyHex(raw);
   return parsed.ok ? { source, hex: parsed.hex } : { source, invalid: true, reason: parsed.reason };
+}
+
+/** `options.sources`' reported `keyFilePath` (the per-site-file candidate, or the legacy default
+ *  when none) when given; otherwise the caller's own `keyFilePath` option or the legacy default —
+ *  shared by {@link inspectRootKeyMaterial} and {@link revealRootKeyMaterial} so the two can never
+ *  disagree about which file Generate would target. */
+function resolveReportedKeyFilePath(options: InspectRootKeyMaterialOptions): string {
+  if (options.sources) return siteKeyFilePathFrom(options.sources, defaultRootKeyFilePath());
+  return options.keyFilePath ?? defaultRootKeyFilePath();
 }
 
 /**
@@ -457,8 +501,8 @@ function toActiveRootKeyMaterial(source: "env" | "file", raw: string): ActiveRoo
  */
 export function inspectRootKeyMaterial(options: InspectRootKeyMaterialOptions = {}): RootKeyStatus {
   const envVarName = options.envVarName ?? DEFAULT_ROOT_KEY_ENV_VAR_NAME;
-  const keyFilePath = options.keyFilePath ?? defaultRootKeyFilePath();
-  const raw = readActiveRootKeyMaterial(envVarName, keyFilePath);
+  const keyFilePath = resolveReportedKeyFilePath(options);
+  const raw = readActiveRootKeyMaterial({ envVarName, keyFilePath, sources: options.sources });
 
   if (raw.hex) return { active: true, source: raw.source, fingerprint: fingerprintRootKeyHex(raw.hex), keyFilePath };
   return { active: false, source: raw.source, ...invalidFields(raw), keyFilePath };
@@ -492,8 +536,8 @@ export interface RootKeyReveal extends RootKeyStatus {
  */
 export function revealRootKeyMaterial(options: InspectRootKeyMaterialOptions = {}): RootKeyReveal {
   const envVarName = options.envVarName ?? DEFAULT_ROOT_KEY_ENV_VAR_NAME;
-  const keyFilePath = options.keyFilePath ?? defaultRootKeyFilePath();
-  const raw = readActiveRootKeyMaterial(envVarName, keyFilePath);
+  const keyFilePath = resolveReportedKeyFilePath(options);
+  const raw = readActiveRootKeyMaterial({ envVarName, keyFilePath, sources: options.sources });
 
   if (raw.hex) return { active: true, source: raw.source, hex: raw.hex, fingerprint: fingerprintRootKeyHex(raw.hex), keyFilePath };
   return { active: false, source: raw.source, ...invalidFields(raw), keyFilePath };

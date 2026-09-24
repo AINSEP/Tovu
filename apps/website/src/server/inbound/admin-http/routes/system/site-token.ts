@@ -1,11 +1,16 @@
+import { homedir } from "node:os";
+
 import type { Express, Request, Response } from "express";
 
 import {
+  defaultRootKeyFilePath,
   generateFileRootKey,
   inspectRootKeyMaterial,
   revealRootKeyMaterial,
   RootKeyFileAlreadyExistsError,
+  type RootKeyStatus,
 } from "#src/features/webhooks/keyring.env";
+import { resolveSiteKeyId, siteKeyFilePathFrom, siteKeySources, type SiteKeySource } from "#src/features/webhooks/site-key-sources";
 import { SITE_TOKEN_MANAGE_PERMISSION } from "#src/features/identity/site-token-permission";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -71,6 +76,22 @@ import type { RouteDeps } from "#src/server/routes/types";
  * with no confirmation dialog at all — a real rotate/replace flow is intentionally NOT built here
  * (reported as out of scope, not silently half-built).
  *
+ * ## Site-key plan §A3b — site-aware sources
+ *
+ * Every verb now resolves this SITE's own ordered source list ({@link resolveSiteTokenSources}:
+ * `site-key-sources.ts`'s `siteKeySources`, keyed off `deps.siteBinding.dir`'s `.site-meta.json`)
+ * instead of the module-level env-then-legacy-default precedence `inspectRootKeyMaterial`'s own
+ * defaults still use. In local mode with a resolvable `siteKeyId` this prefers the per-site file
+ * (`~/.tovu/site-keys/<id>.hex`, A.1) over the legacy shared file, and `generate` now (re)writes
+ * THAT per-site file rather than the one legacy path — still refusing (409) when the env var is
+ * active, and still never overwriting an existing file (`RootKeyFileAlreadyExistsError`). A site
+ * with no readable `.site-meta.json` (or production, which has no per-site file at all) falls back
+ * to exactly today's behavior: `siteKeySources` drops the per-site candidate in that case.
+ *
+ * `GET`'s response also carries a `state` field derived from the resolved status —
+ * `"active" | "invalid" | "missing"` in this slice (see {@link siteTokenState}'s own doc for why
+ * the plan's full banner set is deferred).
+ *
  * ## 2026-09-14 hardening — session-only, `no-store`
  *
  * Every verb, including `GET` status, now refuses an `api_key` credential
@@ -81,9 +102,45 @@ import type { RouteDeps } from "#src/server/routes/types";
  * could reveal the value that decrypts every other stored credential. Reveal and generate responses
  * also now set `Cache-Control: no-store`, since both carry the raw key value.
  */
-export type AdminSiteTokenDeps = Pick<RouteDeps, "workspaceId" | "authorize">;
+export type AdminSiteTokenDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding">;
 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/site-token";
+
+/**
+ * This site's own ordered source list, plus the file `generate` should target — computed fresh
+ * per request (never cached) so every verb agrees about which sources and which target file are
+ * THIS site's own, not the legacy global default. Exported so it can be unit-tested directly
+ * against a temp `siteBinding.dir` without standing up Express/HTTP.
+ *
+ * @param env - defaults to `process.env`; test-injected so a suite never depends on real env vars.
+ * @complexity O(1) `.site-meta.json` read plus `siteKeySources`' fixed-size ordering.
+ */
+export function resolveSiteTokenSources(
+  deps: AdminSiteTokenDeps,
+  env: NodeJS.ProcessEnv = process.env
+): { sources: SiteKeySource[]; keyFilePath: string } {
+  const mode = resolveRuntimeMode({ env });
+  const siteKeyId = resolveSiteKeyId({ siteDir: deps.siteBinding.dir });
+  const sources = siteKeySources({ mode, env, home: homedir(), cwd: process.cwd(), siteKeyId });
+  return { sources, keyFilePath: siteKeyFilePathFrom(sources, defaultRootKeyFilePath()) };
+}
+
+/**
+ * `GET`'s `state` banner field, derived from an already-computed {@link RootKeyStatus}.
+ *
+ * Scoped to `"active" | "invalid" | "missing"` in this slice — the site-key plan's full 4-state
+ * set (`missing-with-data`, `mismatch`, `env-conflict`) needs A4's fingerprint stamp + `siteKeyId`
+ * field (mismatch) and D1's dual-env-var alias (env-conflict) to mean anything real yet. A
+ * `missing-with-data` state could be added now via a `content.db` scan
+ * (`findKeyDependentData`, already exported from `site-key-ensure.ts`), but that is deliberately
+ * deferred here: scanning `content.db` on every admin status-page load is a real perf/design
+ * question this narrow slice should not decide unilaterally.
+ */
+function siteTokenState(status: Pick<RootKeyStatus, "active" | "invalid">): "active" | "invalid" | "missing" {
+  if (status.active) return "active";
+  if (status.invalid) return "invalid";
+  return "missing";
+}
 
 /** Shared workspace-path-param + permission check every verb below performs first — same
  *  two-step shape `publish-credentials.ts`'s `rejectUnlessAuthorized` uses. Returns `true` (and
@@ -118,13 +175,15 @@ async function rejectUnlessAuthorized(req: Request, res: Response, deps: AdminSi
 export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenDeps): void {
   app.get(BASE_PATH, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
-    const status = inspectRootKeyMaterial();
-    res.status(200).json({ ...status, runtimeMode: resolveRuntimeMode() });
+    const { sources } = resolveSiteTokenSources(deps);
+    const status = inspectRootKeyMaterial({ sources });
+    res.status(200).json({ ...status, state: siteTokenState(status), runtimeMode: resolveRuntimeMode() });
   });
 
   app.post(`${BASE_PATH}/reveal`, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
-    const reveal = revealRootKeyMaterial();
+    const { sources } = resolveSiteTokenSources(deps);
+    const reveal = revealRootKeyMaterial({ sources });
     // The raw key value goes out in this body — never let a shared/browser cache retain it.
     res.set("Cache-Control", "no-store");
     res.status(200).json({ ...reveal, runtimeMode: resolveRuntimeMode() });
@@ -133,10 +192,11 @@ export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenD
   app.post(`${BASE_PATH}/generate`, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
 
+    const { sources, keyFilePath } = resolveSiteTokenSources(deps);
     // The env var always wins over a key file (`inspectRootKeyMaterial`'s precedence), so writing
     // one while the env var is active would create a file that is never read — refuse rather than
     // let a caller who bypassed the UI believe it did something.
-    const status = inspectRootKeyMaterial();
+    const status = inspectRootKeyMaterial({ sources });
     if (status.source === "env") {
       res.status(409).json({
         error: "ENV_VAR_ACTIVE",
@@ -148,7 +208,7 @@ export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenD
     }
 
     try {
-      const generated = generateFileRootKey();
+      const generated = generateFileRootKey({ keyFilePath });
       // `generated.hex` is deliberately NOT forwarded here (sol finding 3-2, 2026-09-16): the
       // admin controller (`use-site-token.hooks.ts`'s `generate()`) only ever reads
       // fingerprint/keyFilePath/runtimeMode from this response, so echoing the raw key gave it no

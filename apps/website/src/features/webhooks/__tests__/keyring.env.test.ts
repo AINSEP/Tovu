@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   EnvOrFileKeyring,
   defaultRootKeyFilePath,
+  fingerprintRootKeyHex,
   generateFileRootKey,
   inspectRootKeyMaterial,
   revealRootKeyMaterial,
@@ -676,6 +677,115 @@ test("sources: a whitespace-only env var is also treated as ABSENT", async () =>
       delete process.env[envVarName];
     }
   });
+});
+
+// ---------------------------------------------------------------------------
+// Site-key plan §A3b: `inspectRootKeyMaterial`/`revealRootKeyMaterial` accept the same `sources`
+// seam as `EnvOrFileKeyring`, but never throw — a status read, not a resolution.
+// ---------------------------------------------------------------------------
+
+test("inspectRootKeyMaterial: sources — the first source with material wins and reports active", async () => {
+  await withTempDir(async (dir) => {
+    const perSiteFile = join(dir, "per-site.hex");
+    const legacyFile = join(dir, "legacy.hex");
+    const hex = "66".repeat(32);
+    writeFileSync(perSiteFile, hex, { mode: 0o600 });
+    writeFileSync(legacyFile, "should-not-be-read", { mode: 0o600 });
+
+    const sources: SiteKeySource[] = [
+      { kind: "per-site-file", path: perSiteFile },
+      { kind: "legacy-shared-file", path: legacyFile },
+    ];
+    const status = inspectRootKeyMaterial({ sources });
+
+    assert.equal(status.active, true);
+    assert.equal(status.source, "file");
+    assert.equal(status.fingerprint, fingerprintRootKeyHex(hex));
+  });
+});
+
+test("inspectRootKeyMaterial: sources — an env-kind source reports source 'env'", async () => {
+  const envVarName = "TOVU_TEST_INSPECT_SOURCES_ENV";
+  process.env[envVarName] = "77".repeat(32);
+  try {
+    const sources: SiteKeySource[] = [{ kind: "env", envVarName }];
+    const status = inspectRootKeyMaterial({ sources });
+    assert.equal(status.active, true);
+    assert.equal(status.source, "env");
+  } finally {
+    delete process.env[envVarName];
+  }
+});
+
+test("inspectRootKeyMaterial: sources — a present-but-invalid source is reported invalid, never thrown (a status read must not throw)", async () => {
+  await withTempDir(async (dir) => {
+    const invalidFile = join(dir, "invalid.hex");
+    writeFileSync(invalidFile, "not-hex-at-all", { mode: 0o600 });
+
+    const sources: SiteKeySource[] = [{ kind: "per-site-file", path: invalidFile }];
+    const status = inspectRootKeyMaterial({ sources });
+
+    assert.equal(status.active, false);
+    assert.equal(status.invalid, true);
+    assert.equal(status.reason, "not-hex");
+  });
+});
+
+test("inspectRootKeyMaterial: sources — a blank env var falls through to the next source, exactly like EnvOrFileKeyring", async () => {
+  const envVarName = "TOVU_TEST_INSPECT_SOURCES_BLANK_ENV";
+  await withTempDir(async (dir) => {
+    const fallbackFile = join(dir, "fallback.hex");
+    const hex = "88".repeat(32);
+    writeFileSync(fallbackFile, hex, { mode: 0o600 });
+    process.env[envVarName] = "";
+    try {
+      const sources: SiteKeySource[] = [
+        { kind: "env", envVarName },
+        { kind: "legacy-shared-file", path: fallbackFile },
+      ];
+      const status = inspectRootKeyMaterial({ sources });
+      assert.equal(status.active, true);
+      assert.equal(status.source, "file");
+      assert.equal(status.fingerprint, fingerprintRootKeyHex(hex));
+    } finally {
+      delete process.env[envVarName];
+    }
+  });
+});
+
+test("inspectRootKeyMaterial: sources — nothing present anywhere reports inactive, source 'none', not invalid", () => {
+  const status = inspectRootKeyMaterial({ sources: [{ kind: "per-site-file", path: "/never/created.hex" }] });
+  assert.equal(status.active, false);
+  assert.equal(status.source, "none");
+  assert.equal(status.invalid, undefined);
+});
+
+test("inspectRootKeyMaterial: sources — keyFilePath is the per-site-file candidate's path, not the legacy default; envVarName/keyFilePath options are ignored", () => {
+  const sources: SiteKeySource[] = [{ kind: "per-site-file", path: "/site-keys/site-abc.hex" }];
+  const status = inspectRootKeyMaterial({ sources, keyFilePath: "/should/be/ignored.hex" });
+  assert.equal(status.keyFilePath, "/site-keys/site-abc.hex");
+});
+
+test("revealRootKeyMaterial: sources — includes the raw hex when a source resolves", async () => {
+  await withTempDir(async (dir) => {
+    const perSiteFile = join(dir, "per-site.hex");
+    const hex = "99".repeat(32);
+    writeFileSync(perSiteFile, hex, { mode: 0o600 });
+
+    const sources: SiteKeySource[] = [{ kind: "per-site-file", path: perSiteFile }];
+    const reveal = revealRootKeyMaterial({ sources });
+
+    assert.equal(reveal.active, true);
+    assert.equal(reveal.hex, hex);
+    assert.equal(reveal.fingerprint, fingerprintRootKeyHex(hex));
+  });
+});
+
+test("revealRootKeyMaterial: sources — a present-but-invalid source is reported invalid, never thrown", () => {
+  const reveal = revealRootKeyMaterial({ sources: [{ kind: "env", envVarName: "TOVU_TEST_REVEAL_SOURCES_MISSING" }] });
+  assert.equal(reveal.active, false);
+  assert.equal(reveal.source, "none");
+  assert.equal(reveal.hex, undefined);
 });
 
 test("a key longer than 32 bytes is still accepted — the floor is a minimum, not an exact length", async () => {
