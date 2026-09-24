@@ -151,7 +151,12 @@ const UPDATE_SCHEMA = {
     fromPattern: { type: "string", minLength: 1, description: "The source path/pattern to match against incoming requests. Omit to leave unchanged." },
     toTarget: { ...TO_TARGET_PROPERTY, description: `${TO_TARGET_PROPERTY.description} Omit to leave unchanged.` },
     statusCode: STATUS_CODE_PROPERTY,
-    status: { type: "string", enum: ["active", "disabled"], description: "Set to 'disabled' to soft-delete this rule (same effect as redirects_tombstone), or 'active' to reinstate it. Omit to leave unchanged." },
+    status: {
+      type: "string",
+      enum: ["active", "disabled"],
+      description:
+        "'disabled' turns the rule off; 'active' turns it back on (on a rule in the Trash this restores it). To delete a rule, use redirects_tombstone, which moves it to the Trash. A rule in the Trash can't be edited until it is restored.",
+    },
     override: OVERRIDE_PROPERTY,
     priority: PRIORITY_PROPERTY,
   },

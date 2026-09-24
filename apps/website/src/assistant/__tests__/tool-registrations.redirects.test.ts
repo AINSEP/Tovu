@@ -1,9 +1,11 @@
 /**
- * @file Covers the 7 Redirects catalog entries (6 wired, `redirects_import` deliberately withheld):
- * catalog completeness, published contracts, risk cross-check, the ADR-021 authorization half
- * (explicit-handler style — none of `createRedirect`/`updateRedirect`/`tombstoneRedirect` call
- * `authorize()` themselves), and a multi-tool workflow test chaining create -> update ->
- * tombstone, asserting state stays consistent across the whole sequence.
+ * @file Covers all 7 Redirects catalog entries, all wired (2026-09-24: `redirects_import` joined
+ * the other 6 — tool-design audit F2/F3): catalog completeness, published contracts, risk
+ * cross-check, the ADR-021 authorization half (explicit-handler style — none of
+ * `createRedirect`/`updateRedirect`/`tombstoneRedirect` call `authorize()` themselves), a
+ * multi-tool workflow test chaining create -> update -> tombstone, asserting state stays
+ * consistent across the whole sequence, and `redirects_import`'s own per-rule-failure-does-not-
+ * abort-the-batch behavior.
  *
  * Uses the REAL in-memory `RedirectRepoPort` adapter, the real `redirectMatcher`, a real
  * `OriginRegistry`, and the real `createRedirect`/`updateRedirect`/`tombstoneRedirect` domain
@@ -146,28 +148,29 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 // redirects_get and redirects_list MERGE into the single `content_read.redirect` card (2026-09-08,
 // assistant/content-read-tool.ts), which dispatches on whether `id` was supplied — so this list is
 // one entry shorter than the domain catalog it used to mirror one-for-one.
-const WIRED_REDIRECTS_TOOL_IDS = ["content_read.redirect", "redirects_get_hits", "redirects_create", "redirects_update", "redirects_tombstone"];
+const WIRED_REDIRECTS_TOOL_IDS = [
+  "content_read.redirect",
+  "redirects_get_hits",
+  "redirects_create",
+  "redirects_update",
+  "redirects_tombstone",
+  "redirects_import",
+];
 
 // ---------------------------------------------------------------------------
-// 1. Catalog completeness — wired vs. declared-but-excluded
+// 1. Catalog completeness
 // ---------------------------------------------------------------------------
 
-test("exactly the 6 wireable redirects entries are registered — nothing else", () => {
+test("exactly the 6 wireable redirects entries plus redirects_import are registered — nothing else", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...redirectsRegistrations(deps).keys()].sort(), [...WIRED_REDIRECTS_TOOL_IDS].sort());
   assert.equal(getRedirectsAgentToolCatalog().length, 7, "sanity: the full redirects catalog is still 7 entries");
 });
 
-test("redirects_import is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification", () => {
-  const { deps } = fakeRouteDeps();
-  assert.equal(redirectsRegistrations(deps).has("redirects_import"), false);
-  assert.throws(() => assertRiskMetadataIsWirable("redirects_import", catalogEntry("redirects_import")), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
-});
-
-test("no tool id across the whole assistant tool set implies a bulk redirect import is agent-callable", () => {
+test("redirects_import is agent-callable across the whole assistant tool set", () => {
   const { deps } = fakeRouteDeps();
   const ids = buildAssistantToolRegistrations(deps).map((r) => r.descriptor.id);
-  assert.equal(ids.includes("redirects_import"), false);
+  assert.ok(ids.includes("redirects_import"));
 });
 
 // ---------------------------------------------------------------------------
@@ -234,6 +237,7 @@ test("the ToolPolicy layer is a pass-through 'allow' for every wired redirects r
 const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
   "content_read.redirect": {},
   redirects_create: { matchType: "exact", fromPattern: "/old", toTarget: "/new", statusCode: 301 },
+  redirects_import: { rules: [{ matchType: "exact", fromPattern: "/old-1", toTarget: "/new-1", statusCode: 301 }] },
 };
 
 for (const toolId of Object.keys(TOOL_INPUTS)) {
@@ -277,6 +281,76 @@ test("redirects_create: rejects matchType 'regex' the same way the chokepoint do
   await assert.rejects(
     () => wired(deps, "redirects_create").handler(executionContext({ matchType: "regex", fromPattern: "/a.*", toTarget: "/b", statusCode: 301 })),
   );
+});
+
+// ---------------------------------------------------------------------------
+// 4a. redirects_import — batch/adversarial behavior (2026-09-24, tool-design audit F2/F3)
+// ---------------------------------------------------------------------------
+
+test("redirects_import: rejects a non-array 'rules' with the exact validation text, before any write", async () => {
+  const { deps, redirectRepo } = fakeRouteDeps();
+  await assert.rejects(
+    () => wired(deps, "redirects_import").handler(executionContext({ rules: "not-an-array" })),
+    /'rules' \(array of 1-500 items\) is required/,
+  );
+  assert.deepEqual(await redirectRepo.list({ workspaceId: WORKSPACE_ID }), []);
+});
+
+test("redirects_import: rejects an empty 'rules' array with the exact validation text", async () => {
+  const { deps } = fakeRouteDeps();
+  await assert.rejects(() => wired(deps, "redirects_import").handler(executionContext({ rules: [] })), /'rules' \(array of 1-500 items\) is required/);
+});
+
+test("redirects_import: rejects a batch over 500 rules with the exact validation text", async () => {
+  const { deps } = fakeRouteDeps();
+  const rules = Array.from({ length: 501 }, (_, i) => ({ matchType: "exact", fromPattern: `/p${i}`, toTarget: `/t${i}`, statusCode: 301 }));
+  await assert.rejects(() => wired(deps, "redirects_import").handler(executionContext({ rules })), /'rules' \(array of 1-500 items\) is required/);
+});
+
+test("redirects_import: a non-object rule entry is refused by index, not silently coerced", async () => {
+  const { deps } = fakeRouteDeps();
+  await assert.rejects(
+    () => wired(deps, "redirects_import").handler(executionContext({ rules: [{ matchType: "exact", fromPattern: "/a", toTarget: "/b", statusCode: 301 }, "not-an-object"] })),
+    /rules\[1\] must be an object/,
+  );
+});
+
+test("redirects_import: a per-rule failure (duplicate fromPattern) does NOT abort the rest of the batch — mixed created/failed in one response", async () => {
+  const { deps } = fakeRouteDeps();
+
+  // Seed one rule manually so the second batch row collides on it (exact-match dedup rule).
+  await wired(deps, "redirects_create").handler(executionContext({ matchType: "exact", fromPattern: "/dup", toTarget: "/already-there", statusCode: 301 }));
+
+  const result = (await wired(deps, "redirects_import").handler(
+    executionContext({
+      rules: [
+        { matchType: "exact", fromPattern: "/dup", toTarget: "/collides", statusCode: 301 }, // fails: duplicate
+        { matchType: "exact", fromPattern: "/ok-1", toTarget: "/target-1", statusCode: 301 }, // succeeds
+        { matchType: "regex", fromPattern: "/a.*", toTarget: "/b", statusCode: 301 }, // fails: regex always rejected
+        { matchType: "exact", fromPattern: "/ok-2", toTarget: "/target-2", statusCode: 302 }, // succeeds
+      ],
+    }),
+  )) as { created: Array<{ fromPattern: string }>; failed: Array<{ index: number; code: string; message: string }> };
+
+  assert.equal(result.created.length, 2, "the two valid rows still commit despite two invalid siblings");
+  assert.deepEqual(result.created.map((r) => r.fromPattern).sort(), ["/ok-1", "/ok-2"]);
+  assert.equal(result.failed.length, 2);
+  assert.deepEqual(result.failed.map((f) => f.index), [0, 2], "failure indices point back at the ORIGINAL batch position, not a compacted one");
+  for (const failure of result.failed) {
+    assert.equal(typeof failure.code, "string");
+    assert.ok(failure.code.length > 0);
+  }
+
+  const stored = await deps.redirectRepo.list({ workspaceId: WORKSPACE_ID });
+  assert.equal(stored.length, 3, "the pre-seeded rule plus the two newly-created ones, nothing from the two failures");
+});
+
+test("redirects_import: every created row is source:'import', distinguishable from a manual redirects_create row", async () => {
+  const { deps } = fakeRouteDeps();
+  const result = (await wired(deps, "redirects_import").handler(
+    executionContext({ rules: [{ matchType: "exact", fromPattern: "/imported", toTarget: "/target", statusCode: 301 }] }),
+  )) as { created: Array<{ source: string }> };
+  assert.equal(result.created[0]?.source, "import");
 });
 
 // ---------------------------------------------------------------------------

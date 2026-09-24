@@ -1,8 +1,8 @@
 /**
- * @file Redirects' half of ADR-049 Decision 4 (SPEC-009): maps `agent-tools.ts`'s wireable 6 of 7
- * catalog entries onto the list/get/hits/create/update/tombstone operations `server/routes/admin/
- * redirects/*.ts` expose, as `ToolRegistration`s. `redirects_import` is deliberately excluded — see
- * `agent-tools.ts`'s own file header for the full reasoning.
+ * @file Redirects' half of ADR-049 Decision 4 (SPEC-009): maps `agent-tools.ts`'s 7 catalog entries
+ * onto the list/get/hits/create/update/tombstone/import operations `server/routes/admin/
+ * redirects/*.ts` expose, as `ToolRegistration`s. All 7 are wired (2026-09-24: `redirects_import`
+ * joined the other 6 — see `agent-tools.ts`'s own file header for why).
  *
  * Authorization shape: none of `createRedirect`/`updateRedirect`/`tombstoneRedirect`
  * (`redirects.ts`) accept an `authorize` dependency at all — `RedirectsWriteDeps` has no such field,
@@ -15,6 +15,7 @@ import {
   type AuthorizeFn,
   buildDomainRegistrations,
   indexCatalogById,
+  isRecord,
   optionalBoolean,
   optionalNumber,
   optionalString,
@@ -27,6 +28,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+import { ToolInputError } from "@jini-ai/core";
 import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { ToolContributor } from "#src/assistant/index";
 import {
@@ -40,12 +42,15 @@ import { getRedirectsAgentToolCatalog } from "./agent-tools.js";
 import type { RedirectHitSink, RedirectRepoPort } from "./ports.js";
 import {
   createRedirect,
+  importRedirects,
   tombstoneRedirect,
   updateRedirect,
+  MAX_IMPORT_BATCH_SIZE,
   type RedirectsWriteDeps,
 } from "./redirects.js";
 import { RedirectNotFoundError } from "./types.js";
 import type {
+  CreateRedirectInput,
   RedirectMatchType,
   RedirectRecord,
   RedirectSource,
@@ -143,8 +148,7 @@ function buildTombstoneConfirmationResource(spec: {
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
  * calls. See `DerivedRiskByToolId` in the kit for why it is independent of the catalog's own
- * `sideEffects` declaration — and note that `redirects_import` appears NOWHERE here, which is
- * itself the strongest of the guards: an unclassified id cannot be wired at all.
+ * `sideEffects` declaration.
  */
 export const redirectsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> redirectRepo.list(): read only.
@@ -159,14 +163,9 @@ export const redirectsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
   ["redirects_update", "mutates-durable-state"],
   // -> tombstoneRedirect (redirects.ts): status flip + revision write (no-op if already disabled).
   ["redirects_tombstone", "mutates-durable-state"],
-]);
-
-/** Redirects catalog entries this pass does not wire, and why — see `agent-tools.ts`'s own file
- * header for the full reasoning. */
-const UNWIRED_REDIRECTS_TOOL_IDS = new Set([
-  // EXCLUDED BY DESIGN: bulk (1-500 rules) write behind one call — same caution class as
-  // Newsletter's excluded newsletter_import_subscriptions.
-  "redirects_import",
+  // -> importRedirects (redirects.ts): createRedirect in a loop, one call each — same write shape
+  //    as redirects_create, N times, with a per-item try/catch (EC-08).
+  ["redirects_import", "mutates-durable-state"],
 ]);
 
 export function buildRedirectsRegistrations(
@@ -309,6 +308,36 @@ export function buildRedirectsRegistrations(
         ctx.signal.removeEventListener("abort", closeOnAbort);
       }
     },
+
+    // Wired 2026-09-24 (tool-design audit F2/F3, dispatch item 3) — see `agent-tools.ts`'s file
+    // header for why the earlier "mass autonomous change" exclusion no longer holds. No confirmation
+    // gate: same reversible, single-chokepoint risk envelope as `redirects_create`, just N rows.
+    redirects_import: async (ctx) => {
+      const input = requireInputRecord(ctx.input);
+      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.redirects.manage", entityType: "redirect" });
+
+      if (!Array.isArray(input.rules) || input.rules.length < 1 || input.rules.length > MAX_IMPORT_BATCH_SIZE) {
+        throw new ToolInputError(`'rules' (array of 1-${MAX_IMPORT_BATCH_SIZE} items) is required`);
+      }
+
+      const rules: CreateRedirectInput[] = input.rules.map((rule, index) => {
+        if (!isRecord(rule)) throw new ToolInputError(`rules[${index}] must be an object`);
+        return {
+          matchType: requireString(rule, "matchType") as RedirectMatchType,
+          fromPattern: requireString(rule, "fromPattern"),
+          toTarget: requireString(rule, "toTarget"),
+          statusCode: requireNumber(rule, "statusCode") as RedirectStatusCode,
+          override: optionalBoolean(rule, "override"),
+          priority: optionalNumber(rule, "priority"),
+        };
+      });
+
+      const { created, failed } = await importRedirects({
+        deps: routeDeps.redirectsWriteDeps,
+        input: { workspaceId: routeDeps.workspaceId, actorId: ctx.principal.id, rules },
+      });
+      return { created: created.map(toRedirectToolView), failed };
+    },
   };
 
   return buildDomainRegistrations({
@@ -317,7 +346,6 @@ export function buildRedirectsRegistrations(
     catalog: CATALOG_BY_ID,
     handlers,
     derivedRisk: redirectsDerivedRisk,
-    unwiredToolIds: UNWIRED_REDIRECTS_TOOL_IDS,
   });
 }
 
