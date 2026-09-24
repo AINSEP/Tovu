@@ -3,6 +3,7 @@ import { contributeMenusPublish } from "#src/features/navigation/publish-content
 import { contributePagePublish, contributePostPublish } from "#src/features/post/publish-content";
 import { registerPublishContentContributor } from "#src/features/publish-content/type-registry";
 import { contributeRedirectPublish } from "#src/features/redirects/publish-content";
+import { contributeThemeFilesPublish } from "#src/features/theme/publish-content";
 
 /**
  * @file Task 2 of the publish-content (Publish Content) feature — the composition-root wiring
@@ -35,7 +36,9 @@ import { contributeRedirectPublish } from "#src/features/redirects/publish-conte
  * planned cleanly and then aborted the whole run mid-apply. The registration and the working
  * `apply()` therefore land in the same commit, never separately; `__tests__/publish-content-manifest
  * .test.ts` pins both halves (the registry list AND an entity actually applying through the
- * registered contributor), so the pair cannot silently come apart again.
+ * registered contributor), so the pair cannot silently come apart again. `theme-files` followed the
+ * same rule (S-F4): registered only once its stage/verify/swap `apply()` was real AND the apply bag
+ * (`apply-loop.ts`'s `PublishContentApplyDeps`) required `themesDir`.
  */
 export function installFirstPartyPublishContentTypes(): void {
   registerPublishContentContributor(contributePostPublish());
@@ -43,4 +46,5 @@ export function installFirstPartyPublishContentTypes(): void {
   registerPublishContentContributor(contributeMediaPublish());
   registerPublishContentContributor(contributeRedirectPublish());
   registerPublishContentContributor(contributeMenusPublish());
+  registerPublishContentContributor(contributeThemeFilesPublish());
 }

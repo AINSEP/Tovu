@@ -121,6 +121,7 @@ export type PublishContentApplyDeps = PublishContentDeps &
       | "redirectsWriteDeps"
       | "menuRepo"
       | "navLocationBindingRepo"
+      | "themesDir"
     >
   >;
 

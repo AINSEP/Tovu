@@ -11,6 +11,9 @@
  * applies a real entity through it, which is the property that actually makes the registration safe.
  */
 import assert from "node:assert/strict";
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
@@ -19,6 +22,7 @@ import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo, t
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "#src/features/navigation/index";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { packThemeFilesEntities } from "#src/features/theme/publish-content";
 import { createRedirect, InMemoryRedirectRepo, redirectMatcher, type RedirectsWriteDeps } from "#src/features/redirects/index";
 import {
   listPublishContentContributors,
@@ -32,11 +36,11 @@ test.beforeEach(() => {
   resetPublishContentContributorsForTests();
 });
 
-test("installFirstPartyPublishContentTypes registers exactly post, page, media, redirect and menu", () => {
+test("installFirstPartyPublishContentTypes registers exactly post, page, media, redirect, menu and theme-files", () => {
   installFirstPartyPublishContentTypes();
   assert.deepEqual(
     listPublishContentContributors().map((c) => c.entityType),
-    ["post", "page", "media", "redirect", "menu"]
+    ["post", "page", "media", "redirect", "menu", "theme-files"]
   );
 });
 
@@ -230,4 +234,53 @@ test("the registered menu contributor's apply() is a real write path, not a thro
   assert.equal(changeSetId, "menu-header-nav", "the registered contributor must write the row under the SOURCE id");
   const landed = await menuRepo.findById({ workspaceId, id: "menu-header-nav" });
   assert.equal((landed as NavMenuEntry | null)?.slug, "header-nav");
+});
+
+test("the registered theme-files contributor's apply() is a real write path, not a throwing stub", async () => {
+  installFirstPartyPublishContentTypes();
+  const contributor = listPublishContentContributors().find((c) => c.entityType === "theme-files");
+  assert.ok(contributor, "theme-files must be registered");
+
+  const root = await realpath(await mkdtemp(path.join(tmpdir(), "manifest-theme-files-")));
+  try {
+    const sourceThemes = path.join(root, "source");
+    const destThemes = path.join(root, "dest");
+    await mkdir(path.join(sourceThemes, "static/basic"), { recursive: true });
+    await mkdir(destThemes, { recursive: true });
+    await writeFile(path.join(sourceThemes, "static/basic/theme.json"), '{"id":"basic"}');
+
+    const workspaceId = "11111111-1111-1111-1111-111111111111";
+    const blobStore = new InMemoryBlobStore();
+    const { entities } = await packThemeFilesEntities({ themesDir: sourceThemes });
+    const [entity] = entities;
+    assert.ok(entity);
+    const bytes = await readFile(path.join(sourceThemes, "static/basic/theme.json"));
+    await blobStore.putIfAbsent({ workspaceId, sha256: entity.requiredBlobs[0], bytes });
+
+    const outbox = new InMemoryOutbox();
+    let n = 0;
+    const deps: PublishContentDeps = {
+      workspaceId,
+      postRepo: undefined as unknown as PublishContentDeps["postRepo"],
+      clock: { nowIso: () => "2026-09-24T12:00:00.000Z" },
+      idGen: { newId: () => `generated-id-${++n}` },
+      outbox,
+      changeSets: new InMemoryChangeSetRepo([], [], outbox),
+      authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
+      blobStore,
+      themesDir: destThemes,
+    };
+
+    const { changeSetId } = await contributor.build(deps).apply({
+      entity,
+      expectedVersion: undefined,
+      principalId: "operator-principal-1",
+      idempotencyKey: "manifest-theme-files",
+    });
+
+    assert.ok(changeSetId);
+    assert.equal(await readFile(path.join(destThemes, "static/basic/theme.json"), "utf8"), '{"id":"basic"}');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
