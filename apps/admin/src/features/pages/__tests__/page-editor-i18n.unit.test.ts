@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PAGE_EDITOR_DICT, t } from "../page-editor-i18n";
+import { PAGE_EXTERNAL_CHANGE_MESSAGE } from "../rules";
 import { COMMON_I18N } from "../../../lib/i18n-common";
 
 /**
@@ -96,6 +97,14 @@ describe("PAGE_EDITOR_DICT: cross-locale key parity", () => {
     ];
     for (const locale of locales) {
       for (const key of MARKUP_KEYS) expect(t(locale, key), `${locale}, key ${JSON.stringify(key)}`).toBeTruthy();
+    }
+  });
+});
+
+describe("PAGE_EXTERNAL_CHANGE_MESSAGE", () => {
+  it("is translated in every locale, not left in English", () => {
+    for (const locale of ["es", "de", "fr", "ja", "ar", "zh-CN"]) {
+      expect(t(locale, PAGE_EXTERNAL_CHANGE_MESSAGE), locale).not.toBe(PAGE_EXTERNAL_CHANGE_MESSAGE);
     }
   });
 });

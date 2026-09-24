@@ -431,7 +431,7 @@ function PageExternalChangeBanner({ onLoadLatest, onKeepEdits, t }: { onLoadLate
         label: "This page was changed outside the editor, probably by the assistant — load the latest version or keep your unsaved edits",
       })}
     >
-      <p>{PAGE_EXTERNAL_CHANGE_MESSAGE}</p>
+      <p>{t(PAGE_EXTERNAL_CHANGE_MESSAGE)}</p>
       <button
         type="button"
         className="btn-secondary"

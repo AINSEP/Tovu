@@ -838,6 +838,13 @@ describe("external-change notice", () => {
     expect(screen.getByRole("button", { name: /keep my edits/i })).toBeInTheDocument();
   });
 
+  // The message was rendered as a raw English constant, never through `t`, so every other locale
+  // saw English on this banner while its two buttons were translated.
+  it("renders the notice's message through the editor's translator", () => {
+    renderEditor({ pendingExternalVersion: 4, t: (key: string) => `T:${key}` });
+    expect(screen.getByText(/^T:Changed outside the editor/)).toBeInTheDocument();
+  });
+
   it("Load latest calls loadExternalChange; Keep my edits calls dismissExternalChange", async () => {
     const user = userEvent.setup();
     const { ctrl } = renderEditor({ pendingExternalVersion: 4 });
