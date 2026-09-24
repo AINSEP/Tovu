@@ -456,9 +456,14 @@ test("the returned fields array is a copy — a tool caller cannot mutate domain
 // 3. Risk metadata is cross-checked, not trusted (finding 3a)
 // ---------------------------------------------------------------------------
 
+/** The gated-mutation execute tools wired through `humanConfirmedToolHandler` (2026-09-24). */
+const HUMAN_CONFIRMED_TOOL_IDS: readonly string[] = ["backup_execute_restore", "database_execute_migrate_forward", "taxonomy_execute_merge_term"];
+
 test("the real catalog and this layer's independent classification agree for every wired tool", () => {
   for (const id of registrationsById().keys()) {
     if (DERIVED_CONTENT_READ_IDS.has(id)) continue; // already cross-checked pre-collapse, under its original id — see DERIVED_CONTENT_READ_IDS's own doc
+    // The human-confirmed tools pass only with their handler — the build itself checked that.
+    if (HUMAN_CONFIRMED_TOOL_IDS.includes(id)) continue;
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
   }
 });
@@ -485,21 +490,27 @@ test("the mismatch check is symmetric — an over-declared risk fails too, so th
 });
 
 // ---------------------------------------------------------------------------
-// 4. Confirmation-transport guard (finding 3c)
+// 4. Human-confirmer guard (finding 3c; relaxed 2026-09-24 for humanConfirmedHandler)
 // ---------------------------------------------------------------------------
 
-test("a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired while no confirmation transport exists", () => {
+test("a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired with a plain handler", () => {
   assert.throws(
     () => assertRiskMetadataIsWirable("collections_content_type_tombstone", { ...catalogEntry("collections_content_type_tombstone"), actorClassRule: "confirmer-must-equal-own-delegatedBy" }),
-    /requires a human-confirmation transport/,
+    {
+      message:
+        "tool-registrations: 'collections_content_type_tombstone' declares actorClassRule 'confirmer-must-equal-own-delegatedBy', which needs a human confirmer — " +
+        "build its handler with humanConfirmedHandler so a human answers through the host's confirmation transport (see ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT)",
+    },
   );
 });
 
-test("no CURRENTLY wired tool carries a confirmation-requiring actor-class rule — the guard above is an invariant, not a live fix", () => {
+test("the only wired tools carrying a confirmation-requiring actor-class rule are the three that ask the human in chat", () => {
+  const carrying: string[] = [];
   for (const id of registrationsById().keys()) {
     if (DERIVED_CONTENT_READ_IDS.has(id)) continue; // read-only by construction — see DERIVED_CONTENT_READ_IDS's own doc
-    assert.notEqual(catalogEntry(id).actorClassRule, "confirmer-must-equal-own-delegatedBy", `${id} is wired, so it must not claim a human-confirmation requirement Tovu cannot honor`);
+    if (catalogEntry(id).actorClassRule === "confirmer-must-equal-own-delegatedBy") carrying.push(id);
   }
+  assert.deepEqual(carrying.sort(), [...HUMAN_CONFIRMED_TOOL_IDS].sort());
 });
 
 test("collections_execute_cleanup — the one catalog entry that DOES carry the rule — is still not wired", () => {

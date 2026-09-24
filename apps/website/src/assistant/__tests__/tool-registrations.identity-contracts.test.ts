@@ -420,10 +420,14 @@ test("the two read tools are classified 'none', and claiming otherwise also fail
   );
 });
 
-test("an identity tool that carried a confirmation-requiring actor-class rule could not be wired while no transport exists", () => {
+test("an identity tool that carried a confirmation-requiring actor-class rule could not be wired with a plain handler", () => {
   assert.throws(
     () => assertRiskMetadataIsWirable("identity_user_disable", { ...catalogEntry("identity_user_disable"), actorClassRule: "confirmer-must-equal-own-delegatedBy" }),
-    /requires a human-confirmation transport/,
+    {
+      message:
+        "tool-registrations: 'identity_user_disable' declares actorClassRule 'confirmer-must-equal-own-delegatedBy', which needs a human confirmer — " +
+        "build its handler with humanConfirmedHandler so a human answers through the host's confirmation transport (see ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT)",
+    },
   );
 });
 
