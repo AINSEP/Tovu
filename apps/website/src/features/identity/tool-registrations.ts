@@ -15,12 +15,13 @@
  * by name, so there is no sibling domain still statically wired through `assistant` that could route
  * back through identity and close a new cycle.
  *
- * 2026-09-24 (tool-design audit, F3): five tools now ask the human first. The confirm transport
+ * 2026-09-24 (tool-design audit, F3): three tools now ask the human first. The confirm transport
  * (`SurfaceExchangeStore` + `mcp-ui-tool-calls-route.ts`) is Tovu's, so the gate wraps Jini's
  * handlers here instead of living in Jini:
- * - `identity_role_assign` / `identity_policy_attach` grant permissions and have no undo (there is
- *   no unassign or detach), so the dialog names who gets what.
- * - `identity_role_delete` / `identity_policy_delete` delete for good.
+ * - `identity_role_delete` / `identity_policy_delete` delete for good — the owner's standing rule
+ *   is that only permanent deletes hold up an in-chat confirm. (`identity_role_assign` /
+ *   `identity_policy_attach` were gated too for one day, 2026-09-24, then backed out the same day:
+ *   granting a role/policy isn't a delete, even though there is no unassign/detach tool.)
  * - `identity_user_create` no longer takes a password from the model. The human types the first
  *   password into the dialog; it goes browser -> route -> this parked call and never enters the
  *   model's context or the chat transcript (same path `custom_credential_set_token` uses).
@@ -41,8 +42,6 @@ import { buildFormSurface, buildOutcomeSurface, type UIResourceUri } from "@jini
 
 export { buildIdentityRegistrations, identityDerivedRisk, type IdentityToolDeps };
 
-const ROLE_ASSIGN_TOOL_ID = "identity_role_assign";
-const POLICY_ATTACH_TOOL_ID = "identity_policy_attach";
 const ROLE_DELETE_TOOL_ID = "identity_role_delete";
 const POLICY_DELETE_TOOL_ID = "identity_policy_delete";
 const USER_CREATE_TOOL_ID = "identity_user_create";
@@ -93,8 +92,8 @@ function withoutPassword(schema: unknown): unknown {
 }
 
 /**
- * Jini's identity registrations with the five risky tools gated behind the human. The other ten
- * pass through unchanged.
+ * Jini's identity registrations with `identity_role_delete`/`identity_policy_delete`/
+ * `identity_user_create` gated behind the human; every other tool passes through unchanged.
  *
  * @complexity O(n) in the registration count; each gate adds one or two repo reads per call.
  */
@@ -104,52 +103,8 @@ export function buildGatedIdentityRegistrations(
 ): ToolRegistration[] {
   const scope = { workspaceId: routeDeps.workspaceId };
 
-  const userLabel = async (principalId: string): Promise<string> => {
-    const user = await routeDeps.userRepo.findByPrincipalId({ ...scope, principalId });
-    if (user) return user.username;
-    const principal = await routeDeps.principalRepo.findById({ ...scope, id: principalId });
-    return principal ? principal.displayName : `${principalId} (not found)`;
-  };
   const roleLabel = async (id: string) => (await routeDeps.roleRepo.findById({ ...scope, id }))?.name ?? `${id} (not found)`;
   const policyLabel = async (id: string) => (await routeDeps.policyRepo.findById({ ...scope, id }))?.name ?? `${id} (not found)`;
-
-  const confirmRoleAssign = async (ctx: ToolExecutionContext, input: Readonly<Record<string, string>>) => {
-    const [user, role] = await Promise.all([
-      userLabel(input["principalId"]!),
-      roleLabel(input["roleId"]!),
-    ]);
-    return requireHumanConfirm(ctx, surfaces, {
-      toolId: ROLE_ASSIGN_TOOL_ID,
-      errorCode: "IDENTITY",
-      title: `Give ${user} the role ${role}?`,
-      details: [
-        { label: "User", value: user },
-        { label: "Role", value: role },
-      ],
-      warning: `${user} gets every permission the ${role} role has. Roles can't be unassigned, so this can't be undone.`,
-      danger: true,
-      confirmLabel: "Give role",
-    });
-  };
-
-  const confirmPolicyAttach = async (ctx: ToolExecutionContext, input: Readonly<Record<string, string>>) => {
-    const [user, policy] = await Promise.all([
-      userLabel(input["principalId"]!),
-      policyLabel(input["policyId"]!),
-    ]);
-    return requireHumanConfirm(ctx, surfaces, {
-      toolId: POLICY_ATTACH_TOOL_ID,
-      errorCode: "IDENTITY",
-      title: `Give ${user} the permissions in the policy ${policy}?`,
-      details: [
-        { label: "User", value: user },
-        { label: "Policy", value: policy },
-      ],
-      warning: `${user} gets every permission in ${policy}. Policies can't be detached, so this can't be undone.`,
-      danger: true,
-      confirmLabel: "Give permissions",
-    });
-  };
 
   const confirmRoleDelete = async (ctx: ToolExecutionContext, input: Readonly<Record<string, string>>) => {
     const role = await roleLabel(input["roleId"]!);
@@ -258,10 +213,6 @@ export function buildGatedIdentityRegistrations(
 
   return buildIdentityRegistrations(routeDeps).map((registration): ToolRegistration => {
     switch (registration.descriptor.id) {
-      case ROLE_ASSIGN_TOOL_ID:
-        return gated(registration, "assigned", confirmRoleAssign);
-      case POLICY_ATTACH_TOOL_ID:
-        return gated(registration, "attached", confirmPolicyAttach);
       case ROLE_DELETE_TOOL_ID:
         return gated(registration, "deleted", confirmRoleDelete);
       case POLICY_DELETE_TOOL_ID:

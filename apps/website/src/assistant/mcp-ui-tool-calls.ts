@@ -249,12 +249,13 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // for one commit applies equally: omitting it here would render the dialog correctly and then 403
   // TOOL_NOT_ALLOWLISTED on every real click.
   "trash_item",
-  // 2026-09-24 (tool-design audit F3) — tools that grant privileges, send data out, spend money or
-  // can't be undone now ask first through `requireHumanConfirm` (`contracts/core/human-confirm.ts`),
-  // which opens the same held-open exchange as every entry above. Without these entries every
-  // Confirm/Cancel click would 403 with TOOL_NOT_ALLOWLISTED.
-  "identity_role_assign",
-  "identity_policy_attach",
+  // 2026-09-24 (tool-design audit F3; narrowed the same day to the owner's "only permanent deletes
+  // confirm" rule — webhooks_create_subscription/sites_duplicate_site/media_generate_asset/
+  // identity_role_assign/identity_policy_attach were gated too, then backed out): the identity
+  // tools that delete for good, plus identity_user_create's human-typed-password form, ask first
+  // through `requireHumanConfirm` (`contracts/core/human-confirm.ts`), which opens the same
+  // held-open exchange as every entry above. Without these entries every Confirm/Cancel click would
+  // 403 with TOOL_NOT_ALLOWLISTED.
   "identity_role_delete",
   "identity_policy_delete",
   "identity_user_create",

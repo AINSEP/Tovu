@@ -29,10 +29,10 @@ import {
 import { buildGatedIdentityRegistrations } from "../tool-registrations.js";
 
 /**
- * @file The identity tools that grant access, delete roles/policies, or create a login ask the
- * human first (2026-09-24 tool-design audit, F3). Role and policy grants can't be taken back, so
- * the dialog names who gets what. A new user's password is typed by the human into the dialog and
- * never passes through the model.
+ * @file The identity tools that delete a role/policy for good, or create a login, ask the human
+ * first (2026-09-24 tool-design audit, F3; role/policy grant confirms were backed out the same
+ * day — see `tool-registrations.ts`'s own file header). A new user's password is typed by the
+ * human into the dialog and never passes through the model.
  */
 
 const WORKSPACE_ID = "ws-identity-confirm";
@@ -124,42 +124,6 @@ const NO_CHANNEL = (toolId: string) =>
   "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.";
 
 // ---------------------------------------------------------------------------
-// Grants: role assign, policy attach
-// ---------------------------------------------------------------------------
-
-test("identity_role_assign: the dialog names the user and the role and says it can't be undone; nothing is granted until confirm", async () => {
-  const h = await buildHarness();
-  await seedTargets(h);
-
-  const { pending, html, answer } = await raise(h, "identity_role_assign", { principalId: "p-ada", roleId: "r-editor" });
-  assert.match(html, /Give ada the role Editors\?/);
-  assert.match(html, /ada gets every permission the Editors role has\. Roles can&#39;t be unassigned, so this can&#39;t be undone\.|ada gets every permission the Editors role has\. Roles can't be unassigned, so this can't be undone\./);
-  assert.deepEqual(await h.repos.principalRoles.listByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: "p-ada" }), []);
-
-  answer({ decision: "confirm" });
-  assert.deepEqual(await pending, { assigned: { principalId: "p-ada", roleId: "r-editor" } });
-});
-
-test("identity_role_assign: cancel grants nothing", async () => {
-  const h = await buildHarness();
-  await seedTargets(h);
-  const { pending, answer } = await raise(h, "identity_role_assign", { principalId: "p-ada", roleId: "r-editor" });
-  answer({ decision: "cancel" });
-  assert.deepEqual(await pending, { assigned: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
-  assert.deepEqual(await h.repos.principalRoles.listByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: "p-ada" }), []);
-});
-
-test("identity_policy_attach: the dialog names the user and the policy; cancel attaches nothing", async () => {
-  const h = await buildHarness();
-  await seedTargets(h);
-  const { pending, html, answer } = await raise(h, "identity_policy_attach", { principalId: "p-ada", policyId: "pol-review" });
-  assert.match(html, /Give ada the permissions in the policy Reviewers\?/);
-  answer({ decision: "cancel" });
-  assert.deepEqual(await pending, { attached: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
-  assert.deepEqual(await h.repos.principalPolicies.listByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: "p-ada" }), []);
-});
-
-// ---------------------------------------------------------------------------
 // Deletes: role, policy
 // ---------------------------------------------------------------------------
 
@@ -189,19 +153,16 @@ test("identity_policy_delete: the dialog names the policy; cancel keeps it", asy
   assert.ok(await h.repos.policies.findById({ workspaceId: WORKSPACE_ID, id: "pol-review" }));
 });
 
-test("every gated grant/delete is refused outright with no emitSurface", async () => {
+test("every gated delete/create is refused outright with no emitSurface", async () => {
   const h = await buildHarness();
   await seedTargets(h);
   for (const [toolId, input] of [
-    ["identity_role_assign", { principalId: "p-ada", roleId: "r-editor" }],
-    ["identity_policy_attach", { principalId: "p-ada", policyId: "pol-review" }],
     ["identity_role_delete", { roleId: "r-editor" }],
     ["identity_policy_delete", { policyId: "pol-review" }],
     ["identity_user_create", { username: "newcomer" }],
   ] as const) {
     await assert.rejects(() => h.tools.get(toolId)!.handler(ctx(h, input)), { name: "ToolInputError", message: NO_CHANNEL(toolId) }, toolId);
   }
-  assert.deepEqual(await h.repos.principalRoles.listByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: "p-ada" }), []);
   assert.ok(await h.repos.roles.findById({ workspaceId: WORKSPACE_ID, id: "r-editor" }));
 });
 
