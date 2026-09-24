@@ -17,7 +17,7 @@
     "@jini-ai/agentic": "^0.3.6",
     "@jini-ai/chat": "^0.3.7",
     "@jini-ai/protocol": "^0.3.0",
-    "@jini-ai/ui": "^0.3.7",
+    "@jini-ai/ui": "^0.3.10",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
