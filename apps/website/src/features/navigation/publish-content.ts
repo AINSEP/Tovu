@@ -1,11 +1,24 @@
+import { executeCommand, ForbiddenError } from "@jini-ai/cms/core";
+import type { AuthorizeFn, ChangeSetRepoPort, JsonObject, OutboxPort } from "@jini-ai/cms/core";
+
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
-import type { PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler } from "#src/features/publish-content/type-registry";
+import type {
+  EntityReplacement,
+  PackedEntity,
+  PublishContentContributor,
+  PublishContentDeps,
+  PublishContentHandler,
+  ReferenceHolder,
+  RepointResult,
+} from "#src/features/publish-content/type-registry";
 
 import { importMenuEntity } from "./import-menu.js";
 import type { ImportMenuEntityDeps } from "./import-menu.js";
-import { MenuConflictError, MenuNotFoundError, MenuValidationError, validateAndCloneTree } from "./index.js";
-import type { MenuStatus, NavMenuDoc, NavMenuEntry } from "./index.js";
+import { menuHoldersReferencing, repointMenuItems } from "./repoint-menu-refs.js";
+import type { MenuRepointReplacement } from "./repoint-menu-refs.js";
+import { MenuConflictError, MenuNotFoundError, MenuValidationError, updateMenuTree, validateAndCloneTree } from "./index.js";
+import type { MenuRepoPort, MenuStatus, NavMenuDoc, NavMenuEntry } from "./index.js";
 
 /**
  * @file S3 of `ADS-memory/.local-artifacts/publish-types-plan-2026-09-24.md` — `menu`'s
@@ -247,6 +260,172 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
     }
   }
 
+  /**
+   * R3 (`plan-publish-repoint-menus-2026-09-24.md` §2.1/§2.2) — read-only: every live menu with at
+   * least one item, at any depth, whose `entryRef.entryId` is one of `ids`. Delegates the tree walk
+   * to {@link menuHoldersReferencing} (`./repoint-menu-refs.js`) over a single `menuRepo.list()` read
+   * — the planner (`planner.ts`) calls this at most once per plan, with every retire-target id
+   * collected across the whole report, never once per row.
+   * @complexity O(n) over every item across every live menu (n = total item count including
+   * descendants) via {@link menuHoldersReferencing}, plus one repo list call.
+   */
+  async function referencesTo(ids: readonly string[]): Promise<readonly ReferenceHolder[]> {
+    const menuRepo = deps.menuRepo;
+    if (!menuRepo) return [];
+    const menus = await menuRepo.list({ workspaceId: deps.workspaceId });
+    return menuHoldersReferencing(menus, ids);
+  }
+
+  /**
+   * R3 §2.3/§2.4 — the write side: for every live menu (from `menuRepo.list()`) not named in
+   * `input.skipIds` that has at least one `entryRef` matching a replacement's `oldId`, rewrites those
+   * links to the matching `newId` through `updateMenuTree`, wrapped in `executeCommand` exactly like
+   * `retire()` (`features/post/publish-content.ts`) wraps its own domain write — one revertible,
+   * audited change set per menu.
+   *
+   * A pre-check against the `menuRepo.list()` snapshot already in hand skips any menu with nothing to
+   * change before spending a second repo round-trip on it. The actual write happens in
+   * {@link repointOneMenu}, which re-reads that ONE menu fresh (never trusting this snapshot) so a
+   * retry after a concurrency conflict sees whatever has actually landed. A failure repointing one
+   * menu — a denied grant, an edit that keeps conflicting — never aborts the pass or throws: every
+   * other menu is still attempted, and the failure becomes one line in
+   * {@link RepointResult.notUpdated}, per this method's own contract (`type-registry.ts`) — the
+   * content this run published already landed, so a repoint failure must only ever be reported, never
+   * fail the run.
+   *
+   * @complexity O(m) items scanned across the `menuRepo.list()` snapshot for the pre-check (m = total
+   * item count across live menus), plus up to 2 repo round-trips and one `executeCommand` per menu
+   * that actually needs a write.
+   */
+  async function repointReferences(input: {
+    replacements: readonly EntityReplacement[];
+    skipIds: ReadonlySet<string>;
+    principalId: string;
+    runId: string;
+  }): Promise<RepointResult> {
+    const menuRepo = deps.menuRepo;
+    const { changeSets, authorize, outbox } = deps;
+    if (!menuRepo || !changeSets || !authorize || !outbox) {
+      throw new Error(
+        `publish-content: ${entityType}.repointReferences() requires PublishContentDeps.menuRepo, ` +
+          ".changeSets, .authorize and .outbox — wire them from the real apply-loop composition root " +
+          "(features/publish-content/apply-loop.ts)."
+      );
+    }
+
+    const replacementByOldId = new Map<string, MenuRepointReplacement>(
+      input.replacements.map((replacement) => [replacement.oldId, { newId: replacement.newId, entityType: replacement.entityType }] as const)
+    );
+
+    const menus = await menuRepo.list({ workspaceId: deps.workspaceId });
+    const changeSetIds: string[] = [];
+    let linksUpdated = 0;
+    const notUpdated: string[] = [];
+
+    for (const menu of menus) {
+      if (input.skipIds.has(menu.id)) continue;
+      if (repointMenuItems(menu.doc.items, replacementByOldId).count === 0) continue;
+
+      const outcome = await repointOneMenu({
+        menuRepo,
+        changeSets,
+        authorize,
+        outbox,
+        menuId: menu.id,
+        replacementByOldId,
+        principalId: input.principalId,
+        runId: input.runId,
+      });
+      if (outcome.kind === "written") {
+        changeSetIds.push(outcome.changeSetId);
+        linksUpdated += outcome.count;
+      } else if (outcome.kind === "not-updated") {
+        notUpdated.push(outcome.message);
+      }
+    }
+
+    return { changeSetIds, linksUpdated, notUpdated };
+  }
+
+  /**
+   * One menu's own repoint attempt, retried once on an optimistic-concurrency conflict. Each attempt
+   * re-reads the menu FRESH (never the caller's `menuRepo.list()` snapshot) and recomputes the
+   * repointed tree against that read, so a retry sees whatever landed since the previous attempt —
+   * mirroring `retire()`'s (`features/post/publish-content.ts`) "fresh read right before the write"
+   * discipline, one level up (per-attempt here, rather than inside `captureInverse` itself, since this
+   * loop's retry needs the same fresh read to decide whether there is still anything to write).
+   *
+   * `MenuConflictError` on the first attempt retries once; a second conflict, or a `ForbiddenError`
+   * from `executeCommand`'s own authorization gate (denying `admin.menus.update`), ends the attempt as
+   * a {@link RepointResult.notUpdated} line rather than throwing — see {@link repointReferences}'s own
+   * doc for why a repoint failure must never fail the surrounding publish run. Any other thrown error
+   * is a genuine fault and is never swallowed.
+   *
+   * @complexity O(1) repo calls per attempt (bounded at 2 attempts) plus `repointMenuItems`'s own O(n)
+   * tree walk (n = this one menu's item count) and `executeCommand`'s own cost.
+   */
+  async function repointOneMenu(input: {
+    menuRepo: MenuRepoPort;
+    changeSets: ChangeSetRepoPort;
+    authorize: AuthorizeFn;
+    outbox: OutboxPort;
+    menuId: string;
+    replacementByOldId: ReadonlyMap<string, MenuRepointReplacement>;
+    principalId: string;
+    runId: string;
+  }): Promise<
+    { kind: "written"; changeSetId: string; count: number } | { kind: "not-updated"; message: string } | { kind: "no-op" }
+  > {
+    const MAX_ATTEMPTS = 2;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+      const menu = await input.menuRepo.findById({ workspaceId: deps.workspaceId, id: input.menuId });
+      if (!menu) return { kind: "no-op" }; // vanished since the snapshot — nothing left to repoint
+
+      const repointed = repointMenuItems(menu.doc.items, input.replacementByOldId);
+      if (repointed.count === 0) return { kind: "no-op" }; // already resolved (this attempt or a peer)
+
+      try {
+        const { changeSetId } = await executeCommand({
+          deps: { clock: deps.clock, idGen: deps.idGen, changeSets: input.changeSets, outbox: input.outbox, authorize: input.authorize },
+          command: {
+            workspaceId: deps.workspaceId,
+            actor: { id: input.principalId, kind: "user" },
+            summary: `Repoint menu '${menu.title}' links after publish run ${input.runId}`,
+            permission: "admin.menus.update",
+            idempotencyKey: `publish-content:v1:repoint:${input.runId}:${menu.id}`,
+          },
+          mutation: {
+            entityType: "menu",
+            entityId: menu.id,
+            operation: "update",
+            captureInverse: async () => ({ items: menu.doc.items } as unknown as JsonObject),
+            execute: () =>
+              updateMenuTree({
+                deps: { repo: input.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: input.outbox },
+                input: { workspaceId: deps.workspaceId, id: menu.id, expectedVersion: menu.version, items: repointed.items },
+              }),
+            captureEntityVersion: (result) => result.menu.version,
+          },
+        });
+        return { kind: "written", changeSetId, count: repointed.count };
+      } catch (err) {
+        if (err instanceof MenuConflictError) {
+          if (attempt >= MAX_ATTEMPTS) {
+            return { kind: "not-updated", message: `Menu '${menu.title}' was not updated: it changed during publish.` };
+          }
+          continue; // one retry, against a fresh read at the top of the loop
+        }
+        if (err instanceof ForbiddenError) {
+          return { kind: "not-updated", message: "Menu links were not updated: this publishing grant doesn't cover menus." };
+        }
+        throw err; // a genuine fault — never swallowed
+      }
+    }
+    // Unreachable: the loop above always returns within MAX_ATTEMPTS iterations. Kept for TypeScript's
+    // control-flow analysis, which cannot see that the last iteration always returns or continues.
+    throw new Error("publish-content: menu.repointOneMenu() exhausted its retry loop without returning");
+  }
+
   return {
     entityType,
     schemaVersion,
@@ -259,6 +438,8 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
     inspect,
     precheck,
     apply,
+    referencesTo,
+    repointReferences,
   };
 }
 

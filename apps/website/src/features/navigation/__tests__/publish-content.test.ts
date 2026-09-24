@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
 
@@ -18,6 +19,11 @@ import { contributeMenusPublish } from "../publish-content.js";
  * `InMemoryMenuRepo`/`InMemoryNavLocationBindingRepo` directly (not the host's trash-aware wrapper),
  * mirroring `redirects/__tests__/publish-content.test.ts`'s "real repo, real chokepoint" convention —
  * these assertions exercise the SAME `importMenuEntity` the write chokepoint itself runs.
+ *
+ * R3 (`ADS-memory/.local-artifacts/plan-publish-repoint-menus-2026-09-24.md` §3) adds
+ * `referencesTo()`/`repointReferences()` coverage below, using the same repos plus a real
+ * `InMemoryChangeSetRepo` and an `authorize` stub — the same "real chokepoint" convention `retire()`'s
+ * own tests (`features/post/__tests__/publish-content.test.ts`) use for `executeCommand`.
  */
 
 const WORKSPACE_ID = "workspace-1";
@@ -234,4 +240,214 @@ test("precheck() reports the tree validator's own message for an invalid doc", a
   const badDoc = { type: "menu", version: 1, items: [{ id: "", label: "Bad", target: { kind: "url", href: "/ok" } }] };
   const reason = await handler.precheck(packedEntity("menu-bad", menuState({ doc: badDoc })));
   assert.equal(reason, "every menu item requires a non-empty id");
+});
+
+// ---------------------------------------------------------------------------
+// referencesTo() / repointReferences() — R3
+// (`ADS-memory/.local-artifacts/plan-publish-repoint-menus-2026-09-24.md` §2.1-§2.4, §3 R3)
+// ---------------------------------------------------------------------------
+
+function menuRow(overrides: Partial<NavMenuEntry> & Pick<NavMenuEntry, "id">): NavMenuEntry {
+  return {
+    workspaceId: WORKSPACE_ID,
+    ...menuState(),
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    version: 1,
+    ...overrides,
+  } as NavMenuEntry;
+}
+
+/** Same as {@link makePublishDeps} plus a real `changeSets`/`authorize` — what `repointReferences()`
+ *  actually requires (see its own doc). `authorize` always allows unless overridden. */
+function makeRepointDeps(input: {
+  menuRepo: MenuRepoPort;
+  authorize?: PublishContentDeps["authorize"];
+}): PublishContentDeps & { changeSets: InMemoryChangeSetRepo } {
+  const outbox = new InMemoryOutbox();
+  return {
+    ...makePublishDeps({ menuRepo: input.menuRepo, outbox }),
+    changeSets: new InMemoryChangeSetRepo([], [], outbox),
+    authorize: input.authorize ?? (async () => ({ allowed: true, reason: "test-always-allow" })),
+  };
+}
+
+/**
+ * A `MenuRepoPort` wrapper whose `findById` hands back a version one higher on every call after the
+ * first — simulating a concurrent edit landing between `repointOneMenu`'s own read (to compute
+ * `expectedVersion`) and `updateMenuTree`'s internal re-read inside `execute()`. Used only by the
+ * "changed during publish" test below; every other method delegates unchanged.
+ */
+class VersionRacingMenuRepo implements MenuRepoPort {
+  private readonly inner: MenuRepoPort;
+  private calls = 0;
+
+  constructor(rows: NavMenuEntry[]) {
+    this.inner = new InMemoryMenuRepo(rows);
+  }
+
+  async findById(required: { workspaceId: string; id: string }): Promise<NavMenuEntry | null> {
+    const row = await this.inner.findById(required);
+    if (!row) return row;
+    this.calls += 1;
+    return { ...row, version: row.version + (this.calls - 1) };
+  }
+
+  findBySlug(required: { workspaceId: string; slug: string }) {
+    return this.inner.findBySlug(required);
+  }
+
+  list(required: { workspaceId: string }) {
+    return this.inner.list(required);
+  }
+
+  save(record: NavMenuEntry) {
+    return this.inner.save(record);
+  }
+
+  remove(required: { workspaceId: string; id: string }) {
+    return this.inner.remove(required);
+  }
+}
+
+function entryRefItem(id: string, entryId: string) {
+  return { id, label: "About", target: { kind: "entryRef" as const, entryId } };
+}
+
+test("referencesTo() finds a menu whose nested entryRef targets one of the given ids", async () => {
+  const menuRepo = new InMemoryMenuRepo([
+    menuRow({
+      id: "menu-header",
+      ...menuState({
+        title: "Header",
+        doc: {
+          type: "menu",
+          version: 1,
+          items: [
+            { id: "item-1", label: "Company", target: { kind: "url", href: "/contact" }, children: [entryRefItem("item-1a", "post-about")] },
+          ],
+        },
+      }),
+    }),
+  ]);
+  const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
+
+  const holders = await handler.referencesTo!(["post-about"]);
+
+  assert.deepEqual(holders, [{ entityType: "menu", entityId: "menu-header", entityLabel: "Header", referencedId: "post-about" }]);
+});
+
+test("referencesTo() finds nothing for a menu whose only item is a url target", async () => {
+  const menuRepo = new InMemoryMenuRepo([
+    menuRow({
+      id: "menu-footer",
+      ...menuState({ title: "Footer", doc: { type: "menu", version: 1, items: [{ id: "item-1", label: "Contact", target: { kind: "url", href: "/contact" } }] } }),
+    }),
+  ]);
+  const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
+
+  const holders = await handler.referencesTo!(["post-about"]);
+  assert.deepEqual(holders, []);
+});
+
+test("repointReferences() rewrites a live menu's entryRef and records one revertible change set", async () => {
+  const menuRepo = new InMemoryMenuRepo([
+    menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }), version: 5 }),
+  ]);
+  const deps = makeRepointDeps({ menuRepo });
+  const handler = contributeMenusPublish().build(deps);
+
+  const result = await handler.repointReferences!({
+    replacements: [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }],
+    skipIds: new Set(),
+    principalId: "operator-1",
+    runId: "run-1",
+  });
+
+  assert.equal(result.linksUpdated, 1);
+  assert.equal(result.changeSetIds.length, 1);
+  assert.deepEqual(result.notUpdated, []);
+
+  const landed = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-header" });
+  assert.equal((landed?.doc.items[0]?.target as { entryId: string }).entryId, "post-about-new");
+
+  const recorded = await deps.changeSets.findById({ workspaceId: WORKSPACE_ID, id: result.changeSetIds[0]! });
+  assert.equal(recorded?.changeSet.status, "applied");
+  assert.equal(recorded?.items[0]?.entityType, "menu");
+  assert.equal(recorded?.items[0]?.operation, "update");
+  assert.deepEqual(recorded?.items[0]?.inversePayload, { items: [entryRefItem("item-1", "post-about")] });
+});
+
+test("repointReferences() leaves a menu named in skipIds untouched", async () => {
+  const menuRepo = new InMemoryMenuRepo([
+    menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }) }),
+  ]);
+  const deps = makeRepointDeps({ menuRepo });
+  const handler = contributeMenusPublish().build(deps);
+
+  const result = await handler.repointReferences!({
+    replacements: [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }],
+    skipIds: new Set(["menu-header"]),
+    principalId: "operator-1",
+    runId: "run-1",
+  });
+
+  assert.equal(result.linksUpdated, 0);
+  assert.deepEqual(result.changeSetIds, []);
+  const landed = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-header" });
+  assert.equal((landed?.doc.items[0]?.target as { entryId: string }).entryId, "post-about", "a skipped menu must be unchanged");
+});
+
+test("repointReferences() called a second time finds nothing left to repoint — no new change set", async () => {
+  const menuRepo = new InMemoryMenuRepo([
+    menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }) }),
+  ]);
+  const deps = makeRepointDeps({ menuRepo });
+  const handler = contributeMenusPublish().build(deps);
+  const replacements = [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }];
+
+  const first = await handler.repointReferences!({ replacements, skipIds: new Set(), principalId: "operator-1", runId: "run-1" });
+  assert.equal(first.linksUpdated, 1);
+
+  const second = await handler.repointReferences!({ replacements, skipIds: new Set(), principalId: "operator-1", runId: "run-2" });
+  assert.equal(second.linksUpdated, 0);
+  assert.deepEqual(second.changeSetIds, []);
+});
+
+test("repointReferences() reports a denied authorization without writing", async () => {
+  const menuRepo = new InMemoryMenuRepo([
+    menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }) }),
+  ]);
+  const deps = makeRepointDeps({ menuRepo, authorize: async () => ({ allowed: false, reason: "grant excludes menus" }) });
+  const handler = contributeMenusPublish().build(deps);
+
+  const result = await handler.repointReferences!({
+    replacements: [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }],
+    skipIds: new Set(),
+    principalId: "operator-1",
+    runId: "run-1",
+  });
+
+  assert.deepEqual(result.notUpdated, ["Menu links were not updated: this publishing grant doesn't cover menus."]);
+  assert.equal(result.linksUpdated, 0);
+  const landed = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-header" });
+  assert.equal((landed?.doc.items[0]?.target as { entryId: string }).entryId, "post-about", "a denied authorization must never write");
+});
+
+test("repointReferences() skips a menu that keeps conflicting after one retry, with the exact operator-facing line", async () => {
+  const menuRepo = new VersionRacingMenuRepo([
+    menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }) }),
+  ]);
+  const deps = makeRepointDeps({ menuRepo });
+  const handler = contributeMenusPublish().build(deps);
+
+  const result = await handler.repointReferences!({
+    replacements: [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }],
+    skipIds: new Set(),
+    principalId: "operator-1",
+    runId: "run-1",
+  });
+
+  assert.deepEqual(result.notUpdated, ["Menu 'Header' was not updated: it changed during publish."]);
+  assert.equal(result.linksUpdated, 0);
+  assert.deepEqual(result.changeSetIds, []);
 });
