@@ -10,8 +10,7 @@
  *
  * Widened this dispatch (`assistant/tool-registrations.ts`'s wiring pass):
  *   - `inputSchema` added to `AgentToolDefinition` (optional, mirroring
- *     `features/content-types/agent-tools.ts` — `backup_execute_restore` is never wired, so it
- *     carries no schema).
+ *     `features/content-types/agent-tools.ts`).
  *   - `backup_create_restore_point` is declared here (pre-existing, SPEC-019) but deliberately left
  *     UNWIRED by `buildRecoveryRegistrations` — see that function's own comment. Short version: this
  *     tool id collides with `features/database/agent-tools.ts`'s own `backup_create_restore_point`
@@ -45,8 +44,7 @@ export interface AgentToolDefinition {
   /**
    * JSON Schema for this tool's `input`, published via `ToolDescriptor.inputSchema`
    * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one). Optional,
-   * matching `features/content-types/agent-tools.ts`'s convention — `backup_execute_restore` is
-   * never wired at all, so it carries none.
+   * matching `features/content-types/agent-tools.ts`'s convention.
    */
   inputSchema?: Readonly<Record<string, unknown>>;
 }
@@ -134,12 +132,17 @@ export const recoveryAgentToolCatalog: AgentToolDefinition[] = [
     inputSchema: PLAN_RESTORE_SCHEMA,
   },
   {
+    // Asks the human in chat first (2026-09-24): wired with `humanConfirmedToolHandler`, which
+    // shows a confirm dialog and, only on the human's own click, confirms as that human and
+    // executes as the agent acting for them. The model never sees or supplies a token.
     name: "backup_execute_restore",
     description:
-      "Runs a restore using a token a human already minted through the admin UI's own restore ceremony. This tool never mints that token itself and never runs without one.",
+      "Replaces this site's current data with a restore point. Shows the user a confirm dialog first and only runs if they confirm. " +
+      "No restore point is taken first, so it can't be undone. Call backup_plan_restore first to see what would be lost.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "backup.restore" },
     actorClassRule: "confirmer-must-equal-own-delegatedBy",
+    inputSchema: PLAN_RESTORE_SCHEMA,
   },
   {
     // Pre-existing (SPEC-019) catalog entry, deliberately left UNWIRED — see this file's header

@@ -1,11 +1,12 @@
 /**
  * @file Recovery's half of ADR-049 Decision 4 (SPEC-019/ADR-045): maps the wireable subset of
  * `agent-tools.ts`'s seven catalog entries onto the restore-point/capabilities/plan/status/deep-link
- * reads, as `ToolRegistration`s. Reads only — nothing here mutates.
+ * reads, as `ToolRegistration`s, plus `backup_execute_restore` (2026-09-24), which asks the human in
+ * chat first and only runs on their click — see `contracts/core/human-confirm.ts`'s
+ * `humanConfirmedToolHandler`.
  *
- * Two entries are declared unwired, each with its reason on {@link UNWIRED_RECOVERY_TOOL_IDS}: the
- * token-gated `backup_execute_restore`, and `backup_create_restore_point`, whose id Recovery shares
- * with Database. That second one is a genuine cross-domain id collision (pre-existing, not
+ * One entry is declared unwired, with its reason on {@link UNWIRED_RECOVERY_TOOL_IDS}:
+ * `backup_create_restore_point`, whose id Recovery shares with Database. That is a genuine cross-domain id collision (pre-existing, not
  * introduced by this wiring), resolved by wiring it in Database only — see the constant's own
  * comment, and `assistant/tool-registrations.ts`'s merge check, which now fails the build if any
  * future pair of domains both wire one id.
@@ -34,9 +35,11 @@ import {
 // than redacting it into a message-stripped 500.
 import { ToolInputError } from "@jini-ai/core";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
-import { plan as gatewayPlan } from "../../contracts/core/gated-mutations/gateway.js";
+import { confirm as gatewayConfirm, execute as gatewayExecute, plan as gatewayPlan } from "../../contracts/core/gated-mutations/gateway.js";
 import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
-import { isOperationInFlight } from "../../contracts/core/operation-lock.js";
+import { acquireOperationLock, isOperationInFlight, releaseOperationLock } from "../../contracts/core/operation-lock.js";
+import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
 import type { ToolContributor } from "#src/assistant/index";
 import { buildRestoreHooks, toRecoveryResult } from "./gated-hooks.js";
 import type {
@@ -56,7 +59,7 @@ import {
   type DeepLinkRestorePointLookupPort,
 } from "./deep-link.js";
 import { computeDisclosure, type DisclosureWatermarkSourcePort } from "./disclosure.js";
-import { planRestore } from "./recovery-orchestrator.js";
+import { confirmRestore, executeRestore, planRestore } from "./recovery-orchestrator.js";
 import { resolveDegradedBanner } from "./ui/degraded-banners.js";
 
 const CATALOG_BY_ID = indexCatalogById(recoveryAgentToolCatalog);
@@ -106,7 +109,12 @@ export const recoveryDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
   // -> resolveDeepLinkContext (deep-link.ts): one DeepLinkRestorePointLookupPort read; never
   //    mutates the input envelope (see that function's own doc comment).
   ["recovery_resolve_deep_link", "none"],
+  // -> gateway confirm() (as the human, after their click) + execute() via buildRestoreHooks,
+  //    inside executeRestore's operation lock: swaps the site's data for the restore point's.
+  ["backup_execute_restore", "mutates-durable-state"],
 ]);
+
+const RESTORE_TOOL_ID = "backup_execute_restore";
 
 /** Mirrors `routes/admin/recovery/disclosure.ts`'s own `COVERED_CATEGORIES` constant exactly — that
  * route-local const is not exported, so this is a deliberate, disclosed duplication rather than a
@@ -114,11 +122,6 @@ export const recoveryDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
 const RECOVERY_DISCLOSURE_COVERED_CATEGORIES = ["posts_pages", "plugin_table"] as const;
 
 const UNWIRED_RECOVERY_TOOL_IDS = new Set([
-  // EXCLUDED BY DESIGN: token-gated, and `assertToolIsWirable` refuses to build it anyway.
-  // A bad agent-triggered restore can roll back every other domain's data at once, irreversibly
-  // from the running process's point of view — the default here is exclude, mirroring
-  // `database_execute_migrate_forward`'s identical exclusion.
-  "backup_execute_restore",
   // Pre-existing (SPEC-019) catalog entry, deliberately left unwired HERE: this id collides with
   // `features/database/agent-tools.ts`'s own `backup_create_restore_point`, which
   // `buildDatabaseRegistrations` already wires as the canonical tool (ADR-041 §6 names the
@@ -179,7 +182,59 @@ function requireDeepLinkEnvelope(value: unknown): DatabaseContextEnvelope {
   };
 }
 
-export function buildRecoveryRegistrations(routeDeps: RecoveryToolDeps): ToolRegistration[] {
+export function buildRecoveryRegistrations(
+  routeDeps: RecoveryToolDeps,
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+): ToolRegistration[] {
+  const restoreHooks = (actorId: string, restorePointId: string) =>
+    buildRestoreHooks({
+      workspaceId: routeDeps.workspaceId,
+      actorId,
+      restorePointId,
+      clock: routeDeps.clock,
+      idGen: routeDeps.idGen,
+      restorePointsRepo: routeDeps.restorePointsRepo,
+      databaseLedgerRepo: routeDeps.databaseLedgerRepo,
+      dbOps: routeDeps.dbOps,
+      migrationRunsRepo: routeDeps.migrationRunsRepo,
+      siteStatus: routeDeps.siteStatusRepo,
+    }) as never;
+
+  // Plans a restore as the agent and folds in the discarded-write-window disclosure — shared by
+  // `backup_plan_restore` and the confirm dialog of `backup_execute_restore`.
+  const planRestoreWithDisclosure = async (actorId: string, restorePointId: string) => {
+    const result = await planRestore({
+      deps: {
+        dbOps: {
+          getCapabilities: async () => {
+            const capabilities = await routeDeps.dbOps.getCapabilities();
+            return { costClass: capabilities.restorePoint.costClass, restorePointKind: capabilities.restorePoint.kind };
+          },
+        },
+        gateway: {
+          plan: (input) =>
+            toRecoveryResult(() =>
+              gatewayPlan({
+                deps: routeDeps.gatedMutations.gatewayDeps,
+                principalId: input.principalId,
+                principalKind: input.principalKind,
+                hooks: restoreHooks(actorId, input.restorePointId),
+              }),
+            ),
+        },
+      },
+      input: { principalId: actorId, principalKind: AGENT_TOOL_PRINCIPAL_KIND, restorePointId },
+    });
+
+    if (!result.ok) throw new Error(result.error.message ?? result.error.code);
+
+    const disclosure = await computeDisclosure({
+      deps: { watermarkSource: routeDeps.disclosureWatermarkSource, coveredCategories: RECOVERY_DISCLOSURE_COVERED_CATEGORIES },
+      input: { restorePointId },
+    });
+    return { plan: result.value, disclosure };
+  };
+
   const handlers: Record<string, ToolHandler> = {
     backup_list_restore_points: async (ctx) => {
       requireNoInput(ctx.input);
@@ -206,51 +261,10 @@ export function buildRecoveryRegistrations(routeDeps: RecoveryToolDeps): ToolReg
       // conservative than that route by never skipping the check, rather than reproducing the gap.
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "backup.read", entityType: "restore-point" });
 
-      const result = await planRestore({
-        deps: {
-          dbOps: {
-            getCapabilities: async () => {
-              const capabilities = await routeDeps.dbOps.getCapabilities();
-              return { costClass: capabilities.restorePoint.costClass, restorePointKind: capabilities.restorePoint.kind };
-            },
-          },
-          gateway: {
-            plan: (input) =>
-              toRecoveryResult(() =>
-                gatewayPlan({
-                  deps: routeDeps.gatedMutations.gatewayDeps,
-                  principalId: input.principalId,
-                  principalKind: input.principalKind,
-                  hooks: buildRestoreHooks({
-                    workspaceId: routeDeps.workspaceId,
-                    actorId: ctx.principal.id,
-                    restorePointId: input.restorePointId,
-                    clock: routeDeps.clock,
-                    idGen: routeDeps.idGen,
-                    restorePointsRepo: routeDeps.restorePointsRepo,
-                    databaseLedgerRepo: routeDeps.databaseLedgerRepo,
-                    dbOps: routeDeps.dbOps,
-                    migrationRunsRepo: routeDeps.migrationRunsRepo,
-                    siteStatus: routeDeps.siteStatusRepo,
-                  }) as never,
-                }),
-              ),
-          },
-        },
-        input: { principalId: ctx.principal.id, principalKind: AGENT_TOOL_PRINCIPAL_KIND, restorePointId },
-      });
-
-      if (!result.ok) throw new Error(result.error.message ?? result.error.code);
-
       // Folds in the discarded-write-window disclosure, matching this tool's own catalog
       // description ("including the discarded-write-window disclosure") — the human admin UI reads
       // this from a separate `/recovery/disclosure` request; a tool call composes both in one turn.
-      const disclosure = await computeDisclosure({
-        deps: { watermarkSource: routeDeps.disclosureWatermarkSource, coveredCategories: RECOVERY_DISCLOSURE_COVERED_CATEGORIES },
-        input: { restorePointId },
-      });
-
-      return { plan: result.value, disclosure };
+      return planRestoreWithDisclosure(ctx.principal.id, restorePointId);
     },
 
     recovery_get_status: async (ctx) => {
@@ -285,6 +299,87 @@ export function buildRecoveryRegistrations(routeDeps: RecoveryToolDeps): ToolReg
         input: { principalId: ctx.principal.id, principalKind: AGENT_TOOL_PRINCIPAL_KIND, envelope },
       });
     },
+
+    // Plans as the agent, asks the human, then confirms as the human and executes as the agent
+    // inside the same operation lock the admin execute route uses. No restore point is taken
+    // first, so the dialog says the current data is replaced and it can't be undone. The human's
+    // confirm click is the disclosure acknowledgment (CIC U-002).
+    [RESTORE_TOOL_ID]: humanConfirmedToolHandler(surfaces, {
+      flag: "restored",
+      prepare: async (ctx) => {
+        const input = requireInputRecord(ctx.input);
+        refuseUnexpectedKeys(input, ["restorePointId"]);
+        const restorePointId = requireString(input, "restorePointId");
+        await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "backup.restore", entityType: "restore-point" });
+        const { plan } = await planRestoreWithDisclosure(ctx.principal.id, restorePointId);
+        const { items } = await listRestorePoints({ repo: routeDeps.restorePointsRepo });
+        const createdAt = items.find((item) => item.id === restorePointId)?.createdAt;
+        return { restorePointId, plan: plan as { planId: string; planHash: string }, createdAt };
+      },
+      dialog: ({ restorePointId, createdAt }) => ({
+        toolId: RESTORE_TOOL_ID,
+        errorCode: "RECOVERY",
+        title: "Restore the site's data?",
+        details: [{ label: "Restore point", value: createdAt ? `${restorePointId} (${createdAt})` : restorePointId }],
+        warning:
+          "Your current data will be replaced with this restore point. Anything changed since then is lost. " +
+          "No restore point is taken first, so this can't be undone.",
+        danger: true,
+        confirmLabel: "Replace current data",
+      }),
+      run: async (ctx, { restorePointId, plan }, confirmer) => {
+        const hooks = restoreHooks(ctx.principal.id, restorePointId);
+        const confirmed = await confirmRestore({
+          deps: {
+            gateway: {
+              confirm: (params) =>
+                toRecoveryResult(async () => {
+                  const record = await gatewayConfirm({
+                    deps: routeDeps.gatedMutations.gatewayDeps,
+                    principalId: confirmer.id,
+                    principalKind: confirmer.kind,
+                    hooks,
+                    planId: params.planId,
+                    planHash: params.planHash,
+                  });
+                  return { confirmationToken: record.confirmationToken };
+                }),
+            },
+          },
+          input: { principalId: confirmer.id, principalKind: confirmer.kind, planId: plan.planId, planHash: plan.planHash, disclosureAcknowledged: true },
+        });
+        if (!confirmed.ok) throw new Error(confirmed.error.message ?? confirmed.error.code);
+        const { confirmationToken } = confirmed.value as { confirmationToken: string };
+
+        const executed = await executeRestore({
+          deps: {
+            gateway: {
+              execute: (params) =>
+                toRecoveryResult(() =>
+                  gatewayExecute({
+                    deps: routeDeps.gatedMutations.gatewayDeps,
+                    principalId: ctx.principal.id,
+                    principalKind: AGENT_TOOL_PRINCIPAL_KIND,
+                    hooks,
+                    confirmationToken: params.confirmationToken,
+                  }),
+                ),
+            },
+            operationLock: { acquireOperationLock, releaseOperationLock },
+            clock: routeDeps.clock,
+          },
+          input: {
+            principalId: ctx.principal.id,
+            principalKind: AGENT_TOOL_PRINCIPAL_KIND,
+            confirmationToken,
+            siteId: routeDeps.workspaceId,
+            delegatedByPrincipalId: confirmer.id,
+          },
+        });
+        if (!executed.ok) throw new Error(executed.error.message ?? executed.error.code);
+        return { restored: true, ...executed.value };
+      },
+    }),
   };
 
   return buildDomainRegistrations({

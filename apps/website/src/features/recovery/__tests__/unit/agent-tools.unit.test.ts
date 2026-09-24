@@ -17,10 +17,18 @@ test("AC-33/INV-06: the catalog exposes backup_plan_restore and backup_execute_r
   assert.ok(names.includes("backup_plan_restore"));
   assert.ok(names.includes("backup_execute_restore"));
   assert.equal(names.includes("backup_confirm_restore"), false, "no confirm()-equivalent tool may ever exist (REQ-23, SPEC-016 REQ-22)");
+  // backup_execute_restore (2026-09-24) asks the user in chat: its description names the USER as
+  // the one who confirms. No other description may mention confirmation at all.
   assert.equal(
-    recoveryAgentToolCatalog.some((t) => /confirm/i.test(t.description)),
+    recoveryAgentToolCatalog.some((t) => t.name !== "backup_execute_restore" && /confirm/i.test(t.description)),
     false,
     "no tool's description may claim to perform confirmation either"
+  );
+  const execute = recoveryAgentToolCatalog.find((t) => t.name === "backup_execute_restore");
+  assert.equal(
+    execute?.description,
+    "Replaces this site's current data with a restore point. Shows the user a confirm dialog first and only runs if they confirm. " +
+      "No restore point is taken first, so it can't be undone. Call backup_plan_restore first to see what would be lost."
   );
 });
 

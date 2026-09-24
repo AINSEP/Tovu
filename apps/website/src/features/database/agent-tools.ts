@@ -5,8 +5,8 @@
  * Purpose:
  * A static, in-process catalog describing every agent-callable tool this domain exposes and the
  * permission/actor-class rule each one carries. Reads are freely agent-callable under
- * `database.read`; the one destructive tool (`database_execute_migrate_forward`) is token-gated and
- * restricted to `confirmer-must-equal-own-delegatedBy`. Restore is deliberately absent from this
+ * `database.read`; the one destructive tool (`database_execute_migrate_forward`) is token-gated,
+ * restricted to `confirmer-must-equal-own-delegatedBy`, and asks the human in chat before it runs. Restore is deliberately absent from this
  * catalog — an agent asking to "roll back" only ever reaches a guidance/deep-link tool, never a
  * lever (ADR-041 §6, "Restore is a Recovery tool, not a Database tool").
  *
@@ -14,14 +14,13 @@
  * `inputSchema` — this file previously declared id/sideEffects/authorization only, one layer short
  * of what `tool-registrations.ts` requires to actually publish a tool to the model (mirrors
  * `forms/agent-tools.ts`'s `AgentToolDefinition` shape; `inputSchema` stays OPTIONAL, as in
- * `features/content-types/agent-tools.ts`, because 2 of these 9 entries are still declared but
- * deliberately never wired — see `tool-registrations.ts`'s `UNWIRED_DATABASE_TOOL_IDS` for exactly
- * which and why: `database_get_restore_guidance` has no envelope-minting function to compose (only
- * the RECEIVING side, `recovery/deep-link.ts`'s `resolveDeepLinkContext`, exists — building one
- * would mean composing a fresh `correlationId`/`restorePointId`/ledger-event lookup on top of a
- * cross-domain envelope format, new backend work well past a wiring pass, not a natural extension
- * of the read-only introspection adapter below), and `database_execute_migrate_forward` is the
- * token-gated destructive tool this file's own header already excludes.
+ * `features/content-types/agent-tools.ts`, because 1 of these 9 entries is still declared but
+ * deliberately never wired — see `tool-registrations.ts`'s `UNWIRED_DATABASE_TOOL_IDS`:
+ * `database_get_restore_guidance` has no envelope-minting function to compose (only the RECEIVING
+ * side, `recovery/deep-link.ts`'s `resolveDeepLinkContext`, exists — building one would mean
+ * composing a fresh `correlationId`/`restorePointId`/ledger-event lookup on top of a cross-domain
+ * envelope format, new backend work well past a wiring pass, not a natural extension of the
+ * read-only introspection adapter below).
  *
  * A later dispatch built `features/database/adapter.sqlite.ts` (`DatabaseIntrospectionPort`,
  * composed into `RouteDeps` as `databaseIntrospection` in both `server/deps.ts` and `server/app.ts`)
@@ -175,17 +174,17 @@ export function getDatabaseAgentToolCatalog(
       inputSchema: NO_INPUT_SCHEMA,
     },
     {
-      // EXCLUDED BY DESIGN, never wired (tool-registrations.ts's ACTOR_CLASS_RULES_REQUIRING_
-      // CONFIRMATION_TRANSPORT refuses to build any tool carrying this actorClassRule at all, so
-      // this is enforced structurally, not just by omission from a handlers map): running a
-      // migration forward can rewrite schema and data across every domain in this system at once,
-      // and Tovu has no confirmation-token transport an agent can safely be exposed to yet. Left
-      // human-UI-only, mirroring `identity/agent-tools.ts`'s exclusion of `resetUserPassword` and
-      // `features/recovery/agent-tools.ts`'s exclusion of `backup_execute_restore`.
+      // Asks the human in chat first (2026-09-24): wired with `humanConfirmedToolHandler`, which
+      // shows a confirm dialog and, only on the human's own click, confirms as that human and
+      // executes as the agent acting for them. A migrate-forward affects every domain at once, so
+      // it stays gated; the model never sees or supplies a token.
       name: "database_execute_migrate_forward",
-      description: "Executes a previously confirmed forward migration using a human-minted confirmation token. NEVER agent-callable.",
+      description:
+        "Moves this site's database forward to the current schema. Shows the user a confirm dialog first and only runs if they " +
+        "confirm. A restore point is taken first. Call database_plan_migrate_forward first to see the cost class.",
       sideEffects: "mutates-durable-state",
       authorization: { permission: "database.migrate" },
+      inputSchema: NO_INPUT_SCHEMA,
       actorClassRule: "confirmer-must-equal-own-delegatedBy",
     },
     {

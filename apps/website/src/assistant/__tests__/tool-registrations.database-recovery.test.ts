@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { ForbiddenError as CommandForbiddenError, assertToolIsWirable } from "@jini-ai/cms/core";
 import {
@@ -25,6 +26,7 @@ import {
   RestorePointDeepLinkLookup,
 } from "../../features/recovery/repo.memory.js";
 import { buildGatewayDeps } from "../../contracts/core/gated-mutations/composition.js";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type DeliverResult } from "../../contracts/core/tool-surface-exchanges.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
@@ -59,8 +61,8 @@ registerToolContributor(contributeDatabaseTools());
  *
  * Covers: catalog completeness (exactly which entries are wired vs. declared-but-unwired and why),
  * published contract parity (inputSchema/description travel from catalog to descriptor unchanged),
- * the independent risk-metadata cross-check, the confirmation-transport guard blocking
- * `database_execute_migrate_forward`/`backup_execute_restore` structurally, the pass-through
+ * the independent risk-metadata cross-check, the human-confirm gate on
+ * `database_execute_migrate_forward`/`backup_execute_restore` (section 6), the pass-through
  * ToolPolicy, the ADR-021 §2 authorization half (every wired tool reaches the SAME inline
  * `authorize()` check its HTTP route reaches, ahead of any read/write), and two multi-tool
  * workflow tests (one entirely within Database, one spanning Database's create + Recovery's
@@ -235,11 +237,18 @@ function permissionOf(toolId: string): string {
   return (DATABASE_TOOL_IDS.has(id) ? databaseCatalogEntry(id) : recoveryCatalogEntry(id)).authorization.permission;
 }
 
+/** The two human-confirmed execute tools — their authorize/deny checks are in section 6, because a
+ *  call without an `emitSurface` is refused before it could ever finish. */
+const EXECUTE_TOOL_INPUTS: Record<string, (seededId: string) => Record<string, unknown>> = {
+  database_execute_migrate_forward: () => ({}),
+  backup_execute_restore: (id) => ({ restorePointId: id }),
+};
+
 // ---------------------------------------------------------------------------
 // 1. Catalog completeness — wired vs. declared-but-unwired, and the excluded tools stay excluded
 // ---------------------------------------------------------------------------
 
-test("database: exactly the 7 wireable entries are registered", () => {
+test("database: exactly the 8 wireable entries are registered", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual(
     [...databaseRegistrations(deps).keys()].sort(),
@@ -247,6 +256,7 @@ test("database: exactly the 7 wireable entries are registered", () => {
       "backup_create_restore_point",
       "content_read.database_pending_migration",
       "content_read.database_restore_point",
+      "database_execute_migrate_forward",
       "database_get_health",
       "database_get_schema_state",
       "database_plan_migrate_forward",
@@ -256,12 +266,13 @@ test("database: exactly the 7 wireable entries are registered", () => {
   assert.equal(getDatabaseAgentToolCatalog().length, 9, "sanity: the full database catalog is still 9 entries");
 });
 
-test("recovery: exactly the 5 wireable entries are registered, PLUS backup_create_restore_point shows up here too by id membership only — it is Database's handler, not Recovery's own (see the dedicated collision test below)", () => {
+test("recovery: exactly the 6 wireable entries are registered, PLUS backup_create_restore_point shows up here too by id membership only — it is Database's handler, not Recovery's own (see the dedicated collision test below)", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual(
     [...recoveryRegistrations(deps).keys()].sort(),
     [
       "backup_create_restore_point", // Database's wiring; recoveryRegistrations() filters by id membership in recoveryAgentToolCatalog, and this id is catalogued (but not wired) there too.
+      "backup_execute_restore",
       "backup_get_capabilities",
       "backup_plan_restore",
       "content_read.backup_restore_point",
@@ -272,41 +283,32 @@ test("recovery: exactly the 5 wireable entries are registered, PLUS backup_creat
   assert.equal(recoveryAgentToolCatalog.length, 7, "sanity: 5 original SPEC-019 entries + 2 new additions");
 });
 
-test("database_execute_migrate_forward is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification, which is itself a stronger guard than the confirmation-transport check alone (an unclassified tool can never reach that second check at all)", () => {
+const HUMAN_CONFIRMER_REFUSAL = (toolId: string) =>
+  `tool-registrations: '${toolId}' declares actorClassRule 'confirmer-must-equal-own-delegatedBy', which needs a human confirmer — ` +
+  "build its handler with humanConfirmedHandler so a human answers through the host's confirmation transport (see ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT)";
+
+test("database_execute_migrate_forward is registered and classified mutates-durable-state, but refused without its human-confirmed handler", () => {
   const { deps } = fakeRouteDeps();
-  assert.equal(databaseRegistrations(deps).has("database_execute_migrate_forward"), false);
+  assert.equal(databaseRegistrations(deps).has("database_execute_migrate_forward"), true);
+  // The handler-less check stands for "a plain handler": still refused at build time.
   assert.throws(
     () => assertRiskMetadataIsWirable("database_execute_migrate_forward", databaseCatalogEntry("database_execute_migrate_forward")),
-    /has no entry in DERIVED_RISK_BY_TOOL_ID/,
+    { message: HUMAN_CONFIRMER_REFUSAL("database_execute_migrate_forward") },
   );
 });
 
-test("backup_execute_restore is never registered — same double-blocked guard as database_execute_migrate_forward", () => {
+test("backup_execute_restore is registered and classified mutates-durable-state, but refused without its human-confirmed handler", () => {
   const { deps } = fakeRouteDeps();
-  assert.equal(recoveryRegistrations(deps).has("backup_execute_restore"), false);
+  assert.equal(recoveryRegistrations(deps).has("backup_execute_restore"), true);
   assert.throws(
     () => assertRiskMetadataIsWirable("backup_execute_restore", recoveryCatalogEntry("backup_execute_restore")),
-    /has no entry in DERIVED_RISK_BY_TOOL_ID/,
+    { message: HUMAN_CONFIRMER_REFUSAL("backup_execute_restore") },
   );
 });
 
-test("the confirmation-transport guard itself also independently refuses both excluded tools, given a (hypothetical) matching risk classification", () => {
-  // `assertRiskMetadataIsWirable` checks DERIVED_RISK_BY_TOOL_ID before actorClassRule, so proving
-  // the SECOND guard needs a derived-risk entry to exist. Neither excluded tool has one (by
-  // design — see the two tests above), so this is exercised against a synthetic stand-in catalog
-  // entry carrying the same actorClassRule.
-  //
-  // Was keyed off a real tool id borrowed from another domain ("forms_create_definition") that
-  // happened to have a derived-risk entry via `assertRiskMetadataIsWirable`'s ambient
-  // `derivedRiskByToolId()` (every domain this file has installed via `contributeXTools()`, PLUS
-  // whatever else `DOMAIN_SLICES` still wires statically). That broke when `forms` moved off the
-  // static `DOMAIN_SLICES` array onto the tool-contribution registry (2026-08-17, Stage 2 batch 2,
-  // `tool-contribution-registry.ts`'s header) and this file never installs `forms`' own contributor
-  // — installing it just for this one probe would pull `forms`' registrations into every OTHER test
-  // in this file via `buildAssistantToolRegistrations`'s eager per-contributor build loop, using a
-  // `deps` fake that carries none of forms' own fields. Calling the kit's `assertToolIsWirable`
-  // directly with a self-contained, single-entry `derivedRisk` map sidesteps ambient registry state
-  // entirely, so it can never drift again when some unrelated domain's wiring moves.
+test("the human-confirmer guard itself refuses a plain handler for a confirmer-must-equal-own-delegatedBy tool, given a matching risk classification", () => {
+  // Called against the kit's `assertToolIsWirable` directly with a self-contained, single-entry
+  // `derivedRisk` map, so ambient registry state can never make this probe drift.
   assert.throws(
     () =>
       assertToolIsWirable({
@@ -317,16 +319,22 @@ test("the confirmation-transport guard itself also independently refuses both ex
           sideEffects: "mutates-durable-state",
         },
         derivedRisk: new Map([["synthetic_confirmation_probe", "mutates-durable-state"]]),
+        handler: async () => ({}),
       }),
-    /requires a human-confirmation transport/,
+    { message: HUMAN_CONFIRMER_REFUSAL("synthetic_confirmation_probe") },
   );
 });
 
-test("no tool name across the whole assistant tool set implies migrate-forward or restore can be executed directly by an agent", () => {
+test("migrate-forward and restore are the only execute tools here, and each says the user confirms first", () => {
   const { deps } = fakeRouteDeps();
-  const ids = allRegistrations(deps).map((r) => r.descriptor.id);
-  assert.equal(ids.includes("database_execute_migrate_forward"), false);
-  assert.equal(ids.includes("backup_execute_restore"), false);
+  const executeIds = allRegistrations(deps)
+    .map((r) => r.descriptor.id)
+    .filter((id) => /^(database|backup)_execute_/.test(id))
+    .sort();
+  assert.deepEqual(executeIds, ["backup_execute_restore", "database_execute_migrate_forward"]);
+  for (const id of executeIds) {
+    assert.match(wired(combinedRegistrations(deps), id).descriptor.description, /Shows the user a confirm dialog first and only runs if they confirm\./);
+  }
 });
 
 test("backup_create_restore_point is registered exactly ONCE across the whole assistant tool set, despite being catalogued in both Database and Recovery", () => {
@@ -368,7 +376,7 @@ test("every wired database/recovery registration publishes its catalog entry's i
   }
 });
 
-test("requiresConfirmation is unset on every wired database/recovery tool — no confirmation transport exists yet", () => {
+test("requiresConfirmation is unset on every wired database/recovery tool — the execute tools ask inside their own handler", () => {
   const { deps } = fakeRouteDeps();
   for (const [, registration] of combinedRegistrations(deps)) {
     assert.equal(registration.descriptor.requiresConfirmation, undefined);
@@ -387,6 +395,8 @@ test("the independent risk classification agrees with the catalog for every wire
     // description are cross-checked against ITS OWN catalog by `deriveContentReadRegistrations`'s
     // `buildDomainRegistrations` call at construction time.
     if (id.startsWith("content_read.")) continue;
+    // Their actor-class rule needs the handler too — checked in section 1 above.
+    if (EXECUTE_TOOL_INPUTS[id]) continue;
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, DATABASE_TOOL_IDS.has(id) ? databaseCatalogEntry(id) : recoveryCatalogEntry(id)));
   }
 });
@@ -429,7 +439,7 @@ const TOOL_INPUTS: Record<string, (seededId: string) => Record<string, unknown>>
 
 test("every wired database/recovery tool has a known input fixture — a newly wired tool must be added here, not silently skipped", () => {
   const { deps } = fakeRouteDeps();
-  assert.deepEqual([...combinedRegistrations(deps).keys()].sort(), Object.keys(TOOL_INPUTS).sort());
+  assert.deepEqual([...combinedRegistrations(deps).keys()].sort(), [...Object.keys(TOOL_INPUTS), ...Object.keys(EXECUTE_TOOL_INPUTS)].sort());
 });
 
 // `database_plan_migrate_forward` is `scopeKind: "instance"` (69f9b52c, 2026-08-12) with no
@@ -618,3 +628,144 @@ test("workflow (Database create -> Recovery list -> Recovery plan): a restore po
   assert.equal(planned.plan.details.restorePointId, targetId, "the id returned by step 2 must be exactly what step 3 previewed against");
   assert.equal(planned.disclosure.partial, true, "the disclosure this tool folds in must still be present");
 });
+
+// ---------------------------------------------------------------------------
+// 6. The two execute tools — the human confirms in chat, then the action runs (2026-09-24)
+// ---------------------------------------------------------------------------
+
+/**
+ * Starts an execute tool against one exchange store, waits for its dialog, and hands back the
+ * answer seam. `answer(principalId, decision)` posts a click the way `mcp-ui-tool-calls-route.ts` does.
+ */
+async function startExecute(deps: RouteDeps, toolId: string, input: Record<string, unknown>) {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === toolId);
+  assert.ok(tool, `expected '${toolId}' to be wired`);
+  const emitted: unknown[] = [];
+  const pending = tool.handler({ ...executionContext(input), emitSurface: async (s) => void emitted.push(s) });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(emitted.length, 1, "exactly one confirm dialog is shown");
+  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
+  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+  assert.ok(match, "the dialog carries its exchange id");
+  const answer = (principalId: string, decision: "confirm" | "cancel"): DeliverResult =>
+    surfaceExchanges.deliver({ exchangeId: match[1]!, toolId, principalId, params: { decision } });
+  return { pending, html, answer };
+}
+
+const CANCELLED = { cancelled: true, note: "The user cancelled. Nothing was changed." };
+
+const EXECUTE_CASES = [
+  {
+    toolId: "database_execute_migrate_forward",
+    flag: "migrated",
+    errorCode: "DATABASE",
+    dialogText: [/Update the database\?/, /A restore point is taken first, so you can go back to how things are now\./],
+  },
+  {
+    toolId: "backup_execute_restore",
+    flag: "restored",
+    errorCode: "RECOVERY",
+    dialogText: [
+      /Restore the site(&#39;|&#x27;|'|\\u0027)s data\?/,
+      /Your current data will be replaced with this restore point\. Anything changed since then is lost\./,
+      /No restore point is taken first, so this can(&#39;|&#x27;|'|\\u0027)t be undone\./,
+    ],
+  },
+] as const;
+
+/** What each execute tool leaves behind when it runs — and must not leave behind when it doesn't. */
+async function executeEffects(fixture: ReturnType<typeof fakeRouteDeps>): Promise<{ migrateRestorePoints: number; siteStatus: unknown }> {
+  const points = await fixture.repos.restorePointsRepo.list();
+  return {
+    migrateRestorePoints: points.filter((point) => point.trigger === "migrate-forward").length,
+    siteStatus: await fixture.repos.siteStatusRepo.get(WORKSPACE_ID),
+  };
+}
+
+for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
+  test(`${toolId}: the human confirms in the dialog, then it runs`, async () => {
+    const fixture = fakeRouteDeps();
+    const seededId = await seedRestorePoint(fixture.repos);
+
+    const { pending, html, answer } = await startExecute(fixture.deps, toolId, EXECUTE_TOOL_INPUTS[toolId](seededId));
+    for (const text of dialogText) assert.match(html, text);
+    assert.deepEqual(answer(PRINCIPAL_ID, "confirm"), { ok: true });
+
+    const result = (await pending) as Record<string, unknown>;
+    assert.equal(result[flag], true);
+    if (toolId === "database_execute_migrate_forward") {
+      assert.equal((await executeEffects(fixture)).migrateRestorePoints, 1, "migrate-forward takes its restore point first");
+    } else {
+      assert.equal(result.state, "RESTORED");
+      assert.equal((await executeEffects(fixture)).migrateRestorePoints, 0, "restore takes no restore point first");
+    }
+  });
+
+  test(`${toolId}: the human cancels — notConfirmedResult comes back and nothing runs`, async () => {
+    const fixture = fakeRouteDeps();
+    const seededId = await seedRestorePoint(fixture.repos);
+    const before = await executeEffects(fixture);
+
+    const { pending, answer } = await startExecute(fixture.deps, toolId, EXECUTE_TOOL_INPUTS[toolId](seededId));
+    answer(PRINCIPAL_ID, "cancel");
+
+    assert.deepEqual(await pending, { [flag]: false, ...CANCELLED });
+    assert.deepEqual(await executeEffects(fixture), before);
+  });
+
+  test(`${toolId}: nothing in the model's input can stand in for the click — a confirm/token key is refused before any dialog`, async () => {
+    const { deps, repos } = fakeRouteDeps();
+    const seededId = await seedRestorePoint(repos);
+    const surfaceExchanges = createSurfaceExchangeStore();
+    const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === toolId);
+    assert.ok(tool);
+
+    for (const key of ["confirm", "confirmationToken"]) {
+      await assert.rejects(
+        () => tool.handler({ ...executionContext({ ...EXECUTE_TOOL_INPUTS[toolId](seededId), [key]: key === "confirm" ? true : "tok" }), emitSurface: async () => undefined }),
+        { message: `'${key}' is not an input of this tool. Only a click in the confirm dialog confirms it — nothing in the tool input can.` },
+      );
+    }
+    assert.equal(surfaceExchanges.size(), 0, "no dialog was opened");
+
+    await assert.rejects(() => tool.handler(executionContext(EXECUTE_TOOL_INPUTS[toolId](seededId))), {
+      message:
+        `${errorCode}_NO_CONFIRMATION_CHANNEL: ${toolId}: this execution context has no interactive ` +
+        "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.",
+    });
+  });
+
+  test(`${toolId}: a click from anyone but the delegating human is refused and leaves the dialog waiting`, async () => {
+    const fixture = fakeRouteDeps();
+    const seededId = await seedRestorePoint(fixture.repos);
+    const before = await executeEffects(fixture);
+
+    const { pending, answer } = await startExecute(fixture.deps, toolId, EXECUTE_TOOL_INPUTS[toolId](seededId));
+    assert.deepEqual(answer("someone-else", "confirm"), { ok: false, reason: "binding-mismatch" });
+    assert.deepEqual(await executeEffects(fixture), before, "the other principal's confirm ran nothing");
+
+    answer(PRINCIPAL_ID, "cancel");
+    assert.deepEqual(await pending, { [flag]: false, ...CANCELLED });
+    assert.deepEqual(await executeEffects(fixture), before);
+  });
+
+  test(`${toolId}: a denied principal is refused before any dialog is shown`, async () => {
+    const { deps, repos } = fakeRouteDeps({ allow: false });
+    const seededId = await seedRestorePoint(repos);
+    const surfaceExchanges = createSurfaceExchangeStore();
+    const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === toolId);
+    assert.ok(tool);
+
+    await assert.rejects(
+      () => tool.handler({ ...executionContext(EXECUTE_TOOL_INPUTS[toolId](seededId)), emitSurface: async () => undefined }),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /is not authorized for/);
+        assert.ok(error.message.includes(permissionOf(toolId)), `expected the denial message to name '${permissionOf(toolId)}'`);
+        return true;
+      },
+    );
+    assert.equal(surfaceExchanges.size(), 0, "no dialog was opened");
+  });
+}

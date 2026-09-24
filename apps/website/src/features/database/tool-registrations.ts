@@ -6,9 +6,10 @@
  * Risk framing: this domain is meaningfully higher-risk than Forms/Identity/content-types — a
  * migrate-forward can rewrite schema and data across every other domain at once, sometimes
  * irreversibly — so the surface is deliberately reads plus one write rather than full parity with
- * the admin UI. Two of the nine entries are still declared unwired, each with its reason recorded
- * on {@link UNWIRED_DATABASE_TOOL_IDS}; `features/database/agent-tools.ts` carries the per-entry
- * half of the same reasoning.
+ * the admin UI. One of the nine entries is still declared unwired, with its reason recorded on
+ * {@link UNWIRED_DATABASE_TOOL_IDS}. `database_execute_migrate_forward` (2026-09-24) asks the human
+ * in chat first and only runs on their click — see `contracts/core/human-confirm.ts`'s
+ * `humanConfirmedToolHandler`.
  *
  * Authorization shape: none of the underlying read functions (`getTimeline`, `listRestorePoints`,
  * `createRestorePoint`, `DatabaseIntrospectionPort`'s three methods) call `authorize()` internally
@@ -26,6 +27,7 @@ import {
   optionalBoolean,
   optionalNumber,
   optionalString,
+  requireInputRecord,
   requireNoInput,
   requireToolPermission,
   type AgentToolSideEffect,
@@ -38,14 +40,20 @@ import {
 // `Error` gets. Same reasoning as `features/post/tool-registrations.ts`'s identical import.
 import { ToolInputError } from "@jini-ai/core";
 import {
+  confirm as gatewayConfirm,
+  execute as gatewayExecute,
   plan as gatewayPlan,
   type GatedMutationHooks,
   type GatewayDeps,
 } from "../../contracts/core/gated-mutations/gateway.js";
 import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
+import { acquireOperationLock, releaseOperationLock } from "../../contracts/core/operation-lock.js";
+import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
 import type { ToolContributor } from "#src/assistant/index";
 import { buildMigrateForwardHooks, type LedgerAppendPort } from "./gated-hooks.js";
 import { getDatabaseAgentToolCatalog } from "./agent-tools.js";
+import { executeMigrateForward } from "./migrate-forward/execute.js";
 import type { DatabaseIntrospectionPort } from "./adapter.sqlite.js";
 import {
   createRestorePoint as createDatabaseRestorePoint,
@@ -90,8 +98,7 @@ const CATALOG_BY_ID = indexCatalogById(getDatabaseAgentToolCatalog());
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
  * calls. See `DerivedRiskByToolId` in the kit for why it is independent of the catalog's own
- * `sideEffects` declaration — and note that the two token-gated tools appear NOWHERE here, which is
- * itself the strongest of the guards: an unclassified id cannot be wired at all.
+ * `sideEffects` declaration.
  */
 export const databaseDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> getTimeline (timeline.ts): one LedgerReadPort.query() read.
@@ -114,22 +121,36 @@ export const databaseDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
   // -> routeDeps.databaseIntrospection.listPendingMigrations(): one bundled-journal file read plus
   //    one bounded `__drizzle_migrations` query. No write of any kind.
   ["database_list_pending_migrations", "none"],
+  // -> gateway confirm() (as the human, after their click) + execute() via buildMigrateForwardHooks,
+  //    inside executeMigrateForward's operation lock: dbOps.captureRestorePoint() +
+  //    restorePointsRepo.save() + databaseLedgerRepo.append().
+  ["database_execute_migrate_forward", "mutates-durable-state"],
 ]);
+
+const MIGRATE_TOOL_ID = "database_execute_migrate_forward";
 
 /** Database catalog entries this pass does not wire, and why — see `features/database/agent-tools.ts`'s own per-entry comments for the full reasoning. */
 const UNWIRED_DATABASE_TOOL_IDS = new Set([
   // No envelope-minting function exists (only the receiving side, `resolveDeepLinkContext`, does),
   // and minting one honestly needs a schema-drift computation this pass has no adapter for.
   "database_get_restore_guidance",
-  // EXCLUDED BY DESIGN: token-gated, and `assertToolIsWirable` refuses to build it anyway
-  // (`actorClassRule: 'confirmer-must-equal-own-delegatedBy'` has no confirmation transport yet).
-  // A bad agent-triggered forward migration can rewrite schema and data across every domain in this
-  // system at once, with no per-domain undo — the default here is exclude, mirroring
-  // `identity/agent-tools.ts`'s exclusion of `resetUserPassword`.
-  "database_execute_migrate_forward",
 ]);
 
-export function buildDatabaseRegistrations(routeDeps: DatabaseToolDeps): ToolRegistration[] {
+export function buildDatabaseRegistrations(
+  routeDeps: DatabaseToolDeps,
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+): ToolRegistration[] {
+  const migrateHooks = (actorId: string) =>
+    buildMigrateForwardHooks({
+      workspaceId: routeDeps.workspaceId,
+      actorId,
+      clock: routeDeps.clock,
+      idGen: routeDeps.idGen,
+      dbOps: routeDeps.dbOps,
+      restorePointsRepo: routeDeps.restorePointsRepo,
+      databaseLedgerRepo: routeDeps.databaseLedgerRepo,
+    }) as unknown as GatedMutationHooks<unknown, { migrated: true }>;
+
   const handlers: Record<string, ToolHandler> = {
     database_query_timeline: async (ctx) => {
       if (ctx.input !== undefined && !isRecord(ctx.input)) throw new ToolInputError("input must be an object");
@@ -236,6 +257,64 @@ export function buildDatabaseRegistrations(routeDeps: DatabaseToolDeps): ToolReg
 
       return { restorePoint: summary };
     },
+
+    // Plans as the agent, asks the human, then confirms as the human and executes as the agent
+    // inside the same operation lock and cost-class refusal the admin execute route uses.
+    [MIGRATE_TOOL_ID]: humanConfirmedToolHandler(surfaces, {
+      flag: "migrated",
+      prepare: async (ctx) => {
+        refuseUnexpectedKeys(ctx.input === undefined ? {} : requireInputRecord(ctx.input), []);
+        await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "database.migrate", entityType: "database" });
+        const hooks = migrateHooks(ctx.principal.id);
+        const plan = await gatewayPlan({
+          deps: routeDeps.gatedMutations.gatewayDeps,
+          principalId: ctx.principal.id,
+          principalKind: AGENT_TOOL_PRINCIPAL_KIND,
+          hooks: hooks as GatedMutationHooks<unknown, unknown>,
+        });
+        const costClass = (plan.details as { costClass: "cheap" | "expensive" | "unavailable" }).costClass;
+        if (costClass === "unavailable") {
+          throw new ToolInputError(
+            "DATABASE_RESTORE_POINT_UNAVAILABLE: this site can't take a restore point, so the database update is refused. Nothing was changed.",
+          );
+        }
+        return { hooks, plan, costClass };
+      },
+      dialog: () => ({
+        toolId: MIGRATE_TOOL_ID,
+        errorCode: "DATABASE",
+        title: "Update the database?",
+        description: "Moves this site's database forward to the current schema. It affects the whole site.",
+        details: [{ label: "Restore point", value: "Taken first" }],
+        warning: "A restore point is taken first, so you can go back to how things are now.",
+        danger: true,
+        confirmLabel: "Update database",
+      }),
+      run: async (ctx, { hooks, plan, costClass }, confirmer) => {
+        const record = await gatewayConfirm({
+          deps: routeDeps.gatedMutations.gatewayDeps,
+          principalId: confirmer.id,
+          principalKind: confirmer.kind,
+          hooks: hooks as GatedMutationHooks<unknown, unknown>,
+          planId: plan.planId,
+          planHash: plan.planHash,
+        });
+        return executeMigrateForward({
+          siteId: routeDeps.workspaceId,
+          confirmationToken: record.confirmationToken,
+          costClass,
+          operationLock: { acquireOperationLock, releaseOperationLock },
+          gatewayExecute: () =>
+            gatewayExecute({
+              deps: routeDeps.gatedMutations.gatewayDeps,
+              principalId: ctx.principal.id,
+              principalKind: AGENT_TOOL_PRINCIPAL_KIND,
+              hooks,
+              confirmationToken: record.confirmationToken,
+            }),
+        });
+      },
+    }),
   };
 
   return buildDomainRegistrations({
