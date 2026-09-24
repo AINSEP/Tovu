@@ -33,9 +33,8 @@ test("deployment_generate_bucket_hosting_setup is NOT on the allowlist — it is
 });
 
 test("SECURITY-CRITICAL: an arbitrary tool id is refused, including ones with their own destructive gate", () => {
-  assert.equal(isMcpUiToolCallAllowed("database_execute_migrate_forward"), false);
-  assert.equal(isMcpUiToolCallAllowed("backup_execute_restore"), false);
   assert.equal(isMcpUiToolCallAllowed("collections_execute_cleanup"), false);
+  assert.equal(isMcpUiToolCallAllowed("source_control_execute_push"), false);
   assert.equal(isMcpUiToolCallAllowed(""), false);
   assert.equal(isMcpUiToolCallAllowed("content_post_delete "), false, "no fuzzy/trimmed matching");
 });
@@ -138,6 +137,8 @@ const EXPECTED_ALLOWLIST = [
   "deployment_propose_custom_provider_credential",
   "external_mcp_reauth_prompt",
   "external_mcp_save",
+  "backup_execute_restore",
+  "database_execute_migrate_forward",
   "identity_policy_delete",
   "identity_role_delete",
   "identity_user_create",
@@ -149,6 +150,7 @@ const EXPECTED_ALLOWLIST = [
   "source_control_execute_commit",
   "supabase_set_access_token",
   "supabase_set_project_scope",
+  "taxonomy_execute_merge_term",
   "theme_trash_file",
   "trash_item",
   "webhooks_delete_subscription",
@@ -162,8 +164,7 @@ test("SECURITY-CRITICAL: the allowlist is exactly this set — widening it canno
 test("SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if it is on that set", () => {
   const probes = [
     // Real production tool ids that are not allowlisted, several of them destructive.
-    "database_execute_migrate_forward",
-    "backup_execute_restore",
+    "collections_execute_cleanup",
     "deployment_get_static_publish_capabilities",
     "deployment_generate_bucket_hosting_setup",
     "deployment_preview_static_publish",

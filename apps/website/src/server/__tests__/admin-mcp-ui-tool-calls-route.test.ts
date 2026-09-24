@@ -120,7 +120,7 @@ test("SECURITY-CRITICAL: a non-allowlisted toolName is rejected before the daemo
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ toolName: "database_execute_migrate_forward", params: {} }),
+    body: JSON.stringify({ toolName: "collections_execute_cleanup", params: {} }),
   });
 
   assert.equal(res.status, 403);

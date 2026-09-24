@@ -90,7 +90,7 @@ test("SECURITY-CRITICAL: rejects a toolName that is not on the allowlist — 403
 
   const res = await postToolCall(
     baseUrl,
-    { toolName: "database_execute_migrate_forward", params: {} },
+    { toolName: "collections_execute_cleanup", params: {} },
     { [RUN_PRINCIPAL_HEADER]: "principal-1" }
   );
 

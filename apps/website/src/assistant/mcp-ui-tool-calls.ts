@@ -251,6 +251,13 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   "identity_role_delete",
   "identity_policy_delete",
   "identity_user_create",
+  // 2026-09-24 (owner-approved): the three gated-mutation execute tools ask the human in chat
+  // through `humanConfirmedToolHandler` (`contracts/core/human-confirm.ts`), which opens the same
+  // held-open exchange via `requireHumanConfirm`. The click carries only the decision; the confirm
+  // step runs as the human whose click this endpoint delivered.
+  "taxonomy_execute_merge_term",
+  "database_execute_migrate_forward",
+  "backup_execute_restore",
 ]);
 
 /**

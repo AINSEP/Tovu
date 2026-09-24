@@ -71,6 +71,13 @@ function scanExchangeOpeners(files: readonly string[]): ExchangeScan {
       if (id === undefined) unresolved.push(`${path.relative(SRC_ROOT, file)}: ${name}`);
       else toolIds.add(id);
     }
+    // `humanConfirmedToolHandler(surfaces, { ..., dialog: (...) => ({ toolId: X, ... }) })` passes its
+    // dialog spec to `requireHumanConfirm`, so each `dialog:` naming a `toolId` counts as an opener.
+    for (const m of text.matchAll(/\bdialog:\s*\([^)]*\)\s*=>\s*\(\{\s*toolId\s*:\s*([A-Za-z_][A-Za-z0-9_]*)/g)) {
+      const id = constants.get(m[1]!);
+      if (id === undefined) unresolved.push(`${path.relative(SRC_ROOT, file)}: ${m[1]}`);
+      else toolIds.add(id);
+    }
   }
   return { toolIds, unresolved };
 }
@@ -88,7 +95,16 @@ test("every surfaceExchanges.open(...) call names a toolId constant this scan ca
 });
 
 test("the scan finds the known exchange openers (guards against a scan that silently matches nothing)", () => {
-  for (const id of ["content_post_delete", "media_trash_asset", "trash_item", "assistant_render_ui"]) {
+  for (const id of [
+    "content_post_delete",
+    "media_trash_asset",
+    "trash_item",
+    "assistant_render_ui",
+    // Through `humanConfirmedToolHandler`'s `dialog:` spec, not a direct call.
+    "taxonomy_execute_merge_term",
+    "database_execute_migrate_forward",
+    "backup_execute_restore",
+  ]) {
     assert.ok(scan.toolIds.has(id), `expected the scan to find '${id}'`);
   }
 });
