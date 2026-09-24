@@ -209,6 +209,34 @@ describe("useExternalMcp — addSource", () => {
     expect(saveExternalMcpServer).not.toHaveBeenCalled();
   });
 
+  // c7-rev-settings-deploy 2026-09-24: the write is a create-OR-replace PUT, so "Add" with an id
+  // that is already configured silently replaced that server's command, tool allowlists and auth.
+  it("rejects an id that is already configured, without calling the API", async () => {
+    listExternalMcpServers.mockResolvedValue({ servers: [server()] });
+    const { result } = renderHook(() => useExternalMcp());
+    await result.current.dependencies.port.fetchSources();
+
+    const outcome = await result.current.dependencies.port.addSource({
+      fields: { id: " local-fs ", command: "other", args: "", allowedToolNames: "", env: "" },
+    });
+
+    expect(outcome).toEqual({ ok: false, message: "A server with this ID already exists. Edit that server instead." });
+    expect(saveExternalMcpServer).not.toHaveBeenCalled();
+  });
+
+  it("translates the add-form rejections for the admin locale", async () => {
+    useAdminLocale.mockReturnValue("es");
+    listExternalMcpServers.mockResolvedValue({ servers: [server()] });
+    const { result } = renderHook(() => useExternalMcp());
+    await result.current.dependencies.port.fetchSources();
+
+    await expect(result.current.dependencies.port.addSource({ fields: { id: "" } })).resolves.toEqual({ ok: false, message: "Se requiere un ID." });
+    await expect(result.current.dependencies.port.addSource({ fields: { id: "local-fs" } })).resolves.toEqual({
+      ok: false,
+      message: "Ya existe un servidor con este ID. Edita ese servidor.",
+    });
+  });
+
   it("rejects the same way when the id key is missing from fields entirely (the ?? \"\" fallback)", async () => {
     const { result } = renderHook(() => useExternalMcp());
 

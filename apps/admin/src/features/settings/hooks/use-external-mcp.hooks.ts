@@ -269,6 +269,11 @@ export function useExternalMcp(): ExternalMcpController {
         async addSource(input: AddSourceInput): Promise<AddSourceResult<SourceConfigItem>> {
           const serverId = (input.fields.id ?? "").trim();
           if (serverId === "") return { ok: false, message: t("An ID is required.") };
+          // The write is a create-OR-replace PUT, so an id already on the list would silently
+          // replace that server's command, tool allowlists and auth instead of adding a new one.
+          if (lastKnown.current.has(serverId)) {
+            return { ok: false, message: t("A server with this ID already exists. Edit that server instead.") };
+          }
           const oauthIdentityIssue = validateExternalMcpOAuthIdentity(input.fields, t);
           if (oauthIdentityIssue) return { ok: false, message: oauthIdentityIssue };
           try {

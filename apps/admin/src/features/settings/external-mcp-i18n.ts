@@ -29,6 +29,11 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
   es: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "Ya existe un servidor con este ID. Edita ese servidor.",
+    "An ID is required.": "Se requiere un ID.",
+    "That server could not be saved.": "No se pudo guardar ese servidor.",
+    "Save this server before you can test it.": "Guarda este servidor antes de probarlo.",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -68,6 +73,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Conexión",
   },
   id: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "Server dengan ID ini sudah ada. Edit server tersebut.",
+    "An ID is required.": "ID wajib diisi.",
+    "That server could not be saved.": "Server itu tidak dapat disimpan.",
+    "Save this server before you can test it.": "Simpan server ini sebelum Anda dapat mengujinya.",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -107,6 +117,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Koneksi",
   },
   de: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "Ein Server mit dieser ID existiert bereits. Bearbeite stattdessen diesen Server.",
+    "An ID is required.": "Eine ID ist erforderlich.",
+    "That server could not be saved.": "Dieser Server konnte nicht gespeichert werden.",
+    "Save this server before you can test it.": "Speichere diesen Server, bevor du ihn testen kannst.",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -146,6 +161,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Verbindung",
   },
   "zh-CN": {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "已存在使用此 ID 的服务器。请改为编辑该服务器。",
+    "An ID is required.": "需要 ID。",
+    "That server could not be saved.": "无法保存该服务器。",
+    "Save this server before you can test it.": "请先保存此服务器，然后再测试。",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -185,6 +205,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "连接",
   },
   "zh-TW": {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "已有使用此 ID 的伺服器。請改為編輯該伺服器。",
+    "An ID is required.": "需要 ID。",
+    "That server could not be saved.": "無法儲存該伺服器。",
+    "Save this server before you can test it.": "請先儲存此伺服器，再進行測試。",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -224,6 +249,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "連線",
   },
   "pt-BR": {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "Já existe um servidor com este ID. Edite esse servidor.",
+    "An ID is required.": "Um ID é obrigatório.",
+    "That server could not be saved.": "Não foi possível salvar esse servidor.",
+    "Save this server before you can test it.": "Salve este servidor antes de testá-lo.",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -263,6 +293,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Conexão",
   },
   ru: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "Сервер с этим ID уже существует. Отредактируйте его.",
+    "An ID is required.": "Требуется ID.",
+    "That server could not be saved.": "Не удалось сохранить этот сервер.",
+    "Save this server before you can test it.": "Сохраните этот сервер, прежде чем тестировать его.",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -302,6 +337,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Подключение",
   },
   fa: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "سروری با این شناسه از قبل وجود دارد. همان سرور را ویرایش کنید.",
+    "An ID is required.": "شناسه الزامی است.",
+    "That server could not be saved.": "ذخیرهٔ آن سرور ممکن نشد.",
+    "Save this server before you can test it.": "پیش از آزمایش، این سرور را ذخیره کنید.",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -341,6 +381,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "اتصال",
   },
   ar: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "يوجد خادم بهذا المعرّف بالفعل. عدّل ذلك الخادم بدلًا من ذلك.",
+    "An ID is required.": "المعرّف مطلوب.",
+    "That server could not be saved.": "تعذّر حفظ ذلك الخادم.",
+    "Save this server before you can test it.": "احفظ هذا الخادم قبل أن تتمكن من اختباره.",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -380,6 +425,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "الاتصال",
   },
   ja: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "この ID のサーバーはすでに存在します。そのサーバーを編集してください。",
+    "An ID is required.": "ID は必須です。",
+    "That server could not be saved.": "そのサーバーを保存できませんでした。",
+    "Save this server before you can test it.": "テストする前にこのサーバーを保存してください。",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -419,6 +469,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "接続",
   },
   ko: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "이 ID의 서버가 이미 있습니다. 해당 서버를 편집하세요.",
+    "An ID is required.": "ID가 필요합니다.",
+    "That server could not be saved.": "해당 서버를 저장할 수 없습니다.",
+    "Save this server before you can test it.": "테스트하기 전에 이 서버를 저장하세요.",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -458,6 +513,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "연결",
   },
   pl: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "Serwer o tym ID już istnieje. Edytuj ten serwer.",
+    "An ID is required.": "ID jest wymagane.",
+    "That server could not be saved.": "Nie udało się zapisać tego serwera.",
+    "Save this server before you can test it.": "Zapisz ten serwer, zanim go przetestujesz.",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -497,6 +557,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Połączenie",
   },
   hu: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "Már létezik szerver ezzel az azonosítóval. Inkább azt a szervert szerkeszd.",
+    "An ID is required.": "Az azonosító megadása kötelező.",
+    "That server could not be saved.": "Ezt a szervert nem sikerült menteni.",
+    "Save this server before you can test it.": "Mentsd a szervert, mielőtt tesztelnéd.",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -536,6 +601,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Kapcsolat",
   },
   fr: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "Un serveur avec cet ID existe déjà. Modifiez plutôt ce serveur.",
+    "An ID is required.": "Un ID est requis.",
+    "That server could not be saved.": "Impossible d’enregistrer ce serveur.",
+    "Save this server before you can test it.": "Enregistrez ce serveur avant de pouvoir le tester.",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -575,6 +645,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Connexion",
   },
   uk: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "Сервер із цим ID уже існує. Відредагуйте його.",
+    "An ID is required.": "Потрібен ID.",
+    "That server could not be saved.": "Не вдалося зберегти цей сервер.",
+    "Save this server before you can test it.": "Збережіть цей сервер, перш ніж тестувати його.",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -614,6 +689,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Підключення",
   },
   tr: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "Bu kimliğe sahip bir sunucu zaten var. Bunun yerine o sunucuyu düzenleyin.",
+    "An ID is required.": "Kimlik gerekli.",
+    "That server could not be saved.": "Bu sunucu kaydedilemedi.",
+    "Save this server before you can test it.": "Test etmeden önce bu sunucuyu kaydedin.",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -653,6 +733,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Bağlantı",
   },
   th: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "มีเซิร์ฟเวอร์ที่ใช้ ID นี้อยู่แล้ว ให้แก้ไขเซิร์ฟเวอร์นั้นแทน",
+    "An ID is required.": "ต้องระบุ ID",
+    "That server could not be saved.": "บันทึกเซิร์ฟเวอร์นั้นไม่ได้",
+    "Save this server before you can test it.": "บันทึกเซิร์ฟเวอร์นี้ก่อนจึงจะทดสอบได้",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -692,6 +777,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "การเชื่อมต่อ",
   },
   it: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "Esiste già un server con questo ID. Modifica quel server.",
+    "An ID is required.": "L’ID è obbligatorio.",
+    "That server could not be saved.": "Impossibile salvare quel server.",
+    "Save this server before you can test it.": "Salva questo server prima di poterlo testare.",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -731,6 +821,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "Connessione",
   },
   hi: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "इस ID वाला सर्वर पहले से मौजूद है। उसी सर्वर को संपादित करें।",
+    "An ID is required.": "ID आवश्यक है।",
+    "That server could not be saved.": "वह सर्वर सहेजा नहीं जा सका।",
+    "Save this server before you can test it.": "परीक्षण करने से पहले इस सर्वर को सहेजें।",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -770,6 +865,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "कनेक्शन",
   },
   ur: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "اس ID والا سرور پہلے سے موجود ہے۔ اسی سرور میں ترمیم کریں۔",
+    "An ID is required.": "ID ضروری ہے۔",
+    "That server could not be saved.": "وہ سرور محفوظ نہیں ہو سکا۔",
+    "Save this server before you can test it.": "جانچنے سے پہلے اس سرور کو محفوظ کریں۔",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
@@ -809,6 +909,11 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Connection": "کنکشن",
   },
   bn: {
+    // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
+    "A server with this ID already exists. Edit that server instead.": "এই ID-সহ একটি সার্ভার আগে থেকেই আছে। সেই সার্ভারটি সম্পাদনা করুন।",
+    "An ID is required.": "ID প্রয়োজন।",
+    "That server could not be saved.": "সার্ভারটি সংরক্ষণ করা যায়নি।",
+    "Save this server before you can test it.": "পরীক্ষা করার আগে এই সার্ভারটি সংরক্ষণ করুন।",
     // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
     // referenced by the exported `t`) into the live dict, plus the subtitle gap found
     // alongside it.
