@@ -124,10 +124,19 @@ function toTransportError(err: unknown, baseUrl: string): PublishContentPeerTran
 export const PEER_REQUEST_TIMEOUT_MS = 60_000;
 
 /** The narrow blob-read seam the push driver needs — `BlobStorePort`'s read half only, so this
- *  module can never write a blob. */
+ *  module can never write a blob.
+ *
+ *  `sha256` joined `storageKey` on both methods (`publish-files-plan-2026-09-24.md` §3, S-F3): a
+ *  plain `BlobStorePort` only ever needs `storageKey` and structurally still satisfies this widened
+ *  shape (TypeScript checks method-shorthand interface members bivariantly, so a `{storageKey}`-only
+ *  implementation is assignable here without change) — `composite-blob-source.ts`'s own
+ *  `createCompositePeerBlobSource` is the one implementation that actually reads `sha256`, to fall
+ *  back to a `FileBlobIndexPort` lookup and re-verify the bytes it finds there hash to the value the
+ *  caller is asking for. Both callers below already have the plain sha in scope when they call these
+ *  methods, so passing it through costs nothing. */
 export interface PeerBlobSource {
-  exists(input: { storageKey: string }): Promise<boolean>;
-  get(input: { storageKey: string }): Promise<Uint8Array>;
+  exists(input: { sha256: string; storageKey: string }): Promise<boolean>;
+  get(input: { sha256: string; storageKey: string }): Promise<Uint8Array>;
 }
 
 export interface PeerCallDeps {
@@ -447,13 +456,13 @@ export async function pushBundleToPeer(
 
     for (const sha256 of missing) {
       const storageKey = deps.computeStorageKey(sha256);
-      if (!(await deps.blobSource.exists({ storageKey }))) {
+      if (!(await deps.blobSource.exists({ sha256, storageKey }))) {
         // Not an error: the bundle names a blob this instance no longer holds. Reported, and the
         // peer's own planner blocks whatever needed it rather than applying half an entity.
         blobsUnavailable.push(sha256);
         continue;
       }
-      const bytes = await deps.blobSource.get({ storageKey });
+      const bytes = await deps.blobSource.get({ sha256, storageKey });
       await callPeer(deps, {
         method: "PUT",
         path: peerRoute(credential, `/blobs/${encodeURIComponent(sha256)}`),

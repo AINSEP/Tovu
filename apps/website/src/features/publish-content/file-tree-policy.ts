@@ -145,8 +145,13 @@ export const FILE_TREE_LIMITS = {
 
 /** Above this size, a text-like file is not content-scanned (§2's content-scan clause: "every file
  *  ≤1 MB whose extension is text-like"). A binary this large legitimately exceeds any real theme
- *  source file; scanning it would cost real CPU for a file type this check does not target. */
-const MAX_SECRET_SCAN_BYTES = 1024 * 1024;
+ *  source file; scanning it would cost real CPU for a file type this check does not target.
+ *  Exported so a `pack()` (`features/theme/publish-content.ts`) can decide, once, whether a file is
+ *  even worth decoding into a `textSample` before handing it to {@link checkTreeFiles} — that
+ *  decision must use the SAME threshold this module scans against, or a file just over the line would
+ *  be decoded for nothing (never scanned) while one just under it would be silently skipped by a
+ *  caller using a different number. */
+export const MAX_SECRET_SCAN_BYTES = 1024 * 1024;
 
 /** Extensions whose content is worth running {@link scanTextForSecrets} against — a strict subset of
  *  {@link THEME_FILE_TREE_ALLOWED_EXTENSIONS} (binary formats like `png`/`woff2` are never text). */

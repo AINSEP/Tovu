@@ -2,6 +2,7 @@ import type { BeforeSaveHookPort, ForgetRemovedPostFn, PostRepoPort, RemovePostF
 import type { AssetBlobRepoPort, BlobStorePort, VersionedMediaRepoPort } from "#src/features/media/index";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "#src/features/navigation/index";
 import type { RedirectsWriteDeps } from "#src/features/redirects/redirects";
+import type { FileBlobIndexPort } from "./file-blob-index.js";
 import type { AuthorizeFn, ChangeSetRepoPort, ClockPort, OutboxPort } from "@jini-ai/cms/core";
 
 /**
@@ -161,6 +162,25 @@ export interface PublishContentDeps {
    */
   readonly menuRepo?: MenuRepoPort;
   readonly navLocationBindingRepo?: NavLocationBindingRepoPort;
+  /**
+   * S-F3 (`publish-files-plan-2026-09-24.md` §6) — `features/theme/publish-content.ts`'s one real
+   * filesystem dependency: the site's own themes root (`RouteDeps.themesDir`, already resolved once
+   * per composition root by `siteThemesDir()`). Optional for the identical reason every other
+   * type-specific port on this interface already is — `pack`/`inspect`/`precheck` degrade to "nothing
+   * to report" when absent (see this interface's header), and only a caller with real file-tree work
+   * needs it wired at all.
+   */
+  readonly themesDir?: string;
+  /**
+   * S-F3 — the process-wide `sha256 -> {absPath, size}` map a file-tree `pack()` fills as it walks a
+   * tree (`features/publish-content/file-blob-index.ts`), read by
+   * `composite-blob-source.ts`'s `createCompositePeerBlobSource` so a peer can fetch those bytes
+   * without them ever being copied into the media blob store. Optional for the same reason
+   * {@link themesDir} is: a caller with no file-tree type in play has nothing to fill or read here.
+   * Unlike most optional ports on this interface, this one MUST be the same shared instance across
+   * every caller in one process (never rebuilt per request) — see that module's own header.
+   */
+  readonly fileBlobIndex?: FileBlobIndexPort;
 }
 
 /**
