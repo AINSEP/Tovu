@@ -395,3 +395,41 @@ test("an entity that declares no type at all is refused, not skipped", async () 
     await stop(server);
   }
 });
+
+// c7n-ow-review2 (2026-09-24): the real publish path. A computer connected to live reaches
+// /import/plan and /import/execute with a publishing session token, which `requirePublishTrust`
+// marks `publish_key` — NOT `api_key` — so "Overwrite on live" ticks get through. Only a saved API
+// key is refused (`publish-content-types-round-trip.test.ts` pins that half).
+test("a publishing token may carry overwrite ticks to /import/plan and /import/execute", async () => {
+  const key = await sourceKey();
+  const { server, baseUrl } = await startServer(grantDocument(key.publicKeyB64u));
+  try {
+    const token = await tokenFor(baseUrl);
+    const staged = await bundle(baseUrl, token, "post");
+    const stagedRaw = await staged.text();
+    assert.equal(staged.status, 201, stagedRaw);
+    const { bundleId } = JSON.parse(stagedRaw) as { bundleId: string };
+    const api = `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content`;
+    const headers = { "content-type": "application/json", authorization: `Bearer ${token}` };
+
+    const planned = await fetch(`${api}/import/plan`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ bundleId, overwriteEntityKeys: ["post:e-1"] }),
+    });
+    const plannedRaw = await planned.text();
+    assert.equal(planned.status, 200, plannedRaw);
+
+    const executed = await fetch(`${api}/import/execute`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ bundleId, confirmationToken: "not-a-real-token", overwriteEntityKeys: ["post:e-1"] }),
+    });
+    const executedRaw = await executed.text();
+    // Past the credential-kind gate: the made-up token is what fails, not who sent the ticks.
+    assert.equal(executed.status, 409, executedRaw);
+    assert.equal((JSON.parse(executedRaw) as { code: string }).code, "TOKEN_EXPIRED");
+  } finally {
+    await stop(server);
+  }
+});

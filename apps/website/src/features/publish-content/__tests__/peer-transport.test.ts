@@ -541,6 +541,47 @@ test("executePeerImport sends overwriteEntityKeys when given, and omits the fiel
   assert.equal("overwriteEntityKeys" in parsed, false);
 });
 
+// A live that refuses ticks from a saved API key (`import.ts`'s `mayOverwrite`, 403
+// credential_kind_not_permitted) gets a sentence the operator can act on, not the raw JSON body.
+test("a 403 credential_kind_not_permitted from live becomes a plain sentence, for plan and execute", async () => {
+  const refusal = {
+    status: 403,
+    json: {
+      error: "'overwriteEntityKeys' can only be sent from a signed-in admin session or a publishing instance",
+      code: "FORBIDDEN",
+      details: { permission: "publish_content.apply", reason: "credential_kind_not_permitted" },
+    },
+  };
+  const expected =
+    "https://tovu.example.com only accepts \"Overwrite on live\" from a computer connected to it, not from a saved API key. " +
+    "Connect this computer to https://tovu.example.com, then publish again.";
+  const capabilities = { match: /\/capabilities$/, json: { entityTypes: ["post"], features: ["overwrite-live"] } };
+
+  const planHttp = new FakeHttpClient([
+    capabilities,
+    { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
+    { match: /\/import\/plan$/, ...refusal },
+  ]);
+  const executeHttp = new FakeHttpClient([capabilities, { match: /\/import\/execute$/, ...refusal }]);
+
+  for (const call of [
+    () => pushBundleToPeer(pushDeps(planHttp), { bundle: bundle(), overwriteEntityKeys: ["post:p1"] }),
+    () =>
+      executePeerImport(
+        { httpClient: executeHttp, credential: CREDENTIAL },
+        { bundleId: "b1", confirmationToken: "tok-1", overwriteEntityKeys: ["post:p1"] }
+      ),
+  ]) {
+    await assert.rejects(call, (err: unknown) => {
+      assert.ok(err instanceof PublishContentPeerTransportError);
+      assert.equal(err.code, "PEER_REJECTED");
+      assert.equal(err.peerStatus, 403);
+      assert.equal(err.message, expected);
+      return true;
+    });
+  }
+});
+
 // An older live ignores a body field it doesn't know, so forwarding ticks to it would publish
 // without the overwrite the operator asked for. Both calls refuse before anything is sent.
 const OLD_LIVE_OVERWRITE_REFUSAL =

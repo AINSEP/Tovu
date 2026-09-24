@@ -174,8 +174,10 @@ async function callPeer(
 
   if (response.status < 200 || response.status >= 300) {
     throw new PublishContentPeerTransportError(
-      `the peer refused ${request.method} ${request.path} with HTTP ${response.status}: ` +
-        `${response.bodyText.slice(0, MAX_QUOTED_PEER_BODY)}`,
+      isCredentialKindRefusal(response.status, response.bodyText)
+        ? credentialKindRefusalMessage(baseUrl)
+        : `the peer refused ${request.method} ${request.path} with HTTP ${response.status}: ` +
+            `${response.bodyText.slice(0, MAX_QUOTED_PEER_BODY)}`,
       "PEER_REJECTED",
       { peerStatus: response.status }
     );
@@ -189,6 +191,32 @@ async function callPeer(
       "PEER_RESPONSE_INVALID"
     );
   }
+}
+
+/**
+ * Whether a peer refusal is live's 403 `credential_kind_not_permitted` — on the publish-content
+ * routes, only `/import/plan` and `/import/execute` send it, for "Overwrite on live" ticks that
+ * arrived under a saved API key (`routes/publish-content/import.ts`'s `mayOverwrite`). A connected
+ * computer's publishing session token is never refused this way.
+ * @complexity O(n) in the body length (one JSON parse).
+ */
+function isCredentialKindRefusal(status: number, bodyText: string): boolean {
+  if (status !== 403) return false;
+  try {
+    const body = JSON.parse(bodyText) as { details?: { reason?: unknown } } | null;
+    return body?.details?.reason === "credential_kind_not_permitted";
+  } catch {
+    return false;
+  }
+}
+
+/** The operator's sentence for {@link isCredentialKindRefusal}, in place of the raw JSON body.
+ *  @complexity O(1). */
+function credentialKindRefusalMessage(baseUrl: string): string {
+  return (
+    `${baseUrl} only accepts "Overwrite on live" from a computer connected to it, not from a saved API key. ` +
+    `Connect this computer to ${baseUrl}, then publish again.`
+  );
 }
 
 /** Builds a peer route path under the peer's OWN workspace id. Never this instance's — a peer's
