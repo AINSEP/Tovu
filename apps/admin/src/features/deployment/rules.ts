@@ -7,6 +7,7 @@ import {
   type AdminPublishConnectionInput,
   type AdminPublishCredentialProviderId,
   type AdminPublishCredentialSummary,
+  type AdminPublishCredentialVerification,
   type AdminPublishRunSnapshot,
   type AdminStaticPublishTargetId,
 } from "../../lib/api";
@@ -673,6 +674,19 @@ export function envVarStatusLabelKey(varStatus: AdminDeploymentEnvVarStatus): st
   if (varStatus.invalid) return "Invalid — the keyring rejects it";
   if (!varStatus.set) return "Not set";
   return varStatus.source === "file" ? "Set (generated key file)" : "Set";
+}
+
+/**
+ * The Static Site Verify status line's class. `"unreachable"` means the token was NOT checked, so it
+ * reads as a warning — styling it like `"valid"` told an operator an unverified token had passed.
+ * @complexity O(1).
+ */
+export function credentialVerifyStatusClass(row: {
+  verifyError: string | null;
+  verification: AdminPublishCredentialVerification | undefined;
+}): "save-ok" | "save-warning" | "save-error" {
+  if (row.verifyError || row.verification?.status === "invalid") return "save-error";
+  return row.verification?.status === "unreachable" ? "save-warning" : "save-ok";
 }
 
 /** The Overview tab's runtime-mode label key. @complexity O(1). */

@@ -15,6 +15,7 @@ import {
   daemonStatusLabelKey,
   defaultCredentialForProvider,
   withPromotedDefault,
+  credentialVerifyStatusClass,
   deploymentEnvVarNoteKey,
   envVarStatusLabelKey,
   exportRunStatusLabelKey,
@@ -113,6 +114,22 @@ describe("envVarStatusLabelKey / isEnvVarRowUnsafe — root key source and valid
   });
   it("labels an absent var Not set", () => {
     expect(envVarStatusLabelKey({ name: "TOVU_ADMIN_USER", set: false })).toBe("Not set");
+  });
+});
+
+// c7-rev-settings-deploy 2026-09-24: "Could not reach GitHub to verify this credential." rendered in
+// the success colour — an unverified token must not read as a pass.
+describe("credentialVerifyStatusClass", () => {
+  const checkedAt = "2026-09-24T00:00:00.000Z";
+  it("styles a valid verdict as ok", () => {
+    expect(credentialVerifyStatusClass({ verifyError: null, verification: { status: "valid", message: "ok", checkedAt } })).toBe("save-ok");
+  });
+  it("styles an unreachable verdict as a warning, not ok", () => {
+    expect(credentialVerifyStatusClass({ verifyError: null, verification: { status: "unreachable", message: "x", checkedAt } })).toBe("save-warning");
+  });
+  it("styles an invalid verdict and a request failure as errors", () => {
+    expect(credentialVerifyStatusClass({ verifyError: null, verification: { status: "invalid", message: "x", checkedAt } })).toBe("save-error");
+    expect(credentialVerifyStatusClass({ verifyError: "network down", verification: undefined })).toBe("save-error");
   });
 });
 

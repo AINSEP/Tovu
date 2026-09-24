@@ -29,6 +29,7 @@ import {
   runStatusTone,
   staticPublishFormReadyForPreview,
   staticPublishFormReadyToPublish,
+  credentialVerifyStatusClass,
   staticPublishProjectNameCopy,
   type PublishCliTool,
   type PublishCredentialFormFields,
@@ -1170,7 +1171,6 @@ function CredentialVerifyAction({
 }) {
   const info = publishCredentialProviderInfo(row.providerId);
   const statusText = row.verifyError ?? row.verification?.message ?? null;
-  const statusIsError = Boolean(row.verifyError) || row.verification?.status === "invalid";
   return (
     <span className="deployment-step-verify">
       <button
@@ -1190,7 +1190,7 @@ function CredentialVerifyAction({
         {row.verifying ? translate("Verifying…") : translate("Verify")}
       </button>
       {statusText ? (
-        <span aria-live="polite" className={statusIsError ? "save-error" : "save-ok"}>
+        <span aria-live="polite" className={credentialVerifyStatusClass(row)}>
           {statusText}
         </span>
       ) : null}

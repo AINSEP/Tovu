@@ -2057,6 +2057,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 .save-ok { color: var(--ok); font-size: 0.85rem; }
 .save-error { color: var(--danger); font-size: 0.85rem; }
+.save-warning { color: var(--warning); font-size: 0.85rem; }
 .editor-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; padding: 0.6rem 0.2rem; width: 100%; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--fg); }
 .editor-title::placeholder { color: var(--faint); font-weight: 500; }
 .editor-title:focus { outline: none; box-shadow: none; border-bottom-color: var(--accent-text); }
