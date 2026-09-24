@@ -13,6 +13,8 @@ import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/
 import { installInternalLinkInterceptor, navigate } from "./lib/router";
 import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api";
 import { takeBootToken } from "./lib/boot-token-fragment";
+import { takePublishCriteriaFromQuery } from "./lib/publish-criteria-deep-link";
+import { requestPublish } from "./features/publish-content/hooks/publish-request.store";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "./lib/assistant-dock-bus";
@@ -140,6 +142,37 @@ export function useAdminSession(): UseAdminSession {
   }
 
   return { user, checking, handleLogin, logout };
+}
+
+/**
+ * The admin's own `?publish=<encoded criteria>` deep link (`publish-criteria-tool-webmcp-plan-
+ * 2026-09-24.md` §4 S2, the owner's own "PLUS" instruction) — a chat conversation with no admin tab
+ * open can't call `requestPublish` itself, so it hands back a link that opens the admin with the
+ * Publish dialog pre-filled instead.
+ *
+ * Called unconditionally in `App()`, same as `useAdminSession` above — deliberately NOT gated on
+ * `user`/auth: it can run on the very first render, since `requestPublish` only opens
+ * `publish-request.store.ts`'s in-memory request and does nothing else. The store holds that
+ * request until `App()`'s render actually reaches the dialog's JSX post-login, so there is no
+ * "asked before signed in" race to guard against here.
+ *
+ * The `useRef` guard is what makes this fire at most once per mount, mirroring `takeBootToken`'s own
+ * "read and strip once" contract in `lib/boot-token-fragment.ts`: `takePublishCriteriaFromQuery`
+ * already strips the param on its own first call (valid or not), so a second run would just read an
+ * empty query string. The ref exists anyway because Effects in Strict Mode run twice in development,
+ * and a second `requestPublish` call would supersede the first's promise for no reason (see
+ * `publish-request.store.ts`'s own header on why a superseded request is resolved, not dropped).
+ *
+ * @complexity O(1): one `useEffect`, one `useRef`, no state of its own.
+ */
+export function usePublishCriteriaDeepLink(): void {
+  const handledRef = useRef(false);
+  useEffect(() => {
+    if (handledRef.current) return;
+    handledRef.current = true;
+    const criteria = takePublishCriteriaFromQuery(window.location, window.history);
+    if (criteria !== null) void requestPublish(criteria);
+  }, []);
 }
 
 /**

@@ -29,6 +29,7 @@ import {
   useDefaultSectionRedirect,
   useInternalLinkInterceptor,
   useLogoutConfirm,
+  usePublishCriteriaDeepLink,
   useScreenshotAnnouncement,
   useSidebarDrawer,
   useSiteSectionAvailability,
@@ -500,6 +501,9 @@ export function App(props: AppProps) {
   // WebMCP projection) is the component that renders it. `publish-request.store.ts`'s own header
   // explains the whole division of labour; this is just the one place that reads it.
   const openPublishRequest = usePublishRequest();
+  // The admin's own `?publish=` deep link — see `usePublishCriteriaDeepLink`'s own doc for why this
+  // is unconditional (before the `checking`/`!user` early returns below) and gated on nothing.
+  usePublishCriteriaDeepLink();
 
   /**
    * Read once per render rather than at each of the two `<Sidebar.Nav>` call sites below, so both
