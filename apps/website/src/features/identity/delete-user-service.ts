@@ -153,26 +153,45 @@ async function principalHoldsBuiltinAdminRole(required: {
 }
 
 /**
- * OWNER DECISION 2026-09-24's caller gate for `trashUser` (trash/restore/permanent-delete of
- * users): the owner (an unconstrained `*` holder) or the built-in `admin` role — never a custom
- * role, even one granted `user.manage` via `role.manage`. Throws `IdentityForbiddenError`, the same
- * error `assertCallerHasAnyPermission` throws for every other permission gate in this codebase, so
- * the route layer's existing 403 mapping needs no new branch.
+ * OWNER DECISION 2026-09-24's caller gate for trashing/restoring/permanently-deleting users: true
+ * iff `callerPrincipalId` is the owner (an unconstrained `*` holder) or holds the built-in `admin`
+ * role — never a custom role, even one granted `user.manage` via `role.manage`.
+ *
+ * Exported (not just `assertCallerMayManageUserTrash` below) so the Trash's generic restore/purge
+ * routes can reuse the SAME rule as a boolean check: those routes gate through
+ * `TrashAuthorizeFn`/`mayActOnEntityType` (`features/trash/permissions.ts`), which is boolean-
+ * shaped, not exception-shaped, and lives in a different feature this file deliberately does not
+ * import (see this file's header) — the composition root wraps that boolean callback around this
+ * function for `entityType === "user"` only (`server/runtime/composition/trash-user-admin-
+ * override.ts`), so the initial trash action and a later restore/purge of the same user can never
+ * drift onto two different rules for who may act on it.
  *
  * @complexity O(1) `resolveEffectivePermissions` call plus O(1)
  * `principalHoldsBuiltinAdminRole` call — evaluated in that order so the common case (the owner)
  * never pays for the role lookup.
  */
+export async function callerMayManageUserTrash(required: {
+  deps: AuthServiceDeps;
+  workspaceId: UUID;
+  callerPrincipalId: UUID;
+}): Promise<boolean> {
+  const { deps, workspaceId, callerPrincipalId } = required;
+  const isOwner = await principalHoldsOwnerWildcard({ deps, workspaceId, principalId: callerPrincipalId });
+  if (isOwner) return true;
+  return principalHoldsBuiltinAdminRole({ deps, workspaceId, principalId: callerPrincipalId });
+}
+
+/** Throws unless {@link callerMayManageUserTrash} says the caller may act. `IdentityForbiddenError`
+ *  is the same error `assertCallerHasAnyPermission` throws for every other permission gate in this
+ *  codebase, so the route layer's existing 403 mapping needs no new branch.
+ *  @complexity See {@link callerMayManageUserTrash}. */
 async function assertCallerMayManageUserTrash(required: {
   deps: AuthServiceDeps;
   workspaceId: UUID;
   callerPrincipalId: UUID;
 }): Promise<void> {
   const { deps, workspaceId, callerPrincipalId } = required;
-  const isOwner = await principalHoldsOwnerWildcard({ deps, workspaceId, principalId: callerPrincipalId });
-  if (isOwner) return;
-  const isBuiltinAdmin = await principalHoldsBuiltinAdminRole({ deps, workspaceId, principalId: callerPrincipalId });
-  if (isBuiltinAdmin) return;
+  if (await callerMayManageUserTrash({ deps, workspaceId, callerPrincipalId })) return;
   throw new IdentityForbiddenError(
     `principal '${callerPrincipalId}' is not authorized to trash, restore or permanently delete users`,
     "*",

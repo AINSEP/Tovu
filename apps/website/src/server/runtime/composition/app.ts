@@ -237,6 +237,8 @@ import { createPendingAuthorizationStore } from "#src/platform/oauth/index";
 import { createMediaModule } from "./modules/media.js";
 import { createTaxonomyModule } from "./modules/taxonomy.js";
 import { createTrashModule } from "./modules/trash.js";
+import { withUserTrashAdminOverride } from "./trash-user-admin-override.js";
+import { identityServiceDepsFrom } from "../../inbound/admin-http/routes/users/deps.js";
 import { createContentModule } from "./modules/content.js";
 import { createPublishContentModule } from "./modules/publish-content.js";
 import { createMembersModule } from "./modules/members.js";
@@ -1649,7 +1651,24 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // because Media is one of the four kinds it lists, but it is a platform surface, not a media one:
   // it spans Posts, Comments, Media and Redirects. No ordering constraint — every path is under
   // `/api/admin/v1/workspaces/:workspaceId/trash` and none is a catch-all.
-  mountRoutes(app, createTrashModule(routeDeps));
+  //
+  // `authorize` is overridden (ONLY for this module's own deps, never `routeDeps.authorize` itself,
+  // which every other route reads unchanged) so restore/purge of a trashed USER also honor the
+  // built-in `admin` role, not just the owner `TRASH_PERMISSION_BY_ENTITY_TYPE.get("user") === "*"`
+  // alone (OWNER DECISION 2026-09-24, delete-user plan v2 Slice 3's "Open gap") — see
+  // `trash-user-admin-override.ts`'s file header for why the override lives here and not in
+  // `permissions.ts`/`mayActOnEntityType`, which are shared by every other trashable kind.
+  mountRoutes(
+    app,
+    createTrashModule({
+      ...routeDeps,
+      authorize: withUserTrashAdminOverride({
+        base: routeDeps.authorize,
+        identity: identityServiceDepsFrom(routeDeps),
+        workspaceId: routeDeps.workspaceId,
+      }),
+    })
+  );
   // The `connectors` server module — Composio-backed third-party accounts behind the admin's
   // Settings → Connectors tab. Registered next to `integrations-admin` above because the two share
   // the `admin.integrations.manage` permission, but they own different subsystems (outbound
