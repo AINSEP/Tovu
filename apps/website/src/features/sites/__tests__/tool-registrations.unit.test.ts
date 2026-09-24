@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/cms/core";
+import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import type { DuplicateSiteResult, SiteListEntry } from "#src/platform/site-dir/index";
 import { listToolContributors, registerToolContributor, resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
