@@ -233,6 +233,15 @@ export interface PushBundleResult {
    *  bundle carried no entities at all (the probe is skipped entirely in that case — see
    *  {@link pushBundleToPeer}). */
   readonly notSupportedByLive: readonly NotSupportedByLiveEntry[];
+  /** publish-overwrite-live-plan §4/S7 — whether the peer's own capabilities probe reported the
+   *  `"overwrite-live"` feature (`capabilities.ts`'s S6 addition). `false` for an older peer whose
+   *  `/capabilities` response carries no `features` array, and `false` also when the probe was
+   *  skipped because the bundle carried no entities (see {@link notSupportedByLive}) — there is
+   *  nothing to overwrite in that case anyway. The admin dialog and the chat tool (S8/S9) read this
+   *  to decide whether to offer any "Overwrite on live" tick at all; this driver forwards whatever
+   *  `overwriteEntityKeys` it is given regardless of this value — refusing them here would be a
+   *  second place the same decision could be made differently from the UI's. */
+  readonly liveCanOverwrite: boolean;
 }
 
 /** The fixed set every peer predating S-F1's `/capabilities` route accepts — `bundle-create.ts`'s
@@ -261,7 +270,18 @@ const LEGACY_PROBE_STATUSES: ReadonlySet<number> = new Set([401, 404]);
  *
  * @complexity O(1) plus one network round trip.
  */
-async function probePeerCapabilities(deps: PeerCallDeps): Promise<readonly string[]> {
+/** What {@link probePeerCapabilities} learned about a peer: the entity types it currently accepts,
+ *  plus the feature flags it advertises (publish-overwrite-live-plan §4/S7's `"overwrite-live"` is
+ *  the first one). A peer that predates `features` entirely — the {@link LEGACY_PROBE_STATUSES}
+ *  case, or an S-F1-only peer whose response has `entityTypes` but no `features` array — reports an
+ *  empty features list: fail-closed, the same posture `entityTypes` itself already takes for that
+ *  peer. */
+interface PeerCapabilities {
+  readonly entityTypes: readonly string[];
+  readonly features: readonly string[];
+}
+
+async function probePeerCapabilities(deps: PeerCallDeps): Promise<PeerCapabilities> {
   const { credential } = deps;
   let probed: Record<string, unknown>;
   try {
@@ -272,7 +292,7 @@ async function probePeerCapabilities(deps: PeerCallDeps): Promise<readonly strin
     );
   } catch (err) {
     if (err instanceof PublishContentPeerTransportError && LEGACY_PROBE_STATUSES.has(err.peerStatus ?? 0)) {
-      return LEGACY_PEER_ENTITY_TYPES;
+      return { entityTypes: LEGACY_PEER_ENTITY_TYPES, features: [] };
     }
     throw err;
   }
@@ -283,7 +303,11 @@ async function probePeerCapabilities(deps: PeerCallDeps): Promise<readonly strin
       "PEER_RESPONSE_INVALID"
     );
   }
-  return probed.entityTypes as string[];
+  const features =
+    Array.isArray(probed.features) && probed.features.every((feature) => typeof feature === "string")
+      ? (probed.features as string[])
+      : [];
+  return { entityTypes: probed.entityTypes as string[], features };
 }
 
 /**
@@ -328,6 +352,10 @@ function trimBundleToCapabilities(
  * produce a plan that is wrong the moment it is acted on.
  *
  * @param required.bundle - Built by `buildExportBundle` from THIS instance's registered types.
+ * @param required.overwriteEntityKeys - publish-overwrite-live-plan §4/S7 — the operator's
+ * "Overwrite on live" ticks, forwarded verbatim to the peer's `/import/plan` (undefined stays
+ * undefined on the wire, never becomes `[]` or `null`; see the peer's own `readOverwriteEntityKeys`
+ * doc on why absent must mean "force nothing" rather than an empty, real answer).
  * @param required.blobSource - Read-only access to this instance's blob store.
  * @throws {PublishContentPeerTransportError} on any peer failure.
  * @complexity O(b + 1) network round trips for `b` missing blobs, plus one probe, one stage and one
@@ -336,18 +364,22 @@ function trimBundleToCapabilities(
  */
 export async function pushBundleToPeer(
   deps: PeerCallDeps & { blobSource: PeerBlobSource; computeStorageKey: (sha256: string) => string },
-  required: { bundle: PublishContentExportEnvelope }
+  required: { bundle: PublishContentExportEnvelope; overwriteEntityKeys?: readonly string[] }
 ): Promise<PushBundleResult> {
   const { credential } = deps;
 
   // S-F1: probe, then trim, BEFORE any blob is probed or uploaded — an excluded entity's blobs must
   // never be sent either. Skipped for an empty bundle: trimming nothing needs no round trip, the
-  // same short-circuit the blob probe below already takes for an empty `blobManifest`.
+  // same short-circuit the blob probe below already takes for an empty `blobManifest`. An empty
+  // bundle also leaves `liveCanOverwrite` at its fail-closed `false` default (S7) — there is nothing
+  // in it to overwrite.
   let bundle = required.bundle;
   let notSupportedByLive: readonly NotSupportedByLiveEntry[] = [];
+  let liveCanOverwrite = false;
   if (bundle.entities.length > 0) {
-    const accepted = await probePeerCapabilities(deps);
-    const trimmed = trimBundleToCapabilities(bundle, accepted);
+    const capabilities = await probePeerCapabilities(deps);
+    liveCanOverwrite = capabilities.features.includes("overwrite-live");
+    const trimmed = trimBundleToCapabilities(bundle, capabilities.entityTypes);
     bundle = trimmed.bundle;
     notSupportedByLive = trimmed.notSupportedByLive;
   }
@@ -408,12 +440,22 @@ export async function pushBundleToPeer(
   }
 
   const plan = requireObject(
-    await callPeer(deps, { method: "POST", path: peerRoute(credential, "/import/plan"), body: { bundleId } }),
+    await callPeer(deps, {
+      method: "POST",
+      path: peerRoute(credential, "/import/plan"),
+      // publish-overwrite-live-plan §4/S7 — `undefined` here reaches the peer's `/import/plan` as an
+      // absent field, which its `readOverwriteEntityKeys` reads as "force nothing", the same
+      // absent-means-unforced reading `selectedEntityKeys` already relies on for this same call.
+      body:
+        required.overwriteEntityKeys === undefined
+          ? { bundleId }
+          : { bundleId, overwriteEntityKeys: required.overwriteEntityKeys },
+    }),
     "import plan",
     credential.baseUrl
   );
 
-  return { bundleId, blobsUploaded, blobsUnavailable, plan, notSupportedByLive };
+  return { bundleId, blobsUploaded, blobsUnavailable, plan, notSupportedByLive, liveCanOverwrite };
 }
 
 /**
@@ -458,13 +500,23 @@ export async function confirmPeerImport(
  */
 export async function executePeerImport(
   deps: PeerCallDeps,
-  required: { bundleId: string; confirmationToken: string }
+  required: { bundleId: string; confirmationToken: string; overwriteEntityKeys?: readonly string[] }
 ): Promise<Record<string, unknown>> {
   return requireObject(
     await callPeer(deps, {
       method: "POST",
       path: peerRoute(deps.credential, "/import/execute"),
-      body: { bundleId: required.bundleId, confirmationToken: required.confirmationToken },
+      // publish-overwrite-live-plan §4/S7 — the same forced set confirmed at plan time. A DIFFERENT
+      // set here re-derives a different report hash on the peer, and its own PLAN_STALE check
+      // refuses it (§4) — no staleness code is needed on this side of the wire either.
+      body:
+        required.overwriteEntityKeys === undefined
+          ? { bundleId: required.bundleId, confirmationToken: required.confirmationToken }
+          : {
+              bundleId: required.bundleId,
+              confirmationToken: required.confirmationToken,
+              overwriteEntityKeys: required.overwriteEntityKeys,
+            },
     }),
     "import execute",
     deps.credential.baseUrl

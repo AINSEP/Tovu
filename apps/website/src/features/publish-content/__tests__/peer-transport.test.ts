@@ -458,3 +458,80 @@ test("every peer route is built under the PEER's workspace id, never this instan
     assert.match(call.url, /\/workspaces\/remote-ws-9\//);
   }
 });
+
+// ---------------------------------------------------------------------------
+// S7: liveCanOverwrite + overwriteEntityKeys forwarding — overwrite-live-plan §4/S7.
+// ---------------------------------------------------------------------------
+
+test("a capabilities probe with no 'features' array gives liveCanOverwrite:false", async () => {
+  const http = new FakeHttpClient([
+    { match: /\/capabilities$/, json: { entityTypes: ["post"] } },
+    { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
+    { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
+  ]);
+  const result = await pushBundleToPeer(pushDeps(http), { bundle: bundle({ entities: [packedEntity()] }) });
+  assert.equal(result.liveCanOverwrite, false);
+});
+
+test("a capabilities probe naming 'overwrite-live' in 'features' gives liveCanOverwrite:true", async () => {
+  const http = new FakeHttpClient([
+    { match: /\/capabilities$/, json: { entityTypes: ["post"], features: ["overwrite-live"] } },
+    { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
+    { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
+  ]);
+  const result = await pushBundleToPeer(pushDeps(http), { bundle: bundle({ entities: [packedEntity()] }) });
+  assert.equal(result.liveCanOverwrite, true);
+});
+
+test("an old peer (404/401 legacy probe) always gives liveCanOverwrite:false", async () => {
+  const http = new FakeHttpClient([
+    { match: /\/capabilities$/, status: 404 },
+    { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
+    { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
+  ]);
+  const result = await pushBundleToPeer(pushDeps(http), { bundle: bundle({ entities: [packedEntity()] }) });
+  assert.equal(result.liveCanOverwrite, false);
+});
+
+test("liveCanOverwrite is false, not undefined, when the probe is skipped for an empty bundle", async () => {
+  const http = new FakeHttpClient([
+    { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
+    { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
+  ]);
+  const result = await pushBundleToPeer(pushDeps(http), { bundle: bundle() });
+  assert.equal(result.liveCanOverwrite, false);
+});
+
+test("pushBundleToPeer sends overwriteEntityKeys on /import/plan when given, and omits the field entirely when not", async () => {
+  const http = new FakeHttpClient([
+    { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
+    { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
+  ]);
+  await pushBundleToPeer(pushDeps(http), { bundle: bundle(), overwriteEntityKeys: ["post:p1"] });
+  const planCall = http.calls.find((call) => call.url.includes("/import/plan"));
+  assert.deepEqual(JSON.parse(planCall?.body ?? "{}"), { bundleId: "remote-bundle-1", overwriteEntityKeys: ["post:p1"] });
+
+  const http2 = new FakeHttpClient([
+    { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-2" } },
+    { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
+  ]);
+  await pushBundleToPeer(pushDeps(http2), { bundle: bundle() });
+  const planCall2 = http2.calls.find((call) => call.url.includes("/import/plan"));
+  const parsed = JSON.parse(planCall2?.body ?? "{}") as Record<string, unknown>;
+  assert.equal("overwriteEntityKeys" in parsed, false, "an unspecified overwriteEntityKeys must not appear as an empty array or null");
+});
+
+test("executePeerImport sends overwriteEntityKeys when given, and omits the field entirely when not", async () => {
+  const http = new FakeHttpClient([{ match: /\/import\/execute$/, json: { restorePointId: "rp-1", runId: "run-1", changeSetIds: [] } }]);
+  await executePeerImport({ httpClient: http, credential: CREDENTIAL }, { bundleId: "b1", confirmationToken: "tok-1", overwriteEntityKeys: ["post:p1"] });
+  assert.deepEqual(JSON.parse(http.calls[0].body ?? "{}"), {
+    bundleId: "b1",
+    confirmationToken: "tok-1",
+    overwriteEntityKeys: ["post:p1"],
+  });
+
+  const http2 = new FakeHttpClient([{ match: /\/import\/execute$/, json: { restorePointId: "rp-1", runId: "run-1", changeSetIds: [] } }]);
+  await executePeerImport({ httpClient: http2, credential: CREDENTIAL }, { bundleId: "b1", confirmationToken: "tok-1" });
+  const parsed = JSON.parse(http2.calls[0].body ?? "{}") as Record<string, unknown>;
+  assert.equal("overwriteEntityKeys" in parsed, false);
+});

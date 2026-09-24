@@ -307,3 +307,149 @@ test("push/plan treats an absent selection as 'everything', not as an empty one"
   const res = await fetch(`${server}${BASE}/peer-1/push/plan`, { method: "POST" });
   assert.notEqual(res.status, 400, "a plan with no selection must not be rejected as malformed");
 });
+
+// ---------------------------------------------------------------------------
+// S7: overwriteEntityKeys forwarding + liveCanOverwrite echo — overwrite-live-plan §4/S7.
+// ---------------------------------------------------------------------------
+
+test("push/plan refuses a malformed overwriteEntityKeys with a 400 code, before it opens the peer", async (t) => {
+  const { app } = buildApp();
+  const server = await startTestServer(app, t);
+
+  for (const overwriteEntityKeys of [["post:p1", 7], "post:p1", { "post:p1": true }]) {
+    const res = await fetch(`${server}${BASE}/peer-1/push/plan`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ overwriteEntityKeys }),
+    });
+    assert.equal(res.status, 400, `${JSON.stringify(overwriteEntityKeys)} must be refused`);
+    assert.deepEqual(await res.json(), {
+      error: "'overwriteEntityKeys' must be an array of strings",
+      code: "VALIDATION_ERROR",
+    });
+  }
+});
+
+test("push/execute refuses a malformed overwriteEntityKeys with a 400 code, before it opens the peer", async (t) => {
+  const { app } = buildApp();
+  const server = await startTestServer(app, t);
+
+  const res = await fetch(`${server}${BASE}/peer-1/push/execute`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ bundleId: "b1", confirmationToken: "t1", overwriteEntityKeys: "not-an-array" }),
+  });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), {
+    error: "'overwriteEntityKeys' must be an array of strings",
+    code: "VALIDATION_ERROR",
+  });
+});
+
+test("push/plan echoes overwriteEntityKeys back exactly as sent, and forwards the same keys to the peer's own /import/plan", async (t) => {
+  // No `/capabilities` route stubbed: this test's fixture app registers no publish-content
+  // contributors (`buildApp` never imports the manifest), so the exported bundle is always empty
+  // and `pushBundleToPeer` skips the probe — `liveCanOverwrite` is covered against a REAL probe
+  // response at the feature level (`peer-transport.test.ts`); this test's job is only the route's
+  // own read-forward-echo wiring for `overwriteEntityKeys`.
+  const httpClient: HttpClientPort = {
+    send: async (request) => {
+      if (request.url.includes("/bundles")) {
+        return { status: 201, headers: {}, bodyText: JSON.stringify({ bundleId: "remote-bundle-1" }) };
+      }
+      if (request.url.includes("/import/plan")) {
+        // The peer echoes back exactly what it was told to force, mirroring `import.ts`'s own
+        // `forced` outcome for a row named by that key — this fake only needs to prove the SOURCE
+        // route relays and re-echoes it, not the destination's own planning logic.
+        const body = JSON.parse(String(request.body ?? "{}")) as { overwriteEntityKeys?: string[] };
+        return {
+          status: 200,
+          headers: {},
+          bodyText: JSON.stringify({
+            domain: "publish_content.import",
+            planId: "p1",
+            planHash: "h1",
+            details: { refused: false, refusalReason: null, applyOrder: [], rows: [] },
+            overwriteEntityKeysSeenByPeer: body.overwriteEntityKeys ?? null,
+          }),
+        };
+      }
+      throw new Error(`unexpected request: ${request.method} ${request.url}`);
+    },
+  };
+  const { app } = buildApp({ httpClient });
+  const server = await startTestServer(app, t);
+  await createPeer(server);
+
+  const res = await fetch(`${server}${BASE}/peer-1/push/plan`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ overwriteEntityKeys: ["post:p1"] }),
+  });
+  const raw = await res.text();
+  assert.equal(res.status, 200, raw);
+  const body = JSON.parse(raw) as { overwriteEntityKeys?: string[]; liveCanOverwrite?: boolean; overwriteEntityKeysSeenByPeer?: string[] | null };
+  assert.deepEqual(body.overwriteEntityKeys, ["post:p1"], "push/plan must echo back the ticks it was given");
+  assert.equal(body.liveCanOverwrite, false, "an empty bundle in this fixture never reaches the probe (see the comment above)");
+  assert.deepEqual(body.overwriteEntityKeysSeenByPeer, ["post:p1"], "the peer's own /import/plan must have received the same keys");
+});
+
+test("push/plan omits overwriteEntityKeys from its response, and reports liveCanOverwrite:false, when nothing was ticked", async (t) => {
+  // No `/capabilities` route stubbed on purpose: this fixture workspace exports no entities, so
+  // `pushBundleToPeer` must skip the probe entirely (same as the feature-level test of that
+  // short-circuit) — an unexpected call here would throw and fail this test.
+  const httpClient: HttpClientPort = {
+    send: async (request) => {
+      if (request.url.includes("/bundles")) {
+        return { status: 201, headers: {}, bodyText: JSON.stringify({ bundleId: "remote-bundle-1" }) };
+      }
+      if (request.url.includes("/import/plan")) {
+        return {
+          status: 200,
+          headers: {},
+          bodyText: JSON.stringify({
+            domain: "publish_content.import",
+            planId: "p1",
+            planHash: "h1",
+            details: { refused: false, refusalReason: null, applyOrder: [], rows: [] },
+          }),
+        };
+      }
+      throw new Error(`unexpected request: ${request.method} ${request.url}`);
+    },
+  };
+  const { app } = buildApp({ httpClient });
+  const server = await startTestServer(app, t);
+  await createPeer(server);
+
+  const res = await fetch(`${server}${BASE}/peer-1/push/plan`, { method: "POST" });
+  const raw = await res.text();
+  assert.equal(res.status, 200, raw);
+  const body = JSON.parse(raw) as Record<string, unknown>;
+  assert.equal("overwriteEntityKeys" in body, false, "an untouched dialog's plan must not echo an empty/null overwrite set");
+  assert.equal(body.liveCanOverwrite, false, "an empty fixture workspace exports no entities, so the capabilities probe never runs");
+});
+
+test("push/execute forwards overwriteEntityKeys to the peer's own /import/execute", async (t) => {
+  let executeBody: Record<string, unknown> | undefined;
+  const httpClient: HttpClientPort = {
+    send: async (request) => {
+      if (request.url.includes("/import/execute")) {
+        executeBody = JSON.parse(String(request.body ?? "{}")) as Record<string, unknown>;
+        return { status: 200, headers: {}, bodyText: JSON.stringify({ restorePointId: "rp-1", runId: "run-1", changeSetIds: [] }) };
+      }
+      throw new Error(`unexpected request: ${request.method} ${request.url}`);
+    },
+  };
+  const { app } = buildApp({ httpClient });
+  const server = await startTestServer(app, t);
+  await createPeer(server);
+
+  const res = await fetch(`${server}${BASE}/peer-1/push/execute`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ bundleId: "b1", confirmationToken: "t1", overwriteEntityKeys: ["post:p1"] }),
+  });
+  assert.equal(res.status, 200, await res.text());
+  assert.deepEqual(executeBody, { bundleId: "b1", confirmationToken: "t1", overwriteEntityKeys: ["post:p1"] });
+});

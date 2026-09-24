@@ -136,6 +136,30 @@ function readSelectedEntityKeys(body: unknown): readonly string[] | null | typeo
   return raw.selectedEntityKeys;
 }
 
+/** Distinguishes "the body carried a malformed set of ticks" (a 400) from "the body carried none"
+ *  (`null`, force nothing) — the same two-outcome shape {@link readSelectedEntityKeys} above uses. */
+const INVALID_OVERWRITE_KEYS = Symbol("invalid-overwrite-keys");
+
+/**
+ * publish-overwrite-live-plan §4/S7 — reads `push/plan`'s and `push/execute`'s optional
+ * `overwriteEntityKeys`: the `entityKey()` strings (`planner.ts`) the operator ticked "Overwrite on
+ * live" for. Absent/`null` means "force nothing", the pre-S7 default every existing caller keeps
+ * getting. Bounded at 1000 entries, matching the destination's own cap
+ * (`routes/publish-content/import.ts`'s `readOverwriteEntityKeys`) — repeated here rather than
+ * imported, the same one-reader-per-route-file convention {@link readSelectedEntityKeys} already
+ * follows in this file.
+ *
+ * @complexity O(n) in the submitted key count.
+ */
+function readOverwriteEntityKeys(body: unknown): readonly string[] | null | typeof INVALID_OVERWRITE_KEYS {
+  const raw = (body ?? {}) as Record<string, unknown>;
+  if (raw.overwriteEntityKeys === undefined || raw.overwriteEntityKeys === null) return null;
+  if (!Array.isArray(raw.overwriteEntityKeys)) return INVALID_OVERWRITE_KEYS;
+  if (raw.overwriteEntityKeys.length > 1000) return INVALID_OVERWRITE_KEYS;
+  if (!raw.overwriteEntityKeys.every((key): key is string => typeof key === "string")) return INVALID_OVERWRITE_KEYS;
+  return raw.overwriteEntityKeys;
+}
+
 export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegistrar = (app, deps) => {
   const base = "/api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId";
 
@@ -166,6 +190,11 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         res.status(400).json({ error: "'selectedEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
         return;
       }
+      const overwriteEntityKeys = readOverwriteEntityKeys(req.body);
+      if (overwriteEntityKeys === INVALID_OVERWRITE_KEYS) {
+        res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
+        return;
+      }
 
       const peer = await openPeer(deps, String(req.params.peerId ?? ""));
       const workspace = await deps.workspaceRepo.findById(deps.workspaceId);
@@ -188,7 +217,7 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
           blobSource: deps.blobStore,
           computeStorageKey: (sha256) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
         },
-        { bundle }
+        { bundle, ...(overwriteEntityKeys === null ? {} : { overwriteEntityKeys }) }
       );
 
       // S-F1: `pushBundleToPeer` probes the peer's own capabilities and trims the bundle to what it
@@ -215,6 +244,16 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         blobsUploaded: result.blobsUploaded,
         blobsUnavailable: result.blobsUnavailable,
         notSupportedByLive: result.notSupportedByLive,
+        // publish-overwrite-live-plan §4/S7 — whether the peer just probed can honour a forced
+        // overwrite at all. The admin dialog and the chat tool (S8/S9) read this before ever
+        // offering an "Overwrite on live" tick.
+        liveCanOverwrite: result.liveCanOverwrite,
+        // Echoed back exactly as received — never defaulted to `[]` — so a client can carry the SAME
+        // set from this plan into `push/execute` (`ui/contract.ts`'s `PublishContentPlanResult`)
+        // without keeping its own parallel copy in sync. Omitted entirely when nothing was ticked,
+        // the same "absent, not an empty real answer" contract `selectedEntityKeys` itself reads by
+        // (this file's own `readSelectedEntityKeys` doc).
+        ...(overwriteEntityKeys === null ? {} : { overwriteEntityKeys }),
         // The peer's plan, with each row named from the bundle we just sent it — a live site
         // deployed before `entityLabel` existed answers rows with no label, and this side can name
         // its own content regardless. See `features/publish-content/report-labels.ts`.
@@ -253,9 +292,20 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         res.status(400).json({ error: "'bundleId' and 'confirmationToken' (strings) are required", code: "VALIDATION_ERROR" });
         return;
       }
+      const overwriteEntityKeys = readOverwriteEntityKeys(req.body);
+      if (overwriteEntityKeys === INVALID_OVERWRITE_KEYS) {
+        res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
+        return;
+      }
 
       const peer = await openPeer(deps, String(req.params.peerId ?? ""));
-      res.json(await executePeerImport(peer, { bundleId, confirmationToken }));
+      res.json(
+        await executePeerImport(peer, {
+          bundleId,
+          confirmationToken,
+          ...(overwriteEntityKeys === null ? {} : { overwriteEntityKeys }),
+        })
+      );
     } catch (err) {
       respondWithError(res, err);
     }

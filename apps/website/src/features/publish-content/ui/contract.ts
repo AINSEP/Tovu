@@ -46,6 +46,21 @@ export interface PublishContentPlanResult {
   readonly planHash: string;
   readonly bundleId: string;
   readonly details: PublishContentReport;
+  /**
+   * publish-overwrite-live-plan §4/S7 — whether the peer this plan targets can honour a forced
+   * overwrite at all (`peer-transport.ts`'s `PushBundleResult.liveCanOverwrite`, echoed here by
+   * `push/plan`). `false` for a peer on an older Tovu build, or one whose bundle carried no
+   * entities to probe against. The admin dialog and the chat tool read this before ever offering an
+   * "Overwrite on live" tick.
+   */
+  readonly liveCanOverwrite: boolean;
+  /**
+   * The `overwriteEntityKeys` this plan was built with, echoed back exactly as sent so a client can
+   * carry the SAME set into `push/execute` (§3's admin/chat flow) rather than keeping its own
+   * parallel copy in sync. Absent when nothing was ticked — the pre-S7 default every existing caller
+   * still gets.
+   */
+  readonly overwriteEntityKeys?: readonly string[];
 }
 
 /** `POST .../publish-content/peers/:peerId/push/confirm`. The token is the ONLY thing that authorizes an
