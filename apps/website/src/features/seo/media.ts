@@ -7,6 +7,7 @@ import type {
   TransformDefinitionRepoPort,
   TransformFormat,
 } from "../media/index.js";
+import { findMediaByIdOrSlug, mediaPublicPath, mediaUrlKey } from "../media/index.js";
 
 /**
  * @file `resolveSeoImageRef` (ADR-PIPE-008 Decision §6, C-013, EC-07;
@@ -54,20 +55,24 @@ export interface ResolveSeoImageRefDeps {
 
 export interface ResolveSeoImageRefInput {
   workspaceId: UUID;
-  /** Either `"{assetId}:{transformName}"` or an already-absolute URL. */
+  /** Either `"{idOrSlug}:{transformName}"` (the asset's id, or — since readable-slugs S4/S5b — its
+   *  slug) or an already-absolute URL. */
   ref: string;
 }
 
-/** Splits `"{assetId}:{transformName}"` out of a ref string, or `null` when the ref is not that shape. */
-function parseMediaRefParts(ref: string): { assetId: string; transformName: string } | null {
+/** Splits `"{idOrSlug}:{transformName}"` out of a ref string, or `null` when the ref is not that shape. */
+function parseMediaRefParts(ref: string): { idOrSlug: string; transformName: string } | null {
   const separatorIndex = ref.indexOf(":");
   if (separatorIndex <= 0 || separatorIndex === ref.length - 1) return null;
-  return { assetId: ref.slice(0, separatorIndex), transformName: ref.slice(separatorIndex + 1) };
+  return { idOrSlug: ref.slice(0, separatorIndex), transformName: ref.slice(separatorIndex + 1) };
 }
 
-/** The asset, or `null` when it does not exist or is trashed (EC-07 fail-soft miss). */
-async function resolveVisibleAsset(deps: ResolveSeoImageRefDeps, workspaceId: UUID, assetId: string): Promise<MediaRecord | null> {
-  const asset = await deps.mediaRepo.findById({ workspaceId, id: assetId });
+/** The asset, looked up by either its id or its (possibly retired-and-current, see
+ *  {@link findMediaByIdOrSlug}) slug, or `null` when it does not exist or is trashed (EC-07
+ *  fail-soft miss). Readable-slugs S4: a stored `<slug>:transform` ref must resolve exactly like a
+ *  `<uuid>:transform` one always has. */
+async function resolveVisibleAsset(deps: ResolveSeoImageRefDeps, workspaceId: UUID, idOrSlug: string): Promise<MediaRecord | null> {
+  const asset = await findMediaByIdOrSlug({ deps, input: { workspaceId, idOrSlug } });
   if (!asset || asset.status === "trashed") return null;
   return asset;
 }
@@ -83,16 +88,18 @@ async function resolveLatestTransformVersion(
   return versions.reduce((a, b) => (b.version > a.version ? b : a));
 }
 
-/** The `/m/{assetId}/{transformName}.v{version}/image.{ext}` URL contract (ADR-027 §4). */
-function buildSeoImageUrl(assetId: string, transformName: string, latest: TransformDefinitionRecord): string {
+/** The `/m/{key}/{transformName}.v{version}/image.{ext}` URL contract (ADR-027 §4), keyed by the
+ *  asset's current slug when it has a valid one (readable-slugs S4), otherwise its id. */
+function buildSeoImageUrl(asset: MediaRecord, transformName: string, latest: TransformDefinitionRecord): string {
   const ext = EXT_BY_TRANSFORM_FORMAT[latest.params.format] ?? latest.params.format;
-  return `/m/${assetId}/${transformName}.v${latest.version}/image.${ext}`;
+  return mediaPublicPath(mediaUrlKey(asset), { kind: "transform", name: transformName, version: latest.version, ext });
 }
 
 /**
  * Resolves an `ogImage`/`twitterImage` field to a URL, or `undefined` on any
  * miss. Returns `ref` unchanged when it is already an absolute URL; otherwise
- * returns the site-relative `/m/{assetId}/...` URL contract (ADR-027 §4) —
+ * returns the site-relative `/m/{key}/...` URL contract (ADR-027 §4), keyed by the asset's current
+ * slug when it has a valid one (readable-slugs S4), otherwise its id —
  * NOT necessarily absolute (this function has no origin to join, by design;
  * `seo.ts`'s `resolveShareImages` is the one caller and absolutizes the
  * result via `toAbsoluteUrl`, since `og:image`/`twitter:image` must be
@@ -116,13 +123,13 @@ export async function resolveSeoImageRef(
 
   const parts = parseMediaRefParts(ref);
   if (!parts) return undefined;
-  const { assetId, transformName } = parts;
+  const { idOrSlug, transformName } = parts;
 
-  const asset = await resolveVisibleAsset(deps, input.workspaceId, assetId);
+  const asset = await resolveVisibleAsset(deps, input.workspaceId, idOrSlug);
   if (!asset) return undefined;
 
   const latest = await resolveLatestTransformVersion(deps, input.workspaceId, transformName);
   if (!latest) return undefined;
 
-  return buildSeoImageUrl(assetId, transformName, latest);
+  return buildSeoImageUrl(asset, transformName, latest);
 }

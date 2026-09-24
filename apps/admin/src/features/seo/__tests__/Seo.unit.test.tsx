@@ -147,6 +147,7 @@ function mediaItem(overrides: Partial<AdminMedia> = {}): AdminMedia {
     cssClass: null,
     htmlAttributes: null,
     contentType: "image/png",
+    publicUrl: null,
     ...overrides,
   };
 }
@@ -442,8 +443,10 @@ describe("Seo — default OG image (MediaRefField)", () => {
     expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
   });
 
-  it("Choose image opens the real media picker; selecting an asset calls setDefaultOgImage with the EXACT '{assetId}:public' ref", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem({ id: "asset-7" })] });
+  // readable-slugs S5b: buildMediaRef prefers the slug — id and slug are distinct here so a passing
+  // assertion proves the SLUG was used, not just any field.
+  it("Choose image opens the real media picker; selecting an asset calls setDefaultOgImage with the EXACT '{slug}:public' ref", async () => {
+    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem({ id: "asset-7", slug: "asset-7-slug" })] });
     const user = userEvent.setup();
     const setDefaultOgImage = vi.fn();
     renderSeo({ defaultOgImage: "", setDefaultOgImage });
@@ -452,7 +455,7 @@ describe("Seo — default OG image (MediaRefField)", () => {
     await user.click(await screen.findByTitle("Sunset"));
 
     expect(setDefaultOgImage).toHaveBeenCalledTimes(1);
-    expect(setDefaultOgImage).toHaveBeenCalledWith("asset-7:public");
+    expect(setDefaultOgImage).toHaveBeenCalledWith("asset-7-slug:public");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -784,8 +787,10 @@ describe("SeoEntryPanel — OG/Twitter image pickers (MediaRefField)", () => {
     vi.restoreAllMocks();
   });
 
-  it("selecting an asset for OG image calls setField('ogImage', the EXACT '{assetId}:public' ref)", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem({ id: "asset-og" })] });
+  // readable-slugs S5b: buildMediaRef now prefers the slug over the id — each item below sets both
+  // to distinct values so a passing assertion proves the SLUG was used, not just any field.
+  it("selecting an asset for OG image calls setField('ogImage', the EXACT '{slug}:public' ref)", async () => {
+    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem({ id: "asset-og", slug: "asset-og-slug" })] });
     const user = userEvent.setup();
     const setField = vi.fn();
     renderPanel({ setField });
@@ -793,11 +798,11 @@ describe("SeoEntryPanel — OG/Twitter image pickers (MediaRefField)", () => {
     await user.click(within(fieldContainer("OG image (media ref or URL)")).getByRole("button", { name: "Choose image" }));
     await user.click(await screen.findByTitle("Sunset"));
 
-    expect(setField).toHaveBeenCalledWith("ogImage", "asset-og:public");
+    expect(setField).toHaveBeenCalledWith("ogImage", "asset-og-slug:public");
   });
 
-  it("selecting an asset for Twitter image calls setField('twitterImage', the EXACT '{assetId}:public' ref)", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem({ id: "asset-tw" })] });
+  it("selecting an asset for Twitter image calls setField('twitterImage', the EXACT '{slug}:public' ref)", async () => {
+    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem({ id: "asset-tw", slug: "asset-tw-slug" })] });
     const user = userEvent.setup();
     const setField = vi.fn();
     renderPanel({ setField });
@@ -805,7 +810,7 @@ describe("SeoEntryPanel — OG/Twitter image pickers (MediaRefField)", () => {
     await user.click(within(fieldContainer("Twitter image (media ref or URL)")).getByRole("button", { name: "Choose image" }));
     await user.click(await screen.findByTitle("Sunset"));
 
-    expect(setField).toHaveBeenCalledWith("twitterImage", "asset-tw:public");
+    expect(setField).toHaveBeenCalledWith("twitterImage", "asset-tw-slug:public");
   });
 
   it("Remove on the OG image field calls setField('ogImage', '')", async () => {

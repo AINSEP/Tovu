@@ -1466,6 +1466,14 @@ export interface AdminMedia {
    * dropping it from the screen.
    */
   contentType: string | null;
+  /**
+   * The asset's real, public `/m/...` URL (readable-slugs S5a, 2026-09-23) — keyed by its readable
+   * slug when it has a valid one, otherwise its id. `null` for a trashed asset (never a link a
+   * visitor would 404 on) or when no "public" core transform is registered yet. This is the URL
+   * the Media edit panel shows/copies; it is NOT the same as the admin's own `mediaOriginalUrl`
+   * preview URL below, which is an authenticated admin-only route.
+   */
+  publicUrl: string | null;
 }
 
 export interface AdminWebhookDeliverySummary {
@@ -2431,8 +2439,10 @@ export const api = {
   // builds the string.
   //
   // `templateChoice`'s tri-state (see `resolveTemplate`'s doc) is preserved through the query string:
-  // `null` omits the param entirely ("never chosen"), `""` sends `?templateChoice=` (the explicit
-  // "No template chosen" opt-out), anything else sends that filename.
+  // `null` omits the param entirely ("never chosen" — the theme's page shell for a Page, or the
+  // theme's first template for a Post), `""` sends `?templateChoice=` (a Post's diagnostic page;
+  // since the bare-page ruling, 2026-09-23, a Page's explicit "No template" — bare, no theme styles/
+  // scripts/header/footer), anything else sends that filename.
   //
   // `siteUrl(...)` wrapping (2026-08-12, owner-reported bug — mention links inside this preview
   // navigated to a blank Vite dev-server error page): every OTHER `BASE`-prefixed path in this file

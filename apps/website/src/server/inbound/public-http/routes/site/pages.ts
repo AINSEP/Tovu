@@ -33,6 +33,7 @@ import {
   resolveActiveTheme,
   tokenStylesheetSentinel,
   isStandaloneThemePage,
+  isBarePageChoice,
   collectionMarkerKey,
   splitCollectionMarkerInner,
   renderEntryList,
@@ -83,6 +84,7 @@ import {
   type FormSubmissionRedirectResult,
   type MediaAssetRenderMeta,
 } from "../../http/site/render.js";
+import { renderBareEntryDocument } from "../../http/site/bare-page.js";
 import { isHttpsRequest } from "../oauth/public-origin.js";
 import { MEMBER_SESSION_COOKIE } from "../members/complete-sign-in.js";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
@@ -1381,6 +1383,7 @@ export async function resolveMediaAssetMetadataForRender(
           height: record.height,
           cssClass: record.cssClass,
           htmlAttributes: record.htmlAttributes,
+          slug: record.slug ?? null,
           sha256: record.source.sha256,
         },
       ] as const;
@@ -1402,6 +1405,7 @@ export async function resolveMediaAssetMetadataForRender(
         height: meta.height,
         cssClass: meta.cssClass,
         htmlAttributes: meta.htmlAttributes,
+        slug: meta.slug,
         contentType: contentTypes.get(meta.sha256) ?? null,
       },
     ])
@@ -1602,6 +1606,40 @@ export async function resolvePostAfterMarketingCheck(
 }
 
 /**
+ * Bare-page render (owner ruling 2026-09-23, `no-template-bare-plan-2026-09-23.md` S4) — resolves
+ * every input `renderBareEntryDocument` (`http/site/bare-page.ts`) needs and calls it. Mirrors
+ * {@link renderGenericPostPage}'s own "route resolves I/O, render.ts/bare-page.ts stays pure" split,
+ * with two deliberate differences: `resolveWidgetsForRender` is called with `theme: null` (a bare
+ * Page gets no theme-declared REGION widgets — only inline `widgetEmbed` nodes in its own body,
+ * which resolve from `pageBodyJson` regardless of the theme argument), and `assignedTerms`/`posts`
+ * are never resolved at all, since {@link renderBareEntryDocument} never appends a terms block or
+ * reads the sibling-posts list (plan §3, point 2).
+ *
+ * `extraHead` is built via `buildExtraHead(deps, "post", ...)` — the SAME SEO/og fold every other
+ * post/page route gets. This is the ONE thing this function adds beyond the Page's own HTML; see
+ * `bare-page.ts`'s own file header for why that's not a contradiction of "no theme chrome".
+ */
+async function renderBarePage(deps: RouteDeps, post: PostRecord): Promise<string> {
+  const siteTitle = await resolveSiteTitleForRender(deps);
+  const [widgets, pageHtmlEmbeds, mediaTransformVersions, mediaAssetMetadata, extraHead] = await Promise.all([
+    resolveWidgetsForRender(deps, null, post),
+    resolveHtmlEmbedsForRender(deps, post),
+    resolveMediaTransformVersionsForRender(deps),
+    resolveMediaAssetMetadataForRender(deps, post),
+    buildExtraHead(deps, "post", siteTitle, post),
+  ]);
+  return renderBareEntryDocument({
+    post,
+    siteTitle,
+    extraHead,
+    pageHtmlEmbeds,
+    widgetInlineResolved: widgets.inlineResolved,
+    mediaTransformVersions,
+    mediaAssetMetadata,
+  });
+}
+
+/**
  * Template-picker feature (2026-08-10, unified 2026-08-11) — a `bodyFormat: "doc"` post
  * ("formulaic" content, the owner's own term) or an `"html"`-format Page with an explicit
  * choice renders through its chosen theme template instead of the generic rendering path,
@@ -1632,6 +1670,15 @@ export async function resolvePostAfterMarketingCheck(
  * `renderViaTemplate` is called with a shallow clone carrying the resolved filename ONLY for this
  * render — nothing is written back to `post.templateChoice`, so the row stays `null`/`undefined` and
  * a later explicit choice (or a theme switch) is free to override this every time.
+ *
+ * **Bare page** (owner ruling 2026-09-23, plan §2 P1-P6) — checked FIRST, before the `theme === null`
+ * early return below: a `kind: "page"` row with `templateChoice === ""` ({@link isBarePageChoice})
+ * renders NONE of a theme's chrome, so it doesn't matter whether a theme is even active. Routing it
+ * through {@link renderBarePage} here — rather than adding a THIRD "is this bare" check at every one
+ * of this function's five call sites (`GET /`, `GET /:slug`, the marketing-override branch, the
+ * member-gated path, and the admin preview route, S5) — means the member-access gate at each call
+ * site (checked strictly BEFORE this function runs) still applies unchanged: a bare Page is gated
+ * exactly like every other Page, never bypassed.
  */
 export async function renderTemplateBranchIfEligible(
   deps: RouteDeps,
@@ -1644,6 +1691,11 @@ export async function renderTemplateBranchIfEligible(
   // identically-shaped parameter; see that function's doc for the full rationale.
   postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext }
 ): Promise<string | undefined> {
+  // Checked before the theme-off early return below: a bare Page renders identically with or
+  // without an active theme, so this must not be gated on one being present. See this function's
+  // own doc, "Bare page" paragraph.
+  if (isBarePageChoice(post)) return renderBarePage(deps, post);
+
   // The template branch renders a THEME's template file, so with no theme it cannot run and the
   // caller falls through to the generic render. `post.templateChoice` is IGNORED here, never
   // cleared — which is what makes "turn the theme off, then back on" fully reversible rather than

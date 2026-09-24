@@ -94,6 +94,15 @@ export const DISALLOWED_INLINE_CONTENT_TYPES: ReadonlySet<string> = new Set([
  * so this one change covers the admin preview route AND the public hand-typed `<video src="/m/
  * {slug-or-id}/original">` case in one edit.
  *
+ * `onNotFound` (readable-slugs plan S2b, 2026-09-23): the two callers need DIFFERENT unknown-asset
+ * responses. This route's own admin caller keeps its historical `404 {error: "media '<x>' was not
+ * found"}` (default, below) — an authenticated caller learning an id doesn't exist is not a
+ * security concern. The public video route, however, must make an unknown asset indistinguishable
+ * from a gate-denied one (its own `sendMediaNotFound`'s `private, no-store` + `"video rendition not
+ * found"` shape), or the difference is a free existence oracle for a caller who only knows a slug
+ * is guessable. Passing a callback keeps that policy at the PUBLIC route's own call site rather than
+ * teaching this shared function two hardcoded response shapes.
+ *
  * @throws {Error} the same data-integrity-gap error the pre-extraction route threw, if the media row
  * exists but its source blob does not (see the inline comment at the throw site).
  * @complexity O(1) — at most two indexed lookups for the media row (slug, then id), plus one blob lookup.
@@ -101,11 +110,16 @@ export const DISALLOWED_INLINE_CONTENT_TYPES: ReadonlySet<string> = new Set([
 export async function resolveMediaOriginalBlob(
   deps: Pick<MediaRouteDeps, "mediaRepo" | "assetBlobRepo">,
   res: Response,
-  params: { workspaceId: string; mediaId: string }
+  params: { workspaceId: string; mediaId: string },
+  onNotFound?: (res: Response) => void
 ): Promise<{ media: MediaRecord; blob: NonNullable<Awaited<ReturnType<MediaRouteDeps["assetBlobRepo"]["findByHash"]>>> } | null> {
   const media = await findMediaByIdOrSlug({ deps: { mediaRepo: deps.mediaRepo }, input: { workspaceId: params.workspaceId, idOrSlug: params.mediaId } });
   if (!media) {
-    res.status(404).json({ error: `media '${params.mediaId}' was not found` });
+    if (onNotFound) {
+      onNotFound(res);
+    } else {
+      res.status(404).json({ error: `media '${params.mediaId}' was not found` });
+    }
     return null;
   }
   if (media.status === "trashed") {

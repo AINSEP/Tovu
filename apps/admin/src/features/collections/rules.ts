@@ -1,4 +1,5 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
+import { embedMarkerSnippet } from "@tovu/embed-marker";
 
 import { ApiError, describeApiError, type AdminContentType, type ContentTypeFieldDef } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
@@ -68,10 +69,15 @@ export function isUserCollection(key: string): boolean {
  * fallback, per the fix landed in `a9ab19c4f`). Keeps the wrapper `<div data-embed-config='...'>`
  * shape every other embeddable type already uses.
  *
+ * A thin wrapper over `@tovu/embed-marker`'s generalised `embedMarkerSnippet` (readable-slugs S5b,
+ * 2026-09-23) — this was the one admin-generated marker that existed before that generalisation, so
+ * it moved onto the shared builder rather than keeping its own copy of the template. Byte-for-byte
+ * unchanged output.
+ *
  * @complexity Time/space: O(1) — one template string.
  */
 export function collectionEmbedSnippet(key: string): string {
-  return `<div data-embed-config='{"type":"collection","id":"${key}"}'></div>`;
+  return embedMarkerSnippet("collection", "id", key);
 }
 
 /**

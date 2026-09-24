@@ -53,6 +53,7 @@ function media(overrides: Partial<AdminMedia> = {}): AdminMedia {
     cssClass: null,
     htmlAttributes: null,
     contentType: "video/mp4",
+    publicUrl: null,
     ...overrides,
   };
 }

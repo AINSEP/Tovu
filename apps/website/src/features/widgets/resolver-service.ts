@@ -596,6 +596,11 @@ async function buildMediaImageIr(
     componentId: "media-image",
     props: {
       assetId,
+      // Readable-slugs S3: `render.ts`'s `renderWidgetMediaImage` reads this to build the emitted
+      // `/m/...` URL via `mediaUrlKey` — `null`/absent falls back to `assetId`, same as every other
+      // emitter. See the rewritten comment at this function's own caller for why emitting the slug
+      // here is now safe (S2a/S2b's `media_slug_history` rename safety).
+      slug: record.slug ?? null,
       transformName,
       version: definition.version,
       alt: record.alt,
@@ -623,9 +628,13 @@ async function resolveOneMediaEmbed(
   // `refAssetId` is exactly what the marker's `data-embed-id` says — a theme author may write
   // either the asset's `id` or its `slug` (2026-09-07). It stays the MAP KEY this function returns
   // (`resolveMediaTypeEmbeds`'s caller looks up the resolved map by the marker's own literal id, so
-  // the key must match what was typed, not what it resolved to) — only the `props.assetId` used to
-  // BUILD the served URL is normalized to the canonical `record.id` below, so a later slug rename
-  // never breaks a URL already baked into previously-rendered HTML.
+  // the key must match what was typed, not what it resolved to). `props.assetId` below is still
+  // normalized to the canonical `record.id` (the gate/lookup identifier), but `render.ts` no longer
+  // builds the served `/m/...` URL straight from it: as of readable-slugs S3, `props.slug` (added
+  // below) is what `mediaUrlKey` actually emits into `src`, falling back to `props.assetId` only when
+  // there is no valid slug. A later slug rename no longer risks breaking a URL already baked into
+  // previously-rendered HTML — that used to be `record.id`'s whole reason for being the emitted
+  // value; now it is `media_slug_history` (S2a/S2b) keeping the OLD slug resolving too.
   const { assetId: refAssetId, transformName } = parsed;
 
   const record = await findMediaByIdOrSlug({ deps: { mediaRepo }, input: { workspaceId: context.workspaceId, idOrSlug: refAssetId } });
@@ -654,6 +663,7 @@ async function resolveOneMediaEmbed(
         componentId: "media-image",
         props: {
           assetId: canonicalAssetId,
+          slug: record.slug ?? null,
           contentType,
           alt: record.alt,
           width: record.width,
@@ -831,6 +841,7 @@ async function resolvePostContentMediaContext(
           height: record.height,
           cssClass: record.cssClass,
           htmlAttributes: record.htmlAttributes,
+          slug: record.slug ?? null,
           contentType: contentTypes?.get(record.source.sha256) ?? null,
         },
       ])

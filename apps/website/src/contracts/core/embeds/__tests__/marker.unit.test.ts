@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  embedMarkerSnippet,
   embedMarkerTarget,
   formatMarkerAttributes,
   hasAuthoredAttributes,
@@ -475,4 +476,18 @@ test("embedMarkerTarget: the type is compared lower-cased", () => {
 test("embedMarkerTarget: an unknown type resolves only by id", () => {
   assert.deepEqual(embedMarkerTarget("mystery", { id: "x" }), { key: "id", value: "x" });
   assert.equal(embedMarkerTarget("mystery", { slug: "x" }), undefined);
+});
+
+test("embedMarkerSnippet: builds the data-embed-config wrapper div, byte-for-byte the same shape collectionEmbedSnippet always produced", () => {
+  assert.equal(
+    embedMarkerSnippet("collection", "id", "tovu_feature"),
+    '<div data-embed-config=\'{"type":"collection","id":"tovu_feature"}\'></div>'
+  );
+});
+
+test("embedMarkerSnippet: a media snippet keyed by slug (readable-slugs S5a's 'Copy embed code' button)", () => {
+  assert.equal(
+    embedMarkerSnippet("media", "slug", "cover-photo"),
+    '<div data-embed-config=\'{"type":"media","slug":"cover-photo"}\'></div>'
+  );
 });

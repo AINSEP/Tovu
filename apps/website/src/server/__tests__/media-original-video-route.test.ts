@@ -164,10 +164,16 @@ test("media original video route: a trashed video asset responds 410, mirroring 
   });
 });
 
-test("media original video route: an unknown assetId 404s", async () => {
+test("media original video route: an unknown assetId 404s byte-for-byte like the gate-denied 404 above it — status, Cache-Control AND body (2026-09-23 existence-oracle close, S2b)", async () => {
   await withServer(async (baseUrl) => {
     const res = await fetch(`${baseUrl}/m/does-not-exist/original`);
     assert.equal(res.status, 404);
+    assert.equal(
+      res.headers.get("cache-control"),
+      "private, no-store",
+      "an unreadable Cache-Control here would tell a caller 'unknown asset' apart from 'gated asset' — see media-rendition-gating-bypass.test.ts's oracle suite"
+    );
+    assert.deepEqual(await res.json(), { error: "video rendition not found" });
   });
 });
 

@@ -61,6 +61,7 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
       // needs the two to disagree (uploading bytes whose real type differs from the declared one)
       // must seed `options.media` directly rather than rely on this path.
       contentType: input.contentType,
+      publicUrl: null,
       createdAt: new Date(0).toISOString(),
       updatedAt: new Date(0).toISOString(),
       version: 1,

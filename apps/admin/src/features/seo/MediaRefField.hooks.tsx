@@ -25,8 +25,8 @@ export interface MediaRefFieldController {
   pickerOpen: boolean;
   openPicker: () => void;
   closePicker: () => void;
-  /** `MediaPickerDialog`'s `onSelect` — writes the exact `{assetId}:public` ref
-   *  (`buildMediaRef`, `rules.ts`) into the field and closes the dialog. */
+  /** `MediaPickerDialog`'s `onSelect` — writes the exact `{slug}:public` ref
+   *  (`buildMediaRef`, `rules.ts`, readable-slugs S5b) into the field and closes the dialog. */
   handleSelect: (item: AdminMedia) => void;
   /** Clears the field to `""` — an OG image must be removable (SPEC intent). */
   clear: () => void;
@@ -43,7 +43,7 @@ export function useMediaRefField(
   const [pickerOpen, setPickerOpen] = useState(false);
 
   function handleSelect(item: AdminMedia) {
-    onChange(buildMediaRef(item.id));
+    onChange(buildMediaRef(item));
     setPickerOpen(false);
   }
 

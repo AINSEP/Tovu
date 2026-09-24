@@ -34,6 +34,7 @@ function mediaItem(overrides: Partial<AdminMedia> = {}): AdminMedia {
     cssClass: null,
     htmlAttributes: null,
     contentType: "image/png",
+    publicUrl: null,
     ...overrides,
   };
 }
@@ -87,8 +88,10 @@ describe("MediaRefField — Choose image", () => {
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
 
-  it("selecting an asset writes the EXACT '{assetId}:public' ref and closes the dialog", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem({ id: "asset-1" })] });
+  // readable-slugs S5b: buildMediaRef prefers the slug — id and slug are distinct here so a passing
+  // assertion proves the SLUG was used, not just any field.
+  it("selecting an asset writes the EXACT '{slug}:public' ref and closes the dialog", async () => {
+    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem({ id: "asset-1", slug: "asset-1-slug" })] });
     const user = userEvent.setup();
     const { onChange } = renderField();
 
@@ -96,7 +99,7 @@ describe("MediaRefField — Choose image", () => {
     await user.click(await screen.findByTitle("Sunset"));
 
     expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange).toHaveBeenCalledWith("asset-1:public");
+    expect(onChange).toHaveBeenCalledWith("asset-1-slug:public");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 

@@ -88,15 +88,15 @@ test("renderEntryList: boolean field values render as Yes/No", () => {
   assert.ok(html.includes("<dt>Spicy</dt><dd>No</dd>"));
 });
 
-test("renderEntryList: cards layout wraps items in an entry-card inside the columned grid container", () => {
+test("renderEntryList: cards layout wraps items in an entry-card inside the columned grid container, marked with data-tovu-entry-list (review fix 3a's style-scoping hook)", () => {
   const html = assertRendered(renderEntryList([item({ title: "A" })], options({ columns: 4 })));
-  assert.ok(html.startsWith('<div class="entry-list entry-list--recipe" style="--entry-list-columns:4">'));
+  assert.ok(html.startsWith('<div class="entry-list entry-list--recipe" data-tovu-entry-list style="--entry-list-columns:4">'));
   assert.ok(html.includes('<article class="entry-card">'));
 });
 
-test("renderEntryList: list layout wraps items in an entry-list__item inside a ul, no columns style", () => {
+test("renderEntryList: list layout wraps items in an entry-list__item inside a ul, no columns style, marked with data-tovu-entry-list", () => {
   const html = assertRendered(renderEntryList([item({ title: "A" })], options({ layout: "list" })));
-  assert.ok(html.startsWith('<ul class="entry-list entry-list--recipe entry-list--list">'));
+  assert.ok(html.startsWith('<ul class="entry-list entry-list--recipe entry-list--list" data-tovu-entry-list>'));
   assert.ok(html.includes('<li class="entry-list__item">'));
   assert.ok(!html.includes("--entry-list-columns"));
 });
@@ -132,23 +132,37 @@ test("renderEntryList template mode: a javascript: field value inside href= is n
   assert.equal(html, '<a href="#">go</a>');
 });
 
-test("withEntryListStyleOnce: inserts the default style once before </head>, even with two entry-lists present", () => {
+test("withEntryListStyleOnce: inserts the default style tag once before </head>, even with two entry-lists present", () => {
   const list1 = assertRendered(renderEntryList([item({ title: "A" })], options({ typeKey: "recipe" })));
   const list2 = assertRendered(renderEntryList([item({ title: "B" })], options({ typeKey: "tovu_feature" })));
   const html = `<html><head></head><body>${list1}${list2}</body></html>`;
 
   const once = withEntryListStyleOnce(html);
-  const occurrences = once.split("data-tovu-entry-list").length - 1;
-  assert.equal(occurrences, 1);
+  const styleTagOccurrences = once.split("<style data-tovu-entry-list>").length - 1;
+  assert.equal(styleTagOccurrences, 1);
   assert.ok(once.indexOf(ENTRY_LIST_DEFAULT_STYLE) < once.indexOf("<body>"));
 
   const twice = withEntryListStyleOnce(once);
-  assert.equal(twice.split("data-tovu-entry-list").length - 1, 1);
+  assert.equal(twice.split("<style data-tovu-entry-list>").length - 1, 1);
 });
 
-test("withEntryListStyleOnce: leaves html untouched when there is no entry-list", () => {
+test("withEntryListStyleOnce: leaves html untouched when there is no [data-tovu-entry-list] wrapper", () => {
   const html = "<html><head></head><body>no lists here</body></html>";
   assert.equal(withEntryListStyleOnce(html), html);
+});
+
+// ---------------------------------------------------------------------------
+// Review fix 3a (2026-09-23): the style must be scoped to THIS module's own wrapper attribute,
+// never a bare `.entry-list` class — a theme's unrelated `entry-list`-classed markup (declarative
+// tier's own post/product index, `render.ts`'s `entryList`/`productEntryList`) must never trigger
+// the collection card grid CSS just because it shares that one class name.
+// ---------------------------------------------------------------------------
+
+test("withEntryListStyleOnce: a theme's own unrelated .entry-list markup (no data-tovu-entry-list attribute) never triggers the style — the exact trap this fix closes", () => {
+  const html =
+    '<html><head></head><body><section class="entry-list entry-list--index"><div class="wrap">' +
+    "<ol class=\"entries\"><li class=\"entry\">real post, not a collection card</li></ol></div></section></body></html>";
+  assert.equal(withEntryListStyleOnce(html), html, "a bare .entry-list class must never inject the collection card style");
 });
 
 // ---------------------------------------------------------------------------

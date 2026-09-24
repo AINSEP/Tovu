@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { validateWidgetConfig } from "../../config-validation.js";
+import { getWidgetTypeRegistration } from "../../registry.js";
 
 /**
  * @file `validateWidgetConfig` — the small JSON-Schema-subset validator `write-service.ts` runs
@@ -181,5 +182,51 @@ test("validateWidgetConfig: nested object -> array -> object recursion composes 
   assert.deepEqual(result, {
     valid: false,
     fieldErrors: [{ field: "config.items[1].label", reason: "required field is missing" }],
+  });
+});
+
+/**
+ * Collections plan R1 — `recent-entries`'s registered schema against the REAL validator (not an
+ * ad-hoc schema like every test above), proving the six new "Collection list" keys are declared
+ * correctly and an old `{maxItems}`-only config still validates unchanged.
+ */
+test("recent-entries schema: the new collection/where/sort/fields/layout/columns keys are all accepted alongside maxItems", () => {
+  const schema = getWidgetTypeRegistration("recent-entries").configSchema;
+  const result = validateWidgetConfig({
+    schema,
+    config: {
+      maxItems: 6,
+      collection: "recipe",
+      where: { cuisine: "Italian" },
+      sort: "-published",
+      fields: ["cuisine", "spiceLevel"],
+      layout: "cards",
+      columns: 2,
+    },
+  });
+  assert.deepEqual(result, { valid: true, fieldErrors: [] });
+});
+
+test("recent-entries schema: an old maxItems-only config (no collection keys at all) still validates unchanged", () => {
+  const schema = getWidgetTypeRegistration("recent-entries").configSchema;
+  const result = validateWidgetConfig({ schema, config: { maxItems: 5 } });
+  assert.deepEqual(result, { valid: true, fieldErrors: [] });
+});
+
+test("recent-entries schema: an unrecognized key is still rejected (additionalProperties: false is unchanged)", () => {
+  const schema = getWidgetTypeRegistration("recent-entries").configSchema;
+  const result = validateWidgetConfig({ schema, config: { maxItems: 5, carousel: true } });
+  assert.deepEqual(result, {
+    valid: false,
+    fieldErrors: [{ field: "config.carousel", reason: "unrecognized field: not present in the registered schema" }],
+  });
+});
+
+test("recent-entries schema: maxItems is still required even when collection keys are present", () => {
+  const schema = getWidgetTypeRegistration("recent-entries").configSchema;
+  const result = validateWidgetConfig({ schema, config: { collection: "recipe" } });
+  assert.deepEqual(result, {
+    valid: false,
+    fieldErrors: [{ field: "config.maxItems", reason: "required field is missing" }],
   });
 });

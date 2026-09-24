@@ -63,7 +63,21 @@ const PAGE_HTML_CONTRACT =
   "- NAME MISSING BINARY ASSETS, DON'T FAKE THEM. If content you're deriving this page from (e.g. an " +
   "existing HTML file read via fs_read_file) references an image, font, video, or audio file no tool " +
   "here can upload, do not invent a placeholder and do not silently drop it — say exactly which files " +
-  "still need to be added as media or copied by hand, by name.";
+  "still need to be added as media or copied by hand, by name.\n" +
+  "- EMBEDS: any tag can carry `data-embed-config='{...}'` — single-quoted, so a literal apostrophe " +
+  "inside a JSON string value must be written as the JSON escape `\\u0027`, never a literal `'` (which " +
+  "ends the attribute early) and never the HTML entity `&#39;` (JSON.parse leaves that as six literal " +
+  "characters, not an apostrophe). " +
+  "`{\"type\":\"collection\",\"id\":\"<content-type-key>\"}` lists that collection's published entries: " +
+  "optional `where` (field/value pairs, equality only), `sort` (`newest|oldest|updated|title|<field>|" +
+  "-<field>`, default `newest`), `limit` (default 6, max 24), `layout` (`cards`|`list`, default " +
+  "`cards`), `columns` (default 3, max 6), `fields` (which of the type's own fields to show). Put a " +
+  "`<template>…</template>` inside the tag to control each item's markup with `{{title}}`, `{{url}}`, " +
+  "`{{date}}`, `{{fields.<name>}}` placeholders — omit it for the default card/list rendering. The " +
+  "wrapper tag's own `class`/`style`/`id` survive and are how you style it. Other known types: " +
+  "`{\"type\":\"widget\",\"id\":\"<slug>\"}`, `{\"type\":\"media\",\"id\":\"<slug>\"}`, " +
+  "`{\"type\":\"menu\",\"id\":\"<slug>\"}` (add `\"variant\":\"tree\"` for a nested tree instead of flat " +
+  "links), and `{\"type\":\"post-previews\",\"limit\":6}` for recent post cards.";
 
 /**
  * The optimistic-concurrency basis, stated once for both writers.

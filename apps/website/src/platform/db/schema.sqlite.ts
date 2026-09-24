@@ -1426,6 +1426,34 @@ export const media = sqliteTable(
   (table) => [uniqueIndex("idx_media_workspace_slug").on(table.workspaceId, table.slug)]
 );
 
+/**
+ * Retired media slugs (readable-slugs plan, S2a, 2026-09-23). When an asset's `slug` changes, the
+ * OLD value moves here instead of vanishing, so a `/m/<old-slug>/...` URL already baked into
+ * rendered HTML, a cached `og:image`, or a hand-typed marker keeps resolving forever — the same
+ * "trashed row holds the slug" shape `trashed_items` already uses for menus, applied here to a
+ * rename rather than a delete. `(workspace_id, slug)` is the primary key (same composite-key shape
+ * as `mediaProviderCredentials` above): a slug can only ever be retired once per workspace, since
+ * `findBySlug`'s conflict check (`MediaConflictError`) refuses to let a second asset claim a slug
+ * this table still lists — that check is what makes reuse-by-a-different-asset impossible, not a
+ * DB constraint. `media_id` is indexed, not unique, because one asset can retire several slugs
+ * over its lifetime. Permanent delete (`purgeMedia`/`remove`) deletes that asset's rows here too,
+ * which is what frees the name back up. Lives in the host, not `@jini-ai/cms` — same reasoning as
+ * this table family's other Tovu-only additions (see `versioned-media-repo.ts`'s file header).
+ */
+export const mediaSlugHistory = sqliteTable(
+  "media_slug_history",
+  {
+    workspaceId: text("workspace_id").notNull(),
+    slug: text("slug").notNull(),
+    mediaId: text("media_id").notNull(),
+    retiredAt: text("retired_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.slug] }),
+    index("idx_media_slug_history_media_id").on(table.workspaceId, table.mediaId),
+  ]
+);
+
 /** `asset_blobs` sidecar (ADR-027 §2) — one row per unique blob (content-addressed by sha256,
  * deduplicated within a workspace). */
 export const assetBlobs = sqliteTable(

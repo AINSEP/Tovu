@@ -556,15 +556,25 @@ test("REGRESSION: an untemplated html Page previews through the SAME template th
 });
 
 /*
- * The same divergence reached through the picker instead of through creation. `""` is the Pages
- * picker's explicit "No template chosen", and for an `"html"`-format Page that is its normal,
- * fully-working state — `isPageTemplateChoiceEligible` treats `""` exactly like `null` for this shape
- * (a deliberate divergence from the Post rule, documented on `isEligibleForTemplateBranch`), so the
- * live site serves the page shell. This route instead hit `resolveTemplate`'s `templateChoice === ""`
- * arm and served the DIAGNOSTIC page, so selecting "No template chosen" made the preview pane read as
- * a broken page while the public URL was fine.
+ * S5 (owner ruling 2026-09-23, `no-template-bare-plan-2026-09-23.md`): `""` on an `"html"`-format Page
+ * no longer means "same as the theme's page shell" — it means BARE, the Page's own HTML only, no theme
+ * chrome. S4 already flipped the live site to serve it that way; this test used to pin the OLD meaning
+ * (both the live control and the preview hitting `data-tpl="page-shell"`) and is rewritten here to pin
+ * the new one for both sides, since the preview must keep matching whatever the live site actually
+ * serves, exactly as this test always asserted.
  */
-test("REGRESSION: an html Page with the picker's explicit 'No template chosen' previews as the live site serves it, not as the diagnostic page", async (t) => {
+const NO_CHROME_MARKERS = ["data-theme", "<style", "site-header", "site-footer", "site-assistant"];
+
+function assertBareOutput(html: string, bodyText: string): void {
+  assert.ok(html.includes(bodyText), "the Page's own body must reach the response");
+  assert.ok(!html.includes(DIAGNOSTIC_MARKER), "bare output must never show the diagnostic page");
+  assert.ok(!html.includes("data-tpl="), "bare output must carry no theme template marker");
+  for (const marker of NO_CHROME_MARKERS) {
+    assert.ok(!html.includes(marker), `bare output must not include "${marker}"`);
+  }
+}
+
+test("an html Page with the picker's explicit 'No template chosen' previews BARE, matching the live site (S5)", async (t) => {
   const { app, deps } = buildTestApp(staticThemeWithTemplates());
   const page = await saveHtmlPage(deps, {
     slug: "say-hello",
@@ -577,16 +587,55 @@ test("REGRESSION: an html Page with the picker's explicit 'No template chosen' p
   const liveRes = await fetch(`${baseUrl}/say-hello`);
   const liveHtml = await liveRes.text();
   assert.equal(liveRes.status, 200);
-  assert.ok(liveHtml.includes('data-tpl="page-shell"'), "control: an explicit opt-out is still a page-shell render on the live site");
-  assert.ok(!liveHtml.includes(DIAGNOSTIC_MARKER), "control: the live site never shows an html Page the diagnostic page for this");
+  assertBareOutput(liveHtml, UNTEMPLATED_PAGE_BODY_TEXT); // control: this is what the owner's browser shows today
 
   const res = await fetch(previewUrl(baseUrl, page.id, ""), { headers: { cookie } });
   const html = await res.text();
 
   assert.equal(res.status, 200);
-  assert.ok(!html.includes(DIAGNOSTIC_MARKER), "the preview must not show the diagnostic page for a state the live site renders fine");
-  assert.ok(html.includes('data-tpl="page-shell"'), "the preview must render through the page shell, exactly as the live site just did");
-  assert.ok(html.includes(UNTEMPLATED_PAGE_BODY_TEXT), "the Page's own body must still reach the preview");
+  assertBareOutput(html, UNTEMPLATED_PAGE_BODY_TEXT);
+});
+
+test("a bare Page preview works on a site with no active theme — the bare branch runs before the 409 check (S5)", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  deps.presentationRepo = new InMemoryPresentationSettingsRepo([
+    { workspaceId: WORKSPACE_ID, activeThemeId: NO_THEME_ID, updatedAt: new Date().toISOString() } as never,
+  ]);
+  const page = await saveHtmlPage(deps, {
+    slug: "bare-no-theme",
+    status: "published",
+    templateChoice: "",
+    bodyHtml: `<p>${UNTEMPLATED_PAGE_BODY_TEXT}</p>`,
+  });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(previewUrl(baseUrl, page.id, ""), { headers: { cookie } });
+  const html = await res.text();
+
+  assert.equal(res.status, 200, "a bare Page previews fine even with no active theme — nothing themed to conflict with");
+  assertBareOutput(html, UNTEMPLATED_PAGE_BODY_TEXT);
+});
+
+test("POST with a pending bodyHtml override renders THAT body bare, not the saved one (S5)", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  const page = await saveHtmlPage(deps, {
+    slug: "bare-pending",
+    status: "published",
+    templateChoice: "",
+    bodyHtml: `<p>${UNTEMPLATED_PAGE_BODY_TEXT}</p>`,
+  });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(previewUrl(baseUrl, page.id, ""), {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ bodyHtml: `<p>${PENDING_HTML_TEXT}</p>` }),
+  });
+  const html = await res.text();
+
+  assert.equal(res.status, 200);
+  assertBareOutput(html, PENDING_HTML_TEXT);
+  assert.ok(!html.includes(UNTEMPLATED_PAGE_BODY_TEXT), "the saved body must not reach the page once a pending override was supplied");
 });
 
 

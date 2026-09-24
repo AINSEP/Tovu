@@ -206,6 +206,73 @@ runVersionedMediaSuite("memory-versioned", () => new InMemoryVersionedMediaRepo(
 runVersionedMediaSuite("sqlite", () => new SqliteMediaRepo(openContentDb(":memory:")));
 
 /**
+ * Rename safety (readable-slugs plan, S2a, 2026-09-23) — `media_slug_history`. Run against both
+ * `VersionedMediaRepoPort` adapters (the plain `MediaRepoPort` in-memory double from `@jini-ai/cms`
+ * has no history at all, same scoping reason `runVersionedMediaSuite` above gives).
+ */
+function runSlugHistorySuite(label: string, makeRepo: () => VersionedMediaRepoPort) {
+  test(`[${label}] a slug rename retires the old slug — findBySlug(old) still resolves the same asset`, async () => {
+    const repo = makeRepo();
+    await repo.save(makeMedia({ slug: "old-slug" }));
+    await repo.save(makeMedia({ slug: "new-slug", version: 2, updatedAt: "2026-09-23T00:00:00.000Z" }));
+
+    const byOld = await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "old-slug" });
+    assert.equal(byOld?.id, "media-1");
+    const byNew = await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "new-slug" });
+    assert.equal(byNew?.id, "media-1");
+  });
+
+  test(`[${label}] a DIFFERENT asset cannot claim a slug still listed as retired`, async () => {
+    const repo = makeRepo();
+    await repo.save(makeMedia({ id: "media-1", slug: "old-slug" }));
+    await repo.save(makeMedia({ id: "media-1", slug: "new-slug", version: 2 }));
+
+    await assert.rejects(
+      () => repo.save(makeMedia({ id: "media-2", slug: "old-slug" })),
+      (err: unknown) => {
+        assert.ok(err instanceof MediaConflictError, `expected MediaConflictError, got ${err}`);
+        return true;
+      }
+    );
+    assert.equal(await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-2" }), null);
+  });
+
+  test(`[${label}] an asset may reclaim its own retired slug, which removes it from history`, async () => {
+    const repo = makeRepo();
+    await repo.save(makeMedia({ slug: "old-slug" }));
+    await repo.save(makeMedia({ slug: "new-slug", version: 2 }));
+    await repo.save(makeMedia({ slug: "old-slug", version: 3 }));
+
+    const found = await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-1" });
+    assert.equal(found?.slug, "old-slug");
+    assert.deepEqual(await repo.listRetiredSlugs({ workspaceId: WORKSPACE_ID, mediaId: "media-1" }), ["new-slug"]);
+  });
+
+  test(`[${label}] remove() drops that asset's retired-slug history too`, async () => {
+    const repo = makeRepo();
+    await repo.save(makeMedia({ slug: "old-slug" }));
+    await repo.save(makeMedia({ slug: "new-slug", version: 2 }));
+
+    await repo.remove({ workspaceId: WORKSPACE_ID, id: "media-1" });
+
+    assert.deepEqual(await repo.listRetiredSlugs({ workspaceId: WORKSPACE_ID, mediaId: "media-1" }), []);
+  });
+
+  test(`[${label}] listRetiredSlugs lists every slug this asset has ever retired`, async () => {
+    const repo = makeRepo();
+    await repo.save(makeMedia({ slug: "a" }));
+    await repo.save(makeMedia({ slug: "b", version: 2 }));
+    await repo.save(makeMedia({ slug: "c", version: 3 }));
+
+    const retired = await repo.listRetiredSlugs({ workspaceId: WORKSPACE_ID, mediaId: "media-1" });
+    assert.deepEqual([...retired].sort(), ["a", "b"]);
+  });
+}
+
+runSlugHistorySuite("memory-versioned", () => new InMemoryVersionedMediaRepo());
+runSlugHistorySuite("sqlite", () => new SqliteMediaRepo(openContentDb(":memory:")));
+
+/**
  * `idx_media_workspace_slug` is the REAL enforcement (2026-09-07) — `updateMediaMetadata`'s own
  * `findBySlug` check is only a friendly-error courtesy on top of it (see `MediaRecord.slug`'s doc
  * in `@jini-ai/cms`). Only `SqliteMediaRepo` has a real DB constraint to violate; `InMemoryMediaRepo`

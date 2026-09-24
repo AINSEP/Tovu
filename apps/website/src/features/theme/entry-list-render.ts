@@ -52,20 +52,34 @@ export interface EntryListRenderOptions {
   readonly typeKey: string;
 }
 
+/**
+ * Review fix 3a (`2026-09-23-review-E4-R1-report.md`): every selector below is scoped under the
+ * `[data-tovu-entry-list]` attribute {@link renderEntryList} puts on ITS OWN wrapper element (the
+ * `<div>`/`<ul>` cards/list root), never a bare `.entry-list` class selector. Declarative themes
+ * already use the plain `entry-list`/`entry-list--<route>` classes for their own built-in post/
+ * product index (`render.ts`'s `entryList`/`productEntryList`) — a bare `.entry-list` rule would
+ * silently turn THAT unrelated vertical list into a grid the moment this style is wired into a
+ * second call site ({@link withEntryListStyleOnce}'s `pageShell` wiring). Scoping to the attribute
+ * (which only this module's own markup ever emits) makes the style unable to match anything this
+ * module didn't render, regardless of how many other places call {@link withEntryListStyleOnce}.
+ */
+const ENTRY_LIST_STYLE_OPEN_TAG = "<style data-tovu-entry-list>";
+
 /** One `<style>` block providing the default `.entry-list`/`.entry-card` look via zero-specificity
  * `:where()` rules and theme tokens with fallbacks (D6: no theme.css edit — any theme rule still
  * wins). Cards default to a 3-column grid (overridden per-marker by `--entry-list-columns`),
  * collapsing to a single column under 640px so a narrow theme column or mobile viewport never clips
- * a card. `data-tovu-entry-list` is the injection marker {@link withEntryListStyleOnce} checks for. */
+ * a card. `data-tovu-entry-list` is also the injection marker {@link withEntryListStyleOnce} checks
+ * for (see {@link ENTRY_LIST_STYLE_OPEN_TAG}'s doc for why every rule is attribute-scoped). */
 export const ENTRY_LIST_DEFAULT_STYLE =
-  "<style data-tovu-entry-list>" +
-  ":where(.entry-list){display:grid;gap:1rem;grid-template-columns:repeat(var(--entry-list-columns,3),minmax(0,1fr));list-style:none;padding:0;margin:0}" +
-  ":where(.entry-list--list){display:flex;flex-direction:column;grid-template-columns:none}" +
-  ":where(.entry-card){border:1px solid var(--border,#ddd);background:var(--surface,transparent);padding:1rem;border-radius:.5rem}" +
-  ":where(.entry-card__title){margin:0 0 .5rem}" +
-  ":where(.entry-card__fields dt){color:var(--muted,#666);font-size:.85em}" +
-  ":where(.entry-card__fields dd){margin:0 0 .75rem}" +
-  "@media (max-width:640px){:where(.entry-list){grid-template-columns:1fr}}" +
+  ENTRY_LIST_STYLE_OPEN_TAG +
+  ":where([data-tovu-entry-list]){display:grid;gap:1rem;grid-template-columns:repeat(var(--entry-list-columns,3),minmax(0,1fr));list-style:none;padding:0;margin:0}" +
+  ":where([data-tovu-entry-list].entry-list--list){display:flex;flex-direction:column;grid-template-columns:none}" +
+  ":where([data-tovu-entry-list] .entry-card){border:1px solid var(--border,#ddd);background:var(--surface,transparent);padding:1rem;border-radius:.5rem}" +
+  ":where([data-tovu-entry-list] .entry-card__title){margin:0 0 .5rem}" +
+  ":where([data-tovu-entry-list] .entry-card__fields dt){color:var(--muted,#666);font-size:.85em}" +
+  ":where([data-tovu-entry-list] .entry-card__fields dd){margin:0 0 .75rem}" +
+  "@media (max-width:640px){:where([data-tovu-entry-list]){grid-template-columns:1fr}}" +
   "</style>";
 
 /**
@@ -239,28 +253,34 @@ export function renderEntryList(items: readonly EntryListItem[], options: EntryL
   }
   const typeClass = escapeHtml(options.typeKey);
   if (options.layout === "list") {
-    return `<ul class="entry-list entry-list--${typeClass} entry-list--list">${items.map(renderListItem).join("")}</ul>`;
+    return `<ul class="entry-list entry-list--${typeClass} entry-list--list" data-tovu-entry-list>${items.map(renderListItem).join("")}</ul>`;
   }
   return (
-    `<div class="entry-list entry-list--${typeClass}" style="--entry-list-columns:${options.columns}">` +
+    `<div class="entry-list entry-list--${typeClass}" data-tovu-entry-list style="--entry-list-columns:${options.columns}">` +
     `${items.map(renderCard).join("")}</div>`
   );
 }
 
 /**
  * Inserts {@link ENTRY_LIST_DEFAULT_STYLE} once before `</head>`, only when `html` actually contains
- * an `.entry-list` (no wasted style block on a page with no collection marker) and doesn't already
- * carry the style (idempotent across repeated calls or multiple collection markers on one page).
- * Mirrors the existing "scan the assembled HTML, inject once" shape `withEntryListStyleOnce`'s callers
- * already use for other once-per-page embeds.
+ * a `[data-tovu-entry-list]` wrapper (no wasted style block on a page with no collection/cards
+ * list) and doesn't already carry the style tag (idempotent across repeated calls, multiple
+ * collection markers, or multiple call sites on one page — see {@link withEntryListStyleOnce}'s own
+ * callers). Two independent checks on purpose (review fix 3a): the FIRST looks for the wrapper
+ * attribute {@link renderEntryList} itself emits, never the bare `entry-list` class — a theme's own,
+ * unrelated `.entry-list`-classed markup (e.g. `render.ts`'s declarative post/product index) must
+ * never trigger this on its own. The SECOND looks for the exact `<style data-tovu-entry-list>` open
+ * tag, not just the bare attribute name, because after the first injection the wrapper's own copy of
+ * that attribute would otherwise make a same-string check trivially true even before the style tag
+ * itself exists.
  *
- * @returns `html` unchanged when there is no `.entry-list`, the style is already present, or there is
- * no `</head>` to insert before; otherwise `html` with the style spliced in.
+ * @returns `html` unchanged when there is no `[data-tovu-entry-list]` wrapper, the style is already
+ * present, or there is no `</head>` to insert before; otherwise `html` with the style spliced in.
  * @complexity O(n) over `html`'s length for the two substring scans plus the slice/concat.
  */
 export function withEntryListStyleOnce(html: string): string {
-  if (!html.includes("entry-list")) return html;
-  if (html.includes("data-tovu-entry-list")) return html;
+  if (!html.includes("data-tovu-entry-list")) return html;
+  if (html.includes(ENTRY_LIST_STYLE_OPEN_TAG)) return html;
   const headCloseIndex = html.indexOf("</head>");
   if (headCloseIndex === -1) return html;
   return `${html.slice(0, headCloseIndex)}${ENTRY_LIST_DEFAULT_STYLE}${html.slice(headCloseIndex)}`;

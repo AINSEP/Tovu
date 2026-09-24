@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test, { describe } from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/cms/core";
+import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { ToolInputError } from "@jini-ai/core";
 import { AttachmentRejectedError, createDiskAttachmentStore } from "@jini-ai/http-kit";
 

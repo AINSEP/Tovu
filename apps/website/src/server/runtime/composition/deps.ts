@@ -1349,6 +1349,11 @@ export function createSqliteRouteDeps(
   const widgetBindingRepo = new SqliteWidgetRegionBindingRepo(db);
   const entryRefsRepo = new SqliteEntryRefsRepo(db);
   const formDefinitionRepo = new SqliteFormDefinitionRepo(db);
+  // Collections plan R1 — hoisted above `wireCoreResolvers` (was constructed later, inline, only for
+  // the `ContentTaxonomyDeps` object below). Both `SqliteContentTypeRepo` instances would read the
+  // same `content.db` either way (it is a stateless adapter over `db`), but one shared instance
+  // keeps this identical to `server/app.ts`'s hermetic root, where sharing is load-bearing.
+  const contentTypeRepo = new SqliteContentTypeRepo(db);
   // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — the boot-wiring pass
   // `resolvers/index.ts`'s `wireCoreResolvers` file header always said was needed before the app
   // served traffic, but no composition root ever called it. Without this, `menu`/`recent-entries`/
@@ -1360,6 +1365,7 @@ export function createSqliteRouteDeps(
     entryList: entryRepo,
     navMenuReadModel: createNavMenuReadModel({ menuRepo, bindingRepo: navLocationBindingRepo }),
     formDefinitionRepo,
+    contentTypes: contentTypeRepo,
   });
   const commentsModule = createCommentsModule({
     commentRepo: new SqliteCommentRepo(db.$client),
@@ -1827,7 +1833,7 @@ export function createSqliteRouteDeps(
     // ADR-022 §3 expression-index DDL executor is a separate, larger work item this dispatch's
     // scope (persistence for the registry/entries/taxonomy rows themselves) does not cover —
     // disclosed explicitly rather than silently left implying it's done.
-    contentTypeRepo: new SqliteContentTypeRepo(db),
+    contentTypeRepo,
     contentTypeIndexProvisioner: new NoopContentTypeIndexProvisioner(),
     entryRepo,
     taxonomyRepo: new SqliteTaxonomyRepo({ db, workspaceId: workspaceId }),

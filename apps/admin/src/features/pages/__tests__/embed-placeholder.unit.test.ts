@@ -172,9 +172,14 @@ describe("isProtectedEmbedElement", () => {
     }
   });
 
-  it("is false for a current data-embed-config marker — a known, separately-tracked gap", () => {
+  it("is true for a current data-embed-config marker, so an embed is never text-editable or dropped into", () => {
     const el = markerElement({ type: "widget", id: "x" });
-    expect(isProtectedEmbedElement(el)).toBe(false);
+    expect(isProtectedEmbedElement(el)).toBe(true);
+  });
+
+  it("is true for the non-DOM node shape GrapesJS's isComponent can pass, carrying data-embed-config", () => {
+    const node = { attributes: { "data-embed-config": '{"type":"widget","id":"x"}' } } as unknown as Element;
+    expect(isProtectedEmbedElement(node)).toBe(true);
   });
 
   it("is false for an ordinary element with none of the marker attributes", () => {

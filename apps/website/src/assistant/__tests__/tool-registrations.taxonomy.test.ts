@@ -114,6 +114,7 @@ function wired(toolId: string, deps: RouteDeps): ToolRegistration {
 const WIRED_TAXONOMY_TOOL_IDS = [
   "content_read.taxonomy",
   "taxonomy_assign_terms",
+  "taxonomy_unassign_terms",
   "taxonomy_create_taxonomy",
   "taxonomy_create_term",
   "taxonomy_plan_merge_term",
@@ -121,13 +122,13 @@ const WIRED_TAXONOMY_TOOL_IDS = [
 ].sort();
 
 // ---------------------------------------------------------------------------
-// 1. Catalog completeness — the 6 wireable entries vs. the 1 declared-but-excluded destructive tool
+// 1. Catalog completeness — the 7 wireable entries vs. the 1 declared-but-excluded destructive tool
 // ---------------------------------------------------------------------------
 
-test("exactly the 6 wireable taxonomy entries are registered", () => {
+test("exactly the 7 wireable taxonomy entries are registered", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...taxonomyRegistrations(deps).keys()].sort(), WIRED_TAXONOMY_TOOL_IDS);
-  assert.equal(taxonomyAgentToolCatalog.length, 7, "sanity: 6 wired + 1 excluded (taxonomy_execute_merge_term)");
+  assert.equal(taxonomyAgentToolCatalog.length, 8, "sanity: 7 wired + 1 excluded (taxonomy_execute_merge_term)");
 });
 
 test("taxonomy_execute_merge_term is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification", () => {
@@ -185,7 +186,7 @@ test("requiresConfirmation is unset on every wired taxonomy tool", () => {
 // 3. Risk metadata is cross-checked, not trusted
 // ---------------------------------------------------------------------------
 
-test("the independent risk classification agrees with the catalog for all 6 wired taxonomy tools", () => {
+test("the independent risk classification agrees with the catalog for all 7 wired taxonomy tools", () => {
   const { deps } = fakeRouteDeps();
   for (const id of taxonomyRegistrations(deps).keys()) {
     // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
@@ -248,6 +249,7 @@ for (const fixture of [
   { toolId: "taxonomy_create_taxonomy", input: { name: "Category", hierarchical: true } },
   { toolId: "taxonomy_rename_term", input: { termId: "nonexistent", newName: "New Name" } },
   { toolId: "taxonomy_assign_terms", input: { contentType: "post", contentId: "nonexistent", termIds: [] } },
+  { toolId: "taxonomy_unassign_terms", input: { contentType: "post", contentId: "nonexistent", termIds: [] } },
 ]) {
   test(`${fixture.toolId}: a denied principal is rejected`, async () => {
     const { deps } = fakeRouteDeps({ allow: false });
@@ -261,6 +263,33 @@ test("taxonomy_create_term: a denied principal is rejected", async () => {
     () => wired("taxonomy_create_term", deps).handler(executionContext({ taxonomyId: "nonexistent", name: "Term" })),
     /is not authorized for 'admin\.taxonomy\.manage'/,
   );
+});
+
+test("taxonomy_unassign_terms: calls authorize() with admin.taxonomy.manage (unassignTerms' own self-enforced check), actually removes the row, and is idempotent on a second call", async () => {
+  const { deps, entryTermRepo, authorizeCalls } = fakeRouteDeps();
+
+  const taxonomy = (await wired("taxonomy_create_taxonomy", deps).handler(executionContext({ name: "Topic", hierarchical: false }))) as { taxonomy: { id: string } };
+  const term = (await wired("taxonomy_create_term", deps).handler(executionContext({ taxonomyId: taxonomy.taxonomy.id, name: "Alpha" }))) as { term: { id: string } };
+  const postId = await seedPost(deps, "Unassign target");
+  await wired("taxonomy_assign_terms", deps).handler(executionContext({ contentType: "post", contentId: postId, termIds: [term.term.id] }));
+  assert.equal(await entryTermRepo.countByTerm({ termId: term.term.id }), 1, "sanity: the term is actually assigned before unassigning");
+
+  authorizeCalls.length = 0;
+  const result = (await wired("taxonomy_unassign_terms", deps).handler(
+    executionContext({ contentType: "post", contentId: postId, termIds: [term.term.id] }),
+  )) as { contentType: string; contentId: string; unassignedTermIds: string[] };
+
+  assert.ok(authorizeCalls.length >= 1);
+  assert.equal(authorizeCalls[0].principalId, PRINCIPAL_ID);
+  assert.equal(authorizeCalls[0].permission, "admin.taxonomy.manage");
+  assert.equal(result.contentId, postId);
+  assert.deepEqual(result.unassignedTermIds, [term.term.id]);
+  assert.equal(await entryTermRepo.countByTerm({ termId: term.term.id }), 0, "the assignment row must actually be gone");
+
+  // Idempotent: unassigning an already-unassigned term is a no-op, not an error (mirrors
+  // taxonomy_assign_terms' own idempotent-add discipline in the opposite direction).
+  await wired("taxonomy_unassign_terms", deps).handler(executionContext({ contentType: "post", contentId: postId, termIds: [term.term.id] }));
+  assert.equal(await entryTermRepo.countByTerm({ termId: term.term.id }), 0);
 });
 
 test("taxonomy_plan_merge_term: gateway.plan() authorizes with admin.taxonomy.manage before computing anything", async () => {

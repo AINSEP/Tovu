@@ -80,7 +80,7 @@ export function templateMarkupUrl(themeId: string, apiVersion: 2 | undefined, te
  *  other installed static theme with a page shell at all — still ships the legacy `page-shell.html`.
  *  {@link useThemeCanvasStyling}'s template-markup fetch tries each entry in order (see that
  *  function's own doc) so either theme's real filename is found. */
-const STATIC_TIER_PAGE_SHELL_TEMPLATES: readonly string[] = ["pages-default.html", "page-shell.html"];
+export const STATIC_TIER_PAGE_SHELL_TEMPLATES: readonly string[] = ["pages-default.html", "page-shell.html"];
 
 /**
  * What {@link useThemeCanvasStyling}'s `templateChoice` argument should actually be, given the page's
@@ -115,6 +115,11 @@ const STATIC_TIER_PAGE_SHELL_TEMPLATES: readonly string[] = ["pages-default.html
  * @complexity O(1) — one truthiness check, no I/O.
  */
 export function resolveCanvasTemplateChoice(templateChoice: string | null, bodyFormat: "doc" | "html"): string | null {
+  // `""` (bare page, owner ruling 2026-09-23) is deliberately excluded from the `if (templateChoice)`
+  // falsy check below: unlike `null`, it must NOT resolve to the page-shell fallback any more — it
+  // renders NO theme chrome at all, and `useThemeCanvasStyling`'s own bare short-circuit (above)
+  // reads this exact `""` to mean "no canvas styling, don't fetch". Passed straight through here.
+  if (templateChoice === "") return templateChoice;
   if (templateChoice) return templateChoice;
   return bodyFormat === "html" ? STATIC_TIER_PAGE_SHELL_TEMPLATES[0] : templateChoice;
 }
@@ -165,12 +170,34 @@ export type ThemeCanvasStylingState = { status: "pending" } | { status: "ready";
  *  hook existed. */
 const NO_CANVAS_STYLING: ThemeCanvasStylingState = { status: "ready", styling: {} };
 
+/** Bug B, Slice B2 (pages-redo plan, repro 2): upper bound on how long the Interactive tab can sit on
+ *  "Loading the theme's styles…" before it gives up and renders unstyled. Without this, a hung
+ *  `/theme-assets/*\/tokens.json` fetch (API restarting behind the Vite dev proxy) left `state` at
+ *  `pending` forever — the editor never rendered at all. A timeout is the same "can't style this
+ *  canvas" outcome a fetch REJECTION already produces (`NO_CANVAS_STYLING`), just reached by a clock
+ *  instead of an error. */
+const CANVAS_STYLING_TIMEOUT_MS = 8000;
+
+/** Bug B, Slice B3 (pages-redo plan): dev-only, temporary instrumentation for the "sometimes doesn't
+ *  render, or renders late" reports that were not reproducible under a healthy API — logs every time
+ *  {@link useThemeCanvasStyling}'s state settles (empty theme, timeout, resolved styling, or a fetch
+ *  failure), so the next occurrence is diagnosable from the console instead of guessed at. Removed
+ *  once Bug B is closed; not covered by a test for that reason — it is logging only, with no behavior
+ *  for a test to assert. */
+function logCanvasStylingSettle(phase: string): void {
+  if (import.meta.env.DEV) {
+    console.debug("[page-editor] interactive", { phase, ms: Math.round(performance.now()) });
+  }
+}
+
 /**
  * Fetches the active theme's tokens and pairs them with its stylesheet URL, as the `canvasStyling`
  * `@jini-ai/ui`'s `InteractiveHtmlEditor` accepts.
  *
  * @param themeId - The active theme's id, or `null` before presentation settings have loaded (stays
- *   `pending` until it arrives — the editor must not mount unstyled and then learn the theme).
+ *   `pending` until it arrives — the editor must not mount unstyled and then learn the theme). `""`
+ *   (settings loaded, no theme configured) resolves to {@link NO_CANVAS_STYLING} immediately — there is
+ *   nothing to fetch, so it does not wait out the Slice B2 timeout below.
  * @param apiVersion - The active theme's manifest `apiVersion`, used only to locate its stylesheet.
  *   Unknown is treated as v1, matching `resolveThemeLayout`'s own default.
  * @param port - Injected {@link ThemeCanvasPort} — see `theme-canvas-port.hooks.ts`.
@@ -186,10 +213,14 @@ const NO_CANVAS_STYLING: ThemeCanvasStylingState = { status: "ready", styling: {
  *   wrapper rather than failing the whole canvas: `contentWrapper` is optional on `CanvasStyling`, and
  *   its absence reproduces the exact pre-existing "no wrapper" canvas.
  * @returns The current {@link ThemeCanvasStylingState}.
- * @complexity Two-or-three requests per theme (three when `templateChoice` is set, up to four when it
- *   is the page-shell shim's primary candidate and the active theme only ships the legacy one), no
- *   unbounded retry; O(n) in the token count to build the CSS, O(m) in the template markup's size to
- *   derive the wrapper.
+ * @complexity Three-or-four requests per theme (token, light-token, and stylesheet-warm always; plus
+ *   template markup when `templateChoice` is set, up to two when it is the page-shell shim's primary
+ *   candidate and the active theme only ships the legacy one), no unbounded retry; O(n) in the token
+ *   count to build the CSS, O(m) in the template markup's size to derive the wrapper. The stylesheet
+ *   warm (Bug B, Slice B1) is fire-and-forget and never affects this count's success/failure outcome.
+ *   Bug B, Slice B2: bounded by {@link CANVAS_STYLING_TIMEOUT_MS} — a fetch that never settles resolves
+ *   to {@link NO_CANVAS_STYLING} once the timer fires, so `pending` can never last forever, and the
+ *   timer is cleared on both a normal settle and unmount so it never fires or leaks after either.
  */
 /**
  * Fetches `templateChoice`'s markup, same single request as before, UNLESS `templateChoice` is
@@ -235,12 +266,42 @@ export function useThemeCanvasStyling(
   const [state, setState] = useState<ThemeCanvasStylingState>({ status: "pending" });
 
   useEffect(() => {
-    if (!themeId) return; // Still `pending` — presentation settings have not landed yet.
+    if (themeId === null) return; // Still `pending` — presentation settings have not landed yet.
+    if (!themeId) {
+      // Presentation settings have landed but no theme is configured (`themeId === ""`) — there is
+      // nothing to fetch, so this resolves immediately instead of sitting `pending` until the Slice B2
+      // timeout below, which exists to bound a real in-flight fetch, not an empty theme id.
+      logCanvasStylingSettle("styling:empty-theme");
+      setState(NO_CANVAS_STYLING);
+      return;
+    }
+    if (templateChoice === "") {
+      // Bare page (owner ruling 2026-09-23, S6): no theme chrome at all, so there is nothing for the
+      // canvas to style — resolved immediately, same as the `!themeId` branch above, rather than
+      // fetching this theme's tokens/stylesheet/template markup only to discard them. Deliberately
+      // NOT reached via `themeId = null` (that means "still pending", per this function's own doc) —
+      // a real, loaded theme with a bare Page selected is a settled state, not a waiting one.
+      logCanvasStylingSettle("styling:bare-page");
+      setState(NO_CANVAS_STYLING);
+      return;
+    }
     // Declared fresh inside the effect body on every run (not a ref/module-level flag) so it is
     // naturally reset on each mount, including StrictMode's dev-mode mount->unmount->mount — see
     // apps/admin/INFO.md's "disposed flag" trap.
     let cancelled = false;
+    // Bug B, Slice B2: `cancelled` means "this effect run was torn down" (unmount or a dependency
+    // change re-ran it); `settled` means "this mount already produced its one final state". The
+    // timeout below and the `Promise.all` chain race each other, and whichever lands first must stop
+    // the other from overwriting it — see the plan's "a timed-out styling is final for that mount".
+    let settled = false;
     setState({ status: "pending" });
+    const timeoutId = setTimeout(() => {
+      if (cancelled || settled) return;
+      settled = true;
+      // Same outcome a fetch REJECTION already produces — see `CANVAS_STYLING_TIMEOUT_MS`'s own doc.
+      logCanvasStylingSettle("styling:timeout");
+      setState(NO_CANVAS_STYLING);
+    }, CANVAS_STYLING_TIMEOUT_MS);
     // `null` (no fetch at all) for "no template chosen" — resolved immediately rather than left out of
     // the `Promise.all` below, so readiness always waits on exactly one settle shape regardless of
     // whether a template is selected.
@@ -252,27 +313,43 @@ export function useThemeCanvasStyling(
       // A theme with no light variant is normal, not an error — see `themeLightTokensUrl`.
       port.fetchThemeTokens(themeLightTokensUrl(themeId)).catch(() => undefined),
       templateMarkup,
+      // Fire-and-forget (Bug B, Slice B1): warms the browser's HTTP cache for the SAME stylesheet URL
+      // `InteractiveHtmlEditor` is about to link into its canvas, so that request has a better chance
+      // of resolving fast instead of the canvas showing browser-default styling until it does. Belt-
+      // and-braces `.catch` alongside the real port's own internal swallow (`ThemeCanvasPort.
+      // warmStylesheet`'s doc) — a rejection here must never turn a perfectly good token+CSS resolution
+      // into "no canvas styling at all".
+      port.warmStylesheet(themeStylesheetUrl(themeId, apiVersion)).catch(() => undefined),
     ])
       .then(([tokens, lightTokens, markup]) => {
-        if (cancelled) return;
+        if (cancelled || settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
         const css = tokensToCanvasCss(tokens, lightTokens);
         if (!css) {
+          logCanvasStylingSettle("styling:no-usable-tokens");
           setState(NO_CANVAS_STYLING);
           return;
         }
         // `null` covers both "no template chosen" and "the fetch/derivation above found nothing
         // usable" — both fall back to no wrapper identically, per this function's own doc.
         const contentWrapper = markup ? (deriveContentWrapperChain(markup) ?? undefined) : undefined;
+        logCanvasStylingSettle("styling:ready");
         setState({
           status: "ready",
           styling: { stylesheets: [themeStylesheetUrl(themeId, apiVersion)], css, contentWrapper },
         });
       })
       .catch(() => {
-        if (!cancelled) setState(NO_CANVAS_STYLING);
+        if (cancelled || settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        logCanvasStylingSettle("styling:fetch-error");
+        setState(NO_CANVAS_STYLING);
       });
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [themeId, apiVersion, port, templateChoice]);
 

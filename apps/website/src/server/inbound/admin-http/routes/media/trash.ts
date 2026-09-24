@@ -1,3 +1,4 @@
+import { resolveMediaPublicUrls } from "#src/features/media/tool-registrations";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
 import { readRecordedContentType } from "./content-type.js";
@@ -69,7 +70,11 @@ export const registerAdminMediaTrashRoute: MediaRouteRegistrar = (app, deps) => 
         res.status(404).json({ error: `media '${mediaId}' was not found` });
         return;
       }
-      res.json({ media: toAdminMediaResponse(media, await readRecordedContentType(deps, media.source.sha256)) });
+      const [contentType, publicUrl] = await Promise.all([
+        readRecordedContentType(deps, media.source.sha256),
+        resolveMediaPublicUrls(deps, [media]).then((urls) => urls.get(media.id) ?? null),
+      ]);
+      res.json({ media: toAdminMediaResponse(media, contentType, publicUrl) });
     } catch {
       res.status(500).json({ error: "internal error" });
     }

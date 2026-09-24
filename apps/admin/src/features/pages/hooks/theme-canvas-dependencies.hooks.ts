@@ -20,6 +20,16 @@ export const defaultThemeCanvasPort: ThemeCanvasPort = {
     if (!res.ok) throw new Error(`the theme server responded with ${res.status}`);
     return res.text();
   },
+  async warmStylesheet(url: string): Promise<void> {
+    // Best-effort only — see `ThemeCanvasPort.warmStylesheet`'s own doc. Neither a non-OK response nor
+    // a network failure is reported; the real `<link>` GrapesJS loads is what surfaces a genuinely
+    // broken stylesheet URL, not this warm-up.
+    try {
+      await fetch(url);
+    } catch {
+      // Swallowed intentionally.
+    }
+  },
 };
 
 /** Seed state for {@link createFakeThemeCanvasPort}. Keyed by URL so one fake can answer the theme's
@@ -48,5 +58,8 @@ export function createFakeThemeCanvasPort(options: FakeThemeCanvasPortOptions = 
       if (markup === undefined) throw new Error(`fake theme canvas port: nothing seeded at ${url}`);
       return markup;
     },
+    // No-op in the fake — nothing to warm in-memory, and no real `fetch` to spy-guard against (see the
+    // real port's own doc). Tests that need to assert this was called use `vi.spyOn(port, ...)`.
+    async warmStylesheet() {},
   };
 }

@@ -14,7 +14,7 @@ import { formatRelativeMinutesAgo } from "../../lib/format-timestamp";
 import { t as translate } from "./pages-i18n";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 import type { PageEditorView } from "./hooks/use-page-editor.hooks";
-import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
+import { STATIC_TIER_PAGE_SHELL_TEMPLATES, type ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
 
 /**
  * @file Pure logic for the `pages` feature — everything that computes a value rather than
@@ -261,6 +261,54 @@ export interface VersionedSavablePage extends SavablePage {
 function hasAuthoredDocument(bodyJson: Record<string, unknown>): boolean {
   const content = bodyJson.content;
   return Array.isArray(content) && content.length > 0;
+}
+
+/** Sentinel written into the template `<select>`'s `value` when `templateChoice` is `null` and the
+ *  active theme ships neither canonical page-shell filename — see {@link pagePickerValue}'s own doc.
+ *  Never a real theme filename (those are always `*.html`), so it can never collide with an
+ *  operator's own pick. */
+export const THEME_DEFAULT_SENTINEL = "__theme-default__";
+
+/**
+ * What the Pages template `<select>` should show for a Page's `templateChoice` (bare-page ruling
+ * 2026-09-23, S6). Before this ruling, `value={templateChoice ?? ""}` was enough because `null` and
+ * `""` rendered identically (both fell back to the theme's page shell) — showing `null` as
+ * `""`/"No template chosen" was a harmless simplification. Now they diverge: `""` is a bare page (no
+ * theme chrome at all) and `null` still renders the theme's own page shell ("Theme default"), so
+ * displaying a `null` Page as `""` would claim a render it does not do.
+ *
+ * `null` maps to whichever of {@link STATIC_TIER_PAGE_SHELL_TEMPLATES} (`pages-default.html`, then
+ * the legacy `page-shell.html`) `availableTemplates` actually lists — the REAL filename the live
+ * render already resolves through (`resolveStaticTierPageShellFallback`,
+ * `apps/website/src/features/theme/static-render.ts`), so picking it back explicitly in the UI is a
+ * no-op. When the active theme ships neither name (a declarative/handlebars theme, or a static theme
+ * with no page shell at all), there is no real filename to show, so this returns
+ * {@link THEME_DEFAULT_SENTINEL} instead — the one case the picker renders one extra, synthetic
+ * "Theme default" option for. {@link pickerValueToChoice} maps it back to `null`.
+ *
+ * `""` and a real filename pass straight through unchanged — the picker's value already IS the
+ * stored `templateChoice` for those two cases; only `null` needs translating into something a
+ * `<select>` can render as a real option.
+ *
+ * @complexity O(n) in `availableTemplates.length` — one bounded scan of the two shell candidates.
+ */
+export function pagePickerValue(templateChoice: string | null, availableTemplates: string[]): string {
+  if (templateChoice !== null) return templateChoice;
+  const shipped = STATIC_TIER_PAGE_SHELL_TEMPLATES.find((name) => availableTemplates.includes(name));
+  return shipped ?? THEME_DEFAULT_SENTINEL;
+}
+
+/**
+ * The inverse of {@link pagePickerValue} — what to write as `templateChoice` when the operator picks
+ * `value` in the `<select>`. Only {@link THEME_DEFAULT_SENTINEL} needs translating back to `null`;
+ * every other value (a real filename, or `""`) is already the exact `templateChoice` to store.
+ * Picking the shell filename directly (rather than the sentinel) stores that real filename, which
+ * renders identically to `null` — a deliberate, disclosed no-op, not a bug.
+ *
+ * @complexity O(1).
+ */
+export function pickerValueToChoice(value: string): string | null {
+  return value === THEME_DEFAULT_SENTINEL ? null : value;
 }
 
 /**

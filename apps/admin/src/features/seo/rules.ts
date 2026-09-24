@@ -139,12 +139,17 @@ function parseMediaRefAssetId(ref: string): string | null {
   return ref.slice(0, separatorIndex);
 }
 
-/** Builds the `{assetId}:public` reference `MediaRefField` writes into the field on selection —
- *  the exact shape `resolveSeoImageRef` parses server-side (verified against that function, not
- *  guessed), and the same `transformName: "public"` `EmbedInsertControl.tsx` already writes for an
- *  inserted image node. */
-export function buildMediaRef(assetId: string): string {
-  return `${assetId}:${SEO_IMAGE_TRANSFORM}`;
+/** Builds the `{slug}:public` reference `MediaRefField` writes into the field on selection —
+ *  prefers the asset's readable slug over its id (readable-slugs S5b, 2026-09-23), matching
+ *  `resolveSeoImageRef`'s own id-or-slug lookup server-side (`findMediaByIdOrSlug`,
+ *  `apps/website/src/features/seo/media.ts`, S4) so a saved override reads as a slug, not an opaque
+ *  uuid. Falls back to `id` when `slug` is empty — defensive only; a real upload always derives one
+ *  (`deriveUniqueMediaSlug`). Same `transformName: "public"` `EmbedInsertControl.tsx` already writes
+ *  for an inserted image node. An old stored `{assetId}:public` value keeps resolving regardless
+ *  (S4's `resolveSeoImageRef` accepts either spelling) — this only changes what gets WRITTEN next. */
+export function buildMediaRef(item: { id: string; slug: string }): string {
+  const key = item.slug || item.id;
+  return `${key}:${SEO_IMAGE_TRANSFORM}`;
 }
 
 /** `MediaRefField`'s thumbnail `<img src>` for the field's current value. An absolute URL (the

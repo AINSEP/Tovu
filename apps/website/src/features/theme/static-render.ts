@@ -905,9 +905,16 @@ const LEGACY_TEMPLATE_FILENAME_ALIASES: Readonly<Record<string, string>> = {
  *   living in the ELIGIBILITY gate rather than in here is exactly what let it survive this merge:
  *   this function did not have to change to preserve it, only its caller's gating did.
  * - `""` — *explicitly opted out*, the admin picker's "No template chosen" option. A deliberate
- *   author action, and the one value no naive insert produces. Keeps showing the diagnostic page,
- *   which is the designed product behavior ("not a silent fallback to generic rendering"). It is
- *   the ONLY value that reaches the diagnostic page without the theme first getting a say.
+ *   author action, and the one value no naive insert produces. For a `kind: "post"` row, keeps
+ *   showing the diagnostic page, which is the designed product behavior ("not a silent fallback to
+ *   generic rendering") — the ONLY value that reaches the diagnostic page without the theme first
+ *   getting a say.
+ *
+ *   For a `kind: "page"` row, `""` means something else since the owner's 2026-09-23 ruling: a
+ *   **bare page** ({@link isBarePageChoice}), serving the Page's own HTML with no theme chrome at
+ *   all — not the diagnostic page above. `isPageTemplateChoiceEligible` (below) now refuses a
+ *   Page's `""` in both body formats, so this function is never reached with `""` for a Page in
+ *   practice; the arm above applies to a Post only.
  * - `"blog-post.html"` — an explicit choice. Rendered as-is when the ACTIVE theme can honor it,
  *   and otherwise treated exactly like the never-chosen case, for the reason below.
  *
@@ -988,12 +995,12 @@ export function resolveTemplate(
  *   externally-inserted Post reads `null`, and "no opinion yet" must render *something* sensible
  *   rather than a diagnostic page. Posts are always `doc`-format (CIC-3, `PostBodyFormat`'s own
  *   doc), so `bodyFormat` needs no separate check for this arm.
- * - `kind: "page"`, `bodyFormat: "doc"` — eligible ONLY when `templateChoice` is not
- *   `null`/`undefined` (a real filename, or `""` for explicit opt-out — both still handled by
- *   `resolveTemplate` unchanged). The "never chosen → theme's first template" fallback that is safe
- *   for Posts is wrong for Pages: no admin surface set `template_choice` on a `kind: "page"` row
- *   before the Pages template picker shipped, so a Page reading `null` means "an admin surface that
- *   didn't exist yet couldn't have set it", not "no opinion". Falling back would apply a Post-shaped
+ * - `kind: "page"`, `bodyFormat: "doc"` — eligible ONLY when `templateChoice` is a real filename:
+ *   not `null`/`undefined`, and — since the owner's 2026-09-23 bare-page ruling described in the next
+ *   bullet — not `""` either. The "never chosen → theme's first template" fallback that is safe for
+ *   Posts is wrong for Pages: no admin surface set `template_choice` on a `kind: "page"` row before
+ *   the Pages template picker shipped, so a Page reading `null` means "an admin surface that didn't
+ *   exist yet couldn't have set it", not "no opinion". Falling back would apply a Post-shaped
  *   template to a Page that never asked for one — the live bug this asymmetry fixes: `terms-of-
  *   service`, `privacy-policy`, `contact`, `team`, `faq` rendered under the theme's first template
  *   entry (observed as `<title>Blog post — Basic</title>` on Terms of Service) purely because
@@ -1001,20 +1008,18 @@ export function resolveTemplate(
  *   `our-story` (`kind: "page"`, `bodyFormat: "doc"`, `templateChoice: "page-shell.html"`, the
  *   proof-of-concept demo row) keeps rendering through this branch under this rule, because its
  *   choice IS explicit.
- * - `kind: "page"`, `bodyFormat: "html"` — same explicit-choice requirement, one step stricter:
- *   `""` is ALSO treated as ineligible here (identically to `null`/`undefined`), a deliberate
- *   DIVERGENCE from the `doc`-format Page/Post rule above, not an oversight. For a Post, `""` (the
- *   admin picker's explicit "No template chosen") routes to a loud diagnostic page rather than a
- *   silent fallback, because the owner's own words were "not a silent fallback to generic
- *   rendering" — a Post's generic single-post layout is a real, separate rendering mode an author
- *   might not have intended to land on by skipping the picker. An `"html"`-format Page has no such
- *   distinction: "no template" IS its normal, fully-functional, default behavior (render its own
- *   authored body via the generic `resolveHtmlEmbedsForRender` path) — there is no separate
- *   "generic Page rendering" an operator could be surprised to land on, so routing an explicit `""`
- *   to the diagnostic page would let a dropdown selection break an otherwise-working page for no
- *   benefit. This narrower `doc`-vs-`html` divergence predates the 2026-08-11 unification and is
- *   preserved verbatim here, not resolved — unifying it too was not asked for and would be an
- *   undisclosed behavior change for `doc`-format Pages.
+ * - `kind: "page"`, `bodyFormat: "html"` — same explicit-choice requirement: `""` is ALSO ineligible
+ *   here, identically to `null`/`undefined`. Before the owner's 2026-09-23 ruling this was a
+ *   documented DIVERGENCE from the `doc`-format Page rule above: a doc-format Page's `""` used to be
+ *   eligible (routing to `resolveTemplate`'s diagnostic-page arm, the same as a Post), while an
+ *   `"html"`-format Page's `""` was already ineligible (matching `null`), because "no template" was
+ *   that format's normal, fully-functional default and a stray dropdown selection shouldn't break an
+ *   otherwise-working page. The ruling gave `""` a THIRD, Page-only meaning instead of resolving that
+ *   divergence either way: a **bare page** ({@link isBarePageChoice}), serving the Page's own HTML
+ *   with no theme chrome at all. A bare Page must never enter this template branch regardless of
+ *   which body format it happens to be saved as, which is exactly what retires the divergence — both
+ *   formats now agree, and `isPageTemplateChoiceEligible` below no longer even branches on
+ *   `bodyFormat`.
  *
  *   CORRECTION (2026-09-02): "fully-functional" above was false for a `static`-tier active theme.
  *   The generic path this arm sends an untemplated `html` Page to (`renderSite`'s
@@ -1031,15 +1036,39 @@ export function resolveTemplate(
  */
 /**
  * The `kind: "page"` half of {@link isEligibleForTemplateBranch} — split out purely to keep that
- * function's own branch count proportional to "which gate applies", not also the doc/html
- * divergence within the Page gate. See the caller's own doc for the full reasoning behind the
- * doc-vs-html `""` divergence this preserves verbatim.
+ * function's own branch count proportional to "which gate applies", not also this gate's own checks.
+ *
+ * Format-independent since the owner's 2026-09-23 bare-page ruling: `""` is ineligible in BOTH
+ * `bodyFormat`s now (a bare Page, see {@link isBarePageChoice}), which retires the doc/html
+ * divergence this function used to preserve verbatim — `bodyFormat` is accepted only because callers
+ * pass whole records, and is no longer read. See the caller's own doc for the full history.
  */
 function isPageTemplateChoiceEligible(post: { bodyFormat: "doc" | "html"; templateChoice?: string | null }): boolean {
-  if (post.bodyFormat === "html") {
-    return post.templateChoice !== null && post.templateChoice !== undefined && post.templateChoice !== "";
-  }
-  return post.bodyFormat === "doc" && post.templateChoice !== null && post.templateChoice !== undefined;
+  return post.templateChoice !== null && post.templateChoice !== undefined && post.templateChoice !== "";
+}
+
+/**
+ * Identifies a **bare page** — the owner's 2026-09-23 ruling for `templateChoice: ""` on a
+ * `kind: "page"` row: serve the Page's own HTML only, with no theme CSS/JS, header, or footer.
+ *
+ * Pure, and deliberately checked BEFORE any template-branch gate: `renderTemplateBranchIfEligible`
+ * (`routes/site/pages.ts`) must call this first, ahead of the `theme === null` early return and
+ * either template-branch gate, because a bare Page renders identically whether or not a theme is even
+ * active. {@link isPageTemplateChoiceEligible} and {@link resolveStaticTierPageShellFallback}
+ * separately also refuse a bare Page's `""` on their own — belt-and-suspenders, not this predicate's
+ * job — so a caller that skips this check still cannot land a bare Page in the template branch or
+ * under a static theme's page shell. This predicate exists for the caller that needs to route to the
+ * SEPARATE bare-rendering path, not merely to exclude bare Pages from this one.
+ *
+ * A Post is excluded by construction (`post.kind === "page"`): a Post's `""` keeps its own, unrelated
+ * meaning — the diagnostic page, see {@link resolveTemplate} — untouched by this ruling.
+ *
+ * @param post - The record being rendered. Only `kind` and `templateChoice` are read.
+ * @returns `true` only for a `kind: "page"` row whose `templateChoice` is the empty string.
+ * @complexity O(1) — two field comparisons, no I/O.
+ */
+export function isBarePageChoice(post: { kind: "post" | "page"; templateChoice?: string | null }): boolean {
+  return post.kind === "page" && post.templateChoice === "";
 }
 
 /** The canonical filename(s) `static`-tier themes use for a reusable, content-agnostic document
@@ -1194,7 +1223,10 @@ function pageShellMissMessage(themeId: string, candidate: { kind: "slotless"; id
 }
 
 export function resolveStaticTierPageShellFallback(
-  required: { theme: DiscoveredTheme; post: { kind: "post" | "page"; bodyFormat: "doc" | "html" } },
+  required: {
+    theme: DiscoveredTheme;
+    post: { kind: "post" | "page"; bodyFormat: "doc" | "html"; templateChoice?: string | null };
+  },
   _optional: Record<string, never> = {}
 ): string | undefined {
   const { theme, post } = required;
@@ -1203,6 +1235,11 @@ export function resolveStaticTierPageShellFallback(
   // WIDENED note on this function's own doc. `bodyFormat` is not read at all now, and the parameter
   // keeps it only because callers pass whole records.
   if (post.kind !== "page") return undefined;
+  // 2026-09-23: a bare Page (`isBarePageChoice`) never gets a theme's page shell either — the owner's
+  // ruling is NO theme chrome for `""`, and a page shell IS theme chrome. `renderTemplateBranchIfEligible`
+  // (`routes/site/pages.ts`) already intercepts a bare Page before either gate runs; this check is
+  // belt-and-suspenders so a caller that skips that interception still cannot reach a page shell here.
+  if (post.templateChoice === "") return undefined;
 
   const candidate = findPageShellCandidate(theme);
   if (candidate.kind === "usable") return `${candidate.id}.html`;

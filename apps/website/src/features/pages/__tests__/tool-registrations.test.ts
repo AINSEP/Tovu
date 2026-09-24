@@ -46,6 +46,31 @@ async function seedPage(repo: InMemoryPostRepo, id: string, title: string) {
   await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id, title, kind: "page" } });
 }
 
+test("pages_write_html and pages_write_region document the collection embed marker, including its <template> placeholders", () => {
+  const { byName } = harness();
+  for (const name of ["pages_write_html", "pages_write_region"]) {
+    const description = byName.get(name)?.descriptor.description ?? "";
+    assert.match(description, /"type":"collection"/, `${name} must mention the collection marker`);
+    assert.match(description, /<template>/, `${name} must mention <template> placeholders`);
+  }
+});
+
+// Regression: `&#39;` was the escape this contract used to tell the model to write for an apostrophe
+// inside a marker's JSON string value, but `marker.ts`'s own `parseEmbedMarkerConfig` just calls
+// `JSON.parse(raw)` on the un-decoded attribute text — an HTML entity is never decoded, so it would
+// have left the six literal characters `&#39;` in the value instead of an apostrophe. `'` is a
+// real JSON string escape, so `JSON.parse` turns it into an apostrophe (verified directly against
+// `MARKER_PATTERN` + `JSON.parse`, not just read off the regex). The contract text still names
+// `&#39;` once, as the thing NOT to do, so this only pins that the correct escape is the one actually
+// told to write it.
+test("pages_write_html and pages_write_region tell the model to write the JSON escape for an apostrophe", () => {
+  const { byName } = harness();
+  for (const name of ["pages_write_html", "pages_write_region"]) {
+    const description = byName.get(name)?.descriptor.description ?? "";
+    assert.match(description, /must be written as the JSON escape `\\u0027`/, `${name} must document the \\u0027 JSON escape`);
+  }
+});
+
 test("all three Pages tools are registered with the input schemas the model needs", () => {
   const { byName } = harness();
   assert.deepEqual([...byName.keys()].sort(), ["pages_read_html", "pages_write_html", "pages_write_region"]);

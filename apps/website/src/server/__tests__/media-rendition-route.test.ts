@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
-import { registerTransform, uploadMedia, trashMedia, ImageSourceCorruptError, ImageTransformUnavailableError } from "../../features/media/index.js";
+import { registerTransform, uploadMedia, trashMedia, updateMediaMetadata, ImageSourceCorruptError, ImageTransformUnavailableError } from "../../features/media/index.js";
 import type { PostRecord } from "../../features/post/index.js";
 import type { MemberSessionRecord } from "../../features/members/index.js";
 import { InMemoryMemberSessionRepo } from "../../features/members/index.js";
@@ -420,6 +420,51 @@ test("media rendition route: an asset referenced only by a TRASHED post is not g
       "a trashed post's stale reference must not gate the asset — no LIVE post references it, so it must be treated the same as an unreferenced asset"
     );
     assert.equal(res.headers.get("cache-control"), "public, max-age=31536000, immutable");
+  });
+});
+
+// --- readable-slugs S2b: cache split by which spelling was requested ----------------------------
+// The id and the slug both resolve to the SAME bytes for an ungated asset, but only the id spelling
+// is immutable forever — a slug can be renamed (S2a's `media_slug_history` is what makes an old
+// slug keep resolving at all), so a slug-keyed 200 gets a short, revalidate-soon TTL instead.
+
+test("media rendition route: an ungated 200 requested BY SLUG gets a short-TTL public Cache-Control, while the SAME asset requested by id keeps the year-long immutable header", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, "slug-cache-split-bytes", "slug-cache.png");
+    const { definition } = await registerOne(deps, "public", { format: "webp" });
+    assert.ok(media.slug, "precondition: an uploaded asset gets a slug");
+
+    const suffix = `${definition.name}.v${definition.version}/x.webp`;
+    const byId = await fetch(`${baseUrl}/m/${media.id}/${suffix}`);
+    assert.equal(byId.status, 200);
+    assert.equal(byId.headers.get("cache-control"), "public, max-age=31536000, immutable");
+
+    const bySlug = await fetch(`${baseUrl}/m/${media.slug}/${suffix}`);
+    assert.equal(bySlug.status, 200);
+    assert.equal(bySlug.headers.get("cache-control"), "public, max-age=3600");
+    assert.deepEqual(
+      new Uint8Array(await bySlug.arrayBuffer()),
+      new Uint8Array(await (await fetch(`${baseUrl}/m/${media.id}/${suffix}`)).arrayBuffer()),
+      "the id and slug spellings must resolve to identical bytes — only the cache lifetime differs"
+    );
+  });
+});
+
+test("media rendition route: a RETIRED slug (renamed away) still serves the same asset with the short-TTL header, never the long-lived immutable one", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, "retired-slug-cache-bytes", "retired-cache.png");
+    const { definition } = await registerOne(deps, "public", { format: "webp" });
+    const retiredSlug = media.slug;
+    assert.ok(retiredSlug, "precondition: an uploaded asset gets a slug");
+
+    await updateMediaMetadata({
+      deps: { clock: deps.clock, mediaRepo: deps.mediaRepo },
+      input: { workspaceId: deps.workspaceId, id: media.id, slug: "retired-slug-cache-renamed" },
+    });
+
+    const viaRetired = await fetch(`${baseUrl}/m/${retiredSlug}/${definition.name}.v${definition.version}/r.webp`);
+    assert.equal(viaRetired.status, 200, "a retired slug must keep resolving to the same asset (S2a rename safety)");
+    assert.equal(viaRetired.headers.get("cache-control"), "public, max-age=3600");
   });
 });
 

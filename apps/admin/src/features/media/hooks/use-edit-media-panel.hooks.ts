@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
 
+import { embedMarkerSnippet } from "@tovu/embed-marker";
+
 import type { AdminMedia } from "@/lib/api";
 import { useFetchMutation } from "@/lib/fetch-query";
 import {
@@ -20,18 +22,25 @@ import type { MediaPort } from "./media-port.hooks";
  * @file Everything `EditMediaPanel` does, so the component in `Media.tsx` is only markup.
  *
  * Extracted verbatim — same state, same order, same error string. The doc comments below moved
- * WITH the values they describe; `originalUrl`'s is a decision record (why there is no stored
- * filename/path to show, and why the authenticated byte-route URL is what's displayed instead) and
- * a comment separated from its code stops being read.
+ * WITH the values they describe; a comment separated from its code stops being read.
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local
  * because nothing outside `features/media` needs it.
  *
  * `deps.port`/`deps.locale` are injected (see `media-port.hooks.ts`) rather than reaching for
  * `lib/api`'s `api` and `useAdminLocale()` directly, sharing the same `MediaPort` `use-media.hooks
- * .ts` injects — both hooks read/write the one `/media` resource. `originalUrl` below now reads
- * `port.mediaOriginalUrl(item.id)` rather than calling `api.mediaOriginalUrl` directly — see
- * `media-port.hooks.ts`'s header for why that URL builder moved onto the port (2026-08-14).
+ * .ts` injects — both hooks read/write the one `/media` resource.
+ *
+ * `publicUrl` (readable-slugs S5a, UI half, 2026-09-23) replaced this hook's old `originalUrl`
+ * field, which read `port.mediaOriginalUrl(item.id)` — the authenticated admin byte route, the only
+ * "where is this file" answer available before the server started resolving a real public URL (see
+ * `lib/api.ts`'s `AdminMedia.publicUrl` doc for the full story: slug-keyed when the asset has a
+ * valid one, else id-keyed, `null` for a trashed asset or when no public transform is registered).
+ * `publicUrl` is a plain pass-through of `item.publicUrl` — no port call, since the server now
+ * computes it directly (`ff6b713f0`). `MediaPreview`'s `<img>`/`<video>` `src`
+ * (`use-media-preview.hooks.ts`) still uses `port.mediaOriginalUrl` — that route is a different
+ * thing (an authenticated admin-only byte stream, not necessarily a link a visitor could follow) and
+ * is unaffected by this change.
  *
  * `lib/fetch-query` migration (2026-08-12): `save` is one `useFetchMutation` that `invalidates:
  * [KEYS.list]` — this hook has no read of its own to invalidate (see `rules.ts`'s `KEYS` doc), so
@@ -104,9 +113,24 @@ export interface EditMediaPanelController {
   /** Same pattern as `hashCopied`, for the asset URL field below. Separate state because the two
    *  copy buttons can be clicked independently and each needs its own "Copied" label lifetime. */
   urlCopied: boolean;
-  originalUrl: string;
+  /** Same pattern again, for the "Copy embed code" button. */
+  embedCopied: boolean;
+  /** The asset's real, public `/m/...` URL — see `lib/api.ts`'s `AdminMedia.publicUrl` doc. `null`
+   *  when the server has none to offer (trashed, or no public transform registered yet); `Media.tsx`
+   *  hides the row entirely in that case rather than showing a dead link. */
+  publicUrl: string | null;
   copyHash: () => Promise<void>;
+  /** No-op when `publicUrl` is `null` — see `publicUrl`'s own doc for why that happens and why
+   *  `Media.tsx` never renders this button in that state anyway; the guard is here too so a stray
+   *  call is inert rather than handing the clipboard API a `null`. */
   copyUrl: () => Promise<void>;
+  /** `embedMarkerSnippet("media", "slug", item.slug)` — see `@tovu/embed-marker`'s doc for the
+   *  shared helper. Computed here (not in `Media.tsx`, which stays markup-only) so the panel can
+   *  both display it (in a read-only `<code>`, same idiom as the sha256/URL rows) and copy it. */
+  embedSnippet: string;
+  /** Copies {@link embedSnippet}. Unlike `copyUrl`, this needs no null-guard: `item.slug` is always
+   *  a non-empty string (uploads always derive one, `deriveUniqueMediaSlug`). */
+  copyEmbedCode: () => Promise<void>;
   save: () => Promise<void>;
 }
 
@@ -136,19 +160,12 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
   });
   const [hashCopied, setHashCopied] = useState(false);
   const [urlCopied, setUrlCopied] = useState(false);
+  const [embedCopied, setEmbedCopied] = useState(false);
 
-  /** `MediaRecord` (`@jini-ai/cms/media`) carries no filename/path/URL field at all — only
-   *  `title`/`alt`/`caption`/`credit`/`source.sha256` (see that type's own doc comment: media is
-   *  a bespoke editorial record, not yet the generic `entries` model ADR-022 describes, and even
-   *  that model wouldn't store a filesystem path — the physical bytes live in the separate
-   *  `asset_blobs` sidecar, keyed by `(workspaceId, sha256)` for dedup, not by this media record).
-   *  So "where is this asset" has no stored answer to surface — the correct one to show is the
-   *  same authenticated byte-serving URL `MediaPreview` already uses as this exact item's `<img>`/
-   *  `<video>` `src` (`lib/api.ts`'s `mediaOriginalUrl` route, REQ from MSG-05's rewrite, read here
-   *  through the injected `port` rather than the `api` client directly): it is the one thing that
-   *  reliably, uniquely resolves to THIS media record's bytes regardless of dedup (two records can
-   *  share one blob's `storageKey`, which is why that internal key is not what's shown here). */
-  const originalUrl = port.mediaOriginalUrl(item.id);
+  // See this file's header for why `publicUrl` is a plain read of the server-computed field, not a
+  // port call.
+  const publicUrl = item.publicUrl;
+  const embedSnippet = embedMarkerSnippet("media", "slug", item.slug);
 
   function setTitle(value: string) {
     setDraft((d) => ({ ...d, title: value }));
@@ -196,13 +213,27 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
   }
 
   async function copyUrl() {
+    if (publicUrl === null) return;
     try {
-      await navigator.clipboard.writeText(originalUrl);
+      await navigator.clipboard.writeText(publicUrl);
       setUrlCopied(true);
       setTimeout(() => setUrlCopied(false), 1500);
     } catch {
       // Same degrade-to-select-manually reasoning as `copyHash` above — the link itself is still
       // there to click or select even if the clipboard write is denied.
+    }
+  }
+
+  async function copyEmbedCode() {
+    try {
+      await navigator.clipboard.writeText(embedSnippet);
+      setEmbedCopied(true);
+      setTimeout(() => setEmbedCopied(false), 1500);
+    } catch {
+      // Same degrade-to-select-manually reasoning as `copyHash`/`copyUrl` above — `Media.tsx` shows
+      // the snippet itself in a read-only `<code>` next to this button (same `MediaEditCopyRow`
+      // idiom as the other two rows), so a denied clipboard write never leaves the operator with no
+      // way to get the value at all.
     }
   }
 
@@ -238,9 +269,12 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
     error,
     hashCopied,
     urlCopied,
-    originalUrl,
+    embedCopied,
+    publicUrl,
+    embedSnippet,
     copyHash,
     copyUrl,
+    copyEmbedCode,
     save,
   };
 }

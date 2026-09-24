@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
@@ -153,6 +153,128 @@ describe("useThemeCanvasStyling", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  // Bug B, Slice B1 (pages-redo plan): every Interactive mount re-links the theme stylesheet fresh
+  // (served `cache-control: public, max-age=0`), so this hook fires a best-effort warm-up request for
+  // the SAME URL in parallel with its own token fetches, ahead of `InteractiveHtmlEditor` linking it.
+  it("warms the theme's stylesheet URL in parallel with the token fetches (Bug B, Slice B1)", async () => {
+    const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
+    const warmSpy = vi.spyOn(port, "warmStylesheet");
+    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(warmSpy).toHaveBeenCalledWith("/theme-assets/basic/css/theme.css");
+  });
+
+  it("still resolves ready styling when the stylesheet warm-up request rejects — it is fire-and-forget, never fatal", async () => {
+    const port = {
+      ...createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } }),
+      warmStylesheet: async () => {
+        throw new Error("warm-up network failure");
+      },
+    };
+    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(result.current).toEqual({
+      status: "ready",
+      styling: { stylesheets: ["/theme-assets/basic/css/theme.css"], css: tokensToCanvasCss(DARK, undefined) },
+    });
+  });
+});
+
+describe("useThemeCanvasStyling — bounded pending state (Bug B, Slice B2)", () => {
+  // Repro 2 in the pages-redo plan: `/theme-assets/*/tokens.json` hanging (API restarting behind the
+  // Vite proxy) left the tab on "Loading the theme's styles…" forever, because the `Promise.all` this
+  // hook races had no timeout. This bounds it — a hung fetch degrades to the same "no canvas styling"
+  // outcome a fetch REJECTION already produced, just after a fixed wait instead of never.
+  it("resolves to no canvas styling after the 8s timeout when the token fetch never settles", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const port = {
+        ...createFakeThemeCanvasPort(),
+        // Never resolves or rejects — simulates the API hanging behind the dev proxy.
+        fetchThemeTokens: () => new Promise<never>(() => {}),
+      };
+      const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+      expect(result.current).toEqual({ status: "pending" });
+
+      // Just under the bound: still pending, so the timeout isn't firing early.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(7999);
+      });
+      expect(result.current).toEqual({ status: "pending" });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(result.current).toEqual({ status: "ready", styling: {} });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not let a token fetch that resolves right after the timeout override the timed-out state — the timeout is final for that mount", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let resolveTokens: (tokens: typeof DARK) => void = () => {};
+      const port = {
+        ...createFakeThemeCanvasPort(),
+        fetchThemeTokens: () => new Promise<typeof DARK>((resolve) => (resolveTokens = resolve)),
+      };
+      const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(8000);
+      });
+      expect(result.current).toEqual({ status: "ready", styling: {} });
+
+      await act(async () => {
+        resolveTokens(DARK);
+        await Promise.resolve();
+      });
+      expect(result.current).toEqual({ status: "ready", styling: {} });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('resolves immediately to ready with no styling when themeId is "" — a loaded presentation with no theme configured, not "still loading"', () => {
+    const port = createFakeThemeCanvasPort();
+    const { result } = renderHook(() => useThemeCanvasStyling("", 2, port));
+    expect(result.current).toEqual({ status: "ready", styling: {} });
+  });
+});
+
+describe('useThemeCanvasStyling — bare-page short-circuit (templateChoice === "", owner ruling 2026-09-23, S6)', () => {
+  it('resolves immediately to ready with no styling for a bare Page ("" templateChoice) on a REAL, loaded theme', () => {
+    const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
+    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port, ""));
+    expect(result.current).toEqual({ status: "ready", styling: {} });
+  });
+
+  it("does not fetch tokens, template markup, or warm the stylesheet for a bare Page", () => {
+    const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
+    const tokensSpy = vi.spyOn(port, "fetchThemeTokens");
+    const markupSpy = vi.spyOn(port, "fetchTemplateMarkup");
+    const warmSpy = vi.spyOn(port, "warmStylesheet");
+    renderHook(() => useThemeCanvasStyling("basic", 2, port, ""));
+    expect(tokensSpy).not.toHaveBeenCalled();
+    expect(markupSpy).not.toHaveBeenCalled();
+    expect(warmSpy).not.toHaveBeenCalled();
+  });
+
+  it("still resolves to no styling if templateChoice changes to bare AFTER a real theme was already ready", async () => {
+    const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
+    const { result, rerender } = renderHook(({ templateChoice }: { templateChoice: string | null }) => useThemeCanvasStyling("basic", 2, port, templateChoice), {
+      initialProps: { templateChoice: "blog-post.html" },
+    });
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(result.current.status === "ready" && result.current.styling.stylesheets).toBeDefined();
+
+    rerender({ templateChoice: "" });
+    expect(result.current).toEqual({ status: "ready", styling: {} });
+  });
 });
 
 describe("resolveCanvasTemplateChoice (Interactive-tab page-shell fallback)", () => {
@@ -168,8 +290,12 @@ describe("resolveCanvasTemplateChoice (Interactive-tab page-shell fallback)", ()
     expect(resolveCanvasTemplateChoice(null, "html")).toBe("pages-default.html");
   });
 
-  it('falls back to the theme\'s page-shell template for an untemplated html Page ("" templateChoice)', () => {
-    expect(resolveCanvasTemplateChoice("", "html")).toBe("pages-default.html");
+  // Bare-page ruling (2026-09-23, S6): `""` and `null` used to be interchangeable here (both fell back
+  // to the page shell). They now diverge — `""` is a bare Page (no theme chrome at all), so it must
+  // NOT resolve to the shell fallback any more; it passes straight through so
+  // `useThemeCanvasStyling`'s own bare short-circuit (below) can read it and skip fetching entirely.
+  it('does NOT fall back to the page-shell template for a bare html Page ("" templateChoice) — passes "" straight through', () => {
+    expect(resolveCanvasTemplateChoice("", "html")).toBe("");
   });
 
   it("leaves an explicit templateChoice alone even on an html Page", () => {
@@ -232,13 +358,11 @@ describe("useThemeCanvasStyling — content wrapper (templateChoice)", () => {
     expect(result.current.status === "ready" && result.current.styling.contentWrapper).toBeUndefined();
   });
 
-  it('has no content wrapper when templateChoice is "" (explicit "no template chosen")', async () => {
-    const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
-    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port, ""));
-
-    await waitFor(() => expect(result.current.status).toBe("ready"));
-    expect(result.current.status === "ready" && result.current.styling.contentWrapper).toBeUndefined();
-  });
+  // Bare-page ruling (2026-09-23, S6): `""` used to reach this hook's normal fetch path (via
+  // `resolveCanvasTemplateChoice`'s old page-shell fallback) and settle asynchronously with no
+  // wrapper. It now short-circuits to `NO_CANVAS_STYLING` synchronously — see the dedicated
+  // "bare short-circuit" describe block below for full coverage of that behavior, including the
+  // zero-fetches assertion. This case is folded into it; kept here only as a cross-reference.
 
   it("falls back to no content wrapper when the template markup fetch fails, without failing the whole canvas", async () => {
     // No entry seeded for the template URL — createFakeThemeCanvasPort rejects, same as a real 404.

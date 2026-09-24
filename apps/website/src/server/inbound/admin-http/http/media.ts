@@ -44,6 +44,16 @@ export interface AdminMediaResponse {
    * admin UI must keep `null` rows visible somewhere rather than filtering them into oblivion.
    */
   contentType: string | null;
+  /**
+   * The asset's real, public, readable `/m/...` URL (readable-slugs S5a, 2026-09-23) — the same
+   * `mediaUrlKey`/`mediaPublicPath` contract `features/seo/media.ts` and
+   * `features/media/tool-registrations.ts`'s own `resolveMediaPublicUrls` already use, keyed by the
+   * asset's current slug when it has a valid one, otherwise its id. `null` for every case
+   * `resolveMediaPublicUrls` itself returns `null` for — a trashed asset (never a link a visitor
+   * would 404 on), or no "public" core transform registered yet — never a partially-built or
+   * fabricated guess.
+   */
+  publicUrl: string | null;
 }
 
 export interface AdminMediaEnvelope {
@@ -55,17 +65,18 @@ export interface AdminMediaListEnvelope {
 }
 
 /**
- * `contentType` is a REQUIRED second parameter rather than an optional one with a `null` default:
- * it cannot be derived from `MediaRecord` (the upstream `@jini-ai/cms` type has no such field —
- * it is looked up per-blob from `MediaContentTypeStorePort`), and a default would let a caller
- * that simply forgot to look it up silently emit `null`, which the admin UI reads as the specific
- * claim "this blob's bytes were unreadable". Making it explicit forces each of the four routes to
- * state what it actually knows.
+ * `contentType`/`publicUrl` are REQUIRED positional parameters rather than optional ones with a
+ * `null` default: neither can be derived from `MediaRecord` alone (`contentType` is looked up
+ * per-blob from `MediaContentTypeStorePort`; `publicUrl` needs a batched content-type AND
+ * transform-registry lookup — see `resolveMediaPublicUrls`), and a default would let a caller that
+ * simply forgot to look one up silently emit `null`, which the admin UI reads as a specific claim
+ * ("this blob's bytes were unreadable" / "this asset has no public URL"). Making both explicit
+ * forces each of the four routes to state what it actually knows.
  *
  * @complexity O(1).
  * @overallScore 100
  */
-export function toAdminMediaResponse(media: MediaRecord, contentType: string | null): AdminMediaResponse {
+export function toAdminMediaResponse(media: MediaRecord, contentType: string | null, publicUrl: string | null): AdminMediaResponse {
   return {
     id: media.id,
     workspaceId: media.workspaceId,
@@ -84,6 +95,7 @@ export function toAdminMediaResponse(media: MediaRecord, contentType: string | n
     cssClass: media.cssClass,
     htmlAttributes: media.htmlAttributes,
     contentType,
+    publicUrl,
   };
 }
 
@@ -92,13 +104,20 @@ export function toAdminMediaResponse(media: MediaRecord, contentType: string | n
  * `MediaContentTypeStorePort.getMany` returns them. A sha256 ABSENT from this map becomes a `null`
  * `contentType` on that row — the map's "absent means not sniffed yet" contract carried through to
  * the wire shape.
- * @complexity O(n) in `media.length` — the map lookup per row is O(1).
+ * @param publicUrlsById - Keyed by `MediaRecord.id`, as `resolveMediaPublicUrls` (batch-shaped, same
+ * O(1)-query contract as `contentTypesBySha256` above) returns them. An id ABSENT from this map
+ * (should not happen for any id in `media`, but kept fail-soft rather than throwing) becomes a
+ * `null` `publicUrl`, same as an id present with an explicit `null` value.
+ * @complexity O(n) in `media.length` — both map lookups per row are O(1).
  */
 export function toAdminMediaListResponse(
   media: MediaRecord[],
-  contentTypesBySha256: ReadonlyMap<string, string>
+  contentTypesBySha256: ReadonlyMap<string, string>,
+  publicUrlsById: ReadonlyMap<string, string | null>
 ): AdminMediaListEnvelope {
   return {
-    media: media.map((item) => toAdminMediaResponse(item, contentTypesBySha256.get(item.source.sha256) ?? null)),
+    media: media.map((item) =>
+      toAdminMediaResponse(item, contentTypesBySha256.get(item.source.sha256) ?? null, publicUrlsById.get(item.id) ?? null)
+    ),
   };
 }

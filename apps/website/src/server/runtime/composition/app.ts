@@ -739,6 +739,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const menuRepo = new TrashAwareInMemoryMenuRepo();
   const navLocationBindingRepo = new InMemoryNavLocationBindingRepo();
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
+  // Collections plan R1 — hoisted above `wireCoreResolvers` (was constructed later, inline, only for
+  // the Admin-UI backend-gap deps object below) so the `recent-entries` widget's "Collection list"
+  // mode and the rest of the app (content-type CRUD routes, etc.) share the SAME store — a second
+  // `new InMemoryContentTypeRepo()` here would be an empty, disconnected double nothing ever
+  // registers a content type into, silently breaking every collection-configured widget.
+  const contentTypeRepo = new InMemoryContentTypeRepo();
   // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — mirrors `server/deps.ts`'s
   // identical fix: without this, no test exercising the real HTTP path ever ran a dynamic widget
   // type (`menu`/`recent-entries`/`contact-form`) through its actual resolver, only test doubles.
@@ -746,6 +752,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     entryList: entryRepo,
     navMenuReadModel: createNavMenuReadModel({ menuRepo, bindingRepo: navLocationBindingRepo }),
     formDefinitionRepo,
+    contentTypes: contentTypeRepo,
   });
   const commentsModule = createCommentsModule({
     commentRepo,
@@ -1060,7 +1067,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // Admin-UI backend-gap closure (design-spec.md §0.4, this dispatch): in-memory adapters for
     // content-types/entries plus the restore-points/dbOps/site-status/recovery seams the
     // Database/Recovery screens' remaining read routes need.
-    contentTypeRepo: new InMemoryContentTypeRepo(),
+    contentTypeRepo,
     contentTypeIndexProvisioner: new NoopContentTypeIndexProvisioner(),
     entryRepo,
     taxonomyRepo,

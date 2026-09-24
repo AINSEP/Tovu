@@ -145,6 +145,26 @@ test("resolveMediaPublicUrls: mixed batch — trashed, video, and image assets e
   assert.equal(result.get(image.id), `/m/${image.id}/${CORE_PUBLIC_TRANSFORM_NAME}.v1/image.jpg`);
 });
 
+test("resolveMediaPublicUrls: an asset with a valid slug resolves a URL keyed by the SLUG, not the id (readable-slugs S4)", async () => {
+  const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  await registerCoreTransform(transformDefinitionRepo, { format: "webp" });
+  const asset = fakeAsset({ slug: "cover-photo" });
+
+  const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [asset]);
+  assert.equal(result.get(asset.id), `/m/cover-photo/${CORE_PUBLIC_TRANSFORM_NAME}.v1/image.webp`);
+});
+
+test("resolveMediaPublicUrls: a video asset with a valid slug resolves the /original URL keyed by the SLUG, not the id (readable-slugs S4)", async () => {
+  const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
+  const asset = fakeAsset({ slug: "team-intro" });
+  await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: asset.source.sha256, contentType: "video/mp4" });
+
+  const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [asset]);
+  assert.equal(result.get(asset.id), `/m/team-intro/original`);
+});
+
 test("resolveMediaPublicUrls: is scoped to the caller's own workspace — a transform registered for a DIFFERENT workspace never resolves this one's asset", async () => {
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
   const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();

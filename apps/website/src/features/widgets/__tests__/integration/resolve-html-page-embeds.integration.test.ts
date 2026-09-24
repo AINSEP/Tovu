@@ -484,6 +484,7 @@ test('resolveHtmlPageEmbeds: a "media" embed with no variant resolves against CO
     componentId: "media-image",
     props: {
       assetId: "asset-1",
+      slug: null,
       transformName: CORE_PUBLIC_TRANSFORM_NAME,
       version: 2,
       alt: "A scenic photo",
@@ -514,6 +515,7 @@ test('resolveHtmlPageEmbeds: a "media" embed whose asset is a recorded VIDEO res
     componentId: "media-image",
     props: {
       assetId: "asset-1",
+      slug: null,
       contentType: "video/mp4",
       alt: "A hero clip",
       width: 1920,
@@ -539,6 +541,7 @@ test('resolveHtmlPageEmbeds: a "media" embed with mediaContentTypeStore supplied
     componentId: "media-image",
     props: {
       assetId: "asset-1",
+      slug: null,
       transformName: CORE_PUBLIC_TRANSFORM_NAME,
       version: 2,
       alt: "A scenic photo",
@@ -1033,7 +1036,7 @@ test('resolveHtmlPageEmbeds: a "content" embed\'s bodyJson containing a ref-base
   // known" the same way every other absent optional dep on this path does (2026-09-11 widening,
   // see resolvePostContentMediaContext's own doc).
   assert.deepEqual(ir?.props.mediaAssetMetadata, {
-    "asset-1": { width: 900, height: 600, cssClass: "hero", htmlAttributes: null, contentType: null },
+    "asset-1": { width: 900, height: 600, cssClass: "hero", htmlAttributes: null, slug: null, contentType: null },
   });
 });
 
@@ -1144,7 +1147,7 @@ test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branc
   // contentType: null — no mediaContentTypeStore supplied by this test (2026-09-11 widening, see
   // resolvePostContentMediaContext's own doc).
   assert.deepEqual(ir?.props.mediaAssetMetadata, {
-    "asset-1": { width: 800, height: 500, cssClass: null, htmlAttributes: null, contentType: null },
+    "asset-1": { width: 800, height: 500, cssClass: null, htmlAttributes: null, slug: null, contentType: null },
   });
 });
 
@@ -1204,6 +1207,7 @@ test('resolveHtmlPageEmbeds: a "content" embed\'s DB branch resolves contentType
     height: null,
     cssClass: null,
     htmlAttributes: null,
+    slug: null,
     contentType: "video/mp4",
   });
 

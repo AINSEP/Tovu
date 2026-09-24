@@ -56,6 +56,16 @@ import type { RouteDeps } from "#src/server/routes/types";
  *   broken `<img>`, byte-identical to before this field existed only for previews, not the live site.
  *   A second, narrower render implementation here would be exactly the drift risk `renderViaTemplate`'s
  *   own doc says reuse avoids.
+ * - `widgetBindingRepo`/`settingsRepo`/`siteTitlePreservationStore`/`workspaceRepo`/`siteDisplayName`
+ *   (owner ruling 2026-09-23, bare-page S5): `posts/template-preview.ts` only, again — a bare-page
+ *   (`templateChoice === ""`) preview reuses `routes/site/pages.ts`'s exported
+ *   `resolveHtmlEmbedsForRender`/`resolveMediaTransformVersionsForRender`/
+ *   `resolveMediaAssetMetadataForRender` (their shared `RenderContextResolutionDeps` parameter type
+ *   itself requires `widgetBindingRepo`, even though none of those three functions actually reads
+ *   it — TypeScript checks the declared type, not per-call field usage) and inlines the same 4-field
+ *   site-title resolution `resolveSiteTitleForRender` uses, so the preview's `<title>` matches the
+ *   live bare page's exactly rather than showing a placeholder. Same "this route needs the render
+ *   pipeline's dependency set" reasoning as the group directly above, for the same one file.
  *
  *   NOT widened for the 2026-08-12 `.liquid` Preview-tab fix: that route
  *   (`middleware/theme-page-preview.ts`) needs `requireAdminSession`'s own identity-repo dependency
@@ -98,6 +108,12 @@ export type ContentRouteDeps = Pick<
   // as the `entryRepo`/`mediaRepo`/… group directly above — a template preview with a `collection`
   // marker needs this too, or it would silently diverge from the live site's own resolution.
   | "contentTypeRepo"
+  // Bare-page S5 (2026-09-23) — see the `widgetBindingRepo`/… group's own doc above.
+  | "widgetBindingRepo"
+  | "settingsRepo"
+  | "siteTitlePreservationStore"
+  | "workspaceRepo"
+  | "siteDisplayName"
 >;
 
 export type ContentRouteRegistrar = (app: Express, deps: ContentRouteDeps) => void;

@@ -21,10 +21,13 @@ import {
   pageEditorSurface,
   pageLivePreviewPath,
   pagePartialSaveMessage,
+  pagePickerValue,
   pagePreviewFormTarget,
   pagePublicPath,
   pageRefreshMayHaveUnsavedEdits,
   pageRowMenuItems,
+  pickerValueToChoice,
+  THEME_DEFAULT_SENTINEL,
   themePageRowMenuItems,
   updatedPageColumnSortLabel,
 } from "../rules";
@@ -655,6 +658,41 @@ describe("pageRefreshMayHaveUnsavedEdits", () => {
 
   it("is true on the Interactive tab even when dirty reads false, since canvas typing may not have reached html yet", () => {
     expect(pageRefreshMayHaveUnsavedEdits({ dirty: false, view: "interactive" })).toBe(true);
+  });
+});
+
+describe("pagePickerValue / pickerValueToChoice (bare-page ruling 2026-09-23, S6)", () => {
+  it("shows the shipped shell filename for a null Page when the theme lists it", () => {
+    expect(pagePickerValue(null, ["pages-default.html", "blog-post.html"])).toBe("pages-default.html");
+  });
+
+  it("falls back to the legacy page-shell.html name when the theme ships that instead", () => {
+    expect(pagePickerValue(null, ["page-shell.html", "blog-post.html"])).toBe("page-shell.html");
+  });
+
+  it("prefers pages-default.html over page-shell.html when a theme ships both", () => {
+    expect(pagePickerValue(null, ["page-shell.html", "pages-default.html"])).toBe("pages-default.html");
+  });
+
+  it("returns the sentinel for a null Page when the theme ships neither shell filename", () => {
+    expect(pagePickerValue(null, ["blog-post.html"])).toBe(THEME_DEFAULT_SENTINEL);
+  });
+
+  it("passes an explicit bare choice (\"\") straight through, never the sentinel", () => {
+    expect(pagePickerValue("", ["pages-default.html"])).toBe("");
+  });
+
+  it("passes a real filename straight through", () => {
+    expect(pagePickerValue("blog-post.html", ["pages-default.html", "blog-post.html"])).toBe("blog-post.html");
+  });
+
+  it("pickerValueToChoice maps the sentinel back to null", () => {
+    expect(pickerValueToChoice(THEME_DEFAULT_SENTINEL)).toBeNull();
+  });
+
+  it("pickerValueToChoice passes every other value through unchanged, including \"\"", () => {
+    expect(pickerValueToChoice("")).toBe("");
+    expect(pickerValueToChoice("pages-default.html")).toBe("pages-default.html");
   });
 });
 

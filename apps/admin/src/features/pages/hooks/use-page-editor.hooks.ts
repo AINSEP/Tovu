@@ -85,9 +85,11 @@ export interface PageEditorController {
   setSlug: (value: string) => void;
   status: "draft" | "published";
   setStatus: (value: "draft" | "published") => void;
-  /** Pages template picker (Task 4, 2026-08-11) — same tri-state contract as `usePostEditor`'s own
-   *  `templateChoice`: `null` (never chosen, this Page renders its own body directly — the existing
-   *  default behavior), `""` (explicit "No template chosen"), or a real filename. */
+  /** Pages template picker (Task 4, 2026-08-11). Tri-state, but `null` and `""` now diverge
+   *  (bare-page ruling, 2026-09-23, S6 — see `rules.ts`'s `pagePickerValue`): `null` is "never chosen",
+   *  which renders through the theme's own page shell ("Theme default" in the picker); `""` is an
+   *  explicit "No template", which renders bare — only this Page's own HTML, no theme styles, scripts,
+   *  header or footer; or a real filename, which renders that template. */
   templateChoice: string | null;
   setTemplateChoice: (value: string | null) => void;
   /** The active theme's declared `templates` list (`theme.json`) — `[]` when the theme doesn't
@@ -704,6 +706,13 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     applyLoadedPage(fresh, { setPage, setTitle, setSlug, setStatus, setTemplateChoice, setSavedTemplateChoice, setHtml, setSavedHtml });
     setDraftHtml(prettifyHtml(pageEditableHtml(fresh)));
     setSaveConflict(null);
+    // Bug B, Slice B3 (dev-only instrumentation, pages-redo plan): this bump remounts the Interactive
+    // surface (`PageEditorPane`'s `key={contentRevision}`) with no loading state of its own — logged so
+    // a future "renders wrong"/"flashes" report can be tied back to an external write instead of
+    // guessed at. Removed once Bug B is closed; not covered by a test for that reason (logging only).
+    if (import.meta.env.DEV) {
+      console.debug("[page-editor] interactive", { phase: "contentRevision:increment", ms: Math.round(performance.now()) });
+    }
     setContentRevision((n) => n + 1);
   }, []);
 
@@ -1006,10 +1015,12 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // the canvas renders the page body naked at full bleed while the published page centres it in a
   // 720px column — same CSS, same tokens, no container.
   //
-  // Run through `resolveCanvasTemplateChoice` rather than passed straight through: an untemplated
-  // (`null`/`""`) `html`-format Page is exactly the case a `static`-tier theme's real render mirrors
-  // through its own page shell (`pages-default.html`, or legacy `page-shell.html`), not through no
-  // wrapper at all — see that function's own doc.
+  // Run through `resolveCanvasTemplateChoice` rather than passed straight through: only a `null`
+  // (never-chosen) `html`-format Page is the case a `static`-tier theme's real render mirrors through
+  // its own page shell (`pages-default.html`, or legacy `page-shell.html`) — see that function's own
+  // doc. Since the bare-page ruling (2026-09-23, S6), `""` is a DIFFERENT case — an explicit "No
+  // template" that renders with no wrapper at all — and `resolveCanvasTemplateChoice` no longer routes
+  // it into the shell; `useThemeCanvasStyling` short-circuits it to `NO_CANVAS_STYLING` instead.
   // `page?.bodyFormat ?? "doc"` is the same "nothing risky before load" default `templatePreviewUrl`
   // above and `contentDirty` below already use for a not-yet-loaded page.
   const canvasStyling = useThemeCanvasStyling(

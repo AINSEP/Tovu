@@ -51,6 +51,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
           cssClass: null,
           htmlAttributes: null,
           contentType: "image/png",
+          publicUrl: null,
         },
       ],
     });
@@ -82,6 +83,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
           cssClass: null,
           htmlAttributes: null,
           contentType: "image/png",
+          publicUrl: null,
         },
       ],
     });
@@ -199,6 +201,7 @@ function fakeMedia(overrides: Partial<AdminMedia> = {}): AdminMedia {
     cssClass: null,
     htmlAttributes: null,
     contentType: "image/png",
+    publicUrl: null,
     ...overrides,
   };
 }

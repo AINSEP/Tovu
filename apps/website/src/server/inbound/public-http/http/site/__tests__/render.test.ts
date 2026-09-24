@@ -1152,6 +1152,64 @@ test("renderDocNode: an asset with no htmlAttributes set renders exactly as befo
   assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
 });
 
+// --- readable-slugs S3: renderImageTag/renderVideoTag emit the resolved asset's slug, not its id ---
+
+test("renderDocNode: a resolved mediaAssetMetadata entry carrying a slug renders the /m/ URL keyed by the SLUG, not the assetId (readable-slugs S3)", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  const html = renderDocNode(
+    doc,
+    undefined,
+    new Map([["public", 3]]),
+    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: null, slug: "fox" }]])
+  );
+  assert.equal(html, '<img src="/m/fox/public.v3/image.jpg" alt="x" loading="lazy">');
+});
+
+test("renderDocNode: an INVALID slug (fails isValidMediaSlugFormat — e.g. contains '/') in mediaAssetMetadata falls back to the id, never emitting the bad value into the URL", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  const html = renderDocNode(
+    doc,
+    undefined,
+    new Map([["public", 3]]),
+    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: null, slug: "../etc" }]])
+  );
+  assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
+});
+
+test("renderDocNode: no slug on the mediaAssetMetadata entry (absent field, or a resolved asset that never had one) renders keyed by the id exactly as before this feature — no regression", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  const html = renderDocNode(
+    doc,
+    undefined,
+    new Map([["public", 3]]),
+    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: null, slug: null }]])
+  );
+  assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
+});
+
+test("renderDocNode: a generic media VIDEO node with a slug in mediaAssetMetadata renders the /original URL keyed by the SLUG too", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "media", attrs: { assetId: "asset-vid", transformName: "public", alt: "A clip" } }],
+  };
+  const html = renderDocNode(
+    doc,
+    undefined,
+    undefined,
+    new Map([["asset-vid", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "video/mp4", slug: "fox" }]])
+  );
+  assert.match(html, /<video src="\/m\/fox\/original" controls>A clip<\/video>/);
+});
+
 test("renderDocNode: a malformed assetId/transformName (embedded '/', empty, or over-length) degrades to the placeholder even when the name would otherwise resolve — never a malformed /m/ URL", () => {
   const resolved = new Map([["public", 1], ["", 1]]);
   const cases: Array<{ assetId: string; transformName: string }> = [
@@ -1216,15 +1274,17 @@ test("renderSite: an image node embedded in a real post body renders the placeho
   assert.doesNotMatch(html, /base64,AAAA/);
 });
 
-test("renderSite: every v1 widget componentId renders correctly and escapes untrusted props (text/social-links/recent-entries+entry-summary/menu/contact-form/unknown->placeholder)", async () => {
+test("renderSite: every v1 widget componentId renders correctly and escapes untrusted props (text/social-links/recent-entries+entry-list-item/menu/contact-form/unknown->placeholder)", async () => {
   const theme = declarativeTheme({ type: "doc", content: [{ type: "region", key: "footer" }] });
   const ir: WidgetRenderIR[] = [
     { componentId: "text", props: { body: "<script>alert(1)</script>" } },
     { componentId: "social-links", props: { links: [{ platform: "<X>", url: "javascript:alert(1)" }] } },
     {
       componentId: "recent-entries",
-      props: {},
-      children: [{ componentId: "entry-summary", props: { id: "e1", title: "<Post>", slug: "post-1" } }],
+      props: { layout: "list", columns: 3, typeKey: "recent-entries" },
+      children: [
+        { componentId: "entry-list-item", props: { title: "<Post>", href: "/post-1", dateIso: "2026-01-01T00:00:00.000Z", dateLabel: "Jan 1, 2026", fields: [] } },
+      ],
     },
     { componentId: "menu", props: { title: "Main", items: [{ label: "Home", href: "/", available: true }, { label: "Hidden", available: false }] } },
     { componentId: "contact-form", props: { slug: "contact", fields: [{ id: "email", label: "Email", type: "email", required: true }], successMessage: null } },
@@ -1248,7 +1308,7 @@ test("renderSite: every v1 widget componentId renders correctly and escapes untr
   assert.match(html, /&lt;X&gt;/);
   assert.doesNotMatch(html, /href="javascript:/);
 
-  // recent-entries -> entry-summary child, escaped title, real slug link
+  // recent-entries -> entry-list-item child, escaped title, real resolved link
   assert.match(html, /widget-recent-entries/);
   assert.match(html, /&lt;Post&gt;/);
   assert.match(html, /href="\/post-1"/);
@@ -1266,6 +1326,105 @@ test("renderSite: every v1 widget componentId renders correctly and escapes untr
   // unknown componentId -> the same public-safe placeholder, no secret leaked
   assert.match(html, /widget-placeholder/);
   assert.doesNotMatch(html, /leak-me/);
+});
+
+/**
+ * Collections plan R1 — "Recent Entries" becomes "Collection list". D7: list layout is the
+ * historical default and must keep its exact old classes; the only visible change to an old config
+ * is a `null` href (D1, entry pages off) rendering as plain text instead of the old dead
+ * `href="/<slug>"` link.
+ */
+test("recent-entries (list layout): a null href renders plain text, not a link — and the legacy widget/widget-entry-summary classes are unchanged", () => {
+  const html = renderWidgetIr({
+    componentId: "recent-entries",
+    props: { layout: "list", columns: 3, typeKey: "recent-entries" },
+    children: [
+      { componentId: "entry-list-item", props: { title: "No Page Yet", href: null, dateIso: "2026-01-01T00:00:00.000Z", dateLabel: "Jan 1, 2026", fields: [] } },
+    ],
+  });
+  assert.match(html, /<ul class="widget widget-recent-entries">/);
+  assert.match(html, /<li class="widget-entry-summary">No Page Yet<\/li>/);
+  assert.doesNotMatch(html, /<a /, `expected plain text, no link, got: ${html}`);
+});
+
+test("recent-entries (cards layout): delegates to C3's renderEntryList — entry-list/entry-card classes and field <dl> appear", () => {
+  const html = renderWidgetIr({
+    componentId: "recent-entries",
+    props: { layout: "cards", columns: 2, typeKey: "recipe" },
+    children: [
+      {
+        componentId: "entry-list-item",
+        props: {
+          title: "Pasta",
+          href: null,
+          dateIso: "2026-01-01T00:00:00.000Z",
+          dateLabel: "Jan 1, 2026",
+          fields: [{ name: "cuisine", label: "Cuisine", kind: "text", value: "Italian" }],
+        },
+      },
+    ],
+  });
+  assert.match(html, /class="entry-list entry-list--recipe"/);
+  assert.match(html, /class="entry-card"/);
+  assert.match(html, /<h3 class="entry-card__title">Pasta<\/h3>/);
+  assert.match(html, /<dt>Cuisine<\/dt><dd>Italian<\/dd>/);
+  assert.doesNotMatch(html, /<a /, `title has no href, must not be a link, got: ${html}`);
+});
+
+test("recent-entries: zero items renders the same 'No entries yet.' fallback regardless of layout", () => {
+  const listEmpty = renderWidgetIr({ componentId: "recent-entries", props: { layout: "list", columns: 3, typeKey: "recent-entries" }, children: [] });
+  const cardsEmpty = renderWidgetIr({ componentId: "recent-entries", props: { layout: "cards", columns: 3, typeKey: "recent-entries" }, children: [] });
+  assert.equal(listEmpty, '<ul class="widget widget-recent-entries"><li class="widget-empty">No entries yet.</li></ul>');
+  assert.equal(cardsEmpty, listEmpty);
+});
+
+/**
+ * Review fix 3a (2026-09-23-review-E4-R1-report.md): the default `.entry-list`/`.entry-card` style
+ * used to be injected only by `static-render.ts`'s `renderStaticPage` (the static-tier pipeline) —
+ * `pageShell`, which every templated/handlebars/declarative theme (and no-theme) render goes
+ * through, never called `withEntryListStyleOnce` at all, so a cards-layout Collection list widget
+ * rendered as unstyled div soup on any non-static theme.
+ */
+test("renderSite (pageShell, declarative tier): a recent-entries cards-layout widget gets the shared entry-list/entry-card style injected into <head> — review fix 3a", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [{ type: "region", key: "footer" }] });
+  const ir: WidgetRenderIR[] = [
+    {
+      componentId: "recent-entries",
+      props: { layout: "cards", columns: 3, typeKey: "recipe" },
+      children: [
+        { componentId: "entry-list-item", props: { title: "Pasta", href: null, dateIso: "2026-01-01T00:00:00.000Z", dateLabel: "Jan 1, 2026", fields: [] } },
+      ],
+    },
+  ];
+  const html = await renderSite({
+    theme,
+    route: "home",
+    siteTitle: "Cards Demo",
+    posts: [],
+    widgets: widgetsResult({ regions: { footer: ir } }),
+  });
+  assert.match(html, /<style data-tovu-entry-list>/);
+  assert.ok(html.indexOf("<style data-tovu-entry-list>") < html.indexOf("</head>"), "the style must land inside <head>");
+});
+
+/**
+ * The trap this same fix had to avoid (review 3a): declarative themes already use the plain
+ * `entry-list`/`entry-list--<route>` classes for their OWN built-in post/product index
+ * (`productEntryList`, exercised here via the fallback body since this theme declares no `products`
+ * template). Wiring `withEntryListStyleOnce` into `pageShell` must never turn that unrelated
+ * vertical list into a grid.
+ */
+test("renderSite (pageShell, declarative tier): the theme's own built-in entry-list (unrelated to collections) never triggers the collection card style — review fix 3a trap", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [{ type: "region", key: "footer" }] });
+  const html = await renderSite({
+    theme,
+    route: "products",
+    siteTitle: "No Grid Here",
+    posts: [],
+    products: [],
+  });
+  assert.match(html, /class="entry-list entry-list--products"/, "sanity: the built-in product index still uses the entry-list class");
+  assert.doesNotMatch(html, /data-tovu-entry-list/, "an unrelated entry-list class must never trigger the collection card style");
 });
 
 test("menu widget: authored cssClass/rel/openInNewTab/icon/description reach the rendered <li>/<a> — previously silently dropped (the resolver already attaches NavItemAttrs to every ResolvedNavItem; only static-tier themes' tree variant read it)", () => {
@@ -2120,6 +2279,54 @@ test("renderSite (Slice 2, media): a resolved data-embed-config type=\"media\" e
   });
 
   assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="A photo" width="640" height="480" class="rounded" loading="lazy">/);
+});
+
+test("renderSite (Slice 2, media): a media-image IR carrying props.slug renders the /m/ URL keyed by the SLUG, not props.assetId (readable-slugs S3)", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"media","id":"asset-1","variant":"public"}'></div>` });
+
+  const html = await renderSite({
+    theme,
+    route: "post",
+    siteTitle: "T",
+    posts: [post],
+    post,
+    pageHtmlEmbeds: htmlEmbeds({
+      media: new Map([
+        [
+          "asset-1",
+          { componentId: "media-image", props: { assetId: "asset-1", slug: "fox", transformName: "public", version: 3, alt: "A photo", width: null, height: null, cssClass: null } },
+        ],
+      ]),
+    }),
+  });
+
+  assert.match(html, /<img src="\/m\/fox\/public\.v3\/image\.jpg" alt="A photo" loading="lazy">/);
+});
+
+test("renderSite (Slice 2, media): a media-image VIDEO IR carrying props.slug renders the /original URL keyed by the SLUG too", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` });
+
+  const html = await renderSite({
+    theme,
+    route: "post",
+    siteTitle: "T",
+    posts: [post],
+    post,
+    pageHtmlEmbeds: htmlEmbeds({
+      media: new Map([
+        [
+          "asset-1",
+          { componentId: "media-image", props: { assetId: "asset-1", slug: "fox", contentType: "video/mp4", alt: "A hero clip", width: null, height: null, cssClass: null } },
+        ],
+      ]),
+    }),
+  });
+
+  assert.match(html, /<video src="\/m\/fox\/original" controls>A hero clip<\/video>/);
 });
 
 test("renderSite (Slice 2, media): width/height/class are each omitted independently when null, never a zeroed/empty attribute", async () => {

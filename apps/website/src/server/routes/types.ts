@@ -117,6 +117,7 @@ import type {
   TermListPort,
   TermRepoPort,
   TransactionalRepoPort,
+  UnassignableEntryTermRepoPort,
 } from "../../features/taxonomy/index.js";
 import type { DisclosureWatermarkSourcePort } from "../../features/recovery/disclosure.js";
 import type { DeepLinkRestorePointLookupPort } from "../../features/recovery/deep-link.js";
@@ -571,8 +572,11 @@ export interface ContentTaxonomyDeps {
   removeTaxonomy: RemoveTaxonomyFn;
   /** Widened this dispatch with `MergeableEntryTermRepoPort` (the `mergeTerm` gated-mutation
    * ceremony's by-term enumeration need — see `features/taxonomy/gated-hooks.ts`). Widened again
-   * with `AssignmentCountEntryTermRepoPort` for the `deleteTaxonomy`/`deleteTerm` guard. */
-  entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort & AssignmentCountEntryTermRepoPort;
+   * with `AssignmentCountEntryTermRepoPort` for the `deleteTaxonomy`/`deleteTerm` guard, and again
+   * with `UnassignableEntryTermRepoPort` for `taxonomy_unassign_terms` (A2, taxonomy plan) — both
+   * `SqliteEntryTermRepo` (real) and `InMemoryEntryTermRepo` (`@jini-ai/cms/taxonomy`, hermetic)
+   * already implement it, so this widening breaks neither composition's typecheck. */
+  entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort & AssignmentCountEntryTermRepoPort & UnassignableEntryTermRepoPort;
   /**
    * Public-render read path (2026-09-02 taxonomy render-surface gap fix, `repo.sqlite.ts`'s
    * `EntryTermReadPort`) — resolves the terms assigned to a page/post for `pages.ts`'s

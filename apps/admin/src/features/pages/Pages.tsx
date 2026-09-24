@@ -1,4 +1,5 @@
-import { DataTable, type DataTableSortState, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import type { DataTableSortState } from "@jini-ai/admin/core";
 import { agentHandle } from "@jini-ai/agentic";
 import { useState, type ReactNode } from "react";
 

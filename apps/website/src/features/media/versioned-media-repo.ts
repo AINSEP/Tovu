@@ -1,5 +1,5 @@
 import type { UUID } from "@jini-ai/cms/core";
-import type { MediaRecord, MediaRepoPort } from "@jini-ai/cms/media";
+import { MediaConflictError, type MediaRecord, type MediaRepoPort } from "@jini-ai/cms/media";
 
 /**
  * @file `MediaRepoPort` extended with an atomic compare-and-set write, and the in-memory adapter
@@ -54,6 +54,18 @@ export interface VersionedMediaRepoPort extends MediaRepoPort {
    * throws `MediaConflictError`, the same as `save`.
    */
   insertIfAbsent(record: MediaRecord): Promise<{ applied: boolean }>;
+  /**
+   * Every slug `mediaId` has ever retired (readable-slugs plan, S2a): a slug it once held and then
+   * renamed away from. `save`/`saveIfVersion`/`insertIfAbsent` all move an asset's PRIOR slug in
+   * here the moment a rename lands, and `findBySlug` falls back to this list — so a `/m/<old-
+   * slug>/...` URL already baked into rendered HTML, a cached `og:image`, or a hand-typed marker
+   * keeps resolving forever, and a different asset can never claim a name still listed here (see
+   * `MediaConflictError` on the write methods above). `remove()` drops an asset's rows here too,
+   * which is what frees a retired name back up.
+   *
+   * @returns retired slugs in no particular order; empty when `mediaId` has never renamed.
+   */
+  listRetiredSlugs(required: { workspaceId: UUID; mediaId: UUID }): Promise<string[]>;
 }
 
 /**
@@ -65,34 +77,76 @@ export interface VersionedMediaRepoPort extends MediaRepoPort {
  */
 export class InMemoryVersionedMediaRepo implements VersionedMediaRepoPort {
   private rows: MediaRecord[];
+  /** One row per retired slug (readable-slugs plan, S2a) — see {@link VersionedMediaRepoPort.listRetiredSlugs}'s
+   *  own doc. Mirrors `SqliteMediaRepo`'s `media_slug_history` table shape exactly (same
+   *  `(workspaceId, slug)` uniqueness the real UNIQUE index enforces on the sqlite adapter — kept
+   *  here as a runtime invariant of {@link retireSlug}/{@link reclaimOwnSlug} rather than a schema
+   *  constraint, since this adapter has none). */
+  private retired: Array<{ workspaceId: UUID; slug: string; mediaId: UUID; retiredAt: string }>;
 
   constructor(initialRows: MediaRecord[] = []) {
     this.rows = [...initialRows];
+    this.retired = [];
   }
 
   async findById(required: { workspaceId: UUID; id: UUID }): Promise<MediaRecord | null> {
     return this.rows.find((row) => row.workspaceId === required.workspaceId && row.id === required.id) ?? null;
   }
 
+  /** Falls back to {@link retired} when no LIVE row currently holds `slug` — see this class's file
+   *  header for why a retired slug must keep resolving. */
   async findBySlug(required: { workspaceId: UUID; slug: string }): Promise<MediaRecord | null> {
-    return this.rows.find((row) => row.workspaceId === required.workspaceId && row.slug === required.slug) ?? null;
+    const live = this.rows.find((row) => row.workspaceId === required.workspaceId && row.slug === required.slug);
+    if (live) return live;
+    const retired = this.retired.find((row) => row.workspaceId === required.workspaceId && row.slug === required.slug);
+    if (!retired) return null;
+    return this.rows.find((row) => row.workspaceId === required.workspaceId && row.id === retired.mediaId) ?? null;
   }
 
   async list(required: { workspaceId: UUID }): Promise<MediaRecord[]> {
     return this.rows.filter((row) => row.workspaceId === required.workspaceId);
   }
 
+  /** Reclaiming its own old slug removes it from {@link retired} (S2a: "an asset may take back its
+   *  own old slug"). A DIFFERENT asset's claim on a slug still in {@link retired} throws
+   *  `MediaConflictError`, same as a live-row collision. */
+  private reclaimOwnSlug(workspaceId: UUID, mediaId: UUID, slug: string): void {
+    const claimant = this.retired.find((row) => row.workspaceId === workspaceId && row.slug === slug);
+    if (!claimant) return;
+    if (claimant.mediaId !== mediaId) {
+      throw new MediaConflictError(`slug '${slug}' is already used by another media asset in this workspace`);
+    }
+    this.retired = this.retired.filter((row) => row !== claimant);
+  }
+
+  /** Moves `oldSlug` into {@link retired} for `mediaId`, unless the rename is a no-op or there was
+   *  no prior slug (a brand-new row). */
+  private retireSlug(workspaceId: UUID, mediaId: UUID, oldSlug: string | null | undefined, newSlug: string, retiredAt: string): void {
+    if (!oldSlug || oldSlug === newSlug) return;
+    this.retired.push({ workspaceId, slug: oldSlug, mediaId, retiredAt });
+  }
+
   async save(record: MediaRecord): Promise<void> {
     const index = this.rows.findIndex((row) => row.id === record.id);
+    this.reclaimOwnSlug(record.workspaceId, record.id, record.slug);
+    const priorSlug = index === -1 ? null : this.rows[index].slug;
     if (index === -1) {
       this.rows.push(record);
-      return;
+    } else {
+      this.rows[index] = record;
     }
-    this.rows[index] = record;
+    this.retireSlug(record.workspaceId, record.id, priorSlug, record.slug, record.updatedAt);
   }
 
   async remove(required: { workspaceId: UUID; id: UUID }): Promise<void> {
     this.rows = this.rows.filter((row) => !(row.workspaceId === required.workspaceId && row.id === required.id));
+    this.retired = this.retired.filter((row) => !(row.workspaceId === required.workspaceId && row.mediaId === required.id));
+  }
+
+  async listRetiredSlugs(required: { workspaceId: UUID; mediaId: UUID }): Promise<string[]> {
+    return this.retired
+      .filter((row) => row.workspaceId === required.workspaceId && row.mediaId === required.mediaId)
+      .map((row) => row.slug);
   }
 
   /**
@@ -108,13 +162,17 @@ export class InMemoryVersionedMediaRepo implements VersionedMediaRepoPort {
     const { record, ifVersion } = required;
     const index = this.rows.findIndex((row) => row.workspaceId === record.workspaceId && row.id === record.id);
     if (index === -1 || this.rows[index].version !== ifVersion) return { applied: false };
+    this.reclaimOwnSlug(record.workspaceId, record.id, record.slug);
+    const priorSlug = this.rows[index].slug;
     this.rows[index] = record;
+    this.retireSlug(record.workspaceId, record.id, priorSlug, record.slug, record.updatedAt);
     return { applied: true };
   }
 
   /** No `await` in this body — see {@link saveIfVersion}'s doc for why that is what makes it atomic. */
   async insertIfAbsent(record: MediaRecord): Promise<{ applied: boolean }> {
     if (this.rows.some((row) => row.id === record.id)) return { applied: false };
+    this.reclaimOwnSlug(record.workspaceId, record.id, record.slug);
     this.rows.push(record);
     return { applied: true };
   }

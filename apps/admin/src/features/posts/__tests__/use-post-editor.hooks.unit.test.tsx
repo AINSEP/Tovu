@@ -68,6 +68,7 @@ const UPLOADED_MEDIA: AdminMedia = {
   cssClass: null,
   htmlAttributes: null,
   contentType: "image/png",
+  publicUrl: null,
 };
 
 function fakeNavigate() {

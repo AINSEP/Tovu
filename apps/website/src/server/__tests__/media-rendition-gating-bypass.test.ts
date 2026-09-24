@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
-import { registerTransform, uploadMedia } from "../../features/media/index.js";
+import { registerTransform, updateMediaMetadata, uploadMedia } from "../../features/media/index.js";
 import type { PostRecord } from "../../features/post/index.js";
 import type { MemberSessionRecord } from "../../features/members/index.js";
 import { InMemoryMemberSessionRepo } from "../../features/members/index.js";
@@ -607,6 +607,46 @@ test("media gate: a members-only IMAGE embedded by id is NOT fetchable anonymous
 
     const bySlug = await fetch(`${baseUrl}/m/${media.slug}/${suffix}`);
     assert.equal(bySlug.status, 404, "the slug alias must be gated identically — it resolves to the same bytes");
+  });
+});
+
+// readable-slugs S2b: a rename must not drop the gate. `resolveAssetAliases` now also folds in
+// `listRetiredSlugs`, so an entry authored against a slug that has since been renamed away still
+// counts as a referrer for the asset's (unchanged) id.
+test("media gate: a members-only entry embedding a RETIRED slug still gates the asset's id URL after the slug is renamed away", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, bytesFrom("retired-slug-gate-bytes"), "retired-gate.png", "image/png");
+    const { definition } = await registerOne(deps, "public");
+    const retiredSlug = media.slug;
+    assert.ok(retiredSlug, "precondition: an uploaded asset gets a slug");
+    await deps.postRepo.save(
+      makePost(
+        {
+          id: "p-retired-slug-gate",
+          slug: "gated-page-retired-slug",
+          kind: "page",
+          bodyFormat: "html",
+          bodyHtml: htmlEmbedBody(retiredSlug),
+          memberAccessJson: MEMBERS_ONLY,
+        },
+        deps.workspaceId
+      )
+    );
+
+    await updateMediaMetadata({
+      deps: { clock: deps.clock, mediaRepo: deps.mediaRepo },
+      input: { workspaceId: deps.workspaceId, id: media.id, slug: "retired-slug-gate-renamed" },
+    });
+
+    const byId = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/hero.webp`);
+    assert.equal(byId.status, 404, "the retired slug the entry still references must keep gating the id URL after rename");
+    assert.equal(byId.headers.get("cache-control"), "private, no-store");
+
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    const member = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/hero.webp`, {
+      headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` },
+    });
+    assert.equal(member.status, 200, "an entitled member must still read it despite the rename");
   });
 });
 

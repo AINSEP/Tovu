@@ -45,6 +45,7 @@ function makeItem(overrides: Partial<AdminMedia> & { id: string }): AdminMedia {
     cssClass: null,
     htmlAttributes: null,
     contentType: null,
+    publicUrl: null,
     ...overrides,
   };
 }

@@ -33,7 +33,6 @@ import {
   createExecutionPort,
   loadAdminExecutionCredential,
   loadExecutionConfig,
-  saveExecutionConfig,
   selectedLocalCliModel,
 } from "@/lib/execution-settings";
 import {
@@ -44,6 +43,8 @@ import {
   type ComposerCapabilityProjection,
 } from "@/features/plugins/composer-capabilities";
 import { t as translateAssistantDockLabel, createChatI18nAdapter } from "../assistant-dock-i18n";
+import { isSelectionNormalizationEcho } from "../local-cli-selection-echo";
+import { applyExecutionConfigChange, persistExecutionConfigWrite, withLocalCliSelection } from "../execution-config-write";
 import type { SelectedAgentPluginChip } from "../SelectedAgentPluginTray";
 import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@/features/fs-files/hooks/use-folder-drop.hooks";
 
@@ -178,18 +179,21 @@ export function useExecutionConfig(): UseExecutionConfig {
    * apart from a no-op, so an operator re-picking the mode/model already active does not
    * permanently block a legitimate mount-load from applying.
    *
-   * Note: React 18 Strict Mode invokes a functional state updater twice to surface impure
-   * updaters. Setting a boolean ref to `true` twice is idempotent, so that double-invoke is safe
-   * here — it would only matter if the ref were toggled off anywhere, which it never is.
+   * Runs an updater once, synchronously, against {@link executionConfigRef} (moved forward on every
+   * write, so two picks before a re-render compose), and hands React the resulting value rather
+   * than the updater. `applyExecutionConfigChange` (`../execution-config-write.ts`) relies on that
+   * to read what a pick changed right after the call and save it outside the updater — StrictMode
+   * runs updaters twice, and a save inside one wrote two revisions per pick (2026-09-23).
    */
   const setExecutionConfig = useCallback<React.Dispatch<React.SetStateAction<ExecutionConfig>>>((action) => {
-    setExecutionConfigState((previous) => {
-      const next = typeof action === "function"
-        ? (action as (current: ExecutionConfig) => ExecutionConfig)(previous)
-        : action;
-      if (next !== previous) localWriteRef.current = true;
-      return next;
-    });
+    const previous = executionConfigRef.current;
+    const next = typeof action === "function"
+      ? (action as (current: ExecutionConfig) => ExecutionConfig)(previous)
+      : action;
+    if (next === previous) return;
+    localWriteRef.current = true;
+    executionConfigRef.current = next;
+    setExecutionConfigState(next);
   }, []);
 
   useEffect(() => {
@@ -202,7 +206,9 @@ export function useExecutionConfig(): UseExecutionConfig {
         // Goes through the raw setter, not the wrapped `setExecutionConfig` above: applying a
         // load must never itself count as a "local write" (see `localWriteRef`'s doc) — only an
         // operator action should. Skipped once a local write has landed — see that doc for why.
-        if (!controller.signal.aborted && !localWriteRef.current) setExecutionConfigState(config);
+        if (controller.signal.aborted || localWriteRef.current) return;
+        executionConfigRef.current = config;
+        setExecutionConfigState(config);
       })
       // The dock is mounted on EVERY admin route, so an unhandled rejection here is not a
       // localized failure — it fires on any page load where the settings read fails (server
@@ -268,9 +274,7 @@ export function useExecutionConfig(): UseExecutionConfig {
   /**
    * Persists a mode switch made from THIS dock's own picker back through the same
    * `saveExecutionConfig` chokepoint the Execution-mode settings tab uses (ADR-028's single write
-   * chokepoint), so the two surfaces can never disagree about which mode is active. Functional
-   * `setExecutionConfig` update (not `executionConfigRef.current`) to avoid a stale-closure write
-   * racing a config the settings tab saved in another tab in the same instant.
+   * chokepoint), so the two surfaces can never disagree about which mode is active.
    *
    * `publishSettingsRefresh([EXECUTION_NAMESPACE])` on save success — same cross-mount staleness
    * fix `handleByokModelChange` below already applies to a model pick, now applied here too so an
@@ -279,17 +283,9 @@ export function useExecutionConfig(): UseExecutionConfig {
    */
   const handleExecutionModeChange = useCallback((mode: "local" | "api") => {
     const nextMode: ExecutionConfig["mode"] = mode === "api" ? "byok" : "local-cli";
-    setExecutionConfig((previous) => {
-      if (previous.mode === nextMode) return previous;
-      const next: ExecutionConfig = { ...previous, mode: nextMode };
-      void saveExecutionConfig(next, previous)
-        .then(() => publishSettingsRefresh([EXECUTION_NAMESPACE]))
-        .catch((error: unknown) => {
-          if (isAbortError(error)) return;
-          console.error("[AssistantDock] failed to save execution mode", error);
-        });
-      return next;
-    });
+    const write = applyExecutionConfigChange(setExecutionConfig, (previous) =>
+      previous.mode === nextMode ? previous : { ...previous, mode: nextMode });
+    if (write) persistExecutionConfigWrite(write, "[AssistantDock] failed to save execution mode");
     // `setExecutionConfig` added: it's a `useCallback([], ...)`-wrapped setter (itself stable for
     // the component's lifetime, see its own declaration above), so listing it is a no-op that only
     // satisfies the linter — Part 2 triage fix, not a suppression.
@@ -412,22 +408,12 @@ export function useByokRuntime(
    * surfaces are three views of one stored value rather than three copies of it. `publishSettingsRefresh`
    * then tells an already-open settings tab to re-read, which is what stops it from sitting on the
    * model the operator just changed. Namespace-scoped so unrelated slices do not refetch.
-   *
-   * Functional update for the same stale-closure reason `handleExecutionModeChange` documents.
    */
   const handleByokModelChange = useCallback(
     (model: string) => {
-      setExecutionConfig((previous) => {
-        if (previous.byok.model === model) return previous;
-        const next: ExecutionConfig = { ...previous, byok: { ...previous.byok, model } };
-        void saveExecutionConfig(next, previous)
-          .then(() => publishSettingsRefresh([EXECUTION_NAMESPACE]))
-          .catch((error: unknown) => {
-            if (isAbortError(error)) return;
-            console.error("[AssistantDock] failed to save BYOK model", error);
-          });
-        return next;
-      });
+      const write = applyExecutionConfigChange(setExecutionConfig, (previous) =>
+        previous.byok.model === model ? previous : { ...previous, byok: { ...previous.byok, model } });
+      if (write) persistExecutionConfigWrite(write, "[AssistantDock] failed to save BYOK model");
     },
     [setExecutionConfig],
   );
@@ -513,6 +499,10 @@ export function useLocalCliSelection(
    * permanently for an operator who has never picked anything.
    */
   const [localCliSelection, setLocalCliSelection] = useState<ChatPaneAgentSelection>({ agentId: "claude" });
+  /** Read-fresh mirror of `localCliSelection` for {@link isSelectionNormalizationEcho} in the
+   *  change handler below, which must compare against the value `ChatPane` was actually given. */
+  const localCliSelectionRef = useRef(localCliSelection);
+  localCliSelectionRef.current = localCliSelection;
 
   /**
    * Guards the one-time hydration effect below against the same two races `useExecutionConfig`'s
@@ -535,39 +525,26 @@ export function useLocalCliSelection(
   }, [configLoaded, executionConfig]);
 
   /**
-   * `ChatPane`'s `onSelectionChange` — fires only for a genuine change (`useChatPane`'s own dedup,
-   * see this hook's own doc above). Updates the controlled value immediately, so the picker
+   * `ChatPane`'s `onSelectionChange` — fires for an operator pick AND for `ChatPane`'s own
+   * normalization of the value passed in (see {@link isSelectionNormalizationEcho}; only the pick is
+   * saved). Updates the controlled value immediately, so the picker
    * reflects the pick without waiting on a round trip, and persists through the same ADR-028
    * chokepoint `handleByokModelChange` uses, so a Local CLI pick and a BYOK model pick can never
    * disagree about which write path is authoritative.
-   *
-   * Writes `selection.model ?? ""` for the picked agent specifically (not a conditional spread)
-   * so reverting a model choice back to "default" persists that reversion — an omitted key would
-   * leave a stale non-default value from an earlier pick sitting in the ledger for this agent,
-   * silently un-reverting on the next reload.
+   * See {@link withLocalCliSelection} for the exact config change.
    */
   const handleLocalCliSelectionChange = useCallback((selection: ChatPaneAgentSelection) => {
+    // `ChatPane` echoing its own default-model fill-in on mount: show it, but it is not a pick —
+    // saving it re-wrote the ledger on every page load, and marking `touchedRef` blocked hydration.
+    if (isSelectionNormalizationEcho(localCliSelectionRef.current, selection, readAgentsSnapshot())) {
+      localCliSelectionRef.current = selection;
+      setLocalCliSelection(selection);
+      return;
+    }
     touchedRef.current = true;
     setLocalCliSelection(selection);
-    setExecutionConfig((previous) => {
-      const nextAgentId = selection.agentId || null;
-      const next: ExecutionConfig = {
-        ...previous,
-        localCli: {
-          agentId: nextAgentId,
-          modelByAgentId: nextAgentId
-            ? { ...previous.localCli.modelByAgentId, [nextAgentId]: selection.model ?? "" }
-            : previous.localCli.modelByAgentId,
-        },
-      };
-      void saveExecutionConfig(next, previous)
-        .then(() => publishSettingsRefresh([EXECUTION_NAMESPACE]))
-        .catch((error: unknown) => {
-          if (isAbortError(error)) return;
-          console.error("[AssistantDock] failed to save Local CLI selection", error);
-        });
-      return next;
-    });
+    const write = applyExecutionConfigChange(setExecutionConfig, (previous) => withLocalCliSelection(previous, selection));
+    if (write) persistExecutionConfigWrite(write, "[AssistantDock] failed to save Local CLI selection");
   }, [setExecutionConfig]);
 
   return { localCliSelection, handleLocalCliSelectionChange };

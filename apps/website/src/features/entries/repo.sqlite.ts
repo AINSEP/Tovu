@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, notInArray, sql } from "drizzle-orm";
 import type { AnyColumn, SQL } from "drizzle-orm";
 
 import { entries, entryRevisions } from "../../platform/db/schema.sqlite.js";
@@ -13,7 +13,13 @@ import type {
   EntryRevisionInput,
   EntryStatus,
 } from "./index.js";
-import type { CollectionListQuery, CollectionSortBy, CollectionWhereClause, EntryDisplayListPort } from "./public-list.js";
+import type {
+  CollectionListQuery,
+  CollectionSortBy,
+  CollectionWhereClause,
+  EntryDisplayListPort,
+  EntryListExcludingTypesPort,
+} from "./public-list.js";
 
 /**
  * @file Real SQLite `EntryRepoPort` + `EntryListPort` adapter (ADR-006 rule-of-two "second
@@ -108,7 +114,7 @@ function sortByExpression(by: CollectionSortBy): AnyColumn | SQL {
   return sql`json_extract(${entries.fieldsJson}, ${siteFieldJsonPath(by.field)})`;
 }
 
-export class SqliteEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayListPort {
+export class SqliteEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayListPort, EntryListExcludingTypesPort {
   constructor(private readonly db: ContentDb) {}
 
   async findBySlug(params: { workspaceId: string; type: string; slug: string }): Promise<EntryRecord | null> {
@@ -185,6 +191,37 @@ export class SqliteEntryRepo implements EntryRepoPort, EntryListPort, EntryDispl
   }): Promise<EntryRecord[]> {
     const conditions = [eq(entries.workspaceId, params.workspaceId), LIVE];
     if (params.type) conditions.push(eq(entries.type, params.type));
+    if (params.status) conditions.push(eq(entries.status, params.status));
+
+    let query = this.db.select().from(entries).where(and(...conditions)).$dynamic();
+    if (params.orderBy === "updatedAt") {
+      query = query.orderBy(params.orderDirection === "asc" ? asc(entries.updatedAt) : desc(entries.updatedAt));
+    }
+    if (typeof params.limit === "number") {
+      query = query.limit(params.limit);
+    }
+    const rows = query.all();
+    return rows.map(toRecord);
+  }
+
+  /**
+   * Review fix 3b (`public-list.ts`'s {@link EntryListExcludingTypesPort} doc) — same shape as
+   * {@link listByWorkspace}, but `excludeTypes` rows are filtered out in SQL, before `LIMIT`, so
+   * they can never crowd a bounded result out of real content.
+   *
+   * @complexity O(log n + k) via `idx_entries_workspace(workspace_id, type)`; `k` is bounded by
+   * `params.limit`, never a full-table scan.
+   */
+  async listByWorkspaceExcludingTypes(params: {
+    workspaceId: string;
+    excludeTypes: readonly string[];
+    status?: EntryStatus;
+    orderBy?: "updatedAt";
+    orderDirection?: "asc" | "desc";
+    limit?: number;
+  }): Promise<EntryRecord[]> {
+    const conditions = [eq(entries.workspaceId, params.workspaceId), LIVE];
+    if (params.excludeTypes.length > 0) conditions.push(notInArray(entries.type, params.excludeTypes as string[]));
     if (params.status) conditions.push(eq(entries.status, params.status));
 
     let query = this.db.select().from(entries).where(and(...conditions)).$dynamic();
