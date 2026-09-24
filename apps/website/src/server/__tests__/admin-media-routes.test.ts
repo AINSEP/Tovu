@@ -11,6 +11,7 @@ import { registerAdminMediaListRoute } from "../inbound/admin-http/routes/media/
 import { registerAdminMediaTrashRoute } from "../inbound/admin-http/routes/media/trash.js";
 import { registerAdminMediaUpdateRoute } from "../inbound/admin-http/routes/media/update.js";
 import { registerAdminMediaUploadRoute } from "../inbound/admin-http/routes/media/upload.js";
+import { CORE_PUBLIC_TRANSFORM_NAME, registerTransform } from "#src/features/media/index";
 import type { RouteDeps } from "../routes/types.js";
 
 /**
@@ -213,6 +214,53 @@ test("admin media routes: upload -> list -> update -> trash -> purge ladder (own
   });
   const listAfterPurgePayload = (await listAfterPurge.json()) as { media: Array<{ id: string }> };
   assert.ok(!listAfterPurgePayload.media.some((m) => m.id === mediaId));
+});
+
+test("admin media routes: upload/list/update/trash responses all include publicUrl, keyed by the asset's slug (readable-slugs S5a)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerTransform({
+    deps: { clock: deps.clock, idGen: deps.idGen, transformRepo: deps.transformDefinitionRepo },
+    input: { workspaceId: deps.workspaceId, name: CORE_PUBLIC_TRANSFORM_NAME, params: { format: "webp" }, owner: "core" },
+  });
+
+  const uploadRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ filename: "hero-shot.png", contentType: "image/png", dataBase64: base64Of("fake-png-bytes") }),
+  });
+  assert.equal(uploadRes.status, 201);
+  const uploadPayload = (await uploadRes.json()) as { media: { id: string; slug: string; publicUrl: string | null } };
+  assert.equal(
+    uploadPayload.media.publicUrl,
+    `/m/${uploadPayload.media.slug}/${CORE_PUBLIC_TRANSFORM_NAME}.v1/image.webp`,
+    "the upload response's publicUrl must be keyed by the asset's readable slug, not its id"
+  );
+
+  const listRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media`, { headers: { cookie } });
+  assert.equal(listRes.status, 200);
+  const listPayload = (await listRes.json()) as { media: Array<{ id: string; publicUrl: string | null }> };
+  const listed = listPayload.media.find((m) => m.id === uploadPayload.media.id);
+  assert.ok(listed, "the uploaded asset must appear in the list response");
+  assert.equal(listed!.publicUrl, uploadPayload.media.publicUrl, "list and upload must agree on the same asset's publicUrl");
+
+  const updateRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media/${uploadPayload.media.id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ caption: "a striking hero shot" }),
+  });
+  assert.equal(updateRes.status, 200);
+  const updatePayload = (await updateRes.json()) as { media: { publicUrl: string | null } };
+  assert.equal(updatePayload.media.publicUrl, uploadPayload.media.publicUrl, "an unrelated metadata PATCH must not change publicUrl");
+
+  const trashRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media/${uploadPayload.media.id}/trash`, {
+    method: "POST",
+    headers: { cookie },
+  });
+  assert.equal(trashRes.status, 200);
+  const trashPayload = (await trashRes.json()) as { media: { publicUrl: string | null; status: string } };
+  assert.equal(trashPayload.media.status, "trashed");
+  assert.equal(trashPayload.media.publicUrl, null, "a trashed asset must not report a publicUrl a visitor would 404 on");
 });
 
 test("admin media routes: upload rejects a disallowed content type with 400", async (t) => {

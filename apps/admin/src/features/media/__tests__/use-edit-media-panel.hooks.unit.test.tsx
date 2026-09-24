@@ -38,6 +38,7 @@ const ITEM: AdminMedia = {
   cssClass: null,
   htmlAttributes: null,
   contentType: "image/png",
+  publicUrl: null,
 };
 
 afterEach(() => {

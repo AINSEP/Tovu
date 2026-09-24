@@ -1,4 +1,5 @@
 import { MediaConflictError, MediaNotFoundError, MediaValidationError, updateMediaMetadata } from "#src/features/media/index";
+import { resolveMediaPublicUrls } from "#src/features/media/tool-registrations";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
 import { readRecordedContentType } from "./content-type.js";
@@ -118,7 +119,11 @@ export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = (app, deps) =>
           ...parseMediaMetadataPatch(req.body),
         },
       });
-      res.json({ media: toAdminMediaResponse(media, await readRecordedContentType(deps, media.source.sha256)) });
+      const [contentType, publicUrl] = await Promise.all([
+        readRecordedContentType(deps, media.source.sha256),
+        resolveMediaPublicUrls(deps, [media]).then((urls) => urls.get(media.id) ?? null),
+      ]);
+      res.json({ media: toAdminMediaResponse(media, contentType, publicUrl) });
     } catch (err) {
       const { status, body } = mapMediaUpdateError(err);
       res.status(status).json(body);

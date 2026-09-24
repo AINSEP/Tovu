@@ -1466,6 +1466,14 @@ export interface AdminMedia {
    * dropping it from the screen.
    */
   contentType: string | null;
+  /**
+   * The asset's real, public `/m/...` URL (readable-slugs S5a, 2026-09-23) — keyed by its readable
+   * slug when it has a valid one, otherwise its id. `null` for a trashed asset (never a link a
+   * visitor would 404 on) or when no "public" core transform is registered yet. This is the URL
+   * the Media edit panel shows/copies; it is NOT the same as the admin's own `mediaOriginalUrl`
+   * preview URL below, which is an authenticated admin-only route.
+   */
+  publicUrl: string | null;
 }
 
 export interface AdminWebhookDeliverySummary {

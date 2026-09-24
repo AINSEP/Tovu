@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 
 import { MediaValidationError, sniffContentType, TOVU_MAX_UPLOAD_BYTES, uploadMedia } from "#src/features/media/index";
+import { resolveMediaPublicUrls } from "#src/features/media/tool-registrations";
 import { decodeStrictBase64 } from "#src/contracts/core/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
@@ -166,7 +167,8 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
         contentType: sniffedContentType,
       });
 
-      res.status(201).json({ media: toAdminMediaResponse(media, sniffedContentType) });
+      const publicUrl = (await resolveMediaPublicUrls(deps, [media])).get(media.id) ?? null;
+      res.status(201).json({ media: toAdminMediaResponse(media, sniffedContentType, publicUrl) });
     } catch (err) {
       if (err instanceof MediaValidationError) {
         res.status(400).json({ error: err.message });
