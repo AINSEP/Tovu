@@ -43,6 +43,7 @@ import {
   type AssistantSurfaceDeps,
   type SurfaceExchange,
 } from "../../contracts/core/tool-surface-exchanges.js";
+import { notConfirmedResult, requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 import type { OriginRegistryPort } from "../../features/origin/index.js";
 import { getWebhooksAgentToolCatalog } from "./agent-tools.js";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports.js";
@@ -50,6 +51,7 @@ import {
   createSubscription,
   deleteSubscription,
   pauseSubscription,
+  validateNewSubscription,
   WebhookSubscriptionNotFoundError,
   WebhookSubscriptionValidationError,
 } from "./subscriptions.js";
@@ -124,6 +126,7 @@ function toSubscriptionToolView(subscription: WebhookSubscriptionRecord, lastDel
 }
 
 const WEBHOOKS_DELETE_TOOL_ID = "webhooks_delete_subscription";
+const WEBHOOKS_CREATE_TOOL_ID = "webhooks_create_subscription";
 
 /** The `ui://` URI for one delete-confirmation instance — keyed by the exchange id, mirroring
  *  `comments/tool-registrations.ts`'s identical `trashConfirmationUri`. */
@@ -289,7 +292,31 @@ export function buildWebhooksRegistrations(
       const input = requireInputRecord(ctx.input);
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.integrations.manage", entityType: "webhook_subscription" });
 
-      const rawTopics = input.topics;
+      const { label, targetUrl, topics } = await validateNewSubscription(
+        {
+          label: requireString(input, "label"),
+          targetUrl: requireString(input, "targetUrl"),
+          topics: Array.isArray(input.topics) ? input.topics.map(String) : [],
+        },
+        isAllowedTarget,
+      );
+
+      // Outward data flow: every matching event leaves the site for `targetUrl` from now on, so the
+      // human approves the exact address first (2026-09-24 tool-design audit, F3).
+      const outcome = await requireHumanConfirm(ctx, surfaces, {
+        toolId: WEBHOOKS_CREATE_TOOL_ID,
+        errorCode: "WEBHOOKS",
+        title: "Send site events to this address?",
+        description: `A webhook named "${label}" will post site events to ${targetUrl}.`,
+        details: [
+          { label: "Send to", value: targetUrl },
+          { label: "Events", value: topics.join(", ") },
+        ],
+        warning: "Each matching event, with its data, leaves your site for this address until you pause or delete the webhook.",
+        confirmLabel: "Create webhook",
+      });
+      if (!outcome.confirmed) return { created: false, ...notConfirmedResult(outcome) };
+
       const { subscription } = await createSubscription({
         deps: { clock: routeDeps.clock, repo: routeDeps.webhookSubscriptionRepo, idGenerator: routeDeps.idGen, isAllowedTarget },
         input: {
@@ -299,12 +326,12 @@ export function buildWebhooksRegistrations(
           // check above already authorized (never a caller-supplied id).
           ownerPrincipalId: ctx.principal.id,
           createdByPrincipalId: ctx.principal.id,
-          label: requireString(input, "label"),
-          targetUrl: requireString(input, "targetUrl"),
-          topics: Array.isArray(rawTopics) ? rawTopics.map(String) : [],
+          label,
+          targetUrl,
+          topics,
         },
       });
-      return { subscription: toSubscriptionToolView(subscription, null) };
+      return { created: true, subscription: toSubscriptionToolView(subscription, null) };
     },
 
     webhooks_pause_subscription: async (ctx) => {

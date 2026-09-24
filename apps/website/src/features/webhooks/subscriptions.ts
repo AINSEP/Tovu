@@ -72,19 +72,7 @@ export async function createSubscription(
   _optional: WebhookSubscriptionOptional = {}
 ): Promise<{ subscription: WebhookSubscriptionRecord }> {
   const { deps, input } = required;
-
-  const label = input.label.trim();
-  if (!label) throw new WebhookSubscriptionValidationError("label is required");
-
-  const targetUrl = await validateTargetUrl({
-    targetUrl: input.targetUrl,
-    isAllowedTarget: deps.isAllowedTarget,
-  });
-
-  const topics = normalizeTopics(input.topics);
-  if (topics.length === 0) {
-    throw new WebhookSubscriptionValidationError("at least one topic is required");
-  }
+  const { label, targetUrl, topics } = await validateNewSubscription(input, deps.isAllowedTarget);
 
   const now = deps.clock.nowIso();
   const subscription: WebhookSubscriptionRecord = {
@@ -253,6 +241,29 @@ export async function deleteSubscription(
 
   await deps.repo.save(subscription);
   return { subscription };
+}
+
+/**
+ * The checks {@link createSubscription} runs before writing, exposed so a caller that must ask a
+ * human first (the `webhooks_create_subscription` tool) can refuse bad input before showing a
+ * dialog, and show the normalized values that will actually be stored.
+ *
+ * @throws {WebhookSubscriptionValidationError} a blank label, a bad or disallowed URL, or no topics.
+ */
+export async function validateNewSubscription(
+  input: Pick<CreateSubscriptionInput, "label" | "targetUrl" | "topics">,
+  isAllowedTarget: (url: string) => Promise<boolean>
+): Promise<{ label: string; targetUrl: string; topics: WebhookTopic[] }> {
+  const label = input.label.trim();
+  if (!label) throw new WebhookSubscriptionValidationError("label is required");
+
+  const targetUrl = await validateTargetUrl({ targetUrl: input.targetUrl, isAllowedTarget });
+
+  const topics = normalizeTopics(input.topics);
+  if (topics.length === 0) {
+    throw new WebhookSubscriptionValidationError("at least one topic is required");
+  }
+  return { label, targetUrl, topics };
 }
 
 /**

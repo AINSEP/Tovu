@@ -249,6 +249,11 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // for one commit applies equally: omitting it here would render the dialog correctly and then 403
   // TOOL_NOT_ALLOWLISTED on every real click.
   "trash_item",
+  // 2026-09-24 (tool-design audit F3) — tools that grant privileges, send data out, spend money or
+  // can't be undone now ask first through `requireHumanConfirm` (`contracts/core/human-confirm.ts`),
+  // which opens the same held-open exchange as every entry above. Without these entries every
+  // Confirm/Cancel click would 403 with TOOL_NOT_ALLOWLISTED.
+  "webhooks_create_subscription",
 ]);
 
 /**

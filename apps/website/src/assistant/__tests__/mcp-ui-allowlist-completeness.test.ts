@@ -60,7 +60,9 @@ function scanExchangeOpeners(files: readonly string[]): ExchangeScan {
   const toolIds = new Set<string>();
   const unresolved: string[] = [];
   for (const { file, text } of texts) {
-    for (const m of text.matchAll(/surfaceExchanges\.open\(\s*\{\s*toolId(?:\s*:\s*([A-Za-z_][A-Za-z0-9_]*))?/g)) {
+    // `requireHumanConfirm(ctx, surfaces, { toolId: X, ... })` (`contracts/core/human-confirm.ts`)
+    // opens the exchange on its caller's behalf, so its calls count as openers too.
+    for (const m of text.matchAll(/(?:surfaceExchanges\.open|requireHumanConfirm)\([^{)]*\{\s*toolId(?:\s*:\s*([A-Za-z_][A-Za-z0-9_]*))?/g)) {
       const name = m[1];
       if (name === undefined) continue; // shorthand `{ toolId, ... }` — see PARAMETERISED_EXCHANGE_TOOL_IDS
       const id = constants.get(name);
