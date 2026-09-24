@@ -4,9 +4,8 @@
  *
  * ## Why this is a pure function with no I/O
  *
- * Three callers want the same answer and must not each invent their own wording: the assistant's
- * `publish_content_status` tool, the same assistant's refusal when `publish_content_publish` is
- * asked for on an install that cannot publish, and (eventually) the Publish dialog's empty state.
+ * Multiple callers want the same answer and must not each invent their own wording: the assistant's
+ * `publish_content_status` tool, and the Publish dialog's own empty state.
  * Every input below is a fact one repo read or one table read already produces, so keeping the
  * decision pure means the wording is directly assertable — including the property that matters most
  * here, which is that no string it can produce teaches a concept.

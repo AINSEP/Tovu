@@ -87,14 +87,6 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // uninstall tool — the sibling one family over, `agent_plugins_uninstall` below, already had this
   // entry; this closes the identical gap for `.tovu-plugin` uninstalls.
   "plugins_uninstall",
-  // 2026-09-24 — `publish_content_publish` (`features/publish-content/tool-registrations.ts`) holds up
-  // the SAME shape `deployment_execute_static_publish` does: it opens a `SurfaceExchangeStore`
-  // exchange bound to the calling principal and parks on the human's Publish/Not now click
-  // (`publish-content/publish-confirmation-ui.ts`). The plan it applies is the one it computed and
-  // showed before asking; the click carries only the exchange id and the decision. Missing since the
-  // tool landed, hidden until f0cfd0c67 made the dialog reachable; the owner's first Publish click
-  // was refused. Proven at the route in `mcp-ui-tool-calls-route.publish-content.integration.test.ts`.
-  "publish_content_publish",
   // 2026-09-14 — `agent_plugins_uninstall` (`features/agent-plugins/tool-registrations.ts`) holds up
   // the SAME shape `media_trash_asset` does: it opens a `SurfaceExchangeStore` exchange and parks on
   // the human's Uninstall/Cancel click (`features/agent-plugins/uninstall-confirmation-ui.ts`) before

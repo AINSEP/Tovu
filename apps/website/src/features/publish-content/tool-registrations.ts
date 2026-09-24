@@ -1,6 +1,5 @@
 import path from "node:path";
 
-import { computeBlobStorageKey } from "@jini-ai/cms/media";
 import {
   buildDomainRegistrations,
   indexCatalogById,
@@ -18,12 +17,7 @@ import { ToolInputError } from "@jini-ai/core";
 
 import type { ToolContributor } from "#src/assistant/index";
 
-import {
-  askOnce,
-  classifyConfirmationAnswer,
-  type AssistantSurfaceDeps,
-  type SurfaceExchange,
-} from "../../contracts/core/tool-surface-exchanges.js";
+import type { AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import {
   connectDestination,
   disconnectDestination,
@@ -42,68 +36,41 @@ import { nodeProvisioningFileIo, resolveCommittedConfigRoot } from "../publish-t
 import {
   publishContentAgentToolCatalog,
   PUBLISH_CONTENT_CONNECT_TOOL_ID,
-  PUBLISH_CONTENT_PUBLISH_TOOL_ID,
   PUBLISH_CONTENT_STATUS_TOOL_ID,
   type AgentToolDefinition,
 } from "./agent-tools.js";
 import { connectAndRecordDestination } from "./connect-destination.js";
+// Kept for its TYPE only — `PublishContentToolDeps.publishContentPeerHttpClient`/
+// `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` are still declared against
+// `resolvePublishDestinationCredential`'s own parameter shape, even though S4 deleted the one runtime
+// caller (`openDestination`, with `publish_content_publish`). Pruning the deps interface itself is out
+// of this slice's scope.
 import { resolvePublishDestinationCredential } from "./destination-credential.js";
-import { buildExportBundle } from "./export-bundle.js";
-import {
-  confirmPeerImport,
-  executePeerImport,
-  pushBundleToPeer,
-  PublishContentPeerTransportError,
-} from "./peer-transport.js";
 import { normalizePeerBaseUrl } from "./peer-url.js";
-import {
-  selectConnectedDestination,
-  PublishContentPeerCredentialMissingError,
-  PublishContentPeerNotFoundError,
-  PublishContentPeerSecretStoreUnconfiguredError,
-  type PublishContentPeerRecord,
-  type PublishContentPeerRepoPort,
-} from "./peers.js";
+import { selectConnectedDestination, type PublishContentPeerRecord, type PublishContentPeerRepoPort } from "./peers.js";
 import { PUBLISH_CONTENT_APPLY_PERMISSION, PUBLISH_CONTENT_READ_PERMISSION } from "./permissions.js";
-import { entityKey, type PublishContentOutcomeRow } from "./planner.js";
-import {
-  buildOverwriteChoices,
-  buildPublishConfirmationResource,
-  countPublishChanges,
-  describeNotSupportedByLive,
-  describePublishChanges,
-  describePublishResult,
-  describeApplyShortfall,
-  describeRetiredCount,
-  overwriteReplanMatches,
-  publishWouldChangeNothing,
-  resolveChosenOverwriteKeys,
-  summarizeLeftAlone,
-} from "./publish-confirmation-ui.js";
 import { describePublishReadiness, siteLabelFor, type PublishReadiness } from "./publish-readiness.js";
 import { listPublishContentContributors } from "./type-registry.js";
 import type { PublishContentDeps } from "./type-registry.js";
 
 /**
- * @file Wires publishing into the assistant's tool catalog: the three tools that make "is my site
- * set up to publish, and if not, fix it, and then publish it" answerable by an assistant instead of
- * by a person who has to learn what a key is.
+ * @file Wires publishing into the assistant's tool catalog: the two tools that make "is my site set
+ * up to publish, and if not, fix it" answerable by an assistant instead of by a person who has to
+ * learn what a key is.
  *
  * The catalog and the per-tool reasoning live in `agent-tools.ts`. This file is the wiring: the
- * permission each tool checks, the ports each handler reaches through, and the one place the
- * gated-mutation confirmation rule is honoured.
+ * permission each tool checks and the ports each handler reaches through.
  *
- * ## The confirmation rule, stated once
+ * ## There is no `publish_content_publish` here
  *
- * `contracts/core/gated-mutations/gateway.ts` refuses to mint a confirmation for an `agent`
- * principal (AC-12): confirming is a human act, and an agent may only redeem what a human already
- * confirmed. A push does not run that gateway HERE — the destination runs its own, and sees this
- * install as a publishing credential rather than as an agent, so nothing on the wire would stop an
- * assistant from confirming its own publish. That is exactly why `publish_content_publish` asks a
- * person itself, through a held-open MCP-UI exchange (`publish-confirmation-ui.ts`), and treats the
- * absence of that channel as a refusal rather than as permission to proceed. The model cannot
- * answer its own dialog: the only channel that resolves the exchange is a browser POST to
- * `assistant/mcp-ui-tool-calls-route.ts`, behind the daemon's bearer gate and an admin session.
+ * `ADS-memory/.local-artifacts/publish-criteria-tool-webmcp-plan-2026-09-24.md` §0 deleted the chat
+ * tool that used to hold its own call open for a human's Publish/Not now click through an MCP-UI
+ * exchange. Publishing a bundle to a live site now happens exclusively through the admin **Publish
+ * dialog** — the only surface that can also be reached by WebMCP, and the only one that already has
+ * per-row selection, the re-plan consistency check and the session-only overwrite rule. The chat
+ * assistant reaches that same dialog through the `admin.publish_content` capability
+ * (`ui/criteria.ts`), which only opens it — it holds no reference to the dialog's confirm/execute
+ * path, so nothing here (or in that capability) can cause a write without a person's own click.
  *
  * ## Why the provisioning port is built here
  *
@@ -121,13 +88,11 @@ const publishContentDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   // -> connectDestination(): one round trip to the destination, then a write to committed config
   //    and one row in this workspace's destination list.
   [PUBLISH_CONTENT_CONNECT_TOOL_ID, "mutates-durable-state"],
-  // -> executePeerImport(): the destination applies the bundle. The heaviest write in this domain.
-  [PUBLISH_CONTENT_PUBLISH_TOOL_ID, "mutates-durable-state"],
 ]);
 
 const CATALOG_BY_ID = indexCatalogById(publishContentAgentToolCatalog);
 
-/** The fields these three tools need. Everything but the last two is already on `RouteDeps`. */
+/** The fields these two tools need. Everything but the last two is already on `RouteDeps`. */
 export interface PublishContentToolDeps {
   workspaceId: string;
   authorize: PublishContentToolAuthorize;
@@ -178,32 +143,6 @@ function defaultFindCandidate(): Promise<string | null> {
   return findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: (relative) => path.join(repoRoot, relative) });
 }
 
-/**
- * Projects the tool deps onto the shape every registered publish-content contributor reads.
- *
- * A structural copy of `routes/publish-content/deps.ts`'s `toPublishContentDeps`, which a feature
- * may not import. It cannot silently drift: the declared return type is `PublishContentDeps`, so a
- * field added there fails this function to compile.
- *
- * @complexity O(1).
- */
-function toPublishContentDeps(deps: PublishContentToolDeps): PublishContentDeps {
-  return {
-    workspaceId: deps.workspaceId,
-    postRepo: deps.postRepo,
-    clock: deps.clock,
-    idGen: deps.idGen,
-    outbox: deps.outbox,
-    beforeSaveHook: deps.pluginBeforeSaveHook,
-    mediaRepo: deps.mediaRepo,
-    assetBlobRepo: deps.assetBlobRepo,
-    blobStore: deps.blobStore,
-    redirectsWriteDeps: deps.redirectsWriteDeps,
-    menuRepo: deps.menuRepo,
-    navLocationBindingRepo: deps.navLocationBindingRepo,
-  } as PublishContentDeps;
-}
-
 /** Matches a bare identifier-shaped token — `PEER_NOT_FOUND`, `publish_trust_export_not_wired`,
  *  `EGRESS_REFUSED`. Anchored on word boundaries so ordinary prose and a capitalised site name are
  *  untouched. */
@@ -238,7 +177,7 @@ function chooseDestination(rows: readonly PublishContentPeerRecord[]): PublishCo
   return rows.length === 1 ? (rows[0] as PublishContentPeerRecord) : null;
 }
 
-/** Reads this install's publish readiness — the shared first step of all three handlers.
+/** Reads this install's publish readiness — the shared first step of both handlers.
  *  @complexity O(n) in the workspace's destination count. */
 async function readReadiness(
   deps: PublishContentToolDeps,
@@ -254,18 +193,6 @@ async function readReadiness(
     publishableTypeCount: listPublishContentContributors().length,
   });
   return { readiness, rows };
-}
-
-/** The destination's plan rows, or `null` when the peer's report was not the shape this instance
- *  understands. Narrowed rather than cast: `PushBundleResult.plan.details` is `unknown` by design
- *  (it crossed a network), and a plan we cannot count is not a plan we may ask a person to approve.
- *  @complexity O(1). */
-function readPlanRows(details: unknown): { refused: boolean; rows: readonly PublishContentOutcomeRow[] } | null {
-  if (typeof details !== "object" || details === null) return null;
-  const record = details as Record<string, unknown>;
-  if (typeof record.refused !== "boolean") return null;
-  if (!Array.isArray(record.rows)) return null;
-  return { refused: record.refused, rows: record.rows as readonly PublishContentOutcomeRow[] };
 }
 
 export function buildPublishContentRegistrations(
@@ -369,262 +296,6 @@ export function buildPublishContentRegistrations(
         throw err;
       }
     },
-
-    [PUBLISH_CONTENT_PUBLISH_TOOL_ID]: async (ctx) => {
-      await requireToolPermission(routeDeps, {
-        principalId: ctx.principal.id,
-        permission: PUBLISH_CONTENT_APPLY_PERMISSION,
-      });
-
-      const { readiness, rows } = await readReadiness(routeDeps, findCandidate);
-      if (!readiness.ready) {
-        return { published: false, ...readiness };
-      }
-
-      const destination = chooseDestination(rows);
-      if (destination === null) {
-        return {
-          published: false,
-          message: `This computer can publish to more than one site: ${rows.map((row) => row.label).join(", ")}.`,
-          nextStep: "Ask which one to publish to, then publish from that site's own page.",
-        };
-      }
-
-      // Fail closed rather than degrade. Without a channel to a person there is nobody to approve
-      // writing to a live site, and an unattended publish is the one outcome this tool must never
-      // produce — the same posture `content_post_delete` takes for the same reason.
-      if (!ctx.emitSurface) {
-        throw new ToolInputError(
-          "Publishing needs someone present to say yes before anything is written to the live site, " +
-            "and this session has no way to ask them. Nothing was published."
-        );
-      }
-
-      // Media bytes travel on the same push. A composition with no blob store could publish text
-      // and silently drop every image, so it refuses instead — the fail-closed reading.
-      const blobSource = routeDeps.blobStore;
-      if (!blobSource) {
-        throw new ToolInputError(
-          "This site is not set up to send its images and files, so publishing would leave them behind. " +
-            "Nothing was published."
-        );
-      }
-
-      const peer = await openDestination(routeDeps, destination.id);
-      const workspace = await routeDeps.workspaceRepo.findById(routeDeps.workspaceId);
-      const bundle = await buildExportBundle({
-        workspaceId: routeDeps.workspaceId,
-        principalId: ctx.principal.id,
-        authorize: routeDeps.authorize,
-        publishContentDeps: toPublishContentDeps(routeDeps),
-        sourceLabel: workspace?.name ?? routeDeps.workspaceId,
-      });
-
-      const pushed = await pushBundleToPeer(
-        {
-          ...peer,
-          blobSource,
-          computeStorageKey: (sha256) => computeBlobStorageKey({ workspaceId: routeDeps.workspaceId, sha256 }),
-        },
-        { bundle }
-      );
-
-      const planId = pushed.plan.planId;
-      const planHash = pushed.plan.planHash;
-      const plan = readPlanRows(pushed.plan.details);
-      if (plan === null || typeof planId !== "string" || typeof planHash !== "string") {
-        return {
-          published: false,
-          message: `${destination.label} answered in a way this could not read, so nothing was published.`,
-          nextStep: "Try again in a moment.",
-        };
-      }
-      if (plan.refused) {
-        return {
-          published: false,
-          message: `${destination.label} would not accept this, so nothing was published.`,
-          nextStep: "Try connecting this computer to the site again, then publish.",
-        };
-      }
-
-      const counts = countPublishChanges(plan.rows);
-      const overwritableRows = plan.rows.filter((planRow) => planRow.canOverwrite);
-      // publish-overwrite-live-plan §3 Assistant chat, step 2 — a capable live with something it CAN
-      // overwrite still gets a dialog even when this plan, as sent, would write nothing: the 5-pages-
-      // plus-nav case is exactly "every writing row is skipped", and the whole point of offering the
-      // tick is to reach a person before that silently becomes today's "nothing would change".
-      const offerOverwrite = pushed.liveCanOverwrite && overwritableRows.length > 0;
-      if (publishWouldChangeNothing(counts) && !offerOverwrite) {
-        // Nothing would be written, so there is nothing to ask about. Spending the one question
-        // this design gets to ask on a no-op is how people learn to click through the real ones.
-        //
-        // But "nothing would change" can ALSO mean every entity this run tried to send was one
-        // `pushBundleToPeer`'s own capability probe just removed (S-F1) — an older destination, or a
-        // grant that has not opted into the type yet. That is not the same as "already up to date",
-        // and saying so plainly is the whole point of asking the probe in the first place.
-        const notSupportedMessage = describeNotSupportedByLive(pushed.notSupportedByLive, destination.label);
-        return {
-          published: false,
-          message: notSupportedMessage ?? describePublishChanges(counts, destination.label),
-          nextStep: null,
-          counts,
-          notSupportedByLive: pushed.notSupportedByLive,
-        };
-      }
-
-      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open(
-        { toolId: PUBLISH_CONTENT_PUBLISH_TOOL_ID, principalId: ctx.principal.id },
-        ctx.emitSurface
-      );
-      const overwriteChoices = offerOverwrite ? buildOverwriteChoices(overwritableRows) : [];
-      const ui = buildPublishConfirmationResource({
-        siteLabel: destination.label,
-        counts,
-        planId,
-        exchangeId: exchange.id,
-        overwriteChoices,
-      });
-
-      // A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold
-      // this handler open until the idle deadline.
-      const closeOnAbort = () => exchange.close();
-      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-      try {
-        // Read directly, rather than through `resolveConfirmationDecision`: this handler also needs
-        // the raw answer's `params` (the ticked "Overwrite on live" ids), which that helper discards
-        // once it classifies confirm/decline. `askOnce` + `classifyConfirmationAnswer` is the exact
-        // fail-closed pair `resolveConfirmationDecision` is itself built from.
-        const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-        const outcome = classifyConfirmationAnswer(answer);
-        if (!outcome.confirmed) {
-          return {
-            published: false,
-            message:
-              outcome.reason === "declined"
-                ? `Nothing was published. ${destination.label} is unchanged.`
-                : `Nobody answered, so nothing was published. ${destination.label} is unchanged.`,
-            nextStep: outcome.reason === "declined" ? null : "Ask again when they are ready.",
-            counts,
-          };
-        }
-
-        // publish-overwrite-live-plan §7: an "Overwrite on live" key comes ONLY from the human's
-        // click — `answer.params` is `SurfaceMessage.params`, sourced from the browser's own POST to
-        // `mcp-ui-tool-calls-route.ts`, never from the model's tool arguments (`ctx.input` is never
-        // consulted here). `resolveChosenOverwriteKeys` additionally restricts to the keys THIS
-        // dialog actually offered, so an id the dialog never rendered a box for is dropped rather
-        // than acted on, however it got into `params`.
-        const offeredKeys = new Set(overwritableRows.map((overwritableRow) => entityKey(overwritableRow.entityType, overwritableRow.entityId)));
-        const chosen = offerOverwrite ? resolveChosenOverwriteKeys(answer.params, offeredKeys) : [];
-
-        if (chosen.length === 0) {
-          // The human has just answered. Only now is there a confirmation to relay — and it is the
-          // destination's own gateway that mints it, against this install's publishing credential.
-          // Nothing here asserts a principal kind over the wire, so nothing here can weaken the rule
-          // that an agent may not confirm on a person's behalf.
-          const { confirmationToken } = await confirmPeerImport(peer, { planId, planHash });
-          // `executePeerImport`'s response is the destination's `/import/execute` body —
-          // `{ restorePointId, runId, changeSetIds, retiredChangeSetIds }` (`gated-hooks.ts`'s
-          // `executeMutation`). It carries no per-outcome counts (`changeSetIds.length` is a total
-          // write count, not a created/replaced/unchanged split), so the success message derives from
-          // the PLAN's own `counts`. That total IS enough to catch the plan over-promising: a row
-          // edited on the destination between plan and apply is downgraded there and writes nothing,
-          // so a shortfall is said out loud rather than reported as replaced.
-          const executed = await executePeerImport(peer, { bundleId: pushed.bundleId, confirmationToken });
-          const actualWrites = Array.isArray(executed.changeSetIds) ? executed.changeSetIds.length : counts.added + counts.replaced;
-          const shortfall = describeApplyShortfall({ plannedWrites: counts.added + counts.replaced, actualWrites }, destination.label);
-
-          // `pushed.notSupportedByLive` was decided BEFORE the plan (S-F1's probe runs ahead of
-          // staging), so it names types held back from this very publish, not a stale value from an
-          // earlier attempt — appended to the past-tense result sentence rather than folded into
-          // `leftAlone`, which only ever describes rows the DESTINATION's own plan produced.
-          const notSupportedMessage = describeNotSupportedByLive(pushed.notSupportedByLive, destination.label);
-          return {
-            published: true,
-            message: [describePublishResult(counts, destination.label), shortfall, notSupportedMessage]
-              .filter((sentence): sentence is string => sentence !== null)
-              .join(" "),
-            nextStep: null,
-            counts,
-            leftAlone: summarizeLeftAlone(plan.rows),
-            notSupportedByLive: pushed.notSupportedByLive,
-          };
-        }
-
-        // publish-overwrite-live-plan §3 Assistant chat, steps 5-6 — one or more ticks. The blobs are
-        // already uploaded (this is the SAME bundle), so re-pushing only re-stages and re-plans; the
-        // peer's own `/import/plan` turns each ticked key `forced` when `overwriteEntityKeys` names it.
-        const rePushed = await pushBundleToPeer(
-          { ...peer, blobSource, computeStorageKey: (sha256) => computeBlobStorageKey({ workspaceId: routeDeps.workspaceId, sha256 }) },
-          { bundle, overwriteEntityKeys: chosen }
-        );
-        const rePlanId = rePushed.plan.planId;
-        const rePlanHash = rePushed.plan.planHash;
-        const rePlan = readPlanRows(rePushed.plan.details);
-        if (rePlan === null || typeof rePlanId !== "string" || typeof rePlanHash !== "string") {
-          return {
-            published: false,
-            message: `${destination.label} answered in a way this could not read, so nothing was published.`,
-            nextStep: "Try again in a moment.",
-            counts,
-          };
-        }
-        if (rePlan.refused) {
-          return {
-            published: false,
-            message: `${destination.label} would not accept this, so nothing was published.`,
-            nextStep: "Try connecting this computer to the site again, then publish.",
-            counts,
-          };
-        }
-
-        const chosenSet = new Set(chosen);
-        if (!overwriteReplanMatches(plan.rows, rePlan.rows, chosenSet)) {
-          // Live moved between the dialog's plan and this re-plan (`overwriteReplanMatches`'s own
-          // doc) — the same reason `push/execute`'s PLAN_STALE check refuses a confirmed run whose
-          // report hash no longer matches. Publishing against a report the operator never saw is
-          // refused here first, in plain words, rather than surfacing that peer error.
-          return {
-            published: false,
-            message: `Something on ${destination.label} changed while you were deciding, so nothing was published.`,
-            nextStep: "Ask again.",
-            counts,
-          };
-        }
-
-        const newCounts = countPublishChanges(rePlan.rows);
-        const { confirmationToken } = await confirmPeerImport(peer, { planId: rePlanId, planHash: rePlanHash });
-        const executed = await executePeerImport(peer, { bundleId: rePushed.bundleId, confirmationToken, overwriteEntityKeys: chosen });
-        const actualWrites = Array.isArray(executed.changeSetIds) ? executed.changeSetIds.length : newCounts.added + newCounts.replaced;
-        const shortfall = describeApplyShortfall({ plannedWrites: newCounts.added + newCounts.replaced, actualWrites }, destination.label);
-        const retiredCount = Array.isArray(executed.retiredChangeSetIds) ? executed.retiredChangeSetIds.length : 0;
-        const retiredMessage = describeRetiredCount(retiredCount, destination.label);
-        const notSupportedMessage = describeNotSupportedByLive(rePushed.notSupportedByLive, destination.label);
-        return {
-          published: true,
-          message: [describePublishResult(newCounts, destination.label), shortfall, retiredMessage, notSupportedMessage]
-            .filter((sentence): sentence is string => sentence !== null)
-            .join(" "),
-          nextStep: null,
-          counts: newCounts,
-          leftAlone: summarizeLeftAlone(rePlan.rows),
-          notSupportedByLive: rePushed.notSupportedByLive,
-        };
-      } catch (err) {
-        if (err instanceof PublishContentPeerTransportError) {
-          return {
-            published: false,
-            message: `${destination.label} could not be reached, so nothing was published.`,
-            nextStep: "Check that the site is online, then try publishing again.",
-            counts,
-          };
-        }
-        throw err;
-      } finally {
-        ctx.signal.removeEventListener("abort", closeOnAbort);
-        exchange.close();
-      }
-    },
   };
 
   return buildDomainRegistrations({
@@ -636,47 +307,10 @@ export function buildPublishContentRegistrations(
   });
 }
 
-/** Opens the per-request transport bag for one destination, through the SAME resolver the HTTP push
- *  route uses — so a connected destination and a hand-configured one arrive identically and this
- *  file cannot tell them apart.
- *  @complexity O(1) plus one repo read and either one AEAD open or one handshake. */
-async function openDestination(
-  deps: PublishContentToolDeps,
-  destinationId: string
-): Promise<{
-  credential: Awaited<ReturnType<typeof resolvePublishDestinationCredential>>;
-  httpClient: PublishContentToolDeps["publishContentPeerHttpClient"];
-}> {
-  try {
-    const credential = await resolvePublishDestinationCredential(
-      {
-        repo: deps.publishContentPeerRepo,
-        sealer: deps.siteAssistantSecretSealer,
-        keyring: deps.siteAssistantSecretKeyring,
-        httpClient: deps.publishContentPeerHttpClient,
-      },
-      { workspaceId: deps.workspaceId, id: destinationId }
-    );
-    return { credential, httpClient: deps.publishContentPeerHttpClient };
-  } catch (err) {
-    if (
-      err instanceof PublishContentPeerNotFoundError ||
-      err instanceof PublishContentPeerCredentialMissingError ||
-      err instanceof PublishContentPeerSecretStoreUnconfiguredError
-    ) {
-      throw new ToolInputError(
-        "This computer is no longer set up to publish to that site. Nothing was published. " +
-          "Connect this computer to the site again, then publish."
-      );
-    }
-    throw err;
-  }
-}
-
 export { publishContentDerivedRisk };
 
 /**
- * Contributes the three publishing tools to the assistant's catalog — called once by
+ * Contributes the two publishing tools to the assistant's catalog — called once by
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`.
  */
 export function contributePublishContentTools(): ToolContributor {

@@ -217,8 +217,8 @@ function classifyApplyRowFailure(
  * set a {@link PublishContentOutcomeRow.retires} row's retire half produced (`null` for every other
  * row, including a `retires` row that never reached the write, e.g. because it was downgraded to
  * `conflict` before either write was attempted). It stays apart from `changeSetId` rather than
- * collapsing into one list, so a caller counting "one change set per row" (`publish-confirmation-
- * ui.ts`'s `describeApplyShortfall`) is never off by one for a row that produced two.
+ * collapsing into one list, so a caller counting "one change set per row" is never off by one for a
+ * row that produced two.
  *
  * @complexity O(1) plus whatever `handler.inspect`/`handler.planRetire`/`handler.retire`/
  * `handler.apply`/`baselineRepo` I/O costs — no loop; {@link createPublishContentApplyPort} is what

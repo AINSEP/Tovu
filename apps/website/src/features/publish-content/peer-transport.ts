@@ -360,8 +360,8 @@ async function probePeerCapabilities(deps: PeerCallDeps): Promise<PeerCapabiliti
  * `bundle-create.ts`'s own grant check produces for ONE unsupported type never happens at all.
  *
  * The excluded entities are counted and grouped by type rather than silently dropped — that grouping
- * is exactly {@link PushBundleResult.notSupportedByLive}, which the caller surfaces to a person
- * (`publish-confirmation-ui.ts`'s `describeNotSupportedByLive`). `blobManifest` is recomputed from
+ * is exactly {@link PushBundleResult.notSupportedByLive}, which the caller surfaces to a person.
+ * `blobManifest` is recomputed from
  * the SURVIVING entities only, mirroring `export-bundle.ts`'s `selectBundleEntities`: a push must
  * never upload bytes that belong solely to an entity it is about to leave behind.
  *

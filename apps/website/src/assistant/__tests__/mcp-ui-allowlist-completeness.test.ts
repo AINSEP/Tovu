@@ -3,12 +3,14 @@
  *
  * A tool that opens a `SurfaceExchangeStore` exchange parks until the human's click arrives at
  * `POST /api/admin/v1/mcp-ui/tool-calls`, and that endpoint refuses every tool id not on the
- * allowlist. Five tools shipped with a working dialog whose every click 403'd, the latest being
- * `publish_content_publish` (43b80a2ed), because the allowlist is maintained by hand in a different
- * file from the tool. The per-id tests in `mcp-ui-tool-calls.test.ts` only cover ids someone
- * remembered to add. This test scans the source for every `surfaceExchanges.open(...)` call instead,
- * resolves its `toolId` constant, and requires the id on the allowlist — and, conversely, requires
- * every allowlisted id to be either an exchange opener or a named carve-out.
+ * allowlist. Five tools shipped with a working dialog whose every click 403'd, the latest at the time
+ * being `publish_content_publish` (43b80a2ed) — since deleted along with the tool itself
+ * (`ADS-memory/.local-artifacts/publish-criteria-tool-webmcp-plan-2026-09-24.md` §4 S4) — because the
+ * allowlist is maintained by hand in a different file from the tool. The per-id tests in
+ * `mcp-ui-tool-calls.test.ts` only cover ids someone remembered to add. This test scans the source
+ * for every `surfaceExchanges.open(...)` call instead, resolves its `toolId` constant, and requires
+ * the id on the allowlist — and, conversely, requires every allowlisted id to be either an exchange
+ * opener or a named carve-out.
  */
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
@@ -86,7 +88,7 @@ test("every surfaceExchanges.open(...) call names a toolId constant this scan ca
 });
 
 test("the scan finds the known exchange openers (guards against a scan that silently matches nothing)", () => {
-  for (const id of ["content_post_delete", "publish_content_publish", "trash_item", "assistant_render_ui"]) {
+  for (const id of ["content_post_delete", "media_trash_asset", "trash_item", "assistant_render_ui"]) {
     assert.ok(scan.toolIds.has(id), `expected the scan to find '${id}'`);
   }
 });
@@ -96,8 +98,8 @@ test("every tool that opens an MCP-UI exchange is on MCP_UI_REDEEMABLE_TOOL_IDS"
 });
 
 test("the completeness check reports a tool whose allowlist entry is missing", () => {
-  const withoutPublish = new Set([...MCP_UI_REDEEMABLE_TOOL_IDS].filter((id) => id !== "publish_content_publish"));
-  assert.deepEqual(missingFromAllowlist(scan.toolIds, withoutPublish), ["publish_content_publish"]);
+  const withoutTrash = new Set([...MCP_UI_REDEEMABLE_TOOL_IDS].filter((id) => id !== "media_trash_asset"));
+  assert.deepEqual(missingFromAllowlist(scan.toolIds, withoutTrash), ["media_trash_asset"]);
 });
 
 test("every allowlisted id opens an exchange or is a named carve-out", () => {

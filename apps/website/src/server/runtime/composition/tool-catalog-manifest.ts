@@ -292,9 +292,10 @@ export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributePagesTools());
   registerToolContributor(contributePluginsTools());
   registerToolContributor(contributePostTools());
-  // The three publishing tools (2026-09-19): 'is publishing set up', 'set it up', 'publish'.
-  // `publish_content_publish` holds its own call open for a human's answer — see that feature's
-  // `tool-registrations.ts` header for why an assistant may not confirm its own publish.
+  // The two publishing tools (2026-09-19; narrowed from three on 2026-09-24 — see
+  // `ADS-memory/.local-artifacts/publish-criteria-tool-webmcp-plan-2026-09-24.md` §4 S4):
+  // 'is publishing set up' and 'set it up'. Publishing itself now happens only through the admin
+  // Publish dialog — see that feature's `tool-registrations.ts` header.
   registerToolContributor(contributePublishContentTools());
   // Those tools count and publish whatever the publish-content TYPE registry holds, and the agent
   // daemon never runs `createApp()` (whose publish-content module is the other caller). Without

@@ -1,14 +1,21 @@
 /**
- * @file The publish-content domain's agent-tool catalog — the three tools that let the assistant
- * find out whether publishing works, make it work, and publish.
+ * @file The publish-content domain's agent-tool catalog — the two tools that let the assistant find
+ * out whether publishing works, and make it work.
  *
- * ## Why these three and not one
+ * ## Why these two and not one
  *
  * The owner's requirement was "it should be automatic, discoverable by AI, and a regular user
- * doesn't have to think about it". "Discoverable" is the part a single `publish` tool cannot
- * deliver: a model that can only publish has no way to answer "can I publish?" without attempting
- * it, so the honest answer to a person asking "is my site set up?" would be a failed publish. So the
- * read comes first and stands alone, the repair is its own verb, and publishing is the third.
+ * doesn't have to think about it". "Discoverable" is the part a single tool cannot deliver: a model
+ * that can only act has no way to answer "can I publish?" without attempting it, so the honest
+ * answer to a person asking "is my site set up?" would be a failed attempt. So the read comes first
+ * and stands alone, and the repair is its own verb.
+ *
+ * ## Why there is no `publish_content_publish` here
+ *
+ * `ADS-memory/.local-artifacts/publish-criteria-tool-webmcp-plan-2026-09-24.md` §0 deleted it. There
+ * is now exactly one publish surface, the admin **Publish dialog**, and the chat assistant reaches it
+ * through the `admin.publish_content` capability (`ui/criteria.ts`) rather than through a chat tool
+ * of its own — see that plan and `tool-registrations.ts`'s header for why.
  *
  * ## The vocabulary rule
  *
@@ -18,16 +25,6 @@
  * `__tests__/publish-content-agent-tools.test.ts` asserts that over every reachable sentence rather
  * than trusting review — the same guard `publish-trust/__tests__/provisioning.test.ts` already
  * applies to its own refusals.
- *
- * ## Why `publish_content_publish` cannot just publish
- *
- * Applying a bundle to a live site is a gated ceremony on the DESTINATION (plan → confirm →
- * execute), and `contracts/core/gated-mutations/gateway.ts`'s confirm-time actor-class rule is that
- * confirmation is a human act. This tool therefore plans, shows the human what would change, and
- * holds its own call open until the human answers — the same held-open MCP-UI exchange shape
- * `content_post_delete` uses (ADR-055 Decision 2). The model never supplies the answer: the only
- * channel that can resolve the exchange is a browser POST the model cannot make. See
- * `tool-registrations.ts`'s handler for the full statement.
  */
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "deletes-durable-state" | "mints-token";
@@ -42,7 +39,6 @@ export interface AgentToolDefinition {
 
 export const PUBLISH_CONTENT_STATUS_TOOL_ID = "publish_content_status";
 export const PUBLISH_CONTENT_CONNECT_TOOL_ID = "publish_content_connect";
-export const PUBLISH_CONTENT_PUBLISH_TOOL_ID = "publish_content_publish";
 
 const NO_ARGUMENTS_SCHEMA = { type: "object", additionalProperties: false, properties: {} } as const;
 
@@ -92,23 +88,5 @@ export const publishContentAgentToolCatalog: AgentToolDefinition[] = [
         },
       },
     },
-  },
-  {
-    name: PUBLISH_CONTENT_PUBLISH_TOOL_ID,
-    description:
-      "Copies this installation's content to the site's live deployment. " +
-      "It works out what would change, shows the person a summary of it, and WAITS FOR THEM TO SAY " +
-      "YES before anything is written to the live site — you cannot answer on their behalf, and there " +
-      "is no argument that skips the question. Expect this call to take a while: it is held open " +
-      "until they answer. " +
-      "If they decline, or nobody answers, NOTHING is published and the result says so; report that " +
-      "plainly rather than retrying. " +
-      "Requires that publishing is already set up — call `publish_content_status` first if you are " +
-      "not sure, and `publish_content_connect` if it says this computer is not connected. " +
-      "This tool needs an interactive session with a person present; in a background or scripted run " +
-      "it refuses rather than publishing unattended.",
-    sideEffects: "mutates-durable-state",
-    authorization: { permission: "publish_content.apply" },
-    inputSchema: NO_ARGUMENTS_SCHEMA,
   },
 ];
