@@ -46,6 +46,20 @@ describe("useWidgetRegionEditor — injected port (no fetch stub, no api spy)", 
     expect(mutateSpy).not.toHaveBeenCalled();
   });
 
+  it("fills a just-added placement's title and type from the widget itself, so the new row is not a nameless '()' until Save", async () => {
+    const port = createFakeWidgetRegionsPort({
+      areas: { footer: { area: AREA, placements: [PLACEMENT] } },
+      widgets: { w9: { title: "Promo banner", widgetType: "text" } },
+    });
+    const { result } = renderHook(() => useWidgetRegionEditor("footer", { port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.addPlacement("w9"));
+
+    await waitFor(() => expect(result.current.placements[1]?.widgetTitle).toBe("Promo banner"));
+    expect(result.current.placements[1]).toMatchObject({ widgetEntryId: "w9", widgetType: "text", broken: false });
+  });
+
   it("translates the post-save 'Saved · version N' notice into the operator's locale", async () => {
     const port = createFakeWidgetRegionsPort({ areas: { footer: { area: AREA, placements: [PLACEMENT] } } });
     const { result } = renderHook(() => useWidgetRegionEditor("footer", { port, locale: "de", t: (key: string) => key }));

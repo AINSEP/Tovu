@@ -52,6 +52,7 @@ function baseController(overrides: Partial<WidgetRegionEditorController> = {}): 
     addPlacement: vi.fn(),
     save: vi.fn(async () => {}),
     t: (key: string) => key,
+    locale: "en",
     ...overrides,
   };
 }
@@ -114,6 +115,27 @@ describe("placements list", () => {
     );
     expect(screen.getByText("⚠ Broken reference")).toBeInTheDocument();
     expect(screen.queryByText("Newsletter")).not.toBeInTheDocument();
+  });
+
+  it("gives the ↑/↓/✕ buttons real accessible names, not the bare glyphs (title does not name a button that has text content)", () => {
+    render(<WidgetRegionEditor regionKey="footer" useWidgetRegionEditorHook={() => baseController()} />);
+    expect(screen.getAllByRole("button", { name: "Move up" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Move down" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Remove" })).toHaveLength(2);
+  });
+
+  it("shows each placement's widget type by its display label, like the Widgets library, not the raw type key", () => {
+    render(<WidgetRegionEditor regionKey="footer" useWidgetRegionEditorHook={() => baseController()} />);
+    expect(screen.getByText("(Text)")).toBeInTheDocument();
+    expect(screen.queryByText("(text)")).not.toBeInTheDocument();
+  });
+
+  it("renders no empty '()' type suffix for a just-added placement whose title/type have not loaded yet", () => {
+    const draft: AdminWidgetPlacement = { placementId: "p9", widgetEntryId: "w9", enabled: true, widgetTitle: null, widgetType: null, broken: false };
+    const { container } = render(
+      <WidgetRegionEditor regionKey="footer" useWidgetRegionEditorHook={() => baseController({ placements: [draft] })} />,
+    );
+    expect(container.textContent).not.toContain("()");
   });
 
   it("wires the ↑/↓/✕ buttons and the enabled checkbox to the controller", async () => {

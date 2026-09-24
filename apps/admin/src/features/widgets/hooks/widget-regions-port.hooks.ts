@@ -1,4 +1,4 @@
-import type { AdminWidgetArea, AdminWidgetPlacement, AdminWidgetRegionBinding } from "@/lib/api";
+import type { AdminWidget, AdminWidgetArea, AdminWidgetPlacement, AdminWidgetRegionBinding } from "@/lib/api";
 
 /**
  * @file What `use-widget-region-editor.hooks.ts` and `use-widget-regions.hooks.ts` need from the
@@ -26,4 +26,7 @@ export interface WidgetRegionsPort {
     baseVersion: number;
     placements: Array<{ placementId: string; widgetEntryId: string; enabled: boolean }>;
   }): Promise<{ area: AdminWidgetArea }>;
+  /** The one widget-INSTANCE read this resource needs: a just-added placement's title/type, which
+   *  the region's own placement list only carries for rows it has already saved. */
+  getWidget(id: string): Promise<{ widget: Pick<AdminWidget, "title" | "widgetType"> }>;
 }

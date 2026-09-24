@@ -58,6 +58,8 @@ export interface WidgetRegionEditorController {
   /** Bound translator — `WidgetRegionEditor.tsx`'s only source of UI copy; see this file's own
    *  header. */
   t: Translate;
+  /** The raw resolved locale — exposed only because `widgetTypeLabel` (`../rules.ts`) needs it. */
+  locale: string;
 }
 
 export function useWidgetRegionEditor(regionKey: string, { port, locale, t }: WidgetRegionEditorDependencies): WidgetRegionEditorController {
@@ -119,8 +121,20 @@ export function useWidgetRegionEditor(regionKey: string, { port, locale, t }: Wi
   function toggleEnabled(placementId: string) {
     setPlacements((prev) => prev.map((p) => (p.placementId === placementId ? { ...p, enabled: !p.enabled } : p)));
   }
+  // A draft placement carries no title/type (the region's placement list only has them for saved
+  // rows), so without this lookup the new row rendered nameless until Save. A failed lookup just
+  // leaves the draft as it was — the row still saves, and the post-save reload names it.
   function addPlacement(widgetInstanceId: string) {
-    setPlacements((prev) => [...prev, buildDraftPlacement(widgetInstanceId)]);
+    const draft = buildDraftPlacement(widgetInstanceId);
+    setPlacements((prev) => [...prev, draft]);
+    port
+      .getWidget(widgetInstanceId)
+      .then(({ widget }) => {
+        setPlacements((prev) =>
+          prev.map((p) => (p.placementId === draft.placementId ? { ...p, widgetTitle: widget.title, widgetType: widget.widgetType } : p))
+        );
+      })
+      .catch(() => {});
   }
 
   // Stale-response guard, save() half (2026-08-12 audit finding): reuses `loadRequestIdRef` rather
@@ -157,7 +171,7 @@ export function useWidgetRegionEditor(regionKey: string, { port, locale, t }: Wi
     }
   }
 
-  return { area, placements, message, error, loading, saving, removeAt, moveAt, toggleEnabled, addPlacement, save, t };
+  return { area, placements, message, error, loading, saving, removeAt, moveAt, toggleEnabled, addPlacement, save, t, locale };
 }
 
 /**

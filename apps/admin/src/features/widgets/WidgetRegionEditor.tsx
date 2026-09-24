@@ -2,6 +2,7 @@ import { WidgetAddControl } from "../../components/WidgetPickerDialog/WidgetPick
 import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { useWiredWidgetRegionEditor } from "./hooks/use-widget-region-editor.hooks";
+import { widgetTypeLabel } from "./rules";
 
 /**
  * @file `RegionPlacementEditorScreen` + `RegionPlacementList` (`ui.spec.md` §2.5/§2.6/§3.7/§3.8/
@@ -69,7 +70,7 @@ export function WidgetRegionEditorHeaderActions({
 
 export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
   const { regionKey, useWidgetRegionEditorHook = useWiredWidgetRegionEditor } = props;
-  const { area, placements, message, error, loading, saving, removeAt, moveAt, toggleEnabled, addPlacement, save, t } =
+  const { area, placements, message, error, loading, saving, removeAt, moveAt, toggleEnabled, addPlacement, save, t, locale } =
     useWidgetRegionEditorHook(regionKey);
 
   if (error && !area) return <div className="notice error">{error}</div>;
@@ -135,7 +136,13 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
                   <span className="widget-embed-node--broken">{t("⚠ Broken reference")}</span>
                 ) : (
                   <span>
-                    <strong>{placement.widgetTitle}</strong> <span className="muted-cell">({placement.widgetType})</span>
+                    <strong>{placement.widgetTitle}</strong>
+                    {placement.widgetType ? (
+                      <>
+                        {" "}
+                        <span className="muted-cell">({widgetTypeLabel(placement.widgetType, locale)})</span>
+                      </>
+                    ) : null}
                   </span>
                 )}
                 <label>
@@ -151,6 +158,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
                   className="tb-btn"
                   onClick={() => moveAt(i, -1)}
                   title={t("Move up")}
+                  aria-label={t("Move up")}
                   {...agentHandle(`${placementHandles[i]}-move-up`, { role: "button", label: `Move "${placement.widgetTitle}" up` })}
                 >
                   ↑
@@ -159,6 +167,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
                   className="tb-btn"
                   onClick={() => moveAt(i, 1)}
                   title={t("Move down")}
+                  aria-label={t("Move down")}
                   {...agentHandle(`${placementHandles[i]}-move-down`, { role: "button", label: `Move "${placement.widgetTitle}" down` })}
                 >
                   ↓
@@ -167,6 +176,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
                   className="tb-btn"
                   onClick={() => removeAt(placement.placementId)}
                   title={t("Remove")}
+                  aria-label={t("Remove")}
                   {...agentHandle(`${placementHandles[i]}-remove`, { role: "button", label: `Remove "${placement.widgetTitle}" from this region` })}
                 >
                   ✕

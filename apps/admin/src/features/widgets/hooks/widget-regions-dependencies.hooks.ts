@@ -1,4 +1,4 @@
-import { api, type AdminWidgetArea, type AdminWidgetPlacement, type AdminWidgetRegionBinding } from "@/lib/api";
+import { api, type AdminWidget, type AdminWidgetArea, type AdminWidgetPlacement, type AdminWidgetRegionBinding } from "@/lib/api";
 import type { WidgetRegionsPort } from "./widget-regions-port.hooks";
 
 /**
@@ -13,6 +13,7 @@ export const defaultWidgetRegionsPort: WidgetRegionsPort = {
   bindWidgetRegion: (regionKey) => api.bindWidgetRegion(regionKey),
   getWidgetRegion: (regionKey) => api.getWidgetRegion(regionKey),
   mutateWidgetRegionPlacements: (target) => api.mutateWidgetRegionPlacements(target),
+  getWidget: (id) => api.getWidget(id),
 };
 
 /** Seed state for {@link createFakeWidgetRegionsPort}. */
@@ -20,6 +21,8 @@ export interface FakeWidgetRegionsPortOptions {
   regions?: AdminWidgetRegionBinding[];
   /** Keyed by `regionKey` — an area + its placements, as `getWidgetRegion` would return them. */
   areas?: Record<string, { area: AdminWidgetArea; placements: AdminWidgetPlacement[] }>;
+  /** Keyed by widget id — what `getWidget` returns for a just-added placement. */
+  widgets?: Record<string, Pick<AdminWidget, "title" | "widgetType">>;
 }
 
 /**
@@ -74,6 +77,12 @@ export function createFakeWidgetRegionsPort(options: FakeWidgetRegionsPortOption
       }));
       areas.set(regionKey, { area: updatedArea, placements: updatedPlacements });
       return { area: updatedArea };
+    },
+
+    async getWidget(id) {
+      const widget = options.widgets?.[id];
+      if (!widget) throw new Error(`fake widget not found: ${id}`);
+      return { widget };
     },
   };
 }
