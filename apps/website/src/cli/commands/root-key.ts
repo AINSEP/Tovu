@@ -135,17 +135,21 @@ function databaseHasKeyDependentData(dbPath: string): boolean {
 
 /** Every sibling site's `content.db` under this install's `sites/` root
  *  (`path.dirname(resolveSiteRoot())/*\/content.db`) — not just the currently-active site, since
- *  any site folder in this install could hold data sealed under the current key. Missing entries
- *  (a site folder with no `content.db` yet) are skipped rather than fed to
- *  {@link findKeyDependentData}'s fail-closed path, which is reserved for a path that exists but
- *  cannot be read. */
+ *  any site folder in this install could hold data sealed under the current key — plus
+ *  `TOVU_CONTENT_DB` when set, since the server honors it (`deps.ts`'s `defaultContentDbPath`) and it
+ *  can put the live DB outside `sites/` entirely. Missing entries (a site folder with no
+ *  `content.db` yet) are skipped rather than fed to {@link findKeyDependentData}'s fail-closed
+ *  path, which is reserved for a path that exists but cannot be read. */
 function defaultSiteDbPaths(): string[] {
   const sitesRoot = path.dirname(resolveSiteRoot());
-  if (!existsSync(sitesRoot)) return [];
-  return readdirSync(sitesRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(sitesRoot, entry.name, "content.db"))
-    .filter((dbPath) => existsSync(dbPath));
+  const siteDbs = existsSync(sitesRoot)
+    ? readdirSync(sitesRoot, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => path.join(sitesRoot, entry.name, "content.db"))
+    : [];
+  const override = process.env.TOVU_CONTENT_DB;
+  const candidates = override ? [...siteDbs, path.resolve(override)] : siteDbs;
+  return [...new Set(candidates)].filter((dbPath) => existsSync(dbPath));
 }
 
 export interface RunRootKeyEnsureCommandInput {

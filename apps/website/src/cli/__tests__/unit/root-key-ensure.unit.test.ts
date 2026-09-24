@@ -355,3 +355,23 @@ test("runRootKeyEnsureCommand: a lost generate race (file already exists) is tre
   assert.equal(stdout, "");
   assert.equal(readFileSync(keyFilePath, "utf8"), hex);
 });
+
+// `index.ts` honors `TOVU_CONTENT_DB` (deps.ts `defaultContentDbPath`), which can put the live DB
+// anywhere — not under `sites/*/`. The default scan must include it, or sealed rows there are
+// invisible and a fresh key gets minted over them.
+test("runRootKeyEnsureCommand: sealed data in a TOVU_CONTENT_DB outside sites/ → refuses, no file created", async () => {
+  const keyFilePath = keyFilePathIn(workDir);
+  mkdirSync(path.join(workDir, "sites", "main"), { recursive: true });
+  mkdirSync(path.join(workDir, "elsewhere"));
+  const dbPath = path.join(workDir, "elsewhere", "content.db");
+  buildSealedCiphertextDb(dbPath);
+  const env = { ...bareEnv(), TOVU_SITE_DIR: path.join(workDir, "sites", "main"), TOVU_CONTENT_DB: dbPath };
+
+  const { stderr } = await withProcessEnv(env, () => captureOutput(() => runRootKeyEnsureCommand({ keyFilePath })));
+
+  assert.equal(
+    stderr,
+    "tovu: this site has saved credentials but its security key is missing. Set TOVU_INTEGRATIONS_ROOT_KEY (in .env or your shell) to the key they were saved with.\n"
+  );
+  assert.equal(existsSync(keyFilePath), false);
+});
