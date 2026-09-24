@@ -16,6 +16,7 @@ import { contributeFsFilesTools } from "#src/features/fs-files/tool-registration
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
 import { contributePublishContentTools } from "#src/features/publish-content/tool-registrations";
+import { installFirstPartyPublishContentTypes } from "./publish-content-manifest.js";
 import { contributePostTools, contributePostDuplicateHandlers } from "#src/features/post/tool-registrations";
 import { contributeRecoveryTools } from "#src/features/recovery/tool-registrations";
 import { contributeTaxonomyTools } from "#src/features/taxonomy/tool-registrations";
@@ -295,6 +296,11 @@ export function installFirstPartyToolContributors(): void {
   // `publish_content_publish` holds its own call open for a human's answer — see that feature's
   // `tool-registrations.ts` header for why an assistant may not confirm its own publish.
   registerToolContributor(contributePublishContentTools());
+  // Those tools count and publish whatever the publish-content TYPE registry holds, and the agent
+  // daemon never runs `createApp()` (whose publish-content module is the other caller). Without
+  // this line the daemon's registry is empty and every publish answer is "nothing to publish".
+  // Idempotent: re-registering replaces by entity type.
+  installFirstPartyPublishContentTypes();
   registerToolContributor(contributeRecoveryTools());
   registerToolContributor(contributeRedirectsTools());
   registerToolContributor(contributeSeoTools());

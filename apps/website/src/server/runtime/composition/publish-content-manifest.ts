@@ -14,7 +14,12 @@ import { registerPublishContentContributor } from "#src/features/publish-content
  * functions in separate files means a future Task 3/4 PR that starts calling this one does not have
  * to touch — or risk a merge conflict in — `tool-catalog-manifest.ts`'s own ~35-domain call list.
  *
- * NOT YET CALLED from a real boot path. Nothing in the tree yet consumes
+ * Called from TWO boot paths (2026-09-23): `modules/publish-content.ts` inside `createApp()`, and
+ * `tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, which is how the agent daemon
+ * (a separate process that never runs `createApp()`) gets the types its publish tools read. The
+ * history below explains the original, since-superseded "not yet called" state.
+ *
+ * Originally NOT YET CALLED from a real boot path. Nothing in the tree yet consumed
  * `listPublishContentContributors()` (Task 4's export route is the first real reader), so calling
  * this from `agent-daemon-server.ts`/`assistant-byok.ts` today would register two contributors that
  * are never read by anything and add a shared-file edit with no test coverage to justify it. Task 4's
