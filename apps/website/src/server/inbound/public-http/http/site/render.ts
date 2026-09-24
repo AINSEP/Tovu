@@ -2333,12 +2333,22 @@ function renderExtraFieldAttrs(o: JsonObject): string {
  *  nested ternary recomputed per-branch. `describedByAttr` wires the field to its own (initially empty
  *  and hidden) error slot for assistive tech — see {@link renderContactFormField}'s own doc for why
  *  that slot exists even though nothing fills it in on the very first render. */
-function renderContactFormInput(kind: string, id: string, required: boolean, extraAttrs: string, describedByAttr: string): string {
+function renderContactFormInput(kind: string, id: string, required: boolean, extraAttrs: string, describedByAttr: string, maxLength: unknown): string {
   const requiredAttr = required ? " required" : "";
-  if (kind === "textarea") return `<textarea name="${id}" id="widget-contact-${id}"${requiredAttr}${describedByAttr}${extraAttrs}></textarea>`;
   if (kind === "checkbox") return `<input type="checkbox" name="${id}" id="widget-contact-${id}"${requiredAttr}${describedByAttr}${extraAttrs}/>`;
+  const constraintAttrs = `${requiredAttr}${contactFormMaxLengthAttr(maxLength)}`;
+  if (kind === "textarea") return `<textarea name="${id}" id="widget-contact-${id}"${constraintAttrs}${describedByAttr}${extraAttrs}></textarea>`;
   const inputType = kind === "email" ? "email" : "text";
-  return `<input type="${inputType}" name="${id}" id="widget-contact-${id}"${requiredAttr}${describedByAttr}${extraAttrs}/>`;
+  return `<input type="${inputType}" name="${id}" id="widget-contact-${id}"${constraintAttrs}${describedByAttr}${extraAttrs}/>`;
+}
+
+/** The field's own `maxLength` as a `maxlength` attribute, so the browser stops input at the same
+ *  limit `forms.ts`'s `validateSubmissionPayload` enforces (`too_long`) instead of letting a visitor
+ *  type past it and lose the submission to a server rejection. Only a positive integer renders —
+ *  the value comes from stored JSON, so anything else is dropped rather than interpolated.
+ *  @complexity O(1). */
+function contactFormMaxLengthAttr(maxLength: unknown): string {
+  return typeof maxLength === "number" && Number.isInteger(maxLength) && maxLength > 0 ? ` maxlength="${maxLength}"` : "";
 }
 
 /** One contact-form field descriptor -> its `<div class="widget-form-field">` markup — extracted from
@@ -2361,7 +2371,7 @@ function renderContactFormField(f: JsonValue): string {
   const kind = str(o.type, "text");
   const extraAttrs = renderExtraFieldAttrs(o);
   const errorId = `widget-contact-${id}-error`;
-  const inputEl = renderContactFormInput(kind, id, required, extraAttrs, ` aria-describedby="${errorId}"`);
+  const inputEl = renderContactFormInput(kind, id, required, extraAttrs, ` aria-describedby="${errorId}"`, o.maxLength);
   const errorSlot = `<div class="widget-form-field-error" data-field="${id}" id="${errorId}" hidden></div>`;
   return `<div class="widget-form-field"><label for="widget-contact-${id}">${label}${required ? " *" : ""}</label>${inputEl}${errorSlot}</div>`;
 }

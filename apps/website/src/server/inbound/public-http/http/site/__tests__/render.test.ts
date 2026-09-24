@@ -1490,6 +1490,37 @@ test("widgets: protocol-relative hrefs never reach public HTML through any widge
 // NAME (see that function's own header for why a value's escaping is not enough for a name).
 // ---------------------------------------------------------------------------
 
+test("contact-form widget: a field's maxLength reaches the rendered input as maxlength, so the browser stops typing at the limit instead of the server rejecting the whole submission as too_long", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [{ type: "region", key: "footer" }] });
+  const html = await renderSite({
+    theme,
+    route: "home",
+    siteTitle: "Widgets Demo",
+    posts: [],
+    widgets: widgetsResult({
+      regions: {
+        footer: [
+          {
+            componentId: "contact-form",
+            props: {
+              slug: "contact",
+              fields: [
+                { id: "message", label: "Message", type: "textarea", required: true, maxLength: 500 },
+                { id: "email", label: "Email", type: "email", required: true, maxLength: 120 },
+                { id: "agree", label: "Agree", type: "checkbox", required: false },
+              ],
+              successMessage: null,
+            },
+          },
+        ],
+      },
+    }),
+  });
+  assert.match(html, /<textarea name="message" id="widget-contact-message" required maxlength="500"/);
+  assert.match(html, /<input type="email" name="email" id="widget-contact-email" required maxlength="120"/);
+  assert.doesNotMatch(html, /name="agree"[^>]*maxlength/);
+});
+
 test("contact-form widget: a Tailwind-style className survives intact on the rendered input", async () => {
   const theme = declarativeTheme({ type: "doc", content: [{ type: "region", key: "footer" }] });
   const html = await renderSite({
