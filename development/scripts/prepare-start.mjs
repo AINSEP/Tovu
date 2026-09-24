@@ -1,6 +1,8 @@
 /**
  * `prestart` for the root `npm start`: builds whatever a fresh clone or unzipped copy is missing
- * before `node dist/src/index.js` runs, so "npm install, then npm start" is the whole setup.
+ * before `development/scripts/start.mjs` runs (npm-start-just-works-plan-2026-09-24 Slice 2;
+ * `start.mjs` is what now loads `.env`, ensures a root key, and picks a port before importing the
+ * compiled `dist/src/index.js` in-process), so "npm install, then npm start" is the whole setup.
  *
  * A checkout ships none of the three build outputs `npm start` serves — `dist/` (the server),
  * `apps/admin/dist` (the admin SPA at /admin) and `apps/site-chat/dist` (the public chat script) —
