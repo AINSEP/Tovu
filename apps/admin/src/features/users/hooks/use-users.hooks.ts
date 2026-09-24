@@ -1,4 +1,4 @@
-import { useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 
 import { type AdminIdentityUser, type AdminPolicy, type AdminRole } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
@@ -6,6 +6,7 @@ import { useAsyncAction } from "@/hooks/use-async-action.hooks";
 import { describeApiError, KEYS } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { passwordResetNotice, t } from "../users-i18n";
+import { navigate as realNavigate } from "@/lib/router";
 import { defaultUsersPort } from "./users-dependencies.hooks";
 import type { UsersPort } from "./users-port.hooks";
 
@@ -193,9 +194,22 @@ async function runGrantMutation(
   }
 }
 
-/** What `useUsers` needs injected from outside — see this file's header for the conversion note. */
+/** What `useUsers` needs injected from outside — see this file's header for the conversion note.
+ *
+ *  `openOwnPasswordReset`/`navigate` (password-banner plan, 2026-09-24 Slice 3): the dashboard nag's
+ *  "Change password" link deep-links to `/admin/users/change-password`, which `panels.tsx` turns
+ *  into this flag. Both are optional so every existing `useUsers({ port })` call (this file's own
+ *  tests, `Users.tsx`'s default) keeps working unchanged — the deep link is additive behavior, not a
+ *  new required collaborator. */
 export interface UsersDependencies {
   port: UsersPort;
+  /** When true, auto-opens the reset-password dialog on the caller's own row once it is known —
+   *  see the one-shot effect in {@link useUsers} for why this needs both the flag AND the user list
+   *  AND `me()` to have settled before it can act. */
+  openOwnPasswordReset?: boolean;
+  /** DI seam for `@/lib/router`'s `navigate`, same convention `use-post-editor.hooks.ts`'s `navigate`
+   *  dependency uses — real impl wired only in {@link useWiredUsers}. */
+  navigate?: (path: string, options?: { replace?: boolean }) => void;
 }
 
 /**
@@ -207,9 +221,18 @@ export interface UsersDependencies {
  * @returns The full `UsersController` the view renders from — see that interface for every field.
  */
 export function useUsers(deps: UsersDependencies): UsersController {
-  const { port } = deps;
+  const { port, openOwnPasswordReset = false, navigate } = deps;
   const locale = useAdminLocale();
   const boundT = (key: string): string => t(locale, key);
+
+  // `portRef` (password-banner plan, 2026-09-24 Slice 3 deep-link half): captured once at mount and
+  // never written again, same discipline and same reasoning as `use-assistant-chats.hooks.ts`'s own
+  // `portRef` — the one-shot `me()` effect below must not spin if a caller builds a fresh port object
+  // per render (`apps/admin/INFO.md`'s "Two traps" section). Every OTHER `port.xxx()` call in this
+  // file stays a direct closure read, unaffected — this ref exists only for the raw `useEffect` below,
+  // which is not a `useFetchQuery`/`useFetchMutation` closure and so does not get that discipline for
+  // free.
+  const portRef = useRef(port);
 
   const list = useFetchQuery({
     key: KEYS.list,
@@ -278,6 +301,62 @@ export function useUsers(deps: UsersDependencies): UsersController {
   const [resetPasswordFor, setResetPasswordFor] = useState<AdminIdentityUser | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const resetPassword = useAsyncAction();
+
+  /** The signed-in caller's own principal id (password-banner plan, 2026-09-24 Slice 3), from
+   *  `port.me()`. `null` until that call settles, or forever if it fails — both are treated as
+   *  "unknown", which the deep-link effect below and `confirmResetPassword`'s notice branch both
+   *  already handle as "not a self-reset".
+   *
+   *  Fetched unconditionally (not gated on `openOwnPasswordReset`) — a deliberate choice, not an
+   *  oversight: it makes the "sign in again" notice below correct for ANY self-reset, including an
+   *  admin resetting their OWN row from the ordinary row-menu (no deep link involved), not just the
+   *  one opened via `/users/change-password`. One extra `me()` call per screen load is cheaper than
+   *  threading two different notice code paths for what is, to the operator, the same event. */
+  const [ownPrincipalId, setOwnPrincipalId] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    portRef.current
+      .me()
+      .then((res) => {
+        if (!cancelled) setOwnPrincipalId(res.user.id);
+      })
+      .catch(() => {
+        // Best-effort, see `ownPrincipalId`'s own doc comment above — a failure just means the
+        // deep link can't auto-open and self-resets fall back to the per-username notice.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** Guards the one-shot deep-link auto-open effect below so it fires at most once per mount, even
+   *  as `users`/`ownPrincipalId` keep changing identity across the renders it's waiting on (list
+   *  reloads, `me()` settling). Separate from {@link openedViaDeepLinkRef}, which tracks a DIFFERENT
+   *  question ("should closing the dialog navigate away") over the dialog's own open/close lifetime
+   *  — this one is "has the auto-open already been attempted", which must stay true forever once it
+   *  fires, including after the dialog this effect opened has since been closed. */
+  const deepLinkAttemptedRef = useRef(false);
+  /** Set true exactly when this effect opens the dialog, cleared by the close-effect below the first
+   *  time it observes `resetPasswordFor` go back to `null`. Read there to decide whether to navigate
+   *  — an operator resetting a DIFFERENT row's password from the ordinary row menu, or cancelling a
+   *  normal reset, must not also get shoved to `/users`. */
+  const openedViaDeepLinkRef = useRef(false);
+  useEffect(() => {
+    if (!openOwnPasswordReset || deepLinkAttemptedRef.current) return;
+    if (!users || ownPrincipalId === null) return;
+    const ownRow = users.find((u) => u.principalId === ownPrincipalId);
+    if (!ownRow) return;
+    deepLinkAttemptedRef.current = true;
+    openedViaDeepLinkRef.current = true;
+    openResetPassword(ownRow);
+  }, [openOwnPasswordReset, users, ownPrincipalId]);
+
+  useEffect(() => {
+    if (resetPasswordFor !== null || !openedViaDeepLinkRef.current) return;
+    openedViaDeepLinkRef.current = false;
+    navigate?.("/users");
+  }, [resetPasswordFor, navigate]);
+
   // No `invalidates` — matches the pre-migration `confirmResetPassword`, which never called
   // `reload()` either (a password reset changes nothing the users table shows).
   const resetPasswordMutation = useFetchMutation({
@@ -368,7 +447,16 @@ export function useUsers(deps: UsersDependencies): UsersController {
     // `newPassword` are therefore only cleared in the success path below, never as a `finally`.
     await resetPassword.run(async () => {
       await resetPasswordMutation.mutate({ principalId: resetPasswordFor.principalId, password: newPassword });
-      setNotice(passwordResetNotice(locale, resetPasswordFor.username));
+      // A self-reset (own row, deep-linked or from the ordinary row menu — see `ownPrincipalId`'s
+      // own doc comment) gets the "sign in again" notice instead of the per-username one: the reset
+      // just revoked the CALLER'S OWN session, so the next request 401s and `App.hooks.tsx` sends
+      // them to the login screen — the generic notice naming a DIFFERENT user would be misleading
+      // here, since it's actually their own sign-in that just ended.
+      setNotice(
+        resetPasswordFor.principalId === ownPrincipalId
+          ? t(locale, "Password changed. Sign in again with your new password.")
+          : passwordResetNotice(locale, resetPasswordFor.username),
+      );
       setResetPasswordFor(null);
       setNewPassword("");
     }, (e) => describeApiError(e, t(locale, "failed to reset password"), locale));
@@ -477,12 +565,16 @@ export function useUsers(deps: UsersDependencies): UsersController {
 
 /**
  * Binds the real `/api/.../users`, `/roles`, and `/policies` clients — see
- * `users-dependencies.hooks.ts`. The zero-argument half of the `useX(dependencies)` / `useWiredX()`
- * pair, so `Users.tsx` composes this and a test composes {@link useUsers} with
- * `createFakeUsersPort`.
+ * `users-dependencies.hooks.ts`. The zero-argument (or options-only) half of the
+ * `useX(dependencies)` / `useWiredX()` pair, so `Users.tsx` composes this and a test composes
+ * {@link useUsers} with `createFakeUsersPort`.
  *
- * @returns The same `UsersController` {@link useUsers} returns, wired to the live API client.
+ * @param options - `openOwnPasswordReset`, threaded from `panels.tsx`'s `/users/change-password`
+ *   route (password-banner plan, 2026-09-24 Slice 3). Omitted for every other caller of the Users
+ *   panel, same as before this slice.
+ * @returns The same `UsersController` {@link useUsers} returns, wired to the live API client and
+ *   the real `@/lib/router` navigate.
  */
-export function useWiredUsers(): UsersController {
-  return useUsers({ port: defaultUsersPort });
+export function useWiredUsers(options?: { openOwnPasswordReset?: boolean }): UsersController {
+  return useUsers({ port: defaultUsersPort, navigate: realNavigate, openOwnPasswordReset: options?.openOwnPasswordReset });
 }

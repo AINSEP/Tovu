@@ -48,6 +48,13 @@ beforeEach(() => {
         new Response(JSON.stringify({ data: [] }), { status: 200, headers: { "content-type": "application/json" } }),
       );
     }
+    // `useUsers` now also calls `port.me()` unconditionally on mount (password-banner plan,
+    // 2026-09-24 Slice 3 deep-link half) — see `Users.unit.test.tsx`'s identical interceptor for why
+    // this is routed outside `fetchMock`'s own strictly-ordered queue, and why `.endsWith`, not
+    // `.includes`, so it can't also swallow `/auth/me/password-status`.
+    if (String(url).endsWith("/auth/me")) {
+      return Promise.resolve(jsonResponse({ user: { id: "not-a-seeded-user" } }));
+    }
     return fetchMock(url, init);
   });
 });

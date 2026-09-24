@@ -733,3 +733,61 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     expect(result.current.grantSaving).toBe(false);
   });
 });
+
+describe("openOwnPasswordReset deep link (password-banner plan, 2026-09-24 Slice 3)", () => {
+  it("auto-opens the reset dialog on the caller's OWN row (from me()), not another row", async () => {
+    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY], meId: USER_B.principalId });
+    const { result } = renderHook(() => useUsers({ port, openOwnPasswordReset: true }), { wrapper });
+    await waitFor(() => expect(result.current.users).not.toBeNull());
+
+    await waitFor(() => expect(result.current.resetPasswordFor).toEqual(USER_B));
+  });
+
+  it("does not auto-open the dialog when the flag is false (or omitted)", async () => {
+    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY], meId: USER_B.principalId });
+    const { result } = renderHook(() => useUsers({ port }), { wrapper });
+    await waitFor(() => expect(result.current.users).not.toBeNull());
+
+    // Give the (absent) auto-open effect a tick to have fired if it were wrongly unconditional.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.resetPasswordFor).toBeNull();
+  });
+
+  it("navigates to /users once the deep-link-opened dialog closes", async () => {
+    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY], meId: USER_B.principalId });
+    const navigate = vi.fn();
+    const { result } = renderHook(() => useUsers({ port, openOwnPasswordReset: true, navigate }), { wrapper });
+    await waitFor(() => expect(result.current.resetPasswordFor).toEqual(USER_B));
+
+    act(() => result.current.setResetPasswordFor(null));
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith("/users"));
+  });
+
+  it("does NOT navigate when a normal (non-deep-link) reset dialog is opened and closed", async () => {
+    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    const navigate = vi.fn();
+    const { result } = renderHook(() => useUsers({ port, navigate }), { wrapper });
+    await waitFor(() => expect(result.current.users).not.toBeNull());
+
+    act(() => result.current.openResetPassword(USER_A));
+    act(() => result.current.setResetPasswordFor(null));
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("on a successful self-reset, sets the 'sign in again' notice instead of the per-username notice", async () => {
+    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY], meId: USER_B.principalId });
+    const { result } = renderHook(() => useUsers({ port, openOwnPasswordReset: true }), { wrapper });
+    await waitFor(() => expect(result.current.resetPasswordFor).toEqual(USER_B));
+
+    act(() => result.current.setNewPassword("newpass1"));
+    await act(async () => {
+      await result.current.confirmResetPassword();
+    });
+
+    expect(result.current.notice).toBe("Password changed. Sign in again with your new password.");
+    expect(result.current.notice).not.toContain(USER_B.username);
+  });
+});

@@ -18,6 +18,11 @@ import type { AdminIdentityUser, AdminPolicy, AdminRole } from "@/lib/api";
  */
 export interface UsersPort {
   listUsers(): Promise<{ users: AdminIdentityUser[] }>;
+  /** Password-banner plan (2026-09-24), Slice 3 deep-link half: the SIGNED-IN caller's own id, so
+   *  `use-users.hooks.ts` can find their row and open the reset-password dialog on it without the
+   *  operator having to pick themselves out of the table. Same shape as `api.me()`'s `user` field,
+   *  narrowed to the one field this screen actually needs. */
+  me(): Promise<{ user: { id: string } }>;
   listRoles(): Promise<{ roles: AdminRole[] }>;
   listPolicies(): Promise<{ policies: AdminPolicy[] }>;
   createUser(
