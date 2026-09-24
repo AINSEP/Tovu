@@ -4,6 +4,7 @@ import { adminHref } from "../../lib/router";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { Translate } from "../../lib/dictionary-translator";
 import { agentHandle } from "@jini-ai/agentic";
+import { Icon } from "@jini-ai/ui";
 import { useWiredDashboard, type StatState } from "./hooks/use-dashboard.hooks";
 import { activityRowHref, commentsStatMeta, pagesStatMeta, postsStatMeta } from "./rules";
 import { PublishContentDialog } from "../publish-content/PublishContentDialog";
@@ -115,29 +116,33 @@ function AppearanceBody(props: { themeError: string | null; themeId: string | nu
   );
 }
 
-/** The default-password nag — password-banner plan (2026-09-24), Slice 3. `.notice.warning` is this
- *  admin's current dismissable-nag idiom (`Sites.tsx`'s `SiteDirOverrideNotice`, `Themes.tsx`'s
- *  missing-theme notice, etc. — grepped live for this pass, since `.notice.error`/`.notice.warning`
- *  is the still-current full-border variant, not the retired left-accent one `styles.css:1187-1189`
- *  documents). `role="status"`: this renders on load rather than in response to an action, matching
+/** The default-password nag — password-banner plan (2026-09-24), Slice 3. A compact one-row plain
+ *  `.notice` (neutral surface, only the icon in `--warning`) rather than `.notice.warning`'s orange
+ *  block — owner's call, "cap the width" and "make it subtle". `role="status"`: this renders on load rather than in response to an action, matching
  *  `SiteDirOverrideNotice`'s own `agentHandle` role. */
 function DefaultPasswordBanner({ onDismiss, t }: { onDismiss: () => void; t: Translate }) {
   return (
-    <div className="notice warning dash-password-banner" {...agentHandle("dashboard-password-banner", { role: "status", label: "Nag that the account is still on the default password" })}>
+    <div className="notice dash-password-banner" {...agentHandle("dashboard-password-banner", { role: "status", label: "Nag that the account is still on the default password" })}>
+      <span className="dash-password-banner-icon" aria-hidden="true">
+        <Icon name="alert-triangle" size={16} />
+      </span>
       <p>{t("It is recommended to change your password before deploying")}</p>
       <a
+        className="dash-password-banner-action"
         href={adminHref("/users/change-password")}
         {...agentHandle("dashboard-password-banner-change", { role: "link", label: "Go change your own password" })}
       >
         {t("Change password")}
-      </a>{" "}
+      </a>
       <button
         type="button"
-        className="btn-ghost"
+        className="dash-password-banner-dismiss"
+        aria-label={t("Dismiss")}
+        title={t("Dismiss")}
         onClick={onDismiss}
         {...agentHandle("dashboard-password-banner-dismiss", { role: "button", label: "Dismiss this nag for this browser" })}
       >
-        {t("Dismiss")}
+        <Icon name="close" size={14} />
       </button>
     </div>
   );

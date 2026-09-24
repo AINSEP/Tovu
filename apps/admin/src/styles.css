@@ -1931,6 +1931,26 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    is prose, a list, or a name. The theme moved into a panel for exactly that reason. */
 .dash-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-4); }
 
+/* The default-password nag: a compact one-row plain `.notice` (neutral surface + hairline), with
+   the icon as its only `--warning` accent — owner: "cap the width" and "make it subtle". The link
+   and the × share one muted-to-fg text treatment so they read as a pair. Wraps under ~560px. */
+.notice.dash-password-banner {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-3);
+  max-width: 680px; min-height: 44px; box-sizing: border-box;
+  margin: 0 0 var(--space-4); padding: 0.45rem 0.5rem 0.45rem 0.85rem;
+  border-color: var(--border); box-shadow: none; font-size: var(--text-sm);
+}
+.dash-password-banner p { flex: 1 1 16rem; margin: 0; color: var(--fg-2); }
+.dash-password-banner-icon { display: inline-flex; color: var(--warning); }
+.dash-password-banner-action { font-weight: 600; color: var(--fg); white-space: nowrap; }
+.dash-password-banner-action:hover { color: var(--link); text-decoration: underline; }
+.dash-password-banner-dismiss {
+  display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+  padding: 0; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--muted); cursor: pointer;
+}
+.dash-password-banner-dismiss:hover { background: var(--surface-2); color: var(--fg); }
+.dash-password-banner-dismiss:focus-visible, .dash-password-banner-action:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
 /* "Publish Content" sits directly under "View site ↗" instead of beside it — a column, not
    `.page-actions`'s own row. A modifier on THIS screen's actions row rather than changing
    `.page-actions` itself, which ~39 other screens share and still want laid out as a row.
