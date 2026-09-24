@@ -112,5 +112,12 @@ export function buildCapabilityScopedSdk(
     addFilter: gate("hooks.attach", (hookName: typeof HOOK_CONTENT_ENTRY_BEFORE_SAVE, filter: BeforeSaveFilter) =>
       coreDeps.attachFilter(hookName, filter)
     ),
+    // `ActionHookName`/`ContributionHookName` (@tovu/sdk hooks.ts) have no catalog members yet
+    // (hooks v2 plan §3.3 Waves 1/2 land in a later slice), so no name type-checks as an argument
+    // to either surface today -- both are present-but-unreachable, same "always present" contract
+    // as `addFilter`, gated on the same `hooks.attach` capability. No `coreDeps` backing exists
+    // yet because there is nothing real to delegate to until a hook is cataloged.
+    addAction: gate("hooks.attach", (..._args: never[]) => undefined),
+    addContribution: gate("hooks.attach", (..._args: never[]) => undefined),
   };
 }
