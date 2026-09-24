@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { randomUUID } from "node:crypto";
+
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
+import { createTrashService, InMemoryTrashRepo, REDIRECT_ENTITY_TYPE, createRecordStoreTrashAdapter } from "#src/features/trash/index";
+import type { TrashAdapter } from "#src/features/trash/index";
 import { redirectMatcher } from "../matcher.js";
 import type { RedirectDbHandle } from "../ports.internal.js";
 import { InMemoryRedirectRepo } from "../repo.memory.js";
@@ -20,8 +24,8 @@ import {
   RedirectTargetNotAllowedError,
   RedirectValidationError,
 } from "../types.js";
-import type { RedirectStatus } from "../types.js";
-import { removeVia } from "./remove-redirect-double.js";
+import type { RedirectRecord, RedirectStatus } from "../types.js";
+import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
 
 /**
  * @file T008 — the write chokepoint (`redirects.ts`): validate-before-write
@@ -52,6 +56,8 @@ function makeDeps(opts: { redirectAllowlist?: string[] } = {}): RedirectsWriteDe
   return {
     repo,
     remove: removeVia(repo as unknown as Parameters<typeof removeVia>[0]),
+    isInTrash: isNeverInTrash,
+    restore: restoreVia(repo as unknown as Parameters<typeof removeVia>[0]),
     db: repo as unknown as RedirectDbHandle,
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,
@@ -446,6 +452,8 @@ test("AC-08: a failure inside the transaction wrapper leaves neither the record 
   const deps: RedirectsWriteDeps = {
     repo,
     remove: removeVia(repo as unknown as Parameters<typeof removeVia>[0]),
+    isInTrash: isNeverInTrash,
+    restore: restoreVia(repo as unknown as Parameters<typeof removeVia>[0]),
     db: repo as unknown as RedirectDbHandle,
     transaction: async () => {
       throw new Error("simulated mid-transaction failure");
@@ -673,4 +681,139 @@ test("EC-08: two items in the same batch with the same exact fromPattern — fir
   assert.equal(failed.length, 1);
   assert.equal(failed[0].index, 1);
   assert.equal(failed[0].code, "REDIRECT_CONFLICT");
+});
+
+// ---------------------------------------------------------------------------
+// S7 (web-high fix plan, 2026-09-24) — updateRedirect must refuse a rule that has a real Trash
+// index row, and restore one instead on a pure `status: "active"` PATCH. Built over a REAL
+// `createTrashService` + `InMemoryTrashRepo`, wired to `REDIRECT_ENTITY_TYPE` the same way
+// `server/runtime/composition/app.ts` wires it — not the simplified `removeVia`/`restoreVia` double,
+// which has no Trash index at all (see that file's own header). `isDisableOnlyUpdate`'s "disabled"
+// toggle stays disjoint from the Trash: a rule can be disabled with no Trash row (unchanged today).
+// ---------------------------------------------------------------------------
+
+/** A `RedirectsWriteDeps` whose `remove`/`isInTrash`/`restore` are all bound to ONE real
+ *  `TrashService` (real index insert/delete), so `tombstoneRedirect` genuinely creates a Trash row
+ *  and `isInTrash`/`restore` genuinely see it — the property S7's tests need and the lightweight
+ *  double cannot provide. */
+function makeDepsWithRealTrash(): RedirectsWriteDeps {
+  const repo = new InMemoryRedirectRepo();
+  const originRepo = new InMemoryOriginSettingRepo([
+    {
+      workspaceId: WORKSPACE_ID,
+      origin: createVerifiedOrigin({
+        scheme: "https",
+        host: "trusted.example",
+        verifiedAt: "2026-07-13T00:00:00.000Z",
+        source: "workspace-setting",
+      }),
+      redirectAllowlist: [],
+    },
+  ]);
+  const trashRepo = new InMemoryTrashRepo();
+  const redirectTrashAdapter: TrashAdapter = createRecordStoreTrashAdapter<RedirectRecord>({
+    entityType: REDIRECT_ENTITY_TYPE,
+    store: {
+      findById: (required) => repo.findById(required),
+      save: async (record) => {
+        await repo.insertRedirect(record);
+      },
+    },
+    isHidden: (record) => record.status === "disabled",
+    hidden: (record, at) => ({ ...record, status: "disabled", updatedAt: at }),
+    shown: (record, at) => ({ ...record, status: "active", updatedAt: at }),
+  });
+  const trash = createTrashService({
+    repo: trashRepo,
+    adapters: new Map([[REDIRECT_ENTITY_TYPE, redirectTrashAdapter]]),
+    idGen: { next: () => randomUUID() },
+    transaction: (fn) => fn(),
+  });
+
+  let clockTick = 0;
+  let idTick = 0;
+  return {
+    repo,
+    remove: async (required) => {
+      const result = await trash.trash({
+        workspaceId: required.workspaceId,
+        entityType: REDIRECT_ENTITY_TYPE,
+        entityId: required.id,
+        actor: required.actor,
+        display: required.display,
+        at: required.at,
+        expectedVersion: required.expectedVersion,
+      });
+      if (!result.ok && result.reason === "blocked") {
+        throw new Error("redirects have no blocker — composition bug");
+      }
+      return result as { ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" };
+    },
+    isInTrash: async (required) =>
+      (await trashRepo.findByEntity({ workspaceId: required.workspaceId, entityType: REDIRECT_ENTITY_TYPE, entityId: required.id })) !== null,
+    restore: (required) =>
+      trash.restore({
+        workspaceId: required.workspaceId,
+        entityType: REDIRECT_ENTITY_TYPE,
+        entityId: required.id,
+        at: required.at,
+        actor: required.actor,
+      }),
+    db: repo as unknown as RedirectDbHandle,
+    transaction: async (fn) => fn(),
+    matcher: redirectMatcher,
+    originRegistry: new OriginRegistry({ repo: originRepo }),
+    clock: { nowIso: () => `2026-09-24T00:00:${String(clockTick++).padStart(2, "0")}.000Z` },
+    idGen: { newId: () => `redirect-${++idTick}` },
+    outbox: new InMemoryOutbox(),
+  };
+}
+
+test("S7(a): updateRedirect on a tombstoned rule rejects with the entity-liveness message, version unchanged", async () => {
+  const deps = makeDepsWithRealTrash();
+  const { record } = await createRedirect({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/old", toTarget: "/new", statusCode: 301, actorId: ACTOR_ID },
+  });
+  await tombstoneRedirect({ deps, input: { workspaceId: WORKSPACE_ID, id: record.id, actorId: ACTOR_ID } });
+
+  await assert.rejects(
+    () => updateRedirect({ deps, input: { workspaceId: WORKSPACE_ID, id: record.id, toTarget: "/elsewhere", actorId: ACTOR_ID } }),
+    { message: `ENTITY_IN_TRASH: redirect '${record.id}' is in the Trash. Restore it from the Trash before changing it.` }
+  );
+
+  const after = await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: record.id });
+  assert.equal(after?.version, 2, "the tombstone's own version bump (1 -> 2) must be the last one; the refused update must not bump it again");
+});
+
+test("S7(b): updateRedirect({status:'active'}) on a tombstoned rule restores it — no orphan Trash row", async () => {
+  const deps = makeDepsWithRealTrash();
+  const { record } = await createRedirect({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/old-b", toTarget: "/new-b", statusCode: 301, actorId: ACTOR_ID },
+  });
+  await tombstoneRedirect({ deps, input: { workspaceId: WORKSPACE_ID, id: record.id, actorId: ACTOR_ID } });
+
+  const { record: restored } = await updateRedirect({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, id: record.id, status: "active", actorId: ACTOR_ID },
+  });
+
+  assert.equal(restored.status, "active");
+  assert.equal(await deps.isInTrash({ workspaceId: WORKSPACE_ID, id: record.id }), false, "no orphan Trash row after the restore");
+});
+
+test("S7(c): a rule merely toggled off (status:'disabled', no Trash row) stays fully updatable — unchanged behavior", async () => {
+  const deps = makeDepsWithRealTrash();
+  const { record } = await createRedirect({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/old-c", toTarget: "/new-c", statusCode: 301, actorId: ACTOR_ID },
+  });
+  await updateRedirect({ deps, input: { workspaceId: WORKSPACE_ID, id: record.id, status: "disabled", actorId: ACTOR_ID } });
+
+  const { record: updated } = await updateRedirect({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, id: record.id, toTarget: "/x", actorId: ACTOR_ID },
+  });
+  assert.equal(updated.toTarget, "/x");
 });

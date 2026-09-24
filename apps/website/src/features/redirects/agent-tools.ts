@@ -1,4 +1,4 @@
-import { MAX_PRIORITY, MAX_TARGET_LENGTH, MIN_PRIORITY, MIN_TARGET_LENGTH, VALID_STATUS_CODES } from "./redirects.js";
+import { MAX_IMPORT_BATCH_SIZE, MAX_PRIORITY, MAX_TARGET_LENGTH, MIN_PRIORITY, MIN_TARGET_LENGTH, VALID_STATUS_CODES } from "./redirects.js";
 
 /**
  * @file The Redirects domain's agent-tool catalog, instantiating SPEC-016 REQ-22's
@@ -7,27 +7,19 @@ import { MAX_PRIORITY, MAX_TARGET_LENGTH, MIN_PRIORITY, MIN_TARGET_LENGTH, VALID
  *
  * Purpose:
  * A static, in-process catalog describing every agent-callable tool this domain exposes. Every
- * WIRED entry maps 1:1 onto a real admin HTTP route already exposed to a human operator
+ * entry maps 1:1 onto a real admin HTTP route already exposed to a human operator
  * (`server/routes/admin/redirects/*.ts`) — this catalog never names an operation the admin UI does
  * not already perform.
  *
- * Deliberate absence (the point of a catalog, not an oversight) — of the 7 real admin routes, 1 is
- * withheld:
- * - `redirects_import` (`IMPORT_REDIRECTS`, `importRedirects` in `redirects.ts`). Accepts 1-500
- *   rules per call and routes each one through the identical `createRedirect` chokepoint a single
- *   `redirects_create` call uses — no validation is bypassed at scale (every rule still gets its
- *   own pattern/target-allowlist/duplicate/cycle checks). The dispatch directive names this the
- *   same caution class as Newsletter's excluded `newsletter_import_subscriptions`, and the
- *   underlying MECHANISM is genuinely different — this domain never emails a third party, so there
- *   is no consent/spam risk analogous to Newsletter's. The risk here is a different one: up to 500
- *   live routing rules changed in one autonomous call is a mass, immediate site-behavior change
- *   (which URLs resolve where, including `override:true` rules that preempt already-published
- *   content) with no per-item human review step — the admin UI's own bulk-import affordance is
- *   presumably a deliberate, reviewed CSV/paste action, a materially different trust boundary from
- *   an agent invoking the same batch endpoint autonomously (e.g. under prompt injection from
- *   attacker-controlled content elsewhere in the workspace). `redirects_create`/`redirects_update`/
- *   `redirects_tombstone` (single-rule, reversible, identical validation) remain wired; the bulk
- *   entry point does not.
+ * 2026-09-24 (tool-design audit F2/F3, dispatch item 3): `redirects_import` is now wired. It was
+ * previously withheld as "a mass, immediate site-behavior change with no per-item human review
+ * step" — but every rule still routes through the identical `createRedirect` chokepoint a single
+ * `redirects_create` call uses (no validation bypassed at scale), each import row is reversible the
+ * same way a single created rule is (`redirects_update`/`redirects_tombstone`), and a per-rule
+ * failure never aborts the batch (`importRedirects`'s own `created`/`failed` split, EC-08) — the
+ * same risk envelope as `redirects_create`/`redirects_update`, just N rows instead of one. It is not
+ * a permanent, undoable-only-by-restore action, so the owner's "only permanent deletes hold up an
+ * in-chat confirm" rule leaves it unconfirmed, same as `redirects_create`.
  *
  * `redirects_create`/`redirects_update` both accept `override` (a rule that preempts already-live
  * content resolution rather than only filling a 404). This is real, meaningful behavior — but it is
@@ -44,9 +36,9 @@ import { MAX_PRIORITY, MAX_TARGET_LENGTH, MIN_PRIORITY, MIN_TARGET_LENGTH, VALID
  *
  * Architectural role:
  * `redirects` domain logic. Imports only the constants its own domain already enforces
- * (`redirects.ts`'s length/priority/status-code bounds), so the published JSON Schemas cannot
- * drift from the validators — same discipline `seo/agent-tools.ts` uses for `write-service.ts`'s
- * constants.
+ * (`redirects.ts`'s length/priority/status-code/batch-size bounds), so the published JSON Schemas
+ * cannot drift from the validators — same discipline `seo/agent-tools.ts` uses for
+ * `write-service.ts`'s constants.
  */
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
@@ -59,9 +51,9 @@ export interface AgentToolDefinition {
   /**
    * JSON Schema for this tool's `input`, published via `ToolDescriptor.inputSchema`
    * (`assistant/tool-registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
-   * tool lacking one). Optional, matching `features/database/agent-tools.ts`'s convention — the one
-   * excluded entry (`redirects_import`) carries no schema at all, since one is never published for
-   * a tool the model never sees.
+   * tool lacking one). Optional, matching `features/database/agent-tools.ts`'s convention for a
+   * domain entry that IS deliberately excluded and so carries no schema at all — every entry in
+   * this domain's own catalog is wired, so every entry here declares one.
    */
   inputSchema?: Readonly<Record<string, unknown>>;
 }
@@ -141,6 +133,21 @@ const CREATE_SCHEMA = {
   },
 } as const;
 
+const IMPORT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["rules"],
+  properties: {
+    rules: {
+      type: "array",
+      minItems: 1,
+      maxItems: MAX_IMPORT_BATCH_SIZE,
+      description: `1-${MAX_IMPORT_BATCH_SIZE} redirect rules to create. Each rule is validated and written through the identical chokepoint a single redirects_create call uses (own pattern/target-allowlist/duplicate/cycle checks); one invalid rule does not abort the rest of the batch — check the response's 'failed' list.`,
+      items: CREATE_SCHEMA,
+    },
+  },
+} as const;
+
 const UPDATE_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -215,13 +222,12 @@ export function getRedirectsAgentToolCatalog(): AgentToolDefinition[] {
       inputSchema: REDIRECT_ID_SCHEMA,
     },
     {
-      // EXCLUDED BY DESIGN, never wired: see this file's header. Bulk (1-500 rules) write behind
-      // one call — same caution class as Newsletter's excluded newsletter_import_subscriptions,
-      // even though the underlying risk mechanism differs (no third-party email here).
       name: "redirects_import",
-      description: "Imports a batch of redirect rules. NEVER agent-callable — see file header.",
+      description:
+        `Creates up to ${MAX_IMPORT_BATCH_SIZE} redirect rules in one call. Each rule gets the identical validation a single redirects_create call gets (pattern/target-allowlist/duplicate/cycle checks); a per-rule failure is reported in 'failed' and does not abort the rest of the batch.`,
       sideEffects: "mutates-durable-state",
       authorization: { permission: "admin.redirects.manage" },
+      inputSchema: IMPORT_SCHEMA,
     },
   ];
 }

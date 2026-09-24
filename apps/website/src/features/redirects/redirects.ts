@@ -19,7 +19,7 @@
  * functions directly and map thrown typed errors to HTTP codes per
  * errors.spec.md.
  */
-import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort } from "@jini-ai/cms/core";
+import { assertEntityLive, type ClockPort, type DomainEvent, type IdGeneratorPort, type OutboxPort } from "@jini-ai/cms/core";
 import { hasForbiddenRawUrlCharacter } from "../../features/origin/index.js";
 import type { OriginRegistryPort, RedirectTargetContext } from "../../features/origin/index.js";
 
@@ -84,6 +84,25 @@ export interface RedirectsWriteDeps {
   repo: RedirectRepoPort;
   /** See {@link RemoveRedirectFn}. Replaces `tombstoneRedirect`'s own `status` write. */
   remove: RemoveRedirectFn;
+  /**
+   * Whether this rule has a Trash index row (S7, web-high fix plan 2026-09-24) — the thing
+   * `tombstoneRedirect` creates and Trash restore/purge match on, and NOT the same thing as
+   * `status === "disabled"` (an ordinary toggle-off has no Trash row at all). Structurally typed,
+   * same discipline as {@link RemoveRedirectFn}: this domain imports nothing from `features/trash`.
+   */
+  isInTrash: (required: { workspaceId: string; id: string }) => Promise<boolean>;
+  /**
+   * Un-trashes this rule (S7). Mirrors `TrashPort.restore`'s outcome union structurally, again
+   * without importing `features/trash`. `"adapter-unavailable"` is not reachable for redirects (the
+   * composition root always registers an adapter for `REDIRECT_ENTITY_TYPE`), but is part of the
+   * union it mirrors.
+   */
+  restore: (required: {
+    workspaceId: string;
+    id: string;
+    at: string;
+    actor: { principalId: string; pluginId?: string | null };
+  }) => Promise<"restored" | "not-found" | "version-changed" | "adapter-unavailable">;
   /** The shared, non-tx-opening write handle (Decision A) — used via `ports.internal.ts`. */
   db: RedirectDbHandle;
   /** Opens/commits/rolls back the chokepoint's own transaction around a write. */
@@ -486,6 +505,21 @@ function isDisableOnlyUpdate(fields: UpdatableRedirectFields, existing: Redirect
 }
 
 /**
+ * Whether this update states nothing but `status: "active"` (S7, web-high fix plan 2026-09-24) — a
+ * pure re-enable, which on a rule that is in the Trash means "restore it," the same intent the admin
+ * Redirects screen's Enable toggle already carries for an ordinary disabled rule. Checked against
+ * the INPUT actually sent, not {@link resolveUpdateFields}'s merge over `existing` — unlike
+ * {@link isDisableOnlyUpdate}'s "unchanged" test, a trashed row's OWN stored fields cannot be used as
+ * the comparison basis here, since nothing about being in the Trash guarantees they are still valid
+ * (the whole point of the `else` branch below is that a trashed row may not be edited sight-unseen).
+ *
+ * @complexity O(1) — a fixed set of `undefined` checks.
+ */
+function isRestoreOnlyUpdate(input: UpdateRedirectInput): boolean {
+  return input.status === "active" && NON_STATUS_UPDATABLE_FIELDS.every((key) => input[key] === undefined);
+}
+
+/**
  * Runs every field check a create runs against the merged update, and returns the target to store
  * (one-hop collapsed, AC-16). Split out of {@link updateRedirect} so a disable-only update can skip
  * it as one decision.
@@ -519,12 +553,46 @@ async function validateUpdateFields(
  * C-002: symmetric chokepoint entry for updates (REQ-04). A disable-only update
  * ({@link isDisableOnlyUpdate}) writes the status change without re-validating the unchanged fields
  * — it stores the existing target as-is, with no one-hop collapse.
+ *
+ * S7 (web-high fix plan 2026-09-24): a rule with a Trash index row (`deps.isInTrash`, distinct from
+ * `status === "disabled"` — see {@link RedirectsWriteDeps.isInTrash}'s own doc) refuses every update
+ * EXCEPT a pure `status: "active"` PATCH ({@link isRestoreOnlyUpdate}), which restores it instead of
+ * editing a row the caller cannot see the current shape of.
+ *
+ * @throws {EntityNotLiveError} On a non-restore update to a rule in the Trash.
+ * @throws {RedirectConflictError} If the Trash row's version moved before the restore landed.
  */
 export async function updateRedirect(required: UpdateRedirectRequired): Promise<{ record: RedirectRecord }> {
   const { deps, input } = required;
 
   const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
   if (!existing) throw new RedirectNotFoundError(`redirect '${input.id}' was not found`);
+
+  const inTrash = await deps.isInTrash({ workspaceId: input.workspaceId, id: input.id });
+  if (inTrash) {
+    if (!isRestoreOnlyUpdate(input)) {
+      assertEntityLive({ entityType: "redirect", entityId: input.id, state: "trashed" });
+    }
+
+    const outcome = await deps.restore({
+      workspaceId: input.workspaceId,
+      id: input.id,
+      at: deps.clock.nowIso(),
+      actor: { principalId: input.actorId, pluginId: input.pluginId ?? null },
+    });
+    if (outcome === "not-found") throw new RedirectNotFoundError(`redirect '${input.id}' was not found`);
+    if (outcome === "version-changed") {
+      throw new RedirectConflictError(`redirect '${input.id}' changed while it was being restored`);
+    }
+    if (outcome === "adapter-unavailable") {
+      throw new Error(`trash: no Trash adapter is registered for entity type 'redirect' (id '${input.id}')`);
+    }
+
+    const restored = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
+    if (!restored) throw new RedirectNotFoundError(`redirect '${input.id}' was not found`);
+    await enqueueMutatedEvent(deps, restored, "updated");
+    return { record: restored };
+  }
 
   const fields = resolveUpdateFields(input, existing);
   const finalTarget = isDisableOnlyUpdate(fields, existing)

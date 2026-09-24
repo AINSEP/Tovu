@@ -24,7 +24,7 @@ import { getRedirectsAgentToolCatalog, type AgentToolDefinition } from "../../fe
 import { redirectMatcher } from "../../features/redirects/matcher.js";
 import type { RedirectDbHandle } from "../../features/redirects/ports.internal.js";
 import { InMemoryRedirectRepo } from "../../features/redirects/repo.memory.js";
-import { removeVia } from "../../features/redirects/__tests__/remove-redirect-double.js";
+import { isNeverInTrash, removeVia, restoreVia } from "../../features/redirects/__tests__/remove-redirect-double.js";
 import type { RedirectsWriteDeps } from "../../features/redirects/redirects.js";
 import type { RedirectHitStats } from "../../features/redirects/types.js";
 import type { RedirectHitSink } from "../../features/redirects/ports.js";
@@ -77,6 +77,8 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     // Required since 4bbf54387 routed the tombstone through the injected Trash `remove`. Same
     // record-store double the redirects feature's own tests use; see its header.
     remove: removeVia(redirectRepo),
+    isInTrash: isNeverInTrash,
+    restore: restoreVia(redirectRepo),
     db: redirectRepo as unknown as RedirectDbHandle,
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,

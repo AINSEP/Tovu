@@ -719,6 +719,17 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
     remove: removeEntityWithoutBlocker(bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE)),
+    // S7 (web-high fix plan 2026-09-24) — see `composition/deps.ts`'s identically-documented fields.
+    isInTrash: async (required) =>
+      (await trashRepo.findByEntity({ workspaceId: required.workspaceId, entityType: REDIRECT_ENTITY_TYPE, entityId: required.id })) !== null,
+    restore: (required) =>
+      trash.restore({
+        workspaceId: required.workspaceId,
+        entityType: REDIRECT_ENTITY_TYPE,
+        entityId: required.id,
+        at: required.at,
+        actor: required.actor,
+      }),
     db: redirectRepo,
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,

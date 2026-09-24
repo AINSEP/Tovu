@@ -11,7 +11,7 @@ import type { RedirectDbHandle } from "../ports.internal.js";
 import { contributeRedirectPublish } from "../publish-content.js";
 import { createRedirect, tombstoneRedirect, type RedirectsWriteDeps } from "../redirects.js";
 import { InMemoryRedirectRepo } from "../repo.memory.js";
-import { removeVia } from "./remove-redirect-double.js";
+import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
 
 /**
  * @file S2 (`redirect` publish type) — `features/redirects/publish-content.ts`. Mirrors
@@ -43,6 +43,8 @@ function makeWriteDeps(opts: { redirectAllowlist?: string[] } = {}): RedirectsWr
   return {
     repo,
     remove: removeVia(repo as unknown as Parameters<typeof removeVia>[0]),
+    isInTrash: isNeverInTrash,
+    restore: restoreVia(repo as unknown as Parameters<typeof removeVia>[0]),
     db: repo as unknown as RedirectDbHandle,
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,

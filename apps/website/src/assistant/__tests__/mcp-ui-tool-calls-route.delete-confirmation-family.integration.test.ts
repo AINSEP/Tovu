@@ -39,7 +39,7 @@ import type { RedirectDbHandle } from "#src/features/redirects/ports.internal";
 import { InMemoryRedirectRepo } from "#src/features/redirects/repo.memory";
 import type { RedirectsWriteDeps } from "#src/features/redirects/redirects";
 import { createRedirect } from "#src/features/redirects/redirects";
-import { removeVia } from "#src/features/redirects/__tests__/remove-redirect-double";
+import { isNeverInTrash, removeVia, restoreVia } from "#src/features/redirects/__tests__/remove-redirect-double";
 import { buildRedirectsRegistrations, type RedirectsToolDeps } from "#src/features/redirects/tool-registrations";
 
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/repo.memory";
@@ -254,6 +254,8 @@ async function setupRedirects(surfaceExchanges: SurfaceExchangeStore): ReturnTyp
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
     remove: removeVia(redirectRepo),
+    isInTrash: isNeverInTrash,
+    restore: restoreVia(redirectRepo),
     db: redirectRepo as unknown as RedirectDbHandle,
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,

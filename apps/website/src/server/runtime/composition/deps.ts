@@ -1298,6 +1298,18 @@ export function createSqliteRouteDeps(
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
     remove: removeEntityWithoutBlocker(bindRemoveEntity(trash, REDIRECT_ENTITY_TYPE)),
+    // S7 (web-high fix plan 2026-09-24) — same identity `isInTrash` shape as above, pre-bound to
+    // this domain's entity type. `trash.restore` is the real `TrashPort` method, not a bespoke one.
+    isInTrash: async (required) =>
+      (await trashRepo.findByEntity({ workspaceId: required.workspaceId, entityType: REDIRECT_ENTITY_TYPE, entityId: required.id })) !== null,
+    restore: (required) =>
+      trash.restore({
+        workspaceId: required.workspaceId,
+        entityType: REDIRECT_ENTITY_TYPE,
+        entityId: required.id,
+        at: required.at,
+        actor: required.actor,
+      }),
     db: redirectRepo,
     transaction: (fn) => redirectRepo.transaction(fn),
     matcher: redirectMatcher,

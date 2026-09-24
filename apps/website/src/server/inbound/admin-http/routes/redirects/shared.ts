@@ -1,5 +1,7 @@
 import type { Response } from "express";
 
+import { EntityNotLiveError } from "@jini-ai/cms/core";
+
 import {
   RedirectConflictError,
   RedirectLoopError,
@@ -40,8 +42,12 @@ export function respondToRedirectError(res: Response, err: unknown, mappings: re
   res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
 }
 
-/** The four write-chokepoint errors both `create.ts` and `update.ts` map identically. */
+/** The write-chokepoint errors both `create.ts` and `update.ts` map identically. */
 export const REDIRECT_WRITE_ERROR_MAPPINGS: readonly RedirectErrorMapping[] = [
+  // S7 (web-high fix plan 2026-09-24) — first, ahead of the others: a rule in the Trash rejects
+  // with a fixed code regardless of which OTHER field the caller tried to change. Redirects are
+  // never tombstoned-state (only `EntityLiveness`'s "trashed"), so one fixed code is complete here.
+  { matches: (e) => e instanceof EntityNotLiveError, status: 409, code: "ENTITY_IN_TRASH" },
   { matches: (e) => e instanceof RedirectValidationError, status: 400, code: "REDIRECT_VALIDATION_ERROR" },
   { matches: (e) => e instanceof RedirectTargetNotAllowedError, status: 400, code: "REDIRECT_TARGET_NOT_ALLOWED" },
   { matches: (e) => e instanceof RedirectConflictError, status: 409, code: "REDIRECT_CONFLICT" },

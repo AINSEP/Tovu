@@ -137,6 +137,8 @@ test("the registered redirect contributor's apply() is a real write path, not a 
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
     remove: async () => ({ ok: false, reason: "not-found" }),
+    isInTrash: async () => false,
+    restore: async () => "not-found",
     db: redirectRepo,
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,
