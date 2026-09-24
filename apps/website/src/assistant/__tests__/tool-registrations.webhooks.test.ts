@@ -94,25 +94,18 @@ function wired(deps: RouteDeps, toolId: string): ToolRegistration {
  * this workflow test (the confirmation gate itself is certified by
  * `webhooks/__tests__/agent-tools.delete-confirmation.test.ts`).
  */
-async function callConfirmed(deps: RouteDeps, toolId: string, input: Record<string, unknown>): Promise<unknown> {
+async function deleteSubscriptionConfirmed(deps: RouteDeps, subscriptionId: string): Promise<{ subscription: { status: string; disabledAt: string | null } }> {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === toolId);
-  assert.ok(tool, `expected '${toolId}' to be wired`);
+  const deleteTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "webhooks_delete_subscription");
+  assert.ok(deleteTool, "expected 'webhooks_delete_subscription' to be wired");
   const emitted: unknown[] = [];
-  const pending = tool.handler({ ...executionContext(input), emitSurface: async (s) => void emitted.push(s) });
-  pending.catch(() => {}); // observed below; this only stops an early refusal counting as unhandled
+  const pending = deleteTool.handler({ ...executionContext({ subscriptionId }), emitSurface: async (s) => void emitted.push(s) });
   await new Promise((resolve) => setImmediate(resolve));
-  // A tool that raises no dialog (a read, or a call refused before its dialog) just settles.
-  if (emitted.length === 0) return pending;
   const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
   assert.ok(match, "the surface must carry its exchange id");
-  surfaceExchanges.deliver({ exchangeId: match[1]!, toolId, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
-  return pending;
-}
-
-async function deleteSubscriptionConfirmed(deps: RouteDeps, subscriptionId: string): Promise<{ subscription: { status: string; disabledAt: string | null } }> {
-  return callConfirmed(deps, "webhooks_delete_subscription", { subscriptionId }) as Promise<{ subscription: { status: string; disabledAt: string | null } }>;
+  surfaceExchanges.deliver({ exchangeId: match[1]!, toolId: "webhooks_delete_subscription", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  return pending as Promise<{ subscription: { status: string; disabledAt: string | null } }>;
 }
 
 function catalogEntry(toolId: string): AgentToolDefinition {
@@ -217,7 +210,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     const { deps, authorizeCalls } = fakeRouteDeps();
     authorizeCalls.length = 0;
 
-    await callConfirmed(deps, toolId, TOOL_INPUTS[toolId]);
+    await wired(deps, toolId).handler(executionContext(TOOL_INPUTS[toolId]));
 
     assert.ok(authorizeCalls.length >= 1);
     assert.equal(authorizeCalls[0].principalId, PRINCIPAL_ID);
@@ -230,7 +223,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     const before = await webhookSubscriptionRepo.listByWorkspace({ workspaceId: WORKSPACE_ID });
 
     await assert.rejects(
-      () => callConfirmed(deps, toolId, TOOL_INPUTS[toolId]),
+      () => wired(deps, toolId).handler(executionContext(TOOL_INPUTS[toolId])),
       (error: unknown) => {
         assert.ok(error instanceof Error, `expected an Error, got ${String(error)}`);
         assert.match((error as Error).message, /is not authorized for/);
@@ -272,11 +265,9 @@ test("webhooks_get_deliveries: an unknown subscriptionId propagates WebhookSubsc
 test("workflow: create a subscription, list to confirm it appears, pause it, list again to confirm the status change, then remove it", async () => {
   const { deps } = fakeRouteDeps();
 
-  const created = (await callConfirmed(deps, "webhooks_create_subscription", {
-    label: "  My Endpoint  ",
-    targetUrl: "https://example.test/hooks",
-    topics: ["post.published", "post.published"],
-  })) as { subscription: { id: string; label: string; topics: string[]; status: string; secretVersion: number } };
+  const created = (await wired(deps, "webhooks_create_subscription").handler(
+    executionContext({ label: "  My Endpoint  ", targetUrl: "https://example.test/hooks", topics: ["post.published", "post.published"] }),
+  )) as { subscription: { id: string; label: string; topics: string[]; status: string; secretVersion: number } };
   assert.equal(created.subscription.label, "My Endpoint");
   assert.deepEqual(created.subscription.topics, ["post.published"]);
   assert.equal(created.subscription.status, "active");

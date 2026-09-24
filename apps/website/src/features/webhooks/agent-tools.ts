@@ -166,7 +166,7 @@ export function getWebhooksAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "webhooks_create_subscription",
       description:
-        "Creates a new webhook subscription. Starts active at signing-secret generation 1 — the signing secret itself is never generated or exposed by this tool (it is derived at delivery time from the install root key, never stored). The user sees the target URL and events in a confirmation dialog and must approve before anything is created; if they cancel, the result says created: false.",
+        "Creates a new webhook subscription. Starts active at signing-secret generation 1 — the signing secret itself is never generated or exposed by this tool (it is derived at delivery time from the install root key, never stored).",
       sideEffects: "mutates-durable-state",
       authorization: { permission: "admin.integrations.manage" },
       inputSchema: CREATE_SUBSCRIPTION_SCHEMA,

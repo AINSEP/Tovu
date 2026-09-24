@@ -156,7 +156,6 @@ const EXPECTED_ALLOWLIST = [
   "supabase_set_project_scope",
   "theme_trash_file",
   "trash_item",
-  "webhooks_create_subscription",
   "webhooks_delete_subscription",
   "widgets_trash_instance",
 ];
