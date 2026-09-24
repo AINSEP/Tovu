@@ -46,8 +46,12 @@ export class SqliteUserPurge implements UserPurgePort {
   constructor(private readonly db: ContentDb) {}
 
   /** @complexity O(1): eight fixed DELETE statements plus one INSERT, no loop over caller data. */
-  async purgeUser(required: { workspaceId: UUID; principalId: UUID; event: DomainEvent }): Promise<PurgeCounts> {
-    const { workspaceId, principalId, event } = required;
+  async purgeUser(required: {
+    workspaceId: UUID;
+    principalId: UUID;
+    buildEvent: (removed: PurgeCounts) => DomainEvent;
+  }): Promise<PurgeCounts> {
+    const { workspaceId, principalId, buildEvent } = required;
 
     return this.db.transaction((tx) => {
       const roles = tx
@@ -83,9 +87,10 @@ export class SqliteUserPurge implements UserPurgePort {
         .run();
       tx.delete(principals).where(and(eq(principals.workspaceId, workspaceId), eq(principals.id, principalId))).run();
 
-      tx.insert(outboxEvents).values(outboxRowFor(event)).run();
+      const removed: PurgeCounts = { roles, policies, sessions: sessionCount, apiKeys: apiKeyCount, userSettings };
+      tx.insert(outboxEvents).values(outboxRowFor(buildEvent(removed))).run();
 
-      return { roles, policies, sessions: sessionCount, apiKeys: apiKeyCount, userSettings };
+      return removed;
     });
   }
 }

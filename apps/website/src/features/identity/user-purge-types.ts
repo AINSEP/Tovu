@@ -10,8 +10,17 @@ import type { DomainEvent, UUID } from "@jini-ai/cms/core";
  * repo. `UserPurgePort` is the eleventh: one method, `purgeUser`, that hard-deletes every identity
  * row a principal owns (`principal_roles`, `principal_policies`, `sessions`, `api_keys`,
  * `setting_values_user`, `admin_execution_credentials`, `identity_users`, `principals`) and appends
- * the caller-built audit event, all as one atomic unit — see `user-purge.sqlite.ts`'s class doc for
- * why that atomicity requires a real SQL transaction the in-memory store cannot offer.
+ * an audit event, all as one atomic unit — see `user-purge.sqlite.ts`'s class doc for why that
+ * atomicity requires a real SQL transaction the in-memory store cannot offer.
+ *
+ * `purgeUser` takes a `buildEvent` callback rather than an already-built `DomainEvent` (adjusted
+ * from the delete-user plan's original "caller builds the event" wording, disclosed as a deviation
+ * in the Slice 2 handoff): the event's payload must report exactly which rows were removed
+ * (`PurgeCounts`), and those counts are only known once the deletes have actually run — which, for
+ * the atomicity guarantee above, has to happen inside the SAME transaction as the outbox insert.
+ * The caller (`delete-user-service.ts`) still owns every other event field (id, name, timestamps,
+ * actor, aggregate, payload shape) — it just receives the counts as the callback's argument instead
+ * of guessing them up front.
  *
  * Architectural role:
  * Interfaces and types only — no logic, mirroring `api-key-types.ts`'s own split. The two adapters
@@ -33,11 +42,16 @@ export interface PurgeCounts {
 
 export interface UserPurgePort {
   /**
-   * Hard-deletes `principalId`'s identity rows in `workspaceId` and appends `event` to the outbox,
-   * atomically. `event` is fully built by the caller (`delete-user-service.ts`) — this port only
-   * persists it alongside the purge, it never constructs or interprets one.
+   * Hard-deletes `principalId`'s identity rows in `workspaceId`, then calls `buildEvent` with the
+   * exact counts just removed and appends the returned event to the outbox — all inside the same
+   * atomic unit as the deletes. `buildEvent` must be a pure, synchronous, side-effect-free function
+   * of its `removed` argument (the real adapter calls it mid-transaction).
    */
-  purgeUser(required: { workspaceId: UUID; principalId: UUID; event: DomainEvent }): Promise<PurgeCounts>;
+  purgeUser(required: {
+    workspaceId: UUID;
+    principalId: UUID;
+    buildEvent: (removed: PurgeCounts) => DomainEvent;
+  }): Promise<PurgeCounts>;
 }
 
 /** Thrown by `InMemoryUserPurge.purgeUser` below; mapped to 501 `NOT_SUPPORTED` at the route layer

@@ -15,7 +15,7 @@ import {
   workspaces,
 } from "#src/platform/db/schema.sqlite";
 import { eq } from "drizzle-orm";
-import { InMemoryUserPurge, UserDeleteUnsupportedError } from "../user-purge-types.js";
+import { InMemoryUserPurge, UserDeleteUnsupportedError, type PurgeCounts } from "../user-purge-types.js";
 import { SqliteUserPurge } from "../user-purge.sqlite.js";
 import type { DomainEvent } from "@jini-ai/cms/core";
 
@@ -84,20 +84,18 @@ function seedFullUser(db: ContentDb, principalId: string): void {
     .run();
 }
 
-function buildEvent(principalId: string, eventId = "event-1"): DomainEvent {
-  return {
+/** The `buildEvent` callback `purgeUser` calls with the counts it actually removed — mirrors
+ *  `delete-user-service.ts`'s real event shape closely enough to exercise the port contract. */
+function makeBuildEvent(principalId: string, eventId = "event-1") {
+  return (removed: PurgeCounts): DomainEvent => ({
     id: eventId,
     name: "identity.user.deleted",
     occurredAt: NOW,
     aggregateId: principalId,
     workspaceId: WS,
     actorId: "caller-1",
-    payload: {
-      principalId,
-      username: "ada",
-      removed: { roles: 1, policies: 1, sessions: 2, apiKeys: 1, userSettings: 1 },
-    },
-  };
+    payload: { principalId, username: "ada", removed },
+  });
 }
 
 test("[SqliteUserPurge] purgeUser deletes every identity row, keeps content attribution, records one audit event, and returns exact counts", async () => {
@@ -107,7 +105,7 @@ test("[SqliteUserPurge] purgeUser deletes every identity row, keeps content attr
   seedFullUser(db, principalId);
 
   const purge = new SqliteUserPurge(db);
-  const counts = await purge.purgeUser({ workspaceId: WS, principalId, event: buildEvent(principalId) });
+  const counts = await purge.purgeUser({ workspaceId: WS, principalId, buildEvent: makeBuildEvent(principalId) });
 
   assert.deepEqual(counts, { roles: 1, policies: 1, sessions: 2, apiKeys: 1, userSettings: 1 });
 
@@ -124,7 +122,11 @@ test("[SqliteUserPurge] purgeUser deletes every identity row, keeps content attr
 
   const outboxRows = db.select().from(outboxEvents).all();
   assert.equal(outboxRows.length, 1);
-  assert.equal(JSON.parse(outboxRows[0]!.eventJson).name, "identity.user.deleted");
+  const storedEvent = JSON.parse(outboxRows[0]!.eventJson);
+  assert.equal(storedEvent.name, "identity.user.deleted");
+  // Proves `buildEvent` was called WITH the real counts (not a caller-guessed placeholder) — the
+  // stored payload's `removed` matches the returned counts exactly.
+  assert.deepEqual(storedEvent.payload.removed, counts);
 });
 
 test("[SqliteUserPurge] purgeUser rolls back every delete when the outbox insert fails", async () => {
@@ -133,7 +135,6 @@ test("[SqliteUserPurge] purgeUser rolls back every delete when the outbox insert
   const principalId = "user-2";
   seedFullUser(db, principalId);
 
-  const event = buildEvent(principalId, "dup-event");
   // A pre-existing row with the same id makes the transaction's own INSERT collide on the primary
   // key, forcing the whole `db.transaction()` callback to throw and roll back.
   db.insert(outboxEvents)
@@ -141,7 +142,9 @@ test("[SqliteUserPurge] purgeUser rolls back every delete when the outbox insert
     .run();
 
   const purge = new SqliteUserPurge(db);
-  await assert.rejects(purge.purgeUser({ workspaceId: WS, principalId, event }));
+  await assert.rejects(
+    purge.purgeUser({ workspaceId: WS, principalId, buildEvent: makeBuildEvent(principalId, "dup-event") })
+  );
 
   assert.equal(db.select().from(principals).where(eq(principals.id, principalId)).all().length, 1);
   assert.equal(db.select().from(sessions).where(eq(sessions.principalId, principalId)).all().length, 2);
@@ -150,7 +153,7 @@ test("[SqliteUserPurge] purgeUser rolls back every delete when the outbox insert
 test("[InMemoryUserPurge] purgeUser rejects with the exact unsupported-store message", async () => {
   const purge = new InMemoryUserPurge();
   await assert.rejects(
-    purge.purgeUser({ workspaceId: WS, principalId: "user-1", event: buildEvent("user-1") }),
+    purge.purgeUser({ workspaceId: WS, principalId: "user-1", buildEvent: makeBuildEvent("user-1") }),
     (err: unknown) => err instanceof UserDeleteUnsupportedError && err.message === "user delete requires the SQLite identity store"
   );
 });
