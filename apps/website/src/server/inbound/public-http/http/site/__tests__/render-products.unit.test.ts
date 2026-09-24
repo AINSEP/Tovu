@@ -26,7 +26,7 @@ function minimalContext(overrides: Partial<SiteRenderContext> = {}): SiteRenderC
 }
 
 function siteProduct(overrides: Partial<SiteProduct> = {}): SiteProduct {
-  return { id: "product-1", title: "Classic Boxy Tee", price: 3500, ...overrides };
+  return { id: "product-1", slug: "classic-boxy-tee", title: "Classic Boxy Tee", price: 3500, ...overrides };
 }
 
 test("buildTemplateRenderData: a product's compareAtPrice becomes compareAtPriceFormatted", () => {

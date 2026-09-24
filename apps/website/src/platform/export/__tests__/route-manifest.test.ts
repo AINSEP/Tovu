@@ -293,7 +293,7 @@ test("buildRouteManifest: enumerates products only when the storefront actually 
   );
 
   const store = {
-    listProducts: () => [{ id: "mug-01", title: "Mug", price: 1200, stock: 5, version: 1 }],
+    listProducts: () => [{ id: "mug-01", slug: "mug-01", title: "Mug", price: 1200, stock: 5, version: 1 }],
     checkout: () => ({ ok: false as const, reason: "not-found" as const, retries: 0 }),
   };
   // `store` is read only by `resolveStorefrontProducts`'s own real implementation

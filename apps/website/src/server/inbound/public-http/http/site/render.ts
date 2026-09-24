@@ -82,6 +82,10 @@ export {
  */
 export interface SiteProduct {
   id: string;
+  /** Readable-slugs S7 (2026-09-23): the product's own unique slug — `productEntryList` below
+   *  links by this, not `id`, and `routes/site/products.ts`'s product-detail route resolves either
+   *  (id first, then slug), same fallback contract as posts/pages/menus. */
+  slug: string;
   title: string;
   price: number; // cents
   /**
@@ -1710,7 +1714,11 @@ function productEntryList(ctx: SiteRenderContext): string {
     .map((product, i) => {
       const folio = String(i + 1).padStart(2, "0");
       const price = escapeHtml(formatCents(product.price));
-      return `<li class="entry"><a class="entry-link" href="/products/${escapeHtml(product.id)}"><span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml(product.title)}</h2><p class="entry-meta">${price}</p></a></li>`;
+      // `|| product.id`: defensive, not the normal path — every real `SiteProduct` source
+      // (`storefront.ts`'s `toSiteProduct`, `store-plugin.ts`'s `listProducts`) always sets a real
+      // `slug`. Falls back rather than crashing `escapeHtml` on a caller/test double built against
+      // an older, slug-less `SiteProduct` shape.
+      return `<li class="entry"><a class="entry-link" href="/products/${escapeHtml(product.slug || product.id)}"><span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml(product.title)}</h2><p class="entry-meta">${price}</p></a></li>`;
     })
     .join("");
   const body = items || `<li class="entry entry--empty"><p>No products available yet.</p></li>`;

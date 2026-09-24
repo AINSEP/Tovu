@@ -16,6 +16,11 @@ import { declareDataModule, type DataModuleDecl } from "../data-module.js";
 
 export interface Product {
   id: string;
+  /** Readable-slugs S7 (2026-09-23): same value as `id` for this sample plugin — its ids are
+   *  already short, readable, non-UUID strings, and there is no separate `slug` DB column to add
+   *  one from. Real Commerce products have their own real, author-set slug (`features/commerce
+   *  /types.ts`); this is just the demo store's stand-in for the same shape. */
+  slug: string;
   title: string;
   price: number; // cents
   stock: number;
@@ -65,9 +70,9 @@ export const STORE_MANIFEST: DataModuleDecl = {
 };
 
 export const SEED_PRODUCTS: Product[] = [
-  { id: "prod-teacup", title: "Hand-thrown Teacup", price: 2800, stock: 5, version: 0 },
-  { id: "prod-notebook", title: "Linen Notebook", price: 1600, stock: 5, version: 0 },
-  { id: "prod-candle", title: "Beeswax Candle", price: 1200, stock: 5, version: 0 },
+  { id: "prod-teacup", slug: "prod-teacup", title: "Hand-thrown Teacup", price: 2800, stock: 5, version: 0 },
+  { id: "prod-notebook", slug: "prod-notebook", title: "Linen Notebook", price: 1600, stock: 5, version: 0 },
+  { id: "prod-candle", slug: "prod-candle", title: "Beeswax Candle", price: 1200, stock: 5, version: 0 },
 ];
 
 /** Declare the store's tables through core (snapshot→DDL), seed once, and return the store API. */
@@ -130,9 +135,11 @@ export async function activateStore(
 
   return {
     listProducts(): Product[] {
-      return db
+      const rows = db
         .prepare(`SELECT id, title, price, stock, version FROM "${PRODUCTS}" ORDER BY title`)
-        .all() as Product[];
+        .all() as Omit<Product, "slug">[];
+      // No DB column for `slug` — see the `Product` interface's own doc for why `id` stands in.
+      return rows.map((row) => ({ ...row, slug: row.id }));
     },
     checkout,
   };
