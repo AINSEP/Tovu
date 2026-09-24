@@ -59,13 +59,16 @@ export function persistExecutionConfigWrite(write: ExecutionConfigWrite, failure
 /**
  * `previous` with the Local CLI pick applied: the picked agent, and its model as
  * `selection.model ?? ""` (not a conditional spread, so reverting to "default" persists the
- * reversion instead of leaving an earlier pick in the ledger).
+ * reversion instead of leaving an earlier pick in the ledger). Everything else in `localCli`,
+ * including the saved `reasoningByAgentId`, is kept: rebuilding `localCli` from the agent and model
+ * alone made the save diff the reasoning effort to `""` and wipe it (2026-09-23).
  */
 export function withLocalCliSelection(previous: ExecutionConfig, selection: ChatPaneAgentSelection): ExecutionConfig {
   const agentId = selection.agentId || null;
   return {
     ...previous,
     localCli: {
+      ...previous.localCli,
       agentId,
       modelByAgentId: agentId
         ? { ...previous.localCli.modelByAgentId, [agentId]: selection.model ?? "" }

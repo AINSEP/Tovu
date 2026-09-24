@@ -1914,3 +1914,24 @@ describe("dock picks under StrictMode", () => {
     expect(result.current.executionConfig.byok.model).toBe("gpt-5-mini");
   });
 });
+
+// 2026-09-23: a Local CLI pick rebuilt `localCli` from `agentId` + `modelByAgentId` only, dropping
+// `reasoningByAgentId`, so the save diffed the effort to "" and wiped the operator's saved effort.
+describe("useLocalCliSelection keeps the saved reasoning effort", () => {
+  it("a model pick for the same agent keeps its reasoning effort", () => {
+    const config = localCliConfig({ agentId: "codex", modelByAgentId: { codex: "o3" }, reasoningByAgentId: { codex: "high" } });
+    const setExecutionConfig = stubSetExecutionConfig(config);
+    const { result } = renderHook(() =>
+      useLocalCliSelection({ executionConfig: config, setExecutionConfig, configLoaded: true }),
+    );
+
+    act(() => result.current.handleLocalCliSelectionChange({ agentId: "codex", model: "gpt-5" }));
+
+    expect(mockSaveExecutionConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        localCli: { agentId: "codex", modelByAgentId: { codex: "gpt-5" }, reasoningByAgentId: { codex: "high" } },
+      }),
+      config,
+    );
+  });
+});
