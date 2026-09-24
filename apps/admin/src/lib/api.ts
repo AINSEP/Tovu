@@ -4180,11 +4180,30 @@ export const api = {
   /** `selectedEntityKeys` (the report rows' own `entityType:entityId` keys) narrows the bundle this
    *  push stages on the peer BEFORE it plans — omitted means "everything", which is what an
    *  untouched dialog sends. See `features/publish-content/export-bundle.ts`'s `selectBundleEntities`
-   *  for why a selection is applied at stage time rather than carried into execute. */
-  planPublishContent: ({ peerId, selectedEntityKeys }: { peerId: string; selectedEntityKeys?: readonly string[] }) =>
+   *  for why a selection is applied at stage time rather than carried into execute.
+   *
+   *  `overwriteEntityKeys` (publish-overwrite-live-plan §4/S9) is the operator's ticked "Overwrite on
+   *  live" rows — sent alongside `selectedEntityKeys`, never in place of it, so re-planning against a
+   *  narrower selection never silently drops what was ticked. Omitted means nothing was ticked. */
+  planPublishContent: ({
+    peerId,
+    selectedEntityKeys,
+    overwriteEntityKeys,
+  }: {
+    peerId: string;
+    selectedEntityKeys?: readonly string[];
+    overwriteEntityKeys?: readonly string[];
+  }) =>
     request<PublishContentPlanResult>(`${publishContentPeerPath(peerId)}/push/plan`, {
       method: "POST",
-      ...(selectedEntityKeys === undefined ? {} : { body: JSON.stringify({ selectedEntityKeys }) }),
+      ...(selectedEntityKeys === undefined && overwriteEntityKeys === undefined
+        ? {}
+        : {
+            body: JSON.stringify({
+              ...(selectedEntityKeys === undefined ? {} : { selectedEntityKeys }),
+              ...(overwriteEntityKeys === undefined ? {} : { overwriteEntityKeys }),
+            }),
+          }),
     }),
   confirmPublishContent: (
     { peerId, planId, planHash }: { peerId: string; planId: string; planHash: string },
@@ -4195,13 +4214,21 @@ export const api = {
       body: JSON.stringify({ planId, planHash }),
     }),
   /** `bundleId` comes from `planPublishContent`'s own response and is required: the peer's
-   *  `/import/execute` refuses a confirmation token against any bundle but the one it planned. */
+   *  `/import/execute` refuses a confirmation token against any bundle but the one it planned.
+   *  `overwriteEntityKeys` (publish-overwrite-live-plan §4/S9) is echoed straight from the confirmed
+   *  plan's own `overwriteEntityKeys` — never re-derived here — so execute can only force the exact
+   *  set the operator's plan was already confirmed against. */
   executePublishContent: (
-    { peerId, bundleId, confirmationToken }: { peerId: string; bundleId: string; confirmationToken: string },
+    {
+      peerId,
+      bundleId,
+      confirmationToken,
+      overwriteEntityKeys,
+    }: { peerId: string; bundleId: string; confirmationToken: string; overwriteEntityKeys?: readonly string[] },
     _options: Record<string, never> = {}
   ) =>
     request<PublishContentExecuteResult>(`${publishContentPeerPath(peerId)}/push/execute`, {
       method: "POST",
-      body: JSON.stringify({ bundleId, confirmationToken }),
+      body: JSON.stringify({ bundleId, confirmationToken, ...(overwriteEntityKeys === undefined ? {} : { overwriteEntityKeys }) }),
     }),
 };

@@ -52,6 +52,10 @@ export interface FakePublishContentPortOptions {
    *  derived from `destination.candidateUrl`, matching what the real route returns on `201`. */
   connectResult?: AdminPublishDestinationView;
   connectError?: Error;
+  /** publish-overwrite-live-plan §4/S9 — what `planPublish` echoes as `liveCanOverwrite`. Defaults to
+   *  `true`, the honest floor for a fake that otherwise has no peer-capability concept at all; a test
+   *  for the older-live case sets this to `false`. */
+  liveCanOverwrite?: boolean;
 }
 
 /** The honest-floor default {@link FakePublishContentPortOptions.destination} — mirrors
@@ -71,9 +75,9 @@ export interface FakePublishContentPortCalls {
   readonly listPeers: number;
   readonly getDestination: number;
   readonly connectDestination: Array<{ siteUrl?: string }>;
-  readonly planPublish: Array<{ peerId: string; selectedEntityKeys?: readonly string[] }>;
+  readonly planPublish: Array<{ peerId: string; selectedEntityKeys?: readonly string[]; overwriteEntityKeys?: readonly string[] }>;
   readonly confirmPublish: Array<{ peerId: string; planId: string; planHash: string }>;
-  readonly executePublish: Array<{ peerId: string; bundleId: string; confirmationToken: string }>;
+  readonly executePublish: Array<{ peerId: string; bundleId: string; confirmationToken: string; overwriteEntityKeys?: readonly string[] }>;
 }
 
 /**
@@ -129,24 +133,38 @@ export function createFakePublishContentPort(
       calls.planPublish.push(input);
       if (options.planError) throw options.planError;
       const report = options.report ?? { refused: false, refusalReason: null, applyOrder: [], rows: [] };
-      if (input.selectedEntityKeys === undefined) {
-        return {
-          planId: options.planId ?? "fake-plan",
-          planHash: options.planHash ?? "fake-plan-hash",
-          bundleId: options.bundleId ?? "fake-bundle",
-          details: report,
-        };
-      }
+      const liveCanOverwrite = options.liveCanOverwrite ?? true;
+
       // A narrowed push stages a DIFFERENT bundle and therefore gets a different plan back — the
       // real route returns a fresh `bundleId` from `pushBundleToPeer` every call, and the peer plans
       // only what it was actually given (`export-bundle.ts`'s `selectBundleEntities`). Modelled here
-      // so a test can tell the two plans apart and prove which one execute redeemed.
-      const selected = new Set(input.selectedEntityKeys);
+      // so a test can tell the plans apart and prove which one execute redeemed.
+      let rows = report.rows;
+      let idSuffix = "";
+      if (input.selectedEntityKeys !== undefined) {
+        const selected = new Set(input.selectedEntityKeys);
+        rows = rows.filter((row) => selected.has(`${row.entityType}:${row.entityId}`));
+        idSuffix += "-narrowed";
+      }
+      // publish-overwrite-live-plan §4/S9 — a row named in `overwriteEntityKeys` comes back `forced`,
+      // the same outcome a real peer's planner gives a resolvable slug clash or conflict once the
+      // operator ticks it, so the fake exercises the same "ticking turns a skipped row into a
+      // publishable one" path the dialog and hook actually depend on.
+      if (input.overwriteEntityKeys !== undefined && input.overwriteEntityKeys.length > 0) {
+        const overwrite = new Set(input.overwriteEntityKeys);
+        rows = rows.map((row) =>
+          overwrite.has(`${row.entityType}:${row.entityId}`) ? { ...row, outcome: "forced" as const, writes: true } : row
+        );
+        idSuffix += "-overwrite";
+      }
+
       return {
-        planId: `${options.planId ?? "fake-plan"}-narrowed`,
-        planHash: `${options.planHash ?? "fake-plan-hash"}-narrowed`,
-        bundleId: `${options.bundleId ?? "fake-bundle"}-narrowed`,
-        details: { ...report, rows: report.rows.filter((row) => selected.has(`${row.entityType}:${row.entityId}`)) },
+        planId: `${options.planId ?? "fake-plan"}${idSuffix}`,
+        planHash: `${options.planHash ?? "fake-plan-hash"}${idSuffix}`,
+        bundleId: `${options.bundleId ?? "fake-bundle"}${idSuffix}`,
+        details: idSuffix === "" ? report : { ...report, rows },
+        liveCanOverwrite,
+        ...(input.overwriteEntityKeys === undefined ? {} : { overwriteEntityKeys: input.overwriteEntityKeys }),
       };
     },
     async confirmPublish(input): Promise<PublishContentConfirmResult> {

@@ -53,8 +53,18 @@ export interface PublishContentPort {
    * destination is given to plan, so an excluded entity is never staged there at all. Omitted means
    * "everything", which is the first plan the dialog always asks for; a second, narrowed plan is
    * requested only when the operator actually unchecked something.
+   *
+   * `overwriteEntityKeys` (publish-overwrite-live-plan §4/S9) is the operator's ticked "Overwrite on
+   * live" rows. `use-publish-content-confirm.hooks.ts` re-plans with this the moment a box is
+   * ticked, independent of any `selectedEntityKeys` narrowing — the two combine, neither replaces the
+   * other. `PublishContentPlanResult.overwriteEntityKeys` echoes exactly what was sent, and
+   * `liveCanOverwrite` says whether the peer can honour it at all.
    */
-  planPublish(input: { peerId: string; selectedEntityKeys?: readonly string[] }): Promise<PublishContentPlanResult>;
+  planPublish(input: {
+    peerId: string;
+    selectedEntityKeys?: readonly string[];
+    overwriteEntityKeys?: readonly string[];
+  }): Promise<PublishContentPlanResult>;
   /** `publish_content.apply`. Issues the one token that authorizes an execute. */
   confirmPublish(input: { peerId: string; planId: string; planHash: string }): Promise<PublishContentConfirmResult>;
   /**
@@ -64,10 +74,14 @@ export interface PublishContentPort {
    * `/import/execute` refuses a confirmation token presented against any bundle but the one it
    * planned, so the client carries the value across the ceremony rather than the server keeping
    * implicit per-operator state between two requests.
+   *
+   * `overwriteEntityKeys` (S9) is always the CONFIRMED plan's own echoed value, never a fresh read of
+   * operator state — see `use-publish-content-confirm.hooks.ts`'s execute effect.
    */
   executePublish(input: {
     peerId: string;
     bundleId: string;
     confirmationToken: string;
+    overwriteEntityKeys?: readonly string[];
   }): Promise<PublishContentExecuteResult>;
 }
