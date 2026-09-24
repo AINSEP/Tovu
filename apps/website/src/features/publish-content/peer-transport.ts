@@ -4,6 +4,7 @@ import type { PublishContentExportEnvelope } from "./export-bundle.js";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "./artifact-format.js";
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 import type { ResolvedPeerCredential } from "./peers.js";
+import type { PackedEntity } from "./type-registry.js";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -206,6 +207,13 @@ function requireObject(value: unknown, what: string, baseUrl: string): Record<st
   return value as Record<string, unknown>;
 }
 
+/** One entity type this bundle held that the peer's own S-F1 capability probe said it cannot
+ *  accept — see {@link PushBundleResult.notSupportedByLive}. */
+export interface NotSupportedByLiveEntry {
+  readonly entityType: string;
+  readonly count: number;
+}
+
 export interface PushBundleResult {
   /** The bundle id the PEER minted for the staged bundle — required again at execute. */
   readonly bundleId: string;
@@ -217,6 +225,91 @@ export interface PushBundleResult {
   /** The peer's gated plan, verbatim — `{domain, planId, planHash, details}`. `details` is the
    *  `PublishContentReport` the operator's confirm decision is made against. */
   readonly plan: Record<string, unknown>;
+  /** Entity types this bundle held that {@link pushBundleToPeer}'s own capability probe found the
+   *  peer cannot accept (an older Tovu, or a grant that has not opted into that type yet), grouped
+   *  with a count. Their entities were removed from the bundle BEFORE anything was staged or
+   *  uploaded — never sent, never counted in {@link blobsUploaded}/{@link blobsUnavailable}, and
+   *  never appearing as a row in `plan`. Empty when the peer accepted every type, or when the
+   *  bundle carried no entities at all (the probe is skipped entirely in that case — see
+   *  {@link pushBundleToPeer}). */
+  readonly notSupportedByLive: readonly NotSupportedByLiveEntry[];
+}
+
+/** The fixed set every peer predating S-F1's `/capabilities` route accepts — `bundle-create.ts`'s
+ *  original `deploy/publish-trust.json` grant, before `theme-files`/`redirect`/anything newer ever
+ *  existed. Used only when the probe below reads an ordinary 404: a peer that old never claimed to
+ *  support more, so the absence of the route is read as this fixed answer, not as a failure. */
+const LEGACY_PEER_ENTITY_TYPES: readonly string[] = ["post", "page", "media"];
+
+/**
+ * Probes the peer's own `GET .../capabilities` route (`routes/publish-content/capabilities.ts`) for
+ * what it currently accepts.
+ *
+ * A 404 — the shape Express gives an unmatched route, which is exactly what a peer built before
+ * this route existed returns — is read as {@link LEGACY_PEER_ENTITY_TYPES}, not as an error: that
+ * peer never claimed to accept anything else. Every OTHER failure (egress refusal, an unreachable
+ * host, a non-2xx status that is not 404, a malformed body) propagates unchanged, the same
+ * fail-closed posture every other call in this module already takes.
+ *
+ * @complexity O(1) plus one network round trip.
+ */
+async function probePeerCapabilities(deps: PeerCallDeps): Promise<readonly string[]> {
+  const { credential } = deps;
+  let probed: Record<string, unknown>;
+  try {
+    probed = requireObject(
+      await callPeer(deps, { method: "GET", path: peerRoute(credential, "/capabilities") }),
+      "capabilities",
+      credential.baseUrl
+    );
+  } catch (err) {
+    if (err instanceof PublishContentPeerTransportError && err.peerStatus === 404) {
+      return LEGACY_PEER_ENTITY_TYPES;
+    }
+    throw err;
+  }
+
+  if (!Array.isArray(probed.entityTypes) || !probed.entityTypes.every((entityType) => typeof entityType === "string")) {
+    throw new PublishContentPeerTransportError(
+      `the peer's capabilities response carried no 'entityTypes' array — is '${peerHostname(credential.baseUrl)}' a Tovu instance?`,
+      "PEER_RESPONSE_INVALID"
+    );
+  }
+  return probed.entityTypes as string[];
+}
+
+/**
+ * Narrows a bundle to the entity types a peer just reported it accepts, so the whole-bundle refusal
+ * `bundle-create.ts`'s own grant check produces for ONE unsupported type never happens at all.
+ *
+ * The excluded entities are counted and grouped by type rather than silently dropped — that grouping
+ * is exactly {@link PushBundleResult.notSupportedByLive}, which the caller surfaces to a person
+ * (`publish-confirmation-ui.ts`'s `describeNotSupportedByLive`). `blobManifest` is recomputed from
+ * the SURVIVING entities only, mirroring `export-bundle.ts`'s `selectBundleEntities`: a push must
+ * never upload bytes that belong solely to an entity it is about to leave behind.
+ *
+ * @complexity O(e) time and space in the bundle's entity count.
+ */
+function trimBundleToCapabilities(
+  bundle: PublishContentExportEnvelope,
+  acceptedEntityTypes: readonly string[]
+): { bundle: PublishContentExportEnvelope; notSupportedByLive: readonly NotSupportedByLiveEntry[] } {
+  const accepted = new Set(acceptedEntityTypes);
+  const kept: PackedEntity[] = [];
+  const excludedCounts = new Map<string, number>();
+  for (const entity of bundle.entities) {
+    if (accepted.has(entity.entityType)) kept.push(entity);
+    else excludedCounts.set(entity.entityType, (excludedCounts.get(entity.entityType) ?? 0) + 1);
+  }
+  if (excludedCounts.size === 0) return { bundle, notSupportedByLive: [] };
+
+  const requiredBlobs = new Set<string>();
+  for (const entity of kept) for (const sha of entity.requiredBlobs) requiredBlobs.add(sha);
+
+  return {
+    bundle: { ...bundle, entities: kept, blobManifest: Array.from(requiredBlobs) },
+    notSupportedByLive: Array.from(excludedCounts, ([entityType, count]) => ({ entityType, count })),
+  };
 }
 
 /**
@@ -238,7 +331,18 @@ export async function pushBundleToPeer(
   required: { bundle: PublishContentExportEnvelope }
 ): Promise<PushBundleResult> {
   const { credential } = deps;
-  const { bundle } = required;
+
+  // S-F1: probe, then trim, BEFORE any blob is probed or uploaded — an excluded entity's blobs must
+  // never be sent either. Skipped for an empty bundle: trimming nothing needs no round trip, the
+  // same short-circuit the blob probe below already takes for an empty `blobManifest`.
+  let bundle = required.bundle;
+  let notSupportedByLive: readonly NotSupportedByLiveEntry[] = [];
+  if (bundle.entities.length > 0) {
+    const accepted = await probePeerCapabilities(deps);
+    const trimmed = trimBundleToCapabilities(bundle, accepted);
+    bundle = trimmed.bundle;
+    notSupportedByLive = trimmed.notSupportedByLive;
+  }
 
   const blobsUploaded: string[] = [];
   const blobsUnavailable: string[] = [];
@@ -301,7 +405,7 @@ export async function pushBundleToPeer(
     credential.baseUrl
   );
 
-  return { bundleId, blobsUploaded, blobsUnavailable, plan };
+  return { bundleId, blobsUploaded, blobsUnavailable, plan, notSupportedByLive };
 }
 
 /**

@@ -11,6 +11,7 @@ import { registerPublishContentBlobsProbeRoute } from "#src/server/inbound/admin
 import { registerPublishContentBlobPutRoute } from "#src/server/inbound/admin-http/routes/publish-content/blob-put";
 import { registerPublishContentBlobGetRoute } from "#src/server/inbound/admin-http/routes/publish-content/blob-get";
 import { registerPublishContentBundleCreateRoute } from "#src/server/inbound/admin-http/routes/publish-content/bundle-create";
+import { registerPublishContentCapabilitiesRoute } from "#src/server/inbound/admin-http/routes/publish-content/capabilities";
 import { registerPublishContentImportRoutes } from "#src/server/inbound/admin-http/routes/publish-content/import";
 import { registerPublishContentPeerRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peers";
 import { registerPublishContentPeerTransportRoutes } from "#src/server/inbound/admin-http/routes/publish-content/peer-transport";
@@ -80,6 +81,9 @@ export function createPublishContentModule(deps: PublishContentRouteDeps): Serve
       // `blob-get.ts`'s own header for why that is the read-side permission and not a relaxation.
       registerPublishContentBlobGetRoute(app, deps);
       registerPublishContentBundleCreateRoute(app, deps);
+      // S-F1: what THIS instance can accept, probed by a pushing peer BEFORE it stages a bundle —
+      // see `capabilities.ts`'s header for why this has to run ahead of `bundles`, not beside it.
+      registerPublishContentCapabilitiesRoute(app, deps);
       registerPublishContentImportRoutes(app, deps);
       // Task 10: peer CRUD, then the outbound push/pull driver that dials a peer's own copies of
       // the routes registered above.

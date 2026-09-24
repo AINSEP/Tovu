@@ -13,6 +13,7 @@ import {
   PublishContentPeerTransportError,
 } from "../peer-transport.js";
 import type { ResolvedPeerCredential } from "../peers.js";
+import type { PackedEntity } from "../type-registry.js";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -75,6 +76,19 @@ function bundle(overrides: Partial<PublishContentExportEnvelope> = {}): PublishC
     sourceLabel: "Local Site",
     entities: [],
     blobManifest: [],
+    ...overrides,
+  };
+}
+
+function packedEntity(overrides: Partial<PackedEntity> = {}): PackedEntity {
+  return {
+    entityType: "post",
+    id: "e1",
+    schemaVersion: 1,
+    contentHash: "hash1",
+    hashVersion: 1,
+    requiredBlobs: [],
+    state: {},
     ...overrides,
   };
 }
@@ -205,6 +219,101 @@ test("push skips the probe entirely when the bundle needs no blobs", async () =>
   ]);
   await pushBundleToPeer(pushDeps(http), { bundle: bundle() });
   assert.equal(http.calls.some((call) => call.url.includes("/blobs/")), false);
+});
+
+// ---------------------------------------------------------------------------
+// S-F1: the capabilities probe + trim — `ADS-memory/.local-artifacts/publish-files-plan-2026-09-24.md` §5/§6.
+// ---------------------------------------------------------------------------
+
+test("push skips the capabilities probe entirely when the bundle has no entities", async () => {
+  const http = new FakeHttpClient([
+    { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
+    { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
+  ]);
+  const result = await pushBundleToPeer(pushDeps(http), { bundle: bundle() });
+  assert.equal(http.calls.some((call) => call.url.includes("/capabilities")), false);
+  assert.deepEqual(result.notSupportedByLive, []);
+});
+
+test("push probes capabilities BEFORE blobs/bundle/plan, trims to the legacy set on a 404, and reports what stayed behind", async () => {
+  const shaMedia = "1".repeat(64);
+  const shaRedirect = "2".repeat(64);
+  const http = new FakeHttpClient([
+    { match: /\/capabilities$/, status: 404 },
+    { match: /\/blobs\/probe$/, json: { missing: [] } },
+    { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
+    { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
+  ]);
+
+  const result = await pushBundleToPeer(pushDeps(http), {
+    bundle: bundle({
+      entities: [
+        packedEntity({ entityType: "post", id: "p1" }),
+        packedEntity({ entityType: "media", id: "m1", requiredBlobs: [shaMedia] }),
+        packedEntity({ entityType: "redirect", id: "r1", requiredBlobs: [shaRedirect] }),
+      ],
+      blobManifest: [shaMedia, shaRedirect],
+    }),
+  });
+
+  // A 404 means legacy `{post,page,media}` — the redirect is left behind, never an error.
+  assert.deepEqual(result.notSupportedByLive, [{ entityType: "redirect", count: 1 }]);
+
+  assert.deepEqual(
+    http.calls.map((call) => `${call.method} ${call.url.replace(/^https:\/\/tovu\.example\.com/, "")}`),
+    [
+      "GET /api/admin/v1/workspaces/remote-ws-9/publish-content/capabilities",
+      "POST /api/admin/v1/workspaces/remote-ws-9/publish-content/blobs/probe",
+      "POST /api/admin/v1/workspaces/remote-ws-9/publish-content/bundles",
+      "POST /api/admin/v1/workspaces/remote-ws-9/publish-content/import/plan",
+    ]
+  );
+
+  // The redirect's own blob is never even probed — its entity was already trimmed out before the
+  // blob leg ran, so no bytes are wasted uploading something that will not be sent.
+  assert.deepEqual(JSON.parse(http.calls[1].body ?? "{}"), { shas: [shaMedia] });
+
+  // The bundle actually staged on the peer holds only the two accepted types.
+  const staged = JSON.parse(http.calls[2].body ?? "{}") as { entities: Array<{ entityType: string }> };
+  assert.deepEqual(staged.entities.map((entity) => entity.entityType), ["post", "media"]);
+});
+
+test("a peer that names its own accepted types trims to exactly those, counting each excluded type separately", async () => {
+  const http = new FakeHttpClient([
+    { match: /\/capabilities$/, json: { entityTypes: ["post"] } },
+    { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
+    { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
+  ]);
+
+  const result = await pushBundleToPeer(pushDeps(http), {
+    bundle: bundle({
+      entities: [
+        packedEntity({ entityType: "post", id: "p1" }),
+        packedEntity({ entityType: "media", id: "m1" }),
+        packedEntity({ entityType: "media", id: "m2" }),
+      ],
+    }),
+  });
+
+  assert.deepEqual(result.notSupportedByLive, [{ entityType: "media", count: 2 }]);
+  assert.equal(http.calls.some((call) => call.url.includes("/blobs/")), false, "nothing here has a requiredBlob");
+});
+
+test("a capabilities response with no entityTypes array is a response-shape failure, not a silent 'accepts nothing'", async () => {
+  const http = new FakeHttpClient([{ match: /\/capabilities$/, json: { ok: true } }]);
+  await assert.rejects(
+    () => pushBundleToPeer(pushDeps(http), { bundle: bundle({ entities: [packedEntity()] }) }),
+    (err: unknown) => err instanceof PublishContentPeerTransportError && err.code === "PEER_RESPONSE_INVALID"
+  );
+});
+
+test("a non-404 capabilities failure aborts the push rather than silently falling back to the legacy set", async () => {
+  const http = new FakeHttpClient([{ match: /\/capabilities$/, status: 500, bodyText: "boom" }]);
+  await assert.rejects(
+    () => pushBundleToPeer(pushDeps(http), { bundle: bundle({ entities: [packedEntity()] }) }),
+    (err: unknown) =>
+      err instanceof PublishContentPeerTransportError && err.code === "PEER_REJECTED" && err.peerStatus === 500
+  );
 });
 
 test("a peer that stages without returning a bundleId is a response-shape failure, not a silent undefined", async () => {

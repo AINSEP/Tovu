@@ -68,6 +68,7 @@ import type { PublishContentOutcomeRow } from "./planner.js";
 import {
   buildPublishConfirmationResource,
   countPublishChanges,
+  describeNotSupportedByLive,
   describePublishChanges,
   describePublishResult,
   publishWouldChangeNothing,
@@ -440,7 +441,19 @@ export function buildPublishContentRegistrations(
       if (publishWouldChangeNothing(counts)) {
         // Nothing would be written, so there is nothing to ask about. Spending the one question
         // this design gets to ask on a no-op is how people learn to click through the real ones.
-        return { published: false, message: describePublishChanges(counts, destination.label), nextStep: null, counts };
+        //
+        // But "nothing would change" can ALSO mean every entity this run tried to send was one
+        // `pushBundleToPeer`'s own capability probe just removed (S-F1) — an older destination, or a
+        // grant that has not opted into the type yet. That is not the same as "already up to date",
+        // and saying so plainly is the whole point of asking the probe in the first place.
+        const notSupportedMessage = describeNotSupportedByLive(pushed.notSupportedByLive, destination.label);
+        return {
+          published: false,
+          message: notSupportedMessage ?? describePublishChanges(counts, destination.label),
+          nextStep: null,
+          counts,
+          notSupportedByLive: pushed.notSupportedByLive,
+        };
       }
 
       const exchange: SurfaceExchange = surfaces.surfaceExchanges.open(
@@ -484,12 +497,20 @@ export function buildPublishContentRegistrations(
         // from than the PLAN's own `counts` — computed above, before this call, from the same rows.
         await executePeerImport(peer, { bundleId: pushed.bundleId, confirmationToken });
 
+        // `pushed.notSupportedByLive` was decided BEFORE the plan (S-F1's probe runs ahead of
+        // staging), so it names types held back from this very publish, not a stale value from an
+        // earlier attempt — appended to the past-tense result sentence rather than folded into
+        // `leftAlone`, which only ever describes rows the DESTINATION's own plan produced.
+        const notSupportedMessage = describeNotSupportedByLive(pushed.notSupportedByLive, destination.label);
         return {
           published: true,
-          message: describePublishResult(counts, destination.label),
+          message: notSupportedMessage
+            ? `${describePublishResult(counts, destination.label)} ${notSupportedMessage}`
+            : describePublishResult(counts, destination.label),
           nextStep: null,
           counts,
           leftAlone: summarizeLeftAlone(plan.rows),
+          notSupportedByLive: pushed.notSupportedByLive,
         };
       } catch (err) {
         if (err instanceof PublishContentPeerTransportError) {

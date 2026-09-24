@@ -3,6 +3,7 @@ import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@
 import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
 
 import { PUBLISH_CONTENT_PUBLISH_TOOL_ID } from "./agent-tools.js";
+import type { NotSupportedByLiveEntry } from "./peer-transport.js";
 import type { PublishContentOutcomeKind, PublishContentOutcomeRow } from "./planner.js";
 
 /**
@@ -277,6 +278,54 @@ export function summarizeLeftAlone(rows: readonly PublishContentOutcomeRow[]): r
     });
   }
   return groups;
+}
+
+/** A human plural noun for a registered entity type, for {@link describeNotSupportedByLive}'s
+ *  sentence. Not every type pluralizes with a trailing "s" (`media` already is one), so known types
+ *  are named explicitly; an unrecognised type falls back to `<type>s` — degraded, never wrong,
+ *  mirroring `entityDisplayLabel`'s own "unknown field -> null, never throw" posture. */
+const ENTITY_TYPE_PLURAL: Record<string, string> = {
+  post: "posts",
+  page: "pages",
+  media: "media",
+  redirect: "redirects",
+};
+
+/** "3 posts" / "1 redirect" — the count plus this type's plural noun.
+ *  @complexity O(1). */
+function countedEntityTypeLabel(entry: NotSupportedByLiveEntry): string {
+  const noun = ENTITY_TYPE_PLURAL[entry.entityType] ?? `${entry.entityType}s`;
+  return `${entry.count} ${noun}`;
+}
+
+/** Joins counted labels the way a sentence does — "3 posts", "3 posts and 1 redirect",
+ *  "3 posts, 1 redirect and 2 pages". Mirrors `publish-readiness.ts`'s own local `nameList`; kept
+ *  as a separate copy per this codebase's "each file owns its own small fixture/helper" convention
+ *  rather than exporting a cross-file utility for three lines of logic.
+ *  @complexity O(n) in the list length. */
+function joinCountedLabels(labels: readonly string[]): string {
+  if (labels.length === 1) return labels[0] as string;
+  return `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1] as string}`;
+}
+
+/**
+ * One sentence saying what a push left behind because the live site cannot accept it yet — S-F1 of
+ * `ADS-memory/.local-artifacts/publish-files-plan-2026-09-24.md` §5/§6.
+ *
+ * `null` when {@link entries} is empty, so a caller can splice this straight onto another sentence
+ * without an empty-string artifact (`describePublishResult(...) + (extra ?? "")` would otherwise
+ * leave a trailing space). Distinct from {@link summarizeLeftAlone}'s `"type-not-supported-by-live"`
+ * group: that group covers a row the DESTINATION's own planner marked `blocked` because it has no
+ * registered handler for the type at all; this sentence covers entities that were removed from the
+ * bundle by THIS install's own capability probe, before the destination ever planned anything, so
+ * they never became a plan row to summarize.
+ *
+ * @complexity O(n) in `entries.length`.
+ */
+export function describeNotSupportedByLive(entries: readonly NotSupportedByLiveEntry[], siteLabel: string): string | null {
+  if (entries.length === 0) return null;
+  const stayed = joinCountedLabels(entries.map(countedEntityTypeLabel));
+  return `${siteLabel} is on an older Tovu, so ${stayed} stayed here. Update ${siteLabel}, then publish again.`;
 }
 
 /** The `ui://` URI for one publish confirmation. Keyed by the plan, so a dialog raised for an older

@@ -191,6 +191,13 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         { bundle }
       );
 
+      // S-F1: `pushBundleToPeer` probes the peer's own capabilities and trims the bundle to what it
+      // accepts BEFORE staging anything, so `bundle.entities.length` (the selection this route built)
+      // can be larger than what was actually sent. `entityCount` reports what was actually sent;
+      // `notSupportedByLive` names what was not, and why — see `peer-transport.ts`'s (feature)
+      // `PushBundleResult.notSupportedByLive` doc.
+      const heldBackCount = result.notSupportedByLive.reduce((sum, entry) => sum + entry.count, 0);
+
       // The peer's gated plan is SPREAD at the top level, not nested under a `plan` key: this route
       // answers with the same `{domain, planId, planHash, details}` shape the LOCAL `/import/plan`
       // route does, so a client renders one plan shape regardless of direction (Task 11 binds
@@ -204,9 +211,10 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         peerId: peer.credential.id,
         peerLabel: peer.credential.label,
         bundleId: result.bundleId,
-        entityCount: bundle.entities.length,
+        entityCount: bundle.entities.length - heldBackCount,
         blobsUploaded: result.blobsUploaded,
         blobsUnavailable: result.blobsUnavailable,
+        notSupportedByLive: result.notSupportedByLive,
         // The peer's plan, with each row named from the bundle we just sent it — a live site
         // deployed before `entityLabel` existed answers rows with no label, and this side can name
         // its own content regardless. See `features/publish-content/report-labels.ts`.

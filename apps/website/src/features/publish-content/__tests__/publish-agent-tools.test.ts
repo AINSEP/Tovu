@@ -8,6 +8,7 @@ import { publishContentAgentToolCatalog, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLIS
 import type { PublishContentPeerRecord } from "../peers.js";
 import {
   countPublishChanges,
+  describeNotSupportedByLive,
   describePublishChanges,
   describePublishResult,
   publishWouldChangeNothing,
@@ -407,6 +408,57 @@ test("summarizeLeftAlone caps each group's entity labels at 5 but keeps the true
 
 test("summarizeLeftAlone returns no groups when nothing was left alone", () => {
   assert.deepEqual(summarizeLeftAlone([]), []);
+});
+
+// ---------------------------------------------------------------------------
+// 3b. describeNotSupportedByLive — S-F1's held-back-types sentence
+// (`ADS-memory/.local-artifacts/publish-files-plan-2026-09-24.md` §5/§6)
+// ---------------------------------------------------------------------------
+
+test("describeNotSupportedByLive is null when nothing was held back", () => {
+  assert.equal(describeNotSupportedByLive([], "example.com"), null);
+});
+
+test("describeNotSupportedByLive names one held-back type and count", () => {
+  assert.equal(
+    describeNotSupportedByLive([{ entityType: "redirect", count: 3 }], "example.com"),
+    "example.com is on an older Tovu, so 3 redirects stayed here. Update example.com, then publish again."
+  );
+  assert.equal(
+    describeNotSupportedByLive([{ entityType: "media", count: 1 }], "example.com"),
+    "example.com is on an older Tovu, so 1 media stayed here. Update example.com, then publish again."
+  );
+});
+
+test("describeNotSupportedByLive joins several held-back types the way a sentence does", () => {
+  assert.equal(
+    describeNotSupportedByLive(
+      [
+        { entityType: "redirect", count: 3 },
+        { entityType: "media", count: 1 },
+      ],
+      "example.com"
+    ),
+    "example.com is on an older Tovu, so 3 redirects and 1 media stayed here. Update example.com, then publish again."
+  );
+});
+
+test("describeNotSupportedByLive degrades a type it has no plural noun for, rather than throwing", () => {
+  assert.equal(
+    describeNotSupportedByLive([{ entityType: "menu", count: 2 }], "example.com"),
+    "example.com is on an older Tovu, so 2 menus stayed here. Update example.com, then publish again."
+  );
+});
+
+test("every sentence describeNotSupportedByLive can produce is readable by a person", () => {
+  const shapes = [
+    [{ entityType: "redirect", count: 1 }],
+    [
+      { entityType: "post", count: 2 },
+      { entityType: "page", count: 1 },
+    ],
+  ];
+  for (const entries of shapes) assertReadableByAPerson(describeNotSupportedByLive(entries, "example.com") ?? "", "describeNotSupportedByLive");
 });
 
 // ---------------------------------------------------------------------------
