@@ -1,7 +1,7 @@
 import { CONTENT_HASH_VERSION } from "./content-hash.js";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "./artifact-format.js";
 import { buildPublishContentCatalog } from "./type-registry.js";
-import type { PublishContentDeps, PublishContentHandler, PackedEntity } from "./type-registry.js";
+import type { PublishContentDeps, PublishContentHandler, PackedEntity, RetireTarget } from "./type-registry.js";
 
 /**
  * @file Task 5 of the publish-content (Publish Content) feature —
@@ -93,18 +93,12 @@ export interface PublishContentBundle {
 export type PublishContentOutcomeKind = "created" | "unchanged" | "applied" | "conflict" | "blocked" | "forced";
 
 /**
- * The live row a `blocked`/`forced` row's slug clash would have to displace before this entity's own
- * id can be created (publish-overwrite-live-plan §4). Carried inside the report — not just an id — so
- * a caller re-deriving it at apply time (Task 8's `applyOneRow`) can compare the SAME `hash` it saw at
- * plan time and downgrade to `conflict` if the holder moved between plan and apply, and so a report
- * viewer can name the live row before anyone ticks anything.
+ * Re-exported from `type-registry.ts`, which is what actually names this shape on
+ * `PublishContentHandler.planRetire`/`retire` (see that file's own doc on `RetireTarget`) — kept
+ * importable from here too since this planner is where most other callers already get their
+ * publish-content types from.
  */
-export interface RetireTarget {
-  readonly entityType: string;
-  readonly entityId: string;
-  readonly entityLabel: string | null;
-  readonly hash: string;
-}
+export type { RetireTarget };
 
 /** One entity's classification. `writes` describes what a LATER apply pass (Task 8) would do if this
  *  report were accepted as-is — `planImport` itself never writes regardless of this flag's value. */
@@ -236,21 +230,6 @@ export function entityDisplayLabel(state: Record<string, unknown>): string | nul
 }
 
 /**
- * A handler that also knows how to resolve the live row its own slug clash would have to retire —
- * optional today because only `post`/`page` implement it (publish-overwrite-live-plan S4), and
- * declared LOCALLY rather than as a member of {@link PublishContentHandler} itself: that interface
- * change, plus the real `retire()` half wired into a domain write, is S4's own slice. Every handler
- * without this method is treated exactly as before this change — see the default `canOverwrite:false,
- * retires:null` on every return below except the two this file's header table calls out.
- */
-interface RetireCapableHandler {
-  /** Read-only, like `precheck`/`inspect` — never writes. Returns the entity currently holding this
-   *  entity's address on the destination, or `null` when there is nothing to retire (no clash this
-   *  handler knows how to resolve, e.g. the root slug). */
-  planRetire?(entity: PackedEntity): Promise<RetireTarget | null>;
-}
-
-/**
  * Classifies exactly one entity — the per-row half of {@link planImport}'s pass 2. Never called for
  * an entity whose baseline already failed the {@link CONTENT_HASH_VERSION} check (pass 1 refuses the
  * whole run before this function is ever reached in that case).
@@ -309,7 +288,7 @@ async function planEntity(
     // not an overwrite; plan §2's last table row). An already-forced key (the operator's own prior
     // "overwrite on live" tick, the same `forcedEntityKeys` mechanism the conflict branch below uses)
     // turns a valid target straight into `forced` with the target attached.
-    const target = await (handler as RetireCapableHandler).planRetire?.(entity) ?? null;
+    const target = await handler.planRetire?.(entity) ?? null;
     if (target !== null) {
       if (bundleKeys.has(entityKey(target.entityType, target.entityId))) {
         return { ...identity, outcome: "blocked", writes: false, reason: blockReason, canOverwrite: false, retires: null };
