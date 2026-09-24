@@ -99,9 +99,8 @@ p { margin: 0; color: var(--muted); }
    as a partial embed (`posts-sidebar.html`'s
    `data-embed-config='{"type":"partial","id":"nav",...}'`) and ends up a SIBLING of `.docs-layout`
    under `<body>`, not its ancestor. Header height is the same at every breakpoint (`.nav-row` is
-   never resized in the `@media (max-width: 640px)` block below — the mobile `.main-nav.open` panel
-   is a `position: absolute` overlay under it, not part of its box), so one value covers desktop
-   and mobile alike.
+   never resized when the header goes compact — the mobile menu is a modal `<dialog>` in the top
+   layer, not part of its box), so one value covers desktop and mobile alike.
 
    NOT `--kui-pin-offset`: kUInetic's docs (https://kuinetic.com/docs/catalog.md) say a pinning
    effect's `offset-top:` defaults to `var(--kui-pin-offset, 0px)`, which reads as "answer the
@@ -683,27 +682,6 @@ pre .code-copy-btn.copied .icon-check { display: block; }
   .post-card.featured { grid-column: span 1; flex-direction: column; }
   .post-card.featured .post-card-media { aspect-ratio: 16/10; }
 }
-@media (max-width: 640px) {
-  .site-header { position: sticky; }
-  .main-nav {
-    display: none;
-    position: absolute;
-    top: 100%; left: 0; right: 0;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    padding: 4px 24px 12px;
-  }
-  .main-nav.open { display: flex; }
-  .main-nav a {
-    padding: 12px 0;
-    border-top: 1px solid var(--border);
-    font-size: 15px;
-  }
-  .nav-actions .nav-toggle { display: inline-flex; }
-}
 
 /* ---------------------------------------------------------------------------
    Docs layout + sidebar menu (posts-sidebar.html)
@@ -897,9 +875,9 @@ pre .code-copy-btn.copied .icon-check { display: block; }
    Hover AND focus-within both open the submenu, so the dropdown is reachable by keyboard and not
    only by pointer. A depth-1 group can itself have children (e.g. Docs > Build > Pages): those
    cascade as a depth-2 flyout to the right of the group, since a second panel can't also drop
-   down without overlapping the first. On <=640px the whole nav is already a stacked drawer, so
-   every depth is flattened into one indented list there instead of floating panels a touch
-   device cannot hover.
+   down without overlapping the first. None of this shows when the header is compact: there the
+   whole bar collapses into the hamburger and the `.mnav` drawer below renders the same tree as
+   accordions instead of floating panels a touch device cannot hover.
    --------------------------------------------------------------------------- */
 
 .main-nav > .menu-list {
@@ -912,6 +890,10 @@ pre .code-copy-btn.copied .icon-check { display: block; }
 }
 
 .main-nav .menu-item { position: relative; }
+/* Top-level labels never wrap or shrink, so a bar with too many items overflows measurably and
+   main.js's `desktopNavFits()` can collapse it into the hamburger instead of squashing it. */
+.main-nav > .menu-list > .menu-item,
+.main-nav > a { flex-shrink: 0; white-space: nowrap; }
 
 .main-nav .menu-item > a,
 .main-nav .menu-item > .menu-item-label {
@@ -1048,63 +1030,187 @@ pre .code-copy-btn.copied .icon-check { display: block; }
   background: var(--surface-2);
 }
 
-@media (max-width: 640px) {
-  .main-nav > .menu-list {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-    width: 100%;
-  }
 
-  .main-nav .menu-item > a,
-  .main-nav .menu-item > .menu-item-label {
-    padding: 12px 0;
-    border-top: 1px solid var(--border);
-    font-size: 15px;
-  }
+/* ---------------------------------------------------------------------------
+   Compact header + mobile menu drawer (nav.html's <dialog class="mnav">)
 
-  /* No hover on touch — the submenu is always open, indented, and inline. */
-  .main-nav .menu-list.depth-1 {
-    position: static;
-    opacity: 1;
-    visibility: visible;
-    transform: none;
-    min-width: 0;
-    padding: 0 0 0 16px;
-    border: none;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-  }
+   Compact = <=900px, or `.nav-compact`, which main.js sets whenever the desktop row does not fit
+   (so more menu items collapse the bar at any width instead of overflowing it). The two cases
+   can't share one selector (a media query is not a class), hence the small duplicated block.
+   The drawer's list is built by main.js from the rendered `.main-nav`; nesting is styled
+   recursively (`.mnav-list .mnav-list`), never per depth, so any menu depth renders.
+   --------------------------------------------------------------------------- */
 
-  .main-nav .menu-list.depth-1 .menu-item > a {
-    padding: 10px 0;
-    border-radius: 0;
-    font-size: 14px;
-  }
+@media (max-width: 900px) {
+  .main-nav, .nav-actions .theme-toggle { display: none; }
+  .nav-actions .nav-toggle { display: inline-flex; }
+}
+.site-header.nav-compact .main-nav,
+.site-header.nav-compact .nav-actions .theme-toggle { display: none; }
+.site-header.nav-compact .nav-actions .nav-toggle { display: inline-flex; }
+.nav-actions .nav-toggle { width: 38px; padding: 0; justify-content: center; }
 
-  /* Depth-2 flattens the same way depth-1 does: no floating flyout on a touch device. */
-  .main-nav .menu-list.depth-2 {
-    position: static;
-    opacity: 1;
-    visibility: visible;
-    transform: none;
-    min-width: 0;
-    padding: 0 0 0 16px;
-    border: none;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-  }
+/* The page behind the open drawer must not scroll. */
+html.mnav-open, html.mnav-open body { overflow: hidden; }
 
-  .main-nav .menu-list.depth-2 .menu-item > a {
-    padding: 10px 0;
-    border-radius: 0;
-    font-size: 14px;
-  }
+.mnav {
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: min(400px, 100vw);
+  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: -24px 0 60px rgba(0, 0, 0, 0.3);
+}
+.mnav::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.mnav[open] { animation: mnav-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+@keyframes mnav-in { from { transform: translateX(24px); opacity: 0; } }
 
-  .main-nav .menu-item.has-children::after,
-  .main-nav .menu-item.depth-1.has-children::after { content: none; }
-  .main-nav .menu-item.has-children > a::after,
-  .main-nav .menu-list.depth-1 .menu-item.has-children > a::after { display: none; }
+.mnav-panel { display: flex; flex-direction: column; height: 100%; }
+.mnav-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-h);
+  box-sizing: content-box;
+  padding: env(safe-area-inset-top, 0px) calc(12px + env(safe-area-inset-right, 0px)) 0 24px;
+  border-bottom: 1px solid var(--border);
+}
+.mnav-title {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.mnav-close {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+.mnav-close:hover { background: var(--surface-2); }
+
+/* The one scrolling region. `contain` stops a fling at either end from scrolling the page. */
+.mnav-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px calc(12px + env(safe-area-inset-right, 0px)) 24px 12px;
+}
+.mnav-list { list-style: none; margin: 0; padding: 0; }
+.mnav-list .mnav-list {
+  margin: 2px 0 6px 20px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+}
+.mnav-list[hidden] { display: none; }
+.mnav-row { display: flex; align-items: center; gap: 4px; }
+
+.mnav-link,
+.mnav-disclose-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--fg);
+  text-align: left;
+}
+.mnav-list .mnav-list .mnav-link,
+.mnav-list .mnav-list .mnav-disclose-label {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.mnav-link:hover { background: var(--surface-2); color: var(--fg); }
+.mnav-inert { color: var(--muted); }
+.mnav-link[aria-current="page"],
+.mnav-list .mnav-list .mnav-link[aria-current="page"] {
+  color: var(--accent-text);
+  font-weight: 600;
+  background: color-mix(in oklch, var(--accent) 12%, transparent);
+}
+.mnav-link .menu-item-desc {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.mnav-disclose {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+}
+.mnav-disclose:hover { background: var(--surface-2); color: var(--fg); }
+.mnav-disclose.mnav-disclose-label {
+  width: auto;
+  flex-direction: row;
+  justify-content: space-between;
+}
+.mnav-disclose svg { width: 18px; height: 18px; flex: none; transition: transform 0.18s ease; }
+.mnav-disclose[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+.mnav-link:focus-visible,
+.mnav-disclose:focus-visible,
+.mnav-close:focus-visible,
+.mnav .theme-toggle:focus-visible,
+.mnav .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.mnav-foot {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px calc(24px + env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) 24px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.mnav-theme {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--muted);
+}
+.mnav-theme .theme-toggle { margin-right: 0; width: 40px; height: 40px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mnav[open] { animation: none; }
+  .mnav-disclose svg { transition: none; }
 }
