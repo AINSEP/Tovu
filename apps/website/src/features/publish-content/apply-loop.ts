@@ -114,6 +114,7 @@ export type PublishContentApplyDeps = PublishContentDeps &
       | "changeSets"
       | "authorize"
       | "forgetRemovedPost"
+      | "removePost"
       | "mediaRepo"
       | "assetBlobRepo"
       | "blobStore"

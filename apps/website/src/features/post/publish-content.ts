@@ -1,9 +1,15 @@
 import { executeCommand } from "@jini-ai/cms/core";
 
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
-import type { PublishContentContributor, PublishContentDeps, PublishContentHandler, PackedEntity } from "#src/features/publish-content/type-registry";
+import type {
+  PublishContentContributor,
+  PublishContentDeps,
+  PublishContentHandler,
+  PackedEntity,
+  RetireTarget,
+} from "#src/features/publish-content/type-registry";
 
-import { importPostEntity, isTrashed, restorePostForward } from "./post.js";
+import { importPostEntity, isTrashed, restorePostForward, retirePostForReplacement, PostNotFoundError, ROOT_SLUG } from "./post.js";
 import type { PostKind, PostRecord } from "./post.js";
 
 /**
@@ -412,7 +418,147 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
     return { changeSetId };
   }
 
-  return { entityType, schemaVersion, permission: "content.write", dependsOn: POST_AND_PAGE_DEPENDS_ON, pack, inspect, precheck, apply };
+  /**
+   * S4's read half (`publish-overwrite-live-plan-2026-09-24.md` §4/§5) — reports the live row a
+   * slug-clash overwrite would retire, or `null` when there is none. Never writes.
+   *
+   * The three conditions under which there is nothing to retire, matching {@link precheck}'s own
+   * slug-taken branch it is meant to answer for:
+   * - the slug is free, or already held by `entity` itself — nothing to overwrite;
+   * - `entity.id` already exists at this destination — a same-id collision needs a different remedy
+   *   (a kind change, S11) than retiring some unrelated row;
+   * - the slug is {@link ROOT_SLUG} — the home page has no other address to move to
+   *   ({@link retirePostForReplacement}'s own refusal, mirrored here so the box is never even offered).
+   *
+   * @complexity O(1) — two indexed repo reads, same as `precheck()`.
+   */
+  async function planRetire(entity: PackedEntity): Promise<RetireTarget | null> {
+    const slug = entity.state.slug;
+    if (typeof slug !== "string" || slug.length === 0 || slug === ROOT_SLUG) return null;
+
+    const holder = await deps.postRepo.findBySlug({ workspaceId: deps.workspaceId, slug });
+    if (!holder || holder.id === entity.id) return null;
+
+    const existingHere = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: entity.id });
+    if (existingHere) return null;
+
+    return {
+      entityType: holder.kind,
+      entityId: holder.id,
+      entityLabel: holder.title,
+      hash: contentHash(holder.kind, toPublishableState(holder)),
+    };
+  }
+
+  /**
+   * S4's write half — retires `target` (moves it to Trash under a renamed slug, never in place)
+   * through the same `executeCommand` gateway {@link apply} uses, wrapping
+   * {@link retirePostForReplacement} exactly the way `routes/pages/delete.ts:46-92` wraps
+   * `deletePost`: `operation: "delete"`, inverse `{deletedAt: null}` — a Trash restore only ever
+   * clears that one column (`retirePostForReplacement`'s own doc).
+   *
+   * `captureInverse` reads `target`'s CURRENT row and closes over it as `holder`; `execute` reuses
+   * that same read as `retirePostForReplacement`'s required `expectedVersion`, rather than a second,
+   * later read, because `executeCommand` guarantees `captureInverse` resolves before `execute` runs
+   * (`core/commands/command.ts`'s own "Order matters: idempotency check -> inverse capture ->
+   * execute -> record"). The apply loop (S5) is what re-verifies `target.hash` against a FRESH
+   * `planRetire()` immediately before calling this — a holder that changed between plan and apply is
+   * caught there, not here.
+   *
+   * `undo()` restores `holder` forward through {@link restorePostForward} — the same primitive
+   * `apply()`'s own `rollback` uses — and is also what the gateway's `mutation.rollback` calls on a
+   * change-set-record failure, so every path that can need to "put this retire back" restores
+   * identically.
+   *
+   * @complexity O(1) plus `executeCommand`'s own cost, same as `apply()`.
+   */
+  async function retire(input: {
+    target: RetireTarget;
+    principalId: string;
+    idempotencyKey: string;
+  }): Promise<{ changeSetId: string; undo(): Promise<void> }> {
+    const { changeSets, authorize, outbox, forgetRemovedPost, removePost } = deps;
+    if (!changeSets || !authorize || !outbox || !forgetRemovedPost || !removePost) {
+      throw new Error(
+        `publish-content: ${entityType}.retire() requires PublishContentDeps.changeSets/authorize/` +
+          "outbox/forgetRemovedPost/removePost — wire them from the real apply-loop composition " +
+          "root (features/publish-content/apply-loop.ts)."
+      );
+    }
+    const gatewayDeps = { clock: deps.clock, idGen: deps.idGen, changeSets, outbox, authorize };
+    const actor = { id: input.principalId, kind: "user" as const };
+    const { target } = input;
+
+    let holder: PostRecord | null = null;
+
+    const undoRetire = async () => {
+      if (!holder) return;
+      await restorePostForward({
+        deps: { repo: deps.postRepo, clock: deps.clock, outbox, forgetRemoved: forgetRemovedPost },
+        input: { prior: holder, actorId: input.principalId },
+      });
+    };
+
+    const { changeSetId } = await executeCommand({
+      deps: gatewayDeps,
+      command: {
+        workspaceId: deps.workspaceId,
+        actor,
+        summary: `Retire ${target.entityType} '${target.entityId}' for publish overwrite`,
+        permission: "content.write",
+        idempotencyKey: input.idempotencyKey,
+      },
+      mutation: {
+        entityType: target.entityType,
+        entityId: target.entityId,
+        operation: "delete",
+        captureInverse: async () => {
+          holder = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: target.entityId });
+          if (!holder) {
+            throw new PostNotFoundError(`${target.entityType} '${target.entityId}' was not found`);
+          }
+          return { deletedAt: null };
+        },
+        execute: () =>
+          retirePostForReplacement({
+            deps: { repo: deps.postRepo, clock: deps.clock, outbox, remove: removePost },
+            input: {
+              workspaceId: deps.workspaceId,
+              id: target.entityId,
+              expectedVersion: holder!.version,
+              today: todayStamp(deps.clock.nowIso()),
+              actorId: input.principalId,
+            },
+          }),
+        captureEntityVersion: (result) => result.post.version,
+        rollback: undoRetire,
+      },
+    });
+
+    return { changeSetId, undo: undoRetire };
+  }
+
+  return {
+    entityType,
+    schemaVersion,
+    permission: "content.write",
+    dependsOn: POST_AND_PAGE_DEPENDS_ON,
+    pack,
+    inspect,
+    precheck,
+    apply,
+    planRetire,
+    retire,
+  };
+}
+
+/**
+ * `yyyymmdd` from an ISO clock reading — {@link retirePostForReplacement}'s own `today` input shape
+ * (`post.ts`'s own doc: "supplied by the caller rather than derived from `deps.clock.nowIso()`'s ISO
+ * format"). The one place that derivation happens, so `retire()` above stays a pure caller of it.
+ */
+function todayStamp(nowIso: string): string {
+  return nowIso.slice(0, 10).replace(/-/g, "");
 }
 
 /**

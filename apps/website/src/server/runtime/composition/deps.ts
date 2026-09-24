@@ -1621,6 +1621,9 @@ export function createSqliteRouteDeps(
       changeSets,
       authorize: identity.authorize,
       forgetRemovedPost: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
+      // S4 (publish-overwrite-live-plan-2026-09-24) — same binding `routeDeps.removePost` below
+      // uses; the post handler's `retire()` needs it to wrap `retirePostForReplacement`.
+      removePost: removeEntityWithoutBlocker(bindRemoveEntity(trash, POST_ENTITY_TYPE)),
       mediaRepo,
       assetBlobRepo,
       blobStore,

@@ -1,4 +1,4 @@
-import type { BeforeSaveHookPort, ForgetRemovedPostFn, PostRepoPort } from "#src/features/post/post";
+import type { BeforeSaveHookPort, ForgetRemovedPostFn, PostRepoPort, RemovePostFn } from "#src/features/post/post";
 import type { AssetBlobRepoPort, BlobStorePort, VersionedMediaRepoPort } from "#src/features/media/index";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "#src/features/navigation/index";
 import type { RedirectsWriteDeps } from "#src/features/redirects/redirects";
@@ -126,6 +126,15 @@ export interface PublishContentDeps {
    * it explicitly (`features/post/publish-content.ts`) rather than degrading silently.
    */
   readonly forgetRemovedPost?: ForgetRemovedPostFn;
+  /**
+   * S4 (`publish-overwrite-live-plan-2026-09-24.md` §4/§5) — the post domain's own Trash primitive,
+   * needed only by `retire()`'s address-clash overwrite (`features/post/publish-content.ts`), which
+   * wraps `retirePostForReplacement` (`post.ts`) the same way {@link forgetRemovedPost} is needed
+   * only by `apply()`'s rollback. Optional here for the identical "absent behaves like it always
+   * did" reason every other apply-only port on this interface already is; required at the apply
+   * bag (`apply-loop.ts`'s `PublishContentApplyDeps`), not here.
+   */
+  readonly removePost?: RemovePostFn;
   readonly mediaRepo?: VersionedMediaRepoPort;
   readonly assetBlobRepo?: AssetBlobRepoPort;
   readonly blobStore?: BlobStorePort;
@@ -189,6 +198,25 @@ export interface PackedEntity {
 }
 
 /**
+ * The live row a slug-clash overwrite would retire, named so the confirm dialog can say what it is
+ * about to move to Trash — `publish-overwrite-live-plan-2026-09-24.md` §4. Produced by
+ * {@link PublishContentHandler.planRetire} (read-only) and threaded back into
+ * {@link PublishContentHandler.retire} unchanged, and into the planner's own `retires` row field
+ * (`planner.ts`) so `planHash` binds the exact holder and hash a re-plan must still match at apply
+ * time (§5 S5's re-verification).
+ *
+ * Defined here rather than in `planner.ts`: this interface (`PublishContentHandler`) is the type
+ * that actually names it on `planRetire`/`retire`, and `planner.ts` already imports its other types
+ * from this module — a `RetireTarget` re-exported from `planner.ts` instead would invert that.
+ */
+export interface RetireTarget {
+  readonly entityType: string;
+  readonly entityId: string;
+  readonly entityLabel: string | null;
+  readonly hash: string;
+}
+
+/**
  * One content type's contract for participating in Publish Content — plan §3's own interface,
  * carried here verbatim. See plan §4 task table for which of `pack`/`inspect`/`precheck`/`apply`
  * each later task actually exercises; Task 2 (this file plus `contributePostPublish`/
@@ -240,6 +268,28 @@ export interface PublishContentHandler {
     /** Stable for this source principal + exact entity schema/hash version; safe to reuse on retry. */
     idempotencyKey: string;
   }): Promise<{ changeSetId: string }>;
+
+  /**
+   * S4 (`publish-overwrite-live-plan-2026-09-24.md` §4/§5) — read-only, like {@link precheck}: reports
+   * the live row a slug-clash overwrite would retire, or `null` when this entity has no such holder
+   * (its own id already exists at the destination, the slug is free, or the slug cannot be moved —
+   * e.g. the home page). Never writes. Only meaningful for a `blocked` `precheck()` result; the
+   * planner (`planner.ts`) is what decides when to call it.
+   */
+  planRetire?(entity: PackedEntity): Promise<RetireTarget | null>;
+  /**
+   * S4 — the write side of an address-clash overwrite: moves `target` to Trash under a renamed slug
+   * (never in place) so the incoming entity can take the address under its own id, through the same
+   * `executeCommand` gateway {@link apply} uses. `undo()` is the compensating rollback for the SAME
+   * failure window {@link CommandMutation.rollback} exists for (a change-set insert failing after this
+   * write already landed) — the apply loop (`apply-loop.ts`, S5) also calls it directly when the
+   * CREATE that follows a retire fails, so the retire is never left stranded without its holder.
+   */
+  retire?(input: {
+    target: RetireTarget;
+    principalId: string;
+    idempotencyKey: string;
+  }): Promise<{ changeSetId: string; undo(): Promise<void> }>;
 }
 
 /**

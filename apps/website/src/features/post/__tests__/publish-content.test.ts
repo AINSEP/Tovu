@@ -18,12 +18,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
+import { InMemoryChangeSetRepo, revertChangeSet } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 import { InMemoryPostRepo } from "../repo.memory.js";
-import type { PostRecord } from "../post.js";
+import { isTrashed, ROOT_SLUG, type PostRecord } from "../post.js";
+import { createPostRevertRegistry } from "../reverters.js";
+import { removeVia } from "./remove-post-double.js";
 import { contentHash } from "#src/features/publish-content/content-hash";
+import type { RetireTarget } from "#src/features/publish-content/type-registry";
 import { contributePagePublish, contributePostPublish, toPublishableState } from "../publish-content.js";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
@@ -68,14 +71,19 @@ function makeDeps(rows: PostRecord[]) {
  *  path, not `executeCommand`'s authorization gate (already covered elsewhere). */
 function makeApplyDeps(rows: PostRecord[]) {
   const outbox = new InMemoryOutbox();
+  const base = makeDeps(rows);
   return {
-    ...makeDeps(rows),
+    ...base,
     outbox,
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
     // Required by `apply()`'s guard: its rollback restores through `restorePostForward`, which
-    // needs the Trash-index forget. Nothing in this file trashes a post, so it never fires.
+    // needs the Trash-index forget. Nothing in `apply()`'s own tests below trashes a post, so it
+    // never fires there — `retire()`'s tests (S4) are what actually exercise it.
     forgetRemovedPost: async () => {},
+    // S4 — `retire()`'s guard requires this too, bound to the SAME repo instance `apply()`'s tests
+    // already read/write through (mirrors `retire-post.test.ts`'s own `removeVia(repo)` double).
+    removePost: removeVia(base.postRepo),
   };
 }
 
@@ -391,4 +399,136 @@ test("apply() 'applied' path: a stale expectedVersion rejects with PostVersionCo
   );
   const saved = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
   assert.equal(saved?.title, "Someone else's edit", "a version conflict must never overwrite the destination");
+});
+
+// ---------------------------------------------------------------------------
+// planRetire() / retire() — S4's overwrite-live primitive
+// (publish-overwrite-live-plan-2026-09-24.md §4/§5 S4)
+// ---------------------------------------------------------------------------
+
+test("planRetire() returns the live holder with the exact hash inspect() gives", async () => {
+  const holder = makePost({ id: "post-1", slug: "about", title: "About (live)" });
+  const deps = makeDeps([holder]);
+  const handler = contributePostPublish().build(deps);
+
+  const target = await handler.planRetire!({
+    entityType: "post",
+    id: "post-2",
+    schemaVersion: 1,
+    contentHash: "irrelevant",
+    hashVersion: 1,
+    requiredBlobs: [],
+    state: { slug: "about" },
+  });
+
+  const inspected = await handler.inspect("post-1");
+  assert.ok(target, "a slug held by a different id must return a retire target");
+  assert.equal(target?.entityType, "post");
+  assert.equal(target?.entityId, "post-1");
+  assert.equal(target?.entityLabel, "About (live)");
+  assert.equal(target?.hash, inspected?.hash, "planRetire()'s hash must be the SAME hash inspect() gives for the same row");
+});
+
+test("planRetire() returns null when the incoming id already exists at the destination — a same-id collision is not an address clash", async () => {
+  const holder = makePost({ id: "post-1", slug: "about" });
+  const existingHere = makePost({ id: "post-2", slug: "post-2-slug" });
+  const handler = contributePostPublish().build(makeDeps([holder, existingHere]));
+
+  const target = await handler.planRetire!({
+    entityType: "post",
+    id: "post-2",
+    schemaVersion: 1,
+    contentHash: "irrelevant",
+    hashVersion: 1,
+    requiredBlobs: [],
+    state: { slug: "about" },
+  });
+
+  assert.equal(target, null);
+});
+
+test("planRetire() returns null for the home page slug — there is no other address to move it to", async () => {
+  const home = makePost({ id: "home", slug: ROOT_SLUG, kind: "page" });
+  const handler = contributePostPublish().build(makeDeps([home]));
+
+  const target = await handler.planRetire!({
+    entityType: "page",
+    id: "post-2",
+    schemaVersion: 1,
+    contentHash: "irrelevant",
+    hashVersion: 1,
+    requiredBlobs: [],
+    state: { slug: ROOT_SLUG },
+  });
+
+  assert.equal(target, null);
+});
+
+test("retire() records a change set whose revert un-trashes the row", async () => {
+  const holder = makePost({ id: "post-1", slug: "about", version: 3, status: "published" });
+  const deps = makeApplyDeps([holder]);
+  const handler = contributePostPublish().build(deps);
+
+  const target: RetireTarget = {
+    entityType: "post",
+    entityId: "post-1",
+    entityLabel: "About",
+    hash: "irrelevant-for-this-test",
+  };
+
+  const { changeSetId } = await handler.retire!({ target, principalId: "operator-1", idempotencyKey: "retire-1" });
+
+  const retired = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
+  assert.equal(isTrashed(retired!), true, "retire() must trash the holder");
+  assert.equal(retired?.slug, "about-replaced-20260918");
+
+  const registry = createPostRevertRegistry({
+    postRepo: deps.postRepo,
+    clock: deps.clock,
+    outbox: deps.outbox,
+    forgetRemoved: deps.forgetRemovedPost,
+  });
+  await revertChangeSet({
+    deps: { changeSets: deps.changeSets, registry, clock: deps.clock, idGen: deps.idGen },
+    input: { workspaceId: WORKSPACE_ID, changeSetId },
+  });
+
+  const reverted = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
+  assert.equal(isTrashed(reverted!), false, "the standard revert path (the same one every other publish write gets) must un-trash the retired row");
+});
+
+test("retire()'s undo() restores the holder live, at its original slug — the address-clash rollback, not the standard revert", async () => {
+  const holder = makePost({ id: "post-1", slug: "about", version: 3, status: "published" });
+  const deps = makeApplyDeps([holder]);
+  const handler = contributePostPublish().build(deps);
+
+  const target: RetireTarget = {
+    entityType: "post",
+    entityId: "post-1",
+    entityLabel: "About",
+    hash: "irrelevant-for-this-test",
+  };
+
+  const { undo } = await handler.retire!({ target, principalId: "operator-1", idempotencyKey: "retire-2" });
+  await undo();
+
+  const restored = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
+  assert.equal(isTrashed(restored!), false);
+  assert.equal(restored?.slug, "about", "undo() must restore the ORIGINAL slug, unlike a standard revert which only clears the trash marker");
+});
+
+test("retire() throws when removePost is not wired — never silently no-ops", async () => {
+  const holder = makePost({ id: "post-1", slug: "about" });
+  const deps = { ...makeApplyDeps([holder]), removePost: undefined };
+  const handler = contributePostPublish().build(deps);
+
+  await assert.rejects(
+    () =>
+      handler.retire!({
+        target: { entityType: "post", entityId: "post-1", entityLabel: "About", hash: "h" },
+        principalId: "operator-1",
+        idempotencyKey: "retire-3",
+      }),
+    /requires PublishContentDeps.changeSets\/authorize\/outbox\/forgetRemovedPost\/removePost/
+  );
 });
