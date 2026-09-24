@@ -23,7 +23,6 @@ import type {
 } from '../contracts/workspace-conversations.js';
 import type { FindInPageQuery, FindInPageResult } from '../contracts/find-in-page.js';
 import type { ZoomDirection } from '../contracts/zoom.js';
-import type { RootKeyStatusDto } from '../contracts/root-key.js';
 
 export interface RunnerInventoryBridge {
   listAgents: () => Promise<readonly RunnerAgentSummary[]>;
@@ -104,14 +103,6 @@ export interface RunnerInventoryBridge {
   recentWorkingDirectories: () => Promise<readonly string[]>;
   workingDirectoryExists: (directory: string) => Promise<boolean>;
   normalizeWorkingDirectory: (directory: string) => Promise<string | null>;
-  /**
-   * What the shell learned about integrations root-key material when it BOOTED — never a key, only
-   * presence, source, a short one-way fingerprint, and where a key file would live. A boot
-   * snapshot on purpose: see `contracts/root-key.ts`. Backs the "no root key" banner
-   * (`RootKeyBanner.tsx`); absent on any bridge older than that banner, which
-   * `fetchRootKeyStatus` treats as "unknown" and stays quiet for.
-   */
-  rootKeyStatus?: () => Promise<RootKeyStatusDto>;
 }
 
 declare global {

@@ -47,7 +47,6 @@ import {
   type FindInPageResult,
 } from '../contracts/find-in-page.js';
 import { ZOOM_COMMAND_CHANNEL, type ZoomDirection } from '../contracts/zoom.js';
-import { ROOT_KEY_CHANNELS } from '../contracts/root-key.js';
 import { RUNNER_CHAT_ATTACHMENT_CHANNELS, type SaveChatAttachmentInput } from '../contracts/chat-attachments.js';
 import {
   WORKSPACE_CONVERSATION_CHANNELS,
@@ -85,10 +84,6 @@ contextBridge.exposeInMainWorld(
     rescanAgents: () => ipcRenderer.invoke(RUNNER_AGENT_INVENTORY_CHANNELS.rescan),
     daemonOnline: () => ipcRenderer.invoke(RUNNER_AGENT_INVENTORY_CHANNELS.daemonOnline),
     listSites: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.list),
-    /** The shell's BOOT-time root-key verdict — presence, source, a one-way fingerprint and the
-     *  key-file path, never key material (`contracts/root-key.ts` has no field that could carry
-     *  any). Backs the "no root key" banner. */
-    rootKeyStatus: () => ipcRenderer.invoke(ROOT_KEY_CHANNELS.status),
     rescanSites: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.rescan),
     /** "Add Tovu Website" — track a folder that ALREADY holds a site. Takes no argument: main owns
      *  the folder dialog, so the renderer never names a filesystem path. Rejects when the operator
