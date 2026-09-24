@@ -100,6 +100,12 @@ function wasWere(count: number): string {
   return count === 1 ? "was" : "were";
 }
 
+/** Present-tense sibling of {@link wasWere}, for a state that still holds on the live site.
+ *  @complexity O(1). */
+function isAre(count: number): string {
+  return count === 1 ? "is" : "are";
+}
+
 /**
  * One sentence saying what publishing would do, for the assistant to say out loud.
  *
@@ -171,7 +177,7 @@ export function describeApplyShortfall(
     : `${missed} of those changed on ${siteLabel} while publishing, so they were left alone.`;
 }
 
-/** Which of the five known reasons publishing leaves a row alone, derived from the row's `reason`
+/** Which of the known reasons publishing leaves a row alone, derived from the row's `reason`
  *  text — see {@link classifyLeftAloneReason}. `"other"` is the same conservative fallback
  *  {@link countPublishChanges} uses for an outcome kind nobody named yet: grouped and shown, never
  *  silently dropped. */
@@ -181,6 +187,9 @@ export type LeftAloneReasonClass =
   | "body-format"
   | "type-not-supported-by-live"
   | "blob-missing"
+  | "slug-taken-on-live"
+  | "in-trash-on-live"
+  | "kind-differs-on-live"
   | "other";
 
 /** One reason-class's rows, ready to show. */
@@ -206,6 +215,9 @@ const LEFT_ALONE_REASON_ORDER: readonly LeftAloneReasonClass[] = [
   "body-format",
   "type-not-supported-by-live",
   "blob-missing",
+  "slug-taken-on-live",
+  "in-trash-on-live",
+  "kind-differs-on-live",
   "other",
 ];
 
@@ -231,6 +243,18 @@ const LEFT_ALONE_REASON_SENTENCE: Record<LeftAloneReasonClass, (count: number) =
     `${things(n)} ${wasWere(n)} edited in a different way locally than on the live site, so publishing cannot carry the change over yet.`,
   "type-not-supported-by-live": (n) => `${things(n)} ${wasWere(n)} a kind of content the live site cannot receive yet.`,
   "blob-missing": (n) => `${things(n)} ${wasWere(n)} missing a file this computer could not find to send.`,
+  "slug-taken-on-live": (n) =>
+    `${things(n)} could not be published because the live site already has something different at the same address, so publishing left the live ${
+      n === 1 ? "one" : "ones"
+    } alone.`,
+  "in-trash-on-live": (n) =>
+    `${things(n)} ${isAre(n)} in the trash on the live site, so publishing left ${n === 1 ? "it" : "them"} there rather than bring ${
+      n === 1 ? "it" : "them"
+    } back.`,
+  "kind-differs-on-live": (n) =>
+    `${things(n)} ${isAre(n)} a different kind of content on the live site (for example a post there but a page here), so publishing left ${
+      n === 1 ? "it" : "them"
+    } alone.`,
   other: (n) => `${things(n)} ${wasWere(n)} left alone.`,
 };
 
@@ -252,6 +276,11 @@ function classifyLeftAloneReason(reason: string | null): LeftAloneReasonClass {
   if (reason.includes("-format at this destination but")) return "body-format";
   if (reason.includes("no registered publish-content handler for entity type")) return "type-not-supported-by-live";
   if (reason.startsWith("required blob '") && reason.includes("is not available on this instance")) return "blob-missing";
+  // `features/post/publish-content.ts`, `features/media/publish-content.ts` and
+  // `features/navigation/publish-content.ts` prechecks — the same address held by a different row.
+  if (reason.includes("is already held by a different")) return "slug-taken-on-live";
+  if (reason.includes("is in the trash at this destination")) return "in-trash-on-live";
+  if (reason.includes("at this destination but a '") && reason.includes("kind is fixed at creation")) return "kind-differs-on-live";
   return "other";
 }
 

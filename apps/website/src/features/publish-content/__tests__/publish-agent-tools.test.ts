@@ -407,6 +407,64 @@ test("summarizeLeftAlone caps each group's entity labels at 5 but keeps the true
   assert.deepEqual(groups[0]?.entityLabels, ["A", "B", "C", "D", "E"]);
 });
 
+// Live 2026-09-24 publish: five pages whose slug live holds under a DIFFERENT id (`post-about` vs a
+// local UUID) came back as "6 things were left alone." with no reason. Every precheck refusal the
+// destination emits must land in a named group.
+test("summarizeLeftAlone names slug-taken, in-trash and kind-differs refusals instead of a reasonless 'other'", () => {
+  const rows: PublishContentOutcomeRow[] = [
+    leftAloneRow({
+      entityId: "38574f58-e333-4730-8c39-72bdbb6bf506",
+      entityLabel: "about",
+      outcome: "blocked",
+      reason: "slug 'about' is already held by a different page ('post-about')",
+    }),
+    leftAloneRow({
+      entityId: "menu-x",
+      entityLabel: "header-nav",
+      outcome: "blocked",
+      reason: "menu slug 'header-nav' is already held by a different menu ('menu-y') at this destination",
+    }),
+    leftAloneRow({
+      entityId: "p-trash",
+      entityLabel: "old-page",
+      outcome: "blocked",
+      reason:
+        "page 'p-trash' is in the trash at this destination — restore it before publishing over it, or publishing would resurrect it as live content",
+    }),
+    leftAloneRow({
+      entityId: "p-kind",
+      entityLabel: "faq",
+      outcome: "blocked",
+      reason:
+        "'p-kind' is a 'post' at this destination but a 'page' at the source — kind is fixed at creation and cannot be changed by publishing",
+    }),
+  ];
+
+  const groups = summarizeLeftAlone(rows);
+
+  assert.deepEqual(
+    groups.map((g) => [g.reasonClass, g.count, g.sentence]),
+    [
+      [
+        "slug-taken-on-live",
+        2,
+        "2 things could not be published because the live site already has something different at the same address, so publishing left the live ones alone.",
+      ],
+      [
+        "in-trash-on-live",
+        1,
+        "1 thing is in the trash on the live site, so publishing left it there rather than bring it back.",
+      ],
+      [
+        "kind-differs-on-live",
+        1,
+        "1 thing is a different kind of content on the live site (for example a post there but a page here), so publishing left it alone.",
+      ],
+    ]
+  );
+  for (const group of groups) assertReadableByAPerson(group.sentence, `summarizeLeftAlone.${group.reasonClass}`);
+});
+
 test("summarizeLeftAlone returns no groups when nothing was left alone", () => {
   assert.deepEqual(summarizeLeftAlone([]), []);
 });
