@@ -399,7 +399,6 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
   padding: 18px 20px; overflow-x: auto; font: 13px/1.6 var(--font-mono); color: var(--fg);
   white-space: pre-wrap; overflow-wrap: anywhere; position: relative;
 }
-.docs-main pre.has-copy-btn { padding-right: 48px; }
 .docs-main h2 { font-size: 20px; margin: 40px 0 14px; }
 .docs-main p { font-size: 15px; margin-bottom: 14px; max-width: 60ch; }
 
@@ -444,7 +443,6 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .post-detail-body blockquote { border-left: 2px solid var(--border-strong); padding-left: 20px; margin: 24px 0; color: var(--muted); font-style: italic; }
 .post-detail-body code { font: 13px/1 var(--font-mono); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; }
 .post-detail-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; white-space: pre-wrap; overflow-wrap: anywhere; position: relative; }
-.post-detail-body pre.has-copy-btn { padding-right: 48px; }
 .post-detail-body pre code { border: none; background: none; padding: 0; }
 /* Live example frame (docs pages, 2026-09-23; white/gold made the default 2026-09-23 same day,
    owner approved the gold-frame prototype and asked to "update throughout") — wraps a rendered
@@ -510,28 +508,28 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .latest-posts .live-example::before { content: "Live example"; position: absolute; top: 10px; left: 16px; font: 11px/1 var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 
 /* ---------- code block copy button ---------- */
-/* Shared by both `pre` contexts above (`.docs-main pre`, `.post-detail-body pre`) — the button is
-   injected as a child of the `pre` element itself by `scripts/main.js` (`setupCodeCopyButtons`), so
-   one unscoped `pre .code-copy-btn` selector covers it wherever a `pre` appears, docs or post body
-   alike, instead of duplicating the rule per ancestor class. `pre.has-copy-btn` (added by that same
-   script, only once a button actually lands) reserves room on the right so the button never sits
-   over wrapped code text now that `white-space: pre-wrap` above lets long lines (e.g. a long
-   `data-embed-config` marker) reach the block's right edge instead of scrolling under it. Tokens
-   only (`--surface`/`--border`/`--muted`/`--fg`/`--accent`) — no hard-coded colors — so the button
-   reads correctly in both the dark default and `:root[data-theme="light"]` without its own
-   light/dark branch.
+/* Shared by every `pre` context (`.docs-main pre`, `.post-detail-body pre`, and a bare `<pre>` in a
+   custom page body — see below) — the button is injected as a child of the `pre` element itself by
+   `scripts/main.js` (`setupCodeCopyButtons`), so one unscoped `pre .code-copy-btn` selector covers it
+   wherever a `pre` appears, instead of duplicating the rule per ancestor class. Tokens only
+   (`--surface`/`--border`/`--muted`/`--fg`/`--accent`) — no hard-coded colors — so the button reads
+   correctly in both the dark default and `:root[data-theme="light"]` without its own light/dark
+   branch.
    `setupCodeCopyButtons` itself is unscoped too (`document.querySelectorAll('pre')`, every `pre` on
    the page, by design — its own comment says docs articles AND post/page body both qualify), but the
-   `position: relative` that makes `.code-copy-btn`'s `position: absolute` stay pinned to its own
-   `pre` was only ever declared on the two known wrapper contexts above. `pages-default.html` injects
-   page body content straight into `.post-detail` — never `.post-detail-body` — so a page (e.g.
-   /install) with its own `<pre>` in custom body HTML got a `pre` with no positioned ancestor at all;
-   the button's `top/right` then resolved against the initial containing block and rendered pinned
-   near the top of the whole document, detached from the code block it belonged to. This rule closes
-   that gap generically, keyed off the same `has-copy-btn` marker class the script already stamps on
-   every `pre` it touches, so any current or future page body with a bare `<pre>` is covered without
-   relying on that page's own styles to remember `position: relative`. */
-pre.has-copy-btn { position: relative; }
+   two rules below were originally declared per wrapper context only (`.docs-main pre`/
+   `.post-detail-body pre`), which broke two ways for a page whose body HTML isn't wrapped in either:
+   `pages-default.html` injects page body content straight into `.post-detail` — never
+   `.post-detail-body` — so a page (e.g. /install) with its own `<pre>` in custom body HTML got (a) no
+   `position: relative` on its `pre`, so the button's `top/right` resolved against the initial
+   containing block and rendered pinned near the top of the whole document, detached from the code
+   block it belonged to (fixed 8476795c0), and (b) no `padding-right`, so the button sat on top of any
+   code line long enough to reach the block's right edge once `white-space: pre-wrap` (above) lets long
+   lines wrap in place instead of scrolling under it, rather than clearing space for it. Both rules are
+   keyed off the same `has-copy-btn` marker class the script stamps on every `pre` it touches — once,
+   only after a button actually lands — so any current or future page body with a bare `<pre>` is
+   covered without relying on that page's own styles to remember either declaration. */
+pre.has-copy-btn { position: relative; padding-right: 48px; }
 pre .code-copy-btn {
   position: absolute; top: 10px; right: 10px; width: 28px; height: 28px;
   display: inline-flex; align-items: center; justify-content: center;
