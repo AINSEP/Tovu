@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import Database from "better-sqlite3";
+
 import { DEFAULT_ROOT_KEY_ENV_VAR_NAME } from "./keyring.env.js";
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
 
@@ -102,6 +104,34 @@ function legacyVolumeFilePath(cwd: string): string {
   return join(cwd, "sites", ".tovu", LEGACY_KEY_FILENAME);
 }
 
+/**
+ * `.site-meta.json`'s raw parsed object under `siteDir`, or `undefined` when the file is missing,
+ * unreadable, not valid JSON, or not a JSON object. The one shared parse every field-specific
+ * reader in this module ({@link resolveSiteKeyId}, {@link resolveSiteKeyFingerprint}) builds on, so
+ * a corrupt-file/non-object verdict can never drift between them — and the one
+ * `site-key-ensure.ts`'s own fingerprint-stamp reconciliation imports (site-key plan §A.4), since
+ * that module depends on this one, never the reverse (this file's own header).
+ *
+ * Never throws — same never-throws contract every reader built on it shares.
+ *
+ * @complexity O(1) — one small, bounded-size file read.
+ */
+export function readSiteMetaJson(siteDir: string): Record<string, unknown> | undefined {
+  let raw: string;
+  try {
+    raw = readFileSync(join(siteDir, ".site-meta.json"), "utf8");
+  } catch {
+    return undefined;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+  return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : undefined;
+}
+
 export interface ResolveSiteKeyIdInput {
   readonly siteDir: string;
 }
@@ -122,24 +152,77 @@ export interface ResolveSiteKeyIdInput {
  * so a site with no readable meta (a legacy or unrepaired install) falls back to its pre-site-key
  * env/legacy-file-only behavior rather than crashing a boot or an admin request.
  *
- * @complexity O(1) — one small, bounded-size file read.
+ * @complexity O(1) — one small, bounded-size file read (via {@link readSiteMetaJson}).
  */
 export function resolveSiteKeyId(input: ResolveSiteKeyIdInput): string | undefined {
-  let raw: string;
-  try {
-    raw = readFileSync(join(input.siteDir, ".site-meta.json"), "utf8");
-  } catch {
-    return undefined;
-  }
-  let parsed: { siteKeyId?: unknown; siteId?: unknown };
-  try {
-    parsed = JSON.parse(raw) as { siteKeyId?: unknown; siteId?: unknown };
-  } catch {
-    return undefined;
-  }
-  if (typeof parsed.siteKeyId === "string" && parsed.siteKeyId.length > 0) return parsed.siteKeyId;
-  if (typeof parsed.siteId === "string" && parsed.siteId.length > 0) return parsed.siteId;
+  const meta = readSiteMetaJson(input.siteDir);
+  if (meta === undefined) return undefined;
+  if (typeof meta.siteKeyId === "string" && meta.siteKeyId.length > 0) return meta.siteKeyId;
+  if (typeof meta.siteId === "string" && meta.siteId.length > 0) return meta.siteId;
   return undefined;
+}
+
+/**
+ * Whether any database in `dbPaths` holds data that only the CURRENT root/site key can decrypt or
+ * verify. Checks every table whose schema mentions `sealed_ciphertext` (the column all sealed
+ * tables share) for a non-null row, plus `webhook_subscriptions` (signing secrets derived from the
+ * key, not stored under a `sealed_ciphertext` column at all).
+ *
+ * Fails closed: a database this function cannot open or query at all counts as "has data" — a
+ * database it never got to inspect could hold sealed rows. Callers are expected to only pass paths
+ * known to exist (`existsSync` first) — a genuinely missing site database is "nothing to scan yet",
+ * not "unreadable", and must never reach this fail-closed path.
+ *
+ * Moved here from `site-key-ensure.ts` (site-key plan §A.6): the admin Site Token route's
+ * `"missing-with-data"` state needs this exact scan, and `site-key-ensure.ts` is the one key-file
+ * WRITER nothing under `server/inbound/**` may import (`no-site-key-ensure-import.boundary.test.ts`)
+ * — this scan is read-only and belongs in the shared reader layer both sides already depend on, not
+ * duplicated at the route. `site-key-ensure.ts`'s own `ensureSiteKey` still calls it, now via this
+ * module's export.
+ *
+ * @param dbPaths - `content.db` paths to scan. Each is opened read-only and closed before the
+ *   next; never mutates any of them.
+ * @complexity O(t) sqlite statements per database, where t is that database's matching table
+ *   count — one `sqlite_master` scan plus one bounded `LIMIT 1` probe per matching table.
+ */
+export function findKeyDependentData(dbPaths: readonly string[]): boolean {
+  return dbPaths.some((dbPath) => databaseHasKeyDependentData(dbPath));
+}
+
+/** One database's contribution to {@link findKeyDependentData} — isolated so a failure opening or
+ *  querying THIS database can be caught and turned into "has data" without aborting the scan of
+ *  the others. */
+function databaseHasKeyDependentData(dbPath: string): boolean {
+  let db: Database.Database;
+  try {
+    db = new Database(dbPath, { readonly: true, fileMustExist: true });
+  } catch {
+    return true;
+  }
+  try {
+    const sealedTables = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND sql LIKE '%sealed_ciphertext%'")
+      .all() as { name: string }[];
+    for (const { name } of sealedTables) {
+      // `name` is quoted as an identifier (never interpolated as a value) — it comes from
+      // `sqlite_master` itself, this database's own schema, not external input.
+      const row = db.prepare(`SELECT 1 FROM "${name}" WHERE sealed_ciphertext IS NOT NULL LIMIT 1`).get();
+      if (row !== undefined) return true;
+    }
+
+    const hasWebhookTable = db
+      .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'webhook_subscriptions'")
+      .get();
+    if (hasWebhookTable !== undefined) {
+      const row = db.prepare("SELECT 1 FROM webhook_subscriptions LIMIT 1").get();
+      if (row !== undefined) return true;
+    }
+    return false;
+  } catch {
+    return true;
+  } finally {
+    db.close();
+  }
 }
 
 /**

@@ -1,10 +1,17 @@
 import assert from "node:assert/strict";
+import Database from "better-sqlite3";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { SITE_KEY_ENV_VAR_NAME, resolveSiteKeyId, siteKeyFilePathFrom, siteKeySources } from "../site-key-sources.js";
+import {
+  SITE_KEY_ENV_VAR_NAME,
+  findKeyDependentData,
+  resolveSiteKeyId,
+  siteKeyFilePathFrom,
+  siteKeySources,
+} from "../site-key-sources.js";
 import { DEFAULT_ROOT_KEY_ENV_VAR_NAME } from "../keyring.env.js";
 
 /**
@@ -154,6 +161,97 @@ test("resolveSiteKeyId: undefined when siteId is present but not a non-empty str
 test("siteKeyFilePathFrom: the per-site-file candidate's path when one is present in sources", () => {
   const sources = siteKeySources({ mode: "local", env: {}, home: HOME, cwd: CWD, siteKeyId: "site-abc" });
   assert.equal(siteKeyFilePathFrom(sources, "/fallback/path.hex"), join(HOME, ".tovu", "site-keys", "site-abc.hex"));
+});
+
+// ---------------------------------------------------------------------------
+// findKeyDependentData — moved here from `site-key-ensure.ts` (site-key plan §A.6): the admin
+// Site Token route's `"missing-with-data"` state (`routes/system/site-token.ts`) needs this same
+// content.db scan, and nothing under `server/inbound/**` may import `site-key-ensure.ts` (the one
+// key-file WRITER — `no-site-key-ensure-import.boundary.test.ts`). This module is the shared
+// READER layer both `site-key-ensure.ts` and the admin route already depend on, so the scan moved
+// here rather than being duplicated. `site-key-ensure.ts` now imports it from here for its own
+// `ensureSiteKey` "refuse" branch — same function, same behavior, new home.
+//
+// These 4 cases were originally written against the CLI's `tovu root-key ensure` command
+// (`cli/__tests__/unit/root-key-ensure.unit.test.ts`, deleted in `abc4807d5` when that command was
+// absorbed into `ensureSiteKeyForBoot`) and lost with it. `site-key-ensure.unit.test.ts` only
+// exercises this function indirectly (via `ensureSiteKey`'s own "refuse" case, sealed_ciphertext
+// only) — restored here as direct tests against the function itself, covering the 3 cases that
+// indirect exercise never reached (webhook_subscriptions, a clean DB, and an unreadable DB path)
+// plus the sealed_ciphertext case for a complete, self-contained direct suite at this function's
+// new home.
+// ---------------------------------------------------------------------------
+
+function buildSealedCiphertextDb(dbPath: string): void {
+  const db = new Database(dbPath);
+  try {
+    db.exec("CREATE TABLE publish_credential_sets (id INTEGER PRIMARY KEY, sealed_ciphertext TEXT)");
+    db.exec("INSERT INTO publish_credential_sets (sealed_ciphertext) VALUES ('cipher-bytes')");
+  } finally {
+    db.close();
+  }
+}
+
+function buildWebhookSubscriptionsDb(dbPath: string): void {
+  const db = new Database(dbPath);
+  try {
+    db.exec("CREATE TABLE webhook_subscriptions (id INTEGER PRIMARY KEY)");
+    db.exec("INSERT INTO webhook_subscriptions (id) VALUES (1)");
+  } finally {
+    db.close();
+  }
+}
+
+function buildEmptyDb(dbPath: string): void {
+  const db = new Database(dbPath);
+  try {
+    db.exec("CREATE TABLE unrelated (id INTEGER PRIMARY KEY)");
+  } finally {
+    db.close();
+  }
+}
+
+test("findKeyDependentData: a non-null sealed_ciphertext row counts as key-dependent data", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-key-dependent-data-"));
+  try {
+    const dbPath = join(dir, "content.db");
+    buildSealedCiphertextDb(dbPath);
+    assert.equal(findKeyDependentData([dbPath]), true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("findKeyDependentData: a webhook_subscriptions row counts as key-dependent data", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-key-dependent-data-"));
+  try {
+    const dbPath = join(dir, "content.db");
+    buildWebhookSubscriptionsDb(dbPath);
+    assert.equal(findKeyDependentData([dbPath]), true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("findKeyDependentData: a DB with neither table counts as clean", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-key-dependent-data-"));
+  try {
+    const dbPath = join(dir, "content.db");
+    buildEmptyDb(dbPath);
+    assert.equal(findKeyDependentData([dbPath]), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("findKeyDependentData: an unreadable DB path fails closed (counts as data present)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-key-dependent-data-"));
+  try {
+    const dbPath = join(dir, "does-not-exist.db");
+    assert.equal(findKeyDependentData([dbPath]), true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("siteKeyFilePathFrom: the given fallback when sources has no per-site-file candidate (e.g. production)", () => {

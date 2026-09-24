@@ -1,33 +1,32 @@
 import { randomBytes } from "node:crypto";
-import {
-  chmodSync,
-  closeSync,
-  existsSync,
-  fsyncSync,
-  linkSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  unlinkSync,
-  writeSync,
-} from "node:fs";
+import { chmodSync, closeSync, existsSync, fsyncSync, linkSync, mkdirSync, openSync, readFileSync, unlinkSync, writeSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
-import Database from "better-sqlite3";
-
 import { fingerprintRootKeyHex, parseRootKeyHex, type RootKeyRejection } from "./keyring.env.js";
-import { readSiteKeySourceMaterial, resolveSiteKeyId, siteKeySources, type SiteKeySource } from "./site-key-sources.js";
+import {
+  findKeyDependentData,
+  readSiteKeySourceMaterial,
+  readSiteMetaJson,
+  resolveSiteKeyId,
+  siteKeySources,
+  type SiteKeySource,
+} from "./site-key-sources.js";
 import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
 import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
 
 /**
  * @file Site-key plan (`ADS-memory/.local-artifacts/plan-site-key-2026-09-24.md`) §A.2 — the ONE
- * writer for a site's key file. `planRootKeyEnsure`/`findKeyDependentData` (the CLI's
- * `tovu root-key ensure`, `cli/commands/root-key.ts:41-134`) live HERE now — `root-key.ts`
- * re-exports them (its own `runRootKeyEnsureCommand` is unchanged and still consumes them
- * directly) until Stage A3b deletes that CLI command outright.
+ * writer for a site's key file. The CLI's old `tovu root-key ensure` command
+ * (`cli/commands/root-key.ts`) was absorbed into {@link ensureSiteKeyForBoot} and deleted outright
+ * (Stage A3b, `abc4807d5`) — `planRootKeyEnsure`/`RootKeyEnsurePlan` (that command's own pure
+ * decision table) went with it as dead code (site-key plan §A.6: zero callers once the CLI command
+ * was gone). `findKeyDependentData` (the content.db scan both that command and this module's own
+ * `ensureSiteKey` use) moved OUT to `site-key-sources.ts` in the same pass — the admin Site Token
+ * route's `"missing-with-data"` state needs the identical scan and cannot import this module (see
+ * that function's own doc for why); it is a pure reader, so the shared reader layer is its correct
+ * home, not this one.
  *
  * Purpose:
  * `ensureSiteKey` runs once per server boot, local mode only (A.2): a per-site file already there
@@ -55,108 +54,7 @@ import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
  */
 
 // ---------------------------------------------------------------------------
-// Moved from cli/commands/root-key.ts (unchanged) — the CLI's own decision table and
-// key-dependent-data scan. `root-key.ts` re-exports both by name.
-// ---------------------------------------------------------------------------
-
-export type RootKeyEnsureAction = "noop" | "generate" | "refuse" | "invalid";
-
-export interface RootKeyEnsurePlan {
-  readonly action: RootKeyEnsureAction;
-}
-
-/** Mirrors `keyring.env.ts`'s `RootKeyStatus` shape without importing it — this decision table
- *  only ever reads `active`/`invalid`, so a structural duck-type keeps `root-key.ts`'s existing
- *  call site (which passes a real `RootKeyStatus`) working unchanged. */
-export interface RootKeyEnsureStatus {
-  readonly active: boolean;
-  readonly invalid?: boolean;
-}
-
-export interface PlanRootKeyEnsureInput {
-  readonly status: RootKeyEnsureStatus;
-  readonly mode: RuntimeMode;
-  readonly siteDbsWithKeyData: boolean;
-}
-
-/**
- * Pure decision table for `tovu root-key ensure` (moved verbatim from `cli/commands/root-key.ts`
- * — see that file's own history for the original reasoning). Order is significant:
- *
- * 1. An unreadable existing source (`status.invalid`) is reported before anything else.
- * 2. An already-active key (env or file) is always a no-op.
- * 3. Outside local mode, this command never mints a key.
- * 4. In local mode with nothing configured, existing key-dependent data blocks a fresh generate.
- * 5. Only once all four checks pass does this command mint a file.
- *
- * @complexity O(1) — a fixed sequence of boolean checks over already-computed inputs.
- */
-export function planRootKeyEnsure(input: PlanRootKeyEnsureInput): RootKeyEnsurePlan {
-  if (input.status.invalid) return { action: "invalid" };
-  if (input.status.active) return { action: "noop" };
-  if (input.mode !== "local") return { action: "noop" };
-  if (input.siteDbsWithKeyData) return { action: "refuse" };
-  return { action: "generate" };
-}
-
-/**
- * Whether any database in `dbPaths` holds data that only the CURRENT root/site key can decrypt or
- * verify. Checks every table whose schema mentions `sealed_ciphertext` (the column all sealed
- * tables share) for a non-null row, plus `webhook_subscriptions` (signing secrets derived from the
- * key, not stored under a `sealed_ciphertext` column at all).
- *
- * Fails closed: a database this function cannot open or query at all counts as "has data" — a
- * database it never got to inspect could hold sealed rows. Callers are expected to only pass paths
- * known to exist (`existsSync` first) — a genuinely missing site database is "nothing to scan yet",
- * not "unreadable", and must never reach this fail-closed path.
- *
- * @param dbPaths - `content.db` paths to scan. Each is opened read-only and closed before the
- *   next; never mutates any of them.
- * @complexity O(t) sqlite statements per database, where t is that database's matching table
- *   count — one `sqlite_master` scan plus one bounded `LIMIT 1` probe per matching table.
- */
-export function findKeyDependentData(dbPaths: readonly string[]): boolean {
-  return dbPaths.some((dbPath) => databaseHasKeyDependentData(dbPath));
-}
-
-/** One database's contribution to {@link findKeyDependentData} — isolated so a failure opening or
- *  querying THIS database can be caught and turned into "has data" without aborting the scan of
- *  the others. */
-function databaseHasKeyDependentData(dbPath: string): boolean {
-  let db: Database.Database;
-  try {
-    db = new Database(dbPath, { readonly: true, fileMustExist: true });
-  } catch {
-    return true;
-  }
-  try {
-    const sealedTables = db
-      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND sql LIKE '%sealed_ciphertext%'")
-      .all() as { name: string }[];
-    for (const { name } of sealedTables) {
-      // `name` is quoted as an identifier (never interpolated as a value) — it comes from
-      // `sqlite_master` itself, this database's own schema, not external input.
-      const row = db.prepare(`SELECT 1 FROM "${name}" WHERE sealed_ciphertext IS NOT NULL LIMIT 1`).get();
-      if (row !== undefined) return true;
-    }
-
-    const hasWebhookTable = db
-      .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'webhook_subscriptions'")
-      .get();
-    if (hasWebhookTable !== undefined) {
-      const row = db.prepare("SELECT 1 FROM webhook_subscriptions LIMIT 1").get();
-      if (row !== undefined) return true;
-    }
-    return false;
-  } catch {
-    return true;
-  } finally {
-    db.close();
-  }
-}
-
-// ---------------------------------------------------------------------------
-// New: ensureSiteKey — the per-site decision table and its one writer.
+// ensureSiteKey — the per-site decision table and its one writer.
 // ---------------------------------------------------------------------------
 
 /** {@link planSiteKeyEnsure}'s own pure decision-table outcomes only. `"mismatch"` (site-key plan
@@ -190,8 +88,8 @@ export interface PlanSiteKeyEnsureInput {
    *  `siteKeySources` with `perSite` excluded. */
   readonly other: SiteKeyMaterialCheck;
   /** Irrelevant unless both `perSite` and `other` are `"absent"` — a caller may pass `false`
-   *  unconditionally otherwise, the same convention `PlanRootKeyEnsureInput.siteDbsWithKeyData`
-   *  already uses. */
+   *  unconditionally otherwise, the same convention the now-deleted CLI decision table
+   *  (`planRootKeyEnsure`, site-key plan §A.6) used for its own equivalent field. */
   readonly siteDbsWithKeyData: boolean;
 }
 
@@ -364,7 +262,11 @@ function withFingerprintReconciliation(
   perSiteFilePath: string,
   fingerprint: string
 ): EnsureSiteKeyResult {
-  const meta = readSiteMetaObject(siteDir);
+  // `readSiteMetaJson` (site-key-sources.ts) — the shared `.site-meta.json` parse both this
+  // function and `site-key-sources.ts`'s own `resolveSiteKeyId`/`resolveSiteKeyFingerprint` build
+  // on, so a corrupt-file/non-object verdict can never drift between the writer's own
+  // reconciliation and the admin route's read-only state derivation.
+  const meta = readSiteMetaJson(siteDir);
   if (meta === undefined) {
     return { action, perSiteFilePath, fingerprint };
   }
@@ -377,31 +279,6 @@ function withFingerprintReconciliation(
     return { action, perSiteFilePath, fingerprint };
   }
   return { action: "mismatch", perSiteFilePath, fingerprint };
-}
-
-/** `.site-meta.json`'s raw parsed object under `siteDir`, or `undefined` when the file is missing,
- *  unreadable, not valid JSON, or not a JSON object — mirrors `site-key-sources.ts`'s
- *  `resolveSiteKeyId` in never throwing: a site with no meta (or a genuinely corrupt one) simply has
- *  nowhere to stamp a fingerprint against.
- *
- * @complexity O(1) — one small, bounded-size file read (no size guard of its own; a `.site-meta.json`
- *   this oversized already fails `readSiteDir`'s own 64 KiB corruption guard upstream of anything
- *   that would call `ensureSiteKey`).
- */
-function readSiteMetaObject(siteDir: string): Record<string, unknown> | undefined {
-  let raw: string;
-  try {
-    raw = readFileSync(join(siteDir, ".site-meta.json"), "utf8");
-  } catch {
-    return undefined;
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return undefined;
-  }
-  return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : undefined;
 }
 
 export interface EnsureSiteKeyForBootInput {
