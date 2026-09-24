@@ -9,6 +9,7 @@ import type { PublishContentPeerRecord } from "../peers.js";
 import {
   countPublishChanges,
   describeNotSupportedByLive,
+  describeApplyShortfall,
   describePublishChanges,
   describePublishResult,
   publishWouldChangeNothing,
@@ -617,4 +618,21 @@ test("publishing refuses when this site cannot send its images and files, rather
       return true;
     }
   );
+});
+
+// ---------------------------------------------------------------------------
+// 3c. describeApplyShortfall — the result copy must not claim writes the destination refused
+// ---------------------------------------------------------------------------
+
+test("describeApplyShortfall is null when every planned change was written", () => {
+  assert.equal(describeApplyShortfall({ plannedWrites: 3, actualWrites: 3 }, "example.com"), null);
+});
+
+test("describeApplyShortfall names how many planned changes changed on the site mid-publish", () => {
+  const one = describeApplyShortfall({ plannedWrites: 3, actualWrites: 2 }, "example.com");
+  assert.equal(one, "1 of those changed on example.com while publishing, so it was left alone.");
+  const two = describeApplyShortfall({ plannedWrites: 3, actualWrites: 1 }, "example.com");
+  assert.equal(two, "2 of those changed on example.com while publishing, so they were left alone.");
+  assertReadableByAPerson(one!, "describeApplyShortfall");
+  assertReadableByAPerson(two!, "describeApplyShortfall");
 });

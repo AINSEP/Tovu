@@ -71,6 +71,7 @@ import {
   describeNotSupportedByLive,
   describePublishChanges,
   describePublishResult,
+  describeApplyShortfall,
   publishWouldChangeNothing,
   summarizeLeftAlone,
 } from "./publish-confirmation-ui.js";
@@ -497,9 +498,13 @@ export function buildPublishContentRegistrations(
         // `executePeerImport`'s response is the destination's `/import/execute` body —
         // `{ restorePointId, runId, changeSetIds }` (`gated-hooks.ts`'s `executeMutation`). It carries
         // no per-outcome counts (`changeSetIds.length` is a total write count, not a
-        // created/replaced/unchanged split), so there is nothing truer to derive the success message
-        // from than the PLAN's own `counts` — computed above, before this call, from the same rows.
-        await executePeerImport(peer, { bundleId: pushed.bundleId, confirmationToken });
+        // created/replaced/unchanged split), so the success message derives from the PLAN's own
+        // `counts`. That total IS enough to catch the plan over-promising: a row edited on the
+        // destination between plan and apply is downgraded there and writes nothing, so a shortfall
+        // is said out loud rather than reported as replaced.
+        const executed = await executePeerImport(peer, { bundleId: pushed.bundleId, confirmationToken });
+        const actualWrites = Array.isArray(executed.changeSetIds) ? executed.changeSetIds.length : counts.added + counts.replaced;
+        const shortfall = describeApplyShortfall({ plannedWrites: counts.added + counts.replaced, actualWrites }, destination.label);
 
         // `pushed.notSupportedByLive` was decided BEFORE the plan (S-F1's probe runs ahead of
         // staging), so it names types held back from this very publish, not a stale value from an
@@ -508,9 +513,9 @@ export function buildPublishContentRegistrations(
         const notSupportedMessage = describeNotSupportedByLive(pushed.notSupportedByLive, destination.label);
         return {
           published: true,
-          message: notSupportedMessage
-            ? `${describePublishResult(counts, destination.label)} ${notSupportedMessage}`
-            : describePublishResult(counts, destination.label),
+          message: [describePublishResult(counts, destination.label), shortfall, notSupportedMessage]
+            .filter((sentence): sentence is string => sentence !== null)
+            .join(" "),
           nextStep: null,
           counts,
           leftAlone: summarizeLeftAlone(plan.rows),

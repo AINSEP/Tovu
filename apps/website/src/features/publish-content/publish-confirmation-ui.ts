@@ -152,6 +152,25 @@ export function describePublishResult(counts: PublishChangeCounts, siteLabel: st
   return `Published to ${siteLabel}: ${parts.join(" and ")}.${tail}`;
 }
 
+/**
+ * The correction {@link describePublishResult} needs when the destination wrote FEWER rows than its
+ * plan promised — a row edited there between plan and apply is downgraded to `conflict` at apply
+ * time (`apply-loop.ts`), and the plan's own counts would otherwise claim it was replaced. `null`
+ * when every planned write landed. `actualWrites` is the execute response's `changeSetIds.length`:
+ * one id per row that actually wrote.
+ * @complexity O(1).
+ */
+export function describeApplyShortfall(
+  writes: { plannedWrites: number; actualWrites: number },
+  siteLabel: string
+): string | null {
+  const missed = writes.plannedWrites - writes.actualWrites;
+  if (missed <= 0) return null;
+  return missed === 1
+    ? `1 of those changed on ${siteLabel} while publishing, so it was left alone.`
+    : `${missed} of those changed on ${siteLabel} while publishing, so they were left alone.`;
+}
+
 /** Which of the five known reasons publishing leaves a row alone, derived from the row's `reason`
  *  text — see {@link classifyLeftAloneReason}. `"other"` is the same conservative fallback
  *  {@link countPublishChanges} uses for an outcome kind nobody named yet: grouped and shown, never
