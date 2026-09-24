@@ -46,6 +46,15 @@ async function seedPage(repo: InMemoryPostRepo, id: string, title: string) {
   await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id, title, kind: "page" } });
 }
 
+test("pages_write_html and pages_write_region document the collection embed marker, including its <template> placeholders", () => {
+  const { byName } = harness();
+  for (const name of ["pages_write_html", "pages_write_region"]) {
+    const description = byName.get(name)?.descriptor.description ?? "";
+    assert.match(description, /"type":"collection"/, `${name} must mention the collection marker`);
+    assert.match(description, /<template>/, `${name} must mention <template> placeholders`);
+  }
+});
+
 test("all three Pages tools are registered with the input schemas the model needs", () => {
   const { byName } = harness();
   assert.deepEqual([...byName.keys()].sort(), ["pages_read_html", "pages_write_html", "pages_write_region"]);
