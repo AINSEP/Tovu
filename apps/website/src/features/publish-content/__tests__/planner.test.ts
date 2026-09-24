@@ -37,6 +37,7 @@ import {
   type BaselineRecord,
   type PlanImportDeps,
   type PublishContentBundle,
+  type RetireTarget,
 } from "../planner.js";
 
 test.beforeEach(() => {
@@ -61,20 +62,26 @@ function makeFakeHandler(options: {
   destination: Map<string, FakeDestinationRow>;
   blockedIds?: ReadonlySet<string>;
   blockReason?: string;
+  /** S2 (publish-overwrite-live-plan §4) — a fake handler opts into the retire-offer branch of
+   *  `planEntity` by supplying this; a handler built WITHOUT it has no `planRetire` property at all
+   *  (not even `undefined` explicitly), matching every real handler before S4 lands. */
+  planRetire?: (entity: PackedEntity) => Promise<RetireTarget | null>;
 }): PublishContentHandler {
-  return {
+  const handler = {
     entityType: options.entityType,
     schemaVersion: 1,
     permission: "content.write",
     dependsOn: options.dependsOn ?? [],
     pack: async function* () {},
-    inspect: async (id) => options.destination.get(id) ?? null,
-    precheck: async (entity) =>
+    inspect: async (id: string) => options.destination.get(id) ?? null,
+    precheck: async (entity: PackedEntity) =>
       options.blockedIds?.has(entity.id) ? (options.blockReason ?? `blocked: ${entity.id}`) : null,
     apply: async () => {
       throw new Error(`planImport must never call apply() — it is pure planning (entityType=${options.entityType})`);
     },
+    ...(options.planRetire ? { planRetire: options.planRetire } : {}),
   };
+  return handler;
 }
 
 function fakeContributor(handler: PublishContentHandler): PublishContentContributor {
@@ -141,7 +148,7 @@ test("created: no destination row for the id", async () => {
   const report = await planImport(bundle, makeDeps({}));
 
   assert.equal(report.refused, false);
-  assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", entityLabel: "w1", outcome: "created", writes: true, reason: null }]);
+  assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", entityLabel: "w1", outcome: "created", writes: true, reason: null, canOverwrite: false, retires: null }]);
   assertUnchanged(destination, before, "created");
 });
 
@@ -153,7 +160,7 @@ test("unchanged: destination hash equals source hash", async () => {
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "same-hash" });
   const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({}));
 
-  assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", entityLabel: "w1", outcome: "unchanged", writes: false, reason: null }]);
+  assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", entityLabel: "w1", outcome: "unchanged", writes: false, reason: null, canOverwrite: false, retires: null }]);
   assertUnchanged(destination, before, "unchanged");
 });
 
@@ -168,7 +175,7 @@ test("applied: destination hash differs from source but matches the recorded bas
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
   const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({ baselines }));
 
-  assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", entityLabel: "w1", outcome: "applied", writes: true, reason: null }]);
+  assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", entityLabel: "w1", outcome: "applied", writes: true, reason: null, canOverwrite: false, retires: null }]);
   assertUnchanged(destination, before, "applied");
 });
 
@@ -187,6 +194,8 @@ test("conflict: destination hash differs from BOTH source and the recorded basel
   assert.equal(report.rows[0].outcome, "conflict");
   assert.equal(report.rows[0].writes, false);
   assert.match(report.rows[0].reason ?? "", /edited on the destination since the last sync/);
+  assert.equal(report.rows[0].canOverwrite, true, "a conflict row is always offered for override");
+  assert.equal(report.rows[0].retires, null);
   assertUnchanged(destination, before, "conflict (edited on destination)");
 });
 
@@ -201,6 +210,7 @@ test("conflict: no baseline exists at all for this peer+entity — never a free 
   assert.equal(report.rows[0].outcome, "conflict");
   assert.equal(report.rows[0].writes, false);
   assert.match(report.rows[0].reason ?? "", /no prior sync baseline/);
+  assert.equal(report.rows[0].canOverwrite, true, "a conflict row is always offered for override");
   assertUnchanged(destination, before, "conflict (no baseline)");
 });
 
@@ -222,7 +232,7 @@ test("applied (D1): no recorded baseline, but the destination hash matches the s
     makeDeps({ seedHashes })
   );
 
-  assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", entityLabel: "w1", outcome: "applied", writes: true, reason: null }]);
+  assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", entityLabel: "w1", outcome: "applied", writes: true, reason: null, canOverwrite: false, retires: null }]);
   assertUnchanged(destination, before, "applied (D1 seed match)");
 });
 
@@ -289,7 +299,7 @@ test("blocked: precheck fails (e.g. slug taken) — never caught as a write-time
   const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({}));
 
   assert.deepEqual(report.rows, [
-    { entityType: "widget", entityId: "w1", entityLabel: "w1", outcome: "blocked", writes: false, reason: "slug 'x' is already held by a different widget" },
+    { entityType: "widget", entityId: "w1", entityLabel: "w1", outcome: "blocked", writes: false, reason: "slug 'x' is already held by a different widget", canOverwrite: false, retires: null },
   ]);
   assertUnchanged(destination, before, "blocked (precheck)");
 });
@@ -334,6 +344,8 @@ test("forced: a conflict (edited on destination) the operator explicitly selecte
   assert.equal(report.rows[0].outcome, "forced");
   assert.equal(report.rows[0].writes, true);
   assert.match(report.rows[0].reason ?? "", /edited on the destination/);
+  assert.equal(report.rows[0].canOverwrite, false, "a row already forced is not still being offered");
+  assert.equal(report.rows[0].retires, null, "the plain conflict-forcing path never resolves a retire target");
   assertUnchanged(destination, before, "forced (planImport itself still never writes)");
 });
 
@@ -349,6 +361,157 @@ test("forced: the 'no baseline at all' conflict variant can also be forced", asy
 
   assert.equal(report.rows[0].outcome, "forced");
   assert.equal(report.rows[0].writes, true);
+});
+
+// ---------------------------------------------------------------------------
+// 1c. publish-overwrite-live-plan §4/S2 — a slug-clash `blocked` row whose handler can resolve WHO
+// holds the address gets offered for overwrite (`canOverwrite:true` + the `RetireTarget`), and an
+// operator's own `forcedEntityKeys` tick turns a valid offer into `forced`, exactly like a plain
+// conflict — UNLESS the holder is itself part of this same bundle.
+// ---------------------------------------------------------------------------
+
+test("a forced key on a slug-blocked row with a resolvable retire target becomes 'forced' with the target attached", async () => {
+  const destination = new Map<string, FakeDestinationRow>();
+  const target: RetireTarget = { entityType: "widget", entityId: "holder-1", entityLabel: "Holder", hash: "holder-hash" };
+  const handler = makeFakeHandler({
+    entityType: "widget",
+    destination,
+    blockedIds: new Set(["w1"]),
+    blockReason: "slug 'x' is already held by a different widget",
+    planRetire: async () => target,
+  });
+  registerPublishContentContributor(fakeContributor(handler));
+
+  const entity = makeEntity({ entityType: "widget", id: "w1" });
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    makeDeps({ forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
+  );
+
+  assert.deepEqual(report.rows[0], {
+    entityType: "widget",
+    entityId: "w1",
+    entityLabel: "w1",
+    outcome: "forced",
+    writes: true,
+    reason: "slug 'x' is already held by a different widget",
+    canOverwrite: true,
+    retires: target,
+  });
+});
+
+test("the SAME slug-blocked row, with no forced key, stays 'blocked' but is offered (canOverwrite:true) with the target attached", async () => {
+  const destination = new Map<string, FakeDestinationRow>();
+  const target: RetireTarget = { entityType: "widget", entityId: "holder-1", entityLabel: "Holder", hash: "holder-hash" };
+  const handler = makeFakeHandler({
+    entityType: "widget",
+    destination,
+    blockedIds: new Set(["w1"]),
+    blockReason: "slug 'x' is already held by a different widget",
+    planRetire: async () => target,
+  });
+  registerPublishContentContributor(fakeContributor(handler));
+  const before = snapshot(destination);
+
+  const entity = makeEntity({ entityType: "widget", id: "w1" });
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    makeDeps({})
+  );
+
+  assert.equal(report.rows[0].outcome, "blocked");
+  assert.equal(report.rows[0].writes, false);
+  assert.equal(report.rows[0].canOverwrite, true);
+  assert.deepEqual(report.rows[0].retires, target);
+  assertUnchanged(destination, before, "blocked, offered (no forced key yet)");
+});
+
+test("a retire target that is ALSO part of this bundle is never offered — publishing the holder would move its own slug mid-run", async () => {
+  const destination = new Map<string, FakeDestinationRow>();
+  const target: RetireTarget = { entityType: "widget", entityId: "w2", entityLabel: "Holder", hash: "holder-hash" };
+  const handler = makeFakeHandler({
+    entityType: "widget",
+    destination,
+    blockedIds: new Set(["w1"]),
+    blockReason: "slug 'x' is already held by a different widget",
+    planRetire: async () => target,
+  });
+  registerPublishContentContributor(fakeContributor(handler));
+
+  const blockedEntity = makeEntity({ entityType: "widget", id: "w1" });
+  const holderEntity = makeEntity({ entityType: "widget", id: "w2" }); // the holder itself is in THIS bundle
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [blockedEntity, holderEntity] },
+    // Even an operator who already ticked "overwrite" for w1 must not get a forced retire here —
+    // the in-bundle case is refused regardless of forcedEntityKeys.
+    makeDeps({ forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
+  );
+
+  const row = report.rows.find((r) => r.entityId === "w1")!;
+  assert.equal(row.outcome, "blocked");
+  assert.equal(row.writes, false);
+  assert.equal(row.canOverwrite, false);
+  assert.equal(row.retires, null);
+});
+
+test("a forced key never turns a missing-blob block into an overwrite offer", async () => {
+  const destination = new Map<string, FakeDestinationRow>();
+  registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination })));
+
+  const entity = makeEntity({ entityType: "widget", id: "w1", requiredBlobs: ["deadbeef"] });
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    makeDeps({ availableBlobs: new Set(), forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
+  );
+
+  assert.equal(report.rows[0].outcome, "blocked");
+  assert.match(report.rows[0].reason ?? "", /required blob 'deadbeef' is not available/);
+  assert.equal(report.rows[0].canOverwrite, false);
+  assert.equal(report.rows[0].retires, null);
+});
+
+test("a slug-blocked row whose handler has no planRetire at all behaves exactly as before this change", async () => {
+  const destination = new Map<string, FakeDestinationRow>();
+  const handler = makeFakeHandler({
+    entityType: "widget",
+    destination,
+    blockedIds: new Set(["w1"]),
+    blockReason: "slug 'x' is already held by a different widget",
+    // no planRetire supplied
+  });
+  registerPublishContentContributor(fakeContributor(handler));
+
+  const entity = makeEntity({ entityType: "widget", id: "w1" });
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    makeDeps({ forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
+  );
+
+  assert.equal(report.rows[0].outcome, "blocked");
+  assert.equal(report.rows[0].canOverwrite, false);
+  assert.equal(report.rows[0].retires, null);
+});
+
+test("a slug-blocked row whose planRetire resolves null (nothing to retire) stays blocked and unoffered", async () => {
+  const destination = new Map<string, FakeDestinationRow>();
+  const handler = makeFakeHandler({
+    entityType: "widget",
+    destination,
+    blockedIds: new Set(["w1"]),
+    blockReason: "the home page cannot be replaced by publishing",
+    planRetire: async () => null,
+  });
+  registerPublishContentContributor(fakeContributor(handler));
+
+  const entity = makeEntity({ entityType: "widget", id: "w1" });
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    makeDeps({ forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
+  );
+
+  assert.equal(report.rows[0].outcome, "blocked");
+  assert.equal(report.rows[0].canOverwrite, false);
+  assert.equal(report.rows[0].retires, null);
 });
 
 test("refused: unknown artifact format version rejects the whole bundle before any catalog or baseline read", async () => {

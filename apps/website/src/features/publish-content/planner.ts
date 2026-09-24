@@ -92,6 +92,20 @@ export interface PublishContentBundle {
  *  file's header for why it is a whole-run state, not a per-entity one. */
 export type PublishContentOutcomeKind = "created" | "unchanged" | "applied" | "conflict" | "blocked" | "forced";
 
+/**
+ * The live row a `blocked`/`forced` row's slug clash would have to displace before this entity's own
+ * id can be created (publish-overwrite-live-plan §4). Carried inside the report — not just an id — so
+ * a caller re-deriving it at apply time (Task 8's `applyOneRow`) can compare the SAME `hash` it saw at
+ * plan time and downgrade to `conflict` if the holder moved between plan and apply, and so a report
+ * viewer can name the live row before anyone ticks anything.
+ */
+export interface RetireTarget {
+  readonly entityType: string;
+  readonly entityId: string;
+  readonly entityLabel: string | null;
+  readonly hash: string;
+}
+
 /** One entity's classification. `writes` describes what a LATER apply pass (Task 8) would do if this
  *  report were accepted as-is — `planImport` itself never writes regardless of this flag's value. */
 export interface PublishContentOutcomeRow {
@@ -106,6 +120,18 @@ export interface PublishContentOutcomeRow {
   /** Human-readable explanation for `conflict`/`blocked`/`forced` (why it was a conflict before being
    *  forced); `null` for `created`/`unchanged`, which need no explanation. */
   readonly reason: string | null;
+  /**
+   * publish-overwrite-live-plan §4 — true for every `conflict` row (the operator can already force
+   * those via {@link PlanImportDeps.forcedEntityKeys}), and for a `blocked` row whose handler resolved
+   * a {@link RetireTarget} that is NOT itself part of this bundle (see {@link planEntity}). `false`
+   * everywhere else, including a `forced` row reached via the pre-existing conflict-forcing path —
+   * that row is already what an operator asked for, not something still being offered.
+   */
+  readonly canOverwrite: boolean;
+  /** Set on a slug-clash `blocked`/`forced` row whose handler resolved a live holder that overwriting
+   *  would have to retire first (see {@link PublishContentHandler.planRetire}'s own doc, S4). `null`
+   *  for every other row, including a `blocked` row whose handler has no `planRetire` at all. */
+  readonly retires: RetireTarget | null;
 }
 
 /**
@@ -210,6 +236,21 @@ export function entityDisplayLabel(state: Record<string, unknown>): string | nul
 }
 
 /**
+ * A handler that also knows how to resolve the live row its own slug clash would have to retire —
+ * optional today because only `post`/`page` implement it (publish-overwrite-live-plan S4), and
+ * declared LOCALLY rather than as a member of {@link PublishContentHandler} itself: that interface
+ * change, plus the real `retire()` half wired into a domain write, is S4's own slice. Every handler
+ * without this method is treated exactly as before this change — see the default `canOverwrite:false,
+ * retires:null` on every return below except the two this file's header table calls out.
+ */
+interface RetireCapableHandler {
+  /** Read-only, like `precheck`/`inspect` — never writes. Returns the entity currently holding this
+   *  entity's address on the destination, or `null` when there is nothing to retire (no clash this
+   *  handler knows how to resolve, e.g. the root slug). */
+  planRetire?(entity: PackedEntity): Promise<RetireTarget | null>;
+}
+
+/**
  * Classifies exactly one entity — the per-row half of {@link planImport}'s pass 2. Never called for
  * an entity whose baseline already failed the {@link CONTENT_HASH_VERSION} check (pass 1 refuses the
  * whole run before this function is ever reached in that case).
@@ -227,7 +268,8 @@ async function planEntity(
   entity: PackedEntity,
   handler: PublishContentHandler | undefined,
   baseline: BaselineRecord | null,
-  deps: PlanImportDeps
+  deps: PlanImportDeps,
+  bundleKeys: ReadonlySet<string>
 ): Promise<PublishContentOutcomeRow> {
   const identity = {
     entityType: entity.entityType,
@@ -241,29 +283,55 @@ async function planEntity(
       outcome: "blocked",
       writes: false,
       reason: `no registered publish-content handler for entity type '${entity.entityType}' on this instance`,
+      canOverwrite: false,
+      retires: null,
     };
   }
 
   for (const sha256 of entity.requiredBlobs) {
     if (!(await deps.hasBlob(sha256))) {
-      return { ...identity, outcome: "blocked", writes: false, reason: `required blob '${sha256}' is not available on this instance` };
+      return {
+        ...identity,
+        outcome: "blocked",
+        writes: false,
+        reason: `required blob '${sha256}' is not available on this instance`,
+        canOverwrite: false,
+        retires: null,
+      };
     }
   }
 
   const blockReason = await handler.precheck(entity);
   if (blockReason) {
-    return { ...identity, outcome: "blocked", writes: false, reason: blockReason };
+    // publish-overwrite-live-plan §4/S2 — a slug clash this handler knows how to resolve gets offered
+    // as an overwrite, UNLESS the row that would have to be retired is itself part of this same
+    // bundle (retiring it would move its own slug out from under it mid-run — an ordering problem,
+    // not an overwrite; plan §2's last table row). An already-forced key (the operator's own prior
+    // "overwrite on live" tick, the same `forcedEntityKeys` mechanism the conflict branch below uses)
+    // turns a valid target straight into `forced` with the target attached.
+    const target = await (handler as RetireCapableHandler).planRetire?.(entity) ?? null;
+    if (target !== null) {
+      if (bundleKeys.has(entityKey(target.entityType, target.entityId))) {
+        return { ...identity, outcome: "blocked", writes: false, reason: blockReason, canOverwrite: false, retires: null };
+      }
+      const forced = deps.forcedEntityKeys?.has(entityKey(entity.entityType, entity.id)) ?? false;
+      if (forced) {
+        return { ...identity, outcome: "forced", writes: true, reason: blockReason, canOverwrite: true, retires: target };
+      }
+      return { ...identity, outcome: "blocked", writes: false, reason: blockReason, canOverwrite: true, retires: target };
+    }
+    return { ...identity, outcome: "blocked", writes: false, reason: blockReason, canOverwrite: false, retires: null };
   }
 
   const destination = await handler.inspect(entity.id);
   if (!destination) {
-    return { ...identity, outcome: "created", writes: true, reason: null };
+    return { ...identity, outcome: "created", writes: true, reason: null, canOverwrite: false, retires: null };
   }
   if (destination.hash === entity.contentHash) {
-    return { ...identity, outcome: "unchanged", writes: false, reason: null };
+    return { ...identity, outcome: "unchanged", writes: false, reason: null, canOverwrite: false, retires: null };
   }
   if (baseline && destination.hash === baseline.hashAtLastSync) {
-    return { ...identity, outcome: "applied", writes: true, reason: null };
+    return { ...identity, outcome: "applied", writes: true, reason: null, canOverwrite: false, retires: null };
   }
 
   // D1 (2026-09-24 owner decision, see this module's header and `getSeedHash`'s own doc): no
@@ -275,7 +343,7 @@ async function planEntity(
   if (!baseline && deps.getSeedHash) {
     const seedHash = await deps.getSeedHash({ entityType: entity.entityType, entityId: entity.id });
     if (seedHash !== null && destination.hash === seedHash) {
-      return { ...identity, outcome: "applied", writes: true, reason: null };
+      return { ...identity, outcome: "applied", writes: true, reason: null, canOverwrite: false, retires: null };
     }
   }
 
@@ -288,9 +356,13 @@ async function planEntity(
     : `no prior sync baseline for ${entity.entityType} '${entity.id}' with this peer — the destination already holds different content`;
   const forced = deps.forcedEntityKeys?.has(entityKey(entity.entityType, entity.id)) ?? false;
   if (forced) {
-    return { ...identity, outcome: "forced", writes: true, reason: conflictReason };
+    // Unlike the retire-offered `forced` row above, this one already went through the (separate,
+    // pre-existing) plain conflict-forcing path — nothing is still being "offered" here, so it gets
+    // the same `canOverwrite:false, retires:null` as any other non-offer row (publish-overwrite-live-
+    // plan §4: only the `conflict` outcome itself, and a valid retire target, ever set `true`).
+    return { ...identity, outcome: "forced", writes: true, reason: conflictReason, canOverwrite: false, retires: null };
   }
-  return { ...identity, outcome: "conflict", writes: false, reason: conflictReason };
+  return { ...identity, outcome: "conflict", writes: false, reason: conflictReason, canOverwrite: true, retires: null };
 }
 
 /**
@@ -374,12 +446,17 @@ export async function planImport(bundle: PublishContentBundle, deps: PlanImportD
   const unhandledTypes = [...entitiesByType.keys()].filter((type) => !handlerByType.has(type));
   const applyOrder = [...catalog.applyOrder, ...unhandledTypes];
 
+  // publish-overwrite-live-plan §4/S2 — every entity's own key, built once, so `planEntity` can tell
+  // "the row a slug clash would retire" apart from "an entity this very bundle is also publishing"
+  // without re-walking `bundle.entities` per blocked row.
+  const bundleKeys = new Set(bundle.entities.map((entity) => entityKey(entity.entityType, entity.id)));
+
   const rows: PublishContentOutcomeRow[] = [];
   for (const type of applyOrder) {
     const handler = handlerByType.get(type);
     for (const entity of entitiesByType.get(type) ?? []) {
       const baseline = baselineByKey.get(entityKey(entity.entityType, entity.id)) ?? null;
-      rows.push(await planEntity(entity, handler, baseline, deps));
+      rows.push(await planEntity(entity, handler, baseline, deps, bundleKeys));
     }
   }
 
