@@ -92,7 +92,7 @@ import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/rep
 import path from "node:path";
 import { builtInThemesDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSourceControlExportRootDir } from "./deps.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
-import { describeSiteBinding, resolveAppDistDir, resolveProductRoot } from "#src/platform/site-dir/index";
+import { describeSiteBinding, resolveAppDistDir, resolveCheckoutRoot, resolveProductRoot } from "#src/platform/site-dir/index";
 import {
   seededPosts,
   seededPresentation,
@@ -803,11 +803,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const externalMcpOAuthDevices = createDeviceAuthorizationStore();
 
   // See `routes/types.ts`'s `derivedPublicOrigin` doc. Mirrors `deps.ts`'s identical derivation
-  // (six `..` from `runtime/composition/` back to the repo root, same as this file's own
-  // `distDir`/`agent-icons` fallbacks a few hundred lines down) — this hermetic root backs the same
-  // live HTTP server as `deps.ts`'s in `TOVU_DB=memory` mode, so its fallback origin must be derived
-  // the same way rather than silently differing.
-  const REPO_ROOT_FOR_ORIGIN = path.resolve(import.meta.dirname, "..", "..", "..", "..", "..", "..");
+  // (`resolveCheckoutRoot`, a walk-up that is right from both the tsx and the compiled tree) — this
+  // hermetic root backs the same live HTTP server as `deps.ts`'s in `TOVU_DB=memory` mode, so its
+  // fallback origin must be derived the same way rather than silently differing.
+  const REPO_ROOT_FOR_ORIGIN = resolveCheckoutRoot();
   const derivedPublicOrigin = `${deriveDevScheme(resolveDevTls(resolveDevTlsCertPaths(REPO_ROOT_FOR_ORIGIN)).active)}://localhost:${Number(process.env.PORT ?? 3000)}`;
 
   // Composio connectors, hermetic half. No boot `refresh()` here, unlike `deps.ts`: the in-memory

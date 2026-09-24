@@ -165,6 +165,21 @@ function warnIfLegacyEnvVarsIgnored(): void {
 }
 
 /**
+ * Pins `TOVU_DISABLE_DEV_TLS=1` for this process and (by inheritance) the agent daemon it spawns.
+ * `tovu serve` always listens on plain HTTP, but `deps.ts`'s `devCapabilityScheme`/
+ * `derivedPublicOrigin` — computed in both processes — say `https` whenever the checkout's `.certs/`
+ * pair exists, which would hand OAuth providers and emailed links an `https://` URL for an
+ * `http://` server. Set unconditionally for the same reason as {@link pinServedSiteDirIntoEnv}:
+ * this listener's scheme is a fact, not a preference.
+ *
+ * @param env - defaults to `process.env`; injectable for tests.
+ * @complexity O(1).
+ */
+export function pinPlainHttpIntoEnv(env: NodeJS.ProcessEnv = process.env): void {
+  env.TOVU_DISABLE_DEV_TLS = "1";
+}
+
+/**
  * Pins this process's `TOVU_SITE_DIR` to the site directory `tovu serve <dir>` was actually given,
  * so every `siteDir()`-derived path in THIS process and in the agent daemon it spawns resolves to
  * the same place.
@@ -273,6 +288,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // Must precede EVERY `siteDir()`-derived read below (and the daemon spawn much further down) —
   // see {@link pinServedSiteDirIntoEnv} for the divergence this closes.
   pinServedSiteDirIntoEnv(target);
+  pinPlainHttpIntoEnv();
   const bootResult = bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
   const port = resolveServePort(input, bootResult.config);
   // LAN-bind plan (2026-09-23): loopback-only unless TOVU_HOST opts in. Resolved before the boot

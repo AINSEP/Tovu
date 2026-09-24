@@ -54,7 +54,7 @@ import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-conten
 import { hydrateBlobStoreFromSeed } from "#src/features/media/hydrate-blob-store-from-seed";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
 import { createLiveSiteDisplayName } from "#src/platform/site-dir/read-site-dir";
-import { resolveSiteRoot, describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
+import { resolveSiteRoot, resolveCheckoutRoot, describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
 import { recoverIncompleteDataModuleMigrations } from "#src/features/plugins/migration-recovery";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
@@ -1100,13 +1100,13 @@ export function createSqliteRouteDeps(
   // `TOVU_DISABLE_DEV_TLS`, which every hermetic Playwright `webServer` under
   // `development/*.config.ts` sets. A hardcoded `https` in either case silently shipped broken
   // `https://` links (redirects' canonicalOrigin, newsletter confirmation/unsubscribe, site
-  // evidence) for a server that only ever answers on `http://`. `REPO_ROOT` here mirrors this same
-  // directory's own `app.ts` (`distDir` fallbacks a few hundred lines down) — six `..` from
-  // `runtime/composition/` back to the repo root, not counting segments independently per file.
+  // evidence) for a server that only ever answers on `http://`. `REPO_ROOT` is a walk-up
+  // (`resolveCheckoutRoot`), not a fixed `../` count: the compiled tree is two levels shallower than
+  // the tsx source tree, so a count only ever matched one of them.
   // NOTE: `devCapabilityScheme` stays at this scope, NOT inside the dev-seed branch below — the
   // `derivedPublicOrigin` field near the end of this function is a second consumer (see its own
   // comment). Narrowing it to the branch compiles nowhere and was caught by `tsc`.
-  const REPO_ROOT = resolve(import.meta.dirname, "..", "..", "..", "..", "..", "..");
+  const REPO_ROOT = resolveCheckoutRoot();
   const devCapabilityScheme = deriveDevScheme(resolveDevTls(resolveDevTlsCertPaths(REPO_ROOT)).active);
   const originBoot = planOriginBoot({ now: clock.nowIso() });
   if (originBoot.kind === "configured") {

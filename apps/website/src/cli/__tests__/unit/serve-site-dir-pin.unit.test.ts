@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import { pinServedSiteDirIntoEnv } from "../../commands/serve.js";
+import { pinPlainHttpIntoEnv, pinServedSiteDirIntoEnv } from "../../commands/serve.js";
+import { resolveDevTls } from "../../../server/runtime/boot/dev-tls.js";
 import { resolveChatAttachmentUploadDirectory } from "../../../server/inbound/assistant/chat-attachment-directory.js";
 import { buildDaemonSpawnEnvOverrides } from "../../../server/runtime/lifecycle/daemon-supervisor.js";
 import { resolveSiteRoot } from "../../../platform/site-dir/site-root.js";
@@ -130,4 +131,14 @@ test("a switcher-chosen boot is untouched — the default dev boot keeps site sw
   const env = bareServeEnv();
   const binding = describeSiteBinding({ env, cwd: "/repo" });
   assert.equal(binding.switcherCompatible, true, "no pin, a <cwd>/sites-relative root: nothing changes");
+});
+
+// `tovu serve` never terminates TLS (`app.listen`, plain HTTP), but `deps.ts` and the agent daemon
+// derive their public URL scheme from whether the checkout's `.certs/` exist. With certs present
+// they said `https` for an `http` server — broken OAuth callbacks and emailed links.
+test("pinPlainHttpIntoEnv makes dev TLS resolve inactive even when the cert pair exists", () => {
+  const env: NodeJS.ProcessEnv = { TOVU_DISABLE_DEV_TLS: "false" };
+  pinPlainHttpIntoEnv(env);
+  const existing = import.meta.filename;
+  assert.deepEqual(resolveDevTls({ certPath: existing, keyPath: existing }, { env }), { active: false });
 });

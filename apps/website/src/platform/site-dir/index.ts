@@ -32,7 +32,7 @@ export { DEFAULT_SITE_NAME, resolveSiteRoot, type ResolveSiteRootOptional } from
  * `features/agent-plugins/layout.ts` (`no-deep-imports:platform/site-dir` is `error`-severity — see
  * `.dependency-cruiser.mjs`'s `PROMOTED_NO_DEEP_IMPORTS`).
  */
-export { resolveAppDistDir, resolveProductRoot } from "./product-root.js";
+export { resolveAppDistDir, resolveCheckoutRoot, resolveProductRoot } from "./product-root.js";
 export {
   SiteCorruptError,
   SiteDirInvalidError,

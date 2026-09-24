@@ -77,3 +77,26 @@ export function resolveAppDistDir(app: string, fromDir: string = import.meta.dir
   }
   return path.resolve(fromDir, "apps", app, "dist");
 }
+
+/**
+ * The checkout root — the first ancestor of `fromDir` that has an `apps/website/` folder. That is
+ * where the repo-level dev files live (`.certs/`, `.env`), and it is the same directory from the
+ * tsx source tree (`apps/website/src/...`) and the compiled tree (`dist/src/...`, two levels
+ * shallower), which a fixed `../` count cannot be (see this file's header).
+ *
+ * @param fromDir - Override for testing; production callers omit it.
+ * @returns The checkout root. Never throws: with no matching ancestor (a desktop payload or any
+ *   install that ships `dist/` without `apps/website/`) it returns `fromDir` itself, where no
+ *   `.certs/` exists, so dev TLS stays off — the fail-open-to-HTTP outcome `dev-tls.ts` documents.
+ * @complexity O(depth) `existsSync` calls, capped at {@link MAX_WALK_UP}.
+ */
+export function resolveCheckoutRoot(fromDir: string = import.meta.dirname): string {
+  let dir = path.resolve(fromDir);
+  for (let i = 0; i <= MAX_WALK_UP; i++) {
+    if (existsSync(path.join(dir, "apps", "website"))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return path.resolve(fromDir);
+}

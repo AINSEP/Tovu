@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { resolveAppDistDir, resolveProductRoot } from "../../product-root.js";
+import { resolveAppDistDir, resolveCheckoutRoot, resolveProductRoot } from "../../product-root.js";
 
 /**
  * @file Regression coverage for the two path-offset bugs found in `read-template.ts`'s
@@ -154,4 +154,41 @@ test("resolveAppDistDir never throws: with no apps/<app> ancestor it returns a p
 
 test("resolveAppDistDir(), called with no fromDir from a real file inside apps/website/src, finds this checkout's apps/admin/dist", () => {
   assert.equal(resolveAppDistDir("admin"), path.join(resolveProductRoot(), "apps", "admin", "dist"));
+});
+
+// `index.ts`, `deps.ts` and `app.ts` each looked for the repo-root `.certs/` pair with a fixed `../`
+// count sized for the tsx source tree. The compiled tree is two levels shallower (`dist/src/...`), so
+// every compiled boot (`npm start`) looked one directory ABOVE the checkout, found no certs, and
+// silently served plain HTTP.
+test("resolveCheckoutRoot finds the checkout from BOTH the source and the compiled entry/composition dirs", () => {
+  const root = makeCheckout();
+  try {
+    mkdirSync(path.join(root, "apps", "website", "src", "server", "runtime", "composition"), { recursive: true });
+    mkdirSync(path.join(root, "dist", "src", "server", "runtime", "composition"), { recursive: true });
+    for (const dir of [
+      path.join(root, "apps", "website", "src"),
+      path.join(root, "apps", "website", "src", "server", "runtime", "composition"),
+      path.join(root, "dist", "src"),
+      path.join(root, "dist", "src", "server", "runtime", "composition"),
+    ]) {
+      assert.equal(resolveCheckoutRoot(dir), root, dir);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("resolveCheckoutRoot never throws: with no apps/website ancestor it returns fromDir itself", () => {
+  const orphan = mkdtempSync(path.join(os.tmpdir(), "checkout-orphan-"));
+  try {
+    const deep = path.join(orphan, "a", "b");
+    mkdirSync(deep, { recursive: true });
+    assert.equal(resolveCheckoutRoot(deep), deep);
+  } finally {
+    rmSync(orphan, { recursive: true, force: true });
+  }
+});
+
+test("resolveCheckoutRoot(), called with no fromDir from a real file inside apps/website/src, finds this checkout", () => {
+  assert.equal(resolveCheckoutRoot(), resolveProductRoot());
 });

@@ -1,5 +1,4 @@
 import { createServer as createHttpsServer } from "node:https";
-import path from "node:path";
 import { createRouteDeps } from "./server/runtime/composition/app.js";
 import { createServingApp } from "./server/runtime/composition/serving-app.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./server/runtime/boot/dev-tls.js";
@@ -18,6 +17,7 @@ import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-
 import { ensureAgentDaemonToken } from "./assistant/index.js";
 import { registerAdminDevProxyUpgrade } from "./server/inbound/admin-http/admin-dev-proxy.js";
 import { resolveBindHost } from "./server/runtime/boot/bind-host.js";
+import { resolveCheckoutRoot } from "./platform/site-dir/product-root.js";
 
 /**
  * @file Process entrypoint.
@@ -40,11 +40,12 @@ const useMemory = process.env.TOVU_DB === "memory";
 // default.
 const bindHost = resolveBindHost(process.env.TOVU_HOST, undefined);
 
-// Same repo-root `.certs/` cert pair `apps/admin/vite.config.ts`'s gate reads — resolved from
-// `import.meta.dirname` (this file's own compiled/tsx-run location: `apps/website/src`), not
-// `process.cwd()`, per the daemon-cwd trap already documented elsewhere in this codebase: a boot
-// launched from a different working directory must still find the same cert pair.
-const devTls = resolveDevTls(resolveDevTlsCertPaths(path.resolve(import.meta.dirname, "../../..")));
+// Same repo-root `.certs/` cert pair `apps/admin/vite.config.ts`'s gate reads — found by walking up
+// from this module's own location (`resolveCheckoutRoot`), not `process.cwd()`, per the daemon-cwd
+// trap already documented elsewhere in this codebase: a boot launched from a different working
+// directory must still find the same cert pair. A fixed `../` count was right for tsx only; the
+// compiled `dist/src/index.js` sits two levels shallower, so `npm start` silently served plain HTTP.
+const devTls = resolveDevTls(resolveDevTlsCertPaths(resolveCheckoutRoot()));
 const devScheme = deriveDevScheme(devTls.active);
 
 /**
