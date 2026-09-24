@@ -16,7 +16,9 @@ import test from "node:test";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { createRedirect, InMemoryRedirectRepo, redirectMatcher, type RedirectsWriteDeps } from "#src/features/redirects/index";
 import {
   listPublishContentContributors,
   resetPublishContentContributorsForTests,
@@ -29,11 +31,11 @@ test.beforeEach(() => {
   resetPublishContentContributorsForTests();
 });
 
-test("installFirstPartyPublishContentTypes registers exactly post, page and media", () => {
+test("installFirstPartyPublishContentTypes registers exactly post, page, media and redirect", () => {
   installFirstPartyPublishContentTypes();
   assert.deepEqual(
     listPublishContentContributors().map((c) => c.entityType),
-    ["post", "page", "media"]
+    ["post", "page", "media", "redirect"]
   );
 });
 
@@ -107,4 +109,75 @@ test("the registered media contributor's apply() is a real write path, not a thr
   assert.ok(changeSetId);
   const landed = await mediaRepo.findById({ workspaceId, id: "source-system-asset-42" });
   assert.equal(landed?.id, "source-system-asset-42", "the registered contributor must write the row under the SOURCE id");
+});
+
+test("the registered redirect contributor's apply() is a real write path, not a throwing stub", async () => {
+  installFirstPartyPublishContentTypes();
+  const contributor = listPublishContentContributors().find((c) => c.entityType === "redirect");
+  assert.ok(contributor, "redirect must be registered");
+
+  const workspaceId = "workspace-1";
+  const originRepo = new InMemoryOriginSettingRepo([
+    {
+      workspaceId,
+      origin: createVerifiedOrigin({
+        scheme: "https",
+        host: "trusted.example",
+        verifiedAt: "2026-07-13T00:00:00.000Z",
+        source: "workspace-setting",
+      }),
+      redirectAllowlist: [],
+    },
+  ]);
+  // `InMemoryRedirectRepo` satisfies both `RedirectRepoPort` (`repo`) and `RedirectDbHandle` (`db`) —
+  // ONE instance for both, mirroring every real `RedirectsWriteDeps` composition (that class's own
+  // header) — never two independent stores, which would silently split the write.
+  const redirectRepo = new InMemoryRedirectRepo();
+  const redirectsWriteDeps: RedirectsWriteDeps = {
+    repo: redirectRepo,
+    remove: async () => ({ ok: false, reason: "not-found" }),
+    db: redirectRepo,
+    transaction: async (fn) => fn(),
+    matcher: redirectMatcher,
+    originRegistry: new OriginRegistry({ repo: originRepo }),
+    clock: { nowIso: () => "2026-09-24T00:00:00.000Z" },
+    idGen: { newId: () => "generated-redirect-id-1" },
+    outbox: new InMemoryOutbox(),
+  };
+
+  const deps: PublishContentDeps = {
+    workspaceId,
+    postRepo: undefined as unknown as PublishContentDeps["postRepo"],
+    clock: { nowIso: () => "2026-09-24T00:00:00.000Z" },
+    idGen: { newId: () => "unused" },
+    redirectsWriteDeps,
+  };
+
+  const { changeSetId } = await contributor.build(deps).apply({
+    entity: {
+      entityType: "redirect",
+      id: "exact:/folded-stub",
+      schemaVersion: 1,
+      contentHash: "unused-in-this-test",
+      hashVersion: CONTENT_HASH_VERSION,
+      requiredBlobs: [],
+      state: {
+        matchType: "exact",
+        fromPattern: "/folded-stub",
+        toTarget: "/new-home",
+        statusCode: 301,
+        status: "active",
+        override: true,
+        priority: 0,
+      },
+    },
+    expectedVersion: undefined,
+    principalId: "operator-principal-1",
+    idempotencyKey: "idem-redirect-1",
+  });
+
+  assert.ok(changeSetId);
+  const landed = await redirectsWriteDeps.repo.findById({ workspaceId, id: changeSetId });
+  assert.equal(landed?.fromPattern, "/folded-stub", "the registered contributor must actually write the row");
+  assert.equal(landed?.override, true, "override must land so the redirect wins over an existing live page (D3)");
 });

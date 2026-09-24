@@ -1,5 +1,6 @@
 import type { BeforeSaveHookPort, ForgetRemovedPostFn, PostRepoPort } from "#src/features/post/post";
 import type { AssetBlobRepoPort, BlobStorePort, VersionedMediaRepoPort } from "#src/features/media/index";
+import type { RedirectsWriteDeps } from "#src/features/redirects/redirects";
 import type { AuthorizeFn, ChangeSetRepoPort, ClockPort, OutboxPort } from "@jini-ai/cms/core";
 
 /**
@@ -127,6 +128,15 @@ export interface PublishContentDeps {
   readonly mediaRepo?: VersionedMediaRepoPort;
   readonly assetBlobRepo?: AssetBlobRepoPort;
   readonly blobStore?: BlobStorePort;
+  /**
+   * S2 (`redirect` publish type) — `features/redirects/publish-content.ts`'s one real dependency:
+   * the same write chokepoint deps bag `createRedirect`/`updateRedirect` themselves take. Optional
+   * for the identical reason {@link mediaRepo}/{@link assetBlobRepo}/{@link blobStore} already are —
+   * `features/redirects/publish-content.ts`'s `pack`/`inspect`/`precheck` degrade to "nothing to
+   * report" when absent (see that file's own doc), and only `apply()` requires it wired (enforced at
+   * the apply bag, `apply-loop.ts`'s `PublishContentApplyDeps`, not here).
+   */
+  readonly redirectsWriteDeps?: RedirectsWriteDeps;
 }
 
 /**

@@ -39,6 +39,7 @@ import {
 } from "./types.js";
 import type {
   CreateRedirectInput,
+  RedirectMatchType,
   RedirectRecord,
   RedirectRevision,
   RedirectStatus,
@@ -291,6 +292,47 @@ async function assertNoDuplicate(
   const dup = await repo.lookupExact({ workspaceId, path: fromPattern, includeOverrideOnly: false });
   if (dup && dup.id !== excludeId) {
     throw new RedirectConflictError(`an active exact rule for '${fromPattern}' already exists`);
+  }
+}
+
+/**
+ * Pure precondition check mirroring every validator `createRedirect`/`updateRedirect` run, with NO
+ * write — `features/redirects/publish-content.ts`'s `precheck()` reuses this so the two can never
+ * drift onto different rulesets. Returns the refusal message a create/update against these exact
+ * fields would throw, or `null` when nothing would block.
+ *
+ * @param excludeId Mirrors {@link assertNoDuplicate}'s own parameter — the destination's own row id,
+ * when checking an update against itself.
+ * @complexity O(n) in `toTarget`'s length, plus the repo/origin reads each check makes — identical
+ * cost to `createRedirect`'s own validation pass, since this runs the exact same sequence.
+ */
+export async function checkRedirectFieldsWouldWrite(
+  deps: RedirectsWriteDeps,
+  fields: {
+    workspaceId: string;
+    matchType: RedirectMatchType;
+    fromPattern: string;
+    toTarget: string;
+    statusCode: RedirectStatusCode;
+    priority: number;
+  },
+  excludeId?: string
+): Promise<string | null> {
+  try {
+    const patternCheck = deps.matcher.validatePattern({ matchType: fields.matchType, fromPattern: fields.fromPattern });
+    if (!patternCheck.ok) throw new RedirectValidationError(patternCheck.reason);
+    validateToTargetLength(fields.toTarget);
+    validateStatusCode(fields.statusCode);
+    validatePriority(fields.priority);
+    await assertTargetAllowed(deps.originRegistry, fields.workspaceId, fields.toTarget);
+    const finalTarget = await resolveCollapsedTarget(deps.repo, fields.workspaceId, fields.fromPattern, fields.toTarget);
+    if (finalTarget !== fields.toTarget) {
+      await assertTargetAllowed(deps.originRegistry, fields.workspaceId, finalTarget);
+    }
+    await assertNoDuplicate(deps.repo, fields.workspaceId, fields.matchType, fields.fromPattern, excludeId);
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
   }
 }
 

@@ -132,6 +132,7 @@ export interface PublishContentToolDeps {
   mediaRepo: PublishContentDeps["mediaRepo"];
   assetBlobRepo: PublishContentDeps["assetBlobRepo"];
   blobStore: PublishContentDeps["blobStore"];
+  redirectsWriteDeps: PublishContentDeps["redirectsWriteDeps"];
   workspaceRepo: { findById(id: string): Promise<{ name?: string } | null> };
   publishContentPeerRepo: PublishContentPeerRepoPort;
   publishContentPeerHttpClient: Parameters<typeof resolvePublishDestinationCredential>[0]["httpClient"];
@@ -188,6 +189,7 @@ function toPublishContentDeps(deps: PublishContentToolDeps): PublishContentDeps 
     mediaRepo: deps.mediaRepo,
     assetBlobRepo: deps.assetBlobRepo,
     blobStore: deps.blobStore,
+    redirectsWriteDeps: deps.redirectsWriteDeps,
   } as PublishContentDeps;
 }
 

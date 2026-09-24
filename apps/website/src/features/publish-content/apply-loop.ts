@@ -108,7 +108,14 @@ export type PublishContentApplyDeps = PublishContentDeps &
   Required<
     Pick<
       PublishContentDeps,
-      "outbox" | "changeSets" | "authorize" | "forgetRemovedPost" | "mediaRepo" | "assetBlobRepo" | "blobStore"
+      | "outbox"
+      | "changeSets"
+      | "authorize"
+      | "forgetRemovedPost"
+      | "mediaRepo"
+      | "assetBlobRepo"
+      | "blobStore"
+      | "redirectsWriteDeps"
     >
   >;
 

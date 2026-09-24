@@ -1,6 +1,7 @@
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 import { contributePagePublish, contributePostPublish } from "#src/features/post/publish-content";
 import { registerPublishContentContributor } from "#src/features/publish-content/type-registry";
+import { contributeRedirectPublish } from "#src/features/redirects/publish-content";
 
 /**
  * @file Task 2 of the publish-content (Publish Content) feature — the composition-root wiring
@@ -39,4 +40,5 @@ export function installFirstPartyPublishContentTypes(): void {
   registerPublishContentContributor(contributePostPublish());
   registerPublishContentContributor(contributePagePublish());
   registerPublishContentContributor(contributeMediaPublish());
+  registerPublishContentContributor(contributeRedirectPublish());
 }

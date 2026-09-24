@@ -1593,6 +1593,7 @@ export function createSqliteRouteDeps(
       mediaRepo,
       assetBlobRepo,
       blobStore,
+      redirectsWriteDeps,
     }),
     clock,
     idGen,

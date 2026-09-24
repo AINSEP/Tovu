@@ -67,6 +67,7 @@ export type PublishContentRouteDeps = Pick<
   | "siteAssistantSecretKeyring"
   | "mediaRepo"
   | "assetBlobRepo"
+  | "redirectsWriteDeps"
 >;
 
 export type PublishContentRouteRegistrar = (app: Express, deps: PublishContentRouteDeps) => void;
@@ -105,5 +106,6 @@ export function toPublishContentDeps(deps: PublishContentRouteDeps): PublishCont
     mediaRepo: deps.mediaRepo,
     assetBlobRepo: deps.assetBlobRepo,
     blobStore: deps.blobStore,
+    redirectsWriteDeps: deps.redirectsWriteDeps,
   };
 }
