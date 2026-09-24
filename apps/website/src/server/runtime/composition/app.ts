@@ -207,6 +207,7 @@ import { registerAdminRecoveryRestoreRoutes } from "../../inbound/admin-http/rou
 
 import { applyDevCors } from "../../inbound/shared/dev-cors.js";
 import { applyRequestTracking } from "../../inbound/shared/observability-middleware.js";
+import { parsePublicJsonBody, respondToOversizedBody } from "../../inbound/shared/json-body-parsers.js";
 import { applySiteServingGate } from "../../inbound/public-http/middleware/site-serving-gate.js";
 import { registerAdminStatic } from "../../inbound/admin-http/admin-static.js";
 import { registerSiteChatStatic } from "../../inbound/public-http/middleware/site-chat-static.js";
@@ -1438,14 +1439,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // here. This is the only route in the app that inverts the parser/route registration order.
   registerPaymentsWebhookRoute(app, { resolveLipay: () => routeDeps.lipay ?? null });
 
-  // Default 100kb body limit is too small for the media upload route, which accepts
-  // base64-encoded bytes in the JSON body (no multipart-parsing dependency in this repo yet —
-  // see routes/admin/media/upload.ts's file comment for the disclosed simplification). 75mb
-  // covers `TOVU_MAX_UPLOAD_BYTES` (50 MiB as of 2026-09-21, `features/media/upload-limits.ts`)
-  // once base64 inflates it ~1.33x (~66.7 MiB) plus headroom — owner-directed 2026-09-16 to fit a
-  // 10-20s generated video clip, raised again 2026-09-21 for larger videos. A real implementation
-  // should stream multipart/octet-stream instead of inflating bytes through base64 JSON.
-  app.use(express.json({ limit: "75mb" }));
+  // Public routes parse JSON at a small limit here; session-gated paths are left unparsed and
+  // parsed by `requireAdminSession` only once the caller has authenticated (15 MB, 75 MB for the
+  // base64 upload routes). See `inbound/shared/json-body-parsers.ts` for the limits and why.
+  app.use(parsePublicJsonBody);
 
   // Once per bus, not once per createApp call: see `subscribeSiteEventHandlersOnce`.
   subscribeSiteEventHandlersOnce(routeDeps);
@@ -1912,6 +1909,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
 
   // Public dummy site — registered last (GET /:slug is a catch-all).
   registerSiteRoutes(app, routeDeps);
+
+  // Last, so it sees a body-parser 413 from any route and answers JSON instead of Express's HTML page.
+  app.use(respondToOversizedBody);
 
   return app;
 }
