@@ -102,7 +102,7 @@ export function PublishContentDialog({ onCancel, t, port }: PublishContentDialog
       >
         <h2 id={titleId}>{t("Publish Content")}</h2>
         <p>{t("Sends your posts, pages and media to the live site. Deploy ships code; publish ships content.")}</p>
-        <p>{t("Anything edited on the live site is skipped, never overwritten.")}</p>
+        <p>{t("Anything edited on the live site is skipped unless you tick Overwrite on live.")}</p>
 
         {view.peers.length > 1 && (
           <label className="field">
