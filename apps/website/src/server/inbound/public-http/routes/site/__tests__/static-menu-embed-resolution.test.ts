@@ -449,6 +449,45 @@ test("GET /install: docs-section marks Install (not Quickstart) as current on th
   assert.ok(!anchorTagFor(html, "Quickstart").includes('aria-current="page"'), "Quickstart must NOT be marked current on /install");
 });
 
+test("GET /quickstart: docs-section resolves when the header nav menu's slug is NOT the literal 'menu-header-nav' — real seed data's slug is 'header-nav', only its id is 'menu-header-nav'", async (t) => {
+  // Regression (2026-09-24, live-data bug found rendering /quickstart against sites/tovu-com's
+  // actual seeded menus table): the fixture every other docs-section test in this file uses
+  // (`headerNavMenuWithDocsSubtree`) gives the header nav menu `slug: "menu-header-nav"`, which
+  // happens to equal `HEADER_NAV_MENU_SLUG` — so a `findBySlug`-only lookup passed every prior
+  // test while still being broken against the real row, whose `slug` column is `"header-nav"` (no
+  // `menu-` prefix) and whose `id` column is the one that equals `"menu-header-nav"`. This fixture
+  // mirrors the real row shape; `resolveDocsSectionItem` must fall back to `findById` exactly like
+  // the generic per-marker-id branch already does (see the `findById` fallback test above), or the
+  // sidebar/pager silently degrade to their authored fallback on every real install.
+  const theme = themeWithDocsSectionPages();
+  const headerNavWithMismatchedSlug: NavMenuEntry = {
+    ...headerNavMenuWithDocsSubtree(),
+    id: "menu-header-nav",
+    slug: "header-nav",
+  };
+  const deps = {
+    ...createRouteDeps(),
+    themes: [theme],
+    postRepo: new InMemoryPostRepo([]),
+    menuRepo: new InMemoryMenuRepo([headerNavWithMismatchedSlug]),
+  };
+  const server = createServer(createApp(deps));
+  server.listen(0);
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/quickstart`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+
+  assert.ok(
+    html.includes("Get started") && html.includes("Build your site"),
+    "docs-section must still resolve the Docs subtree via the findById fallback when the slug doesn't match"
+  );
+});
+
 test("GET /quickstart: docs-section degrades to the theme's authored fallback when menu-header-nav has no item linking to /docs", async (t) => {
   const theme = themeWithDocsSectionPages();
   const headerNavWithoutDocs: NavMenuEntry = {

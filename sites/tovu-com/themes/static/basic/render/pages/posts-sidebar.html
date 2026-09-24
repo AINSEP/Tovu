@@ -40,15 +40,19 @@
          retired `docs-current-page-sidebar` convention this replaces.
 
        Both `.docs-sidebar-toggle` and `.docs-toc-toggle` are real `<details>`, not JS-built: closed
-       (collapsible) by default is the correct MOBILE behavior already, and the desktop CSS below
+       (collapsible) by default is the correct MOBILE behavior — no `open` attribute here, so a
+       mobile visitor sees the collapsed `<summary>` toggle first — and the desktop CSS below
        forcibly keeps them open and hides the `<summary>` toggle — no separate desktop/mobile markup,
-       no JS needed to switch modes. -->
+       no JS needed to switch modes. (2026-09-24: an earlier pass shipped this WITH a hardcoded
+       `open` attribute, contradicting this very comment and the docs IA proposal's "the sidebar
+       collapses to a 'Docs menu' disclosure" — caught visually at 390px, both toggles rendered
+       pre-expanded on first mobile load instead of as a collapsed disclosure.) -->
   <div class="docs-layout wrap">
     <!-- Mobile: "the disclosure only shows the current group" (docs IA proposal) — theme.css hides
          every `.has-children:not(.is-active)` top-level group at the same breakpoint that collapses
          this into a real disclosure; the full tree is still one tap away via the site's own nav
          drawer (fe79cabce), so this doesn't need to repeat it. -->
-    <details class="docs-mobile-toggle docs-sidebar-toggle" open>
+    <details class="docs-mobile-toggle docs-sidebar-toggle">
       <summary class="docs-mobile-summary">In this section</summary>
       <!-- The authored content below is a real fallback, not a placeholder: if `menu-header-nav` has
            no item resolving to `/docs`, or that item has no children yet, this markup is left
@@ -64,7 +68,7 @@
 
     <!-- On this page. Empty until `docs-toc.js` fills it; the script removes this whole `<details>`
          when the page has no `h2`/`h3` to link to, rather than showing an empty disclosure. -->
-    <details class="docs-mobile-toggle docs-toc-toggle" open>
+    <details class="docs-mobile-toggle docs-toc-toggle">
       <summary class="docs-mobile-summary">On this page</summary>
       <aside class="docs-toc">
         <nav class="docs-toc-nav" aria-label="On this page"></nav>

@@ -500,7 +500,19 @@ async function resolveDocsSectionItem(
   context: { workspaceId: string; currentPath: string },
   resolveTargetHref: ResolveTargetHrefFn
 ): Promise<StaticMenuItem | null> {
-  const headerMenu = await deps.menuRepo.findBySlug({ workspaceId: deps.workspaceId, slug: HEADER_NAV_MENU_SLUG });
+  // Slug first, id second — the SAME fallback the generic per-id branch below applies to every
+  // OTHER marker id, and required here for the identical reason: `HEADER_NAV_MENU_SLUG` ("menu-
+  // header-nav") is the literal `data-embed-id` nav.html's theme author wrote, but the seeded
+  // `menu-header-nav` row's real `slug` column is `"header-nav"` (no `menu-` prefix) — only its
+  // primary-key `id` column equals the literal `"menu-header-nav"`. A `findBySlug`-only lookup
+  // therefore always misses on this install's actual data, degrading `docs-section`/`docs-prev-
+  // next` to their authored fallback on every page even though `menu-header-nav` resolves fine
+  // for every OTHER marker referencing it (found here 2026-09-24 debugging a live "No docs menu
+  // bound yet" sidebar against production data, not caught by the unit tests' own fixture menu,
+  // which happened to give its slug and id the same value).
+  const headerMenu =
+    (await deps.menuRepo.findBySlug({ workspaceId: deps.workspaceId, slug: HEADER_NAV_MENU_SLUG })) ??
+    (await deps.menuRepo.findById({ workspaceId: deps.workspaceId, id: HEADER_NAV_MENU_SLUG }));
   if (!headerMenu) return null;
   const headerItems = await resolveMenuDoc({ doc: headerMenu.doc, context, resolveTargetHref });
   return headerItems.find((item) => item.href === DOCS_LANDING_PATH) ?? null;
