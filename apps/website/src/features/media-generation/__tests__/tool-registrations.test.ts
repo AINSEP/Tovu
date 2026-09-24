@@ -236,7 +236,7 @@ test("with a saved credential: generates through the injected seam, uploads the 
   await seedPublicTransform(transformDefinitionRepo);
 
   const out = (await wired("media_generate_asset", deps).handler(executionContext({ prompt: "a red bicycle on a beach" }))) as {
-    media: { id: string; title: string; alt: string; caption: string; credit: string; sha256: string; status: string; version: number; publicUrl: string | null };
+    media: { id: string; slug: string; title: string; alt: string; caption: string; credit: string; sha256: string; status: string; version: number; publicUrl: string | null };
   };
 
   assert.equal(generateCalls.length, 1);
@@ -250,7 +250,7 @@ test("with a saved credential: generates through the injected seam, uploads the 
   assert.equal(out.media.version, 1);
   assert.ok(out.media.id);
   assert.ok(out.media.sha256, "the uploaded bytes must be hashed like any other upload");
-  assert.equal(out.media.publicUrl, `/m/${out.media.id}/public.v1/image.webp`);
+  assert.equal(out.media.publicUrl, `/m/${out.media.slug}/public.v1/image.webp`);
   assert.equal(out.media.placeholder, false, "a real (non-stub) generation must report placeholder:false");
   assert.deepEqual(Object.keys(out.media).sort(), ["alt", "caption", "credit", "id", "placeholder", "publicUrl", "sha256", "slug", "status", "title", "version"]);
 });

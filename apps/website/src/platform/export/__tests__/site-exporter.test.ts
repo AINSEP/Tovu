@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -9,6 +10,7 @@ import type { UUID } from "@jini-ai/cms/core";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import type { PostRepoPort, PostRecord } from "#src/features/post/index";
 import type { RedirectRecord } from "#src/features/redirects/index";
+import { registerTransform, uploadMedia } from "#src/features/media/index";
 import { ExportOutputNotEmptyError, exportSite, firstExportFailure, redirectOutcomeFor } from "../site-exporter.js";
 import type { ExportReport } from "../site-exporter.js";
 
@@ -477,6 +479,71 @@ test("exportSite: a route that fails to render is reported as a failure, not sil
   // The forced failure is scoped to exactly one slug — every other route must still export.
   assert.ok(report.routes.succeeded.some((r) => r.path === "/"), "home must still succeed");
   assert.ok(report.routes.succeeded.some((r) => r.path === "/about"), "an unrelated theme page must still succeed");
+});
+
+test("exportSite: a post embedding a media image exports it under its readable /m/<slug>/... URL, not the id (readable-slugs S4/P7)", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  const routeDeps = createRouteDeps();
+  const { media } = await uploadMedia({
+    deps: {
+      clock: routeDeps.clock,
+      idGen: routeDeps.idGen,
+      mediaRepo: routeDeps.mediaRepo,
+      blobRepo: routeDeps.assetBlobRepo,
+      renditionRepo: routeDeps.assetRenditionRepo,
+      blobStore: routeDeps.blobStore,
+    },
+    input: {
+      workspaceId: routeDeps.workspaceId,
+      bytes: new TextEncoder().encode("export-slugs-test-image-bytes"),
+      filename: "export-test-cover.png",
+      contentType: "image/png",
+      createdByPrincipal: "user-1",
+    },
+  });
+  // Registered explicitly, same as `seo-og-image-crawlability.test.ts`'s own `registerOgTransform` —
+  // `ensureCoreMediaTransform`'s real boot registration is fire-and-forget (`composition/deps.ts`),
+  // so a test that needs the "public" transform present registers it itself rather than racing boot.
+  await registerTransform({
+    deps: { clock: routeDeps.clock, idGen: routeDeps.idGen, transformRepo: routeDeps.transformDefinitionRepo },
+    input: { workspaceId: routeDeps.workspaceId, name: "public", params: { format: "webp" }, owner: "core" },
+  });
+  await routeDeps.postRepo.save({
+    id: randomUUID(),
+    workspaceId: routeDeps.workspaceId,
+    title: "Media Export Test",
+    slug: "media-export-test",
+    bodyJson: { type: "doc", content: [{ type: "image", attrs: { assetId: media.id, transformName: "public" } }] },
+    status: "published",
+    kind: "post",
+    bodyFormat: "doc",
+    bodyHtml: null,
+    updatedAt: new Date().toISOString(),
+    version: 1,
+  } as unknown as PostRecord);
+
+  const report = await exportSite({ routeDeps, outputDir });
+
+  assert.ok(
+    report.routes.succeeded.some((r) => r.path === "/media-export-test"),
+    "the post embedding the image must itself export successfully"
+  );
+
+  const imageAsset = report.assets.succeeded.find((a) => a.url.startsWith(`/m/${media.slug}/`));
+  assert.ok(
+    imageAsset,
+    `expected a slug-keyed /m/${media.slug}/... asset among: ${report.assets.succeeded.map((a) => a.url).join(", ")}`
+  );
+  assert.ok(
+    !report.assets.succeeded.some((a) => a.url.startsWith(`/m/${media.id}/`)),
+    "the SAME asset must not ALSO be fetched/written under its id-keyed URL"
+  );
+  assert.ok(
+    existsSync(path.join(outputDir, imageAsset!.outputFile)),
+    "the exported image file must actually exist on disk, not just be reported as succeeded"
+  );
 });
 
 test("exportSite: a route whose render hangs past the fetch timeout is recorded as a timed-out failure, not a crashed export", async (t) => {

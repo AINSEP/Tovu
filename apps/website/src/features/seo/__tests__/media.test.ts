@@ -141,6 +141,41 @@ test("resolveSeoImageRef: multiple registered versions of the same transform res
   assert.match(result!, /^\/m\/asset-1\/og\.v3\//, `expected the highest registered version (3) to win, got: ${result}`);
 });
 
+test("resolveSeoImageRef: a ref built from the asset's SLUG (not its id) resolves the same way a ref built from its id does", async () => {
+  const deps = {
+    mediaRepo: new InMemoryMediaRepo([makeAsset({ slug: "a-photo" })]),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo([makeRendition()]),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([makeTransformDef()]),
+  };
+
+  const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "a-photo:og" });
+  assert.ok(result, "a slug-keyed ref must resolve, the same as an id-keyed one");
+  assert.match(result!, /^\/m\/a-photo\/og\.v1\//);
+});
+
+test("resolveSeoImageRef: a ref built from the asset's id emits the asset's CURRENT SLUG in the URL, not the id (readable-slugs S4)", async () => {
+  const deps = {
+    mediaRepo: new InMemoryMediaRepo([makeAsset({ slug: "a-photo" })]),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo([makeRendition()]),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([makeTransformDef()]),
+  };
+
+  const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "asset-1:og" });
+  assert.ok(result);
+  assert.match(result!, /^\/m\/a-photo\/og\.v1\//, `expected the slug in the URL, got: ${result}`);
+});
+
+test("resolveSeoImageRef: a trashed asset resolves undefined even when looked up by its slug", async () => {
+  const deps = {
+    mediaRepo: new InMemoryMediaRepo([makeAsset({ slug: "a-photo", status: "trashed" })]),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo([makeRendition()]),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([makeTransformDef()]),
+  };
+
+  const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "a-photo:og" });
+  assert.equal(result, undefined);
+});
+
 test("resolveSeoImageRef: a malformed ref (no colon) resolves undefined", async () => {
   const deps = {
     mediaRepo: new InMemoryMediaRepo([makeAsset()]),

@@ -91,7 +91,7 @@ import {
 } from "../../contracts/core/tool-surface-exchanges.js";
 import { requireInputRecord, requireString, requireToolPermission, type ToolHandler, type ToolRegistration } from "@jini-ai/cms/core";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
-import { getLatestTransformDefinition, mediaPublicPath } from "./index.js";
+import { getLatestTransformDefinition, mediaPublicPath, mediaUrlKey } from "./index.js";
 import type { MediaContentTypeStorePort } from "./content-type-store.js";
 import { TOVU_MAX_UPLOAD_BYTES } from "./upload-limits.js";
 
@@ -128,11 +128,12 @@ function resolveOneAssetPublicUrl(
   contentTypes: ReadonlyMap<string, string>,
   latest: Awaited<ReturnType<typeof getLatestTransformDefinition>>
 ): string | null {
+  const key = mediaUrlKey(asset);
   const contentType = contentTypes.get(asset.source.sha256);
-  if (contentType?.startsWith("video/")) return mediaPublicPath(asset.id, { kind: "original" });
+  if (contentType?.startsWith("video/")) return mediaPublicPath(key, { kind: "original" });
   if (!latest) return null;
   const ext = EXT_BY_TRANSFORM_FORMAT[latest.params.format] ?? latest.params.format;
-  return mediaPublicPath(asset.id, { kind: "transform", name: CORE_PUBLIC_TRANSFORM_NAME, version: latest.version, ext });
+  return mediaPublicPath(key, { kind: "transform", name: CORE_PUBLIC_TRANSFORM_NAME, version: latest.version, ext });
 }
 
 /**

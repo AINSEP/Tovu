@@ -281,13 +281,13 @@ test("a tool result is an explicit model-facing view: workspaceId/timestamps dro
 // 3a. publicUrl — the real /m/... resolution, on both media_list_assets and media_upload_asset
 // ---------------------------------------------------------------------------
 
-test("media_upload_asset's publicUrl is the ADR-027 §4 public-transform URL for an image asset", async () => {
+test("media_upload_asset's publicUrl is the ADR-027 §4 public-transform URL for an image asset, keyed by its slug (readable-slugs S4)", async () => {
   const { deps } = fakeRouteDeps();
   await seedPublicTransform(deps);
   const out = (await wired("media_upload_asset", deps).handler(
     executionContext({ filename: "logo.png", contentType: "image/png", dataBase64: ONE_PIXEL_PNG_BASE64 }),
-  )) as { media: { id: string; publicUrl: string | null } };
-  assert.equal(out.media.publicUrl, `/m/${out.media.id}/public.v1/image.webp`);
+  )) as { media: { id: string; slug: string; publicUrl: string | null } };
+  assert.equal(out.media.publicUrl, `/m/${out.media.slug}/public.v1/image.webp`);
 });
 
 test("media_list_assets' publicUrl matches media_upload_asset's for the same asset, resolved in one batch", async () => {
@@ -305,12 +305,12 @@ test("media_list_assets' publicUrl matches media_upload_asset's for the same ass
   assert.equal(found.publicUrl, uploaded.media.publicUrl);
 });
 
-test("media_list_assets' publicUrl is the byte-passthrough /original URL for a video asset, resolved from the content-type store", async () => {
+test("media_list_assets' publicUrl is the byte-passthrough /original URL for a video asset, keyed by its slug, resolved from the content-type store", async () => {
   const { deps, mediaContentTypeStore } = fakeRouteDeps();
   await seedPublicTransform(deps);
   const uploaded = (await wired("media_upload_asset", deps).handler(
     executionContext({ filename: "clip.mp4", contentType: "video/mp4", dataBase64: ONE_PIXEL_PNG_BASE64 }),
-  )) as { media: { id: string; sha256: string } };
+  )) as { media: { id: string; slug: string; sha256: string } };
 
   // The content-type store records the SNIFFED type, not the client's declared upload string — this
   // upload's actual bytes are a PNG (`ONE_PIXEL_PNG_BASE64`), so the fixture records the type
@@ -323,7 +323,7 @@ test("media_list_assets' publicUrl is the byte-passthrough /original URL for a v
   };
   const found = listed.media.find((m) => m.id === uploaded.media.id);
   assert.ok(found);
-  assert.equal(found.publicUrl, `/m/${uploaded.media.id}/original`);
+  assert.equal(found.publicUrl, `/m/${uploaded.media.slug}/original`);
 });
 
 test("a trashed asset's publicUrl is null, never a link a visitor would 404 on", async () => {

@@ -117,8 +117,8 @@ test("SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing 
   assert.ok(ogImage, "og:image must be present even though nothing has ever generated this rendition before");
   assert.match(ogImage!, /^https?:\/\//, "og:image must be an ABSOLUTE URL -- crawlers do not resolve relative image URLs");
   assert.ok(
-    new URL(ogImage!).pathname.startsWith(`/m/${media.id}/${definition.name}.v${definition.version}/`),
-    `og:image path must match the frozen /m/ URL contract, got: ${ogImage}`
+    new URL(ogImage!).pathname.startsWith(`/m/${media.slug}/${definition.name}.v${definition.version}/`),
+    `og:image path must be keyed by the asset's readable slug (readable-slugs S4), got: ${ogImage}`
   );
 
   // The load-bearing proof: fetch the EXACT path the page just published, anonymously -- no cookies,
@@ -138,7 +138,11 @@ test("SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing 
     /^image\//,
     "the fetched og:image URL must actually serve image bytes, not just exist as a string in the markup"
   );
-  assert.equal(crawlerFetch.headers.get("cache-control"), "public, max-age=31536000, immutable");
+  assert.equal(
+    crawlerFetch.headers.get("cache-control"),
+    "public, max-age=3600",
+    "og:image is now emitted slug-keyed (readable-slugs S4), so an ungated 200 gets the SLUG_KEYED_PUBLIC TTL, not the id-keyed immutable one (S2b)"
+  );
 });
 
 test("SEO/media-gate seam: once the SAME rendition exists (e.g. an admin previewed it, or a prior crawler attempt generated it), og:image appears with an absolute URL and 200s anonymously with no cookies", async (t) => {
@@ -171,5 +175,9 @@ test("SEO/media-gate seam: once the SAME rendition exists (e.g. an admin preview
   const ogImagePath = new URL(ogImage!).pathname;
   const crawlerFetch = await fetch(`${baseUrl}${ogImagePath}`);
   assert.equal(crawlerFetch.status, 200, "the exact URL published in og:image must itself be publicly fetchable");
-  assert.equal(crawlerFetch.headers.get("cache-control"), "public, max-age=31536000, immutable");
+  assert.equal(
+    crawlerFetch.headers.get("cache-control"),
+    "public, max-age=3600",
+    "og:image is now emitted slug-keyed (readable-slugs S4), so an ungated 200 gets the SLUG_KEYED_PUBLIC TTL, not the id-keyed immutable one (S2b)"
+  );
 });
