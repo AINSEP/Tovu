@@ -23,7 +23,7 @@
  * entrypoint (`Dockerfile`'s `CMD ["node","dist/src/index.js"]`), and neither belongs on that path.
  */
 import { spawnSync } from "node:child_process";
-import { createServer } from "node:net";
+import { connect, createServer } from "node:net";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -112,17 +112,44 @@ export async function planStart(input) {
   return { port: DEFAULT_START_PORT, envOverrides: {}, refuse: "no-free-port-in-range" };
 }
 
-/** Real `net`-backed probe for {@link planStart}'s `isPortFree` — binds loopback-only on `host`,
- *  same bind shape `tovu serve` defaults to, and closes immediately either way. `EADDRINUSE` is the
- *  only "busy" outcome; any other bind error also counts as "not usable" (fails closed toward NOT
- *  auto-picking a port this process cannot actually bind anyway).
+/** Whether something is already accepting connections on `port` at `host` — a CONNECT probe, not a
+ *  bind probe. Resolves `true` on a successful connect (destroyed immediately, no data sent),
+ *  `false` on `ECONNREFUSED`, any other connect error, or a 300ms timeout. */
+function isPortReachable(port, host) {
+  return new Promise((resolve) => {
+    const socket = connect({ port, host, timeout: 300 });
+    const settle = (reachable) => {
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(reachable);
+    };
+    socket.once("connect", () => settle(true));
+    socket.once("timeout", () => settle(false));
+    socket.once("error", () => settle(false));
+  });
+}
+
+/**
+ * Real probe for {@link planStart}'s `isPortFree`.
+ *
+ * A bind-and-release on `host` ALONE is not enough: measured directly (2026-09-24 live check), an
+ * existing server already listening on the IPv6 wildcard address let an explicit IPv4 `127.0.0.1`
+ * bind on the SAME port number succeed right alongside it — no `EADDRINUSE` at all — so a bind-only
+ * probe reported a port "free" that this process then also started answering requests on, right
+ * next to the owner's already-running dev server on the identical port. Checks CONNECT reachability
+ * on both `127.0.0.1` and `::1` first — that answers "is anything already serving traffic here"
+ * regardless of which address family it bound to — and only attempts the real bind on `host` once
+ * NEITHER loopback address answers. `EADDRINUSE` (or any other bind error) still counts as "not
+ * usable" (fails closed toward NOT auto-picking a port this process cannot actually bind anyway).
  *
  * @param {number} port
- * @param {string} host
+ * @param {string} host - the address `main()` will actually bind to if this port is chosen.
  * @returns {Promise<boolean>}
- * @complexity O(1) — one bind/close.
+ * @complexity O(1) — up to two connect attempts plus one bind/close.
  */
-function probePortFree(port, host) {
+async function probePortFree(port, host) {
+  if (await isPortReachable(port, "127.0.0.1")) return false;
+  if (await isPortReachable(port, "::1")) return false;
   return new Promise((resolve) => {
     const server = createServer();
     server.once("error", () => resolve(false));
