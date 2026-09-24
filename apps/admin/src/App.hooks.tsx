@@ -15,6 +15,12 @@ import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api"
 import { takeBootToken } from "./lib/boot-token-fragment";
 import { takePublishCriteriaFromQuery } from "./lib/publish-criteria-deep-link";
 import { requestPublish } from "./features/publish-content/hooks/publish-request.store";
+import {
+  parsePublishContentToolInput,
+  PUBLISH_CONTENT_CAPABILITY,
+  type PublishCriteria,
+  type PublishRequestResult,
+} from "@tovu/publish-content-ui";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "./lib/assistant-dock-bus";
@@ -774,6 +780,48 @@ export interface UseAgentPageBridge {
  * const { contentEl, setContentEl, agentBridge } = useAgentPageBridge();
  */
 /**
+ * Plan §2's cap on how long `admin.publish_content` waits for the dialog's FIRST plan before
+ * answering early with {@link stillWorkingPublishResult}. Comfortably under
+ * `DEFAULT_FRONTEND_CAPABILITY_TIMEOUT_MS` (30s — `@jini-ai/daemon`'s `frontend-capability-tools.ts`,
+ * the relay's own per-call timeout), so a slow plan still gets an ANSWER rather than the whole relay
+ * call failing with no answer at all. `requestPublishFn`'s own promise is not cancelled when this
+ * timer wins the race — the dialog keeps planning in the background and the operator sees the real
+ * result on screen regardless of which branch answered the model.
+ */
+const PUBLISH_CONTENT_FIRST_PLAN_TIMEOUT_MS = 20_000;
+
+/** What `admin.publish_content` answers when {@link PUBLISH_CONTENT_FIRST_PLAN_TIMEOUT_MS} elapses
+ *  before the dialog's first plan settles — see this file's own doc above. */
+function stillWorkingPublishResult(): PublishRequestResult {
+  return {
+    opened: true,
+    planned: false,
+    site: null,
+    willPublish: [],
+    willOverwrite: [],
+    leftAlone: [],
+    unmatchedItems: [],
+    unknownTypes: [],
+    nextStep: "Still working out what would change; the dialog will show it.",
+  };
+}
+
+/**
+ * Races `requestPublishFn(criteria)` against {@link PUBLISH_CONTENT_FIRST_PLAN_TIMEOUT_MS}. Never
+ * rejects on the timeout side; the real promise, if it wins, propagates its own rejection (there
+ * isn't one today — {@link requestPublish} never rejects — but this stays correct if that changes).
+ *
+ * @complexity O(1); one timer, cleared once either side settles first.
+ */
+function withFirstPlanTimeout(publishing: Promise<PublishRequestResult>): Promise<PublishRequestResult> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<PublishRequestResult>((resolve) => {
+    timer = setTimeout(() => resolve(stillWorkingPublishResult()), PUBLISH_CONTENT_FIRST_PLAN_TIMEOUT_MS);
+  });
+  return Promise.race([publishing, timedOut]).finally(() => clearTimeout(timer));
+}
+
+/**
  * Builds the `executors` map `createFrontendSessionBridge` claims under the `"admin."` prefix — the
  * host-extension seam `frontend-session-bridge.ts`'s own module doc describes ("Product capabilities,
  * keyed by id prefix... This is how a consumer exposes verbs the engine has never heard of"), used
@@ -786,17 +834,28 @@ export interface UseAgentPageBridge {
  * @param contentEl - The element to capture. `null` is handled by
  * {@link captureAdminScreenshotToolResult} itself (reported as a text failure, not thrown).
  * @param renderElementToCanvas - Test seam; defaults to the real `html2canvas`-backed adapter.
+ * @param requestPublishFn - Test seam for `admin.publish_content` (plan §4 S3); defaults to the real
+ * module-level {@link requestPublish} store call. Named distinctly from that import — a default
+ * parameter initializer sharing its own parameter's name would read the not-yet-initialized
+ * parameter, not the outer import.
  * @throws Rejects (never throws synchronously) for a capability id under this prefix this module does
  * not recognize — mirrors `frontend-session-bridge.ts`'s own "nothing on this page serves ..." wording
- * for an unclaimed id, since `serveLocally` there always awaits this.
- * @complexity O(1) to build; the returned handler's cost is `captureAdminScreenshotToolResult`'s own.
+ * for an unclaimed id, since `serveLocally` there always awaits this. Also rejects, by field name,
+ * when `admin.publish_content`'s own input fails {@link parsePublishContentToolInput} — see plan §3:
+ * nothing upstream of this validates a relayed chat call's shape.
+ * @complexity O(1) to build; the returned handler's cost is `captureAdminScreenshotToolResult`'s or
+ * `requestPublishFn`'s own.
  */
 export function buildAdminCapabilityExecutors(
   contentEl: HTMLElement | null,
   renderElementToCanvas: RenderElementToCanvas = renderAdminScreenshotCanvas,
+  requestPublishFn: (criteria: PublishCriteria) => Promise<PublishRequestResult> = requestPublish,
 ): Record<string, (capabilityId: string, input: Record<string, unknown>) => Promise<unknown>> {
   return {
-    "admin.": async (capabilityId: string) => {
+    "admin.": async (capabilityId: string, input: Record<string, unknown>) => {
+      if (capabilityId === PUBLISH_CONTENT_CAPABILITY.id) {
+        return withFirstPlanTimeout(requestPublishFn(parsePublishContentToolInput(input)));
+      }
       if (capabilityId !== ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID) {
         throw new Error(`no admin capability serves "${capabilityId}"`);
       }

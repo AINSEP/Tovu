@@ -58,9 +58,21 @@
  * `risk: 'read'` and `surface: 'session'`: it changes nothing and is meaningless with no live admin
  * tab bound to the run, exactly like `page.find_elements`. It carries no `requiresConfirmation` — it
  * would be filtered out below if it did, same as every other capability in this file.
+ *
+ * ## `admin.publish_content` — the chat/WebMCP door to the Publish dialog
+ *
+ * Added 2026-09-24 (plan §4 S3, `publish-criteria-tool-webmcp-plan-2026-09-24.md`) so chat and,
+ * later, Chrome's WebMCP agent can open the admin's Publish dialog pre-filled with what to publish
+ * or overwrite. `risk: 'write'` (publishing writes to the site) but still no `requiresConfirmation`:
+ * the executor behind this id (`apps/admin/src/App.hooks.tsx`'s `buildAdminCapabilityExecutors`) can
+ * only call `requestPublish`, never `confirmPublish`/`executePublish` — the dialog itself is the
+ * confirmation, and only a person's own click on its Publish button can write anything. See that
+ * plan's §3 for the full gate (why the Publish button carries no agent handle, and what that does
+ * and does not cover).
  */
 import { PAGE_CAPABILITIES, type CapabilityDef } from "@jini-ai/agentic";
 import { CHAT_CAPABILITIES } from "@jini-ai/chat/core";
+import { PUBLISH_CONTENT_CAPABILITY } from "../features/publish-content/ui/criteria.js";
 
 /**
  * Tovu-native capabilities that reach the admin's own browser tab through the same frontend-session
@@ -91,6 +103,10 @@ const TOVU_FRONTEND_CAPABILITIES: readonly CapabilityDef[] = [
     risk: "read",
     surface: "session",
   },
+  // `as const`-typed in criteria.ts (see that file's own header for why); assigned here by
+  // reference into this array's `CapabilityDef[]` element type, where ordinary structural
+  // assignability applies rather than a fresh object literal's excess-property check.
+  PUBLISH_CONTENT_CAPABILITY,
 ];
 
 /**

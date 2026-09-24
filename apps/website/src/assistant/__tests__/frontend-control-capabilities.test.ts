@@ -55,6 +55,22 @@ test("page.* capabilities are still present alongside the chat verbs", () => {
  * the capture's fidelity limits, so the exact wording matters and is asserted here rather than left
  * to eyeball review.
  */
+/**
+ * `admin.publish_content` (plan §4 S3) — the chat/WebMCP door to the Publish dialog. `surface:
+ * "session"` for the same reason as `admin.capture_screenshot`: meaningless with no live admin tab
+ * bound. No `requiresConfirmation`: plan §3 explains why the dialog itself is the confirmation and
+ * this capability's executor can only open it, never publish — a capability that itself declared
+ * `requiresConfirmation: true` would additionally be filtered out of this manifest entirely (this
+ * file's own module doc), which would silently break the tool rather than merely mis-describe it.
+ */
+test("admin.publish_content is registered, a write, session-scoped, and requires no confirmation transport", () => {
+  const capability = FRONTEND_CONTROL_CAPABILITIES.find((entry) => entry.id === "admin.publish_content");
+  assert.ok(capability, "expected admin.publish_content to be in the manifest");
+  assert.equal(capability?.risk, "write", "publishing is a write, even though this capability can only open the dialog");
+  assert.equal(capability?.surface, "session", "meaningless with no live admin tab attached");
+  assert.notEqual(capability?.requiresConfirmation, true, "no confirmation transport exists — the dialog IS the confirmation, see plan §3");
+});
+
 test("admin.capture_screenshot is registered, read-only, session-scoped, and states its fidelity limits", () => {
   const capability = FRONTEND_CONTROL_CAPABILITIES.find((entry) => entry.id === "admin.capture_screenshot");
   assert.ok(capability, "expected admin.capture_screenshot to be in the manifest");

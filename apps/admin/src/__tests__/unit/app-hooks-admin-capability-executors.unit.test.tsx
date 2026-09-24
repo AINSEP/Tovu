@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildAdminCapabilityExecutors } from "../../App.hooks";
 import { resetScreenshotCapturedBus, subscribeToScreenshotCaptured } from "../../lib/agent-screenshot-bus";
 import { ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID } from "../../lib/agent-screenshot";
+import { PUBLISH_CONTENT_CAPABILITY, type PublishRequestResult } from "@tovu/publish-content-ui";
 
 /**
  * @file `App.hooks.tsx`'s `buildAdminCapabilityExecutors` — the `executors` map
@@ -70,5 +71,38 @@ describe("buildAdminCapabilityExecutors", () => {
 
     expect(listener).not.toHaveBeenCalled();
     resetScreenshotCapturedBus();
+  });
+
+  // Plan §4 S3 — the chat/WebMCP relay's only door to the Publish dialog. `requestPublish` is
+  // injected the same way `renderElementToCanvas` is above, so this needs no store/module mock.
+  it("admin.publish_content opens the Publish dialog with the criteria and returns the plan summary", async () => {
+    const planned: PublishRequestResult = {
+      opened: true,
+      planned: true,
+      site: "tovu-com",
+      willPublish: ["About"],
+      willOverwrite: [],
+      leftAlone: [],
+      unmatchedItems: [],
+      unknownTypes: [],
+      nextStep: "Check the list in the Publish dialog, then click Publish.",
+    };
+    const requestPublish = vi.fn().mockResolvedValue(planned);
+    const executors = buildAdminCapabilityExecutors(null, vi.fn(), requestPublish);
+
+    const result = await executors["admin."]!(PUBLISH_CONTENT_CAPABILITY.id, { types: ["page"], overwrite: true });
+
+    expect(requestPublish).toHaveBeenCalledWith({ types: ["page"], overwrite: true });
+    expect(result).toEqual(planned);
+  });
+
+  it("admin.publish_content rejects a bad input", async () => {
+    const requestPublish = vi.fn();
+    const executors = buildAdminCapabilityExecutors(null, vi.fn(), requestPublish);
+
+    await expect(executors["admin."]!(PUBLISH_CONTENT_CAPABILITY.id, { types: "page" })).rejects.toThrow(
+      "admin.publish_content: 'types' must be an array of strings"
+    );
+    expect(requestPublish).not.toHaveBeenCalled();
   });
 });

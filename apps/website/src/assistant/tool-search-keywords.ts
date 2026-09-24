@@ -410,6 +410,12 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
     "layout broken cramped misaligned overlapping clipped cut off ugly render rendering rendered how does this look " +
     "what does this look like show me the screen check the ui verify visually",
 
+  // --- agent-driven Publish dialog (plan §4 S3, 2026-09-24) ---------------------------------------------
+  "admin.publish_content":
+    "publish publishing go live push to live deploy deployment content site update the live site overwrite " +
+    "overwrite live replace what's on live make changes live send to production release ship pages posts " +
+    "media menus redirects navigation",
+
   // --- custom-credentials (2026-09-01) ------------------------------------------------------------------
   // Added the same day as `custom_credential_list` itself, after `custom_credential_verify`/
   // `custom_credential_make_request` were found to have shipped with ZERO search-keyword coverage —
