@@ -114,7 +114,7 @@ import { createShutdownTracker } from "./src/shutdown-tracker.ts";
 import { routeQuitSignals } from "./src/quit-signals.ts";
 import { decideBeforeQuit } from "./src/quit-drain-gate.ts";
 import { admitGuestSource, applyGuestWebPreferences } from "./src/webview-guest-policy.ts";
-import { installAppWindowNavigationPolicy, isSameOrigin, isShellPageUrl } from "./src/window-navigation-policy.ts";
+import { installAppWindowNavigationPolicy, installSitesHomeNavigationPolicy, isSameOrigin, isShellPageUrl } from "./src/window-navigation-policy.ts";
 import { createSelftestTracker } from "./src/selftest-tracker.ts";
 import { registerSpeechIpc } from "./src/speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "./src/find-in-page-ipc.ts";
@@ -576,6 +576,14 @@ function openSitesHomeWindow(): BrowserWindow | null {
   // Electron's own `webPreferences` default (`spellcheck: true`) already covers it.
   window.webContents.on("did-attach-webview", (_event, contents) => {
     registerSpellCheckContextMenu(contents, Menu);
+  });
+
+  // Only the renderer's own file may load in this window: it holds the `tovuRunner` bridge with
+  // `sandbox: false`, and the page's CSP does not follow a navigation (a dropped link, say) to
+  // another page. See `window-navigation-policy.ts`.
+  installSitesHomeNavigationPolicy(window.webContents, {
+    rendererFileUrl: pathToFileURL(SITES_RENDERER_PATH).href,
+    openExternal: (target) => void shell.openExternal(target),
   });
 
   void window.loadFile(SITES_RENDERER_PATH);

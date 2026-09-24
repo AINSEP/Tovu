@@ -1,5 +1,6 @@
 /**
- * @file The popup and navigation boundary for every `createWindow` window (`main.ts`), and the one
+ * @file The popup and navigation boundary for every `createWindow` window and the sites home window
+ * (`main.ts`), and the one
  * origin primitive both it and `registerGuestNavigationPolicy`'s `<webview>` guest policy use.
  *
  * **What it is defending.** A `createWindow` window runs the speech preload (`preload-speech.cts`),
@@ -117,24 +118,51 @@ function isExternalBrowserUrl(raw: string): boolean {
  * @complexity O(1) to register; each callback is O(n) in the URL's length.
  */
 function installAppWindowNavigationPolicy(contents: NavigableContents, options: AppWindowPolicyOptions): void {
+  installNavigationBoundary(contents, (url) => isSameOrigin(url, options.appOrigin), options.openExternal);
+}
+
+/**
+ * The same boundary for the sites home window (`openSitesHomeWindow` in `main.ts`), whose only
+ * in-app page is the renderer's own `index.html`. That window runs `sandbox: false` with the
+ * `tovuRunner` bridge, and its `script-src 'self'` CSP covers only the page it is declared on — a
+ * link dropped onto the window, or any other top-level navigation, would otherwise swap in a remote
+ * (or any local) page that inherits the same preload and none of the CSP. `file:` origins are opaque,
+ * so the renderer is matched as a whole url, the way {@link isShellPageUrl} does.
+ *
+ * @complexity O(1) to register; each callback is O(n) in the URL's length.
+ */
+function installSitesHomeNavigationPolicy(
+  contents: NavigableContents,
+  options: { rendererFileUrl: string; openExternal: (url: string) => void },
+): void {
+  const renderer = withoutQueryOrHash(options.rendererFileUrl);
+  installNavigationBoundary(contents, (url) => renderer !== null && withoutQueryOrHash(url) === renderer, options.openExternal);
+}
+
+/**
+ * Registers the popup handler and the `will-navigate`/`will-redirect` listeners, keeping everything
+ * `isInApp` refuses out of the window and handing only http(s) urls to the OS browser.
+ * @complexity O(1) to register.
+ */
+function installNavigationBoundary(contents: NavigableContents, isInApp: (url: string) => boolean, openExternal: (url: string) => void): void {
   const handOff = (url: string) => {
-    if (isExternalBrowserUrl(url)) options.openExternal(url);
+    if (isExternalBrowserUrl(url)) openExternal(url);
   };
 
   contents.setWindowOpenHandler(({ url }) => {
-    if (isSameOrigin(url, options.appOrigin)) return { action: "allow" };
+    if (isInApp(url)) return { action: "allow" };
     handOff(url);
     return { action: "deny" };
   });
 
   contents.on("will-navigate", (event, url) => {
-    if (isSameOrigin(url, options.appOrigin)) return;
+    if (isInApp(url)) return;
     event.preventDefault();
     handOff(url);
   });
 
   contents.on("will-redirect", (details) => {
-    if (!details.isMainFrame || isSameOrigin(details.url, options.appOrigin)) return;
+    if (!details.isMainFrame || isInApp(details.url)) return;
     details.preventDefault();
     handOff(details.url);
   });
@@ -180,5 +208,5 @@ function isShellPageUrl(raw: string, pages: ShellPages): boolean {
   return page !== null && page === withoutQueryOrHash(pages.rendererFileUrl);
 }
 
-export { isSameOrigin, isExternalBrowserUrl, installAppWindowNavigationPolicy, isShellPageUrl };
+export { isSameOrigin, isExternalBrowserUrl, installAppWindowNavigationPolicy, installSitesHomeNavigationPolicy, isShellPageUrl };
 export type { NavigableContents, AppWindowPolicyOptions, WindowOpenResponse, ShellPages };

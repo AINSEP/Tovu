@@ -14,7 +14,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { installAppWindowNavigationPolicy, isExternalBrowserUrl, isSameOrigin, isShellPageUrl } from "./window-navigation-policy.ts";
+import {
+  installAppWindowNavigationPolicy,
+  installSitesHomeNavigationPolicy,
+  isExternalBrowserUrl,
+  isSameOrigin,
+  isShellPageUrl,
+} from "./window-navigation-policy.ts";
 import type { NavigableContents, WindowOpenResponse } from "./window-navigation-policy.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -23,7 +29,10 @@ const APP_ORIGIN = "http://127.0.0.1:4567";
 
 /** A `webContents` stand-in that keeps whatever the policy registers, plus every URL handed to the
  *  OS browser. */
-function installOnFake() {
+function installOnFake(
+  install: (contents: NavigableContents, openExternal: (url: string) => void) => void = (contents, openExternal) =>
+    installAppWindowNavigationPolicy(contents, { appOrigin: APP_ORIGIN, openExternal }),
+) {
   let openHandler: ((details: { url: string }) => WindowOpenResponse) | undefined;
   let navigateListener: ((event: { preventDefault(): void }, url: string) => void) | undefined;
   let redirectListener: ((details: { url: string; isMainFrame: boolean; preventDefault(): void }) => void) | undefined;
@@ -38,7 +47,7 @@ function installOnFake() {
       return contents;
     },
   };
-  installAppWindowNavigationPolicy(contents, { appOrigin: APP_ORIGIN, openExternal: (url) => opened.push(url) });
+  install(contents, (url) => opened.push(url));
 
   return {
     opened,
@@ -247,5 +256,52 @@ test("main.ts registers the speech channels with the shell-page sender check", (
   assert.match(
     shellPage,
     /isShellPageUrl\(raw, \{\s*isSupervisedSite: isSupervisedGuestUrl,\s*attachUrl: process\.env\.TOVU_DESKTOP_URL\?\.trim\(\),\s*rendererFileUrl: pathToFileURL\(SITES_RENDERER_PATH\)\.href,\s*\}\)/,
+  );
+});
+
+// The sites home window (`openSitesHomeWindow`) runs `sandbox: false` with the `tovuRunner` bridge
+// (project create/delete/start/stop/openExternal — none of whose IPC handlers checks the sender).
+// Its `script-src 'self'` CSP only covers the page it is on: a link dropped onto the window, or any
+// other top-level navigation, replaced the page with a remote one that got the SAME preload and none
+// of the CSP. Only the renderer's own file may load there.
+const installSitesHome = (contents: NavigableContents, openExternal: (url: string) => void) =>
+  installSitesHomeNavigationPolicy(contents, { rendererFileUrl: RENDERER, openExternal });
+
+test("sites home: navigating the window to a remote page is prevented and handed to the OS browser", () => {
+  const fake = installOnFake(installSitesHome);
+  assert.equal(fake.navigate("https://evil.example/"), true);
+  assert.equal(fake.navigate("http://127.0.0.1:4567/admin/"), true);
+  assert.deepEqual(fake.opened, ["https://evil.example/", "http://127.0.0.1:4567/admin/"]);
+});
+
+test("sites home: navigating to any other file, or a non-http(s) scheme, is prevented and never reaches the OS", () => {
+  const fake = installOnFake(installSitesHome);
+  assert.equal(fake.navigate("file:///Users/someone/Downloads/dropped.html"), true);
+  assert.equal(fake.navigate("file://evil-host/Applications/Tovu.app/Contents/Resources/app/dist/renderer/index.html"), true);
+  assert.equal(fake.navigate("javascript:alert(1)"), true);
+  assert.equal(fake.navigate("data:text/html,<script>tovuRunner</script>"), true);
+  assert.deepEqual(fake.opened, []);
+});
+
+test("sites home: the renderer's own file still loads, whatever its hash or query", () => {
+  const fake = installOnFake(installSitesHome);
+  assert.equal(fake.navigate(RENDERER), false);
+  assert.equal(fake.navigate(`${RENDERER}#/projects`), false);
+  assert.deepEqual(fake.opened, []);
+});
+
+test("sites home: a remote popup is denied and handed to the OS browser; a main-frame redirect off the renderer is prevented", () => {
+  const fake = installOnFake(installSitesHome);
+  assert.deepEqual(fake.windowOpen("https://evil.example/"), { action: "deny" });
+  assert.deepEqual(fake.opened, ["https://evil.example/"]);
+  assert.equal(fake.redirect("https://evil.example/", true), true);
+});
+
+test("main.ts installs the sites home policy on openSitesHomeWindow's window, against the renderer's own file url", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+  const sitesHome = source.slice(source.indexOf("function openSitesHomeWindow("), source.indexOf("window.loadFile(SITES_RENDERER_PATH)"));
+  assert.match(
+    sitesHome,
+    /installSitesHomeNavigationPolicy\(window\.webContents, \{\s*rendererFileUrl: pathToFileURL\(SITES_RENDERER_PATH\)\.href,/,
   );
 });
