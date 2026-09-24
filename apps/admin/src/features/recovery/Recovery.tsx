@@ -357,8 +357,7 @@ function RestoreConfirmedStep(props: { locale: string; busy: boolean; onExecute:
         className="btn-danger"
         onClick={onExecute}
         disabled={busy}
-        // No agent handle: this runs an unrecoverable restore now; only a person may press it —
-        // see agent-proof-live-buttons pass, same as a022eafaa (Publish confirm).
+        {...agentHandle("recovery-restore-execute", { role: "button", label: "Execute the confirmed restore now — cannot be undone" })}
       >
         {busy ? t(locale, "Restoring…") : t(locale, "Execute restore")}
       </button>
