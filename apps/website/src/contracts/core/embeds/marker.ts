@@ -553,6 +553,26 @@ export function embedMarkerTarget(type: string, config: Readonly<Record<string, 
 }
 
 /**
+ * The "Copy embed code" snippet for any marker type: the same `<div data-embed-config='{"type":…,
+ * "<key>":"<value>"}'></div>` wrapper {@link scanEmbedMarkers}/{@link parseEmbedMarkerConfig} already
+ * parse back — generalised (readable-slugs S5b) out of `apps/admin/src/features/collections/rules.ts`'s
+ * `collectionEmbedSnippet`, the one admin-generated marker that existed before this: that function is
+ * now a one-line call onto this (`embedMarkerSnippet("collection", "id", key)`), byte-for-byte
+ * unchanged. `features/media`'s own "Copy embed code" button (S5a) is the second caller, with
+ * `("media", "slug", asset.slug)` — see {@link EMBED_MARKER_TARGET_KEYS}'s `media` row for why `slug`
+ * is a real, resolvable target key for this type.
+ *
+ * No escaping beyond the plain template: `key`/`value` are expected to already be validated,
+ * quote-free identifiers (a slug, a type key, an id) by the time a caller reaches for a copy button —
+ * the same assumption `collectionEmbedSnippet` always made.
+ *
+ * @complexity O(1) — one template string.
+ */
+export function embedMarkerSnippet(type: string, key: "id" | "slug" | "typeKey", value: string): string {
+  return `<div data-embed-config='{"type":"${type}","${key}":"${value}"}'></div>`;
+}
+
+/**
  * Rebuild a marker's element around new inner content, keeping its own tag and every authored
  * attribute (`class`, `aria-label`, …). The counterpart to a wholesale replace: a menu marker keeps
  * its `<nav class="docs-nav">` wrapper and only swaps what's inside, whereas a partial slot marker
