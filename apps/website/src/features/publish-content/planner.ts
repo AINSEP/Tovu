@@ -22,10 +22,14 @@ import type { PublishContentDeps, PublishContentHandler, PackedEntity } from "./
  * | `created`   | no destination row with this id                                        | yes |
  * | `unchanged` | destination hash == source hash                                        | no  |
  * | `applied`   | destination hash == recorded baseline (untouched since we last spoke)  | yes |
+ * | `applied`   | no recorded baseline, but destination hash == the SHIPPED SEED's hash  | yes |
  * | `conflict`  | destination hash differs from BOTH source and baseline — edited there  | no  |
- * | `conflict`  | no baseline exists at all for this peer+entity                         | no  |
- * | `blocked`   | a precondition fails: slug taken, body-format shape, required blob gone| no  |
+ * | `conflict`  | no baseline AND no seed match (or no seed hash supplied at all)        | no  |
+ * | `blocked`   | a precondition fails: slug taken, required blob gone, etc.             | no  |
  * | `forced`    | outcome was `conflict` and the operator explicitly chose this row      | yes |
+ *
+ * The `applied`-via-seed row is D1 (2026-09-24 owner decision) — see {@link PlanImportDeps.getSeedHash}'s
+ * own doc for why "no baseline" no longer means "conflict, always" once a seed hash is wired.
  *
  * `refused` is deliberately NOT a `PublishContentOutcomeKind` — it is a WHOLE-RUN state (see
  * {@link PublishContentReport.refused}), because both of its triggers (`bundle.hashVersion` mismatch, or
@@ -39,7 +43,10 @@ import type { PublishContentDeps, PublishContentHandler, PackedEntity } from "./
  * is most likely to get backwards: **no baseline is a `conflict`, never a free pass to `created`.**
  * A destination that already holds unrelated content — most importantly, the very first sync against
  * an existing production database — must never be silently overwritten just because this peer never
- * recorded a baseline for it. Fail closed, never open.
+ * recorded a baseline for it. Fail closed, never open. D1's seed-hash fallback does not weaken this:
+ * it only ever turns "no baseline" into `applied` (an ordinary overwrite of a row proven byte-identical
+ * to what this install itself shipped there), never into `created`, and only when the destination's
+ * CURRENT content still matches the seed exactly — any drift at all, from any cause, stays a `conflict`.
  *
  * ## Two-pass structure
  *
@@ -139,6 +146,24 @@ export interface PlanImportDeps {
    *  real `BlobStorePort`. Required (not optional) so a caller is forced to make a deliberate choice
    *  for it rather than the check silently always passing. */
   readonly hasBlob: (sha256: string) => Promise<boolean>;
+  /**
+   * D1 (2026-09-24 owner decision, publish-types-plan §6) — the hash this entity had in the SHIPPED
+   * SEED database (`content.seed.db`) this destination was originally hydrated from, consulted only
+   * when {@link getBaseline} found no recorded baseline. A destination row that still matches the
+   * seed exactly has never been touched there since — the very first real publish against it should
+   * overwrite it like any other `applied` row, not sit in `conflict` forever for want of a
+   * `publish_content_baselines` row nothing has ever had a reason to write (the owner's own reported
+   * bug: publishing a new header nav never replaces the ORIGINAL seeded one).
+   *
+   * Optional, and consulted ONLY when there is no real baseline (see {@link planEntity}) — a real
+   * recorded baseline always wins outright, exactly like before D1; this is purely a fallback for
+   * "no baseline yet", never a second vote once one exists. Absent entirely (`undefined`), or
+   * resolving `null` for a given entity (not present in that seed at all), falls straight through to
+   * the pre-D1 "no baseline" conflict — the safe, unchanged default. Wiring a real implementation
+   * (packing the matching entity out of `dist/content/seed-sites/<site>/content.seed.db`) is a
+   * separate follow-up; today's one production caller (`gated-hooks.ts`) does not supply it yet.
+   */
+  readonly getSeedHash?: (args: { entityType: string; entityId: string }) => Promise<string | null>;
   /** Entity keys (see {@link entityKey}) the operator has explicitly chosen to force past a
    *  `conflict`, turning that one row's outcome into `forced`. Absent/empty means "force nothing" —
    *  every conflict stays a conflict, the safe default. */
@@ -239,6 +264,19 @@ async function planEntity(
   }
   if (baseline && destination.hash === baseline.hashAtLastSync) {
     return { ...identity, outcome: "applied", writes: true, reason: null };
+  }
+
+  // D1 (2026-09-24 owner decision, see this module's header and `getSeedHash`'s own doc): no
+  // RECORDED baseline exists, but the destination still matches exactly what the shipped seed put
+  // there. Treat the seed's own hash as a virtual baseline — the same "untouched since we last
+  // agreed" reasoning as the branch above, just with the seed standing in for a sync that never
+  // happened. Only reachable when `baseline` is falsy, so a real recorded baseline always takes
+  // priority and this never re-litigates an already-resolved conflict.
+  if (!baseline && deps.getSeedHash) {
+    const seedHash = await deps.getSeedHash({ entityType: entity.entityType, entityId: entity.id });
+    if (seedHash !== null && destination.hash === seedHash) {
+      return { ...identity, outcome: "applied", writes: true, reason: null };
+    }
   }
 
   // Destination differs from both the incoming source AND the recorded baseline (or there is no

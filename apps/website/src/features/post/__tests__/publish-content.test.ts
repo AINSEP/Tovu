@@ -271,6 +271,21 @@ test("precheck() blocks an entity with no usable slug rather than throwing", asy
   assert.match(result ?? "", /no usable slug/);
 });
 
+test("precheck() no longer blocks a body-format difference — D2 (2026-09-24 owner decision) lets publishing replace it instead of refusing", async () => {
+  const existing = makePost({ id: "post-1", slug: "hello", bodyFormat: "html", bodyHtml: "<p>live</p>" });
+  const handler = contributePostPublish().build(makeDeps([existing]));
+  const result = await handler.precheck({
+    entityType: "post",
+    id: "post-1",
+    schemaVersion: 1,
+    contentHash: "irrelevant",
+    hashVersion: 1,
+    requiredBlobs: [],
+    state: { slug: "hello", bodyFormat: "doc" },
+  });
+  assert.equal(result, null);
+});
+
 // ---------------------------------------------------------------------------
 // apply() — deliberately unimplemented (Task 7/8), must fail loudly, never silently no-op
 // ---------------------------------------------------------------------------

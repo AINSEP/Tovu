@@ -259,6 +259,44 @@ test("an html-format Page keeps its bodyHtml and its format through a publish", 
 });
 
 // ---------------------------------------------------------------------------
+// D2 (2026-09-24 owner decision) — publishing REPLACES an existing destination row whose body
+// format differs from the source, instead of refusing (`features/post/post.ts`'s
+// `importPostEntity` used to throw `PostConflictError` on this; `precheck()`'s own mirror of the
+// same block is covered in `__tests__/publish-content.test.ts`).
+// ---------------------------------------------------------------------------
+
+test("D2: publishing replaces an existing doc-format destination row with the source's html format", async () => {
+  const source = fullyPopulatedPost({ kind: "page", slug: "doc-to-html", bodyFormat: "html", bodyHtml: "<section>New bespoke HTML</section>" });
+  const destinationRow: PostRecord = { ...source, bodyFormat: "doc", bodyHtml: null, version: 3 };
+  const destinationDeps = makeDeps([destinationRow]);
+  const handler = contributePagePublish().build(destinationDeps);
+  const [sourceEntity] = await packAll("page", [source]);
+  assert.ok(sourceEntity);
+
+  await handler.apply({ entity: sourceEntity, expectedVersion: 3, principalId: IMPORTING_OPERATOR });
+
+  const landed = await destinationDeps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: source.id });
+  assert.equal(landed?.bodyFormat, "html", "publishing must convert the destination to the source's format, not refuse");
+  assert.equal(landed?.bodyHtml, source.bodyHtml);
+});
+
+test("D2: publishing replaces an existing html-format destination row with the source's doc format", async () => {
+  const source = fullyPopulatedPost({ kind: "page", slug: "html-to-doc", bodyFormat: "doc", bodyHtml: null });
+  const destinationRow: PostRecord = { ...source, bodyFormat: "html", bodyHtml: "<section>Stale generated HTML</section>", version: 3 };
+  const destinationDeps = makeDeps([destinationRow]);
+  const handler = contributePagePublish().build(destinationDeps);
+  const [sourceEntity] = await packAll("page", [source]);
+  assert.ok(sourceEntity);
+
+  await handler.apply({ entity: sourceEntity, expectedVersion: 3, principalId: IMPORTING_OPERATOR });
+
+  const landed = await destinationDeps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: source.id });
+  assert.equal(landed?.bodyFormat, "doc", "publishing must convert the destination to the source's format, not refuse");
+  assert.equal(landed?.bodyHtml, null);
+  assert.deepEqual(landed?.bodyJson, source.bodyJson);
+});
+
+// ---------------------------------------------------------------------------
 // Authorship — already correct on create (Task 15); pinned so the DTO rework cannot regress it
 // ---------------------------------------------------------------------------
 

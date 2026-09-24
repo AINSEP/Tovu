@@ -229,10 +229,19 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
 
   /**
    * Reports, WITHOUT writing anything, every condition under which `apply()` would refuse this
-   * entity — a slug already held here, a destination row in the trash, a kind or body-format that
-   * cannot be converted. Each of these is a real, ordinary outcome of importing real-world data,
-   * not a programming error, so they come back as a human-readable reason rather than a throw
+   * entity — a slug already held here, a destination row in the trash, a kind that cannot be
+   * changed. Each of these is a real, ordinary outcome of importing real-world data, not a
+   * programming error, so they come back as a human-readable reason rather than a throw
    * (`PublishContentHandler.precheck`'s own contract).
+   *
+   * A body-format difference (`doc` vs `html`) is deliberately NOT one of these — D2 (2026-09-24
+   * owner decision, publish-types-plan §6) — publishing now REPLACES an existing row whose format
+   * differs, the same as any other content change, instead of refusing it. `entity.state.bodyFormat`
+   * already participates in the content hash (`POST_FIELD_DISPOSITIONS`), so a format-only change
+   * still surfaces as an ordinary `conflict`/`applied` outcome through the planner's normal hash
+   * comparison — it is never silently skipped, only no longer specially blocked. See
+   * `features/post/post.ts`'s `importPostEntity` for the matching second-guard removal that makes
+   * the actual write succeed, not only the plan.
    *
    * Every guard below is enforced a SECOND time inside `importPostEntity`, which is what actually
    * makes them safe: `apply()` can be reached without a precheck, and the destination can change
@@ -258,10 +267,6 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
     }
     if (existing.kind !== kind) {
       return `'${entity.id}' is a '${existing.kind}' at this destination but a '${kind}' at the source — kind is fixed at creation and cannot be changed by publishing`;
-    }
-    const sourceBodyFormat = entity.state.bodyFormat;
-    if (typeof sourceBodyFormat === "string" && existing.bodyFormat !== sourceBodyFormat) {
-      return `${entityType} '${entity.id}' is '${existing.bodyFormat}'-format at this destination but '${sourceBodyFormat}'-format at the source — publishing cannot convert a body format without discarding a whole body`;
     }
     return null;
   }

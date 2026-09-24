@@ -99,6 +99,11 @@ function makeDeps(options: {
   baselines?: Map<string, BaselineRecord | null>;
   availableBlobs?: ReadonlySet<string>;
   forcedEntityKeys?: ReadonlySet<string>;
+  /** D1 (2026-09-24 owner decision) — when supplied, backs the new optional `getSeedHash` dep;
+   *  a missing entry resolves `null` (not in the seed at all), matching a real seed-db lookup's own
+   *  "no row for this id" case. Omitted entirely (`undefined`) means `getSeedHash` is not wired at
+   *  all, the same as today's one production call site (`gated-hooks.ts`) until it is. */
+  seedHashes?: Map<string, string | null>;
 }): PlanImportDeps {
   const baselines = options.baselines ?? new Map();
   const availableBlobs = options.availableBlobs ?? new Set();
@@ -107,6 +112,9 @@ function makeDeps(options: {
     getBaseline: async ({ entityType, entityId }) => baselines.get(entityKey(entityType, entityId)) ?? null,
     hasBlob: async (sha256) => availableBlobs.has(sha256),
     forcedEntityKeys: options.forcedEntityKeys,
+    ...(options.seedHashes
+      ? { getSeedHash: async ({ entityType, entityId }: { entityType: string; entityId: string }) => options.seedHashes!.get(entityKey(entityType, entityId)) ?? null }
+      : {}),
   };
 }
 
@@ -194,6 +202,81 @@ test("conflict: no baseline exists at all for this peer+entity — never a free 
   assert.equal(report.rows[0].writes, false);
   assert.match(report.rows[0].reason ?? "", /no prior sync baseline/);
   assertUnchanged(destination, before, "conflict (no baseline)");
+});
+
+// ---------------------------------------------------------------------------
+// 1b. D1 (2026-09-24 owner decision) — the shipped seed as a virtual baseline when no REAL
+// baseline has been recorded yet, so the very first publish can overwrite a destination row
+// nobody has touched since the seed hydrated it (the owner's worked example: the header nav).
+// ---------------------------------------------------------------------------
+
+test("applied (D1): no recorded baseline, but the destination hash matches the shipped seed's hash — untouched since seed, not a conflict", async () => {
+  const destination = new Map<string, FakeDestinationRow>([["w1", { version: 1, hash: "seed-hash" }]]);
+  registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination })));
+  const before = snapshot(destination);
+
+  const seedHashes = new Map<string, string | null>([[entityKey("widget", "w1"), "seed-hash"]]);
+  const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    makeDeps({ seedHashes })
+  );
+
+  assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", entityLabel: "w1", outcome: "applied", writes: true, reason: null }]);
+  assertUnchanged(destination, before, "applied (D1 seed match)");
+});
+
+test("conflict (D1): no recorded baseline AND the destination hash differs from the seed hash too — genuinely edited since seed, stays a conflict", async () => {
+  const destination = new Map<string, FakeDestinationRow>([["w1", { version: 1, hash: "edited-since-seed" }]]);
+  registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination })));
+  const before = snapshot(destination);
+
+  const seedHashes = new Map<string, string | null>([[entityKey("widget", "w1"), "seed-hash"]]);
+  const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    makeDeps({ seedHashes })
+  );
+
+  assert.equal(report.rows[0].outcome, "conflict");
+  assert.equal(report.rows[0].writes, false);
+  assert.match(report.rows[0].reason ?? "", /no prior sync baseline/);
+  assertUnchanged(destination, before, "conflict (D1 seed mismatch too)");
+});
+
+test("conflict (D1): getSeedHash resolves null for this entity (not in the seed at all) — falls through to the ordinary no-baseline conflict", async () => {
+  const destination = new Map<string, FakeDestinationRow>([["w1", { version: 1, hash: "already-here" }]]);
+  registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination })));
+
+  const seedHashes = new Map<string, string | null>(); // no entry for w1 -> resolves null
+  const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "incoming-hash" });
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    makeDeps({ seedHashes })
+  );
+
+  assert.equal(report.rows[0].outcome, "conflict");
+  assert.match(report.rows[0].reason ?? "", /no prior sync baseline/);
+});
+
+test("conflict (D1): a REAL recorded baseline always wins — getSeedHash is a fallback for 'no baseline yet' only, never consulted once one exists", async () => {
+  const destination = new Map<string, FakeDestinationRow>([["w1", { version: 5, hash: "edited-on-destination" }]]);
+  registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination })));
+
+  const baselines = new Map<string, BaselineRecord | null>([
+    [entityKey("widget", "w1"), { hashAtLastSync: "old-baseline-hash", hashVersion: CONTENT_HASH_VERSION }],
+  ]);
+  // The destination's CURRENT hash happens to equal the seed hash too — if getSeedHash were
+  // consulted here it would wrongly turn a real edited-since-last-sync conflict into `applied`.
+  const seedHashes = new Map<string, string | null>([[entityKey("widget", "w1"), "edited-on-destination"]]);
+  const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    makeDeps({ baselines, seedHashes })
+  );
+
+  assert.equal(report.rows[0].outcome, "conflict");
+  assert.match(report.rows[0].reason ?? "", /edited on the destination since the last sync/);
 });
 
 test("blocked: precheck fails (e.g. slug taken) — never caught as a write-time constraint violation", async () => {

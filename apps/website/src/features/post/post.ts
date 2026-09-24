@@ -1792,10 +1792,12 @@ export interface ImportPostEntityInput {
  *
  * ## What it refuses
  *
- * Fail-closed on every condition where a verbatim copy would destroy destination state rather than
- * replicate source state — a body-format conversion (the data-loss bug `resolveUpdateBodyFields`
- * documents), a resurrection of a trashed destination row, a kind change (`PostKind` is fixed at
- * creation), or a slug already held by a different row.
+ * Fail-closed on every remaining condition where a verbatim copy would destroy destination state in
+ * a way the owner has not opted into — a resurrection of a trashed destination row, a kind change
+ * (`PostKind` is fixed at creation), or a slug already held by a different row. A body-format
+ * conversion (doc <-> html) is deliberately NOT in this list as of D2 (2026-09-24 owner decision,
+ * publish-types-plan §6) — see the removed guard's own comment below for why publishing is now
+ * allowed to replace a row across a format change, which it does wholesale, never partially.
  *
  * @complexity O(1) — a fixed, small number of repo calls; no iteration over caller-controlled
  * collections.
@@ -1836,14 +1838,14 @@ export async function importPostEntity(required: {
         `post '${record.id}' is a '${existing.kind}' at this destination but a '${record.kind}' at the source — kind is fixed at creation`
       );
     }
-    // Converting an existing row's body format either way discards a whole body: doc -> html loses
-    // the Tiptap document, html -> doc loses `body_html`. See `resolveUpdateBodyFields`'s doc for
-    // the real incident that behavior caused.
-    if (existing.bodyFormat !== record.bodyFormat) {
-      throw new PostConflictError(
-        `post '${record.id}' is '${existing.bodyFormat}'-format at this destination but '${record.bodyFormat}'-format at the source — publishing cannot convert a body format`
-      );
-    }
+    // D2 (2026-09-24 owner decision, publish-types-plan §6): a body-format difference (doc -> html
+    // loses the Tiptap document, html -> doc loses `body_html` — see `resolveUpdateBodyFields`'s doc
+    // for the real incident that concern originally documented) used to refuse here outright. The
+    // owner has since decided publishing should REPLACE the destination's body wholesale instead,
+    // the same as it already replaces every other content field this function carries verbatim —
+    // `record` below is spread over `existing` in full, so no partial merge of the two formats is
+    // possible either way. `contributePostPublish`'s `precheck` no longer blocks this either (its own
+    // doc has the matching removal); this is the second half of that same change.
   }
 
   await assertSlugAvailableForUpdate(deps.repo, workspaceId, record.slug, record.id);
