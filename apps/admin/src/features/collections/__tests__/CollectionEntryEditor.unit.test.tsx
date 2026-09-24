@@ -128,4 +128,35 @@ describe("injected hook seam (useCollectionEntryEditorHook)", () => {
     // `act`/`waitFor` is only possible because the fake bypassed `useWiredCollectionEntryEditor`.
     expect(screen.getByText('Unknown content type "does-not-matter".')).toBeInTheDocument();
   });
+
+  it("translates the title field's accessible name, not only its placeholder (a non-English screen-reader user heard English)", () => {
+    const spanish: Record<string, string> = { "Entry title": "Título de la entrada" };
+    const controller: CollectionEntryEditorController = {
+      contentType: ARTICLE_TYPE,
+      entry: null,
+      title: "",
+      setTitle: vi.fn(),
+      slug: "",
+      setSlug: vi.fn(),
+      extFields: {},
+      setExtFields: vi.fn(),
+      taxonomies: [],
+      message: null,
+      error: null,
+      loadError: null,
+      loaded: true,
+      saving: false,
+      busy: false,
+      editor: null,
+      save: vi.fn(async () => {}),
+      toggleLifecycle: vi.fn(async () => {}),
+      setFieldValidity: vi.fn(),
+      t: (key) => spanish[key] ?? key,
+    };
+    render(
+      <CollectionEntryEditor contentTypeKey="articles" entryId={null} useCollectionEntryEditorHook={() => controller} />
+    );
+
+    expect(screen.getByLabelText("Título de la entrada")).toHaveAttribute("placeholder", "Título de la entrada");
+  });
 });

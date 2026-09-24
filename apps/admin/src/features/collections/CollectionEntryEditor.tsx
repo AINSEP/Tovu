@@ -560,7 +560,7 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
           (see `styles/editor.css`'s `.a11y-label-wrap` comment). The slug field's label is only
           rendered in the `!entry` (create) branch, matching that branch's own `<input>`. */}
       <label className="a11y-label-wrap">
-        <span className="visually-hidden">Entry title</span>
+        <span className="visually-hidden">{t("Entry title")}</span>
         <input
           className="editor-title"
           value={title}
