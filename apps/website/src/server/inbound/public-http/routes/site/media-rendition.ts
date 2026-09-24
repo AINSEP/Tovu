@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 
 import { scanEmbedMarkers } from "#src/contracts/core/embeds/marker";
-import { findMediaByIdOrSlug, ImageSourceCorruptError, ImageTransformUnavailableError, resolveMediaRendition, sniffContentType } from "#src/features/media/index";
+import { findMediaByIdOrSlug, ImageSourceCorruptError, ImageTransformUnavailableError, resolveMediaRendition, sniffContentType, type MediaRecord } from "#src/features/media/index";
 import { isTrashed, type PostRecord } from "#src/features/post/index";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess, type MemberAccessResolver } from "#src/features/members/index";
 import { parseRangeHeader } from "#src/server/inbound/admin-http/range";
@@ -37,9 +37,18 @@ const TRANSFORM_SPEC_PATTERN = /^(.+)\.v(\d+)$/;
  *  independently would have drifted the same way. */
 const PRIVATE_NO_STORE = "private, no-store";
 
-/** The long-lived shared/CDN header an UNGATED 200 keeps. Never reachable from a gated outcome —
- *  see {@link sendMediaRenditionResult}'s own `access.gated` note. */
+/** The long-lived shared/CDN header an UNGATED 200 keeps, when the request spelled the asset by its
+ *  immutable `id`. Never reachable from a gated outcome — see {@link sendMediaRenditionResult}'s own
+ *  `access.gated` note. */
 const IMMUTABLE_PUBLIC = "public, max-age=31536000, immutable";
+
+/** The header an UNGATED 200 gets instead, when the request spelled the asset by its (editable)
+ *  `slug` — current or retired (readable-slugs plan, S2b). A slug can be renamed; the only way a
+ *  slug URL can ever point at DIFFERENT bytes is a permanent delete followed by reuse of the freed
+ *  name, and this 1-hour TTL caps how long any cache (shared or the browser's own) can keep serving
+ *  the old bytes under the reused name after that. An id-keyed URL has no such hazard — an id is
+ *  never reassigned — so it keeps {@link IMMUTABLE_PUBLIC} unchanged. */
+const SLUG_KEYED_PUBLIC = "public, max-age=3600";
 
 /**
  * The ONE writer for every 404 either public media route emits.
@@ -282,14 +291,24 @@ async function scanEntriesForAsset(
   return { referencing: pick("referrer"), opaqueGated: pick("opaque") };
 }
 
+/** {@link resolveAssetAliases}'s result: the full alias set to gate on, plus the resolved record
+ *  itself (or `null` for an unknown identifier) — {@link sendMediaRenditionResult} needs the record
+ *  too, to tell an id-keyed request from a slug-keyed one for the cache-header split (S2b). */
+interface AssetAliasResolution {
+  readonly aliases: ReadonlySet<string>;
+  readonly media: MediaRecord | null;
+}
+
 /**
  * Every spelling of the SAME asset that could appear either in a request URL or in an entry's
- * authored body — its opaque `id` and its editable `slug` (2026-09-07 fix for the audit's claim #2).
+ * authored body — its opaque `id`, its CURRENT editable `slug` (2026-09-07 fix for the audit's
+ * claim #2), and every slug it used to have before a rename (`listRetiredSlugs`, readable-slugs
+ * plan S2a/S2b).
  *
- * THE BUG THIS CLOSES: both public routes here gate on the RAW `:assetId` path segment, while the
- * byte lookups they guard (`resolveMediaRendition`, `resolveMediaOriginalBlob`) both went through
- * `findMediaByIdOrSlug` the moment media gained an editable slug. So the two halves keyed off
- * different identifiers, and the reference scan simply missed — in BOTH directions:
+ * THE BUG THIS CLOSES (id/slug half): both public routes here gate on the RAW `:assetId` path
+ * segment, while the byte lookups they guard (`resolveMediaRendition`, `resolveMediaOriginalBlob`)
+ * both went through `findMediaByIdOrSlug` the moment media gained an editable slug. So the two
+ * halves keyed off different identifiers, and the reference scan simply missed — in BOTH directions:
  *   - a members-only entry embedding an asset BY ID was served anonymously through `/m/{slug}/…`
  *     (no entry body contains the slug, so `gating.length === 0` and the route allowed);
  *   - an entry embedding BY SLUG was served anonymously through `/m/{id}/…`, which is precisely
@@ -299,21 +318,33 @@ async function scanEntriesForAsset(
  * makes the gate and the lookup agree by construction rather than by two call sites happening to
  * spell the same asset the same way.
  *
+ * THE SAME GAP REOPENS ON RENAME (retired-slug half, S2b): once a slug can be renamed and an old
+ * slug URL still resolves (`findBySlug`'s history fallback), an entry authored against the OLD
+ * spelling is a real, live reference — dropping it from the alias set the moment the slug changes
+ * would silently un-gate that entry's media, the same failure shape as the id/slug split above.
+ *
  * Falls back to the raw value when nothing resolves: that request is a guaranteed 404 from the byte
  * lookup anyway, and inventing an empty alias set here would make an unknown asset take the
  * "nothing references it, allow" path for no benefit.
  *
- * @complexity O(1) — at most the two indexed lookups `findMediaByIdOrSlug` already performs.
+ * @complexity O(1) — the two indexed lookups `findMediaByIdOrSlug` already performs, plus one more
+ * indexed lookup for `listRetiredSlugs`.
  */
 async function resolveAssetAliases(
   deps: Pick<MediaRenditionRouteDeps, "mediaRepo" | "workspaceId">,
   idOrSlug: string
-): Promise<ReadonlySet<string>> {
+): Promise<AssetAliasResolution> {
   const media = await findMediaByIdOrSlug({
     deps: { mediaRepo: deps.mediaRepo },
     input: { workspaceId: deps.workspaceId, idOrSlug },
   });
-  return media ? new Set([media.id, media.slug]) : new Set([idOrSlug]);
+  if (!media) {
+    return { aliases: new Set([idOrSlug]), media: null };
+  }
+  const retiredSlugs = await deps.mediaRepo.listRetiredSlugs({ workspaceId: deps.workspaceId, mediaId: media.id });
+  const aliases = new Set([media.id, ...retiredSlugs]);
+  if (media.slug) aliases.add(media.slug);
+  return { aliases, media };
 }
 
 /** Route-local duplicate of `pages.ts`'s own (file-private) `readRawCookie` — no `cookie-parser`
@@ -393,17 +424,18 @@ async function resolveMediaAccessDecision(
   deps: MediaRenditionRouteDeps,
   req: Request,
   assetId: string
-): Promise<{ gated: boolean; allowed: boolean }> {
-  const { referencing, opaqueGated } = await scanEntriesForAsset(deps, await resolveAssetAliases(deps, assetId));
+): Promise<{ gated: boolean; allowed: boolean; record: MediaRecord | null }> {
+  const { aliases, media } = await resolveAssetAliases(deps, assetId);
+  const { referencing, opaqueGated } = await scanEntriesForAsset(deps, aliases);
   if (referencing.some((entry) => !isGatedEntry(entry))) {
-    return { gated: false, allowed: true };
+    return { gated: false, allowed: true, record: media };
   }
 
   // A real referrer always wins over the fallback: once the scan has actually FOUND the entries
   // that embed this asset, an unrelated unreadable entry has no say in who may read it.
   const gating = referencing.length > 0 ? referencing : opaqueGated;
   if (gating.length === 0) {
-    return { gated: false, allowed: true };
+    return { gated: false, allowed: true, record: media };
   }
 
   const resolver = createMemberAccessResolver(deps);
@@ -415,7 +447,7 @@ async function resolveMediaAccessDecision(
   const allowed = gating.some(
     (entry) => resolver.decide({ access: resolvePostMemberAccess(entry.memberAccessJson), context }).allowed
   );
-  return { gated: true, allowed };
+  return { gated: true, allowed, record: media };
 }
 
 /**
@@ -502,11 +534,19 @@ async function sendMediaRenditionResult(
     res
       .status(200)
       // `access.gated`: a gated asset's ALLOW outcome is per-viewer (it depended on this
-      // request's session cookie), so it must never be handed the long-lived, shared/CDN-facing
-      // `immutable` header below — the next, possibly unentitled, visitor to hit a public/shared
-      // cache would be served this same cached response. Ungated media (the overwhelming common
-      // case) keeps the original immutable header unchanged.
-      .set("Cache-Control", access.gated ? PRIVATE_NO_STORE : IMMUTABLE_PUBLIC)
+      // request's session cookie), so it must never be handed either of the two ungated,
+      // shared/CDN-facing headers below — the next, possibly unentitled, visitor to hit a
+      // public/shared cache would be served this same cached response.
+      //
+      // Ungated (the overwhelming common case) still splits in two (S2b): `assetId` (the raw
+      // request segment) equals `access.record.id` only when the request spelled the asset by its
+      // immutable id, which keeps the original year-long immutable header. Any other spelling —
+      // the current slug, or a retired one now falling back through slug history — gets the short
+      // TTL, since only an id can never come to mean a different asset.
+      .set(
+        "Cache-Control",
+        access.gated ? PRIVATE_NO_STORE : access.record?.id === assetId ? IMMUTABLE_PUBLIC : SLUG_KEYED_PUBLIC
+      )
       .set("Content-Type", result.contentType)
       .send(Buffer.from(result.bytes));
   } catch (err) {
@@ -599,7 +639,13 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (ap
         return;
       }
 
-      const resolved = await resolveMediaOriginalBlob(deps, res, { workspaceId: deps.workspaceId, mediaId: assetId });
+      // Unknown-asset 404s through the SAME `sendMediaNotFound` writer as the gate-denied branch
+      // just above (2026-09-23 oracle close, S2b) — `resolveMediaOriginalBlob`'s own default 404
+      // (a bare `{error: "media '<x>' was not found"}`, no Cache-Control at all) stays reserved for
+      // its authenticated admin caller; see that function's `onNotFound` doc.
+      const resolved = await resolveMediaOriginalBlob(deps, res, { workspaceId: deps.workspaceId, mediaId: assetId }, (r) =>
+        sendMediaNotFound(r, "video rendition not found")
+      );
       if (!resolved) {
         return;
       }
