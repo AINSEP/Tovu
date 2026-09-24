@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import type { UIResource } from "#src/assistant/index";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/contracts/core/tool-surface-exchanges";
 import { ForbiddenError } from "@jini-ai/cms/core";
 
 import {
@@ -146,8 +148,23 @@ async function seedOpenAiCredential(fixture: Pick<ReturnType<typeof fakeRouteDep
   );
 }
 
-function executionContext(input: Record<string, unknown>): ToolExecutionContext {
+function bareContext(input: Record<string, unknown>): ToolExecutionContext {
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
+}
+
+/** One store for every registration {@link wired} builds, so {@link autoConfirm} can answer it. */
+const SURFACE_EXCHANGES = createSurfaceExchangeStore();
+
+/** Clicks Confirm on whatever dialog the call raises — the gate itself is certified by the
+ *  "Human confirmation" section at the end of this file. */
+const autoConfirm: SurfaceEmitter = async (emission) => {
+  const html = (emission.payload as { resource: UIResource }).resource.resource.text;
+  const exchangeId = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`))![1]!;
+  SURFACE_EXCHANGES.deliver({ exchangeId, toolId: "media_generate_asset", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+};
+
+function executionContext(input: Record<string, unknown>): ToolExecutionContext {
+  return { ...bareContext(input), emitSurface: autoConfirm };
 }
 
 function catalogEntry(toolId: string): AgentToolDefinition {
@@ -157,7 +174,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 }
 
 function mediaGenerationRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("media_generate")).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps, { surfaceExchanges: SURFACE_EXCHANGES }).filter((r) => r.descriptor.id.startsWith("media_generate")).map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RouteDeps): ToolRegistration {
@@ -486,4 +503,68 @@ test("the ToolPolicy layer is a pass-through 'allow' — enforcement is this fil
   const registration = wired("media_generate_asset", deps);
   const decision = registration.policy.authorize({ principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, tool: registration.descriptor, input: {} });
   assert.equal(decision, "allow");
+});
+
+// ---------------------------------------------------------------------------
+// Human confirmation (2026-09-24 tool-design audit, F3): a real generation is billed to the
+// owner's vendor account, so the human approves each one.
+// ---------------------------------------------------------------------------
+
+async function raiseGenerateDialog(deps: RouteDeps, input: Record<string, unknown>) {
+  const store = createSurfaceExchangeStore();
+  const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges: store }).find((r) => r.descriptor.id === "media_generate_asset");
+  assert.ok(tool);
+  const emitted: unknown[] = [];
+  const pending = tool.handler({ ...bareContext(input), emitSurface: async (s) => void emitted.push(s) });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
+  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
+  const exchangeId = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`))![1]!;
+  const answer = (decision: string) =>
+    store.deliver({ exchangeId, toolId: "media_generate_asset", principalId: PRINCIPAL_ID, params: { decision } });
+  return { pending, html, answer };
+}
+
+test("confirm: the dialog names the vendor, model and prompt, says it is billed, and nothing is generated until the click", async () => {
+  const fixture = fakeRouteDeps();
+  await seedOpenAiCredential(fixture);
+  await seedPublicTransform(fixture.transformDefinitionRepo);
+
+  const { pending, html, answer } = await raiseGenerateDialog(fixture.deps, { prompt: "a red bicycle on a beach" });
+
+  assert.match(html, /Generate an image with OpenAI\?/);
+  assert.match(html, /gpt-image-2/);
+  assert.match(html, /a red bicycle on a beach/);
+  assert.match(html, /This is a paid request: OpenAI bills your account for one image at its price for gpt-image-2\./);
+  assert.equal(fixture.generateCalls.length, 0);
+
+  answer("confirm");
+  const out = (await pending) as { media: { id: string } };
+  assert.ok(out.media.id);
+  assert.equal(fixture.generateCalls.length, 1);
+});
+
+test("cancel: nothing is generated or stored and the model is told the user cancelled", async () => {
+  const fixture = fakeRouteDeps();
+  await seedOpenAiCredential(fixture);
+
+  const { pending, answer } = await raiseGenerateDialog(fixture.deps, { prompt: "a logo" });
+  answer("cancel");
+
+  assert.deepEqual(await pending, { generated: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
+  assert.equal(fixture.generateCalls.length, 0);
+  assert.deepEqual(await fixture.mediaRepo.list({ workspaceId: WORKSPACE_ID }), []);
+});
+
+test("with no emitSurface a paid generation is refused and the vendor is never called", async () => {
+  const fixture = fakeRouteDeps();
+  await seedOpenAiCredential(fixture);
+
+  await assert.rejects(() => wired("media_generate_asset", fixture.deps).handler(bareContext({ prompt: "a logo" })), {
+    name: "ToolInputError",
+    message:
+      "MEDIA_GENERATION_NO_CONFIRMATION_CHANNEL: media_generate_asset: this execution context has no interactive " +
+      "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.",
+  });
+  assert.equal(fixture.generateCalls.length, 0);
 });

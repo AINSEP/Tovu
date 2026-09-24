@@ -138,6 +138,7 @@ const EXPECTED_ALLOWLIST = [
   "deployment_propose_custom_provider_credential",
   "external_mcp_reauth_prompt",
   "external_mcp_save",
+  "media_generate_asset",
   "media_trash_asset",
   "plugins_set_enabled",
   "plugins_uninstall",

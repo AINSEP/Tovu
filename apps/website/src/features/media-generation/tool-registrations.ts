@@ -24,6 +24,8 @@ import {
 } from "@jini-ai/cms/core";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import { notConfirmedResult, requireHumanConfirm } from "../../contracts/core/human-confirm.js";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import type { ToolContributor } from "#src/assistant/index";
 import type { SecretSealerPort } from "../webhooks/index.js";
 import {
@@ -320,15 +322,20 @@ interface GeneratedMediaView {
   placeholder: boolean;
 }
 
-export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationToolDeps): ToolRegistration[] {
+const GENERATE_TOOL_ID = "media_generate_asset";
+
+export function buildMediaGenerationRegistrations(
+  routeDeps: MediaGenerationToolDeps,
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    media_generate_asset: async (ctx): Promise<{ media: GeneratedMediaView }> => {
+    media_generate_asset: async (ctx) => {
       const input = requireInputRecord(ctx.input);
       const prompt = requireString(input, "prompt");
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "media.upload", entityType: "media" });
 
       return withSchemaOnRejection(
-        { toolId: "media_generate_asset", catalog: CATALOG_BY_ID, isShapeRejection: (error) => error instanceof MediaGenerationValidationError },
+        { toolId: GENERATE_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: (error) => error instanceof MediaGenerationValidationError },
         async () => {
           const model = await requireImageModel(optionalString(input, "model"), routeDeps);
           const allowStubFallback = optionalBoolean(input, "allowStubFallback") ?? false;
@@ -339,6 +346,27 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
           const credential = await resolveCredentialForProvider(routeDeps, providerId);
           if (!credential && !allowStubFallback) {
             throw buildNoCredentialError(providerId);
+          }
+
+          // A real generation is billed to the owner's vendor account, so the human approves each
+          // one (2026-09-24 tool-design audit, F3). With no credential only the free local
+          // placeholder can run, so there is nothing to approve. No price is shown: the vendor
+          // catalogue carries none, and a hand-kept figure would go stale.
+          if (credential) {
+            const vendor = findProvider(providerId)?.label ?? providerId;
+            const outcome = await requireHumanConfirm(ctx, surfaces, {
+              toolId: GENERATE_TOOL_ID,
+              errorCode: "MEDIA_GENERATION",
+              title: `Generate an image with ${vendor}?`,
+              details: [
+                { label: "Vendor", value: vendor },
+                { label: "Model", value: model },
+                { label: "Prompt", value: prompt },
+              ],
+              warning: `This is a paid request: ${vendor} bills your account for one image at its price for ${model}.`,
+              confirmLabel: "Generate image",
+            });
+            if (!outcome.confirmed) return { generated: false, ...notConfirmedResult(outcome) };
           }
 
           const generate = routeDeps.generateMedia ?? defaultGenerateMedia;
@@ -377,6 +405,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
 
           const urls = await resolveMediaPublicUrls(routeDeps, [media]);
           return {
+            generated: true,
             media: {
               id: media.id,
               slug: media.slug,

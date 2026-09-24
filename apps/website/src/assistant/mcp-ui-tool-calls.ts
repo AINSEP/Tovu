@@ -255,6 +255,7 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // Confirm/Cancel click would 403 with TOOL_NOT_ALLOWLISTED.
   "webhooks_create_subscription",
   "sites_duplicate_site",
+  "media_generate_asset",
 ]);
 
 /**
