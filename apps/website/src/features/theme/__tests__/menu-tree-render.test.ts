@@ -165,6 +165,24 @@ test("authored rel and openInNewTab reach the <a> tag — previously read nowher
   assert.ok(html?.includes('<a href="https://example.com" rel="nofollow" target="_blank">External</a>'));
 });
 
+test("the FLAT variant honors authored rel and openInNewTab too — the admin menu editor's 'Open in new tab' must not silently do nothing on a flat nav/footer", () => {
+  const html = renderStaticPage({
+    theme: flatTheme(),
+    pageId: "index",
+    menus: {
+      [HEADER_ID]: items({
+        label: "External",
+        href: "https://example.com",
+        attrs: { rel: 'nofollow"><script>x</script>', openInNewTab: true },
+      }),
+    },
+  });
+  assert.ok(
+    html?.includes('<a href="https://example.com" rel="nofollow&quot;&gt;&lt;script&gt;x&lt;/script&gt;" target="_blank">External</a>'),
+    html ?? "null"
+  );
+});
+
 test("an item with no attrs at all still renders the plain <a>, no stray rel/target/class", () => {
   const html = renderStaticPage({
     theme: treeTheme(),

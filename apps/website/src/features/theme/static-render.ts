@@ -262,12 +262,12 @@ export function safeHref(value: string): string {
  * the same `ResolvedNavItem` shape.
  */
 function renderMenuLinks(items: readonly StaticMenuItem[]): string {
+  // `menuItemLinkAttrs` (not a bare aria-current) so authored `rel`/`openInNewTab` reach a FLAT nav
+  // too — the tree variant and the widget-IR menu already honored them, and the admin menu editor
+  // offers both, so a flat header/footer silently ignoring them was a render-path divergence.
   return items
     .filter((item) => item.available && item.href !== null)
-    .map((item) => {
-      const current = item.isCurrent ? ' aria-current="page"' : "";
-      return `<a href="${escapeHtml(safeHref(item.href as string))}"${current}>${escapeHtml(item.label)}</a>`;
-    })
+    .map((item) => `<a href="${escapeHtml(safeHref(item.href as string))}"${menuItemLinkAttrs(item)}>${escapeHtml(item.label)}</a>`)
     .join("");
 }
 
