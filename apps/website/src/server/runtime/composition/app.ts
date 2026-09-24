@@ -889,6 +889,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       redirectsWriteDeps,
       menuRepo,
       navLocationBindingRepo,
+      // S19 (S-F4) — same value `routeDeps.themesDir` (below) resolves to. See `routes/types.ts`'s
+      // `themesDir` doc and `deps.ts`'s identical addition to this same apply bag.
+      themesDir: builtInThemesDir(),
     }),
     clock,
     idGen,

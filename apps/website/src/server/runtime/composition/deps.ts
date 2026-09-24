@@ -1646,6 +1646,10 @@ export function createSqliteRouteDeps(
       redirectsWriteDeps,
       menuRepo,
       navLocationBindingRepo,
+      // S19 (S-F4) — the theme-files handler's `apply()` stages/writes under this site's own themes
+      // root, the SAME value `routeDeps.themesDir` (below) resolves to. See `routes/types.ts`'s
+      // `themesDir` doc.
+      themesDir: resolvedThemesDir,
     }),
     clock,
     idGen,
