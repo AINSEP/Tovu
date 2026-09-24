@@ -99,7 +99,22 @@ export class InMemoryPagesHtmlDocumentStore {
     return row.bodyHtml;
   }
 
-  /** @see PagesHtmlDocumentStore.write */
+  /**
+   * @see PagesHtmlDocumentStore.write
+   *
+   * Commits through {@link PostRepoPort.saveIfVersion} rather than a separate `row.version !==
+   * expectedVersion` check followed by an unconditional `save()`. The two-step form has an `await`
+   * gap between the check and the act: two `write()` calls truly in flight at once (as two parallel
+   * `pages_write_region` tool-call dispatches produce — see `tool-registrations.write-region.test.ts`'s
+   * own header, defect #2) can both pass the check before either has saved, so the later `save()`
+   * silently clobbers the earlier one with no error to either caller. `saveIfVersion` does its
+   * version compare and its write in one synchronous span with no `await` inside, so whichever
+   * caller's `saveIfVersion` actually runs second — even with both `write()`s in flight — sees the
+   * version the first one already bumped and reports `applied: false`. This is this store's own
+   * analogue of the real store's atomic `UPDATE ... WHERE version = ?` (see this file's header).
+   * Pinned by `__tests__/html-document-store.memory.test.ts`'s "BUG: two write() calls truly IN
+   * FLIGHT AT ONCE" case.
+   */
   async write(html: string): Promise<void> {
     if (this.lastReadVersion === null) {
       throw new Error("PagesHtmlDocumentStore.write() called before read() — there is no version to condition the write on");
@@ -112,19 +127,22 @@ export class InMemoryPagesHtmlDocumentStore {
     if (row && isTrashed(row)) {
       assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: "trashed" });
     }
-    if (!row || row.bodyFormat !== "html" || row.version !== expectedVersion) {
+    if (!row || row.bodyFormat !== "html") {
       throw new PageConcurrentEditError(
         `page '${this.scope.postId}' was edited elsewhere since this turn started — re-read and retry`
       );
     }
 
     const nextVersion = expectedVersion + 1;
-    await this.deps.repo.save({
-      ...row,
-      bodyHtml: html,
-      version: nextVersion,
-      updatedAt: this.deps.clock.nowIso(),
+    const { applied } = await this.deps.repo.saveIfVersion({
+      record: { ...row, bodyHtml: html, version: nextVersion, updatedAt: this.deps.clock.nowIso() },
+      ifVersion: expectedVersion,
     });
+    if (!applied) {
+      throw new PageConcurrentEditError(
+        `page '${this.scope.postId}' was edited elsewhere since this turn started — re-read and retry`
+      );
+    }
     this.lastReadVersion = nextVersion;
     await this.reindexEntryRefs(html);
   }
