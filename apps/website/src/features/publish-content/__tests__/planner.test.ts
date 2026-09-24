@@ -38,6 +38,7 @@ import {
   type PlanImportDeps,
   type PublishContentBundle,
   type RetireTarget,
+  type ReferenceHolder,
 } from "../planner.js";
 
 test.beforeEach(() => {
@@ -69,6 +70,10 @@ function makeFakeHandler(options: {
   /** S-F4 (publish-files-plan §4) — a fake handler opts into the handler-level seed fallback by
    *  supplying this; omitted means no `seedHash` property at all, like every row-backed handler. */
   seedHash?: (id: string) => Promise<string | null>;
+  /** R2 (publish-repoint-menus-plan §2.1/§2.2) — a fake handler opts into the planner's
+   *  `referencedBy` post-pass by supplying this; omitted means no `referencesTo` property at all,
+   *  matching every handler before this change. */
+  referencesTo?: (ids: readonly string[]) => Promise<readonly ReferenceHolder[]>;
 }): PublishContentHandler {
   const handler = {
     entityType: options.entityType,
@@ -84,6 +89,7 @@ function makeFakeHandler(options: {
     },
     ...(options.planRetire ? { planRetire: options.planRetire } : {}),
     ...(options.seedHash ? { seedHash: options.seedHash } : {}),
+    ...(options.referencesTo ? { referencesTo: options.referencesTo } : {}),
   };
   return handler;
 }
@@ -583,6 +589,162 @@ test("a slug-blocked row whose planRetire resolves null (nothing to retire) stay
   assert.equal(report.rows[0].outcome, "blocked");
   assert.equal(report.rows[0].canOverwrite, false);
   assert.equal(report.rows[0].retires, null);
+});
+
+// ---------------------------------------------------------------------------
+// 1c. R2 (publish-repoint-menus-plan-2026-09-24.md §2.2) — the planner's `referencedBy` post-pass.
+// Reuses the "widget" fake handler's planRetire (above) plus a fake "ref" type whose referencesTo
+// returns holders, so the pass is proven against a handler contract, not the real menu handler
+// (that lands in R3).
+// ---------------------------------------------------------------------------
+
+test("referencedBy: a forced retire row gets the live holders that still link to it, from a handler with referencesTo", async () => {
+  const destination = new Map<string, FakeDestinationRow>();
+  const target: RetireTarget = { entityType: "widget", entityId: "holder", entityLabel: "Holder", hash: "holder-hash" };
+  registerPublishContentContributor(
+    fakeContributor(
+      makeFakeHandler({
+        entityType: "widget",
+        destination,
+        blockedIds: new Set(["w1"]),
+        blockReason: "slug 'x' is already held by a different widget",
+        planRetire: async () => target,
+      })
+    )
+  );
+
+  const refHolder: ReferenceHolder = { entityType: "ref", entityId: "m1", entityLabel: "Header", referencedId: "holder" };
+  const referencesToCalls: (readonly string[])[] = [];
+  registerPublishContentContributor(
+    fakeContributor(
+      makeFakeHandler({
+        entityType: "ref",
+        destination: new Map(),
+        referencesTo: async (ids) => {
+          referencesToCalls.push(ids);
+          return [refHolder];
+        },
+      })
+    )
+  );
+
+  const entity = makeEntity({ entityType: "widget", id: "w1" });
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    makeDeps({ forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
+  );
+
+  const row = report.rows.find((r) => r.entityType === "widget" && r.entityId === "w1")!;
+  assert.equal(row.outcome, "forced");
+  assert.deepEqual(row.referencedBy, [refHolder]);
+  assert.equal(referencesToCalls.length, 1);
+  assert.deepEqual(referencesToCalls[0], ["holder"]);
+});
+
+test("referencedBy: a holder whose own referencing row writes in this same bundle is dropped — the incoming tree already wins", async () => {
+  const destination = new Map<string, FakeDestinationRow>();
+  const target: RetireTarget = { entityType: "widget", entityId: "holder", entityLabel: "Holder", hash: "holder-hash" };
+  registerPublishContentContributor(
+    fakeContributor(
+      makeFakeHandler({
+        entityType: "widget",
+        destination,
+        blockedIds: new Set(["w1"]),
+        blockReason: "slug 'x' is already held by a different widget",
+        planRetire: async () => target,
+      })
+    )
+  );
+
+  const refHolder: ReferenceHolder = { entityType: "ref", entityId: "m1", entityLabel: "Header", referencedId: "holder" };
+  registerPublishContentContributor(
+    fakeContributor(
+      makeFakeHandler({
+        entityType: "ref",
+        destination: new Map(), // no destination row for "m1" -> its own row outcome is "created" (writes: true)
+        referencesTo: async () => [refHolder],
+      })
+    )
+  );
+
+  const entities = [makeEntity({ entityType: "widget", id: "w1" }), makeEntity({ entityType: "ref", id: "m1" })];
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities },
+    makeDeps({ forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
+  );
+
+  const widgetRow = report.rows.find((r) => r.entityType === "widget" && r.entityId === "w1")!;
+  const refRow = report.rows.find((r) => r.entityType === "ref" && r.entityId === "m1")!;
+  assert.equal(refRow.writes, true, "sanity: the ref/m1 row itself writes this same run");
+  assert.equal("referencedBy" in widgetRow, false, "absent — a writing referencing row already carries the new id");
+});
+
+test("referencedBy: no row retires anything — referencesTo is never called, and no row gains the field", async () => {
+  const destination = new Map<string, FakeDestinationRow>([["w1", { version: 1, hash: "same" }]]);
+  registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination })));
+
+  let referencesToCalls = 0;
+  registerPublishContentContributor(
+    fakeContributor(
+      makeFakeHandler({
+        entityType: "ref",
+        destination: new Map(),
+        referencesTo: async () => {
+          referencesToCalls += 1;
+          return [];
+        },
+      })
+    )
+  );
+
+  const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "same" });
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    makeDeps({})
+  );
+
+  assert.equal(referencesToCalls, 0, "no retire target in the whole report -> referencesTo must never be called");
+  assert.equal("referencedBy" in report.rows[0], false);
+});
+
+test("referencedBy: two retire rows collect both ids into a single referencesTo call, one per handler, not one per row", async () => {
+  const destination = new Map<string, FakeDestinationRow>();
+  const target1: RetireTarget = { entityType: "widget", entityId: "holder-1", entityLabel: "Holder 1", hash: "h1" };
+  const target2: RetireTarget = { entityType: "widget", entityId: "holder-2", entityLabel: "Holder 2", hash: "h2" };
+  registerPublishContentContributor(
+    fakeContributor(
+      makeFakeHandler({
+        entityType: "widget",
+        destination,
+        blockedIds: new Set(["w1", "w2"]),
+        blockReason: "slug clash",
+        planRetire: async (entity) => (entity.id === "w1" ? target1 : target2),
+      })
+    )
+  );
+
+  const referencesToCalls: (readonly string[])[] = [];
+  registerPublishContentContributor(
+    fakeContributor(
+      makeFakeHandler({
+        entityType: "ref",
+        destination: new Map(),
+        referencesTo: async (ids) => {
+          referencesToCalls.push(ids);
+          return [];
+        },
+      })
+    )
+  );
+
+  const entities = [makeEntity({ entityType: "widget", id: "w1" }), makeEntity({ entityType: "widget", id: "w2" })];
+  await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities },
+    makeDeps({})
+  );
+
+  assert.equal(referencesToCalls.length, 1, "one referencesTo call for the whole plan, not one per retire row");
+  assert.deepEqual([...referencesToCalls[0]].sort(), ["holder-1", "holder-2"]);
 });
 
 test("refused: unknown artifact format version rejects the whole bundle before any catalog or baseline read", async () => {

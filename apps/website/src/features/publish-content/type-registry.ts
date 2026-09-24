@@ -246,6 +246,45 @@ export interface RetireTarget {
 }
 
 /**
+ * `publish-repoint-menus-plan-2026-09-24.md` §2.1 — a live entity that links to another entity by
+ * id, e.g. a menu item whose `entryRef.entryId` targets a page. Produced by
+ * {@link PublishContentHandler.referencesTo}, read by the planner's post-pass (`planner.ts`) and
+ * attached to the referenced row's {@link RetireTarget}-bearing outcome row as `referencedBy`, so an
+ * operator sees what still points at a holder before choosing to overwrite it.
+ */
+export interface ReferenceHolder {
+  readonly entityType: string;
+  readonly entityId: string;
+  readonly entityLabel: string | null;
+  /** The id this holder links to — matches a {@link RetireTarget.entityId} the planner asked about. */
+  readonly referencedId: string;
+}
+
+/**
+ * §2.1 — one entity replaced during an apply run: the retired holder's id and the id the incoming
+ * entity landed under. Collected by the apply loop (S5, `apply-loop.ts`) from rows whose retire
+ * both landed, and handed to {@link PublishContentHandler.repointReferences} so a live reference can
+ * be rewritten from the old id to the new one.
+ */
+export interface EntityReplacement {
+  readonly entityType: string;
+  readonly oldId: string;
+  readonly newId: string;
+}
+
+/**
+ * §2.1 — the result of one handler's {@link PublishContentHandler.repointReferences} call.
+ */
+export interface RepointResult {
+  readonly changeSetIds: readonly string[];
+  readonly linksUpdated: number;
+  /** Operator-facing lines, one per holder not updated (an authorization refusal, a concurrent edit,
+   *  or any other reason a specific holder was skipped) — a repoint failure is always reported here,
+   *  never silent and never thrown back to fail the surrounding run (§2.3). */
+  readonly notUpdated: readonly string[];
+}
+
+/**
  * One content type's contract for participating in Publish Content — plan §3's own interface,
  * carried here verbatim. See plan §4 task table for which of `pack`/`inspect`/`precheck`/`apply`
  * each later task actually exercises; Task 2 (this file plus `contributePostPublish`/
@@ -319,6 +358,29 @@ export interface PublishContentHandler {
     principalId: string;
     idempotencyKey: string;
   }): Promise<{ changeSetId: string; undo(): Promise<void> }>;
+
+  /**
+   * `publish-repoint-menus-plan-2026-09-24.md` §2.1/§2.2 — read-only, like {@link planRetire}: every
+   * live entity of THIS type that links to any of `ids` by id (e.g. a menu whose nested `entryRef`
+   * targets one of them). Called by the planner (`planner.ts`) at most ONCE per handler per plan,
+   * with every retire-target id collected across the whole report — never once per row. A handler
+   * with no concept of "links to another entity by id" simply omits this method.
+   */
+  referencesTo?(ids: readonly string[]): Promise<readonly ReferenceHolder[]>;
+  /**
+   * §2.3 — the write side: for each of `replacements`, repoints every live link `oldId -> newId` in
+   * entities of this type, skipping any holder named in `skipIds` (written this run, so its own
+   * incoming content already stands — repointing it would fight the source's own intent). Called by
+   * the apply loop (`apply-loop.ts`, S5) once, AFTER every row has already landed — never inside a
+   * row's own `apply()`/`retire()`. A repoint failure must never fail the surrounding run (the
+   * content already landed); it is reported via {@link RepointResult.notUpdated} instead.
+   */
+  repointReferences?(input: {
+    replacements: readonly EntityReplacement[];
+    skipIds: ReadonlySet<string>;
+    principalId: string;
+    runId: string;
+  }): Promise<RepointResult>;
 
   /**
    * S-F4 (`publish-files-plan-2026-09-24.md` §4) — the hash `id` had when this destination was first

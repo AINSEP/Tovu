@@ -1,7 +1,13 @@
 import { CONTENT_HASH_VERSION } from "./content-hash.js";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "./artifact-format.js";
 import { buildPublishContentCatalog } from "./type-registry.js";
-import type { PublishContentDeps, PublishContentHandler, PackedEntity, RetireTarget } from "./type-registry.js";
+import type {
+  PublishContentDeps,
+  PublishContentHandler,
+  PackedEntity,
+  RetireTarget,
+  ReferenceHolder,
+} from "./type-registry.js";
 
 /**
  * @file Task 5 of the publish-content (Publish Content) feature —
@@ -98,7 +104,7 @@ export type PublishContentOutcomeKind = "created" | "unchanged" | "applied" | "c
  * importable from here too since this planner is where most other callers already get their
  * publish-content types from.
  */
-export type { RetireTarget };
+export type { RetireTarget, ReferenceHolder };
 
 /** One entity's classification. `writes` describes what a LATER apply pass (Task 8) would do if this
  *  report were accepted as-is — `planImport` itself never writes regardless of this flag's value. */
@@ -126,6 +132,15 @@ export interface PublishContentOutcomeRow {
    *  would have to retire first (see {@link PublishContentHandler.planRetire}'s own doc, S4). `null`
    *  for every other row, including a `blocked` row whose handler has no `planRetire` at all. */
   readonly retires: RetireTarget | null;
+  /**
+   * `publish-repoint-menus-plan-2026-09-24.md` §2.2 — live entities that still link to this row's
+   * {@link retires} holder by id (e.g. a menu item whose `entryRef` targets it), collected by a
+   * post-pass over every registered handler's {@link PublishContentHandler.referencesTo}. Present
+   * ONLY when non-empty — absent for every row with no retire target, and for a retire target with
+   * no live references at all — so every pre-existing exact-object row assertion in
+   * `planner.test.ts` stays valid without having to name a key it never expected.
+   */
+  readonly referencedBy?: readonly ReferenceHolder[];
 }
 
 /**
@@ -351,6 +366,58 @@ async function planEntity(
 }
 
 /**
+ * `publish-repoint-menus-plan-2026-09-24.md` §2.2 — the planner's post-pass. Collects every row's
+ * {@link PublishContentOutcomeRow.retires} target id, asks each registered handler that has a
+ * {@link PublishContentHandler.referencesTo} for the live entities that still link to any of them
+ * (one call per handler, never per row — `ids` carries every retire target across the whole report
+ * at once), and attaches the survivors back onto their row's `referencedBy`. Returns `rows`
+ * unchanged — the exact same array reference — whenever there is nothing to attach, so the ordinary
+ * run (no retires at all) pays zero extra handler calls.
+ *
+ * A returned holder is dropped when ITS OWN row in this same report already writes: the bundle also
+ * republishes that referencing entity this run, so its incoming tree already carries the new id and
+ * repointing it live would fight the source's own intent (plan §2.5's "written this run" row).
+ *
+ * @complexity O(h) handler calls (h = handlers with `referencesTo`, one call each) plus O(r) to
+ * index `rows` by key and O(k) to redistribute the returned holders (k = holders returned) — never
+ * one read per row.
+ */
+async function attachReferencedBy(
+  rows: readonly PublishContentOutcomeRow[],
+  handlerByType: ReadonlyMap<string, PublishContentHandler>
+): Promise<readonly PublishContentOutcomeRow[]> {
+  const ids = [...new Set(rows.filter((row) => row.retires !== null).map((row) => row.retires!.entityId))];
+  if (ids.length === 0) return rows;
+
+  const holders: ReferenceHolder[] = [];
+  for (const handler of handlerByType.values()) {
+    if (!handler.referencesTo) continue;
+    holders.push(...(await handler.referencesTo(ids)));
+  }
+  if (holders.length === 0) return rows;
+
+  // A holder whose OWN referencing entity is itself written this run is dropped — plan §2.5: the
+  // incoming tree already targets the new id, so repointing the live copy would be redundant (and,
+  // for a row later overwritten by this same run, actively wrong).
+  const rowByKey = new Map(rows.map((row) => [entityKey(row.entityType, row.entityId), row] as const));
+  const holdersByReferencedId = new Map<string, ReferenceHolder[]>();
+  for (const holder of holders) {
+    const ownRow = rowByKey.get(entityKey(holder.entityType, holder.entityId));
+    if (ownRow?.writes) continue;
+    const list = holdersByReferencedId.get(holder.referencedId) ?? [];
+    list.push(holder);
+    holdersByReferencedId.set(holder.referencedId, list);
+  }
+  if (holdersByReferencedId.size === 0) return rows;
+
+  return rows.map((row) => {
+    if (row.retires === null) return row;
+    const referencedBy = holdersByReferencedId.get(row.retires.entityId);
+    return referencedBy && referencedBy.length > 0 ? { ...row, referencedBy } : row;
+  });
+}
+
+/**
  * Plans an import: for every entity in `bundle`, decides one of the seven outcomes (this file's
  * header) with ZERO writes. See this file's header for the two-pass structure and the whole-run
  * refusal semantics.
@@ -445,5 +512,9 @@ export async function planImport(bundle: PublishContentBundle, deps: PlanImportD
     }
   }
 
-  return { refused: false, refusalReason: null, applyOrder, rows };
+  // publish-repoint-menus-plan §2.2 — attach any live references to a row's retire target, so the
+  // confirm dialog can show what still points at a holder before an operator chooses to overwrite it.
+  const rowsWithReferences = await attachReferencedBy(rows, handlerByType);
+
+  return { refused: false, refusalReason: null, applyOrder, rows: rowsWithReferences };
 }
