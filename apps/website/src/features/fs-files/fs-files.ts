@@ -133,8 +133,20 @@ export const FS_FILES_DENYLIST = {
    * `.config/gh/hosts.yml`. Denied by SEGMENT rather than by leaf filename on purpose: `config`,
    * `config.json`, and `hosts.yml` are generic names that appear harmlessly elsewhere, so denying the
    * directory is the narrower of the two mistakes.
+   *
+   * `.tovu` (2026-09-24) — the install-wide root key's own directory. `keyring.env.ts`'s
+   * `defaultRootKeyFilePath` resolves to `<cwd>/sites/.tovu/integrations-root-key.hex` in production
+   * (a SIBLING of every `sites/<name>/` folder, on the durable Fly volume) and to
+   * `~/.tovu/integrations-root-key.hex` in local/dev (reachable through the operator-set `custom`
+   * root, `layout.ts`'s home-directory case). `TOVU_INTEGRATIONS_ROOT_KEY` is the one secret the
+   * "Site Token" admin UI, every webhook/analytics/newsletter signing secret, and site-token
+   * permission checks all derive from (see `keyring.env.ts`'s own header) — the owner's standing rule
+   * is that the agent must never be able to read it off disk. Denying the whole `.tovu` segment, not
+   * merely the generated filename, also keeps `fs_list_files` from ever enumerating that directory's
+   * contents in the first place (see {@link visitFsDirEntry}), the same "never even advertise it"
+   * property `secrets` gets above.
    */
-  segments: new Set(["secrets", ".aws", ".docker", ".kube", "gcloud", "gh"]),
+  segments: new Set(["secrets", ".aws", ".docker", ".kube", "gcloud", "gh", ".tovu"]),
   /**
    * Basename patterns refused wherever they appear, matched against the path's final segment only (a
    * directory legitimately named e.g. `keys/` is not itself a secret — only a leaf file matching one
@@ -171,6 +183,21 @@ export const FS_FILES_DENYLIST = {
    *   shared-credentials file, which has no suffix family to match on.
    * - `.git-credentials` (exact basename) — git's own credential-store file, another extension-less
    *   name that none of the patterns above covers.
+   * - `*root-key*.hex` (2026-09-24) — belt-and-braces for the root key file itself, independent of
+   *   the `.tovu` SEGMENT deny above: a copy, backup, or rename of `integrations-root-key.hex` sitting
+   *   anywhere else in the tree (outside a `.tovu` directory, where the segment deny would not fire)
+   *   is still the same live `TOVU_INTEGRATIONS_ROOT_KEY` material and must stay unreadable.
+   * - `.credentials.json` (exact basename, 2026-09-24) — Claude's own OAuth token store
+   *   (`~/.claude/.credentials.json`), reachable through the operator-set `custom` root the same way
+   *   `.aws`/`.docker`/`.kube` are. Distinct from the pre-existing `credentials.json` (no leading dot)
+   *   pattern below, which is the Google Cloud/AWS convention — both are kept, neither replaces the
+   *   other.
+   * - The shell rc family (2026-09-24) — `.bash_profile`/`.bashrc`/`.bash_login`/`.zshrc`/`.zprofile`/
+   *   `.zshenv`/`.zlogin`/`.profile`. These are where this machine's notarization credentials and other
+   *   exported API tokens live (`export FOO=...` lines sourced on every shell start) — see
+   *   `desktop_notarization_already_set_up` in the owner's own memory for a concrete example of what a
+   *   `.bash_profile` on this machine carries. Exact basenames, not a suffix family: a project file
+   *   that merely contains "profile" in its name (`profile.ts`) must not match.
    */
   filenamePatterns: [
     /^\.env(?:\..*)?$/i,
@@ -188,6 +215,9 @@ export const FS_FILES_DENYLIST = {
     /^credentials$/i,
     /^client_secret.*\.json$/i,
     /^\.git-credentials$/i,
+    /root-key.*\.hex$/i,
+    /^\.credentials\.json$/i,
+    /^\.(?:bash_profile|bashrc|bash_login|zshrc|zprofile|zshenv|zlogin|profile)$/i,
   ] as readonly RegExp[],
 } as const;
 

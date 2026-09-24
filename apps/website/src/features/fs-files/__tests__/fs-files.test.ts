@@ -300,6 +300,105 @@ test("a denied-pattern file is silently excluded from listFsFiles, not merely re
 });
 
 // ---------------------------------------------------------------------------
+// 3d. Root key and home-directory secrets (2026-09-24 fix) — the agent must never be able to read
+//     TOVU_INTEGRATIONS_ROOT_KEY off disk (owner rule, "Site Token" = the root key = the one secret),
+//     nor the shell rc files that export notarization/API creds, nor Claude's own OAuth store.
+// ---------------------------------------------------------------------------
+
+test("isDeniedFsFileName matches any '*root-key*.hex' basename, not just the literal generated filename", () => {
+  for (const name of ["integrations-root-key.hex", "root-key.hex", "old-root-key-backup.hex", "INTEGRATIONS-ROOT-KEY.HEX"]) {
+    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+  }
+  assert.equal(isDeniedFsFileName("root-key.txt"), false, "a name merely containing 'root-key' without the .hex extension must not match");
+});
+
+test("a '*root-key*.hex' file is refused on read and excluded from listFsFiles even outside a .tovu directory", () => {
+  const { root } = makeAllowedRoot();
+  fs.mkdirSync(path.join(root, "backups"), { recursive: true });
+  fs.writeFileSync(path.join(root, "backups", "old-root-key.hex"), "deadbeef", "utf8");
+  assert.throws(() => readFsFile({ rootPath: root, relativePath: "backups/old-root-key.hex" }), /denied filename pattern/);
+  const files = listFsFiles({ rootPath: root }).files;
+  assert.equal(files.includes("backups/old-root-key.hex"), false);
+});
+
+test("the production root-key layout (sites/.tovu/integrations-root-key.hex) is refused via the denied '.tovu' segment", () => {
+  const { root } = makeAllowedRoot();
+  fs.mkdirSync(path.join(root, "sites", ".tovu"), { recursive: true });
+  fs.writeFileSync(path.join(root, "sites", ".tovu", "integrations-root-key.hex"), "deadbeef", "utf8");
+  assert.throws(
+    () => resolveFsFilePath({ rootPath: root, relativePath: "sites/.tovu/integrations-root-key.hex" }),
+    /denied path segment/,
+  );
+  assert.throws(
+    () => readFsFile({ rootPath: root, relativePath: "sites/.tovu/integrations-root-key.hex" }),
+    /denied path segment/,
+  );
+});
+
+test("the local home-dir custom-root layout (.tovu/integrations-root-key.hex) is refused via the denied '.tovu' segment", () => {
+  const { root } = makeAllowedRoot();
+  fs.mkdirSync(path.join(root, ".tovu"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".tovu", "integrations-root-key.hex"), "deadbeef", "utf8");
+  assert.throws(
+    () => resolveFsFilePath({ rootPath: root, relativePath: ".tovu/integrations-root-key.hex" }),
+    /denied path segment/,
+  );
+  assert.throws(
+    () => readFsFile({ rootPath: root, relativePath: ".tovu/integrations-root-key.hex" }),
+    /denied path segment/,
+  );
+});
+
+test("a '.tovu' directory is never descended into or reported by listFsFiles", () => {
+  const { root } = makeAllowedRoot();
+  fs.mkdirSync(path.join(root, ".tovu"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".tovu", "integrations-root-key.hex"), "deadbeef", "utf8");
+  const files = listFsFiles({ rootPath: root }).files;
+  assert.equal(
+    files.some((f) => f.startsWith(".tovu")),
+    false,
+    "a '.tovu' directory's contents must never be enumerated",
+  );
+});
+
+test("isDeniedFsFileName matches the shell rc family that carries exported notarization/API creds", () => {
+  for (const name of [".bash_profile", ".bashrc", ".bash_login", ".zshrc", ".zprofile", ".zshenv", ".zlogin", ".profile"]) {
+    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+  }
+  assert.equal(isDeniedFsFileName("profile.ts"), false, "a name merely containing 'profile' must not match");
+});
+
+test(".bash_profile, .zshrc, and .profile are refused on read and excluded from listFsFiles", () => {
+  const { root } = makeAllowedRoot();
+  for (const name of [".bash_profile", ".zshrc", ".profile"]) {
+    fs.writeFileSync(path.join(root, name), "export TOVU_INTEGRATIONS_ROOT_KEY=deadbeef", "utf8");
+  }
+  for (const name of [".bash_profile", ".zshrc", ".profile"]) {
+    assert.throws(() => readFsFile({ rootPath: root, relativePath: name }), /denied filename pattern/, `expected '${name}' to be refused`);
+  }
+  const files = listFsFiles({ rootPath: root }).files;
+  for (const name of [".bash_profile", ".zshrc", ".profile"]) {
+    assert.equal(files.includes(name), false, `expected '${name}' to be absent from the listing`);
+  }
+});
+
+test("isDeniedFsFileName matches '.credentials.json' (Claude's own OAuth store) without over-matching 'credentials.json'", () => {
+  assert.equal(isDeniedFsFileName(".credentials.json"), true, "expected '.credentials.json' to be denied");
+  // Already covered by the separate `credentials.json` (no leading dot) pattern above — asserted here
+  // too so the two patterns are never accidentally collapsed into one.
+  assert.equal(isDeniedFsFileName("credentials.json"), true, "expected 'credentials.json' to remain denied");
+});
+
+test(".claude/.credentials.json is refused on read and excluded from listFsFiles", () => {
+  const { root } = makeAllowedRoot();
+  fs.mkdirSync(path.join(root, ".claude"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".claude", ".credentials.json"), '{"access_token":"secret"}', "utf8");
+  assert.throws(() => readFsFile({ rootPath: root, relativePath: ".claude/.credentials.json" }), /denied filename pattern/);
+  const files = listFsFiles({ rootPath: root }).files;
+  assert.equal(files.includes(".claude/.credentials.json"), false);
+});
+
+// ---------------------------------------------------------------------------
 // 3b. Denied path SEGMENTS — the new default-allow model's primary gate.
 // ---------------------------------------------------------------------------
 
