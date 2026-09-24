@@ -12,6 +12,7 @@ import {
 import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/agent-screenshot-bus";
 import { installInternalLinkInterceptor, navigate } from "./lib/router";
 import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api";
+import { takeBootToken } from "./lib/boot-token-fragment";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "./lib/assistant-dock-bus";
@@ -71,8 +72,15 @@ export function useAdminSession(): UseAdminSession {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    api
-      .me()
+    // The zip launcher's one-time sign-in link (run-from-zip plan S2): `#boot=<token>`. Read and
+    // stripped SYNCHRONOUSLY, before either network call below fires — see `takeBootToken`'s own
+    // doc for why the fragment must not survive past this line. `null` (no fragment, the ordinary
+    // case for every ELSE launch path) skips straight to the existing `api.me()` chain, unchanged.
+    const bootToken = takeBootToken(window.location, window.history);
+    const redeemed = bootToken ? api.redeemBootSession(bootToken).catch(() => undefined) : Promise.resolve(undefined);
+
+    redeemed
+      .then(() => api.me())
       .then((r) => setUser(r.user))
       .catch(() => setUser(null))
       .finally(() => setChecking(false));
