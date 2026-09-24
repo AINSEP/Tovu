@@ -23,6 +23,7 @@ import { SqlitePublishContentBaselineRepo } from "#src/platform/db/sqlite/publis
 import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
 import { SqlitePublishTrustRevocationStore } from "#src/platform/db/sqlite/publish-trust-revocations.sqlite";
 import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
+import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { createSqlitePublishContentSeedHash } from "./publish-content-seed-hash.js";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
@@ -1607,6 +1608,9 @@ export function createSqliteRouteDeps(
   const publishContentBundleRepo = new SqlitePublishContentBundleRepo(db);
   const publishContentBaselineRepo = new SqlitePublishContentBaselineRepo(db);
   const publishContentRunRepo = new SqlitePublishContentRunRepo(db);
+  // `publish-files-plan-2026-09-24.md` §3 — ONE process-lifetime instance, same "hoisted, never
+  // rebuilt per request" convention as every repo above. See `routes/types.ts`'s `fileBlobIndex` doc.
+  const publishContentFileBlobIndex = createFileBlobIndex();
   // Task 10 — named remote Tovus, with their API keys sealed at rest under the shared ADR-058
   // sealer/keyring below. See `routes/types.ts`'s `publishContentPeerRepo` doc.
   const publishContentPeerRepo = new SqlitePublishContentPeerRepo(db);
@@ -1968,6 +1972,9 @@ export function createSqliteRouteDeps(
     // `publishContentApplyPort` reads the SAME store); `server/runtime/composition/app.ts`'s
     // hermetic composition uses `InMemoryPublishContentBundleRepo` instead.
     publishContentBundleRepo,
+    // `publish-files-plan-2026-09-24.md` §3 — see `routes/types.ts`'s `fileBlobIndex` doc. Same
+    // hoisted-singleton instance every real repo above follows.
+    fileBlobIndex: publishContentFileBlobIndex,
     // Task 7 — see `routes/types.ts`'s `publishContentBaselineRepo` doc. Real, DB-backed (hoisted
     // above for the same reason); `server/runtime/composition/app.ts`'s hermetic composition uses
     // `InMemoryPublishContentBaselineRepo` instead.

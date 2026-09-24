@@ -42,6 +42,12 @@ import type { RouteDeps } from "#src/server/routes/types";
  *   `blobStore` (already present above for Task 6) they are the three ports
  *   `features/media/publish-content.ts` reads; see {@link toPublishContentDeps} for why they are
  *   picked here rather than left to each route file to remember.
+ * - `themesDir`/`fileBlobIndex`: S18 (S-F3, `publish-files-plan-2026-09-24.md` §3) — the site's own
+ *   themes root and the process-lifetime file-blob address book a file-tree type's `pack()` fills.
+ *   `themesDir` reaches `PublishContentDeps` so `features/theme/publish-content.ts`'s handler can
+ *   walk it; `fileBlobIndex` reaches BOTH `PublishContentDeps` (so `pack()` can fill it) and
+ *   `peer-transport.ts`/`blob-get.ts` directly off `RouteDeps` (so a blob-serving route can read it
+ *   without going through the handler registry at all — see those two files' own headers).
  */
 export type PublishContentRouteDeps = Pick<
   RouteDeps,
@@ -71,6 +77,8 @@ export type PublishContentRouteDeps = Pick<
   | "redirectsWriteDeps"
   | "menuRepo"
   | "navLocationBindingRepo"
+  | "themesDir"
+  | "fileBlobIndex"
 >;
 
 export type PublishContentRouteRegistrar = (app: Express, deps: PublishContentRouteDeps) => void;
@@ -112,5 +120,7 @@ export function toPublishContentDeps(deps: PublishContentRouteDeps): PublishCont
     redirectsWriteDeps: deps.redirectsWriteDeps,
     menuRepo: deps.menuRepo,
     navLocationBindingRepo: deps.navLocationBindingRepo,
+    themesDir: deps.themesDir,
+    fileBlobIndex: deps.fileBlobIndex,
   };
 }

@@ -145,6 +145,7 @@ import type { PublishContentBaselineRepoPort } from "../../features/publish-cont
 import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
 import type { PublishContentRunRepoPort } from "../../features/publish-content/run-repo.js";
 import type { PublishContentPeerRepoPort } from "../../features/publish-content/peers.js";
+import type { FileBlobIndexPort } from "../../features/publish-content/file-blob-index.js";
 
 /**
  * Slice 1 of the `RouteDeps` god-object decomposition (2026-08-18) — the process-wide clock + id-gen
@@ -1540,6 +1541,16 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * app.ts`'s hermetic `createRouteDeps()` — same rule-of-two every other repo here follows.
    */
   publishContentBundleRepo: PublishContentBundleRepoPort;
+  /**
+   * `publish-files-plan-2026-09-24.md` §3 — the process-wide address book a file-tree `pack()`
+   * (today only `features/theme/publish-content.ts`'s theme walker) fills as it hashes files on
+   * disk, so a blob that lives only on disk (never copied into the media blob store) can still be
+   * served (`routes/publish-content/blob-get.ts`) and pushed (`routes/publish-content/
+   * peer-transport.ts`) via `createCompositePeerBlobSource`. ONE `createFileBlobIndex()` instance
+   * per composition root, held for the process lifetime like `publishContentBundleRepo` above —
+   * never rebuilt per request, or a `pack()`'s fills would be invisible to the very next read.
+   */
+  fileBlobIndex: FileBlobIndexPort;
   /**
    * Task 7 of the publish-content (Publish Content) feature (`ADS-memory/reports/
    * 2026-09-18-publish-feature-implementation-plan.md` §2/§4 task 7) — per-peer sync memory for

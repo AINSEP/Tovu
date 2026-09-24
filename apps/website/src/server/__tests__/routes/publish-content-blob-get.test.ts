@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { once } from "node:events";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
@@ -206,6 +209,58 @@ test("GET .../blobs/:sha 404s with BLOB_NOT_FOUND for a well-formed sha this ins
 
   const reader = await loginWithPermissions(deps, baseUrl, { username: "absent-reader", permissions: ["publish_content.read"] });
   const res = await fetch(blobUrl(baseUrl, sha256Of(Buffer.from("never uploaded anywhere"))), { headers: { cookie: reader } });
+  const raw = await res.text();
+  assert.equal(res.status, 404, raw);
+  assert.equal((JSON.parse(raw) as { code: string }).code, "BLOB_NOT_FOUND");
+});
+
+// ---------------------------------------------------------------------------
+// S18 (S-F3) route wiring — `publish-files-plan-2026-09-24.md` §3. This route must serve a blob
+// that lives ONLY in `RouteDeps.fileBlobIndex` (a file-tree type's `pack()` fill), never uploaded
+// to the media blob store, through `createCompositePeerBlobSource` — see `composite-blob-source.ts`
+// for the pure fallback/re-hash logic these two tests prove is actually WIRED into this route.
+// ---------------------------------------------------------------------------
+
+test("GET .../blobs/:sha serves a blob that exists only in the file index, never uploaded to the blob store", async (t) => {
+  const { deps, server, baseUrl } = await startServer();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const dir = mkdtempSync(path.join(tmpdir(), "publish-content-blob-get-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const filePath = path.join(dir, "theme.css");
+  const content = "body { color: red; } /* file-index-only fixture */";
+  writeFileSync(filePath, content);
+  const sha = sha256Of(Buffer.from(content));
+  deps.fileBlobIndex.set(sha, { absPath: filePath, size: content.length });
+
+  const reader = await loginWithPermissions(deps, baseUrl, { username: "file-index-reader", permissions: ["publish_content.read"] });
+  const res = await fetch(blobUrl(baseUrl, sha), { headers: { cookie: reader } });
+  const raw = await res.text();
+  assert.equal(res.status, 200, raw);
+
+  const body = JSON.parse(raw) as { sha256: string; dataBase64: string };
+  assert.equal(body.sha256, sha);
+  assert.equal(Buffer.from(body.dataBase64, "base64").toString("utf8"), content);
+});
+
+test("GET .../blobs/:sha 404s BLOB_NOT_FOUND when the indexed file changed on disk since it was packed", async (t) => {
+  const { deps, server, baseUrl } = await startServer();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const dir = mkdtempSync(path.join(tmpdir(), "publish-content-blob-get-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const filePath = path.join(dir, "theme.css");
+  const original = "body { color: red; }";
+  writeFileSync(filePath, original);
+  const sha = sha256Of(Buffer.from(original));
+  deps.fileBlobIndex.set(sha, { absPath: filePath, size: original.length });
+
+  // The author edits the same theme file after the operator opened the publish dialog (packed it) —
+  // bytes on disk no longer hash to the sha the index recorded them under.
+  writeFileSync(filePath, "body { color: blue; }");
+
+  const reader = await loginWithPermissions(deps, baseUrl, { username: "stale-file-reader", permissions: ["publish_content.read"] });
+  const res = await fetch(blobUrl(baseUrl, sha), { headers: { cookie: reader } });
   const raw = await res.text();
   assert.equal(res.status, 404, raw);
   assert.equal((JSON.parse(raw) as { code: string }).code, "BLOB_NOT_FOUND");

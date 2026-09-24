@@ -11,6 +11,7 @@ import {
   pushBundleToPeer,
   PublishContentPeerTransportError,
 } from "#src/features/publish-content/peer-transport";
+import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
 import { labelPeerPlanRows } from "#src/features/publish-content/report-labels";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import {
@@ -234,7 +235,10 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       const result = await pushBundleToPeer(
         {
           ...peer,
-          blobSource: deps.blobStore,
+          // S18 (S-F3) — sources a blob from the media blob store FIRST, falling back to
+          // `RouteDeps.fileBlobIndex` (a file-tree type's `pack()` fill) so a blob that was never
+          // copied into the blob store can still be pushed. See `composite-blob-source.ts`'s header.
+          blobSource: createCompositePeerBlobSource({ blobStore: deps.blobStore, fileBlobIndex: deps.fileBlobIndex }),
           computeStorageKey: (sha256) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
         },
         { bundle, ...(overwriteEntityKeys === null ? {} : { overwriteEntityKeys }) }

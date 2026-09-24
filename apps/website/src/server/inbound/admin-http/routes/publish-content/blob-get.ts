@@ -1,6 +1,7 @@
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { isValidSha256Hex } from "#src/features/publish-content/blob-staging";
+import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -91,12 +92,16 @@ export const registerPublishContentBlobGetRoute: PublishContentRouteRegistrar = 
         return;
 
       const storageKey = computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 });
-      if (!(await deps.blobStore.exists({ storageKey }))) {
+      // S18 (S-F3) — checks the blob store first, falling back to `RouteDeps.fileBlobIndex` (a
+      // file-tree type's `pack()` fill) for a blob that was never copied into the blob store. See
+      // `composite-blob-source.ts`'s header for why bytes are re-hashed on the fallback path.
+      const blobSource = createCompositePeerBlobSource({ blobStore: deps.blobStore, fileBlobIndex: deps.fileBlobIndex });
+      if (!(await blobSource.exists({ sha256, storageKey }))) {
         res.status(404).json({ error: "blob was not found", code: "BLOB_NOT_FOUND" });
         return;
       }
 
-      const bytes = await deps.blobStore.get({ storageKey });
+      const bytes = await blobSource.get({ sha256, storageKey });
       if (bytes.byteLength > TOVU_MAX_UPLOAD_BYTES) {
         // Unreachable for anything this instance accepted (both `blob-put.ts` and the media upload
         // route enforce the same ceiling), so this is a bound on a store written by some other

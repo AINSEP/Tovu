@@ -37,6 +37,7 @@ import * as contentSchema from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
 import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
+import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import { InMemoryPublishContentBaselineRepo } from "#src/features/publish-content/baseline-repo";
 import { InMemoryPublishContentRunRepo } from "#src/features/publish-content/run-repo";
@@ -856,6 +857,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const publishContentBundleRepo = new InMemoryPublishContentBundleRepo();
   const publishContentBaselineRepo = new InMemoryPublishContentBaselineRepo();
   const publishContentRunRepo = new InMemoryPublishContentRunRepo();
+  // `publish-files-plan-2026-09-24.md` §3 — no rule-of-two double needed: `FileBlobIndexPort` is
+  // already an in-memory LRU (`file-blob-index.ts`'s own doc), so this hermetic root shares the
+  // SAME real factory the SQLite root uses. Hoisted for the identical "one process-lifetime
+  // instance" reason as every repo above. See `routes/types.ts`'s `fileBlobIndex` doc.
+  const fileBlobIndex = createFileBlobIndex();
   // Task 10 — the rule-of-two in-memory peer repo. See `routes/types.ts`'s
   // `publishContentPeerRepo` doc.
   const publishContentPeerRepo = new InMemoryPublishContentPeerRepo();
@@ -1157,6 +1163,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // (not constructed inline) so Task 8's `publishContentApplyPort` reads the SAME store. See
     // `routes/types.ts`'s `publishContentBundleRepo` doc.
     publishContentBundleRepo,
+    // `publish-files-plan-2026-09-24.md` §3 — hoisted above so it is the SAME instance a `pack()`
+    // fills and a route reads. See `routes/types.ts`'s `fileBlobIndex` doc.
+    fileBlobIndex,
     // Task 7 — hermetic double for `server/runtime/composition/deps.ts`'s real
     // `SqlitePublishContentBaselineRepo`. Hoisted above for the same reason. See
     // `routes/types.ts`'s `publishContentBaselineRepo` doc.
