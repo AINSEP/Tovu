@@ -160,3 +160,93 @@ export interface PublishRequestResult {
   readonly unknownTypes: readonly string[];
   readonly nextStep: string;
 }
+
+/**
+ * The admin URL query param a `PublishCriteria` deep link travels under (`/admin/?publish=<encoded>`)
+ * — owner decision, plan §5 D2's own follow-up: a chat with no admin tab open can't open the Publish
+ * dialog itself, so it hands back a link that opens the admin with the dialog pre-filled instead. The
+ * link only pre-fills a criteria-driven `requestPublish` call; nothing here can confirm or execute —
+ * see this file's own header and plan §3.
+ */
+export const PUBLISH_CRITERIA_QUERY_PARAM = "publish";
+
+/** {@link decodePublishCriteriaFromQuery}'s cap on the raw (still-encoded) query value's own length —
+ *  comfortably under every browser's address-bar limit, and short-circuits a value built to make the
+ *  decoder do a lot of work for nothing. */
+const MAX_QUERY_LENGTH = 4000;
+/** Cap on `types`/`items` array length once decoded — plan §2 never needs more than a handful of
+ *  named things in one request. */
+const MAX_LIST_LENGTH = 50;
+/** Cap on one `types`/`items` entry's own length — a type name or a title, never a paragraph. */
+const MAX_ENTRY_LENGTH = 200;
+
+/**
+ * Encodes a `PublishCriteria` as the value of the `publish` query param. Plain JSON,
+ * `encodeURIComponent`-escaped — readable in the address bar, no extra dependency, and exactly
+ * reversible by {@link decodePublishCriteriaFromQuery}. Fields that mean "everything"/`false` (an
+ * omitted or empty `types`/`items`, `overwrite: false`) are left out of the payload entirely rather
+ * than encoded as their empty/false form, so a round trip never grows a link past what the caller
+ * actually named.
+ *
+ * @complexity O(n) in the criteria's own `types`/`items` length.
+ */
+export function encodePublishCriteriaToQuery(criteria: PublishCriteria): string {
+  const payload: { types?: readonly string[]; items?: readonly string[]; overwrite?: true } = {};
+  if (criteria.types && criteria.types.length > 0) payload.types = criteria.types;
+  if (criteria.items && criteria.items.length > 0) payload.items = criteria.items;
+  if (criteria.overwrite === true) payload.overwrite = true;
+  return encodeURIComponent(JSON.stringify(payload));
+}
+
+/**
+ * The other half of {@link encodePublishCriteriaToQuery} — and the one that has to survive a hostile
+ * or malformed `publish` value, since anything that can build a URL can build this string. Never
+ * throws: `null` covers every shape of bad input (not JSON, not an object, an array, a primitive, or
+ * anything past the caps below) the same way, because none of them earn the caller a more specific
+ * complaint than "ignore this and open the dialog with nothing pre-filled."
+ *
+ * Unknown fields are dropped by construction rather than rejected — only `types`/`items`/`overwrite`
+ * are ever read off the parsed object, so a payload from a newer or older build that carries an extra
+ * field decodes as whatever of these three it also carries, not as `null`. A bad ENTRY inside
+ * `types`/`items` (wrong type, empty, oversized) is dropped the same way, one at a time, rather than
+ * failing the whole list — see {@link sanitizeCriteriaList}.
+ *
+ * @complexity O(n) in the decoded payload's own `types`/`items` length.
+ */
+export function decodePublishCriteriaFromQuery(raw: string): PublishCriteria | null {
+  if (typeof raw !== "string" || raw.length === 0 || raw.length > MAX_QUERY_LENGTH) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(decodeURIComponent(raw));
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+  const obj = parsed as Record<string, unknown>;
+
+  const types = sanitizeCriteriaList(obj.types);
+  const items = sanitizeCriteriaList(obj.items);
+  const overwrite = obj.overwrite === true;
+
+  const criteria: { types?: readonly string[]; items?: readonly string[]; overwrite?: boolean } = {};
+  if (types) criteria.types = types;
+  if (items) criteria.items = items;
+  if (overwrite) criteria.overwrite = true;
+  return criteria;
+}
+
+/**
+ * One decoded `types`/`items` list, trimmed to {@link MAX_LIST_LENGTH} entries of at most
+ * {@link MAX_ENTRY_LENGTH} characters each and with every non-string or empty entry dropped.
+ * `undefined` for an empty result, matching `PublishCriteria`'s own "omitted means everything"
+ * convention rather than encoding a now-empty array back onto the criteria.
+ *
+ * @complexity O(n).
+ */
+function sanitizeCriteriaList(value: unknown): readonly string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const cleaned = value
+    .filter((entry): entry is string => typeof entry === "string" && entry.length > 0 && entry.length <= MAX_ENTRY_LENGTH)
+    .slice(0, MAX_LIST_LENGTH);
+  return cleaned.length > 0 ? cleaned : undefined;
+}

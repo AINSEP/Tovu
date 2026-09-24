@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PublishContentOutcomeRow, PublishContentReport } from "../contract.js";
-import { applyPublishCriteria } from "../criteria.js";
+import { applyPublishCriteria, decodePublishCriteriaFromQuery, encodePublishCriteriaToQuery } from "../criteria.js";
 import { toPublishReportRows } from "../report-rows.js";
 
 function row(over: Partial<PublishContentOutcomeRow> & { outcome: PublishContentOutcomeRow["outcome"] }): PublishContentOutcomeRow {
@@ -126,4 +126,69 @@ test("a non-selectable row is never put in deselectedKeys, whatever the criteria
     "test fixture check: the row this test relies on must actually be non-selectable"
   );
   assert.deepEqual([...selection.deselectedKeys], []);
+});
+
+// publish-criteria-tool-webmcp-plan-2026-09-24.md's "PLUS" — the admin URL deep link
+// (`/admin/?publish=<encoded>`). Round trip and hostile input for `decodePublishCriteriaFromQuery`.
+test("round-trips types/items/overwrite through the query encoding", () => {
+  const criteria = { types: ["page", "menu"], items: ["About", "post-1"], overwrite: true };
+  const decoded = decodePublishCriteriaFromQuery(encodePublishCriteriaToQuery(criteria));
+  assert.deepEqual(decoded, criteria);
+});
+
+test("encodes empty criteria as a value that decodes back to empty criteria", () => {
+  const decoded = decodePublishCriteriaFromQuery(encodePublishCriteriaToQuery({}));
+  assert.deepEqual(decoded, {});
+});
+
+test("omits false/empty fields from the encoded payload rather than round-tripping them literally", () => {
+  const encoded = encodePublishCriteriaToQuery({ types: [], items: [], overwrite: false });
+  assert.deepEqual(decodePublishCriteriaFromQuery(encoded), {});
+});
+
+test("decode rejects a value that isn't JSON at all", () => {
+  assert.equal(decodePublishCriteriaFromQuery("not json{{{"), null);
+});
+
+test("decode rejects a JSON array — only an object is a valid criteria payload", () => {
+  assert.equal(decodePublishCriteriaFromQuery(encodeURIComponent(JSON.stringify(["page"]))), null);
+});
+
+test("decode rejects a JSON primitive", () => {
+  assert.equal(decodePublishCriteriaFromQuery(encodeURIComponent(JSON.stringify("page"))), null);
+  assert.equal(decodePublishCriteriaFromQuery(encodeURIComponent(JSON.stringify(null))), null);
+});
+
+test("decode rejects the empty string", () => {
+  assert.equal(decodePublishCriteriaFromQuery(""), null);
+});
+
+test("decode rejects a value over the size cap", () => {
+  const huge = encodeURIComponent(JSON.stringify({ items: ["x".repeat(5000)] }));
+  assert.equal(decodePublishCriteriaFromQuery(huge), null);
+});
+
+test("decode drops unknown fields rather than rejecting the whole payload", () => {
+  const encoded = encodeURIComponent(JSON.stringify({ types: ["page"], evil: { __proto__: { polluted: true } } }));
+  const decoded = decodePublishCriteriaFromQuery(encoded);
+  assert.deepEqual(decoded, { types: ["page"] });
+  assert.equal(({} as Record<string, unknown>).polluted, undefined);
+});
+
+test("decode drops non-string/oversized/wrong-typed entries from types and items, one at a time", () => {
+  const encoded = encodeURIComponent(
+    JSON.stringify({
+      types: ["page", 42, "", "x".repeat(500), "menu"],
+      items: [null, "About", { nested: true }],
+      overwrite: "true", // not a boolean — dropped, not coerced
+    })
+  );
+  assert.deepEqual(decodePublishCriteriaFromQuery(encoded), { types: ["page", "menu"], items: ["About"] });
+});
+
+test("decode caps an oversized types/items array rather than rejecting it", () => {
+  // Short entries, so the array-length cap (50) is what trips here, not the overall query-size cap.
+  const encoded = encodeURIComponent(JSON.stringify({ types: Array.from({ length: 60 }, (_, i) => `t${i}`) }));
+  const decoded = decodePublishCriteriaFromQuery(encoded);
+  assert.equal(decoded?.types?.length, 50);
 });

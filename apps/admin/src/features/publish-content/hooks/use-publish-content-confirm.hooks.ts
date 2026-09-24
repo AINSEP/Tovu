@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  applyPublishCriteria,
   canConfirmPlan,
   canRequestPlan,
   confirmationTokenFor,
@@ -9,13 +10,16 @@ import {
   selectableRowKeys,
   summarizePublishReport,
   toPublishReportRows,
+  type CriteriaSelection,
   type PublishContentOutcomeRow,
   type PublishContentPeerSummary,
   type PublishContentPhase,
   type PublishContentPlanResult,
   type PublishContentReport,
+  type PublishCriteria,
   type PublishReportRow,
   type PublishReportSummary,
+  type PublishRequestResult,
 } from "@tovu/publish-content-ui";
 
 import { describeApiError, type AdminPublishDestinationView } from "@/lib/api";
@@ -306,10 +310,60 @@ function overwriteKeysWithin(
 }
 
 /**
+ * S2 — what `props.onPlanned` is called with: the SAME `rows`/`selection` the dialog itself renders
+ * from, so a chat/WebMCP caller's report can never disagree with what the operator sees on screen.
+ *
+ * `willOverwrite` is a subset of `willPublish`, not a separate list: a `forced` row is also a row
+ * that will be published (plan §2's own `PublishRequestResult` doc says as much — "what would be
+ * published or overwritten"), it just publishes BY overwriting. `leftAlone` only ever names a
+ * `skipped` row — an `unchanged` row isn't "left alone" by the criteria, it was already a no-op
+ * before any criteria existed.
+ *
+ * @complexity O(rows).
+ */
+function buildCriteriaPublishResult(
+  rows: readonly PublishReportRow[],
+  selection: CriteriaSelection,
+  siteLabel: string | null
+): PublishRequestResult {
+  const willPublish: string[] = [];
+  const willOverwrite: string[] = [];
+  const leftAlone: { label: string; reason: string }[] = [];
+  for (const row of rows) {
+    if (row.selectable && !selection.deselectedKeys.has(row.key)) {
+      willPublish.push(row.entityLabel);
+      if (row.outcome === "forced") willOverwrite.push(row.entityLabel);
+    } else if (row.disposition === "skipped") {
+      leftAlone.push({ label: row.entityLabel, reason: row.reason ?? "No reason recorded." });
+    }
+  }
+  return {
+    opened: true,
+    planned: true,
+    site: siteLabel,
+    willPublish,
+    willOverwrite,
+    leftAlone,
+    unmatchedItems: selection.unmatchedItems,
+    unknownTypes: selection.unknownTypes,
+    nextStep: "Check the list in the Publish dialog, then click Publish.",
+  };
+}
+
+/**
  * @param props.onCancel Called when the dialog should close (Escape, Cancel, the backdrop) — never
  *   while a committed publish has no outcome yet; see `publishInFlight`.
  * @param props.t The screen's own bound translator, threaded down rather than resolved again here.
  * @param props.port Dependency injection seam for tests — see `publish-content-port.hooks.ts`.
+ * @param props.criteria `publish-criteria-tool-webmcp-plan-2026-09-24.md` §4 S2 — a caller with no
+ *   button of its own (chat, WebMCP, or the admin's own `?publish=` deep link) names what it asked
+ *   for here. Applied exactly once, against the first plan that lands: it becomes the dialog's
+ *   STARTING `deselectedKeys`/overwrite ticks, never a second selection mechanism of its own — see
+ *   this file's "S2 — applying criteria" block below, and plan §2's own header for why this can never
+ *   itself write anything (planning is read-only; only a person's own click reaches confirm/execute).
+ * @param props.onPlanned Fires once, with what the (possibly criteria-narrowed) plan actually shows —
+ *   after any overwrite re-plan the criteria triggered has settled, never before. `undefined` for the
+ *   Dashboard's own ordinary open (plan §0's caller 1), which has no one waiting on an answer.
  * @complexity Time: O(n) per re-render in the plan's row count (row shaping + the summary counts);
  * space: O(n) for the shaped rows. One document-level keydown listener for the mounted lifetime.
  */
@@ -317,6 +371,8 @@ export function usePublishContentConfirm(props: {
   onCancel: () => void;
   t: Translate;
   port?: PublishContentPort;
+  criteria?: PublishCriteria;
+  onPlanned?: (result: PublishRequestResult) => void;
 }): PublishContentConfirmView {
   const { onCancel, t } = props;
   const port = props.port ?? defaultPublishContentPort;
@@ -691,6 +747,60 @@ export function usePublishContentConfirm(props: {
     applyOverwriteKeys(allOverwriteTicked ? new Set() : new Set(overwriteOfferKeys));
   };
   const currentPeerLabel = peers.find((peer) => peer.id === selectedPeerId)?.label ?? t("the live site");
+
+  // --- S2 (publish-criteria-tool-webmcp-plan-2026-09-24.md §4) — applying `props.criteria` as the
+  // dialog's STARTING selection, for a caller with no button of its own to click. Three refs, because
+  // this happens at most once per mount and each step waits on the one before it settling:
+  //   1. `criteriaAutoPlanRef` — plans automatically once a site is resolved, standing in for the
+  //      click a person would otherwise make first (planning writes nothing, so this is safe to do
+  //      unprompted — the gate in plan §3 is about confirm/execute, never about a read-only plan).
+  //   2. `criteriaAppliedRef` — applies the criteria's selection/overwrite ticks against that FIRST
+  //      plan and only that one; a later re-plan (a peer switch, a hand tick) is left alone.
+  //   3. `criteriaAwaitingReplanRef` — set only when the criteria ticked something, so `onPlanned`
+  //      waits for that re-plan's real `forced` rows instead of reporting the pre-overwrite skips.
+  const criteriaAutoPlanRef = useRef(false);
+  const criteriaAppliedRef = useRef(false);
+  const criteriaSelectionRef = useRef<CriteriaSelection | null>(null);
+  const criteriaAwaitingReplanRef = useRef(false);
+
+  useEffect(() => {
+    if (props.criteria === undefined || criteriaAutoPlanRef.current) return;
+    if (phase.kind !== "idle" || !isChosenPeerId(selectedPeerId)) return;
+    criteriaAutoPlanRef.current = true;
+    void requestPlan(selectedPeerId);
+  }, [props.criteria, selectedPeerId, phase, requestPlan]);
+
+  useEffect(() => {
+    if (props.criteria === undefined || criteriaAppliedRef.current || phase.kind !== "planned") return;
+    criteriaAppliedRef.current = true;
+    const sel = applyPublishCriteria(toPublishReportRows(phase.plan.details), props.criteria);
+    criteriaSelectionRef.current = sel;
+    setDeselectedKeys(sel.deselectedKeys);
+    if (sel.overwriteKeys.size > 0) {
+      criteriaAwaitingReplanRef.current = true;
+      applyOverwriteKeys(sel.overwriteKeys);
+    }
+    // `applyOverwriteKeys`/`props.criteria` deliberately excluded: this must run against the render
+    // where `phase` FIRST becomes "planned" (so `applyOverwriteKeys`'s own `phase.kind==="planned"`
+    // guard is current, not stale — see this block's own header), and it self-guards with the ref
+    // against ever running a second time regardless of what else changes identity around it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  useEffect(() => {
+    const sel = criteriaSelectionRef.current;
+    if (sel === null || phase.kind !== "planned" || props.onPlanned === undefined) return;
+    if (criteriaAwaitingReplanRef.current) {
+      // The real (not stale-closure) current value — see this file's header on why `requestPlan`
+      // can't read `phase` this way but a ref always can.
+      if (overwriteReplanPendingRef.current) return;
+      criteriaAwaitingReplanRef.current = false;
+    }
+    criteriaSelectionRef.current = null;
+    const siteLabel = peers.find((peer) => peer.id === selectedPeerId)?.label ?? null;
+    props.onPlanned(buildCriteriaPublishResult(rows, sel, siteLabel));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, rows]);
 
   const overwriteWarning =
     liveCanOverwrite && overwriteKeys.size > 0
