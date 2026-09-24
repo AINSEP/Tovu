@@ -16,6 +16,7 @@ import {
   defaultCredentialForProvider,
   withPromotedDefault,
   deploymentEnvVarNoteKey,
+  envVarStatusLabelKey,
   exportRunStatusLabelKey,
   isEnvVarRowUnsafe,
   ownerPasswordLabelKey,
@@ -93,6 +94,25 @@ describe("isEnvVarRowUnsafe", () => {
     expect(isEnvVarRowUnsafe({ name: "TOVU_INTEGRATIONS_ROOT_KEY", set: false })).toBe(false);
     expect(isEnvVarRowUnsafe({ name: "TOVU_ADMIN_USER", set: false })).toBe(false);
     expect(isEnvVarRowUnsafe({ name: "JINI_AGENT_DAEMON_PORT", set: false })).toBe(false);
+  });
+});
+
+// c7-rev-settings-deploy 2026-09-24: the root key resolves from the env var OR a generated key
+// file; the row must say which, and a malformed key must read as a warning, not a neutral "Not set".
+describe("envVarStatusLabelKey / isEnvVarRowUnsafe — root key source and validity", () => {
+  it("labels a root key resolved from the generated key file", () => {
+    expect(envVarStatusLabelKey({ name: "TOVU_INTEGRATIONS_ROOT_KEY", set: true, source: "file" })).toBe("Set (generated key file)");
+  });
+  it("labels a root key from the env var as plain Set", () => {
+    expect(envVarStatusLabelKey({ name: "TOVU_INTEGRATIONS_ROOT_KEY", set: true, source: "env" })).toBe("Set");
+  });
+  it("labels malformed root key material as invalid, and flags the row unsafe", () => {
+    const row = { name: "TOVU_INTEGRATIONS_ROOT_KEY", set: false, source: "env" as const, invalid: true as const };
+    expect(envVarStatusLabelKey(row)).toBe("Invalid — the keyring rejects it");
+    expect(isEnvVarRowUnsafe(row)).toBe(true);
+  });
+  it("labels an absent var Not set", () => {
+    expect(envVarStatusLabelKey({ name: "TOVU_ADMIN_USER", set: false })).toBe("Not set");
   });
 });
 

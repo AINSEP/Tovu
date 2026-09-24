@@ -8,6 +8,7 @@ import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { defaultContentDbPath, mediaUploadsDir } from "#src/server/runtime/composition/deps";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { isAssistantDaemonKnownFailed } from "#src/server/runtime/lifecycle/readiness-state";
+import { inspectRootKeyMaterial, type RootKeyStatus } from "#src/features/webhooks/keyring.env";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -32,6 +33,11 @@ export type AdminDeploymentOverviewDeps = Pick<
 export interface DeploymentEnvVarStatus {
   name: string;
   set: boolean;
+  /** Root key row only: where the keyring's material came from. `set` there means "usable root key",
+   *  so a valid generated key file counts, and malformed env/file material does not. */
+  source?: RootKeyStatus["source"];
+  /** Root key row only, present iff material was found but the keyring would reject it. */
+  invalid?: true;
 }
 
 export interface DeploymentOverviewSnapshot {
@@ -129,16 +135,36 @@ const REQUIRED_ENV_VAR_NAMES = [
   "JINI_AGENT_DAEMON_PORT",
 ] as const;
 
+/** The root key row, from what `EnvOrFileKeyring` would actually resolve — the env var OR a generated
+ *  key file, validated — rather than the env var's bare presence. @complexity O(1). */
+function rootKeyEnvVarStatus(rootKey: RootKeyStatus): DeploymentEnvVarStatus {
+  return {
+    name: "TOVU_INTEGRATIONS_ROOT_KEY",
+    set: rootKey.active,
+    source: rootKey.source,
+    ...(rootKey.invalid ? { invalid: true as const } : {}),
+  };
+}
+
+function envVarStatus(name: (typeof REQUIRED_ENV_VAR_NAMES)[number], rootKey: RootKeyStatus): DeploymentEnvVarStatus {
+  return name === "TOVU_INTEGRATIONS_ROOT_KEY" ? rootKeyEnvVarStatus(rootKey) : { name, set: Boolean(process.env[name]) };
+}
+
 /**
  * Builds the snapshot from live process state. Exported separately from the route registrar so a
  * test can call it directly without spinning up Express.
  *
  * @param input.defaultOwnerPasswordUnsafe the one field that needs the database, resolved by the
  *   caller ({@link isOwnerOnDefaultPassword}) so this stays synchronous.
+ * @param input.rootKey test seam; defaults to a live {@link inspectRootKeyMaterial} read.
  * @complexity O(1) — fixed-size env var list, no iteration over caller-controlled data.
  */
-export function buildDeploymentOverviewSnapshot(input: { defaultOwnerPasswordUnsafe: boolean }): DeploymentOverviewSnapshot {
+export function buildDeploymentOverviewSnapshot(input: {
+  defaultOwnerPasswordUnsafe: boolean;
+  rootKey?: RootKeyStatus;
+}): DeploymentOverviewSnapshot {
   const mode = resolveRuntimeMode();
+  const rootKey = input.rootKey ?? inspectRootKeyMaterial();
   return {
     mode,
     productionReadinessGate: { applicable: mode === "production", passed: mode === "production" },
@@ -146,7 +172,7 @@ export function buildDeploymentOverviewSnapshot(input: { defaultOwnerPasswordUns
     daemonKnownFailed: isAssistantDaemonKnownFailed(),
     dbPath: defaultContentDbPath(),
     uploadsDir: mediaUploadsDir(),
-    envVars: REQUIRED_ENV_VAR_NAMES.map((name) => ({ name, set: Boolean(process.env[name]) })),
+    envVars: REQUIRED_ENV_VAR_NAMES.map((name) => envVarStatus(name, rootKey)),
     deployClis: DEPLOY_CLI_NAMES.map((name) => ({ name, installed: isOnPath(name) })),
   };
 }

@@ -6,6 +6,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../../runtime/lifecycle/readiness-state.js";
 import { defaultContentDbPath, mediaUploadsDir } from "../../runtime/composition/deps.js";
 import type { RouteDeps } from "../../routes/types.js";
+import { inspectRootKeyMaterial } from "../../../features/webhooks/keyring.env.js";
 
 /**
  * @file Admin Deployment panel → Overview tab — `GET /api/admin/v1/workspaces/:workspaceId/
@@ -101,10 +102,16 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
   // Real filesystem paths this SAME process would actually use — not placeholders.
   assert.equal(body.dbPath, defaultContentDbPath());
   assert.equal(body.uploadsDir, mediaUploadsDir());
+  const rootKey = inspectRootKeyMaterial();
   assert.deepEqual(body.envVars, [
     { name: "TOVU_ADMIN_PASSWORD", set: false },
     { name: "TOVU_ADMIN_USER", set: Boolean(process.env.TOVU_ADMIN_USER) },
-    { name: "TOVU_INTEGRATIONS_ROOT_KEY", set: Boolean(process.env.TOVU_INTEGRATIONS_ROOT_KEY) },
+    {
+      name: "TOVU_INTEGRATIONS_ROOT_KEY",
+      set: rootKey.active,
+      source: rootKey.source,
+      ...(rootKey.invalid ? { invalid: true } : {}),
+    },
     { name: "JINI_AGENT_DAEMON_PORT", set: false },
   ]);
   // Never echoes a secret VALUE — only ever "set"/"not set" markers, matching every field name

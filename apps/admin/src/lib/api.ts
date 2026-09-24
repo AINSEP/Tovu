@@ -426,6 +426,11 @@ function flattenAdmissionConnection(raw: RawAdmissionConnection): AdminFederated
 export interface AdminDeploymentEnvVarStatus {
   name: string;
   set: boolean;
+  /** `TOVU_INTEGRATIONS_ROOT_KEY` only: where the root key came from. There `set` means "a usable
+   *  root key resolves" — a valid generated key file counts, malformed material does not. */
+  source?: "env" | "file" | "none";
+  /** `TOVU_INTEGRATIONS_ROOT_KEY` only, present iff key material was found but is malformed. */
+  invalid?: true;
 }
 
 /** One publish CLI's presence on the SERVER process's PATH (never the browser's) — mirrors

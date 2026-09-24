@@ -5,6 +5,7 @@ import type { Translate } from "../../lib/dictionary-translator";
 import {
   daemonStatusLabelKey,
   deploymentEnvVarNoteKey,
+  envVarStatusLabelKey,
   isEnvVarRowUnsafe,
   ownerPasswordLabelKey,
   productionGateLabelKey,
@@ -179,14 +180,14 @@ function OverviewPathValue({ path }: { path: string }) {
  *  happens when it's absent (`deploymentEnvVarNoteKey`, `rules.ts`). */
 function OverviewEnvVarRow({ varStatus, t }: { varStatus: AdminDeploymentEnvVarStatus; t: Translate }) {
   const unsafe = isEnvVarRowUnsafe(varStatus);
-  const tone: "ok" | "warning" | "neutral" = varStatus.set ? "ok" : unsafe ? "warning" : "neutral";
+  const tone: "ok" | "warning" | "neutral" = unsafe ? "warning" : varStatus.set ? "ok" : "neutral";
   return (
     <li className="deployment-env-row">
       <div className="deployment-env-head">
         <span className="deployment-env-name" translate="no">
           {varStatus.name}
         </span>
-        <span className={`status status-${tone}`}>{varStatus.set ? t("Set") : t("Not set")}</span>
+        <span className={`status status-${tone}`}>{t(envVarStatusLabelKey(varStatus))}</span>
       </div>
       <p className="deployment-env-note">{t(deploymentEnvVarNoteKey(varStatus.name))}</p>
     </li>

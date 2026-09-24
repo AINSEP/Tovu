@@ -651,8 +651,8 @@ export function deploymentEnvVarNoteKey(name: string): string {
 }
 
 /**
- * Whether an env var's row should read as a warning rather than neutral "not set" — currently just
- * the owner-password var, since an unset/default password is the one env-var state with a real
+ * Whether an env var's row should read as a warning rather than neutral "not set" — malformed root
+ * key material, and the owner-password var, since an unset/default password is the one env-var state with a real
  * safety consequence at production boot (`production-readiness-gate.ts`'s `PRODUCTION_BOOT_UNSAFE_DEFAULT`).
  * The other three vars degrade gracefully (a daemon port default, an admin username default, a
  * later 503 on one specific screen) and do not warrant the same visual weight.
@@ -660,7 +660,19 @@ export function deploymentEnvVarNoteKey(name: string): string {
  * @complexity O(1).
  */
 export function isEnvVarRowUnsafe(varStatus: AdminDeploymentEnvVarStatus): boolean {
-  return varStatus.name === "TOVU_ADMIN_PASSWORD" && !varStatus.set;
+  return varStatus.invalid === true || (varStatus.name === "TOVU_ADMIN_PASSWORD" && !varStatus.set);
+}
+
+/**
+ * The Overview env-var row's status label key. The root key row names a generated key file as its
+ * source (the keyring reads the env var OR that file) and calls malformed material invalid rather
+ * than "Not set", since something IS configured there and it is broken.
+ * @complexity O(1).
+ */
+export function envVarStatusLabelKey(varStatus: AdminDeploymentEnvVarStatus): string {
+  if (varStatus.invalid) return "Invalid — the keyring rejects it";
+  if (!varStatus.set) return "Not set";
+  return varStatus.source === "file" ? "Set (generated key file)" : "Set";
 }
 
 /** The Overview tab's runtime-mode label key. @complexity O(1). */

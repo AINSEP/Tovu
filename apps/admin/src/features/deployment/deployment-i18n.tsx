@@ -43,6 +43,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "Variables de entorno",
     Set: "Configurada",
     "Not set": "Sin configurar",
+    "Set (generated key file)": "Configurada (archivo de clave generado)",
+    "Invalid — the keyring rejects it": "No válida — el llavero la rechaza",
     "Falls back to a public default.": "Usa un valor predeterminado público si falta.",
     'Falls back to "admin".': 'Usa "admin" si falta.',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -144,6 +146,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "Variabel lingkungan",
     Set: "Diatur",
     "Not set": "Belum diatur",
+    "Set (generated key file)": "Diatur (file kunci yang dibuat)",
+    "Invalid — the keyring rejects it": "Tidak valid — keyring menolaknya",
     "Falls back to a public default.": "Kembali ke default publik jika kosong.",
     'Falls back to "admin".': 'Kembali ke "admin" jika kosong.',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -245,6 +249,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "Umgebungsvariablen",
     Set: "Gesetzt",
     "Not set": "Nicht gesetzt",
+    "Set (generated key file)": "Gesetzt (generierte Schlüsseldatei)",
+    "Invalid — the keyring rejects it": "Ungültig — der Schlüsselbund lehnt sie ab",
     "Falls back to a public default.": "Fällt auf einen öffentlichen Standard zurück.",
     'Falls back to "admin".': 'Fällt auf „admin“ zurück.',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -346,6 +352,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "环境变量",
     Set: "已设置",
     "Not set": "未设置",
+    "Set (generated key file)": "已设置（生成的密钥文件）",
+    "Invalid — the keyring rejects it": "无效 — 密钥环拒绝了它",
     "Falls back to a public default.": "未设置时使用公开的默认值。",
     'Falls back to "admin".': '未设置时使用 "admin"。',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -440,6 +448,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "環境變數",
     Set: "已設定",
     "Not set": "未設定",
+    "Set (generated key file)": "已設定（產生的金鑰檔案）",
+    "Invalid — the keyring rejects it": "無效 — 金鑰環拒絕了它",
     "Falls back to a public default.": "未設定時會使用公開的預設值。",
     'Falls back to "admin".': '未設定時會使用「admin」。',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -534,6 +544,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "Variáveis de ambiente",
     Set: "Definida",
     "Not set": "Não definida",
+    "Set (generated key file)": "Definida (arquivo de chave gerado)",
+    "Invalid — the keyring rejects it": "Inválida — o chaveiro a rejeita",
     "Falls back to a public default.": "Usa um padrão público quando ausente.",
     'Falls back to "admin".': 'Usa "admin" quando ausente.',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -635,6 +647,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "Переменные окружения",
     Set: "Задана",
     "Not set": "Не задана",
+    "Set (generated key file)": "Задана (сгенерированный файл ключа)",
+    "Invalid — the keyring rejects it": "Недействительна — хранилище ключей её отклоняет",
     "Falls back to a public default.": "При отсутствии используется публичное значение по умолчанию.",
     'Falls back to "admin".': 'При отсутствии используется «admin».',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -729,6 +743,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "متغیرهای محیطی",
     Set: "تنظیم‌شده",
     "Not set": "تنظیم‌نشده",
+    "Set (generated key file)": "تنظیم‌شده (فایل کلید تولیدشده)",
+    "Invalid — the keyring rejects it": "نامعتبر — کلیددان آن را رد می‌کند",
     "Falls back to a public default.": "در صورت نبود، از مقدار پیش‌فرض عمومی استفاده می‌شود.",
     'Falls back to "admin".': 'در صورت نبود، از «admin» استفاده می‌شود.',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -823,6 +839,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "متغيرات البيئة",
     Set: "مضبوطة",
     "Not set": "غير مضبوطة",
+    "Set (generated key file)": "مضبوطة (ملف مفتاح مُنشأ)",
+    "Invalid — the keyring rejects it": "غير صالحة — حلقة المفاتيح ترفضها",
     "Falls back to a public default.": "تستخدم قيمة افتراضية عامة عند غيابها.",
     'Falls back to "admin".': 'تستخدم "admin" عند غيابها.',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -917,6 +935,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "環境変数",
     Set: "設定済み",
     "Not set": "未設定",
+    "Set (generated key file)": "設定済み（生成されたキーファイル）",
+    "Invalid — the keyring rejects it": "無効 — キーリングが拒否しています",
     "Falls back to a public default.": "未設定の場合、公開されているデフォルト値が使われます。",
     'Falls back to "admin".': '未設定の場合、"admin" が使われます。',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -1011,6 +1031,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "환경 변수",
     Set: "설정됨",
     "Not set": "설정되지 않음",
+    "Set (generated key file)": "설정됨(생성된 키 파일)",
+    "Invalid — the keyring rejects it": "유효하지 않음 — 키링이 거부합니다",
     "Falls back to a public default.": "설정하지 않으면 공개 기본값을 사용합니다.",
     'Falls back to "admin".': '설정하지 않으면 "admin"을 사용합니다.',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -1105,6 +1127,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "Zmienne środowiskowe",
     Set: "Ustawiona",
     "Not set": "Nieustawiona",
+    "Set (generated key file)": "Ustawiona (wygenerowany plik klucza)",
+    "Invalid — the keyring rejects it": "Nieprawidłowa — pęk kluczy ją odrzuca",
     "Falls back to a public default.": "Bez ustawienia używana jest publiczna wartość domyślna.",
     'Falls back to "admin".': 'Bez ustawienia używane jest „admin”.',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -1199,6 +1223,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "Környezeti változók",
     Set: "Beállítva",
     "Not set": "Nincs beállítva",
+    "Set (generated key file)": "Beállítva (generált kulcsfájl)",
+    "Invalid — the keyring rejects it": "Érvénytelen — a kulcstartó elutasítja",
     "Falls back to a public default.": "Hiányában nyilvános alapértelmezett értéket használ.",
     'Falls back to "admin".': 'Hiányában az "admin" értéket használja.',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -1293,6 +1319,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "Variables d'environnement",
     Set: "Définie",
     "Not set": "Non définie",
+    "Set (generated key file)": "Définie (fichier de clé généré)",
+    "Invalid — the keyring rejects it": "Invalide — le trousseau la rejette",
     "Falls back to a public default.": "Utilise une valeur par défaut publique si absente.",
     'Falls back to "admin".': 'Utilise « admin » si absente.',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -1394,6 +1422,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "Змінні середовища",
     Set: "Задано",
     "Not set": "Не задано",
+    "Set (generated key file)": "Задано (згенерований файл ключа)",
+    "Invalid — the keyring rejects it": "Недійсна — сховище ключів її відхиляє",
     "Falls back to a public default.": "За відсутності використовується публічне значення за замовчуванням.",
     'Falls back to "admin".': 'За відсутності використовується «admin».',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -1488,6 +1518,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "Ortam değişkenleri",
     Set: "Ayarlandı",
     "Not set": "Ayarlanmadı",
+    "Set (generated key file)": "Ayarlı (oluşturulan anahtar dosyası)",
+    "Invalid — the keyring rejects it": "Geçersiz — anahtarlık bunu reddediyor",
     "Falls back to a public default.": "Ayarlanmazsa herkese açık bir varsayılan kullanılır.",
     'Falls back to "admin".': 'Ayarlanmazsa "admin" kullanılır.',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -1582,6 +1614,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "ตัวแปรสภาพแวดล้อม",
     Set: "ตั้งค่าแล้ว",
     "Not set": "ยังไม่ได้ตั้งค่า",
+    "Set (generated key file)": "ตั้งค่าแล้ว (ไฟล์คีย์ที่สร้างขึ้น)",
+    "Invalid — the keyring rejects it": "ไม่ถูกต้อง — คีย์ริงปฏิเสธ",
     "Falls back to a public default.": "ใช้ค่าเริ่มต้นสาธารณะเมื่อไม่ได้ตั้งค่า",
     'Falls back to "admin".': 'ใช้ "admin" เมื่อไม่ได้ตั้งค่า',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -1676,6 +1710,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "Variabili d'ambiente",
     Set: "Impostata",
     "Not set": "Non impostata",
+    "Set (generated key file)": "Impostata (file di chiave generato)",
+    "Invalid — the keyring rejects it": "Non valida — il portachiavi la rifiuta",
     "Falls back to a public default.": "Se assente, usa un valore predefinito pubblico.",
     'Falls back to "admin".': 'Se assente, usa "admin".',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -1777,6 +1813,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "एनवायरनमेंट वेरिएबल",
     Set: "सेट किया गया",
     "Not set": "सेट नहीं है",
+    "Set (generated key file)": "सेट है (जनरेट की गई कुंजी फ़ाइल)",
+    "Invalid — the keyring rejects it": "अमान्य — कीरिंग इसे अस्वीकार करता है",
     "Falls back to a public default.": "सेट न होने पर सार्वजनिक डिफ़ॉल्ट का उपयोग करता है।",
     'Falls back to "admin".': 'सेट न होने पर "admin" का उपयोग करता है।',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -1871,6 +1909,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "ماحولیاتی متغیرات",
     Set: "سیٹ ہے",
     "Not set": "سیٹ نہیں",
+    "Set (generated key file)": "سیٹ ہے (بنائی گئی کلید فائل)",
+    "Invalid — the keyring rejects it": "غلط — کی رنگ اسے مسترد کرتا ہے",
     "Falls back to a public default.": "سیٹ نہ ہونے پر عوامی ڈیفالٹ استعمال ہوتا ہے۔",
     'Falls back to "admin".': 'سیٹ نہ ہونے پر "admin" استعمال ہوتا ہے۔',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
@@ -1965,6 +2005,8 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Environment variables": "পরিবেশ ভেরিয়েবল",
     Set: "সেট করা আছে",
     "Not set": "সেট করা নেই",
+    "Set (generated key file)": "সেট করা (তৈরি করা কী ফাইল)",
+    "Invalid — the keyring rejects it": "অবৈধ — কীরিং এটি প্রত্যাখ্যান করে",
     "Falls back to a public default.": "সেট না থাকলে একটি পাবলিক ডিফল্ট ব্যবহার করে।",
     'Falls back to "admin".': '"admin" ব্যবহার করে সেট না থাকলে।',
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
