@@ -123,7 +123,6 @@
           {
             "title": "Account",
             "links": [
-              { "label": "Sign in", "href": "/signin" },
               { "label": "Get started", "href": "/signup" }
             ]
           },
