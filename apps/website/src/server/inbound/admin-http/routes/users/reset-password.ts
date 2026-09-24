@@ -8,10 +8,15 @@ import {
   resetUserPassword,
 } from "@jini-ai/cms/identity";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { UserInTrashError } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
 function sendResetPasswordError(res: Response, err: unknown): void {
+  if (err instanceof UserInTrashError) {
+    res.status(409).json({ error: err.message, code: "USER_IN_TRASH" });
+    return;
+  }
   if (err instanceof IdentityForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
     return;
@@ -50,6 +55,13 @@ export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = (app, de
     try {
       const caller = getAuthedPrincipal(res);
       const seededOwnerPrincipalId = await deps.ownerPrincipalId;
+      const principalId = String(req.params.principalId ?? "");
+
+      // OWNER DECISION 2026-09-24 (delete-user plan v2, decision 7) — refuse BEFORE the transition;
+      // see `enable.ts`'s identical guard for why.
+      if (await deps.isInTrash(principalId)) {
+        throw new UserInTrashError("this user is in the Trash; restore them first");
+      }
 
       const body = (req.body ?? {}) as Record<string, unknown>;
       await resetUserPassword({
@@ -57,7 +69,7 @@ export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = (app, de
         input: {
           workspaceId: deps.workspaceId,
           callerPrincipalId: caller.id,
-          principalId: String(req.params.principalId ?? ""),
+          principalId,
           password: String(body.password ?? ""),
           seededOwnerPrincipalId,
         },

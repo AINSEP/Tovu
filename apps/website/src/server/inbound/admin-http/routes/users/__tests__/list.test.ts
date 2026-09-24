@@ -42,6 +42,7 @@ async function buildApp(
     principalPolicyRepo: base.principalPolicyRepo,
     passwordHasher: base.passwordHasher,
     ownerPrincipalId: base.ownerPrincipalId,
+    isInTrash: base.isInTrash,
     ...depsOverrides,
   };
   const app = express();
@@ -174,4 +175,30 @@ test("LIST_USERS route: 500 internal error when an unexpected error is thrown", 
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
   assert.equal(body.error, "internal error");
+});
+
+test("LIST_USERS route: a trashed (disabled + indexed) user is dropped from the list — OWNER DECISION 2026-09-24", async (t) => {
+  const trashedIds = new Set<string>();
+  const { app, deps, ownerId } = await buildApp({ isInTrash: async (id) => trashedIds.has(id) });
+  const baseUrl = await startTestServer(app, t);
+
+  const svcDeps = identityServiceDepsFrom(deps);
+  const { principal: trashed } = await createUser({
+    deps: svcDeps,
+    input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "listtrashed", password: "listtrashed-p4ssw0rd!" },
+  });
+  await deps.principalRepo.save({ ...trashed, status: "disabled", disabledAt: deps.clock.nowIso() });
+  trashedIds.add(trashed.id);
+
+  const { principal: merelyDisabled } = await createUser({
+    deps: svcDeps,
+    input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "listdisablednottrashed", password: "listdisablednottrashed-p4ssw0rd!" },
+  });
+  await deps.principalRepo.save({ ...merelyDisabled, status: "disabled", disabledAt: deps.clock.nowIso() });
+
+  const res = await fetch(`${baseUrl}${URL_BASE}`);
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { users: Array<{ principalId: string }> };
+  assert.ok(!body.users.some((u) => u.principalId === trashed.id), "a trashed user must not be listed");
+  assert.ok(body.users.some((u) => u.principalId === merelyDisabled.id), "a disabled-but-not-trashed user must still be listed");
 });

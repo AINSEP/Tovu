@@ -45,6 +45,7 @@ async function buildApp(
     principalPolicyRepo: base.principalPolicyRepo,
     passwordHasher: base.passwordHasher,
     ownerPrincipalId: base.ownerPrincipalId,
+    isInTrash: base.isInTrash,
     ...depsOverrides,
   };
   const app = express();
@@ -287,4 +288,20 @@ test("RESET_USER_PASSWORD route: 500 internal error when an unexpected error is 
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
   assert.equal(body.error, "internal error");
+});
+
+test("RESET_USER_PASSWORD route: 409 USER_IN_TRASH when the target is currently in the Trash — OWNER DECISION 2026-09-24", async (t) => {
+  const { app, deps, ownerId } = await buildApp({ isInTrash: async () => true });
+  const baseUrl = await startTestServer(app, t);
+  const { principalId } = await createTestUser(deps, ownerId, "resettrashed");
+
+  const res = await fetch(`${baseUrl}${urlFor(principalId)}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password: "some-p4ssw0rd!" }),
+  });
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { code: string; error: string };
+  assert.equal(body.code, "USER_IN_TRASH");
+  assert.equal(body.error, "this user is in the Trash; restore them first");
 });

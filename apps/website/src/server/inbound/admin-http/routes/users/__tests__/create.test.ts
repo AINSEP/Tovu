@@ -10,7 +10,8 @@ import {
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminUserCreateRoute } from "../create.js";
-import type { UsersRouteDeps } from "../deps.js";
+import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
+import { createUser } from "@jini-ai/cms/identity";
 
 const WORKSPACE_ID = "workspace-local";
 const ROUTE_PATH = `/api/admin/v1/workspaces/:workspaceId/users`;
@@ -41,6 +42,7 @@ async function buildApp(
     principalPolicyRepo: base.principalPolicyRepo,
     passwordHasher: base.passwordHasher,
     ownerPrincipalId: base.ownerPrincipalId,
+    isInTrash: base.isInTrash,
     ...depsOverrides,
   };
   const app = express();
@@ -194,4 +196,24 @@ test("CREATE_USER route: 500 internal error when an unexpected error is thrown",
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
   assert.equal(body.error, "internal error");
+});
+
+test("CREATE_USER route: 409 USERNAME_IN_TRASH when the conflicting existing user is in the Trash — OWNER DECISION 2026-09-24", async (t) => {
+  const { app, deps, ownerId } = await buildApp({ isInTrash: async () => true });
+  const baseUrl = await startTestServer(app, t);
+  const svcDeps = identityServiceDepsFrom(deps);
+  await createUser({
+    deps: svcDeps,
+    input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "trashedname", password: "trashedname-p4ssw0rd!" },
+  });
+
+  const res = await fetch(`${baseUrl}${URL_BASE}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: "trashedname", password: "someone-else-p4ssw0rd!" }),
+  });
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { code: string; error: string };
+  assert.equal(body.code, "USERNAME_IN_TRASH");
+  assert.equal(body.error, "a user with this username is in the Trash; restore or delete them permanently first");
 });

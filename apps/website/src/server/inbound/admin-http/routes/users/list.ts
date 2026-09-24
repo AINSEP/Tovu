@@ -41,7 +41,24 @@ export const registerAdminUserListRoute: UsersRouteRegistrar = (app, deps) => {
       }
 
       const principals = await deps.principalRepo.list({ workspaceId: deps.workspaceId });
-      const humanPrincipals = principals.filter((principal) => principal.kind === "user");
+      const nonTrashedHumanPrincipals = (
+        await Promise.all(
+          principals
+            .filter((principal) => principal.kind === "user")
+            .map(async (principal) => ({
+              principal,
+              // OWNER DECISION 2026-09-24 (delete-user plan v2, decision 7's list side): a user
+              // trashed via DELETE_USER is `status:'disabled'` plus a `trashed_items` row — this
+              // screen must not list them as an ordinary disabled user, since restoring them here
+              // means EnablePrincipal, not the Trash's own restore. An intentionally-disabled user
+              // (never trashed) has no `trashed_items` row and stays listed.
+              trashed: principal.status === "disabled" && (await deps.isInTrash(principal.id)),
+            }))
+        )
+      )
+        .filter((entry) => !entry.trashed)
+        .map((entry) => entry.principal);
+      const humanPrincipals = nonTrashedHumanPrincipals;
 
       // O(n) repo round trips, n = human principal count. Unbounded by a caller-controlled
       // collection (this is an operator-managed roster, not member/content scale — the same

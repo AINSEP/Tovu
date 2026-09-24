@@ -167,7 +167,9 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/WorkspaceNotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        '409':
+          description: "Two distinct causes share this status, distinguished by code: an ordinary duplicate username or still-referenced role/policy (code RESOURCE_CONFLICT), or the requested username belongs to a user currently in the Trash (code USERNAME_IN_TRASH, delete-user plan v2 decision 7) — reserved until that user is restored or purged."
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } }
         '500': { $ref: '#/components/responses/InternalError' }
   /api/admin/v1/workspaces/{workspaceId}/users/{principalId}:
     patch:
@@ -182,14 +184,21 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/UserInTrash' }
         '500': { $ref: '#/components/responses/InternalError' }
     delete:
       operationId: delete_user
       tags: [users]
-      summary: Hard-delete a human user
+      summary: Move a user to the Trash
+      description: >-
+        Delete-user plan v2 (2026-09-24): DELETE no longer hard-deletes. It disables the target,
+        revokes its sessions, and indexes it in the Trash (`trashed_items`) — restorable, and
+        permanently removed only through the Trash's own purge or the 60-day retention sweep. A
+        target already in the Trash is an idempotent 204. Gated by the owner or the built-in `admin`
+        role (OWNER DECISION 2026-09-24), not `user.manage` alone.
       parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PrincipalId' }]
       responses:
-        '204': { description: User deleted; no response body. }
+        '204': { description: User moved to the Trash (or already there); no response body. }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -223,6 +232,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/UserInTrash' }
         '500': { $ref: '#/components/responses/InternalError' }
   /api/admin/v1/workspaces/{workspaceId}/users/{principalId}/reset-password:
     post:
@@ -237,6 +247,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/UserInTrash' }
         '500': { $ref: '#/components/responses/InternalError' }
   /api/admin/v1/workspaces/{workspaceId}/users/{principalId}/roles:
     post:
@@ -452,5 +463,6 @@ components:
     Conflict: { description: Duplicate username or a still-referenced role/policy., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
     SelfDeleteOrOwnerRequired: { description: "Two distinct causes share this status, distinguished by code: the caller targeted their own principal (code SELF_DELETE), or the target is the seeded owner or the workspace's last active owner-`*` principal (code OWNER_REQUIRED).", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
     NotSupported: { description: "The wired identity store has no delete support (code NOT_SUPPORTED) — DELETE_USER is SQLite-only; the in-memory identity store used by the hermetic test/dev composition root always refuses.", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    UserInTrash: { description: "The target is currently in the Trash (code USER_IN_TRASH, delete-user plan v2 decision 7) — re-activating, updating, or resetting the password of a trashed user would leave it active while still indexed for purge. Restore it first.", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
     RateLimited: { description: More than 10 login attempts in 60 seconds for one client IP., headers: { Retry-After: { schema: { type: integer } } }, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
     InternalError: { description: "Internal error. Runtime body is {error: 'internal error'} with no code.", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
