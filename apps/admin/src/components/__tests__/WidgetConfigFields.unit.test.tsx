@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, type AdminWidgetType } from "../../lib/api";
@@ -175,6 +176,7 @@ const COLLECTIONS = [
     fields: [
       { name: "docs_page", kind: "text" as const, required: false, queryable: true },
       { name: "featured", kind: "boolean" as const, required: false, queryable: true },
+      { name: "score", kind: "real" as const, required: false, queryable: true },
       { name: "related", kind: "relation" as const, required: false, queryable: false },
     ],
   },
@@ -359,6 +361,42 @@ describe("RecentEntriesConfigFields", () => {
     fireEvent.change(screen.getByLabelText("Filter value"), { target: { value: "true" } });
 
     expect(onChange).toHaveBeenLastCalledWith({ maxItems: 5, collection: "tovu_feature", where: { featured: true } });
+  });
+
+  // Regression (review 2026-09-23): the value input rendered the COERCED stored value, so each
+  // keystroke was re-coerced before the next one landed. Typing "true" into a boolean filter gave
+  // "t" -> false -> the box showed "false", and "1.5" into a real one lost its "." ("1." -> 1). The
+  // test above used one fireEvent.change with the whole string, which never showed it.
+  function ControlledRecentEntries() {
+    const [config, setConfig] = useState<Record<string, unknown>>({ maxItems: 5, collection: "tovu_feature" });
+    return (
+      <>
+        <WidgetConfigFields widgetType="recent-entries" config={config} onChange={setConfig} />
+        <output data-testid="where">{JSON.stringify(config.where ?? null)}</output>
+      </>
+    );
+  }
+
+  it("typing a boolean filter value key by key stores true, and the box keeps what was typed", async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecentEntries />);
+
+    await user.selectOptions(await screen.findByLabelText("Filter"), "featured");
+    await user.type(screen.getByLabelText("Filter value"), "true");
+
+    expect(screen.getByLabelText("Filter value")).toHaveValue("true");
+    expect(screen.getByTestId("where").textContent).toBe('{"featured":true}');
+  });
+
+  it("typing a decimal into a real filter value key by key keeps the decimal point", async () => {
+    const user = userEvent.setup();
+    render(<ControlledRecentEntries />);
+
+    await user.selectOptions(await screen.findByLabelText("Filter"), "score");
+    await user.type(screen.getByLabelText("Filter value"), "1.5");
+
+    expect(screen.getByLabelText("Filter value")).toHaveValue("1.5");
+    expect(screen.getByTestId("where").textContent).toBe('{"score":1.5}');
   });
 });
 

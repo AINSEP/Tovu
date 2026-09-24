@@ -186,6 +186,13 @@ function resolveFilterField(draft: string | null, clause: { field: string } | nu
   return clause !== null ? clause.field : "";
 }
 
+/** The filter value box shows what the operator typed, not the coerced stored value: re-rendering
+ *  the coerced value mid-typing ate keystrokes ("t" became `false`, "1." became `1`). */
+function resolveFilterValue(draft: string | null, clause: { value: string } | null): string {
+  if (draft !== null) return draft;
+  return clause !== null ? clause.value : "";
+}
+
 /**
  * `RecentEntriesConfigFields`'s config-mutation logic (Collections plan A1) — everything the
  * Collection/Sort/Layout/Columns/Fields/Filter controls read and write, so the component itself
@@ -206,6 +213,7 @@ export function useRecentEntriesConfig(
   onChange: (config: Record<string, unknown>) => void,
 ) {
   const [filterFieldDraft, setFilterFieldDraft] = useState<string | null>(null);
+  const [filterValueDraft, setFilterValueDraft] = useState<string | null>(null);
 
   const clause = readFilterClause(config);
   const collection = stringConfigValue(config, "collection");
@@ -214,7 +222,7 @@ export function useRecentEntriesConfig(
   const columns = numberConfigValue(config, "columns");
   const fields = stringArrayConfigValue(config, "fields");
   const filterField = resolveFilterField(filterFieldDraft, clause);
-  const filterValue = clause !== null ? clause.value : "";
+  const filterValue = resolveFilterValue(filterValueDraft, clause);
 
   function patch(mutate: (next: Record<string, unknown>) => void): void {
     const next = { ...config };
@@ -224,6 +232,7 @@ export function useRecentEntriesConfig(
 
   function setCollection(value: string): void {
     setFilterFieldDraft(null);
+    setFilterValueDraft(null);
     patch((next) => {
       if (value) next.collection = value;
       else delete next.collection;
@@ -265,12 +274,14 @@ export function useRecentEntriesConfig(
 
   function setFilterField(name: string): void {
     setFilterFieldDraft(name || null);
+    setFilterValueDraft(null);
     patch((next) => {
       delete next.where;
     });
   }
 
   function setFilterValue(raw: string, kind: ContentTypeFieldKind | undefined): void {
+    setFilterValueDraft(raw);
     patch((next) => {
       if (!filterField || raw === "") {
         delete next.where;
