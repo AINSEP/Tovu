@@ -141,6 +141,7 @@ const EXPECTED_ALLOWLIST = [
   "media_trash_asset",
   "plugins_set_enabled",
   "plugins_uninstall",
+  "publish_content_publish",
   "redirects_tombstone",
   "site_backup_push",
   "source_control_execute_commit",
