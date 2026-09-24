@@ -14,6 +14,7 @@ import {
   createRunOwnerRegistry,
   requireRunOwnership,
   RUN_PRINCIPAL_HEADER,
+  type RunOwnerRegistry,
 } from "../run-ownership.js";
 
 /**
@@ -44,6 +45,7 @@ function contextRefFor(principalId: string, prompt: string): string {
 interface Harness {
   baseUrl: string;
   lifecycle: RunLifecycle;
+  registry: RunOwnerRegistry;
   close: () => Promise<void>;
 }
 
@@ -53,13 +55,19 @@ async function bootDaemonRoutes(): Promise<Harness> {
 
   /** Mirrors `agent-daemon-server.ts`'s `onStarted`: decode the proxy's `contextRef`, record the owner. */
   const recordOwnerOnStart: RunStartHandler = ({ request, run }) => {
-    const { principalId } = JSON.parse(request.contextRef) as { principalId: string };
+    // A malformed contextRef records no owner, exactly like the real `onStarted`'s early return.
+    let principalId: string;
+    try {
+      ({ principalId } = JSON.parse(request.contextRef) as { principalId: string });
+    } catch {
+      return;
+    }
     registry.record(run.id, principalId);
   };
 
   const app = express();
   app.use(express.json());
-  app.use("/api/runs/:runId", requireRunOwnership(registry));
+  app.use("/api/runs/:runId", requireRunOwnership(registry, lifecycle));
   app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry }));
   const adapter: AdapterContext = { resolvedPortRef: { current: 0 } };
   registerRunRoutes(app, { lifecycle, onStarted: recordOwnerOnStart }, adapter);
@@ -75,6 +83,7 @@ async function bootDaemonRoutes(): Promise<Harness> {
   return {
     baseUrl: `http://127.0.0.1:${port}`,
     lifecycle,
+    registry,
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 }
@@ -163,6 +172,36 @@ test("a non-owner cannot cancel another principal's in-flight run, and the run k
 
   assert.equal(res.status, 404);
   assert.equal((await harness.lifecycle.get(runId))?.state, "running", "a refused cancel must have no side effect");
+});
+
+// A run with no recorded owner (its contextRef was malformed, so no principal could be decoded)
+// used to be open to every admin. Unknown ownership must fail closed.
+test("a run with no recorded owner is unreadable and uncancellable by every admin", async (t) => {
+  const harness = await bootDaemonRoutes();
+  t.after(harness.close);
+  const res = await fetch(`${harness.baseUrl}/api/runs`, {
+    method: "POST",
+    headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: ALICE },
+    body: JSON.stringify({ contextRef: "not json" }),
+  });
+  assert.equal(res.status, 201);
+  const runId = ((await res.json()) as { run: { id: string } }).run.id;
+  assert.equal(harness.registry.ownerOf(runId), undefined);
+
+  const read = await fetch(`${harness.baseUrl}/api/runs/${runId}`, { headers: asPrincipal(BOB) });
+  const cancel = await fetch(`${harness.baseUrl}/api/runs/${runId}/cancel`, { method: "POST", headers: asPrincipal(BOB) });
+
+  assert.equal(read.status, 404);
+  assert.deepEqual(await read.json(), { error: { code: "NOT_FOUND", message: `run "${runId}" was not found` } });
+  assert.equal(cancel.status, 404);
+  assert.equal((await harness.lifecycle.get(runId))?.state, "running", "a refused cancel must have no side effect");
+});
+
+test("forget() drops a run's owner, so the registry does not grow for the daemon's lifetime", () => {
+  const registry = createRunOwnerRegistry();
+  registry.record("run-1", ALICE);
+  registry.forget("run-1");
+  assert.equal(registry.ownerOf("run-1"), undefined);
 });
 
 test("the owner can cancel their own run", async (t) => {

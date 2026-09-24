@@ -670,6 +670,9 @@ let federationAdmissionReports: Awaited<ReturnType<typeof attachFederatedMcpTool
 /** The same fact with the opposite lifetime — a finished run is still readable, so its owner must
  * stay known. See `run-ownership.ts` for why the two maps are not redundant. */
 const runOwners = createRunOwnerRegistry();
+/** `@jini-ai/daemon`'s `DEFAULT_TERMINAL_RETENTION_MS` (24 h, not exported), which `lifecycle` (above)
+ *  runs with: how long a terminal run stays readable, and so how long its owner must stay known. */
+const RUN_OWNER_RETENTION_MS = 24 * 60 * 60 * 1000;
 
 /** H2 fix — see `agent-run-concurrency.ts`'s own doc. One instance for this process's whole
  * lifetime, registered/unregistered per run inside `onStarted` below. */
@@ -793,6 +796,10 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   if (conversationId !== undefined) liveRunTracker.register(conversationId, run.id);
   void runLifecycle.waitForTerminal(run.id).finally(() => {
     principalByRunId.delete(run.id);
+    // The owner must outlive the run's end (a finished run is still read and replayed), but not the
+    // lifecycle's own terminal record, or this map grows for the daemon's lifetime. Once forgotten,
+    // a still-present run is denied to everyone (`requireRunOwnership` fails closed), never opened.
+    setTimeout(() => runOwners.forget(run.id), RUN_OWNER_RETENTION_MS).unref();
     if (conversationId !== undefined) liveRunTracker.unregister(conversationId, run.id);
     // Safe to call even for a run that claimed nothing (`AttachmentStore.cleanupRun`'s own
     // contract) — always wired, not only when `attachmentIds` was non-empty, so a run that failed
@@ -1089,7 +1096,7 @@ const adapter: AdapterContext = { resolvedPortRef: { current: port } };
 // precede `registerRunRoutes`: the middleware so it runs first, and the list handler so it shadows
 // http-kit's unscoped `runListRoute` under Express's first-match-wins routing. See
 // `run-ownership.ts` for the ownership model and the 404-not-403 rationale.
-app.use("/api/runs/:runId", requireRunOwnership(runOwners));
+app.use("/api/runs/:runId", requireRunOwnership(runOwners, lifecycle));
 app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }));
 
 registerRunRoutes(app, { lifecycle, onStarted }, adapter);

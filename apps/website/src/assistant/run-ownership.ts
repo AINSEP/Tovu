@@ -44,7 +44,9 @@ import type { RunLifecycle } from "@jini-ai/daemon";
 export const RUN_PRINCIPAL_HEADER = "x-tovu-principal-id";
 
 /**
- * Records which principal started which run, for the daemon process's lifetime.
+ * Records which principal started which run, until the daemon forgets the run itself
+ * (`agent-daemon-server.ts` calls {@link RunOwnerRegistry.forget} once the run's terminal record
+ * has aged out of the lifecycle).
  *
  * Deliberately separate from `agent-daemon-server.ts`'s `principalByRunId`, which looks like the
  * same map but is not: that one is deleted on terminal transition, because the exempt
@@ -55,6 +57,8 @@ export const RUN_PRINCIPAL_HEADER = "x-tovu-principal-id";
 export interface RunOwnerRegistry {
   record(runId: string, principalId: string): void;
   ownerOf(runId: string): string | undefined;
+  /** Drops a run's owner once the run itself is gone, so the map does not grow for the daemon's lifetime. */
+  forget(runId: string): void;
 }
 
 export function createRunOwnerRegistry(): RunOwnerRegistry {
@@ -62,6 +66,7 @@ export function createRunOwnerRegistry(): RunOwnerRegistry {
   return {
     record: (runId, principalId) => void owners.set(runId, principalId),
     ownerOf: (runId) => owners.get(runId),
+    forget: (runId) => void owners.delete(runId),
   };
 }
 
@@ -87,6 +92,15 @@ function unknownRunBody(req: Request, runId: string): { error: { code: string; m
   return { error: { code: "NOT_FOUND", message: isEventStream ? "run was not found" : `run "${runId}" was not found` } };
 }
 
+/** `lifecycle.get` for a gate that must not throw into Express: a lookup failure counts as "exists", which denies. */
+async function runExists(lifecycle: Pick<RunLifecycle, "get">, runId: string): Promise<boolean> {
+  try {
+    return (await lifecycle.get(runId)) !== undefined;
+  } catch {
+    return true;
+  }
+}
+
 /**
  * Express middleware: refuses run-scoped requests from anyone but the run's own starter.
  *
@@ -102,8 +116,8 @@ function unknownRunBody(req: Request, runId: string): { error: { code: string; m
  * @complexity O(1) per request.
  * @overallScore 100
  */
-export function requireRunOwnership(registry: RunOwnerRegistry): RequestHandler {
-  return function requireRunOwnershipMiddleware(req: Request, res: Response, next: NextFunction): void {
+export function requireRunOwnership(registry: RunOwnerRegistry, lifecycle: Pick<RunLifecycle, "get">): RequestHandler {
+  return async function requireRunOwnershipMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
     const callerId = readPrincipalId(req);
     if (!callerId) {
       sendPrincipalRequired(res);
@@ -117,7 +131,14 @@ export function requireRunOwnership(registry: RunOwnerRegistry): RequestHandler 
     }
 
     const owner = registry.ownerOf(runId);
-    if (owner !== undefined && owner !== callerId) {
+    if (owner === callerId) {
+      next();
+      return;
+    }
+    // Fail closed on unknown ownership: a run that exists with no recorded owner (its contextRef was
+    // malformed, so no principal could be decoded) belongs to nobody, so nobody may read or cancel it.
+    // Only a run that does not exist at all goes on to http-kit, for its own genuine 404.
+    if (owner !== undefined || (await runExists(lifecycle, runId))) {
       res.status(404).json(unknownRunBody(req, runId));
       return;
     }
