@@ -450,6 +450,30 @@ function docsSidebarMenuSlugForPath(currentPath: string): string {
   return `docs-${slug}-sidebar`;
 }
 
+/**
+ * The second reserved `data-embed-id` a static theme's docs template can carry (2026-09-24, docs IA
+ * restructure) — the GROUP sidebar, distinct from {@link CURRENT_PAGE_DOCS_SIDEBAR_MENU_ID}'s
+ * per-page in-page-anchor TOC. Rather than naming one fixed stored menu, it means "the Docs subtree
+ * of the site's header nav" — depth 1 of that subtree is the four groups (Get started, Build your
+ * site, …), depth 2 is each group's pages. This is deliberately the SAME data `menu-header-nav`
+ * already feeds the top-nav flyout and the mobile drawer (`nav.html`), not a second authored copy —
+ * see the docs IA proposal's "Mapping onto the Menus feature (one source)" section. Adding doc page
+ * N+1, or reordering/renaming a group, is a `menu-header-nav` edit; nothing here changes.
+ */
+const DOCS_SECTION_MENU_ID = "docs-section";
+
+/** The stable slug `nav.html`'s own `menu-header-nav` marker names — see that file's own comment. */
+const HEADER_NAV_MENU_SLUG = "menu-header-nav";
+
+/**
+ * The resolved href the header nav's own "Docs" item is expected to carry (its own link to the
+ * `/docs` landing page). {@link DOCS_SECTION_MENU_ID} identifies that item by this resolved path
+ * rather than by label text, so renaming the item's authored label (an editorial change) does not
+ * silently break the sidebar — only moving the item's target away from `/docs` would, which is
+ * exactly the case that SHOULD stop this from finding the wrong subtree.
+ */
+const DOCS_LANDING_PATH = "/docs";
+
 export async function resolveStaticMenusForRender(
   deps: TemplateRenderDeps,
   /** `null` when the operator turned the theme off — no theme, no theme-owned menu embeds. */
@@ -471,46 +495,62 @@ export async function resolveStaticMenusForRender(
     return resolved ? { path: resolved.path, available: true } : null;
   };
 
+  const context = { workspaceId: deps.workspaceId, currentPath };
+
   const entries = await Promise.all(
     menuIds.map(async (menuId): Promise<readonly [string, readonly StaticMenuItem[]] | undefined> => {
-      // Every OTHER marker id resolves by SLUG first, id second (below) — see that branch's own
-      // comment. `CURRENT_PAGE_DOCS_SIDEBAR_MENU_ID` is the one reserved exception: a theme marker
-      // authored with THIS literal id does not name one fixed stored menu at all. It names "whichever
-      // sidebar menu the page currently being requested owns," resolved by the naming convention
+      // `CURRENT_PAGE_DOCS_SIDEBAR_MENU_ID` is a reserved exception: a theme marker authored with
+      // THIS literal id does not name one fixed stored menu at all. It names "whichever sidebar menu
+      // the page currently being requested owns," resolved by the naming convention
       // {@link docsSidebarMenuSlugForPath} derives from `currentPath` — the one piece of per-request
       // state this otherwise theme-wide scan already receives. This is what lets N doc pages
       // (`posts-sidebar.html`'s ONE marker — `blog-sidebar-template.html` before the 2026-09-03
       // posts-*/pages-* rename) each get their own distinct anchor menu without duplicating the
-      // template file per page: adding doc page N+1 is "create a menu at the convention slug and
-      // point that page's `templateChoice` at this template," zero code or template changes. A
-      // path with no matching menu (most pages, and any doc page nobody has
-      // authored a sidebar for yet) falls through to `!menu` below exactly like an ordinary dead
+      // template file per page. A path with no matching menu (most pages, and any doc page nobody
+      // has authored a sidebar for yet) falls through to `!menu` below exactly like an ordinary dead
       // marker id — the theme's authored fallback content, not an empty nav.
-      //
-      // Every id OTHER than this sentinel is completely unaffected — this is an added branch, not a
-      // changed one, so a marker naming a real stored menu (e.g. `menu-header-nav`) keeps resolving
-      // exactly as it did before this existed.
+      if (menuId === CURRENT_PAGE_DOCS_SIDEBAR_MENU_ID) {
+        const menu = await deps.menuRepo.findBySlug({
+          workspaceId: deps.workspaceId,
+          slug: docsSidebarMenuSlugForPath(currentPath),
+        });
+        if (!menu) return undefined;
+        const items = await resolveMenuDoc({ doc: menu.doc, context, resolveTargetHref });
+        return [menuId, items] as const;
+      }
+
+      // `DOCS_SECTION_MENU_ID` is the second reserved exception (2026-09-24): it names "the Docs
+      // subtree of the header nav," not a stored menu of its own. The whole `menu-header-nav` doc is
+      // resolved once (so every item, at every depth, gets the same real `isCurrent`/`isActive`
+      // this function already computes against `currentPath`), then the branch returns only the
+      // children of whichever top-level item resolved to `/docs` — the groups, each still carrying
+      // its own resolved pages. A header nav with no item linking to `/docs` (or no header nav at
+      // all) degrades to the theme's authored fallback, same "not authored yet" posture as every
+      // other reserved-id miss in this function.
+      if (menuId === DOCS_SECTION_MENU_ID) {
+        const headerMenu = await deps.menuRepo.findBySlug({
+          workspaceId: deps.workspaceId,
+          slug: HEADER_NAV_MENU_SLUG,
+        });
+        if (!headerMenu) return undefined;
+        const headerItems = await resolveMenuDoc({ doc: headerMenu.doc, context, resolveTargetHref });
+        const docsItem = headerItems.find((item) => item.href === DOCS_LANDING_PATH);
+        if (!docsItem) return undefined;
+        return [menuId, docsItem.children] as const;
+      }
+
+      // Every other id resolves by SLUG first, id second. A theme marker is authored once and
+      // shipped to every install, but `createMenu` mints a menu's id with `idGen.newId()` — so a
+      // hardcoded `data-embed-id` could only ever match on the one install where that random id
+      // happened to be generated. The slug is the stable machine handle the model already documents
+      // for exactly this ("e.g. `primary-nav`", navigation/types.ts:161), so it is what a shipped
+      // theme can actually name. The id lookup stays as the fallback for a marker pointing at a
+      // specific stored menu, which is what the pre-2026-08-10 behavior did unconditionally.
       const menu =
-        menuId === CURRENT_PAGE_DOCS_SIDEBAR_MENU_ID
-          ? await deps.menuRepo.findBySlug({
-              workspaceId: deps.workspaceId,
-              slug: docsSidebarMenuSlugForPath(currentPath),
-            })
-          : // Resolved by SLUG first, id second. A theme marker is authored once and shipped to every
-            // install, but `createMenu` mints a menu's id with `idGen.newId()` — so a hardcoded
-            // `data-embed-id` could only ever match on the one install where that random id happened to
-            // be generated. The slug is the stable machine handle the model already documents for exactly
-            // this ("e.g. `primary-nav`", navigation/types.ts:161), so it is what a shipped theme can
-            // actually name. The id lookup stays as the fallback for a marker pointing at a specific
-            // stored menu, which is what the pre-2026-08-10 behavior did unconditionally.
-            ((await deps.menuRepo.findBySlug({ workspaceId: deps.workspaceId, slug: menuId })) ??
-              (await deps.menuRepo.findById({ workspaceId: deps.workspaceId, id: menuId })));
+        (await deps.menuRepo.findBySlug({ workspaceId: deps.workspaceId, slug: menuId })) ??
+        (await deps.menuRepo.findById({ workspaceId: deps.workspaceId, id: menuId }));
       if (!menu) return undefined;
-      const items = await resolveMenuDoc({
-        doc: menu.doc,
-        context: { workspaceId: deps.workspaceId, currentPath },
-        resolveTargetHref,
-      });
+      const items = await resolveMenuDoc({ doc: menu.doc, context, resolveTargetHref });
       return [menuId, items] as const;
     })
   );
