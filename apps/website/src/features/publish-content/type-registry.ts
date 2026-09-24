@@ -310,6 +310,17 @@ export interface PublishContentHandler {
     principalId: string;
     idempotencyKey: string;
   }): Promise<{ changeSetId: string; undo(): Promise<void> }>;
+
+  /**
+   * S-F4 (`publish-files-plan-2026-09-24.md` §4) — the hash `id` had when this destination was first
+   * seeded, or `null` when it was not part of the seed. The planner (`planner.ts`) and the apply
+   * loop's re-verification (`apply-loop.ts`) consult it only when there is no recorded baseline AND
+   * `PlanImportDeps.getSeedHash` did not answer — a destination still equal to its seed was never
+   * edited there, so the first publish may replace it instead of sitting in `conflict`. For a type
+   * whose seed is not a DB row (e.g. `theme-files`, seeded as `__original-themes__` folders), which
+   * the generic seed-db lookup cannot see. Read-only; absent means "no seed to compare against".
+   */
+  seedHash?(id: string): Promise<string | null>;
 }
 
 /**

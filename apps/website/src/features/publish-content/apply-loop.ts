@@ -422,9 +422,12 @@ async function applyOneRow(
     });
     // No recorded baseline: fall back to the seed version, exactly as `planEntity` did (D1). A
     // real baseline still always wins — the seed is never a second vote once one exists.
+    // S-F4: then the handler's own seed (`handler.seedHash`), exactly as `planEntity` falls back.
     const agreedHash = baseline
       ? baseline.hashAtLastSync
-      : await ctx.getSeedHash({ entityType: row.entityType, entityId: row.entityId });
+      : ((await ctx.getSeedHash({ entityType: row.entityType, entityId: row.entityId })) ??
+        (await handler.seedHash?.(entity.id)) ??
+        null);
     if (agreedHash === null || current.hash !== agreedHash) {
       return {
         row: {

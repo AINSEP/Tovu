@@ -66,6 +66,9 @@ function makeFakeHandler(options: {
    *  `planEntity` by supplying this; a handler built WITHOUT it has no `planRetire` property at all
    *  (not even `undefined` explicitly), matching every real handler before S4 lands. */
   planRetire?: (entity: PackedEntity) => Promise<RetireTarget | null>;
+  /** S-F4 (publish-files-plan §4) — a fake handler opts into the handler-level seed fallback by
+   *  supplying this; omitted means no `seedHash` property at all, like every row-backed handler. */
+  seedHash?: (id: string) => Promise<string | null>;
 }): PublishContentHandler {
   const handler = {
     entityType: options.entityType,
@@ -80,6 +83,7 @@ function makeFakeHandler(options: {
       throw new Error(`planImport must never call apply() — it is pure planning (entityType=${options.entityType})`);
     },
     ...(options.planRetire ? { planRetire: options.planRetire } : {}),
+    ...(options.seedHash ? { seedHash: options.seedHash } : {}),
   };
   return handler;
 }
@@ -267,6 +271,73 @@ test("conflict (D1): getSeedHash resolves null for this entity (not in the seed 
 
   assert.equal(report.rows[0].outcome, "conflict");
   assert.match(report.rows[0].reason ?? "", /no prior sync baseline/);
+});
+
+test("applied (S-F4): no baseline, no deps.getSeedHash, but the destination matches handler.seedHash — untouched since seed", async () => {
+  const destination = new Map<string, FakeDestinationRow>([["w1", { version: 0, hash: "original-hash" }]]);
+  const seedHash = async (id: string) => (id === "w1" ? "original-hash" : null);
+  registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination, seedHash })));
+
+  const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    makeDeps({})
+  );
+
+  assert.deepEqual(report.rows, [{ entityType: "widget", entityId: "w1", entityLabel: "w1", outcome: "applied", writes: true, reason: null, canOverwrite: false, retires: null }]);
+});
+
+test("applied (S-F4): deps.getSeedHash answers null, so handler.seedHash is consulted and matches", async () => {
+  const destination = new Map<string, FakeDestinationRow>([["w1", { version: 0, hash: "original-hash" }]]);
+  registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination, seedHash: async () => "original-hash" })));
+
+  const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    makeDeps({ seedHashes: new Map() })
+  );
+
+  assert.equal(report.rows[0].outcome, "applied");
+});
+
+test("conflict (S-F4): no baseline and the destination differs from handler.seedHash — edited on live, offered as an overwrite", async () => {
+  const destination = new Map<string, FakeDestinationRow>([["w1", { version: 0, hash: "edited-on-live" }]]);
+  registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination, seedHash: async () => "original-hash" })));
+
+  const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    makeDeps({})
+  );
+
+  assert.deepEqual(report.rows, [{
+    entityType: "widget",
+    entityId: "w1",
+    entityLabel: "w1",
+    outcome: "conflict",
+    writes: false,
+    reason: "no prior sync baseline for widget 'w1' with this peer — the destination already holds different content",
+    canOverwrite: true,
+    retires: null,
+  }]);
+});
+
+test("conflict (S-F4): a recorded baseline wins over handler.seedHash, which is never consulted", async () => {
+  const destination = new Map<string, FakeDestinationRow>([["w1", { version: 0, hash: "original-hash" }]]);
+  let seedCalls = 0;
+  const seedHash = async () => { seedCalls += 1; return "original-hash"; };
+  registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination, seedHash })));
+
+  const baselines = new Map<string, BaselineRecord | null>([[entityKey("widget", "w1"), { hashAtLastSync: "last-synced-hash", hashVersion: CONTENT_HASH_VERSION }]]);
+  const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
+    makeDeps({ baselines })
+  );
+
+  assert.equal(report.rows[0].outcome, "conflict");
+  assert.equal(report.rows[0].reason, "widget 'w1' has been edited on the destination since the last sync with this peer");
+  assert.equal(seedCalls, 0);
 });
 
 test("conflict (D1): a REAL recorded baseline always wins — getSeedHash is a fallback for 'no baseline yet' only, never consulted once one exists", async () => {

@@ -319,8 +319,14 @@ async function planEntity(
   // agreed" reasoning as the branch above, just with the seed standing in for a sync that never
   // happened. Only reachable when `baseline` is falsy, so a real recorded baseline always takes
   // priority and this never re-litigates an already-resolved conflict.
-  if (!baseline && deps.getSeedHash) {
-    const seedHash = await deps.getSeedHash({ entityType: entity.entityType, entityId: entity.id });
+  //
+  // S-F4: when the generic seed-db lookup has no answer, a handler whose seed is not a DB row (e.g.
+  // `theme-files`' `__original-themes__` folders) answers for itself via `handler.seedHash`.
+  if (!baseline) {
+    const seedHash =
+      (await deps.getSeedHash?.({ entityType: entity.entityType, entityId: entity.id })) ??
+      (await handler.seedHash?.(entity.id)) ??
+      null;
     if (seedHash !== null && destination.hash === seedHash) {
       return { ...identity, outcome: "applied", writes: true, reason: null, canOverwrite: false, retires: null };
     }
