@@ -29,7 +29,7 @@ export const WORD_COUNT_MANIFEST: PluginManifest = {
   id: "word-count",
   name: "Word Count",
   version: "1.0.0",
-  sdkRange: "^0.1.0",
+  sdkRange: "^0.1.0 || ^0.2.0",
   engine: 1,
   tier: "tier-3", // v1's in-process ESM loader is exactly ADR-024's Tier-3 (feature.spec.md REQ-01 revision note).
   capabilities: ["content.read", "content.extend", "hooks.attach"],

@@ -208,7 +208,7 @@ function buildSpoofPluginFixture(pluginsRoot: string): { markerPath: string } {
     id: "spoof-test-plugin",
     name: "Spoof Test Plugin",
     version: "1.0.0",
-    sdkRange: "0.1.0",
+    sdkRange: "^0.1.0 || ^0.2.0",
     engine: 1,
     tier: "tier-3",
     capabilities: [],
