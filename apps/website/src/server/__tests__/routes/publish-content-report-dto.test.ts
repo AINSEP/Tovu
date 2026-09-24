@@ -17,6 +17,8 @@ test("the HTTP report mapper preserves every client-visible field and creates a 
         outcome: "forced",
         writes: true,
         reason: "operator accepted the destination conflict",
+        canOverwrite: false,
+        retires: { entityType: "post", entityId: "post-0", entityLabel: "an-old-post-slug", hash: "sha256:old" },
       },
       {
         entityType: "media",
@@ -25,6 +27,8 @@ test("the HTTP report mapper preserves every client-visible field and creates a 
         outcome: "blocked",
         writes: false,
         reason: "required blob is absent",
+        canOverwrite: false,
+        retires: null,
       },
     ],
   };

@@ -61,7 +61,13 @@ export const registerPublishContentCapabilitiesRoute: PublishContentRouteRegistr
         if (entityTypes.includes(handler.entityType)) schemaVersions[handler.entityType] = handler.schemaVersion;
       }
 
-      res.status(200).json({ entityTypes, schemaVersions });
+      // publish-overwrite-live-plan §4/S6 — unconditional, unlike `entityTypes`: it names a CODE
+      // capability of this instance's import ceremony (whether `forcedEntityKeys`/`retires` are
+      // understood at all), not a per-caller content-type grant, so no credential or handler
+      // narrows it. `peer-transport.ts`'s probe (S7) reads its absence as `liveCanOverwrite: false`
+      // — the same "older peer answers without a field it doesn't know" reading `entityTypes` itself
+      // already relies on for a pre-S-F1 destination's plain 404.
+      res.status(200).json({ entityTypes, schemaVersions, features: ["overwrite-live"] });
     } catch {
       res.status(500).json({ error: "internal error" });
     }

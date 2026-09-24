@@ -14,6 +14,15 @@ export type PublishContentOutcomeKindDto =
   | "blocked"
   | "forced";
 
+/** Wire twin of `planner.ts`'s `RetireTarget` — this module imports no planner code (this file's
+ *  header), so the shape is repeated here rather than shared by import. */
+export interface PublishContentRetireTargetDto {
+  readonly entityType: string;
+  readonly entityId: string;
+  readonly entityLabel: string | null;
+  readonly hash: string;
+}
+
 export interface PublishContentOutcomeRowDto {
   readonly entityType: string;
   readonly entityId: string;
@@ -30,6 +39,17 @@ export interface PublishContentOutcomeRowDto {
   readonly outcome: PublishContentOutcomeKindDto;
   readonly writes: boolean;
   readonly reason: string | null;
+  /**
+   * publish-overwrite-live-plan §4/S6 — whitelisted straight off `planner.ts`'s own `canOverwrite`.
+   * OPTIONAL on the wire, the same reasoning as `entityLabel` above: a peer built before S2 answers a
+   * plan without it, and a reader must treat absent exactly like `false` (nothing offered), never as
+   * a reason to reject the report.
+   */
+  readonly canOverwrite?: boolean;
+  /** publish-overwrite-live-plan §4/S6 — whitelisted straight off `planner.ts`'s own `retires`.
+   *  OPTIONAL/absent for the same pre-S2-peer reason as {@link canOverwrite}; a reader treats absent
+   *  exactly like `null`. */
+  readonly retires?: PublishContentRetireTargetDto | null;
 }
 
 /** The only report shape serialized for publish-content clients. */

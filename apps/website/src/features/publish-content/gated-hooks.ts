@@ -156,6 +156,22 @@ export interface BuildPublishContentImportHooksInput {
    *  for a row with no recorded baseline. Omitted means "no seed", the pre-D1 behaviour; the import
    *  route always passes `RouteDeps.publishContentSeedHash`, which both composition roots bind. */
   getSeedHash?: PublishContentSeedHashFn;
+  /**
+   * publish-overwrite-live-plan §4/S6 — entity keys (`planner.ts`'s `entityKey`) the operator ticked
+   * "overwrite on live" for, straight through to {@link PlanImportDeps.forcedEntityKeys}. Absent
+   * means "force nothing", the pre-S6 default — every existing caller (this file's own tests, every
+   * route that never sends this field) is unchanged.
+   *
+   * A route builds fresh hooks per request, closing over THAT request's own set (`import.ts`'s
+   * `buildHooks`) — never a value cached across `plan`/`confirm`/`execute`. That is what makes this
+   * file's existing plan-staleness property (see this file's header) also police an operator's ticks
+   * changing between plan/confirm and execute for free: `buildReport()` re-derives from whatever set
+   * THIS call passed, so a different set at execute changes which rows are `forced`, which changes
+   * `planHashOf(report)`, which `gateway.execute()` step 4 rejects as `PLAN_STALE` before ever
+   * reaching {@link PublishContentApplyPort.applyReport}. No code here is dedicated to detecting a
+   * changed selection.
+   */
+  forcedEntityKeys?: ReadonlySet<string>;
 }
 
 /**
@@ -216,6 +232,7 @@ export function buildPublishContentImportHooks(
       getBaseline,
       hasBlob,
       ...(input.getSeedHash === undefined ? {} : { getSeedHash: input.getSeedHash }),
+      ...(input.forcedEntityKeys === undefined ? {} : { forcedEntityKeys: input.forcedEntityKeys }),
     });
   }
 

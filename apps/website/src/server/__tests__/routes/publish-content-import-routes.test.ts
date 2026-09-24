@@ -7,6 +7,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { confirm as gatewayConfirm, ForbiddenError } from "#src/contracts/core/gated-mutations/gateway";
 import { buildGatewayDeps, buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
+import { entityKey } from "#src/features/publish-content/planner";
 
 /**
  * @file Task 7 of the publish-content (Publish Content) feature —
@@ -214,6 +215,126 @@ test("publish-content import: execute refuses RESTORE_POINT_UNAVAILABLE with no 
   const body = (await executeRes.json()) as { code: string };
   assert.equal(body.code, "RESTORE_POINT_UNAVAILABLE");
   assert.equal(captureCalled, false, "an unavailable costClass must refuse BEFORE ever attempting to capture a restore point — no override path");
+});
+
+test("publish-content import: overwriteEntityKeys forces a no-baseline conflict row past its refusal, and a mismatched set at execute is rejected PLAN_STALE", async (t) => {
+  const { deps, server, baseUrl } = await startServer();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const cookie = await loginAsOwner(baseUrl);
+
+  let applyCalls = 0;
+  deps.publishContentApplyPort = {
+    applyReport: async () => {
+      applyCalls += 1;
+      return { runId: "fake-run-overwrite", changeSetIds: ["fake-change-set-overwrite"] };
+    },
+  };
+
+  const createRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/posts`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "Overwrite fixture original" }),
+  });
+  const { post } = await expectJson<{ post: { id: string } }>(createRes, 201);
+
+  const exportRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/export`, { headers: { cookie } });
+  const bundle = await expectJson<Record<string, unknown>>(exportRes, 200);
+
+  // Edit the destination AFTER exporting (so the staged bundle still carries the ORIGINAL content)
+  // and BEFORE ever planning — a genuine "no prior sync baseline, and the destination already holds
+  // different content" conflict at PLAN time, unlike the "edited between confirm and execute" test
+  // above, which produces the same outcome kind at a different point in the ceremony.
+  const found = await deps.postRepo.findById({ workspaceId: WORKSPACE, id: post.id });
+  assert.ok(found, "the post created for this fixture must exist");
+  await deps.postRepo.save({
+    ...found,
+    title: "Overwrite fixture edited on destination",
+    version: found.version + 1,
+    updatedAt: deps.clock.nowIso(),
+  });
+
+  const stageRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/bundles`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify(bundle),
+  });
+  const { bundleId } = await expectJson<{ bundleId: string }>(stageRes, 201);
+
+  const key = entityKey("post", post.id);
+
+  const planRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/import/plan`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ bundleId, overwriteEntityKeys: [key] }),
+  });
+  const planBody = await expectJson<{
+    planId: string;
+    planHash: string;
+    details: { rows: { entityId: string; outcome: string }[] };
+  }>(planRes, 200);
+  const row = planBody.details.rows.find((r) => r.entityId === post.id);
+  assert.ok(row, "the fixture post must appear in the plan");
+  assert.equal(row.outcome, "forced", "overwriteEntityKeys must force the no-baseline conflict row past its refusal");
+
+  const confirmRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/import/confirm`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ planId: planBody.planId, planHash: planBody.planHash }),
+  });
+  const { confirmationToken } = await expectJson<{ confirmationToken: string }>(confirmRes, 200);
+
+  // Executing with a DIFFERENT overwriteEntityKeys set re-derives a different report (the row goes
+  // back to `conflict`), which hashes differently from what was confirmed. Step 4 of gateway.execute()
+  // (the existing plan-staleness check) refuses it before token redemption — no code dedicated to
+  // detecting a changed selection exists anywhere in this ceremony.
+  const mismatchedExecuteRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/import/execute`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ bundleId, confirmationToken, overwriteEntityKeys: [] }),
+  });
+  assert.equal(mismatchedExecuteRes.status, 409);
+  assert.equal(((await mismatchedExecuteRes.json()) as { code: string }).code, "PLAN_STALE");
+  assert.equal(applyCalls, 0, "a mismatched overwriteEntityKeys set at execute must write nothing");
+
+  // Step 4's check runs BEFORE token redemption (step 5) — the token is still unredeemed, so the
+  // same confirmationToken can be retried with the keys that actually match what was confirmed.
+  const executeRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/import/execute`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ bundleId, confirmationToken, overwriteEntityKeys: [key] }),
+  });
+  await expectJson(executeRes, 200);
+  assert.equal(applyCalls, 1, "the same overwriteEntityKeys set at execute must reach the apply seam");
+});
+
+test("publish-content import: a malformed overwriteEntityKeys is rejected with the exact validation text, on both plan and execute", async (t) => {
+  const { deps, server, baseUrl } = await startServer();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const cookie = await loginAsOwner(baseUrl);
+  deps.publishContentApplyPort = { applyReport: async () => ({ runId: "fake-run-malformed", changeSetIds: [] }) };
+
+  const { bundleId } = await stagePostBundle(baseUrl, cookie, "Malformed overwrite keys post");
+
+  const planRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/import/plan`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ bundleId, overwriteEntityKeys: "not-an-array" }),
+  });
+  assert.equal(planRes.status, 400);
+  const planBody = (await planRes.json()) as { error: string; code: string };
+  assert.equal(planBody.error, "'overwriteEntityKeys' must be an array of strings");
+  assert.equal(planBody.code, "VALIDATION_ERROR");
+
+  const confirmationToken = await planAndConfirm(baseUrl, cookie, bundleId);
+  const executeRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/import/execute`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ bundleId, confirmationToken, overwriteEntityKeys: [42] }),
+  });
+  assert.equal(executeRes.status, 400);
+  const executeBody = (await executeRes.json()) as { error: string; code: string };
+  assert.equal(executeBody.error, "'overwriteEntityKeys' must be an array of strings");
+  assert.equal(executeBody.code, "VALIDATION_ERROR");
 });
 
 test("gated-mutations gateway: an agent principal can never confirm a publish-content import plan", async () => {

@@ -42,6 +42,25 @@ import { toPublishContentReportDto } from "./report-dto.js";
  * `merge-term.ts`'s `intoTermId` being required in both `plan` and `execute` bodies for the
  * identical reason: `computePlan()`/`executeMutation()` need to know what to recompute against).
  */
+/** Distinguishes "the body carried a malformed selection" (a 400) from "the body carried none"
+ *  (`null`, force nothing) — the same two-outcome shape `peer-transport.ts`'s own
+ *  `readSelectedEntityKeys`/`INVALID_SELECTION` uses for `selectedEntityKeys`. */
+const INVALID_OVERWRITE_KEYS = Symbol("invalid-overwrite-keys");
+
+/** publish-overwrite-live-plan §4/S6 — reads `overwriteEntityKeys` off a `plan`/`execute` request
+ *  body: the `entityKey()` strings (planner.ts) the operator ticked "overwrite on live" for.
+ *  Absent/`null` means "force nothing", the pre-S6 default every existing caller keeps getting.
+ *  Bounded at 1000 entries, matching the plan's own cap — this ceremony never has a legitimate use
+ *  for more than that in one bundle. */
+function readOverwriteEntityKeys(body: unknown): readonly string[] | null | typeof INVALID_OVERWRITE_KEYS {
+  const raw = (body ?? {}) as Record<string, unknown>;
+  if (raw.overwriteEntityKeys === undefined || raw.overwriteEntityKeys === null) return null;
+  if (!Array.isArray(raw.overwriteEntityKeys)) return INVALID_OVERWRITE_KEYS;
+  if (raw.overwriteEntityKeys.length > 1000) return INVALID_OVERWRITE_KEYS;
+  if (!raw.overwriteEntityKeys.every((key): key is string => typeof key === "string")) return INVALID_OVERWRITE_KEYS;
+  return raw.overwriteEntityKeys;
+}
+
 function statusFor(err: unknown): { status: number; code: string } {
   if (err instanceof ForbiddenError) return { status: 403, code: err.reasonCode };
   if (err instanceof PlanStaleError) return { status: 409, code: "PLAN_STALE" };
@@ -71,7 +90,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
     return byEntityType;
   }
 
-  function buildHooks(bundleId: string, actorId: string, res: Response) {
+  function buildHooks(bundleId: string, actorId: string, res: Response, forcedEntityKeys?: ReadonlySet<string>) {
     const publishContentDeps = toPublishContentDeps(deps);
     return buildPublishContentImportHooks({
       workspaceId: deps.workspaceId,
@@ -90,6 +109,11 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       restorePointsRepo: deps.restorePointsRepo,
       applyPort: deps.publishContentApplyPort,
       getSeedHash: deps.publishContentSeedHash,
+      // publish-overwrite-live-plan §4/S6 — closed over fresh per request, exactly like `bundleId`
+      // itself (this function's own doc), so a caller's ticks changing between plan/confirm and
+      // execute changes the re-derived report and is caught by the existing PLAN_STALE mechanism
+      // (`gated-hooks.ts`'s own doc on `forcedEntityKeys`), not by anything bespoke here.
+      ...(forcedEntityKeys === undefined ? {} : { forcedEntityKeys }),
     });
   }
 
@@ -105,8 +129,13 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         res.status(400).json({ error: "'bundleId' (string) is required", code: "VALIDATION_ERROR" });
         return;
       }
+      const overwriteEntityKeys = readOverwriteEntityKeys(req.body);
+      if (overwriteEntityKeys === INVALID_OVERWRITE_KEYS) {
+        res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
+        return;
+      }
 
-      const hooks = buildHooks(bundleId, principal.id, res);
+      const hooks = buildHooks(bundleId, principal.id, res, overwriteEntityKeys === null ? undefined : new Set(overwriteEntityKeys));
       const result = await plan({
         deps: withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
         principalId: principal.id,
@@ -178,6 +207,11 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         res.status(400).json({ error: "'bundleId' and 'confirmationToken' (strings) are required", code: "VALIDATION_ERROR" });
         return;
       }
+      const overwriteEntityKeys = readOverwriteEntityKeys(req.body);
+      if (overwriteEntityKeys === INVALID_OVERWRITE_KEYS) {
+        res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
+        return;
+      }
 
       // Pre-check mirroring `database/migrate-forward.ts`'s AUD-001 fix: authorize BEFORE the
       // costClass refusal ever runs, so an authenticated-but-unauthorized caller cannot learn this
@@ -201,7 +235,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         return;
       }
 
-      const hooks = buildHooks(bundleId, principal.id, res);
+      const hooks = buildHooks(bundleId, principal.id, res, overwriteEntityKeys === null ? undefined : new Set(overwriteEntityKeys));
       const capabilities = await deps.dbOps.getCapabilities();
 
       const result = await executePublishContentImport({

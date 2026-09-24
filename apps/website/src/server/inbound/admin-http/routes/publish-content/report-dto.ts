@@ -17,6 +17,11 @@ export function toPublishContentReportDto(report: PublishContentReport): Publish
       outcome: row.outcome,
       writes: row.writes,
       reason: row.reason,
+      // publish-overwrite-live-plan §4/S6 — whitelisted the same field-by-field way as every other
+      // row field above (this mapper's own doc), so the admin dialog and the chat surface can offer
+      // the "overwrite on live" tick without either reaching into the planner's own row shape.
+      canOverwrite: row.canOverwrite,
+      retires: row.retires,
     })),
   };
 }

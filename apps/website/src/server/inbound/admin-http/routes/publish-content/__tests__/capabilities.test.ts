@@ -140,3 +140,15 @@ test("a grant naming a type nobody registered names nothing this instance does n
   const body = (await res.json()) as { entityTypes: string[] };
   assert.deepEqual(body.entityTypes, ["post"]);
 });
+
+test("publish-overwrite-live-plan §4/S6: answers 'overwrite-live' in features, unconditionally — a code capability, not a per-grant content type", async (t) => {
+  resetPublishContentContributorsForTests();
+  registerPublishContentContributor(stubHandler("post", 1));
+  const app = buildApp({ publishTrust: publishTrust(["post"]) });
+  const server = await startTestServer(app, t);
+
+  const res = await fetch(`${server}${BASE}`);
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { features: string[] };
+  assert.deepEqual(body.features, ["overwrite-live"]);
+});
