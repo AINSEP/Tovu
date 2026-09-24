@@ -1,12 +1,18 @@
-import { api, type AdminPublishCredentialsSnapshot } from "@/lib/api";
-import type { PublishCredentialsPort } from "./publish-credentials-port.hooks";
+import { api, type AdminPublishCredentialSummary, type AdminPublishCredentialVerification, type AdminPublishCredentialsSnapshot } from "@/lib/api";
+import type { PublishCredentialSaveResult, PublishCredentialsPort } from "./publish-credentials-port.hooks";
+
+/** Keeps the save-time `verification` the server returns beside `credential` — dropping it was how
+ *  a rejected token saved as plain "connected" with no warning. */
+function withSaveVerification(res: { credential: AdminPublishCredentialSummary; verification?: AdminPublishCredentialVerification }): PublishCredentialSaveResult {
+  return res.verification ? { ...res.credential, verification: res.verification } : res.credential;
+}
 
 /** The live implementation, as a module-level singleton — matches
  *  `static-publish-dependencies.hooks.ts`'s `defaultStaticPublishPort`. */
 export const defaultPublishCredentialsPort: PublishCredentialsPort = {
   listCredentials: () => api.listPublishCredentials(),
-  createCredential: (input) => api.createPublishCredential(input).then((res) => res.credential),
-  updateCredential: (id, input) => api.updatePublishCredential(id, input).then((res) => res.credential),
+  createCredential: (input) => api.createPublishCredential(input).then(withSaveVerification),
+  updateCredential: (id, input) => api.updatePublishCredential(id, input).then(withSaveVerification),
   deleteCredential: (id) => api.deletePublishCredential(id),
   verifyCredential: (id) => api.verifyPublishCredential(id).then((res) => res.verification),
 };

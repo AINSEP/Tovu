@@ -3992,7 +3992,7 @@ export const api = {
    *  entirely (not `false`) lets the server apply its own default-assignment rule (e.g. a provider's
    *  first-ever saved connection), rather than this admin guessing at it. */
   createPublishCredential: (input: { label: string; connection: AdminPublishConnectionInput; isDefault?: boolean }) =>
-    request<{ credential: AdminPublishCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials`, {
+    request<{ credential: AdminPublishCredentialSummary; verification?: AdminPublishCredentialVerification }>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials`, {
       method: "POST",
       body: JSON.stringify(input),
     }),
@@ -4003,7 +4003,7 @@ export const api = {
    *  owns clearing any previous default for that same provider); omitted leaves default status
    *  unchanged. */
   updatePublishCredential: (id: string, input: { label?: string; connection?: AdminPublishConnectionInput; isDefault?: boolean }) =>
-    request<{ credential: AdminPublishCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials/${encodeURIComponent(id)}`, {
+    request<{ credential: AdminPublishCredentialSummary; verification?: AdminPublishCredentialVerification }>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials/${encodeURIComponent(id)}`, {
       method: "PUT",
       body: JSON.stringify(input),
     }),

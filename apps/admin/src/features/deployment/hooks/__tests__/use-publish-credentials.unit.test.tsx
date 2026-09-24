@@ -867,3 +867,88 @@ describe("usePublishCredentials — save, error handling", () => {
     expect(byProvider["netlify"].token).toBe("nl_abc"); // untouched by the sibling row's failed save
   });
 });
+
+// c7-rev-settings-deploy 2026-09-24: `POST`/`PUT .../credentials` already verify the just-saved
+// connection and return `verification` in the response (`publish-credentials.ts`, "did what I just
+// typed work"), but the admin dropped it — a rejected token saved and showed "connected" with no
+// warning, and a valid one never showed "connected as X" until a reload.
+describe("usePublishCredentials — save surfaces the server's save-time verification", () => {
+  function githubRow(rows: ReturnType<typeof usePublishCredentials>["rows"]) {
+    return rows!.find((row) => row.providerId === "github-pages")!;
+  }
+
+  it("shows an invalid verdict returned with a new connection's create response", async () => {
+    const port = createFakePublishCredentialsPort({
+      createCredential: () =>
+        Promise.resolve({
+          ...GH_CREDENTIAL,
+          verification: { status: "invalid", message: "GitHub rejected this token (401 Bad credentials).", checkedAt: "2026-09-24T00:00:00.000Z" },
+        }),
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    act(() => result.current.setToken("github-pages", "ghp_bad"));
+    await act(async () => {
+      await result.current.save("github-pages");
+    });
+
+    const row = githubRow(result.current.rows);
+    expect(row.saved?.id).toBe("cred-1");
+    expect(row.verification?.status).toBe("invalid");
+    expect(row.verification?.message).toBe("GitHub rejected this token (401 Bad credentials).");
+    expect(row.saved).not.toHaveProperty("verification");
+  });
+
+  it("heals accountLabel from a valid verdict returned with a replaced connection's update response", async () => {
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => Promise.resolve({ credentials: [{ ...GH_CREDENTIAL, accountLabel: "old-account" }], executionMode: "self-hosted-cli" }),
+      updateCredential: () =>
+        Promise.resolve({
+          ...GH_CREDENTIAL,
+          accountLabel: null,
+          verification: { status: "valid", message: "Connected as octocat.", checkedAt: "2026-09-24T00:00:00.000Z", accountLabel: "octocat" },
+        }),
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    act(() => result.current.setToken("github-pages", "ghp_new"));
+    await act(async () => {
+      await result.current.save("github-pages");
+    });
+
+    const row = githubRow(result.current.rows);
+    expect(row.saved?.accountLabel).toBe("octocat");
+    expect(row.verification?.message).toBe("Connected as octocat.");
+  });
+
+  it("a verdict for one saved token is not shown once the picker makes a different token the default", async () => {
+    const backup: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "backup", isDefault: false };
+    let listCalls = 0;
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => {
+        listCalls += 1;
+        const credentials = listCalls === 1 ? [GH_CREDENTIAL, backup] : [{ ...GH_CREDENTIAL, isDefault: false }, { ...backup, isDefault: true }];
+        return Promise.resolve({ credentials, executionMode: "self-hosted-cli" });
+      },
+      verifyCredential: () => Promise.resolve({ status: "valid", message: "Connected as octocat.", checkedAt: "2026-09-24T00:00:00.000Z" }),
+      updateCredential: () => Promise.resolve({ ...backup, isDefault: true }),
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    await act(async () => {
+      await result.current.verify("github-pages");
+    });
+    expect(githubRow(result.current.rows).verification?.message).toBe("Connected as octocat.");
+
+    await act(async () => {
+      await result.current.selectCredential("github-pages", "cred-2");
+    });
+
+    const row = githubRow(result.current.rows);
+    expect(row.saved?.id).toBe("cred-2");
+    expect(row.verification).toBeUndefined();
+  });
+});

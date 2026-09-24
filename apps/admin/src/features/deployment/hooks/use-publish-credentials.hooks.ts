@@ -188,6 +188,9 @@ interface RowFormState {
   verifying: boolean;
   verification: AdminPublishCredentialVerification | undefined;
   verifyError: string | null;
+  /** The saved credential `verification`/`verifyError` describe. The picker can make a different
+   *  token the default after a verify, and a verdict about the old token must not be shown for the new. */
+  verifiedCredentialId: string | null;
 }
 
 /** One provider's token-picker promotion — see {@link PublishCredentialRowState.selectingCredentialId}
@@ -198,7 +201,7 @@ interface SelectionState {
 }
 
 function blankRowFormState(): RowFormState {
-  return { token: "", accountId: "", saving: false, error: null, verifying: false, verification: undefined, verifyError: null };
+  return { token: "", accountId: "", saving: false, error: null, verifying: false, verification: undefined, verifyError: null, verifiedCredentialId: null };
 }
 
 /**
@@ -286,14 +289,19 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
     setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], saving: true, error: null } }));
     try {
       const connection = buildPublishConnectionInput(fields);
-      const result = existing
+      const { verification, ...saved } = existing
         ? await port.updateCredential(existing.id, { connection })
         : await port.createCredential({ label: PUBLISH_CREDENTIAL_ROW_LABEL, connection });
+      // The response's summary predates the server's own `healAccountLabel` write in the same request.
+      const result = verification?.accountLabel !== undefined ? { ...saved, accountLabel: verification.accountLabel } : saved;
       setCredentials((prev) => {
         const base = prev ?? [];
         return existing ? base.map((current) => (current.id === result.id ? result : current)) : [...base, result];
       });
-      setFormStates((prev) => ({ ...prev, [providerId]: rowFormStateAfterSave(prev[providerId], fields) }));
+      setFormStates((prev) => ({
+        ...prev,
+        [providerId]: { ...rowFormStateAfterSave(prev[providerId], fields), verification, verifiedCredentialId: verification ? result.id : null },
+      }));
     } catch (err) {
       setFormStates((prev) => ({
         ...prev,
@@ -308,7 +316,7 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
     const connected = defaultCredentialForProvider(credentials ?? [], providerId);
     if (!connected) return; // Nothing saved for this provider yet — no row for `verify`'s button to have come from.
 
-    setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], verifying: true, verifyError: null } }));
+    setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], verifying: true, verifyError: null, verifiedCredentialId: connected.id } }));
     try {
       const result = await port.verifyCredential(connected.id);
       // Mirrors the server's own `healAccountLabel` write (`publish-credentials.ts`'s route doc) —
@@ -333,16 +341,18 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
       ? undefined
       : PUBLISH_CREDENTIAL_PROVIDERS.map((provider) => {
           const formState = formStates[provider.id];
+          const saved = defaultCredentialForProvider(credentials, provider.id);
+          const verdictIsForSaved = saved !== undefined && formState.verifiedCredentialId === saved.id;
           return {
             providerId: provider.id,
-            saved: defaultCredentialForProvider(credentials, provider.id),
+            saved,
             token: formState.token,
             accountId: formState.accountId,
             saving: formState.saving,
             error: formState.error,
             verifying: formState.verifying,
-            verification: formState.verification,
-            verifyError: formState.verifyError,
+            verification: verdictIsForSaved ? formState.verification : undefined,
+            verifyError: verdictIsForSaved ? formState.verifyError : null,
             selectingCredentialId: selections[provider.id]?.pendingId ?? null,
             selectError: selections[provider.id]?.error ?? null,
           };

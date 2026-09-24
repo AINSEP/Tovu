@@ -5,6 +5,13 @@ import type {
   AdminPublishCredentialVerification,
 } from "@/lib/api";
 
+/** A saved credential plus the server's save-time verification of it, when the write carried a
+ *  `connection` — `POST`/`PUT .../credentials` verify what was just saved and return the verdict
+ *  beside the summary (`publish-credentials.ts`'s header). Absent for an `isDefault`-only write. */
+export type PublishCredentialSaveResult = AdminPublishCredentialSummary & {
+  verification?: AdminPublishCredentialVerification;
+};
+
 /**
  * @file What `usePublishCredentials` needs from the outside world, as an interface rather than a
  * direct `lib/api` import — same shape as `static-publish-port.hooks.ts` in this directory.
@@ -15,14 +22,14 @@ export interface PublishCredentialsPort {
   listCredentials(): Promise<AdminPublishCredentialsSnapshot>;
   /** Creates one named connection. Rejects with an `ApiError` (`code: "DUPLICATE_LABEL"`) if this
    *  workspace already has a credential with the same label. */
-  createCredential(input: { label: string; connection: AdminPublishConnectionInput; isDefault?: boolean }): Promise<AdminPublishCredentialSummary>;
+  createCredential(input: { label: string; connection: AdminPublishConnectionInput; isDefault?: boolean }): Promise<PublishCredentialSaveResult>;
   /** Updates a credential's label, connection, and/or default status. Omitting `connection` keeps the
    *  stored secret untouched — see `use-publish-credentials.hooks.ts`'s header for why the form can
    *  never send a half-blank one. */
   updateCredential(
     id: string,
     input: { label?: string; connection?: AdminPublishConnectionInput; isDefault?: boolean }
-  ): Promise<AdminPublishCredentialSummary>;
+  ): Promise<PublishCredentialSaveResult>;
   /** Idempotent — deleting an id that is already gone still resolves. */
   deleteCredential(id: string): Promise<void>;
   /** Re-checks one already-saved credential against its real provider right now — see

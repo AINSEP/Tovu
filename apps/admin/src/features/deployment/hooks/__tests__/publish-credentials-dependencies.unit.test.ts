@@ -61,6 +61,21 @@ describe("defaultPublishCredentialsPort", () => {
     expect(createPublishCredential).toHaveBeenCalledWith(input);
   });
 
+  it("createCredential keeps the save-time verification the server returns beside the credential", async () => {
+    const c = credential({ id: "cred-2" });
+    const verification: AdminPublishCredentialVerification = { status: "invalid", message: "GitHub rejected this token.", checkedAt: "2026-09-24T00:00:00.000Z" };
+    createPublishCredential.mockResolvedValue({ credential: c, verification });
+    const input = { label: "default", connection: { providerId: "github-pages" as const, token: "ghp_x" } };
+    await expect(defaultPublishCredentialsPort.createCredential(input)).resolves.toEqual({ ...c, verification });
+  });
+
+  it("updateCredential keeps the save-time verification the server returns beside the credential", async () => {
+    const c = credential();
+    const verification: AdminPublishCredentialVerification = { status: "valid", message: "Connected as octocat.", checkedAt: "2026-09-24T00:00:00.000Z", accountLabel: "octocat" };
+    updatePublishCredential.mockResolvedValue({ credential: c, verification });
+    await expect(defaultPublishCredentialsPort.updateCredential("cred-1", { connection: { providerId: "github-pages", token: "t" } })).resolves.toEqual({ ...c, verification });
+  });
+
   it("updateCredential forwards id + input to api.updatePublishCredential and unwraps the envelope", async () => {
     const c = credential({ label: "Renamed" });
     updatePublishCredential.mockResolvedValue({ credential: c });
