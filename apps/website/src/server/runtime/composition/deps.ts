@@ -94,7 +94,7 @@ import {
   SqliteMemberTierRepo,
 } from "#src/features/members/index";
 import { SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "#src/features/commerce/repo.sqlite";
-import { rebuildNavLocationBindings } from "#src/features/navigation/index";
+import { rebuildNavLocationBindings, registerMenuReverters } from "#src/features/navigation/index";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "#src/features/navigation/repo.sqlite";
 import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash-follow-ups";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";
@@ -1763,14 +1763,20 @@ export function createSqliteRouteDeps(
     // Pre-loaded with the post-domain reverters, closed over the SAME postRepo/clock/outbox
     // instances this root threads through everything else (ADR-018 C-005/C-006; 2026-08-13
     // features-post-deep-import-trace.md Job 2 — see `features/post/reverters.ts`'s header).
-    revertRegistry: createPostRevertRegistry({
-      postRepo,
-      clock,
-      outbox,
-      // `post/delete`'s reverter clears the trash marker; without this the index row it was written
-      // with outlives it and the Trash lists a post that is live again.
-      forgetRemoved: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
-    }),
+    // R4 (`plan-publish-repoint-menus-2026-09-24.md` §2.4/§3) wraps the SAME registry with the
+    // menu-domain `menu/update` reverter, closed over this root's own menuRepo, so a repoint change
+    // set is revertible from History exactly like any other publish write.
+    revertRegistry: registerMenuReverters(
+      createPostRevertRegistry({
+        postRepo,
+        clock,
+        outbox,
+        // `post/delete`'s reverter clears the trash marker; without this the index row it was written
+        // with outlives it and the Trash lists a post that is live again.
+        forgetRemoved: bindForgetRemovedEntity(trashRepo, POST_ENTITY_TYPE),
+      }),
+      { menuRepo, clock, idGen, outbox }
+    ),
     themes: siteThemes,
     themesDir: resolvedThemesDir,
     // Design C (2026-09-16) — the package's own read-only catalog, threaded through separately from

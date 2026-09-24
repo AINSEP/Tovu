@@ -138,6 +138,13 @@ export {
  */
 export { trashMenu, type RemoveMenuFn, type TrashMenuInput, type TrashMenuDeps } from "./trash-menu.js";
 
+/**
+ * R4 (`plan-publish-repoint-menus-2026-09-24.md` §2.4/§3): the menu-domain entity reverter(s), so a
+ * repoint change set (`./publish-content.ts`'s `repointReferences`) is revertible from History —
+ * host-local, not from Jini, mirroring `trashMenu`'s own placement immediately above.
+ */
+export { registerMenuReverters, createMenuReverters, type MenuReverterDeps } from "./reverters.js";
+
 /** The agent-tool surface for this domain (see the package's `agent-tools.ts` for what is deliberately omitted). */
 export {
   menusAgentToolCatalog,
