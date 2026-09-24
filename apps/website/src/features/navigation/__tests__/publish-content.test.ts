@@ -451,3 +451,41 @@ test("repointReferences() skips a menu that keeps conflicting after one retry, w
   assert.equal(result.linksUpdated, 0);
   assert.deepEqual(result.changeSetIds, []);
 });
+
+/** A change-set ledger whose `insert` always fails — the "mutation landed, record did not" window
+ *  `executeCommand` closes with `mutation.rollback` (INV-01: no mutation without a record). */
+class FailingInsertChangeSetRepo extends InMemoryChangeSetRepo {
+  override async insert(): Promise<void> {
+    throw new Error("change-set ledger unavailable");
+  }
+}
+
+test("repointReferences() puts the prior tree back when the change-set record fails after the write landed", async () => {
+  const priorItems = [entryRefItem("item-1", "post-about")];
+  const menuRepo = new InMemoryMenuRepo([
+    menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: priorItems } }), version: 5 }),
+  ]);
+  const outbox = new InMemoryOutbox();
+  const deps = { ...makeRepointDeps({ menuRepo }), outbox, changeSets: new FailingInsertChangeSetRepo([], [], outbox) };
+  const handler = contributeMenusPublish().build(deps);
+
+  await assert.rejects(
+    () =>
+      handler.repointReferences!({
+        replacements: [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }],
+        skipIds: new Set(),
+        principalId: "operator-1",
+        runId: "run-1",
+      }),
+    /change-set ledger unavailable/
+  );
+
+  const landed = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-header" });
+  // JSON round-trip: Jini's `validateAndCloneTree` writes an explicit `children: undefined`, which a
+  // persisted tree never carries — the comparison is of the stored shape.
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(landed?.doc.items)),
+    priorItems,
+    "an unrecorded repoint must be rolled back, never left live and unrevertible"
+  );
+});

@@ -384,6 +384,9 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
       const repointed = repointMenuItems(menu.doc.items, input.replacementByOldId);
       if (repointed.count === 0) return { kind: "no-op" }; // already resolved (this attempt or a peer)
 
+      const writeDeps = { repo: input.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: input.outbox };
+      // The version `execute` wrote, so `rollback` can put the prior tree back under OCC.
+      let writtenVersion: number | null = null;
       try {
         const { changeSetId } = await executeCommand({
           deps: { clock: deps.clock, idGen: deps.idGen, changeSets: input.changeSets, outbox: input.outbox, authorize: input.authorize },
@@ -399,12 +402,26 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
             entityId: menu.id,
             operation: "update",
             captureInverse: async () => ({ items: menu.doc.items } as unknown as JsonObject),
-            execute: () =>
-              updateMenuTree({
-                deps: { repo: input.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: input.outbox },
+            execute: async () => {
+              const written = await updateMenuTree({
+                deps: writeDeps,
                 input: { workspaceId: deps.workspaceId, id: menu.id, expectedVersion: menu.version, items: repointed.items },
-              }),
+              });
+              writtenVersion = written.menu.version;
+              return written;
+            },
             captureEntityVersion: (result) => result.menu.version,
+            // Compensating undo when the change-set record fails AFTER the write landed (INV-01: no
+            // mutation without a record) — same role as `retire()`'s `rollback` in
+            // `features/post/publish-content.ts`. Without it the menu stays repointed with no History
+            // entry to revert, while the caller reports the links as not updated.
+            rollback: async () => {
+              if (writtenVersion === null) return;
+              await updateMenuTree({
+                deps: writeDeps,
+                input: { workspaceId: deps.workspaceId, id: menu.id, expectedVersion: writtenVersion, items: menu.doc.items },
+              });
+            },
           },
         });
         return { kind: "written", changeSetId, count: repointed.count };
