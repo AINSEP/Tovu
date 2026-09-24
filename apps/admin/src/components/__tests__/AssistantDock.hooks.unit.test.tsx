@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import type { SetStateAction } from "react";
+import { StrictMode, type ReactNode, type SetStateAction } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
@@ -1854,5 +1854,63 @@ describe("useFolderDropBridge", () => {
     const { result } = renderHook(() => useFolderDropBridge({ composerHandle }, undefined));
 
     expect(result.current).toBe(fake);
+  });
+});
+
+// 2026-09-23: the three dock pickers called `saveExecutionConfig` INSIDE a `setExecutionConfig`
+// updater. StrictMode runs every updater twice, so each real pick wrote two `setting_revisions` rows.
+describe("dock picks under StrictMode", () => {
+  const strict = ({ children }: { children: ReactNode }) => <StrictMode>{children}</StrictMode>;
+
+  function useDockExecution() {
+    const execution = useExecutionConfig();
+    const byok = useByokRuntime(execution);
+    const localCli = useLocalCliSelection(execution);
+    return { ...execution, ...byok, ...localCli };
+  }
+
+  beforeEach(() => {
+    mockCreateExecutionPort.mockReturnValue({ listModels: vi.fn().mockResolvedValue([]) } as never);
+  });
+
+  it("one mode switch is one save", () => {
+    const { result } = renderHook(useDockExecution, { wrapper: strict });
+
+    act(() => result.current.handleExecutionModeChange("api"));
+
+    expect(mockSaveExecutionConfig).toHaveBeenCalledTimes(1);
+    expect(result.current.executionConfig.mode).toBe("byok");
+  });
+
+  it("one BYOK model pick is one save", () => {
+    const { result } = renderHook(useDockExecution, { wrapper: strict });
+
+    act(() => result.current.handleByokModelChange("gpt-5"));
+
+    expect(mockSaveExecutionConfig).toHaveBeenCalledTimes(1);
+    expect(result.current.executionConfig.byok.model).toBe("gpt-5");
+  });
+
+  it("one Local CLI pick is one save", () => {
+    const { result } = renderHook(useDockExecution, { wrapper: strict });
+
+    act(() => result.current.handleLocalCliSelectionChange({ agentId: "codex", model: "o3" }));
+
+    expect(mockSaveExecutionConfig).toHaveBeenCalledTimes(1);
+    expect(result.current.executionConfig.localCli.agentId).toBe("codex");
+  });
+
+  it("two quick picks each save against the previous pick, not the render-time value", () => {
+    const { result } = renderHook(useDockExecution, { wrapper: strict });
+
+    act(() => {
+      result.current.handleByokModelChange("gpt-5");
+      result.current.handleByokModelChange("gpt-5-mini");
+    });
+
+    expect(mockSaveExecutionConfig).toHaveBeenCalledTimes(2);
+    const [, secondPrevious] = mockSaveExecutionConfig.mock.calls[1] as [ExecutionConfig, ExecutionConfig];
+    expect(secondPrevious.byok.model).toBe("gpt-5");
+    expect(result.current.executionConfig.byok.model).toBe("gpt-5-mini");
   });
 });
