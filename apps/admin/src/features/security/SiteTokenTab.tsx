@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { AGENT_PRIVATE_ATTRIBUTE, agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { siteTokenGenerateErrorMessage } from "./security-i18n";
@@ -185,7 +185,8 @@ function siteTokenStatusNote(status: { active: boolean; source: "env" | "file" |
 }
 
 /** Reveal — never shown on page load; the button is present whenever a key is active, and clicking
- *  it fetches (and displays, with a copy control) the raw value. {@link SiteTokenRevealedValue}'s
+ *  it fetches (and displays, with a copy control) the raw value. Human-only: Reveal carries no agent
+ *  handle, so the assistant's page driver cannot click it. {@link SiteTokenRevealedValue}'s
  *  own Hide button toggles it back off, client-side only (no server call). @complexity O(1). */
 function SiteTokenRevealAction({ controller }: { controller: SiteTokenController }) {
   const translate = controller.t;
@@ -201,7 +202,6 @@ function SiteTokenRevealAction({ controller }: { controller: SiteTokenController
         className="btn-secondary"
         disabled={controller.revealing}
         onClick={() => void controller.reveal()}
-        {...agentHandle("security-site-token-reveal", { role: "button", label: "Reveal the active Site Token's value" })}
       >
         {controller.revealing ? translate("Revealing…") : translate("Reveal")}
       </button>
@@ -215,14 +215,15 @@ function SiteTokenRevealAction({ controller }: { controller: SiteTokenController
 }
 
 /** The revealed value itself, plus Copy/Hide — the ONLY place in this tab that ever renders a key
- *  VALUE rather than a fingerprint. @complexity O(1). */
+ *  VALUE rather than a fingerprint. The value is `data-agent-private`, so no published ancestor's
+ *  text carries it to the agent, and neither it nor Copy has a handle. @complexity O(1). */
 function SiteTokenRevealedValue({ hex, onHide, t: translate }: { hex: string; onHide: () => void; t: Translate }) {
   const { copied, copy } = useRevealedKeyCopy(hex);
   return (
     <div className="site-token-revealed-value">
-      <code {...agentHandle("security-site-token-reveal-value", { role: "field", label: "The active Site Token's value, in the clear" })}>{hex}</code>
+      <code {...{ [AGENT_PRIVATE_ATTRIBUTE]: "" }}>{hex}</code>
       <div className="site-token-revealed-actions">
-        <button type="button" className="btn-secondary" onClick={() => void copy()} {...agentHandle("security-site-token-copy", { role: "button", label: "Copy the Site Token to the clipboard" })}>
+        <button type="button" className="btn-secondary" onClick={() => void copy()}>
           {copied ? translate("Copied!") : translate("Copy")}
         </button>
         <button type="button" className="btn-ghost" onClick={onHide} {...agentHandle("security-site-token-hide", { role: "button", label: "Hide the revealed Site Token" })}>
