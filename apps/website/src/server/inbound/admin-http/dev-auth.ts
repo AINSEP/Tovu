@@ -542,6 +542,20 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
   // it's a check against your own row, so it can't be used to probe anyone else's password.
   // Deliberately a separate route from `/auth/me` rather than a field on it: that route runs on
   // every admin boot, and only the dashboard needs the ~tens-of-ms argon2id verify this adds.
+  //
+  // Results are memoized by the stored hash: argon2id is deliberately expensive, and a signed-in
+  // session could otherwise call this in a loop. A hash is salted per write, so any password change
+  // produces a new key and is re-verified — the cache can never report a stale answer. Capped and
+  // cleared wholesale; it only holds hashes already in the DB and booleans.
+  const defaultPasswordByHash = new Map<string, boolean>();
+  const usesDefaultPasswordFor = async (passwordHash: string): Promise<boolean> => {
+    const cached = defaultPasswordByHash.get(passwordHash);
+    if (cached !== undefined) return cached;
+    const result = await deps.passwordHasher.verify(passwordHash, DEFAULT_OWNER_PASSWORD);
+    if (defaultPasswordByHash.size >= 256) defaultPasswordByHash.clear();
+    defaultPasswordByHash.set(passwordHash, result);
+    return result;
+  };
   app.get("/api/admin/v1/auth/me/password-status", async (req, res) => {
     const principal = await currentPrincipal(deps, req);
     if (!principal) {
@@ -554,7 +568,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
       principalId: principal.id,
     });
     const usesDefaultPassword = userRow
-      ? await deps.passwordHasher.verify(userRow.passwordHash, DEFAULT_OWNER_PASSWORD)
+      ? await usesDefaultPasswordFor(userRow.passwordHash)
       : false;
 
     res.json({ usesDefaultPassword });

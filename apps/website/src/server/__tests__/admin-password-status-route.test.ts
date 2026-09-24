@@ -87,3 +87,48 @@ test("password-status: after resetUserPassword to another value, a fresh sign-in
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { usesDefaultPassword: false });
 });
+
+test("password-status: repeat reads of an unchanged hash reuse one argon2 verify; a new hash re-verifies", async (t) => {
+  const { app, deps } = buildTestApp();
+  const realHasher = deps.passwordHasher;
+  const defaultChecks: string[] = [];
+  deps.passwordHasher = {
+    ...realHasher,
+    verify: async (hash: string, password: string) => {
+      if (password === "tovu-dev") defaultChecks.push(hash);
+      return realHasher.verify(hash, password);
+    },
+  } as RouteDeps["passwordHasher"];
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const before = defaultChecks.length;
+
+  for (let i = 0; i < 3; i += 1) {
+    const res = await fetch(`${baseUrl}/api/admin/v1/auth/me/password-status`, { headers: { cookie } });
+    assert.deepEqual(await res.json(), { usesDefaultPassword: true });
+  }
+  assert.equal(defaultChecks.length - before, 1);
+
+  const ownerId = await deps.ownerPrincipalId;
+  await resetUserPassword({
+    deps: { repos: identityReposFrom(deps), hasher: realHasher, clock: deps.clock, idGen: deps.idGen },
+    input: {
+      workspaceId: deps.workspaceId,
+      callerPrincipalId: ownerId,
+      principalId: ownerId,
+      password: "a-strong-non-default-password",
+      seededOwnerPrincipalId: ownerId,
+    },
+  });
+  const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: "admin", password: "a-strong-non-default-password" }),
+  });
+  const freshCookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
+  const afterChange = defaultChecks.length;
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/auth/me/password-status`, { headers: { cookie: freshCookie } });
+
+  assert.deepEqual(await res.json(), { usesDefaultPassword: false });
+  assert.equal(defaultChecks.length - afterChange, 1);
+});
