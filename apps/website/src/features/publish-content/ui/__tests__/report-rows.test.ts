@@ -159,3 +159,58 @@ test("the button's count is the intersection of the selection and what is select
   // the primary button makes out loud.
   assert.equal(countSelectedPublishing(rows, new Set(["post:c", "post:gone"])), 0);
 });
+
+// ---------------------------------------------------------------------------
+// "Overwrite on live" (publish-overwrite-live-plan-2026-09-24.md §4/S9)
+// ---------------------------------------------------------------------------
+
+test("overwritable is true only for a skipped row whose planner canOverwrite is true", () => {
+  const rows = toPublishReportRows(
+    report([
+      row({ outcome: "blocked", entityId: "a", canOverwrite: true, reason: "slug taken" }),
+      row({ outcome: "conflict", entityId: "b", canOverwrite: true, reason: "edited on the live site" }),
+      row({ outcome: "blocked", entityId: "c", canOverwrite: false, reason: "blob missing" }),
+      // A `forced` row is already `publish`, not `skipped` — it never gets a SECOND control
+      // offering to do the same overwrite again, whatever its own `canOverwrite` says.
+      row({ outcome: "forced", entityId: "d", canOverwrite: true, reason: "operator accepted the conflict" }),
+      row({ outcome: "created", entityId: "e" }),
+      row({ outcome: "unchanged", entityId: "f" }),
+    ])
+  );
+
+  assert.deepEqual(
+    rows.map((r) => [r.entityId, r.overwritable]),
+    [["a", true], ["b", true], ["c", false], ["d", false], ["e", false], ["f", false]]
+  );
+});
+
+test("retiresLabel names the live row an overwrite would retire, falling back to a short id", () => {
+  const [withLabel] = toPublishReportRows(
+    report([
+      row({
+        outcome: "blocked",
+        entityId: "a",
+        canOverwrite: true,
+        reason: "slug taken",
+        retires: { entityType: "post", entityId: "post-about", entityLabel: "About", hash: "h1" },
+      }),
+    ])
+  );
+  assert.equal(withLabel.retiresLabel, "About");
+
+  const [withoutLabel] = toPublishReportRows(
+    report([
+      row({
+        outcome: "blocked",
+        entityId: "b",
+        canOverwrite: true,
+        reason: "slug taken",
+        retires: { entityType: "post", entityId: "d4bf2a26-2ed2-4143-b3ae-78404ca1b36b", entityLabel: null, hash: "h2" },
+      }),
+    ])
+  );
+  assert.equal(withoutLabel.retiresLabel, "d4bf2a26");
+
+  const [none] = toPublishReportRows(report([row({ outcome: "created", entityId: "c" })]));
+  assert.equal(none.retiresLabel, null);
+});

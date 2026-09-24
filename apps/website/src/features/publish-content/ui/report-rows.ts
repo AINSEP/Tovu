@@ -57,6 +57,20 @@ export interface PublishReportRow {
   readonly reason: string | null;
   /** The planner's own `writes` flag, carried through unmodified. */
   readonly appliesOnExecute: boolean;
+  /**
+   * publish-overwrite-live-plan §4/S9 — whether this row may render the "Overwrite on live"
+   * checkbox. `true` only for a `skipped` row whose planner `canOverwrite` is `true`: a row the run
+   * already writes (an ordinary `publish` disposition, including an already-forced conflict) never
+   * gets a SECOND control offering to do the same thing again, and an `unchanged` row has nothing to
+   * overwrite. Ticking one re-plans with `overwriteEntityKeys` (`use-publish-content-confirm.hooks.ts`),
+   * which is what turns this same row `forced` and moves it out of `skipped` on the next render — the
+   * checkbox is never itself what publishes anything.
+   */
+  readonly overwritable: boolean;
+  /** The live row an overwrite of this entity would retire, named for the dialog — the planner's own
+   *  `retires.entityLabel`, falling back to a short id the same way {@link entityLabel} does. `null`
+   *  when this row retires nothing (every outcome but a resolvable slug clash). */
+  readonly retiresLabel: string | null;
 }
 
 /** What the counts under the table add up to. */
@@ -80,15 +94,37 @@ const MISSING_REASON = "No reason recorded.";
 const SHORT_ID_LENGTH = 8;
 
 /**
+ * The shared fallback behind both {@link displayLabelFor} and {@link retiresLabelFor}: prefer a real
+ * label, fall back to a short id prefix, never the full uuid.
+ *
+ * @complexity O(1).
+ */
+function labelOrShortId(label: string | null | undefined, id: string): string {
+  if (label !== null && label !== undefined && label.trim().length > 0) return label;
+  return id.slice(0, SHORT_ID_LENGTH);
+}
+
+/**
  * What to print in the entity column. Prefers the planner's own label; falls back to a short id
  * prefix, never the full uuid (`?? null` covers an older peer whose report predates the field).
  *
  * @complexity O(1).
  */
 function displayLabelFor(row: PublishContentOutcomeRow): string {
-  const label = row.entityLabel ?? null;
-  if (label !== null && label.trim().length > 0) return label;
-  return row.entityId.slice(0, SHORT_ID_LENGTH);
+  return labelOrShortId(row.entityLabel, row.entityId);
+}
+
+/**
+ * What the dialog names the live row an overwrite would retire, or `null` when this row retires
+ * nothing. Same fallback as {@link displayLabelFor} — a `RetireTarget` carries its own
+ * `entityLabel`/`entityId` pair, not the row's.
+ *
+ * @complexity O(1).
+ */
+function retiresLabelFor(row: PublishContentOutcomeRow): string | null {
+  const target = row.retires ?? null;
+  if (target === null) return null;
+  return labelOrShortId(target.entityLabel, target.entityId);
 }
 
 const DISPOSITION_BY_OUTCOME: Readonly<Record<PublishContentOutcomeRow["outcome"], PublishRowDisposition>> = {
@@ -143,6 +179,8 @@ export function toPublishReportRows(report: PublishContentReport): readonly Publ
       dispositionLabel: LABEL_BY_OUTCOME[row.outcome],
       reason: disposition === "skipped" ? (row.reason ?? MISSING_REASON) : row.reason,
       appliesOnExecute: row.writes,
+      overwritable: disposition === "skipped" && row.canOverwrite === true,
+      retiresLabel: retiresLabelFor(row),
     };
   });
 }
