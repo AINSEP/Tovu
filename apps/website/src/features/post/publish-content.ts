@@ -9,7 +9,7 @@ import type {
   RetireTarget,
 } from "#src/features/publish-content/type-registry";
 
-import { importPostEntity, isTrashed, restorePostForward, retirePostForReplacement, PostNotFoundError, ROOT_SLUG } from "./post.js";
+import { importPostEntity, isTrashed, restorePostForward, retirePostForReplacement, PostConflictError, PostNotFoundError, ROOT_SLUG } from "./post.js";
 import type { PostKind, PostRecord } from "./post.js";
 
 /**
@@ -516,6 +516,11 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
           holder = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: target.entityId });
           if (!holder) {
             throw new PostNotFoundError(`${target.entityType} '${target.entityId}' was not found`);
+          }
+          // The apply loop's own re-check runs before this read, outside any lock; checking the
+          // hash again here, on the row whose version `execute` pins, closes that gap.
+          if (contentHash(holder.kind, toPublishableState(holder)) !== target.hash) {
+            throw new PostConflictError(`the live ${target.entityType} at this address changed after this run's plan was built`);
           }
           return { deletedAt: null };
         },

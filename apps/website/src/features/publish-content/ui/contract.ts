@@ -76,4 +76,7 @@ export interface PublishContentExecuteResult {
   readonly restorePointId: string;
   readonly runId: string;
   readonly changeSetIds: readonly string[];
+  /** publish-overwrite-live-plan §4 — the change sets that moved a live address holder to Trash, kept
+   *  apart from `changeSetIds`. Absent from a live built before the overwrite feature. */
+  readonly retiredChangeSetIds?: readonly string[];
 }

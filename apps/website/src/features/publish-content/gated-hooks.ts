@@ -129,7 +129,13 @@ export interface PublishContentApplyPort {
      * Absent means "use the port's own", so every existing caller is unchanged.
      */
     authorize?: PublishContentDeps["authorize"];
-  }): Promise<{ runId: string; changeSetIds: readonly string[] }>;
+  }): Promise<{
+    runId: string;
+    changeSetIds: readonly string[];
+    /** publish-overwrite-live-plan §4 — the change sets that retired a live address holder, one per
+     *  retire-forced row that landed. Kept apart from `changeSetIds` so that list stays one per row. */
+    retiredChangeSetIds: readonly string[];
+  }>;
 }
 
 export interface BuildPublishContentImportHooksInput {
@@ -186,7 +192,7 @@ export function buildPublishContentImportHooks(
   input: BuildPublishContentImportHooksInput
 ): GatedMutationHooks<
   PublishContentReport,
-  { restorePointId: string; runId: string; changeSetIds: readonly string[] }
+  { restorePointId: string; runId: string; changeSetIds: readonly string[]; retiredChangeSetIds: readonly string[] }
 > {
   /** Re-derives the current `PublishContentReport` from live state, never cached across calls (this
    *  file's header). `computePlan()` is its ONLY caller: `executeMutation()` deliberately does not
@@ -277,7 +283,7 @@ export function buildPublishContentImportHooks(
       // row the operator confirmed as `conflict` (no write) could re-derive as `applied` (a write)
       // and be applied unseen: the operator authorises one write set and gets another.
       const report = verified.details;
-      const { runId, changeSetIds } = await input.applyPort.applyReport({
+      const { runId, changeSetIds, retiredChangeSetIds } = await input.applyPort.applyReport({
         report,
         principalId: input.actorId,
         bundleId: input.bundleId,
@@ -287,7 +293,7 @@ export function buildPublishContentImportHooks(
         // process and this decision is per request.
         ...(input.publishContentDeps.authorize === undefined ? {} : { authorize: input.publishContentDeps.authorize }),
       });
-      return { restorePointId, runId, changeSetIds };
+      return { restorePointId, runId, changeSetIds, retiredChangeSetIds };
     },
     resolveActorClassIdentity,
   };

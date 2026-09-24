@@ -422,6 +422,8 @@ function makeRetireFakeHandler(options: {
   store: Map<string, { version: number; hash: string; retired: boolean }>;
   holderId: string;
   applyShouldThrow: boolean;
+  /** Every idempotency key `retire()` was called with, in call order. */
+  retireKeys?: string[];
 }): PublishContentHandler {
   let retireCount = 0;
   return {
@@ -451,6 +453,7 @@ function makeRetireFakeHandler(options: {
     retire: async (input: { target: RetireTarget; principalId: string; idempotencyKey: string }) => {
       const holder = options.store.get(input.target.entityId)!;
       options.store.set(input.target.entityId, { ...holder, retired: true });
+      options.retireKeys?.push(input.idempotencyKey);
       retireCount += 1;
       return {
         changeSetId: `cs-retire-${retireCount}`,
@@ -501,6 +504,86 @@ test("the create failing after a successful retire puts the holder back live —
 
   const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
   assert.equal(run?.phase, "failed", "a genuine (non-downgradeable) apply() throw must still fail the run, not silently swallow it");
+});
+
+/** One forced `widget` row whose fake handler retires `holder-widget`, staged and planned. */
+async function setUpWidgetRetire(options: {
+  baselineRepo?: PublishContentBaselineRepoPort;
+  applyShouldThrow: boolean;
+  retireKeys?: string[];
+}) {
+  const store = new Map<string, { version: number; hash: string; retired: boolean }>();
+  store.set("holder-widget", { version: 1, hash: "holder-hash", retired: false });
+  const harness = makeHarness([], options.baselineRepo);
+  const handlerOptions = {
+    store,
+    holderId: "holder-widget",
+    applyShouldThrow: options.applyShouldThrow,
+    ...(options.retireKeys === undefined ? {} : { retireKeys: options.retireKeys }),
+  };
+  registerPublishContentContributor(fakeWidgetContributor(makeRetireFakeHandler(handlerOptions)));
+  const incomingEntity: PackedEntity = {
+    entityType: "widget",
+    id: "incoming-widget",
+    schemaVersion: 1,
+    contentHash: "incoming-hash",
+    hashVersion: CONTENT_HASH_VERSION,
+    requiredBlobs: [],
+    state: { title: "Incoming Widget" },
+  };
+  const report = await planWithForce(harness.publishContentDeps, [incomingEntity], new Set([entityKey("widget", "incoming-widget")]));
+  const bundleId = await stage(harness.bundleRepo, harness.clock, [incomingEntity]);
+  return { ...harness, store, handlerOptions, report, bundleId };
+}
+
+test("a baseline failure AFTER the create landed must not undo the retire — the new row already holds the address", async () => {
+  const failingBaselineRepo: PublishContentBaselineRepoPort = {
+    findOne: async () => null,
+    upsert: async () => {
+      throw new Error("simulated baseline write failure");
+    },
+  };
+  const { store, runRepo, applyPort, report, bundleId } = await setUpWidgetRetire({
+    baselineRepo: failingBaselineRepo,
+    applyShouldThrow: false,
+  });
+
+  await assert.rejects(
+    applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" }),
+    /simulated baseline write failure/
+  );
+
+  assert.equal(store.has("incoming-widget"), true, "precondition: the create really landed");
+  assert.equal(
+    store.get("holder-widget")?.retired,
+    true,
+    "undo() after a landed create would put the holder back at an address the new row now holds"
+  );
+  const status = await getPublishContentRunStatus(runRepo, { workspaceId: WORKSPACE_ID, runId: "run-1" });
+  assert.equal(status?.items[0]?.phase, "content_applied");
+  assert.equal(status?.items[0]?.changeSetId, "cs-create-1");
+  assert.deepEqual(status?.retiredChangeSetIds, ["cs-retire-1"], "the landed retire's change set must survive the later failure too");
+});
+
+test("a retry after an undone retire uses a fresh retire idempotency key, so the command gateway never refuses it as already executed", async () => {
+  const retireKeys: string[] = [];
+  const { handlerOptions, applyPort, report, bundleId } = await setUpWidgetRetire({ applyShouldThrow: true, retireKeys });
+
+  await assert.rejects(applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" }));
+  handlerOptions.applyShouldThrow = false;
+  await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-2" });
+
+  assert.equal(retireKeys.length, 2);
+  assert.notEqual(retireKeys[0], retireKeys[1], "the first run's retire change set still holds its key after undo()");
+});
+
+test("applyReport returns the retire change sets beside changeSetIds, never mixed into them", async () => {
+  const { applyPort, report, bundleId } = await setUpWidgetRetire({ applyShouldThrow: false });
+
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+
+  assert.deepEqual(result.changeSetIds, ["cs-create-1"]);
+  assert.deepEqual(result.retiredChangeSetIds, ["cs-retire-1"]);
 });
 
 test("a row without `retires` behaves exactly as before S5 — the generic created/removed guards still apply", async () => {

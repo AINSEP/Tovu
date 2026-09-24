@@ -178,6 +178,8 @@ interface ApplyRowContext {
   readonly recordContentApplied: (input: {
     itemKey: string;
     changeSetId: string;
+    /** The retire half's own change set, for a `retires` row whose retire and create both landed. */
+    retiredChangeSetId?: string;
   }) => Promise<void>;
 }
 
@@ -317,42 +319,45 @@ async function applyOneRow(
       };
     }
 
+    const itemIdempotencyKey = publishContentItemIdempotencyKey({
+      workspaceId: ctx.workspaceId,
+      sourcePrincipalId: ctx.sourcePrincipalId,
+      entity,
+    });
     let retireResult: { changeSetId: string; undo(): Promise<void> } | undefined;
+    let changeSetId: string;
     try {
       retireResult = await handler.retire({
         target: row.retires,
         principalId: ctx.principalId,
-        idempotencyKey: `${key}:retire`,
+        // Scoped to this run: `undo()` restores forward and leaves the retire's change set (and its
+        // key) in the ledger, so a key shared across runs would make every retry after an undone
+        // retire fail as "already executed".
+        idempotencyKey: `${itemIdempotencyKey}:retire:${ctx.runId}`,
       });
-      const { changeSetId } = await handler.apply({
+      ({ changeSetId } = await handler.apply({
         entity,
         expectedVersion: undefined, // current === null (checked above) — this is always a create.
         principalId: ctx.principalId, // always the operator — see this file's header.
-        idempotencyKey: publishContentItemIdempotencyKey({
-          workspaceId: ctx.workspaceId,
-          sourcePrincipalId: ctx.sourcePrincipalId,
-          entity,
-        }),
-      });
-      await ctx.recordContentApplied({ itemKey: key, changeSetId });
-      await ctx.baselineRepo.upsert({
-        workspaceId: ctx.workspaceId,
-        peerPrincipalId: ctx.sourcePrincipalId,
-        entityType: row.entityType,
-        entityId: row.entityId,
-        hashAtLastSync: entity.contentHash,
-        hashVersion: entity.hashVersion,
-        syncedAt: ctx.clock.nowIso(),
-        runId: ctx.runId,
-      });
-      return { row, changeSetId, retiredChangeSetId: retireResult.changeSetId };
+        idempotencyKey: itemIdempotencyKey,
+      }));
     } catch (error) {
       // The retire already landed but the create it was clearing the address FOR did not — put the
       // holder back rather than leaving it retired with nothing to show for it (this handler's own
       // `retire()` doc: the apply loop is the one caller besides its own gateway rollback that calls
-      // `undo()` directly).
+      // `undo()` directly). Only here: once the create has landed, the new row holds the address and
+      // putting the holder back would collide with it.
       if (retireResult) {
-        await retireResult.undo();
+        try {
+          await retireResult.undo();
+        } catch (undoError) {
+          const cause = error instanceof Error ? error.message : String(error);
+          const undoCause = undoError instanceof Error ? undoError.message : String(undoError);
+          throw new Error(
+            `${row.entityType} '${row.entityId}' was not created (${cause}), and putting the retired ` +
+              `${row.retires.entityType} '${row.retires.entityId}' back failed too (${undoCause}) — restore it from Trash`
+          );
+        }
       }
       const downgrade = classifyApplyRowFailure(error, row);
       if (downgrade) {
@@ -364,6 +369,20 @@ async function applyOneRow(
       }
       throw error; // genuine failure — the caller's own try/catch persists a `failed` run row and rethrows.
     }
+    // Both writes landed. A failure from here on is accounting only, so it fails the run (keeping
+    // `content_applied` and both change-set ids) instead of undoing anything.
+    await ctx.recordContentApplied({ itemKey: key, changeSetId, retiredChangeSetId: retireResult.changeSetId });
+    await ctx.baselineRepo.upsert({
+      workspaceId: ctx.workspaceId,
+      peerPrincipalId: ctx.sourcePrincipalId,
+      entityType: row.entityType,
+      entityId: row.entityId,
+      hashAtLastSync: entity.contentHash,
+      hashVersion: entity.hashVersion,
+      syncedAt: ctx.clock.nowIso(),
+      runId: ctx.runId,
+    });
+    return { row, changeSetId, retiredChangeSetId: retireResult.changeSetId };
   }
 
   if (row.outcome === "created" && current !== null) {
@@ -530,7 +549,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
           items: [],
           finishedAt: input.clock.nowIso(),
         });
-        return { runId, changeSetIds: [] };
+        return { runId, changeSetIds: [], retiredChangeSetIds: [] };
       }
 
       const entities = JSON.parse(staged.entitiesJson) as readonly PackedEntity[];
@@ -576,6 +595,8 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         Array.from(
           new Set(itemStates().flatMap((item) => (item.changeSetId === null ? [] : [item.changeSetId])))
         );
+      const currentRetiredChangeSetIds = (): string[] =>
+        itemStates().flatMap((item) => (item.retiredChangeSetId === null ? [] : [item.retiredChangeSetId]));
       const currentReport = (): PublishContentReport => ({
         ...report,
         rows: report.rows.map((row) => effectiveRowsByKey.get(entityKey(row.entityType, row.entityId)) ?? row),
@@ -610,13 +631,14 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         baselineRepo: input.baselineRepo,
         getSeedHash: input.getSeedHash ?? NO_PUBLISH_CONTENT_SEED_HASH,
         clock: input.clock,
-        recordContentApplied: async ({ itemKey, changeSetId }) => {
+        recordContentApplied: async ({ itemKey, changeSetId, retiredChangeSetId }) => {
           const item = itemByKey.get(itemKey);
           if (!item) return;
           itemByKey.set(itemKey, {
             ...item,
             phase: "content_applied",
             changeSetId,
+            ...(retiredChangeSetId === undefined ? {} : { retiredChangeSetId }),
             updatedAt: input.clock.nowIso(),
           });
           await saveSnapshot("applying", null);
@@ -669,7 +691,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
       }
 
       await saveSnapshot("applied", input.clock.nowIso());
-      return { runId, changeSetIds: currentChangeSetIds() };
+      return { runId, changeSetIds: currentChangeSetIds(), retiredChangeSetIds: currentRetiredChangeSetIds() };
     },
   };
 }

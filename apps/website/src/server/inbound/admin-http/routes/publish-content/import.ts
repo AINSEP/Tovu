@@ -248,7 +248,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
             principalKind: gatedPrincipalKindFor(getAuthedCredentialKind(res)),
             hooks: hooks as unknown as GatedMutationHooks<
               unknown,
-              { restorePointId: string; runId: string; changeSetIds: readonly string[] }
+              { restorePointId: string; runId: string; changeSetIds: readonly string[]; retiredChangeSetIds: readonly string[] }
             >,
             confirmationToken,
           }),

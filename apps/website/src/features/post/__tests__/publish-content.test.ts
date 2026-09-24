@@ -473,7 +473,7 @@ test("retire() records a change set whose revert un-trashes the row", async () =
     entityType: "post",
     entityId: "post-1",
     entityLabel: "About",
-    hash: "irrelevant-for-this-test",
+    hash: (await handler.inspect("post-1"))!.hash,
   };
 
   const { changeSetId } = await handler.retire!({ target, principalId: "operator-1", idempotencyKey: "retire-1" });
@@ -506,7 +506,7 @@ test("retire()'s undo() restores the holder live, at its original slug — the a
     entityType: "post",
     entityId: "post-1",
     entityLabel: "About",
-    hash: "irrelevant-for-this-test",
+    hash: (await handler.inspect("post-1"))!.hash,
   };
 
   const { undo } = await handler.retire!({ target, principalId: "operator-1", idempotencyKey: "retire-2" });
@@ -515,6 +515,28 @@ test("retire()'s undo() restores the holder live, at its original slug — the a
   const restored = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
   assert.equal(isTrashed(restored!), false);
   assert.equal(restored?.slug, "about", "undo() must restore the ORIGINAL slug, unlike a standard revert which only clears the trash marker");
+});
+
+test("retire() refuses a target whose live content no longer matches the planned hash, and leaves the holder live", async () => {
+  const holder = makePost({ id: "post-1", slug: "about", version: 3, status: "published" });
+  const deps = makeApplyDeps([holder]);
+  const handler = contributePostPublish().build(deps);
+  const target: RetireTarget = {
+    entityType: "post",
+    entityId: "post-1",
+    entityLabel: "About",
+    hash: (await handler.inspect("post-1"))!.hash,
+  };
+  await deps.postRepo.save({ ...holder, title: "Edited on live after the check", version: 4 });
+
+  await assert.rejects(
+    () => handler.retire!({ target, principalId: "operator-1", idempotencyKey: "retire-stale" }),
+    { message: "the live post at this address changed after this run's plan was built" }
+  );
+
+  const after = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
+  assert.equal(isTrashed(after!), false);
+  assert.equal(after?.slug, "about");
 });
 
 test("retire() throws when removePost is not wired — never silently no-ops", async () => {
