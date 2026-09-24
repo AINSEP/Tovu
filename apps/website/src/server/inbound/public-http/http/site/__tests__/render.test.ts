@@ -1152,6 +1152,64 @@ test("renderDocNode: an asset with no htmlAttributes set renders exactly as befo
   assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
 });
 
+// --- readable-slugs S3: renderImageTag/renderVideoTag emit the resolved asset's slug, not its id ---
+
+test("renderDocNode: a resolved mediaAssetMetadata entry carrying a slug renders the /m/ URL keyed by the SLUG, not the assetId (readable-slugs S3)", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  const html = renderDocNode(
+    doc,
+    undefined,
+    new Map([["public", 3]]),
+    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: null, slug: "fox" }]])
+  );
+  assert.equal(html, '<img src="/m/fox/public.v3/image.jpg" alt="x" loading="lazy">');
+});
+
+test("renderDocNode: an INVALID slug (fails isValidMediaSlugFormat — e.g. contains '/') in mediaAssetMetadata falls back to the id, never emitting the bad value into the URL", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  const html = renderDocNode(
+    doc,
+    undefined,
+    new Map([["public", 3]]),
+    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: null, slug: "../etc" }]])
+  );
+  assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
+});
+
+test("renderDocNode: no slug on the mediaAssetMetadata entry (absent field, or a resolved asset that never had one) renders keyed by the id exactly as before this feature — no regression", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  const html = renderDocNode(
+    doc,
+    undefined,
+    new Map([["public", 3]]),
+    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: null, slug: null }]])
+  );
+  assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
+});
+
+test("renderDocNode: a generic media VIDEO node with a slug in mediaAssetMetadata renders the /original URL keyed by the SLUG too", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "media", attrs: { assetId: "asset-vid", transformName: "public", alt: "A clip" } }],
+  };
+  const html = renderDocNode(
+    doc,
+    undefined,
+    undefined,
+    new Map([["asset-vid", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "video/mp4", slug: "fox" }]])
+  );
+  assert.match(html, /<video src="\/m\/fox\/original" controls>A clip<\/video>/);
+});
+
 test("renderDocNode: a malformed assetId/transformName (embedded '/', empty, or over-length) degrades to the placeholder even when the name would otherwise resolve — never a malformed /m/ URL", () => {
   const resolved = new Map([["public", 1], ["", 1]]);
   const cases: Array<{ assetId: string; transformName: string }> = [
@@ -2221,6 +2279,54 @@ test("renderSite (Slice 2, media): a resolved data-embed-config type=\"media\" e
   });
 
   assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="A photo" width="640" height="480" class="rounded" loading="lazy">/);
+});
+
+test("renderSite (Slice 2, media): a media-image IR carrying props.slug renders the /m/ URL keyed by the SLUG, not props.assetId (readable-slugs S3)", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"media","id":"asset-1","variant":"public"}'></div>` });
+
+  const html = await renderSite({
+    theme,
+    route: "post",
+    siteTitle: "T",
+    posts: [post],
+    post,
+    pageHtmlEmbeds: htmlEmbeds({
+      media: new Map([
+        [
+          "asset-1",
+          { componentId: "media-image", props: { assetId: "asset-1", slug: "fox", transformName: "public", version: 3, alt: "A photo", width: null, height: null, cssClass: null } },
+        ],
+      ]),
+    }),
+  });
+
+  assert.match(html, /<img src="\/m\/fox\/public\.v3\/image\.jpg" alt="A photo" loading="lazy">/);
+});
+
+test("renderSite (Slice 2, media): a media-image VIDEO IR carrying props.slug renders the /original URL keyed by the SLUG too", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` });
+
+  const html = await renderSite({
+    theme,
+    route: "post",
+    siteTitle: "T",
+    posts: [post],
+    post,
+    pageHtmlEmbeds: htmlEmbeds({
+      media: new Map([
+        [
+          "asset-1",
+          { componentId: "media-image", props: { assetId: "asset-1", slug: "fox", contentType: "video/mp4", alt: "A hero clip", width: null, height: null, cssClass: null } },
+        ],
+      ]),
+    }),
+  });
+
+  assert.match(html, /<video src="\/m\/fox\/original" controls>A hero clip<\/video>/);
 });
 
 test("renderSite (Slice 2, media): width/height/class are each omitted independently when null, never a zeroed/empty attribute", async () => {

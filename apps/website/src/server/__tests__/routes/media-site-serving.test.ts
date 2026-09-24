@@ -144,7 +144,7 @@ test("owner-directed quick-and-dirty sizing fix: a real uploaded asset with widt
     body: JSON.stringify({ filename: "sized.png", contentType: "image/png", dataBase64: onePixelPngBase64 }),
   });
   assert.equal(uploadRes.status, 201);
-  const { media } = (await uploadRes.json()) as { media: { id: string } };
+  const { media } = (await uploadRes.json()) as { media: { id: string; slug: string } };
 
   // Same PATCH route/shape the admin edit panel's new Width/Height/CSS-class fields use.
   const patchRes = await fetch(`${baseUrl}${BASE}/media/${media.id}`, {
@@ -180,11 +180,19 @@ test("owner-directed quick-and-dirty sizing fix: a real uploaded asset with widt
   assert.equal(siteRes.status, 200);
   const html = await siteRes.text();
 
-  const expectedSrc = `/m/${media.id}/${CORE_PUBLIC_TRANSFORM_NAME}.v${definition.version}/image.jpg`;
+  // Readable-slugs S3: the emitted URL is now keyed by the asset's SLUG, not its id — `render.ts`'s
+  // `mediaUrlKey` prefers a valid slug (S2a/S2b's `media_slug_history` is what makes emitting it
+  // safe: a later rename keeps this exact URL resolving via history, not by pointing at the id).
+  assert.ok(media.slug, "precondition: an uploaded asset gets a slug");
+  const expectedSrc = `/m/${media.slug}/${CORE_PUBLIC_TRANSFORM_NAME}.v${definition.version}/image.jpg`;
   assert.match(
     html,
     new RegExp(`<img src="${expectedSrc.replace(/\//g, "\\/")}" alt="sized" width="640" height="480" class="post-image" loading="lazy">`)
   );
+
+  // Closes the loop: the slug-keyed URL render.ts emitted must itself resolve on the real route.
+  const renditionRes = await fetch(`${baseUrl}${expectedSrc}`);
+  assert.equal(renditionRes.status, 200, "the slug-keyed URL must actually serve the asset, not just look plausible in HTML");
 });
 
 test("ADR-027 §4: a published post with a legacy hostile-scheme-src image node still renders the placeholder on a real GET /:slug — no backward-compat regression through the real HTTP path", async (t) => {

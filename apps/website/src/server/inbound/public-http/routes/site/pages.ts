@@ -1383,6 +1383,7 @@ export async function resolveMediaAssetMetadataForRender(
           height: record.height,
           cssClass: record.cssClass,
           htmlAttributes: record.htmlAttributes,
+          slug: record.slug ?? null,
           sha256: record.source.sha256,
         },
       ] as const;
@@ -1404,6 +1405,7 @@ export async function resolveMediaAssetMetadataForRender(
         height: meta.height,
         cssClass: meta.cssClass,
         htmlAttributes: meta.htmlAttributes,
+        slug: meta.slug,
         contentType: contentTypes.get(meta.sha256) ?? null,
       },
     ])

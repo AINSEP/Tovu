@@ -18,7 +18,7 @@ import { substituteHtmlEmbeds, type EmbedOccurrence, type PageHtmlEmbedRef } fro
 import type { MarkerAttribute } from "#src/contracts/core/embeds/marker";
 import { parseEmbedHtmlAttributes } from "#src/contracts/core/embeds/html-attributes";
 import { ATTRIBUTE_NAME_PATTERN } from "#src/features/forms/forms";
-import { mediaPublicPath } from "#src/features/media/index";
+import { mediaPublicPath, mediaUrlKey } from "#src/features/media/index";
 import { renderHandlebarsInSandbox } from "./handlebars-sandbox.js";
 import { renderLiquidInSandbox } from "./liquid-sandbox.js";
 import { FORM_BASELINE_STYLE, FORM_CLASS, renderFormSuccessSlot, renderFormErrorSlot } from "./form-render.js";
@@ -223,6 +223,16 @@ export interface MediaAssetRenderMeta {
    * adding it changes nothing about how `image` nodes render.
    */
   contentType: string | null;
+  /**
+   * The asset's CURRENT slug, or `null` when it has none (never uploaded through a path that
+   * derives one, or a genuinely legacy row) — readable-slugs plan S3 (2026-09-23). This is the one
+   * field {@link renderImageTag}/{@link renderVideoTag} read to decide the `/m/...` URL's key
+   * (`mediaUrlKey`, `features/media/public-path.ts`): a present, valid slug wins, otherwise the
+   * asset's `id` is used, same fallback `mediaUrlKey` itself implements. Rename safety
+   * (`media_slug_history`, S2a/S2b) is what makes emitting a slug here safe — a slug this render
+   * captures can be renamed later without breaking the URL already baked into this HTML.
+   */
+  slug: string | null;
 }
 
 function isObject(value: unknown): value is JsonObject {
@@ -825,7 +835,10 @@ function mergeMediaExtraAttributes(
 const MEDIA_IMAGE_FIXED_ATTRIBUTE_NAMES: ReadonlySet<string> = new Set(["class", "alt", "width", "height", "loading"]);
 
 function renderImageTag(props: {
-  readonly assetId: string;
+  /** The `/m/...` path segment to serve this asset at — its slug when it has one, otherwise its id.
+   *  Built by every caller via `mediaUrlKey` (readable-slugs S3); this function only templates
+   *  whatever key it is handed, same as before this field was renamed from `assetId`. */
+  readonly urlKey: string;
   readonly transformName: string;
   readonly version: number;
   readonly alt: string;
@@ -835,7 +848,7 @@ function renderImageTag(props: {
   readonly htmlAttributes: string | null;
   readonly markerAttributes?: readonly MarkerAttribute[];
 }): string {
-  const src = mediaPublicPath(props.assetId, { kind: "transform", name: props.transformName, version: props.version, ext: "jpg" });
+  const src = mediaPublicPath(props.urlKey, { kind: "transform", name: props.transformName, version: props.version, ext: "jpg" });
   const markerAttributes = props.markerAttributes ?? NO_MARKER_ATTRIBUTES;
   const altAttr = mediaAltAttrValue(props.alt, markerAttributes);
   const widthAttr = mediaDimensionAttr("width", props.width, markerAttributes);
@@ -883,7 +896,9 @@ function renderImageTag(props: {
 const MEDIA_VIDEO_FIXED_ATTRIBUTE_NAMES: ReadonlySet<string> = new Set(["class", "alt", "width", "height", "controls"]);
 
 function renderVideoTag(props: {
-  readonly assetId: string;
+  /** Same `mediaUrlKey`-built `/m/...` key {@link renderImageTag}'s own `urlKey` documents —
+   *  readable-slugs S3. */
+  readonly urlKey: string;
   readonly alt: string;
   readonly width: number | null;
   readonly height: number | null;
@@ -896,7 +911,7 @@ function renderVideoTag(props: {
    *  Defaults to `true` (the pre-existing, only-ever behavior before this prop existed). */
   readonly controls?: boolean;
 }): string {
-  const src = mediaPublicPath(props.assetId, { kind: "original" });
+  const src = mediaPublicPath(props.urlKey, { kind: "original" });
   const markerAttributes = props.markerAttributes ?? NO_MARKER_ATTRIBUTES;
   const controlsAttr = (props.controls ?? true) ? " controls" : "";
   const widthAttr = mediaDimensionAttr("width", props.width, markerAttributes);
@@ -1311,7 +1326,8 @@ function tryRenderRefImage(
   if (!ids) return null;
   const version = deps.mediaTransformVersions.get(ids.transformName);
   if (version === undefined) return null;
-  const assetOverrides = resolveMediaAssetOverrides(deps.mediaAssetMetadata.get(ids.assetId));
+  const meta = deps.mediaAssetMetadata.get(ids.assetId);
+  const assetOverrides = resolveMediaAssetOverrides(meta);
   const overrides = nodeStyleOverride
     ? {
         ...assetOverrides,
@@ -1319,7 +1335,8 @@ function tryRenderRefImage(
         htmlAttributes: mediaNodeStyleOverride(nodeStyleOverride.htmlAttributes, assetOverrides.htmlAttributes),
       }
     : assetOverrides;
-  return renderImageTag({ assetId: ids.assetId, transformName: ids.transformName, version, alt, ...overrides });
+  const urlKey = mediaUrlKey({ id: ids.assetId, slug: meta?.slug ?? null });
+  return renderImageTag({ urlKey, transformName: ids.transformName, version, alt, ...overrides });
 }
 
 /**
@@ -1424,7 +1441,7 @@ function renderDocMedia(node: JsonObject, _content: JsonValue[] | undefined, dep
   const meta = deps.mediaAssetMetadata.get(assetId);
   if (meta?.contentType?.startsWith("video/")) {
     return renderVideoTag({
-      assetId,
+      urlKey: mediaUrlKey({ id: assetId, slug: meta.slug }),
       alt,
       width: meta.width,
       height: meta.height,
@@ -2456,9 +2473,13 @@ function renderWidgetMediaImage(props: JsonObject): string {
   }
   const { width, height, cssClass, htmlAttributes, markerAttributes, controls } = normalizeMediaDimensions(props);
   const alt = str(props.alt);
+  // Readable-slugs S3: `resolver-service.ts`'s `resolveOneMediaEmbed` (both its video and image IR
+  // branches) stashes the resolved record's `slug` onto the IR alongside `assetId` — same
+  // `mediaUrlKey` fallback-to-id rule every other emitter here uses.
+  const urlKey = mediaUrlKey({ id: assetId, slug: typeof props.slug === "string" ? props.slug : null });
 
   if (typeof props.contentType === "string" && props.contentType.startsWith("video/")) {
-    return renderVideoTag({ assetId, alt, width, height, cssClass, htmlAttributes, markerAttributes, controls });
+    return renderVideoTag({ urlKey, alt, width, height, cssClass, htmlAttributes, markerAttributes, controls });
   }
 
   const transformName = props.transformName;
@@ -2466,7 +2487,7 @@ function renderWidgetMediaImage(props: JsonObject): string {
   if (typeof transformName !== "string" || typeof version !== "number" || !isPlausibleMediaRefId(transformName)) {
     return renderWidgetPlaceholder();
   }
-  return renderImageTag({ assetId, transformName, version, alt, width, height, cssClass, htmlAttributes, markerAttributes });
+  return renderImageTag({ urlKey, transformName, version, alt, width, height, cssClass, htmlAttributes, markerAttributes });
 }
 
 /**
@@ -2547,6 +2568,8 @@ function parseMediaAssetMeta(raw: JsonValue): MediaAssetRenderMeta | null {
     // disclose. A missing/non-string value (an older-shaped payload, or a genuinely unsniffed asset)
     // degrades to `null`, same "not set" convention every other field here already follows.
     contentType: typeof raw.contentType === "string" ? raw.contentType : null,
+    // Readable-slugs S3: same reconstruction, same "missing/wrong-typed degrades to null" rule.
+    slug: typeof raw.slug === "string" ? raw.slug : null,
   };
 }
 
