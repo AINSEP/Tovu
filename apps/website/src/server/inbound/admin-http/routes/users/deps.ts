@@ -55,9 +55,10 @@ export type UsersRouteDeps = Pick<
   | "passwordHasher"
   /** SPEC-006 0.6.0 — `disable.ts`'s seeded-owner guard (REQ-11). */
   | "ownerPrincipalId"
-  /** Delete-user plan decision 4/7 — `delete.ts`'s `DELETE_USER` route needs the purge port to hand
-   *  to `deleteUser`'s `DeleteUserDeps.purge`. */
-  | "userPurge"
+  /** Delete-user plan v2 Slice 2 — `delete.ts`'s `DELETE_USER` route needs both to hand to
+   *  `trashUser`'s `DeleteUserDeps.removeUser`/`.isInTrash`. */
+  | "removeUser"
+  | "isInTrash"
 >;
 
 /** Registrar signature for the users/roles/policies route modules (mirrors `RouteRegistrar`). */

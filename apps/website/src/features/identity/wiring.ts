@@ -20,9 +20,7 @@ import {
 import { InMemoryApiKeyRepo } from "./repo.memory.js";
 import { ScryptApiKeySecretHasher } from "./api-key-secret.js";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "./api-key-types.js";
-import { InMemoryUserPurge } from "./user-purge-types.js";
-import { SqliteUserPurge } from "./user-purge.sqlite.js";
-import type { UserPurgePort } from "./user-purge-types.js";
+import type { RemoveUserFn } from "./delete-user-service.js";
 import {
   SqliteApiKeyRepo,
   SqlitePolicyPermissionRepo,
@@ -85,10 +83,20 @@ export interface IdentityRouteDepsSlice {
   /** Separate from `passwordHasher` on purpose — see `api-key-secret.ts`'s header for the tuning
    *  argument (256-bit machine secret verified per request vs. a human password verified per login). */
   apiKeySecretHasher: ApiKeySecretHasherPort;
-  /** Delete-user plan decision 2/7 — the `DELETE_USER` purge port (`user-purge-types.ts`). Declared
-   *  in this repo for the same reason `apiKeyRepo` above is: the transition it backs is Tovu-local,
-   *  not part of `@jini-ai/cms/identity`'s own nine repo ports. */
-  userPurge: UserPurgePort;
+  /**
+   * Delete-user plan v2 Slice 2 — `trashUser`'s Trash-bound remove callback. This slice is built
+   * and shared by BOTH composition roots (`buildIdentityRouteDeps` below), but only the SQLite root
+   * has a Trash to bind: it has no access to the `trash`/`trashRepo` instances those roots build
+   * downstream of identity (identity wires first). So this defaults to `undefined`/`async () =>
+   * false` here, and `server/runtime/composition/deps.ts` OVERRIDES both fields with real bound
+   * values in its `RouteDeps` object literal, placed AFTER its own `...identity` spread (later keys
+   * win). The in-memory root (`app.ts`) needs no override — `undefined`/`false` IS its correct,
+   * intentional behavior (`trashUser` maps a missing `removeUser` to `UserDeleteUnsupportedError`,
+   * 501, the same "unsupported outside SQLite" story the v1 `UserPurgePort`/`InMemoryUserPurge` told).
+   */
+  removeUser?: RemoveUserFn;
+  /** See {@link IdentityRouteDepsSlice.removeUser}'s doc — same default-then-override story. */
+  isInTrash: (principalId: UUID) => Promise<boolean>;
   identityReady: Promise<void>;
   authorize: AuthorizeFn;
   /**
@@ -115,7 +123,6 @@ export interface IdentityRouteDepsSlice {
 function buildIdentityRouteDeps(
   repos: IdentityRepos,
   apiKeyRepo: ApiKeyRepoPort,
-  userPurge: UserPurgePort,
   required: { workspaceId: UUID; clock: ClockPort; idGen: IdGeneratorPort; reconcileGrantsOnBoot?: boolean }
 ): IdentityRouteDepsSlice {
   const passwordHasher = new Argon2PasswordHasher();
@@ -215,7 +222,10 @@ function buildIdentityRouteDeps(
     passwordHasher,
     apiKeyRepo,
     apiKeySecretHasher,
-    userPurge,
+    // See `IdentityRouteDepsSlice.removeUser`'s doc — `deps.ts` overrides both with real bound
+    // values; the in-memory `app.ts` root keeps these as its correct, final behavior.
+    removeUser: undefined,
+    isInTrash: async () => false,
     identityReady,
     ownerPrincipalId,
     authorize,
@@ -252,7 +262,7 @@ export function createInMemoryIdentityRouteDeps(required: {
     principalRoles: new InMemoryPrincipalRoleRepo(),
     principalPolicies: new InMemoryPrincipalPolicyRepo(),
   };
-  return buildIdentityRouteDeps(repos, new InMemoryApiKeyRepo(), new InMemoryUserPurge(), required);
+  return buildIdentityRouteDeps(repos, new InMemoryApiKeyRepo(), required);
 }
 
 /**
@@ -291,5 +301,5 @@ export function createSqliteIdentityRouteDeps(
     principalRoles: new SqlitePrincipalRoleRepo(db),
     principalPolicies: new SqlitePrincipalPolicyRepo(db),
   };
-  return buildIdentityRouteDeps(repos, new SqliteApiKeyRepo(db), new SqliteUserPurge(db), seedRequired);
+  return buildIdentityRouteDeps(repos, new SqliteApiKeyRepo(db), seedRequired);
 }

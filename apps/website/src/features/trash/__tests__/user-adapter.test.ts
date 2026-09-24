@@ -4,6 +4,7 @@ import test from "node:test";
 import * as schema from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
+import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/cms/identity";
 
 import { createUserTrashAdapter, USER_ENTITY_TYPE } from "../adapters/user.js";
@@ -66,7 +67,7 @@ async function setup(workspaceId: string, idGen: { next(): string } = counterIdG
   };
 
   const registry = buildTrashRegistry({ schema });
-  const adapter: TrashAdapter = createUserTrashAdapter({ db, purge: wiring.userPurge, idGen, clock });
+  const adapter: TrashAdapter = createUserTrashAdapter({ db, purge: new SqliteUserPurge(db), idGen, clock });
   const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]);
   const trash = createTrashService({
     repo: new SqliteTrashRepo(db.$client),
@@ -274,7 +275,7 @@ test("sweeper: purges a user past its retention window and records identity.user
   // produced an "id-1" event, and the sweep's purge-time event must not collide with it.
   let sweepSeq = 0;
   const sweepIdGen = { next: () => `sweep-id-${++sweepSeq}` };
-  const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ db: f.db, purge: f.wiring.userPurge, idGen: sweepIdGen, clock: { nowIso: () => purgeAfter } })]]);
+  const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ db: f.db, purge: new SqliteUserPurge(f.db), idGen: sweepIdGen, clock: { nowIso: () => purgeAfter } })]]);
   const sweep = createTrashSweep({
     repo: new SqliteTrashRepo(f.db.$client),
     adapters,

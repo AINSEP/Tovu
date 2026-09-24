@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import type { PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
 import type { SiteProduct } from "../inbound/public-http/http/site/render.js";
 
 import type { ExportReport } from "#src/platform/export/index";
@@ -29,7 +30,6 @@ import type {
   UserRepoPort,
 } from "@jini-ai/cms/identity";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
-import type { UserPurgePort } from "../../features/identity/user-purge-types.js";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin.js";
 import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord, RemovePostFn } from "../../features/post/index.js";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
@@ -184,9 +184,11 @@ export interface IdentityDeps {
   /** SPEC-006 REQ-08 — the api-key secret hashing seam, deliberately separate from
    *  `passwordHasher`; see `identity/api-key-secret.ts`'s header for why the two are tuned apart. */
   apiKeySecretHasher: ApiKeySecretHasherPort;
-  /** Delete-user plan decision 2/7 — `DELETE_USER`'s purge port; see
-   *  `identity/wiring.ts`'s `IdentityRouteDepsSlice.userPurge` doc for why it lives in this repo. */
-  userPurge: UserPurgePort;
+  /** Delete-user plan v2 Slice 2 — `trashUser`'s Trash-bound remove callback and trash-membership
+   *  check; see `identity/wiring.ts`'s `IdentityRouteDepsSlice.removeUser` doc for the
+   *  default-then-override story between the two composition roots. */
+  removeUser?: RemoveEntity;
+  isInTrash: (principalId: UUID) => Promise<boolean>;
   /**
    * Resolves once first-boot identity seeding (`identity/seed.ts`) completes.
    * Seeding hashes the owner's password (async, argon2id), so
@@ -1554,6 +1556,15 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `createPublishContentApplyPort()`.
    */
   publishContentApplyPort: PublishContentApplyPort;
+  /**
+   * D1 (publish-types-plan §6) — this destination's seed-version lookup
+   * (`features/publish-content/seed-hash.ts`): the hash an entity had in the stock
+   * `content.seed.db` this instance was hydrated from. Passed to BOTH the import route's planner and
+   * `publishContentApplyPort`'s apply-time re-verification, so they agree on what counts as
+   * "untouched since seed". Real seed-backed lookup in `composition/deps.ts`;
+   * `NO_PUBLISH_CONTENT_SEED_HASH` in the hermetic `composition/app.ts`, which ships no seed.
+   */
+  publishContentSeedHash: PublishContentSeedHashFn;
   /**
    * Task 8 of the publish-content (Publish Content) feature — the apply loop's audit trail
    * (`publish_content_runs`, migration `0066`). Exposed on `RouteDeps` (rather than only closed over

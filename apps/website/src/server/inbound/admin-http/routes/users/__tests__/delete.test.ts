@@ -8,7 +8,16 @@ import {
   createSqliteIdentityRouteDeps,
   type IdentityRouteDepsSlice,
 } from "#src/features/identity/wiring";
-import { InMemoryUserPurge } from "#src/features/identity/user-purge-types";
+import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
+import {
+  bindRemoveEntity,
+  createContentDbTransactionRunner,
+  createTrashService,
+  createUserTrashAdapter,
+  SqliteTrashRepo,
+  USER_ENTITY_TYPE,
+  type TrashAdapter,
+} from "#src/features/trash/index";
 import {
   createCapturingResponse,
   extractRouteHandler,
@@ -19,10 +28,11 @@ import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { assignRole, createUser } from "@jini-ai/cms/identity";
 
 /**
- * @file RED-first coverage for the `DELETE_USER` HTTP route (delete-user plan Slice 3). Built over
- * `createSqliteIdentityRouteDeps` (real SQLite-backed identity wiring), not `createRouteDeps()`'s
- * in-memory composition root — the in-memory store's `InMemoryUserPurge` would 501 every case, per
- * the Slice 3 discovery notes in `ADS-memory/.local-artifacts/handoffs/2026-09-24-c7-delete-user-build.md`.
+ * @file RED-first coverage for the `DELETE_USER` HTTP route (delete-user plan v2 Slice 2/3, and the
+ * OWNER DECISION 2026-09-24). Built over `createSqliteIdentityRouteDeps` PLUS a real
+ * `createTrashService`/`createUserTrashAdapter` (the same combination
+ * `identity/__tests__/delete-user-service.test.ts` uses) — a trashed user is disabled, not deleted,
+ * so this suite asserts on `trashed_items`/`principals`, not on the row being gone.
  */
 
 const WORKSPACE_ID = "ws-delete-route";
@@ -31,6 +41,10 @@ const clock = { nowIso: () => NOW };
 function counterIdGen() {
   let n = 0;
   return { newId: () => `id-${++n}` };
+}
+function counterTrashIdGen() {
+  let n = 0;
+  return { next: () => `trash-id-${++n}` };
 }
 const ROUTE_PATH = `/api/admin/v1/workspaces/:workspaceId/users/:principalId`;
 
@@ -58,10 +72,22 @@ async function buildApp(
   principalId?: string
 ): Promise<{ app: express.Express; deps: UsersRouteDeps; wiring: IdentityRouteDepsSlice; db: ContentDb; ownerId: string }> {
   const db = openContentDb(":memory:");
+  db.$client
+    .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
+    .run(WORKSPACE_ID, WORKSPACE_ID, WORKSPACE_ID, "2026-01-01T00:00:00.000Z");
   const wiring = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE_ID, clock, idGen: counterIdGen() });
   await wiring.identityReady;
   const ownerId = await wiring.ownerPrincipalId;
   const callerId = principalId ?? ownerId;
+
+  const trashRepo = new SqliteTrashRepo(db.$client);
+  const adapter: TrashAdapter = createUserTrashAdapter({ db, purge: new SqliteUserPurge(db), idGen: counterTrashIdGen(), clock });
+  const trash = createTrashService({
+    repo: trashRepo,
+    adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),
+    idGen: counterTrashIdGen(),
+    transaction: createContentDbTransactionRunner(db.$client),
+  });
 
   const deps: UsersRouteDeps = {
     workspaceId: WORKSPACE_ID,
@@ -79,7 +105,9 @@ async function buildApp(
     principalPolicyRepo: wiring.principalPolicyRepo,
     passwordHasher: wiring.passwordHasher,
     ownerPrincipalId: wiring.ownerPrincipalId,
-    userPurge: wiring.userPurge,
+    removeUser: bindRemoveEntity(trash, USER_ENTITY_TYPE),
+    isInTrash: async (principalIdToCheck: string) =>
+      (await trashRepo.findByEntity({ workspaceId: WORKSPACE_ID, entityType: USER_ENTITY_TYPE, entityId: principalIdToCheck })) !== null,
     ...depsOverrides,
   };
   const app = mountApp(deps, callerId);
@@ -105,7 +133,7 @@ test("DELETE_USER route: direct invoke fallback for nullish params.workspaceId",
   assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
 });
 
-test("DELETE_USER route: 204 deletes an existing user", async (t) => {
+test("DELETE_USER route: 204 trashes an existing user", async (t) => {
   const { app, deps, ownerId } = await buildApp();
   const baseUrl = await startTestServer(app, t);
   const { principal: target } = await createUser({
@@ -115,10 +143,25 @@ test("DELETE_USER route: 204 deletes an existing user", async (t) => {
 
   const res = await fetch(`${baseUrl}${urlFor(target.id)}`, { method: "DELETE" });
   assert.equal(res.status, 204);
-  assert.equal(await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: target.id }), null);
+  assert.equal((await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: target.id }))?.status, "disabled");
+  assert.equal(await deps.isInTrash!(target.id), true);
 });
 
-test("DELETE_USER route: 403 FORBIDDEN when caller lacks user.manage", async (t) => {
+test("DELETE_USER route: 204 is idempotent when the target is already in the Trash", async (t) => {
+  const { app, deps, ownerId } = await buildApp();
+  const baseUrl = await startTestServer(app, t);
+  const { principal: target } = await createUser({
+    deps: identityServiceDepsFrom(deps),
+    input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "twice-trashed", password: "correct-horse-battery" },
+  });
+
+  const first = await fetch(`${baseUrl}${urlFor(target.id)}`, { method: "DELETE" });
+  assert.equal(first.status, 204);
+  const second = await fetch(`${baseUrl}${urlFor(target.id)}`, { method: "DELETE" });
+  assert.equal(second.status, 204);
+});
+
+test("DELETE_USER route: 403 FORBIDDEN when the caller is neither the owner nor the built-in admin role", async (t) => {
   const { app, deps, ownerId } = await buildApp({}, "unauthorized-caller");
   const baseUrl = await startTestServer(app, t);
   const { principal: target } = await createUser({
@@ -128,9 +171,29 @@ test("DELETE_USER route: 403 FORBIDDEN when caller lacks user.manage", async (t)
 
   const res = await fetch(`${baseUrl}${urlFor(target.id)}`, { method: "DELETE" });
   assert.equal(res.status, 403);
-  const body = (await res.json()) as { code: string; details: { permission: string } };
+  const body = (await res.json()) as { code: string };
   assert.equal(body.code, "FORBIDDEN");
-  assert.equal(body.details.permission, "user.manage");
+});
+
+test("DELETE_USER route: 204 when the caller holds the built-in admin role (not owner) — OWNER DECISION 2026-09-24", async (t) => {
+  const { deps, ownerId } = await buildApp();
+  const svcDeps = identityServiceDepsFrom(deps);
+  const { principal: adminCaller } = await createUser({
+    deps: svcDeps,
+    input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "admin-caller", password: "correct-horse-battery" },
+  });
+  const adminRole = await deps.roleRepo.findByName({ workspaceId: WORKSPACE_ID, name: "admin" });
+  assert.ok(adminRole, "seedIdentity must have created the built-in admin role");
+  await assignRole({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, principalId: adminCaller.id, roleId: adminRole!.id } });
+  const { principal: target } = await createUser({
+    deps: svcDeps,
+    input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "admin-target", password: "correct-horse-battery" },
+  });
+
+  const appAsAdmin = mountApp(deps, adminCaller.id);
+  const baseUrl = await startTestServer(appAsAdmin, t);
+  const res = await fetch(`${baseUrl}${urlFor(target.id)}`, { method: "DELETE" });
+  assert.equal(res.status, 204);
 });
 
 test("DELETE_USER route: 409 SELF_DELETE when the caller targets their own principal", async (t) => {
@@ -175,8 +238,8 @@ test("DELETE_USER route: 404 RESOURCE_NOT_FOUND for an unknown principalId", asy
   assert.equal(body.code, "RESOURCE_NOT_FOUND");
 });
 
-test("DELETE_USER route: 501 NOT_SUPPORTED when the identity store has no purge support", async (t) => {
-  const { app, deps, ownerId } = await buildApp({ userPurge: new InMemoryUserPurge() });
+test("DELETE_USER route: 501 NOT_SUPPORTED when the composition root has no Trash wiring", async (t) => {
+  const { app, deps, ownerId } = await buildApp({ removeUser: undefined });
   const baseUrl = await startTestServer(app, t);
   const { principal: target } = await createUser({
     deps: identityServiceDepsFrom(deps),

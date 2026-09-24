@@ -23,6 +23,7 @@ import { SqlitePublishContentBaselineRepo } from "#src/platform/db/sqlite/publis
 import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
 import { SqlitePublishTrustRevocationStore } from "#src/platform/db/sqlite/publish-trust-revocations.sqlite";
 import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
+import { createSqlitePublishContentSeedHash } from "./publish-content-seed-hash.js";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import {
@@ -119,6 +120,7 @@ import {
   resetAdminPasswordSelfVerified,
   AdminPasswordResetVerificationFailedError,
 } from "#src/features/identity/reset-admin-password-self-verified";
+import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import type { IdentityRepos } from "@jini-ai/cms/identity";
 import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
@@ -205,6 +207,8 @@ import {
   POST_ENTITY_TYPE,
   REDIRECT_ENTITY_TYPE,
   SqliteTrashRepo,
+  USER_ENTITY_TYPE,
+  createUserTrashAdapter,
   type RemoveEntity,
   type TrashAdapter,
   type TrashedItemsRef,
@@ -1230,6 +1234,18 @@ export function createSqliteRouteDeps(
         },
       }),
     ],
+    [
+      USER_ENTITY_TYPE,
+      createUserTrashAdapter({
+        db,
+        // A fresh instance, not `identity.userPurge` (removed — see `wiring.ts`'s
+        // `IdentityRouteDepsSlice.removeUser` doc): `purge`'s hard-delete is now reached only
+        // through this adapter's own `purge()`, never directly from the route layer.
+        purge: new SqliteUserPurge(db),
+        idGen: { next: () => randomUUID() },
+        clock,
+      }),
+    ],
     // One generic adapter per `TRASHABLE` entry — `createTableTrashAdapter` is
     // written once and driven entirely by each entry's own registration, so this line never changes
     // as G2-G4 add more entries.
@@ -1251,6 +1267,12 @@ export function createSqliteRouteDeps(
   });
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
   const removePlugin: RemovePluginFn = unhideIfRemoveThrows(pluginTrashAdapter, bindRemoveEntity(trash, PLUGIN_ENTITY_TYPE));
+  // Delete-user plan v2 Slice 2 — `identity`'s `removeUser`/`isInTrash` overrides (see
+  // `wiring.ts`'s `IdentityRouteDepsSlice.removeUser` doc for why identity itself cannot build
+  // these: it wires before `trash`/`trashRepo` exist).
+  const removeUser = bindRemoveEntity(trash, USER_ENTITY_TYPE);
+  const isInTrash = async (principalId: string): Promise<boolean> =>
+    (await trashRepo.findByEntity({ workspaceId, entityType: USER_ENTITY_TYPE, entityId: principalId })) !== null;
 
   /**
    * Narrows `bindRemoveEntity`'s result for a type whose registry entry declares no `blocker`
@@ -1576,6 +1598,15 @@ export function createSqliteRouteDeps(
   // Task 10 — named remote Tovus, with their API keys sealed at rest under the shared ADR-058
   // sealer/keyring below. See `routes/types.ts`'s `publishContentPeerRepo` doc.
   const publishContentPeerRepo = new SqlitePublishContentPeerRepo(db);
+  // D1 — ONE seed lookup for both the import route's planner and the apply loop's re-verification
+  // (`RouteDeps.publishContentSeedHash`), so the two can never disagree on "untouched since seed".
+  const publishContentSeedHash = createSqlitePublishContentSeedHash({
+    seedDbPath: builtInContentSeedDbPath(),
+    workspaceId,
+    clock,
+    idGen,
+    redirectsWriteDeps,
+  });
   const publishContentApplyPort = createPublishContentApplyPort({
     workspaceId,
     bundleRepo: publishContentBundleRepo,
@@ -1599,6 +1630,7 @@ export function createSqliteRouteDeps(
     }),
     clock,
     idGen,
+    getSeedHash: publishContentSeedHash,
   });
 
   const routeDeps: NewsletterRouteDeps = {
@@ -1741,6 +1773,10 @@ export function createSqliteRouteDeps(
     analyticsSink: new SqliteBufferSink({ db, workspaceId: workspaceId }),
     analyticsConfig: createSettingsAnalyticsConfig({ settingsRepo }),
     ...identity,
+    // Overrides `identity`'s placeholder default (`undefined`/`async () => false`) — see
+    // `wiring.ts`'s `IdentityRouteDepsSlice.removeUser` doc. Must stay AFTER `...identity` above.
+    removeUser,
+    isInTrash,
     redirectRepo,
     redirectHitSink,
     originRegistry,
@@ -1924,6 +1960,7 @@ export function createSqliteRouteDeps(
     // Task 8 — the real apply loop (`apply-loop.ts`). See `routes/types.ts`'s
     // `publishContentApplyPort` doc.
     publishContentApplyPort,
+    publishContentSeedHash,
     // Task 8 — the apply loop's audit trail. See `routes/types.ts`'s `publishContentRunRepo` doc.
     publishContentRunRepo,
     // Task 10 — peers + the guarded outbound client that dials them. See

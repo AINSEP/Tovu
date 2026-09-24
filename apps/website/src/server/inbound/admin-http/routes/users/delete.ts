@@ -6,7 +6,7 @@ import {
   IdentityValidationError,
   OwnerRequiredError,
 } from "@jini-ai/cms/identity";
-import { deleteUser, SelfDeleteError } from "#src/features/identity/delete-user-service";
+import { trashUser, SelfDeleteError } from "#src/features/identity/delete-user-service";
 import { UserDeleteUnsupportedError } from "#src/features/identity/user-purge-types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "./deps.js";
@@ -41,11 +41,13 @@ function sendUserDeleteError(res: Response, err: unknown): void {
 }
 
 /**
- * DELETE users/:principalId — `DELETE_USER` (delete-user plan, 2026-09-24, decisions 4/5/7). Gated
- * by `user.manage`; refuses the caller's own principal (`SELF_DELETE`), the seeded owner or the
- * workspace's last active owner-`*` principal (`OWNER_REQUIRED`), and 501s when the wired
- * `UserPurgePort` has no delete support (`NOT_SUPPORTED`, in-memory identity store) — see
- * `delete-user-service.ts`'s `deleteUser` for the full rule set.
+ * DELETE users/:principalId — moves a user to the Trash (delete-user plan v2, decisions 4/5/7, and
+ * the OWNER DECISION 2026-09-24 that supersedes decision 1). Gated by the caller being the owner or
+ * holding the built-in `admin` role; refuses the caller's own principal (`SELF_DELETE`), the seeded
+ * owner or the workspace's last active owner-`*` principal (`OWNER_REQUIRED`); a target already in
+ * the Trash is an idempotent 204; 501s when the composition root has no Trash wiring
+ * (`NOT_SUPPORTED`, the in-memory identity store) — see `delete-user-service.ts`'s `trashUser` for
+ * the full rule set. Permanent deletion happens only through the Trash's own purge, never here.
  */
 export const registerAdminUserDeleteRoute: UsersRouteRegistrar = (app, deps: UsersRouteDeps) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/users/:principalId", async (req, res) => {
@@ -58,8 +60,8 @@ export const registerAdminUserDeleteRoute: UsersRouteRegistrar = (app, deps: Use
       const caller = getAuthedPrincipal(res);
       const seededOwnerPrincipalId = await deps.ownerPrincipalId;
 
-      await deleteUser({
-        deps: { identity: identityServiceDepsFrom(deps), purge: deps.userPurge },
+      await trashUser({
+        deps: { identity: identityServiceDepsFrom(deps), removeUser: deps.removeUser, isInTrash: deps.isInTrash },
         input: {
           workspaceId: deps.workspaceId,
           callerPrincipalId: caller.id,
