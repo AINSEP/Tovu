@@ -149,21 +149,30 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
 }
 
 /**
- * Restores a trashed post/page by clearing its soft-delete marker — the concrete reason
- * `deletePost` is a marker write rather than a `DELETE FROM` (see `features/post/post.ts`'s
- * `PostRecord.deletedAt`). A hard delete would leave this reverter with nothing to restore.
+ * Restores a trashed post/page's soft-delete marker to what it was BEFORE the change set being
+ * reverted — the concrete reason `deletePost` is a marker write rather than a `DELETE FROM` (see
+ * `features/post/post.ts`'s `PostRecord.deletedAt`). A hard delete would leave this reverter with
+ * nothing to restore.
  *
- * The inverse payload is `{ deletedAt: null }` and nothing more, deliberately: a soft-deleted row
- * still carries every field it had, so there is no pre-image to re-apply — only a marker to clear.
- * Capturing a redundant copy of title/slug/bodyJson/status would create a second source of truth
- * that could disagree with the row itself.
+ * The inverse payload is `{ deletedAt }` and nothing more, deliberately: a soft-deleted row still
+ * carries every field it had, so there is no other pre-image to re-apply — only a marker to write
+ * back. Capturing a redundant copy of title/slug/bodyJson/status would create a second source of
+ * truth that could disagree with the row itself.
+ *
+ * `deletedAt` is usually `null` (an ordinary delete's own inverse), which un-trashes the row exactly
+ * as before. It is a timestamp only for `publish-content.ts`'s `retire()`, whose target can already
+ * be trashed when the retire runs (`retirePostForReplacement` then only renames it, per that
+ * function's own doc) — reverting THAT change set must put the row back exactly where it was: still
+ * in the Trash, not live. When the payload's `deletedAt` is a timestamp AND the row is currently
+ * trashed, this is that case: the row already IS where it belongs, so this returns without writing
+ * anything and without forgetting the Trash index row a human's earlier, unrelated trash still owns.
  *
  * Writes through `deps.postRepo.save()` directly, never through `updatePost`, for the identical
  * SPEC-005 BR-08 reason spelled out on {@link createPostUpdateReverter}: an undo re-applies stored
  * state and must not fire `content.entry.beforeSave`. `updatePost` would also refuse outright — it
  * treats a trashed row as not-found.
  *
- * @complexity O(1) — one lookup plus one write.
+ * @complexity O(1) — one lookup plus at most one write.
  */
 function createPostDeleteReverter(deps: PostReverterDeps): EntityReverter {
   return {
@@ -178,6 +187,16 @@ function createPostDeleteReverter(deps: PostReverterDeps): EntityReverter {
       const existing = await deps.postRepo.findById({ workspaceId, id: item.entityId });
       if (!existing) {
         throw new Error(`post '${item.entityId}' was not found`);
+      }
+
+      const priorDeletedAt = (item.inversePayload as { deletedAt?: unknown } | undefined)?.deletedAt;
+
+      // The holder was already trashed before the change set being reverted ran (`retire()`'s own
+      // "already-trashed" inverse) — it is already exactly where a revert should put it. Restoring
+      // `deletedAt: null` here would un-trash a row a human trashed independently, and calling
+      // `forgetRemoved` below would delete THAT trash's index row out from under it.
+      if (typeof priorDeletedAt === "string" && priorDeletedAt.length > 0 && isTrashed(existing)) {
+        return;
       }
 
       const restored: PostRecord = {

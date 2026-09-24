@@ -497,6 +497,59 @@ test("retire() records a change set whose revert un-trashes the row", async () =
   assert.equal(isTrashed(reverted!), false, "the standard revert path (the same one every other publish write gets) must un-trash the retired row");
 });
 
+test("retire of an already-trashed holder: revert leaves it in the Trash", async () => {
+  const holder = makePost({
+    id: "post-1",
+    slug: "about",
+    version: 3,
+    status: "published",
+    deletedAt: "2026-09-10T00:00:00.000Z",
+  });
+  const deps = makeApplyDeps([holder]);
+  let forgetRemovedCalls = 0;
+  const forgetRemovedSpy = async (input: Parameters<typeof deps.forgetRemovedPost>[0]) => {
+    forgetRemovedCalls += 1;
+    return deps.forgetRemovedPost(input);
+  };
+  const handler = contributePostPublish().build(deps);
+
+  const target: RetireTarget = {
+    entityType: "post",
+    entityId: "post-1",
+    entityLabel: "About",
+    hash: (await handler.inspect("post-1"))!.hash,
+  };
+
+  const { changeSetId } = await handler.retire!({
+    target,
+    principalId: "operator-1",
+    idempotencyKey: "retire-already-trashed",
+  });
+
+  const registry = createPostRevertRegistry({
+    postRepo: deps.postRepo,
+    clock: deps.clock,
+    outbox: deps.outbox,
+    forgetRemoved: forgetRemovedSpy,
+  });
+  await revertChangeSet({
+    deps: { changeSets: deps.changeSets, registry, clock: deps.clock, idGen: deps.idGen },
+    input: { workspaceId: WORKSPACE_ID, changeSetId },
+  });
+
+  const reverted = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
+  assert.equal(
+    isTrashed(reverted!),
+    true,
+    "a holder that was already in the Trash must stay there after a revert"
+  );
+  assert.equal(
+    forgetRemovedCalls,
+    0,
+    "a holder that was already trashed before this retire must keep its Trash index row"
+  );
+});
+
 test("retire()'s undo() restores the holder live, at its original slug — the address-clash rollback, not the standard revert", async () => {
   const holder = makePost({ id: "post-1", slug: "about", version: 3, status: "published" });
   const deps = makeApplyDeps([holder]);

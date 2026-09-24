@@ -454,8 +454,11 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
    * S4's write half — retires `target` (moves it to Trash under a renamed slug, never in place)
    * through the same `executeCommand` gateway {@link apply} uses, wrapping
    * {@link retirePostForReplacement} exactly the way `routes/pages/delete.ts:46-92` wraps
-   * `deletePost`: `operation: "delete"`, inverse `{deletedAt: null}` — a Trash restore only ever
-   * clears that one column (`retirePostForReplacement`'s own doc).
+   * `deletePost`: `operation: "delete"`, inverse is the holder's own prior `deletedAt` — `null` for a
+   * live holder, its trash time for one that was already trashed. A revert must put the row back
+   * exactly where it was, not always un-trash it: `retirePostForReplacement` only renames an
+   * already-trashed holder (its own doc), so a literal `{deletedAt: null}` inverse would un-trash a
+   * row the human had trashed before this run ever touched it.
    *
    * `captureInverse` reads `target`'s CURRENT row and closes over it as `holder`; `execute` reuses
    * that same read as `retirePostForReplacement`'s required `expectedVersion`, rather than a second,
@@ -522,7 +525,7 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
           if (contentHash(holder.kind, toPublishableState(holder)) !== target.hash) {
             throw new PostConflictError(`the live ${target.entityType} at this address changed after this run's plan was built`);
           }
-          return { deletedAt: null };
+          return { deletedAt: holder.deletedAt ?? null };
         },
         execute: () =>
           retirePostForReplacement({
