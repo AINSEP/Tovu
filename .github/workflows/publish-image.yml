@@ -8,7 +8,7 @@
 # path.
 #
 # GHCR requires a fully lowercase image name. `${{ github.repository }}` is
-# "leonaburime-ucla/Tovu" (capital T) — pushing that raw would target a ref GHCR rejects,
+# "AINSEP/Tovu" (mixed case) — pushing that raw would target a ref GHCR rejects,
 # so it is lowercased in a dedicated step below rather than interpolated directly into
 # any tag.
 # ============================================================================
