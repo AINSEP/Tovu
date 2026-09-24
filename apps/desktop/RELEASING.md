@@ -42,6 +42,29 @@ find the existing one first.
    - `Tovu-mac-x64.dmg`
    - `Tovu-windows-x64-setup.exe`
    - `SHA256SUMS.txt` (one `<sha256>  <name>` line per installer above)
+   - Auto-update files (the app reads these; nobody downloads them by hand):
+     `Tovu-mac-arm64.zip`, `Tovu-mac-x64.zip` (+ `.blockmap` each), `latest-mac.yml`,
+     `latest.yml`, `Tovu-windows-x64-setup.exe.blockmap`
+
+## Auto-update
+
+The app updates itself from this repo's GitHub releases (`electron-updater`; see
+`src/auto-update-controller.ts` and `src/update-policy.ts`). It only ever sees the **latest
+published** release, so:
+
+- **Every release must be published** (step 5) or no installed copy will update to it.
+- Publishing is the moment every running copy starts downloading it (within ~4h, or at next
+  launch). Smoke-test the draft's installers first.
+- Every release must carry all the auto-update files above. The workflow uploads them; a release
+  put together by hand without `latest-mac.yml` / `latest.yml` stops every update.
+- Only publish Tovu Desktop releases on this repo. The updater follows the repo's "latest" release,
+  so a release of anything else marked latest would break the update check until the next desktop
+  release.
+- The Microsoft Store build never self-updates (the Store does it); dev launches never check.
+
+With several copies of the app open, only the longest-running copy downloads, and the update
+installs when the LAST copy quits (installing replaces the app files the others are running from).
+"Restart to update" with other copies open says so instead of restarting.
 7. Testers report problems as GitHub Issues on this repo. Point them at the exact asset name
    and version they installed.
 
