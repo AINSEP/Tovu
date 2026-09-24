@@ -1035,7 +1035,14 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     if (!draft) return;
     setTitle(draft.title);
     setSlug(draft.slug);
-    if (draft.bodyFormat === "html" && draft.bodyHtml !== undefined) setHtml(draft.bodyHtml);
+    if (draft.bodyFormat === "html" && draft.bodyHtml !== undefined) {
+      setHtml(draft.bodyHtml);
+      // Same two re-seeds `applyExternalPage` makes: the HTML tab shows `draftHtml`, not `html`, and
+      // the Interactive canvas reads `html` only at mount. Without them, restoring on either tab
+      // left the old body on screen and the next edit wrote it back over the restored draft.
+      setDraftHtml(prettifyHtml(draft.bodyHtml));
+      setContentRevision((n) => n + 1);
+    }
     autosave.dismissRecoverable();
   }, [autosave.recoverableDraft, autosave.dismissRecoverable]);
 

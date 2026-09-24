@@ -701,6 +701,32 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
     expect(deps.port.discardAutosaveCalled).toBe(false);
   });
 
+  // The HTML textarea shows `draftHtml` and the Interactive canvas reads `html` only at mount (keyed on
+  // `contentRevision`). Restoring while either tab is open used to update `html` alone, so the
+  // textarea kept showing the old body and the canvas kept the old DOM — the next keystroke or canvas
+  // edit wrote the OLD body back over the restored draft.
+  it("restoreRecoveredDraft re-seeds the HTML tab's text and remounts the Interactive canvas", async () => {
+    const seeded = {
+      bodyFormat: "html" as const,
+      bodyHtml: "<p>recovered</p>",
+      title: "Recovered title",
+      slug: "recovered-slug",
+      baseVersion: HTML_PAGE.version,
+      savedAt: "2026-09-06T00:00:00.000Z",
+      savedByPrincipalId: "user-local",
+    };
+    const deps = fakeDepsWithAutosave({ page: HTML_PAGE, autosave: seeded });
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
+    act(() => result.current.setView("html"));
+    const revisionBefore = result.current.contentRevision;
+
+    act(() => result.current.restoreRecoveredDraft());
+
+    expect(result.current.draftHtml).toBe(prettifyHtml("<p>recovered</p>"));
+    expect(result.current.contentRevision).toBe(revisionBefore + 1);
+  });
+
   it("discardRecoveredDraft clears the standing draft server-side and dismisses the banner", async () => {
     const seeded = {
       bodyFormat: "html" as const,
