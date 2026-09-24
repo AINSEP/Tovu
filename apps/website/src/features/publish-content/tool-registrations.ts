@@ -19,7 +19,8 @@ import { ToolInputError } from "@jini-ai/core";
 import type { ToolContributor } from "#src/assistant/index";
 
 import {
-  resolveConfirmationDecision,
+  askOnce,
+  classifyConfirmationAnswer,
   type AssistantSurfaceDeps,
   type SurfaceExchange,
 } from "../../contracts/core/tool-surface-exchanges.js";
@@ -64,15 +65,19 @@ import {
   type PublishContentPeerRepoPort,
 } from "./peers.js";
 import { PUBLISH_CONTENT_APPLY_PERMISSION, PUBLISH_CONTENT_READ_PERMISSION } from "./permissions.js";
-import type { PublishContentOutcomeRow } from "./planner.js";
+import { entityKey, type PublishContentOutcomeRow } from "./planner.js";
 import {
+  buildOverwriteChoices,
   buildPublishConfirmationResource,
   countPublishChanges,
   describeNotSupportedByLive,
   describePublishChanges,
   describePublishResult,
   describeApplyShortfall,
+  describeRetiredCount,
+  overwriteReplanMatches,
   publishWouldChangeNothing,
+  resolveChosenOverwriteKeys,
   summarizeLeftAlone,
 } from "./publish-confirmation-ui.js";
 import { describePublishReadiness, siteLabelFor, type PublishReadiness } from "./publish-readiness.js";
@@ -443,7 +448,13 @@ export function buildPublishContentRegistrations(
       }
 
       const counts = countPublishChanges(plan.rows);
-      if (publishWouldChangeNothing(counts)) {
+      const overwritableRows = plan.rows.filter((planRow) => planRow.canOverwrite);
+      // publish-overwrite-live-plan §3 Assistant chat, step 2 — a capable live with something it CAN
+      // overwrite still gets a dialog even when this plan, as sent, would write nothing: the 5-pages-
+      // plus-nav case is exactly "every writing row is skipped", and the whole point of offering the
+      // tick is to reach a person before that silently becomes today's "nothing would change".
+      const offerOverwrite = pushed.liveCanOverwrite && overwritableRows.length > 0;
+      if (publishWouldChangeNothing(counts) && !offerOverwrite) {
         // Nothing would be written, so there is nothing to ask about. Spending the one question
         // this design gets to ask on a no-op is how people learn to click through the real ones.
         //
@@ -465,11 +476,13 @@ export function buildPublishContentRegistrations(
         { toolId: PUBLISH_CONTENT_PUBLISH_TOOL_ID, principalId: ctx.principal.id },
         ctx.emitSurface
       );
+      const overwriteChoices = offerOverwrite ? buildOverwriteChoices(overwritableRows) : [];
       const ui = buildPublishConfirmationResource({
         siteLabel: destination.label,
         counts,
         planId,
         exchangeId: exchange.id,
+        overwriteChoices,
       });
 
       // A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold
@@ -477,7 +490,12 @@ export function buildPublishContentRegistrations(
       const closeOnAbort = () => exchange.close();
       ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
       try {
-        const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+        // Read directly, rather than through `resolveConfirmationDecision`: this handler also needs
+        // the raw answer's `params` (the ticked "Overwrite on live" ids), which that helper discards
+        // once it classifies confirm/decline. `askOnce` + `classifyConfirmationAnswer` is the exact
+        // fail-closed pair `resolveConfirmationDecision` is itself built from.
+        const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+        const outcome = classifyConfirmationAnswer(answer);
         if (!outcome.confirmed) {
           return {
             published: false,
@@ -490,36 +508,107 @@ export function buildPublishContentRegistrations(
           };
         }
 
-        // The human has just answered. Only now is there a confirmation to relay — and it is the
-        // destination's own gateway that mints it, against this install's publishing credential.
-        // Nothing here asserts a principal kind over the wire, so nothing here can weaken the rule
-        // that an agent may not confirm on a person's behalf.
-        const { confirmationToken } = await confirmPeerImport(peer, { planId, planHash });
-        // `executePeerImport`'s response is the destination's `/import/execute` body —
-        // `{ restorePointId, runId, changeSetIds }` (`gated-hooks.ts`'s `executeMutation`). It carries
-        // no per-outcome counts (`changeSetIds.length` is a total write count, not a
-        // created/replaced/unchanged split), so the success message derives from the PLAN's own
-        // `counts`. That total IS enough to catch the plan over-promising: a row edited on the
-        // destination between plan and apply is downgraded there and writes nothing, so a shortfall
-        // is said out loud rather than reported as replaced.
-        const executed = await executePeerImport(peer, { bundleId: pushed.bundleId, confirmationToken });
-        const actualWrites = Array.isArray(executed.changeSetIds) ? executed.changeSetIds.length : counts.added + counts.replaced;
-        const shortfall = describeApplyShortfall({ plannedWrites: counts.added + counts.replaced, actualWrites }, destination.label);
+        // publish-overwrite-live-plan §7: an "Overwrite on live" key comes ONLY from the human's
+        // click — `answer.params` is `SurfaceMessage.params`, sourced from the browser's own POST to
+        // `mcp-ui-tool-calls-route.ts`, never from the model's tool arguments (`ctx.input` is never
+        // consulted here). `resolveChosenOverwriteKeys` additionally restricts to the keys THIS
+        // dialog actually offered, so an id the dialog never rendered a box for is dropped rather
+        // than acted on, however it got into `params`.
+        const offeredKeys = new Set(overwritableRows.map((overwritableRow) => entityKey(overwritableRow.entityType, overwritableRow.entityId)));
+        const chosen = offerOverwrite ? resolveChosenOverwriteKeys(answer.params, offeredKeys) : [];
 
-        // `pushed.notSupportedByLive` was decided BEFORE the plan (S-F1's probe runs ahead of
-        // staging), so it names types held back from this very publish, not a stale value from an
-        // earlier attempt — appended to the past-tense result sentence rather than folded into
-        // `leftAlone`, which only ever describes rows the DESTINATION's own plan produced.
-        const notSupportedMessage = describeNotSupportedByLive(pushed.notSupportedByLive, destination.label);
+        if (chosen.length === 0) {
+          // The human has just answered. Only now is there a confirmation to relay — and it is the
+          // destination's own gateway that mints it, against this install's publishing credential.
+          // Nothing here asserts a principal kind over the wire, so nothing here can weaken the rule
+          // that an agent may not confirm on a person's behalf.
+          const { confirmationToken } = await confirmPeerImport(peer, { planId, planHash });
+          // `executePeerImport`'s response is the destination's `/import/execute` body —
+          // `{ restorePointId, runId, changeSetIds, retiredChangeSetIds }` (`gated-hooks.ts`'s
+          // `executeMutation`). It carries no per-outcome counts (`changeSetIds.length` is a total
+          // write count, not a created/replaced/unchanged split), so the success message derives from
+          // the PLAN's own `counts`. That total IS enough to catch the plan over-promising: a row
+          // edited on the destination between plan and apply is downgraded there and writes nothing,
+          // so a shortfall is said out loud rather than reported as replaced.
+          const executed = await executePeerImport(peer, { bundleId: pushed.bundleId, confirmationToken });
+          const actualWrites = Array.isArray(executed.changeSetIds) ? executed.changeSetIds.length : counts.added + counts.replaced;
+          const shortfall = describeApplyShortfall({ plannedWrites: counts.added + counts.replaced, actualWrites }, destination.label);
+
+          // `pushed.notSupportedByLive` was decided BEFORE the plan (S-F1's probe runs ahead of
+          // staging), so it names types held back from this very publish, not a stale value from an
+          // earlier attempt — appended to the past-tense result sentence rather than folded into
+          // `leftAlone`, which only ever describes rows the DESTINATION's own plan produced.
+          const notSupportedMessage = describeNotSupportedByLive(pushed.notSupportedByLive, destination.label);
+          return {
+            published: true,
+            message: [describePublishResult(counts, destination.label), shortfall, notSupportedMessage]
+              .filter((sentence): sentence is string => sentence !== null)
+              .join(" "),
+            nextStep: null,
+            counts,
+            leftAlone: summarizeLeftAlone(plan.rows),
+            notSupportedByLive: pushed.notSupportedByLive,
+          };
+        }
+
+        // publish-overwrite-live-plan §3 Assistant chat, steps 5-6 — one or more ticks. The blobs are
+        // already uploaded (this is the SAME bundle), so re-pushing only re-stages and re-plans; the
+        // peer's own `/import/plan` turns each ticked key `forced` when `overwriteEntityKeys` names it.
+        const rePushed = await pushBundleToPeer(
+          { ...peer, blobSource, computeStorageKey: (sha256) => computeBlobStorageKey({ workspaceId: routeDeps.workspaceId, sha256 }) },
+          { bundle, overwriteEntityKeys: chosen }
+        );
+        const rePlanId = rePushed.plan.planId;
+        const rePlanHash = rePushed.plan.planHash;
+        const rePlan = readPlanRows(rePushed.plan.details);
+        if (rePlan === null || typeof rePlanId !== "string" || typeof rePlanHash !== "string") {
+          return {
+            published: false,
+            message: `${destination.label} answered in a way this could not read, so nothing was published.`,
+            nextStep: "Try again in a moment.",
+            counts,
+          };
+        }
+        if (rePlan.refused) {
+          return {
+            published: false,
+            message: `${destination.label} would not accept this, so nothing was published.`,
+            nextStep: "Try connecting this computer to the site again, then publish.",
+            counts,
+          };
+        }
+
+        const chosenSet = new Set(chosen);
+        if (!overwriteReplanMatches(plan.rows, rePlan.rows, chosenSet)) {
+          // Live moved between the dialog's plan and this re-plan (`overwriteReplanMatches`'s own
+          // doc) — the same reason `push/execute`'s PLAN_STALE check refuses a confirmed run whose
+          // report hash no longer matches. Publishing against a report the operator never saw is
+          // refused here first, in plain words, rather than surfacing that peer error.
+          return {
+            published: false,
+            message: `Something on ${destination.label} changed while you were deciding, so nothing was published.`,
+            nextStep: "Ask again.",
+            counts,
+          };
+        }
+
+        const newCounts = countPublishChanges(rePlan.rows);
+        const { confirmationToken } = await confirmPeerImport(peer, { planId: rePlanId, planHash: rePlanHash });
+        const executed = await executePeerImport(peer, { bundleId: rePushed.bundleId, confirmationToken, overwriteEntityKeys: chosen });
+        const actualWrites = Array.isArray(executed.changeSetIds) ? executed.changeSetIds.length : newCounts.added + newCounts.replaced;
+        const shortfall = describeApplyShortfall({ plannedWrites: newCounts.added + newCounts.replaced, actualWrites }, destination.label);
+        const retiredCount = Array.isArray(executed.retiredChangeSetIds) ? executed.retiredChangeSetIds.length : 0;
+        const retiredMessage = describeRetiredCount(retiredCount, destination.label);
+        const notSupportedMessage = describeNotSupportedByLive(rePushed.notSupportedByLive, destination.label);
         return {
           published: true,
-          message: [describePublishResult(counts, destination.label), shortfall, notSupportedMessage]
+          message: [describePublishResult(newCounts, destination.label), shortfall, retiredMessage, notSupportedMessage]
             .filter((sentence): sentence is string => sentence !== null)
             .join(" "),
           nextStep: null,
-          counts,
-          leftAlone: summarizeLeftAlone(plan.rows),
-          notSupportedByLive: pushed.notSupportedByLive,
+          counts: newCounts,
+          leftAlone: summarizeLeftAlone(rePlan.rows),
+          notSupportedByLive: rePushed.notSupportedByLive,
         };
       } catch (err) {
         if (err instanceof PublishContentPeerTransportError) {

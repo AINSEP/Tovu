@@ -1,10 +1,10 @@
-import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { buildConfirmationSurface, type ConfirmationChoice, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
 
 import { PUBLISH_CONTENT_PUBLISH_TOOL_ID } from "./agent-tools.js";
 import type { NotSupportedByLiveEntry } from "./peer-transport.js";
-import type { PublishContentOutcomeKind, PublishContentOutcomeRow } from "./planner.js";
+import { entityKey, type PublishContentOutcomeKind, type PublishContentOutcomeRow } from "./planner.js";
 
 /**
  * @file The dialog `publish_content_publish` raises, and the counting that decides what it says.
@@ -384,6 +384,119 @@ export function publishConfirmationUri(planId: string): UIResourceUri {
   return `ui://tovu/publish-content/${planId}` as UIResourceUri;
 }
 
+/** publish-overwrite-live-plan §4/S8 — the params key an "Overwrite on live" tick rides home under,
+ *  byte-identical to Jini's own `ConfirmationSurfaceSpec.choicesParam` default so a caller never has
+ *  to pass it explicitly. Exported so {@link resolveChosenOverwriteKeys} and the tool handler read
+ *  the exact same key a dialog was built with. */
+export const OVERWRITE_CHOICES_PARAM = "overwrite";
+
+/** One plain sentence per row offering to overwrite it — the chat dialog's per-item checkbox label.
+ *  Reuses {@link classifyLeftAloneReason} rather than re-deriving a second classification of the
+ *  same `reason` string, so a wording change to one can never silently drift from the other's idea
+ *  of what a row's reason means.
+ *  @complexity O(1). */
+function overwriteChoiceLabel(row: PublishContentOutcomeRow): string {
+  const label = row.entityLabel ?? row.entityId;
+  switch (classifyLeftAloneReason(row.reason)) {
+    case "slug-taken-on-live": {
+      const holder = row.retires ? (row.retires.entityLabel ?? row.retires.entityId) : "the one already there";
+      return `${label}: replace live's copy (moves ${holder} to Trash)`;
+    }
+    case "no-baseline":
+      return `${label}: replace live's own version, never published from here`;
+    case "edited-on-live":
+      return `${label}: replace live's edit since your last publish`;
+    case "in-trash-on-live":
+      return `${label}: bring back from live's Trash with your version`;
+    case "kind-differs-on-live":
+      return `${label}: change live's kind to match yours`;
+    default:
+      return `${label}: replace live's copy`;
+  }
+}
+
+/**
+ * Turns every row the operator may resolve by overwriting live into one unchecked Jini
+ * `ConfirmationChoice` — publish-overwrite-live-plan §3 Assistant chat, step 3. Only rows the
+ * PLANNER itself marked {@link PublishContentOutcomeRow.canOverwrite} appear; a row the run already
+ * writes, or one no handler can resolve, offers no box.
+ * @complexity O(n) in `rows.length`.
+ */
+export function buildOverwriteChoices(rows: readonly PublishContentOutcomeRow[]): readonly ConfirmationChoice[] {
+  return rows.filter((row) => row.canOverwrite).map((row) => ({ id: entityKey(row.entityType, row.entityId), label: overwriteChoiceLabel(row) }));
+}
+
+/**
+ * Reads the ticked ids a confirm click posted back, restricted to `offered` — publish-overwrite-
+ * live-plan §7's security rule: an "Overwrite on live" key comes ONLY from the human's click (this
+ * function's `params` argument is always `SurfaceMessage.params`, sourced from a browser POST to
+ * `mcp-ui-tool-calls-route.ts`), never from anything the model can influence. Restricting to
+ * `offered` additionally means an id the dialog never rendered a box for — however it got into
+ * `params` — is silently dropped rather than acted on.
+ *
+ * @complexity O(n) in the ticked array's length.
+ */
+export function resolveChosenOverwriteKeys(params: Record<string, unknown>, offered: ReadonlySet<string>): readonly string[] {
+  const raw = params[OVERWRITE_CHOICES_PARAM];
+  if (!Array.isArray(raw)) return [];
+  const chosen: string[] = [];
+  for (const value of raw) {
+    if (typeof value === "string" && offered.has(value) && !chosen.includes(value)) chosen.push(value);
+  }
+  return chosen;
+}
+
+/** Every key `rows` would actually write (`created`/`applied`/`forced`), minus `exclude` — the
+ *  yardstick {@link overwriteReplanMatches} uses on both the shown and the re-planned report,
+ *  mirroring the admin dialog's own `writingKeysExcluding` (`use-publish-content-confirm.hooks.ts`).
+ *  @complexity O(n). */
+function writingKeysExcludingOverwrite(rows: readonly PublishContentOutcomeRow[], exclude: ReadonlySet<string>): ReadonlySet<string> {
+  const keys = new Set<string>();
+  for (const row of rows) {
+    if (row.outcome !== "created" && !REPLACING_OUTCOMES.has(row.outcome)) continue;
+    const key = entityKey(row.entityType, row.entityId);
+    if (!exclude.has(key)) keys.add(key);
+  }
+  return keys;
+}
+
+/**
+ * Whether re-planning with `chosen` ticks landed on a report consistent with `first` — publish-
+ * overwrite-live-plan §3 Assistant chat, step 5. Two things must both hold: every ticked key is now
+ * `forced` in `second`, and every OTHER writing row (created/applied/forced, outside `chosen`) names
+ * the exact same set in both reports. `false` means live moved between the first plan and this one,
+ * and the caller must publish nothing rather than act on a report the operator never saw.
+ * @complexity O(n) in the larger report's row count.
+ */
+export function overwriteReplanMatches(
+  first: readonly PublishContentOutcomeRow[],
+  second: readonly PublishContentOutcomeRow[],
+  chosen: ReadonlySet<string>
+): boolean {
+  const secondByKey = new Map(second.map((row) => [entityKey(row.entityType, row.entityId), row]));
+  for (const key of chosen) {
+    const row = secondByKey.get(key);
+    if (!row || row.outcome !== "forced") return false;
+  }
+  const firstOther = writingKeysExcludingOverwrite(first, chosen);
+  const secondOther = writingKeysExcludingOverwrite(second, chosen);
+  if (firstOther.size !== secondOther.size) return false;
+  for (const key of firstOther) if (!secondOther.has(key)) return false;
+  return true;
+}
+
+/** "1 old version was moved" / "3 old versions were moved" — the sentence appended to a publish
+ *  result when {@link executePeerImport}'s `retiredChangeSetIds` is non-empty (publish-overwrite-
+ *  live-plan §3 Assistant chat, step 6). `null` when nothing was retired, so a caller can splice it
+ *  onto another sentence the same way {@link describeApplyShortfall} already does.
+ *  @complexity O(1). */
+export function describeRetiredCount(count: number, siteLabel: string): string | null {
+  if (count <= 0) return null;
+  return count === 1
+    ? `1 old version was moved to ${siteLabel}'s Trash.`
+    : `${count} old versions were moved to ${siteLabel}'s Trash.`;
+}
+
 /**
  * Renders the publish confirmation as a self-contained MCP-UI resource.
  *
@@ -393,6 +506,9 @@ export function publishConfirmationUri(planId: string): UIResourceUri {
  * @param spec.planId - The destination's plan, used only to key the URI.
  * @param spec.exchangeId - The held-open call's correlation handle. **This is the only place it may
  * go** — see this file's header.
+ * @param spec.overwriteChoices - publish-overwrite-live-plan §3 Assistant chat, step 3
+ * ({@link buildOverwriteChoices}). Omitted or empty, the rendered document and the params confirm
+ * posts are byte-identical to a dialog built before this field existed.
  * @returns The `EmbeddedResource` the daemon splits out and renders for the human.
  * @complexity O(1).
  */
@@ -401,8 +517,9 @@ export function buildPublishConfirmationResource(spec: {
   counts: PublishChangeCounts;
   planId: string;
   exchangeId: string;
+  overwriteChoices?: readonly ConfirmationChoice[];
 }): UIResource {
-  const { siteLabel, counts, planId, exchangeId } = spec;
+  const { siteLabel, counts, planId, exchangeId, overwriteChoices } = spec;
 
   return buildConfirmationSurface({
     uri: publishConfirmationUri(planId),
@@ -414,6 +531,9 @@ export function buildPublishConfirmationResource(spec: {
       { label: "Already up to date", value: String(counts.unchanged) },
       { label: "Left alone", value: String(counts.skipped) },
     ],
+    ...(overwriteChoices !== undefined && overwriteChoices.length > 0
+      ? { choices: overwriteChoices, choicesParam: OVERWRITE_CHOICES_PARAM }
+      : {}),
     // Shown only when it is true, so it stays a warning rather than furniture people click past.
     ...(counts.replaced > 0
       ? { warning: `${things(counts.replaced)} on ${siteLabel} will be replaced with the version on this computer.` }
