@@ -135,7 +135,8 @@
       a.removeAttribute("aria-current");
     });
     if (!entry) return;
-    entry.link.setAttribute("aria-current", "page");
+    // "location", not "page": the link points at a section of THIS page, not another page.
+    entry.link.setAttribute("aria-current", "location");
     var li = entry.link.closest(".toc-item");
     if (li) li.classList.add("is-current");
   }

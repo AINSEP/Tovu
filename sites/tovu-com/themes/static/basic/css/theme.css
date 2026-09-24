@@ -716,10 +716,26 @@ pre .code-copy-btn.copied .icon-check { display: block; }
 .docs-toc-toggle { grid-area: toc; }
 
 /* Desktop only (mobile re-enables the toggle below): both disclosures render as plain sticky
-   columns, not a collapsible control. Author CSS forcing a closed <details>'s content open is a
-   standard, supported override of the UA stylesheet — it does not touch the `open` attribute
-   itself, so mobile's native click-to-toggle (which DOES read `open`) is unaffected. */
+   columns, not a collapsible control. None of this touches the `open` attribute, so mobile's
+   native click-to-toggle (which DOES read `open`) is unaffected.
+
+   `::details-content` is the load-bearing rule. Current engines (Chrome 131+, Safari 18.4+,
+   Firefox 143+) hide a closed <details>'s content by giving that pseudo `content-visibility:
+   hidden`, which also size-contains it — so `display: block` on the children alone leaves them
+   unpainted inside a 0px-tall <details>. That is exactly what shipped 2026-09-24 once the `open`
+   attribute came off: no sidebar and no TOC on ANY doc page at desktop width. The `display: block`
+   rule stays for engines that predate `::details-content` (their closed slot is `display: none`,
+   which a child rule can still override there).
+
+   Sticky lives on the <details> (the grid item), not the <aside> inside it: a sticky box only moves
+   within its containing block, and the <details> is exactly as tall as its <aside>, so a sticky
+   <aside> never had room to stick. */
 @media (min-width: 901px) {
+  .docs-sidebar-toggle::details-content,
+  .docs-toc-toggle::details-content {
+    content-visibility: visible;
+    display: block;
+  }
   .docs-sidebar-toggle > summary,
   .docs-toc-toggle > summary {
     display: none;
@@ -728,12 +744,15 @@ pre .code-copy-btn.copied .icon-check { display: block; }
   .docs-toc-toggle > *:not(summary) {
     display: block;
   }
+  .docs-sidebar-toggle,
+  .docs-toc-toggle {
+    position: sticky;
+    top: 88px;
+  }
 }
 
 .docs-sidebar,
 .docs-toc {
-  position: sticky;
-  top: 88px;
   max-height: calc(100vh - 112px);
   overflow-y: auto;
 }
@@ -880,7 +899,7 @@ pre .code-copy-btn.copied .icon-check { display: block; }
 }
 
 .toc-item.is-current > a,
-.toc-item > a[aria-current="page"] {
+.toc-item > a[aria-current="location"] {
   color: var(--accent-text);
   border-left-color: var(--accent-text);
   font-weight: 500;
