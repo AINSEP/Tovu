@@ -14,6 +14,9 @@ import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
 import { useAgentScreenRoute } from "./hooks/use-agent-screen-context.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
 import { ChatFab } from "./components/ChatFab/ChatFab";
+import { PublishContentDialog } from "./features/publish-content/PublishContentDialog";
+import { closePublishRequest, usePublishRequest } from "./features/publish-content/hooks/publish-request.store";
+import { t as translateDashboard } from "./features/dashboard/dashboard-i18n";
 import {
   resolveChatFabClearance,
   resolveSiteSectionRouteGate,
@@ -492,6 +495,11 @@ export function App(props: AppProps) {
   // The `admin.capture_screenshot` consent announcement — see `useScreenshotAnnouncement`'s own doc
   // (`App.hooks.tsx`) and `agent-screenshot-bus.ts`'s module doc for the privacy decision behind it.
   const { announced: screenshotAnnounced, dismiss: dismissScreenshotAnnouncement } = useScreenshotAnnouncement();
+  // publish-criteria-tool-webmcp-plan-2026-09-24.md §4 S2 — the Publish dialog moved here, to the top
+  // of the tree, because none of its three callers (the Dashboard button, the chat capability, the
+  // WebMCP projection) is the component that renders it. `publish-request.store.ts`'s own header
+  // explains the whole division of labour; this is just the one place that reads it.
+  const openPublishRequest = usePublishRequest();
 
   /**
    * Read once per render rather than at each of the two `<Sidebar.Nav>` call sites below, so both
@@ -523,6 +531,12 @@ export function App(props: AppProps) {
    *  "assistant" label below — both live here rather than inside `AssistantDock.tsx`/`ChatFab.tsx`
    *  themselves (see the `<aside>`'s own comment for why), so this is that chrome's translation. */
   const dockT = (key: string): string => translateAssistantDockLabel(navLocale, key);
+
+  /** The Publish dialog's own copy lives in `dashboard-i18n.ts`'s `DASHBOARD_DICT` — it is the
+   *  Dashboard's dialog, wherever it mounts — never `tApp`/`dockT`, which would silently regress
+   *  every locale but English for this one dialog (both resolve against `app-i18n.ts`'s different
+   *  dictionary, which has no entries for this copy). */
+  const dashboardT = (key: string): string => translateDashboard(navLocale, key);
 
   // See `useCollapsibleNavGroupLabels`'s own doc for which groups collapse and why.
   const collapsibleGroups = useCollapsibleNavGroupLabels(navGroups);
@@ -657,6 +671,20 @@ export function App(props: AppProps) {
             tone="default"
             ttlMs={5000}
             onDismiss={dismissScreenshotAnnouncement}
+          />
+        ) : null}
+        {/* publish-criteria-tool-webmcp-plan-2026-09-24.md §4 S2 — `key={requestId}` remounts the
+            dialog fresh per request, so a stale instance can never call a newer request's own
+            `resolve` (see `publish-request.store.ts`'s header). `port` is left `undefined`: this is
+            the one real (non-test) mount, so the dialog resolves its own default port itself. */}
+        {openPublishRequest ? (
+          <PublishContentDialog
+            key={openPublishRequest.requestId}
+            criteria={openPublishRequest.criteria}
+            onPlanned={openPublishRequest.resolve}
+            onCancel={closePublishRequest}
+            t={dashboardT}
+            port={undefined}
           />
         ) : null}
       </div>

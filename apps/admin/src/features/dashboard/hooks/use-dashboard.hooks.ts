@@ -103,14 +103,6 @@ export interface DashboardController {
   /** Bound translator — `key` already resolved against the caller's locale, so `Dashboard.tsx`
    *  never imports `useAdminLocale`/`DASHBOARD_DICT` itself. See this file's header. */
   t: Translate;
-  /** Whether the "Publish Content" confirm dialog is open. Presentation flow ("has the operator
-   *  confirmed yet"), not a network mutation — same split `AgentPlugins.tsx`'s own
-   *  `pendingDisable` documents for the identical shape of interstitial, applied here instead of
-   *  a `useState` in `Dashboard.tsx` because THIS screen's own convention (this file's header)
-   *  already puts all of Dashboard's state here, markup-only in the component. */
-  isPublishDialogOpen: boolean;
-  openPublishDialog: () => void;
-  closePublishDialog: () => void;
 
   /** Password-banner plan (2026-09-24), Slice 3 — whether the default-password nag should render.
    *  `rules.ts`'s `shouldShowDefaultPasswordBanner`, applied to this hook's own fetched status and
@@ -146,7 +138,6 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
   const [themeId, setThemeId] = useState<string | null>(null);
   const [themeError, setThemeError] = useState<string | null>(null);
   const [recent, setRecent] = useState<AdminPost[] | null>(null);
-  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   // `null` until the status fetch settles (or forever, if it fails — swallowed below since the
   // banner is advisory) — `shouldShowDefaultPasswordBanner` treats `null` as "don't show", the same
   // fail-closed default a security nag should have.
@@ -213,9 +204,6 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
     themeError,
     recent,
     t,
-    isPublishDialogOpen,
-    openPublishDialog: () => setIsPublishDialogOpen(true),
-    closePublishDialog: () => setIsPublishDialogOpen(false),
 
     showDefaultPasswordBanner: shouldShowDefaultPasswordBanner(
       passwordStatus?.usesDefaultPassword ?? null,

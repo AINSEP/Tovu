@@ -7,7 +7,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { Icon } from "@jini-ai/ui";
 import { useWiredDashboard, type StatState } from "./hooks/use-dashboard.hooks";
 import { activityRowHref, commentsStatMeta, pagesStatMeta, postsStatMeta } from "./rules";
-import { PublishContentDialog } from "../publish-content/PublishContentDialog";
+import { requestPublish } from "../publish-content/hooks/publish-request.store";
 
 /**
  * @file Admin landing screen — markup only.
@@ -160,9 +160,6 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
     themeError,
     recent,
     t,
-    isPublishDialogOpen,
-    openPublishDialog,
-    closePublishDialog,
     showDefaultPasswordBanner,
     dismissDefaultPasswordBanner,
   } = useDashboardHook();
@@ -191,7 +188,7 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
           <button
             type="button"
             className="btn-primary"
-            onClick={openPublishDialog}
+            onClick={() => requestPublish({})}
             {...agentHandle("dashboard-publish-content", {
               role: "button",
               label: "Publish content to the live site",
@@ -201,14 +198,6 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
           </button>
         </div>
       </div>
-
-      {isPublishDialogOpen ? (
-        // No `onConfirm` prop any more: the dialog owns the whole plan -> confirm -> execute
-        // ceremony itself (Task 11), and a confirm handler up here could only ever be a second,
-        // weaker copy of the guard that already decides when a publish may fire. Closing stays the
-        // Dashboard's to own, since it owns `isPublishDialogOpen`.
-        <PublishContentDialog onCancel={closePublishDialog} t={t} />
-      ) : null}
 
       {showDefaultPasswordBanner ? <DefaultPasswordBanner onDismiss={dismissDefaultPasswordBanner} t={t} /> : null}
 
