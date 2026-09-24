@@ -49,7 +49,9 @@ export type PeerTransportErrorCode =
   | "EGRESS_REFUSED"
   | "PEER_UNREACHABLE"
   | "PEER_REJECTED"
-  | "PEER_RESPONSE_INVALID";
+  | "PEER_RESPONSE_INVALID"
+  /** The operator ticked "Overwrite on live" but the peer doesn't advertise `"overwrite-live"`. */
+  | "PEER_CANNOT_OVERWRITE";
 
 /** The single error type every failure in this module surfaces as. `message` is operator-facing and
  *  is built from the peer's RESPONSE plus this instance's own diagnosis — never from the request,
@@ -238,9 +240,9 @@ export interface PushBundleResult {
    *  `/capabilities` response carries no `features` array, and `false` also when the probe was
    *  skipped because the bundle carried no entities (see {@link notSupportedByLive}) — there is
    *  nothing to overwrite in that case anyway. The admin dialog and the chat tool (S8/S9) read this
-   *  to decide whether to offer any "Overwrite on live" tick at all; this driver forwards whatever
-   *  `overwriteEntityKeys` it is given regardless of this value — refusing them here would be a
-   *  second place the same decision could be made differently from the UI's. */
+   *  to decide whether to offer any "Overwrite on live" tick at all. Non-empty
+   *  `overwriteEntityKeys` sent to a peer without the feature are refused with
+   *  `PEER_CANNOT_OVERWRITE` before anything is staged: that peer would silently ignore them. */
   readonly liveCanOverwrite: boolean;
 }
 
@@ -279,6 +281,21 @@ const LEGACY_PROBE_STATUSES: ReadonlySet<number> = new Set([401, 404]);
 interface PeerCapabilities {
   readonly entityTypes: readonly string[];
   readonly features: readonly string[];
+}
+
+/**
+ * Refuses a non-empty set of "Overwrite on live" ticks for a peer that doesn't advertise
+ * `"overwrite-live"`. Such a peer ignores the body field it doesn't know, so forwarding the ticks
+ * would plan and execute WITHOUT the overwrite the operator asked for, and say nothing.
+ *
+ * @complexity O(1).
+ */
+function refuseOverwriteOnOlderPeer(credential: ResolvedPeerCredential, capabilities: PeerCapabilities): void {
+  if (capabilities.features.includes("overwrite-live")) return;
+  throw new PublishContentPeerTransportError(
+    `${credential.baseUrl} is on an older Tovu, so it can't overwrite these yet. Update ${credential.baseUrl}, then publish again.`,
+    "PEER_CANNOT_OVERWRITE"
+  );
 }
 
 async function probePeerCapabilities(deps: PeerCallDeps): Promise<PeerCapabilities> {
@@ -376,9 +393,11 @@ export async function pushBundleToPeer(
   let bundle = required.bundle;
   let notSupportedByLive: readonly NotSupportedByLiveEntry[] = [];
   let liveCanOverwrite = false;
-  if (bundle.entities.length > 0) {
+  const wantsOverwrite = (required.overwriteEntityKeys?.length ?? 0) > 0;
+  if (bundle.entities.length > 0 || wantsOverwrite) {
     const capabilities = await probePeerCapabilities(deps);
     liveCanOverwrite = capabilities.features.includes("overwrite-live");
+    if (wantsOverwrite) refuseOverwriteOnOlderPeer(credential, capabilities);
     const trimmed = trimBundleToCapabilities(bundle, capabilities.entityTypes);
     bundle = trimmed.bundle;
     notSupportedByLive = trimmed.notSupportedByLive;
@@ -502,6 +521,11 @@ export async function executePeerImport(
   deps: PeerCallDeps,
   required: { bundleId: string; confirmationToken: string; overwriteEntityKeys?: readonly string[] }
 ): Promise<Record<string, unknown>> {
+  // Re-probed rather than trusted from the plan step: execute is a separate request, and the peer
+  // may have been redeployed in between.
+  if ((required.overwriteEntityKeys?.length ?? 0) > 0) {
+    refuseOverwriteOnOlderPeer(deps.credential, await probePeerCapabilities(deps));
+  }
   return requireObject(
     await callPeer(deps, {
       method: "POST",

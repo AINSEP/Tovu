@@ -19,7 +19,7 @@ import { executePublishContentImport, RestorePointUnavailableError } from "#src/
 import { getPublishContentRunStatus } from "#src/features/publish-content/run-repo";
 import type { PublishContentReport } from "#src/features/publish-content/planner";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
-import { gatedPrincipalKindFor, getAuthedCredentialKind, getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { gatedPrincipalKindFor, getAuthedCredentialKind, getAuthedPrincipal, type CredentialKindForbiddenBody } from "#src/server/inbound/admin-http/dev-auth";
 import { withPublishTrustAuthorize, withPublishTrustContentAuthorize } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
 import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
@@ -59,6 +59,27 @@ function readOverwriteEntityKeys(body: unknown): readonly string[] | null | type
   if (raw.overwriteEntityKeys.length > 1000) return INVALID_OVERWRITE_KEYS;
   if (!raw.overwriteEntityKeys.every((key): key is string => typeof key === "string")) return INVALID_OVERWRITE_KEYS;
   return raw.overwriteEntityKeys;
+}
+
+/**
+ * publish-overwrite-live-plan §7: "Overwrite on live" ticks come only from a person's click — here,
+ * a signed-in admin session, or a publishing instance relaying its own admin's click (its relay
+ * refuses an API key the same way, `peer-transport.ts`'s `mayOverwrite`). An API key on this
+ * instance is refused. Empty ticks ask for nothing and pass.
+ *
+ * @returns `true` when the request may proceed. On `false` the 403 has already been sent.
+ * @complexity O(1).
+ */
+function mayOverwrite(res: Response, overwriteEntityKeys: readonly string[] | null): boolean {
+  if (overwriteEntityKeys === null || overwriteEntityKeys.length === 0) return true;
+  if (getAuthedCredentialKind(res) !== "api_key") return true;
+  const body: CredentialKindForbiddenBody = {
+    error: "'overwriteEntityKeys' can only be sent from a signed-in admin session or a publishing instance",
+    code: "FORBIDDEN",
+    details: { permission: "publish_content.apply", reason: "credential_kind_not_permitted" },
+  };
+  res.status(403).json(body);
+  return false;
 }
 
 function statusFor(err: unknown): { status: number; code: string } {
@@ -134,6 +155,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
         return;
       }
+      if (!mayOverwrite(res, overwriteEntityKeys)) return;
 
       const hooks = buildHooks(bundleId, principal.id, res, overwriteEntityKeys === null ? undefined : new Set(overwriteEntityKeys));
       const result = await plan({
@@ -212,6 +234,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
         return;
       }
+      if (!mayOverwrite(res, overwriteEntityKeys)) return;
 
       // Pre-check mirroring `database/migrate-forward.ts`'s AUD-001 fix: authorize BEFORE the
       // costClass refusal ever runs, so an authenticated-but-unauthorized caller cannot learn this

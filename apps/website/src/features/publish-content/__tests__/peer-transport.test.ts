@@ -504,6 +504,7 @@ test("liveCanOverwrite is false, not undefined, when the probe is skipped for an
 
 test("pushBundleToPeer sends overwriteEntityKeys on /import/plan when given, and omits the field entirely when not", async () => {
   const http = new FakeHttpClient([
+    { match: /\/capabilities$/, json: { entityTypes: ["post"], features: ["overwrite-live"] } },
     { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
     { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
   ]);
@@ -522,9 +523,13 @@ test("pushBundleToPeer sends overwriteEntityKeys on /import/plan when given, and
 });
 
 test("executePeerImport sends overwriteEntityKeys when given, and omits the field entirely when not", async () => {
-  const http = new FakeHttpClient([{ match: /\/import\/execute$/, json: { restorePointId: "rp-1", runId: "run-1", changeSetIds: [] } }]);
+  const http = new FakeHttpClient([
+    { match: /\/capabilities$/, json: { entityTypes: ["post"], features: ["overwrite-live"] } },
+    { match: /\/import\/execute$/, json: { restorePointId: "rp-1", runId: "run-1", changeSetIds: [] } },
+  ]);
   await executePeerImport({ httpClient: http, credential: CREDENTIAL }, { bundleId: "b1", confirmationToken: "tok-1", overwriteEntityKeys: ["post:p1"] });
-  assert.deepEqual(JSON.parse(http.calls[0].body ?? "{}"), {
+  const executeCall = http.calls.find((call) => call.url.includes("/import/execute"));
+  assert.deepEqual(JSON.parse(executeCall?.body ?? "{}"), {
     bundleId: "b1",
     confirmationToken: "tok-1",
     overwriteEntityKeys: ["post:p1"],
@@ -534,4 +539,50 @@ test("executePeerImport sends overwriteEntityKeys when given, and omits the fiel
   await executePeerImport({ httpClient: http2, credential: CREDENTIAL }, { bundleId: "b1", confirmationToken: "tok-1" });
   const parsed = JSON.parse(http2.calls[0].body ?? "{}") as Record<string, unknown>;
   assert.equal("overwriteEntityKeys" in parsed, false);
+});
+
+// An older live ignores a body field it doesn't know, so forwarding ticks to it would publish
+// without the overwrite the operator asked for. Both calls refuse before anything is sent.
+const OLD_LIVE_OVERWRITE_REFUSAL =
+  "https://tovu.example.com is on an older Tovu, so it can't overwrite these yet. Update https://tovu.example.com, then publish again.";
+
+test("pushBundleToPeer refuses overwriteEntityKeys when the peer does not advertise 'overwrite-live', and stages nothing", async () => {
+  for (const capabilities of [{ json: { entityTypes: ["post"] } }, { status: 404 }]) {
+    const http = new FakeHttpClient([
+      { match: /\/capabilities$/, ...capabilities },
+      { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
+      { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
+    ]);
+    await assert.rejects(
+      pushBundleToPeer(pushDeps(http), { bundle: bundle({ entities: [packedEntity()] }), overwriteEntityKeys: ["post:p1"] }),
+      { name: "PublishContentPeerTransportError", code: "PEER_CANNOT_OVERWRITE", message: OLD_LIVE_OVERWRITE_REFUSAL }
+    );
+    assert.deepEqual(
+      http.calls.map((call) => new URL(call.url).pathname.split("/").pop()),
+      ["capabilities"],
+      "nothing may be staged or planned once the refusal is known"
+    );
+  }
+});
+
+test("pushBundleToPeer with an empty overwriteEntityKeys list is not a request to overwrite, so an older peer is fine", async () => {
+  const http = new FakeHttpClient([
+    { match: /\/capabilities$/, json: { entityTypes: ["post"] } },
+    { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
+    { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
+  ]);
+  const result = await pushBundleToPeer(pushDeps(http), { bundle: bundle({ entities: [packedEntity()] }), overwriteEntityKeys: [] });
+  assert.equal(result.liveCanOverwrite, false);
+});
+
+test("executePeerImport refuses overwriteEntityKeys when the peer does not advertise 'overwrite-live', and never calls execute", async () => {
+  const http = new FakeHttpClient([
+    { match: /\/capabilities$/, status: 404 },
+    { match: /\/import\/execute$/, json: { restorePointId: "rp-1", runId: "run-1", changeSetIds: [] } },
+  ]);
+  await assert.rejects(
+    executePeerImport({ httpClient: http, credential: CREDENTIAL }, { bundleId: "b1", confirmationToken: "tok-1", overwriteEntityKeys: ["post:p1"] }),
+    { name: "PublishContentPeerTransportError", code: "PEER_CANNOT_OVERWRITE", message: OLD_LIVE_OVERWRITE_REFUSAL }
+  );
+  assert.equal(http.calls.some((call) => call.url.includes("/import/execute")), false);
 });

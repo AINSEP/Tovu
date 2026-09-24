@@ -64,6 +64,8 @@ function buildApp(
   app.use(express.json());
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.locals.principal = { id: "test-principal" };
+    // A signed-in admin, as `requireAdminSession` records it — overwrite ticks require one.
+    res.locals.authCredentialKind = "session";
     next();
   });
   registerPublishContentPeerRoutes(app, deps);
@@ -347,13 +349,13 @@ test("push/execute refuses a malformed overwriteEntityKeys with a 400 code, befo
 });
 
 test("push/plan echoes overwriteEntityKeys back exactly as sent, and forwards the same keys to the peer's own /import/plan", async (t) => {
-  // No `/capabilities` route stubbed: this test's fixture app registers no publish-content
-  // contributors (`buildApp` never imports the manifest), so the exported bundle is always empty
-  // and `pushBundleToPeer` skips the probe — `liveCanOverwrite` is covered against a REAL probe
-  // response at the feature level (`peer-transport.test.ts`); this test's job is only the route's
-  // own read-forward-echo wiring for `overwriteEntityKeys`.
+  // Ticks make `pushBundleToPeer` probe even this fixture's empty bundle, and refuse a peer that
+  // doesn't advertise "overwrite-live" (`peer-transport.test.ts` covers that refusal).
   const httpClient: HttpClientPort = {
     send: async (request) => {
+      if (request.url.includes("/capabilities")) {
+        return { status: 200, headers: {}, bodyText: JSON.stringify({ entityTypes: ["post"], features: ["overwrite-live"] }) };
+      }
       if (request.url.includes("/bundles")) {
         return { status: 201, headers: {}, bodyText: JSON.stringify({ bundleId: "remote-bundle-1" }) };
       }
@@ -390,7 +392,7 @@ test("push/plan echoes overwriteEntityKeys back exactly as sent, and forwards th
   assert.equal(res.status, 200, raw);
   const body = JSON.parse(raw) as { overwriteEntityKeys?: string[]; liveCanOverwrite?: boolean; overwriteEntityKeysSeenByPeer?: string[] | null };
   assert.deepEqual(body.overwriteEntityKeys, ["post:p1"], "push/plan must echo back the ticks it was given");
-  assert.equal(body.liveCanOverwrite, false, "an empty bundle in this fixture never reaches the probe (see the comment above)");
+  assert.equal(body.liveCanOverwrite, true);
   assert.deepEqual(body.overwriteEntityKeysSeenByPeer, ["post:p1"], "the peer's own /import/plan must have received the same keys");
 });
 
@@ -434,6 +436,9 @@ test("push/execute forwards overwriteEntityKeys to the peer's own /import/execut
   let executeBody: Record<string, unknown> | undefined;
   const httpClient: HttpClientPort = {
     send: async (request) => {
+      if (request.url.includes("/capabilities")) {
+        return { status: 200, headers: {}, bodyText: JSON.stringify({ entityTypes: ["post"], features: ["overwrite-live"] }) };
+      }
       if (request.url.includes("/import/execute")) {
         executeBody = JSON.parse(String(request.body ?? "{}")) as Record<string, unknown>;
         return { status: 200, headers: {}, bodyText: JSON.stringify({ restorePointId: "rp-1", runId: "run-1", changeSetIds: [] }) };

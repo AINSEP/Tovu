@@ -1,3 +1,4 @@
+import type { Response } from "express";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { stageBundle } from "#src/features/publish-content/bundle-staging";
@@ -20,7 +21,7 @@ import {
 } from "#src/features/publish-content/peers";
 import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 
 import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "./deps.js";
 
@@ -160,6 +161,24 @@ function readOverwriteEntityKeys(body: unknown): readonly string[] | null | type
   return raw.overwriteEntityKeys;
 }
 
+/**
+ * publish-overwrite-live-plan §7: "Overwrite on live" ticks come only from a person's click. On
+ * this relay that means a signed-in admin session; an API key (a script, or a model holding one) is
+ * refused. The destination can't tell the difference — it only ever sees this instance's
+ * publishing credential — so this is the one place the rule can hold for a push. Empty ticks ask
+ * for nothing and pass.
+ *
+ * @returns `true` when the request may proceed. On `false` the 403 has already been sent.
+ * @complexity O(1).
+ */
+function mayOverwrite(res: Response, overwriteEntityKeys: readonly string[] | null): boolean {
+  if (overwriteEntityKeys === null || overwriteEntityKeys.length === 0) return true;
+  return rejectUnlessSessionCredential(res, {
+    message: "'overwriteEntityKeys' can only be sent from a signed-in admin session",
+    permission: "publish_content.apply",
+  });
+}
+
 export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegistrar = (app, deps) => {
   const base = "/api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId";
 
@@ -195,6 +214,7 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
         return;
       }
+      if (!mayOverwrite(res, overwriteEntityKeys)) return;
 
       const peer = await openPeer(deps, String(req.params.peerId ?? ""));
       const workspace = await deps.workspaceRepo.findById(deps.workspaceId);
@@ -297,6 +317,7 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
         return;
       }
+      if (!mayOverwrite(res, overwriteEntityKeys)) return;
 
       const peer = await openPeer(deps, String(req.params.peerId ?? ""));
       res.json(
