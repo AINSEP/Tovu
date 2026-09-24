@@ -65,7 +65,9 @@ const PAGE_HTML_CONTRACT =
   "here can upload, do not invent a placeholder and do not silently drop it — say exactly which files " +
   "still need to be added as media or copied by hand, by name.\n" +
   "- EMBEDS: any tag can carry `data-embed-config='{...}'` — single-quoted, so a literal apostrophe " +
-  "inside a JSON string value must be written `&#39;`, never `'`, or it ends the attribute early. " +
+  "inside a JSON string value must be written as the JSON escape `\\u0027`, never a literal `'` (which " +
+  "ends the attribute early) and never the HTML entity `&#39;` (JSON.parse leaves that as six literal " +
+  "characters, not an apostrophe). " +
   "`{\"type\":\"collection\",\"id\":\"<content-type-key>\"}` lists that collection's published entries: " +
   "optional `where` (field/value pairs, equality only), `sort` (`newest|oldest|updated|title|<field>|" +
   "-<field>`, default `newest`), `limit` (default 6, max 24), `layout` (`cards`|`list`, default " +
