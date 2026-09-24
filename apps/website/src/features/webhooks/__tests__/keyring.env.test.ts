@@ -638,6 +638,46 @@ test("sources: exhausting every source throws, and never auto-generates a file �
   });
 });
 
+test("sources: a blank env var is treated as ABSENT, not present-but-invalid — falls through to the next source", async () => {
+  const envVarName = "TOVU_TEST_SOURCES_BLANK_ENV";
+  await withTempDir(async (dir) => {
+    const fallbackFile = join(dir, "fallback.hex");
+    writeFileSync(fallbackFile, "44".repeat(32), { mode: 0o600 });
+    process.env[envVarName] = "";
+    try {
+      const sources: SiteKeySource[] = [
+        { kind: "env", envVarName },
+        { kind: "legacy-shared-file", path: fallbackFile },
+      ];
+      const keyring = new EnvOrFileKeyring({ sources });
+      const secret = await keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" });
+      assert.equal(secret.length, 32);
+    } finally {
+      delete process.env[envVarName];
+    }
+  });
+});
+
+test("sources: a whitespace-only env var is also treated as ABSENT", async () => {
+  const envVarName = "TOVU_TEST_SOURCES_WHITESPACE_ENV";
+  await withTempDir(async (dir) => {
+    const fallbackFile = join(dir, "fallback.hex");
+    writeFileSync(fallbackFile, "55".repeat(32), { mode: 0o600 });
+    process.env[envVarName] = "   ";
+    try {
+      const sources: SiteKeySource[] = [
+        { kind: "env", envVarName },
+        { kind: "legacy-shared-file", path: fallbackFile },
+      ];
+      const keyring = new EnvOrFileKeyring({ sources });
+      const secret = await keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" });
+      assert.equal(secret.length, 32);
+    } finally {
+      delete process.env[envVarName];
+    }
+  });
+});
+
 test("a key longer than 32 bytes is still accepted — the floor is a minimum, not an exact length", async () => {
   const envVarName = "TOVU_TEST_LONG_ENV_KEY";
   process.env[envVarName] = "ef".repeat(64);

@@ -17,7 +17,7 @@ import { basename, dirname, join } from "node:path";
 import Database from "better-sqlite3";
 
 import { fingerprintRootKeyHex, parseRootKeyHex, type RootKeyRejection } from "./keyring.env.js";
-import { resolveSiteKeyId, siteKeySources, type SiteKeySource } from "./site-key-sources.js";
+import { readSiteKeySourceMaterial, resolveSiteKeyId, siteKeySources, type SiteKeySource } from "./site-key-sources.js";
 import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
 import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
 
@@ -276,7 +276,7 @@ export function ensureSiteKey(input: EnsureSiteKeyInput): EnsureSiteKeyResult {
   const perSiteFilePath = perSiteSource.path;
   const otherSources = sources.filter((source) => source.kind !== "per-site-file");
 
-  const perSiteRaw = readSourceRaw(perSiteSource, env);
+  const perSiteRaw = readSiteKeySourceMaterial(perSiteSource, env);
   const perSiteParsed = perSiteRaw === undefined ? undefined : parseRootKeyHex(perSiteRaw);
 
   const otherRaw = findFirstPresentMaterial(otherSources, env);
@@ -361,20 +361,12 @@ function materialCheckOf(parsed: ReturnType<typeof parseRootKeyHex> | undefined)
   return parsed.ok ? { kind: "valid" } : { kind: "invalid" };
 }
 
-/** One {@link SiteKeySource}'s raw material, or `undefined` if it has none — never validates. */
-function readSourceRaw(source: SiteKeySource, env: NodeJS.ProcessEnv): string | undefined {
-  if (source.kind === "env") {
-    return source.envVarName === undefined ? undefined : env[source.envVarName];
-  }
-  return source.path !== undefined && existsSync(source.path) ? readFileSync(source.path, "utf8") : undefined;
-}
-
 /** The first source in `sources` that has ANY material — present-but-invalid still counts and
  *  stops the scan (site-key plan §A.2: adopting silently past a broken source would still be
  *  wrong, the same reasoning `keyring.env.ts`'s own env-then-file resolution already follows). */
 function findFirstPresentMaterial(sources: readonly SiteKeySource[], env: NodeJS.ProcessEnv): string | undefined {
   for (const source of sources) {
-    const raw = readSourceRaw(source, env);
+    const raw = readSiteKeySourceMaterial(source, env);
     if (raw !== undefined) return raw;
   }
   return undefined;

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { DEFAULT_ROOT_KEY_ENV_VAR_NAME } from "./keyring.env.js";
@@ -158,4 +158,35 @@ export function resolveSiteKeyId(input: ResolveSiteKeyIdInput): string | undefin
 export function siteKeyFilePathFrom(sources: readonly SiteKeySource[], fallback: string): string {
   const perSite = sources.find((source) => source.kind === "per-site-file");
   return perSite?.path ?? fallback;
+}
+
+/**
+ * One {@link SiteKeySource}'s raw material from `env`/the filesystem — `undefined` when that source
+ * has none. The ONE place both `keyring.env.ts`'s `EnvOrFileKeyring.resolveRootKeyFromSources` and
+ * `site-key-ensure.ts`'s `ensureSiteKey` read a source's material, so the "a blank env var counts
+ * as unset" rule below can never drift between the two (it did, briefly — A3a found it duplicated
+ * and inconsistent, each side reading the env case slightly differently).
+ *
+ * A env-kind source whose var IS set but blank or whitespace-only is treated as ABSENT, not
+ * present-but-invalid: `development/scripts/start.mjs`'s own `clearBlankRootKeyEnv` exists for the
+ * exact same reason — a spawned child (the desktop app's own boot path) can pass a blank value
+ * through, and an operator's shell profile can just as easily `export TOVU_SITE_KEY=` with nothing
+ * after it. Either way the var must fall through to the next source exactly as if it had never been
+ * set, not be reported as a broken/invalid key. A file-kind source's content is NOT trimmed or
+ * blank-checked here — a real file that exists and is empty is a genuinely broken on-disk state
+ * ({@link parseRootKeyHex}'s own `"empty"` rejection), distinct from an env var nobody set a value
+ * for.
+ *
+ * @complexity O(1) env read, or one `existsSync` plus a file read for a file-kind source.
+ */
+export function readSiteKeySourceMaterial(
+  source: SiteKeySource,
+  env: Record<string, string | undefined>
+): string | undefined {
+  if (source.kind === "env") {
+    if (source.envVarName === undefined) return undefined;
+    const raw = env[source.envVarName];
+    return raw === undefined || raw.trim().length === 0 ? undefined : raw;
+  }
+  return source.path !== undefined && existsSync(source.path) ? readFileSync(source.path, "utf8") : undefined;
 }

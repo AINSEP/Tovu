@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
 import type { KeyringPort } from "./ports.js";
-import type { SiteKeySource } from "./site-key-sources.js";
+import { readSiteKeySourceMaterial, type SiteKeySource } from "./site-key-sources.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 
 /**
@@ -242,7 +242,7 @@ export class EnvOrFileKeyring implements KeyringPort {
    */
   private resolveRootKeyFromSources(sources: readonly SiteKeySource[]): Buffer {
     for (const source of sources) {
-      const raw = readSiteKeySourceMaterial(source);
+      const raw = readSiteKeySourceMaterial(source, process.env);
       if (raw === undefined) continue;
       const parsed = parseRootKeyHex(raw);
       if (parsed.ok) return Buffer.from(parsed.hex, "hex");
@@ -295,17 +295,6 @@ export class EnvOrFileKeyring implements KeyringPort {
       }),
     });
   }
-}
-
-/** {@link EnvOrFileKeyring.resolveRootKeyFromSources}'s raw read for one {@link SiteKeySource} —
- *  `undefined` when that source has no material at all (unset env var, or a file that does not
- *  exist), never validated here. Module-level (not a method) because it needs no instance state:
- *  a `SiteKeySource` already carries everything it takes to read it. */
-function readSiteKeySourceMaterial(source: SiteKeySource): string | undefined {
-  if (source.kind === "env") {
-    return source.envVarName === undefined ? undefined : process.env[source.envVarName];
-  }
-  return source.path !== undefined && existsSync(source.path) ? readFileSync(source.path, "utf8") : undefined;
 }
 
 /** A short, human-readable name for a {@link SiteKeySource} — error messages and the "none of the

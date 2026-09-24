@@ -173,6 +173,29 @@ test("ensureSiteKey: per-site absent, env var present but malformed → 'invalid
   assert.equal(existsSync(perSiteFilePathIn(home, "site-1")), false);
 });
 
+test("ensureSiteKey: env var present but blank → treated as ABSENT, not invalid — falls through to mint when nothing else exists", () => {
+  const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: "" };
+
+  const result = ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home });
+
+  assert.equal(result.action, "mint");
+  const perSiteFilePath = perSiteFilePathIn(home, "site-1");
+  assert.match(readFileSync(perSiteFilePath, "utf8"), /^[0-9a-f]{64}$/);
+});
+
+test("ensureSiteKey: env var present but whitespace-only, legacy shared file active → 'adopt' from the file — blank env is not treated as invalid", () => {
+  const hex = validHex();
+  const legacySharedFilePath = path.join(home, ".tovu", "integrations-root-key.hex");
+  mkdirSync(path.dirname(legacySharedFilePath), { recursive: true });
+  writeFileSync(legacySharedFilePath, hex, { mode: 0o600 });
+  const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: "   " };
+
+  const result = ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home });
+
+  assert.equal(result.action, "adopt");
+  assert.equal(result.fingerprint, fingerprintRootKeyHex(hex));
+});
+
 test("ensureSiteKey: nothing anywhere, this site's content.db holds a sealed row → 'refuse' — no file created", () => {
   const contentDbPath = path.join(siteDir, "content.db");
   buildSealedCiphertextDb(contentDbPath);
