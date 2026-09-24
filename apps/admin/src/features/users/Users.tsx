@@ -138,7 +138,6 @@ function NewUserForm({ username, setUsername, email, setEmail, password, setPass
       <button
         type="submit"
         disabled={saving}
-        {...agentHandle("users-new-submit", { role: "button", label: "Create this operator account" })}
       >
         {saving ? t("Creating…") : t("Create user")}
       </button>
@@ -231,7 +230,6 @@ function GrantSelect({ principalId, label, placeholder, submitLabel, grant, savi
           type="button"
           disabled={!grant.pendingId || saving}
           onClick={() => grant.submit(principalId)}
-          {...agentHandle(`${agentBase}-submit`, { role: "button", label: `${submitLabel} the selected option to this user` })}
         >
           {saving ? t("Saving…") : submitLabel}
         </button>
@@ -573,9 +571,6 @@ interface RevealablePasswordFieldProps {
   onChange: (value: string) => void;
   visible: boolean;
   onToggleVisible: () => void;
-  /** Distinct handle base — `UserResetPasswordDialog` renders this twice (new password, confirm),
-   *  so a fixed name would collide, same reasoning as `GrantSelect.agentBase` above. */
-  agentBase: string;
   t: (key: string) => string;
 }
 
@@ -593,8 +588,11 @@ interface RevealablePasswordFieldProps {
  *
  *  The input's inline `flex`/`minWidth` override neutralizes `styles.css`'s `.field input { width:
  *  100% }` fighting the toggle button for room inside the `.editor-actions` row below — an inline
- *  style wins on specificity without adding a new class to a stylesheet this feature doesn't own. */
-function RevealablePasswordField({ id, label, value, onChange, visible, onToggleVisible, agentBase, t }: RevealablePasswordFieldProps) {
+ *  style wins on specificity without adding a new class to a stylesheet this feature doesn't own.
+ *
+ *  Human-only: neither the input nor its toggle carries an agent handle, so the assistant cannot
+ *  set another operator's password (which also signs them out everywhere). */
+function RevealablePasswordField({ id, label, value, onChange, visible, onToggleVisible, t }: RevealablePasswordFieldProps) {
   const toggleLabel = visible ? t("Hide password") : t("Show password");
   return (
     <div className="field">
@@ -608,10 +606,6 @@ function RevealablePasswordField({ id, label, value, onChange, visible, onToggle
           value={value}
           onChange={(e) => onChange(e.target.value)}
           style={{ flex: "1 1 auto", minWidth: 0 }}
-          {...agentHandle(agentBase, {
-            role: "field",
-            label: `${label} — a credential field, so only a human can fill it`,
-          })}
         />
         <button
           type="button"
@@ -620,7 +614,6 @@ function RevealablePasswordField({ id, label, value, onChange, visible, onToggle
           aria-pressed={visible}
           title={toggleLabel}
           onClick={onToggleVisible}
-          {...agentHandle(`${agentBase}-reveal`, { role: "button", label: `Show or hide the ${label.toLowerCase()} field's characters` })}
         >
           <span style={{ display: "inline-flex", width: 16, height: 16 }}>{visible ? <EyeOffIcon /> : <EyeIcon />}</span>
         </button>
@@ -701,7 +694,6 @@ function UserResetPasswordDialog({
               onChange={setNewPassword}
               visible={fields.showNewPassword}
               onToggleVisible={fields.toggleShowNewPassword}
-              agentBase="users-reset-password"
               t={t}
             />
             <RevealablePasswordField
@@ -711,7 +703,6 @@ function UserResetPasswordDialog({
               onChange={fields.setConfirmPassword}
               visible={fields.showConfirmPassword}
               onToggleVisible={fields.toggleShowConfirmPassword}
-              agentBase="users-reset-password-confirm"
               t={t}
             />
             {/* One shared slot, fixed precedence: a live mismatch always wins over a stale

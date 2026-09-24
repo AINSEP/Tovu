@@ -41,8 +41,9 @@ export interface AgentPluginDisableConfirmDialogProps {
   name: string;
   /** Which control opened this dialog — see this file's own header for what each reads and why. */
   variant: "disable" | "remove";
-  /** This plugin row's own agent-handle base (e.g. `agent-plugin-row-site-compliance`) — Confirm/
-   *  Cancel publish as `<rowHandle>-<variant>-confirm` / `<rowHandle>-<variant>-cancel`, nesting
+  /** This plugin row's own agent-handle base (e.g. `agent-plugin-row-site-compliance`) — Cancel
+   *  publishes as `<rowHandle>-<variant>-cancel` (Confirm has no handle: turning a plugin off or
+   *  uninstalling it is a human-only step), nesting
    *  under the row's own control (`<rowHandle>-enabled` or `<rowHandle>-remove`) the same way
    *  `ExternalMcpRemoveConfirmDialog` nests its own controls under its card's handle. */
   agentHandleBase: string;
@@ -99,10 +100,6 @@ export function AgentPluginDisableConfirmDialog({
             type="button"
             className="btn-danger"
             onClick={onConfirm}
-            {...agentHandle(`${agentHandleBase}-${variant}-confirm`, {
-              role: "button",
-              label: variant === "remove" ? `Turn off ${name}` : `Disable ${name} for this site`,
-            })}
           >
             {t(confirmWord)}
           </button>

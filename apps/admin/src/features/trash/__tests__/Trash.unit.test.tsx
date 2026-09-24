@@ -151,6 +151,10 @@ describe("Trash screen", () => {
 
     expect(screen.getByText("Delete permanently?")).toBeTruthy();
     expect(screen.getByText("1 item(s) will be deleted permanently. This cannot be undone.")).toBeTruthy();
+    // Human-only: the agent may open the modal (`trash-purge`) and cancel it, never confirm it.
+    expect(document.querySelector('[data-agent-element="trash-purge-confirm-confirm"]')).toBeNull();
+    expect(document.querySelector('[data-agent-element="trash-purge-confirm-cancel"]')).not.toBeNull();
+    expect(document.querySelector('[data-agent-element="trash-purge"]')).not.toBeNull();
   });
 
   it("the Refresh button calls controller.refresh on click, is never gated by selection, and disables while refreshing", async () => {

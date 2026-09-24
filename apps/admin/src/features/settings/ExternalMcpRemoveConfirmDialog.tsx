@@ -29,8 +29,9 @@ export interface ExternalMcpRemoveConfirmDialogProps {
   /** Whether this connection's credential is an OAuth-sealed secret — changes the body copy
    *  (see `buildExternalMcpRemoveConfirmCopy`). */
   isOAuth: boolean;
-  /** This card's own agent-handle base (e.g. `mcp-server-higgsfield`) — Confirm/Cancel publish
-   *  as `<cardHandle>-remove-confirm` / `<cardHandle>-remove-cancel`, nesting under the card's
+  /** This card's own agent-handle base (e.g. `mcp-server-higgsfield`) — Cancel publishes as
+   *  `<cardHandle>-remove-cancel` (Confirm has no handle: a permanent remove is a human-only
+   *  step), nesting under the card's
    *  already-published `<cardHandle>-remove` the same way `-field-<key>-reveal` nests under
    *  `-field-<key>` in `@jini-ai/ui`'s own `agent-handles.ts` scheme. */
   cardHandle: string;
@@ -87,10 +88,6 @@ export function ExternalMcpRemoveConfirmDialog({
             type="button"
             className="btn-danger"
             onClick={onConfirm}
-            {...agentHandle(`${cardHandle}-remove-confirm`, {
-              role: "button",
-              label: `Permanently remove ${name} — this cannot be undone from this screen`,
-            })}
           >
             {t("Remove")}
           </button>

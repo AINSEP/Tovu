@@ -5,6 +5,7 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { UserManagePanel, Users, type UserManageController } from "../Users";
 import type { UsersController } from "../hooks/use-users.hooks";
+import type { AdminIdentityUser } from "@/lib/api";
 
 /**
  * @file Regression test for this batch's agent-control tagging on `Users.tsx` — same shape as
@@ -122,7 +123,8 @@ describe("driving the new-user form through page.* verbs", () => {
 
     expect(controller.setUsername).toHaveBeenCalledWith("newop");
     expect(controller.setEmail).toHaveBeenCalledWith("newop@example.com");
-    expect(await handlesOf(driver)).toContain("users-new-submit");
+    // Creating an operator account is a human-only step: the agent may prefill, never submit.
+    expect(await handlesOf(driver)).not.toContain("users-new-submit");
   });
 
   it("refuses to fill the password field — it is a credential field", async () => {
@@ -199,7 +201,7 @@ describe("UserManagePanel — the same shared GrantSelect rendered twice", () =>
     );
   }
 
-  it("page.select_option + page.click on the ROLE handle submits roleGrant, never policyGrant", async () => {
+  it("page.select_option picks a role, but the agent can never submit a role or policy grant", async () => {
     // `pendingId: "r-1"` up front, not left for `page.select_option` to produce: `setPendingId` is
     // a spy here, not real `useState` — calling it records the call but does not change the static
     // `pendingId` prop this render already has, and `grant.submit`'s button is disabled while
@@ -218,15 +220,18 @@ describe("UserManagePanel — the same shared GrantSelect rendered twice", () =>
 
     const handles = await handlesOf(driver);
     expect(handles).toContain("user-manage-role-select");
-    expect(handles).toContain("user-manage-role-submit");
+    expect(handles).not.toContain("user-manage-role-submit");
     expect(handles).toContain("user-manage-policy-select");
-    expect(handles).toContain("user-manage-policy-submit");
+    expect(handles).not.toContain("user-manage-policy-submit");
 
     await executePageCapability(driver, "page.select_option", { handle: "user-manage-role-select", option: "Editor" });
     expect(manage.roleGrant.setPendingId).toHaveBeenCalledWith("r-1");
 
-    await executePageCapability(driver, "page.click", { handle: "user-manage-role-submit" });
-    expect(manage.roleGrant.submit).toHaveBeenCalled();
+    // Granting a role or policy changes access control, so it is a human-only step.
+    await expect(
+      executePageCapability(driver, "page.click", { handle: "user-manage-role-submit" }),
+    ).rejects.toThrow('no element published as "user-manage-role-submit" on this page');
+    expect(manage.roleGrant.submit).not.toHaveBeenCalled();
     expect(manage.policyGrant.submit).not.toHaveBeenCalled();
   });
 
@@ -237,5 +242,41 @@ describe("UserManagePanel — the same shared GrantSelect rendered twice", () =>
 
     await executePageCapability(driver, "page.fill", { handle: "user-manage-email", text: "new@example.com" });
     expect(manage.email.set).toHaveBeenCalledWith("new@example.com");
+  });
+});
+
+describe("account-takeover controls are human-only", () => {
+  const bob: AdminIdentityUser = {
+    principalId: "u-bob",
+    workspaceId: "ws-1",
+    username: "bob",
+    status: "active",
+    createdAt: "2026-09-01T00:00:00.000Z",
+    roleIds: [],
+    policyIds: [],
+  };
+
+  it("publishes neither the reset-password fields, their show toggles, nor the reset confirm", async () => {
+    const { container } = renderUsers({ resetPasswordFor: bob });
+    const driver = createDomPageDriver({ root: container, pages: {} });
+    const handles = await handlesOf(driver);
+    expect(handles).toContain("users-reset-password-cancel");
+    for (const handle of [
+      "users-reset-password",
+      "users-reset-password-reveal",
+      "users-reset-password-confirm",
+      "users-reset-password-confirm-reveal",
+    ]) {
+      expect(handles).not.toContain(handle);
+    }
+    expect(container.querySelector("#users-reset-password-input")).not.toHaveAttribute("data-agent-element");
+    expect(container.querySelector("#users-reset-password-confirm-input")).not.toHaveAttribute("data-agent-element");
+  });
+
+  it("publishes the delete dialog's Cancel, never its Confirm", async () => {
+    const { container } = renderUsers({ confirmingDelete: bob });
+    const handles = await handlesOf(createDomPageDriver({ root: container, pages: {} }));
+    expect(handles).toContain("users-delete-cancel");
+    expect(handles).not.toContain("users-delete-confirm");
   });
 });

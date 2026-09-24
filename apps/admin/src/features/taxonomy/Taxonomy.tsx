@@ -338,16 +338,13 @@ function MergeConfirmedStep({ busy, doExecute, t }: MergeConfirmedStepProps) {
   return (
     <div>
       <p>{t("Confirmed. Executing merges the terms now — this cannot be undone.")}</p>
-      {/* Genuinely irreversible, per the copy right above — `.btn-danger`, unlike Plan/Confirm. */}
+      {/* Genuinely irreversible, per the copy right above — `.btn-danger`, unlike Plan/Confirm.
+          Human-only: no agent handle, so the assistant cannot finish an irreversible merge. */}
       <button
         type="button"
         className="btn-danger"
         onClick={doExecute}
         disabled={busy}
-        {...agentHandle("term-merge-execute", {
-          role: "button",
-          label: "Execute the merge now — this cannot be undone",
-        })}
       >
         {busy ? t("Merging…") : t("Execute merge")}
       </button>
