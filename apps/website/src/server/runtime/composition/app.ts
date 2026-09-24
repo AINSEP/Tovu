@@ -1,4 +1,5 @@
 import express from "express";
+import { NO_PUBLISH_CONTENT_SEED_HASH, type PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
 import { randomUUID } from "node:crypto";
 
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
@@ -317,6 +318,10 @@ export interface CreateRouteDepsOptions {
    * directory here is opt-in, for a caller that specifically wants to exercise site-plugin
    * discovery through this in-memory root instead of `server/deps.ts`'s SQLite one. */
   readonly installDir?: string;
+  /** D1 — the seed-version lookup this instance plans and applies imports against. Omitted means
+   *  this hermetic root ships no seed ({@link NO_PUBLISH_CONTENT_SEED_HASH}); a two-instance test
+   *  passes a real `createPublishContentSeedHash()` over a third instance standing in for the seed. */
+  readonly publishContentSeedHash?: PublishContentSeedHashFn;
 }
 
 function createLazyProxy<T extends object>(factory: () => T): T {
@@ -839,6 +844,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // Task 10 — the rule-of-two in-memory peer repo. See `routes/types.ts`'s
   // `publishContentPeerRepo` doc.
   const publishContentPeerRepo = new InMemoryPublishContentPeerRepo();
+  const publishContentSeedHash = options.publishContentSeedHash ?? NO_PUBLISH_CONTENT_SEED_HASH;
   const publishContentApplyPort = createPublishContentApplyPort({
     workspaceId: seededWorkspace.id,
     bundleRepo: publishContentBundleRepo,
@@ -862,6 +868,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     }),
     clock,
     idGen,
+    getSeedHash: publishContentSeedHash,
   });
 
   const routeDeps: NewsletterRouteDeps = {
@@ -1139,6 +1146,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // Task 8 — the real apply loop (`apply-loop.ts`). See `routes/types.ts`'s
     // `publishContentApplyPort` doc.
     publishContentApplyPort,
+    publishContentSeedHash,
     // Task 8 — the apply loop's audit trail. See `routes/types.ts`'s `publishContentRunRepo` doc.
     publishContentRunRepo,
     // Task 10 — peers + the guarded outbound client that dials them. The client is built from

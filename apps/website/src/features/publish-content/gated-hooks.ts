@@ -7,6 +7,7 @@ import { loadActiveBundle } from "./bundle-staging.js";
 import type { PublishContentBundleRepoPort } from "./bundle-staging.js";
 import type { PublishContentBaselineRepoPort } from "./baseline-repo.js";
 import { planImport } from "./planner.js";
+import type { PublishContentSeedHashFn } from "./seed-hash.js";
 import type { PlanImportDeps, PublishContentBundle, PublishContentReport } from "./planner.js";
 import type { PublishContentDeps, PackedEntity } from "./type-registry.js";
 
@@ -151,6 +152,10 @@ export interface BuildPublishContentImportHooksInput {
   dbOps: PublishContentDbOpsPort;
   restorePointsRepo: PublishContentRestorePointSavePort;
   applyPort: PublishContentApplyPort;
+  /** D1 — the destination's seed-version lookup (`seed-hash.ts`), consulted by `planImport()` only
+   *  for a row with no recorded baseline. Omitted means "no seed", the pre-D1 behaviour; the import
+   *  route always passes `RouteDeps.publishContentSeedHash`, which both composition roots bind. */
+  getSeedHash?: PublishContentSeedHashFn;
 }
 
 /**
@@ -206,7 +211,12 @@ export function buildPublishContentImportHooks(
     const hasBlob = async (sha256: string): Promise<boolean> =>
       input.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId: input.workspaceId, sha256 }) });
 
-    return planImport(bundle, { publishContentDeps: input.publishContentDeps, getBaseline, hasBlob });
+    return planImport(bundle, {
+      publishContentDeps: input.publishContentDeps,
+      getBaseline,
+      hasBlob,
+      ...(input.getSeedHash === undefined ? {} : { getSeedHash: input.getSeedHash }),
+    });
   }
 
   return {

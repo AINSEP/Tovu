@@ -61,6 +61,7 @@ export type PublishContentRouteDeps = Pick<
   | "restorePointsRepo"
   | "gatedMutations"
   | "publishContentApplyPort"
+  | "publishContentSeedHash"
   | "publishContentPeerRepo"
   | "publishContentPeerHttpClient"
   | "siteAssistantSecretSealer"

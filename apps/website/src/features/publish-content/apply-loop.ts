@@ -15,6 +15,8 @@ import type {
 import { PublishContentBundleNotFoundError } from "./gated-hooks.js";
 import type { PublishContentApplyPort } from "./gated-hooks.js";
 import { entityKey } from "./planner.js";
+import { NO_PUBLISH_CONTENT_SEED_HASH } from "./seed-hash.js";
+import type { PublishContentSeedHashFn } from "./seed-hash.js";
 import type { PublishContentOutcomeRow, PublishContentReport } from "./planner.js";
 import { buildPublishContentCatalog } from "./type-registry.js";
 import type { PublishContentDeps, PublishContentHandler, PackedEntity } from "./type-registry.js";
@@ -150,6 +152,12 @@ export interface CreatePublishContentApplyPortInput {
   readonly publishContentDeps: PublishContentDeps;
   readonly clock: ClockPort;
   readonly idGen: IdGeneratorPort;
+  /** D1 — the SAME seed-version lookup the plan was built with (`seed-hash.ts`). The apply-time
+   *  re-verification below must accept the seed as a virtual baseline exactly where the planner
+   *  did, or every seed-matched `applied` row is silently downgraded to `conflict` at execute.
+   *  Omitted means "no seed", the pre-D1 behaviour; both composition roots pass
+   *  `RouteDeps.publishContentSeedHash`. */
+  readonly getSeedHash?: PublishContentSeedHashFn;
 }
 
 /** The mutable, per-call working state {@link applyOneRow} needs — grouped into one object so that
@@ -164,6 +172,7 @@ interface ApplyRowContext {
   readonly entityByKey: ReadonlyMap<string, PackedEntity>;
   readonly handlerByType: ReadonlyMap<string, PublishContentHandler>;
   readonly baselineRepo: PublishContentBaselineRepoPort;
+  readonly getSeedHash: PublishContentSeedHashFn;
   readonly clock: ClockPort;
   readonly recordContentApplied: (input: {
     itemKey: string;
@@ -287,7 +296,12 @@ async function applyOneRow(
       entityType: row.entityType,
       entityId: row.entityId,
     });
-    if (!baseline || current.hash !== baseline.hashAtLastSync) {
+    // No recorded baseline: fall back to the seed version, exactly as `planEntity` did (D1). A
+    // real baseline still always wins — the seed is never a second vote once one exists.
+    const agreedHash = baseline
+      ? baseline.hashAtLastSync
+      : await ctx.getSeedHash({ entityType: row.entityType, entityId: row.entityId });
+    if (agreedHash === null || current.hash !== agreedHash) {
       return {
         row: {
           ...row,
@@ -486,6 +500,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         entityByKey,
         handlerByType,
         baselineRepo: input.baselineRepo,
+        getSeedHash: input.getSeedHash ?? NO_PUBLISH_CONTENT_SEED_HASH,
         clock: input.clock,
         recordContentApplied: async ({ itemKey, changeSetId }) => {
           const item = itemByKey.get(itemKey);

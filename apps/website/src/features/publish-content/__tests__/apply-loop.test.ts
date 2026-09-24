@@ -100,7 +100,8 @@ function packedFrom(post: PostRecord): PackedEntity {
  *  consumed from their own counters first. */
 function makeHarness(
   rows: PostRecord[] = [],
-  baselineRepo: PublishContentBaselineRepoPort = new InMemoryPublishContentBaselineRepo()
+  baselineRepo: PublishContentBaselineRepoPort = new InMemoryPublishContentBaselineRepo(),
+  getSeedHash?: (args: { entityType: string; entityId: string }) => Promise<string | null>
 ) {
   resetPublishContentContributorsForTests();
   registerPublishContentContributor(contributeMediaPublish());
@@ -136,6 +137,7 @@ function makeHarness(
     publishContentDeps,
     clock,
     idGen: makeCounterIdGen("run"),
+    ...(getSeedHash === undefined ? {} : { getSeedHash }),
   });
 
   return { postRepo, clock, changeSets, baselineRepo, bundleRepo, runRepo, publishContentDeps, applyPort };
@@ -679,4 +681,58 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
     null,
     "a blocked row must never record a baseline — that would tell the NEXT run we agreed on it"
   );
+});
+
+// ---------------------------------------------------------------------------
+// D1 — the seed version is the apply-time virtual baseline too, not only the plan-time one.
+// ---------------------------------------------------------------------------
+
+/** Plans exactly like {@link plan}, plus the same seed lookup the apply port was built with —
+ *  `gated-hooks.ts#buildReport` passes the one `RouteDeps.publishContentSeedHash` to both. */
+async function planWithSeed(
+  publishContentDeps: PublishContentDeps,
+  getSeedHash: (args: { entityType: string; entityId: string }) => Promise<string | null>,
+  entities: readonly PackedEntity[]
+): Promise<PublishContentReport> {
+  const bundle: PublishContentBundle = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities };
+  return planImport(bundle, { publishContentDeps, getBaseline: async () => null, hasBlob: async () => true, getSeedHash });
+}
+
+test("D1: a row still matching the seed with NO baseline plans 'applied' AND is actually written at apply time", async () => {
+  const seeded = makePost({ id: "page-seeded", title: "Seed title", slug: "seeded", version: 3 });
+  const seedHash = contentHash("post", toPublishableState(seeded));
+  const getSeedHash = async ({ entityId }: { entityType: string; entityId: string }) => (entityId === "page-seeded" ? seedHash : null);
+  const { postRepo, clock, baselineRepo, bundleRepo, publishContentDeps, applyPort } = makeHarness([seeded], undefined, getSeedHash);
+
+  const entities = [packedFrom(makePost({ ...seeded, title: "Owner's new title" }))];
+  const report = await planWithSeed(publishContentDeps, getSeedHash, entities);
+  assert.equal(report.rows[0].outcome, "applied");
+  const bundleId = await stage(bundleRepo, clock, entities);
+
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+
+  assert.equal(result.changeSetIds.length, 1, "the seed-matched row must produce a change set, not a silent apply-time conflict");
+  const landed = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "page-seeded" });
+  assert.equal(landed?.title, "Owner's new title");
+  const baseline = await baselineRepo.findOne({ workspaceId: WORKSPACE_ID, peerPrincipalId: SOURCE_PRINCIPAL_ID, entityType: "post", entityId: "page-seeded" });
+  assert.equal(baseline?.hashAtLastSync, entities[0].contentHash, "a real baseline is recorded, so the seed is never consulted for this row again");
+});
+
+test("D1: a seed-matched row edited on the destination AFTER plan still downgrades to 'conflict' at apply", async () => {
+  const seeded = makePost({ id: "page-seeded", title: "Seed title", slug: "seeded", version: 3 });
+  const seedHash = contentHash("post", toPublishableState(seeded));
+  const getSeedHash = async () => seedHash;
+  const { postRepo, clock, bundleRepo, publishContentDeps, applyPort } = makeHarness([seeded], undefined, getSeedHash);
+
+  const entities = [packedFrom(makePost({ ...seeded, title: "Owner's new title" }))];
+  const report = await planWithSeed(publishContentDeps, getSeedHash, entities);
+  assert.equal(report.rows[0].outcome, "applied");
+  const bundleId = await stage(bundleRepo, clock, entities);
+  await postRepo.save({ ...seeded, title: "Edited on live meanwhile", version: 4 });
+
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+
+  assert.deepEqual(result.changeSetIds, []);
+  const kept = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "page-seeded" });
+  assert.equal(kept?.title, "Edited on live meanwhile");
 });

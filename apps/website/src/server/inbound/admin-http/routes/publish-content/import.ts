@@ -89,6 +89,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       dbOps: deps.dbOps,
       restorePointsRepo: deps.restorePointsRepo,
       applyPort: deps.publishContentApplyPort,
+      getSeedHash: deps.publishContentSeedHash,
     });
   }
 
